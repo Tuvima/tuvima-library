@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Companion
 @using MediaEngine.Contracts.Playback
+@inject IStringLocalizer<SharedStrings> L
 
 @* Manual mode: "I'm at episode 3 / chapter 12". Manual is a first-class way to use the companion, not a fallback, so it works
    for books and audiobooks too. Episodes and chapters are plain 44 px buttons in one scrolling list (nothing is hover-only or
@@ -32,10 +33,10 @@
     }
     else if (SupportsChapterNumber)
     {
-        <div class="companion-picker__stepper" role="group" aria-label="Chapter number">
+        <div class="companion-picker__stepper" role="group" aria-label="@L["CompanionPositionPicker_ChapterNumber"].Value">
             <AppNativeButton Type="button"
                              Class="companion-picker__step"
-                             AriaLabel="Previous chapter"
+                             AriaLabel="@L["Common_PreviousChapter"].Value"
                              Disabled="@(CurrentChapterIndex is null or <= 0)"
                              OnClick="@(() => StepAsync(-1))">
                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Remove" />
@@ -43,12 +44,12 @@
             <span class="companion-picker__number" aria-live="polite">@(CurrentChapterIndex is { } index ? $"Chapter {index + 1}" : "No chapter chosen")</span>
             <AppNativeButton Type="button"
                              Class="companion-picker__step"
-                             AriaLabel="Next chapter"
+                             AriaLabel="@L["Common_NextChapter"].Value"
                              OnClick="@(() => StepAsync(1))">
                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" />
             </AppNativeButton>
         </div>
-        <p class="companion-picker__note">This file has no list of chapters, so set the number you are at.</p>
+        <p class="companion-picker__note">@L["CompanionPositionPicker_ThisFileHasNoList"]</p>
     }
     else
     {

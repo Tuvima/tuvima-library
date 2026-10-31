@@ -81,7 +81,7 @@ public sealed class Wave6HardeningGuardrailTests
                 SearchOption.AllDirectories));
 
         var offenders = componentPaths
-            .Select(path => new { Path = path, Text = File.ReadAllText(path) })
+            .Select(path => new { Path = path, Text = LocalizedSource.ReadAllText(path) })
             .Where(file => file.Text.Contains("DotNetObjectReference", StringComparison.Ordinal)
                 && !DotNetDisposeRegex.IsMatch(file.Text))
             .Select(file => Path.GetRelativePath(RepoRoot, file.Path))
@@ -91,7 +91,7 @@ public sealed class Wave6HardeningGuardrailTests
     }
 
     private static string Read(string relativePath) =>
-        File.ReadAllText(Path.Combine(RepoRoot, relativePath.Replace('/', Path.DirectorySeparatorChar)));
+        LocalizedSource.ReadAllText(Path.Combine(RepoRoot, relativePath.Replace('/', Path.DirectorySeparatorChar)));
 
     private static HashSet<string> ResourceKeys(string fileName)
     {

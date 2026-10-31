@@ -7,6 +7,7 @@
 @inject DeviceContextService Device
 @inject IAppDialogService Dialogs
 @inject IJSRuntime JS
+@inject IStringLocalizer<SharedStrings> L
 
 @* Bulk editing for a list that has no detail page behind it (the songs list, a library table; universal editor spec D14). The list
    hands over the rows it has ticked; this draws the selection bar, the right-hand "Edit N items" panel and, while anything is staged,
@@ -19,10 +20,10 @@
 
     @if (_session.HasPendingChanges)
     {
-        <div class="tl-batch__pending" role="region" aria-label="Unsaved changes">
+        <div class="tl-batch__pending" role="region" aria-label="@L["Common_UnsavedChanges"].Value">
             <span class="tl-batch__count" role="status">@PendingText</span>
             <span class="tl-batch__actions">
-                <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Disabled="@_session.Saving" Class="tl-batch__cancel" OnClick="CancelAsync">Cancel</AppButton>
+                <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Disabled="@_session.Saving" Class="tl-batch__cancel" OnClick="CancelAsync">@L["Search_Cancel"]</AppButton>
                 <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_session.Saving" Class="tl-batch__save"
                            StartIcon="@AppMaterialIcons.Outlined.Check" OnClick="SaveAsync">@SaveLabel</AppButton>
             </span>

@@ -1,7 +1,8 @@
 @namespace MediaEngine.Web.Components.Setup
 @using MediaEngine.Contracts.Setup
+@inject IStringLocalizer<SharedStrings> L
 
-<ol class="setup-stepper" aria-label="Setup steps">
+<ol class="setup-stepper" aria-label="@L["SetupStepper_SetupSteps"].Value">
     @foreach (var step in DisplayKeys)
     {
         var state = StateFor(step);
@@ -14,7 +15,7 @@
                 <small>@Friendly(step)</small>
                 @if (state == "deferred")
                 {
-                    <em>Later</em>
+                    <em>@L["SetupStepper_Later"]</em>
                 }
             </AppNativeButton>
         </li>

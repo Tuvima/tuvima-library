@@ -4,6 +4,7 @@
 @inject UIOrchestratorService Orchestrator
 @inject NavigationManager Navigation
 @inject ILogger<TopNavProfileSwitcher> Logger
+@inject IStringLocalizer<SharedStrings> L
 @* Quick switch inside the account menu. It only uses the profile list the page shell already loaded, so opening it adds no Engine requests.
    A profile with a PIN swaps the list for the number pad; a wrong PIN, a lockout or a refusal is shown here and nothing changes. *@
 @if (Others.Count > 0)
@@ -13,7 +14,7 @@
         <div class="profile-switcher profile-switcher--pin">
             <AppNativeButton Type="button" Class="profile-switcher__back" OnClick="CancelPin" Disabled="@_busy">
                 <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true"><path fill="currentColor" d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" /></svg>
-                <span>Back</span>
+                <span>@L["Common_Back"]</span>
             </AppNativeButton>
             <span class="profile-switcher__who">
                 <span class="profile-switcher__avatar"><ProfileAvatar DisplayName="@pending.DisplayName" ImageUrl="@pending.AvatarImageUrl" Color="@pending.AvatarColor" Icon="@pending.AvatarIcon" /></span>
@@ -24,12 +25,12 @@
             {
                 <p class="profile-switcher__error" role="alert">@_error</p>
             }
-            <AppNativeButton Type="button" Class="profile-switcher__go" Disabled="@(_busy || _pin.Length == 0)" OnClick="SubmitPinAsync">Open profile</AppNativeButton>
+            <AppNativeButton Type="button" Class="profile-switcher__go" Disabled="@(_busy || _pin.Length == 0)" OnClick="SubmitPinAsync">@L["TopNavProfileSwitcher_OpenProfile"]</AppNativeButton>
         </div>
     }
     else
     {
-        <div class="profile-switcher" role="group" aria-label="Switch to another profile">
+        <div class="profile-switcher" role="group" aria-label="@L["TopNavProfileSwitcher_SwitchToAnotherProfile"].Value">
             @foreach (var profile in Others)
             {
                 <AppNativeButton Type="button" Class="profile-switcher__item" role="menuitem" Disabled="@_busy"
@@ -38,7 +39,7 @@
                     <span class="profile-switcher__name">@profile.DisplayName</span>
                     @if (profile.IsRestricted)
                     {
-                        <span class="profile-switcher__tag">Kids</span>
+                        <span class="profile-switcher__tag">@L["Common_Kids"]</span>
                     }
                     @if (profile.HasPin)
                     {

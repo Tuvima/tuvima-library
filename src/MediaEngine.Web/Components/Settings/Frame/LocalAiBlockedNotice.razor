@@ -4,6 +4,7 @@
 @implements IDisposable
 @inject SettingsAttentionState Attention
 @inject DeviceContextService DeviceContext
+@inject IStringLocalizer<SharedStrings> L
 
 @* The permanent notice at the top of every Local AI page. It cannot be dismissed and lasts exactly as long as the
    problem: Local AI is off until the tools and libraries it needs are downloaded. Download starts the same downloads
@@ -16,12 +17,12 @@
     <SettingsNoticeBubble NoticeKey="local-ai-off"
                           Tone="AppUiTone.Error"
                           Icon="@AppMaterialIcons.Outlined.ErrorOutline"
-                          Message="Local AI is switched off until the tools it needs are downloaded."
+                          Message="@L["LocalAiBlockedNotice_LocalAIIsSwitchedOff"].Value"
                           Detail="@Attention.ActionError">
         <Actions>
             @if (Attention.LocalAiBlockers.Any(SettingsAttentionState.IsDownloadableModel))
             {
-                <AppButton Label="Download" StartIcon="@AppMaterialIcons.Outlined.Download" Size="AppControlSize.Compact"
+                <AppButton Label="@L["Models_Download"].Value" StartIcon="@AppMaterialIcons.Outlined.Download" Size="AppControlSize.Compact"
                            Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@Attention.IsWorking"
                            OnClick="@(() => Attention.DownloadLocalAiAsync())" />
             }
@@ -31,7 +32,7 @@
             }
             else
             {
-                <AppButton Label="See tools" Href="@SettingsNav.RouteFor(SettingsSection.Tools)" Size="AppControlSize.Compact"
+                <AppButton Label="@L["LocalAiBlockedNotice_SeeTools"].Value" Href="@SettingsNav.RouteFor(SettingsSection.Tools)" Size="AppControlSize.Compact"
                            Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" />
             }
         </Actions>

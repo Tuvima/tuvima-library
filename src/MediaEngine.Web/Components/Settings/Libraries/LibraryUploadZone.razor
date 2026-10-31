@@ -16,6 +16,7 @@
 @inject IEngineApiClient Api
 @inject ImportUploadState State
 @inject ILogger<LibraryUploadZone> Logger
+@inject IStringLocalizer<SharedStrings> L
 
 @* Adding files to the Import folder by dropping them on a library page or choosing them with Add files (Library setup D44). The files
    are sent from the browser in pieces (wwwroot/js/import-upload.js, through the Dashboard's /import-uploads relay); this component
@@ -36,7 +37,7 @@ else
         {
             @* One amber box per drop: the large files, where to copy them instead, and the choice. Nothing was created, so nothing is sent until Upload anyway. *@
             <AppAlert Tone="AppUiTone.Warning" data-upload-warning="@warning.DropId">
-                <p>Large uploads can fail. For files this size, copying straight into the Import folder on the server is more reliable.</p>
+                <p>@L["LibraryUploadZone_LargeUploadsCanFailFor"]</p>
                 <ul>
                     @foreach (var large in warning.Rows)
                     {
@@ -50,24 +51,24 @@ else
                         <code>@path</code>
                         @if (warning.Paths.Count > 1)
                         {
-                            <AppButton Label="Copy path" ButtonStyle="AppButtonStyle.Outlined" aria-label="@($"Copy {path}")" OnClick="@(() => CopyPathAsync(path))" />
+                            <AppButton Label="@L["LibraryUploadZone_CopyPath"].Value" ButtonStyle="AppButtonStyle.Outlined" aria-label="@($"Copy {path}")" OnClick="@(() => CopyPathAsync(path))" />
                         }
                     </p>
                 }
                 <AppActionBar Align="AppHorizontalAlignment.Start">
-                    <AppButton Label="Upload anyway" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="@(() => UploadAnywayAsync(warning))" />
+                    <AppButton Label="@L["LibraryUploadZone_UploadAnyway"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="@(() => UploadAnywayAsync(warning))" />
                     @if (warning.Paths.Count == 1)
                     {
                         var only = warning.Paths[0];
-                        <AppButton Label="Copy path" ButtonStyle="AppButtonStyle.Outlined" aria-label="@($"Copy {only}")" OnClick="@(() => CopyPathAsync(only))" />
+                        <AppButton Label="@L["LibraryUploadZone_CopyPath"].Value" ButtonStyle="AppButtonStyle.Outlined" aria-label="@($"Copy {only}")" OnClick="@(() => CopyPathAsync(only))" />
                     }
-                    <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" aria-label="Cancel adding the large files" OnClick="@(() => CancelWarningAsync(warning))" />
+                    <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" aria-label="@L["LibraryUploadZone_CancelAddingTheLargeFiles"].Value" OnClick="@(() => CancelWarningAsync(warning))" />
                 </AppActionBar>
             </AppAlert>
         }
         @if (State.Listed.Count > 0)
         {
-            <ul class="upload-list" aria-label="Files being added">
+            <ul class="upload-list" aria-label="@L["LibraryUploadZone_FilesBeingAdded"].Value">
                 @foreach (var row in State.Listed)
                 {
                     <li class="upload-row" data-state="@StateName(row)" data-file="@row.Name">
@@ -75,15 +76,15 @@ else
                         <span class="upload-row__actions">
                             @if (row.State is UploadRowState.Starting or UploadRowState.Uploading)
                             {
-                                <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" aria-label="@($"Cancel adding {row.Name}")" OnClick="@(() => CancelAsync(row))" />
+                                <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" aria-label="@($"Cancel adding {row.Name}")" OnClick="@(() => CancelAsync(row))" />
                             }
                             else
                             {
                                 @if (row.State == UploadRowState.Failed && row.CanRetry)
                                 {
-                                    <AppButton Label="Try again" ButtonStyle="AppButtonStyle.Outlined" aria-label="@($"Try adding {row.Name} again")" OnClick="@(() => RetryAsync(row))" />
+                                    <AppButton Label="@L["Common_TryAgain"].Value" ButtonStyle="AppButtonStyle.Outlined" aria-label="@($"Try adding {row.Name} again")" OnClick="@(() => RetryAsync(row))" />
                                 }
-                                <AppButton Label="Dismiss" ButtonStyle="AppButtonStyle.Text" aria-label="@($"Dismiss {row.Name}")" OnClick="@(() => DismissAsync(row))" />
+                                <AppButton Label="@L["Common_Dismiss"].Value" ButtonStyle="AppButtonStyle.Text" aria-label="@($"Dismiss {row.Name}")" OnClick="@(() => DismissAsync(row))" />
                             }
                         </span>
                         <div class="upload-row__detail">
@@ -116,7 +117,7 @@ else
         @if (_dropEnabled)
         {
             @* A real button, so the drop area has a visible focus ring and the keyboard reaches it: Enter opens the same file chooser as Add files. *@
-            <AppNativeButton Type="button" Class="upload-zone__hint" OnClick="@(_ => ChooseFilesAsync())">Drop files here or choose Add files.</AppNativeButton>
+            <AppNativeButton Type="button" Class="upload-zone__hint" OnClick="@(_ => ChooseFilesAsync())">@L["LibraryUploadZone_DropFilesHereOrChoose"]</AppNativeButton>
         }
 
         <div class="sr-only" aria-live="polite" data-upload-live>@State.LiveText</div>

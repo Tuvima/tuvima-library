@@ -1,9 +1,10 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.LocalAssets
 @inject IEngineApiClient ApiClient
+@inject IStringLocalizer<SharedStrings> L
 
 @* One auto-filing rule: a name, when it applies (conditions), and what it does (actions). Words are matched ignoring letter case; there are no patterns. *@
-<AppDialogShell Title="@(Rule is null ? "New auto-filing rule" : "Edit auto-filing rule")" Subtitle="Rules run in order on new documents. Suggestions are only ever applied by a rule you make." Size="Medium" OnClose="@(() => Dialog.Cancel())">
+<AppDialogShell Title="@(Rule is null ? "New auto-filing rule" : "Edit auto-filing rule")" Subtitle="@L["DocumentRuleEditorDialog_RulesRunInOrderOn"].Value" Size="Medium" OnClose="@(() => Dialog.Cancel())">
     <ChildContent>
         @if (!string.IsNullOrWhiteSpace(_error))
         {
@@ -11,36 +12,36 @@
         }
 
         <div class="view-rule-editor">
-            <AppTextField Label="Rule name" Value="@_name" ValueChanged="@(value => _name = value ?? string.Empty)" MaxLength="120" AutoFocus="true" />
-            <AppSwitchRow Label="Enabled" Description="A rule that is off is kept but does nothing." Value="@_enabled" ValueChanged="@((bool value) => _enabled = value)" />
+            <AppTextField Label="@L["DocumentRuleEditorDialog_RuleName"].Value" Value="@_name" ValueChanged="@(value => _name = value ?? string.Empty)" MaxLength="120" AutoFocus="true" />
+            <AppSwitchRow Label="@L["Schedule_Enabled"].Value" Description="@L["DocumentRuleEditorDialog_ARuleThatIsOff"].Value" Value="@_enabled" ValueChanged="@((bool value) => _enabled = value)" />
 
             @if (Rule is null && CanManageShared)
             {
-                <label class="view-rule-editor__field"><span>Applies to</span>
-                    <AppNativeSelect aria-label="Applies to" Value="@_scope" OnChange="@(args => ScopeChanged(args.Value?.ToString()))">
-                        <option value="@ViewDocumentRuleScopes.Mine">My documents</option>
-                        <option value="@ViewDocumentRuleScopes.Shared">The Shared Library (household)</option>
+                <label class="view-rule-editor__field"><span>@L["DocumentRuleEditorDialog_AppliesTo"]</span>
+                    <AppNativeSelect aria-label="@L["DocumentRuleEditorDialog_AppliesTo"].Value" Value="@_scope" OnChange="@(args => ScopeChanged(args.Value?.ToString()))">
+                        <option value="@ViewDocumentRuleScopes.Mine">@L["DocumentRuleEditorDialog_MyDocuments"]</option>
+                        <option value="@ViewDocumentRuleScopes.Shared">@L["DocumentRuleEditorDialog_TheSharedLibraryHousehold"]</option>
                     </AppNativeSelect>
                 </label>
             }
             else if (_scope == ViewDocumentRuleScopes.Shared)
             {
-                <p class="view-rule-editor__hint">This rule covers the Shared Library of your household.</p>
+                <p class="view-rule-editor__hint">@L["DocumentRuleEditorDialog_ThisRuleCoversTheShared"]</p>
             }
 
-            <section class="view-rule-editor__group" aria-label="Conditions">
-                <h3>When a document matches</h3>
-                <label class="view-rule-editor__field"><span>Match</span>
-                    <AppNativeSelect aria-label="Match mode" Value="@_matchMode" OnChange="@(args => _matchMode = args.Value?.ToString() ?? ViewDocumentRuleMatchModes.All)">
-                        <option value="@ViewDocumentRuleMatchModes.All">All of these</option>
-                        <option value="@ViewDocumentRuleMatchModes.Any">Any of these</option>
+            <section class="view-rule-editor__group" aria-label="@L["DocumentRuleEditorDialog_Conditions"].Value">
+                <h3>@L["DocumentRuleEditorDialog_WhenADocumentMatches"]</h3>
+                <label class="view-rule-editor__field"><span>@L["Common_Match"]</span>
+                    <AppNativeSelect aria-label="@L["DocumentRuleEditorDialog_MatchMode"].Value" Value="@_matchMode" OnChange="@(args => _matchMode = args.Value?.ToString() ?? ViewDocumentRuleMatchModes.All)">
+                        <option value="@ViewDocumentRuleMatchModes.All">@L["DocumentRuleEditorDialog_AllOfThese"]</option>
+                        <option value="@ViewDocumentRuleMatchModes.Any">@L["DocumentRuleEditorDialog_AnyOfThese"]</option>
                     </AppNativeSelect>
                 </label>
                 <ul class="view-rule-editor__list">
                     @foreach (var condition in _conditions)
                     {
                         <li class="view-rule-editor__row" @key="condition">
-                            <AppNativeSelect aria-label="Condition" Value="@condition.Kind" OnChange="@(args => ConditionKindChanged(condition, args.Value?.ToString()))">
+                            <AppNativeSelect aria-label="@L["Common_Condition"].Value" Value="@condition.Kind" OnChange="@(args => ConditionKindChanged(condition, args.Value?.ToString()))">
                                 @foreach (var option in ConditionKinds)
                                 {
                                     <option value="@option.Value">@option.Label</option>
@@ -49,8 +50,8 @@
                             @switch (condition.Kind)
                             {
                                 case ViewDocumentRuleConditionKinds.Source:
-                                    <AppNativeSelect aria-label="Source" Value="@condition.Value" OnChange="@(args => condition.Value = args.Value?.ToString() ?? string.Empty)">
-                                        <option value="">Choose a source</option>
+                                    <AppNativeSelect aria-label="@L["Common_Source"].Value" Value="@condition.Value" OnChange="@(args => condition.Value = args.Value?.ToString() ?? string.Empty)">
+                                        <option value="">@L["DocumentRuleEditorDialog_ChooseASource"]</option>
                                         @foreach (var source in ScopedSources)
                                         {
                                             <option value="@source.Id.ToString("D")">@source.Name</option>
@@ -58,26 +59,26 @@
                                     </AppNativeSelect>
                                     break;
                                 case ViewDocumentRuleConditionKinds.FileKind:
-                                    <AppNativeSelect aria-label="File kind" Value="@condition.Value" OnChange="@(args => condition.Value = args.Value?.ToString() ?? string.Empty)">
-                                        <option value="">Choose a kind</option>
-                                        <option value="@ViewDocumentFileKinds.Pdf">PDF</option>
-                                        <option value="@ViewDocumentFileKinds.Image">Image</option>
-                                        <option value="@ViewDocumentFileKinds.Office">Office document</option>
+                                    <AppNativeSelect aria-label="@L["DocumentRuleEditorDialog_FileKind"].Value" Value="@condition.Value" OnChange="@(args => condition.Value = args.Value?.ToString() ?? string.Empty)">
+                                        <option value="">@L["DocumentRuleEditorDialog_ChooseAKind"]</option>
+                                        <option value="@ViewDocumentFileKinds.Pdf">@L["DocumentRuleEditorDialog_PDF"]</option>
+                                        <option value="@ViewDocumentFileKinds.Image">@L["DocumentRuleEditorDialog_Image"]</option>
+                                        <option value="@ViewDocumentFileKinds.Office">@L["DocumentRuleEditorDialog_OfficeDocument"]</option>
                                     </AppNativeSelect>
                                     break;
                                 default:
-                                    <AppNativeInput Type="text" Class="view-document-details__input" AriaLabel="Text to look for" Placeholder="Word or phrase" Value="@condition.Value" ValueChanged="@(value => condition.Value = value?.ToString() ?? string.Empty)" maxlength="200" />
+                                    <AppNativeInput Type="text" Class="view-document-details__input" AriaLabel="@L["DocumentRuleEditorDialog_TextToLookFor"].Value" Placeholder="@L["DocumentRuleEditorDialog_WordOrPhrase"].Value" Value="@condition.Value" ValueChanged="@(value => condition.Value = value?.ToString() ?? string.Empty)" maxlength="200" />
                                     break;
                             }
-                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="Remove condition" AriaLabel="Remove condition" Disabled="@(_conditions.Count <= 1)" OnClick="@(() => _conditions.Remove(condition))" />
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="@L["Common_RemoveCondition"].Value" AriaLabel="@L["Common_RemoveCondition"].Value" Disabled="@(_conditions.Count <= 1)" OnClick="@(() => _conditions.Remove(condition))" />
                         </li>
                     }
                 </ul>
-                <AppButton Label="Add condition" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Outlined" OnClick="AddCondition" />
+                <AppButton Label="@L["Common_AddCondition"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Outlined" OnClick="AddCondition" />
             </section>
 
-            <section class="view-rule-editor__group" aria-label="Actions">
-                <h3>Then</h3>
+            <section class="view-rule-editor__group" aria-label="@L["ApiKeys_Actions"].Value">
+                <h3>@L["DocumentRuleEditorDialog_Then"]</h3>
                 @if (_unavailableActions > 0)
                 {
                     <p class="view-rule-editor__hint" role="note">@(_unavailableActions == 1 ? "One action points" : $"{_unavailableActions} actions point") at a name you can no longer see. It keeps running until you save; saving this rule removes it.</p>
@@ -86,7 +87,7 @@
                     @foreach (var action in _actions)
                     {
                         <li class="view-rule-editor__row" @key="action">
-                            <AppNativeSelect aria-label="Action" Value="@action.Kind" OnChange="@(args => ActionKindChanged(action, args.Value?.ToString()))">
+                            <AppNativeSelect aria-label="@L["DocumentRuleEditorDialog_Action"].Value" Value="@action.Kind" OnChange="@(args => ActionKindChanged(action, args.Value?.ToString()))">
                                 @foreach (var option in ActionKinds)
                                 {
                                     <option value="@option.Value">@option.Label</option>
@@ -108,22 +109,22 @@
                                     @FieldValueInput(action)
                                     break;
                             }
-                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="Remove action" AriaLabel="Remove action" OnClick="@(() => _actions.Remove(action))" />
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="@L["DocumentRuleEditorDialog_RemoveAction"].Value" AriaLabel="@L["DocumentRuleEditorDialog_RemoveAction"].Value" OnClick="@(() => _actions.Remove(action))" />
                         </li>
                     }
                 </ul>
-                <AppButton Label="Add action" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Outlined" OnClick="AddAction" />
-                <AppSwitchRow Label="File automatically" Description="Mark the document as filed straight away, so it skips the Inbox. Off leaves it in the Inbox with these values filled in." Value="@_filesAutomatically" ValueChanged="@((bool value) => _filesAutomatically = value)" />
+                <AppButton Label="@L["DocumentRuleEditorDialog_AddAction"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Outlined" OnClick="AddAction" />
+                <AppSwitchRow Label="@L["DocumentRuleEditorDialog_FileAutomatically"].Value" Description="@L["DocumentRuleEditorDialog_MarkTheDocumentAsFiled"].Value" Value="@_filesAutomatically" ValueChanged="@((bool value) => _filesAutomatically = value)" />
             </section>
 
-            <section class="view-rule-editor__group" aria-label="Try this rule">
-                <AppButton Label="Test on my documents" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_testing" Loading="@_testing" OnClick="TestAsync" />
+            <section class="view-rule-editor__group" aria-label="@L["DocumentRuleEditorDialog_TryThisRule"].Value">
+                <AppButton Label="@L["DocumentRuleEditorDialog_TestOnMyDocuments"].Value" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_testing" Loading="@_testing" OnClick="TestAsync" />
                 @if (_tested is not null)
                 {
                     <div role="status">
                         @if (_tested.Matches.Count == 0)
                         {
-                            <p>No documents match yet (@_tested.DocumentsChecked checked).</p>
+                            <p>@L["DocumentRuleEditorDialog_NoDocumentsMatchYetChecked", _tested.DocumentsChecked]</p>
                         }
                         else
                         {
@@ -141,8 +142,8 @@
         </div>
     </ChildContent>
     <FooterContent>
-        <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
-        <AppButton Label="Save rule" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_saving" Loading="@_saving" OnClick="SaveAsync" />
+        <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
+        <AppButton Label="@L["DocumentRuleEditorDialog_SaveRule"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_saving" Loading="@_saving" OnClick="SaveAsync" />
     </FooterContent>
 </AppDialogShell>
 

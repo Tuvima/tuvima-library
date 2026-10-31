@@ -2,12 +2,13 @@
 @using MediaEngine.Contracts.System
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
+@inject IStringLocalizer<SharedStrings> L
 
 @* Every recurring Engine task with its state, when it last ran and when it runs next, a link to the setting that controls it, and
    its few most recent runs (settings revamp D22 and D42, flat Settings menu D17). Reads the Engine's durable run records, so the
    history survives a restart. *@
-<AppCard Title="Scheduled tasks"
-         Description="Work the Library does on its own, and when it last ran and runs next. Old logs are cleaned up quietly as part of this."
+<AppCard Title="@L["ScheduledTasksCard_ScheduledTasks"].Value"
+         Description="@L["ScheduledTasksCard_WorkTheLibraryDoesOn"].Value"
          Class="scheduled-tasks">
     @if (_loading)
     {
@@ -15,19 +16,19 @@
     }
     else if (_tasks is null)
     {
-        <AppEmptyState Title="Scheduled tasks are unavailable"
-                       Message="The Library could not get the list from the server. Check that the server is online, then try again."
+        <AppEmptyState Title="@L["ScheduledTasksCard_ScheduledTasksAreUnavailable"].Value"
+                       Message="@L["ScheduledTasksCard_TheLibraryCouldNotGet"].Value"
                        Class="scheduled-tasks__unavailable">
-            <Action><AppButton Label="Try again" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="LoadAsync" /></Action>
+            <Action><AppButton Label="@L["Common_TryAgain"].Value" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="LoadAsync" /></Action>
         </AppEmptyState>
     }
     else if (_tasks.Tasks.Count == 0)
     {
-        <AppEmptyState Title="No scheduled tasks yet" Message="The Engine is still starting. Check again in a moment." />
+        <AppEmptyState Title="@L["ScheduledTasksCard_NoScheduledTasksYet"].Value" Message="@L["ScheduledTasksCard_TheEngineIsStillStarting"].Value" />
     }
     else
     {
-        <ul class="scheduled-tasks__list" aria-label="Scheduled tasks" data-testid="scheduled-tasks">
+        <ul class="scheduled-tasks__list" aria-label="@L["ScheduledTasksCard_ScheduledTasks"].Value" data-testid="scheduled-tasks">
             @foreach (var task in _tasks.Tasks)
             {
                 var status = ScheduledTaskText.Status(task);
@@ -43,7 +44,7 @@
                             @task.Owner.
                             @if (link is { } setting)
                             {
-                                <a class="scheduled-tasks__setting" href="@setting.Href" data-testid="task-setting-link">Change it in @setting.Label</a>
+                                <a class="scheduled-tasks__setting" href="@setting.Href" data-testid="task-setting-link">@L["ScheduledTasksCard_ChangeItIn", setting.Label]</a>
                             }
                             else
                             {
@@ -53,22 +54,22 @@
                     </div>
                     <dl class="scheduled-tasks__facts">
                         <div>
-                            <dt>Runs</dt>
+                            <dt>@L["ScheduledTasksCard_Runs"]</dt>
                             <dd data-testid="task-schedule">@ScheduledTaskText.Schedule(task)</dd>
                         </div>
                         <div>
-                            <dt>Last run</dt>
+                            <dt>@L["ScheduledTasksCard_LastRun"]</dt>
                             <dd class="@(ScheduledTaskText.LastRunNeedsAttention(task) ? "scheduled-tasks__failed" : null)" data-testid="task-last-run">@ScheduledTaskText.LastRun(task, _now)</dd>
                         </div>
                         <div>
-                            <dt>Next run</dt>
+                            <dt>@L["ScheduledTasksCard_NextRun"]</dt>
                             <dd data-testid="task-next-run">@ScheduledTaskText.NextRun(task, _now)</dd>
                         </div>
                     </dl>
                     @if (task.RecentRuns.Count > 1)
                     {
                         <details class="scheduled-tasks__history" data-testid="task-history">
-                            <summary>Recent runs</summary>
+                            <summary>@L["ScheduledTasksCard_RecentRuns"]</summary>
                             <ol class="scheduled-tasks__runs">
                                 @foreach (var run in task.RecentRuns)
                                 {

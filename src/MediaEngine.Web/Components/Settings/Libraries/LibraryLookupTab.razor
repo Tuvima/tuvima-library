@@ -3,27 +3,28 @@
 @using MediaEngine.Web.Components.Shared
 @inject IEngineApiClient Api
 @inject IAppToastService Toast
+@inject IStringLocalizer<SharedStrings> L
 
 @* A library's Lookup tab (Library pages D15), for a kind with lookup settings: today the YouTube kind. YouTube lookup works without a key
    (title, channel and thumbnail); a person's own free key adds the description and upload date. The key is saved with the existing provider
    credentials actions, checked before it is kept, and never shown again: the field only says one is saved. A phone shows the state and the
    steps and changes nothing. *@
-<section class="library-lookup" aria-label="Lookup">
-    <h3 class="library-lookup__heading">YouTube lookup <AppInfoTip Text="Library looks up a video's title, channel and thumbnail from its YouTube ID. A key of your own adds the description and upload date." Label="About YouTube lookup" /></h3>
+<section class="library-lookup" aria-label="@L["Common_Lookup"].Value">
+    <h3 class="library-lookup__heading">@L["LibraryLookupTab_YouTubeLookup"] <AppInfoTip Text="@L["LibraryLookupTab_LibraryLooksUpAVideo"].Value" Label="@L["LibraryLookupTab_AboutYouTubeLookup"].Value" /></h3>
     <AppQuietNote data-testid="lookup-privacy">@LibraryLookupRules.PrivacyLine</AppQuietNote>
 
     @if (_loading)
     {
-        <AppPageState Kind="AppPageStateKind.Loading" Title="Loading lookup" />
+        <AppPageState Kind="AppPageStateKind.Loading" Title="@L["LibraryLookupTab_LoadingLookup"].Value" />
     }
     else if (_loadFailed)
     {
         <AppPageState Kind="AppPageStateKind.Error"
                       Icon="@AppMaterialIcons.Outlined.CloudOff"
-                      Title="Lookup settings could not be loaded"
-                      Message="Check that the Library server is running, then try again.">
+                      Title="@L["LibraryLookupTab_LookupSettingsCouldNotBe"].Value"
+                      Message="@L["Common_CheckThatTheLibraryServer"].Value">
             <Actions>
-                <AppButton Label="Try again" OnClick="LoadAsync" />
+                <AppButton Label="@L["Common_TryAgain"].Value" OnClick="LoadAsync" />
             </Actions>
         </AppPageState>
     }
@@ -38,7 +39,7 @@
         @if (!ReadOnly)
         {
             <div class="library-lookup__key">
-                <AppTextField Label="Your YouTube key (optional)"
+                <AppTextField Label="@L["LibraryLookupTab_YourYouTubeKeyOptional"].Value"
                               Value="@_key"
                               ValueChanged="@((string? value) => OnKeyChanged(value))"
                               InputType="AppInputType.Password"
@@ -49,11 +50,11 @@
                               ErrorText="@_error"
                               autocomplete="off" />
                 <div class="library-lookup__actions">
-                    <AppButton Label="Save" Loading="@_saving" Disabled="@(_busy || string.IsNullOrWhiteSpace(_key))" OnClick="SaveAsync" />
-                    <AppButton Label="Test key" ButtonStyle="AppButtonStyle.Outlined" Loading="@_testing" Disabled="@(_busy || string.IsNullOrWhiteSpace(_key))" OnClick="TestAsync" />
+                    <AppButton Label="@L["Common_Save"].Value" Loading="@_saving" Disabled="@(_busy || string.IsNullOrWhiteSpace(_key))" OnClick="SaveAsync" />
+                    <AppButton Label="@L["LibraryLookupTab_TestKey"].Value" ButtonStyle="AppButtonStyle.Outlined" Loading="@_testing" Disabled="@(_busy || string.IsNullOrWhiteSpace(_key))" OnClick="TestAsync" />
                     @if (_configured)
                     {
-                        <AppButton Label="Remove" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" Loading="@_removing" Disabled="@_busy" OnClick="RemoveAsync" />
+                        <AppButton Label="@L["Common_Remove"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" Loading="@_removing" Disabled="@_busy" OnClick="RemoveAsync" />
                     }
                 </div>
                 @if (_message is not null)
@@ -64,10 +65,10 @@
         }
         else
         {
-            <p class="library-lookup__note">Use a desktop or tablet to change the key.</p>
+            <p class="library-lookup__note">@L["LibraryLookupTab_UseADesktopOrTablet"]</p>
         }
 
-        <AppExpansionPanel Text="How do I get a key?" KeepContentAlive="true" Class="library-lookup__help">
+        <AppExpansionPanel Text="@L["LibraryLookupTab_HowDoIGetA"].Value" KeepContentAlive="true" Class="library-lookup__help">
             <ol class="library-lookup__steps" data-testid="lookup-key-steps">
                 @foreach (var step in LibraryLookupRules.KeySteps)
                 {
@@ -75,9 +76,9 @@
                 }
             </ol>
             <p class="library-lookup__link">
-                <AppLink Href="@LibraryLookupRules.GoogleKeyConsoleUrl" Target="_blank">Open the Google Cloud console</AppLink>
+                <AppLink Href="@LibraryLookupRules.GoogleKeyConsoleUrl" Target="_blank">@L["LibraryLookupTab_OpenTheGoogleCloudConsole"]</AppLink>
             </p>
-            <p class="library-lookup__note">The key is free and personal. It is only ever used to ask YouTube about a video's details.</p>
+            <p class="library-lookup__note">@L["LibraryLookupTab_TheKeyIsFreeAnd"]</p>
         </AppExpansionPanel>
     }
 </section>

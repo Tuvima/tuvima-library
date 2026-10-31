@@ -4,13 +4,14 @@
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Components.Shared.Providers
 @inject IAppDialogService DialogService
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="setup-stage-content">
     <div class="setup-stage__heading">
         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CloudSync" />
         <div>
-            <h2 id="setup-stage-title">Connect your metadata sources</h2>
-            <p>Choose where information about your media comes from. Each source below says what it can supply.</p>
+            <h2 id="setup-stage-title">@L["SetupMetadataStage_ConnectYourMetadataSources"]</h2>
+            <p>@L["SetupMetadataStage_ChooseWhereInformationAboutYour"]</p>
         </div>
     </div>
 
@@ -20,7 +21,7 @@
     {
         <div class="setup-preparing" role="status">
             <AppSpinner Indeterminate="true" Color="AppColor.Primary" />
-            <span>Finding metadata sources for your library…</span>
+            <span>@L["SetupMetadataStage_FindingMetadataSourcesForYour"]</span>
         </div>
     }
     else
@@ -29,16 +30,16 @@
             <p class="setup-sources-bar__note">
                 @if (Filtering)
                 {
-                    <span>Showing the sources that fit the libraries you added.</span>
-                    <AppButton Label="Show all sources" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" OnClick="@(() => _showAll = true)" />
+                    <span>@L["SetupMetadataStage_ShowingTheSourcesThatFit"]</span>
+                    <AppButton Label="@L["SetupMetadataStage_ShowAllSources"].Value" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" OnClick="@(() => _showAll = true)" />
                 }
                 else if (_showAll && HasLibraryFilter)
                 {
-                    <span>Showing every source.</span>
-                    <AppButton Label="Only the ones that fit" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" OnClick="@(() => _showAll = false)" />
+                    <span>@L["SetupMetadataStage_ShowingEverySource"]</span>
+                    <AppButton Label="@L["SetupMetadataStage_OnlyTheOnesThatFit"].Value" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" OnClick="@(() => _showAll = false)" />
                 }
             </p>
-            <AppLayoutSwitch StorageKey="tuvima.setup.metadata.layout" Value="@_layout" ValueChanged="@(value => _layout = value)" AriaLabel="Sources layout" />
+            <AppLayoutSwitch StorageKey="tuvima.setup.metadata.layout" Value="@_layout" ValueChanged="@(value => _layout = value)" AriaLabel="@L["SetupMetadataStage_SourcesLayout"].Value" />
         </div>
 
         @if (_layout == AppLayoutSwitch.List)

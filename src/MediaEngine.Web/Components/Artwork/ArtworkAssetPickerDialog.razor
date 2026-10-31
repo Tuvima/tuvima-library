@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Artwork
 @using MediaEngine.Contracts.Artwork
 @inject IEngineApiClient ApiClient
+@inject IStringLocalizer<SharedStrings> L
 
 <AppDialog Class="artwork-picker-host" Options="@(new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Large, Position = AppDialogPosition.Center, BackdropClick = false, CloseOnEscapeKey = false })">
 <DialogContent>
@@ -12,7 +13,7 @@
         {
             @if (_loading) { <AppPageState Kind="AppPageStateKind.Loading" Title="@($"Finding {ProviderName} artwork")" /> }
             else if (_discovery is null)
-            { <AppErrorState Title="Provider artwork unavailable" Message="Check the provider connection, then try again." Retry="LoadProvidersAsync" /> }
+            { <AppErrorState Title="@L["ArtworkAssetPickerDialog_ProviderArtworkUnavailable"].Value" Message="@L["ArtworkAssetPickerDialog_CheckTheProviderConnectionThen"].Value" Retry="LoadProvidersAsync" /> }
             else
             {
                 @if (!string.IsNullOrWhiteSpace(_discovery.Message)) { <p>@_discovery.Message</p> }
@@ -21,19 +22,19 @@
                     <p class="artwork-picker-dialog__provider-context" role="status">
                         <strong>@providerContext.Provider</strong>
                         <span>@providerContext.ScopeId · @providerContext.Role · @providerContext.SourceAssetType</span>
-                        <span>Matched ID @providerContext.ProviderItemId</span>
+                        <span>@L["ArtworkAssetPickerDialog_MatchedID", providerContext.ProviderItemId]</span>
                     </p>
                 }
                 @if (!string.IsNullOrWhiteSpace(_discovery.AttributionUrl))
                 {
-                    <a href="@_discovery.AttributionUrl" target="_blank" rel="noopener noreferrer">View this item on TheTVDB</a>
+                    <a href="@_discovery.AttributionUrl" target="_blank" rel="noopener noreferrer">@L["ArtworkAssetPickerDialog_ViewThisItemOnTheTVDB"]</a>
                 }
-                <AppButton ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="LoadProvidersAsync">Reload provider results</AppButton>
+                <AppButton ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="LoadProvidersAsync">@L["ArtworkAssetPickerDialog_ReloadProviderResults"]</AppButton>
                 <ArtworkJustifiedGallery TItem="ProviderArtworkCandidateDto" Items="@_discovery.Items"
                     ItemKey="@(c => c.Id)" ImageUrl="@(c => c.ThumbnailUrl)" Width="@(c => c.Width)" Height="@(c => c.Height)"
                     Title="@(c => c.Provider)" SupportingText="CandidateFacts"
                     IsSelected="@(c => _providerSelection.Contains(c.Id))" IsDisabled="@(c => c.AlreadyAdded)"
-                    UseContain="@(_ => true)" MultiSelect="true" ShowCaptions="true" Disabled="@_busy" OnSelect="ToggleProvider" AriaLabel="Provider artwork candidates" />
+                    UseContain="@(_ => true)" MultiSelect="true" ShowCaptions="true" Disabled="@_busy" OnSelect="ToggleProvider" AriaLabel="@L["ArtworkAssetPickerDialog_ProviderArtworkCandidates"].Value" />
                 @if (_discovery.HasMore)
                 {
                     <AppButton Label="@(_loadingMore ? "Loading…" : "Load more")"
@@ -51,7 +52,7 @@
     <FooterContent>
         <span role="status">@(_busy ? _progress : $"{SelectionCount} selected")</span>
         <AppButton Label="@(_added.Count > 0 ? "Done" : "Cancel")" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="Close" />
-        <AppButton Label="Add selected artwork" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Add" Disabled="@(_busy || SelectionCount == 0)" OnClick="AddSelectedAsync" />
+        <AppButton Label="@L["ArtworkAssetPickerDialog_AddSelectedArtwork"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Add" Disabled="@(_busy || SelectionCount == 0)" OnClick="AddSelectedAsync" />
     </FooterContent>
 </AppDialogShell>
 </div>

@@ -3,10 +3,11 @@
 @inject IJSRuntime JS
 @inject IAppToastService Snackbar
 @inject ILogger<ManualPortForwardingDialog> Logger
+@inject IStringLocalizer<SharedStrings> L
 
 <AppDialog Visible="@Visible" VisibleChanged="@VisibleChanged"
-           Title="Your router needs one setting changed"
-           Subtitle="Create this port-forwarding rule in your router, then ask Library to test it again."
+           Title="@L["ManualPortForwardingDialog_YourRouterNeedsOneSetting"].Value"
+           Subtitle="@L["ManualPortForwardingDialog_CreateThisPortForwardingRule"].Value"
            Icon="@AppMaterialIcons.Outlined.Router" Size="Medium">
     <ChildContent>
         <dl class="network-manual-rule">
@@ -18,20 +19,20 @@
         </dl>
         <div class="network-manual-rule__summary">
             <code>@RuleSummary</code>
-            <AppButton Label="Copy Rule" StartIcon="@AppMaterialIcons.Outlined.ContentCopy" OnClick="CopyAsync" />
+            <AppButton Label="@L["ManualPortForwardingDialog_CopyRule"].Value" StartIcon="@AppMaterialIcons.Outlined.ContentCopy" OnClick="CopyAsync" />
         </div>
         <AppAlert Tone="AppUiTone.Info" Icon="@AppMaterialIcons.Outlined.HomeWork">
-            <strong>Keep this server at the same network address.</strong>
-            <span>Your router may assign a different address later. A DHCP reservation for @InternalAddress prevents that.</span>
+            <strong>@L["ManualPortForwardingDialog_KeepThisServerAtThe"]</strong>
+            <span>@L["ManualPortForwardingDialog_YourRouterMayAssignA", InternalAddress]</span>
         </AppAlert>
         @if (CgnatSuspected)
         {
-            <AppAlert Tone="AppUiTone.Warning">Your internet provider may not support normal port forwarding. Consider a secure connectivity provider instead of repeatedly changing router rules.</AppAlert>
+            <AppAlert Tone="AppUiTone.Warning">@L["ManualPortForwardingDialog_YourInternetProviderMayNot"]</AppAlert>
         }
     </ChildContent>
     <FooterContent>
-        <AppButton Label="Close" OnClick="CloseAsync" />
-        <AppButton Label="I've configured this — Test Again" ButtonStyle="AppButtonStyle.Filled" OnClick="TestAgainAsync" />
+        <AppButton Label="@L["Common_Close"].Value" OnClick="CloseAsync" />
+        <AppButton Label="@L["ManualPortForwardingDialog_IVeConfiguredThisTest"].Value" ButtonStyle="AppButtonStyle.Filled" OnClick="TestAgainAsync" />
     </FooterContent>
 </AppDialog>
 

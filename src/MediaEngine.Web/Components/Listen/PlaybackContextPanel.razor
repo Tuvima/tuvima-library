@@ -6,15 +6,16 @@
 @using Microsoft.JSInterop
 @inject IJSRuntime JS
 @implements IAsyncDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 @{ var panelSnapshot = Snapshot; }
 
-<div class="listen-context-sidebar" aria-label="Playback context panel" @ref="_root">
+<div class="listen-context-sidebar" aria-label="@L["PlaybackContextPanel_PlaybackContextPanel"].Value" @ref="_root">
     @if (ShowTabs)
     {
-        <div class="listen-context-sidebar__tabs" role="tablist" aria-label="Playback context">
+        <div class="listen-context-sidebar__tabs" role="tablist" aria-label="@L["PlaybackContextPanel_PlaybackContext"].Value">
             <AppNativeButton Type="button" role="tab" aria-selected="@(_selectedPanelKey != "history" ? "true" : "false")" OnClick="@(() => SelectTabAsync(IsAudiobook ? "chapters" : "queue"))">@(IsAudiobook ? "Chapters" : "Up Next") · @(IsAudiobook ? CurrentItem?.Chapters.Count ?? 0 : Upcoming.Count)</AppNativeButton>
-            <AppNativeButton Type="button" role="tab" aria-selected="@(_selectedPanelKey == "history" ? "true" : "false")" OnClick="@(() => SelectTabAsync("history"))">History · @(IsAudiobook ? Snapshot.AudiobookHistory.Count : MusicHistory.Count)</AppNativeButton>
+            <AppNativeButton Type="button" role="tab" aria-selected="@(_selectedPanelKey == "history" ? "true" : "false")" OnClick="@(() => SelectTabAsync("history"))">@L["PlaybackContextPanel_History", IsAudiobook ? Snapshot.AudiobookHistory.Count : MusicHistory.Count]</AppNativeButton>
         </div>
     }
     <div class="listen-context-sidebar__body @(_selectedPanelKey == "lyrics" ? "listen-context-sidebar__body--lyrics" : "playback-sheet-list")" data-playback-context-scroll-key="@($"{CurrentItem?.AssetId}:{Snapshot.PlaybackRequestVersion}:{_selectedPanelKey}")">
@@ -23,21 +24,21 @@
         case "queue":
             @if (CurrentItem is null)
             {
-                <p class="listen-context-sidebar__empty">The queue is empty. Add songs from the Songs list or an album.</p>
+                <p class="listen-context-sidebar__empty">@L["PlaybackContextPanel_TheQueueIsEmptyAdd"]</p>
             }
             else
             {
                 <div class="listen-context-sidebar__now-playing">
-                <h3 class="listen-context-sidebar__section-label">NOW PLAYING</h3>
+                <h3 class="listen-context-sidebar__section-label">@L["PlaybackContextPanel_NOWPLAYING"]</h3>
                 <PlaybackContextRow Title="@CurrentItem.Title" Subtitle="@CurrentItem.Subtitle"
                                    ArtworkUrl="@PlaybackArtworkUrl.ForItem(CurrentItem, "s")" Duration="@CurrentItem.Duration"
-                                   IsCurrent="true" IsPlaying="@IsPlaybackActive" AriaLabel="Now playing" />
+                                   IsCurrent="true" IsPlaying="@IsPlaybackActive" AriaLabel="@L["Common_NowPlaying"].Value" />
                 </div>
                 <div class="listen-context-sidebar__section-action">
-                    <h3 class="listen-context-sidebar__section-label">UP NEXT · @Upcoming.Count</h3>
-                    <AppTooltip Text="Clear upcoming queue">
+                    <h3 class="listen-context-sidebar__section-label">@L["PlaybackContextPanel_UPNEXT", Upcoming.Count]</h3>
+                    <AppTooltip Text="@L["PlaybackContextPanel_ClearUpcomingQueue"].Value">
                         <AppButton ButtonStyle="AppButtonStyle.Outlined" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.PlaylistRemove" Class="listen-context-sidebar__clear"
-                                   Disabled="@(Upcoming.Count == 0)" OnClick="@(() => ClearUpcomingAsync(panelSnapshot))" aria-label="Clear upcoming queue">Clear</AppButton>
+                                   Disabled="@(Upcoming.Count == 0)" OnClick="@(() => ClearUpcomingAsync(panelSnapshot))" aria-label="@L["PlaybackContextPanel_ClearUpcomingQueue"].Value">@L["Activity_Clear"]</AppButton>
                     </AppTooltip>
                 </div>
                 @for (var queueIndex = Snapshot.CurrentIndex + 1; queueIndex < Snapshot.Queue.Count; queueIndex++)
@@ -51,7 +52,7 @@
                                        Duration="@item.Duration" OnClick="@(() => PlayOccurrenceAsync(rowSnapshot, occurrenceId))"
                                        AriaLabel="@($"Play {item.Title}")">
                         <Handle>
-                            <AppNativeButton Type="button" draggable="true" data-playback-queue-drag="@occurrenceId" AriaLabel="@($"Reorder {item.Title}")" title="Drag or use Alt+Arrow Up/Down"
+                            <AppNativeButton Type="button" draggable="true" data-playback-queue-drag="@occurrenceId" AriaLabel="@($"Reorder {item.Title}")" title="@L["PlaybackContextPanel_DragOrUseAltArrow"].Value"
                                 @ondragstart="@(() => BeginDrag(rowSnapshot, occurrenceId))" @ondragend="@(() => _dragOccurrence = null)"
                                 @onkeydown="@(args => ReorderKeyAsync(args, rowSnapshot, occurrenceId, upcomingIndex))"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragHandle" /></AppNativeButton>
                         </Handle>
@@ -59,9 +60,9 @@
                             <PlaybackPopover Title="@($"Queue actions for {item.Title}")" Kind="menu" ShowHeading="false">
                                 <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.More" /></TriggerContent>
                                 <ChildContent>
-                                    <AppNativeButton Type="button" Disabled="@(upcomingIndex == 0)" OnClick="@(() => MoveAsync(rowSnapshot, occurrenceId, upcomingIndex - 1))">Move earlier</AppNativeButton>
-                                    <AppNativeButton Type="button" Disabled="@(upcomingIndex == Upcoming.Count - 1)" OnClick="@(() => MoveAsync(rowSnapshot, occurrenceId, upcomingIndex + 1))">Move later</AppNativeButton>
-                                    <AppNativeButton Type="button" AriaLabel="@($"Remove {item.Title} from queue")" OnClick="@(() => RemoveOccurrenceAsync(rowSnapshot, occurrenceId))">Remove</AppNativeButton>
+                                    <AppNativeButton Type="button" Disabled="@(upcomingIndex == 0)" OnClick="@(() => MoveAsync(rowSnapshot, occurrenceId, upcomingIndex - 1))">@L["PlaybackContextPanel_MoveEarlier"]</AppNativeButton>
+                                    <AppNativeButton Type="button" Disabled="@(upcomingIndex == Upcoming.Count - 1)" OnClick="@(() => MoveAsync(rowSnapshot, occurrenceId, upcomingIndex + 1))">@L["PlaybackContextPanel_MoveLater"]</AppNativeButton>
+                                    <AppNativeButton Type="button" AriaLabel="@($"Remove {item.Title} from queue")" OnClick="@(() => RemoveOccurrenceAsync(rowSnapshot, occurrenceId))">@L["Common_Remove"]</AppNativeButton>
                                 </ChildContent>
                             </PlaybackPopover>
                         </Actions>
@@ -76,16 +77,16 @@
         case "chapters":
             @if (CurrentItem?.Chapters.Count is not > 1)
             {
-                <p class="listen-context-sidebar__empty">No timed chapters were found for this audiobook.</p>
+                <p class="listen-context-sidebar__empty">@L["PlaybackContextPanel_NoTimedChaptersWereFound"]</p>
             }
             else
             {
                 <div class="listen-context-sidebar__chapter-summary">
                     <strong>@CurrentItem.Title</strong>
-                    <span> · @CurrentItem.Chapters.Count chapters</span>
+                    <span> @L["PlaybackContextPanel_Chapters", CurrentItem.Chapters.Count]</span>
                     @if (ChapterRuntimeLabel is { } runtime)
                     {
-                        <span> · @runtime total runtime</span>
+                        <span> @L["PlaybackContextPanel_TotalRuntime", runtime]</span>
                     }
                 </div>
                 @foreach (var chapter in CurrentItem.Chapters)
@@ -104,7 +105,7 @@
             {
                 @if (Snapshot.AudiobookHistory.Count == 0)
                 {
-                    <p class="listen-context-sidebar__empty">Recent listening positions will appear here.</p>
+                    <p class="listen-context-sidebar__empty">@L["PlaybackContextPanel_RecentListeningPositionsWillAppear"]</p>
                 }
                 @foreach (var group in Snapshot.AudiobookHistory.GroupBy(item => item.EndedAt.LocalDateTime.Date).OrderByDescending(group => group.Key))
                 {
@@ -115,17 +116,17 @@
                                            Title="@(entry.ChapterTitle ?? entry.Title)" Subtitle="@AudiobookHistorySubtitle(entry)"
                                            OnClick="@(() => SendAsync(panelSnapshot, new() { Action = ListenPlaybackCommandActions.PlayAudiobookHistory, AudiobookHistoryItem = entry }))"
                                            AriaLabel="@($"Resume {entry.ChapterTitle ?? entry.Title} at {FormatTime(entry.PositionSeconds)}")">
-                            <Actions><AppNativeButton Type="button" Class="listen-context-sidebar__replay" AriaLabel="@($"Resume {entry.ChapterTitle ?? entry.Title}")" title="Resume" OnClick="@(() => SendAsync(panelSnapshot, new() { Action = ListenPlaybackCommandActions.PlayAudiobookHistory, AudiobookHistoryItem = entry }))"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Replay" /></AppNativeButton></Actions>
+                            <Actions><AppNativeButton Type="button" Class="listen-context-sidebar__replay" AriaLabel="@($"Resume {entry.ChapterTitle ?? entry.Title}")" title="@L["Common_Resume"].Value" OnClick="@(() => SendAsync(panelSnapshot, new() { Action = ListenPlaybackCommandActions.PlayAudiobookHistory, AudiobookHistoryItem = entry }))"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Replay" /></AppNativeButton></Actions>
                         </PlaybackContextRow>
                     }
                 }
             }
             else
             {
-                <div class="listen-context-sidebar__section-action"><span>Recently played · @MusicHistory.Count</span><AppButton ButtonStyle="AppButtonStyle.Outlined" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.PlaylistRemove" Class="listen-context-sidebar__clear" Disabled="@(MusicHistory.Count == 0)" OnClick="@(() => RequestClearHistory(panelSnapshot))" aria-label="Clear history">Clear</AppButton></div>
+                <div class="listen-context-sidebar__section-action"><span>@L["PlaybackContextPanel_RecentlyPlayed", MusicHistory.Count]</span><AppButton ButtonStyle="AppButtonStyle.Outlined" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.PlaylistRemove" Class="listen-context-sidebar__clear" Disabled="@(MusicHistory.Count == 0)" OnClick="@(() => RequestClearHistory(panelSnapshot))" aria-label="@L["PlaybackContextPanel_ClearHistory"].Value">@L["Activity_Clear"]</AppButton></div>
                 @if (MusicHistory.Count == 0)
                 {
-                    <p class="listen-context-sidebar__empty">Played songs appear here for this session.</p>
+                    <p class="listen-context-sidebar__empty">@L["PlaybackContextPanel_PlayedSongsAppearHereFor"]</p>
                 }
                 @foreach (var item in MusicHistory)
                 {
@@ -134,14 +135,14 @@
                                        OnClick="@(() => SendAsync(panelSnapshot, new() { Action = ListenPlaybackCommandActions.PlayHistory, QueueEntryId = item.QueueEntryId, QueueItem = ToQueueItem(item) }))" AriaLabel="@($"Play {item.Title}")">
                         <Actions><PlaybackPopover Title="@($"History actions for {item.Title}")" Kind="menu" ShowHeading="false">
                             <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.More" /></TriggerContent>
-                            <ChildContent><AppNativeButton Type="button" AriaLabel="@($"Play {item.Title}")" OnClick="@(() => SendAsync(panelSnapshot, new() { Action = ListenPlaybackCommandActions.PlayHistory, QueueEntryId = item.QueueEntryId, QueueItem = ToQueueItem(item) }))">Play again</AppNativeButton></ChildContent>
+                            <ChildContent><AppNativeButton Type="button" AriaLabel="@($"Play {item.Title}")" OnClick="@(() => SendAsync(panelSnapshot, new() { Action = ListenPlaybackCommandActions.PlayHistory, QueueEntryId = item.QueueEntryId, QueueItem = ToQueueItem(item) }))">@L["PlaybackContextPanel_PlayAgain"]</AppNativeButton></ChildContent>
                         </PlaybackPopover></Actions>
                     </PlaybackContextRow>
                 }
             }
             break;
         default:
-            <p class="listen-context-sidebar__empty">Choose a playback panel.</p>
+            <p class="listen-context-sidebar__empty">@L["PlaybackContextPanel_ChooseAPlaybackPanel"]</p>
             break;
     }
 </div>
@@ -149,9 +150,9 @@
 @if (_moveFailure is not null) { <AppAlert Tone="AppUiTone.Warning" Dense="true" Class="listen-context-sidebar__feedback">@_moveFailure</AppAlert> }
 @if (_historyConfirmation is not null)
 {
-    <AppDialog Visible="true" Title="Clear player history?" Size="Small" Tone="AppUiTone.Warning" OnClose="@(() => _historyConfirmation = null)">
-        <DialogContent><p>This clears this player's recently played music only. Play counts and saved progress remain.</p></DialogContent>
-        <DialogActions><AppButton ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => _historyConfirmation = null)">Cancel</AppButton><AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Error" OnClick="ConfirmClearHistoryAsync">Clear history</AppButton></DialogActions>
+    <AppDialog Visible="true" Title="@L["PlaybackContextPanel_ClearPlayerHistory"].Value" Size="Small" Tone="AppUiTone.Warning" OnClose="@(() => _historyConfirmation = null)">
+        <DialogContent><p>@L["PlaybackContextPanel_ThisClearsThisPlayerS"]</p></DialogContent>
+        <DialogActions><AppButton ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => _historyConfirmation = null)">@L["Search_Cancel"]</AppButton><AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Error" OnClick="ConfirmClearHistoryAsync">@L["PlaybackContextPanel_ClearHistory"]</AppButton></DialogActions>
     </AppDialog>
 }
 </div>

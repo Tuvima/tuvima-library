@@ -16,6 +16,7 @@
 @inject ILogger<ProfilePickerPage> Logger
 @inject IJSRuntime JS
 @inject DeviceContextService DeviceContext
+@inject IStringLocalizer<SharedStrings> L
 
 <PageTitle>@(_managing ? "Manage profiles" : "Who's watching?") - Library</PageTitle>
 
@@ -24,7 +25,7 @@
 
     @if (_loading)
     {
-        <ul class="who-grid who-grid--loading" role="status" aria-label="Loading profiles">
+        <ul class="who-grid who-grid--loading" role="status" aria-label="@L["Common_LoadingProfiles"].Value">
             @for (var i = 0; i < 4; i++)
             {
                 <li class="who-skeleton" aria-hidden="true">
@@ -36,8 +37,8 @@
     }
     else if (_profiles.Count == 0)
     {
-        <p class="who-page__status" role="alert">Your profiles could not be loaded.</p>
-        <AppNativeButton Type="button" Class="who-button who-button--primary" OnClick="LoadAsync">Try again</AppNativeButton>
+        <p class="who-page__status" role="alert">@L["ProfilePickerPage_YourProfilesCouldNotBe"]</p>
+        <AppNativeButton Type="button" Class="who-button who-button--primary" OnClick="LoadAsync">@L["Common_TryAgain"]</AppNativeButton>
     }
     else
     {
@@ -64,7 +65,7 @@
                     <span class="who-card__tags">
                         @if (profile.IsRestricted)
                         {
-                            <span class="who-tag">Kids</span>
+                            <span class="who-tag">@L["Common_Kids"]</span>
                         }
                     </span>
                 </text>;
@@ -91,11 +92,11 @@
             @if (_managing && ShowAddTile)
             {
                 <li>
-                    <AppNativeButton Type="button" Class="who-card who-card--add" Disabled="@_busy" AriaLabel="Add profile" OnClick="OpenAdd">
+                    <AppNativeButton Type="button" Class="who-card who-card--add" Disabled="@_busy" AriaLabel="@L["Common_AddProfile"].Value" OnClick="OpenAdd">
                         <span class="who-card__picture who-card__picture--add" aria-hidden="true">
                             <svg viewBox="0 0 24 24" focusable="false"><path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" /></svg>
                         </span>
-                        <span class="who-card__name">Add profile</span>
+                        <span class="who-card__name">@L["Common_AddProfile"]</span>
                         <span class="who-card__tags"></span>
                     </AppNativeButton>
                 </li>
@@ -110,23 +111,23 @@
         @* Netflix style: Manage profiles puts pencils on the pictures, Done puts them away. Nothing opens without a click. *@
         @if (_managing)
         {
-            <AppNativeButton Type="button" Class="who-button who-button--primary" Disabled="@_busy" OnClick="DoneManaging">Done</AppNativeButton>
+            <AppNativeButton Type="button" Class="who-button who-button--primary" Disabled="@_busy" OnClick="DoneManaging">@L["Common_Done"]</AppNativeButton>
         }
         else
         {
             @if (CanManage)
             {
-                <AppNativeButton Type="button" Class="who-button" Disabled="@_busy" OnClick="StartManagingAsync">Manage profiles</AppNativeButton>
+                <AppNativeButton Type="button" Class="who-button" Disabled="@_busy" OnClick="StartManagingAsync">@L["Common_ManageProfiles"]</AppNativeButton>
             }
 
             <form method="post" action="/auth/logout" class="who-signout">
                 <AntiforgeryToken />
-                <AppNativeButton Type="submit" Class="who-link">Sign out</AppNativeButton>
+                <AppNativeButton Type="submit" Class="who-link">@L["TopBar_SignOut"]</AppNativeButton>
             </form>
 
             @if (ShowPinReminder)
             {
-                <p class="who-note" role="note">Set PINs on adult profiles so children can't switch into them.</p>
+                <p class="who-note" role="note">@L["ProfilePickerPage_SetPINsOnAdultProfiles"]</p>
             }
         }
     }
@@ -143,10 +144,10 @@
     @if (_needsUnlock)
     {
         <div class="who-backdrop who-backdrop--top">
-            <AppDialogShell Title="Enter your administrator PIN" Size="Small" Tone="AppUiTone.Info" OnClose="CancelUnlock">
+            <AppDialogShell Title="@L["Common_EnterYourAdministratorPIN"].Value" Size="Small" Tone="AppUiTone.Info" OnClose="CancelUnlock">
                 <ChildContent>
                     <div class="app-dialog-shell__pad">
-                        <p class="who-dialog__hint">This is only asked for when administrator protection is turned on.</p>
+                        <p class="who-dialog__hint">@L["Common_ThisIsOnlyAskedFor"]</p>
                         <PinPad @bind-Value="_unlockPin" Disabled="@_busy" MaxLength="12" OnSubmit="UnlockAsync" OnCancel="CancelUnlock" />
                         @if (!string.IsNullOrWhiteSpace(_error))
                         {
@@ -155,7 +156,7 @@
                     </div>
                 </ChildContent>
                 <FooterContent>
-                    <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_busy" OnClick="CancelUnlock" />
+                    <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_busy" OnClick="CancelUnlock" />
                     <AppButton Label="@(_busy ? "Checking…" : "Continue")" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_busy || _unlockPin.Length < 4)" OnClick="UnlockAsync" />
                 </FooterContent>
             </AppDialogShell>
@@ -180,7 +181,7 @@
                     </div>
                 </ChildContent>
                 <FooterContent>
-                    <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_busy" OnClick="CancelPin" />
+                    <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_busy" OnClick="CancelPin" />
                     <AppButton Label="@(_busy ? "Checking…" : "Continue")" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_busy || _pin.Length < 4)" OnClick="SubmitPinAsync" />
                 </FooterContent>
             </AppDialogShell>

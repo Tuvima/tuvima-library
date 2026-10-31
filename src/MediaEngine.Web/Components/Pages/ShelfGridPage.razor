@@ -8,8 +8,9 @@
 @inject IAppToastService Toasts
 @inject IJSRuntime JS
 @inject ILogger<ShelfGridPage> Logger
+@inject IStringLocalizer<SharedStrings> L
 
-<PageTitle>@PageTitleText - Library</PageTitle>
+<PageTitle>@L["Common_Library", PageTitleText]</PageTitle>
 
 @* View all: the full list behind a shelf's "See all", as a grid with a remembered sort and filters the Engine says are worth showing.
    Sort and filters live in the address (replaced, never pushed, so Back leaves the page). The grid pages in 48 at a time: more loads as the
@@ -18,10 +19,10 @@
     @if (_notFound)
     {
         <AppPageState Kind="AppPageStateKind.Unavailable"
-                      Title="This list isn't available"
-                      Message="It may have been removed, or it isn't part of the libraries you can see.">
+                      Title="@L["ShelfGridPage_ThisListIsnTAvailable"].Value"
+                      Message="@L["ShelfGridPage_ItMayHaveBeenRemoved"].Value">
             <Actions>
-                <AppButton Href="/" Label="Go to Home" Size="AppControlSize.Large" />
+                <AppButton Href="/" Label="@L["ShelfGridPage_GoToHome"].Value" Size="AppControlSize.Large" />
             </Actions>
         </AppPageState>
     }
@@ -56,7 +57,7 @@
                     <ChildContent Context="inSheet">
                         <div class="shelf-grid-page__controls @(inSheet ? "is-sheet" : "")">
                             <div class="shelf-grid-page__control">
-                                <AppSelect Label="Sort by"
+                                <AppSelect Label="@L["Common_SortBy"].Value"
                                            Size="AppControlSize.Large"
                                            Value="@CurrentSort"
                                            ValueChanged="OnSortChangedAsync"
@@ -84,7 +85,7 @@
 
         @if (_loading)
         {
-            <div class="shelf-grid-page__skeleton" role="status" aria-label="Loading">
+            <div class="shelf-grid-page__skeleton" role="status" aria-label="@L["Common_Loading"].Value">
                 @for (var index = 0; index < SkeletonTileCount; index++)
                 {
                     <div class="shelf-grid-page__skeleton-tile">
@@ -96,22 +97,22 @@
         }
         else if (_failed)
         {
-            <AppErrorState Title="This list could not load"
-                           Message="The Dashboard could not read it from the Engine."
+            <AppErrorState Title="@L["ShelfGridPage_ThisListCouldNotLoad"].Value"
+                           Message="@L["ShelfGridPage_TheDashboardCouldNotRead"].Value"
                            Retry="ReloadAsync" />
         }
         else if (_tiles.Count == 0)
         {
             @if (ActiveFilters.Count > 0)
             {
-                <AppEmptyState Title="Nothing matches these filters"
-                               Message="Try removing a filter to see more.">
-                    <Action><AppButton Label="Clear filters" Size="AppControlSize.Large" OnClick="ClearFiltersAsync" /></Action>
+                <AppEmptyState Title="@L["Common_NothingMatchesTheseFilters"].Value"
+                               Message="@L["ShelfGridPage_TryRemovingAFilterTo"].Value">
+                    <Action><AppButton Label="@L["Common_ClearFilters"].Value" Size="AppControlSize.Large" OnClick="ClearFiltersAsync" /></Action>
                 </AppEmptyState>
             }
             else
             {
-                <AppEmptyState Title="Nothing here yet" />
+                <AppEmptyState Title="@L["Common_NothingHereYet"].Value" />
             }
         }
         else
@@ -130,15 +131,15 @@
                 <div class="shelf-grid-page__more">
                     @if (_moreFailed)
                     {
-                        <p class="shelf-grid-page__more-error" role="status">Couldn't load more titles.</p>
-                        <AppButton Label="Try again" Size="AppControlSize.Large" Loading="@_loadingMore" OnClick="LoadMoreAsync" />
+                        <p class="shelf-grid-page__more-error" role="status">@L["ShelfGridPage_CouldnTLoadMoreTitles"]</p>
+                        <AppButton Label="@L["Common_TryAgain"].Value" Size="AppControlSize.Large" Loading="@_loadingMore" OnClick="LoadMoreAsync" />
                     }
                     else
                     {
                         <AppButton ButtonStyle="AppButtonStyle.Filled"
                                    Tone="AppUiTone.Primary"
                                    Size="AppControlSize.Large"
-                                   Label="Load more"
+                                   Label="@L["Common_LoadMore"].Value"
                                    Loading="@_loadingMore"
                                    OnClick="LoadMoreAsync" />
                     }

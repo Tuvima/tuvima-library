@@ -3,54 +3,55 @@
 @using MediaEngine.Domain.PersonalMedia
 @inject IEngineApiClient ApiClient
 @inject IAppToastService Snackbar
+@inject IStringLocalizer<SharedStrings> L
 
 @* The File handling tab of a View kind (Library pages WP11): how files are stored depending on how they are added, what Library does and
    does not do to originals, and, for Documents, the text, organisation and rules panels. *@
 <div class="view-file-handling">
-    <SettingsSectionPanel Title="Organization" Description="How files are stored depends on how they are added.">
+    <SettingsSectionPanel Title="@L["Common_Organization"].Value" Description="@L["ViewFileHandlingTab_HowFilesAreStoredDepends"].Value">
         <div class="view-organization">
-            <article><span class="view-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CalendarMonth" /></span><div><strong>Added through Library</strong><small>Photos and videos copied into the Import folder or added in the browser are filed by the day they were taken, and keep their own names.</small><code>@(_layout?.Example ?? "Year / Year-Month-Day / original name")</code></div></article>
-            <article><span class="view-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderCopy" /></span><div><strong>Managed folders</strong><small>Keep their folder hierarchy and original filenames.</small><code>Folders / folder name / files</code></div></article>
-            <article><span class="view-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Link" /></span><div><strong>Linked folders</strong><small>Files stay in their existing location and are indexed read-only.</small><code>Existing folder / files</code></div></article>
+            <article><span class="view-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CalendarMonth" /></span><div><strong>@L["ViewFileHandlingTab_AddedThroughLibrary"]</strong><small>@L["ViewFileHandlingTab_PhotosAndVideosCopiedInto"]</small><code>@(_layout?.Example ?? "Year / Year-Month-Day / original name")</code></div></article>
+            <article><span class="view-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderCopy" /></span><div><strong>@L["ViewFileHandlingTab_ManagedFolders"]</strong><small>@L["ViewFileHandlingTab_KeepTheirFolderHierarchyAnd"]</small><code>@L["ViewFileHandlingTab_FoldersFolderNameFiles"]</code></div></article>
+            <article><span class="view-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Link" /></span><div><strong>@L["ViewFileHandlingTab_LinkedFolders"]</strong><small>@L["ViewFileHandlingTab_FilesStayInTheirExisting"]</small><code>@L["ViewFileHandlingTab_ExistingFolderFiles"]</code></div></article>
         </div>
     </SettingsSectionPanel>
     @if (Kind is ViewContentKinds.Photos or ViewContentKinds.PersonalVideos)
     {
-        <SettingsSectionPanel Title="Filing layout" Description="The folders new photos and videos are filed into, built from the day each was taken.">
+        <SettingsSectionPanel Title="@L["ViewFileHandlingTab_FilingLayout"].Value" Description="@L["ViewFileHandlingTab_TheFoldersNewPhotosAnd"].Value">
             <div class="libraries-form-grid">
-                <AppTextField Label="Layout" Value="@_pattern" ValueChanged="@((string? value) => _pattern = value ?? string.Empty)" ReadOnly="@(ReadOnly || _busy)" />
+                <AppTextField Label="@L["Common_Layout"].Value" Value="@_pattern" ValueChanged="@((string? value) => _pattern = value ?? string.Empty)" ReadOnly="@(ReadOnly || _busy)" />
                 <div>
                     <small>Use {year}, {month} and {day}. For example <code>{year}/{year}-{month}-{day}</code> or <code>{year}/{month}</code>.</small>
-                    <small>Example: <code>@(_layout?.Example ?? "Year / Year-Month-Day / original name")</code></small>
+                    <small>@L["ViewFileHandlingTab_Example"] <code>@(_layout?.Example ?? "Year / Year-Month-Day / original name")</code></small>
                 </div>
             </div>
-            <p>Changing the layout affects only photos and videos filed from now on. Files already filed stay where they are.</p>
+            <p>@L["ViewFileHandlingTab_ChangingTheLayoutAffectsOnly"]</p>
             @if (_error is not null) { <AppAlert Tone="AppUiTone.Error">@_error</AppAlert> }
             <AppActionBar>
-                <AppButton Label="Use the default" ButtonStyle="AppButtonStyle.Text" Disabled="@(ReadOnly || _busy)" OnClick="UseDefaultAsync" />
-                <AppButton Label="Save layout" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_busy" Disabled="@(ReadOnly || _busy || string.IsNullOrWhiteSpace(_pattern))" OnClick="SaveAsync" />
+                <AppButton Label="@L["ViewFileHandlingTab_UseTheDefault"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@(ReadOnly || _busy)" OnClick="UseDefaultAsync" />
+                <AppButton Label="@L["ViewFileHandlingTab_SaveLayout"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_busy" Disabled="@(ReadOnly || _busy || string.IsNullOrWhiteSpace(_pattern))" OnClick="SaveAsync" />
             </AppActionBar>
         </SettingsSectionPanel>
         <ViewDuplicatesPanel ReadOnly="@ReadOnly" />
     }
-    <SettingsSectionPanel Title="File handling" Description="Originals remain protected throughout indexing and sharing.">
-        <div class="view-policy-row"><div><strong>Linked originals</strong><small>Library reads their local file details and thumbnails.</small></div><span>Read-only · Files stay in place</span></div>
-        <div class="view-policy-row"><div><strong>Detach a folder</strong><small>Remove its connection to View.</small></div><span>Keep all original files</span></div>
-        <div class="view-policy-row"><div><strong>Contribute to Shared Library</strong><small>Files transfer only after acceptance and destination verification.</small></div><span>Managed originals move · Linked originals copy</span></div>
-        <p>View uses local file details, capture dates, available location metadata, and supported thumbnails. Personal media does not use external catalog providers or the Review Queue.</p>
+    <SettingsSectionPanel Title="@L["Common_FileHandling"].Value" Description="@L["ViewFileHandlingTab_OriginalsRemainProtectedThroughoutIndexi"].Value">
+        <div class="view-policy-row"><div><strong>@L["ViewFileHandlingTab_LinkedOriginals"]</strong><small>@L["ViewFileHandlingTab_LibraryReadsTheirLocalFile"]</small></div><span>@L["ViewFileHandlingTab_ReadOnlyFilesStayIn"]</span></div>
+        <div class="view-policy-row"><div><strong>@L["ViewFileHandlingTab_DetachAFolder"]</strong><small>@L["ViewFileHandlingTab_RemoveItsConnectionToView"]</small></div><span>@L["ViewFileHandlingTab_KeepAllOriginalFiles"]</span></div>
+        <div class="view-policy-row"><div><strong>@L["ViewFileHandlingTab_ContributeToSharedLibrary"]</strong><small>@L["ViewFileHandlingTab_FilesTransferOnlyAfterAcceptance"]</small></div><span>@L["ViewFileHandlingTab_ManagedOriginalsMoveLinkedOriginals"]</span></div>
+        <p>@L["ViewFileHandlingTab_ViewUsesLocalFileDetails"]</p>
     </SettingsSectionPanel>
-    <SettingsSectionPanel Title="Missing files" Description="What Library does when a file is deleted or moved outside Library.">
-        <p>Library never deletes anything because a file went missing. Missing items stay hidden from the library, and you can still find them in search.</p>
+    <SettingsSectionPanel Title="@L["ViewFileHandlingTab_MissingFiles"].Value" Description="@L["ViewFileHandlingTab_WhatLibraryDoesWhenA"].Value">
+        <p>@L["ViewFileHandlingTab_LibraryNeverDeletesAnythingBecause"]</p>
         <div class="view-missing-row">
-            <AppSwitchRow Label="Remove the record after a while" Description="Forgets the notes, tags and Gallery spots of a file that stays missing."
+            <AppSwitchRow Label="@L["ViewFileHandlingTab_RemoveTheRecordAfterA"].Value" Description="@L["ViewFileHandlingTab_ForgetsTheNotesTagsAnd"].Value"
                           Value="@_removeAfterWhile" ValueChanged="SetRemoveAfterWhileAsync" Disabled="@(ReadOnly || _missingBusy || _missing is null)" />
             @if (_removeAfterWhile)
             {
-                <AppNumericField Label="Days to wait" Min="1" Max="3650" Value="@_days" ValueChanged="SetDaysAsync" ReadOnly="@(ReadOnly || _missingBusy)" HelpText="Counted from when the file was first seen missing." />
+                <AppNumericField Label="@L["ViewFileHandlingTab_DaysToWait"].Value" Min="1" Max="3650" Value="@_days" ValueChanged="SetDaysAsync" ReadOnly="@(ReadOnly || _missingBusy)" HelpText="Counted from when the file was first seen missing." />
             }
         </div>
         @if (_missingError is not null) { <AppAlert Tone="AppUiTone.Error">@_missingError</AppAlert> }
-        else if (_missingSaved) { <small class="view-missing-saved">Saved</small> }
+        else if (_missingSaved) { <small class="view-missing-saved">@L["Common_Saved"]</small> }
     </SettingsSectionPanel>
     @if (Kind == ViewContentKinds.Documents)
     {

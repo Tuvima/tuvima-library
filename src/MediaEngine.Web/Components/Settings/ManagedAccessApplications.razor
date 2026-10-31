@@ -8,11 +8,12 @@
 @inject DeviceContextService DeviceContext
 @inject NavigationManager Navigation
 @implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="access-page">
     @if (!CanManage)
     {
-        <AppAlert Severity="AppSeverity.Warning">Administrator access is required to manage applications.</AppAlert>
+        <AppAlert Severity="AppSeverity.Warning">@L["ManagedAccessApplications_AdministratorAccessIsRequiredTo"]</AppAlert>
     }
     else if (!string.IsNullOrWhiteSpace(IntegrationId))
     {
@@ -28,24 +29,24 @@
         {
             <AppListPageHeader>
                 <Actions>
-                    <span @ref="_returnFocus" tabindex="-1"><AppButton Label="New integration" StartIcon="@AppMaterialIcons.Outlined.Add" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="NewApplication" /></span>
+                    <span @ref="_returnFocus" tabindex="-1"><AppButton Label="@L["Common_NewIntegration"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="NewApplication" /></span>
                 </Actions>
             </AppListPageHeader>
         }
         @if (DeviceContext.IsPhone)
         {
-            <p class="access-phone-note" role="note">Manage on a computer or tablet.</p>
+            <p class="access-phone-note" role="note">@L["Common_ManageOnAComputerOr"]</p>
         }
         @if (!string.IsNullOrWhiteSpace(_notice)) { <AppAlert Severity="AppSeverity.Success" Class="access-notice">@_notice</AppAlert> }
-        <AppSummaryStrip AriaLabel="Integration summary" Loading="@_loading" Items="@SummaryItems()" />
-        @if (_loading) { <AppProgressBar Indeterminate="true" aria-label="Loading applications" /> }
+        <AppSummaryStrip AriaLabel="@L["ManagedAccessApplications_IntegrationSummary"].Value" Loading="@_loading" Items="@SummaryItems()" />
+        @if (_loading) { <AppProgressBar Indeterminate="true" aria-label="@L["ManagedAccessApplications_LoadingApplications"].Value" /> }
         else if (_applications.Count == 0)
         {
-            <AppEmptyState Title="No integrations" Message="Connect another application securely to the Library.">
+            <AppEmptyState Title="@L["ManagedAccessApplications_NoIntegrations"].Value" Message="@L["ManagedAccessApplications_ConnectAnotherApplicationSecurelyTo"].Value">
                 <Action>
                     @if (!DeviceContext.IsPhone)
                     {
-                        <AppButton Label="New integration" StartIcon="@AppMaterialIcons.Outlined.Add" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="NewApplication" />
+                        <AppButton Label="@L["Common_NewIntegration"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="NewApplication" />
                     }
                 </Action>
             </AppEmptyState>
@@ -54,29 +55,29 @@
         {
             @if (!DeviceContext.IsPhone)
             {
-                <AppSearchFilterRow Search="@_search" SearchChanged="@(value => Narrow(() => _search = value))" Placeholder="Search integrations by name"
+                <AppSearchFilterRow Search="@_search" SearchChanged="@(value => Narrow(() => _search = value))" Placeholder="@L["ManagedAccessApplications_SearchIntegrationsByName"].Value"
                                     Narrowed="@Narrowed" OnClear="@ClearFilters">
-                    <AppSelect Label="Status" Value="@_statusFilter" Options="@StatusOptions" Native="true" FullWidth="false"
+                    <AppSelect Label="@L["Models_Status"].Value" Value="@_statusFilter" Options="@StatusOptions" Native="true" FullWidth="false"
                                ValueChanged="@(value => Narrow(() => _statusFilter = value ?? "all"))" />
-                    <AppSelect Label="Access" Value="@_accessFilter" Options="@AccessOptions()" Native="true" FullWidth="false"
+                    <AppSelect Label="@L["Common_Access"].Value" Value="@_accessFilter" Options="@AccessOptions()" Native="true" FullWidth="false"
                                ValueChanged="@(value => Narrow(() => _accessFilter = value ?? "all"))" />
-                    <AppLayoutSwitch StorageKey="tuvima.integrations.layout" Value="@_layout" ValueChanged="@(value => _layout = value)" AriaLabel="Integrations layout" />
+                    <AppLayoutSwitch StorageKey="tuvima.integrations.layout" Value="@_layout" ValueChanged="@(value => _layout = value)" AriaLabel="@L["ManagedAccessApplications_IntegrationsLayout"].Value" />
                 </AppSearchFilterRow>
             }
-            <AppCountTabs Tabs="@KindTabs()" Selected="@_kindTab" AriaLabel="Integration kinds" SelectedChanged="@(key => Narrow(() => _kindTab = key))" />
+            <AppCountTabs Tabs="@KindTabs()" Selected="@_kindTab" AriaLabel="@L["ManagedAccessApplications_IntegrationKinds"].Value" SelectedChanged="@(key => Narrow(() => _kindTab = key))" />
             var visible = VisibleApplications();
             _page = Math.Clamp(_page, 1, Math.Max(1, (int)Math.Ceiling(visible.Count / (double)PageSize)));
             @if (visible.Count == 0)
             {
                 @if (Narrowed)
                 {
-                    <AppEmptyState Title="No integrations match" Message="Nothing connected fits that search or filter.">
-                        <Action><AppButton Label="Clear filters" Size="AppControlSize.Compact" OnClick="@ClearFilters" /></Action>
+                    <AppEmptyState Title="@L["ManagedAccessApplications_NoIntegrationsMatch"].Value" Message="@L["ManagedAccessApplications_NothingConnectedFitsThatSearch"].Value">
+                        <Action><AppButton Label="@L["Common_ClearFilters"].Value" Size="AppControlSize.Compact" OnClick="@ClearFilters" /></Action>
                     </AppEmptyState>
                 }
                 else
                 {
-                    <AppEmptyState Title="Nothing in this category yet" Message="Integrations of this kind will appear here." />
+                    <AppEmptyState Title="@L["ManagedAccessApplications_NothingInThisCategoryYet"].Value" Message="@L["ManagedAccessApplications_IntegrationsOfThisKindWill"].Value" />
                 }
             }
             else

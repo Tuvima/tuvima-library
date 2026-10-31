@@ -4,9 +4,10 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @inject IEngineApiClient ApiClient
 @implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="artwork-asset-browser @(PickerMode ? "is-picker" : "is-library")">
-    <AppDiscoveryFilterBar AriaLabel="Artwork filters"
+    <AppDiscoveryFilterBar AriaLabel="@L["ArtworkAssetBrowser_ArtworkFilters"].Value"
                            ActiveKey="@(PickerMode ? _scope.ToString() : _usage.ToString())"
                            SearchValue="@_search"
                            SearchChanged="SearchChangedValue"
@@ -32,15 +33,15 @@
             }
         </QuickFilters>
         <AdvancedFilters>
-            <label><span>Related to</span><AppNativeSelect Value="@_entityType" OnChange="EntityTypeChangedAsync" aria-label="Filter by related entity type">@foreach (var option in EntityTypeOptions) { <option value="@option.Value">@option.Label</option> }</AppNativeSelect></label>
-            <label><span>Media type</span><AppNativeSelect Value="@_mediaType" OnChange="MediaTypeChangedAsync" aria-label="Filter by media type">@foreach (var option in MediaTypeOptions) { <option value="@option.Value">@option.Label</option> }</AppNativeSelect></label>
-            <label><span>Artwork role</span><AppNativeSelect Value="@_role" OnChange="RoleChangedAsync" aria-label="Filter by artwork role">@foreach (var option in RoleOptions) { <option value="@option.Value">@option.Label</option> }</AppNativeSelect></label>
-            <label><span>Orientation</span><AppNativeSelect Value="@_aspect" OnChange="AspectChangedAsync" aria-label="Filter by image orientation">@foreach (var option in AspectOptions) { <option value="@option.Value">@option.Label</option> }</AppNativeSelect></label>
-            <label><span>Source / provider</span><AppNativeSelect Value="@_source" OnChange="SourceChangedAsync" aria-label="Filter by source provider">@foreach (var option in SourceOptions) { <option value="@option.Value">@option.Label</option> }</AppNativeSelect></label>
-            <label><span>Year</span><AppNativeInput Type="search" Value="@_year" OnInput="YearChanged" Placeholder="Any" AriaLabel="Filter artwork by year" /></label>
+            <label><span>@L["ArtworkAssetBrowser_RelatedTo"]</span><AppNativeSelect Value="@_entityType" OnChange="EntityTypeChangedAsync" aria-label="@L["ArtworkAssetBrowser_FilterByRelatedEntityType"].Value">@foreach (var option in EntityTypeOptions) { <option value="@option.Value">@option.Label</option> }</AppNativeSelect></label>
+            <label><span>@L["Common_MediaType"]</span><AppNativeSelect Value="@_mediaType" OnChange="MediaTypeChangedAsync" aria-label="@L["ArtworkAssetBrowser_FilterByMediaType"].Value">@foreach (var option in MediaTypeOptions) { <option value="@option.Value">@option.Label</option> }</AppNativeSelect></label>
+            <label><span>@L["ArtworkAssetBrowser_ArtworkRole"]</span><AppNativeSelect Value="@_role" OnChange="RoleChangedAsync" aria-label="@L["ArtworkAssetBrowser_FilterByArtworkRole"].Value">@foreach (var option in RoleOptions) { <option value="@option.Value">@option.Label</option> }</AppNativeSelect></label>
+            <label><span>@L["ArtworkAssetBrowser_Orientation"]</span><AppNativeSelect Value="@_aspect" OnChange="AspectChangedAsync" aria-label="@L["ArtworkAssetBrowser_FilterByImageOrientation"].Value">@foreach (var option in AspectOptions) { <option value="@option.Value">@option.Label</option> }</AppNativeSelect></label>
+            <label><span>@L["ArtworkAssetBrowser_SourceProvider"]</span><AppNativeSelect Value="@_source" OnChange="SourceChangedAsync" aria-label="@L["ArtworkAssetBrowser_FilterBySourceProvider"].Value">@foreach (var option in SourceOptions) { <option value="@option.Value">@option.Label</option> }</AppNativeSelect></label>
+            <label><span>@L["Common_Year"]</span><AppNativeInput Type="search" Value="@_year" OnInput="YearChanged" Placeholder="@L["Common_Any"].Value" AriaLabel="@L["ArtworkAssetBrowser_FilterArtworkByYear"].Value" /></label>
             @if (HasActiveFilters)
             {
-                <AppNativeButton Type="button" Class="app-discovery-filter__clear" OnClick="ClearFiltersAsync">Clear all</AppNativeButton>
+                <AppNativeButton Type="button" Class="app-discovery-filter__clear" OnClick="ClearFiltersAsync">@L["Common_ClearAll"]</AppNativeButton>
             }
         </AdvancedFilters>
     </AppDiscoveryFilterBar>
@@ -49,19 +50,19 @@
         <div class="artwork-asset-browser__results">
             <div class="artwork-asset-browser__results-toolbar">
                 <div class="artwork-asset-browser__summary"><strong>@((_page?.Total ?? 0).ToString("N0"))</strong><span>result@((_page?.Total ?? 0) == 1 ? string.Empty : "s")</span></div>
-                <label class="artwork-asset-browser__sort"><span>Sort by</span><AppNativeSelect Value="@_sort.ToString()" OnChange="SortChangedAsync" aria-label="Sort artwork">@foreach (var option in SortOptions) { <option value="@option.Value">@option.Label</option> }</AppNativeSelect></label>
+                <label class="artwork-asset-browser__sort"><span>@L["Common_SortBy"]</span><AppNativeSelect Value="@_sort.ToString()" OnChange="SortChangedAsync" aria-label="@L["ArtworkAssetBrowser_SortArtwork"].Value">@foreach (var option in SortOptions) { <option value="@option.Value">@option.Label</option> }</AppNativeSelect></label>
             </div>
             @if (_loading && _page is null)
             {
-                <AppPageState Kind="AppPageStateKind.Loading" Title="Searching artwork" />
+                <AppPageState Kind="AppPageStateKind.Loading" Title="@L["ArtworkAssetBrowser_SearchingArtwork"].Value" />
             }
             else if (_page is null)
             {
-                <AppErrorState Title="Artwork could not be loaded" Message="The Engine did not return the artwork library." Retry="LoadAsync" />
+                <AppErrorState Title="@L["ArtworkAssetBrowser_ArtworkCouldNotBeLoaded"].Value" Message="The Engine did not return the artwork library." Retry="LoadAsync" />
             }
             else if (_page.Items.Count == 0)
             {
-                <AppPageState Kind="AppPageStateKind.Empty" Title="No images match" Message="Try clearing a filter or choosing All Artwork." />
+                <AppPageState Kind="AppPageStateKind.Empty" Title="@L["ArtworkAssetBrowser_NoImagesMatch"].Value" Message="@L["ArtworkAssetBrowser_TryClearingAFilterOr"].Value" />
             }
             else if (PickerMode)
             {
@@ -70,7 +71,7 @@
                                          Title="AssetTitle" SupportingText="AssetFacts" IsSelected="IsSelectedAsset"
                                          IsPreferred="IsPreferredAsset" UseContain="ShouldContainAsset"
                                          MultiSelect="MultiSelect" Disabled="Disabled"
-                                         OnSelect="SelectAssetAsync" AriaLabel="Choose artwork from library" />
+                                         OnSelect="SelectAssetAsync" AriaLabel="@L["ArtworkAssetBrowser_ChooseArtworkFromLibrary"].Value" />
                 @if (_page.HasMore)
                 {
                     <div class="artwork-asset-browser__more"><AppButton ButtonStyle="AppButtonStyle.Outlined" Disabled="@_loadingMore" OnClick="LoadMoreAsync">@(_loadingMore ? "Loading…" : "Load more")</AppButton></div>
@@ -78,7 +79,7 @@
             }
             else
             {
-                <main class="artwork-asset-browser__timeline" aria-label="Artwork timeline">
+                <main class="artwork-asset-browser__timeline" aria-label="@L["ArtworkAssetBrowser_ArtworkTimeline"].Value">
                     @foreach (var month in TimelineMonths)
                     {
                         <section class="artwork-asset-browser__month" aria-labelledby="@month.Id">
@@ -121,14 +122,14 @@
     <MediaViewerShell Item="@ViewerItem" Capabilities="@ArtworkViewerCapabilities" HasPrevious="@CanViewPrevious" HasNext="@CanViewNext" OnClose="CloseViewer" OnPrevious="ViewPrevious" OnNext="ViewNext">
         <InfoContent>
             <dl>
-                <div><dt>Dimensions</dt><dd>@Dimensions(_viewerAsset)</dd></div>
-                <div><dt>Aspect</dt><dd>@_viewerAsset.Aspect</dd></div>
-                <div><dt>Source</dt><dd>@(_viewerAsset.SourceProvider ?? "Library")</dd></div>
-                <div><dt>Added</dt><dd>@(_viewerAsset.CreatedAt?.LocalDateTime.ToString("d") ?? "Not recorded")</dd></div>
-                <div><dt>Used by</dt><dd>@_viewerAsset.LinkCount assignment@(_viewerAsset.LinkCount == 1 ? string.Empty : "s")</dd></div>
-                <div><dt>Preferred uses</dt><dd>@_viewerAsset.PreferredLinkCount</dd></div>
+                <div><dt>@L["Common_Dimensions"]</dt><dd>@Dimensions(_viewerAsset)</dd></div>
+                <div><dt>@L["ArtworkAssetBrowser_Aspect"]</dt><dd>@_viewerAsset.Aspect</dd></div>
+                <div><dt>@L["Common_Source"]</dt><dd>@(_viewerAsset.SourceProvider ?? "Library")</dd></div>
+                <div><dt>@L["Common_Added"]</dt><dd>@(_viewerAsset.CreatedAt?.LocalDateTime.ToString("d") ?? "Not recorded")</dd></div>
+                <div><dt>@L["Common_UsedBy"]</dt><dd>@_viewerAsset.LinkCount assignment@(_viewerAsset.LinkCount == 1 ? string.Empty : "s")</dd></div>
+                <div><dt>@L["ArtworkAssetBrowser_PreferredUses"]</dt><dd>@_viewerAsset.PreferredLinkCount</dd></div>
             </dl>
-            @if (_viewerAsset.Contexts.Count > 0) { <section class="artwork-asset-browser__viewer-context"><h3>Related to</h3>@foreach (var context in _viewerAsset.Contexts.Take(12)) { <div><strong>@context.EntityLabel</strong><span>@string.Join(" · ", new[] { context.Role, context.MediaType, context.Year }.Where(value => !string.IsNullOrWhiteSpace(value)))</span></div> }</section> }
+            @if (_viewerAsset.Contexts.Count > 0) { <section class="artwork-asset-browser__viewer-context"><h3>@L["ArtworkAssetBrowser_RelatedTo"]</h3>@foreach (var context in _viewerAsset.Contexts.Take(12)) { <div><strong>@context.EntityLabel</strong><span>@string.Join(" · ", new[] { context.Role, context.MediaType, context.Year }.Where(value => !string.IsNullOrWhiteSpace(value)))</span></div> }</section> }
         </InfoContent>
     </MediaViewerShell>
 }

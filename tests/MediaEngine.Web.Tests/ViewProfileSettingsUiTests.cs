@@ -38,7 +38,7 @@ public sealed class ViewProfileSettingsUiTests
     }
 
     private static string ReadRepoFile(string relativePath) =>
-        File.ReadAllText(Path.GetFullPath(Path.Combine(
+        LocalizedSource.ReadAllText(Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory,
             "..", "..", "..", "..", "..",
             relativePath)));

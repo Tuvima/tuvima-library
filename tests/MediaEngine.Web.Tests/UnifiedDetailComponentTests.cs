@@ -1703,7 +1703,7 @@ public sealed class UnifiedDetailComponentTests
     private static string ReadSource(string relativePath)
     {
         var root = FindRepoRoot();
-        return File.ReadAllText(Path.Combine(root, relativePath));
+        return LocalizedSource.ReadAllText(Path.Combine(root, relativePath));
     }
 
     private static string ReadDetailComposerSource()

@@ -4,17 +4,18 @@
 @using MediaEngine.Web.Services.Formatting
 @inject IEngineApiClient Api
 @inject IAppDialogService Dialogs
+@inject IStringLocalizer<SharedStrings> L
 
 @* The Recycle bin as the signed-in profile may see it (spec Delete a show, season, album or Series, D12 to D19). Everyone sees the
    total; the list holds only what the profile may see and the rest is one "Other media" line. Administrators Restore, Delete now and
    Empty (putting a file back never overwrites anything); everyone else can Ask to keep. *@
-<section class="recycle-bin" aria-label="Recycle bin">
+<section class="recycle-bin" aria-label="@L["Common_RecycleBin"].Value">
     <header class="recycle-bin__head">
-        <strong>Recycle bin</strong>
+        <strong>@L["Common_RecycleBin"]</strong>
         @if (_summary is { CanManage: true, TotalItems: > 0 })
         {
             <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" Size="AppControlSize.Compact"
-                       Disabled="@_busy" OnClick="EmptyAsync">Empty recycle bin</AppButton>
+                       Disabled="@_busy" OnClick="EmptyAsync">@L["RecycleBinSection_EmptyRecycleBin"]</AppButton>
         }
     </header>
     @if (!string.IsNullOrWhiteSpace(MediaType))
@@ -30,12 +31,12 @@
         <p class="recycle-bin__note" role="status">@(_failed ? "Couldn't reach the Engine." : "Loading…")</p>
         @if (_failed)
         {
-            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="LoadAsync">Try again</AppButton>
+            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="LoadAsync">@L["Common_TryAgain"]</AppButton>
         }
     }
     else if (_summary.TotalItems == 0)
     {
-        <p class="recycle-bin__note">Nothing in the recycle bin.</p>
+        <p class="recycle-bin__note">@L["RecycleBinSection_NothingInTheRecycleBin"]</p>
     }
     else
     {
@@ -43,7 +44,7 @@
         @if (_summary.CanManage && _summary.LeavingSoonItems > 0)
         {
             <p class="recycle-bin__soon" role="status">
-                @Count(_summary.LeavingSoonItems) (@DisplayFormat.FormatFileSize(_summary.LeavingSoonBytes)) will be deleted for good @SoonText.
+                @L["RecycleBinSection_WillBeDeletedForGood", Count(_summary.LeavingSoonItems), DisplayFormat.FormatFileSize(_summary.LeavingSoonBytes) ?? string.Empty, SoonText]
             </p>
         }
         <ul class="recycle-bin__list">
@@ -58,33 +59,33 @@
                         </span>
                         @if (item.RequestedBy.Count > 0)
                         {
-                            <span class="recycle-bin__request">Requested by @string.Join(", ", item.RequestedBy)</span>
+                            <span class="recycle-bin__request">@L["RecycleBinSection_RequestedBy", string.Join(", ", item.RequestedBy)]</span>
                         }
                     </span>
                     @if (_summary.CanManage)
                     {
                         <span class="recycle-bin__actions">
                             <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
-                                       Disabled="@_busy" OnClick="@(() => RestoreAsync(captured))">Put back</AppButton>
+                                       Disabled="@_busy" OnClick="@(() => RestoreAsync(captured))">@L["RecycleBinSection_PutBack"]</AppButton>
                             <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" Size="AppControlSize.Compact"
-                                       Disabled="@_busy" OnClick="@(() => DeleteNowAsync(captured))">Delete now</AppButton>
+                                       Disabled="@_busy" OnClick="@(() => DeleteNowAsync(captured))">@L["RecycleBinSection_DeleteNow"]</AppButton>
                         </span>
                     }
                     else if (item.Requested)
                     {
-                        <span class="recycle-bin__note">Requested</span>
+                        <span class="recycle-bin__note">@L["RecycleBinSection_Requested"]</span>
                     }
                     else
                     {
                         <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
-                                   Disabled="@_busy" OnClick="@(() => AskToKeepAsync(captured))">Ask to keep</AppButton>
+                                   Disabled="@_busy" OnClick="@(() => AskToKeepAsync(captured))">@L["RecycleBinSection_AskToKeep"]</AppButton>
                     }
                 </li>
             }
         </ul>
         @if (_summary.OtherItems > 0)
         {
-            <p class="recycle-bin__note">Other media: @Count(_summary.OtherItems), @DisplayFormat.FormatFileSize(_summary.OtherBytes)</p>
+            <p class="recycle-bin__note">@L["RecycleBinSection_OtherMedia", Count(_summary.OtherItems), DisplayFormat.FormatFileSize(_summary.OtherBytes) ?? string.Empty]</p>
         }
     }
     @if (_message is not null)

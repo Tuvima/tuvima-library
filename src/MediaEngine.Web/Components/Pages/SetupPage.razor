@@ -22,21 +22,22 @@
 @inject MediaEngine.Web.Services.Integration.DashboardSessionAccessor DashboardSession
 @inject MediaEngine.Web.Services.Integration.DashboardIdentityClient Identity
 @inject MediaEngine.Web.Services.Theming.DeviceContextService DeviceContext
+@inject IStringLocalizer<SharedStrings> L
 
-<PageTitle>Set up Library</PageTitle>
+<PageTitle>@L["SetupPage_SetUpLibrary"]</PageTitle>
 
 <main class="setup-page">
     @if (_loading)
     {
-        <AppPageState Kind="AppPageStateKind.Loading" Title="Loading setup" Message="Checking this server's durable setup state." />
+        <AppPageState Kind="AppPageStateKind.Loading" Title="@L["SetupPage_LoadingSetup"].Value" Message="@L["SetupPage_CheckingThisServerSDurable"].Value" />
     }
     else if (ClientSignInRefusal is not null && _status?.RequiresSetupStart == true && !_authenticated && !_setupSessionReadyForCircuit)
     {
-        <AppPageState Kind="AppPageStateKind.Error" Title="Setup is not available from here" Message="@ClientSignInRefusal" />
+        <AppPageState Kind="AppPageStateKind.Error" Title="@L["SetupPage_SetupIsNotAvailableFrom"].Value" Message="@ClientSignInRefusal" />
     }
     else if (_status is null)
     {
-        <AppPageState Kind="AppPageStateKind.Error" Title="Setup is unavailable" Message="The Engine did not return setup status. Check the container logs and retry." />
+        <AppPageState Kind="AppPageStateKind.Error" Title="@L["SetupPage_SetupIsUnavailable"].Value" Message="The Engine did not return setup status. Check the container logs and retry." />
     }
     else if (_codeRequired || _remoteRefused)
     {
@@ -50,7 +51,7 @@
     {
         <div class="setup-shell">
         <aside class="setup-sidebar">
-            <div class="setup-brand"><img src="/images/tuvima-icon.svg" alt="" width="32" height="32" /><span>Library</span></div>
+            <div class="setup-brand"><img src="/images/tuvima-icon.svg" alt="" width="32" height="32" /><span>@L["Nav_Library"]</span></div>
             <SetupStepper Steps="@_status.Steps" CurrentStep="@CurrentStep" WorkflowStep="@WorkflowStep" ShowVault="@ShowVault" StepSelected="GoToStepAsync" />
         </aside>
         <section class="setup-stage" aria-labelledby="setup-stage-title">

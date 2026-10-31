@@ -3,10 +3,11 @@
 @implements IDisposable
 @inject NsfwModeState Nsfw
 @inject NavigationManager Nav
+@inject IStringLocalizer<SharedStrings> L
 
 @* One Vault video's own page (Videos spec D40): where Play and Identify live. As on the Vault page, the title of the page is plain and
    anyone whose Vault mode is not on is sent to the same "not found" page an unknown address gets. *@
-<PageTitle>Video</PageTitle>
+<PageTitle>@L["Nav_Video"]</PageTitle>
 
 @if (Nsfw.Unlocked)
 {

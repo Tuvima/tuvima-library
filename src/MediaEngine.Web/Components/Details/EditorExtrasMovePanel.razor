@@ -2,28 +2,29 @@
 @using MediaEngine.Contracts.Details
 @using MediaEngine.Contracts.Editing
 @using MediaEngine.Web.Services.Editing
+@inject IStringLocalizer<SharedStrings> L
 
 @* Extras spec WP4, in the Match tool: a show lists its video clips with "Move to episode" (pick the season and episode), and an episode
    has "Move to Extras". Both only stage a change; Review changes shows it and Save changes does it. *@
 @if (Show.Count > 0 || IsEpisode)
 {
     <section class="tl-extras-moves" data-testid="extras-moves">
-        <h3>Extras</h3>
+        <h3>@L["Common_Extras"]</h3>
 
         @if (IsEpisode)
         {
             @if (Pending?.FindExtraMove(Subject!.EntityId, null) is not null)
             {
                 <div class="tl-extras-moves__row tl-extras-moves__row--staged">
-                    <span>Moves to Extras when you save.</span>
-                    <AppButton Label="Undo" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="UnstageEpisode" />
+                    <span>@L["EditorExtrasMovePanel_MovesToExtrasWhenYou"]</span>
+                    <AppButton Label="@L["EditorExtrasMovePanel_Undo"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="UnstageEpisode" />
                 </div>
             }
             else
             {
                 <div class="tl-extras-moves__row">
-                    <span>This is not an episode. Keep the file, but show it under Extras instead.</span>
-                    <AppButton Label="Move to Extras" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                    <span>@L["EditorExtrasMovePanel_ThisIsNotAnEpisode"]</span>
+                    <AppButton Label="@L["EditorExtrasMovePanel_MoveToExtras"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
                                Disabled="@(!CanChange)" OnClick="StageEpisode" />
                 </div>
             }
@@ -37,23 +38,23 @@
                 @if (staged is not null)
                 {
                     <span>@StagedText(staged)</span>
-                    <AppButton Label="Undo" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="() => Unstage(clip.Id)" />
+                    <AppButton Label="@L["EditorExtrasMovePanel_Undo"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="() => Unstage(clip.Id)" />
                 }
                 else if (_open == clip.Id)
                 {
-                    <label class="tl-extras-moves__number">Season
+                    <label class="tl-extras-moves__number">@L["Common_Season"]
                         <AppNumericField Min="0" Max="@EditSessionExtraMove.MaxSeason" @bind-Value="_season" FullWidth="false" />
                     </label>
-                    <label class="tl-extras-moves__number">Episode
+                    <label class="tl-extras-moves__number">@L["Common_Episode"]
                         <AppNumericField Min="1" Max="@EditSessionExtraMove.MaxEpisode" @bind-Value="_episode" FullWidth="false" />
                     </label>
-                    <AppButton Label="Move" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
+                    <AppButton Label="@L["EditorExtrasMovePanel_Move"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
                                Disabled="@(!ValidNumbers)" OnClick="() => Stage(clip)" />
-                    <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="Close" />
+                    <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="Close" />
                 }
                 else
                 {
-                    <AppButton Label="Move to episode" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                    <AppButton Label="@L["EditorExtrasMovePanel_MoveToEpisode"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
                                Disabled="@(!CanChange)" OnClick="() => Open(clip.Id)" />
                 }
             </div>

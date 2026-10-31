@@ -1,8 +1,9 @@
-﻿@namespace MediaEngine.Web.Components.Details
+@namespace MediaEngine.Web.Components.Details
 @implements IDisposable
 @using MediaEngine.Contracts.Details
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Models.ViewDTOs
+@inject IStringLocalizer<SharedStrings> L
 
 <CinematicHeroSurface Artwork="HeroArtwork"
                       EntityType="Model.EntityType"
@@ -53,9 +54,9 @@
             <IdentityAfterTitle>
                 @if (!string.IsNullOrWhiteSpace(PersonRoleLabel))
                 {
-                    <div class="tl-detail-hero-credit-stack tl-detail-person-role" aria-label="Primary role">
+                    <div class="tl-detail-hero-credit-stack tl-detail-person-role" aria-label="@L["DetailHero_PrimaryRole"].Value">
                         <div class="tl-detail-hero-credit-stack__line">
-                            <span class="tl-detail-hero-credit-stack__label">Role</span>
+                            <span class="tl-detail-hero-credit-stack__label">@L["Profile_Role"]</span>
                             <span class="tl-detail-hero-credit-stack__value">@PersonRoleLabel</span>
                         </div>
                     </div>
@@ -65,7 +66,7 @@
                 @if (PersonHeroFacts.Count > 0)
                 {
                     <div class="tl-detail-watch-metadata-row tl-detail-watch-metadata-row--facts tl-detail-person-fact-row"
-                         aria-label="Person details">
+                         aria-label="@L["DetailHero_PersonDetails"].Value">
                         @foreach (var fact in PersonHeroFacts)
                         {
                             <span class="tl-detail-watch-metadata-item tl-detail-person-fact">
@@ -79,7 +80,7 @@
             <ActionContent>
                 @if (Model.PersonDetails.ExternalLinks.Count > 0 || Model.OverflowActions.Count > 0)
                 {
-                    <div class="tl-detail-person-links" aria-label="External links">
+                    <div class="tl-detail-person-links" aria-label="@L["DetailHero_ExternalLinks"].Value">
                         @foreach (var link in Model.PersonDetails.ExternalLinks)
                         {
                             <a class="tl-detail-person-link"
@@ -96,7 +97,7 @@
                             </a>
                         }
                         <OverflowActionMenu Actions="Model.OverflowActions"
-                                            Label="More"
+                                            Label="@L["Common_More"].Value"
                                             ButtonClass="tl-detail-person-link"
                                             OnActionSelected="OnActionSelected" />
                     </div>
@@ -135,7 +136,7 @@
                     <a class="tl-detail-hero__overview-link"
                        href="#overview"
                        @onclick="OpenOverviewAsync"
-                       @onclick:preventDefault="true">(more in overview)</a>
+                       @onclick:preventDefault="true">@L["DetailHero_MoreInOverview"]</a>
                 }
             </SecondaryTitleTrailingContent>
             <IdentityAfterTitle>
@@ -152,7 +153,7 @@
                 }
                 @if (HeroCreditLines.Count > 0)
                 {
-                    <div class="@HeroCreditStackClass" aria-label="Primary credits">
+                    <div class="@HeroCreditStackClass" aria-label="@L["DetailHero_PrimaryCredits"].Value">
                         @foreach (var line in HeroCreditLines)
                         {
                             <div class="tl-detail-hero-credit-stack__line">
@@ -174,7 +175,7 @@
             <CapabilityContent>
                 @if (Presentation.CapabilityPills.Count > 0)
                 {
-                    <div class="tl-detail-capability-row" aria-label="Availability">
+                    <div class="tl-detail-capability-row" aria-label="@L["DetailHero_Availability"].Value">
                         @foreach (var pill in Presentation.CapabilityPills)
                         {
                             <span class="tl-detail-capability-pill">@pill.Label</span>
@@ -201,7 +202,7 @@
                     <a class="tl-detail-hero__overview-link"
                        href="#overview"
                        @onclick="OpenOverviewAsync"
-                       @onclick:preventDefault="true">(more in overview)</a>
+                       @onclick:preventDefault="true">@L["DetailHero_MoreInOverview"]</a>
                 }
                 <EditableFieldPencil Keys="@HeroCopyKeys" Owner="hero" />
             </SynopsisTrailingContent>

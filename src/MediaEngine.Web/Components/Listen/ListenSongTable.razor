@@ -13,6 +13,7 @@
 @inject DeviceContextService DeviceContext
 @inject NavigationManager Navigation
 @inject IServiceProvider Services
+@inject IStringLocalizer<SharedStrings> L
 
 @if (DeviceContext.IsPhone)
 {
@@ -21,10 +22,10 @@
         <caption class="sr-only">@AriaLabel</caption>
         <thead>
             <tr>
-                <th data-card-role="title">Song</th>
-                <th data-card-role="subtitle">Artist and album</th>
-                <th data-card-role="value">Time</th>
-                <th data-card-role="actions"><span class="sr-only">Actions</span></th>
+                <th data-card-role="title">@L["Common_Song"]</th>
+                <th data-card-role="subtitle">@L["Common_ArtistAndAlbum"]</th>
+                <th data-card-role="value">@L["Common_Time"]</th>
+                <th data-card-role="actions"><span class="sr-only">@L["ApiKeys_Actions"]</span></th>
             </tr>
         </thead>
         <tbody>
@@ -44,7 +45,7 @@
                     <td data-card-role="actions" class="listen-song-table-cards__actions" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
                         @if (ShowFavorite)
                         {
-                            <AppNativeButton Type="button" Class='@($"listen-song-table__favorite-button {(FavoriteIds.Contains(track.Id) ? " is-active" : null)}")' AriaLabel="@($"Toggle favorite for {trackTitle}")" Title="Toggle favorite" aria-pressed="@(FavoriteIds.Contains(track.Id) ? "true" : "false")" StopPropagation="true" OnClick="@(() => ToggleFavoriteAsync(track))">
+                            <AppNativeButton Type="button" Class='@($"listen-song-table__favorite-button {(FavoriteIds.Contains(track.Id) ? " is-active" : null)}")' AriaLabel="@($"Toggle favorite for {trackTitle}")" Title="@L["Common_ToggleFavorite"].Value" aria-pressed="@(FavoriteIds.Contains(track.Id) ? "true" : "false")" StopPropagation="true" OnClick="@(() => ToggleFavoriteAsync(track))">
                                 <AppMaterialIcon Icon="@(FavoriteIds.Contains(track.Id) ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)" Size="AppSize.Small" />
                             </AppNativeButton>
                         }
@@ -58,7 +59,7 @@
     {
         <div class="listen-song-table-cards__more">
             <AppNativeButton Type="button" Class="listen-song-table-cards__more-button" OnClick="ShowMorePhoneTracks">
-                Show more songs (@(phoneTracks.Count - _phoneVisibleCount) left)
+                @L["ListenSongTable_ShowMoreSongsLeft", phoneTracks.Count - _phoneVisibleCount]
             </AppNativeButton>
         </div>
     }
@@ -84,7 +85,7 @@ else
             {
                 if (column.Key == "select")
                 {
-                    <span class="listen-song-table__static-header listen-song-table__select-head" role="columnheader"><span class="sr-only">Select</span></span>
+                    <span class="listen-song-table__static-header listen-song-table__select-head" role="columnheader"><span class="sr-only">@L["Common_Select"]</span></span>
                 }
                 else if (Sortable && IsSortableColumn(column.Key))
                 {
@@ -170,14 +171,14 @@ else
                             {
                                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MusicNote" Size="AppSize.Small" />
                             }
-                            <AppNativeButton Type="button" Class="listen-song-table__art-play" data-listen-row-play="true" Title="Play song" AriaLabel="@($" Play {trackTitle}")" StopPropagation="true" OnClick="@(() => PlayAsync(track.Id, false))">
+                            <AppNativeButton Type="button" Class="listen-song-table__art-play" data-listen-row-play="true" Title="@L["Common_PlaySong"].Value" AriaLabel="@($" Play {trackTitle}")" StopPropagation="true" OnClick="@(() => PlayAsync(track.Id, false))">
                                 <AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayArrow" Size="AppSize.Small" />
                             </AppNativeButton>
                         </div>
                     }
                     else
                     {
-                        <AppNativeButton Type="button" Class="listen-song-table__play-only" data-listen-row-play="true" Title="Play song" AriaLabel="@($" Play {trackTitle}")" StopPropagation="true" OnClick="@(() => PlayAsync(track.Id, false))">
+                        <AppNativeButton Type="button" Class="listen-song-table__play-only" data-listen-row-play="true" Title="@L["Common_PlaySong"].Value" AriaLabel="@($" Play {trackTitle}")" StopPropagation="true" OnClick="@(() => PlayAsync(track.Id, false))">
                             <AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayArrow" Size="AppSize.Small" />
                         </AppNativeButton>
                     }
@@ -191,7 +192,7 @@ else
                     {
                         case "favorite":
                             <div class="listen-song-table__favorite" role="cell">
-                                <AppNativeButton Type="button" Class='@($"listen-song-table__favorite-button {(FavoriteIds.Contains(track.Id) ? " is-active" : null)}")' AriaLabel="Toggle favorite" Title="Toggle favorite" StopPropagation="true" OnClick="@(() => ToggleFavoriteAsync(track))">
+                                <AppNativeButton Type="button" Class='@($"listen-song-table__favorite-button {(FavoriteIds.Contains(track.Id) ? " is-active" : null)}")' AriaLabel="@L["Common_ToggleFavorite"].Value" Title="@L["Common_ToggleFavorite"].Value" StopPropagation="true" OnClick="@(() => ToggleFavoriteAsync(track))">
                                     <AppMaterialIcon Icon="@(FavoriteIds.Contains(track.Id) ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)" Size="AppSize.Small" />
                                 </AppNativeButton>
                             </div>
@@ -241,20 +242,20 @@ else
                                 @if (ShowQueue)
                                 {
                                     <span class="listen-song-table__queue-hover">
-                                        <AppNativeButton Type="button" Class="listen-song-table__icon-button" Title="Add to queue" AriaLabel="@($" Add {trackTitle} to queue")" StopPropagation="true" OnClick="@(() => QueueAsync(track))">
+                                        <AppNativeButton Type="button" Class="listen-song-table__icon-button" Title="@L["Common_AddToQueue"].Value" AriaLabel="@($" Add {trackTitle} to queue")" StopPropagation="true" OnClick="@(() => QueueAsync(track))">
                                             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlaylistAdd" Size="AppSize.Small" />
                                         </AppNativeButton>
                                     </span>
                                 }
                                 <AppOverflowMenu Size="AppControlSize.Compact" Class="listen-song-table__overflow">
                                     <PersonalStatusMenuItems WorkId="track.Id" />
-                                    <AppMenuItem Label="Open album"
+                                    <AppMenuItem Label="@L["ListenSongTable_OpenAlbum"].Value"
                                                  Icon="@AppMaterialIcons.Outlined.Album"
                                                  Disabled="@(track.RootWorkId is null || track.RootWorkId == Guid.Empty)"
                                                  OnClick="@(() => OpenAlbumAsync(track))" />
                                     @if (ShowDelete)
                                     {
-                                        <AppMenuItem Label="Delete from library…"
+                                        <AppMenuItem Label="@L["ListenSongTable_DeleteFromLibrary"].Value"
                                                      Icon="@AppMaterialIcons.Outlined.Delete"
                                                      Tone="AppUiTone.Error"
                                                      DividerBefore="true"

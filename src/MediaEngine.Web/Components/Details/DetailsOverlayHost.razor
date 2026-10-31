@@ -6,6 +6,7 @@
 @inject IJSRuntime JS
 @inject DetailsOverlayState Overlay
 @inject IServiceProvider Services
+@inject IStringLocalizer<SharedStrings> L
 
 @* The details overlay frame (spec D1): a modal window over the page the person came from (a bottom sheet on phones).
    The browser makes everything outside it inert and unreachable, app-dialog.js locks the page scroll, returns focus to
@@ -26,8 +27,8 @@
         @* AppNativeButton renders the element, so its 44px top-right style lives in app.css (scoped styles cannot reach it). *@
         <AppNativeButton Type="button"
                          Class="tl-details-overlay__close"
-                         AriaLabel="Close"
-                         Title="Close"
+                         AriaLabel="@L["Common_Close"].Value"
+                         Title="@L["Common_Close"].Value"
                          OnClick="CloseAsync">
             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" />
         </AppNativeButton>

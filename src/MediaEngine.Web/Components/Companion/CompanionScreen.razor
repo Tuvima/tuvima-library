@@ -2,6 +2,7 @@
 @using MediaEngine.Contracts.Playback
 @using MediaEngine.Domain.Models
 @inject IEngineApiClient ApiClient
+@inject IStringLocalizer<SharedStrings> L
 
 @* The phone companion for one Work at one position (U-WP13, spec 4A.3): a title and your place, a small "Up to here" /
    "Everything" switch (the same Spoilers preference as Settings), "Who's here", "Where you've seen them", "Previously" and a
@@ -37,7 +38,7 @@
                 else
                 {
                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PushPin" />
-                    <span>Place set by you</span>
+                    <span>@L["CompanionScreen_PlaceSetByYou"]</span>
                 }
             </p>
         </div>
@@ -47,7 +48,7 @@
         <AppSegmentedControl Options="SpoilerOptions"
                              Value="@Context.SpoilerLevel"
                              ValueChanged="OnSpoilerLevelChanged"
-                             AriaLabel="Spoilers"
+                             AriaLabel="@L["Common_Spoilers"].Value"
                              Disabled="SpoilerBusy"
                              Class="companion__spoiler-control" />
     </div>
@@ -55,7 +56,7 @@
     <div class="companion__actions">
         @if (!string.IsNullOrWhiteSpace(Context.DetailsRoute))
         {
-            <AppButton Label="Open item page" Href="@Context.DetailsRoute" ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.OpenInNew" />
+            <AppButton Label="@L["CompanionScreen_OpenItemPage"].Value" Href="@Context.DetailsRoute" ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.OpenInNew" />
         }
         @if (Context.Universe is { } universe)
         {
@@ -71,25 +72,25 @@
         }
         else
         {
-            <p class="companion__empty">No synopsis for this one yet.</p>
+            <p class="companion__empty">@L["CompanionScreen_NoSynopsisForThisOne"]</p>
         }
     </section>
 
     <section class="companion__section" aria-labelledby="@_whosHereId" data-section="whos-here">
-        <h2 id="@_whosHereId" class="companion__section-title">Who's here</h2>
+        <h2 id="@_whosHereId" class="companion__section-title">@L["CompanionScreen_WhoSHere"]</h2>
         @if (!Context.WhosHere.HasCharacterDetails)
         {
-            <p class="companion__empty" data-note="no-character-details">No character details for this one yet.</p>
+            <p class="companion__empty" data-note="no-character-details">@L["CompanionScreen_NoCharacterDetailsForThis"]</p>
             @if (Context.Cast.Count > 0)
             {
-                <p class="companion__text companion__cast" data-part="cast"><span class="companion__cast-label">Cast</span> @string.Join(", ", Context.Cast)</p>
+                <p class="companion__text companion__cast" data-part="cast"><span class="companion__cast-label">@L["Universe_ModeCast"]</span> @string.Join(", ", Context.Cast)</p>
             }
         }
         else
         {
             @if (Context.WhosHere.Characters.Count == 0)
             {
-                <p class="companion__empty" data-note="nothing-yet">Characters show up here as you reach them.</p>
+                <p class="companion__empty" data-note="nothing-yet">@L["CompanionScreen_CharactersShowUpHereAs"]</p>
             }
             else
             {
@@ -108,7 +109,7 @@
 
             @if (Context.WhosHere.MoreCount > 0)
             {
-                <p class="companion__note" data-note="more-characters">and @Context.WhosHere.MoreCount more not listed here. The Universe page lists them all.</p>
+                <p class="companion__note" data-note="more-characters">@L["CompanionScreen_AndMoreNotListedHere", Context.WhosHere.MoreCount]</p>
             }
 
             @if (Context.WhosHere.HeldBackCount > 0)
@@ -118,7 +119,7 @@
 
             @if (IsBookLike && Context.WhosHere.Characters.Any(character => character.Visibility == CompanionCharacterVisibility.NoPlotDetails))
             {
-                <p class="companion__note" data-note="no-chapter-level">No source says who appears in which chapter, so characters are named without plot details.</p>
+                <p class="companion__note" data-note="no-chapter-level">@L["CompanionScreen_NoSourceSaysWhoAppears"]</p>
             }
         }
     </section>
@@ -126,7 +127,7 @@
     @if (SeenElsewhere.Count > 0)
     {
         <section class="companion__section" aria-labelledby="@_seenId" data-section="where-seen">
-            <h2 id="@_seenId" class="companion__section-title">Where you've seen them</h2>
+            <h2 id="@_seenId" class="companion__section-title">@L["CompanionScreen_WhereYouVeSeenThem"]</h2>
             <ul class="companion__list">
                 @foreach (var character in SeenElsewhere)
                 {
@@ -137,7 +138,7 @@
                                          OnClick="@(() => OnOpenAlsoAppearsIn.InvokeAsync(character))">
                             <span class="companion__row-copy">
                                 <span class="companion__character-name">@character.Name</span>
-                                <span class="companion__character-detail">Also in @OtherWorks(character.OtherWorkCount)</span>
+                                <span class="companion__character-detail">@L["CompanionScreen_AlsoIn", OtherWorks(character.OtherWorkCount)]</span>
                             </span>
                             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" />
                         </AppNativeButton>
@@ -150,7 +151,7 @@
     @if (Context.Previously is { } previously)
     {
         <section class="companion__section" aria-labelledby="@_previouslyId" data-section="previously">
-            <h2 id="@_previouslyId" class="companion__section-title">Previously</h2>
+            <h2 id="@_previouslyId" class="companion__section-title">@L["CompanionScreen_Previously"]</h2>
             <p class="companion__previously-label">@previously.Label · @previously.Title</p>
             @if (!string.IsNullOrWhiteSpace(previously.Synopsis))
             {
@@ -158,7 +159,7 @@
             }
             else
             {
-                <p class="companion__empty">No synopsis for the last episode you own.</p>
+                <p class="companion__empty">@L["CompanionScreen_NoSynopsisForTheLast"]</p>
             }
         </section>
     }

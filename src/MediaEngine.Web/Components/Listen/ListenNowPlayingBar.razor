@@ -27,6 +27,7 @@
 @inject NavigationManager Nav
 @inject IAppToastService Snackbar
 @implements IAsyncDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 <audio @ref="_audioRef"
        id="listen-audio-engine"
@@ -44,7 +45,7 @@
 {
     <div class="listen-player__restore-status" role="status">
         <span>@_playbackRestoreError</span>
-        <AppNativeButton Type="button" OnClick="RetryPlaybackStateRestoreAsync" AriaLabel="Retry playback state restore">Retry</AppNativeButton>
+        <AppNativeButton Type="button" OnClick="RetryPlaybackStateRestoreAsync" AriaLabel="@L["ListenNowPlayingBar_RetryPlaybackStateRestore"].Value">@L["Common_Retry"]</AppNativeButton>
     </div>
 }
 
@@ -69,7 +70,7 @@
          @ondragover:preventDefault="true"
          @ondrop:preventDefault="true"
          @ondrop="QueueDraggedItemsAsync">
-        <PlaybackMiniPlayer Experience="@CurrentMiniPlayerExperience" Class="@($"listen-player {(Playback.IsAudiobookMode ? "listen-player--audiobook" : "listen-player--music")}")" AriaLabel="Now playing mini player">
+        <PlaybackMiniPlayer Experience="@CurrentMiniPlayerExperience" Class="@($"listen-player {(Playback.IsAudiobookMode ? "listen-player--audiobook" : "listen-player--music")}")" AriaLabel="@L["ListenNowPlayingBar_NowPlayingMiniPlayer"].Value">
                 <PlaybackSeekRail Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds" ValueChanged="SeekOnHostAsync" Surface="dock"
                                   ShowRemaining="@_showRemainingTime" ShowRemainingChanged="@(value => _showRemainingTime = value)" />
 
@@ -158,7 +159,7 @@
                     <span class="listen-player__song-actions"><PlaybackSongActions Item="@Playback.CurrentItem" IsFavorite="_isFavorite"
                         FavoriteChanged="ToggleFavoriteAsync" IsCurrent="@(() => IsCurrentDockSnapshot(dockSnapshot))" /></span>
                 }
-                <AppNativeButton Type="button" Class="listen-player__mini-open" OnClick="OpenNowPlaying" AriaLabel="Open full player" title="Open full player" />
+                <AppNativeButton Type="button" Class="listen-player__mini-open" OnClick="OpenNowPlaying" AriaLabel="@L["ListenNowPlayingBar_OpenFullPlayer"].Value" title="@L["ListenNowPlayingBar_OpenFullPlayer"].Value" />
             </div>
 
             <div class="listen-player__transport">
@@ -203,7 +204,7 @@
                             <ListenContextSidebar ActivePanelKey="@(HasUsableChapters ? "chapters" : "history")" ShowTabs="@HasUsableChapters" OnTabChanged="SelectDockTabAsync" />
                         </ListenDockTool>
                         <PlaybackControlStrip Controls="@AudiobookDockControls.Where(control => control.Sheet is not ("chapters" or "history")).OrderBy(control => control.Key == PlaybackControlKey.Speed ? 0 : control.Key == PlaybackControlKey.SleepTimer ? 1 : 2).ToList()"
-                                              Surface="dock" Appearance="bare" Size="compact" AriaLabel="Audiobook playback tools"
+                                              Surface="dock" Appearance="bare" Size="compact" AriaLabel="@L["ListenNowPlayingBar_AudiobookPlaybackTools"].Value"
                                               SpeedValue="@Playback.PlaybackRate" SpeedChanged="SetAudiobookSpeedAsync"
                                               SpeedMenuOpen="@(_rateMenuOpen && _rateMenuSurface == "dock")" SpeedMenuOpenChanged="HandleRateMenuOpenChangedAsync"
                                               SleepTimerState="@Playback.SleepTimerState" SleepTimerAvailability="@Playback.SleepTimerAvailability"
@@ -214,11 +215,11 @@
                     }
                     else
                     {
-                        <ListenDockTool PanelKey="lyrics" Title="Lyrics" Glyph="PlaybackUtilityGlyphKind.Lyrics" ItemKey="@DockItemKey"
+                        <ListenDockTool PanelKey="lyrics" Title="@L["Common_Lyrics"].Value" Glyph="PlaybackUtilityGlyphKind.Lyrics" ItemKey="@DockItemKey"
                                         Inline="@IsDesktopNowPlaying" IsSelected="@(InlinePanelKey == "lyrics")" OnInlineSelected="@(() => SelectInlinePanelAsync("lyrics"))" OnOpenChanged="@(open => DockToolChangedAsync("lyrics", open))">
                             <ListenContextSidebar ActivePanelKey="lyrics" />
                         </ListenDockTool>
-                        <ListenDockTool PanelKey="queue" Title="Queue and history" Glyph="PlaybackUtilityGlyphKind.Queue" ItemKey="@DockItemKey"
+                        <ListenDockTool PanelKey="queue" Title="@L["ListenNowPlayingBar_QueueAndHistory"].Value" Glyph="PlaybackUtilityGlyphKind.Queue" ItemKey="@DockItemKey"
                                         Inline="@IsDesktopNowPlaying" IsSelected="@(InlinePanelKey is "queue" or "history")" OnInlineSelected="@(() => SelectInlinePanelAsync("queue"))" OnOpenChanged="@(open => DockToolChangedAsync("queue", open))">
                             <ListenContextSidebar ActivePanelKey="@(InlinePanelKey == "history" ? "history" : "queue")" ShowTabs="true" OnTabChanged="SelectDockTabAsync" />
                         </ListenDockTool>
@@ -228,27 +229,27 @@
                         <AppTooltip Text="@(Playback.IsMuted ? "Unmute" : "Mute")"><AppNativeButton Type="button" Class="listen-player__icon" OnClick="ToggleMuteAsync" AriaLabel="@(Playback.IsMuted ? "Unmute" : "Mute")">
                             <PlaybackUtilityGlyph Glyph="@(Playback.IsMuted || Playback.Volume <= 0 ? PlaybackUtilityGlyphKind.Mute : PlaybackUtilityGlyphKind.Volume)" />
                         </AppNativeButton></AppTooltip>
-                        <AppRangeSlider Surface="dock" Min="0" Max="1" Step="@VolumeStep" Value="@Playback.Volume" ShowTicks="false" CommitOnChange="true" disabled="@(!Playback.SoftwareVolumeSupported)" title="@(Playback.SoftwareVolumeSupported ? null : "Use your device volume buttons")" Class="listen-player__volume-slider" AriaLabel="Volume" ValueFormatter="FormatVolumeValue" ValueChanged="SetVolumeOnHostAsync" />
+                        <AppRangeSlider Surface="dock" Min="0" Max="1" Step="@VolumeStep" Value="@Playback.Volume" ShowTicks="false" CommitOnChange="true" disabled="@(!Playback.SoftwareVolumeSupported)" title="@(Playback.SoftwareVolumeSupported ? null : "Use your device volume buttons")" Class="listen-player__volume-slider" AriaLabel="@L["Common_Volume"].Value" ValueFormatter="FormatVolumeValue" ValueChanged="SetVolumeOnHostAsync" />
                     </span>
                     }
                 </div>
                 <span class="listen-player__compact-context"><AppTooltip Text="@(Playback.IsAudiobookMode ? "Chapters" : "Queue")"><AppNativeButton Type="button" Class="listen-player__icon" OnClick="@(() => OpenDockPanelAsync(Playback.IsAudiobookMode ? HasUsableChapters ? "chapters" : "history" : "queue", _artButton?.Element))" AriaLabel="@(Playback.IsAudiobookMode ? "Chapters" : "Queue")"><PlaybackUtilityGlyph Glyph="@(Playback.IsAudiobookMode ? PlaybackUtilityGlyphKind.Chapters : PlaybackUtilityGlyphKind.Queue)" /></AppNativeButton></AppTooltip></span>
                 <span class="listen-player__utility-more">
-                    <ListenDockTool @ref="_utilityTool" PanelKey="utility-more" Title="More playback controls" Glyph="PlaybackUtilityGlyphKind.More" ItemKey="@DockItemKey">
+                    <ListenDockTool @ref="_utilityTool" PanelKey="utility-more" Title="@L["ListenNowPlayingBar_MorePlaybackControls"].Value" Glyph="PlaybackUtilityGlyphKind.More" ItemKey="@DockItemKey">
                         <div class="listen-player__utility-menu">
                             @if (Playback.IsMusicMode)
                             {
-                                <AppNativeButton Type="button" OnClick="@(() => OpenDockPanelAsync("queue"))" AriaLabel="Queue">Playing next and history</AppNativeButton>
-                                <AppNativeButton Type="button" OnClick="@(() => OpenDockPanelAsync("lyrics"))" AriaLabel="Lyrics">Lyrics</AppNativeButton>
-                                <AppNativeButton Type="button" OnClick="@(() => OpenDockPanelAsync("history"))" AriaLabel="History">History</AppNativeButton>
+                                <AppNativeButton Type="button" OnClick="@(() => OpenDockPanelAsync("queue"))" AriaLabel="@L["ListenNowPlayingBar_Queue"].Value">@L["ListenNowPlayingBar_PlayingNextAndHistory"]</AppNativeButton>
+                                <AppNativeButton Type="button" OnClick="@(() => OpenDockPanelAsync("lyrics"))" AriaLabel="@L["Common_Lyrics"].Value">@L["Common_Lyrics"]</AppNativeButton>
+                                <AppNativeButton Type="button" OnClick="@(() => OpenDockPanelAsync("history"))" AriaLabel="@L["Listen_History"].Value">@L["Listen_History"]</AppNativeButton>
                                 <AppNativeButton Type="button" OnClick="ToggleShuffleFromDockAsync" aria-pressed="@(Playback.ShuffleEnabled ? "true" : "false")">Shuffle · @(Playback.ShuffleEnabled ? "On" : "Off")</AppNativeButton>
-                                <AppNativeButton Type="button" OnClick="CycleRepeatFromDockAsync">Repeat · @Playback.RepeatMode</AppNativeButton>
+                                <AppNativeButton Type="button" OnClick="CycleRepeatFromDockAsync">@L["ListenNowPlayingBar_Repeat", Playback.RepeatMode]</AppNativeButton>
                             }
                             else
                             {
                                 <AppNativeButton Type="button" OnClick="@(() => OpenDockPanelAsync(HasUsableChapters ? "chapters" : "history"))">@(HasUsableChapters ? "Chapters and history" : "History")</AppNativeButton>
                                 <PlaybackControlStrip Controls="@AudiobookDockControls.Where(control => control.Sheet is not ("chapters" or "history")).OrderBy(control => control.Key == PlaybackControlKey.Speed ? 0 : control.Key == PlaybackControlKey.SleepTimer ? 1 : 2).ToList()"
-                                                      Surface="panel" Appearance="bare" Size="compact" AriaLabel="Audiobook playback tools"
+                                                      Surface="panel" Appearance="bare" Size="compact" AriaLabel="@L["ListenNowPlayingBar_AudiobookPlaybackTools"].Value"
                                                       SpeedValue="@Playback.PlaybackRate" SpeedChanged="SetAudiobookSpeedAsync"
                                                       SpeedMenuOpen="@(_rateMenuOpen && _rateMenuSurface == "panel")" SpeedMenuOpenChanged="HandleRateMenuOpenChangedAsync"
                                                       SleepTimerState="@Playback.SleepTimerState" SleepTimerAvailability="@Playback.SleepTimerAvailability"
@@ -259,7 +260,7 @@
                             @if (!IsPhonePresentation) {
                             <div class="listen-player__more-volume">
                                 <AppNativeButton Type="button" OnClick="ToggleMuteAsync" AriaLabel="@(Playback.IsMuted ? "Unmute" : "Mute")">@(Playback.IsMuted ? "Unmute" : "Mute")</AppNativeButton>
-                                <AppRangeSlider Surface="panel" Min="0" Max="1" Step="@VolumeStep" Value="@Playback.Volume" ShowTicks="false" CommitOnChange="true" AriaLabel="Volume" ValueFormatter="FormatVolumeValue" ValueChanged="SetVolumeOnHostAsync" />
+                                <AppRangeSlider Surface="panel" Min="0" Max="1" Step="@VolumeStep" Value="@Playback.Volume" ShowTicks="false" CommitOnChange="true" AriaLabel="@L["Common_Volume"].Value" ValueFormatter="FormatVolumeValue" ValueChanged="SetVolumeOnHostAsync" />
                             </div>
                             }
                         </div>
@@ -270,13 +271,13 @@
                     <PlaybackUtilityGlyph Glyph="@(IsDesktopNowPlaying ? PlaybackUtilityGlyphKind.Collapse : PlaybackUtilityGlyphKind.Expand)" />
                 </AppNativeButton>
                 </AppTooltip>
-                <AppTooltip Text="Open separate player window">
-                <AppNativeButton Type="button" Class="listen-player__icon listen-player__popup" OnClick="OpenPopupAsync" AriaLabel="Open separate player window" data-listen-popup-route="@PopupRoute">
+                <AppTooltip Text="@L["ListenNowPlayingBar_OpenSeparatePlayerWindow"].Value">
+                <AppNativeButton Type="button" Class="listen-player__icon listen-player__popup" OnClick="OpenPopupAsync" AriaLabel="@L["ListenNowPlayingBar_OpenSeparatePlayerWindow"].Value" data-listen-popup-route="@PopupRoute">
                     <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Popup" />
                 </AppNativeButton>
                 </AppTooltip>
-                <AppTooltip Text="Close player">
-                <AppNativeButton Type="button" Class="listen-player__icon listen-player__close" OnClick="ClosePlayerAsync" AriaLabel="Close player">
+                <AppTooltip Text="@L["ListenNowPlayingBar_ClosePlayer"].Value">
+                <AppNativeButton Type="button" Class="listen-player__icon listen-player__close" OnClick="ClosePlayerAsync" AriaLabel="@L["ListenNowPlayingBar_ClosePlayer"].Value">
                     <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Close" />
                 </AppNativeButton>
                 </AppTooltip>
@@ -314,7 +315,7 @@
                         @if (_bookmarkDialogContext is not null && _bookmarkDialogSnapshot is not null) {
                             <AudiobookBookmarkDialog Context="_bookmarkDialogContext" Actions="BookmarkActions" AuthorizedAssetIds="_bookmarkAuthorizedAssetIds"
                                 WorkTitle="@(_bookmarkWorkTitle ?? "Audiobook")" Embedded="true" Trigger="_bookmarkTrigger" OnClose="DismissEmbeddedBookmarksAsync" />
-                        } else { <p role="status">Bookmarks are unavailable until the current audiobook session is ready.</p> }
+                        } else { <p role="status">@L["ListenNowPlayingBar_BookmarksAreUnavailableUntilThe"]</p> }
                     </BookmarksContent>
                 </PlaybackFullPlayer>
             }

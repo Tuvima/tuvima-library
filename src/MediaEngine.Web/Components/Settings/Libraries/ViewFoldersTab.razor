@@ -4,6 +4,7 @@
 @inject IEngineApiClient ApiClient
 @inject IAppDialogService DialogService
 @inject IAppToastService Snackbar
+@inject IStringLocalizer<SharedStrings> L
 
 @* The Folders tab of a View kind (Library pages WP11, D24, D25, D26): the storage base, the folders of every profile's personal space and
    of the Shared Library, and one "Show in Photos timeline" switch on each folder. A folder is read in full, subfolders included, so there
@@ -13,66 +14,66 @@
 {
     <ViewImportPanel Kind="@Kind" ReadOnly="@ReadOnly" Changed="SourcesChanged" />
 }
-<SettingsSectionPanel Title="Folders" Description="One storage base for Shared Library and each profile’s private files.">
+<SettingsSectionPanel Title="@L["ViewFoldersTab_Folders"].Value" Description="@L["ViewFoldersTab_OneStorageBaseForShared"].Value">
     <Actions>
-        <AppButton Label="Add folder" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(ReadOnly || _busy)" OnClick="@(() => AddingChanged.InvokeAsync(!Adding))" />
+        <AppButton Label="@L["Common_AddFolder"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(ReadOnly || _busy)" OnClick="@(() => AddingChanged.InvokeAsync(!Adding))" />
     </Actions>
     <ChildContent>
     <div class="view-storage-root">
         <span class="view-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Storage" /></span>
-        <div><strong>View library root</strong><code>@RootPath</code><small>The base folder for all managed View storage.</small></div>
-        <AppButton Label="Choose root" ButtonStyle="AppButtonStyle.Outlined" Disabled="@(ReadOnly || _busy)" OnClick="ChooseRootAsync" />
+        <div><strong>@L["ViewFoldersTab_ViewLibraryRoot"]</strong><code>@RootPath</code><small>@L["ViewFoldersTab_TheBaseFolderForAll"]</small></div>
+        <AppButton Label="@L["ViewFoldersTab_ChooseRoot"].Value" ButtonStyle="AppButtonStyle.Outlined" Disabled="@(ReadOnly || _busy)" OnClick="ChooseRootAsync" />
     </div>
     <div class="view-storage-destinations">
-        <div><span class="view-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderShared" /></span><span><strong>Shared Library</strong><code>@Path.Combine(RootPath, "Shared")</code><small>Server-owned originals from accepted, verified contributions.</small></span></div>
-        <div><span class="view-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AccountCircle" /></span><span><strong>Profile personal spaces</strong><code>@Path.Combine(RootPath, "Profiles")</code><small>One private space per profile. Folders appear automatically when the first file is added.</small></span></div>
+        <div><span class="view-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderShared" /></span><span><strong>@L["Common_SharedLibrary"]</strong><code>@Path.Combine(RootPath, "Shared")</code><small>@L["ViewFoldersTab_ServerOwnedOriginalsFromAccepted"]</small></span></div>
+        <div><span class="view-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AccountCircle" /></span><span><strong>@L["ViewFoldersTab_ProfilePersonalSpaces"]</strong><code>@Path.Combine(RootPath, "Profiles")</code><small>@L["ViewFoldersTab_OnePrivateSpacePerProfile"]</small></span></div>
     </div>
     <p class="view-folders__note">
-        These are storage destinations. Empty profile folders are not created in advance. Choosing a root does not move existing files.
-        <AppInfoTip Text="@BackupNote" Label="About backups" />
+        @L["ViewFoldersTab_TheseAreStorageDestinationsEmpty"]
+        <AppInfoTip Text="@BackupNote" Label="@L["ViewFoldersTab_AboutBackups"].Value" />
     </p>
     @if (Adding)
     {
         <div class="libraries-form-grid">
-            <AppSelect Label="Owner profile" Value="@_owner" ValueChanged="@((string? value) => _owner = value)" Options="@OwnerOptions" Disabled="@_busy" />
-            <AppTextField Label="Folder name" Value="@_name" ValueChanged="@((string? value) => _name = value ?? string.Empty)" ReadOnly="@_busy" />
-            <AppSelect Label="Folder management" Value="@_mode" ValueChanged="@((string? value) => { _mode = value ?? ManagedMode; _path = null; })" Options="@ModeOptions" Disabled="@_busy" />
+            <AppSelect Label="@L["ViewFoldersTab_OwnerProfile"].Value" Value="@_owner" ValueChanged="@((string? value) => _owner = value)" Options="@OwnerOptions" Disabled="@_busy" />
+            <AppTextField Label="@L["Common_FolderName"].Value" Value="@_name" ValueChanged="@((string? value) => _name = value ?? string.Empty)" ReadOnly="@_busy" />
+            <AppSelect Label="@L["ViewFoldersTab_FolderManagement"].Value" Value="@_mode" ValueChanged="@((string? value) => { _mode = value ?? ManagedMode; _path = null; })" Options="@ModeOptions" Disabled="@_busy" />
             @if (_mode == LinkedMode)
             {
-                <AppButton Label="Choose existing folder" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_busy" OnClick="ChooseSourceAsync" />
+                <AppButton Label="@L["ViewFoldersTab_ChooseExistingFolder"].Value" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_busy" OnClick="ChooseSourceAsync" />
                 <code>@(_path ?? "No folder selected")</code>
             }
             @if (ShowsTimeline)
             {
-                <AppSwitchRow Label="Show in Photos timeline" Description="Folders remain browsable even when excluded from the timeline." Value="@_timeline" ValueChanged="@((bool value) => _timeline = value)" Disabled="@_busy" />
+                <AppSwitchRow Label="@L["ViewFoldersTab_ShowInPhotosTimeline"].Value" Description="@L["ViewFoldersTab_FoldersRemainBrowsableEvenWhen"].Value" Value="@_timeline" ValueChanged="@((bool value) => _timeline = value)" Disabled="@_busy" />
             }
         </div>
         <p>@(_mode == LinkedMode ? "Files remain where they are and are indexed read-only. Everything inside the folder is included, subfolders too." : "Create an empty managed folder in this profile’s Personal Space. Existing files are not moved.")</p>
-        <AppActionBar><AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="@(() => AddingChanged.InvokeAsync(false))" /><AppButton Label="Add folder" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_busy" Disabled="@(_busy || string.IsNullOrWhiteSpace(_owner) || string.IsNullOrWhiteSpace(_name) || (_mode == LinkedMode && _path is null))" OnClick="AddAsync" /></AppActionBar>
+        <AppActionBar><AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="@(() => AddingChanged.InvokeAsync(false))" /><AppButton Label="@L["Common_AddFolder"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_busy" Disabled="@(_busy || string.IsNullOrWhiteSpace(_owner) || string.IsNullOrWhiteSpace(_name) || (_mode == LinkedMode && _path is null))" OnClick="AddAsync" /></AppActionBar>
     }
-    @if (Loading) { <p role="status">Loading personal sources…</p> }
+    @if (Loading) { <p role="status">@L["ViewFoldersTab_LoadingPersonalSources"]</p> }
     @if (_error is not null) { <AppAlert Tone="AppUiTone.Error">@_error</AppAlert> }
     @foreach (var profile in Profiles)
     {
         <div class="view-source-group">
             <h4>@profile.DisplayName</h4>
-            @if (!Reviews.TryGetValue(profile.Id, out var review)) { <p>Sources unavailable.</p> }
-            else if (review.PersonalSpace is null) { <p>No files yet — a Personal Space is created automatically when needed.</p> }
+            @if (!Reviews.TryGetValue(profile.Id, out var review)) { <p>@L["ViewFoldersTab_SourcesUnavailable"]</p> }
+            else if (review.PersonalSpace is null) { <p>@L["ViewFoldersTab_NoFilesYetAPersonal"]</p> }
             else
             {
                 <code>@review.PersonalSpace.RootPath</code>
                 var sources = review.Sources.Where(source => LibraryRollup.ViewFolderBelongsTo(source, Kind)).ToList();
-                @if (sources.Count == 0) { <p>No @KindNoun folders yet.</p> }
+                @if (sources.Count == 0) { <p>@L["ViewFoldersTab_NoFoldersYet", KindNoun]</p> }
                 else
                 {
                 <div class="view-source-table">
-                <div class="view-source-head" aria-hidden="true"><span>Folder</span><span>Management</span><span>@(ShowsTimeline ? "Show in Photos timeline" : string.Empty)</span><span>Status</span><span>Actions</span></div>
+                <div class="view-source-head" aria-hidden="true"><span>@L["Common_Folder"]</span><span>@L["ViewFoldersTab_Management"]</span><span>@(ShowsTimeline ? "Show in Photos timeline" : string.Empty)</span><span>@L["Models_Status"]</span><span>@L["ApiKeys_Actions"]</span></div>
                 @foreach (var source in sources)
                 {
                     <div class="view-source-row" @key="source.Id">
                         <span>
                             <strong>@source.Name</strong>
-                            @if (source.AcceptsPhotosAndVideos) { <AppStatusBadge Text="Photos and videos" Tone="AppUiTone.Neutral" /> }
+                            @if (source.AcceptsPhotosAndVideos) { <AppStatusBadge Text="@L["ViewFoldersTab_PhotosAndVideos"].Value" Tone="AppUiTone.Neutral" /> }
                             <code>@source.Location</code>
                             @if (source.SkippedFileCount > 0)
                             {
@@ -84,11 +85,11 @@
                             }
                         </span>
                         <span>@SourcePolicy(source)</span>
-                        @if (ShowsTimeline) { <AppSwitchRow Label="Show in Photos timeline" Value="@source.IncludeInTimeline" ValueChanged="@((bool value) => SetTimelineAsync(profile.Id, source, value))" Disabled="@(ReadOnly || _busy)" /> }
+                        @if (ShowsTimeline) { <AppSwitchRow Label="@L["ViewFoldersTab_ShowInPhotosTimeline"].Value" Value="@source.IncludeInTimeline" ValueChanged="@((bool value) => SetTimelineAsync(profile.Id, source, value))" Disabled="@(ReadOnly || _busy)" /> }
                         else { <span></span> }
                         @if (source.FolderOffline)
                         {
-                            <AppTooltip Text="Library can't reach this folder, so nothing in it is marked missing. It checks again on its own."><AppStatusBadge Text="Folder offline" Tone="AppUiTone.Warning" /></AppTooltip>
+                            <AppTooltip Text="@L["ViewFoldersTab_LibraryCanTReachThis"].Value"><AppStatusBadge Text="@L["Common_FolderOffline"].Value" Tone="AppUiTone.Warning" /></AppTooltip>
                         }
                         else
                         {
@@ -96,8 +97,8 @@
                         }
                         @if (CanTidy(source))
                         {
-                            <AppIconButton Icon="@AppMaterialIcons.Outlined.CalendarMonth" AriaLabel="@($"Tidy {source.Name}")" Tooltip="Tidy this folder by date" Disabled="@(ReadOnly || _busy)" OnClick="@(() => TidyAsync(source))" />
-                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Schedule" AriaLabel="@($"Tidy {source.Name} every night")" Tooltip="Tidy this folder every night" Disabled="@(ReadOnly || _busy)" OnClick="@(() => ScheduleTidyAsync(source))" />
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.CalendarMonth" AriaLabel="@($"Tidy {source.Name}")" Tooltip="@L["ViewFoldersTab_TidyThisFolderByDate"].Value" Disabled="@(ReadOnly || _busy)" OnClick="@(() => TidyAsync(source))" />
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Schedule" AriaLabel="@($"Tidy {source.Name} every night")" Tooltip="@L["ViewFoldersTab_TidyThisFolderEveryNight"].Value" Disabled="@(ReadOnly || _busy)" OnClick="@(() => ScheduleTidyAsync(source))" />
                         }
                         <AppIconButton Icon="@AppMaterialIcons.Outlined.Delete" AriaLabel="@($"Detach {source.Name}")" Tooltip="Detach folder; keep files" Disabled="@(ReadOnly || _busy || source.SourceType == "browser_upload" || source.AcceptsPhotosAndVideos)" OnClick="@(() => DetachAsync(profile.Id, source))" />
                     </div>

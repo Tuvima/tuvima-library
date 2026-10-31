@@ -11,18 +11,19 @@
 @inject NavigationManager Navigation
 @inject IAppToastService Snackbar
 @namespace MediaEngine.Web.Components.Pages
+@inject IStringLocalizer<SharedStrings> L
 
-<PageTitle>Artwork Library - Library</PageTitle>
+<PageTitle>@L["ViewArtworkPage_ArtworkLibraryLibrary"]</PageTitle>
 
 <ViewSectionShell>
-    <ViewContentPage Title="Artwork Library"
-                     Subtitle="Search and reuse artwork stored across your library."
+    <ViewContentPage Title="@L["ViewArtworkPage_ArtworkLibrary"].Value"
+                     Subtitle="@L["ViewArtworkPage_SearchAndReuseArtworkStored"].Value"
                      Class="view-artwork-page">
         <HeaderActions>
             <span class="view-artwork-header__count">@_total.ToString("N0") @(_total == 1 ? "image" : "images")</span>
             @if (_selected is not null)
             {
-                <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.Edit" OnClick="ManageSelectedAsync">Manage usage</AppButton>
+                <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.Edit" OnClick="ManageSelectedAsync">@L["ViewArtworkPage_ManageUsage"]</AppButton>
             }
         </HeaderActions>
         <ChildContent>

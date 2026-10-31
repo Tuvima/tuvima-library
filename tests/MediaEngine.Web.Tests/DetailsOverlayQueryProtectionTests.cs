@@ -11,7 +11,7 @@ namespace MediaEngine.Web.Tests;
 /// query values. These tests record what the framework's query binding does with that address, and pin that
 /// <see cref="RoutedPageQuery"/> reads values the way the binding did.
 /// </summary>
-public sealed class DetailsOverlayQueryProtectionTests : BunitContext
+public sealed class DetailsOverlayQueryProtectionTests : LocalizedBunitContext
 {
     [Fact]
     public void FrameworkQueryBinding_FollowsTheAddressBarEvenWhileAnOverlayAddressIsOpen_SoRoutedPagesCannotUseIt()

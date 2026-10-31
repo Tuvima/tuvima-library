@@ -1,10 +1,11 @@
 @namespace MediaEngine.Web.Components.Shared.Providers
 @inject IEngineApiClient ApiClient
 @inject ILogger<ProviderOnboardingDialog> Logger
+@inject IStringLocalizer<SharedStrings> L
 
 <AppHostedDialog Title="@DialogTitle"
                  Subtitle="@DialogSubtitle"
-                 Eyebrow="Provider connection"
+                 Eyebrow="@L["ProviderOnboardingDialog_ProviderConnection"].Value"
                  Icon="@AppMaterialIcons.Outlined.Extension"
                  Size="Provider"
                  Class="provider-onboarding-host"
@@ -83,7 +84,7 @@
                             }
                             @if (!string.IsNullOrWhiteSpace(FailureHelpUrl))
                             {
-                                <a href="@FailureHelpUrl" target="_blank" rel="noopener noreferrer">Open troubleshooting help</a>
+                                <a href="@FailureHelpUrl" target="_blank" rel="noopener noreferrer">@L["ProviderOnboardingDialog_OpenTroubleshootingHelp"]</a>
                             }
                         </AppAlert>
                     }
@@ -96,13 +97,13 @@
             <div class="provider-onboarding__footer-start">
                 @if (_result?.Success != true)
                 {
-                    <AppButton Label="Cancel" Disabled="@_busy" OnClick="Cancel" />
+                    <AppButton Label="@L["Search_Cancel"].Value" Disabled="@_busy" OnClick="Cancel" />
                 }
             </div>
             <div class="provider-onboarding__footer-end">
             @if (_result?.Success == true)
             {
-                <AppButton Label="Done" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Complete" />
+                <AppButton Label="@L["Common_Done"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Complete" />
             }
             else
             {

@@ -14,10 +14,11 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject ILogger<PlaybackSettingsPage> Logger
+@inject IStringLocalizer<SharedStrings> L
 
 @if (_loading)
 {
-    <div class="playback-settings-skeleton" aria-label="Loading playback preferences">
+    <div class="playback-settings-skeleton" aria-label="@L["PlaybackSettingsPage_LoadingPlaybackPreferences"].Value">
         @for (var index = 0; index < 3; index++)
         {
             <AppSkeleton Height="220px" />
@@ -26,11 +27,11 @@
 }
 else if (_forbidden)
 {
-    <AppAlert Severity="AppSeverity.Warning" Variant="AppVariant.Outlined">You can't change this person's settings.</AppAlert>
+    <AppAlert Severity="AppSeverity.Warning" Variant="AppVariant.Outlined">@L["Common_YouCanTChangeThis"]</AppAlert>
 }
 else if (!string.IsNullOrWhiteSpace(_loadError))
 {
-    <AppErrorState Title="Playback preferences are unavailable"
+    <AppErrorState Title="@L["PlaybackSettingsPage_PlaybackPreferencesAreUnavailable"].Value"
                    Message="@_loadError"
                    Retry="@RetryLoadAsync" />
 }
@@ -48,14 +49,14 @@ else if (_settings is not null)
                 <span class="playback-profile-heading__avatar">
                     <ProfileAvatar DisplayName="@_target.DisplayName" ImageUrl="@_target.AvatarImageUrl" Color="@_target.AvatarColor" Icon="@_target.AvatarIcon" />
                 </span>
-                <AppText Typo="AppTypo.h6">How @_target.DisplayName watches.</AppText>
-                <a class="playback-profile-heading__back" href="@($"/settings/profiles/{ProfileId}")">Back to @_target.DisplayName</a>
+                <AppText Typo="AppTypo.h6">@L["PlaybackSettingsPage_HowWatches", _target.DisplayName]</AppText>
+                <a class="playback-profile-heading__back" href="@($"/settings/profiles/{ProfileId}")">@L["Common_BackTo", _target.DisplayName]</a>
             </div>
         }
 
         <div class="playback-settings-grid">
-            <SettingsSectionPanel Title="Autoplay"
-                                  Description="What happens when an episode ends."
+            <SettingsSectionPanel Title="@L["PlaybackSettingsPage_Autoplay"].Value"
+                                  Description="@L["PlaybackSettingsPage_WhatHappensWhenAnEpisode"].Value"
                                   Class="tl-card settings-section-card playback-settings-card">
                 @BoolRow(
                     "Autoplay next episode",
@@ -64,8 +65,8 @@ else if (_settings is not null)
                     value => UpdateAndSaveAsync(s => s.Watching.AutoplayNextEpisode = value))
             </SettingsSectionPanel>
 
-            <SettingsSectionPanel Title="Resume"
-                                  Description="Where a movie or episode starts when you come back."
+            <SettingsSectionPanel Title="@L["Common_Resume"].Value"
+                                  Description="@L["PlaybackSettingsPage_WhereAMovieOrEpisode"].Value"
                                   Class="tl-card settings-section-card playback-settings-card">
                 @BoolRow(
                     "Resume where you left off",
@@ -74,8 +75,8 @@ else if (_settings is not null)
                     value => UpdateAndSaveAsync(s => s.General.ResumePlayback = value))
             </SettingsSectionPanel>
 
-            <SettingsSectionPanel Title="Skip"
-                                  Description="How far the player skip buttons jump."
+            <SettingsSectionPanel Title="@L["Common_Skip"].Value"
+                                  Description="@L["PlaybackSettingsPage_HowFarThePlayerSkip"].Value"
                                   Class="tl-card settings-section-card playback-settings-card">
                 @IntSelectRow(
                     "Skip back",
@@ -94,26 +95,26 @@ else if (_settings is not null)
             @if (!IsOtherProfile)
             {
                 @* Only the person themselves chooses this; an administrator editing another profile does not see it. *@
-                <SettingsSectionPanel Title="Spoilers"
-                                      Description="How much of a story the Universe page tells you."
+                <SettingsSectionPanel Title="@L["Common_Spoilers"].Value"
+                                      Description="@L["PlaybackSettingsPage_HowMuchOfAStory"].Value"
                                       Class="tl-card settings-section-card playback-settings-card">
                     <div class="playback-preference-row" data-spoiler-level>
                         <div class="playback-preference-row__copy">
-                            <AppText Typo="AppTypo.body1">Characters</AppText>
-                            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">Up to where I am keeps characters you haven't met yet out of Universe pages. Everything shows them all.</AppText>
+                            <AppText Typo="AppTypo.body1">@L["Universe_GuideFilterCharacters"]</AppText>
+                            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@L["PlaybackSettingsPage_UpToWhereIAm"]</AppText>
                         </div>
                         <AppSegmentedControl Options="SpoilerLevelOptions"
                                              Value="@SpoilerLevelValue"
                                              ValueChanged="SaveSpoilerLevelAsync"
-                                             AriaLabel="Spoilers"
+                                             AriaLabel="@L["Common_Spoilers"].Value"
                                              Class="playback-preference-row__control" />
                     </div>
                 </SettingsSectionPanel>
             }
 
             <div id="subtitles" class="playback-subtitles-group" data-playback-section="subtitles">
-                <SettingsSectionPanel Title="Subtitles & audio"
-                                      Description="Which language plays first, and when subtitles appear."
+                <SettingsSectionPanel Title="@L["PlaybackSettingsPage_SubtitlesAudio"].Value"
+                                      Description="@L["PlaybackSettingsPage_WhichLanguagePlaysFirstAnd"].Value"
                                       Class="tl-card settings-section-card playback-settings-card">
                     @StringSelectRow(
                         "Audio language",
@@ -136,25 +137,25 @@ else if (_settings is not null)
                         wide: true)
                 </SettingsSectionPanel>
 
-                <SettingsSectionPanel Title="Subtitle appearance"
-                                      Description="How subtitles look over the picture."
+                <SettingsSectionPanel Title="@L["PlaybackSettingsPage_SubtitleAppearance"].Value"
+                                      Description="@L["PlaybackSettingsPage_HowSubtitlesLookOverThe"].Value"
                                       Class="tl-card settings-section-card playback-settings-card">
                     <div class="subtitle-preview"
                          data-subtitle-size="@NormalizedSubtitleSize"
                          data-subtitle-background="@(Subtitles.SubtitleBackground ? "true" : "false")"
                          role="img"
-                         aria-label="Sample of the subtitle style">
-                        <p class="subtitle-preview__line"><span class="subtitle-preview__text">The rain had stopped by the time we reached the station.</span></p>
+                         aria-label="@L["PlaybackSettingsPage_SampleOfTheSubtitleStyle"].Value">
+                        <p class="subtitle-preview__line"><span class="subtitle-preview__text">@L["PlaybackSettingsPage_TheRainHadStoppedBy"]</span></p>
                     </div>
                     <div class="playback-preference-row">
                         <div class="playback-preference-row__copy">
-                            <AppText Typo="AppTypo.body1">Text size</AppText>
-                            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">How large subtitles are in the player.</AppText>
+                            <AppText Typo="AppTypo.body1">@L["Common_TextSize"]</AppText>
+                            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@L["PlaybackSettingsPage_HowLargeSubtitlesAreIn"]</AppText>
                         </div>
                         <AppSegmentedControl Options="SubtitleSizeOptions"
                                              Value="@NormalizedSubtitleSize"
                                              ValueChanged="@(value => UpdateAndSaveAsync(s => s.Subtitles.SubtitleSize = value))"
-                                             AriaLabel="Text size"
+                                             AriaLabel="@L["Common_TextSize"].Value"
                                              Class="playback-preference-row__control" />
                     </div>
                     @BoolRow(

@@ -18,6 +18,7 @@
 @inject DeviceContextService DeviceContext
 @inject NavigationManager Navigation
 @implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 @if (Items.Count > 0)
 {
@@ -35,7 +36,7 @@
                     {
                         <label class="tl-embedded-audio__missing">
                             <AppNativeInput Type="checkbox" Checked="@_showMissingItems" OnChange="ToggleMissingItems" />
-                            <span>Show missing tracks</span>
+                            <span>@L["AudioItemTable_ShowMissingTracks"]</span>
                         </label>
                     }
                 </header>
@@ -45,10 +46,10 @@
                 <caption class="sr-only">@SourceTitle @ItemNounPlural</caption>
                 <thead>
                     <tr>
-                        <th data-card-role="title">Title</th>
+                        <th data-card-role="title">@L["Common_Title"]</th>
                         <th data-card-role="subtitle">@(IsAudiobook ? "Progress" : "Artist")</th>
-                        <th data-card-role="value">Duration</th>
-                        <th data-card-role="actions"><span class="sr-only">Actions</span></th>
+                        <th data-card-role="value">@L["AudioItemTable_Duration"]</th>
+                        <th data-card-role="actions"><span class="sr-only">@L["ApiKeys_Actions"]</span></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -58,7 +59,7 @@
                         var isPlaying = IsCurrentItem(item);
                         @if (StartsUnnumberedGroup(VisibleItems, index))
                         {
-                            <tr class="tl-audio-item-table__group-row" data-card-role="hidden"><th colspan="4" scope="colgroup">Unnumbered</th></tr>
+                            <tr class="tl-audio-item-table__group-row" data-card-role="hidden"><th colspan="4" scope="colgroup">@L["AudioItemTable_Unnumbered"]</th></tr>
                         }
                         <tr @key="item.Id"
                             class="@RowClass(item, isPlaying)"
@@ -85,7 +86,7 @@
                                 }
                                 @if (IsAudiobook)
                                 {
-                                    <AppNativeButton Type="button" Class="tl-audio-item-table__icon-button" AriaLabel="@($"Play {item.Title}")" Title="Play" StopPropagation="true" OnClick="@(() => PlayItemAsync(item))">
+                                    <AppNativeButton Type="button" Class="tl-audio-item-table__icon-button" AriaLabel="@($"Play {item.Title}")" Title="@L["Common_Play"].Value" StopPropagation="true" OnClick="@(() => PlayItemAsync(item))">
                                         <AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayArrow" Size="AppSize.Small" />
                                     </AppNativeButton>
                                 }
@@ -101,7 +102,7 @@
 
             @if (VisibleItems.Count == 0)
             {
-                <div class="tl-detail-track-empty">No @ItemNounPlural match the current view.</div>
+                <div class="tl-detail-track-empty">@L["AudioItemTable_NoMatchTheCurrentView", ItemNounPlural]</div>
             }
         </section>
     }
@@ -123,7 +124,7 @@
                     <div class="tl-embedded-audio__tools">
                         <label class="tl-embedded-audio__missing">
                             <AppNativeInput Type="checkbox" Checked="@_showMissingItems" OnChange="ToggleMissingItems" />
-                            <span>Show missing tracks</span>
+                            <span>@L["AudioItemTable_ShowMissingTracks"]</span>
                         </label>
                     </div>
                 }
@@ -138,7 +139,7 @@
                         var isPlaying = IsCurrentItem(item);
                         @if (StartsUnnumberedGroup(CompactVisibleItems, index))
                         {
-                            <div class="tl-audio-item-table__group-heading" role="row"><span role="columnheader">Unnumbered</span></div>
+                            <div class="tl-audio-item-table__group-heading" role="row"><span role="columnheader">@L["AudioItemTable_Unnumbered"]</span></div>
                         }
                         <div class="@CompactRowClass(item, isPlaying)"
                              role="row"
@@ -151,7 +152,7 @@
                             <div class="tl-embedded-audio__play-cell" role="cell">
                                 @if (isPlaying)
                                 {
-                                    <span class="tl-embedded-audio__playing" aria-label="Currently playing">
+                                    <span class="tl-embedded-audio__playing" aria-label="@L["AudioItemTable_CurrentlyPlaying"].Value">
                                         <AppMaterialIcon Icon="@AppMaterialIcons.Filled.GraphicEq" Size="AppSize.Small" />
                                     </span>
                                 }
@@ -192,7 +193,7 @@
                                                Size="AppControlSize.Compact"
                                                Class="tl-embedded-audio__more"
                                                AriaLabel="@($"Add {item.Title} to queue")"
-                                               Tooltip="Add to queue"
+                                               Tooltip="@L["Common_AddToQueue"].Value"
                                                Disabled="@(!CanQueue(item))"
                                                OnClick="@(() => QueueItemAsync(item))" />
                             }
@@ -203,7 +204,7 @@
 
             @if (CompactVisibleItems.Count == 0)
             {
-                <div class="tl-detail-track-empty">No @ItemNounPlural match the current view.</div>
+                <div class="tl-detail-track-empty">@L["AudioItemTable_NoMatchTheCurrentView", ItemNounPlural]</div>
             }
         </section>
     }
@@ -217,7 +218,7 @@
             {
                 <label class="tl-detail-track-toggle">
                     <AppNativeInput Type="checkbox" Checked="@_showMissingItems" OnChange="ToggleMissingItems" />
-                    <span>Show missing tracks</span>
+                    <span>@L["AudioItemTable_ShowMissingTracks"]</span>
                 </label>
             }
         </div>
@@ -268,7 +269,7 @@
                             var isPlaying = IsCurrentItem(item);
                             @if (StartsUnnumberedGroup(VisibleItems, index))
                             {
-                                <tr class="tl-audio-item-table__group-row"><th colspan="@VisibleColumns.Count" scope="colgroup">Unnumbered</th></tr>
+                                <tr class="tl-audio-item-table__group-row"><th colspan="@VisibleColumns.Count" scope="colgroup">@L["AudioItemTable_Unnumbered"]</th></tr>
                             }
                             <tr class="@RowClass(item, isPlaying)"
                                 draggable="@CanQueue(item)"
@@ -286,13 +287,13 @@
                                         case "track":
                                             <td class="tl-detail-track-row__number">
                                                 <span class="tl-audio-item-table__index">
-                                                    <span class="tl-audio-item-table__drag" title="Drag to queue or playlist" aria-hidden="true">
+                                                    <span class="tl-audio-item-table__drag" title="@L["AudioItemTable_DragToQueueOrPlaylist"].Value" aria-hidden="true">
                                                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" Size="AppSize.Small" />
                                                     </span>
                                                     <span class="tl-audio-item-table__play-slot">
                                                         @if (isPlaying)
                                                         {
-                                                            <span class="tl-detail-track-row__playing" aria-label="Currently playing"></span>
+                                                            <span class="tl-detail-track-row__playing" aria-label="@L["AudioItemTable_CurrentlyPlaying"].Value"></span>
                                                         }
                                                         else if (item.IsOwned)
                                                         {
@@ -357,7 +358,7 @@
                                             break;
                                         case "queue":
                                             <td class="tl-audio-item-table__queue">
-                                                <AppNativeButton Type="button" Class="tl-audio-item-table__icon-button" AriaLabel="@($"Add {item.Title} to queue")" Title="Add to queue" Disabled="@(!item.IsOwned)" StopPropagation="true" OnClick="@(() => QueueItemAsync(item))">
+                                                <AppNativeButton Type="button" Class="tl-audio-item-table__icon-button" AriaLabel="@($"Add {item.Title} to queue")" Title="@L["Common_AddToQueue"].Value" Disabled="@(!item.IsOwned)" StopPropagation="true" OnClick="@(() => QueueItemAsync(item))">
                                                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlaylistAdd" Size="AppSize.Small" />
                                                 </AppNativeButton>
                                             </td>
@@ -373,7 +374,7 @@
 
         @if (VisibleItems.Count == 0)
         {
-            <div class="tl-detail-track-empty">No owned tracks match the current view.</div>
+            <div class="tl-detail-track-empty">@L["AudioItemTable_NoOwnedTracksMatchThe"]</div>
         }
     </section>
     }

@@ -3,28 +3,29 @@
 @using MediaEngine.Contracts.Items
 @implements IDisposable
 @inject IEngineApiClient Api
+@inject IStringLocalizer<SharedStrings> L
 
 @* Match and Identity for a video: paste a YouTube link (or the 11-character ID) and Library looks the video up. Only the ID is
    sent to YouTube, never the file, its name or its path. It is drawn below the match editor, only for a video that has not
    been matched yet, and only where the video's library has the online lookup switched on. *@
 @if (Mode is { IsOn: true } mode && mode.Fields.Loaded && _state is { Supported: true })
 {
-    <section class="tl-editing-identify" aria-label="Identify this video">
+    <section class="tl-editing-identify" aria-label="@L["Common_IdentifyThisVideo"].Value">
         @if (_state.Matched)
         {
             <p class="tl-editing-identify__text">@(_matchedTitle is null ? "This video is matched." : $"Matched: {_matchedTitle}.")</p>
         }
         else if (!_state.LookupEnabled)
         {
-            <p class="tl-editing-identify__text">Online lookup is switched off for this library. Turn it on in Settings to identify videos from a YouTube link.</p>
+            <p class="tl-editing-identify__text">@L["EditingVideoIdentify_OnlineLookupIsSwitchedOff"]</p>
         }
         else
         {
-            <AppTextField Label="YouTube link or video ID" Value="@_link" ValueChanged="@(value => _link = value ?? string.Empty)"
+            <AppTextField Label="@L["EditingVideoIdentify_YouTubeLinkOrVideoID"].Value" Value="@_link" ValueChanged="@(value => _link = value ?? string.Empty)"
                           Placeholder="https://www.youtube.com/watch?v=..." MaxLength="300" Disabled="@_busy" />
-            <p class="tl-editing-identify__note">Only the video's ID is sent to YouTube, never your file.</p>
+            <p class="tl-editing-identify__note">@L["EditingVideoIdentify_OnlyTheVideoSID"]</p>
             <div class="tl-editing-identify__actions">
-                <AppButton Label="Identify" Size="AppControlSize.Compact" Tone="AppUiTone.Primary"
+                <AppButton Label="@L["Common_Identify"].Value" Size="AppControlSize.Compact" Tone="AppUiTone.Primary"
                            Disabled="@(_busy || string.IsNullOrWhiteSpace(_link))" Loading="@_busy" OnClick="IdentifyAsync" />
             </div>
         }

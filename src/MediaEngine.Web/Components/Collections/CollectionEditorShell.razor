@@ -16,6 +16,7 @@
 @inject IAppToastService Snackbar
 @inject IAppDialogService Dialogs
 @inject ILogger<CollectionEditorShell> Logger
+@inject IStringLocalizer<SharedStrings> L
 
 <NavigationLock ConfirmExternalNavigation="@_hasUnsavedChanges"
                 OnBeforeInternalNavigation="ConfirmNavigationWithUnsavedChanges" />
@@ -36,14 +37,14 @@
                                Size="AppControlSize.Compact"
                                Tone="AppUiTone.Neutral"
                                Class="sme-close"
-                               Tooltip="Close editor"
-                               AriaLabel="Close editor"
+                               Tooltip="@L["Common_CloseEditor"].Value"
+                               AriaLabel="@L["Common_CloseEditor"].Value"
                                OnClick="Cancel" />
             </div>
         </header>
 
         <div class="sme-workspace collection-editor-layout">
-            <nav class="sme-section-nav collection-editor-rail" aria-label="Collection editor sections">
+            <nav class="sme-section-nav collection-editor-rail" aria-label="@L["CollectionEditorShell_CollectionEditorSections"].Value">
                 @for (var index = 0; index < VisibleTabs.Length; index++)
                 {
                     var tabIndex = index;
@@ -67,8 +68,8 @@
                             <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Error"
                                        Class="collection-editor-delete-button"
                                        StartIcon="@AppMaterialIcons.Outlined.DeleteOutline"
-                                       OnClick="DeleteCollectionAsync" Disabled="@_saving">Delete collection</AppButton>
-                            <small>Media remains in your library.</small>
+                                       OnClick="DeleteCollectionAsync" Disabled="@_saving">@L["CollectionEditorShell_DeleteCollection"]</AppButton>
+                            <small>@L["CollectionEditorShell_MediaRemainsInYourLibrary"]</small>
                         }
                     </div>
                 }
@@ -115,7 +116,7 @@
                                    Tone="AppUiTone.Neutral"
                                    OnClick="Cancel"
                                    Disabled="@_saving">
-                            Cancel
+                            @L["Search_Cancel"]
                         </AppButton>
                         <AppButton ButtonStyle="AppButtonStyle.Filled"
                                    Tone="AppUiTone.Primary"

@@ -3,11 +3,12 @@
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
 @inject IAppToastService Snackbar
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="network-panel network-advanced">
     <AppCard>
     <details class="network-advanced-card">
-        <summary><span class="network-advanced-card__icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SettingsEthernet" /></span><span><strong>Ports &amp; Binding</strong><small>Inspect the local Dashboard listener and address binding.</small></span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></summary>
+        <summary><span class="network-advanced-card__icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SettingsEthernet" /></span><span><strong>Ports &amp; Binding</strong><small>@L["AdvancedNetworkSettingsPanel_InspectTheLocalDashboardListener"]</small></span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></summary>
         <div class="network-advanced-card__body">
             <dl class="network-facts">
                 @Fact("Dashboard HTTP port", Settings.Local.Port.ToString())
@@ -21,9 +22,9 @@
 
     <AppCard>
     <details class="network-advanced-card">
-        <summary><span class="network-advanced-card__icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Router" /></span><span><strong>Port Forwarding &amp; Router Mapping</strong><small>Advanced direct access through your own local TLS reverse proxy.</small></span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></summary>
+        <summary><span class="network-advanced-card__icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Router" /></span><span><strong>Port Forwarding &amp; Router Mapping</strong><small>@L["AdvancedNetworkSettingsPanel_AdvancedDirectAccessThroughYour"]</small></span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></summary>
         <div class="network-advanced-card__body network-advanced-fields">
-            <AppAlert Tone="AppUiTone.Warning">PCP, NAT-PMP, and UPnP are never enabled by default. Library maps only the HTTPS reverse-proxy port below and never maps its Dashboard HTTP listener directly.</AppAlert>
+            <AppAlert Tone="AppUiTone.Warning">@L["AdvancedNetworkSettingsPanel_PCPNATPMPAndUPnP"]</AppAlert>
             <dl class="network-facts">
                 @Fact("Topology", Display(Status?.Topology))
                 @Fact("Observed gateway", Status?.RouterGateway ?? "Not detected")
@@ -35,17 +36,17 @@
             <p class="network-supporting-copy">@(Status?.TopologyDetail ?? "Topology has not been inspected.")</p>
             <p class="network-supporting-copy">@(Status?.MappingDetail ?? "Router mapping has not been attempted.")</p>
 
-            <p class="network-supporting-copy">The public address lives on <a href="/settings/network/remote">Remote Access</a>.</p>
-            <AppTextField T="string" @bind-Value="_tlsPortText" Label="Local TLS reverse-proxy port" HelpText="The local Caddy/nginx/Traefik HTTPS listener. Never use the Dashboard HTTP port." />
-            <AppTextField T="string" @bind-Value="_externalPortText" Label="External HTTPS port" HelpText="Normally 443." />
-            <AppSwitchRow Label="Manage router mapping automatically"
-                          Description="Try PCP, NAT-PMP, then UPnP for the explicitly configured TLS listener."
+            <p class="network-supporting-copy">@L["AdvancedNetworkSettingsPanel_ThePublicAddressLivesOn"] <a href="/settings/network/remote">@L["Common_RemoteAccess"]</a>.</p>
+            <AppTextField T="string" @bind-Value="_tlsPortText" Label="@L["AdvancedNetworkSettingsPanel_LocalTLSReverseProxyPort"].Value" HelpText="The local Caddy/nginx/Traefik HTTPS listener. Never use the Dashboard HTTP port." />
+            <AppTextField T="string" @bind-Value="_externalPortText" Label="@L["AdvancedNetworkSettingsPanel_ExternalHTTPSPort"].Value" HelpText="Normally 443." />
+            <AppSwitchRow Label="@L["AdvancedNetworkSettingsPanel_ManageRouterMappingAutomatically"].Value"
+                          Description="@L["AdvancedNetworkSettingsPanel_TryPCPNATPMPThen"].Value"
                           Value="@Settings.Remote.AutomaticRouterConfiguration"
                           ValueChanged="ChangeRouterAutomationAsync" />
             <div class="network-card-actions">
-                <AppButton Label="Save direct settings" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="SaveRouterSettingsAsync" />
-                <AppButton Label="Set up manually" StartIcon="@AppMaterialIcons.Outlined.Tune" OnClick="OpenManual" />
-                <AppButton Label="Renew now" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="RenewAsync" />
+                <AppButton Label="@L["AdvancedNetworkSettingsPanel_SaveDirectSettings"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="SaveRouterSettingsAsync" />
+                <AppButton Label="@L["AdvancedNetworkSettingsPanel_SetUpManually"].Value" StartIcon="@AppMaterialIcons.Outlined.Tune" OnClick="OpenManual" />
+                <AppButton Label="@L["AdvancedNetworkSettingsPanel_RenewNow"].Value" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="RenewAsync" />
             </div>
         </div>
     </details>
@@ -53,19 +54,19 @@
 
     <AppCard>
     <details class="network-advanced-card">
-        <summary><span class="network-advanced-card__icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Language" /></span><span><strong>Reverse Proxy Trust</strong><small>Accept forwarded client and HTTPS information only from known proxy peers.</small></span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></summary>
+        <summary><span class="network-advanced-card__icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Language" /></span><span><strong>@L["AdvancedNetworkSettingsPanel_ReverseProxyTrust"]</strong><small>@L["AdvancedNetworkSettingsPanel_AcceptForwardedClientAndHTTPS"]</small></span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></summary>
         <div class="network-advanced-card__body network-advanced-fields">
-            <AppTextField T="string" @bind-Value="_trustedProxyText" Label="Trusted proxy addresses" HelpText="Comma-separated exact IP addresses." />
-            <AppTextField T="string" @bind-Value="_trustedProxyNetworkText" Label="Trusted proxy networks" HelpText="Comma-separated CIDR ranges for isolated Docker proxy networks, for example 172.21.0.0/24." />
-            <AppAlert Tone="AppUiTone.Info">Forwarded headers from every other peer are ignored. A Dashboard restart applies proxy trust changes.</AppAlert>
-            <AppButton Label="Save proxy trust" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="SaveProxySettingsAsync" />
+            <AppTextField T="string" @bind-Value="_trustedProxyText" Label="@L["AdvancedNetworkSettingsPanel_TrustedProxyAddresses"].Value" HelpText="Comma-separated exact IP addresses." />
+            <AppTextField T="string" @bind-Value="_trustedProxyNetworkText" Label="@L["AdvancedNetworkSettingsPanel_TrustedProxyNetworks"].Value" HelpText="Comma-separated CIDR ranges for isolated Docker proxy networks, for example 172.21.0.0/24." />
+            <AppAlert Tone="AppUiTone.Info">@L["AdvancedNetworkSettingsPanel_ForwardedHeadersFromEveryOther"]</AppAlert>
+            <AppButton Label="@L["AdvancedNetworkSettingsPanel_SaveProxyTrust"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="SaveProxySettingsAsync" />
         </div>
     </details>
     </AppCard>
 
     <AppCard>
     <details class="network-advanced-card">
-        <summary><span class="network-advanced-card__icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Science" /></span><span><strong>Diagnostics</strong><small>Observed network facts without assuming public reachability.</small></span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></summary>
+        <summary><span class="network-advanced-card__icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Science" /></span><span><strong>@L["AdvancedNetworkSettingsPanel_Diagnostics"]</strong><small>@L["AdvancedNetworkSettingsPanel_ObservedNetworkFactsWithoutAssuming"]</small></span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></summary>
         <div class="network-advanced-card__body">
             <dl class="network-facts">
                 @Fact("IPv6 available", Status?.Ipv6Available == true ? "Yes" : "No")
@@ -78,14 +79,14 @@
     </AppCard>
 
     <AppAlert Tone="AppUiTone.Warning" Icon="@AppMaterialIcons.Outlined.WarningAmber" Class="network-advanced-warning">
-        <strong>Advanced settings are intended for experienced administrators.</strong>
-        <span>Tailscale or a documented reverse proxy is the supported default for remote access.</span>
+        <strong>@L["AdvancedNetworkSettingsPanel_AdvancedSettingsAreIntendedFor"]</strong>
+        <span>@L["AdvancedNetworkSettingsPanel_TailscaleOrADocumentedReverse"]</span>
     </AppAlert>
 
     <AppCard>
         <div class="network-danger-row">
-            <div><strong>Reset Network Settings</strong><span>Restore local-first defaults and turn off remote access.</span></div>
-            <AppButton Label="Reset Network Settings" Tone="AppUiTone.Error" OnClick="OpenReset" />
+            <div><strong>@L["AdvancedNetworkSettingsPanel_ResetNetworkSettings"]</strong><span>@L["AdvancedNetworkSettingsPanel_RestoreLocalFirstDefaultsAnd"]</span></div>
+            <AppButton Label="@L["AdvancedNetworkSettingsPanel_ResetNetworkSettings"].Value" Tone="AppUiTone.Error" OnClick="OpenReset" />
         </div>
     </AppCard>
 </div>
@@ -98,14 +99,14 @@
                             TestAgain="TestRemoteAsync" />
 
 <AppDialog @bind-Visible="_resetDialogOpen"
-           Title="Reset network settings?"
-           Subtitle="This turns off remote access and removes custom network configuration. Other Library settings are not affected."
+           Title="@L["AdvancedNetworkSettingsPanel_ResetNetworkSettings2"].Value"
+           Subtitle="@L["AdvancedNetworkSettingsPanel_ThisTurnsOffRemoteAccess"].Value"
            Icon="@AppMaterialIcons.Outlined.Restore"
            Size="Medium">
-    <ChildContent><AppAlert Tone="AppUiTone.Warning">Library will attempt to remove any automatic mapping it owns during reconciliation or shutdown.</AppAlert></ChildContent>
+    <ChildContent><AppAlert Tone="AppUiTone.Warning">@L["AdvancedNetworkSettingsPanel_LibraryWillAttemptToRemove"]</AppAlert></ChildContent>
     <FooterContent>
-        <AppButton Label="Cancel" OnClick="CloseReset" />
-        <AppButton Label="Reset Network Settings" Tone="AppUiTone.Error" ButtonStyle="AppButtonStyle.Filled" OnClick="ResetAsync" />
+        <AppButton Label="@L["Search_Cancel"].Value" OnClick="CloseReset" />
+        <AppButton Label="@L["AdvancedNetworkSettingsPanel_ResetNetworkSettings"].Value" Tone="AppUiTone.Error" ButtonStyle="AppButtonStyle.Filled" OnClick="ResetAsync" />
     </FooterContent>
 </AppDialog>
 

@@ -4,6 +4,7 @@
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
 @inject IAppToastService Snackbar
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="tl-page encode-settings">
     @if (_loading)
@@ -16,34 +17,34 @@
         {
             <AppAlert Tone="AppUiTone.Warning">
                 <div class="encode-settings__health">
-                    <strong>Playback delivery needs attention</strong>
+                    <strong>@L["EncodeSettingsTab_PlaybackDeliveryNeedsAttention"]</strong>
                     <span>@DeliveryDetail</span>
                 </div>
             </AppAlert>
         }
 
-        <SettingsSectionPanel Title="Playback checks"
-                              Description="Technical checks reported directly by the Engine."
+        <SettingsSectionPanel Title="@L["EncodeSettingsTab_PlaybackChecks"].Value"
+                              Description="@L["EncodeSettingsTab_TechnicalChecksReportedDirectlyBy"].Value"
                               Icon="@AppMaterialIcons.Outlined.MonitorHeart">
             @if (_diagnostics is null)
             {
-                <AppErrorState Title="Diagnostics are unavailable"
+                <AppErrorState Title="@L["EncodeSettingsTab_DiagnosticsAreUnavailable"].Value"
                                Message="The Engine did not return playback diagnostics. No sample status has been substituted." />
             }
             else
             {
                 <div class="encode-settings__diagnostics">
-                    <AppMetricCard Label="FFmpeg"
+                    <AppMetricCard Label="@L["Common_FFmpeg"].Value"
                                    Value="@ToolStatus(_diagnostics.FFmpegAvailable, _diagnostics.FFmpegVersion)"
                                    Tone="@(_diagnostics.FFmpegAvailable ? AppUiTone.Success : AppUiTone.Warning)" />
-                    <AppMetricCard Label="Active encode jobs"
+                    <AppMetricCard Label="@L["Common_ActiveEncodeJobs"].Value"
                                    Value="@_diagnostics.ActiveJobs.Count.ToString()" />
                 </div>
 
                 @if (_diagnostics.Warnings.Count > 0)
                 {
                     <AppAlert Tone="AppUiTone.Warning" Class="tl-sp-mt-4">
-                        <strong>Engine warnings</strong>
+                        <strong>@L["EncodeSettingsTab_EngineWarnings"]</strong>
                         <ul class="encode-settings__warnings">
                             @foreach (var warning in _diagnostics.Warnings)
                             {
@@ -55,7 +56,7 @@
                 else
                 {
                     <AppAlert Tone="AppUiTone.Success" Class="tl-sp-mt-4">
-                        The Engine reported no playback delivery warnings.
+                        @L["EncodeSettingsTab_TheEngineReportedNoPlayback"]
                     </AppAlert>
                 }
             }
@@ -63,19 +64,19 @@
     }
     else if (!_settingsAvailable)
     {
-        <AppErrorState Title="Playback delivery settings are unavailable"
-                       Message="Start the Engine or retry before changing hardware acceleration and optimized copies." />
+        <AppErrorState Title="@L["EncodeSettingsTab_PlaybackDeliverySettingsAreUnavailable"].Value"
+                       Message="@L["EncodeSettingsTab_StartTheEngineOrRetry"].Value" />
     }
     else if (IsSection("hardware"))
     {
-        <SettingsSectionPanel Title="Hardware acceleration"
-                              Description="Choose what the server uses to prepare video for playback. This is the one place to change it."
+        <SettingsSectionPanel Title="@L["EncodeSettingsTab_HardwareAcceleration"].Value"
+                              Description="@L["EncodeSettingsTab_ChooseWhatTheServerUses"].Value"
                               Icon="@AppMaterialIcons.Outlined.Memory">
             <div class="encode-settings__form">
-                <AppSelect T="string" @bind-Value="_hardwarePreference" Label="Hardware acceleration" Options="@HardwareOptions" />
+                <AppSelect T="string" @bind-Value="_hardwarePreference" Label="@L["EncodeSettingsTab_HardwareAcceleration"].Value" Options="@HardwareOptions" />
                 <div class="encode-settings__current">
                     <strong>@DisplayHardware(_settings.HardwareAcceleration)</strong>
-                    <span>Current Streaming preference</span>
+                    <span>@L["EncodeSettingsTab_CurrentStreamingPreference"]</span>
                 </div>
             </div>
         </SettingsSectionPanel>
@@ -83,46 +84,46 @@
     }
     else
     {
-        <SettingsSectionPanel Title="Optimized copies"
-                              Description="Set how the server prepares media for playback and offline use."
+        <SettingsSectionPanel Title="@L["EncodeSettingsTab_OptimizedCopies"].Value"
+                              Description="@L["EncodeSettingsTab_SetHowTheServerPrepares"].Value"
                               Icon="@AppMaterialIcons.Outlined.VideoSettings">
             <div class="encode-settings__form">
-                <AppSelect T="string" @bind-Value="_defaultProfile" Label="Prepared download quality" Options="@ProfileOptions" />
-                <AppNumericField @bind-Value="_maxConcurrentJobs" Label="Maximum active encodes" Min="1" Max="4" />
+                <AppSelect T="string" @bind-Value="_defaultProfile" Label="@L["EncodeSettingsTab_PreparedDownloadQuality"].Value" Options="@ProfileOptions" />
+                <AppNumericField @bind-Value="_maxConcurrentJobs" Label="@L["EncodeSettingsTab_MaximumActiveEncodes"].Value" Min="1" Max="4" />
             </div>
         </SettingsSectionPanel>
 
-        <SettingsSectionPanel Title="Scheduling"
-                              Description="Limit optimized copy work to a predictable maintenance window."
+        <SettingsSectionPanel Title="@L["EncodeSettingsTab_Scheduling"].Value"
+                              Description="@L["EncodeSettingsTab_LimitOptimizedCopyWorkTo"].Value"
                               Icon="@AppMaterialIcons.Outlined.Schedule">
             <div class="encode-settings__form">
                 <AppSwitchRow @bind-Value="_scheduledEncodesEnabled"
-                              Label="Schedule prepared encodes"
-                              Description="Queue non-urgent optimized copy work for the maintenance window." />
+                              Label="@L["EncodeSettingsTab_SchedulePreparedEncodes"].Value"
+                              Description="@L["EncodeSettingsTab_QueueNonUrgentOptimizedCopy"].Value" />
                 <AppTextField @bind-Value="_maintenanceWindow"
-                              Label="Maintenance window"
+                              Label="@L["EncodeSettingsTab_MaintenanceWindow"].Value"
                               HelpText="Use 24-hour time, for example 01:00-05:00." />
             </div>
         </SettingsSectionPanel>
 
-        <SettingsSectionPanel Title="Optimized copy storage"
-                              Description="Control where prepared playback files are kept and when they are removed."
+        <SettingsSectionPanel Title="@L["EncodeSettingsTab_OptimizedCopyStorage"].Value"
+                              Description="@L["EncodeSettingsTab_ControlWherePreparedPlaybackFiles"].Value"
                               Icon="@AppMaterialIcons.Outlined.Storage">
             <div class="encode-settings__form">
                 <AppTextField @bind-Value="_variantRoot"
-                              Label="Cache location" />
+                              Label="@L["EncodeSettingsTab_CacheLocation"].Value" />
                 <AppNumericField @bind-Value="_cacheSizeGb"
-                                 Label="Cache size limit (GB)"
+                                 Label="@L["EncodeSettingsTab_CacheSizeLimitGB"].Value"
                                  Min="1"
                                  Max="5000" />
                 <AppNumericField @bind-Value="_retentionDays"
-                                 Label="Keep unused optimized copies for"
+                                 Label="@L["EncodeSettingsTab_KeepUnusedOptimizedCopiesFor"].Value"
                                  HelpText="Number of days before unused optimized copies become eligible for cleanup."
                                  Min="1"
                                  Max="3650" />
                 <AppSwitchRow @bind-Value="_cleanupLru"
-                              Label="Remove least-used optimized copies first"
-                              Description="Free space by removing the least recently used prepared files before newer ones." />
+                              Label="@L["EncodeSettingsTab_RemoveLeastUsedOptimizedCopies"].Value"
+                              Description="@L["EncodeSettingsTab_FreeSpaceByRemovingThe"].Value" />
             </div>
         </SettingsSectionPanel>
         @SaveButton("Save optimized copy settings")

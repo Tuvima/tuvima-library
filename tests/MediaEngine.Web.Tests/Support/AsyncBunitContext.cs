@@ -10,7 +10,7 @@ namespace MediaEngine.Web.Tests;
 /// Ensures native UI and application services that implement only
 /// <see cref="IAsyncDisposable"/> are released through bUnit's asynchronous path.
 /// </summary>
-public abstract class AsyncBunitContext : BunitContext, IAsyncLifetime
+public abstract class AsyncBunitContext : LocalizedBunitContext, IAsyncLifetime
 {
     protected AsyncBunitContext()
     {

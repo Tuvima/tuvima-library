@@ -1,10 +1,11 @@
 @namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Contracts.Details
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="tl-music-album-overview">
     <section class="tl-music-album-overview__tracks" aria-labelledby="music-album-tracks-heading">
         <header class="tl-music-album-overview__heading">
-            <h2 id="music-album-tracks-heading">Tracks</h2>
+            <h2 id="music-album-tracks-heading">@L["Common_Tracks"]</h2>
             <span>@TrackSummary</span>
         </header>
 
@@ -19,7 +20,7 @@
 
     <aside class="tl-music-album-overview__credits" aria-labelledby="music-album-credits-heading">
         <header class="tl-music-album-overview__heading">
-            <h2 id="music-album-credits-heading">Credits</h2>
+            <h2 id="music-album-credits-heading">@L["MusicAlbumOverviewContent_Credits"]</h2>
         </header>
 
         @if (Model.ContributorGroups.Count > 0)
@@ -28,7 +29,7 @@
         }
         else
         {
-            <p class="tl-music-album-overview__empty">No linked artists are available yet.</p>
+            <p class="tl-music-album-overview__empty">@L["MusicAlbumOverviewContent_NoLinkedArtistsAreAvailable"]</p>
         }
     </aside>
 

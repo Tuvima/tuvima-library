@@ -2,16 +2,17 @@
 @implements IDisposable
 @inject NsfwModeState Nsfw
 @inject NsfwModeSwitching Switching
+@inject IStringLocalizer<SharedStrings> L
 
 @* The optional Vault mode check in the top menu (Videos spec D23b). Drawn only when the Engine said this profile can use Vault
    mode AND the person switched the check on in their profile page; for every other profile it renders nothing at all. *@
 @if (Nsfw.ShowQuickCheck)
 {
     <div class="top-nav-account-menu__item" role="none" data-nsfw-quick-check>
-        <AppSwitchRow Label="Vault mode"
+        <AppSwitchRow Label="@L["Common_VaultMode"].Value"
                       Value="@Nsfw.Unlocked"
                       ValueChanged="ChangedAsync"
-                      AriaLabel="Vault mode"
+                      AriaLabel="@L["Common_VaultMode"].Value"
                       StopClickPropagation="true" />
     </div>
 }

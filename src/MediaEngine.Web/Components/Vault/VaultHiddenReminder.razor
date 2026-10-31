@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Vault
 @implements IDisposable
 @inject NsfwModeState Nsfw
+@inject IStringLocalizer<SharedStrings> L
 
 @* One quiet line for a person who has Vault access but keeps it out of the menu (library setup and add-folder v2, 3b). It sits on Home and at the top
    of Settings, can be turned on from here or closed for good, and never appears for anyone without Vault access: it draws only after the Engine says
@@ -9,9 +10,9 @@
 {
     <div class="vault-hidden-reminder" data-vault-hidden-reminder role="note">
         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" />
-        <span class="vault-hidden-reminder__text">The Vault is set up but hidden. Turn on Show Vault in the menu to use it.</span>
-        <AppButton Label="Turn on" ButtonStyle="AppButtonStyle.Text" OnClick="TurnOnAsync" />
-        <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" AriaLabel="Dismiss this reminder" OnClick="DismissAsync" />
+        <span class="vault-hidden-reminder__text">@L["VaultHiddenReminder_TheVaultIsSetUp"]</span>
+        <AppButton Label="@L["VaultHiddenReminder_TurnOn"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="TurnOnAsync" />
+        <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" AriaLabel="@L["VaultHiddenReminder_DismissThisReminder"].Value" OnClick="DismissAsync" />
     </div>
 }
 

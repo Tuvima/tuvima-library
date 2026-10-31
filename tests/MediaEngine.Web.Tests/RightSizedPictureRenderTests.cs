@@ -14,7 +14,7 @@ namespace MediaEngine.Web.Tests;
 /// Right-sized pictures (spec D1/D2): a picture drawn at a fixed size asks the Engine for the smallest
 /// copy at least that size, and offers the next copy up to sharper screens.
 /// </summary>
-public sealed class RightSizedPictureRenderTests : BunitContext
+public sealed class RightSizedPictureRenderTests : LocalizedBunitContext
 {
     private const string Face = "/engine-image/persons/6f6b4d6e-0000-4000-8000-000000000001/headshot?v=abc123";
 

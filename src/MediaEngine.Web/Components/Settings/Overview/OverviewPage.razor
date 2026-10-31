@@ -10,12 +10,13 @@
 @inject IEngineApiClient Api
 @inject DeviceContextService DeviceContext
 @inject ILogger<OverviewPage> Logger
+@inject IStringLocalizer<SharedStrings> L
 @* Profile > Overview (spec: Profile Overview, Taste and Activity): you, with a few friendly numbers, what you are in the middle of,
    what you did lately, your taste and the last 30 days. It is your own page, so it reads only the signed-in profile. Everything is
    worked out from your own history; anything the Engine cannot supply is left out, never faked. *@
 @if (_loading)
 {
-    <div class="overview-page__loading" aria-busy="true" aria-label="Loading your overview">
+    <div class="overview-page__loading" aria-busy="true" aria-label="@L["OverviewPage_LoadingYourOverview"].Value">
         <AppSkeleton Width="100%" Height="140px" />
         <AppSkeleton Width="100%" Height="88px" />
         <AppSkeleton Width="100%" Height="200px" />
@@ -23,8 +24,8 @@
 }
 else if (_profile is null)
 {
-    <AppErrorState Title="Your profile couldn't be loaded"
-                   Message="Start the Engine or try again."
+    <AppErrorState Title="@L["OverviewPage_YourProfileCouldnTBe"].Value"
+                   Message="@L["Common_StartTheEngineOrTry"].Value"
                    Retry="@(() => LoadAsync())" />
 }
 else
@@ -39,12 +40,12 @@ else
                 </span>
                 <div class="overview-header__identity">
                     <h2 class="overview-header__name">@_profile.DisplayName</h2>
-                    <p class="overview-header__joined">Joined @Joined</p>
+                    <p class="overview-header__joined">@L["OverviewPage_Joined", Joined]</p>
                 </div>
                 @if (!IsKids)
                 {
                 <div class="overview-header__actions">
-                    <AppButton Label="Edit profile"
+                    <AppButton Label="@L["OverviewPage_EditProfile"].Value"
                                StartIcon="@AppMaterialIcons.Outlined.Edit"
                                Class="overview-header__edit"
                                FullWidth="@DeviceContext.IsPhone"
@@ -60,20 +61,20 @@ else
             <OverviewStatStrip Stats="@ProfileOverviewPresentation.Stats(_summary)" />
             @if (ProfileOverviewPresentation.IsNewProfile(_summary))
             {
-                <p class="overview-page__invite" data-overview-invite>Nothing here yet. Watch, read or listen to something and this page fills in.</p>
+                <p class="overview-page__invite" data-overview-invite>@L["OverviewPage_NothingHereYetWatchRead"]</p>
             }
         }
 
-        <SettingsSectionPanel Title="Continue enjoying" Icon="@AppMaterialIcons.Outlined.PlayCircleOutline" Class="tl-card settings-section-card settings-section-card--dense overview-page__continue">
+        <SettingsSectionPanel Title="@L["Common_ContinueEnjoying"].Value" Icon="@AppMaterialIcons.Outlined.PlayCircleOutline" Class="tl-card settings-section-card settings-section-card--dense overview-page__continue">
             <ChildContent>
                 <OverviewContinueEnjoying Items="@(_overview?.ContinueItems ?? [])" />
             </ChildContent>
         </SettingsSectionPanel>
 
         <div class="overview-page__columns">
-            <SettingsSectionPanel Title="Recent activity" Icon="@AppMaterialIcons.Outlined.History" Class="tl-card settings-section-card settings-section-card--dense overview-page__activity">
+            <SettingsSectionPanel Title="@L["Common_RecentActivity"].Value" Icon="@AppMaterialIcons.Outlined.History" Class="tl-card settings-section-card settings-section-card--dense overview-page__activity">
                 <Actions>
-                    <a class="overview-page__link" href="@ActivityHref" data-overview-see-all>See all</a>
+                    <a class="overview-page__link" href="@ActivityHref" data-overview-see-all>@L["Common_SeeAll"]</a>
                 </Actions>
                 <ChildContent>
                     <OverviewTimeline Tiles="@_recent" SeeAllHref="@ActivityHref" />
@@ -81,9 +82,9 @@ else
             </SettingsSectionPanel>
 
             <div class="overview-page__side">
-                <SettingsSectionPanel Title="Your taste" Icon="@AppMaterialIcons.Outlined.Category" Class="tl-card settings-section-card settings-section-card--dense overview-page__taste">
+                <SettingsSectionPanel Title="@L["OverviewPage_YourTaste"].Value" Icon="@AppMaterialIcons.Outlined.Category" Class="tl-card settings-section-card settings-section-card--dense overview-page__taste">
                     <Actions>
-                        <a class="overview-page__link" href="@TasteHref" data-overview-taste-link>See your taste</a>
+                        <a class="overview-page__link" href="@TasteHref" data-overview-taste-link>@L["OverviewPage_SeeYourTaste"]</a>
                     </Actions>
                     <ChildContent>
                         <p class="overview-page__taste-summary" data-overview-taste-summary>@(TasteLine ?? "Your taste appears here once you have watched, read or listened to a few things.")</p>
@@ -101,7 +102,7 @@ else
 
                 @if (_calendar is not null)
                 {
-                    <SettingsSectionPanel Title="Last 30 days" Icon="@AppMaterialIcons.Outlined.CalendarMonth" Class="tl-card settings-section-card settings-section-card--dense overview-page__month">
+                    <SettingsSectionPanel Title="@L["OverviewPage_Last30Days"].Value" Icon="@AppMaterialIcons.Outlined.CalendarMonth" Class="tl-card settings-section-card settings-section-card--dense overview-page__month">
                         <ChildContent>
                             <p class="overview-page__month-line" data-overview-month-line>@MonthLine</p>
                             <OverviewHeatmap Days="@_calendar" />
@@ -112,7 +113,7 @@ else
         </div>
 
         <p class="overview-page__apps">
-            <a class="overview-page__apps-link" href="@AppsRoute" data-overview-apps-link>Get the Library app for your phone or TV</a>
+            <a class="overview-page__apps-link" href="@AppsRoute" data-overview-apps-link>@L["OverviewPage_GetTheLibraryAppFor"]</a>
         </p>
     </div>
 

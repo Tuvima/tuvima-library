@@ -2,6 +2,7 @@
 @using MediaEngine.Contracts.Activity
 @using MediaEngine.Web.Services.Formatting
 @inject NavigationManager Navigation
+@inject IStringLocalizer<SharedStrings> L
 @* One row of the Activity list (D27): the time, a picture, the title with its episode or artist, what happened, how long, how far,
    how it ended, the device and (when the scope covers other people) who. A title group also says how many sessions it holds and
    expands to them; a music session shows its covers as a collage with a Show songs button. A tap opens the item. No IP
@@ -97,11 +98,11 @@
                     <AppOverflowMenu AriaLabel="@($"More about {ActivityListPresentation.Title(Item)}")" Icon="@AppMaterialIcons.Outlined.MoreHoriz">
                         @if (ActivityListPresentation.Href(Item) is { } openHref)
                         {
-                            <AppMenuItem Label="Open" Icon="@AppMaterialIcons.Outlined.OpenInNew" OnClick="@(() => Navigation.NavigateTo(openHref))" />
+                            <AppMenuItem Label="@L["Common_Open"].Value" Icon="@AppMaterialIcons.Outlined.OpenInNew" OnClick="@(() => Navigation.NavigateTo(openHref))" />
                         }
                         @if (OnFind.HasDelegate)
                         {
-                            <AppMenuItem Label="Find this title" Icon="@AppMaterialIcons.Outlined.Search" OnClick="@(() => OnFind.InvokeAsync(ActivityListPresentation.Title(Item)))" />
+                            <AppMenuItem Label="@L["ActivityRow_FindThisTitle"].Value" Icon="@AppMaterialIcons.Outlined.Search" OnClick="@(() => OnFind.InvokeAsync(ActivityListPresentation.Title(Item)))" />
                         }
                     </AppOverflowMenu>
                 </span>
@@ -120,10 +121,10 @@
     }
     else if (Expanded && Songs is { } songs)
     {
-        <ol class="activity-row__children activity-row__songs" aria-label="Songs in this session" data-activity-songs>
+        <ol class="activity-row__children activity-row__songs" aria-label="@L["ActivityRow_SongsInThisSession"].Value" data-activity-songs>
             @if (songs.Count == 0)
             {
-                <li class="activity-row__songs-empty">No songs were kept for this session.</li>
+                <li class="activity-row__songs-empty">@L["ActivityRow_NoSongsWereKeptFor"]</li>
             }
             @foreach (var song in songs)
             {

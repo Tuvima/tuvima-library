@@ -3,7 +3,7 @@ using MediaEngine.Web.Components.Shared;
 
 namespace MediaEngine.Web.Tests;
 
-public sealed class PlaybackContextRowInteractionTests : BunitContext
+public sealed class PlaybackContextRowInteractionTests : LocalizedBunitContext
 {
     [Fact]
     public async Task ChapterVariantMakesNumberActivityTitleAndDurationOneActivationTarget()

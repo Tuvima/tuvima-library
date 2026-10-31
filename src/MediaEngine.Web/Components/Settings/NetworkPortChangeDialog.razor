@@ -2,17 +2,18 @@
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
+@inject IStringLocalizer<SharedStrings> L
 
 <AppDialog Visible="@Visible"
            VisibleChanged="@VisibleChanged"
-           Title="Change server port"
-           Subtitle="Library will check the new port before saving it. The current address remains active until restart."
+           Title="@L["NetworkPortChangeDialog_ChangeServerPort"].Value"
+           Subtitle="@L["NetworkPortChangeDialog_LibraryWillCheckTheNew"].Value"
            Icon="@AppMaterialIcons.Outlined.SettingsEthernet"
            Size="Medium">
     <ChildContent>
         <div class="network-port-dialog__fields">
-            <AppNumericField Value="@CurrentPort" Label="Current port" ReadOnly="true" />
-            <AppNumericField @bind-Value="_newPort" Label="New port" Min="1" Max="65535" />
+            <AppNumericField Value="@CurrentPort" Label="@L["NetworkPortChangeDialog_CurrentPort"].Value" ReadOnly="true" />
+            <AppNumericField @bind-Value="_newPort" Label="@L["NetworkPortChangeDialog_NewPort"].Value" Min="1" Max="65535" />
         </div>
         @if (_result is not null)
         {
@@ -20,7 +21,7 @@
         }
     </ChildContent>
     <FooterContent>
-        <AppButton Label="Cancel" OnClick="CancelAsync" Disabled="@_busy" />
+        <AppButton Label="@L["Search_Cancel"].Value" OnClick="CancelAsync" Disabled="@_busy" />
         <AppButton Label="@(_busy ? "Checking…" : "Apply & Test")"
                    StartIcon="@AppMaterialIcons.Outlined.Science"
                    Tone="AppUiTone.Primary"

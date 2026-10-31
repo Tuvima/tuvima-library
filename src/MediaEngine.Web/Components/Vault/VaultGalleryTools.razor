@@ -6,6 +6,7 @@
 @inject NsfwModeState Nsfw
 @inject GalleryEditorLauncherService GalleryEditor
 @inject IAppToastService Toasts
+@inject IStringLocalizer<SharedStrings> L
 
 @* The buttons of the Vault's Images view (Videos spec D44): make a gallery, look for new images (administrators), and, on the page of a
    hand-made or rule gallery, change it. A folder gallery has no Edit: it appears by itself and follows the folder. The editor is View's
@@ -15,19 +16,19 @@
 {
     <h2>@_gallery.Name</h2>
 }
-<div role="group" aria-label="Images">
+<div role="group" aria-label="@L["VaultGalleryTools_Images"].Value">
     @if (GalleryId is null)
     {
-        <AppButton Label="New gallery" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="NewAsync" />
+        <AppButton Label="@L["VaultGalleryTools_NewGallery"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="NewAsync" />
         @if (IsAdministrator)
         {
-            <AppButton Label="Look for new images" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+            <AppButton Label="@L["VaultGalleryTools_LookForNewImages"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
                        Disabled="@_scanning" OnClick="ScanAsync" />
         }
     }
     else if (_gallery is { Editable: true })
     {
-        <AppButton Label="Edit gallery" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="EditAsync" />
+        <AppButton Label="@L["VaultGalleryTools_EditGallery"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="EditAsync" />
     }
 </div>
 

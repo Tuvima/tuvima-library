@@ -30,6 +30,7 @@
 @inject IAppToastService Snackbar
 @inject ILogger<MediaBrowseShell> Logger
 @inject UniverseStateContainer StateContainer
+@inject IStringLocalizer<SharedStrings> L
 
 <BrowseShellStyles />
 
@@ -70,7 +71,7 @@
             {
                 @* A gathering tab (Videos) narrows to one library with a chip each; only libraries this profile may see are listed. *@
                 <div class="browse-shell__library-chips" role="group" aria-label="@($"{CurrentTab.Label} libraries")" data-library-chips>
-                    <AppChip Text="All"
+                    <AppChip Text="@L["ApiKeys_AllKeysRevoked"].Value"
                              Variant="@(_libraryChip is null ? AppVariant.Filled : null)"
                              Color="@(_libraryChip is null ? AppColor.Primary : null)"
                              aria-pressed="@(_libraryChip is null ? "true" : "false")"
@@ -104,7 +105,7 @@
 
                 <div class="browse-shell__filter-lower-row">
                     <div class="browse-shell__control-group browse-shell__control-group--browse">
-                        <span class="browse-shell__control-label">Browse as</span>
+                        <span class="browse-shell__control-label">@L["Common_BrowseAs"]</span>
                         <AppBrowseModeSelector Options="@CurrentTab.GroupingOptions"
                                                Value="@_grouping"
                                                ValueChanged="SwitchGroupingAsync"
@@ -116,12 +117,12 @@
                                        OnClear="ClearFiltersAsync">
                     <ChildContent Context="inSheet">
                     <div class="browse-shell__control-group browse-shell__control-group--filters @(inSheet ? "is-sheet" : "")">
-                        <span class="browse-shell__control-label">Filter by</span>
+                        <span class="browse-shell__control-label">@L["Common_FilterBy"]</span>
                         <div class="browse-shell__filter-row">
                             <div class="browse-shell__filter-selects">
                                 @if (GenreFacets.Count > 0 && SupportsFacetFilters)
                                 {
-                                     <BrowseMultiSelect Label="Filters"
+                                     <BrowseMultiSelect Label="@L["Common_Filters"].Value"
                                                         ButtonLabel="Genres"
                                                         MenuKey="genres"
                                                         OpenMenuKey="@_openFacetMenuKey"
@@ -133,7 +134,7 @@
                                                        SearchPlaceholder="Search genres..."
                                                        AllLabel="All genres"
                                                        AllHelpText="No genre filter applied"
-                                                       EmptyText="No matching genres"
+                                                       EmptyText="@L["MediaBrowseShell_NoMatchingGenres"].Value"
                                                        HelpText="Select one or more genres to filter results."
                                                        ShowLabel="false"
                                                        Class="browse-shell__multi-select browse-shell__multi-select--genres" />
@@ -153,11 +154,11 @@
                                                        SearchPlaceholder="@CreatorSearchPlaceholder"
                                                        AllLabel="@AllCreatorLabel"
                                                        AllHelpText="No creator filter applied"
-                                                       EmptyText="No matching creators"
+                                                       EmptyText="@L["MediaBrowseShell_NoMatchingCreators"].Value"
                                                        ShowLabel="false"
                                                        Class="browse-shell__multi-select browse-shell__multi-select--creator" />
 
-                                     <BrowseMultiSelect Label="Year"
+                                     <BrowseMultiSelect Label="@L["Common_Year"].Value"
                                                         ButtonLabel="All years"
                                                         MenuKey="years"
                                                         OpenMenuKey="@_openFacetMenuKey"
@@ -169,13 +170,13 @@
                                                        SearchPlaceholder="Search years..."
                                                        AllLabel="All years"
                                                        AllHelpText="No year filter applied"
-                                                       EmptyText="No matching years"
+                                                       EmptyText="@L["MediaBrowseShell_NoMatchingYears"].Value"
                                                        ShowLabel="false"
                                                        Class="browse-shell__multi-select browse-shell__multi-select--year" />
 
                                      @if (VibeFacets.Count > 0)
                                      {
-                                         <BrowseMultiSelect Label="Vibe"
+                                         <BrowseMultiSelect Label="@L["MediaBrowseShell_Vibe"].Value"
                                                             ButtonLabel="Vibes"
                                                             MenuKey="vibes"
                                                             OpenMenuKey="@_openFacetMenuKey"
@@ -187,7 +188,7 @@
                                                            SearchPlaceholder="Search vibes..."
                                                            AllLabel="All vibes"
                                                            AllHelpText="No vibe filter applied"
-                                                           EmptyText="No matching vibes"
+                                                           EmptyText="@L["MediaBrowseShell_NoMatchingVibes"].Value"
                                                            HelpText="Suggested by Local AI. Select one or more to filter results."
                                                            ShowLabel="false"
                                                            Class="browse-shell__multi-select browse-shell__multi-select--vibe" />
@@ -195,7 +196,7 @@
 
                                      @if (ThemeFacets.Count > 0)
                                      {
-                                         <BrowseMultiSelect Label="Theme"
+                                         <BrowseMultiSelect Label="@L["Common_Theme"].Value"
                                                             ButtonLabel="Themes"
                                                             MenuKey="themes"
                                                             OpenMenuKey="@_openFacetMenuKey"
@@ -207,7 +208,7 @@
                                                            SearchPlaceholder="Search themes..."
                                                            AllLabel="All themes"
                                                            AllHelpText="No theme filter applied"
-                                                           EmptyText="No matching themes"
+                                                           EmptyText="@L["MediaBrowseShell_NoMatchingThemes"].Value"
                                                            HelpText="Suggested by Local AI. Select one or more to filter results."
                                                            ShowLabel="false"
                                                            Class="browse-shell__multi-select browse-shell__multi-select--theme" />
@@ -220,7 +221,7 @@
                                 <div class="browse-shell__toggle-row">
                                     @if (!IsMusicTab)
                                     {
-                                        <AppQuickFilterToggle Label="In progress"
+                                        <AppQuickFilterToggle Label="@L["MediaBrowseShell_InProgress"].Value"
                                                               Selected="@IsInProgressOnly"
                                                               SelectedChanged="OnInProgressChanged" />
                                     }
@@ -229,13 +230,13 @@
                                                           SelectedChanged="OnSecondaryQuickFilterChanged" />
                                     @if (IsAudiobookTab)
                                     {
-                                        <AppQuickFilterToggle Label="Finished"
+                                        <AppQuickFilterToggle Label="@L["Common_Finished"].Value"
                                                               Selected="@IsFinishedOnly"
                                                               SelectedChanged="OnFinishedChanged" />
                                     }
                                     @if (ActiveLibraryId is not null)
                                     {
-                                        <AppQuickFilterToggle Label="Unmatched"
+                                        <AppQuickFilterToggle Label="@L["Common_Unmatched"].Value"
                                                               Selected="@_unmatched"
                                                               SelectedChanged="OnUnmatchedChanged" />
                                     }
@@ -246,8 +247,8 @@
 
                     <div class="browse-shell__display-controls @(IsTimelineGrouping ? "is-timeline" : "") @(inSheet ? "is-sheet" : "")">
                         @if (IsTimelineGrouping) { <div class="browse-shell__timeline-grouping"><AppTimelineGroupingControl Value="@_timelineGrouping" ValueChanged="TimelineGroupingChanged" /></div> }
-                        <span class="browse-shell__sort-label">Sort</span>
-                        <span class="browse-shell__display-label">Display</span>
+                        <span class="browse-shell__sort-label">@L["Common_Sort"]</span>
+                        <span class="browse-shell__display-label">@L["Common_Display"]</span>
                         <AppSelect T="string"
                                    Value="@_sortBy"
                                    ValueChanged="OnSortChanged"
@@ -261,9 +262,9 @@
                         </AppSelect>
                         @if (!UseListLayout)
                         {
-                            <label class="browse-shell__tile-size" title="Adjust tile size">
-                                <span>Tile size</span>
-                                <span class="browse-shell__tile-size-readout">Card size: @TileSizeLabel</span>
+                            <label class="browse-shell__tile-size" title="@L["MediaBrowseShell_AdjustTileSize"].Value">
+                                <span>@L["Common_TileSize"]</span>
+                                <span class="browse-shell__tile-size-readout">@L["MediaBrowseShell_CardSize", TileSizeLabel]</span>
                                 <span class="browse-shell__tile-size-control">
                                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PhotoSizeSelectSmall" />
                                     <AppNativeInput Type="range"
@@ -271,7 +272,7 @@
                                                     Min="@TileSizeMinPx"
                                                     Max="@TileSizeMaxPx"
                                                     Step="8"
-                                                    AriaLabel="Tile size"
+                                                    AriaLabel="@L["Common_TileSize"].Value"
                                                     OnInput="OnTileSizeChanged" />
                                 </span>
                             </label>
@@ -279,24 +280,24 @@
 
                         @if (SupportsLayoutToggle && !IsTimelineGrouping)
                         {
-                            <div class="browse-shell__layout-toggle" role="group" aria-label="View mode">
+                            <div class="browse-shell__layout-toggle" role="group" aria-label="@L["MediaBrowseShell_ViewMode"].Value">
                                 <AppNativeButton Type="button"
                                                  Class="@LayoutToggleClass(LibraryLayoutMode.Card)"
-                                                 AriaLabel="Show cards"
-                                                 Title="Show cards"
+                                                 AriaLabel="@L["MediaBrowseShell_ShowCards"].Value"
+                                                 Title="@L["MediaBrowseShell_ShowCards"].Value"
                                                  aria-pressed="@(_layout == LibraryLayoutMode.Card ? "true" : "false")"
                                                  OnClick="@(_ => SwitchLayoutAsync(LibraryLayoutMode.Card))">
                                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.GridView" />
-                                    <span>Cards</span>
+                                    <span>@L["Common_Cards"]</span>
                                 </AppNativeButton>
                                 <AppNativeButton Type="button"
                                                  Class="@LayoutToggleClass(LibraryLayoutMode.List)"
-                                                 AriaLabel="Show list"
-                                                 Title="Show list"
+                                                 AriaLabel="@L["MediaBrowseShell_ShowList"].Value"
+                                                 Title="@L["MediaBrowseShell_ShowList"].Value"
                                                  aria-pressed="@(_layout == LibraryLayoutMode.List ? "true" : "false")"
                                                  OnClick="@(_ => SwitchLayoutAsync(LibraryLayoutMode.List))">
                                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ViewList" />
-                                    <span>List</span>
+                                    <span>@L["Common_List"]</span>
                                 </AppNativeButton>
                             </div>
                         }
@@ -333,8 +334,8 @@
     }
     else if (_loadFailed)
     {
-        <AppErrorState Title="Library view failed to load"
-                       Message="The Dashboard could not load this library view from the Engine."
+        <AppErrorState Title="@L["MediaBrowseShell_LibraryViewFailedToLoad"].Value"
+                       Message="@L["MediaBrowseShell_TheDashboardCouldNotLoad"].Value"
                        Details="@_loadError"
                        Retry="ReloadAsync" />
     }
@@ -344,7 +345,7 @@
             <ListenSongTable Tracks="@SongTracks"
                              FavoriteIds="@SongFavoriteIds"
                              SourceLabel="All Songs"
-                             AriaLabel="Songs"
+                             AriaLabel="@L["Common_Songs"].Value"
                              ShowGenre="false"
                              ShowPlays="true"
                              ShowDateAdded="true"
@@ -395,7 +396,7 @@
                            Tone="AppUiTone.Neutral"
                            StartIcon="@AppMaterialIcons.Outlined.PendingActions"
                            Href="/settings/ingestion">
-                    Open ingestion activity
+                    @L["MediaBrowseShell_OpenIngestionActivity"]
                 </AppButton>
             }
         </div>
@@ -428,7 +429,7 @@
                        Tone="AppUiTone.Primary"
                        OnClick="LoadMoreAsync"
                        Class="browse-shell__load-more-button">
-                Load more
+                @L["Common_LoadMore"]
             </AppButton>
         </div>
     }

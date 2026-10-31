@@ -8,18 +8,19 @@
 @inject IEngineApiClient ApiClient
 @inject IJSRuntime JS
 @inject IAppToastService Toast
+@inject IStringLocalizer<SharedStrings> L
 
 @* Bookmark packs in a title's Saved list (Videos spec D46): Export (choose, review, save a small file), Import (check the pack is for
    this title, then add it as read-only pack bookmarks) and the packs already added, each switchable off. A pack holds only how to
    recognise the title and each bookmark's time, end, chapter name, note and description. *@
-<section class="bookmark-packs" aria-label="Bookmark packs">
+<section class="bookmark-packs" aria-label="@L["BookmarkPackSection_BookmarkPacks"].Value">
     <div class="bookmark-packs__toolbar">
-        <span>Bookmark packs</span>
+        <span>@L["BookmarkPackSection_BookmarkPacks"]</span>
         <div class="bookmark-packs__buttons">
-            <AppButton Class="bookmark-packs__button" Disabled="@(_busy || OwnBookmarks.Count == 0)" title="@(OwnBookmarks.Count == 0 ? "Save a bookmark first" : "Export some of your bookmarks as a pack file")" StartIcon="@AppMaterialIcons.Outlined.Download" OnClick="StartExport">Export</AppButton>
+            <AppButton Class="bookmark-packs__button" Disabled="@(_busy || OwnBookmarks.Count == 0)" title="@(OwnBookmarks.Count == 0 ? "Save a bookmark first" : "Export some of your bookmarks as a pack file")" StartIcon="@AppMaterialIcons.Outlined.Download" OnClick="StartExport">@L["Common_Export"]</AppButton>
             <AppFileUpload T="IBrowserFile" Accept=".zip,application/zip" Disabled="@_busy" FilesChanged="PickPackAsync">
                 <CustomContent Context="upload">
-                    <AppButton Class="bookmark-packs__button" Disabled="@_busy" StartIcon="@AppMaterialIcons.Outlined.FileUpload" OnClick="upload.OpenFilePickerAsync">Import</AppButton>
+                    <AppButton Class="bookmark-packs__button" Disabled="@_busy" StartIcon="@AppMaterialIcons.Outlined.FileUpload" OnClick="upload.OpenFilePickerAsync">@L["Common_Import"]</AppButton>
                 </CustomContent>
             </AppFileUpload>
         </div>
@@ -32,27 +33,27 @@
 
     @if (_step == PackStep.Choose)
     {
-        <div class="bookmark-packs__panel" role="group" aria-label="Choose bookmarks to export">
-            <strong>Choose what to include</strong>
+        <div class="bookmark-packs__panel" role="group" aria-label="@L["BookmarkPackSection_ChooseBookmarksToExport"].Value">
+            <strong>@L["BookmarkPackSection_ChooseWhatToInclude"]</strong>
             @foreach (var bookmark in OwnBookmarks)
             {
                 <AppCheckboxRow Label="@Describe(bookmark)" Description="@bookmark.Note" Value="@_chosen.Contains(bookmark.Id)"
                                 ValueChanged="@(on => Toggle(bookmark.Id, on))" />
             }
-            <AppTextField Label="Pack name" Value="@_name" ValueChanged="@(value => _name = value ?? string.Empty)" MaxLength="@BookmarkPackLimits.MaximumNameLength" />
-            <AppTextField Label="Author (optional)" Value="@_author" ValueChanged="@(value => _author = value ?? string.Empty)"
+            <AppTextField Label="@L["BookmarkPackSection_PackName"].Value" Value="@_name" ValueChanged="@(value => _name = value ?? string.Empty)" MaxLength="@BookmarkPackLimits.MaximumNameLength" />
+            <AppTextField Label="@L["BookmarkPackSection_AuthorOptional"].Value" Value="@_author" ValueChanged="@(value => _author = value ?? string.Empty)"
                           MaxLength="@BookmarkPackLimits.MaximumAuthorLength" HelpText="Shown on the pack's bookmarks. Not taken from your profile." />
             <div class="bookmark-packs__buttons">
-                <AppButton Class="bookmark-packs__button" Disabled="@(_chosen.Count == 0 || string.IsNullOrWhiteSpace(_name))" OnClick="@(() => _step = PackStep.Review)">Review</AppButton>
-                <AppButton Class="bookmark-packs__button" OnClick="Cancel">Cancel</AppButton>
+                <AppButton Class="bookmark-packs__button" Disabled="@(_chosen.Count == 0 || string.IsNullOrWhiteSpace(_name))" OnClick="@(() => _step = PackStep.Review)">@L["Common_Review"]</AppButton>
+                <AppButton Class="bookmark-packs__button" OnClick="Cancel">@L["Search_Cancel"]</AppButton>
             </div>
         </div>
     }
     else if (_step == PackStep.Review)
     {
-        <div class="bookmark-packs__panel" role="group" aria-label="Review the pack">
+        <div class="bookmark-packs__panel" role="group" aria-label="@L["BookmarkPackSection_ReviewThePack"].Value">
             <strong>@_name.Trim()@(string.IsNullOrWhiteSpace(_author) ? null : $" by {_author.Trim()}")</strong>
-            <p class="bookmark-packs__note">The pack holds how to recognise this title and the @_chosen.Count bookmarks below. It does not hold file paths, profile names or what anyone watched.</p>
+            <p class="bookmark-packs__note">@L["BookmarkPackSection_ThePackHoldsHowTo", _chosen.Count]</p>
             <ul class="bookmark-packs__list">
                 @foreach (var bookmark in OwnBookmarks.Where(item => _chosen.Contains(item.Id)).OrderBy(item => item.PositionSeconds))
                 {
@@ -66,29 +67,29 @@
             </ul>
             <div class="bookmark-packs__buttons">
                 <AppButton Class="bookmark-packs__button" Disabled="@_busy" OnClick="SaveExportAsync">@(_busy ? "Saving…" : "Save pack file")</AppButton>
-                <AppButton Class="bookmark-packs__button" Disabled="@_busy" OnClick="@(() => _step = PackStep.Choose)">Back</AppButton>
+                <AppButton Class="bookmark-packs__button" Disabled="@_busy" OnClick="@(() => _step = PackStep.Choose)">@L["Common_Back"]</AppButton>
             </div>
         </div>
     }
     else if (_step == PackStep.Import && _preview is { } preview)
     {
-        <div class="bookmark-packs__panel" role="group" aria-label="Import a pack">
+        <div class="bookmark-packs__panel" role="group" aria-label="@L["BookmarkPackSection_ImportAPack"].Value">
             <strong>@preview.Name@(string.IsNullOrWhiteSpace(preview.Author) ? null : $" by {preview.Author}")</strong>
             <p class="bookmark-packs__note">@preview.BookmarkCount bookmark@(preview.BookmarkCount == 1 ? null : "s"). @preview.Reason</p>
             @if (preview.AlreadyImported)
             {
-                <p class="bookmark-packs__note">This pack is already on this title.</p>
+                <p class="bookmark-packs__note">@L["BookmarkPackSection_ThisPackIsAlreadyOn"]</p>
             }
             <div class="bookmark-packs__buttons">
                 @if (!preview.AlreadyImported && preview.Match == BookmarkPackMatchResults.Match)
                 {
-                    <AppButton Class="bookmark-packs__button" Disabled="@_busy" OnClick="@(() => ImportAsync(BookmarkPackImportModes.AsIs))">Add pack</AppButton>
+                    <AppButton Class="bookmark-packs__button" Disabled="@_busy" OnClick="@(() => ImportAsync(BookmarkPackImportModes.AsIs))">@L["BookmarkPackSection_AddPack"]</AppButton>
                 }
                 else if (!preview.AlreadyImported && preview.Match == BookmarkPackMatchResults.DifferentCut)
                 {
                     @if (preview.CanAlignByChapter)
                     {
-                        <AppButton Class="bookmark-packs__button" Disabled="@_busy" OnClick="@(() => ImportAsync(BookmarkPackImportModes.AlignByChapter))">Align by chapter</AppButton>
+                        <AppButton Class="bookmark-packs__button" Disabled="@_busy" OnClick="@(() => ImportAsync(BookmarkPackImportModes.AlignByChapter))">@L["BookmarkPackSection_AlignByChapter"]</AppButton>
                     }
                 }
                 <AppButton Class="bookmark-packs__button" Disabled="@_busy" OnClick="Cancel">@(preview.Match == BookmarkPackMatchResults.DifferentCut ? "Skip" : "Close")</AppButton>
@@ -118,7 +119,7 @@
                     }
                 </ul>
             }
-            <AppButton Class="bookmark-packs__button" Disabled="@_busy" OnClick="@(() => RemoveAsync(pack))">Remove pack</AppButton>
+            <AppButton Class="bookmark-packs__button" Disabled="@_busy" OnClick="@(() => RemoveAsync(pack))">@L["BookmarkPackSection_RemovePack"]</AppButton>
         </article>
     }
 </section>

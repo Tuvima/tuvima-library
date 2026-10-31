@@ -1,4 +1,4 @@
-﻿@page "/watch"
+@page "/watch"
 @page "/watch/{Tab}"
 @using MediaEngine.Web.Components.Browse
 @using MediaEngine.Web.Components.MediaHub
@@ -9,10 +9,11 @@
 @inject ILogger<WatchPage> Logger
 
 @namespace MediaEngine.Web.Components.Pages
+@inject IStringLocalizer<SharedStrings> L
 
-<MediaLanePage Title="Watch"
+<MediaLanePage Title="@L["Nav_Watch"].Value"
                RouteBase="/watch"
-               Subtitle="Movies, shows and videos from your local library"
+               Subtitle="@L["WatchPage_MoviesShowsAndVideosFrom"].Value"
                SearchPlaceholder="Search movies, TV and videos..."
                SectionType="MediaHubSectionType.Watch"
                Preset="@Preset"
@@ -27,8 +28,8 @@
                LoadFailed="@_loadFailed"
                LoadFailedTitle="Watch failed to load"
                LoadFailedMessage="The Dashboard could not load the Watch landing from the Engine."
-               EmptyTitle="No movies or shows yet"
-               EmptyMessage="Add video to your library to populate this lane."
+               EmptyTitle="@L["WatchPage_NoMoviesOrShowsYet"].Value"
+               EmptyMessage="@L["WatchPage_AddVideoToYourLibrary"].Value"
                Retry="LoadLandingAsync" />
 
 @code {

@@ -4,26 +4,27 @@
 @using MediaEngine.Web.Services.Integration
 @inject DashboardIdentityClient Identity
 @inject IAppToastService Snackbar
+@inject IStringLocalizer<SharedStrings> L
 
-<SettingsSectionPanel Title="Paired devices" Icon="@AppMaterialIcons.Outlined.Devices"
-                      Description="Phones and TVs paired with Library. Sign one out to end its access at once.">
+<SettingsSectionPanel Title="@L["PairedDevicesSection_PairedDevices"].Value" Icon="@AppMaterialIcons.Outlined.Devices"
+                      Description="@L["PairedDevicesSection_PhonesAndTVsPairedWith"].Value">
     @if (_loading)
     {
         <AppSkeleton Size="AppControlSize.Compact" />
     }
     else if (_loadFailed)
     {
-        <AppAlert Tone="AppUiTone.Error">Paired devices could not be loaded. Try again in a moment.</AppAlert>
+        <AppAlert Tone="AppUiTone.Error">@L["PairedDevicesSection_PairedDevicesCouldNotBe"]</AppAlert>
     }
     else if (_devices.Count == 0)
     {
-        <AppEmptyState Class="app-page-state--compact" Title="No phones or TVs paired"
-                       Message="Open a Library app and choose this server to pair it." />
+        <AppEmptyState Class="app-page-state--compact" Title="@L["PairedDevicesSection_NoPhonesOrTVsPaired"].Value"
+                       Message="@L["PairedDevicesSection_OpenALibraryAppAnd"].Value" />
     }
     else if (VisibleDevices.Count == 0)
     {
-        <AppEmptyState Class="app-page-state--compact" Title="No paired devices match"
-                       Message="Change the household or profile above to see more." />
+        <AppEmptyState Class="app-page-state--compact" Title="@L["PairedDevicesSection_NoPairedDevicesMatch"].Value"
+                       Message="@L["Common_ChangeTheHouseholdOrProfile"].Value" />
     }
     else
     {
@@ -31,15 +32,15 @@
             <AppTable>
                 <thead>
                     <tr>
-                        <th>Device</th>
-                        <th>Type</th>
+                        <th>@L["Common_Device"]</th>
+                        <th>@L["Common_Type"]</th>
                         @if (ManagesOthers)
                         {
-                            <th>Belongs to</th>
+                            <th>@L["PairedDevicesSection_BelongsTo"]</th>
                         }
-                        <th>Backs up to</th>
-                        <th>Paired</th>
-                        <th>Last seen</th>
+                        <th>@L["PairedDevicesSection_BacksUpTo"]</th>
+                        <th>@L["PairedDevicesSection_Paired"]</th>
+                        <th>@L["PairedDevicesSection_LastSeen"]</th>
                         <th></th>
                     </tr>
                 </thead>
@@ -64,7 +65,7 @@
                                     <AppNativeSelect Value="@(device.BackupProfileId?.ToString() ?? string.Empty)"
                                                      ValueChanged="@(value => SetBackupAsync(device, value))"
                                                      aria-label="@($"Whose photos {device.DeviceName} backs up")">
-                                        <option value="">Not chosen</option>
+                                        <option value="">@L["PairedDevicesSection_NotChosen"]</option>
                                         @foreach (var person in People.Where(profile => profile.HouseholdId == device.HouseholdId))
                                         {
                                             <option value="@person.Id">@person.DisplayName</option>
@@ -79,7 +80,7 @@
                             <td>@device.PairedAt.LocalDateTime.ToString("d")</td>
                             <td>@device.LastSeenAt.LocalDateTime.ToString("g")</td>
                             <td>
-                                <AppButton Label="Sign out" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error"
+                                <AppButton Label="@L["TopBar_SignOut"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error"
                                            Size="AppControlSize.Compact" OnClick="@(() => AskSignOut(device))" />
                             </td>
                         </tr>
@@ -92,17 +93,17 @@
 
 <AppDialog Visible="@(_pendingSignOut is not null)"
            VisibleChanged="@(_ => CancelSignOut())"
-           Title="Sign this device out?"
+           Title="@L["Common_SignThisDeviceOut"].Value"
            Subtitle="@(_pendingSignOut is null ? null : $"{_pendingSignOut.DeviceName} will be signed out and has to be paired again.")"
            Icon="@AppMaterialIcons.Outlined.Devices"
            Size="Small">
     <ChildContent>
-        <p>It stops working straight away. Nothing is deleted from your library.</p>
+        <p>@L["PairedDevicesSection_ItStopsWorkingStraightAway"]</p>
     </ChildContent>
     <FooterContent>
         <div class="network-test-dialog__actions">
-            <AppButton Label="Cancel" OnClick="CancelSignOut" />
-            <AppButton Label="Sign out" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Error"
+            <AppButton Label="@L["Search_Cancel"].Value" OnClick="CancelSignOut" />
+            <AppButton Label="@L["TopBar_SignOut"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Error"
                        Disabled="@_signingOut" OnClick="ConfirmSignOutAsync" />
         </div>
     </FooterContent>

@@ -19,6 +19,7 @@
 @inject PlaybackSessionController Playback
 @inject DeviceContextService DeviceContext
 @implements IAsyncDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 @if (Slides.Count > 0 && DeviceContext.IsPhone)
 {
@@ -89,9 +90,9 @@ else if (Slides.Count > 0)
                     <SupplementalContent>
                         @if (Density == CinematicHeroDensity.CompactAudio && ActiveHero.PreviewItems.Count > 0)
                         {
-                            <div class="cinematic-hero__track-preview" aria-label="Featured album tracks">
+                            <div class="cinematic-hero__track-preview" aria-label="@L["CinematicHeroCarousel_FeaturedAlbumTracks"].Value">
                                 <div class="cinematic-hero__track-preview-heading">
-                                    <span>Tracks</span>
+                                    <span>@L["Common_Tracks"]</span>
                                     @if (ActiveHero.PreviewTotalCount is > 0)
                                     {
                                         <small>@ActiveHero.PreviewTotalCount total</small>
@@ -125,7 +126,7 @@ else if (Slides.Count > 0)
             <div class="cinematic-hero-carousel__controls">
                 <div class="cinematic-hero-carousel__timeline"
                      role="group"
-                     aria-label="Choose featured item">
+                     aria-label="@L["Common_ChooseFeaturedItem"].Value">
                     @for (var index = 0; index < Slides.Count; index++)
                     {
                         var slideIndex = index;
@@ -153,16 +154,16 @@ else if (Slides.Count > 0)
                 <div class="cinematic-hero-carousel__navigation">
                     <AppNativeButton Type="button"
                                      Class="cinematic-hero-carousel__control cinematic-hero-carousel__control--previous"
-                                     AriaLabel="Previous featured item"
-                                     Title="Previous featured item"
+                                     AriaLabel="@L["CinematicHeroCarousel_PreviousFeaturedItem"].Value"
+                                     Title="@L["CinematicHeroCarousel_PreviousFeaturedItem"].Value"
                                      OnClick="PreviousAsync">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronLeft" />
                     </AppNativeButton>
 
                     <AppNativeButton Type="button"
                                      Class="cinematic-hero-carousel__control cinematic-hero-carousel__control--next"
-                                     AriaLabel="Next featured item"
-                                     Title="Next featured item"
+                                     AriaLabel="@L["CinematicHeroCarousel_NextFeaturedItem"].Value"
+                                     Title="@L["CinematicHeroCarousel_NextFeaturedItem"].Value"
                                      OnClick="NextAsync">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" />
                     </AppNativeButton>

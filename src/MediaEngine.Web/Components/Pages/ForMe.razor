@@ -14,32 +14,33 @@
 @inject ViewWorkspaceService Workspace
 @inject NavigationManager Nav
 @inject ILogger<ForMe> Logger
+@inject IStringLocalizer<SharedStrings> L
 
-<PageTitle>For Me - Library</PageTitle>
+<PageTitle>@L["ForMe_ForMeLibrary"]</PageTitle>
 
 <section class="for-me-page">
     <header class="for-me-page__header">
-        <div class="for-me-page__eyebrow">Your profile</div>
-        <h1>For Me</h1>
-        <p>Your progress, saved items, favorites, and personal spaces—kept distinct and brought together here.</p>
+        <div class="for-me-page__eyebrow">@L["Common_YourProfile"]</div>
+        <h1>@L["ForMe_ForMe"]</h1>
+        <p>@L["ForMe_YourProgressSavedItemsFavorites"]</p>
     </header>
 
     <SurfaceNavigationBar Items="NavigationItems"
                           ActiveKey="@ActiveView"
                           ActiveKeyChanged="NavigateViewAsync"
-                          AriaLabel="For Me sections"
+                          AriaLabel="@L["ForMe_ForMeSections"].Value"
                           Class="for-me-page__navigation" />
 
     @if (_loading)
     {
         <AppPageState Kind="AppPageStateKind.Loading"
-                      Title="Loading For Me"
-                      Message="Gathering this profile's progress and personal spaces." />
+                      Title="@L["ForMe_LoadingForMe"].Value"
+                      Message="@L["ForMe_GatheringThisProfileSProgress"].Value" />
     }
     else if (!string.IsNullOrWhiteSpace(_error))
     {
-        <AppErrorState Title="For Me could not load"
-                       Message="The Dashboard could not read this profile's personal state."
+        <AppErrorState Title="@L["ForMe_ForMeCouldNotLoad"].Value"
+                       Message="@L["ForMe_TheDashboardCouldNotRead"].Value"
                        Details="@_error"
                        Retry="LoadAsync" />
     }
@@ -57,9 +58,9 @@
             }
             @if (OverviewShelves.Count == 0)
             {
-                <AppEmptyState Title="Your personal hub is ready"
-                               Message="Save a title, mark a favorite, or begin watching, reading, or listening to see it here.">
-                    <Action><AppButton Href="/" Label="Browse your library" /></Action>
+                <AppEmptyState Title="@L["ForMe_YourPersonalHubIsReady"].Value"
+                               Message="@L["ForMe_SaveATitleMarkA"].Value">
+                    <Action><AppButton Href="/" Label="@L["ForMe_BrowseYourLibrary"].Value" /></Action>
                 </AppEmptyState>
             }
         </div>
@@ -80,7 +81,7 @@
         @if (ActiveView is "my-list" or "favorites" or "liked")
         {
             <div class="for-me-page__controls">
-                <div class="for-me-page__areas" role="group" aria-label="Media area">
+                <div class="for-me-page__areas" role="group" aria-label="@L["ForMe_MediaArea"].Value">
                     @foreach (var option in AreaOptions)
                     {
                         <AppButton ButtonStyle="@(Area == option.Key ? AppButtonStyle.Filled : AppButtonStyle.Outlined)"
@@ -91,10 +92,10 @@
                     }
                 </div>
                 <label class="for-me-page__sort">
-                    <span>Sort</span>
-                    <AppNativeSelect Value="@Sort" OnChange="SortChangedAsync" aria-label="Sort For Me items">
-                        <option value="recent">Recently added</option>
-                        <option value="title">Title</option>
+                    <span>@L["Common_Sort"]</span>
+                    <AppNativeSelect Value="@Sort" OnChange="SortChangedAsync" aria-label="@L["ForMe_SortForMeItems"].Value">
+                        <option value="recent">@L["Nav_RecentlyAdded"]</option>
+                        <option value="title">@L["Common_Title"]</option>
                     </AppNativeSelect>
                 </label>
             </div>
@@ -102,8 +103,8 @@
 
         @if (ActiveView == "my-list" && FavoriteStates.Count > 0)
         {
-            <a class="for-me-favorites-card" href="/for-me?view=favorites&area=listen" aria-label="Open Favorites playlist">
-                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Favorite" /><strong>Favorites</strong><span>@FavoriteStates.Count songs</span>
+            <a class="for-me-favorites-card" href="/for-me?view=favorites&area=listen" aria-label="@L["ForMe_OpenFavoritesPlaylist"].Value">
+                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Favorite" /><strong>@L["Common_Favorites"]</strong><span>@FavoriteStates.Count songs</span>
                 @foreach (var cover in FavoriteItems.Select(item => item.TileImageUrl ?? item.CoverUrl).Where(url => !string.IsNullOrWhiteSpace(url)).Distinct().Take(4)) { <img src="@MediaTileArtworkUrl.ForDrawnSize(cover, 48)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(cover, 48)" alt="" loading="lazy" decoding="async" /> }
             </a>
         }

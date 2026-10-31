@@ -11,6 +11,7 @@
 @inject ILogger<ActivityPage> Logger
 @inject IJSRuntime JS
 @implements IAsyncDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 @* Personal > Overview > Activity (D15, D16, D27, D31, D32, D33). Everything the person watched, listened to, read and added to
    My list, newest first, with search, filters, grouping by day, week, month or title, a date rail and a CSV export. A member sees
@@ -23,8 +24,8 @@
             @if (CanChooseScope)
             {
                 <label class="activity-toolbar__scope">
-                    <span class="activity-field__label">Scope</span>
-                    <AppNativeSelect Value="@_scope" OnChange="OnScopeChanged" aria-label="Scope" data-activity-scope="true">
+                    <span class="activity-field__label">@L["Common_Scope"]</span>
+                    <AppNativeSelect Value="@_scope" OnChange="OnScopeChanged" aria-label="@L["Common_Scope"].Value" data-activity-scope="true">
                         @foreach (var option in _scopeOptions)
                         {
                             <option value="@option.Value">@option.Label</option>
@@ -80,11 +81,11 @@
                                             AnchorOrigin="AppOrigin.BottomLeft"
                                             TransformOrigin="AppOrigin.TopLeft"
                                             Class="activity-filters-popover">
-                                    <div id="@FiltersPopoverId" class="activity-filters-popover__body" role="group" aria-label="Filters">
+                                    <div id="@FiltersPopoverId" class="activity-filters-popover__body" role="group" aria-label="@L["Common_Filters"].Value">
                                         @FilterFields(false)
                                         <div class="activity-filters-popover__footer">
-                                            <AppButton Label="Clear" Disabled="@(FilterCount == 0)" OnClick="ClearFiltersAsync" data-activity-filters-clear="true" />
-                                            <AppButton Label="Done" ButtonStyle="AppButtonStyle.Filled" OnClick="CloseFilters" />
+                                            <AppButton Label="@L["Activity_Clear"].Value" Disabled="@(FilterCount == 0)" OnClick="ClearFiltersAsync" data-activity-filters-clear="true" />
+                                            <AppButton Label="@L["Common_Done"].Value" ButtonStyle="AppButtonStyle.Filled" OnClick="CloseFilters" />
                                         </div>
                                     </div>
                                 </AppPopover>
@@ -98,10 +99,10 @@
                                         Options="GroupingOptions"
                                         SelectedKey="@GroupingKey"
                                         SelectedKeyChanged="OnGroupingChanged"
-                                        AriaLabel="Group the list" />
+                                        AriaLabel="@L["ActivityPage_GroupTheList"].Value" />
 
             <div class="activity-toolbar__switch">
-                <AppSwitchRow Label="Show every session"
+                <AppSwitchRow Label="@L["ActivityPage_ShowEverySession"].Value"
                               Value="@_showEverySession"
                               ValueChanged="OnShowEverySessionChanged"
                               Disabled="@(_grouping != ActivityGrouping.Title)" />
@@ -110,19 +111,19 @@
             <div class="activity-toolbar__actions">
                 @if (CanExport)
                 {
-                    <AppButton Label="Export"
+                    <AppButton Label="@L["Common_Export"].Value"
                                StartIcon="@AppMaterialIcons.Outlined.Download"
                                Href="@ExportHref"
                                UserAttributes="@ExportAttributes"
                                data-activity-export="true" />
                 }
-                <AppOverflowMenu AriaLabel="Activity actions" Class="activity-toolbar__more">
-                    <AppMenuItem Label="Refresh"
+                <AppOverflowMenu AriaLabel="@L["ActivityPage_ActivityActions"].Value" Class="activity-toolbar__more">
+                    <AppMenuItem Label="@L["Ingestion_Refresh"].Value"
                                  Icon="@AppMaterialIcons.Outlined.Refresh"
                                  OnClick="ReloadAsync" />
                     @if (CanDelete)
                     {
-                        <AppMenuItem Label="Delete history…"
+                        <AppMenuItem Label="@L["ActivityPage_DeleteHistory"].Value"
                                      Icon="@AppMaterialIcons.Outlined.Delete"
                                      Tone="AppUiTone.Error"
                                      OnClick="OpenDeleteAsync" />
@@ -137,7 +138,7 @@
             @if (_loading && _items.Count == 0)
             {
                 <div class="activity-state" data-activity-state="loading">
-                    <AppPageState Kind="AppPageStateKind.Loading" Title="Loading activity" Class="app-page-state--compact" />
+                    <AppPageState Kind="AppPageStateKind.Loading" Title="@L["Common_LoadingActivity"].Value" Class="app-page-state--compact" />
                 </div>
             }
             else if (_status == PersonalActivityOutcomeStatus.UnlockRequired)
@@ -145,11 +146,11 @@
                 <div class="activity-state" data-activity-state="locked">
                     <AppPageState Kind="AppPageStateKind.Unavailable"
                                   Icon="@AppMaterialIcons.Outlined.Lock"
-                                  Title="Enter your administrator PIN"
-                                  Message="Your administrator PIN is needed before other people's activity can be shown."
+                                  Title="@L["Common_EnterYourAdministratorPIN"].Value"
+                                  Message="@L["ActivityPage_YourAdministratorPINIsNeeded"].Value"
                                   Class="app-page-state--compact">
                         <Actions>
-                            <AppButton Label="Enter PIN" StartIcon="@AppMaterialIcons.Outlined.LockOpen" OnClick="@(() => RequestUnlock(ReloadAsync))" />
+                            <AppButton Label="@L["Common_EnterPIN"].Value" StartIcon="@AppMaterialIcons.Outlined.LockOpen" OnClick="@(() => RequestUnlock(ReloadAsync))" />
                         </Actions>
                     </AppPageState>
                 </div>
@@ -159,13 +160,13 @@
                 <div class="activity-state" data-activity-state="forbidden">
                     <AppPageState Kind="AppPageStateKind.Unavailable"
                                   Icon="@AppMaterialIcons.Outlined.Lock"
-                                  Title="That activity isn't available to you"
+                                  Title="@L["ActivityPage_ThatActivityIsnTAvailable"].Value"
                                   Message="@(_statusMessage ?? "You can only see activity you are allowed to.")"
                                   Class="app-page-state--compact">
                         <Actions>
                             @if (_scope != PersonalActivityRequest.MeScope)
                             {
-                                <AppButton Label="Back to my activity" OnClick="BackToMeAsync" />
+                                <AppButton Label="@L["ActivityPage_BackToMyActivity"].Value" OnClick="BackToMeAsync" />
                             }
                         </Actions>
                     </AppPageState>
@@ -175,11 +176,11 @@
             {
                 <div class="activity-state" data-activity-state="not-found">
                     <AppPageState Kind="AppPageStateKind.Empty"
-                                  Title="That person or household wasn't found"
+                                  Title="@L["ActivityPage_ThatPersonOrHouseholdWasn"].Value"
                                   Message="@(_statusMessage ?? "They may have been removed.")"
                                   Class="app-page-state--compact">
                         <Actions>
-                            <AppButton Label="Back to my activity" OnClick="BackToMeAsync" />
+                            <AppButton Label="@L["ActivityPage_BackToMyActivity"].Value" OnClick="BackToMeAsync" />
                         </Actions>
                     </AppPageState>
                 </div>
@@ -188,7 +189,7 @@
             {
                 <div class="activity-state" data-activity-state="invalid">
                     <AppPageState Kind="AppPageStateKind.Error"
-                                  Title="Those filters don't fit together"
+                                  Title="@L["ActivityPage_ThoseFiltersDonTFit"].Value"
                                   Message="@(_statusMessage ?? "Change the dates or filters and try again.")"
                                   Class="app-page-state--compact" />
                 </div>
@@ -197,11 +198,11 @@
             {
                 <div class="activity-state" data-activity-state="error">
                     <AppPageState Kind="AppPageStateKind.Error"
-                                  Title="Activity couldn't be loaded"
-                                  Message="Check that the server is online, then try again."
+                                  Title="@L["ActivityPage_ActivityCouldnTBeLoaded"].Value"
+                                  Message="@L["ActivityPage_CheckThatTheServerIs"].Value"
                                   Class="app-page-state--compact">
                         <Actions>
-                            <AppButton Label="Try again" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="ReloadAsync" />
+                            <AppButton Label="@L["Common_TryAgain"].Value" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="ReloadAsync" />
                         </Actions>
                     </AppPageState>
                 </div>
@@ -213,15 +214,15 @@
                     {
                         <AppPageState Kind="AppPageStateKind.Empty"
                                       Icon="@AppMaterialIcons.Outlined.Search"
-                                      Title="Nothing matches these filters"
-                                      Message="Try a wider date range or remove a filter."
+                                      Title="@L["Common_NothingMatchesTheseFilters"].Value"
+                                      Message="@L["ActivityPage_TryAWiderDateRange"].Value"
                                       Class="app-page-state--compact" />
                     }
                     else
                     {
                         <AppPageState Kind="AppPageStateKind.Empty"
                                       Icon="@AppMaterialIcons.Outlined.History"
-                                      Title="Nothing here yet"
+                                      Title="@L["Common_NothingHereYet"].Value"
                                       Message="@(_scope == PersonalActivityRequest.MeScope ? "What you watch, listen to and read shows up here." : "Nothing has been watched, listened to or read here yet.")"
                                       Class="app-page-state--compact" />
                     }
@@ -230,17 +231,17 @@
             else
             {
                 <div class="@("activity-list__head" + (ShowPerson ? " activity-list__head--person" : string.Empty))" aria-hidden="true">
-                    <span>Time</span>
+                    <span>@L["Common_Time"]</span>
                     <span></span>
-                    <span>Title</span>
-                    <span>What</span>
-                    <span>How long</span>
-                    <span>How far</span>
-                    <span>Outcome</span>
-                    <span>Device</span>
+                    <span>@L["Common_Title"]</span>
+                    <span>@L["ActivityPage_What"]</span>
+                    <span>@L["ActivityPage_HowLong"]</span>
+                    <span>@L["ActivityPage_HowFar"]</span>
+                    <span>@L["ActivityPage_Outcome"]</span>
+                    <span>@L["Common_Device"]</span>
                     @if (ShowPerson)
                     {
-                        <span>Person</span>
+                        <span>@L["ActivityPage_Person"]</span>
                     }
                     <span></span>
                 </div>
@@ -273,7 +274,7 @@
                 @if (_nextCursor is not null)
                 {
                     <div class="activity-list__more">
-                        <AppButton Label="Load more"
+                        <AppButton Label="@L["Common_LoadMore"].Value"
                                    Loading="@_loadingMore"
                                    FullWidth="@DeviceContext.IsPhone"
                                    OnClick="LoadMoreAsync"
@@ -289,7 +290,7 @@
 
     @if (_periodList.Count > 0)
     {
-        <aside class="activity-page__rail" aria-label="Jump to a date" data-activity-rail>
+        <aside class="activity-page__rail" aria-label="@L["ActivityPage_JumpToADate"].Value" data-activity-rail>
             <AppTimelineNavigator Periods="@_periodList"
                                   ActiveKey="@_activeYear"
                                   ActiveChildKey="@_activeMonth"
@@ -306,22 +307,22 @@
     <AppDialog Visible="true"
                VisibleChanged="@(_ => CloseDelete())"
                OnClose="CloseDeleteAsync"
-               Title="Delete history"
-               Subtitle="Removes activity from before a date. This can't be undone, and it is recorded in the log."
+               Title="@L["ActivityPage_DeleteHistory2"].Value"
+               Subtitle="@L["ActivityPage_RemovesActivityFromBeforeA"].Value"
                Icon="@AppMaterialIcons.Outlined.Delete"
                Size="Medium">
         <ChildContent>
             <div class="activity-delete" data-activity-delete-dialog>
                 <label class="activity-field">
-                    <span class="activity-field__label">Whose history</span>
-                    <AppNativeSelect Value="@_deleteScope" OnChange="OnDeleteScopeChanged" aria-label="Whose history to delete" data-activity-delete-scope="true">
+                    <span class="activity-field__label">@L["ActivityPage_WhoseHistory"]</span>
+                    <AppNativeSelect Value="@_deleteScope" OnChange="OnDeleteScopeChanged" aria-label="@L["ActivityPage_WhoseHistoryToDelete"].Value" data-activity-delete-scope="true">
                         @foreach (var option in _scopeOptions)
                         {
                             <option value="@option.Value">@option.Label</option>
                         }
                     </AppNativeSelect>
                 </label>
-                <AppTextField Label="Delete everything before"
+                <AppTextField Label="@L["ActivityPage_DeleteEverythingBefore"].Value"
                               InputType="AppInputType.Date"
                               Value="@_deleteBefore"
                               ValueChanged="OnDeleteBeforeChanged"
@@ -330,7 +331,7 @@
                 <p class="activity-delete__preview" role="status" data-activity-delete-preview>
                     @if (_deletePreviewLoading)
                     {
-                        <span>Counting…</span>
+                        <span>@L["ActivityPage_Counting"]</span>
                     }
                     else if (_deletePreview is { } count)
                     {
@@ -338,7 +339,7 @@
                     }
                     else
                     {
-                        <span>Choose a date to see how many entries would go.</span>
+                        <span>@L["ActivityPage_ChooseADateToSee"]</span>
                     }
                 </p>
                 @if (_deleteError is not null)
@@ -355,8 +356,8 @@
         </ChildContent>
         <FooterContent>
             <div class="activity-delete__actions">
-                <AppButton Label="Cancel" OnClick="CloseDeleteAsync" />
-                <AppButton Label="Delete history"
+                <AppButton Label="@L["Search_Cancel"].Value" OnClick="CloseDeleteAsync" />
+                <AppButton Label="@L["ActivityPage_DeleteHistory2"].Value"
                            ButtonStyle="AppButtonStyle.Filled"
                            Tone="AppUiTone.Error"
                            Loading="@_deleting"

@@ -5,6 +5,7 @@
 @using MediaEngine.Web.Services.Ui
 @implements IDisposable
 @inject IEngineApiClient ApiClient
+@inject IStringLocalizer<SharedStrings> L
 
 @* The one confirmation for taking titles out of the library. It asks the Engine what would happen, shows every file and what becomes of
    it, the hand-picked collections the titles leave, and the progress that goes with them, then deletes exactly that plan. Cancel has the
@@ -29,7 +30,7 @@
 
                 @if (_preview.Group is { } groupInfo)
                 {
-                    <section class="delete-library__section delete-library__group" aria-label="What will be deleted">
+                    <section class="delete-library__section delete-library__group" aria-label="@L["DeleteFromLibraryDialog_WhatWillBeDeleted"].Value">
                         <h3>@LibraryGroupDeletionText.Totals(groupInfo, Items)</h3>
                         @if (groupInfo.RemovesParent)
                         {
@@ -48,7 +49,7 @@
 
                         @if (groupInfo.TitlesNotOwned > 0 && groupInfo.SubGroups.Count == 0)
                         {
-                            <p class="delete-library__partial">@DisplayFormat.FormatCount(groupInfo.TitlesOwned) of @DisplayFormat.FormatCount(groupInfo.TitlesOwned + groupInfo.TitlesNotOwned) @LibraryGroupDeletionText.Noun(Items, groupInfo.TitlesOwned + groupInfo.TitlesNotOwned) owned. Only what you own is deleted.</p>
+                            <p class="delete-library__partial">@L["DeleteFromLibraryDialog_OfOwnedOnlyWhatYou", DisplayFormat.FormatCount(groupInfo.TitlesOwned), DisplayFormat.FormatCount(groupInfo.TitlesOwned + groupInfo.TitlesNotOwned), LibraryGroupDeletionText.Noun(Items, groupInfo.TitlesOwned + groupInfo.TitlesNotOwned)]</p>
                         }
 
                         @if (Items.Count <= LibraryGroupDeletionText.NamedTitlesLimit)
@@ -63,8 +64,8 @@
                     </section>
                 }
 
-                <section class="delete-library__section" aria-label="Files">
-                    <h3>Files</h3>
+                <section class="delete-library__section" aria-label="@L["Common_Files"].Value">
+                    <h3>@L["Common_Files"]</h3>
                     @if (FileGroups.Count == 0)
                     {
                         <p>@(IsSeveral ? "These titles have no files on disk." : "This title has no files on disk.")</p>
@@ -89,17 +90,17 @@
 
                 @if (Collections.Count > 0)
                 {
-                    <section class="delete-library__section" aria-label="Hand-picked collections">
-                        <h3>Hand-picked collections</h3>
+                    <section class="delete-library__section" aria-label="@L["DeleteFromLibraryDialog_HandPickedCollections"].Value">
+                        <h3>@L["DeleteFromLibraryDialog_HandPickedCollections"]</h3>
                         <p>
                             @CollectionsLead@for (var i = 0; i < ShownCollections.Count; i++)
                             {
                                 var collection = ShownCollections[i];
-                                <strong>@collection.Name</strong>@if (IsSeveral) { <text> (@collection.ItemsInRequest of these)</text> }@(i < ShownCollections.Count - 1 ? ", " : string.Empty)
+                                <strong>@collection.Name</strong>@if (IsSeveral) { <text> @L["DeleteFromLibraryDialog_OfThese", collection.ItemsInRequest]</text> }@(i < ShownCollections.Count - 1 ? ", " : string.Empty)
                             }
                             @if (HiddenCollectionCount > 0)
                             {
-                                <text>, </text><AppNativeButton Type="button" Class="delete-library__more" aria-expanded="false" OnClick="ExpandCollections">and @HiddenCollectionCount more</AppNativeButton>
+                                <text>, </text><AppNativeButton Type="button" Class="delete-library__more" aria-expanded="false" OnClick="ExpandCollections">@L["DeleteFromLibraryDialog_AndMore", HiddenCollectionCount]</AppNativeButton>
                             }.
                             @(Collections.Count == 1 ? "It will be taken out of it." : "It will be taken out of them.")
                         </p>
@@ -120,8 +121,8 @@
 
                 @if (_preview.ProfilesWithProgress > 0)
                 {
-                    <section class="delete-library__section" aria-label="Progress">
-                        <h3>Progress</h3>
+                    <section class="delete-library__section" aria-label="@L["Common_Progress"].Value">
+                        <h3>@L["Common_Progress"]</h3>
                         <p>
                             @(_preview.ProfilesWithProgress == 1 ? "1 person has" : $"{DisplayFormat.FormatCount(_preview.ProfilesWithProgress)} people have")
                             progress on @(IsSeveral ? "these" : "this"). @(_preview.GoesToRecycleBin ? "It is kept while the file is in the Recycle bin, and comes back if you restore it." : "It will be removed.")
@@ -136,7 +137,7 @@
 
                 @if (_preview.Group is { RequiresTypedConfirmation: true } typed)
                 {
-                    <section class="delete-library__section delete-library__confirm" aria-label="Type the name to confirm">
+                    <section class="delete-library__section delete-library__confirm" aria-label="@L["DeleteFromLibraryDialog_TypeTheNameToConfirm"].Value">
                         <AppTextField Label="@($"Type {typed.ConfirmName} to confirm")"
                                       Value="@_typedName"
                                       ValueChanged="@((string? value) => _typedName = value ?? string.Empty)"
@@ -149,11 +150,11 @@
                 {
                     @if (_preview.GoesToRecycleBin)
                     {
-                        <p class="delete-library__footer-line">The files move to the recycle bin and leave your disk only when you empty it. You can put them back from Settings > Libraries until then.</p>
+                        <p class="delete-library__footer-line">The files move to the recycle bin and leave your disk only when you empty it. You can put them back from Settings > @L["DeleteFromLibraryDialog_LibrariesUntilThen"]</p>
                     }
                     else
                     {
-                        <p class="delete-library__footer-line">@FreedLine Files deleted from disk can't be recovered.</p>
+                        <p class="delete-library__footer-line">@L["DeleteFromLibraryDialog_FilesDeletedFromDiskCan", FreedLine]</p>
                     }
                 }
                 else if (AnyFileStays)
@@ -168,7 +169,7 @@
         <AppButton Label="@(_state == DialogState.Failed ? "Close" : "Cancel")" ButtonStyle="AppButtonStyle.Text" autofocus="autofocus" Disabled="@(_state == DialogState.Deleting)" OnClick="CancelAsync" />
         @if (_state == DialogState.Failed && _canRetry)
         {
-            <AppButton Label="Try again" ButtonStyle="AppButtonStyle.Outlined" OnClick="LoadPreviewAsync" />
+            <AppButton Label="@L["Common_TryAgain"].Value" ButtonStyle="AppButtonStyle.Outlined" OnClick="LoadPreviewAsync" />
         }
         else if (_state is DialogState.Ready or DialogState.Deleting && _preview is not null)
         {

@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Services.Settings
+@inject IStringLocalizer<SharedStrings> L
 
 @* The one state card the Developer area uses for every plugin, integration, tester and the Local AI engine itself
    (Developer tools spec D-B): name and kind, switch, one of the four health words, what it is allowed to do, whether it
@@ -56,11 +57,11 @@
             <div hidden="@(!ShowFacts)">
         <dl class="app-state-card__facts">
                     <div class="app-state-card__fact">
-                        <dt>Allowed to</dt>
+                        <dt>@L["AppStateCard_AllowedTo"]</dt>
                         <dd>
                             @if (AllowedTo.Count == 0)
                             {
-                                <span>Nothing special</span>
+                                <span>@L["Common_NothingSpecial"]</span>
                             }
                             else
                             {
@@ -74,11 +75,11 @@
                         </dd>
                     </div>
                     <div class="app-state-card__fact">
-                        <dt>Sends data out</dt>
+                        <dt>@L["AppStateCard_SendsDataOut"]</dt>
                         <dd data-testid="sends-data">@SendsDataText</dd>
                     </div>
                     <div class="app-state-card__fact">
-                        <dt>Last activity</dt>
+                        <dt>@L["AppStateCard_LastActivity"]</dt>
                         <dd data-testid="last-activity" title="@LastActivityTitle">
                             @if (Loading)
                             {
@@ -93,7 +94,7 @@
                     @if (!Loading && !string.IsNullOrWhiteSpace(LastProblem))
                     {
                         <div class="app-state-card__fact app-state-card__fact--problem">
-                            <dt>Last problem</dt>
+                            <dt>@L["AppStateCard_LastProblem"]</dt>
                             <dd data-testid="last-problem">@LastProblem</dd>
                         </div>
                     }
@@ -146,11 +147,11 @@ else
             }
             <dl class="app-state-card__facts">
                 <div class="app-state-card__fact">
-                    <dt>Allowed to</dt>
+                    <dt>@L["AppStateCard_AllowedTo"]</dt>
                     <dd>
                         @if (AllowedTo.Count == 0)
                         {
-                            <span>Nothing special</span>
+                            <span>@L["Common_NothingSpecial"]</span>
                         }
                         else
                         {
@@ -164,11 +165,11 @@ else
                     </dd>
                 </div>
                 <div class="app-state-card__fact">
-                    <dt>Sends data out</dt>
+                    <dt>@L["AppStateCard_SendsDataOut"]</dt>
                     <dd data-testid="sends-data">@SendsDataText</dd>
                 </div>
                 <div class="app-state-card__fact">
-                    <dt>Last activity</dt>
+                    <dt>@L["AppStateCard_LastActivity"]</dt>
                     <dd data-testid="last-activity" title="@LastActivityTitle">
                         @if (Loading)
                         {
@@ -183,7 +184,7 @@ else
                 @if (!Loading && !string.IsNullOrWhiteSpace(LastProblem))
                 {
                     <div class="app-state-card__fact app-state-card__fact--problem">
-                        <dt>Last problem</dt>
+                        <dt>@L["AppStateCard_LastProblem"]</dt>
                         <dd data-testid="last-problem">@LastProblem</dd>
                     </div>
                 }

@@ -3,18 +3,19 @@
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Services.Playback
 @using MediaEngine.Web.Services.MediaTiles
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="video-context-panel" data-playback-context-scroll-key="@($"{CurrentWorkId}:{_season}")">
-<div class="playback-context-tabs" role="tablist" aria-label="Video context">
-    <AppNativeButton Type="button" role="tab" aria-label="Up Next" aria-selected="@(_tab == "queue")" OnClick="@(() => _tab = "queue")">Up Next · @(Upcoming.Count + (NextEpisode is not null && !Upcoming.Any(item => item.WorkId == NextEpisode.WorkId) ? 1 : 0))</AppNativeButton>
-    @if (Episodes.Count > 0) { <AppNativeButton Type="button" role="tab" aria-label="Episodes" aria-selected="@(_tab == "episodes")" OnClick="@(() => _tab = "episodes")">Episodes · @Episodes.Count</AppNativeButton> }
-    @if (Chapters.Count > 0) { <AppNativeButton Type="button" role="tab" aria-label="Chapters" aria-selected="@(_tab == "chapters")" OnClick="@(() => _tab = "chapters")">Chapters · @Chapters.Count</AppNativeButton> }
+<div class="playback-context-tabs" role="tablist" aria-label="@L["VideoContextPanel_VideoContext"].Value">
+    <AppNativeButton Type="button" role="tab" aria-label="@L["Common_UpNext"].Value" aria-selected="@(_tab == "queue")" OnClick="@(() => _tab = "queue")">Up Next · @(Upcoming.Count + (NextEpisode is not null && !Upcoming.Any(item => item.WorkId == NextEpisode.WorkId) ? 1 : 0))</AppNativeButton>
+    @if (Episodes.Count > 0) { <AppNativeButton Type="button" role="tab" aria-label="@L["VideoContextPanel_Episodes2"].Value" aria-selected="@(_tab == "episodes")" OnClick="@(() => _tab = "episodes")">@L["VideoContextPanel_Episodes", Episodes.Count]</AppNativeButton> }
+    @if (Chapters.Count > 0) { <AppNativeButton Type="button" role="tab" aria-label="@L["VideoContextPanel_Chapters2"].Value" aria-selected="@(_tab == "chapters")" OnClick="@(() => _tab = "chapters")">@L["VideoContextPanel_Chapters", Chapters.Count]</AppNativeButton> }
 </div>
 @if (_tab == "episodes")
 {
     @if (Seasons.Count > 1)
     {
-        <AppSelect Value="@_season" ValueChanged="SelectSeason" Options="@Seasons" AriaLabel="Season" />
+        <AppSelect Value="@_season" ValueChanged="SelectSeason" Options="@Seasons" AriaLabel="@L["Common_Season"].Value" />
     }
     <PlaybackSheetList>
         @foreach (var episode in Episodes.Where(item => item.SeasonKey == _season))
@@ -58,7 +59,7 @@ else if (_tab == "queue")
             @if (next.StillUrl is { } _nextStill && MediaTileArtworkUrl.SupportsRenditions(_nextStill)) { <img src="@MediaTileArtworkUrl.Sized(next.StillUrl, "m")" srcset="@EpisodeArtworkSrcSet(next)" sizes="(max-width:400px) calc(100vw - 48px), 368px" data-artwork-purpose="video-context-preview" alt="" /> }
             <strong>@($"S{next.SeasonNumber} E{next.EpisodeNumber} · {next.Title}")</strong>
             <p>@next.Synopsis</p><span>@next.Runtime</span>
-            <AppNativeButton Type="button" AriaLabel="@($"Play {next.Title}")" OnClick="@(() => EpisodeSelected.InvokeAsync(next.WorkId))">Play</AppNativeButton>
+            <AppNativeButton Type="button" AriaLabel="@($"Play {next.Title}")" OnClick="@(() => EpisodeSelected.InvokeAsync(next.WorkId))">@L["Common_Play"]</AppNativeButton>
         </div>
     }
     else if (Upcoming.FirstOrDefault() is { } first)
@@ -66,10 +67,10 @@ else if (_tab == "queue")
         <div class="video-context-panel__featured">
             @if (!string.IsNullOrWhiteSpace(first.CoverUrl)) { <img src="@MediaTileArtworkUrl.Sized(first.CoverUrl, "m")" data-artwork-purpose="video-context-preview" alt="" /> }
             <strong>@(first.EpisodeTitle ?? first.Title)</strong><span>@PlaybackVideoRuntime.FormatQueueRuntime(first.Duration)</span>
-            <AppNativeButton Type="button" AriaLabel="@($"Play {first.Title}")" OnClick="@(() => QueueSelected.InvokeAsync(first.QueueEntryId))">Play</AppNativeButton>
+            <AppNativeButton Type="button" AriaLabel="@($"Play {first.Title}")" OnClick="@(() => QueueSelected.InvokeAsync(first.QueueEntryId))">@L["Common_Play"]</AppNativeButton>
         </div>
     }
-    else { <p>Nothing up next</p> }
+    else { <p>@L["VideoContextPanel_NothingUpNext"]</p> }
     <PlaybackSheetList>
         @foreach (var item in Upcoming.Where(item => NextEpisode is null ? item != Upcoming.FirstOrDefault() : item.WorkId != NextEpisode.WorkId))
         {

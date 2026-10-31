@@ -16,10 +16,11 @@
 @using Microsoft.JSInterop
 @implements IDisposable
 @namespace MediaEngine.Web.Components.Pages
+@inject IStringLocalizer<SharedStrings> L
 
-<PageTitle>Documents - Library</PageTitle>
+<PageTitle>@L["ViewDocumentsPage_DocumentsLibrary"]</PageTitle>
 <ViewSectionShell>
-    <ViewContentPage Title="Documents" Subtitle="Find, read and download the documents in View." Class="view-documents-page">
+    <ViewContentPage Title="@L["Common_Documents"].Value" Subtitle="@L["ViewDocumentsPage_FindReadAndDownloadThe"].Value" Class="view-documents-page">
         <HeaderActions>
             @if (CanBrowse && !Device.IsPhone)
             {
@@ -27,7 +28,7 @@
                 @LayoutPicker
                 @if (!Device.IsTv)
                 {
-                    <AppButton Label="Auto-filing rules" StartIcon="@AppMaterialIcons.Outlined.AutoAwesome" ButtonStyle="AppButtonStyle.Outlined" Href="/view/documents/rules" Class="view-documents-rules" />
+                    <AppButton Label="@L["Common_AutoFilingRules"].Value" StartIcon="@AppMaterialIcons.Outlined.AutoAwesome" ButtonStyle="AppButtonStyle.Outlined" Href="/view/documents/rules" Class="view-documents-rules" />
                 }
 
                 @if (CanSelect)
@@ -39,11 +40,11 @@
         <ChildContent>
             @if (_loading && !_policyKnown)
             {
-                <AppPageState Kind="AppPageStateKind.Loading" Title="Loading documents" Message="Reading the documents you can open." />
+                <AppPageState Kind="AppPageStateKind.Loading" Title="@L["ViewDocumentsPage_LoadingDocuments"].Value" Message="@L["ViewDocumentsPage_ReadingTheDocumentsYouCan"].Value" />
             }
             else if (!CanBrowse)
             {
-                <AppPageState Kind="AppPageStateKind.Unavailable" Icon="@AppMaterialIcons.Outlined.Lock" Title="Documents are not available for this profile" Message="Ask an administrator of this server to turn on Documents for you." Class="view-documents-denied" />
+                <AppPageState Kind="AppPageStateKind.Unavailable" Icon="@AppMaterialIcons.Outlined.Lock" Title="@L["Common_DocumentsAreNotAvailableFor"].Value" Message="@L["Common_AskAnAdministratorOfThis"].Value" Class="view-documents-denied" />
             }
             else
             {
@@ -57,7 +58,7 @@
                 </AppDiscoveryFilterBar>
 
                 @* Who added the documents: only in the Shared Library and only when two or more people did. The chips carry the bare name. *@
-                <ViewFilterChipRow Label="Added by" Choices="_addedByChoices" Selected="_filter.AddedBy" MinimumChoices="2" OnToggle="ToggleAddedByAsync" />
+                <ViewFilterChipRow Label="@L["Common_AddedBy"].Value" Choices="_addedByChoices" Selected="_filter.AddedBy" MinimumChoices="2" OnToggle="ToggleAddedByAsync" />
 
                 <div class="view-documents-layout">
                 @if (!Device.IsPhone)
@@ -81,7 +82,7 @@
                                 }
                             </ul>
                         }
-                        <AppButton Label="Dismiss" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => _bulkReport = null)" />
+                        <AppButton Label="@L["Common_Dismiss"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => _bulkReport = null)" />
                     </AppAlert>
                 }
 
@@ -92,7 +93,7 @@
 
                 @if (Device.IsPhone && _selectMode)
                 {
-                    <AppButton Label="Done selecting" ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.CheckCircleOutline" OnClick="ToggleSelectMode" Class="view-documents-select" />
+                    <AppButton Label="@L["ViewDocumentsPage_DoneSelecting"].Value" ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.CheckCircleOutline" OnClick="ToggleSelectMode" Class="view-documents-select" />
                 }
 
                 @if (_loading)
@@ -101,50 +102,50 @@
                 }
                 else if (_page is null)
                 {
-                    <AppErrorState Title="Documents could not be loaded" Message="The Engine did not return the documents list." Retry="LoadAsync" />
+                    <AppErrorState Title="@L["ViewDocumentsPage_DocumentsCouldNotBeLoaded"].Value" Message="The Engine did not return the documents list." Retry="LoadAsync" />
                 }
                 else if (_items.Count == 0)
                 {
                     @if (_filter.InboxOnly && !_filter.IsActive && string.IsNullOrWhiteSpace(_search))
                     {
-                        <AppPageState Kind="AppPageStateKind.Empty" Icon="@AppMaterialIcons.Outlined.Description" Title="Your Inbox is empty" Message="New documents land here so you can file them in one tap." Class="view-documents-empty">
+                        <AppPageState Kind="AppPageStateKind.Empty" Icon="@AppMaterialIcons.Outlined.Description" Title="@L["ViewDocumentsPage_YourInboxIsEmpty"].Value" Message="@L["ViewDocumentsPage_NewDocumentsLandHereSo"].Value" Class="view-documents-empty">
                             <Actions>
-                                <AppButton Label="Show all documents" ButtonStyle="AppButtonStyle.Outlined" OnClick="ShowAllDocumentsAsync" />
+                                <AppButton Label="@L["ViewDocumentsPage_ShowAllDocuments"].Value" ButtonStyle="AppButtonStyle.Outlined" OnClick="ShowAllDocumentsAsync" />
                             </Actions>
                         </AppPageState>
                     }
                     else if (_filter.TrashOnly && !_filter.IsActive && string.IsNullOrWhiteSpace(_search))
                     {
-                        <AppPageState Kind="AppPageStateKind.Empty" Icon="@AppMaterialIcons.Outlined.DeleteOutline" Title="The trash is empty" Message="Documents you move to the trash wait here. Their files are never deleted." Class="view-documents-empty">
+                        <AppPageState Kind="AppPageStateKind.Empty" Icon="@AppMaterialIcons.Outlined.DeleteOutline" Title="@L["ViewDocumentsPage_TheTrashIsEmpty"].Value" Message="@L["ViewDocumentsPage_DocumentsYouMoveToThe"].Value" Class="view-documents-empty">
                             <Actions>
-                                <AppButton Label="Show all documents" ButtonStyle="AppButtonStyle.Outlined" OnClick="ShowAllDocumentsAsync" />
+                                <AppButton Label="@L["ViewDocumentsPage_ShowAllDocuments"].Value" ButtonStyle="AppButtonStyle.Outlined" OnClick="ShowAllDocumentsAsync" />
                             </Actions>
                         </AppPageState>
                     }
                     else if (_filter.IsActive)
                     {
-                        <AppPageState Kind="AppPageStateKind.Empty" Icon="@AppMaterialIcons.Outlined.FilterList" Title="No documents match these filters" Message="Try removing a tag or widening the dates." Class="view-documents-empty">
+                        <AppPageState Kind="AppPageStateKind.Empty" Icon="@AppMaterialIcons.Outlined.FilterList" Title="@L["ViewDocumentsPage_NoDocumentsMatchTheseFilters"].Value" Message="@L["ViewDocumentsPage_TryRemovingATagOr"].Value" Class="view-documents-empty">
                             <Actions>
-                                <AppButton Label="Clear filters" ButtonStyle="AppButtonStyle.Outlined" OnClick="ClearFiltersAsync" />
+                                <AppButton Label="@L["Common_ClearFilters"].Value" ButtonStyle="AppButtonStyle.Outlined" OnClick="ClearFiltersAsync" />
                             </Actions>
                         </AppPageState>
                     }
                     else if (string.IsNullOrWhiteSpace(_search))
                     {
-                        <AppPageState Kind="AppPageStateKind.Empty" Icon="@AppMaterialIcons.Outlined.Description" Title="No documents yet" Message="Documents added to View sources or the Import folder appear here." Class="view-documents-empty">
+                        <AppPageState Kind="AppPageStateKind.Empty" Icon="@AppMaterialIcons.Outlined.Description" Title="@L["ViewDocumentsPage_NoDocumentsYet"].Value" Message="@L["ViewDocumentsPage_DocumentsAddedToViewSources"].Value" Class="view-documents-empty">
                             <Actions>
-                                <AppButton Label="Add media" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Filled" Href="/view" />
+                                <AppButton Label="@L["ViewDocumentsPage_AddMedia"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Filled" Href="/view" />
                             </Actions>
                         </AppPageState>
                     }
                     else
                     {
-                        <AppPageState Kind="AppPageStateKind.Empty" Icon="@AppMaterialIcons.Outlined.Search" Title="No documents match" Message="@($"Nothing in this view contains \"{_search.Trim()}\". Try fewer or different words.")" />
+                        <AppPageState Kind="AppPageStateKind.Empty" Icon="@AppMaterialIcons.Outlined.Search" Title="@L["ViewDocumentsPage_NoDocumentsMatch"].Value" Message="@($"Nothing in this view contains \"{_search.Trim()}\". Try fewer or different words.")" />
                     }
                 }
                 else if (_filter.InboxOnly)
                 {
-                    <ul class="@ListClass" aria-label="Documents to file">
+                    <ul class="@ListClass" aria-label="@L["ViewDocumentsPage_DocumentsToFile"].Value">
                         @foreach (var item in _items)
                         {
                             <li class="view-inbox-card-item@(_selected.Contains(item.Id) ? " is-selected" : string.Empty)" @key="item.Id">
@@ -169,12 +170,12 @@
                     }
                     @if (_page.HasMore)
                     {
-                        <AppButton Label="Load more" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_loadingMore" Loading="@_loadingMore" OnClick="LoadMoreAsync" Class="view-documents-more" />
+                        <AppButton Label="@L["Common_LoadMore"].Value" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_loadingMore" Loading="@_loadingMore" OnClick="LoadMoreAsync" Class="view-documents-more" />
                     }
                 }
                 else
                 {
-                    <ul class="@ListClass" aria-label="Documents">
+                    <ul class="@ListClass" aria-label="@L["Common_Documents"].Value">
                         @foreach (var item in _items)
                         {
                             <li class="view-document-card@(_selected.Contains(item.Id) ? " is-selected" : string.Empty)" @key="item.Id"
@@ -224,7 +225,7 @@
                                 }
                                 else if (CanEditDetails)
                                 {
-                                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Edit" Tooltip="Edit details" AriaLabel="@($"Edit details of {ViewDocumentPresentation.DisplayTitle(item)}")" Class="view-document-card__edit" OnClick="@(() => EditDetailsAsync(item))" />
+                                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Edit" Tooltip="@L["Common_EditDetails"].Value" AriaLabel="@($"Edit details of {ViewDocumentPresentation.DisplayTitle(item)}")" Class="view-document-card__edit" OnClick="@(() => EditDetailsAsync(item))" />
                                 }
                             </li>
                         }
@@ -235,7 +236,7 @@
                     }
                     @if (_page.HasMore)
                     {
-                        <AppButton Label="Load more" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_loadingMore" Loading="@_loadingMore" OnClick="LoadMoreAsync" Class="view-documents-more" />
+                        <AppButton Label="@L["Common_LoadMore"].Value" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_loadingMore" Loading="@_loadingMore" OnClick="LoadMoreAsync" Class="view-documents-more" />
                     }
                 }
                 </div>
@@ -247,7 +248,7 @@
 
 @if (_sheetOpen)
 {
-    <AppDialogFrame Open="true" Title="View options" DialogOptions="SheetOptions" Class="view-documents-sheet" OnCancel="@(() => _sheetOpen = false)">
+    <AppDialogFrame Open="true" Title="@L["ViewDocumentsPage_ViewOptions"].Value" DialogOptions="SheetOptions" Class="view-documents-sheet" OnCancel="@(() => _sheetOpen = false)">
         <div class="view-documents-sheet__body">
             @ScopePicker
             @LayoutPicker
@@ -255,7 +256,7 @@
                                     ShowSavedViews="CanUseSavedViews" SavedViews="SavedViews" CanSaveView="CanSaveView" SavedViewsBusy="_savedViewsBusy"
                                     OnApplyView="ApplySavedViewAsync" OnSaveView="SaveViewAsync" OnRenameView="RenameViewAsync" OnDeleteView="DeleteViewAsync"
                                     OnSortChanged="SortChangedAsync" OnExport="@ExportCallback" Exporting="_exporting" ShowTrash="CanSelect" />
-            <AppButton Label="Done" ButtonStyle="AppButtonStyle.Filled" FullWidth="true" OnClick="@(() => _sheetOpen = false)" />
+            <AppButton Label="@L["Common_Done"].Value" ButtonStyle="AppButtonStyle.Filled" FullWidth="true" OnClick="@(() => _sheetOpen = false)" />
         </div>
     </AppDialogFrame>
 }

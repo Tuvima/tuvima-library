@@ -1,9 +1,10 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Settings
+@inject IStringLocalizer<SharedStrings> L
 
 @* "Which library?" for a kind that holds several named libraries (D51): an existing library by name, or a new custom one. Add folder's
    library step and the file-drop dialog both ask it from here. *@
-<h3 class="lib-choice__question" id="@HeadingId">Which library?</h3>
+<h3 class="lib-choice__question" id="@HeadingId">@L["LibraryChoiceOptions_WhichLibrary"]</h3>
 <div class="lib-choice__options" role="radiogroup" aria-labelledby="@HeadingId">
     @foreach (var library in Libraries)
     {
@@ -21,7 +22,7 @@
 @if (Choice == NewChoice && AskForName)
 {
     <div class="lib-choice__options lib-choice__field">
-        <AppTextField Label="Library name" Value="@NewLibraryName" ValueChanged="@((string? value) => NewLibraryNameChanged.InvokeAsync(value ?? string.Empty))" />
+        <AppTextField Label="@L["Common_LibraryName"].Value" Value="@NewLibraryName" ValueChanged="@((string? value) => NewLibraryNameChanged.InvokeAsync(value ?? string.Empty))" />
     </div>
 }
 

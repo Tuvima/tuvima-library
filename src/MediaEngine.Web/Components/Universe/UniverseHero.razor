@@ -3,6 +3,7 @@
 @using MediaEngine.Contracts.Universe
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Models.ViewDTOs
+@inject IStringLocalizer<SharedStrings> L
 
 @* The top of the Universe page: its name, a stack of covers from its first Series, and one line of totals. *@
 <header class="universe-hero">
@@ -35,13 +36,13 @@
         @if (EnrichmentRunning)
         {
             <p class="universe-hero__working" role="status">
-                <i class="universe-hero__dot" aria-hidden="true"></i>Enrichment running
+                <i class="universe-hero__dot" aria-hidden="true"></i>@L["UniverseHero_EnrichmentRunning"]
             </p>
         }
         @if (CanEdit)
         {
             <div class="universe-hero__actions">
-                <AppButton Label="Edit"
+                <AppButton Label="@L["Common_Edit"].Value"
                            StartIcon="@AppMaterialIcons.Outlined.Edit"
                            ButtonStyle="AppButtonStyle.Outlined"
                            Disabled="@EditBusy"

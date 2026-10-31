@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Universe
 @using MediaEngine.Contracts.Universe
+@inject IStringLocalizer<SharedStrings> L
 
 @* The Universe's characters as a read-only list: the name, how many of your works it appears in, and where the Library
    learned it. No portraits, no relationship graph and no character page. Choosing a row raises OnCharacterSelected (the
@@ -11,7 +12,7 @@
    list-row button class, because the scoped styles of this file cannot reach the button inside AppNativeButton. *@
 @if (Characters.Count > 0)
 {
-    <ul class="universe-characters" aria-label="Characters">
+    <ul class="universe-characters" aria-label="@L["Universe_GuideFilterCharacters"].Value">
         @foreach (var character in VisibleCharacters)
         {
             <li class="universe-characters__item" @key="character.Qid">
@@ -45,7 +46,7 @@
 
 @if (CharacterCount > Characters.Count)
 {
-    <p class="universe-characters__note">Showing the @Characters.Count characters seen in the most works</p>
+    <p class="universe-characters__note">@L["UniverseCharacterList_ShowingTheCharactersSeenIn", Characters.Count]</p>
 }
 
 @if (UniversePageText.HiddenCharactersLine(HiddenCount) is { } hidden)

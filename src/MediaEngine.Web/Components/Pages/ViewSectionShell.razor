@@ -10,9 +10,10 @@
 @inject IAppToastService Snackbar
 @inject DeviceContextService DeviceContext
 @implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 <MediaSectionShell @ref="_shell"
-                   Title="View"
+                   Title="@L["Nav_View"].Value"
                    NavigationGroups="@NavigationGroups"
                    OnNavigationItemDrop="HandleNavigationDropAsync"
                    OnNavigationCreateDrop="HandleCreateDropAsync"

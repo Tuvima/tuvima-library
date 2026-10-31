@@ -1,8 +1,9 @@
 @namespace MediaEngine.Web.Components.MediaEditor
+@inject IStringLocalizer<SharedStrings> L
 
 @if (Inline)
 {
-    <section class="sme-inline-surface @(HeroConstrained ? "sme-inline-surface--hero" : string.Empty) @(Section ? "sme-inline-surface--section" : string.Empty)" aria-label="Media editor">
+    <section class="sme-inline-surface @(HeroConstrained ? "sme-inline-surface--hero" : string.Empty) @(Section ? "sme-inline-surface--section" : string.Empty)" aria-label="@L["MediaEditorSurface_MediaEditor"].Value">
         @ChildContent
     </section>
 }

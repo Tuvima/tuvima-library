@@ -285,7 +285,7 @@ public sealed class Phase6SettingsAdminHardeningTests
     }
 
     private static string ReadRepoFile(string relativePath) =>
-        File.ReadAllText(GetRepoPath(relativePath));
+        LocalizedSource.ReadAllText(GetRepoPath(relativePath));
 
     private static string GetRepoPath(string relativePath) =>
         Path.GetFullPath(Path.Combine(

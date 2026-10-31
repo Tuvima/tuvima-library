@@ -11,6 +11,7 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Ui
 @namespace MediaEngine.Web.Components.Pages
+@inject IStringLocalizer<SharedStrings> L
 
 <PageTitle>@PageTitleText</PageTitle>
 
@@ -24,9 +25,9 @@ else if (!string.IsNullOrWhiteSpace(_error))
 {
     <div class="listen-state listen-state--error">
         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.LibraryMusic" Class="tl-u-font-size-56px tl-u-opacity-0-22" />
-        <h3>Listen could not load</h3>
+        <h3>@L["ListenPage_ListenCouldNotLoad"]</h3>
         <p>@_error</p>
-        <AppNativeButton Type="button" Class="listen-button listen-button--secondary" OnClick="ReloadAsync">Try again</AppNativeButton>
+        <AppNativeButton Type="button" Class="listen-button listen-button--secondary" OnClick="ReloadAsync">@L["Common_TryAgain"]</AppNativeButton>
     </div>
 }
 else
@@ -34,17 +35,17 @@ else
     <div class="@ListenPageClass">
         <aside class="listen-rail-shell">
             <div class="listen-rail">
-                <ListenNavigationSection Label="Library"
+                <ListenNavigationSection Label="@L["Nav_Library"].Value"
                                          Items="@ListenLibraryItems"
                                          IsRouteActive="IsRouteActive"
                                          OnNavigate="NavigateRailLink" />
 
-                <ListenNavigationSection Label="Formats"
+                <ListenNavigationSection Label="@L["Common_Formats"].Value"
                                          Items="@ListenFormatItems"
                                          IsRouteActive="IsRouteActive"
                                          OnNavigate="NavigateRailLink" />
 
-                <ListenNavigationSection Label="Your Library"
+                <ListenNavigationSection Label="@L["ListenPage_YourLibrary"].Value"
                                          Items="@ListenYourLibraryItems"
                                          IsRouteActive="IsRouteActive"
                                          OnNavigate="NavigateRailLink" />
@@ -52,21 +53,21 @@ else
                 <section class="listen-rail__section" @onclick:stopPropagation="true">
                     <div class="listen-rail__section-heading">
                         <AppNativeButton Type="button" Class="listen-rail__section-toggle" aria-expanded="@_playlistsExpanded" OnClick="@(() => _playlistsExpanded = !_playlistsExpanded)">
-                            <span>Playlists</span>
+                            <span>@L["Common_Playlists"]</span>
                             <AppMaterialIcon Icon="@(_playlistsExpanded ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.ExpandMore)" Class="tl-u-font-size-18px" />
                         </AppNativeButton>
                         <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.Add"
-                                         AriaLabel="Add playlist"
+                                         AriaLabel="@L["ListenPage_AddPlaylist"].Value"
                                          Size="AppControlSize.Compact"
                                          Class="listen-rail__add-menu"
                                          TriggerClass="listen-rail__add"
                                          PopoverClass="listen-rail__context-popover">
-                            <AppMenuItem Label="New Playlist"
+                            <AppMenuItem Label="@L["ListenPage_NewPlaylist"].Value"
                                          Icon="@AppMaterialIcons.Outlined.PlaylistAdd"
                                          OnClick="BeginPlaylistInlineCreate" />
                             @if (!DeviceContext.IsPhone)
                             {
-                                <AppMenuItem Label="New Smart Playlist"
+                                <AppMenuItem Label="@L["ListenPage_NewSmartPlaylist"].Value"
                                              Icon="@AppMaterialIcons.Outlined.AutoAwesome"
                                              OnClick='@(() => OpenPlaylistCreateDialog("Smart"))' />
                             }
@@ -82,8 +83,8 @@ else
                                 <AppNativeInput Value="@_newPlaylistName"
                                                 ValueChanged="@(value => _newPlaylistName = value?.ToString() ?? string.Empty)"
                                                 OnKeyDown="CreatePlaylistOnKeyDownAsync"
-                                                Placeholder="Playlist name"
-                                                AriaLabel="Playlist name" />
+                                                Placeholder="@L["ListenPage_PlaylistName"].Value"
+                                                AriaLabel="@L["ListenPage_PlaylistName"].Value" />
                             </div>
                         }
                         @foreach (var item in ListenPinnedPlaylistItems)
@@ -106,7 +107,7 @@ else
                                 @if (_deletingPlaylistId == playlist.Id)
                                 {
                                     <div class="listen-rail__delete-confirm" role="group" aria-label="@($"Confirm deletion of {playlist.Name}")">
-                                        <span>Delete “@playlist.Name”?</span>
+                                        <span>@L["Common_Delete2", playlist.Name]</span>
                                         <AppNativeButton Type="button" Class="is-confirm" AriaLabel="@($"Confirm deletion of {playlist.Name}")" OnClick="@(_ => DeletePlaylistAsync(playlist))"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" /></AppNativeButton>
                                         <AppNativeButton Type="button" Class="is-cancel" AriaLabel="@($"Cancel deletion of {playlist.Name}")" OnClick="@(_ => _deletingPlaylistId = null)"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" /></AppNativeButton>
                                     </div>
@@ -133,7 +134,7 @@ else
                                         <span>@playlist.Name</span>
                                         @if (!CanAcceptPlaylistItems(playlist))
                                         {
-                                            <small class="listen-rail__smart-badge">Smart</small>
+                                            <small class="listen-rail__smart-badge">@L["Common_Smart"]</small>
                                         }
                                     </a>
                                 }
@@ -143,10 +144,10 @@ else
                                                  Class="listen-rail__more-menu"
                                                  TriggerClass="listen-rail__more"
                                                  PopoverClass="listen-rail__context-popover">
-                                    <AppMenuItem Label="Rename"
+                                    <AppMenuItem Label="@L["Common_Rename"].Value"
                                                  Icon="@AppMaterialIcons.Outlined.DriveFileRenameOutline"
                                                  OnClick="@(() => BeginPlaylistRename(playlist))" />
-                                    <AppMenuItem Label="Delete"
+                                    <AppMenuItem Label="@L["Common_Delete"].Value"
                                                  Icon="@AppMaterialIcons.Outlined.DeleteOutline"
                                                  Tone="AppUiTone.Error"
                                                  DividerBefore="true"
@@ -163,7 +164,7 @@ else
             @if (!IsAudioDetailSurface)
             {
                 <div class="listen-lane-header">
-                    <LibrarySectionHeader Title="Listen"
+                    <LibrarySectionHeader Title="@L["Nav_Listen"].Value"
                                           Modes="@ListenHubModes"
                                           ActiveMode="@ActiveListenMode" />
                 </div>
@@ -172,11 +173,11 @@ else
             @if (IsMusicBrowseNavigationVisible)
             {
                 <div class="listen-browse-mode">
-                    <span>Browse as</span>
+                    <span>@L["Common_BrowseAs"]</span>
                     <AppBrowseModeSelector Options="@MusicBrowseOptions"
                                            Value="@MusicBrowseMode"
                                            ValueChanged="SetMusicBrowseMode"
-                                           AriaLabel="Browse music as" />
+                                           AriaLabel="@L["ListenPage_BrowseMusicAs"].Value" />
                 </div>
             }
 
@@ -189,8 +190,8 @@ else
             else if (IsListenHub)
             {
                 <MediaHubPage SectionType="MediaHubSectionType.Listen"
-                              Title="Listen"
-                              Subtitle="Music and audiobooks from your local library"
+                              Title="@L["Nav_Listen"].Value"
+                              Subtitle="@L["Common_MusicAndAudiobooksFromYour"].Value"
                               SelectedMode="all"
                               AvailableModes="@ListenHubModes"
                               Shelves="@ListenHubShelves"
@@ -217,13 +218,13 @@ else
                             <AppNativeInput Class="listen-filter-input"
                                             @bind="_albumSearch"
                                             @bind:event="oninput"
-                                            Placeholder="Search albums or artists..."
-                                            AriaLabel="Search albums or artists" />
+                                            Placeholder="@L["ListenPage_SearchAlbumsOrArtists"].Value"
+                                            AriaLabel="@L["ListenPage_SearchAlbumsOrArtists2"].Value" />
                         </label>
                         <label class="listen-filter-field listen-filter-field--genre">
-                            <span>Genres</span>
-                            <AppSelect T="string" Class="listen-filter-select" @bind-Value="_albumGenreFilter" aria-label="Filter albums by genre">
-                                <AppSelectItem T="string" Value="@("all")">All genres</AppSelectItem>
+                            <span>@L["Common_Genres"]</span>
+                            <AppSelect T="string" Class="listen-filter-select" @bind-Value="_albumGenreFilter" aria-label="@L["ListenPage_FilterAlbumsByGenre"].Value">
+                                <AppSelectItem T="string" Value="@("all")">@L["ListenPage_AllGenres"]</AppSelectItem>
                                 @foreach (var genre in SongGenres)
                                 {
                                     <AppSelectItem T="string" Value="@genre">@genre</AppSelectItem>
@@ -231,9 +232,9 @@ else
                             </AppSelect>
                         </label>
                         <label class="listen-filter-field">
-                            <span>Artist</span>
-                            <AppSelect T="string" Class="listen-filter-select" @bind-Value="_albumArtistFilter" aria-label="Filter albums by artist">
-                                <AppSelectItem T="string" Value="@("all")">All artists</AppSelectItem>
+                            <span>@L["ListenPage_Artist"]</span>
+                            <AppSelect T="string" Class="listen-filter-select" @bind-Value="_albumArtistFilter" aria-label="@L["ListenPage_FilterAlbumsByArtist"].Value">
+                                <AppSelectItem T="string" Value="@("all")">@L["ListenPage_AllArtists"]</AppSelectItem>
                                 @foreach (var artist in AlbumArtists)
                                 {
                                     <AppSelectItem T="string" Value="@artist">@artist</AppSelectItem>
@@ -241,22 +242,22 @@ else
                             </AppSelect>
                         </label>
                         <div class="listen-filter-toggle-stack">
-                            <AppQuickFilterToggle Label="Favorites" @bind-Selected="_albumFavoriteOnly" />
-                            <AppQuickFilterToggle Label="Complete Albums" @bind-Selected="_albumArtOnly" />
+                            <AppQuickFilterToggle Label="@L["Common_Favorites"].Value" @bind-Selected="_albumFavoriteOnly" />
+                            <AppQuickFilterToggle Label="@L["ListenPage_CompleteAlbums"].Value" @bind-Selected="_albumArtOnly" />
                         </div>
-                        <div class="listen-display-group" aria-label="Album display controls">
-                            <span class="listen-display-group__eyebrow">Display</span>
+                        <div class="listen-display-group" aria-label="@L["ListenPage_AlbumDisplayControls"].Value">
+                            <span class="listen-display-group__eyebrow">@L["Common_Display"]</span>
                             <label class="listen-filter-field listen-filter-field--sort">
-                                <span>Sort by</span>
-                                <AppSelect T="string" Class="listen-filter-select" @bind-Value="_albumSort" aria-label="Sort albums">
-                                    <AppSelectItem T="string" Value="@("recent")">Recently added</AppSelectItem>
-                                    <AppSelectItem T="string" Value="@("title")">Title</AppSelectItem>
-                                    <AppSelectItem T="string" Value="@("artist")">Artist</AppSelectItem>
-                                    <AppSelectItem T="string" Value="@("year")">Year</AppSelectItem>
+                                <span>@L["Common_SortBy"]</span>
+                                <AppSelect T="string" Class="listen-filter-select" @bind-Value="_albumSort" aria-label="@L["ListenPage_SortAlbums"].Value">
+                                    <AppSelectItem T="string" Value="@("recent")">@L["Nav_RecentlyAdded"]</AppSelectItem>
+                                    <AppSelectItem T="string" Value="@("title")">@L["Common_Title"]</AppSelectItem>
+                                    <AppSelectItem T="string" Value="@("artist")">@L["ListenPage_Artist"]</AppSelectItem>
+                                    <AppSelectItem T="string" Value="@("year")">@L["Common_Year"]</AppSelectItem>
                                 </AppSelect>
                             </label>
-                            <label class="listen-tile-size" title="Adjust album tile size">
-                                <span>Tile size</span>
+                            <label class="listen-tile-size" title="@L["ListenPage_AdjustAlbumTileSize"].Value">
+                                <span>@L["Common_TileSize"]</span>
                                 <span class="listen-tile-size__control">
                                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PhotoSizeSelectSmall" />
                                     <AppNativeInput Type="range"
@@ -264,7 +265,7 @@ else
                                                     Min="96"
                                                     Max="208"
                                                     Step="8"
-                                                    AriaLabel="Album tile size"
+                                                    AriaLabel="@L["ListenPage_AlbumTileSize"].Value"
                                                     OnInput="UpdateAlbumTileSize" />
                                 </span>
                             </label>
@@ -273,10 +274,10 @@ else
 
                     <div class="listen-section__header listen-section__header--results">
                         <div>
-                            <h2>Albums</h2>
+                            <h2>@L["ListenPage_Albums"]</h2>
                             <p class="listen-section__summary">@Pluralize(FilteredAlbumGroups.Count, "album") ready to browse.</p>
                         </div>
-                        <AppNativeButton Type="button" Class="listen-button listen-button--secondary" OnClick="@(() => PlayTracksAsync(_musicWorks, null, " All Music", true))" Disabled="@(_musicWorks.Count == 0)">Shuffle library</AppNativeButton>
+                        <AppNativeButton Type="button" Class="listen-button listen-button--secondary" OnClick="@(() => PlayTracksAsync(_musicWorks, null, " All Music", true))" Disabled="@(_musicWorks.Count == 0)">@L["ListenPage_ShuffleLibrary"]</AppNativeButton>
                     </div>
 
                     @if (FilteredAlbumGroups.Count == 0)
@@ -284,7 +285,7 @@ else
                         <div class="listen-empty">
                             <div>
                                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Album" Class="tl-u-font-size-56px tl-u-opacity-0-22" />
-                                <p>No albums are ready to browse yet.</p>
+                                <p>@L["ListenPage_NoAlbumsAreReadyTo"]</p>
                             </div>
                         </div>
                     }
@@ -311,7 +312,7 @@ else
                         }
                     </div>
                     <div class="listen-detail__copy">
-                        <div class="listen-kicker">Album</div>
+                        <div class="listen-kicker">@L["ListenPage_Album"]</div>
                         <h2>@_albumDetail.DisplayName</h2>
                         <div class="listen-detail__meta">
                             <span>@StringHelpers.FirstNonBlankOr("-", _albumDetail.Creator, _albumDetail.YearRange, _albumDetail.ReleaseDate)</span>
@@ -326,18 +327,18 @@ else
                             <p>@_albumDetail.Description</p>
                         }
                         <div class="listen-actions">
-                            <AppNativeButton Type="button" Class="listen-button listen-button--secondary" OnClick="@(() => NavigateTo(AlbumsRoute))">Back to albums</AppNativeButton>
+                            <AppNativeButton Type="button" Class="listen-button listen-button--secondary" OnClick="@(() => NavigateTo(AlbumsRoute))">@L["ListenPage_BackToAlbums"]</AppNativeButton>
                             <AppNativeButton Type="button" Class="listen-button listen-button--primary" OnClick="@(() => PlayTracksAsync(AlbumTracks, null, _albumDetail.DisplayName))" Disabled="@(AlbumTracks.Count == 0)">
                                 <AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayArrow" Size="AppSize.Small" />
-                                <span>Play</span>
+                                <span>@L["Common_Play"]</span>
                             </AppNativeButton>
                             <AppNativeButton Type="button" Class="listen-button listen-button--secondary" OnClick="@(() => PlayTracksAsync(AlbumTracks, null, _albumDetail.DisplayName, true))" Disabled="@(AlbumTracks.Count == 0)">
                                 <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Shuffle" Size="AppSize.Small" />
-                                <span>Shuffle</span>
+                                <span>@L["Common_Shuffle"]</span>
                             </AppNativeButton>
                             @if (!string.IsNullOrWhiteSpace(_albumDetail.Creator))
                             {
-                                <AppNativeButton Type="button" Class="listen-button listen-button--secondary" OnClick="@(() => OpenArtist(_albumDetail.Creator!))">Artist</AppNativeButton>
+                                <AppNativeButton Type="button" Class="listen-button listen-button--secondary" OnClick="@(() => OpenArtist(_albumDetail.Creator!))">@L["ListenPage_Artist"]</AppNativeButton>
                             }
                         </div>
                     </div>
@@ -346,7 +347,7 @@ else
                 <section class="listen-section">
                     <div class="listen-section__header">
                         <div>
-                            <div class="listen-kicker">Tracks</div>
+                            <div class="listen-kicker">@L["Common_Tracks"]</div>
                             <h2>@Pluralize(AlbumTracks.Count, "track")</h2>
                         </div>
                     </div>
@@ -376,17 +377,17 @@ else
                     <section class="listen-section listen-section--people">
                         <div class="listen-section__header">
                             <div>
-                                <div class="listen-kicker">Music</div>
-                                <h2>Artists</h2>
+                                <div class="listen-kicker">@L["Nav_Music"]</div>
+                                <h2>@L["ListenPage_Artists"]</h2>
                                 <p class="listen-section__summary">@Pluralize(ArtistPersonTiles.Count, "artist") in your library.</p>
                             </div>
                         </div>
 
                         <div class="listen-filter-bar listen-filter-bar--compact">
-                            <AppNativeInput Class="listen-filter-input" @bind="_artistSearch" @bind:event="oninput" Placeholder="Search artists" />
+                            <AppNativeInput Class="listen-filter-input" @bind="_artistSearch" @bind:event="oninput" Placeholder="@L["ListenPage_SearchArtists"].Value" />
                             <AppSelect T="string" Class="listen-filter-select" @bind-Value="_artistSort">
-                                <AppSelectItem T="string" Value="@("name")">Artist name</AppSelectItem>
-                                <AppSelectItem T="string" Value="@("tracks")">Most tracks</AppSelectItem>
+                                <AppSelectItem T="string" Value="@("name")">@L["ListenPage_ArtistName"]</AppSelectItem>
+                                <AppSelectItem T="string" Value="@("tracks")">@L["ListenPage_MostTracks"]</AppSelectItem>
                             </AppSelect>
                         </div>
 
@@ -395,7 +396,7 @@ else
                             <div class="listen-empty">
                                 <div>
                                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PersonOutline" Class="tl-u-font-size-56px tl-u-opacity-0-22" />
-                                    <p>No artists match these filters.</p>
+                                    <p>@L["ListenPage_NoArtistsMatchTheseFilters"]</p>
                                 </div>
                             </div>
                         }
@@ -416,17 +417,17 @@ else
                     <div class="listen-artists__list">
                         <div class="listen-section__header">
                             <div>
-                                <div class="listen-kicker">Music</div>
-                                <h2>Artists</h2>
+                                <div class="listen-kicker">@L["Nav_Music"]</div>
+                                <h2>@L["ListenPage_Artists"]</h2>
                                 <p class="listen-section__summary">@Pluralize(FilteredArtistGroups.Count, "artist") in your library.</p>
                             </div>
                         </div>
 
                         <div class="listen-filter-bar listen-filter-bar--compact">
-                            <AppNativeInput Class="listen-filter-input" @bind="_artistSearch" @bind:event="oninput" Placeholder="Search artists" />
+                            <AppNativeInput Class="listen-filter-input" @bind="_artistSearch" @bind:event="oninput" Placeholder="@L["ListenPage_SearchArtists"].Value" />
                             <AppSelect T="string" Class="listen-filter-select" @bind-Value="_artistSort">
-                                <AppSelectItem T="string" Value="@("name")">Artist name</AppSelectItem>
-                                <AppSelectItem T="string" Value="@("tracks")">Most tracks</AppSelectItem>
+                                <AppSelectItem T="string" Value="@("name")">@L["ListenPage_ArtistName"]</AppSelectItem>
+                                <AppSelectItem T="string" Value="@("tracks")">@L["ListenPage_MostTracks"]</AppSelectItem>
                             </AppSelect>
                         </div>
 
@@ -459,7 +460,7 @@ else
                             <div class="listen-empty">
                                 <div>
                                     <AppSpinner Indeterminate="true" Size="AppSize.Large" Class="tl-u-color-rgba-255-255-255-0-32" />
-                                    <p>Loading artist details...</p>
+                                    <p>@L["ListenPage_LoadingArtistDetails"]</p>
                                 </div>
                             </div>
                         }
@@ -468,7 +469,7 @@ else
                             <div class="listen-empty">
                                 <div>
                                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PersonOutline" Class="tl-u-font-size-56px tl-u-opacity-0-22" />
-                                    <p>Choose an artist to view albums.</p>
+                                    <p>@L["ListenPage_ChooseAnArtistToView"]</p>
                                 </div>
                             </div>
                         }
@@ -486,7 +487,7 @@ else
                                     }
                                 </div>
                                 <div class="listen-detail__copy">
-                                    <div class="listen-kicker">Artist</div>
+                                    <div class="listen-kicker">@L["ListenPage_Artist"]</div>
                                     <h2>@_artistDetail.DisplayName</h2>
                                     <div class="listen-detail__meta">
                                         <span>@Pluralize(ArtistAlbums.Count, "album")</span>
@@ -499,15 +500,15 @@ else
                                     <div class="listen-actions">
                                         <AppNativeButton Type="button" Class="listen-button listen-button--primary" OnClick="@(() => PlayTracksAsync(ArtistTracks, null, _artistDetail.DisplayName))" Disabled="@(ArtistTracks.Count == 0)">
                                             <AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayArrow" Size="AppSize.Small" />
-                                            <span>Play</span>
+                                            <span>@L["Common_Play"]</span>
                                         </AppNativeButton>
                                         <AppNativeButton Type="button" Class="listen-button listen-button--secondary" OnClick="@(() => PlayTracksAsync(ArtistTracks, null, _artistDetail.DisplayName, true))" Disabled="@(ArtistTracks.Count == 0)">
                                             <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Shuffle" Size="AppSize.Small" />
-                                            <span>Shuffle</span>
+                                            <span>@L["Common_Shuffle"]</span>
                                         </AppNativeButton>
                                         @if (_artistDetail.ArtistPersonId.HasValue)
                                         {
-                                            <AppNativeButton Type="button" Class="listen-button listen-button--secondary" OnClick="@(() => Nav.NavigateTo($"/details/person/{_artistDetail.ArtistPersonId.Value}"))">View artist page</AppNativeButton>
+                                            <AppNativeButton Type="button" Class="listen-button listen-button--secondary" OnClick="@(() => Nav.NavigateTo($"/details/person/{_artistDetail.ArtistPersonId.Value}"))">@L["ListenPage_ViewArtistPage"]</AppNativeButton>
                                         }
                                     </div>
                                 </div>
@@ -518,9 +519,9 @@ else
                                 <section class="listen-section">
                                     <div class="listen-section__header">
                                         <div>
-                                            <div class="listen-kicker">Albums</div>
-                                            <h2>Discography</h2>
-                                            <p class="listen-section__summary">Open an album to view and manage its tracks.</p>
+                                            <div class="listen-kicker">@L["ListenPage_Albums"]</div>
+                                            <h2>@L["ListenPage_Discography"]</h2>
+                                            <p class="listen-section__summary">@L["ListenPage_OpenAnAlbumToView"]</p>
                                         </div>
                                     </div>
                                     <MediaTileGrid Items="@ArtistAlbumTiles"
@@ -533,7 +534,7 @@ else
                             <section class="listen-section">
                                 <div class="listen-section__header">
                                     <div>
-                                        <div class="listen-kicker">Songs</div>
+                                        <div class="listen-kicker">@L["Common_Songs"]</div>
                                         <h2>@Pluralize(ArtistTracks.Count, "track")</h2>
                                     </div>
                                 </div>
@@ -543,7 +544,7 @@ else
                                     <div class="listen-empty">
                                         <div>
                                             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MusicNote" Class="tl-u-font-size-56px tl-u-opacity-0-22" />
-                                            <p>No songs are ready for this artist yet.</p>
+                                            <p>@L["ListenPage_NoSongsAreReadyFor"]</p>
                                         </div>
                                     </div>
                                 }
@@ -577,23 +578,23 @@ else
                 <section class="listen-section">
                     <div class="listen-section__header">
                         <div>
-                            <div class="listen-kicker">Music</div>
-                            <h2>Songs</h2>
+                            <div class="listen-kicker">@L["Nav_Music"]</div>
+                            <h2>@L["Common_Songs"]</h2>
                         </div>
                         <div class="listen-actions">
                             <AppNativeButton Type="button" Class="listen-button listen-button--primary" OnClick='@(() => PlayTracksAsync(FilteredSongs, null, "All Music"))' Disabled="@(FilteredSongs.Count == 0)">
                                 <AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayArrow" Size="AppSize.Small" />
-                                <span>Play</span>
+                                <span>@L["Common_Play"]</span>
                             </AppNativeButton>
                             <AppNativeButton Type="button" Class="listen-button listen-button--secondary" OnClick='@(() => PlayTracksAsync(FilteredSongs, null, "All Music", true))' Disabled="@(FilteredSongs.Count == 0)">
                                 <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Shuffle" Size="AppSize.Small" />
-                                <span>Shuffle</span>
+                                <span>@L["Common_Shuffle"]</span>
                             </AppNativeButton>
                         </div>
                     </div>
 
                     <div class="listen-filter-bar listen-filter-bar--quick">
-                        <AppNativeInput Class="listen-filter-input" @bind="_songSearch" @bind:event="oninput" Placeholder="Search songs, artists, or albums" />
+                        <AppNativeInput Class="listen-filter-input" @bind="_songSearch" @bind:event="oninput" Placeholder="@L["ListenPage_SearchSongsArtistsOrAlbums"].Value" />
                     </div>
 
                     @if (FilteredSongs.Count == 0)
@@ -601,7 +602,7 @@ else
                         <div class="listen-empty">
                             <div>
                                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MusicNote" Class="tl-u-font-size-56px tl-u-opacity-0-22" />
-                                <p>No songs are ready to play yet.</p>
+                                <p>@L["ListenPage_NoSongsAreReadyTo"]</p>
                             </div>
                         </div>
                     }
@@ -610,7 +611,7 @@ else
                         <ListenSongTable Tracks="@FilteredSongs"
                                          FavoriteIds="@_favoriteWorkIds"
                                          SourceLabel="All Music"
-                                         AriaLabel="Songs"
+                                         AriaLabel="@L["Common_Songs"].Value"
                                          OnPlayRequested="PlayTracksAsync"
                                          OnFavoriteToggled="ToggleFavoriteAsync"
                                          OnQueueRequested="QueueTrackAsync"
@@ -626,9 +627,9 @@ else
                 <section class="listen-section">
                     <div class="listen-section__header">
                         <div>
-                            <div class="listen-kicker">Music</div>
-                            <h2>Playlists</h2>
-                            <p class="listen-section__summary">Saved playlists created from your library.</p>
+                            <div class="listen-kicker">@L["Nav_Music"]</div>
+                            <h2>@L["Common_Playlists"]</h2>
+                            <p class="listen-section__summary">@L["ListenPage_SavedPlaylistsCreatedFromYour"]</p>
                         </div>
                     </div>
 
@@ -637,7 +638,7 @@ else
                         <div class="listen-empty">
                             <div>
                                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.QueueMusic" Class="tl-u-font-size-56px tl-u-opacity-0-22" />
-                                <p>No saved Playlists yet. Favorites remain available from For Me.</p>
+                                <p>@L["ListenPage_NoSavedPlaylistsYetFavorites"]</p>
                             </div>
                         </div>
                     }
@@ -677,11 +678,11 @@ else
                         <div class="listen-actions">
                             <AppNativeButton Type="button" Class="listen-button listen-button--primary" OnClick="@(() => PlayTracksAsync(ActivePlaylistTracks, null, ActivePlaylistTitle))" Disabled="@(ActivePlaylistTracks.Count == 0)">
                                 <AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayArrow" Size="AppSize.Small" />
-                                <span>Play</span>
+                                <span>@L["Common_Play"]</span>
                             </AppNativeButton>
                             <AppNativeButton Type="button" Class="listen-button listen-button--secondary" OnClick="@(() => PlayTracksAsync(ActivePlaylistTracks, null, ActivePlaylistTitle, true))" Disabled="@(ActivePlaylistTracks.Count == 0)">
                                 <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Shuffle" Size="AppSize.Small" />
-                                <span>Shuffle</span>
+                                <span>@L["Common_Shuffle"]</span>
                             </AppNativeButton>
                             @if (CanSaveActivePlaylist)
                             {
@@ -698,12 +699,12 @@ else
                     @if (ActivePlaylistCollection is not null)
                     {
                         <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.MoreVert"
-                                         AriaLabel="Playlist display options"
+                                         AriaLabel="@L["ListenPage_PlaylistDisplayOptions"].Value"
                                          Size="AppControlSize.Compact"
                                          Class="listen-detail__more-menu"
                                          TriggerClass="listen-detail__edit"
                                          PopoverClass="listen-detail__context-popover">
-                            <div class="app-menu-section-label" role="presentation">Columns</div>
+                            <div class="app-menu-section-label" role="presentation">@L["ListenPage_Columns"]</div>
                             @foreach (var column in PlaylistColumns)
                             {
                                 <AppMenuItem Label="@column.Label"
@@ -720,7 +721,7 @@ else
                         <div class="listen-empty">
                             <div>
                                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.QueueMusic" Class="tl-u-font-size-56px tl-u-opacity-0-22" />
-                                <p>This playlist is empty.</p>
+                                <p>@L["ListenPage_ThisPlaylistIsEmpty"]</p>
                             </div>
                         </div>
                     }
@@ -732,10 +733,10 @@ else
                                 <caption class="sr-only">@ActivePlaylistTitle songs</caption>
                                 <thead>
                                     <tr>
-                                        <th data-card-role="title">Song</th>
-                                        <th data-card-role="subtitle">Artist and album</th>
-                                        <th data-card-role="value">Time</th>
-                                        <th data-card-role="actions"><span class="sr-only">Actions</span></th>
+                                        <th data-card-role="title">@L["Common_Song"]</th>
+                                        <th data-card-role="subtitle">@L["Common_ArtistAndAlbum"]</th>
+                                        <th data-card-role="value">@L["Common_Time"]</th>
+                                        <th data-card-role="actions"><span class="sr-only">@L["ApiKeys_Actions"]</span></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -751,7 +752,7 @@ else
                                             <td data-card-role="subtitle">@PlaylistCardSubtitle(track)</td>
                                             <td data-card-role="value">@GetTrackDuration(track)</td>
                                             <td data-card-role="actions" class="listen-playlist-cards__actions" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true">
-                                                <AppNativeButton Type="button" Class='@($"listen-track-grid__favorite {(_favoriteWorkIds.Contains(track.Id) ? " is-active" : null)}")' AriaLabel="@($"Toggle favorite for {track.Title}")" Title="Toggle favorite" aria-pressed="@(_favoriteWorkIds.Contains(track.Id) ? "true" : "false")" StopPropagation="true" OnClick="@(() => ToggleFavoriteAsync(track))">
+                                                <AppNativeButton Type="button" Class='@($"listen-track-grid__favorite {(_favoriteWorkIds.Contains(track.Id) ? " is-active" : null)}")' AriaLabel="@($"Toggle favorite for {track.Title}")" Title="@L["Common_ToggleFavorite"].Value" aria-pressed="@(_favoriteWorkIds.Contains(track.Id) ? "true" : "false")" StopPropagation="true" OnClick="@(() => ToggleFavoriteAsync(track))">
                                                     <AppMaterialIcon Icon="@(_favoriteWorkIds.Contains(track.Id) ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)" Size="AppSize.Small" />
                                                 </AppNativeButton>
                                                 <AppRowMenu AriaLabel="@($"Actions for {track.Title}")" Title="@track.Title" Items="@PlaylistRowMenuItems(row)" />
@@ -817,7 +818,7 @@ else
                                             }
                                         </span>
                                     }
-                                    <span role="columnheader" class="listen-playlist-track-list__actions-label">Queue / Edit / Remove</span>
+                                    <span role="columnheader" class="listen-playlist-track-list__actions-label">@L["ListenPage_QueueEditRemove"]</span>
                                 </AppCssElement>
                                 @foreach (var row in ActivePlaylistTrackRows)
                                 {
@@ -847,7 +848,7 @@ else
                                                 {
                                                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MusicNote" Size="AppSize.Small" />
                                                 }
-                                                <AppNativeButton Type="button" Class="listen-playlist-track-row__art-play" Title="Play song" AriaLabel="@($" Play {track.Title}")" StopPropagation="true" OnClick="@(() => PlayTracksAsync(ActivePlaylistTracks, track.Id, ActivePlaylistTitle))">
+                                                <AppNativeButton Type="button" Class="listen-playlist-track-row__art-play" Title="@L["Common_PlaySong"].Value" AriaLabel="@($" Play {track.Title}")" StopPropagation="true" OnClick="@(() => PlayTracksAsync(ActivePlaylistTracks, track.Id, ActivePlaylistTitle))">
                                                     <AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayArrow" Size="AppSize.Small" />
                                                 </AppNativeButton>
                                             </div>
@@ -856,7 +857,7 @@ else
                                         @if (IsPlaylistColumnVisible("favorite"))
                                         {
                                             <div class="listen-playlist-track-row__favorite" role="cell">
-                                                <AppNativeButton Type="button" Class='@($"listen-track-grid__favorite {(_favoriteWorkIds.Contains(track.Id) ? " is-active" : null)}")' AriaLabel="Toggle favorite" Title="Toggle favorite" StopPropagation="true" OnClick="@(() => ToggleFavoriteAsync(track))">
+                                                <AppNativeButton Type="button" Class='@($"listen-track-grid__favorite {(_favoriteWorkIds.Contains(track.Id) ? " is-active" : null)}")' AriaLabel="@L["Common_ToggleFavorite"].Value" Title="@L["Common_ToggleFavorite"].Value" StopPropagation="true" OnClick="@(() => ToggleFavoriteAsync(track))">
                                                     <AppMaterialIcon Icon="@(_favoriteWorkIds.Contains(track.Id) ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)" Size="AppSize.Small" />
                                                 </AppNativeButton>
                                             </div>
@@ -874,12 +875,12 @@ else
                                             <span class="listen-playlist-track-row__time" role="cell">@GetTrackDuration(track)</span>
                                         }
                                         <div class="listen-playlist-track-row__actions" role="cell">
-                                            <AppNativeButton Type="button" Class="listen-icon-button" Title="Add to queue" AriaLabel="@($" Add {track.Title} to queue")" StopPropagation="true" OnClick="@(() => QueueTrackAsync(track))">
+                                            <AppNativeButton Type="button" Class="listen-icon-button" Title="@L["Common_AddToQueue"].Value" AriaLabel="@($" Add {track.Title} to queue")" StopPropagation="true" OnClick="@(() => QueueTrackAsync(track))">
                                                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlaylistAdd" Size="AppSize.Small" />
                                             </AppNativeButton>
                                             @if (!DeviceContext.IsPhone)
                                             {
-                                                <AppNativeButton Type="button" Class="listen-icon-button" Title="Edit song" AriaLabel="@($" Edit {track.Title}")" StopPropagation="true" OnClick="@(() => EditTrackAsync(track))">
+                                                <AppNativeButton Type="button" Class="listen-icon-button" Title="@L["ListenPage_EditSong"].Value" AriaLabel="@($" Edit {track.Title}")" StopPropagation="true" OnClick="@(() => EditTrackAsync(track))">
                                                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Edit" Size="AppSize.Small" />
                                                 </AppNativeButton>
                                             }
@@ -887,7 +888,7 @@ else
                                             {
                                                 <AppRowMenu AriaLabel="@($"Actions for {track.Title}")" Title="@track.Title" Items="@PlaylistRowMenuItems(row)" />
                                             }
-                                            <AppNativeButton Type="button" Class="listen-icon-button listen-icon-button--danger" Title="Remove from playlist" AriaLabel="@($" Remove {track.Title} from playlist")" Disabled="@(item is null)" StopPropagation="true" OnClick="@(() => item is null ? Task.CompletedTask : RemovePlaylistTrackAsync(item.Id))">
+                                            <AppNativeButton Type="button" Class="listen-icon-button listen-icon-button--danger" Title="@L["ListenPage_RemoveFromPlaylist"].Value" AriaLabel="@($" Remove {track.Title} from playlist")" Disabled="@(item is null)" StopPropagation="true" OnClick="@(() => item is null ? Task.CompletedTask : RemovePlaylistTrackAsync(item.Id))">
                                                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Delete" Size="AppSize.Small" />
                                             </AppNativeButton>
                                         </div>
@@ -905,37 +906,37 @@ else
             }
             else if (IsAudiobooksView)
             {
-                <section class="audiobooks-dashboard" aria-label="Audiobooks dashboard">
-                    <div class="audiobooks-toolbar" aria-label="Audiobook controls">
+                <section class="audiobooks-dashboard" aria-label="@L["ListenPage_AudiobooksDashboard"].Value">
+                    <div class="audiobooks-toolbar" aria-label="@L["Common_AudiobookControls"].Value">
                         <label class="audiobooks-search">
                             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" Class="tl-u-font-size-20px" />
                             <AppNativeInput Value="@_audiobookSearch"
                                             OnInput="UpdateAudiobookSearch"
-                                            Placeholder="Search audiobooks"
-                                            AriaLabel="Search audiobooks" />
+                                            Placeholder="@L["ListenPage_SearchAudiobooks"].Value"
+                                            AriaLabel="@L["ListenPage_SearchAudiobooks"].Value" />
                         </label>
 
                         <div class="audiobooks-toolbar__controls">
                             <div class="audiobooks-segmented">
-                                <span>Browse as</span>
+                                <span>@L["Common_BrowseAs"]</span>
                                 <AppBrowseModeSelector Options="@AudiobookBrowseOptions"
                                                        Value="@_audiobookView"
                                                        ValueChanged="SetAudiobookView"
-                                                       AriaLabel="Browse audiobooks as" />
+                                                       AriaLabel="@L["ListenPage_BrowseAudiobooksAs"].Value" />
                             </div>
 
                             <div class="audiobooks-filter-group">
-                                <span>Filter by</span>
-                                <div class="audiobooks-filters" aria-label="Audiobook filters">
-                                    <AppQuickFilterToggle Label="In Progress"
+                                <span>@L["Common_FilterBy"]</span>
+                                <div class="audiobooks-filters" aria-label="@L["ListenPage_AudiobookFilters"].Value">
+                                    <AppQuickFilterToggle Label="@L["ListenPage_InProgress"].Value"
                                                           Selected="@_audiobookInProgressOnly"
                                                           SelectedChanged="SetAudiobookInProgress" />
-                                    <AppQuickFilterToggle Label="Unread"
+                                    <AppQuickFilterToggle Label="@L["ListenPage_Unread"].Value"
                                                           Selected="@_audiobookUnreadOnly"
                                                           SelectedChanged="SetAudiobookUnread" />
-                                    <AppSelect T="string" Class="audiobooks-select" @bind-Value="_audiobookLengthFilter" aria-label="Filter by length">
-                                        <AppSelectItem T="string" Value="@("all")">Length</AppSelectItem>
-                                        <AppSelectItem T="string" Value="@("short")">Under 6h</AppSelectItem>
+                                    <AppSelect T="string" Class="audiobooks-select" @bind-Value="_audiobookLengthFilter" aria-label="@L["ListenPage_FilterByLength"].Value">
+                                        <AppSelectItem T="string" Value="@("all")">@L["Common_Length"]</AppSelectItem>
+                                        <AppSelectItem T="string" Value="@("short")">@L["ListenPage_Under6h"]</AppSelectItem>
                                         <AppSelectItem T="string" Value="@("medium")">6-14h</AppSelectItem>
                                         <AppSelectItem T="string" Value="@("long")">14h+</AppSelectItem>
                                     </AppSelect>
@@ -943,40 +944,40 @@ else
                             </div>
                         </div>
 
-                        <div class="audiobooks-toolbar__display" aria-label="Audiobook display controls">
-                            <span class="audiobooks-toolbar__eyebrow">Display</span>
+                        <div class="audiobooks-toolbar__display" aria-label="@L["ListenPage_AudiobookDisplayControls"].Value">
+                            <span class="audiobooks-toolbar__eyebrow">@L["Common_Display"]</span>
                             <label class="audiobooks-sort">
-                                <span>Sort by</span>
-                                <AppSelect T="string" Class="audiobooks-select" @bind-Value="_audiobookSort" aria-label="Sort audiobooks">
-                                    <AppSelectItem T="string" Value="@("recent")">Recently Added</AppSelectItem>
-                                    <AppSelectItem T="string" Value="@("title")">Title</AppSelectItem>
-                                    <AppSelectItem T="string" Value="@("author")">Author</AppSelectItem>
-                                    <AppSelectItem T="string" Value="@("length")">Length</AppSelectItem>
+                                <span>@L["Common_SortBy"]</span>
+                                <AppSelect T="string" Class="audiobooks-select" @bind-Value="_audiobookSort" aria-label="@L["ListenPage_SortAudiobooks"].Value">
+                                    <AppSelectItem T="string" Value="@("recent")">@L["Home_RecentlyAdded"]</AppSelectItem>
+                                    <AppSelectItem T="string" Value="@("title")">@L["Common_Title"]</AppSelectItem>
+                                    <AppSelectItem T="string" Value="@("author")">@L["ListenPage_Author"]</AppSelectItem>
+                                    <AppSelectItem T="string" Value="@("length")">@L["Common_Length"]</AppSelectItem>
                                 </AppSelect>
                             </label>
 
                             <div class="audiobooks-view-controls">
                                 @if (_audiobookLayout == LibraryLayoutMode.Card)
                                 {
-                                    <label class="audiobooks-tile-size" title="Adjust audiobook tile size">
-                                        <span>Tile size</span>
+                                    <label class="audiobooks-tile-size" title="@L["ListenPage_AdjustAudiobookTileSize"].Value">
+                                        <span>@L["Common_TileSize"]</span>
                                         <AppNativeInput Type="range"
                                                         Value="@_audiobookTileSizePx"
                                                         Min="128"
                                                         Max="248"
                                                         Step="8"
-                                                        AriaLabel="Audiobook tile size"
+                                                        AriaLabel="@L["ListenPage_AudiobookTileSize"].Value"
                                                         OnInput="UpdateAudiobookTileSize" />
                                     </label>
                                 }
-                                <div class="audiobooks-layout-toggle" role="group" aria-label="Audiobook layout">
+                                <div class="audiobooks-layout-toggle" role="group" aria-label="@L["ListenPage_AudiobookLayout"].Value">
                                     <AppNativeButton Type="button" Class="@AudiobookLayoutToggleClass(LibraryLayoutMode.Card)" aria-pressed="@(_audiobookLayout == LibraryLayoutMode.Card ? "true" : "false")" OnClick="@(() => _audiobookLayout = LibraryLayoutMode.Card)">
                                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.GridView" />
-                                        <span>Cards</span>
+                                        <span>@L["Common_Cards"]</span>
                                     </AppNativeButton>
                                     <AppNativeButton Type="button" Class="@AudiobookLayoutToggleClass(LibraryLayoutMode.List)" aria-pressed="@(_audiobookLayout == LibraryLayoutMode.List ? "true" : "false")" OnClick="@(() => _audiobookLayout = LibraryLayoutMode.List)">
                                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ViewList" />
-                                        <span>List</span>
+                                        <span>@L["Common_List"]</span>
                                     </AppNativeButton>
                                 </div>
                             </div>
@@ -986,19 +987,19 @@ else
                     @if (!string.IsNullOrWhiteSpace(_audiobookSeriesFocus))
                     {
                         <div class="audiobooks-active-filter">
-                            <span>Showing @_audiobookSeriesFocus</span>
-                            <AppNativeButton Type="button" OnClick="ClearAudiobookSeriesFocus">Clear</AppNativeButton>
+                            <span>@L["ListenPage_Showing", _audiobookSeriesFocus]</span>
+                            <AppNativeButton Type="button" OnClick="ClearAudiobookSeriesFocus">@L["Activity_Clear"]</AppNativeButton>
                         </div>
                     }
 
                     <section class="audiobooks-section audiobooks-section--continue">
                         <div class="audiobooks-section__header">
-                            <h2>Continue Listening</h2>
+                            <h2>@L["ListenPage_ContinueListening"]</h2>
                         </div>
 
                         @if (AudiobookContinueCards.Count == 0)
                         {
-                            <div class="audiobooks-empty">No audiobook listening progress yet.</div>
+                            <div class="audiobooks-empty">@L["ListenPage_NoAudiobookListeningProgressYet"]</div>
                         }
                         else
                         {
@@ -1052,7 +1053,7 @@ else
                         {
                             @if (AudiobookSeriesGroups.Count == 0)
                             {
-                                <div class="audiobooks-empty">No audiobook series match these filters.</div>
+                                <div class="audiobooks-empty">@L["ListenPage_NoAudiobookSeriesMatchThese"]</div>
                             }
                             else
                             {
@@ -1076,7 +1077,7 @@ else
                                                 <h3>@series.DisplayName</h3>
                                                 <span>@AudiobookSeriesMeta(series)</span>
                                                 <p>@AudiobookSeriesDescription(series)</p>
-                                                <AppNativeButton Type="button" Class="audiobooks-series-card__action" OnClick="@(() => ViewAudiobookSeries(series))">View Series</AppNativeButton>
+                                                <AppNativeButton Type="button" Class="audiobooks-series-card__action" OnClick="@(() => ViewAudiobookSeries(series))">@L["ListenPage_ViewSeries"]</AppNativeButton>
                                             </div>
                                         </article>
                                     }
@@ -1087,7 +1088,7 @@ else
                         {
                             @if (AudiobookAuthorPersonTiles.Count == 0)
                             {
-                                <div class="audiobooks-empty">No audiobook authors match these filters.</div>
+                                <div class="audiobooks-empty">@L["ListenPage_NoAudiobookAuthorsMatchThese"]</div>
                             }
                             else
                             {
@@ -1102,7 +1103,7 @@ else
                         {
                             @if (AudiobookNarratorPersonTiles.Count == 0)
                             {
-                                <div class="audiobooks-empty">No audiobook narrators match these filters.</div>
+                                <div class="audiobooks-empty">@L["ListenPage_NoAudiobookNarratorsMatchThese"]</div>
                             }
                             else
                             {
@@ -1121,7 +1122,7 @@ else
                         }
                         else if (AudiobookBrowseItems.Count == 0)
                         {
-                            <div class="audiobooks-empty">No audiobooks match these filters.</div>
+                            <div class="audiobooks-empty">@L["ListenPage_NoAudiobooksMatchTheseFilters"]</div>
                         }
                         else
                         {
@@ -1174,12 +1175,12 @@ else
 
                     <section class="audiobooks-section audiobooks-section--featured">
                         <div class="audiobooks-section__header">
-                            <h2>Featured Series</h2>
+                            <h2>@L["ListenPage_FeaturedSeries"]</h2>
                         </div>
 
                         @if (FeaturedAudiobookSeries.Count == 0)
                         {
-                            <div class="audiobooks-empty">No audiobook series with multiple owned works yet.</div>
+                            <div class="audiobooks-empty">@L["ListenPage_NoAudiobookSeriesWithMultiple"]</div>
                         }
                         else
                         {
@@ -1203,7 +1204,7 @@ else
                                             <h3>@series.DisplayName</h3>
                                             <span>@AudiobookSeriesMeta(series)</span>
                                             <p>@AudiobookSeriesDescription(series)</p>
-                                            <AppNativeButton Type="button" Class="audiobooks-series-card__action" OnClick="@(() => ViewAudiobookSeries(series))">View Series</AppNativeButton>
+                                            <AppNativeButton Type="button" Class="audiobooks-series-card__action" OnClick="@(() => ViewAudiobookSeries(series))">@L["ListenPage_ViewSeries"]</AppNativeButton>
                                         </div>
                                     </article>
                                 }

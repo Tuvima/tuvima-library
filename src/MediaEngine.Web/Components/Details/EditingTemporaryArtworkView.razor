@@ -1,10 +1,11 @@
 @namespace MediaEngine.Web.Components.Details
+@inject IStringLocalizer<SharedStrings> L
 
 @* The temporary editing view (universal editor spec D9): while a picture the page does not normally show is being chosen (a season poster,
    an episode still), the poster is shown large over the dimmed page, clearly labelled. It never creates a season page; leaving the Artwork
    tool, or "Return to series view", puts the page back. *@
-<section class="tl-temporary-view" aria-label="Temporary editing view">
-    <p class="tl-temporary-view__label"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" Size="AppSize.Small" /> Temporary editing view</p>
+<section class="tl-temporary-view" aria-label="@L["EditingTemporaryArtworkView_TemporaryEditingView"].Value">
+    <p class="tl-temporary-view__label"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" Size="AppSize.Small" /> @L["EditingTemporaryArtworkView_TemporaryEditingView"]</p>
     <div class="tl-temporary-view__poster">
         @if (!string.IsNullOrWhiteSpace(ImageUrl))
         {
@@ -13,7 +14,7 @@
         else
         {
             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" />
-            <span>No @Label.ToLowerInvariant() yet</span>
+            <span>@L["EditingTemporaryArtworkView_NoYet", Label.ToLowerInvariant()]</span>
         }
     </div>
     <p class="tl-temporary-view__caption">@Label</p>
@@ -21,7 +22,7 @@
                Tone="AppUiTone.Neutral"
                Class="tl-temporary-view__return"
                OnClick="OnReturn">
-        Return to series view
+        @L["EditingTemporaryArtworkView_ReturnToSeriesView"]
     </AppButton>
 </section>
 

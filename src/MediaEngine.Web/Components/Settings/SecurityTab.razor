@@ -6,6 +6,7 @@
 @inject IAppToastService Snackbar
 @inject ILogger<SecurityTab> Logger
 @inject RegisteredExternalProvidersSnapshot RegisteredProviders
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="tl-page security-settings">
     <SettingsSectionPanel Title="@PanelTitle" Description="@PanelDescription" Icon="@PanelIcon">
@@ -15,78 +16,78 @@
         }
         else if (_authSettings is null)
         {
-            <AppErrorState Title="Authentication configuration is unavailable"
+            <AppErrorState Title="@L["SecurityTab_AuthenticationConfigurationIsUnavailable"].Value"
                            Message="The Engine did not return the current sign-in configuration." />
         }
         else
         {
             <div class="security-settings__controls">
-                <label class="app-field__label">Authentication mode</label>
+                <label class="app-field__label">@L["SecurityTab_AuthenticationMode"]</label>
                 <AppNativeSelect Value="@_mode" OnChange="ChangeMode">
-                    <option value="Local">Local account sign-in</option>
-                    <option value="Optional">Optional sign-in</option>
-                    <option value="Required">Sign-in required</option>
+                    <option value="Local">@L["SecurityTab_LocalAccountSignIn"]</option>
+                    <option value="Optional">@L["SecurityTab_OptionalSignIn"]</option>
+                    <option value="Required">@L["SecurityTab_SignInRequired"]</option>
                 </AppNativeSelect>
-                <AppSwitchRow Label="Password sign-in"
-                              Description="Allow account passwords and password recovery."
+                <AppSwitchRow Label="@L["SecurityTab_PasswordSignIn"].Value"
+                              Description="@L["SecurityTab_AllowAccountPasswordsAndPassword"].Value"
                               Value="@_passwordSignInEnabled"
                               ValueChanged="value => _passwordSignInEnabled = value" />
-                <AppSwitchRow Label="Passkey sign-in"
-                              Description="Allow passkeys and platform credentials when the canonical origin is ready."
+                <AppSwitchRow Label="@L["SecurityTab_PasskeySignIn"].Value"
+                              Description="@L["SecurityTab_AllowPasskeysAndPlatformCredentials"].Value"
                               Value="@_passkeySignInEnabled"
                               ValueChanged="value => _passkeySignInEnabled = value" />
-                <AppSwitchRow Label="External provider sign-in"
+                <AppSwitchRow Label="@L["SecurityTab_ExternalProviderSignIn"].Value"
                               Description="@ExternalSignInDescription"
                               Value="@(_externalSignInEnabled && ExternalCapableMode)"
                               ValueChanged="value => _externalSignInEnabled = value"
                               Disabled="@(!ExternalCapableMode)" />
                 <AppTextField T="string" @bind-Value="_trustedLocalNetworks"
-                              Label="Trusted local networks"
+                              Label="@L["SecurityTab_TrustedLocalNetworks"].Value"
                               HelpText="Optional comma-separated CIDR ranges. With none configured, only this computer is local." />
                 <AppTextField T="string" @bind-Value="_invitationLifetimeHours"
-                              Label="Invitation lifetime (hours)"
+                              Label="@L["SecurityTab_InvitationLifetimeHours"].Value"
                               HelpText="1 to 720 hours. New invitations use this lifetime." />
             </div>
 
-            <h3 class="tl-sp-mt-5">Sessions</h3>
+            <h3 class="tl-sp-mt-5">@L["SecurityTab_Sessions"]</h3>
             <div class="security-settings__controls">
                 <AppTextField T="string" @bind-Value="_sessionLifetimeHours"
-                              Label="Session lifetime (hours)"
+                              Label="@L["SecurityTab_SessionLifetimeHours"].Value"
                               HelpText="1 to 8760 hours. New sessions use this lifetime." />
                 <AppTextField T="string" @bind-Value="_maximumActiveSessions"
-                              Label="Maximum active sessions per account"
+                              Label="@L["SecurityTab_MaximumActiveSessionsPerAccount"].Value"
                               HelpText="1 to 100. Creating another session revokes the oldest active session." />
             </div>
             <AppAlert Tone="AppUiTone.Info" Class="tl-sp-mt-4">
-                Active sessions keep their existing expiry. New sessions use the saved policy.
+                @L["SecurityTab_ActiveSessionsKeepTheirExisting"]
             </AppAlert>
             <AppAlert Tone="AppUiTone.Info" Class="tl-sp-mt-3">
-                Administrator surface protection is optional and configured per account profile grant in Users. It adds a lock around protected settings after sign-in.
+                @L["SecurityTab_AdministratorSurfaceProtectionIsOptional"]
             </AppAlert>
 
             <dl class="security-settings__facts tl-sp-mt-5">
-                <div><dt>Public address</dt><dd>@CanonicalOriginStatus <a href="/settings/network/remote">Change it in Network settings</a></dd></div>
-                <div><dt>Passkeys</dt><dd>@PasskeyStatus</dd></div>
-                <div><dt>Recovery delivery</dt><dd>@RecoveryStatus</dd></div>
+                <div><dt>@L["SecurityTab_PublicAddress"]</dt><dd>@CanonicalOriginStatus <a href="/settings/network/remote">@L["SecurityTab_ChangeItInNetworkSettings"]</a></dd></div>
+                <div><dt>@L["SecurityTab_Passkeys"]</dt><dd>@PasskeyStatus</dd></div>
+                <div><dt>@L["SecurityTab_RecoveryDelivery"]</dt><dd>@RecoveryStatus</dd></div>
             </dl>
             @if (_authSettings.PasswordReset.Configured)
             {
                 <dl class="security-settings__facts tl-sp-mt-5">
-                    <div><dt>SMTP server</dt><dd>@_authSettings.PasswordReset.SmtpHost:@_authSettings.PasswordReset.SmtpPort</dd></div>
-                    <div><dt>From</dt><dd>@_authSettings.PasswordReset.FromAddress</dd></div>
-                    <div><dt>SMTP state</dt><dd>@(_authSettings.PasswordReset.Ready ? "Ready" : "Configured, not ready")</dd></div>
+                    <div><dt>@L["SecurityTab_SMTPServer"]</dt><dd>@_authSettings.PasswordReset.SmtpHost:@_authSettings.PasswordReset.SmtpPort</dd></div>
+                    <div><dt>@L["Common_From"]</dt><dd>@_authSettings.PasswordReset.FromAddress</dd></div>
+                    <div><dt>@L["SecurityTab_SMTPState"]</dt><dd>@(_authSettings.PasswordReset.Ready ? "Ready" : "Configured, not ready")</dd></div>
                 </dl>
-                <AppButton Label="Send test email to my account"
+                <AppButton Label="@L["SecurityTab_SendTestEmailToMy"].Value"
                            StartIcon="@AppMaterialIcons.Outlined.MarkEmailRead"
                            Disabled="@(_saving || !_authSettings.PasswordReset.Ready)"
                            OnClick="SendTestEmailAsync" Class="tl-sp-mt-3" />
-                <div class="app-field__help tl-sp-mt-2">Sends only to the email address on your current signed-in account.</div>
+                <div class="app-field__help tl-sp-mt-2">@L["SecurityTab_SendsOnlyToTheEmail"]</div>
             }
-            <h3 class="tl-sp-mt-5">External providers</h3>
+            <h3 class="tl-sp-mt-5">@L["SecurityTab_ExternalProviders"]</h3>
             @if (ProvidersNeedRestart)
             {
                 <AppAlert Tone="AppUiTone.Warning" Class="tl-sp-mb-3" aria-live="polite">
-                    Restart Library to apply sign-in provider changes.
+                    @L["SecurityTab_RestartLibraryToApplySign"]
                 </AppAlert>
             }
             @foreach (var provider in _providerEditors)
@@ -98,54 +99,54 @@
                     </div>
                     <div class="security-settings__controls">
                         <AppTextField T="string" @bind-Value="provider.Id"
-                                      Label="Provider id" ReadOnly="@provider.Persisted"
+                                      Label="@L["SecurityTab_ProviderId"].Value" ReadOnly="@provider.Persisted"
                                       HelpText="Stable id such as google, microsoft, github, facebook, or your OIDC provider name." />
-                        <label class="app-field__label">Protocol</label>
+                        <label class="app-field__label">@L["SecurityTab_Protocol"]</label>
                         <AppNativeSelect Value="@provider.Kind" OnChange="args => ChangeProviderKind(provider, args)">
-                            <option value="oidc">OpenID Connect</option>
-                            <option value="oauth">OAuth 2.0</option>
+                            <option value="oidc">@L["SecurityTab_OpenIDConnect"]</option>
+                            <option value="oauth">@L["SecurityTab_OAuth20"]</option>
                         </AppNativeSelect>
-                        <AppSwitchRow Label="Enabled" Value="@provider.Enabled"
+                        <AppSwitchRow Label="@L["Schedule_Enabled"].Value" Value="@provider.Enabled"
                                       ValueChanged="value => provider.Enabled = value" />
-                        <AppTextField T="string" @bind-Value="provider.DisplayName" Label="Display name" />
-                        <AppTextField T="string" @bind-Value="provider.ClientId" Label="Client ID" />
+                        <AppTextField T="string" @bind-Value="provider.DisplayName" Label="@L["SecurityTab_DisplayName"].Value" />
+                        <AppTextField T="string" @bind-Value="provider.ClientId" Label="@L["SecurityTab_ClientID"].Value" />
                         <AppTextField T="string" @bind-Value="provider.ClientSecret" InputType="AppInputType.Password"
-                                      Label="Client secret"
+                                      Label="@L["SecurityTab_ClientSecret"].Value"
                                       HelpText="Leave blank to preserve the stored secret. Secret values are write-only." />
-                        <AppSwitchRow Label="Clear stored client secret" Value="@provider.ClearClientSecret"
+                        <AppSwitchRow Label="@L["SecurityTab_ClearStoredClientSecret"].Value" Value="@provider.ClearClientSecret"
                                       ValueChanged="value => provider.ClearClientSecret = value" />
-                        <AppSwitchRow Label="Use PKCE" Value="@provider.UsePkce"
-                                      Description="Protect authorization-code callbacks with a per-request verifier."
+                        <AppSwitchRow Label="@L["SecurityTab_UsePKCE"].Value" Value="@provider.UsePkce"
+                                      Description="@L["SecurityTab_ProtectAuthorizationCodeCallbacksWith"].Value"
                                       ValueChanged="value => provider.UsePkce = value" />
                         @if (provider.Kind == "oidc")
                         {
-                            <AppTextField T="string" @bind-Value="provider.Authority" Label="OIDC authority" />
+                            <AppTextField T="string" @bind-Value="provider.Authority" Label="@L["SecurityTab_OIDCAuthority"].Value" />
                         }
                         else
                         {
-                            <AppTextField T="string" @bind-Value="provider.Issuer" Label="Issuer" />
-                            <AppTextField T="string" @bind-Value="provider.AuthorizationEndpoint" Label="Authorization endpoint" />
-                            <AppTextField T="string" @bind-Value="provider.TokenEndpoint" Label="Token endpoint" />
-                            <AppTextField T="string" @bind-Value="provider.UserInformationEndpoint" Label="User information endpoint" />
+                            <AppTextField T="string" @bind-Value="provider.Issuer" Label="@L["SecurityTab_Issuer"].Value" />
+                            <AppTextField T="string" @bind-Value="provider.AuthorizationEndpoint" Label="@L["SecurityTab_AuthorizationEndpoint"].Value" />
+                            <AppTextField T="string" @bind-Value="provider.TokenEndpoint" Label="@L["SecurityTab_TokenEndpoint"].Value" />
+                            <AppTextField T="string" @bind-Value="provider.UserInformationEndpoint" Label="@L["SecurityTab_UserInformationEndpoint"].Value" />
                         }
-                        <AppTextField T="string" @bind-Value="provider.Scopes" Label="Scopes"
+                        <AppTextField T="string" @bind-Value="provider.Scopes" Label="@L["SecurityTab_Scopes"].Value"
                                       HelpText="Space-separated scopes. OIDC requires openid." />
                     </div>
                     <div class="security-settings__provider-actions">
-                        <AppButton Label="Save provider" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled"
+                        <AppButton Label="@L["SecurityTab_SaveProvider"].Value" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled"
                                    Disabled="@_saving" OnClick="() => SaveProviderAsync(provider)" />
                         @if (provider.Persisted)
                         {
-                            <AppButton Label="Delete provider" Tone="AppUiTone.Error"
+                            <AppButton Label="@L["SecurityTab_DeleteProvider"].Value" Tone="AppUiTone.Error"
                                        Disabled="@_saving" OnClick="() => DeleteProviderAsync(provider)" />
                         }
                     </div>
                 </div>
             }
-            <AppButton Label="Add provider" StartIcon="@AppMaterialIcons.Outlined.Add"
+            <AppButton Label="@L["Common_AddProvider"].Value" StartIcon="@AppMaterialIcons.Outlined.Add"
                        OnClick="AddProvider" Class="tl-sp-mt-4" />
             <AppAlert Tone="AppUiTone.Info" Class="tl-sp-mt-4">
-                Provider secrets stay in the server's private authentication secret file and are never returned here.
+                @L["SecurityTab_ProviderSecretsStayInThe"]
             </AppAlert>
             <div class="security-settings__actions tl-sp-mt-5">
                 <AppButton Label="@(_saving ? "Saving…" : "Save authentication settings")"

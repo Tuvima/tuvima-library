@@ -1,12 +1,13 @@
 @namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Contracts.Details
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="tl-detail-tab-panel tl-overview-surface @OverviewSurfaceModifier">
     @if (Model.EntityType == DetailEntityType.Person && Model.PersonDetails is not null)
     {
         <section class="tl-overview-section tl-overview-section--copy">
             <header class="tl-overview-section__heading">
-                <span>Biography</span>
+                <span>@L["OverviewTab_Biography"]</span>
             </header>
             @if (!string.IsNullOrWhiteSpace(PersonOverviewDescription))
             {
@@ -20,17 +21,17 @@
             }
             else
             {
-                <p class="tl-overview-section__empty">No biography is available yet.</p>
+                <p class="tl-overview-section__empty">@L["OverviewTab_NoBiographyIsAvailableYet"]</p>
             }
             @if (Model.LibraryStatus != MediaEngine.Contracts.Details.LibraryStatus.Owned && Model.MediaGroups.Count == 0 && Model.ContributorGroups.Count == 0)
             {
-                <p class="tl-overview-section__empty">No items in your Library credit them.</p>
+                <p class="tl-overview-section__empty">@L["OverviewTab_NoItemsInYourLibrary"]</p>
             }
         </section>
 
         <aside class="tl-overview-section tl-overview-section--secondary tl-overview-section--facts">
             <header class="tl-overview-section__heading">
-                <span>Details</span>
+                <span>@L["Common_Details"]</span>
             </header>
             @if (QuickFacts.Count > 0)
             {
@@ -48,7 +49,7 @@
             @if (RelatedPeople.Count > 0)
             {
                 <div class="tl-overview-linked-people">
-                    <h3>Linked identities</h3>
+                    <h3>@L["OverviewTab_LinkedIdentities"]</h3>
                     <div class="tl-overview-credit-rows">
                         @foreach (var person in RelatedPeople)
                         {
@@ -63,11 +64,11 @@
     {
         <section class="tl-overview-section tl-overview-section--copy">
             <header class="tl-overview-section__heading">
-                <span>Overview</span>
+                <span>@L["Common_Overview"]</span>
             </header>
             @if (OverviewDescriptionParagraphs.Count == 0)
             {
-                <p class="tl-overview-section__empty">No overview is available yet.</p>
+                <p class="tl-overview-section__empty">@L["OverviewTab_NoOverviewIsAvailableYet"]</p>
             }
             else
             {
@@ -104,14 +105,14 @@
                         <AppNativeButton Type="button"
                                          Class="tl-overview-section__credits-link"
                                          OnClick="@(() => OnTabRequested.InvokeAsync(CreditTabKey))">
-                            View full @CreditPanelTitle.ToLowerInvariant()
+                            @L["OverviewTab_ViewFull", CreditPanelTitle.ToLowerInvariant()]
                             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" Size="AppSize.Small" />
                         </AppNativeButton>
                     }
                 </header>
                 @if (DisplayedOverviewCreditGroups.Count == 0)
                 {
-                    <p class="tl-overview-section__empty">No linked people are available yet.</p>
+                    <p class="tl-overview-section__empty">@L["OverviewTab_NoLinkedPeopleAreAvailable"]</p>
                 }
                 else
                 {

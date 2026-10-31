@@ -2,6 +2,7 @@
 @using MediaEngine.Contracts.Editing
 @using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Ui
+@inject IStringLocalizer<SharedStrings> L
 
 @* Review changes (universal editor spec D8, D12): the last stop before anything is saved, as a page that can sit inside the Editor window
    or inside the small dialog the bulk and bar paths still use. It asks the Engine to check the whole list, shows what would change grouped
@@ -25,7 +26,7 @@
             @_notice
             @if (!_afterSave)
             {
-                <AppButton Label="Check again" ButtonStyle="AppButtonStyle.Text" Class="review-changes__retry" Disabled="@Busy" OnClick="RefreshAsync" />
+                <AppButton Label="@L["Common_CheckAgain"].Value" ButtonStyle="AppButtonStyle.Text" Class="review-changes__retry" Disabled="@Busy" OnClick="RefreshAsync" />
             }
         </AppAlert>
     }
@@ -37,11 +38,11 @@
 
     @if (_loading)
     {
-        <p class="review-changes__state">Checking your changes...</p>
+        <p class="review-changes__state">@L["ReviewChangesView_CheckingYourChanges"]</p>
     }
     else if (_rows.Count == 0)
     {
-        <p class="review-changes__state">There are no changes to review.</p>
+        <p class="review-changes__state">@L["ReviewChangesView_ThereAreNoChangesTo"]</p>
     }
 
     @foreach (var group in Groups)
@@ -60,9 +61,9 @@
                         <div class="review-changes__values">
                             @if (row.Before is not null)
                             {
-                                <span class="review-changes__before"><span class="review-changes__label">Before</span> @row.Before</span>
+                                <span class="review-changes__before"><span class="review-changes__label">@L["ReviewChangesView_Before"]</span> @row.Before</span>
                             }
-                            <span class="review-changes__after"><span class="review-changes__label">After</span> @row.After</span>
+                            <span class="review-changes__after"><span class="review-changes__label">@L["ReviewChangesView_After"]</span> @row.After</span>
                         </div>
                         @if (row.Warning is not null)
                         {
@@ -79,7 +80,7 @@
                             <div class="review-changes__actions">
                                 @if (Source.CanJumpTo(row))
                                 {
-                                    <AppButton Label="Edit" ButtonStyle="AppButtonStyle.Text" Disabled="@Busy" aria-label="@($"Edit {row.What} for {row.Item}")" OnClick="@(() => EditAsync(row))" />
+                                    <AppButton Label="@L["Common_Edit"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@Busy" aria-label="@($"Edit {row.What} for {row.Item}")" OnClick="@(() => EditAsync(row))" />
                                 }
                                 <AppRowMenu AriaLabel="@($"More actions for {row.What}")" Items="@MenuFor(row)" />
                             </div>
@@ -90,17 +91,17 @@
         </section>
     }
 
-    <p class="review-changes__note">Provider records are never modified.</p>
+    <p class="review-changes__note">@L["ReviewChangesView_ProviderRecordsAreNeverModified"]</p>
     <ReviewFilesStatus Source="Source" Disabled="@Busy" />
     <div class="@(ShowHeading ? "review-changes__footer" : "review-changes__footer app-dialog-shell__footer")">
     @if (_finished)
     {
-        <AppButton Label="Close" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="BackAsync" />
+        <AppButton Label="@L["Common_Close"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="BackAsync" />
     }
     else
     {
-        <AppButton Label="Back to editing" ButtonStyle="AppButtonStyle.Outlined" Disabled="@Busy" OnClick="BackAsync" />
-        <AppButton Label="Discard changes" ButtonStyle="AppButtonStyle.Text" Disabled="@Busy" OnClick="DiscardAsync" />
+        <AppButton Label="@L["ReviewChangesView_BackToEditing"].Value" ButtonStyle="AppButtonStyle.Outlined" Disabled="@Busy" OnClick="BackAsync" />
+        <AppButton Label="@L["ReviewChangesView_DiscardChanges"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@Busy" OnClick="DiscardAsync" />
         <AppButton Label="@SaveLabel"
                    ButtonStyle="AppButtonStyle.Filled"
                    Tone="AppUiTone.Primary"

@@ -7,49 +7,50 @@
 @inject ViewMediaGrantService MediaGrants
 @inject ViewAssetDragService AssetDrag
 @namespace MediaEngine.Web.Components.Pages
+@inject IStringLocalizer<SharedStrings> L
 
-<PageTitle>Places - Library</PageTitle>
+<PageTitle>@L["ViewPlacesPage_PlacesLibrary"]</PageTitle>
 <ViewSectionShell>
-<ViewContentPage Title="Places" Class="view-atlas-page" ShowHeader="false" FillAvailableHeight="true">
+<ViewContentPage Title="@L["ViewPlacesPage_Places"].Value" Class="view-atlas-page" ShowHeader="false" FillAvailableHeight="true">
 <ChildContent>
 @if (_initializing || (_loading && _atlas is null))
 {
-    <AppPageState Kind="AppPageStateKind.Loading" Title="Opening Places" Message="Plotting your authorized memories around the world." />
+    <AppPageState Kind="AppPageStateKind.Loading" Title="@L["ViewPlacesPage_OpeningPlaces"].Value" Message="@L["ViewPlacesPage_PlottingYourAuthorizedMemoriesAround"].Value" />
 }
 else if (_atlas is null)
 {
-    <AppErrorState Title="Places could not be loaded" Message="The Engine did not return geographic discovery data." Retry="LoadAtlasAsync" />
+    <AppErrorState Title="@L["ViewPlacesPage_PlacesCouldNotBeLoaded"].Value" Message="The Engine did not return geographic discovery data." Retry="LoadAtlasAsync" />
 }
 else
 {
-    <section class="view-atlas" aria-label="Places map">
+    <section class="view-atlas" aria-label="@L["ViewPlacesPage_PlacesMap"].Value">
         <div class="view-atlas__map-shell">
-            <ViewMap @ref="_map" Mode="atlas" Class="view-atlas__map" AriaLabel="World map of authorized photo and video locations"
+            <ViewMap @ref="_map" Mode="atlas" Class="view-atlas__map" AriaLabel="@L["ViewPlacesPage_WorldMapOfAuthorizedPhoto"].Value"
                      Hotspots="@_atlas.Hotspots" ThumbnailUrl="HotspotThumbnail" JourneyEnabled="@_journey" ShowNavigation="false" OnHotspotSelected="SelectHotspotAsync" />
-            <div class="view-atlas__toolbar" aria-label="Atlas filters">
-                <label class="view-atlas__search"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" /><AppNativeInput Type="search" Value="@_search" ValueChanged="SearchChangedAsync" Placeholder="Search places, cities, or regions…" AriaLabel="Search places, cities, or regions" /></label>
-                <AppNativeSelect Value="@TimePresetValue" OnChange="TimePresetChangedAsync" aria-label="Filter places by time"><option value="">All time</option>@foreach (var year in _atlas.AvailableYears) { <option value="@year">@year</option> }</AppNativeSelect>
-                <div class="view-atlas__types" role="group" aria-label="Media type"><AppNativeButton Type="button" Class="@TypeClass(null)" OnClick="@(_ => SetMediaKindAsync(null))">All</AppNativeButton><AppNativeButton Type="button" Class="@TypeClass("image")" OnClick="@(_ => SetMediaKindAsync("image"))">Photos</AppNativeButton><AppNativeButton Type="button" Class="@TypeClass("video")" OnClick="@(_ => SetMediaKindAsync("video"))">Videos</AppNativeButton></div>
-                <AppNativeButton Type="button" Class="@($"view-atlas__filters-button{(_filtersOpen || _favoritesOnly ? " is-active" : string.Empty)}")" aria-expanded="@_filtersOpen" OnClick="@(_ => _filtersOpen = !_filtersOpen)"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Tune" />Filters</AppNativeButton>
+            <div class="view-atlas__toolbar" aria-label="@L["ViewPlacesPage_AtlasFilters"].Value">
+                <label class="view-atlas__search"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" /><AppNativeInput Type="search" Value="@_search" ValueChanged="SearchChangedAsync" Placeholder="@L["ViewPlacesPage_SearchPlacesCitiesOrRegions"].Value" AriaLabel="@L["ViewPlacesPage_SearchPlacesCitiesOrRegions2"].Value" /></label>
+                <AppNativeSelect Value="@TimePresetValue" OnChange="TimePresetChangedAsync" aria-label="@L["ViewPlacesPage_FilterPlacesByTime"].Value"><option value="">@L["ViewPlacesPage_AllTime"]</option>@foreach (var year in _atlas.AvailableYears) { <option value="@year">@year</option> }</AppNativeSelect>
+                <div class="view-atlas__types" role="group" aria-label="@L["Common_MediaType"].Value"><AppNativeButton Type="button" Class="@TypeClass(null)" OnClick="@(_ => SetMediaKindAsync(null))">@L["ApiKeys_AllKeysRevoked"]</AppNativeButton><AppNativeButton Type="button" Class="@TypeClass("image")" OnClick="@(_ => SetMediaKindAsync("image"))">@L["Common_Photos"]</AppNativeButton><AppNativeButton Type="button" Class="@TypeClass("video")" OnClick="@(_ => SetMediaKindAsync("video"))">@L["ViewPlacesPage_Videos"]</AppNativeButton></div>
+                <AppNativeButton Type="button" Class="@($"view-atlas__filters-button{(_filtersOpen || _favoritesOnly ? " is-active" : string.Empty)}")" aria-expanded="@_filtersOpen" OnClick="@(_ => _filtersOpen = !_filtersOpen)"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Tune" />@L["Common_Filters"]</AppNativeButton>
             </div>
             @if (_filtersOpen)
             {
-                <section class="view-atlas__filter-sheet" aria-label="Places filters">
+                <section class="view-atlas__filter-sheet" aria-label="@L["ViewPlacesPage_PlacesFilters"].Value">
                     @if (Workspace.Scopes is not null)
                     {
-                        <label><span>Library scope</span><AppNativeSelect Value="@SelectedScopeValue" OnChange="ScopeChangedAsync" aria-label="Authorized Places scope"><ViewScopeOptions Scopes="@Workspace.Scopes.AvailableScopes" OtherPeople="@Workspace.OtherPeople" /></AppNativeSelect></label>
+                        <label><span>@L["ViewPlacesPage_LibraryScope"]</span><AppNativeSelect Value="@SelectedScopeValue" OnChange="ScopeChangedAsync" aria-label="@L["ViewPlacesPage_AuthorizedPlacesScope"].Value"><ViewScopeOptions Scopes="@Workspace.Scopes.AvailableScopes" OtherPeople="@Workspace.OtherPeople" /></AppNativeSelect></label>
                     }
-                    <div class="view-atlas__check"><AppCheckbox Value="@_favoritesOnly" ValueChanged="FavoritesChangedAsync" Label="Favorites only" /><small>Show mapped media marked as a favorite.</small></div>
+                    <div class="view-atlas__check"><AppCheckbox Value="@_favoritesOnly" ValueChanged="FavoritesChangedAsync" Label="@L["ViewPlacesPage_FavoritesOnly"].Value" /><small>@L["ViewPlacesPage_ShowMappedMediaMarkedAs"]</small></div>
                     @if (_atlas.UnmappedAssetCount > 0) { <AppButton Label="@($"Without location ({_atlas.UnmappedAssetCount:N0})")" OnClick="ShowUnmappedAsync" /> }
-                    @if (_favoritesOnly) { <AppNativeButton Type="button" Class="view-atlas__clear-filter" OnClick="@(_ => ClearAdvancedFiltersAsync())">Clear filters</AppNativeButton> }
+                    @if (_favoritesOnly) { <AppNativeButton Type="button" Class="view-atlas__clear-filter" OnClick="@(_ => ClearAdvancedFiltersAsync())">@L["Common_ClearFilters"]</AppNativeButton> }
                 </section>
             }
-            <div class="view-atlas__compass" role="toolbar" aria-label="Memory Compass">
-                <AppIconButton Icon="@AppMaterialIcons.Outlined.Add" Tooltip="Zoom in" AriaLabel="Zoom in" OnClick="ZoomInAsync" />
-                <AppIconButton Icon="@AppMaterialIcons.Outlined.Remove" Tooltip="Zoom out" AriaLabel="Zoom out" OnClick="ZoomOutAsync" />
-                <AppIconButton Icon="@AppMaterialIcons.Outlined.Public" Tooltip="World" AriaLabel="Show the world" OnClick="ResetWorldAsync" />
-                <AppIconButton Icon="@AppMaterialIcons.Outlined.CenterFocusStrong" Tooltip="Fit memories" AriaLabel="Fit all visible memories" OnClick="FitMemoriesAsync" />
-                <AppIconButton Icon="@AppMaterialIcons.Outlined.Layers" Tooltip="Journey layer" AriaLabel="Toggle chronological Journey layer" Class="@(_journey ? "is-active" : null)" OnClick="ToggleJourney" />
+            <div class="view-atlas__compass" role="toolbar" aria-label="@L["ViewPlacesPage_MemoryCompass"].Value">
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.Add" Tooltip="@L["Common_ZoomIn"].Value" AriaLabel="@L["Common_ZoomIn"].Value" OnClick="ZoomInAsync" />
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.Remove" Tooltip="@L["Common_ZoomOut"].Value" AriaLabel="@L["Common_ZoomOut"].Value" OnClick="ZoomOutAsync" />
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.Public" Tooltip="@L["ViewPlacesPage_World"].Value" AriaLabel="@L["ViewPlacesPage_ShowTheWorld"].Value" OnClick="ResetWorldAsync" />
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.CenterFocusStrong" Tooltip="@L["ViewPlacesPage_FitMemories"].Value" AriaLabel="@L["ViewPlacesPage_FitAllVisibleMemories"].Value" OnClick="FitMemoriesAsync" />
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.Layers" Tooltip="@L["ViewPlacesPage_JourneyLayer"].Value" AriaLabel="@L["ViewPlacesPage_ToggleChronologicalJourneyLayer"].Value" Class="@(_journey ? "is-active" : null)" OnClick="ToggleJourney" />
             </div>
             <ViewPlacesTimeline Buckets="@(_atlas.Timeline ?? [])" EarliestAt="@_atlas.EarliestAt" LatestAt="@_atlas.LatestAt"
                                 SelectedYear="@_year" SelectedFrom="@_from" SelectedTo="@_to" Resolution="@_timelineResolution"

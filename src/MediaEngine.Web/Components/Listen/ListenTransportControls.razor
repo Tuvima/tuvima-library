@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Listen
 @using System.Globalization
 @using MediaEngine.Web.Components.Shared
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="@RootClass" aria-label="@AriaLabel">
     @if (IsAudiobookMode)
@@ -10,7 +11,7 @@
         }
         @if (!Compact)
         {
-        <AppNativeButton Type="button" Class="@IconButtonClass" OnClick="OnPreviousChapter" Disabled="@(!HasChapters)" AriaLabel="Previous chapter" title="Previous chapter">
+        <AppNativeButton Type="button" Class="@IconButtonClass" OnClick="OnPreviousChapter" Disabled="@(!HasChapters)" AriaLabel="@L["Common_PreviousChapter"].Value" title="@L["Common_PreviousChapter"].Value">
             <AppMaterialIcon Icon="@AppMaterialIcons.Filled.SkipPrevious" Class="@SkipIconClass" />
         </AppNativeButton>
         }
@@ -20,8 +21,8 @@
                                Appearance="@PrimaryAppearance"
                                Class="@PlayButtonClass"
                                OnClick="@OnTogglePlay"
-                               AriaLabel="Play or pause"
-                               title="Play or pause"
+                               AriaLabel="@L["ListenTransportControls_PlayOrPause"].Value"
+                               title="@L["ListenTransportControls_PlayOrPause"].Value"
                                data-listen-audio-toggle="true"
                                data-listen-start-url="@CurrentBrowserStreamUrl"
                                data-listen-start-position="@CurrentTimeSeconds.ToString("0.###", CultureInfo.InvariantCulture)"
@@ -30,7 +31,7 @@
                                data-listen-start-muted="@(IsMuted ? "true" : "false")" />
         @if (!Compact)
         {
-        <AppNativeButton Type="button" Class="@IconButtonClass" OnClick="OnNextChapter" Disabled="@(!HasChapters)" AriaLabel="Next chapter" title="Next chapter">
+        <AppNativeButton Type="button" Class="@IconButtonClass" OnClick="OnNextChapter" Disabled="@(!HasChapters)" AriaLabel="@L["Common_NextChapter"].Value" title="@L["Common_NextChapter"].Value">
             <AppMaterialIcon Icon="@AppMaterialIcons.Filled.SkipNext" Class="@SkipIconClass" />
         </AppNativeButton>
         }
@@ -42,13 +43,13 @@
     {
         @if (ShowMusicModeButtons && !Compact)
         {
-            <AppNativeButton Type="button" Class="@($"{IconButtonClass} listen-player__mode-button {(ShuffleEnabled ? "is-active" : null)}")" OnClick="OnShuffle" AriaLabel="@(ShuffleEnabled ? "Turn shuffle off" : "Turn shuffle on")" title="Shuffle" aria-pressed="@(ShuffleEnabled ? "true" : "false")">
+            <AppNativeButton Type="button" Class="@($"{IconButtonClass} listen-player__mode-button {(ShuffleEnabled ? "is-active" : null)}")" OnClick="OnShuffle" AriaLabel="@(ShuffleEnabled ? "Turn shuffle off" : "Turn shuffle on")" title="@L["Common_Shuffle"].Value" aria-pressed="@(ShuffleEnabled ? "true" : "false")">
                 <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Shuffle" />
             </AppNativeButton>
         }
         @if (!Compact)
         {
-        <AppNativeButton Type="button" Class="@IconButtonClass" OnClick="OnPreviousTrack" Disabled="@(!CanPreviousTrack)" AriaLabel="Previous track" title="Previous track">
+        <AppNativeButton Type="button" Class="@IconButtonClass" OnClick="OnPreviousTrack" Disabled="@(!CanPreviousTrack)" AriaLabel="@L["ListenTransportControls_PreviousTrack"].Value" title="@L["ListenTransportControls_PreviousTrack"].Value">
             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SkipPrevious" Class="@TrackIconClass" />
         </AppNativeButton>
         }
@@ -58,8 +59,8 @@
                                Appearance="@PrimaryAppearance"
                                Class="@PlayButtonClass"
                                OnClick="@OnTogglePlay"
-                               AriaLabel="Play or pause"
-                               title="Play or pause"
+                               AriaLabel="@L["ListenTransportControls_PlayOrPause"].Value"
+                               title="@L["ListenTransportControls_PlayOrPause"].Value"
                                data-listen-audio-toggle="true"
                                data-listen-start-url="@CurrentBrowserStreamUrl"
                                data-listen-start-position="@CurrentTimeSeconds.ToString("0.###", CultureInfo.InvariantCulture)"
@@ -68,19 +69,19 @@
                                data-listen-start-muted="@(IsMuted ? "true" : "false")" />
         @if (!Compact)
         {
-        <AppNativeButton Type="button" Class="@IconButtonClass" OnClick="OnNextTrack" Disabled="@(!CanNextTrack)" AriaLabel="Next track" title="Next track">
+        <AppNativeButton Type="button" Class="@IconButtonClass" OnClick="OnNextTrack" Disabled="@(!CanNextTrack)" AriaLabel="@L["ListenTransportControls_NextTrack"].Value" title="@L["ListenTransportControls_NextTrack"].Value">
             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SkipNext" Class="@TrackIconClass" />
         </AppNativeButton>
         }
         @if (ShowQueueButton && !Compact)
         {
-            <AppNativeButton Type="button" Class="@IconButtonClass" OnClick="OnQueue" AriaLabel="Queue options" title="Queue options">
+            <AppNativeButton Type="button" Class="@IconButtonClass" OnClick="OnQueue" AriaLabel="@L["ListenTransportControls_QueueOptions"].Value" title="@L["ListenTransportControls_QueueOptions"].Value">
                 <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Queue" />
             </AppNativeButton>
         }
         @if (ShowMusicModeButtons && !Compact)
         {
-            <AppNativeButton Type="button" Class="@($"{IconButtonClass} listen-player__mode-button {(RepeatEnabled ? "is-active" : null)}")" OnClick="OnRepeat" AriaLabel="@(RepeatEnabled ? "Change repeat mode" : "Turn repeat on")" title="Repeat" aria-pressed="@(RepeatEnabled ? "true" : "false")">
+            <AppNativeButton Type="button" Class="@($"{IconButtonClass} listen-player__mode-button {(RepeatEnabled ? "is-active" : null)}")" OnClick="OnRepeat" AriaLabel="@(RepeatEnabled ? "Change repeat mode" : "Turn repeat on")" title="@L["ListenTransportControls_Repeat"].Value" aria-pressed="@(RepeatEnabled ? "true" : "false")">
                 <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Repeat" />
             </AppNativeButton>
         }

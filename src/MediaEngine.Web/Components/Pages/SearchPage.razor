@@ -8,20 +8,21 @@
 @using MediaEngine.Web.Services.Navigation
 @inject IEngineApiClient ApiClient
 @inject NavigationManager Nav
+@inject IStringLocalizer<SharedStrings> L
 
-<PageTitle>Search - Library</PageTitle>
+<PageTitle>@L["SearchPage_SearchLibrary"]</PageTitle>
 
 <div class="search-page">
     <header class="search-page__header">
         <div class="search-page__title-row">
-            <h1>Search</h1>
-            <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Bolt" /> Results update instantly as you type</span>
+            <h1>@L["Nav_Search"]</h1>
+            <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Bolt" /> @L["Common_ResultsUpdateInstantlyAsYou"]</span>
         </div>
 
         <AppTextField T="string"
                       Value="@_query"
                       ValueChanged="OnQueryInputChanged"
-                      Placeholder="Search titles, people, series, playlists, or collections…"
+                      Placeholder="@L["Common_SearchTitlesPeopleSeriesPlaylists"].Value"
                       Variant="AppVariant.Outlined"
                       Adornment="AppAdornment.Start"
                       AdornmentIcon="@AppMaterialIcons.Outlined.Search"
@@ -33,7 +34,7 @@
         <BrowseFilterSheet ActiveCount="@ActiveFilterChips.Count" OnClear="ClearFiltersAsync">
         <ChildContent Context="inSheet">
         <div class="search-page__filters @(inSheet ? "is-sheet" : "")">
-             <BrowseMultiSelect Label="Media"
+             <BrowseMultiSelect Label="@L["Common_Media"].Value"
                                 ButtonLabel="@MediaButtonLabel"
                                 MenuKey="media"
                                 OpenMenuKey="@_openFilterMenuKey"
@@ -50,30 +51,30 @@
             <AppSelect T="string"
                        Value="@_resultType"
                        ValueChanged="OnResultTypeChanged"
-                       Label="Result type"
+                       Label="@L["SearchPage_ResultType"].Value"
                        Variant="AppVariant.Outlined"
                        Dense="true"
                        Class="search-page__select">
-                <AppSelectItem T="string" Value="@("all")">All result types</AppSelectItem>
-                <AppSelectItem T="string" Value="@("title")">Titles</AppSelectItem>
-                <AppSelectItem T="string" Value="@("person")">People</AppSelectItem>
+                <AppSelectItem T="string" Value="@("all")">@L["SearchPage_AllResultTypes"]</AppSelectItem>
+                <AppSelectItem T="string" Value="@("title")">@L["Common_Titles"]</AppSelectItem>
+                <AppSelectItem T="string" Value="@("person")">@L["Wikidata_PeopleGroupTitle"]</AppSelectItem>
                 <AppSelectItem T="string" Value="@("group")">Series &amp; Collections</AppSelectItem>
-                <AppSelectItem T="string" Value="@("playlist")">Playlists</AppSelectItem>
+                <AppSelectItem T="string" Value="@("playlist")">@L["Common_Playlists"]</AppSelectItem>
             </AppSelect>
 
             <div class="search-page__year-filter">
-                <span>Release / Publication Year</span>
+                <span>@L["SearchPage_ReleasePublicationYear"]</span>
                 <div>
                     <AppNativeInput Type="number"
                                     Value="@_yearFrom"
-                                    Placeholder="From"
-                                    AriaLabel="Year from"
+                                    Placeholder="@L["Common_From"].Value"
+                                    AriaLabel="@L["SearchPage_YearFrom"].Value"
                                     OnChange="OnYearFromChanged" />
                     <span>–</span>
                     <AppNativeInput Type="number"
                                     Value="@_yearTo"
-                                    Placeholder="To"
-                                    AriaLabel="Year to"
+                                    Placeholder="@L["Common_To"].Value"
+                                    AriaLabel="@L["SearchPage_YearTo"].Value"
                                     OnChange="OnYearToChanged" />
                 </div>
             </div>
@@ -81,14 +82,14 @@
             <AppSelect T="string"
                        Value="@_sort"
                        ValueChanged="OnSortChanged"
-                       Label="Sort"
+                       Label="@L["Common_Sort"].Value"
                        Variant="AppVariant.Outlined"
                        Dense="true"
                        Class="search-page__select">
-                <AppSelectItem T="string" Value="@("relevance")">Relevance</AppSelectItem>
-                <AppSelectItem T="string" Value="@("title")">Title A-Z</AppSelectItem>
-                <AppSelectItem T="string" Value="@("newest")">Newest first</AppSelectItem>
-                <AppSelectItem T="string" Value="@("oldest")">Oldest first</AppSelectItem>
+                <AppSelectItem T="string" Value="@("relevance")">@L["SearchPage_Relevance"]</AppSelectItem>
+                <AppSelectItem T="string" Value="@("title")">@L["SearchPage_TitleAZ"]</AppSelectItem>
+                <AppSelectItem T="string" Value="@("newest")">@L["SearchPage_NewestFirst"]</AppSelectItem>
+                <AppSelectItem T="string" Value="@("oldest")">@L["SearchPage_OldestFirst"]</AppSelectItem>
             </AppSelect>
 
             @if (!inSheet)
@@ -96,9 +97,9 @@
                 <AppNativeButton Type="button"
                                  Class="search-page__more-filters"
                                  Disabled="true"
-                                 Title="Contextual filters become available when one media type is selected">
+                                 Title="@L["SearchPage_ContextualFiltersBecomeAvailableWhen"].Value">
                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FilterList" />
-                    <span>More filters</span>
+                    <span>@L["SearchPage_MoreFilters"]</span>
                 </AppNativeButton>
             }
         </div>
@@ -115,36 +116,36 @@
         {
             <div class="search-page__empty">
                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" />
-                <h2>Search your whole library</h2>
-                <p>Find media, people, series, collections, and playlists without leaving this surface.</p>
+                <h2>@L["SearchPage_SearchYourWholeLibrary"]</h2>
+                <p>@L["SearchPage_FindMediaPeopleSeriesCollections"]</p>
             </div>
         }
         else if (_query.Trim().Length < MinimumQueryLength)
         {
             <div class="search-page__empty">
                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ManageSearch" />
-                <h2>Keep typing</h2>
-                <p>Use at least two characters to search.</p>
+                <h2>@L["Common_KeepTyping"]</h2>
+                <p>@L["SearchPage_UseAtLeastTwoCharacters"]</p>
             </div>
         }
         else if (!string.IsNullOrWhiteSpace(_error))
         {
             <div class="search-page__empty">
                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CloudOff" />
-                <h2>Search could not be completed</h2>
-                <p>Try again. Your query and filters have been preserved.</p>
-                <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" OnClick="SearchAsync">Try again</AppButton>
+                <h2>@L["Common_SearchCouldNotBeCompleted"]</h2>
+                <p>@L["SearchPage_TryAgainYourQueryAnd"]</p>
+                <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" OnClick="SearchAsync">@L["Common_TryAgain"]</AppButton>
             </div>
         }
         else if (FilteredResponse is { TotalCount: 0, Sections.Count: 0 } && !_loading)
         {
             <div class="search-page__empty">
                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SearchOff" />
-                <h2>No results match this search</h2>
-                <p>Remove a filter or try another query.</p>
+                <h2>@L["SearchPage_NoResultsMatchThisSearch"]</h2>
+                <p>@L["SearchPage_RemoveAFilterOrTry"]</p>
                 @if (ActiveFilterChips.Count > 0)
                 {
-                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="ClearFiltersAsync">Clear all filters</AppButton>
+                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="ClearFiltersAsync">@L["SearchPage_ClearAllFilters"]</AppButton>
                 }
             </div>
         }
@@ -160,7 +161,7 @@
 
         @if (_loading)
         {
-            <div class="search-page__loading" aria-label="Updating search results">
+            <div class="search-page__loading" aria-label="@L["SearchPage_UpdatingSearchResults"].Value">
                 <AppProgressBar Indeterminate="true" Color="AppColor.Primary" />
             </div>
         }

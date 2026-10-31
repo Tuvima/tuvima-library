@@ -2,10 +2,11 @@
 @using MediaEngine.Web.Services.Playback
 @using MediaEngine.Contracts.Playback
 @using MediaEngine.Web.Components.Shared
-<section class="playback-output" aria-label="Audio output">
-    <h2>Output</h2>
-    @if (_state is null) { <p role="status">Loading permitted outputs…</p> }
-    else if (!_state.Supported) { <p>Use your device's sound settings to change output.</p> }
+@inject IStringLocalizer<SharedStrings> L
+<section class="playback-output" aria-label="@L["PlaybackOutputPanel_AudioOutput"].Value">
+    <h2>@L["PlaybackOutputPanel_Output"]</h2>
+    @if (_state is null) { <p role="status">@L["PlaybackOutputPanel_LoadingPermittedOutputs"]</p> }
+    else if (!_state.Supported) { <p>@L["PlaybackOutputPanel_UseYourDeviceSSound"]</p> }
     else {
         @foreach (var device in _state.Devices) {
             <AppNativeButton Type="button" Class="playback-output__device" Disabled="_busy" AriaLabel="@device.Label" aria-pressed="@(device.DeviceId == _state.ActiveDeviceId ? "true" : "false")" OnClick="@(() => SelectAsync(device.DeviceId))"><span class="playback-output__selection" aria-hidden="true"></span>@device.Label</AppNativeButton>

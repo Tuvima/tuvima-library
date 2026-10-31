@@ -6,6 +6,7 @@
 @inject IEngineApiClient ApiClient
 @inject NsfwModeState Nsfw
 @inject IAppToastService Toasts
+@inject IStringLocalizer<SharedStrings> L
 
 @* The Vault image viewer (Videos spec D44): one picture at a time with next and previous (the arrow keys too), the favourite mark, tags,
    "add to gallery" and, for an administrator, Delete (to the recycle bin). The picture follows the cover mode like every thumbnail:
@@ -13,11 +14,11 @@
    page). Nothing here is read from or written to the browser's storage, and the viewer closes at once when Vault mode locks. *@
 @if (Current is { ImageId: { } imageId } current)
 {
-    <div class="vault-viewer" role="dialog" aria-modal="true" aria-label="Image viewer" tabindex="0" @ref="_root" @onkeydown="OnKeyDownAsync">
+    <div class="vault-viewer" role="dialog" aria-modal="true" aria-label="@L["VaultImageViewer_ImageViewer"].Value" tabindex="0" @ref="_root" @onkeydown="OnKeyDownAsync">
         <div class="vault-viewer__stage vault-viewer__stage--@ModeClass">
             @if (Mode == VaultCoverMode.Hide)
             {
-                <span class="vault-viewer__hidden">Pictures are hidden</span>
+                <span class="vault-viewer__hidden">@L["VaultImageViewer_PicturesAreHidden"]</span>
             }
             else
             {
@@ -30,12 +31,12 @@
             <header class="vault-viewer__bar">
                 <span class="vault-viewer__title @(TitlesHidden ? "vault-viewer__title--hidden" : null)">@current.Title</span>
                 <span class="vault-viewer__count">@(Index + 1) of @Images.Count</span>
-                <AppButton Label="Close" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="CloseAsync" />
+                <AppButton Label="@L["Common_Close"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="CloseAsync" />
             </header>
             <div class="vault-viewer__nav">
-                <AppButton Label="Previous" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                <AppButton Label="@L["Home_CarouselPrevious"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
                            Disabled="@(Index <= 0)" OnClick="PreviousAsync" />
-                <AppButton Label="Next" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                <AppButton Label="@L["Home_CarouselNext"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
                            Disabled="@(Index >= Images.Count - 1)" OnClick="NextAsync" />
                 <AppButton Label="@(_favorite ? "Remove favourite" : "Favourite")" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral"
                            Size="AppControlSize.Compact" OnClick="ToggleFavoriteAsync" />
@@ -43,44 +44,44 @@
             @if (_detail is { } detail)
             {
                 <dl class="vault-viewer__facts">
-                    <dt>File</dt><dd class="@(TitlesHidden ? "vault-viewer__title--hidden" : null)">@detail.Image.FileName</dd>
+                    <dt>@L["Common_File"]</dt><dd class="@(TitlesHidden ? "vault-viewer__title--hidden" : null)">@detail.Image.FileName</dd>
                     @if (detail.Image.Width is { } width && detail.Image.Height is { } height)
                     {
-                        <dt>Size</dt><dd>@width × @height</dd>
+                        <dt>@L["Models_Size"]</dt><dd>@width × @height</dd>
                     }
                     @if (detail.Image.CapturedAt is { } captured)
                     {
-                        <dt>Date</dt><dd>@VaultFormat.Date(captured)</dd>
+                        <dt>@L["Common_Date"]</dt><dd>@VaultFormat.Date(captured)</dd>
                     }
                     @if (!string.IsNullOrWhiteSpace(detail.Folder))
                     {
-                        <dt>Folder</dt><dd>@detail.Folder</dd>
+                        <dt>@L["Common_Folder"]</dt><dd>@detail.Folder</dd>
                     }
                     @if (!string.IsNullOrWhiteSpace(detail.Device))
                     {
-                        <dt>Taken with</dt><dd>@detail.Device</dd>
+                        <dt>@L["VaultImageViewer_TakenWith"]</dt><dd>@detail.Device</dd>
                     }
                 </dl>
-                <AppTextField T="string" @bind-Value="_tags" Label="Tags (separated by commas)" Variant="AppVariant.Outlined" Immediate="true" />
+                <AppTextField T="string" @bind-Value="_tags" Label="@L["VaultImageViewer_TagsSeparatedByCommas"].Value" Variant="AppVariant.Outlined" Immediate="true" />
                 <div class="vault-viewer__actions">
-                    <AppButton Label="Save tags" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
+                    <AppButton Label="@L["VaultImageViewer_SaveTags"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
                                Disabled="@_busy" OnClick="SaveTagsAsync" />
                     @if (_manualGalleries.Count > 0)
                     {
                         <AppSelect T="string" Value="@_galleryChoice" ValueChanged="@(value => { _galleryChoice = value; return Task.CompletedTask; })"
-                                   Label="Add to gallery" Variant="AppVariant.Outlined">
-                            <AppSelectItem T="string" Value="@(string.Empty)">Choose a gallery</AppSelectItem>
+                                   Label="@L["VaultImageViewer_AddToGallery"].Value" Variant="AppVariant.Outlined">
+                            <AppSelectItem T="string" Value="@(string.Empty)">@L["VaultImageViewer_ChooseAGallery"]</AppSelectItem>
                             @foreach (var gallery in _manualGalleries)
                             {
                                 <AppSelectItem T="string" Value="@(gallery.Id.ToString("D"))">@gallery.Name</AppSelectItem>
                             }
                         </AppSelect>
-                        <AppButton Label="Add" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                        <AppButton Label="@L["Vibes_Add"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
                                    Disabled="@(_busy || string.IsNullOrEmpty(_galleryChoice))" OnClick="AddToGalleryAsync" />
                     }
                     @if (IsAdministrator)
                     {
-                        <AppButton Label="Delete" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" Size="AppControlSize.Compact"
+                        <AppButton Label="@L["Common_Delete"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" Size="AppControlSize.Compact"
                                    Disabled="@_busy" OnClick="DeleteAsync" />
                     }
                 </div>

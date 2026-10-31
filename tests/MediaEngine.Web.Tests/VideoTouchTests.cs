@@ -73,10 +73,10 @@ public sealed class VideoTouchTests
     public void TouchGesturesAndMediaSessionAreWiredToTheExistingTransportPaths()
     {
         var root = FindRepoRoot();
-        var razor = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor"));
-        var touch = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/js/video-touch.js"));
-        var chrome = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/js/playback-chrome.js"));
-        var css = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/app.css"));
+        var razor = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor"));
+        var touch = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/js/video-touch.js"));
+        var chrome = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/js/playback-chrome.js"));
+        var css = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/app.css"));
 
         // Gestures call the same seek and play paths as the visible controls; no new Engine call is introduced.
         Assert.Contains("await SeekOnHostAsync(targetSeconds)", razor, StringComparison.Ordinal);

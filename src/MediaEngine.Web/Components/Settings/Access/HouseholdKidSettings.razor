@@ -3,16 +3,17 @@
 @using MediaEngine.Web.Services.Integration
 @inject DashboardIdentityClient Identity
 @inject ILogger<HouseholdKidSettings> Logger
+@inject IStringLocalizer<SharedStrings> L
 @* "What Kids can see" for one household on Settings > Profiles (library access D9, D10; administrators only): a maximum level for Watch, Read and
    Listen, each a plain choice described by what it shows, and one "Show unrated items" switch. Every Kid's profile of the household follows
    these at once, so nothing is stored per person. The choices are kept here until Save changes; Discard puts them back. A saved change is
    confirmed in the section itself (no toast). The host does the save, so its administrator-PIN prompt applies. *@
 <div class="kid-settings" data-kid-settings="@HouseholdId">
-    <AppButton Class="kid-settings__toggle" ButtonStyle="AppButtonStyle.Text" Label="What Kids can see"
+    <AppButton Class="kid-settings__toggle" ButtonStyle="AppButtonStyle.Text" Label="@L["HouseholdKidSettings_WhatKidsCanSee"].Value"
                StartIcon="@AppMaterialIcons.Outlined.Person"
                EndIcon="@(_open ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.ExpandMore)"
                OnClick="ToggleAsync" aria-expanded="@_open.ToString().ToLowerInvariant()" aria-controls="@_bodyId" />
-    <AppInfoTip Label="What Kids can see"
+    <AppInfoTip Label="@L["HouseholdKidSettings_WhatKidsCanSee"].Value"
                 Text="@($"The highest rating a Kid's profile in {HouseholdTitle} can open, for each area. It applies to every Kid's profile here at once. Items without a rating follow the switch below.")" />
     @if (!string.IsNullOrWhiteSpace(_confirmation) && !HasChanges)
     {
@@ -25,11 +26,11 @@
         <div id="@_bodyId" class="kid-settings__body">
             @if (_loading)
             {
-                <div role="status" aria-label="Loading Kid settings"><AppSkeleton Height="120px" /></div>
+                <div role="status" aria-label="@L["HouseholdKidSettings_LoadingKidSettings"].Value"><AppSkeleton Height="120px" /></div>
             }
             else if (_failed)
             {
-                <AppAlert Severity="AppSeverity.Warning" Variant="AppVariant.Outlined">The Kid settings couldn't be loaded. Reload the page to try again.</AppAlert>
+                <AppAlert Severity="AppSeverity.Warning" Variant="AppVariant.Outlined">@L["HouseholdKidSettings_TheKidSettingsCouldnT"]</AppAlert>
             }
             else
             {
@@ -49,9 +50,9 @@
                     </div>
                 }
                 <div class="kid-settings__row kid-settings__row--switch" data-kid-unrated>
-                    <AppSwitchRow Label="Show unrated items" Value="@_showUnrated" ValueChanged="SetShowUnrated" Disabled="@Disabled" />
-                    <AppInfoTip Label="Show unrated items"
-                                Text="Home videos and most books and music have no rating. Turn this off to hide them from Kid's profiles. Rated items always follow the levels above." />
+                    <AppSwitchRow Label="@L["HouseholdKidSettings_ShowUnratedItems"].Value" Value="@_showUnrated" ValueChanged="SetShowUnrated" Disabled="@Disabled" />
+                    <AppInfoTip Label="@L["HouseholdKidSettings_ShowUnratedItems"].Value"
+                                Text="@L["HouseholdKidSettings_HomeVideosAndMostBooks"].Value" />
                 </div>
             }
             @if (!string.IsNullOrWhiteSpace(_error))

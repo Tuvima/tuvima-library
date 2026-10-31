@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Rules
 @using MediaEngine.Contracts.Collections
 @implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 <section class="collection-rule-builder @($"collection-rule-builder--{Density}")" data-rule-domain="@Catalog.Domain">
     <header class="collection-rule-builder__header">
@@ -20,12 +21,12 @@
 
                 @if (groupIndex > 0)
                 {
-                    <div class="collection-rule-builder__join" role="group" aria-label="Relationship to preceding group">
-                        <span>Combine groups with</span>
+                    <div class="collection-rule-builder__join" role="group" aria-label="@L["SharedRuleBuilder_RelationshipToPrecedingGroup"].Value">
+                        <span>@L["SharedRuleBuilder_CombineGroupsWith"]</span>
                         <AppNativeButton Type="button" Class="@(group.JoinWithPrevious == "and" ? "is-selected" : null)"
-                                         OnClick="@(() => SetGroupJoinAsync(group, "and"))">AND</AppNativeButton>
+                                         OnClick="@(() => SetGroupJoinAsync(group, "and"))">@L["SharedRuleBuilder_AND"]</AppNativeButton>
                         <AppNativeButton Type="button" Class="@(group.JoinWithPrevious != "and" ? "is-selected" : null)"
-                                         OnClick="@(() => SetGroupJoinAsync(group, "or"))">OR</AppNativeButton>
+                                         OnClick="@(() => SetGroupJoinAsync(group, "or"))">@L["SharedRuleBuilder_OR"]</AppNativeButton>
                     </div>
                 }
 
@@ -33,22 +34,22 @@
                          @ondragover:preventDefault @ondrop="@(() => DropGroupAsync(group.Id))">
                     <header class="collection-rule-builder__group-header">
                         <div class="collection-rule-builder__group-identity">
-                            <span class="collection-rule-builder__drag" draggable="true" title="Drag to reorder group"
+                            <span class="collection-rule-builder__drag" draggable="true" title="@L["SharedRuleBuilder_DragToReorderGroup"].Value"
                                   @ondragstart="@(() => BeginGroupDrag(group.Id))">
                                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" />
                             </span>
-                            <strong>Group @(groupIndex + 1)</strong>
+                            <strong>@L["SharedRuleBuilder_Group", groupIndex + 1]</strong>
                         </div>
-                        <div class="collection-rule-builder__group-mode" role="group" aria-label="Group match mode">
+                        <div class="collection-rule-builder__group-mode" role="group" aria-label="@L["SharedRuleBuilder_GroupMatchMode"].Value">
                             <AppNativeButton Type="button" Class="@(group.MatchMode == "all" ? "is-selected" : null)"
-                                             OnClick="@(() => SetGroupModeAsync(group, "all"))">Match ALL</AppNativeButton>
+                                             OnClick="@(() => SetGroupModeAsync(group, "all"))">@L["SharedRuleBuilder_MatchALL"]</AppNativeButton>
                             <AppNativeButton Type="button" Class="@(group.MatchMode == "any" ? "is-selected" : null)"
-                                             OnClick="@(() => SetGroupModeAsync(group, "any"))">Match ANY</AppNativeButton>
+                                             OnClick="@(() => SetGroupModeAsync(group, "any"))">@L["SharedRuleBuilder_MatchANY"]</AppNativeButton>
                         </div>
                         @if (Definition.Groups.Count > 1)
                         {
                             <AppIconButton Icon="@AppMaterialIcons.Outlined.DeleteOutline" Size="AppControlSize.Compact"
-                                           Tooltip="Remove group" AriaLabel="Remove rule group"
+                                           Tooltip="@L["SharedRuleBuilder_RemoveGroup"].Value" AriaLabel="@L["SharedRuleBuilder_RemoveRuleGroup"].Value"
                                            OnClick="@(() => RemoveGroupAsync(capturedGroupIndex))" />
                         }
                     </header>
@@ -63,7 +64,7 @@
                                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" Class="collection-rule-builder__condition-drag" />
                                 <AppSelect T="string" Value="@condition.Field"
                                            ValueChanged="@(value => OnFieldChangedAsync(condition, value))"
-                                           Label="Field" Variant="AppVariant.Outlined" Dense="true" Class="app-dialog-select">
+                                           Label="@L["Common_Field"].Value" Variant="AppVariant.Outlined" Dense="true" Class="app-dialog-select">
                                     @foreach (var option in Fields)
                                     {
                                         <AppSelectItem T="string" Value="@option.Key">@option.Label</AppSelectItem>
@@ -71,7 +72,7 @@
                                 </AppSelect>
                                 <AppSelect T="string" Value="@condition.Op"
                                            ValueChanged="@(value => OnOperatorChangedAsync(condition, value))"
-                                           Label="Condition" Variant="AppVariant.Outlined" Dense="true" Class="app-dialog-select">
+                                           Label="@L["Common_Condition"].Value" Variant="AppVariant.Outlined" Dense="true" Class="app-dialog-select">
                                     @foreach (var op in field.Operators)
                                     {
                                         <AppSelectItem T="string" Value="@op.Key">@op.Label</AppSelectItem>
@@ -79,22 +80,22 @@
                                 </AppSelect>
                                 @if (IsValueFreeOperator(condition.Op))
                                 {
-                                    <div class="collection-rule-builder__no-value">No value needed</div>
+                                    <div class="collection-rule-builder__no-value">@L["SharedRuleBuilder_NoValueNeeded"]</div>
                                 }
                                 else if (field.ValueProvider.Kind == RuleValueProviderKind.Boolean)
                                 {
                                     <AppSelect T="string" Value="@condition.Value"
                                                ValueChanged="@(value => OnTextValueChangedAsync(condition, value))"
-                                               Label="Value" Variant="AppVariant.Outlined" Dense="true">
-                                        <AppSelectItem T="string" Value="@("true")">Yes</AppSelectItem>
-                                        <AppSelectItem T="string" Value="@("false")">No</AppSelectItem>
+                                               Label="@L["Common_Value"].Value" Variant="AppVariant.Outlined" Dense="true">
+                                        <AppSelectItem T="string" Value="@("true")">@L["Common_Yes"]</AppSelectItem>
+                                        <AppSelectItem T="string" Value="@("false")">@L["Common_No"]</AppSelectItem>
                                     </AppSelect>
                                 }
                                 else if (field.ValueProvider.Kind == RuleValueProviderKind.StaticOptions)
                                 {
                                     <AppSelect T="string" Value="@condition.Value"
                                                ValueChanged="@(value => OnTextValueChangedAsync(condition, value))"
-                                               Label="Value" Variant="AppVariant.Outlined" Dense="true">
+                                               Label="@L["Common_Value"].Value" Variant="AppVariant.Outlined" Dense="true">
                                         @foreach (var option in field.ValueProvider.Options ?? [])
                                         {
                                             <AppSelectItem T="string" Value="@option.Value">@option.Label</AppSelectItem>
@@ -115,30 +116,30 @@
                                     <div data-value-provider="@field.ValueProvider.ProviderKey">
                                         <AppTextField T="string" Value="@condition.Value"
                                                       ValueChanged="@(value => OnTextValueChangedAsync(condition, value))"
-                                                      Label="Value" Placeholder="@field.ValueProvider.SearchPlaceholder"
+                                                      Label="@L["Common_Value"].Value" Placeholder="@field.ValueProvider.SearchPlaceholder"
                                                       Variant="AppVariant.Outlined" Immediate="true"
                                                       DebounceInterval="300" Class="app-dialog-field" />
                                     </div>
                                 }
                                 <AppIconButton Icon="@AppMaterialIcons.Outlined.DeleteOutline" Size="AppControlSize.Compact"
-                                               Tooltip="Remove condition" AriaLabel="Remove condition"
+                                               Tooltip="@L["Common_RemoveCondition"].Value" AriaLabel="@L["Common_RemoveCondition"].Value"
                                                OnClick="@(() => RemoveConditionAsync(group, capturedConditionIndex))" />
                             </div>
                         }
                     </div>
                     <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Add"
                                Class="collection-rule-builder__add-condition"
-                               OnClick="@(() => OpenConditionPicker(group))">Add condition</AppButton>
+                               OnClick="@(() => OpenConditionPicker(group))">@L["Common_AddCondition"]</AppButton>
 
                     @if (string.Equals(_pickerGroupId, group.Id, StringComparison.Ordinal))
                     {
                         <div class="collection-rule-builder__picker">
-                            <div class="collection-rule-builder__picker-title"><strong>Add condition</strong></div>
+                            <div class="collection-rule-builder__picker-title"><strong>@L["Common_AddCondition"]</strong></div>
                             <AppTextField T="string" Value="@_pickerSearch" ValueChanged="OnPickerSearchChanged"
-                                          Placeholder="Search rule types..." Adornment="AppAdornment.Start"
+                                          Placeholder="@L["SharedRuleBuilder_SearchRuleTypes"].Value" Adornment="AppAdornment.Start"
                                           AdornmentIcon="@AppMaterialIcons.Outlined.Search" Immediate="true"
                                           Class="collection-rule-builder__picker-search" />
-                            <nav class="collection-rule-builder__picker-families" aria-label="Rule families">
+                            <nav class="collection-rule-builder__picker-families" aria-label="@L["SharedRuleBuilder_RuleFamilies"].Value">
                                 @foreach (var category in Catalog.Categories)
                                 {
                                     <AppNativeButton Type="button" Class="@(category.Key == _pickerCategory ? "is-selected" : null)"
@@ -164,33 +165,33 @@
             }
 
             <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Add"
-                       Class="collection-rule-builder__add-group" OnClick="AddGroupAsync">Add group</AppButton>
+                       Class="collection-rule-builder__add-group" OnClick="AddGroupAsync">@L["SharedRuleBuilder_AddGroup"]</AppButton>
 
             @if (Catalog.ShowSortControls)
             {
                 <div class="collection-rule-builder__ordering">
                     <div class="collection-rule-builder__ordering-header">
-                        <div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SwapVert" /><strong>Sort results</strong><span>Sorting controls the display order of matching items.</span></div>
-                        <small><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" /> Sorting affects order, not membership rules.</small>
+                        <div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SwapVert" /><strong>@L["SharedRuleBuilder_SortResults"]</strong><span>@L["SharedRuleBuilder_SortingControlsTheDisplayOrder"]</span></div>
+                        <small><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" /> @L["SharedRuleBuilder_SortingAffectsOrderNotMembership"]</small>
                     </div>
                     <div class="collection-rule-builder__sort">
-                        <span>Sort by</span>
+                        <span>@L["Common_SortBy"]</span>
                         @RenderSortFieldSelect(SortField ?? Catalog.SortFields.First().Key, OnSortFieldChangedAsync)
                         @RenderSortDirectionSelect(SortField ?? Catalog.SortFields.First().Key, SortDirection, OnSortDirectionChangedAsync)
                     </div>
                     @if (string.IsNullOrWhiteSpace(SecondarySortField))
                     {
                         <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Add"
-                                   Class="collection-rule-builder__add-secondary" OnClick="AddSecondarySortAsync">Add “Then by”</AppButton>
+                                   Class="collection-rule-builder__add-secondary" OnClick="AddSecondarySortAsync">@L["SharedRuleBuilder_AddThenBy"]</AppButton>
                     }
                     else
                     {
                         <div class="collection-rule-builder__sort">
-                            <span>Then by</span>
+                            <span>@L["SharedRuleBuilder_ThenBy"]</span>
                             @RenderSortFieldSelect(SecondarySortField, OnSecondarySortFieldChangedAsync)
                             @RenderSortDirectionSelect(SecondarySortField, SecondarySortDirection ?? "asc", OnSecondarySortDirectionChangedAsync)
                             <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Size="AppControlSize.Compact"
-                                           Tooltip="Remove secondary sort" AriaLabel="Remove secondary sort"
+                                           Tooltip="@L["SharedRuleBuilder_RemoveSecondarySort"].Value" AriaLabel="@L["SharedRuleBuilder_RemoveSecondarySort"].Value"
                                            OnClick="RemoveSecondarySortAsync" />
                         </div>
                     }

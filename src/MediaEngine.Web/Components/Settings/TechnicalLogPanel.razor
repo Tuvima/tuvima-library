@@ -4,21 +4,22 @@
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
 @implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 @* The Engine's own log files, newest first, for bug reports (settings revamp D38). Server administrators only; the Engine
    enforces that, and the Settings shell only offers the page to administrators. *@
-<AppCard Title="Technical log"
-         Description="What the Engine wrote to its log files, newest first. It can include file names and other private details, so share it with care.">
+<AppCard Title="@L["TechnicalLogPanel_TechnicalLog"].Value"
+         Description="@L["TechnicalLogPanel_WhatTheEngineWroteTo"].Value">
     <div class="technical-log__filters">
-        <AppSelect Label="Time" Value="@_range" ValueChanged="OnRangeChanged" Options="RangeOptions" />
-        <AppSelect Label="Level" Value="@_level" ValueChanged="OnLevelChanged" Options="LevelOptions" />
-        <AppSelect Label="Area" Value="@_area" ValueChanged="OnAreaChanged" Options="AreaOptions" />
-        <AppTextField Label="Search"
+        <AppSelect Label="@L["Common_Time"].Value" Value="@_range" ValueChanged="OnRangeChanged" Options="RangeOptions" />
+        <AppSelect Label="@L["Common_Level"].Value" Value="@_level" ValueChanged="OnLevelChanged" Options="LevelOptions" />
+        <AppSelect Label="@L["Common_Area"].Value" Value="@_area" ValueChanged="OnAreaChanged" Options="AreaOptions" />
+        <AppTextField Label="@L["Nav_Search"].Value"
                       Value="@_search"
                       ValueChanged="OnSearchChanged"
                       OnDebounceIntervalElapsed="OnSearchDebounced"
                       DebounceInterval="350"
-                      Placeholder="Search the log text…"
+                      Placeholder="@L["TechnicalLogPanel_SearchTheLogText"].Value"
                       Adornment="AppAdornment.Start"
                       AdornmentIcon="@AppMaterialIcons.Outlined.Search" />
     </div>
@@ -30,17 +31,17 @@
     else if (_failed)
     {
         <AppAlert Tone="AppUiTone.Warning" data-testid="technical-log-error">
-            The technical log could not be read. Check that the server is online, then try again.
-            <AppButton Label="Try again" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="ReloadAsync" />
+            @L["TechnicalLogPanel_TheTechnicalLogCouldNot"]
+            <AppButton Label="@L["Common_TryAgain"].Value" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="ReloadAsync" />
         </AppAlert>
     }
     else if (_lines.Count == 0)
     {
-        <AppEmptyState Title="No log lines match" Message="Nothing in the log matches these filters. Try a longer time range or a lower level." />
+        <AppEmptyState Title="@L["TechnicalLogPanel_NoLogLinesMatch"].Value" Message="@L["TechnicalLogPanel_NothingInTheLogMatches"].Value" />
     }
     else
     {
-        <ol class="technical-log__list" aria-label="Technical log lines, newest first" data-testid="technical-log-lines">
+        <ol class="technical-log__list" aria-label="@L["TechnicalLogPanel_TechnicalLogLinesNewestFirst"].Value" data-testid="technical-log-lines">
             @foreach (var line in _lines)
             {
                 var (first, rest) = SplitMessage(line.Message);
@@ -53,7 +54,7 @@
                         @if (rest is not null)
                         {
                             <details class="technical-log__details">
-                                <summary>Show details</summary>
+                                <summary>@L["TechnicalLogPanel_ShowDetails"]</summary>
                                 <pre>@rest</pre>
                             </details>
                         }
@@ -64,7 +65,7 @@
         @if (_cursor is not null)
         {
             <div class="technical-log__more">
-                <AppButton Label="Load older lines" Loading="_loadingMore" Disabled="_loadingMore" OnClick="LoadMoreAsync" />
+                <AppButton Label="@L["TechnicalLogPanel_LoadOlderLines"].Value" Loading="_loadingMore" Disabled="_loadingMore" OnClick="LoadMoreAsync" />
             </div>
         }
     }

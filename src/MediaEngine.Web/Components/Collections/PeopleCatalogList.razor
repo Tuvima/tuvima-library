@@ -1,7 +1,8 @@
 @namespace MediaEngine.Web.Components.Collections
 @using MediaEngine.Contracts.Persons
+@inject IStringLocalizer<SharedStrings> L
 
-<div class="people-catalog-list" role="list" aria-label="People in your library">
+<div class="people-catalog-list" role="list" aria-label="@L["PeopleCatalogList_PeopleInYourLibrary"].Value">
     @foreach (var person in Items)
     {
         var counts = Presence.TryGetValue(person.id.ToString(), out var presence)
@@ -31,15 +32,15 @@
             <span class="people-catalog-row__presence">
                 @if (LaneCount(counts, "read") is var readCount && readCount > 0)
                 {
-                    <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MenuBook" />@readCount Read</span>
+                    <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MenuBook" />@L["PeopleCatalogList_Read", readCount]</span>
                 }
                 @if (LaneCount(counts, "watch") is var watchCount && watchCount > 0)
                 {
-                    <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Movie" />@watchCount Watch</span>
+                    <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Movie" />@L["PeopleCatalogList_Watch", watchCount]</span>
                 }
                 @if (LaneCount(counts, "listen") is var listenCount && listenCount > 0)
                 {
-                    <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Headphones" />@listenCount Listen</span>
+                    <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Headphones" />@L["PeopleCatalogList_Listen", listenCount]</span>
                 }
             </span>
 

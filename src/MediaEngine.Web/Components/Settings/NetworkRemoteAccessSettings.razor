@@ -4,6 +4,7 @@
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
 @inject IAppToastService Snackbar
+@inject IStringLocalizer<SharedStrings> L
 
 <section class="network-settings" data-network-section="@ActiveSection">
     @if (_loading)
@@ -12,8 +13,8 @@
     }
     else if (_settings is null)
     {
-        <AppErrorState Title="Network settings are unavailable"
-                       Message="Start the Engine or retry before changing connectivity settings." />
+        <AppErrorState Title="@L["NetworkRemoteAccessSettings_NetworkSettingsAreUnavailable"].Value"
+                       Message="@L["NetworkRemoteAccessSettings_StartTheEngineOrRetry"].Value" />
     }
     else
     {

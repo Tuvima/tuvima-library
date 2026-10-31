@@ -2,14 +2,15 @@
 @using MediaEngine.Contracts.Items
 @implements IDisposable
 @inject IEngineApiClient Api
+@inject IStringLocalizer<SharedStrings> L
 
 @* Editing Mode on a video or a series of videos: one switch that hides it from every profile with a content limit,
    whatever the library setting says. It saves straight away, like a pencil. Nothing is drawn for other kinds. *@
 @if (Mode is { IsOn: true } mode && mode.Fields.Loaded && _state is { Supported: true })
 {
-    <section class="tl-editing-explicit" aria-label="Explicit mark">
-        <AppSwitchRow Label="Explicit"
-                      Description="Hidden from every profile that has a content limit, whatever the library setting says. Profiles set to Everything still see it."
+    <section class="tl-editing-explicit" aria-label="@L["EditingExplicitMark_ExplicitMark"].Value">
+        <AppSwitchRow Label="@L["EditingExplicitMark_Explicit"].Value"
+                      Description="@L["EditingExplicitMark_HiddenFromEveryProfileThat"].Value"
                       Value="@_state.IsExplicit"
                       Disabled="@_saving"
                       ValueChanged="@((bool value) => SaveAsync(value))" />

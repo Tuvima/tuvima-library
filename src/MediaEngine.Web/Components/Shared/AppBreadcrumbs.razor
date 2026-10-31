@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Shared
+@inject IStringLocalizer<SharedStrings> L
 
-<nav class="@RootClass" aria-label="Breadcrumb">
+<nav class="@RootClass" aria-label="@L["AppBreadcrumbs_Breadcrumb"].Value">
     @ChildContent
 </nav>
 

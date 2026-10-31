@@ -3,13 +3,14 @@
 @using Microsoft.AspNetCore.Components.Forms
 @inject IEngineApiClient ApiClient
 @inject IAppToastService Snackbar
+@inject IStringLocalizer<SharedStrings> L
 
 @* The Import area of a View kind (Photo and video filing spec D1, D6, D9, D10, D11): the one place photos and videos are copied into, how
    many are waiting, Scan now and Add files, and the files that were refused with their plain reasons. The Import area sits outside every
    library folder, so a library folder only ever holds filed photos. *@
-<SettingsSectionPanel Title="Import" Description="@Description">
+<SettingsSectionPanel Title="@L["Common_Import"].Value" Description="@Description">
     <Actions>
-        <AppButton Label="Scan now" StartIcon="@AppMaterialIcons.Outlined.Sync" ButtonStyle="AppButtonStyle.Outlined" Disabled="@(ReadOnly || _busy)" OnClick="ScanAsync" />
+        <AppButton Label="@L["Common_ScanNow"].Value" StartIcon="@AppMaterialIcons.Outlined.Sync" ButtonStyle="AppButtonStyle.Outlined" Disabled="@(ReadOnly || _busy)" OnClick="ScanAsync" />
         @if (!ReadOnly)
         {
             <label class="view-import__add@(_busy ? " is-busy" : string.Empty)" aria-disabled="@_busy">
@@ -27,39 +28,39 @@
         {
             @if (!_summary.Available)
             {
-                <AppAlert Tone="AppUiTone.Warning">The Import folder can't be reached right now, so nothing is filed until it is back. Files already in the library are not affected.</AppAlert>
+                <AppAlert Tone="AppUiTone.Warning">@L["ViewImportPanel_TheImportFolderCanT"]</AppAlert>
             }
             <div class="view-import__where">
                 <span class="view-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoveToInbox" /></span>
                 <div>
-                    <strong>@KindLabel Import folder</strong>
+                    <strong>@L["ViewImportPanel_ImportFolder", KindLabel]</strong>
                     <code>@_summary.ImportPath</code>
-                    <small>Copy @KindNoun here. A file in a folder named <em>Shared</em> goes to the Shared Library, and a folder named after a person goes to that person's library; anything else goes to the first administrator's own library.</small>
+                    <small>@L["ViewImportPanel_CopyHereAFileIn", KindNoun] <em>@L["ViewImportPanel_Shared"]</em> goes to the Shared Library, and a folder named after a person goes to that person's library; anything else goes to the first administrator's own library.</small>
                 </div>
             </div>
             <p class="view-import__waiting" data-testid="view-import-waiting">
                 @if (_summary.Waiting == 0)
                 {
-                    <span>Nothing is waiting to be filed.</span>
+                    <span>@L["ViewImportPanel_NothingIsWaitingToBe"]</span>
                 }
                 else
                 {
                     <strong>@_summary.Waiting.ToString("N0") waiting</strong>
-                    <span> to be filed.</span>
+                    <span> @L["ViewImportPanel_ToBeFiled"]</span>
                     @if (!string.IsNullOrWhiteSpace(_summary.WaitingNote))
                     {
-                        <AppInfoTip Text="@_summary.WaitingNote" Label="Why files are waiting" />
+                        <AppInfoTip Text="@_summary.WaitingNote" Label="@L["ViewImportPanel_WhyFilesAreWaiting"].Value" />
                     }
                 }
             </p>
             <p class="view-import__layout">
-                Filed by the day they were taken, as <code>@_summary.LayoutPattern</code>. Change this on the File handling tab.
+                @L["ViewImportPanel_FiledByTheDayThey"] <code>@_summary.LayoutPattern</code>@L["ViewImportPanel_ChangeThisOnTheFile"]
             </p>
             @if (_summary.Rejected.Count > 0)
             {
-                <h4>Refused</h4>
-                <p class="view-import__refused-note">These were not added. Each stays in the Rejected area for @_summary.RetentionDays days, then is removed.</p>
-                <ul class="view-import__refused" aria-label="Refused files">
+                <h4>@L["ViewImportPanel_Refused"]</h4>
+                <p class="view-import__refused-note">@L["ViewImportPanel_TheseWereNotAddedEach", _summary.RetentionDays]</p>
+                <ul class="view-import__refused" aria-label="@L["ViewImportPanel_RefusedFiles"].Value">
                     @foreach (var file in _summary.Rejected)
                     {
                         <li @key="file.Id" data-testid="view-import-refused">
@@ -68,11 +69,11 @@
                                 <strong>@file.FileName</strong>
                                 <small>@Capitalise(file.Reason)@(file.ExpiresAt is { } expires ? $" · removed {expires.ToLocalTime():MMM d}" : string.Empty)</small>
                             </span>
-                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Delete" AriaLabel="@($"Remove {file.FileName} now")" Tooltip="Remove now" Disabled="@(ReadOnly || _busy)" OnClick="@(() => RemoveAsync(file))" />
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Delete" AriaLabel="@($"Remove {file.FileName} now")" Tooltip="@L["ViewImportPanel_RemoveNow"].Value" Disabled="@(ReadOnly || _busy)" OnClick="@(() => RemoveAsync(file))" />
                         </li>
                     }
                 </ul>
-                <small>Rejected area: <code>@_summary.RejectedPath</code></small>
+                <small>@L["ViewImportPanel_RejectedArea"] <code>@_summary.RejectedPath</code></small>
             }
             @if (_summary.StrayCount > 0)
             {

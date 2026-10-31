@@ -8,6 +8,7 @@
 @inject IAppToastService Snackbar
 @inject ILogger<ProviderDetail> Logger
 @inject IAppDialogService DialogService
+@inject IStringLocalizer<SharedStrings> L
 
 @* One metadata provider's content on its plugin page (Plugins and Integrations screens v3 D18): Overview says what it is and
    supplies; Settings holds the key card, Lookup and the collapsed advanced connection, saved with Review changes first. *@
@@ -15,18 +16,18 @@
 
 @if (_loading)
 {
-    <AppPageState Kind="AppPageStateKind.Loading" Title="Loading" Class="tl-sp-py-8" />
+    <AppPageState Kind="AppPageStateKind.Loading" Title="@L["Common_Loading"].Value" Class="tl-sp-py-8" />
 }
 else if (!string.IsNullOrWhiteSpace(_loadError) || _snapshot is null)
 {
     <AppPageState Kind="AppPageStateKind.Error"
                   Icon="@AppMaterialIcons.Outlined.CloudOff"
-                  Title="This source is unavailable"
+                  Title="@L["ProviderDetail_ThisSourceIsUnavailable"].Value"
                   Message="@(_loadError ?? "The Engine did not return the source's settings.")" />
 }
 else if (_snapshot.ProviderFor(ProviderKey) is not { } provider)
 {
-    <AppPageState Kind="AppPageStateKind.Error" Title="Unknown source" Message="This source is not in the configured provider catalogue." />
+    <AppPageState Kind="AppPageStateKind.Error" Title="@L["ProviderDetail_UnknownSource"].Value" Message="@L["ProviderDetail_ThisSourceIsNotIn"].Value" />
 }
 else if (string.Equals(Section, "settings", StringComparison.OrdinalIgnoreCase))
 {

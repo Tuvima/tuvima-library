@@ -185,7 +185,7 @@ public sealed class LaneNavigationAndBrowseFilterTests
     }
 
     private static string ReadSource(string relativePath) =>
-        File.ReadAllText(Path.Combine(FindRepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar)));
+        LocalizedSource.ReadAllText(Path.Combine(FindRepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar)));
 
     private static string FindRepoRoot()
     {

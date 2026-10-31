@@ -17,13 +17,14 @@
 @inject NavigationManager Nav
 @inject ILogger<CollectionsPage> Logger
 @implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 <BrowseShellStyles />
 
-<MediaSectionShell Title="Collections"
+<MediaSectionShell Title="@L["Nav_Collections"].Value"
                    NavigationGroups="@NavigationGroups"
                    ShowMobileNavigation="false">
-    <LibrarySectionHeader Title="Collections"
+    <LibrarySectionHeader Title="@L["Nav_Collections"].Value"
                           Modes="@CollectionsSectionConfiguration.Modes"
                           ActiveMode="@_activeSection">
         <Actions>
@@ -35,7 +36,7 @@
                                Tone="AppUiTone.Primary"
                                StartIcon="@AppMaterialIcons.Filled.Add"
                                OnClick="OpenCollectionBuilder">
-                        New Collection
+                        @L["CollectionsPage_NewCollection"]
                     </AppButton>
                 }
             }
@@ -46,13 +47,13 @@
         @if (_loading || !ActiveSectionReady)
         {
             <AppPageState Kind="AppPageStateKind.Loading"
-                          Title="Loading collections"
-                          Message="Organizing automatic collections, curated collections, shelves, and people." />
+                          Title="@L["CollectionsPage_LoadingCollections"].Value"
+                          Message="@L["CollectionsPage_OrganizingAutomaticCollectionsCuratedCol"].Value" />
         }
         else if (_loadFailed)
         {
-            <AppErrorState Title="Collections failed to load"
-                           Message="The Dashboard could not load the Collections section from the Engine."
+            <AppErrorState Title="@L["CollectionsPage_CollectionsFailedToLoad"].Value"
+                           Message="@L["CollectionsPage_TheDashboardCouldNotLoad"].Value"
                            Details="@_loadError"
                            Retry="ReloadAsync" />
         }
@@ -88,14 +89,14 @@
                     <section>
                         <div class="collections-results-heading">
                             <div class="collections-results-heading__copy">
-                                <h1>Browse People</h1>
-                                <p>Find the authors, directors, artists, narrators, and other primary contributors represented in your library.</p>
+                                <h1>@L["CollectionsPage_BrowsePeople"]</h1>
+                                <p>@L["CollectionsPage_FindTheAuthorsDirectorsArtists"]</p>
                             </div>
                             <AppButton ButtonStyle="AppButtonStyle.Text"
                                        Tone="AppUiTone.Neutral"
                                        Href="/collections/people"
                                        EndIcon="@AppMaterialIcons.Outlined.ArrowForward">
-                                View all
+                                @L["Common_ViewAll"]
                             </AppButton>
                         </div>
                         <div class="collections-overview__roles">
@@ -118,8 +119,8 @@
                 @if (AutomaticTiles.Count == 0 && CuratedTiles.Count == 0 && ShelfTiles.Count == 0 && VisiblePeopleRoles.Count == 0)
                 {
                     <AppPageState Kind="AppPageStateKind.Empty"
-                                  Title="Nothing has been grouped yet"
-                                  Message="Collections and shelves appear as Library identifies relationships in your library." />
+                                  Title="@L["CollectionsPage_NothingHasBeenGroupedYet"].Value"
+                                  Message="@L["CollectionsPage_CollectionsAndShelvesAppearAs"].Value" />
                 }
             </div>
         }
@@ -148,23 +149,23 @@
                                                    OnClear="ClearFiltersAsync">
                                 <ChildContent Context="inSheet">
                                 <div class="browse-shell__control-group browse-shell__control-group--filters collections-filter-group @(inSheet ? "is-sheet" : "")">
-                                    <span class="browse-shell__control-label">Filter by</span>
+                                    <span class="browse-shell__control-label">@L["Common_FilterBy"]</span>
                                     <div class="collections-filter-selects">
                                 <AppSelect T="string"
                                            Value="@_lane"
                                            ValueChanged="OnLaneChanged"
-                                           Label="Lane"
+                                           Label="@L["CollectionsPage_Lane"].Value"
                                            Variant="AppVariant.Outlined"
                                            Dense="true"
                                            Class="collections-filter-select">
-                                    <AppSelectItem T="string" Value="@("all")">All lanes</AppSelectItem>
+                                    <AppSelectItem T="string" Value="@("all")">@L["CollectionsPage_AllLanes"]</AppSelectItem>
                                     @if (_activeSection == CollectionsSectionConfiguration.Automatic)
                                     {
-                                        <AppSelectItem T="string" Value="@("CrossMedia")">Cross-media</AppSelectItem>
+                                        <AppSelectItem T="string" Value="@("CrossMedia")">@L["CollectionsPage_CrossMedia"]</AppSelectItem>
                                     }
-                                    <AppSelectItem T="string" Value="@("Read")">Read</AppSelectItem>
-                                    <AppSelectItem T="string" Value="@("Watch")">Watch</AppSelectItem>
-                                    <AppSelectItem T="string" Value="@("Listen")">Listen</AppSelectItem>
+                                    <AppSelectItem T="string" Value="@("Read")">@L["Nav_Read"]</AppSelectItem>
+                                    <AppSelectItem T="string" Value="@("Watch")">@L["Nav_Watch"]</AppSelectItem>
+                                    <AppSelectItem T="string" Value="@("Listen")">@L["Nav_Listen"]</AppSelectItem>
                                 </AppSelect>
 
                                 @if (_activeSection == CollectionsSectionConfiguration.Automatic)
@@ -172,14 +173,14 @@
                                     <AppSelect T="string"
                                                Value="@_kind"
                                                ValueChanged="OnKindChanged"
-                                               Label="Relationship"
+                                               Label="@L["CollectionsPage_Relationship"].Value"
                                                Variant="AppVariant.Outlined"
                                                Dense="true"
                                                Class="collections-filter-select collections-filter-select--wide">
-                                        <AppSelectItem T="string" Value="@("all")">All relationships</AppSelectItem>
-                                        <AppSelectItem T="string" Value="@("Universe")">Universes</AppSelectItem>
-                                        <AppSelectItem T="string" Value="@("Series")">Series rollups</AppSelectItem>
-                                        <AppSelectItem T="string" Value="@("ContentGroup")">Related works</AppSelectItem>
+                                        <AppSelectItem T="string" Value="@("all")">@L["CollectionsPage_AllRelationships"]</AppSelectItem>
+                                        <AppSelectItem T="string" Value="@("Universe")">@L["Nav_Universes"]</AppSelectItem>
+                                        <AppSelectItem T="string" Value="@("Series")">@L["CollectionsPage_SeriesRollups"]</AppSelectItem>
+                                        <AppSelectItem T="string" Value="@("ContentGroup")">@L["CollectionsPage_RelatedWorks"]</AppSelectItem>
                                     </AppSelect>
                                 }
                                 else if (_activeSection == CollectionsSectionConfiguration.Curated)
@@ -187,13 +188,13 @@
                                     <AppSelect T="string"
                                                Value="@_membership"
                                                ValueChanged="OnMembershipChanged"
-                                               Label="Membership"
+                                               Label="@L["Common_Membership"].Value"
                                                Variant="AppVariant.Outlined"
                                                Dense="true"
                                                Class="collections-filter-select collections-filter-select--wide">
-                                        <AppSelectItem T="string" Value="@("all")">All membership</AppSelectItem>
-                                        <AppSelectItem T="string" Value="@("manual")">Hand-picked</AppSelectItem>
-                                        <AppSelectItem T="string" Value="@("rules")">Rule-driven</AppSelectItem>
+                                        <AppSelectItem T="string" Value="@("all")">@L["CollectionsPage_AllMembership"]</AppSelectItem>
+                                        <AppSelectItem T="string" Value="@("manual")">@L["CollectionsPage_HandPicked"]</AppSelectItem>
+                                        <AppSelectItem T="string" Value="@("rules")">@L["CollectionsPage_RuleDriven"]</AppSelectItem>
                                     </AppSelect>
                                 }
                                 else if (_activeSection == CollectionsSectionConfiguration.Shelves)
@@ -201,11 +202,11 @@
                                     <AppSelect T="string"
                                                Value="@_kind"
                                                ValueChanged="OnKindChanged"
-                                               Label="Media"
+                                               Label="@L["Common_Media"].Value"
                                                Variant="AppVariant.Outlined"
                                                Dense="true"
                                                Class="collections-filter-select collections-filter-select--wide">
-                                        <AppSelectItem T="string" Value="@("all")">All media</AppSelectItem>
+                                        <AppSelectItem T="string" Value="@("all")">@L["CollectionsPage_AllMedia"]</AppSelectItem>
                                         @foreach (var kind in ShelfMediaOptions)
                                         {
                                             <AppSelectItem T="string" Value="@kind.Value">@kind.Label</AppSelectItem>
@@ -217,11 +218,11 @@
                                     <AppSelect T="string"
                                                Value="@_role"
                                                ValueChanged="OnRoleChanged"
-                                               Label="Role"
+                                               Label="@L["Profile_Role"].Value"
                                                Variant="AppVariant.Outlined"
                                                Dense="true"
                                                Class="collections-filter-select collections-filter-select--wide">
-                                        <AppSelectItem T="string" Value="@("all")">All roles</AppSelectItem>
+                                        <AppSelectItem T="string" Value="@("all")">@L["CollectionsPage_AllRoles"]</AppSelectItem>
                                         @foreach (var role in PeopleRoleOptions)
                                         {
                                             <AppSelectItem T="string" Value="@role">@RoleDisplayLabel(role)</AppSelectItem>
@@ -232,8 +233,8 @@
                                 </div>
 
                                 <div class="browse-shell__display-controls collections-display-controls @(inSheet ? "is-sheet" : "")">
-                                    <span class="browse-shell__sort-label">Sort</span>
-                                    <span class="browse-shell__display-label">Display</span>
+                                    <span class="browse-shell__sort-label">@L["Common_Sort"]</span>
+                                    <span class="browse-shell__display-label">@L["Common_Display"]</span>
                                 <AppSelect T="string"
                                            Value="@_sortBy"
                                            ValueChanged="OnSortChanged"
@@ -249,13 +250,13 @@
                                 @if (_activeSection != CollectionsSectionConfiguration.People)
                                 {
                                     <label class="collections-tile-size">
-                                        <span>Tile size</span>
+                                        <span>@L["Common_TileSize"]</span>
                                         <AppNativeInput Type="range"
                                                         Value="@_tileSize"
                                                         Min="136"
                                                         Max="248"
                                                         Step="8"
-                                                        AriaLabel="Collection tile size"
+                                                        AriaLabel="@L["CollectionsPage_CollectionTileSize"].Value"
                                                         OnInput="OnTileSizeChanged" />
                                     </label>
                                 }
@@ -279,8 +280,8 @@
                     @if (FilteredPeople.Count == 0)
                     {
                         <AppPageState Kind="AppPageStateKind.Empty"
-                                      Title="No people found"
-                                      Message="Try removing a role, lane, or search filter."
+                                      Title="@L["CollectionsPage_NoPeopleFound"].Value"
+                                      Message="@L["CollectionsPage_TryRemovingARoleLane"].Value"
                                       Class="collections-inline-empty" />
                     }
                     else
@@ -343,7 +344,7 @@
                             <AppButton ButtonStyle="AppButtonStyle.Filled"
                                        Tone="AppUiTone.Primary"
                                        OnClick="ShowMoreTiles">
-                                Load more
+                                @L["Common_LoadMore"]
                             </AppButton>
                         </div>
                     }

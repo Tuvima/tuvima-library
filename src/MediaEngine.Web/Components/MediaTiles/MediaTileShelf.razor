@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.MediaTiles
 @using MediaEngine.Web.Services.Theming
 @inject DeviceContextService DeviceContext
+@inject IStringLocalizer<SharedStrings> L
 
 @if (Shelf.Items.Count > 0)
 {
@@ -58,7 +59,7 @@
                         @* The last item of the row: opens the whole shelf as a grid. A plain link, so keys and TV remotes reach it like any tile. *@
                         <a href="@Shelf.SeeAllRoute" class="media-tile-shelf-view-all" aria-label="@($"View all {Shelf.Title}")" data-shelf-view-all>
                             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowForward" Size="AppSize.Large" aria-hidden="true" />
-                            <span class="media-tile-shelf-view-all-text">View all</span>
+                            <span class="media-tile-shelf-view-all-text">@L["Common_ViewAll"]</span>
                         </a>
                     }
         </MediaShelfScroller>

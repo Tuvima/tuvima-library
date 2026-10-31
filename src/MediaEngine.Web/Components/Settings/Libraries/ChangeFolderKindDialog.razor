@@ -5,26 +5,27 @@
 @inject IEngineApiClient Api
 @inject LibraryFolderAddService AddService
 @inject ILogger<ChangeFolderKindDialog> Logger
+@inject IStringLocalizer<SharedStrings> L
 
 @* "Change what this folder is" (Library setup D40(c), D60): what is the folder instead (the kinds of its own area), then the plain
    impact worked out by the Engine before anything moves. Nothing is changed until "Change folder" is pressed. The impact of a kind with
    no library yet is asked for with no library id (the Engine reads that as a new library); the library is made only when the button is
    pressed, so cancelling never leaves an empty library behind. *@
-<AppDialogShell Title="Change what this folder is" Size="Large" OnClose="@(() => Leave())">
+<AppDialogShell Title="@L["Common_ChangeWhatThisFolderIs"].Value" Size="Large" OnClose="@(() => Leave())">
     <ChildContent>
         <div class="lib-choice__options">
             <p class="lib-choice__lead tl-u-white-space-nowrap tl-u-overflow-hidden tl-u-text-overflow-ellipsis"><code class="lib-choice__path" title="@Source.Path">@Source.Path</code></p>
             @if (_step == Step.Kind)
             {
-                <h3 class="lib-choice__question" id="change-kind-question">What is this folder?</h3>
+                <h3 class="lib-choice__question" id="change-kind-question">@L["ChangeFolderKindDialog_WhatIsThisFolder"]</h3>
                 @if (OfferedKinds.Count == 0)
                 {
-                    <p class="lib-choice__lead" data-no-kinds>There is no other kind of folder to change this one into.</p>
+                    <p class="lib-choice__lead" data-no-kinds>@L["ChangeFolderKindDialog_ThereIsNoOtherKind"]</p>
                 }
                 else
                 {
                     <LibraryKindCards Kinds="@OfferedKinds"
-                                      Label="What is this folder?"
+                                      Label="@L["ChangeFolderKindDialog_WhatIsThisFolder"].Value"
                                       SelectedKey="@_kind?.Key"
                                       ShowMetadata="true"
                                       Catalogue="@_catalogue"
@@ -49,7 +50,7 @@
             }
             else if (_loading)
             {
-                <AppPageState Kind="AppPageStateKind.Loading" Title="Counting what would change" />
+                <AppPageState Kind="AppPageStateKind.Loading" Title="@L["ChangeFolderKindDialog_CountingWhatWouldChange"].Value" />
             }
             else if (_refusal is not null)
             {
@@ -72,20 +73,20 @@
         <AppActionBar Align="AppHorizontalAlignment.End">
             @if (_step == Step.Kind)
             {
-                <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Leave())" />
-                <AppButton Label="Next" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Leave())" />
+                <AppButton Label="@L["Home_CarouselNext"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
                            Disabled="@(!CanLeaveKindStep)" OnClick="NextAsync" />
             }
             else if (_preview is null)
             {
                 @* A refusal, or a question the Engine did not answer: nothing can be confirmed, so there is only Close. *@
-                <AppButton Label="Close" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Leave())" />
+                <AppButton Label="@L["Common_Close"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Leave())" />
             }
             else
             {
-                <AppButton Label="Back" ButtonStyle="AppButtonStyle.Text" Disabled="@_starting" OnClick="@(() => _step = Step.Kind)" />
-                <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" Disabled="@_starting" OnClick="@(() => Leave())" />
-                <AppButton Label="Change folder" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                <AppButton Label="@L["Common_Back"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@_starting" OnClick="@(() => _step = Step.Kind)" />
+                <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@_starting" OnClick="@(() => Leave())" />
+                <AppButton Label="@L["ChangeFolderKindDialog_ChangeFolder"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
                            Loading="@_starting" Disabled="@_starting" OnClick="ChangeAsync" />
             }
         </AppActionBar>

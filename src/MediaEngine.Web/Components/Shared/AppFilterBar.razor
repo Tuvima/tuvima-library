@@ -1,4 +1,5 @@
 @namespace MediaEngine.Web.Components.Shared
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="@RootClass">
     <AppTextField Value="@Search"
@@ -12,7 +13,7 @@
 
     @ChildContent
 
-    <AppButton Label="Refresh"
+    <AppButton Label="@L["Ingestion_Refresh"].Value"
                Size="AppControlSize.Compact"
                StartIcon="@AppMaterialIcons.Outlined.Refresh"
                Disabled="@Loading"

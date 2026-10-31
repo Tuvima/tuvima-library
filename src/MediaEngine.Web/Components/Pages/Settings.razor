@@ -24,6 +24,7 @@
 @inject ILogger<Settings> Logger
 @inject MediaEngine.Web.Services.Integration.ProviderCatalogueService ProviderNames
 @implements IAsyncDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 <PageTitle>@BrowserTitle</PageTitle>
 
@@ -34,10 +35,10 @@
 else if (!_profileRoleLoaded)
 {
     @* Neutral loading state: the section, navigation and permissions are unknown until the session resolves. *@
-    <MediaSectionShell Title="Settings"
+    <MediaSectionShell Title="@L["Nav_Settings"].Value"
                        NavigationGroups="@(Array.Empty<MediaSectionNavigationGroup>())"
                        ShowMobileNavigation="false">
-        <div class="settings-shell-content" aria-busy="true" aria-label="Loading settings">
+        <div class="settings-shell-content" aria-busy="true" aria-label="@L["Settings_LoadingSettings"].Value">
             <div class="settings-loading-skeleton">
                 <AppSkeleton Width="40%" Height="28px" />
                 <AppSkeleton Width="100%" Height="120px" />
@@ -48,20 +49,20 @@ else if (!_profileRoleLoaded)
 }
 else
 {
-<MediaSectionShell Title="Settings"
+<MediaSectionShell Title="@L["Nav_Settings"].Value"
                    NavigationGroups="@SettingsNavigationGroups"
                    FixedColumnTree="true"
                    ShowMobileNavigation="false">
     <div class="settings-shell-content" @ref="_contentElement">
-        <nav class="settings-mobile-navigation" aria-label="Settings page selector">
-            <label class="settings-mobile-navigation__label" for="settings-mobile-page">Settings page</label>
+        <nav class="settings-mobile-navigation" aria-label="@L["Settings_SettingsPageSelector"].Value">
+            <label class="settings-mobile-navigation__label" for="settings-mobile-page">@L["Settings_SettingsPage"]</label>
             <div class="settings-mobile-navigation__control">
                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Tune" aria-hidden="true" />
                 <AppNativeSelect @key="MobileNavigationValue"
                                  id="settings-mobile-page"
                                  Value="@MobileNavigationValue"
                                  OnChange="@OnMobilePageChanged"
-                                 aria-label="Settings page">
+                                 aria-label="@L["Settings_SettingsPage"].Value">
                     @foreach (var group in PhoneMenuGroups)
                     {
                         <optgroup label="@group.Label">
@@ -89,18 +90,18 @@ else
                 @if (ShouldDeferForRoleResolution)
                 {
                     <AppPageState Kind="AppPageStateKind.Loading"
-                                  Title="Checking profile permissions"
+                                  Title="@L["Settings_CheckingProfilePermissions"].Value"
                                   Class="tl-sp-py-8" />
                 }
                 else if (IsMobileRouteUnavailable)
                 {
                     <AppPageState Kind="AppPageStateKind.Unavailable"
                                   Icon="@AppMaterialIcons.Outlined.DesktopWindows"
-                                  Title="Use a larger screen for this setting"
+                                  Title="@L["Settings_UseALargerScreenFor"].Value"
                                   Message="@MobileUnavailableMessage">
                         <Actions>
                             <AppButton Href="@MobileFallbackRoute"
-                                       Label="Back to mobile settings"
+                                       Label="@L["Settings_BackToMobileSettings"].Value"
                                        StartIcon="@AppMaterialIcons.Outlined.ArrowBack" />
                         </Actions>
                     </AppPageState>
@@ -108,15 +109,15 @@ else
                 else if (IsDevelopmentOnlyPageLoading)
                 {
                     <AppPageState Kind="AppPageStateKind.Loading"
-                                  Title="Checking what this Engine offers"
+                                  Title="@L["Settings_CheckingWhatThisEngineOffers"].Value"
                                   Class="tl-sp-py-8" />
                 }
                 else if (IsDevelopmentOnlyPageUnavailable)
                 {
                     <AppPageState Kind="AppPageStateKind.Unavailable"
                                   Icon="@AppMaterialIcons.Outlined.Construction"
-                                  Title="Not available in this build"
-                                  Message="This page only exists in development builds of the Library." />
+                                  Title="@L["Settings_NotAvailableInThisBuild"].Value"
+                                  Message="@L["Settings_ThisPageOnlyExistsIn"].Value" />
                 }
                 else
                 {
@@ -126,7 +127,7 @@ else
                                   Variant="AppVariant.Outlined"
                                   Icon="@AppMaterialIcons.Outlined.CloudOff"
                                   Class="tl-sp-mb-4">
-                            Engine state could not be loaded. This page is read-only, and saved values have not been replaced with sample defaults.
+                            @L["Settings_EngineStateCouldNotBe"]
                         </AppAlert>
                     }
                     @switch (_activeSection)

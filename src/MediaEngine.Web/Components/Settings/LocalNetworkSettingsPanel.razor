@@ -4,54 +4,55 @@
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
 @inject IAppToastService Snackbar
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="network-panel">
     <header class="network-panel__heading">
-        <div><h3>Local Network Settings</h3><p>Configure how Library works on your home network.</p></div>
+        <div><h3>@L["LocalNetworkSettingsPanel_LocalNetworkSettings"]</h3><p>@L["LocalNetworkSettingsPanel_ConfigureHowLibraryWorksOn"]</p></div>
     </header>
 
-    <SettingsSectionPanel Title="Local network" Icon="@AppMaterialIcons.Outlined.Lan">
+    <SettingsSectionPanel Title="@L["LocalNetworkSettingsPanel_LocalNetwork"].Value" Icon="@AppMaterialIcons.Outlined.Lan">
         <div class="network-setting-rows">
             <div class="network-setting-row">
-                <div><strong>Server Port</strong><span>Port used by Library for local connections.</span></div>
-                <div class="network-setting-row__control"><code>@Settings.Local.Port</code><AppButton Label="Change Port" OnClick="OpenPortDialog" /></div>
+                <div><strong>@L["LocalNetworkSettingsPanel_ServerPort"]</strong><span>@L["LocalNetworkSettingsPanel_PortUsedByLibraryFor"]</span></div>
+                <div class="network-setting-row__control"><code>@Settings.Local.Port</code><AppButton Label="@L["LocalNetworkSettingsPanel_ChangePort"].Value" OnClick="OpenPortDialog" /></div>
             </div>
             <div class="network-setting-row">
-                <div><strong>Network Interface</strong><span>Which network interface should Library listen on.</span></div>
+                <div><strong>@L["LocalNetworkSettingsPanel_NetworkInterface"]</strong><span>@L["LocalNetworkSettingsPanel_WhichNetworkInterfaceShouldLibrary"]</span></div>
                 <AppSelect T="string" Value="@InterfaceValue" ValueChanged="ChangeInterfaceAsync"
-                           Label="Network interface" HideLabel="true" Options="@InterfaceOptions" />
+                           Label="@L["LocalNetworkSettingsPanel_NetworkInterface2"].Value" HideLabel="true" Options="@InterfaceOptions" />
             </div>
-            <AppSwitchRow Label="Local Discovery"
-                          Description="Allow other devices on your network to find Library automatically."
+            <AppSwitchRow Label="@L["LocalNetworkSettingsPanel_LocalDiscovery"].Value"
+                          Description="@L["LocalNetworkSettingsPanel_AllowOtherDevicesOnYour"].Value"
                           Value="@Settings.Local.DiscoveryEnabled"
                           ValueChanged="ChangeDiscoveryAsync" />
             <div class="network-setting-row">
-                <div><strong>Preferred Server Name</strong><span>Shown to devices on your local network.</span></div>
+                <div><strong>@L["LocalNetworkSettingsPanel_PreferredServerName"]</strong><span>@L["LocalNetworkSettingsPanel_ShownToDevicesOnYour"]</span></div>
                 <div class="network-server-name-control">
-                    <AppTextField T="string" @bind-Value="Settings.Local.PreferredServerName" Label="Server name" HideLabel="true" />
+                    <AppTextField T="string" @bind-Value="Settings.Local.PreferredServerName" Label="@L["Common_ServerName"].Value" HideLabel="true" />
                     <span>.local</span>
-                    <AppButton Label="Save" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="SaveRequested" />
+                    <AppButton Label="@L["Common_Save"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="SaveRequested" />
                 </div>
             </div>
-            <AppSwitchRow Label="IPv6 Support"
-                          Description="Allow connections over IPv6 when the network supports it."
+            <AppSwitchRow Label="@L["LocalNetworkSettingsPanel_IPv6Support"].Value"
+                          Description="@L["LocalNetworkSettingsPanel_AllowConnectionsOverIPv6When"].Value"
                           Value="@Settings.Local.Ipv6Enabled"
                           ValueChanged="ChangeIpv6Async" />
         </div>
     </SettingsSectionPanel>
 
-    <SettingsSectionPanel Title="Local Connection" Icon="@AppMaterialIcons.Outlined.NetworkCheck">
+    <SettingsSectionPanel Title="@L["LocalNetworkSettingsPanel_LocalConnection"].Value" Icon="@AppMaterialIcons.Outlined.NetworkCheck">
         <dl class="network-facts network-facts--compact">
             @Fact("Status", Display(Status?.LocalAccess))
             @Fact("Local Address", Status?.PreferredLocalAddress ?? "Unavailable")
         </dl>
         <div class="network-card-actions">
-            <AppButton Label="Test Local Connection" StartIcon="@AppMaterialIcons.Outlined.Science" OnClick="TestLocalAsync" />
+            <AppButton Label="@L["LocalNetworkSettingsPanel_TestLocalConnection"].Value" StartIcon="@AppMaterialIcons.Outlined.Science" OnClick="TestLocalAsync" />
         </div>
     </SettingsSectionPanel>
 
     <AppAlert Tone="AppUiTone.Info" Icon="@AppMaterialIcons.Outlined.Info">
-        You can access Library on your local network using the address above or @(Settings.Local.PreferredServerName).local where supported.
+        @L["LocalNetworkSettingsPanel_YouCanAccessLibraryOn", Settings.Local.PreferredServerName]
     </AppAlert>
 </div>
 

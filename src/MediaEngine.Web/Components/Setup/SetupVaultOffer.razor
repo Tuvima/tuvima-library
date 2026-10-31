@@ -8,6 +8,7 @@
 @inject DashboardIdentityClient Identity
 @inject ConfirmedActionRunner Confirmed
 @inject DeviceContextService DeviceContext
+@inject IStringLocalizer<SharedStrings> L
 
 @* "Turn on the Vault?" (library setup and add-folder v2, D17 to D21): its own optional step after Libraries, offered once, after the libraries,
    to the first administrator only. Not now leaves no trace: the caller carries straight on and nothing here is ever drawn. Set up the Vault asks for a PIN
@@ -18,51 +19,51 @@
     @switch (_phase)
     {
         case Phase.Offer:
-            <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" /><div><h2 id="setup-stage-title">Turn on the Vault?</h2><p>The Vault is a private place for libraries that only people you choose can open. It stays hidden until you turn it on.</p></div></div>
+            <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" /><div><h2 id="setup-stage-title">@L["SetupVaultOffer_TurnOnTheVault"]</h2><p>@L["SetupVaultOffer_TheVaultIsAPrivate"]</p></div></div>
             <SetupStageFooter>
-                <AppButton Label="Not now" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="@(() => Finished.InvokeAsync(false))" />
-                <AppButton Label="Set up the Vault" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_busy" OnClick="StartSetup" />
+                <AppButton Label="@L["Common_NotNow"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="@(() => Finished.InvokeAsync(false))" />
+                <AppButton Label="@L["SetupVaultOffer_SetUpTheVault"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_busy" OnClick="StartSetup" />
             </SetupStageFooter>
             break;
 
         case Phase.Pin when _hasPin:
-            <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" /><div><h2 id="setup-stage-title">Enter your PIN</h2><p>Your profile PIN also protects the Vault. Enter it once to turn the Vault on for you.</p></div></div>
+            <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" /><div><h2 id="setup-stage-title">@L["SetupVaultOffer_EnterYourPIN"]</h2><p>@L["SetupVaultOffer_YourProfilePINAlsoProtects"]</p></div></div>
             <div class="setup-form-grid">
-                <AppTextField Label="Your PIN" InputType="AppInputType.Password" Value="@_pin" ValueChanged="PinChanged" InputMode="@AppInputMode.numeric" MaxLength="12" ReadOnly="@_busy" />
+                <AppTextField Label="@L["SetupVaultOffer_YourPIN"].Value" InputType="AppInputType.Password" Value="@_pin" ValueChanged="PinChanged" InputMode="@AppInputMode.numeric" MaxLength="12" ReadOnly="@_busy" />
             </div>
             @if (_error is not null) { <AppAlert Tone="AppUiTone.Warning" Dense="true">@_error</AppAlert> }
             <SetupStageFooter>
-                <AppButton Label="Not now" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="@(() => Finished.InvokeAsync(false))" />
-                <AppButton Label="Turn on the Vault" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_busy" Disabled="@(_busy || !PinTypedValid)" OnClick="@(() => TurnOnAsync(_pin))" />
+                <AppButton Label="@L["Common_NotNow"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="@(() => Finished.InvokeAsync(false))" />
+                <AppButton Label="@L["SetupVaultOffer_TurnOnTheVault2"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_busy" Disabled="@(_busy || !PinTypedValid)" OnClick="@(() => TurnOnAsync(_pin))" />
             </SetupStageFooter>
             break;
 
         case Phase.Pin:
-            <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" /><div><h2 id="setup-stage-title">Protect it with a PIN?</h2><p>A PIN is strongly suggested. It is asked for before the Vault opens, and it is the same PIN that protects your profile. Type it twice.</p></div></div>
+            <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" /><div><h2 id="setup-stage-title">@L["SetupVaultOffer_ProtectItWithAPIN"]</h2><p>@L["SetupVaultOffer_APINIsStronglySuggested"]</p></div></div>
             <div class="setup-form-grid">
-                <AppTextField Label="PIN" InputType="AppInputType.Password" Value="@_pin" ValueChanged="PinChanged" InputMode="@AppInputMode.numeric" MaxLength="12" ReadOnly="@_busy"
+                <AppTextField Label="@L["Common_PIN"].Value" InputType="AppInputType.Password" Value="@_pin" ValueChanged="PinChanged" InputMode="@AppInputMode.numeric" MaxLength="12" ReadOnly="@_busy"
                               Error="@(_pin.Length > 0 && !PinTypedValid)" ErrorText="Use 4 to 12 digits." HelpText="4 to 12 digits." />
-                <AppTextField Label="Type it again" InputType="AppInputType.Password" Value="@_pinAgain" ValueChanged="PinAgainChanged" InputMode="@AppInputMode.numeric" MaxLength="12" ReadOnly="@_busy"
+                <AppTextField Label="@L["SetupVaultOffer_TypeItAgain"].Value" InputType="AppInputType.Password" Value="@_pinAgain" ValueChanged="PinAgainChanged" InputMode="@AppInputMode.numeric" MaxLength="12" ReadOnly="@_busy"
                               Error="@Mismatch" ErrorText="The two PINs don't match." />
             </div>
             @if (_error is not null) { <AppAlert Tone="AppUiTone.Warning" Dense="true">@_error</AppAlert> }
             <SetupStageFooter>
-                <AppButton Label="Skip PIN" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="AskToSkip" />
-                <AppButton Label="Turn on the Vault" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_busy" Disabled="@(_busy || !PinPairValid)" OnClick="@(() => TurnOnAsync(_pin))" />
+                <AppButton Label="@L["SetupVaultOffer_SkipPIN"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="AskToSkip" />
+                <AppButton Label="@L["SetupVaultOffer_TurnOnTheVault2"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_busy" Disabled="@(_busy || !PinPairValid)" OnClick="@(() => TurnOnAsync(_pin))" />
             </SetupStageFooter>
             break;
 
         case Phase.ConfirmSkip:
-            <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WarningAmber" /><div><h2 id="setup-stage-title">Skip the PIN?</h2><p data-pin-skip-warning>Without a PIN, anyone using this profile can open the Vault. Skip anyway?</p></div></div>
+            <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WarningAmber" /><div><h2 id="setup-stage-title">@L["SetupVaultOffer_SkipThePIN"]</h2><p data-pin-skip-warning>@L["SetupVaultOffer_WithoutAPINAnyoneUsing"]</p></div></div>
             @if (_error is not null) { <AppAlert Tone="AppUiTone.Warning" Dense="true">@_error</AppAlert> }
             <SetupStageFooter>
-                <AppButton Label="Add a PIN" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="BackToPin" />
-                <AppButton Label="Skip anyway" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_busy" Disabled="@_busy" OnClick="@(() => TurnOnAsync(null))" />
+                <AppButton Label="@L["SetupVaultOffer_AddAPIN"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="BackToPin" />
+                <AppButton Label="@L["SetupVaultOffer_SkipAnyway"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_busy" Disabled="@_busy" OnClick="@(() => TurnOnAsync(null))" />
             </SetupStageFooter>
             break;
 
         default:
-            <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" /><div><h2 id="setup-stage-title">Your Vault is on</h2><p>Add a first private library now, or carry on. The Vault locks when setup finishes and stays out of the menu until you turn on Show Vault in the menu in Settings.</p></div></div>
+            <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" /><div><h2 id="setup-stage-title">@L["SetupVaultOffer_YourVaultIsOn"]</h2><p>@L["SetupVaultOffer_AddAFirstPrivateLibrary"]</p></div></div>
             @if (_configuration is not null)
             {
                 <LibrariesOverview Simple="true"
@@ -79,7 +80,7 @@
                 <AppAlert Tone="AppUiTone.Error"><span>@_loadError</span></AppAlert>
             }
             <SetupStageFooter>
-                <AppButton Label="Continue" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="@(() => Finished.InvokeAsync(true))" />
+                <AppButton Label="@L["Common_Continue"].Value" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="@(() => Finished.InvokeAsync(true))" />
             </SetupStageFooter>
             break;
     }

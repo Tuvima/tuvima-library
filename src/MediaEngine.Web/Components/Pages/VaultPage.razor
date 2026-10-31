@@ -6,12 +6,13 @@
 @inject NsfwModeState Nsfw
 @inject NavigationManager Nav
 @inject NsfwModeSwitching Switching
+@inject IStringLocalizer<SharedStrings> L
 
 @* The Vault area (Videos spec D45). The page title is deliberately plain: nothing in the browser tab or history names the area.
    Anyone the Engine says cannot use Vault mode is sent to the same "not found" page an unknown address gets. A profile that has
    access but has not switched Vault mode on yet (for instance one that opened this from the navigation bar or from Settings) sees
    only the usual unlock step, the PIN when its profile asks for one (Library pages D20). *@
-<PageTitle>Library</PageTitle>
+<PageTitle>@L["Nav_Library"]</PageTitle>
 
 @if (Nsfw.Unlocked)
 {
@@ -20,9 +21,9 @@
 else if (Nsfw.IsAvailable)
 {
     <div class="vault-unlock" data-vault-unlock>
-        <h1>Vault</h1>
+        <h1>@L["Nav_Vault"]</h1>
         <p>@(Nsfw.NeedsPin ? "Enter your profile PIN to open the Vault." : "Open the Vault for this session.")</p>
-        <AppButton Label="Open the Vault" OnClick="UnlockAsync" />
+        <AppButton Label="@L["Common_OpenTheVault"].Value" OnClick="UnlockAsync" />
     </div>
 }
 

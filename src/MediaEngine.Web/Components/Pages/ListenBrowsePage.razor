@@ -18,10 +18,11 @@
 @inject ILogger<ListenBrowsePage> Logger
 
 @namespace MediaEngine.Web.Components.Pages
+@inject IStringLocalizer<SharedStrings> L
 
-<MediaLanePage Title="Listen"
+<MediaLanePage Title="@L["Nav_Listen"].Value"
                RouteBase="/listen"
-               Subtitle="Music and audiobooks from your local library"
+               Subtitle="@L["Common_MusicAndAudiobooksFromYour"].Value"
                SearchPlaceholder="Search music and audiobooks..."
                SectionType="MediaHubSectionType.Listen"
                Preset="@Preset"
@@ -36,8 +37,8 @@
                LoadFailed="@_loadFailed"
                LoadFailedTitle="Listen failed to load"
                LoadFailedMessage="The Dashboard could not load the Listen landing from the Engine."
-               EmptyTitle="Nothing to listen to yet"
-               EmptyMessage="Add music or audiobooks to your library to populate this lane."
+               EmptyTitle="@L["ListenBrowsePage_NothingToListenToYet"].Value"
+               EmptyMessage="@L["ListenBrowsePage_AddMusicOrAudiobooksTo"].Value"
                IsSupportedBrowseTab="@IsSupportedBrowseTab"
                UnsupportedTitle="Listen page not found"
                UnsupportedMessage="Choose Music, Audiobooks, or Playlists to browse your library."

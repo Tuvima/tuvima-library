@@ -13,13 +13,14 @@
 @inject NavigationManager Navigation
 @inject AccountNoticeState Notices
 @implements IAsyncDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 @* Settings > Security: two short row lists. Each row opens a sheet (a bottom sheet on phones, a dialog on larger screens)
    that holds the forms. Most people only see Password and Email. *@
 <div class="tl-page security-settings" aria-busy="@_accountLoading">
     @if (_accountLoading)
     {
-        <div class="security-settings__content" aria-label="Loading account security">
+        <div class="security-settings__content" aria-label="@L["SecuritySettingsPage_LoadingAccountSecurity"].Value">
             <AppSkeleton Height="112px" />
             <AppSkeleton Height="170px" />
         </div>
@@ -28,54 +29,54 @@
     {
         <AppPageState Kind="AppPageStateKind.Error"
                       Icon="@AppMaterialIcons.Outlined.CloudOff"
-                      Title="Account security is unavailable"
-                      Message="Library could not load your account identity. Your security settings have not been changed." />
+                      Title="@L["SecuritySettingsPage_AccountSecurityIsUnavailable"].Value"
+                      Message="@L["SecuritySettingsPage_LibraryCouldNotLoadYour"].Value" />
     }
     else
     {
         <div class="security-settings__content">
             @if (ShowAwayFromHomeNote)
             {
-                <p class="security-settings__note">Your account has no password, so it only works at home. Add one any time below.</p>
+                <p class="security-settings__note">@L["SecuritySettingsPage_YourAccountHasNoPassword"]</p>
             }
-            <SettingsSectionPanel Title="Account details">
+            <SettingsSectionPanel Title="@L["SecuritySettingsPage_AccountDetails"].Value">
                 <ul class="security-settings__list" role="list">
                     @if (_thisComputerOnly && !Capabilities.HasPassword)
                     {
                         <li class="security-settings__item">
-                            <SettingsNavRow Key="add-password" Icon="@AppMaterialIcons.Outlined.Password" Title="Add a password" Status="Anyone who can reach Library can use this account until you do" OnClick="@(() => OpenSheet(SecuritySheet.Password))" />
+                            <SettingsNavRow Key="add-password" Icon="@AppMaterialIcons.Outlined.Password" Title="@L["SecuritySettingsPage_AddAPassword"].Value" Status="Anyone who can reach Library can use this account until you do" OnClick="@(() => OpenSheet(SecuritySheet.Password))" />
                         </li>
                     }
                     <li class="security-settings__item">
-                        <SettingsNavRow Key="password" Icon="@AppMaterialIcons.Outlined.Password" Title="Password" Status="@PasswordStatus" OnClick="@(() => OpenSheet(SecuritySheet.Password))" />
+                        <SettingsNavRow Key="password" Icon="@AppMaterialIcons.Outlined.Password" Title="@L["Common_Password"].Value" Status="@PasswordStatus" OnClick="@(() => OpenSheet(SecuritySheet.Password))" />
                     </li>
                     <li class="security-settings__item">
-                        <SettingsNavRow Key="email" Icon="@AppMaterialIcons.Outlined.Mail" Title="Email" Status="@EmailStatus" OnClick="@(() => OpenSheet(SecuritySheet.Email))" />
+                        <SettingsNavRow Key="email" Icon="@AppMaterialIcons.Outlined.Mail" Title="@L["Common_Email"].Value" Status="@EmailStatus" OnClick="@(() => OpenSheet(SecuritySheet.Email))" />
                     </li>
                     @if (Capabilities.HasPassword)
                     {
                         <li class="security-settings__item">
-                            <SettingsNavRow Key="extra-protection" Icon="@AppMaterialIcons.Outlined.Security" Title="Extra protection" Status="@ExtraProtectionStatus" OnClick="@(() => OpenSheet(SecuritySheet.ExtraProtection))" />
+                            <SettingsNavRow Key="extra-protection" Icon="@AppMaterialIcons.Outlined.Security" Title="@L["SecuritySettingsPage_ExtraProtection"].Value" Status="@ExtraProtectionStatus" OnClick="@(() => OpenSheet(SecuritySheet.ExtraProtection))" />
                         </li>
                     }
                 </ul>
             </SettingsSectionPanel>
 
             @* Everyone may sign out their own other sessions (a lost phone). Paired phones and TVs and signed-in browsers are on the Devices page, a child of Security. *@
-            <SettingsSectionPanel Title="Access">
+            <SettingsSectionPanel Title="@L["Common_Access"].Value">
                 <ul class="security-settings__list" role="list">
                     <li class="security-settings__item">
-                        <SettingsNavRow Key="sign-out-others" Icon="@AppMaterialIcons.Outlined.Logout" Title="Sign out everywhere else" Status="@OtherSessionsStatus"
+                        <SettingsNavRow Key="sign-out-others" Icon="@AppMaterialIcons.Outlined.Logout" Title="@L["SecuritySettingsPage_SignOutEverywhereElse"].Value" Status="@OtherSessionsStatus"
                                         Disabled="@(!_sessionsLoading && _sessionsError is null && !OtherSessions.Any())" ShowChevron="false" OnClick="RevokeOtherSessionsAsync" />
                     </li>
                 </ul>
             </SettingsSectionPanel>
 
             @* Read-only: who (a server administrator) has opened this person's photos. The Engine answers only about the signed-in person's own photos. *@
-            <SettingsSectionPanel Title="Your photos">
+            <SettingsSectionPanel Title="@L["SecuritySettingsPage_YourPhotos"].Value">
                 <ul class="security-settings__list" role="list">
                     <li class="security-settings__item">
-                        <SettingsNavRow Key="photo-views" Icon="@AppMaterialIcons.Outlined.Visibility" Title="Who viewed your photos" Status="Server administrators who opened them, newest first" OnClick="@(() => OpenSheet(SecuritySheet.PhotoViews))" />
+                        <SettingsNavRow Key="photo-views" Icon="@AppMaterialIcons.Outlined.Visibility" Title="@L["SecuritySettingsPage_WhoViewedYourPhotos"].Value" Status="Server administrators who opened them, newest first" OnClick="@(() => OpenSheet(SecuritySheet.PhotoViews))" />
                     </li>
                 </ul>
             </SettingsSectionPanel>
@@ -113,7 +114,7 @@
                     </div>
                         </ChildContent>
                         <FooterContent>
-                            <AppButton Label="Done" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_busy" OnClick="CloseSheet" />
+                            <AppButton Label="@L["Common_Done"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_busy" OnClick="CloseSheet" />
                         </FooterContent>
                     </AppDialogShell>
                 </div>

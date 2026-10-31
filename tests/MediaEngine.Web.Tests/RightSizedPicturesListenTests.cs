@@ -8,7 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>Right-sized pictures (WP4b): Listen, Settings, editor and playback pictures ask the Engine for the copy that fits how big they are drawn.</summary>
-public sealed class RightSizedPicturesListenTests : BunitContext
+public sealed class RightSizedPicturesListenTests : LocalizedBunitContext
 {
     private static readonly Guid WorkId = Guid.Parse("33333333-3333-3333-3333-333333333333");
     private static readonly string Cover = $"/engine-image/stream/entity/work/{WorkId:D}/cover?size=s";

@@ -1,14 +1,15 @@
 @namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Contracts.Details
+@inject IStringLocalizer<SharedStrings> L
 
 @* What Local AI features worked out about this item. Every value here is a suggestion, so the whole panel is marked AI;
    nothing on it replaces what a provider or a person entered. *@
 @if (Results is { IsEmpty: false })
 {
-    <section class="tl-detail-panel tl-ai-results" aria-label="Suggested by Local AI">
+    <section class="tl-detail-panel tl-ai-results" aria-label="@L["DetailAiResults_SuggestedByLocalAI"].Value">
         <div class="tl-section-heading tl-ai-results__heading">
-            <h2>Suggested by Local AI</h2>
-            <AppStatusBadge Text="AI" Tone="AppUiTone.Info" />
+            <h2>@L["DetailAiResults_SuggestedByLocalAI"]</h2>
+            <AppStatusBadge Text="@L["DetailAiResults_AI"].Value" Tone="AppUiTone.Info" />
         </div>
         @if (!string.IsNullOrWhiteSpace(Results.Summary))
         {
@@ -20,7 +21,7 @@
             @Group("Moods", Results.Moods)
             @Group("Content warnings", Results.ContentWarnings)
         </dl>
-        <p class="tl-ai-results__note">Made on this machine by an AI plugin. Switch the plugin off and these go away.</p>
+        <p class="tl-ai-results__note">@L["DetailAiResults_MadeOnThisMachineBy"]</p>
     </section>
 }
 

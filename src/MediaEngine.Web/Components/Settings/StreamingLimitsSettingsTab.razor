@@ -4,18 +4,19 @@
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
 @inject IAppToastService Snackbar
+@inject IStringLocalizer<SharedStrings> L
 
 @* Streaming > Limits and Quality. The limits are saved with the network settings, the same stored values the
    Network pages use, so nothing a person saved before is lost by the move. *@
-<section class="streaming-limits-tab" aria-label="Limits and Quality">
+<section class="streaming-limits-tab" aria-label="@L["Common_LimitsAndQuality"].Value">
     @if (_loading)
     {
         <AppSkeleton Size="AppControlSize.Large" />
     }
     else if (_settings is null)
     {
-        <AppErrorState Title="Streaming limits are unavailable"
-                       Message="Start the Engine or retry before changing streaming limits." />
+        <AppErrorState Title="@L["StreamingLimitsSettingsTab_StreamingLimitsAreUnavailable"].Value"
+                       Message="@L["StreamingLimitsSettingsTab_StartTheEngineOrRetry"].Value" />
     }
     else
     {

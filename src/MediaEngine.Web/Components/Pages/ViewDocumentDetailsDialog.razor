@@ -3,9 +3,10 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @inject IEngineApiClient ApiClient
 @namespace MediaEngine.Web.Components.Pages
+@inject IStringLocalizer<SharedStrings> L
 
 @* A small panel over the document for filing it: title, tags, correspondent, type, date, archive number, notes and the person's own fields. One Save. *@
-<AppDialogShell Title="Document details" Subtitle="@ViewDocumentPresentation.DisplayTitle(Item)" Size="Medium" OnClose="@(() => Dialog.Cancel())">
+<AppDialogShell Title="@L["ViewDocumentDetailsDialog_DocumentDetails"].Value" Subtitle="@ViewDocumentPresentation.DisplayTitle(Item)" Size="Medium" OnClose="@(() => Dialog.Cancel())">
     <ChildContent>
         @if (_loading)
         {
@@ -19,14 +20,14 @@
             }
 
             <div class="view-document-details">
-                <AppTextField Label="Title" Value="@_title" ValueChanged="@(value => _title = value ?? string.Empty)" MaxLength="300" />
+                <AppTextField Label="@L["Common_Title"].Value" Value="@_title" ValueChanged="@(value => _title = value ?? string.Empty)" MaxLength="300" />
 
-                <section class="view-document-details__group" aria-label="Tags">
-                    <h3>Tags</h3>
+                <section class="view-document-details__group" aria-label="@L["Common_Tags"].Value">
+                    <h3>@L["Common_Tags"]</h3>
                     <AppTagInput Commit="CommitTagAsync" Search="SearchTagsAsync" />
                     @if (_tags.Count > 0)
                     {
-                        <ul class="view-document-details__chips" aria-label="Tags on this document">
+                        <ul class="view-document-details__chips" aria-label="@L["ViewDocumentDetailsDialog_TagsOnThisDocument"].Value">
                             @foreach (var tag in _tags)
                             {
                                 <li @key="tag"><AppChip Text="@tag" OnClose="@(() => RemoveTag(tag))" /></li>
@@ -35,22 +36,22 @@
                     }
                 </section>
 
-                <AppAutocomplete TItem="string" Label="Correspondent" Value="@_correspondent" ValueChanged="@(value => _correspondent = value ?? string.Empty)"
-                                 SearchFunc="SearchCorrespondentsAsync" CoerceValue="true" ResetValueOnEmptyText="true" Placeholder="Who sent or issued it" />
-                <AppAutocomplete TItem="string" Label="Document type" Value="@_type" ValueChanged="@(value => _type = value ?? string.Empty)"
-                                 SearchFunc="SearchTypesAsync" CoerceValue="true" ResetValueOnEmptyText="true" Placeholder="Invoice, letter, contract…" />
+                <AppAutocomplete TItem="string" Label="@L["Common_Correspondent"].Value" Value="@_correspondent" ValueChanged="@(value => _correspondent = value ?? string.Empty)"
+                                 SearchFunc="SearchCorrespondentsAsync" CoerceValue="true" ResetValueOnEmptyText="true" Placeholder="@L["ViewDocumentDetailsDialog_WhoSentOrIssuedIt"].Value" />
+                <AppAutocomplete TItem="string" Label="@L["Common_DocumentType"].Value" Value="@_type" ValueChanged="@(value => _type = value ?? string.Empty)"
+                                 SearchFunc="SearchTypesAsync" CoerceValue="true" ResetValueOnEmptyText="true" Placeholder="@L["Common_InvoiceLetterContract"].Value" />
 
                 <div class="view-document-details__row">
-                    <label class="view-document-details__field"><span>Date</span><AppNativeInput Type="date" Class="view-document-details__input" AriaLabel="Document date" Value="@_date" ValueChanged="@(value => _date = value?.ToString() ?? string.Empty)" /></label>
-                    <AppTextField Label="Archive number" Value="@_archive" ValueChanged="@(value => _archive = value ?? string.Empty)" MaxLength="120" />
+                    <label class="view-document-details__field"><span>@L["Common_Date"]</span><AppNativeInput Type="date" Class="view-document-details__input" AriaLabel="@L["Common_DocumentDate"].Value" Value="@_date" ValueChanged="@(value => _date = value?.ToString() ?? string.Empty)" /></label>
+                    <AppTextField Label="@L["ViewDocumentDetailsDialog_ArchiveNumber"].Value" Value="@_archive" ValueChanged="@(value => _archive = value ?? string.Empty)" MaxLength="120" />
                 </div>
 
-                <AppTextarea Label="Notes" Value="@_notes" ValueChanged="@(value => _notes = value ?? string.Empty)" Lines="4" />
+                <AppTextarea Label="@L["ViewDocumentDetailsDialog_Notes"].Value" Value="@_notes" ValueChanged="@(value => _notes = value ?? string.Empty)" Lines="4" />
 
                 @if (_fields.Count > 0)
                 {
-                    <section class="view-document-details__group" aria-label="Custom fields">
-                        <h3>Custom fields</h3>
+                    <section class="view-document-details__group" aria-label="@L["ViewDocumentDetailsDialog_CustomFields"].Value">
+                        <h3>@L["ViewDocumentDetailsDialog_CustomFields"]</h3>
                         @foreach (var field in _fields)
                         {
                             var draft = _drafts[field.Id];
@@ -60,7 +61,7 @@
                                     case ViewDocumentFieldKinds.Choice:
                                         <label class="view-document-details__field"><span>@field.Name</span>
                                             <AppNativeSelect aria-label="@field.Name" Value="@(draft.Text ?? string.Empty)" OnChange="@(args => draft.Text = args.Value?.ToString())">
-                                                <option value="">Not set</option>
+                                                <option value="">@L["Common_NotSet"]</option>
                                                 @foreach (var choice in field.Choices)
                                                 {
                                                     <option value="@choice">@choice</option>
@@ -71,9 +72,9 @@
                                     case ViewDocumentFieldKinds.Bool:
                                         <label class="view-document-details__field"><span>@field.Name</span>
                                             <AppNativeSelect aria-label="@field.Name" Value="@(draft.Flag is { } flag ? (flag ? "true" : "false") : string.Empty)" OnChange="@(args => draft.Flag = args.Value?.ToString() switch { "true" => true, "false" => false, _ => null })">
-                                                <option value="">Not set</option>
-                                                <option value="true">Yes</option>
-                                                <option value="false">No</option>
+                                                <option value="">@L["Common_NotSet"]</option>
+                                                <option value="true">@L["Common_Yes"]</option>
+                                                <option value="false">@L["Common_No"]</option>
                                             </AppNativeSelect>
                                         </label>
                                         break;
@@ -90,8 +91,8 @@
                                     case ViewDocumentFieldKinds.Money:
                                         <div class="view-document-details__field"><span>@field.Name</span>
                                             <div class="view-document-details__money">
-                                                <AppNativeInput Type="text" Class="view-document-details__input" inputmode="decimal" AriaLabel="@($"{field.Name} amount")" Placeholder="Amount" Value="@draft.Number" ValueChanged="@(value => draft.Number = value?.ToString())" />
-                                                <AppNativeInput Type="text" Class="view-document-details__input" AriaLabel="@($"{field.Name} currency")" Placeholder="USD" maxlength="3" Value="@draft.Currency" ValueChanged="@(value => draft.Currency = value?.ToString())" />
+                                                <AppNativeInput Type="text" Class="view-document-details__input" inputmode="decimal" AriaLabel="@($"{field.Name} amount")" Placeholder="@L["ViewDocumentDetailsDialog_Amount"].Value" Value="@draft.Number" ValueChanged="@(value => draft.Number = value?.ToString())" />
+                                                <AppNativeInput Type="text" Class="view-document-details__input" AriaLabel="@($"{field.Name} currency")" Placeholder="@L["ViewDocumentDetailsDialog_USD"].Value" maxlength="3" Value="@draft.Currency" ValueChanged="@(value => draft.Currency = value?.ToString())" />
                                             </div>
                                         </div>
                                         break;
@@ -107,8 +108,8 @@
         }
     </ChildContent>
     <FooterContent>
-        <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
-        <AppButton Label="Save" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_loading || _saving)" Loading="@_saving" OnClick="SaveAsync" />
+        <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
+        <AppButton Label="@L["Common_Save"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_loading || _saving)" Loading="@_saving" OnClick="SaveAsync" />
     </FooterContent>
 </AppDialogShell>
 

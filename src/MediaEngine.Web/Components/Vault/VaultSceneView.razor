@@ -5,6 +5,7 @@
 @inject NavigationManager Nav
 @inject IVaultCatalogue Catalogue
 @inject DashboardSessionAccessor Session
+@inject IStringLocalizer<SharedStrings> L
 
 @* One Vault video's own page (Videos spec D38, D40, D41): the picture on its card shape (Blur and Hide follow the person's cover mode),
    Play, what is stored about it, the performers, studio and tags it links to (each opens the scenes the person owns), and, for an
@@ -12,14 +13,14 @@
 @if (Nsfw.Unlocked)
 {
     <div class="vault-scene" data-vault-scene>
-        <a class="vault-scene__back" href="@VaultViews.Route(VaultViews.RecentlyAdded)">‹ Vault</a>
+        <a class="vault-scene__back" href="@VaultViews.Route(VaultViews.RecentlyAdded)">@L["VaultSceneView_Vault"]</a>
         @if (_loading)
         {
             <AppSkeleton Height="200px" />
         }
         else if (_detail is null)
         {
-            <AppEmptyState Title="This video isn't here" Message="It may have been removed from the Vault folder." />
+            <AppEmptyState Title="@L["VaultSceneView_ThisVideoIsnTHere"].Value" Message="@L["VaultSceneView_ItMayHaveBeenRemoved"].Value" />
         }
         else
         {
@@ -31,7 +32,7 @@
                 </div>
                 <div class="vault-scene__facts">
                     <h1 class="vault-scene__title">@scene.Title</h1>
-                    <AppButton Label="Play" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="PlayAsync" />
+                    <AppButton Label="@L["Common_Play"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="PlayAsync" />
                     <dl class="vault-scene__list">
                         @Fact("File", scene.FileName)
                         @Fact("Folder", scene.Folder)

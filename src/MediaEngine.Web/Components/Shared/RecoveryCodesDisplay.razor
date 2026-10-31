@@ -2,23 +2,24 @@
 @inject IJSRuntime JS
 @inject IAppToastService Snackbar
 @inject ILogger<RecoveryCodesDisplay> Logger
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="recovery-codes-display" aria-live="polite">
     <AppAlert Tone="AppUiTone.Warning">
-        <strong>Save these recovery codes now.</strong> They cannot be viewed again after you leave this page.
+        <strong>@L["RecoveryCodesDisplay_SaveTheseRecoveryCodesNow"]</strong> @L["RecoveryCodesDisplay_TheyCannotBeViewedAgain"]
     </AppAlert>
-    <label class="recovery-codes-display__label" for="@_fieldId">Recovery codes</label>
+    <label class="recovery-codes-display__label" for="@_fieldId">@L["RecoveryCodesDisplay_RecoveryCodes"]</label>
     <textarea id="@_fieldId"
               class="recovery-codes-display__field"
               aria-describedby="@_helpId"
               readonly
               spellcheck="false">@CodesOnlyText</textarea>
-    <small id="@_helpId">Copy or download these one-time codes and keep them somewhere safe.</small>
+    <small id="@_helpId">@L["RecoveryCodesDisplay_CopyOrDownloadTheseOne"]</small>
     <div class="recovery-codes-display__actions">
-        <AppButton Label="Copy all"
+        <AppButton Label="@L["RecoveryCodesDisplay_CopyAll"].Value"
                    StartIcon="@AppMaterialIcons.Outlined.ContentCopy"
                    OnClick="CopyAsync" />
-        <AppButton Label="Download .txt"
+        <AppButton Label="@L["RecoveryCodesDisplay_DownloadTxt"].Value"
                    StartIcon="@AppMaterialIcons.Outlined.Download"
                    Href="@DownloadUri"
                    download="@FileName" />

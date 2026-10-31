@@ -127,7 +127,7 @@ public sealed partial class AppNameGuardrailTests
                     continue;
                 }
 
-                var text = File.ReadAllText(path);
+                var text = LocalizedSource.ReadAllText(path);
                 if (!text.Contains("Tuvima", StringComparison.Ordinal))
                 {
                     continue;

@@ -2,19 +2,20 @@
 @using MediaEngine.Web.Services.Settings
 @inject MetadataSettingsStateService StateService
 @inject ILogger<MetadataSettingsPage> Logger
+@inject IStringLocalizer<SharedStrings> L
 
 @* Metadata now holds only the Ingestion Flow. Each source (provider) is a plugin with its own page under Plugins
    (Plugins and Integrations screens v3 D18). *@
 <MetadataAdminShell ActiveSubsection="ingestion-flow">
     @if (_loading)
     {
-        <AppPageState Kind="AppPageStateKind.Loading" Title="Loading metadata settings" Class="tl-sp-py-8" />
+        <AppPageState Kind="AppPageStateKind.Loading" Title="@L["MetadataSettingsPage_LoadingMetadataSettings"].Value" Class="tl-sp-py-8" />
     }
     else if (!string.IsNullOrWhiteSpace(_loadError) || _snapshot is null)
     {
         <AppPageState Kind="AppPageStateKind.Error"
                       Icon="@AppMaterialIcons.Outlined.CloudOff"
-                      Title="Metadata settings are unavailable"
+                      Title="@L["MetadataSettingsPage_MetadataSettingsAreUnavailable"].Value"
                       Message="@(_loadError ?? "The Engine did not return metadata configuration.")" />
     }
     else

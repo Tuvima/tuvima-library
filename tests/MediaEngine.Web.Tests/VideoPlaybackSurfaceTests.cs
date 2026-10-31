@@ -6,11 +6,11 @@ public sealed class VideoPlaybackSurfaceTests
     public void ExpandedVideoKeepsMountedMediaAndUsesAnchoredChromeWithinContainerFullscreen()
     {
         var root = FindRepoRoot();
-        var razor = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor"));
-        var css = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor.css"));
+        var razor = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor"));
+        var css = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor.css"));
         Assert.True(razor.IndexOf("<video", StringComparison.Ordinal) < razor.IndexOf("@if (Playback.IsVideoMode && Playback.IsVideoExpanded", StringComparison.Ordinal));
         Assert.Contains("<PlaybackVideoChrome", razor);
-        Assert.Contains("data-playback-chrome-bottom", File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor")));
+        Assert.Contains("data-playback-chrome-bottom", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor")));
         Assert.Contains("Close video", razor);
         Assert.DoesNotContain("Back to details", razor);
         Assert.Contains("<PlaybackPopover Title=\"Subtitles &amp; Audio\"", razor);
@@ -19,18 +19,18 @@ public sealed class VideoPlaybackSurfaceTests
         Assert.DoesNotContain("video-playback-host__tool-backdrop", razor);
         Assert.DoesNotContain("CurrentItem!.AssetId!.Value", razor);
         Assert.Contains("object-fit:contain", css);
-        Assert.Contains("playback-video-controls", File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor.css")));
+        Assert.Contains("playback-video-controls", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor.css")));
         Assert.Contains("width:min(320px", css);
         Assert.Contains("<PlaybackSeekRail", razor);
         Assert.Contains("playback-video-controls__volume", razor);
-        Assert.Contains("flex-wrap:wrap", File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor.css")));
+        Assert.Contains("flex-wrap:wrap", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor.css")));
     }
     [Fact]
     public void CaptionSheetUsesObservedNativeAndHlsTrackInventory()
     {
         var root = FindRepoRoot();
-        var razor = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor"));
-        var script = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/app.js"));
+        var razor = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor"));
+        var script = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/app.js"));
 
         Assert.Contains("@foreach (var track in _captionTracks)", razor, StringComparison.Ordinal);
         Assert.Contains("IsActive=\"@(!_captionTracks.Any(track => track.Selected))\"", razor, StringComparison.Ordinal);
@@ -41,7 +41,7 @@ public sealed class VideoPlaybackSurfaceTests
         Assert.Contains("element.textTracks?.addEventListener('change'", script, StringComparison.Ordinal);
         Assert.Contains("data-playback-asset-id=\"@Playback.CurrentItem?.AssetId\"", razor, StringComparison.Ordinal);
         Assert.Contains("Playback.CurrentItem?.AssetId != observedAssetId", razor, StringComparison.Ordinal);
-        var chrome = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/js/playback-chrome.js"));
+        var chrome = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/js/playback-chrome.js"));
         Assert.DoesNotContain("updateAutomaticCaptionPlacement", script, StringComparison.Ordinal);
         Assert.Contains("cue.lineAlign = 'end'", chrome, StringComparison.Ordinal);
         Assert.Contains("state.restoreCues()", chrome, StringComparison.Ordinal);

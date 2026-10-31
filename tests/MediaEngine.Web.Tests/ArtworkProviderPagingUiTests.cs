@@ -6,7 +6,7 @@ public sealed class ArtworkProviderPagingUiTests
     public void ProviderPickerCarriesServerContextAcrossExplicitPages()
     {
         var root = FindRepositoryRoot();
-        var source = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Artwork", "ArtworkAssetPickerDialog.razor"));
+        var source = LocalizedSource.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Artwork", "ArtworkAssetPickerDialog.razor"));
 
         Assert.Contains("Label=\"@(_loadingMore ? \"Loading…\" : \"Load more\")\"", source, StringComparison.Ordinal);
         Assert.Contains("_discovery.HasMore", source, StringComparison.Ordinal);

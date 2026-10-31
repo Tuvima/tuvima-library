@@ -1,12 +1,13 @@
 @namespace MediaEngine.Web.Components.Shared
 @inject IEngineApiClient ApiClient
 @implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 @* The folders inside one segment of the picker's address bar. It sits in the segment's menu, so it is created (and loads) only when that menu opens. *@
 <div class="server-folder-segment-menu">
     @if (_loading)
     {
-        <div class="app-menu-item" aria-live="polite">Loading folders...</div>
+        <div class="app-menu-item" aria-live="polite">@L["ServerFolderSegmentMenu_LoadingFolders"]</div>
     }
     else if (_folders.Count == 0)
     {

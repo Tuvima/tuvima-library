@@ -2,35 +2,36 @@
 @using MediaEngine.Contracts.Items
 @implements IDisposable
 @inject IEngineApiClient Api
+@inject IStringLocalizer<SharedStrings> L
 
 @* Editing Mode on a video: put a video that stands alone into a series, or take it out of one. It only changes how Library
    shows the video; the file is never moved or renamed. Nothing is drawn for anything that is not a video. *@
 @if (Mode is { IsOn: true } mode && mode.Fields.Loaded && _state is { Supported: true })
 {
-    <section class="tl-editing-series" aria-label="Series">
-        <header class="tl-editing-series__heading"><span>Series</span></header>
+    <section class="tl-editing-series" aria-label="@L["Common_Series"].Value">
+        <header class="tl-editing-series__heading"><span>@L["Common_Series"]</span></header>
         @if (_state.InSeries)
         {
-            <p class="tl-editing-series__text">In the series <strong>@_state.SeriesTitle</strong>.</p>
+            <p class="tl-editing-series__text">@L["EditingVideoSeries_InTheSeries"] <strong>@_state.SeriesTitle</strong>.</p>
             <div class="tl-editing-series__actions">
-                <AppButton Label="Take out of series" Size="AppControlSize.Compact" Disabled="@_busy" OnClick="RemoveAsync" />
+                <AppButton Label="@L["EditingVideoSeries_TakeOutOfSeries"].Value" Size="AppControlSize.Compact" Disabled="@_busy" OnClick="RemoveAsync" />
             </div>
         }
         else
         {
-            <p class="tl-editing-series__text">This video stands on its own. Put it in a series to show it with the others.</p>
-            <AppSelect Label="Series" Native="true" Value="@_choice" ValueChanged="@(value => _choice = value ?? string.Empty)"
+            <p class="tl-editing-series__text">@L["EditingVideoSeries_ThisVideoStandsOnIts"]</p>
+            <AppSelect Label="@L["Common_Series"].Value" Native="true" Value="@_choice" ValueChanged="@(value => _choice = value ?? string.Empty)"
                        Options="Options" Disabled="@_busy" />
             @if (_choice == NewSeries)
             {
-                <AppTextField Label="Name of the new series" Value="@_name" ValueChanged="@(value => _name = value ?? string.Empty)"
+                <AppTextField Label="@L["EditingVideoSeries_NameOfTheNewSeries"].Value" Value="@_name" ValueChanged="@(value => _name = value ?? string.Empty)"
                               MaxLength="200" Disabled="@_busy" />
             }
             <div class="tl-editing-series__actions">
-                <AppButton Label="Put in series" Size="AppControlSize.Compact" Disabled="@(_busy || !CanPromote)" OnClick="PromoteAsync" />
+                <AppButton Label="@L["EditingVideoSeries_PutInSeries"].Value" Size="AppControlSize.Compact" Disabled="@(_busy || !CanPromote)" OnClick="PromoteAsync" />
             </div>
         }
-        <p class="tl-editing-series__note">Your files are not moved or renamed.</p>
+        <p class="tl-editing-series__note">@L["EditingVideoSeries_YourFilesAreNotMoved"]</p>
         @if (_error is not null)
         {
             <p class="tl-editing-series__error" role="alert">@_error</p>

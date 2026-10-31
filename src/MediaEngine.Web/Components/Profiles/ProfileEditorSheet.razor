@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Profiles
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Models.ViewDTOs
+@inject IStringLocalizer<SharedStrings> L
 @* The one sheet for adding and editing a profile: name, avatar (colour, icon or photo), Kids switch, PIN and delete.
    It is a bottom sheet on phones and a centred dialog on larger screens. It only gathers choices and reports them through
    OnSave / OnDelete; the page that opens it talks to the Engine. *@
@@ -40,8 +41,8 @@
             }
 
             <label class="profile-editor__field">
-                <span>Name</span>
-                <AppNativeInput Type="text" Class="who-dialog__input profile-editor__name" Value="@_name" Placeholder="Name" AriaLabel="Name" maxlength="50" Disabled="@Saving" OnInput="OnNameInput" />
+                <span>@L["Users_ColName"]</span>
+                <AppNativeInput Type="text" Class="who-dialog__input profile-editor__name" Value="@_name" Placeholder="@L["Users_ColName"].Value" AriaLabel="@L["Users_ColName"].Value" maxlength="50" Disabled="@Saving" OnInput="OnNameInput" />
             </label>
 
             @if (!SelfEdit)
@@ -52,16 +53,16 @@
                     @* Only while adding: on an existing person the Kid's profile switch lives on their own page (library access D9). *@
                     <label class="profile-editor__setting">
                         <span class="profile-editor__setting-text">
-                            <strong>Kid's profile</strong>
-                            <small>A calmer, simpler Library that follows the household's Kid settings.</small>
+                            <strong>@L["Common_KidSProfile"]</strong>
+                            <small>@L["ProfileEditorSheet_ACalmerSimplerLibraryThat"]</small>
                         </span>
-                        <AppNativeInput Type="checkbox" Class="who-check__box" Checked="@_isChild" Disabled="@Saving" AriaLabel="Kid's profile" OnChange="OnKidsChanged" />
+                        <AppNativeInput Type="checkbox" Class="who-check__box" Checked="@_isChild" Disabled="@Saving" AriaLabel="@L["Common_KidSProfile"].Value" OnChange="OnKidsChanged" />
                     </label>
                 }
 
                 <div class="profile-editor__setting">
                     <span class="profile-editor__setting-text">
-                        <strong>PIN</strong>
+                        <strong>@L["Common_PIN"]</strong>
                         <small>@PinStatus</small>
                     </span>
                     <span class="profile-editor__setting-actions">
@@ -70,12 +71,12 @@
                             <AppNativeButton Type="button" Class="who-button" Disabled="@Saving" OnClick="StartPinChange">@(PinSet ? "Change" : "Set")</AppNativeButton>
                             @if (PinSet)
                             {
-                                <AppNativeButton Type="button" Class="who-button" Disabled="@Saving" OnClick="RemovePin">Remove</AppNativeButton>
+                                <AppNativeButton Type="button" Class="who-button" Disabled="@Saving" OnClick="RemovePin">@L["Common_Remove"]</AppNativeButton>
                             }
                         }
                         else
                         {
-                            <AppNativeButton Type="button" Class="who-button" Disabled="@Saving" OnClick="CancelPinChange">Cancel</AppNativeButton>
+                            <AppNativeButton Type="button" Class="who-button" Disabled="@Saving" OnClick="CancelPinChange">@L["Search_Cancel"]</AppNativeButton>
                         }
                     </span>
                 </div>
@@ -83,7 +84,7 @@
                 @if (_changingPin)
                 {
                     <div class="profile-editor__pin">
-                        <PinPad @bind-Value="_pin" Disabled="@Saving" MaxLength="12" Label="New PIN" OnCancel="CancelPinChange" />
+                        <PinPad @bind-Value="_pin" Disabled="@Saving" MaxLength="12" Label="@L["ProfileEditorSheet_NewPIN"].Value" OnCancel="CancelPinChange" />
                         <small>@PinHint</small>
                     </div>
                 }
@@ -97,22 +98,22 @@
 
             @if (_confirmingDelete)
             {
-                <div class="profile-editor__confirm" role="alertdialog" aria-label="Confirm delete">
-                    <p><strong>Delete @(string.IsNullOrWhiteSpace(Profile?.DisplayName) ? "this profile" : Profile!.DisplayName)?</strong> Everything personal in this profile goes: progress, bookmarks, lists and history.@SignInSentence Library files are never touched.</p>
+                <div class="profile-editor__confirm" role="alertdialog" aria-label="@L["Common_ConfirmDelete"].Value">
+                    <p><strong>Delete @(string.IsNullOrWhiteSpace(Profile?.DisplayName) ? "this profile" : Profile!.DisplayName)?</strong> @L["ProfileEditorSheet_EverythingPersonalInThisProfile", SignInSentence]</p>
                     <fieldset class="profile-editor__photos" disabled="@Saving">
-                        <legend>What about their personal photos?</legend>
+                        <legend>@L["ProfileEditorSheet_WhatAboutTheirPersonalPhotos"]</legend>
                         <label class="profile-editor__choice">
-                            <AppNativeInput Type="radio" Name="profile-photos" Class="who-check__box" Checked="@_keepPhotos" AriaLabel="Move their photos to Shared" Disabled="@Saving" OnChange="KeepPhotos" />
-                            <span><strong>Move to Shared</strong><small>Tagged "From @(Profile?.DisplayName)" with today's date.</small></span>
+                            <AppNativeInput Type="radio" Name="profile-photos" Class="who-check__box" Checked="@_keepPhotos" AriaLabel="@L["ProfileEditorSheet_MoveTheirPhotosToShared"].Value" Disabled="@Saving" OnChange="KeepPhotos" />
+                            <span><strong>@L["ProfileEditorSheet_MoveToShared"]</strong><small>@L["ProfileEditorSheet_TaggedFromWithTodayS", Profile?.DisplayName ?? string.Empty]</small></span>
                         </label>
                         <label class="profile-editor__choice">
-                            <AppNativeInput Type="radio" Name="profile-photos" Class="who-check__box" Checked="@(!_keepPhotos)" AriaLabel="Delete their photos" Disabled="@Saving" OnChange="DeletePhotos" />
-                            <span><strong>Delete</strong><small>This can't be undone.</small></span>
+                            <AppNativeInput Type="radio" Name="profile-photos" Class="who-check__box" Checked="@(!_keepPhotos)" AriaLabel="@L["ProfileEditorSheet_DeleteTheirPhotos"].Value" Disabled="@Saving" OnChange="DeletePhotos" />
+                            <span><strong>@L["Common_Delete"]</strong><small>@L["ProfileEditorSheet_ThisCanTBeUndone"]</small></span>
                         </label>
                     </fieldset>
                     <div class="profile-editor__row">
-                        <AppNativeButton Type="button" Class="who-button" Disabled="@Saving" OnClick="CancelDelete">Keep profile</AppNativeButton>
-                        <AppNativeButton Type="button" Class="who-button who-button--danger" Disabled="@Saving" OnClick="ConfirmDeleteAsync">Delete</AppNativeButton>
+                        <AppNativeButton Type="button" Class="who-button" Disabled="@Saving" OnClick="CancelDelete">@L["ProfileEditorSheet_KeepProfile"]</AppNativeButton>
+                        <AppNativeButton Type="button" Class="who-button who-button--danger" Disabled="@Saving" OnClick="ConfirmDeleteAsync">@L["Common_Delete"]</AppNativeButton>
                     </div>
                 </div>
             }
@@ -120,10 +121,10 @@
             <div class="profile-editor__actions">
                 @if (!IsAdd && CanDelete && !SelfEdit)
                 {
-                    <AppNativeButton Type="button" Class="who-button who-button--danger profile-editor__delete" Disabled="@(Saving || _confirmingDelete)" OnClick="AskDelete">Delete profile</AppNativeButton>
+                    <AppNativeButton Type="button" Class="who-button who-button--danger profile-editor__delete" Disabled="@(Saving || _confirmingDelete)" OnClick="AskDelete">@L["Users_DeleteProfileTooltip"]</AppNativeButton>
                 }
                 <span class="profile-editor__spacer"></span>
-                <AppNativeButton Type="button" Class="who-button" Disabled="@Saving" OnClick="CloseAsync">Cancel</AppNativeButton>
+                <AppNativeButton Type="button" Class="who-button" Disabled="@Saving" OnClick="CloseAsync">@L["Search_Cancel"]</AppNativeButton>
                 <AppNativeButton Type="button" Class="who-button who-button--primary" Disabled="@(!CanSave)" OnClick="SaveAsync">
                     @(Saving ? "Saving…" : IsAdd ? "Add profile" : "Save")
                 </AppNativeButton>

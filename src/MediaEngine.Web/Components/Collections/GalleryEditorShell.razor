@@ -13,20 +13,21 @@
 @inject IEngineApiClient ApiClient
 @inject UIOrchestratorService Orchestrator
 @inject IAppToastService Snackbar
+@inject IStringLocalizer<SharedStrings> L
 
 <MediaEditorSurface>
     <div class="sme-shell collection-editor-workspace">
         <header class="sme-header collection-editor-header">
             <div class="collection-editor-header-icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PhotoAlbum" /></div>
             <div class="sme-header-copy">
-                <div class="sme-kicker">Gallery editor</div>
+                <div class="sme-kicker">@L["GalleryEditorShell_GalleryEditor"]</div>
                 <h2 class="sme-title">@(string.IsNullOrWhiteSpace(_name) ? (IsEditing ? "Edit Gallery" : "New Gallery") : _name)</h2>
                 <div class="sme-subtitle">@(Request.Vault ? "Organize Vault images by hand or with a rule." : "Organize photos and videos with the same manual or smart membership model.")</div>
             </div>
-            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="Close editor" AriaLabel="Close editor" OnClick="Cancel" />
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="@L["Common_CloseEditor"].Value" AriaLabel="@L["Common_CloseEditor"].Value" OnClick="Cancel" />
         </header>
         <div class="sme-workspace collection-editor-layout">
-            <nav class="sme-section-nav collection-editor-rail" aria-label="Gallery editor sections">
+            <nav class="sme-section-nav collection-editor-rail" aria-label="@L["GalleryEditorShell_GalleryEditorSections"].Value">
                 @foreach (var tab in VisibleTabs)
                 {
                     <AppButton ButtonStyle="AppButtonStyle.Text" Class="@TabClass(tab.Id)" OnClick="@(() => _activeTab = tab.Id)">
@@ -36,7 +37,7 @@
                 @if (IsEditing)
                 {
                     <div class="collection-editor-rail-footer">
-                        <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Error" StartIcon="@AppMaterialIcons.Outlined.DeleteOutline" OnClick="DeleteAsync">Delete gallery</AppButton>
+                        <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Error" StartIcon="@AppMaterialIcons.Outlined.DeleteOutline" OnClick="DeleteAsync">@L["GalleryEditorShell_DeleteGallery"]</AppButton>
                         <small>@(Request.Vault ? "The images are kept." : "Original photos and videos are kept.")</small>
                     </div>
                 }
@@ -46,24 +47,24 @@
                     @if (_activeTab == "details")
                     {
                         <div class="collection-editor-pane collection-editor-panel-stack">
-                            <AppTextField T="string" @bind-Value="_name" Label="Name" Variant="AppVariant.Outlined" Immediate="true" />
-                            <AppTextarea @bind-Value="_description" Label="Description (optional)" Lines="5" Immediate="true" />
+                            <AppTextField T="string" @bind-Value="_name" Label="@L["Users_ColName"].Value" Variant="AppVariant.Outlined" Immediate="true" />
+                            <AppTextarea @bind-Value="_description" Label="@L["Common_DescriptionOptional"].Value" Lines="5" Immediate="true" />
                         </div>
                     }
                     else if (_activeTab == "artwork")
                     {
                         <div class="collection-editor-pane">
-                            <div class="collection-editor-empty"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AutoAwesomeMotion" /><strong>Automatic cover</strong><span>The Gallery uses its cover item and falls back to the newest matching photo.</span></div>
+                            <div class="collection-editor-empty"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AutoAwesomeMotion" /><strong>@L["GalleryEditorShell_AutomaticCover"]</strong><span>@L["GalleryEditorShell_TheGalleryUsesItsCover"]</span></div>
                         </div>
                     }
                     else if (_activeTab == "membership")
                     {
-                        <div class="collection-editor-pane"><MediaEditorPanel Title="Membership" Description="Choose how photos and videos enter this Gallery.">
+                        <div class="collection-editor-pane"><MediaEditorPanel Title="@L["Common_Membership"].Value" Description="@L["GalleryEditorShell_ChooseHowPhotosAndVideos"].Value">
                             @if (!(Request.Vault && IsEditing))
                             {
                                 <div class="collection-editor-membership-mode"><div class="collection-editor-membership-mode__options">
-                                    <AppNativeButton Type="button" Class="@(!_smart ? "is-selected" : null)" OnClick="@(() => SetSmart(false))">Manual</AppNativeButton>
-                                    <AppNativeButton Type="button" Class="@(_smart ? "is-selected" : null)" OnClick="@(() => SetSmart(true))">Smart</AppNativeButton>
+                                    <AppNativeButton Type="button" Class="@(!_smart ? "is-selected" : null)" OnClick="@(() => SetSmart(false))">@L["GalleryEditorShell_Manual"]</AppNativeButton>
+                                    <AppNativeButton Type="button" Class="@(_smart ? "is-selected" : null)" OnClick="@(() => SetSmart(true))">@L["Common_Smart"]</AppNativeButton>
                                 </div></div>
                             }
                         </MediaEditorPanel>
@@ -73,23 +74,23 @@
                         }
                         else if (Request.Vault)
                         {
-                            <MediaEditorPanel Title="Manual items" Description="Open an image in the Vault viewer and choose Add to gallery.">
-                                <div class="collection-editor-empty"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AddPhotoAlternate" /><span>Images are added one at a time from the viewer.</span></div>
+                            <MediaEditorPanel Title="@L["GalleryEditorShell_ManualItems"].Value" Description="@L["GalleryEditorShell_OpenAnImageInThe"].Value">
+                                <div class="collection-editor-empty"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AddPhotoAlternate" /><span>@L["GalleryEditorShell_ImagesAreAddedOneAt"]</span></div>
                             </MediaEditorPanel>
                         }
                         else
                         {
-                            <MediaEditorPanel Title="Manual items" Description="Use Add to Gallery from View to add or remove selected photos and videos.">
-                                <div class="collection-editor-empty"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AddPhotoAlternate" /><span>Manual membership stays available as a quick action throughout View.</span></div>
+                            <MediaEditorPanel Title="@L["GalleryEditorShell_ManualItems"].Value" Description="@L["GalleryEditorShell_UseAddToGalleryFrom"].Value">
+                                <div class="collection-editor-empty"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AddPhotoAlternate" /><span>@L["GalleryEditorShell_ManualMembershipStaysAvailableAs"]</span></div>
                             </MediaEditorPanel>
                         }
                         </div>
                     }
                     else if (_activeTab == "soundtrack")
                     {
-                        <div class="collection-editor-pane"><MediaEditorPanel Title="Soundtrack" Description="Optional music can enrich this Gallery without becoming a Gallery item.">
-                            <AppSelect T="string" Value="@_soundtrackPlaylistValue" ValueChanged="SoundtrackChanged" Label="Playlist" Variant="AppVariant.Outlined">
-                                <AppSelectItem T="string" Value="@(string.Empty)">No soundtrack</AppSelectItem>
+                        <div class="collection-editor-pane"><MediaEditorPanel Title="@L["GalleryEditorShell_Soundtrack"].Value" Description="@L["GalleryEditorShell_OptionalMusicCanEnrichThis"].Value">
+                            <AppSelect T="string" Value="@_soundtrackPlaylistValue" ValueChanged="SoundtrackChanged" Label="@L["GalleryEditorShell_Playlist"].Value" Variant="AppVariant.Outlined">
+                                <AppSelectItem T="string" Value="@(string.Empty)">@L["GalleryEditorShell_NoSoundtrack"]</AppSelectItem>
                                 @foreach (var playlist in _playlists)
                                 {
                                     <AppSelectItem T="string" Value="@(playlist.Id.ToString("D"))">@playlist.Name</AppSelectItem>
@@ -97,23 +98,23 @@
                             </AppSelect>
                             @if (_playlists.Count == 0)
                             {
-                                <AppAlert Tone="AppUiTone.Info">Create a playlist in Listen before linking a Gallery soundtrack.</AppAlert>
+                                <AppAlert Tone="AppUiTone.Info">@L["GalleryEditorShell_CreateAPlaylistInListen"]</AppAlert>
                             }
                             else
                             {
-                                <small>The linked playlist remains managed in Listen and does not count toward Gallery membership.</small>
+                                <small>@L["GalleryEditorShell_TheLinkedPlaylistRemainsManaged"]</small>
                             }
                         </MediaEditorPanel></div>
                     }
                     else
                     {
                         <div class="collection-editor-pane">
-                            <div class="collection-editor-history-entry"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AddCircleOutline" /><div><strong>Gallery created</strong><span>@Request.EditingGallery?.CreatedAt.ToLocalTime().ToString("f")</span></div></div>
+                            <div class="collection-editor-history-entry"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AddCircleOutline" /><div><strong>@L["GalleryEditorShell_GalleryCreated"]</strong><span>@Request.EditingGallery?.CreatedAt.ToLocalTime().ToString("f")</span></div></div>
                         </div>
                     }
                 </div>
                 <footer class="sme-footer collection-editor-footer">
-                    <div></div><div class="collection-editor-footer-actions"><AppButton ButtonStyle="AppButtonStyle.Text" OnClick="Cancel">Cancel</AppButton><AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_saving" OnClick="SaveAsync">@(IsEditing ? "Save" : "Create Gallery")</AppButton></div>
+                    <div></div><div class="collection-editor-footer-actions"><AppButton ButtonStyle="AppButtonStyle.Text" OnClick="Cancel">@L["Search_Cancel"]</AppButton><AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_saving" OnClick="SaveAsync">@(IsEditing ? "Save" : "Create Gallery")</AppButton></div>
                 </footer>
             </main>
         </div>

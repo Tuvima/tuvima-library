@@ -3,11 +3,12 @@
 @inject IEngineApiClient ApiClient
 @inject IAppDialogService DialogService
 @inject ILogger<ToolsRequirementsTab> Logger
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="tl-page tools-requirements">
     <div class="tools-requirements__toolbar">
         <span class="tools-requirements__checked">@CheckedLine</span>
-        <AppButton Label="Check again" StartIcon="@AppMaterialIcons.Outlined.Refresh" Loading="_checking" Disabled="@(_loading || _checking)" OnClick="CheckAgainAsync" />
+        <AppButton Label="@L["Common_CheckAgain"].Value" StartIcon="@AppMaterialIcons.Outlined.Refresh" Loading="_checking" Disabled="@(_loading || _checking)" OnClick="CheckAgainAsync" />
     </div>
 
     @if (!string.IsNullOrWhiteSpace(_message))
@@ -17,22 +18,22 @@
 
     @if (_loading)
     {
-        <AppPageState Kind="AppPageStateKind.Loading" Title="Checking tools" Message="Looking at the tools and downloads the Library relies on." />
+        <AppPageState Kind="AppPageStateKind.Loading" Title="@L["ToolsRequirementsTab_CheckingTools"].Value" Message="@L["ToolsRequirementsTab_LookingAtTheToolsAnd"].Value" />
     }
     else if (_tools is null)
     {
-        <AppErrorState Title="Could not check the tools"
-                       Message="The Library could not get the tools list from the server. Check that the server is online, then try again."
+        <AppErrorState Title="@L["ToolsRequirementsTab_CouldNotCheckTheTools"].Value"
+                       Message="@L["ToolsRequirementsTab_TheLibraryCouldNotGet"].Value"
                        Retry="LoadAsync" />
     }
     else
     {
         @if (_tools.NeedsAttention)
         {
-            <AppAlert Tone="AppUiTone.Warning" Class="tl-sp-mb-3">Something the Library needs isn't ready. Files that need it wait until it is.</AppAlert>
+            <AppAlert Tone="AppUiTone.Warning" Class="tl-sp-mb-3">@L["ToolsRequirementsTab_SomethingTheLibraryNeedsIsn"]</AppAlert>
         }
 
-        <AppCard Title="Tools" Description="Outside programs the Library uses to read and prepare your media." Class="tl-sp-mb-3">
+        <AppCard Title="@L["Common_Tools"].Value" Description="@L["ToolsRequirementsTab_OutsideProgramsTheLibraryUses"].Value" Class="tl-sp-mb-3">
             <div class="tools-requirements__list" data-testid="tools-list">
                 @foreach (var tool in Tools)
                 {
@@ -41,11 +42,11 @@
                         <Actions>
                             @if (tool.State == ToolRequirementStates.Downloading)
                             {
-                                <AppButton Label="Cancel" Size="AppControlSize.Compact" Tone="AppUiTone.Warning" Disabled="@(_busyId is not null)" OnClick="@(() => CancelInstallAsync(tool))" />
+                                <AppButton Label="@L["Search_Cancel"].Value" Size="AppControlSize.Compact" Tone="AppUiTone.Warning" Disabled="@(_busyId is not null)" OnClick="@(() => CancelInstallAsync(tool))" />
                             }
                             @if (tool.State == ToolRequirementStates.InstallerReady)
                             {
-                                <AppButton Label="Run installer" Size="AppControlSize.Compact" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@(_busyId is not null)" OnClick="@(() => RunInstallerAsync(tool))" />
+                                <AppButton Label="@L["Common_RunInstaller"].Value" Size="AppControlSize.Compact" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@(_busyId is not null)" OnClick="@(() => RunInstallerAsync(tool))" />
                             }
                         </Actions>
                     </ToolRequirementRow>
@@ -53,7 +54,7 @@
             </div>
         </AppCard>
 
-        <AppCard Title="Local AI models" Description="Model files for the optional local AI features are looked after on the Local AI page. They are downloaded only when you ask." Class="tl-sp-mb-3">
+        <AppCard Title="@L["ToolsRequirementsTab_LocalAIModels"].Value" Description="@L["ToolsRequirementsTab_ModelFilesForTheOptional"].Value" Class="tl-sp-mb-3">
             <AppButton Label="Open Models &amp; Hardware" Href="@SettingsNav.RouteFor(SettingsSection.LocalAi, "models")" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" data-testid="models-link" />
         </AppCard>
     }

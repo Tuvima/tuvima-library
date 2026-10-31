@@ -11,6 +11,7 @@
 @inject GalleryEditorLauncherService GalleryEditorLauncher
 @inject DeviceContextService DeviceContext
 @namespace MediaEngine.Web.Components.Pages
+@inject IStringLocalizer<SharedStrings> L
 
 <PageTitle>@(_gallery is null ? "Gallery" : _gallery.Name) - Library</PageTitle>
 
@@ -18,42 +19,42 @@
     <div class="view-feature-page">
         @if (_loading)
         {
-            <AppPageState Kind="AppPageStateKind.Loading" Title="Loading Gallery" Message="Opening Gallery items." />
+            <AppPageState Kind="AppPageStateKind.Loading" Title="@L["ViewGalleryDetailPage_LoadingGallery"].Value" Message="@L["ViewGalleryDetailPage_OpeningGalleryItems"].Value" />
         }
         else if (_gallery is null)
         {
-            <AppErrorState Title="Gallery unavailable" Message="This Gallery was not found or is not shared with the active profile." />
+            <AppErrorState Title="@L["ViewGalleryDetailPage_GalleryUnavailable"].Value" Message="@L["ViewGalleryDetailPage_ThisGalleryWasNotFound"].Value" />
         }
         else
         {
             <header class="view-feature-page__header">
                 <div class="view-feature-page__identity">
-                    <span>@_gallery.Kind Gallery</span>
+                    <span>@L["ViewGalleryDetailPage_Gallery", _gallery.Kind]</span>
                     <h1>@_gallery.Name</h1>
                     <p>@(_gallery.Description ?? $"{_gallery.ItemCount} items")</p>
                     <dl>
-                        <div><dt>Items</dt><dd>@_gallery.ItemCount</dd></div>
-                        <div><dt>Owner</dt><dd>@(IsOwner ? "You" : "Shared owner")</dd></div>
-                        <div><dt>Membership</dt><dd>@(_gallery.Kind == ViewGalleryKind.Smart ? "Updates from saved rules" : "Items people add")</dd></div>
+                        <div><dt>@L["ViewGalleryDetailPage_Items"]</dt><dd>@_gallery.ItemCount</dd></div>
+                        <div><dt>@L["ViewGalleryDetailPage_Owner"]</dt><dd>@(IsOwner ? "You" : "Shared owner")</dd></div>
+                        <div><dt>@L["Common_Membership"]</dt><dd>@(_gallery.Kind == ViewGalleryKind.Smart ? "Updates from saved rules" : "Items people add")</dd></div>
                     </dl>
                     @if (_gallery.Kind == ViewGalleryKind.Smart)
                     {
                         <details>
-                            <summary>Smart rule summary</summary>
+                            <summary>@L["ViewGalleryDetailPage_SmartRuleSummary"]</summary>
                             <code>@_gallery.SmartRuleJson</code>
                         </details>
                     }
                 </div>
                 @if (IsOwner)
                 {
-                    <div class="view-feature-page__actions" role="group" aria-label="Gallery management">
+                    <div class="view-feature-page__actions" role="group" aria-label="@L["ViewGalleryDetailPage_GalleryManagement"].Value">
                         @if (_gallery.Kind == ViewGalleryKind.Smart && DeviceContext.CanEdit)
                         {
-                            <AppButton Label="Edit Gallery" ButtonStyle="AppButtonStyle.Outlined" OnClick="OpenEdit" />
+                            <AppButton Label="@L["ViewGalleryDetailPage_EditGallery"].Value" ButtonStyle="AppButtonStyle.Outlined" OnClick="OpenEdit" />
                         }
                         @if (_shareTargets is not null)
                         {
-                            <AppButton Label="Share" ButtonStyle="AppButtonStyle.Outlined" OnClick="OpenShareAsync" />
+                            <AppButton Label="@L["ViewGalleryDetailPage_Share"].Value" ButtonStyle="AppButtonStyle.Outlined" OnClick="OpenShareAsync" />
                         }
                     </div>
                 }
@@ -62,7 +63,7 @@
             @if (_page?.Items.Count == 0)
             {
                 <AppPageState Kind="AppPageStateKind.Empty"
-                              Title="This Gallery is empty"
+                              Title="@L["ViewGalleryDetailPage_ThisGalleryIsEmpty"].Value"
                               Message="@(_gallery.Kind == ViewGalleryKind.Smart
                                   ? "Items will appear when they match this Gallery's saved rules."
                                   : "Select photos and use Add to Gallery, or drag photos onto this Gallery in the View sidebar.")" />
@@ -75,7 +76,7 @@
                                    OnOpen="Open"
                                    OnToggleSelection="Toggle"
                                    OnSelectDateGroup="SelectGroup" />
-                @if (_page.HasMore) { <AppButton Label="Load more" Disabled="@_loadingMore" OnClick="LoadMoreAsync" /> }
+                @if (_page.HasMore) { <AppButton Label="@L["Common_LoadMore"].Value" Disabled="@_loadingMore" OnClick="LoadMoreAsync" /> }
                 @if (IsOwner && _gallery.Kind == ViewGalleryKind.Manual && _selected.Count > 0)
                 {
                     <ViewSelectionToolbar Count="@_selected.Count" OnClear="@(() => _selected.Clear())" OnRemoveFromGallery="RemoveAsync" />
@@ -108,8 +109,8 @@
 }
 
 <AppDialog @bind-Visible="_shareOpen"
-           Title="Share Gallery"
-           Subtitle="Choose enabled profiles. This shares only this Gallery, not your Personal Space."
+           Title="@L["ViewGalleryDetailPage_ShareGallery"].Value"
+           Subtitle="@L["ViewGalleryDetailPage_ChooseEnabledProfilesThisShares"].Value"
            Icon="@AppMaterialIcons.Outlined.People"
            Size="Small">
     <ChildContent>
@@ -119,11 +120,11 @@
         }
         else if (_shareTargets is { Count: 0 })
         {
-            <AppAlert Tone="AppUiTone.Info">No other View-enabled profiles are available.</AppAlert>
+            <AppAlert Tone="AppUiTone.Info">@L["ViewGalleryDetailPage_NoOtherViewEnabledProfiles"]</AppAlert>
         }
         else if (_shareTargets is not null)
         {
-            <div class="view-gallery-share-list" aria-label="Gallery share recipients">
+            <div class="view-gallery-share-list" aria-label="@L["ViewGalleryDetailPage_GalleryShareRecipients"].Value">
                 @foreach (var target in _shareTargets)
                 {
                     <div class="view-gallery-share-row">
@@ -139,8 +140,8 @@
                                          OnChange="@(args => SharePermissionChanged(target.ProfileId, args))"
                                          Disabled="@(!IsShareSelected(target.ProfileId))"
                                          aria-label="@($"Permission for {target.DisplayName}")">
-                            <option value="view">Can view</option>
-                            <option value="contribute">Can contribute</option>
+                            <option value="view">@L["ViewGalleryDetailPage_CanView"]</option>
+                            <option value="contribute">@L["ViewGalleryDetailPage_CanContribute"]</option>
                         </AppNativeSelect>
                     </div>
                 }
@@ -153,7 +154,7 @@
     </ChildContent>
     <FooterContent>
         <AppActionBar>
-            <AppButton Label="Cancel" OnClick="@(() => _shareOpen = false)" />
+            <AppButton Label="@L["Search_Cancel"].Value" OnClick="@(() => _shareOpen = false)" />
             <AppButton Label="@(_savingShares ? "Saving…" : "Save sharing")"
                        ButtonStyle="AppButtonStyle.Filled"
                        Tone="AppUiTone.Primary"

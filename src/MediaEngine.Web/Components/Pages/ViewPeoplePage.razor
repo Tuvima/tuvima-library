@@ -6,26 +6,27 @@
 @inject UIOrchestratorService Orchestrator
 @inject ViewMediaGrantService MediaGrants
 @namespace MediaEngine.Web.Components.Pages
-<PageTitle>People - Library</PageTitle>
-<ViewSectionShell><ViewContentPage Title="People" Subtitle="Browse named and reviewed people evidence stored with your personal media.">
-<label class="view-search"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" /><AppNativeInput Type="search" Value="@_search" ValueChanged="SearchChanged" Placeholder="Search people" AriaLabel="Search people" /></label>
-@if (_loading) { <AppPageState Kind="AppPageStateKind.Loading" Title="Loading People" Message="Looking at indexed local metadata." /> }
-else if (_page is null) { <AppErrorState Title="People could not be loaded" Message="The discovery service did not return a result." Retry="LoadAsync" /> }
+@inject IStringLocalizer<SharedStrings> L
+<PageTitle>@L["ViewPeoplePage_PeopleLibrary"]</PageTitle>
+<ViewSectionShell><ViewContentPage Title="@L["Wikidata_PeopleGroupTitle"].Value" Subtitle="@L["ViewPeoplePage_BrowseNamedAndReviewedPeople"].Value">
+<label class="view-search"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" /><AppNativeInput Type="search" Value="@_search" ValueChanged="SearchChanged" Placeholder="@L["ViewPeoplePage_SearchPeople"].Value" AriaLabel="@L["ViewPeoplePage_SearchPeople"].Value" /></label>
+@if (_loading) { <AppPageState Kind="AppPageStateKind.Loading" Title="@L["ViewPeoplePage_LoadingPeople"].Value" Message="@L["ViewPeoplePage_LookingAtIndexedLocalMetadata"].Value" /> }
+else if (_page is null) { <AppErrorState Title="@L["ViewPeoplePage_PeopleCouldNotBeLoaded"].Value" Message="The discovery service did not return a result." Retry="LoadAsync" /> }
 else if (_page.Items.Count == 0) { <AppPageState Kind="AppPageStateKind.Empty" Title="@(_page.Capability.State == ViewDiscoveryCapabilityStates.NoMatches ? "No matching people" : "No people to show yet")" Message="@_page.Capability.Message" /> }
 else if (_person is not null)
 {
-    <AppButton Label="All people" OnClick="ClosePerson" />
+    <AppButton Label="@L["ViewPeoplePage_AllPeople"].Value" OnClick="ClosePerson" />
     <h2>@_person.DisplayName</h2>
-    @if (_mediaLoading) { <AppPageState Kind="AppPageStateKind.Loading" Title="Loading photos" /> }
-    else if (_media is null) { <AppErrorState Title="Photos could not be loaded" Retry="@(() => OpenPersonAsync(_person))" /> }
+    @if (_mediaLoading) { <AppPageState Kind="AppPageStateKind.Loading" Title="@L["ViewPeoplePage_LoadingPhotos"].Value" /> }
+    else if (_media is null) { <AppErrorState Title="@L["Common_PhotosCouldNotBeLoaded"].Value" Retry="@(() => OpenPersonAsync(_person))" /> }
     else
     {
         <ViewPhotoTimeline Items="@_media.Items" Selected="@_selected" ThumbnailUrl="@(item => Thumbnail(item.LibraryId, item.Id))" OnOpen="@(item => _active = item)" OnToggleSelection="ToggleSelection" OnSelectDateGroup="SelectGroup" />
         @if (_selected.Count > 0) { <ViewSelectionToolbar Count="@_selected.Count" OnClear="@(() => _selected.Clear())" OnFavorite="FavoriteSelectionAsync" /> }
-        @if (_media.HasMore) { <AppButton Label="Load more photos" Disabled="@_mediaLoadingMore" OnClick="LoadMoreMediaAsync" /> }
+        @if (_media.HasMore) { <AppButton Label="@L["ViewPeoplePage_LoadMorePhotos"].Value" Disabled="@_mediaLoadingMore" OnClick="LoadMoreMediaAsync" /> }
     }
 }
-else { <section class="view-discovery-grid" aria-label="People">@foreach (var person in _page.Items) { <AppNativeButton Class="view-discovery-card" AriaLabel="@($"View photos of {person.DisplayName}")" OnClick="@(_ => OpenPersonAsync(person))"><img src="@Thumbnail(person.RepresentativeLibraryId, person.RepresentativeAssetId)" alt="" loading="lazy" /><strong>@person.DisplayName</strong><span>@person.AssetCount media items</span>@if (person.HasReviewedEvidence) { <small>Reviewed identity</small> }</AppNativeButton> }</section>@if (_page.HasMore) { <AppButton ButtonStyle="AppButtonStyle.Outlined" OnClick="LoadMoreAsync">Load more</AppButton> } }
+else { <section class="view-discovery-grid" aria-label="@L["Wikidata_PeopleGroupTitle"].Value">@foreach (var person in _page.Items) { <AppNativeButton Class="view-discovery-card" AriaLabel="@($"View photos of {person.DisplayName}")" OnClick="@(_ => OpenPersonAsync(person))"><img src="@Thumbnail(person.RepresentativeLibraryId, person.RepresentativeAssetId)" alt="" loading="lazy" /><strong>@person.DisplayName</strong><span>@L["ViewPeoplePage_MediaItems", person.AssetCount]</span>@if (person.HasReviewedEvidence) { <small>@L["ViewPeoplePage_ReviewedIdentity"]</small> }</AppNativeButton> }</section>@if (_page.HasMore) { <AppButton ButtonStyle="AppButtonStyle.Outlined" OnClick="LoadMoreAsync">@L["Common_LoadMore"]</AppButton> } }
 </ViewContentPage></ViewSectionShell>
 @if (_active is not null)
 {

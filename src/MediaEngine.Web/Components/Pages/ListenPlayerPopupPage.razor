@@ -29,9 +29,9 @@
     {
         <div class="listen-popup__video-return">
             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OndemandVideo" />
-            <h1>Video is playing in the main window</h1>
-            <p>Your video remains in its original player.</p>
-            <AppNativeButton Type="button" OnClick="ReturnToVideoAsync" AriaLabel="Return to video player">Return to main window</AppNativeButton>
+            <h1>@L["ListenPlayerPopupPage_VideoIsPlayingInThe"]</h1>
+            <p>@L["ListenPlayerPopupPage_YourVideoRemainsInIts"]</p>
+            <AppNativeButton Type="button" OnClick="ReturnToVideoAsync" AriaLabel="@L["ListenPlayerPopupPage_ReturnToVideoPlayer"].Value">@L["ListenPlayerPopupPage_ReturnToMainWindow"]</AppNativeButton>
         </div>
     }
     else if (CurrentItem is null || _snapshot.IsDismissed)
@@ -56,12 +56,12 @@
                                  WorkTitle="@(CurrentItem?.Title ?? "Audiobook")" Surface="popup" Trigger="@_bookmarkTrigger" OnClose="DismissBookmarkDialogAsync" />
     }
     @if (!string.IsNullOrWhiteSpace(_bookmarkDialogError)) { <div class="listen-popup__status" role="status">@_bookmarkDialogError</div> }
-    else if (_bookmarkDialogOpening) { <div class="listen-popup__status" role="status">Opening saved bookmarks…</div> }
+    else if (_bookmarkDialogOpening) { <div class="listen-popup__status" role="status">@L["ListenPlayerPopupPage_OpeningSavedBookmarks"]</div> }
     @if (!string.IsNullOrWhiteSpace(_popupCommandError)) { <div class="listen-popup__status" role="status">@_popupCommandError</div> }
     @if (!string.IsNullOrWhiteSpace(_playbackStateError))
     {
         <div class="listen-popup__status" role="status">@_playbackStateError
-            <AppNativeButton Type="button" Class="listen-popup__retry-state" OnClick="RetryPlaybackStateAsync" AriaLabel="Retry playback state sync">Retry</AppNativeButton>
+            <AppNativeButton Type="button" Class="listen-popup__retry-state" OnClick="RetryPlaybackStateAsync" AriaLabel="@L["ListenPlayerPopupPage_RetryPlaybackStateSync"].Value">@L["Common_Retry"]</AppNativeButton>
         </div>
     }
 </div>

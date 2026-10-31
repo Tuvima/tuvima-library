@@ -5,6 +5,7 @@
 @inject IEngineApiClient Api
 @inject IJSRuntime JS
 @inject ILogger<ExtraViewerPage> Logger
+@inject IStringLocalizer<SharedStrings> L
 
 @* Opens one Extras card: a guidebook in the browser's own reader, a picture folder in a gallery with a full-size view, a clip in
    a plain video or audio player. A clip never touches watching progress: it is not an episode. EPUB guidebooks are download-only. *@
@@ -13,7 +14,7 @@
 
 <div class="tl-extra-viewer" data-state="@State" data-kind="@(_view?.Kind)">
     <header class="tl-extra-viewer__bar">
-        <AppIconButton Icon="@AppMaterialIcons.Filled.ArrowBack" Tooltip="Back" AriaLabel="Back" OnClick="GoBackAsync" />
+        <AppIconButton Icon="@AppMaterialIcons.Filled.ArrowBack" Tooltip="@L["Common_Back"].Value" AriaLabel="@L["Common_Back"].Value" OnClick="GoBackAsync" />
         <div class="tl-extra-viewer__heading">
             <h1>@(_view?.Title ?? "Extra")</h1>
             @if (!string.IsNullOrWhiteSpace(_view?.Subtitle))
@@ -23,7 +24,7 @@
         </div>
         @if (_view is { Kind: DetailExtraCardKinds.Document } && Current is { IsMissing: false })
         {
-            <a class="tl-extra-viewer__download" href="@FileHref(Current.Id)" download="@Current.FileName">Download</a>
+            <a class="tl-extra-viewer__download" href="@FileHref(Current.Id)" download="@Current.FileName">@L["Models_Download"]</a>
         }
     </header>
 
@@ -37,14 +38,14 @@
     {
         <div class="tl-extra-viewer__state" data-testid="extra-unavailable">
             <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Warning" Size="AppSize.Medium" />
-            <p>This extra isn't available. It may have been removed, or you may not have access to it.</p>
+            <p>@L["ExtraViewerPage_ThisExtraIsnTAvailable"]</p>
         </div>
     }
     else if (Current is { IsMissing: true })
     {
         <div class="tl-extra-viewer__state" data-testid="extra-missing">
             <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Warning" Size="AppSize.Medium" />
-            <p>File not found. It is no longer where Library found it.</p>
+            <p>@L["ExtraViewerPage_FileNotFoundItIs"]</p>
         </div>
     }
     else if (_view.Kind == DetailExtraCardKinds.Clip)
@@ -80,19 +81,19 @@
             <div class="tl-extra-viewer__lightbox" role="dialog" aria-modal="true" aria-label="@picture.Title" tabindex="0"
                  @onkeydown="OnLightboxKey" @ref="_lightbox">
                 <div class="tl-extra-viewer__lightbox-close">
-                    <AppIconButton Icon="@AppMaterialIcons.Filled.Close" Tooltip="Close" AriaLabel="Close" OnClick="CloseLightbox" />
+                    <AppIconButton Icon="@AppMaterialIcons.Filled.Close" Tooltip="@L["Common_Close"].Value" AriaLabel="@L["Common_Close"].Value" OnClick="CloseLightbox" />
                 </div>
                 @if (open > 0)
                 {
                     <div class="tl-extra-viewer__lightbox-prev">
-                        <AppIconButton Icon="@AppMaterialIcons.Filled.ChevronLeft" Tooltip="Previous" AriaLabel="Previous" OnClick="() => Step(-1)" />
+                        <AppIconButton Icon="@AppMaterialIcons.Filled.ChevronLeft" Tooltip="@L["Home_CarouselPrevious"].Value" AriaLabel="@L["Home_CarouselPrevious"].Value" OnClick="() => Step(-1)" />
                     </div>
                 }
                 <img src="@FileHref(picture.Id)" alt="@picture.Title" />
                 @if (open < _view.Items.Count - 1)
                 {
                     <div class="tl-extra-viewer__lightbox-next">
-                        <AppIconButton Icon="@AppMaterialIcons.Filled.ChevronRight" Tooltip="Next" AriaLabel="Next" OnClick="() => Step(1)" />
+                        <AppIconButton Icon="@AppMaterialIcons.Filled.ChevronRight" Tooltip="@L["Home_CarouselNext"].Value" AriaLabel="@L["Home_CarouselNext"].Value" OnClick="() => Step(1)" />
                     </div>
                 }
                 <span class="tl-extra-viewer__lightbox-count">@(open + 1) of @_view.Items.Count</span>
@@ -107,8 +108,8 @@
     {
         <div class="tl-extra-viewer__state" data-testid="extra-download-only">
             <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Description" Size="AppSize.Medium" />
-            <p>This kind of file opens in another app.</p>
-            <a class="tl-extra-viewer__download" href="@FileHref(Current!.Id)" download="@Current.FileName">Download @Current.FileName</a>
+            <p>@L["ExtraViewerPage_ThisKindOfFileOpens"]</p>
+            <a class="tl-extra-viewer__download" href="@FileHref(Current!.Id)" download="@Current.FileName">@L["ExtraViewerPage_Download", Current.FileName]</a>
         </div>
     }
 </div>

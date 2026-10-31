@@ -8,6 +8,7 @@
 @inject IJSRuntime JS
 @inject IServiceProvider Services
 @implements IAsyncDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 @if (Current is { } item)
 {
@@ -18,7 +19,7 @@
         @if (OnCollapse.HasDelegate)
         {
             <header class="playback-full__header">
-                <AppTooltip Text="Collapse player"><AppNativeButton Type="button" Class="playback-full__collapse" AriaLabel="Collapse player" OnClick="CollapseAsync"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Collapse" /></AppNativeButton></AppTooltip>
+                <AppTooltip Text="@L["PlaybackFullPlayer_CollapsePlayer"].Value"><AppNativeButton Type="button" Class="playback-full__collapse" AriaLabel="@L["PlaybackFullPlayer_CollapsePlayer"].Value" OnClick="CollapseAsync"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Collapse" /></AppNativeButton></AppTooltip>
             </header>
         }
         <div class="playback-full__content" data-player-mode="@(_tool ?? "art")">
@@ -52,7 +53,7 @@
                     { <p class="playback-full__secondary">Narrated by @if (item.Narrators.Count > 0)
                         { @for (var index = 0; index < item.Narrators.Count; index++) { var person = item.Narrators[index]; if (index > 0) { <text>; </text> } <PlaybackIdentityLink Snapshot="displayed" Commands="Commands" Kind="person" Id="person.PersonId" Text="@person.Name" NavigationCompleted="NavigationCompleted" /> } }
                         else { @item.NarratorName }</p> }
-                    @if (BookProgress is { } progress) { <p class="playback-full__book-progress">@progress.Label · @FormatTime(progress.Position) of @FormatTime(progress.Total)</p> }
+                    @if (BookProgress is { } progress) { <p class="playback-full__book-progress">@L["PlaybackFullPlayer_Of", progress.Label, FormatTime(progress.Position), FormatTime(progress.Total)]</p> }
                     @if (BookProgress?.ActiveChapter is { } chapter) { <p class="playback-full__chapter">@chapter.Title</p> }
                     else if (!string.IsNullOrWhiteSpace(item.Subtitle) && item.Subtitle != item.Title) { <p class="playback-full__chapter">@item.Subtitle</p> }
                 }
@@ -62,7 +63,7 @@
                     @if (!string.IsNullOrWhiteSpace(item.Album)) { <p class="playback-full__secondary"><PlaybackIdentityLink Snapshot="displayed" Commands="Commands" Kind="album" Id="item.AlbumWorkId" Text="@item.Album" NavigationCompleted="NavigationCompleted" /></p> }
                 }
                 @if (item.PlaylistId is { } playlist && !string.IsNullOrWhiteSpace(Snapshot.SourceLabel))
-                { <p class="playback-full__source">From <PlaybackIdentityLink Snapshot="displayed" Commands="Commands" Kind="playlist" Id="playlist" Text="@Snapshot.SourceLabel" NavigationCompleted="NavigationCompleted" /></p> }
+                { <p class="playback-full__source">@L["Common_From"] <PlaybackIdentityLink Snapshot="displayed" Commands="Commands" Kind="playlist" Id="playlist" Text="@Snapshot.SourceLabel" NavigationCompleted="NavigationCompleted" /></p> }
             </div>
             @if (_tool is not null)
             {
@@ -73,7 +74,7 @@
                         ShowTabs="@(!IsBook && _tool is "queue" or "history")" PanelChanged="PanelSelectedAsync" /> }
                 </div>
             }
-            <div class="playback-full__timeline" aria-label="Playback progress">
+            <div class="playback-full__timeline" aria-label="@L["PlaybackFullPlayer_PlaybackProgress"].Value">
                 <PlaybackSeekRail Surface="phone" Duration="@Duration" Position="@Math.Min(Snapshot.CurrentTimeSeconds, Duration)"
                                   ValueChanged="@(seconds => SendAsync(displayed, ListenPlaybackCommandActions.Seek, seconds))" />
             </div>
@@ -87,7 +88,7 @@
                 OnPreviousTrack="@(() => SendAsync(displayed, ListenPlaybackCommandActions.PlayPrevious))" OnNextTrack="@(() => SendAsync(displayed, ListenPlaybackCommandActions.PlayNext))"
                 OnPreviousChapter="@(() => SendAsync(displayed, ListenPlaybackCommandActions.PlayPreviousChapter))" OnNextChapter="@(() => SendAsync(displayed, ListenPlaybackCommandActions.PlayNextChapter))"
                 OnSkipBack="@(() => SendAsync(displayed, ListenPlaybackCommandActions.SkipBack))" OnSkipForward="@(() => SendAsync(displayed, ListenPlaybackCommandActions.SkipForward))" />
-            <div class="playback-full__modes" aria-label="Player views">
+            <div class="playback-full__modes" aria-label="@L["PlaybackFullPlayer_PlayerViews"].Value">
                 @foreach (var mode in Modes)
                 {
                     <AppTooltip Text="@mode.Label">
@@ -100,9 +101,9 @@
             @if (IsBook)
             {
                 <div class="playback-full__book-tools">
-                    <PlaybackPopover Title="More audiobook controls" ToolId="full-book-more" ShowHeading="false">
+                    <PlaybackPopover Title="@L["PlaybackFullPlayer_MoreAudiobookControls"].Value" ToolId="full-book-more" ShowHeading="false">
                         <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.More" /></TriggerContent>
-                        <ChildContent><PlaybackControlStrip Controls="BookTools" Surface="phone" AriaLabel="Audiobook controls"
+                        <ChildContent><PlaybackControlStrip Controls="BookTools" Surface="phone" AriaLabel="@L["Common_AudiobookControls"].Value"
                             SpeedValue="Snapshot.PlaybackRate" SpeedChanged="@(rate => SendAsync(displayed, ListenPlaybackCommandActions.SetSpeed, rate))"
                             SpeedMenuOpen="_speedOpen" SpeedMenuOpenChanged="SpeedMenuChangedAsync"
                             SleepTimerState="Snapshot.SleepTimerState" SleepTimerAvailability="Snapshot.SleepTimerAvailability" SleepTimerOptionsMinutes="Snapshot.SleepTimerOptionsMinutes" SleepTimerDefaultMinutes="Snapshot.DefaultSleepTimerMinutes" SleepTimerOffersEndOfChapter="Snapshot.AllowEndOfChapterSleepTimer"
@@ -114,11 +115,11 @@
             }
             <div class="playback-full__volume">
                 <AppTooltip Text="@(Snapshot.IsMuted ? "Unmute" : "Mute")"><AppNativeButton Type="button" AriaLabel="@(Snapshot.IsMuted ? "Unmute" : "Mute")" OnClick="@(() => SendAsync(displayed, ListenPlaybackCommandActions.ToggleMute))"><PlaybackUtilityGlyph Glyph="@(Snapshot.IsMuted ? PlaybackUtilityGlyphKind.Mute : PlaybackUtilityGlyphKind.Volume)" /></AppNativeButton></AppTooltip>
-                <AppRangeSlider Min="0" Max="1" Step="0.05" Value="Snapshot.Volume" ShowTicks="false" CommitOnChange="true" AriaLabel="Volume"
+                <AppRangeSlider Min="0" Max="1" Step="0.05" Value="Snapshot.Volume" ShowTicks="false" CommitOnChange="true" AriaLabel="@L["Common_Volume"].Value"
                     disabled="@(!Snapshot.SoftwareVolumeSupported)" ValueFormatter="@(value => $"{value:P0}")" ValueChanged="@(value => SendAsync(displayed, ListenPlaybackCommandActions.SetVolume, value))" />
                 <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Volume" />
             </div>
-            @if (!Snapshot.SoftwareVolumeSupported) { <p class="playback-full__status">Use your device volume buttons.</p> }
+            @if (!Snapshot.SoftwareVolumeSupported) { <p class="playback-full__status">@L["PlaybackFullPlayer_UseYourDeviceVolumeButtons"]</p> }
             @if (!string.IsNullOrWhiteSpace(_commandError)) { <p class="playback-full__status" role="status">@_commandError</p> }
         </div>
     </AppCssElement>

@@ -1,11 +1,12 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Web.Services.Formatting
+@inject IStringLocalizer<SharedStrings> L
 @* The last-30-days calendar (D3): whole Monday-to-Sunday weeks, one square a day, darker for busier days. Drawn only when there was
    some activity; the days outside the window are left blank. Days are UTC days, the same ones the Engine counts. *@
 <figure class="overview-heatmap" data-overview-heatmap>
     <div class="overview-heatmap__body">
         <ol class="overview-heatmap__days" aria-hidden="true">
-            <li>Mon</li><li></li><li>Wed</li><li></li><li>Fri</li><li></li><li></li>
+            <li>@L["OverviewHeatmap_Mon"]</li><li></li><li>@L["OverviewHeatmap_Wed"]</li><li></li><li>@L["OverviewHeatmap_Fri"]</li><li></li><li></li>
         </ol>
         <div class="overview-heatmap__grid" role="img" aria-label="@Summary" data-overview-heatmap-grid>
             @foreach (var day in Days)
@@ -18,12 +19,12 @@
         </div>
     </div>
     <figcaption class="overview-heatmap__legend" aria-hidden="true">
-        <span>Less</span>
+        <span>@L["OverviewHeatmap_Less"]</span>
         @for (var level = 0; level <= 4; level++)
         {
             <span class="@("overview-heatmap__cell overview-heatmap__cell--" + level)"></span>
         }
-        <span>More</span>
+        <span>@L["Common_More"]</span>
     </figcaption>
 </figure>
 

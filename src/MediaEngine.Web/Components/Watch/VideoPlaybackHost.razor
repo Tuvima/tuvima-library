@@ -18,6 +18,7 @@
 @inject NavigationManager Nav
 @inject ILogger<VideoPlaybackHost> Logger
 @implements IAsyncDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 <section @ref="_hostRef" class="@StageClass"
          data-subtitle-size="@SubtitleSizeValue" data-subtitle-background="@SubtitleBackgroundValue"
@@ -57,15 +58,15 @@
         {
             <div class="video-playback-host__status" role="status">@(Playback.CurrentError ?? "Preparing video… Playback will begin automatically.")</div>
         }
-        @if (_switchingAudio) { <div class="video-playback-host__status" role="status">Switching audio…</div> }
+        @if (_switchingAudio) { <div class="video-playback-host__status" role="status">@L["VideoPlaybackHost_SwitchingAudio"]</div> }
         <div class="video-playback-host__paused-title" data-paused="@(VideoIsPlaying ? "false" : "true")" aria-hidden="true">
             @if (!string.IsNullOrWhiteSpace(_presentationContext?.ShowTitle)) { <small>@_presentationContext!.ShowTitle</small> }
             @if (VideoEpisodeMetadata is { } pausedEpisode) { <span>@pausedEpisode</span> }
             <strong>@(Playback.CurrentItem.EpisodeTitle ?? Playback.CurrentItem.Title)</strong>
         </div>
         <PlaybackVideoChrome>
-            <HeaderContent>            <AppTooltip Text="Close">
-                <AppNativeButton Type="button" Class="video-playback-host__icon video-playback-host__header-tools" OnClick="ClosePlayerAsync" AriaLabel="Close video">
+            <HeaderContent>            <AppTooltip Text="@L["Common_Close"].Value">
+                <AppNativeButton Type="button" Class="video-playback-host__icon video-playback-host__header-tools" OnClick="ClosePlayerAsync" AriaLabel="@L["VideoPlaybackHost_CloseVideo"].Value">
                     <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Close" />
                 </AppNativeButton>
             </AppTooltip>
@@ -94,15 +95,15 @@
                     <PlaybackIconButton Control="@MuteControl" Surface="video" OnClick="ToggleMuteAsync" />
                     <AppRangeSlider Min="0" Max="1" Step="0.05" InputStep="0.05" Value="@Playback.Volume"
                         ValueChanged="SetVolumeOnHostAsync" ShowTicks="false" Surface="video" Class="video-playback-host__volume"
-                        AriaLabel="Volume" ValueFormatter="FormatVolume" />
+                        AriaLabel="@L["Common_Volume"].Value" ValueFormatter="FormatVolume" />
                 </div>
                 </div>
                 <div class="playback-video-controls__identity" title="@VideoBarTitle">@VideoBarTitle</div>
                 <div class="playback-video-controls__right">
-                    @if (EligibleNextEpisode is not null) { <AppTooltip Text="Next episode"><AppNativeButton AriaLabel="Next episode" OnClick="AdvanceCurrentVideoAsync"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SkipNext" /></AppNativeButton></AppTooltip> }
+                    @if (EligibleNextEpisode is not null) { <AppTooltip Text="@L["VideoPlaybackHost_NextEpisode"].Value"><AppNativeButton AriaLabel="@L["VideoPlaybackHost_NextEpisode"].Value" OnClick="AdvanceCurrentVideoAsync"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SkipNext" /></AppNativeButton></AppTooltip> }
                     @if (ContextKind is not null)
                     {
-                        <PlaybackPopover Title="Up Next" ToolId="video-context" Kind="video" Surface="video" ItemKey="@VideoInstanceKey">
+                        <PlaybackPopover Title="@L["Common_UpNext"].Value" ToolId="video-context" Kind="video" Surface="video" ItemKey="@VideoInstanceKey">
                             <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Queue" /></TriggerContent>
                             <ChildContent><VideoContextPanel Context="@ContextKind" Episodes="@(_presentationContext?.Episodes ?? [])"
                                 Chapters="@VideoChapters" Upcoming="@UpcomingVideo" NextEpisode="@EligibleNextEpisode" CurrentWorkId="@Playback.CurrentItem.WorkId"
@@ -112,7 +113,7 @@
                     }
                     @if (VideoControlState.CanBookmark && Playback.CurrentItem is { WorkId: var bookmarkWorkId, AssetId: Guid bookmarkAssetId })
                     {
-                        <PlaybackPopover Title="Bookmarks" ToolId="video-bookmarks" Kind="video" Surface="video" ShowHeading="false" ItemKey="@VideoInstanceKey">
+                        <PlaybackPopover Title="@L["Common_Bookmarks"].Value" ToolId="video-bookmarks" Kind="video" Surface="video" ShowHeading="false" ItemKey="@VideoInstanceKey">
                             <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Bookmark" /></TriggerContent>
                             <ChildContent>
                                 <VideoBookmarkPanel ProfileId="@(Playback.ActiveProfileId ?? Guid.Empty)" WorkId="@bookmarkWorkId" AssetId="@bookmarkAssetId"
@@ -142,13 +143,13 @@
                                                 @if (audioSelected) { <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Check" /> }
                                             </PlaybackSheetRow>
                                         }
-                                        @if (AudioTracks.Count == 0) { <p class="video-playback-host__track-status">No audio information for this file.</p> }
+                                        @if (AudioTracks.Count == 0) { <p class="video-playback-host__track-status">@L["VideoPlaybackHost_NoAudioInformationForThis"]</p> }
                                     </PlaybackSheetList>
                                 </Audio>
                                 <Subtitles>
                                     <PlaybackSheetList>
-                                        <PlaybackSheetRow Appearance="outlined" OnClick="@(() => SelectCaptionAsync(null))" IsActive="@(!_captionTracks.Any(track => track.Selected))" AriaLabel="Turn subtitles off">
-                                            <span class="playback-sheet-row__copy"><strong>Off</strong></span>
+                                        <PlaybackSheetRow Appearance="outlined" OnClick="@(() => SelectCaptionAsync(null))" IsActive="@(!_captionTracks.Any(track => track.Selected))" AriaLabel="@L["VideoPlaybackHost_TurnSubtitlesOff"].Value">
+                                            <span class="playback-sheet-row__copy"><strong>@L["Common_Off"]</strong></span>
                                             @if (!_captionTracks.Any(track => track.Selected)) { <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Check" /> }
                                         </PlaybackSheetRow>
                                         @foreach (var track in _captionTracks)
@@ -160,9 +161,9 @@
                                         }
                                         @if (_selectedCaptionKey?.StartsWith("managed:", StringComparison.Ordinal) == true)
                                         {
-                                            <PlaybackSheetRow Appearance="outlined" OnClick="SetPreferredSubtitleAsync" AriaLabel="Set selected subtitles as preferred"><span class="playback-sheet-row__copy"><strong>Set preferred version</strong></span></PlaybackSheetRow>
+                                            <PlaybackSheetRow Appearance="outlined" OnClick="SetPreferredSubtitleAsync" AriaLabel="@L["VideoPlaybackHost_SetSelectedSubtitlesAsPreferred"].Value"><span class="playback-sheet-row__copy"><strong>@L["VideoPlaybackHost_SetPreferredVersion"]</strong></span></PlaybackSheetRow>
                                         }
-                                        <PlaybackSheetRow Appearance="outlined" OnClick="RefreshSubtitlesAsync" AriaLabel="Find better subtitles"><span class="playback-sheet-row__copy"><strong>Find better subtitles…</strong><span>@(_textTrackLoading ? "Searching…" : "Search available providers")</span></span></PlaybackSheetRow>
+                                        <PlaybackSheetRow Appearance="outlined" OnClick="RefreshSubtitlesAsync" AriaLabel="@L["VideoPlaybackHost_FindBetterSubtitles2"].Value"><span class="playback-sheet-row__copy"><strong>@L["VideoPlaybackHost_FindBetterSubtitles"]</strong><span>@(_textTrackLoading ? "Searching…" : "Search available providers")</span></span></PlaybackSheetRow>
                                         @if (!string.IsNullOrWhiteSpace(_textTrackStatus)) { <p role="status" class="video-playback-host__track-status">@_textTrackStatus</p> }
                                     </PlaybackSheetList>
                                 </Subtitles>
@@ -179,23 +180,23 @@
         <div class="video-touch-feedback" data-video-touch-feedback aria-hidden="true"></div>
         <div class="sr-only" role="status" aria-live="polite" data-video-touch-announce></div>
         <div class="video-touch-hint" data-video-touch-hint hidden>
-            <span>Turn your phone for full screen</span>
-            <AppTooltip Text="Dismiss hint"><AppNativeButton Type="button" Class="video-playback-host__icon" AriaLabel="Dismiss hint" data-video-touch-hint-dismiss="true">
+            <span>@L["VideoPlaybackHost_TurnYourPhoneForFull"]</span>
+            <AppTooltip Text="@L["VideoPlaybackHost_DismissHint"].Value"><AppNativeButton Type="button" Class="video-playback-host__icon" AriaLabel="@L["VideoPlaybackHost_DismissHint"].Value" data-video-touch-hint-dismiss="true">
                 <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Close" />
             </AppNativeButton></AppTooltip>
         </div>
         @if (_endCard.Visible && EligibleNextEpisode is { } nextEpisode)
         {
-            <aside class="video-playback-host__end-card" aria-label="Next episode" data-playback-chrome data-chrome-hold>
-                <strong>Up next</strong>
+            <aside class="video-playback-host__end-card" aria-label="@L["VideoPlaybackHost_NextEpisode"].Value" data-playback-chrome data-chrome-hold>
+                <strong>@L["VideoPlaybackHost_UpNext"]</strong>
                 <div class="video-playback-host__end-card-content">
                     @if (nextEpisode.StillUrl is { } _nextEpisodeStill && MediaTileArtworkUrl.SupportsRenditions(_nextEpisodeStill)) { <img src="@MediaTileArtworkUrl.ForDrawnSize(nextEpisode.StillUrl, 112)" srcset="@(VideoContextPanel.EpisodeArtworkSrcSet(nextEpisode) ?? MediaTileArtworkUrl.SrcSetForDrawnSize(nextEpisode.StillUrl, 112))" width="112" height="63" sizes="112px" data-artwork-purpose="episode-still" alt="" /> }
                     else { <span class="video-playback-host__end-card-placeholder" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Movie" /></span> }
-                    <span><strong>@nextEpisode.Title</strong>@if (_endCard.AutoAdvance) { <span role="status">Starts in @((int)Math.Ceiling(_endCard.RemainingSeconds)) seconds</span> }</span>
+                    <span><strong>@nextEpisode.Title</strong>@if (_endCard.AutoAdvance) { <span role="status">@L["VideoPlaybackHost_StartsInSeconds", (int)Math.Ceiling(_endCard.RemainingSeconds)]</span> }</span>
                 </div>
                 <div class="video-playback-host__end-card-actions">
-                    <AppTooltip Text="Play next episode now"><AppNativeButton Class="video-playback-host__icon" AriaLabel="Play next episode now" OnClick="AdvanceCurrentVideoAsync"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayArrow" /></AppNativeButton></AppTooltip>
-                    <AppTooltip Text="Dismiss next episode"><AppNativeButton Class="video-playback-host__icon" AriaLabel="Dismiss next episode" OnClick="DismissEndCard"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Close" /></AppNativeButton></AppTooltip>
+                    <AppTooltip Text="@L["VideoPlaybackHost_PlayNextEpisodeNow"].Value"><AppNativeButton Class="video-playback-host__icon" AriaLabel="@L["VideoPlaybackHost_PlayNextEpisodeNow"].Value" OnClick="AdvanceCurrentVideoAsync"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayArrow" /></AppNativeButton></AppTooltip>
+                    <AppTooltip Text="@L["VideoPlaybackHost_DismissNextEpisode"].Value"><AppNativeButton Class="video-playback-host__icon" AriaLabel="@L["VideoPlaybackHost_DismissNextEpisode"].Value" OnClick="DismissEndCard"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Close" /></AppNativeButton></AppTooltip>
                 </div>
             </aside>
         }
@@ -203,16 +204,16 @@
 </section>
 @if (Playback.HasQueue && Playback.IsVideoMode && !Playback.IsVideoExpanded && !_isPictureInPicture && Playback.CurrentItem is not null)
 {
-    <section class="video-playback-restore" aria-label="Video playback">
+    <section class="video-playback-restore" aria-label="@L["VideoPlaybackHost_VideoPlayback"].Value">
         <span>@Playback.CurrentItem.DeviceTitle</span>
         @if (!string.IsNullOrWhiteSpace(_continuationStatus))
         {
             <small role="status">@_continuationStatus</small>
         }
-        <AppTooltip Text="Restore video player"><AppNativeButton Type="button" Class="video-playback-restore__button" OnClick="RestoreVideoAsync" AriaLabel="Restore video player">
+        <AppTooltip Text="@L["VideoPlaybackHost_RestoreVideoPlayer"].Value"><AppNativeButton Type="button" Class="video-playback-restore__button" OnClick="RestoreVideoAsync" AriaLabel="@L["VideoPlaybackHost_RestoreVideoPlayer"].Value">
             <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Expand" />
         </AppNativeButton></AppTooltip>
-        <AppNativeButton Type="button" Class="video-playback-restore__button" OnClick="ClosePlayerAsync" AriaLabel="Stop video playback">
+        <AppNativeButton Type="button" Class="video-playback-restore__button" OnClick="ClosePlayerAsync" AriaLabel="@L["VideoPlaybackHost_StopVideoPlayback"].Value">
             <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Close" />
         </AppNativeButton>
     </section>

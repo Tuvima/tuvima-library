@@ -3,16 +3,17 @@
 @using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.Ui
 @inject UIOrchestratorService Orchestrator
+@inject IStringLocalizer<SharedStrings> L
 
 @* Upload plugin (Plugins and Integrations screens spec D5, D11): add a JSON-only plugin from a file on this computer. The
    warning is always shown; a refused file is explained in the Engine's words and nothing is added. *@
 @if (Open)
 {
-    <AppDialogFrame Open="true" Title="Upload plugin" DialogOptions="DialogShape" OnCancel="CloseAsync">
-        <AppDialogShell Modal="false" Title="Upload plugin" Size="Medium" Tone="AppUiTone.Warning" OnClose="CloseAsync">
+    <AppDialogFrame Open="true" Title="@L["PluginUploadDialog_UploadPlugin"].Value" DialogOptions="DialogShape" OnCancel="CloseAsync">
+        <AppDialogShell Modal="false" Title="@L["PluginUploadDialog_UploadPlugin"].Value" Size="Medium" Tone="AppUiTone.Warning" OnClose="CloseAsync">
         <ChildContent>
         <div class="plugin-upload app-dialog-shell__pad app-dialog-shell__pad--stretch" data-testid="plugin-upload-dialog">
-            <AppAlert Tone="AppUiTone.Warning">Only upload plugins you trust. A plugin can read and change your library.</AppAlert>
+            <AppAlert Tone="AppUiTone.Warning">@L["PluginUploadDialog_OnlyUploadPluginsYouTrust"]</AppAlert>
             <p>Only plugins described entirely in JSON can be uploaded. An uploaded plugin is marked Private and arrives switched off; you see what it can do before you switch it on. Any keys it needs are kept in the config folder as plain text, and the page never shows them back.</p>
             <AppFileUpload T="IBrowserFile" Accept=".zip" FilesChanged="@Chosen" Disabled="@_busy">
                 <SelectedTemplate>
@@ -26,8 +27,8 @@
         </div>
         </ChildContent>
         <FooterContent>
-            <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Outlined" OnClick="CloseAsync" Disabled="@_busy" />
-            <AppButton Label="Upload" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+            <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Outlined" OnClick="CloseAsync" Disabled="@_busy" />
+            <AppButton Label="@L["PluginUploadDialog_Upload"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
                        Disabled="@(_file is null || _busy)" Loading="@_busy" OnClick="UploadAsync" />
         </FooterContent>
         </AppDialogShell>

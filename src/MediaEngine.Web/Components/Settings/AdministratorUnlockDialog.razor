@@ -1,14 +1,15 @@
 @namespace MediaEngine.Web.Components.Settings
+@inject IStringLocalizer<SharedStrings> L
 
 <AppDialog>
     <DialogContent>
         <AdministratorSurfaceGate Required="true">
-            <p>Your administrator settings are unlocked. Continue to open the editor.</p>
-            <AppButton Label="Continue to editor" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Continue" />
+            <p>@L["AdministratorUnlockDialog_YourAdministratorSettingsAreUnlocked"]</p>
+            <AppButton Label="@L["AdministratorUnlockDialog_ContinueToEditor"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Continue" />
         </AdministratorSurfaceGate>
     </DialogContent>
     <DialogActions>
-        <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Outlined" OnClick="Cancel" />
+        <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Outlined" OnClick="Cancel" />
     </DialogActions>
 </AppDialog>
 
