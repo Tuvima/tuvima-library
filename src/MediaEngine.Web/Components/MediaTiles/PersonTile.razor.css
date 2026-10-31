@@ -1,0 +1,46 @@
+.person-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--tl-space-2, 0.5rem);
+    min-width: 0;
+    text-align: center;
+    color: var(--tl-text-primary);
+    text-decoration: none;
+}
+
+.person-tile:focus-visible {
+    outline: var(--tl-focus-ring-width) solid var(--tl-focus-ring);
+    outline-offset: var(--tl-focus-ring-offset);
+    border-radius: var(--tl-radius-md);
+}
+
+.person-tile__photo {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    aspect-ratio: 1;
+    overflow: hidden;
+    border-radius: 50%;
+    background: var(--tl-bg-raised, var(--tl-bg-base));
+    color: var(--tl-text-secondary);
+    transition: transform 120ms ease;
+}
+
+.person-tile:hover .person-tile__photo {
+    transform: scale(1.03);
+}
+
+.person-tile__photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.person-tile__name {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+}

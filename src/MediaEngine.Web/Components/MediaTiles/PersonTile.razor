@@ -1,0 +1,27 @@
+@namespace MediaEngine.Web.Components.MediaTiles
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Ui
+
+@* The one shared person tile (artist, author, director, actor): a round photo with the
+   name and the shared count line below, like every other tile's text block. Opens the
+   standard person page. *@
+<a class="person-tile" href="@Item.NavigationUrl" aria-label="@Item.Title">
+    <span class="person-tile__photo">
+        @if (!string.IsNullOrWhiteSpace(Item.Person?.ImageUrl))
+        {
+            <img src="@MediaTileArtworkUrl.ForDrawnSize(Item.Person!.ImageUrl, 300)"
+                 srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(Item.Person.ImageUrl, 300)"
+                 alt="" loading="lazy" decoding="async" />
+        }
+        else
+        {
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Person" />
+        }
+    </span>
+    <span class="person-tile__name">@Item.Title</span>
+    <MediaCountLine Counts="@Item.MediaCounts" />
+</a>
+
+@code {
+    [Parameter, EditorRequired] public MediaEngine.Web.Models.ViewDTOs.MediaTileViewModel Item { get; set; } = default!;
+}
