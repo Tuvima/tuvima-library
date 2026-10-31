@@ -23,7 +23,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 
 | Spec | Status |
 |---|---|
-| [Spec: Collections and lists (easy builder, imported lists, lanes on Home, one tile family)](specs/collections-and-lists.md) | Locked (v3, 2026-10-31; build starting) |
+| [Spec: Collections and lists (easy builder, imported lists, lanes on Home, one tile family)](specs/collections-and-lists.md) | In progress (v3, build started 2026-10-31) |
 | [Spec: One Tuvima documentation hub (docs.tuvima.com: Products, Libraries, Legal; Library and Tuvima.Wikidata docs move into tuvima-docs)](specs/docs-hub.md) | Built, awaiting Local checks (v2; hub live at docs.tuvima.com, Library re-pointed 2026-10-28; checks L1-L3 in validation/batch.md) |
 | [Spec: Links to outside sources (TheTVDB links, linked people, person-page links)](specs/outside-source-links.md) | In progress (2026-10-28; cloud build done, WP1 live-address check parked as Local checks) |
 | [Spec: One shared look for pages (tabs, cards, filter bar, pills; F76, F84)](specs/one-shared-look.md) | Built, awaiting your Local checks (v1, built 2026-10-29; packets 1-5: one flat tab, equal-height cards, one amber badge, paging only above 24, shared by Plugins, Integrations, Libraries; checks in [the batch list](validation/batch.md); add-folder flow is a separate spec) |

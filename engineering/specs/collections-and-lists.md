@@ -1,6 +1,6 @@
 # Spec: Collections and lists (easy builder, imported lists, lanes on Home)
 
-> **Status:** Locked · **Version:** 3 · **Last updated:** 2026-10-31 (locked by Shy) · **Related docs:** [Mockups](../design/mockups/collections-and-lists.html) · [Product overview](../product/overview.md) · [Plugin architecture](plugin-architecture.md) · [Universes](universe.md) · [Library area pages](library-area-pages.md) · [Universal editor](universal-editor.md) · Public presentation rules (tuvima-docs, `content/products/library/product/presentation-rules.md`, "Collections presentation")
+> **Status:** In progress · **Version:** 3 · **Last updated:** 2026-10-31 (locked by Shy) · **Related docs:** [Mockups](../design/mockups/collections-and-lists.html) · [Product overview](../product/overview.md) · [Plugin architecture](plugin-architecture.md) · [Universes](universe.md) · [Library area pages](library-area-pages.md) · [Universal editor](universal-editor.md) · Public presentation rules (tuvima-docs, `content/products/library/product/presentation-rules.md`, "Collections presentation")
 
 ## 0. Plain-English product walkthrough
 
