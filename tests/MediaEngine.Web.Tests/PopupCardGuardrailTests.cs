@@ -16,6 +16,7 @@ public sealed class PopupCardGuardrailTests
         ["Components/Shared/AppDrawer.razor"] = "Side drawer, not a popup (drawers follow the table and menu rules).",
         // Full-screen viewers and readers (Group E).
         ["Components/Pages/BookReader.razor"] = "Full-screen reader.",
+        ["Components/Pages/ExtraViewerPage.razor"] = "Full-screen picture gallery for an Extras card.",
         ["Components/Pages/ViewDocumentViewer.razor"] = "Full-screen document viewer.",
         ["Components/Shared/MediaViewerShell.razor"] = "Full-screen media viewer.",
         ["Components/Vault/VaultImageViewer.razor"] = "Full-screen image viewer.",

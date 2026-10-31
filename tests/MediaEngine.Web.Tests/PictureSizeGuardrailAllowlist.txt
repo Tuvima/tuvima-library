@@ -21,3 +21,7 @@ Components/Vault/VaultCover.razor|@CoverUrl|Vault picture: served only by the Va
 Components/Vault/VaultCover.razor|@HoverUrls[index]|Vault picture: the hover stills come from the Vault routes and stay at the one size the Vault makes for them; the shared sized-artwork addresses must never be used for Vault items.
 Components/Vault/VaultImageViewer.razor|@VaultArtworkUrls.ImagePreview(imageId)|Vault picture: the Vault image viewer shows the Vault route preview, not a shared artwork address.
 Components/Shared/AppSwitchRow.razor|@ImageIcon|The 14px Tuvima mark, a small static SVG served from wwwroot/images; nothing to resize.
+Components/Details/ExtrasSection.razor|@ThumbnailSrc(previewId)|Extras card picture: the Engine makes one small thumbnail per file; it has no size copies.
+Components/Details/ExtrasSection.razor|@ThumbnailSrc(card.Id)|Extras clip frame: the Engine makes one small thumbnail per file; it has no size copies.
+Components/Pages/ExtraViewerPage.razor|@ThumbnailHref(item.Id)|Extras gallery thumbnail: one small thumbnail per picture, no size copies.
+Components/Pages/ExtraViewerPage.razor|@FileHref(picture.Id)|The full-size picture the person opened in the gallery; shown at its own size on purpose.

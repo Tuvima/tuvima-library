@@ -30,6 +30,9 @@ namespace MediaEngine.Ingestion;
 
 public sealed partial class IngestionEngine
 {
+    // Finds the Extras beside titles (Extras spec); null when the host registers no scanner.
+    private readonly IItemExtrasScanner? _extrasScanner;
+
     // =========================================================================
     // Live pipeline
     // =========================================================================
@@ -135,6 +138,21 @@ public sealed partial class IngestionEngine
         using var vaultLogScope = context.IsVault
             ? _logger.BeginScope(new Dictionary<string, object> { [VaultLocationGuard.LogScopeProperty] = true })
             : null;
+
+        // A document, picture or clip beside a title's own files is an Extra of that title (Extras spec D5): it is stored by the
+        // Extras scan, never enters the episode pipeline, and never goes to Needs Review.
+        if (_extrasScanner is not null && !context.IsVault)
+        {
+            if (candidate.EventType == FileEventType.Deleted)
+            {
+                _extrasScanner.NoteFile(candidate.Path);
+            }
+            else if (await _extrasScanner.ClaimsFileAsync(candidate.Path, context.Library, ct).ConfigureAwait(false))
+            {
+                _logger.LogInformation("\"{FileName}\" is an Extra of its title; it is kept with the title, not ingested", Path.GetFileName(candidate.Path));
+                return;
+            }
+        }
 
         try
         {

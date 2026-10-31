@@ -23,7 +23,13 @@ public static class EditSessionChangeKinds
     /// <summary>Physical file moves. Run last and one at a time, because they cannot be undone like a data change.</summary>
     public const string FileMove = "file_move";
 
-    public static readonly IReadOnlyList<string> All = [Details, Identity, Relationship, Artwork, FileMove];
+    /// <summary>
+    /// A file moves between a show's Extras and its episodes (Extras spec WP4). Nothing is renamed or moved on disk. See
+    /// <see cref="EditSessionExtraMove"/> for how the change names what moves.
+    /// </summary>
+    public const string ExtraMove = "extra_move";
+
+    public static readonly IReadOnlyList<string> All = [Details, Identity, Relationship, Artwork, FileMove, ExtraMove];
 
     public static bool IsKnown(string? kind) => kind is not null && All.Contains(kind, StringComparer.Ordinal);
 

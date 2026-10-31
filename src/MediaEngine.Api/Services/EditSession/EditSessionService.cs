@@ -7,7 +7,7 @@ namespace MediaEngine.Api.Services.EditSession;
 /// <list type="number">
 /// <item>Every change is checked first. If any check fails nothing is written and every other change says why it was not saved.</item>
 /// <item>The data changes (details, identity, relationships, artwork) are written one after another, with identity last because it
-/// cannot be undone, and if one fails the ones already written are undone in reverse order, so the library ends up with all of them or none of them.</item>
+/// cannot be undone (a move between Extras and episodes cannot be undone either, so it goes with it), and if one fails the ones already written are undone in reverse order, so the library ends up with all of them or none of them.</item>
 /// <item>File moves run last, one at a time. A move on disk cannot be undone like a data change, so a failed move leaves the data
 /// saved and is reported by name.</item>
 /// </list>
@@ -138,7 +138,7 @@ public sealed class EditSessionService(
         // Dashboard's order is kept within each kind.
         var dataChanges = changes
             .Where(change => EditSessionChangeKinds.IsDataChange(change.Kind))
-            .OrderBy(change => change.Kind == EditSessionChangeKinds.Identity ? 1 : 0)
+            .OrderBy(change => change.Kind is EditSessionChangeKinds.Identity or EditSessionChangeKinds.ExtraMove ? 1 : 0)
             .ToList();
         var moves = changes.Where(change => change.Kind == EditSessionChangeKinds.FileMove).ToList();
         var outcomes = new Dictionary<string, EditSessionChangeResult>(StringComparer.Ordinal);

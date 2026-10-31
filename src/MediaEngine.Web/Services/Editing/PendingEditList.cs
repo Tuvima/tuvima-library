@@ -94,9 +94,9 @@ public sealed class PendingEditList
     /// </summary>
     public void SetTarget(string kind, Guid entityId, string? targetId, string? token = null, string? label = null)
     {
-        if (kind is EditSessionChangeKinds.Details or EditSessionChangeKinds.Artwork || !EditSessionChangeKinds.IsKnown(kind))
+        if (kind is EditSessionChangeKinds.Details or EditSessionChangeKinds.Artwork or EditSessionChangeKinds.ExtraMove || !EditSessionChangeKinds.IsKnown(kind))
         {
-            throw new ArgumentException("Use SetField or SetArtwork for details and artwork changes.", nameof(kind));
+            throw new ArgumentException("Use SetField, SetArtwork or SetExtraMove for details, artwork and Extras changes.", nameof(kind));
         }
 
         var existing = Find(kind, entityId);
@@ -109,6 +109,31 @@ public sealed class PendingEditList
             Token = token,
         }, label);
     }
+
+    /// <summary>
+    /// Stages moving one Extra to an episode (<paramref name="extraId"/>, with <see cref="EditSessionExtraMove.ToEpisodeToken"/>) or one
+    /// episode to Extras (<paramref name="extraId"/> null, token <see cref="EditSessionExtraMove.ToExtrasToken"/>). Unlike the other
+    /// kinds there can be several per item, one for each Extra, so they are told apart by <see cref="EditSessionChange.TargetId"/>.
+    /// </summary>
+    public void SetExtraMove(Guid entityId, string? extraId, string token, string? label = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(token);
+        var existing = FindExtraMove(entityId, extraId);
+        Replace(existing, new EditSessionChange
+        {
+            Id = existing?.Id ?? NewId(),
+            Kind = EditSessionChangeKinds.ExtraMove,
+            EntityId = entityId,
+            TargetId = extraId,
+            Token = token,
+        }, label);
+    }
+
+    /// <summary>The staged move of one Extra (or of the episode itself when <paramref name="extraId"/> is null), or null.</summary>
+    public EditSessionChange? FindExtraMove(Guid entityId, string? extraId) =>
+        _changes.FirstOrDefault(c => c.Kind == EditSessionChangeKinds.ExtraMove
+            && c.EntityId == entityId
+            && string.Equals(c.TargetId, extraId, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>The name given for a staged identity, relationship or artwork choice, or null when none was given.</summary>
     public string? Label(string changeId) => _labels.GetValueOrDefault(changeId);

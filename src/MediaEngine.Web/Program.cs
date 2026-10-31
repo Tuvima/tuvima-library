@@ -527,6 +527,20 @@ app.MapMethods("/engine-stream/{assetId:guid}", [HttpMethods.Get, HttpMethods.He
     .WithSummary("Proxies Engine media bytes through the Dashboard origin for browser media playback.")
     .RequireAuthorization();
 
+app.MapMethods("/engine-extra/{extraId:guid}/file", [HttpMethods.Get, HttpMethods.Head],
+        (Guid extraId, HttpContext ctx, IHttpClientFactory httpFactory, CancellationToken ct) =>
+            ProxyEngineExtraAsync($"/api/v1/extras/{extraId:D}/file", ctx, httpFactory, ct))
+    .WithName("ProxyEngineExtraFile")
+    .WithSummary("Proxies one Extras file (guidebook, clip or picture) through the Dashboard origin so the browser can range-read it.")
+    .RequireAuthorization();
+
+app.MapGet("/engine-extra/{extraId:guid}/thumbnail",
+        (Guid extraId, HttpContext ctx, IHttpClientFactory httpFactory, CancellationToken ct) =>
+            ProxyEngineExtraAsync($"/api/v1/extras/{extraId:D}/thumbnail", ctx, httpFactory, ct))
+    .WithName("ProxyEngineExtraThumbnail")
+    .WithSummary("Proxies an Extras card thumbnail through the Dashboard origin.")
+    .RequireAuthorization();
+
 app.MapGet("/engine-subtitles/{assetId:guid}", async (Guid assetId, string? language, HttpContext ctx, IHttpClientFactory factory, CancellationToken ct) =>
 {
     using var request = new HttpRequestMessage(HttpMethod.Get, $"/stream/{assetId:D}/subtitles?language={Uri.EscapeDataString(language ?? "en")}");
@@ -670,6 +684,28 @@ static async Task ProxyEngineStreamAsync(
     }
 
     await response.Content.CopyToAsync(ctx.Response.Body, ct);
+}
+
+static async Task ProxyEngineExtraAsync(
+    string enginePath,
+    HttpContext ctx,
+    IHttpClientFactory httpFactory,
+    CancellationToken ct)
+{
+    var client = httpFactory.CreateClient("EngineApi");
+    using var request = new HttpRequestMessage(
+        HttpMethods.IsHead(ctx.Request.Method) ? HttpMethod.Head : HttpMethod.Get,
+        enginePath);
+    CopyRequestHeader(ctx, request, "Range");
+    CopyRequestHeader(ctx, request, "If-Range");
+
+    using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct);
+    ctx.Response.StatusCode = (int)response.StatusCode;
+    CopyResponseHeaders(response, ctx.Response);
+    if (!HttpMethods.IsHead(ctx.Request.Method))
+    {
+        await response.Content.CopyToAsync(ctx.Response.Body, ct);
+    }
 }
 
 static async Task ProxyEngineHlsAsync(

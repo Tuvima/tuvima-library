@@ -229,8 +229,10 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
         IVideoOnlineLookup? videoLookup = null,
         IProviderAudienceGate? audienceGate = null,
         IFileMoveInProgress? moveInProgress = null,
-        UnmatchedFileMarker? unmatchedMarker = null)
+        UnmatchedFileMarker? unmatchedMarker = null,
+        IItemExtrasScanner? extrasScanner = null)
     {
+        _extrasScanner = extrasScanner;
         _unmatchedMarker = unmatchedMarker;
         _moveInProgress = moveInProgress;
         _vaultHook = vaultHook;

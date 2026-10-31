@@ -46,6 +46,10 @@ public static class EditReviewRows
 {
     public const string UnknownItem = "This item";
 
+    public const string ExtraToExtrasNote = "The file stays where it is. The episode leaves your Library and its progress is lost.";
+
+    public const string ExtraToEpisodeNote = "The file stays where it is and is added to your Library as that episode.";
+
     public const string FileMoveWarning = "Moves the files on disk. This cannot be undone.";
 
     public static string GroupTitle(EditReviewGroup group) => group switch
@@ -105,6 +109,11 @@ public static class EditReviewRows
                 case EditSessionChangeKinds.Relationship:
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Relationships, item,
                         "Moves to", null, label ?? "The chosen place", null));
+                    break;
+                case EditSessionChangeKinds.ExtraMove:
+                    var toExtras = EditSessionExtraMove.IsToExtras(change.Token);
+                    rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Relationships, item,
+                        "Moves to", null, label ?? (toExtras ? "Extras" : "An episode"), toExtras ? ExtraToExtrasNote : ExtraToEpisodeNote));
                     break;
                 case EditSessionChangeKinds.FileMove:
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.PhysicalFiles, item,

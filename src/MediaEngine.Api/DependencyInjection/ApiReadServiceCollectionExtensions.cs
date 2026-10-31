@@ -45,6 +45,7 @@ public static class ApiReadServiceCollectionExtensions
         services.AddScoped<IRetailMatchWriter>(sp => sp.GetRequiredService<RetailMatchWriter>());
         services.AddSingleton<EditSessionCallerAccessor>();
         services.AddSingleton<IEditSessionChangeHandler, IdentityEditSessionChangeHandler>();
+        services.AddSingleton<IEditSessionChangeHandler, ExtraMoveEditSessionChangeHandler>();
         services.AddSingleton<IEditSessionFileWrites, EditSessionFileWrites>();
         services.AddSingleton<IEditSessionService, EditSessionService>();
         services.AddSingleton<IMetadataClaimHistoryReadService, MetadataClaimHistoryReadService>();

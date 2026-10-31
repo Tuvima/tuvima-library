@@ -306,6 +306,18 @@ public sealed partial class IngestionEngine
                 string.Join(", ", pathHints.BridgeIds.Keys));
         }
 
+        // Step 6b: a person moved this file from Extras to an episode (Extras spec WP4). Their season and episode win over anything
+        // the file name says, so the file is identified as that episode of its show.
+        if (_extrasScanner is not null
+            && !context.IsVault
+            && await _extrasScanner.GetEpisodePlacementAsync(candidate.Path, ct).ConfigureAwait(false) is { } placement)
+        {
+            result = WithPlacement(result, placement);
+            _logger.LogInformation(
+                "Placed \"{FileName}\" as season {Season}, episode {Episode} of its show, as chosen in the editor",
+                Path.GetFileName(candidate.Path), placement.Season, placement.Episode);
+        }
+
         {
             var extractedTitle = result.Claims
                 .FirstOrDefault(c => c.Key.Equals(MetadataFieldConstants.Title, StringComparison.OrdinalIgnoreCase))?.Value;
@@ -495,5 +507,45 @@ public sealed partial class IngestionEngine
 
         context.ProcessorResult = result;
 
+    }
+
+    // The show, season and episode a person chose replace what the file name said, at the strongest confidence there is.
+    private static Processors.Models.ProcessorResult WithPlacement(Processors.Models.ProcessorResult result, ExtraEpisodePlacement placement)
+    {
+        string[] placed = ["show_name", "series", "season_number", "season", "episode_number", "episode", "episode_end", "year"];
+        var claims = result.Claims
+            .Where(claim => !placed.Contains(claim.Key, StringComparer.OrdinalIgnoreCase)
+                || (claim.Key.Equals("year", StringComparison.OrdinalIgnoreCase) && placement.Year is null))
+            .ToList();
+
+        void Add(string key, string value) => claims.Add(new Processors.Models.ExtractedClaim
+        {
+            Key = key,
+            Value = value,
+            Confidence = ClaimConfidence.UserLock,
+        });
+
+        Add("show_name", placement.ShowName);
+        Add("series", placement.ShowName);
+        Add("season_number", placement.Season.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        Add("season", placement.Season.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        Add("episode_number", placement.Episode.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        Add("episode", placement.Episode.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        if (placement.Year is not null)
+        {
+            Add("year", placement.Year);
+        }
+
+        return new Processors.Models.ProcessorResult
+        {
+            FilePath = result.FilePath,
+            DetectedType = result.DetectedType,
+            Claims = claims,
+            CoverImage = result.CoverImage,
+            CoverImageMimeType = result.CoverImageMimeType,
+            IsCorrupt = result.IsCorrupt,
+            CorruptReason = result.CorruptReason,
+            MediaTypeCandidates = result.MediaTypeCandidates,
+        };
     }
 }
