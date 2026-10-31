@@ -105,7 +105,10 @@ public sealed class RetailMatchScoringService : IRetailMatchScoringService
         var localEpisode = Local("episode_number"); var remoteEpisode = Remote("episode_number");
         var seasonScore = Ordinal(localSeason, remoteSeason); var episodeScore = Ordinal(localEpisode, remoteEpisode);
         var hasFileNumbers = Present(localSeason) || Present(localEpisode);
-        double? structureScore = !hasFileNumbers ? null : seasonScore == 1 && episodeScore == 1 ? 1 : 0;
+        // A file with an episode number but no season (a numbered lesson in a show folder) leaves the season unknown,
+        // so only the episode number is compared; a season the file does name must still match.
+        var seasonAgrees = !Present(localSeason) && Present(localEpisode) || seasonScore == 1;
+        double? structureScore = !hasFileNumbers ? null : seasonAgrees && episodeScore == 1 ? 1 : 0;
         values["season_episode"] = (hasFileNumbers ? $"S{localSeason} E{localEpisode}" : null,
             Present(remoteSeason) || Present(remoteEpisode) ? $"S{remoteSeason} E{remoteEpisode}" : null, structureScore);
         var fileDuration = Number(Local("duration_sec", "duration_seconds")) ?? DurationMinutes(Local("duration"));

@@ -133,6 +133,27 @@ public sealed class RetailMatrixTests
     }
 
     [Fact]
+    public void AnEpisodeWithNoSeasonInTheFileIsComparedOnTheEpisodeNumberOnly()
+    {
+        var hints = Hints(); hints.Remove("season_number");
+        var remote = Hints(); remote["season_number"] = "1"; remote["episode_number"] = "2";
+        var score = Scorer().ScoreCandidate(hints, "Example", "Creator", "2020", MediaType.TV,
+            extendedMetadata: new() { Scope = "episode", Signals = remote, Series = "Example" }, structuralBonus: .35);
+        Assert.DoesNotContain("structural_identity_contradiction", score.AutoAcceptBlockReasons);
+        Assert.Contains(score.FieldScores, row => row.Key == "season_episode" && row.Score == 1);
+    }
+
+    [Fact]
+    public void AnEpisodeWithNoSeasonStillFailsWhenTheEpisodeNumberDiffers()
+    {
+        var hints = Hints(); hints.Remove("season_number");
+        var remote = Hints(); remote["season_number"] = "1"; remote["episode_number"] = "9";
+        var score = Scorer().ScoreCandidate(hints, "Example", "Creator", "2020", MediaType.TV,
+            extendedMetadata: new() { Scope = "episode", Signals = remote, Series = "Example" }, structuralBonus: .35);
+        Assert.Contains("structural_identity_contradiction", score.AutoAcceptBlockReasons);
+    }
+
+    [Fact]
     public void ProviderKindSignalCannotHideWrongMediaOrWrongMusicScope()
     {
         var wrongBook = Scorer().ScoreCandidate(Hints(), "Example", "Creator", "2020", MediaType.Books,
