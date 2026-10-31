@@ -384,6 +384,22 @@ public sealed class MediaAssetRepository : IMediaAssetRepository
         return Task.FromResult(row is null ? null : (MediaAsset?)ToAsset(row));
     }
 
+    public Task<IReadOnlyDictionary<Guid, string>> GetFilePathsAsync(IReadOnlyCollection<Guid> assetIds, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(assetIds);
+        if (assetIds.Count == 0)
+        {
+            return Task.FromResult<IReadOnlyDictionary<Guid, string>>(new Dictionary<Guid, string>());
+        }
+
+        using var conn = _db.CreateConnection();
+        var rows = conn.Query<FileRefRow>(
+            "SELECT id AS AssetId, file_path_root AS FilePath FROM media_assets WHERE id IN @ids;",
+            new { ids = assetIds.Distinct().Select(GuidSql.ToBlob).ToArray() });
+        return Task.FromResult<IReadOnlyDictionary<Guid, string>>(rows.ToDictionary(row => row.AssetId, row => row.FilePath));
+    }
+
     public Task<IReadOnlyList<MediaAssetFileRef>> ListFilesUnderAsync(string folderPath, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();

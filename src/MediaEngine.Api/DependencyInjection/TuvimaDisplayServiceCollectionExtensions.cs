@@ -58,6 +58,7 @@ public static class TuvimaDisplayServiceCollectionExtensions
         services.AddScoped<ProfileStateAccessService>();
         services.AddSingleton<DetailComposerService>();
         services.AddSingleton<DetailUnmatchedStateService>();
+        services.AddSingleton<DetailExtrasService>();
         services.AddSingleton<ContributorReadiness>();
         return services;
     }

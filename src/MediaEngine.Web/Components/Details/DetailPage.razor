@@ -150,6 +150,10 @@ else if (Model is not null)
                                   CanEdit="@(_editing?.CanEdit == true)"
                                   Mode="_editing"
                                   OnMatched="RefreshAfterSectionCommitAsync" />
+                <EditorExtrasMovePanel Subject="@(_editing is { Fields.Loading: false } ? _editing.Fields.MatchSubject() : null)"
+                                       Extras="Model.Extras"
+                                       Session="_flow.Session"
+                                       CanEdit="@(_editing?.CanEdit == true)" />
             }
 
             @if (context == EditTool.History)

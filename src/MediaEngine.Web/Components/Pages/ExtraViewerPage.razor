@@ -13,9 +13,7 @@
 
 <div class="tl-extra-viewer" data-state="@State" data-kind="@(_view?.Kind)">
     <header class="tl-extra-viewer__bar">
-        <AppNativeButton Class="tl-extra-viewer__back" OnClick="GoBackAsync" Title="Back" AriaLabel="Back">
-            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.ArrowBack" Size="AppSize.Small" />
-        </AppNativeButton>
+        <AppIconButton Icon="@AppMaterialIcons.Filled.ArrowBack" Tooltip="Back" AriaLabel="Back" OnClick="GoBackAsync" />
         <div class="tl-extra-viewer__heading">
             <h1>@(_view?.Title ?? "Extra")</h1>
             @if (!string.IsNullOrWhiteSpace(_view?.Subtitle))
@@ -68,9 +66,10 @@
                 var captured = index;
                 var item = _view.Items[index];
                 <li>
-                    <button type="button" class="tl-extra-viewer__thumb" @onclick="() => OpenPicture(captured)" aria-label="@item.Title">
+                    <div class="tl-extra-viewer__thumb" role="button" tabindex="0" aria-label="@item.Title"
+                         @onclick="() => OpenPicture(captured)" @onkeydown="e => OnThumbKey(e, captured)">
                         <img src="@ThumbnailHref(item.Id)" alt="@item.Title" loading="lazy" decoding="async" />
-                    </button>
+                    </div>
                 </li>
             }
         </ul>
@@ -80,21 +79,21 @@
             var picture = _view.Items[open];
             <div class="tl-extra-viewer__lightbox" role="dialog" aria-modal="true" aria-label="@picture.Title" tabindex="0"
                  @onkeydown="OnLightboxKey" @ref="_lightbox">
-                <AppNativeButton Class="tl-extra-viewer__lightbox-close" OnClick="CloseLightbox" Title="Close" AriaLabel="Close">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Close" Size="AppSize.Small" />
-                </AppNativeButton>
+                <div class="tl-extra-viewer__lightbox-close">
+                    <AppIconButton Icon="@AppMaterialIcons.Filled.Close" Tooltip="Close" AriaLabel="Close" OnClick="CloseLightbox" />
+                </div>
                 @if (open > 0)
                 {
-                    <AppNativeButton Class="tl-extra-viewer__lightbox-prev" OnClick="() => Step(-1)" Title="Previous" AriaLabel="Previous">
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.ChevronLeft" Size="AppSize.Medium" />
-                    </AppNativeButton>
+                    <div class="tl-extra-viewer__lightbox-prev">
+                        <AppIconButton Icon="@AppMaterialIcons.Filled.ChevronLeft" Tooltip="Previous" AriaLabel="Previous" OnClick="() => Step(-1)" />
+                    </div>
                 }
                 <img src="@FileHref(picture.Id)" alt="@picture.Title" />
                 @if (open < _view.Items.Count - 1)
                 {
-                    <AppNativeButton Class="tl-extra-viewer__lightbox-next" OnClick="() => Step(1)" Title="Next" AriaLabel="Next">
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.ChevronRight" Size="AppSize.Medium" />
-                    </AppNativeButton>
+                    <div class="tl-extra-viewer__lightbox-next">
+                        <AppIconButton Icon="@AppMaterialIcons.Filled.ChevronRight" Tooltip="Next" AriaLabel="Next" OnClick="() => Step(1)" />
+                    </div>
                 }
                 <span class="tl-extra-viewer__lightbox-count">@(open + 1) of @_view.Items.Count</span>
             </div>
@@ -179,6 +178,14 @@
     {
         _lightboxIndex = index;
         _focusLightbox = true;
+    }
+
+    private void OnThumbKey(KeyboardEventArgs e, int index)
+    {
+        if (e.Key is "Enter" or " ")
+        {
+            OpenPicture(index);
+        }
     }
 
     private void CloseLightbox() => _lightboxIndex = null;

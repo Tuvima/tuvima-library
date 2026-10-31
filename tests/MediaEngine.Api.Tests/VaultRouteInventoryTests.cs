@@ -30,6 +30,7 @@ public sealed class VaultRouteInventoryTests
         ("/api/v1/display/artwork/universes/", "Universe artwork listing; entities are limited by the authorized projection"),
         ("/api/v1/vault/", "The whole group is behind the Vault gate and answers not found when Vault mode is off"),
         ("/assets/", "Capabilities answer empty exactly as for an unknown id"),
+        ("/api/v1/extras/", "An Extra opens only when the caller may open a file of its title (CatalogueResourceAuthorizationService), and a Vault library has no Extras"),
         ("/entity-editor/universes/", "Universe entity editor; entity ids come from the authorized projection"),
         ("/ingestion/refresh-schedule/", "Refresh schedules for universes and series, never single files"),
         ("/read/resolve/", "The handler goes through the catalogue authorization service"),

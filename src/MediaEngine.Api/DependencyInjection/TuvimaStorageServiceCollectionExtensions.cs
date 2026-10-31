@@ -251,6 +251,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IFolderOrganiseLogRepository, FolderOrganiseLogRepository>();
         services.AddSingleton<IFolderKindChangeRepository, FolderKindChangeRepository>();
         services.AddSingleton<IExcludedSourceFileRepository, ExcludedSourceFileRepository>();
+        services.AddSingleton<IItemExtraRepository, ItemExtraRepository>();
         services.AddSingleton<IImportUploadRepository, ImportUploadRepository>();
         services.AddSingleton<IUnmatchedAssetRepository, UnmatchedAssetRepository>();
         services.AddSingleton<ILibraryFolderTitleCountRepository, LibraryFolderTitleCountRepository>();

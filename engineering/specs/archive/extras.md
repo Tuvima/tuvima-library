@@ -1,6 +1,6 @@
 # Spec: Extras
 
-> **Status:** Locked · **Version:** 2 · **Last updated:** 2026-10-31 (locked by Shy) · **Related docs:** [Product overview](../product/overview.md) · [TV artwork, cast and matching](tv-artwork-cast-and-matching.md) (D9, Steph Curry Masterclass) · [Videos](videos.md) · [Photo and video filing](photo-video-filing.md) · [Details overlay and edit mode](details-overlay-and-edit-mode.md) (the "Extras" row) · [Universal editor v2](universal-editor-v2.md) · [Mockup](../design/mockups/extras-for-tv-shows.html)
+> **Status:** Built, awaiting your Local checks (all four waves built 2026-10-31; Local checks L1 to L5 are in validation/batch.md) · **Version:** 2 · **Last updated:** 2026-10-31 (locked by Shy) · **Related docs:** [Product overview](../../product/overview.md) · [TV artwork, cast and matching](../tv-artwork-cast-and-matching.md) (D9, Steph Curry Masterclass) · [Videos](../videos.md) · [Photo and video filing](../photo-video-filing.md) · [Details overlay and edit mode](../details-overlay-and-edit-mode.md) (the "Extras" row) · [Universal editor v2](universal-editor-v2.md) · [Mockup](../../design/mockups/extras-for-tv-shows.html)
 
 > Written 2026-10-31 after Shy answered the Steph Curry MasterClass question: "given we support documents, pictures and so on, how would that work if the library is for TV? I wouldn't want those things separated into completely different libraries, they should be together."
 

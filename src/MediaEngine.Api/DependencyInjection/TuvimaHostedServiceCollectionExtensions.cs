@@ -114,6 +114,8 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddHostedService(sp => sp.GetRequiredService<InitialSweepCommandService>());
         services.AddHostedService(sp => sp.GetRequiredService<LibraryReconciliationService>());
         services.AddHostedService<StorageMaintenanceHostedService>();
+        services.AddSingleton<MediaEngine.Domain.Contracts.IItemExtraFactsReader, MediaEngine.Api.Services.Extras.ItemExtraFactsReader>();
+        services.AddHostedService<MediaEngine.Api.Services.Extras.ItemExtrasSyncHostedService>();
 
         services.AddHostedService<ModelAutoDownloadService>();
         services.AddHostedService(sp => sp.GetRequiredService<UniverseEnrichmentService>());

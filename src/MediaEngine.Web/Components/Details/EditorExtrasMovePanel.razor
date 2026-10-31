@@ -1,0 +1,145 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Details
+@using MediaEngine.Contracts.Editing
+@using MediaEngine.Web.Services.Editing
+
+@* Extras spec WP4, in the Match tool: a show lists its video clips with "Move to episode" (pick the season and episode), and an episode
+   has "Move to Extras". Both only stage a change; Review changes shows it and Save changes does it. *@
+@if (Show.Count > 0 || IsEpisode)
+{
+    <section class="tl-extras-moves" data-testid="extras-moves">
+        <h3>Extras</h3>
+
+        @if (IsEpisode)
+        {
+            @if (Pending?.FindExtraMove(Subject!.EntityId, null) is not null)
+            {
+                <div class="tl-extras-moves__row tl-extras-moves__row--staged">
+                    <span>Moves to Extras when you save.</span>
+                    <AppButton Label="Undo" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="UnstageEpisode" />
+                </div>
+            }
+            else
+            {
+                <div class="tl-extras-moves__row">
+                    <span>This is not an episode. Keep the file, but show it under Extras instead.</span>
+                    <AppButton Label="Move to Extras" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                               Disabled="@(!CanChange)" OnClick="StageEpisode" />
+                </div>
+            }
+        }
+
+        @foreach (var clip in Show)
+        {
+            var staged = Pending?.FindExtraMove(Subject!.EntityId, clip.Id);
+            <div class="tl-extras-moves__row @(staged is not null ? "tl-extras-moves__row--staged" : null)">
+                <span class="tl-extras-moves__name">@clip.Title</span>
+                @if (staged is not null)
+                {
+                    <span>@StagedText(staged)</span>
+                    <AppButton Label="Undo" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="() => Unstage(clip.Id)" />
+                }
+                else if (_open == clip.Id)
+                {
+                    <label class="tl-extras-moves__number">Season
+                        <AppNumericField Min="0" Max="@EditSessionExtraMove.MaxSeason" @bind-Value="_season" FullWidth="false" />
+                    </label>
+                    <label class="tl-extras-moves__number">Episode
+                        <AppNumericField Min="1" Max="@EditSessionExtraMove.MaxEpisode" @bind-Value="_episode" FullWidth="false" />
+                    </label>
+                    <AppButton Label="Move" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
+                               Disabled="@(!ValidNumbers)" OnClick="() => Stage(clip)" />
+                    <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="Close" />
+                }
+                else
+                {
+                    <AppButton Label="Move to episode" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                               Disabled="@(!CanChange)" OnClick="() => Open(clip.Id)" />
+                }
+            </div>
+        }
+    </section>
+}
+
+@code {
+    private string? _open;
+    private int _season = 1;
+    private int _episode = 1;
+
+    /// <summary>The title being matched; null until its fields have loaded.</summary>
+    [Parameter] public EditorMatchSubject? Subject { get; set; }
+
+    /// <summary>The Extras row of the page (a show lists its video clips; other cards cannot become episodes).</summary>
+    [Parameter] public IReadOnlyList<DetailExtraCardViewModel>? Extras { get; set; }
+
+    [Parameter] public EditSessionState? Session { get; set; }
+
+    [Parameter] public bool CanEdit { get; set; }
+
+    private PendingEditList? Pending => Session?.Pending;
+
+    private bool CanChange => CanEdit && Session is { IsActive: true };
+
+    private bool IsEpisode => Subject is not null
+        && string.Equals(Subject.MediaType, "TV", StringComparison.OrdinalIgnoreCase)
+        && string.Equals(Subject.ScopeId, "episode", StringComparison.OrdinalIgnoreCase);
+
+    private IReadOnlyList<DetailExtraCardViewModel> Show =>
+        Subject is not null
+        && string.Equals(Subject.MediaType, "TV", StringComparison.OrdinalIgnoreCase)
+        && string.Equals(Subject.ScopeId, "series", StringComparison.OrdinalIgnoreCase)
+            ? (Extras ?? []).Where(card => card.Kind == DetailExtraCardKinds.Clip && !card.IsMissing).ToList()
+            : [];
+
+    private bool ValidNumbers => _season is >= 0 and <= EditSessionExtraMove.MaxSeason && _episode is >= 1 and <= EditSessionExtraMove.MaxEpisode;
+
+    private static string StagedText(MediaEngine.Contracts.Editing.EditSessionChange change) =>
+        EditSessionExtraMove.TryParseEpisode(change.Token, out var season, out var episode)
+            ? (season == 0 ? $"Moves to Specials, episode {episode} when you save." : $"Moves to season {season}, episode {episode} when you save.")
+            : "Moves when you save.";
+
+    private void Open(string extraId)
+    {
+        _open = extraId;
+        _season = 1;
+        _episode = 1;
+    }
+
+    private void Close() => _open = null;
+
+    private void Stage(DetailExtraCardViewModel clip)
+    {
+        if (!CanChange || !ValidNumbers || Subject is null || Pending is null)
+        {
+            return;
+        }
+
+        var label = _season == 0 ? $"Specials, episode {_episode}" : $"Season {_season}, episode {_episode}";
+        Pending.SetExtraMove(Subject.EntityId, clip.Id, EditSessionExtraMove.ToEpisodeToken(_season, _episode), $"{clip.Title}: {label}");
+        _open = null;
+    }
+
+    private void Unstage(string extraId)
+    {
+        if (Subject is not null && Pending?.FindExtraMove(Subject.EntityId, extraId) is { } staged)
+        {
+            Pending.Remove(staged.Id);
+        }
+    }
+
+    private void StageEpisode()
+    {
+        if (CanChange && Subject is not null && Pending is not null)
+        {
+            Pending.SetExtraMove(Subject.EntityId, null, EditSessionExtraMove.ToExtrasToken, "Extras");
+        }
+    }
+
+    private void UnstageEpisode()
+    {
+        if (Subject is not null && Pending?.FindExtraMove(Subject.EntityId, null) is { } staged)
+        {
+            Pending.Remove(staged.Id);
+        }
+    }
+}

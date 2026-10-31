@@ -55,6 +55,8 @@ public sealed partial class SuccessResponseGuardrailTests
         "GetPersonalActivityArtwork",
         "GetViewItemContent",
         "GetViewItemThumbnail",
+        // An Extras card picture is an image, not JSON.
+        "GetExtraThumbnail",
         // The paired-app Photos routes that return JPEG or the original photo or video file, not JSON.
         "GetViewClientItemThumbnail",
         "GetViewClientItemPreview",

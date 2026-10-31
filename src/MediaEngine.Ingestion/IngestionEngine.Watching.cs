@@ -555,6 +555,12 @@ public sealed partial class IngestionEngine
         var extension = Path.GetExtension(evt.Path);
         if (string.IsNullOrWhiteSpace(extension) || ShouldIgnoreScanFile(evt.Path))
         {
+            // A picture or a text file is never ingested, but one that appears in or leaves a title's folder changes its Extras.
+            if (!string.IsNullOrWhiteSpace(extension))
+            {
+                _extrasScanner?.NoteFile(evt.Path);
+            }
+
             return false;
         }
 

@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0071 missing_files).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0072 item_extras).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -1225,6 +1225,24 @@ CREATE TABLE ingestion_log (
     error_detail      TEXT,
     created_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
     updated_at        TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);
+
+CREATE TABLE item_extras (
+    id               BLOB NOT NULL PRIMARY KEY,
+    library_id       TEXT NOT NULL,
+    item_folder      TEXT NOT NULL COLLATE NOCASE,
+    file_path        TEXT NOT NULL COLLATE NOCASE UNIQUE,
+    kind             TEXT NOT NULL CHECK (kind IN ('document', 'picture', 'clip')),
+    origin           TEXT NOT NULL DEFAULT 'rule' CHECK (origin IN ('rule', 'user_extra', 'user_episode')),
+    title            TEXT NOT NULL,
+    group_key        TEXT,
+    sort_order       INTEGER NOT NULL DEFAULT 0,
+    size_bytes       INTEGER NOT NULL DEFAULT 0,
+    duration_seconds REAL,
+    page_count       INTEGER,
+    target_season    INTEGER,
+    target_episode   INTEGER,
+    found_at         TEXT NOT NULL
 );
 
 CREATE TABLE local_file_sources (
@@ -3853,6 +3871,8 @@ CREATE INDEX ix_doc_rules_owner_order
 CREATE INDEX ix_folder_first_checks_held ON folder_first_checks (state, library_id) WHERE state IN ('checking', 'paused');
 
 CREATE INDEX ix_folder_first_checks_library ON folder_first_checks (library_id);
+
+CREATE INDEX ix_item_extras_folder ON item_extras (item_folder);
 
 CREATE INDEX ix_local_file_sources_device
     ON local_file_sources(device_id, indexed_at DESC, id);

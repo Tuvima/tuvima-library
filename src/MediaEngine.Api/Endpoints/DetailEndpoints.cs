@@ -34,6 +34,7 @@ public static class DetailEndpoints
             DetailComposerService composer,
             ContributorReadiness readiness,
             DetailUnmatchedStateService unmatchedState,
+            DetailExtrasService detailExtras,
             IDisplayProjectionReadService display,
             CancellationToken ct) =>
         {
@@ -85,6 +86,8 @@ public static class DetailEndpoints
                 await readiness.ApplyAsync(detail, ct);
                 // Single-item pages only (authorizedAssetIds is set for them): an administrator sees the item's Unmatched state and actions.
                 await unmatchedState.ApplyAsync(detail, authorizedAssetIds, actionAuthorization, ct);
+                // A title's Extras (guidebooks, picture folders, clips) ride on its page, so they carry the page's own access rules.
+                await detailExtras.ApplyAsync(detail, authorizedAssetIds, ct);
             }
             httpContext.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("DetailPerformance")
                 .LogInformation("Detail {Type}: projection {ProjectionMs:F0} ms, composition {CompositionMs:F0} ms, total {TotalMs:F0} ms",

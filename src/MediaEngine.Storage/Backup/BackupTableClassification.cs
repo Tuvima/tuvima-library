@@ -159,6 +159,7 @@ public static partial class BackupTableClassification
         Catalogue("subtitle_name_tags", "Characters found in subtitle text."),
         Catalogue("text_tracks", "Subtitle and lyric tracks found for files."),
         Catalogue("text_track_rejections", "Lyrics and subtitle results a person marked wrong for a file, so they are not picked again."),
+        Catalogue("item_extras", "Guidebooks, pictures and clips found beside a title (its Extras); rebuilt by a rescan. Files a person moved between Extras and episodes in the editor are kept as corrections.", correctionWhere: "origin <> 'rule'"),
         Catalogue("local_items", "Photos, documents and other View items found on disk; a person's own choices on them (favourite, hidden, archived, trashed, capture date they set) are kept.", choices: ["favorite", "hidden", "archived_at", "trashed_at", "captured_at_user_override", "captured_at"], gatedBy: [("captured_at", "captured_at_user_override")]),
         Catalogue("local_files", "Files behind View items."),
         Catalogue("local_file_sources", "Where View files were found."),

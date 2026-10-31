@@ -1,0 +1,39 @@
+.tl-extras-moves {
+    display: grid;
+    gap: 0.6rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(246, 240, 232, 0.12);
+}
+
+.tl-extras-moves h3 {
+    margin: 0;
+    font-size: 0.95rem;
+}
+
+.tl-extras-moves__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+}
+
+.tl-extras-moves__row--staged {
+    color: #9fd8a8;
+}
+
+.tl-extras-moves__name {
+    flex: 1 1 8rem;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tl-extras-moves__number {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+}

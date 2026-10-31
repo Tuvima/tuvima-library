@@ -62,6 +62,12 @@ public sealed class DetailPageViewModel
     /// for an administrator on a single-item page; empty for everyone else. Not the same as <see cref="IsUnmatched"/>, which is about placement.
     /// </summary>
     public IReadOnlyList<DetailUnmatchedAssetViewModel> UnmatchedAssets { get; set; } = [];
+
+    /// <summary>
+    /// The Extras of this title (Extras spec): guidebooks, picture folders and clips found beside it. Empty on every page that is not a title
+    /// and when there are none, in which case the page shows no Extras section. Only a title the viewer may see carries them.
+    /// </summary>
+    public IReadOnlyList<DetailExtraCardViewModel> Extras { get; set; } = [];
 }
 
 /// <summary>One of a page's files that is Unmatched: its asset id (the id the Unmatched item routes take) and whether it is kept as it is.</summary>

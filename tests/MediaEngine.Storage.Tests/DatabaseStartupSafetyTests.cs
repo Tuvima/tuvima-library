@@ -321,6 +321,7 @@ public sealed class DatabaseStartupSafetyTests
             ("review_queue", "source_operation_id"),
             ("ingestion_log", "id"),
             ("ingestion_log", "media_asset_id"),
+            ("item_extras", "id"),
             ("bridge_ids", "id"),
             ("bridge_ids", "entity_id"),
             ("identity_jobs", "id"),
