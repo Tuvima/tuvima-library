@@ -196,6 +196,24 @@ internal sealed partial class ProviderFlowRunner(
     private static string? TrimmedTextOf(JsonNode? node) =>
         TextOf(node) is { } text && !string.IsNullOrWhiteSpace(text) ? text.Trim() : null;
 
+    /// <summary>Shared words over all distinct words of two texts, ignoring case and punctuation; 0 when either has none.</summary>
+    private static double WordOverlap(string? left, string? right)
+    {
+        static HashSet<string> Words(string? text) => System.Text.RegularExpressions.Regex
+            .Matches((text ?? string.Empty).ToLowerInvariant(), @"[\p{L}\p{N}]+")
+            .Select(match => match.Value)
+            .ToHashSet(StringComparer.Ordinal);
+
+        var a = Words(left);
+        var b = Words(right);
+        if (a.Count == 0 || b.Count == 0)
+        {
+            return 0;
+        }
+
+        return a.Intersect(b).Count() / (double)a.Union(b).Count();
+    }
+
     private async Task<JsonNode?> PickAsync(PickStep pick, CancellationToken ct)
     {
         var source = Evaluate(pick.Source);
@@ -203,13 +221,16 @@ internal sealed partial class ProviderFlowRunner(
             ? []
             : (source as JsonArray ?? throw new InvalidOperationException($"{pick.Location}: the value to pick from is not a list."))
                 .Where(node => node is not null).Take(pick.Take).ToList();
+        // Exact tests are tried against every candidate before any word-overlap test, so a close name never
+        // outranks an exact one further down the list.
+        foreach (var fuzzyPass in new[] { false, true })
         foreach (var candidate in candidates)
         {
             _variables["candidate"] = candidate;
             _variables["candidate_id"] = Text(pick.CandidateIdPaths
                 .Select(path => TextOf(JsonPathEvaluator.Evaluate(candidate, path)))
                 .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value) && value.All(char.IsDigit)));
-            foreach (var test in pick.Tests)
+            foreach (var test in pick.Tests.Where(test => (test.MinWordOverlap is not null) == fuzzyPass))
             {
                 JsonNode? subject = candidate;
                 if (test.Via is not null)
@@ -222,14 +243,24 @@ internal sealed partial class ProviderFlowRunner(
                     subject = await _api.GetAsync(_providerName, test.Via.Endpoint, Arguments(test.Via.Arguments), ct).ConfigureAwait(false);
                 }
 
-                if (string.Equals(
-                        TrimmedTextOf(JsonPathEvaluator.Evaluate(subject, test.Path)),
-                        TextOf(Evaluate(test.Expected)),
-                        test.IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+                var actual = TrimmedTextOf(JsonPathEvaluator.Evaluate(subject, test.Path));
+                var expected = TextOf(Evaluate(test.Expected));
+                if (test.MinWordOverlap is { } minimum
+                    ? WordOverlap(actual, expected) >= minimum
+                    : string.Equals(actual, expected, test.IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
                 {
                     return candidate!.DeepClone();
                 }
             }
+        }
+
+        if (!(pick.FallbackToOnlyCandidate && candidates.Count == 1))
+        {
+            _logger.LogInformation(
+                "{Provider}: no search hit was close enough to the requested name; {Count} hit(s), top: {Names}",
+                _providerName,
+                candidates.Count,
+                string.Join(" | ", candidates.Take(5).Select(node => TextOf(JsonPathEvaluator.Evaluate(node, "name")) ?? "?")));
         }
 
         return pick.FallbackToOnlyCandidate && candidates.Count == 1 ? candidates[0]!.DeepClone() : null;

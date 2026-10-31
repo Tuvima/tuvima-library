@@ -120,4 +120,52 @@ public sealed class TvdbFlowParityTests
 
         Assert.DoesNotContain(handler.Lines, line => line.Contains("/search", StringComparison.Ordinal));
     }
+
+    private static RecordingHandler HandlerWithHits(string hitsJson) => new(request =>
+    {
+        var path = request.Uri.AbsolutePath;
+        if (path.EndsWith("/login", StringComparison.Ordinal))
+        {
+            return RecordingHandler.Json("""{"data":{"token":"bearer-token"}}""");
+        }
+
+        return path.EndsWith("/search", StringComparison.Ordinal)
+            ? RecordingHandler.Json(hitsJson)
+            : RecordingHandler.Json("""{"data":null}""");
+    });
+
+    [Fact]
+    public async Task ReorderedFolderWording_StillPicksTheSeriesWhenMostWordsAreShared()
+    {
+        var handler = HandlerWithHits("""{"data":[{"tvdb_id":"999","name":"Something Else Entirely"},{"tvdb_id":"343791","name":"MasterClass: Stephen Curry Teaches Shooting, Ball-Handling, and Scoring"}]}""");
+        using var rig = new ShippedProviderHarness.TvdbRig(handler);
+
+        await rig.Provider.FetchAsync(Request("Stephen Curry - MasterClass - Shooting, Ball-Handling, and Scoring", null, season: null));
+
+        Assert.Contains(handler.Lines, line => line.Contains("/series/343791/extended", StringComparison.Ordinal));
+        Assert.DoesNotContain(handler.Lines, line => line.Contains("/series/999/extended", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ASharedFirstWordAlone_IsNotEnoughToPickASeries()
+    {
+        var handler = HandlerWithHits("""{"data":[{"tvdb_id":"1","name":"Lost in Space"},{"tvdb_id":"2","name":"Lost Girl"}]}""");
+        using var rig = new ShippedProviderHarness.TvdbRig(handler);
+
+        await rig.Provider.FetchAsync(Request("Lost", null));
+
+        Assert.DoesNotContain(handler.Lines, line => line.Contains("/extended", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task AnExactNameFurtherDown_BeatsACloseNameAbove()
+    {
+        var handler = HandlerWithHits("""{"data":[{"tvdb_id":"1","name":"Orbit Kids Special"},{"tvdb_id":"2","name":"Orbit Kids"}]}""");
+        using var rig = new ShippedProviderHarness.TvdbRig(handler);
+
+        await rig.Provider.FetchAsync(Request("Orbit Kids", null));
+
+        Assert.Contains(handler.Lines, line => line.Contains("/series/2/extended", StringComparison.Ordinal));
+        Assert.DoesNotContain(handler.Lines, line => line.Contains("/series/1/extended", StringComparison.Ordinal));
+    }
 }
