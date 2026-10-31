@@ -67,7 +67,16 @@
                      @ondrop:preventDefault="@(group.CreateOptions?.ManualDropTarget is not null)"
                      @ondrop="@(() => DropOnCreateGroupAsync(group))">
                     <div id="@GroupId(group)" class="media-section-shell__rail-label">@group.Label</div>
-                    @if (group.CreateOptions is { } createOptions)
+                    @if (group.CreateOptions is { OpensCollectionFlow: true } flowOptions)
+                    {
+                        <AppIconButton Icon="@AppMaterialIcons.Outlined.Add"
+                                       AriaLabel="@($"Create in {group.Label}")"
+                                       Tooltip="@flowOptions.ManualLabel"
+                                       Size="AppControlSize.Compact"
+                                       Class="media-section-shell__flow-add"
+                                       OnClick="@(() => BeginSmartCreateAsync(group))" />
+                    }
+                    else if (group.CreateOptions is { } createOptions)
                     {
                         <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.Add"
                                          AriaLabel="@($"Create in {group.Label}")"

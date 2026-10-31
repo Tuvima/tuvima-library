@@ -1,0 +1,8 @@
+.collection-rule-sentence { display: flex; flex-direction: column; gap: 16px; width: 100%; min-width: 0; }
+.collection-rule-sentence__label { color: var(--tl-text-muted); font-size: .75rem; letter-spacing: .04em; text-transform: uppercase; }
+.collection-rule-sentence__order { display: flex; flex-direction: column; gap: 8px; }
+.collection-rule-sentence__order-row { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 10px; }
+.collection-rule-sentence__order-select { flex: 1 1 240px; max-width: 360px; }
+.collection-rule-sentence__max { flex: 0 1 160px; min-width: 120px; }
+.collection-rule-sentence__then { align-self: flex-start; }
+.collection-rule-sentence__advanced { padding-top: 4px; border-top: 1px solid var(--tl-divider); }

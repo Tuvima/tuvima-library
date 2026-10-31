@@ -1,0 +1,45 @@
+@namespace MediaEngine.Web.Components.Collections
+
+<div class="collection-media-chips" role="group" aria-label="What goes in">
+    @foreach (var type in Types)
+    {
+        <AppToggleChip Pressed="@Selected.Contains(type.Key, StringComparer.OrdinalIgnoreCase)"
+                       OnClick="@(() => ToggleAsync(type.Key))">
+            <span class="collection-media-chip__dot" data-media="@type.Key" aria-hidden="true"></span>@type.Label
+        </AppToggleChip>
+    }
+    <AppToggleChip Pressed="@(Selected.Count == 0)" OnClick="ClearAsync">Everything</AppToggleChip>
+</div>
+
+@code {
+    /// <summary>The media types a collection can hold, with the colour each wears across Library.</summary>
+    public static readonly IReadOnlyList<MediaChipType> CollectionTypes =
+    [
+        new("Movies", "Movies", "var(--tl-media-movies)"),
+        new("TV", "TV", "var(--tl-media-tv)"),
+        new("Books", "Books", "var(--tl-media-books)"),
+        new("Audiobooks", "Audiobooks", "var(--tl-media-audiobooks)"),
+        new("Music", "Music", "var(--tl-media-music)"),
+        new("Comics", "Comics", "var(--tl-media-comics)"),
+        new("Videos", "Videos", "var(--tl-media-video)"),
+    ];
+
+    /// <summary>A playlist holds things you listen to.</summary>
+    public static readonly IReadOnlyList<MediaChipType> PlaylistTypes = CollectionTypes.Where(type => type.Key is "Music" or "Audiobooks").ToList();
+
+    [Parameter] public IReadOnlyList<MediaChipType> Types { get; set; } = CollectionTypes;
+    [Parameter] public IReadOnlyList<string> Selected { get; set; } = [];
+    [Parameter] public EventCallback<IReadOnlyList<string>> SelectedChanged { get; set; }
+
+    private Task ToggleAsync(string key)
+    {
+        var next = Selected.Contains(key, StringComparer.OrdinalIgnoreCase)
+            ? Selected.Where(type => !string.Equals(type, key, StringComparison.OrdinalIgnoreCase)).ToList()
+            : Types.Select(type => type.Key).Where(type => Selected.Contains(type, StringComparer.OrdinalIgnoreCase) || type == key).ToList();
+        return SelectedChanged.InvokeAsync(next);
+    }
+
+    private Task ClearAsync() => SelectedChanged.InvokeAsync([]);
+
+    public sealed record MediaChipType(string Key, string Label, string Color);
+}

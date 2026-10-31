@@ -2,17 +2,26 @@
 @using MediaEngine.Contracts.Collections
 @implements IDisposable
 
-<section class="collection-rule-builder @($"collection-rule-builder--{Density}")" data-rule-domain="@Catalog.Domain">
-    <header class="collection-rule-builder__header">
-        <div>
-            <span class="collection-rule-builder__eyebrow">@Catalog.Eyebrow</span>
-            <h3>@Catalog.Title</h3>
-            <p>@Catalog.Description</p>
-        </div>
-    </header>
+<section class="collection-rule-builder @($"collection-rule-builder--{Density}") @(Layout == RuleBuilderLayout.Sentence ? "collection-rule-builder--sentence" : null)" data-rule-domain="@Catalog.Domain">
+    @if (ShowHeader)
+    {
+        <header class="collection-rule-builder__header">
+            <div>
+                <span class="collection-rule-builder__eyebrow">@Catalog.Eyebrow</span>
+                <h3>@Catalog.Title</h3>
+                <p>@Catalog.Description</p>
+            </div>
+        </header>
+    }
 
     <div class="collection-rule-builder__workspace">
-        <div class="collection-rule-builder__conditions">
+        @if (Layout == RuleBuilderLayout.Sentence)
+        {
+            @RenderSentence()
+        }
+        else
+        {
+            <div class="collection-rule-builder__conditions">
             @for (var groupIndex = 0; groupIndex < Definition.Groups.Count; groupIndex++)
             {
                 var group = Definition.Groups[groupIndex];
@@ -58,85 +67,9 @@
                         {
                             var condition = group.Conditions[conditionIndex];
                             var capturedConditionIndex = conditionIndex;
-                            var field = FieldFor(condition.Field);
                             <div class="collection-rule-builder__row" @key="condition">
                                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" Class="collection-rule-builder__condition-drag" />
-                                <AppSelect T="string" Value="@condition.Field"
-                                           ValueChanged="@(value => OnFieldChangedAsync(condition, value))"
-                                           Label="Field" Variant="AppVariant.Outlined" Dense="true" Class="app-dialog-select">
-                                    @foreach (var option in Fields)
-                                    {
-                                        <AppSelectItem T="string" Value="@option.Key">@option.Label</AppSelectItem>
-                                    }
-                                </AppSelect>
-                                <AppSelect T="string" Value="@condition.Op"
-                                           ValueChanged="@(value => OnOperatorChangedAsync(condition, value))"
-                                           Label="Condition" Variant="AppVariant.Outlined" Dense="true" Class="app-dialog-select">
-                                    @foreach (var op in field.Operators)
-                                    {
-                                        <AppSelectItem T="string" Value="@op.Key">@op.Label</AppSelectItem>
-                                    }
-                                </AppSelect>
-                                @if (IsValueFreeOperator(condition.Op))
-                                {
-                                    <div class="collection-rule-builder__no-value">No value needed</div>
-                                }
-                                else if (field.ValueProvider.Kind == RuleValueProviderKind.Boolean)
-                                {
-                                    <AppSelect T="string" Value="@condition.Value"
-                                               ValueChanged="@(value => OnTextValueChangedAsync(condition, value))"
-                                               Label="Value" Variant="AppVariant.Outlined" Dense="true">
-                                        <AppSelectItem T="string" Value="@("true")">Yes</AppSelectItem>
-                                        <AppSelectItem T="string" Value="@("false")">No</AppSelectItem>
-                                    </AppSelect>
-                                }
-                                else if (field.ValueProvider.Kind == RuleValueProviderKind.StaticOptions)
-                                {
-                                    <AppSelect T="string" Value="@condition.Value"
-                                               ValueChanged="@(value => OnTextValueChangedAsync(condition, value))"
-                                               Label="Value" Variant="AppVariant.Outlined" Dense="true">
-                                        @foreach (var option in field.ValueProvider.Options ?? [])
-                                        {
-                                            <AppSelectItem T="string" Value="@option.Value">@option.Label</AppSelectItem>
-                                        }
-                                    </AppSelect>
-                                }
-                                else if (field.ValueProvider.Kind == RuleValueProviderKind.CollectionLibrary)
-                                {
-                                    <CollectionRuleValuePicker Field="@condition.Field"
-                                                               EntityField="@field.ValueProvider.ResolvesEntities"
-                                                               OptionGroup="@field.ValueProvider.OptionGroup"
-                                                               SelectedOptions="@SelectedOptions(condition, field)"
-                                                               SelectedOptionsChanged="@(options => OnOptionsChangedAsync(condition, options))"
-                                                               SearchPlaceholder="@field.ValueProvider.SearchPlaceholder" />
-                                }
-                                else if (RuleOperators.TakesRange(condition.Op))
-                                {
-                                    <div class="collection-rule-builder__range" data-value-provider="@field.ValueProvider.ProviderKey">
-                                        <AppTextField T="string" Value="@RangeValue(condition, 0)"
-                                                      ValueChanged="@(value => OnRangeValueChangedAsync(condition, 0, value))"
-                                                      Label="From" InputType="@InputTypeFor(field, condition.Op)"
-                                                      Variant="AppVariant.Outlined" Immediate="true"
-                                                      DebounceInterval="300" Class="app-dialog-field" />
-                                        <AppTextField T="string" Value="@RangeValue(condition, 1)"
-                                                      ValueChanged="@(value => OnRangeValueChangedAsync(condition, 1, value))"
-                                                      Label="To" InputType="@InputTypeFor(field, condition.Op)"
-                                                      Variant="AppVariant.Outlined" Immediate="true"
-                                                      DebounceInterval="300" Class="app-dialog-field" />
-                                    </div>
-                                }
-                                else
-                                {
-                                    <div data-value-provider="@field.ValueProvider.ProviderKey">
-                                        <AppTextField T="string" Value="@condition.Value"
-                                                      ValueChanged="@(value => OnTextValueChangedAsync(condition, value))"
-                                                      Label="@(RuleOperators.TakesWholeNumber(condition.Op) ? "Number" : "Value")"
-                                                      Placeholder="@field.ValueProvider.SearchPlaceholder"
-                                                      InputType="@InputTypeFor(field, condition.Op)"
-                                                      Variant="AppVariant.Outlined" Immediate="true"
-                                                      DebounceInterval="300" Class="app-dialog-field" />
-                                    </div>
-                                }
+                                @RenderRowControls(condition, negated: false)
                                 <AppIconButton Icon="@AppMaterialIcons.Outlined.DeleteOutline" Size="AppControlSize.Compact"
                                                Tooltip="Remove condition" AriaLabel="Remove condition"
                                                OnClick="@(() => RemoveConditionAsync(group, capturedConditionIndex))" />
@@ -145,37 +78,11 @@
                     </div>
                     <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Add"
                                Class="collection-rule-builder__add-condition"
-                               OnClick="@(() => OpenConditionPicker(group))">Add condition</AppButton>
+                               OnClick="@(() => OpenConditionPicker(group.Id))">Add condition</AppButton>
 
-                    @if (string.Equals(_pickerGroupId, group.Id, StringComparison.Ordinal))
+                    @if (string.Equals(_pickerTarget, group.Id, StringComparison.Ordinal))
                     {
-                        <div class="collection-rule-builder__picker">
-                            <div class="collection-rule-builder__picker-title"><strong>Add condition</strong></div>
-                            <AppTextField T="string" Value="@_pickerSearch" ValueChanged="OnPickerSearchChanged"
-                                          Placeholder="Search rule types..." Adornment="AppAdornment.Start"
-                                          AdornmentIcon="@AppMaterialIcons.Outlined.Search" Immediate="true"
-                                          Class="collection-rule-builder__picker-search" />
-                            <nav class="collection-rule-builder__picker-families" aria-label="Rule families">
-                                @foreach (var category in Catalog.Categories)
-                                {
-                                    <AppNativeButton Type="button" Class="@(category.Key == _pickerCategory ? "is-selected" : null)"
-                                                     OnClick="@(() => SelectPickerCategory(category.Key))">
-                                        <AppMaterialIcon Icon="@category.Icon" /><span>@category.Label</span>
-                                    </AppNativeButton>
-                                }
-                            </nav>
-                            <div class="collection-rule-builder__picker-options">
-                                @foreach (var option in PickerFields)
-                                {
-                                    <AppNativeButton Type="button" Class="collection-rule-builder__picker-option"
-                                                     OnClick="@(() => SelectFieldAsync(group, option))">
-                                        <AppMaterialIcon Icon="@option.Icon" />
-                                        <span><strong>@option.Label</strong><small>@option.Description</small></span>
-                                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" />
-                                    </AppNativeButton>
-                                }
-                            </div>
-                        </div>
+                        @RenderPicker()
                     }
                 </article>
             }
@@ -183,7 +90,7 @@
             <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Add"
                        Class="collection-rule-builder__add-group" OnClick="AddGroupAsync">Add group</AppButton>
 
-            @if (Catalog.ShowSortControls)
+            @if (Catalog.ShowSortControls && ShowSort)
             {
                 <div class="collection-rule-builder__ordering">
                     <div class="collection-rule-builder__ordering-header">
@@ -213,9 +120,11 @@
                     }
                 </div>
             }
-        </div>
+            </div>
+        }
     </div>
 </section>
+
 
 @code {
     [Parameter, EditorRequired] public RuleBuilderCatalog Catalog { get; set; } = null!;
@@ -235,9 +144,21 @@
     [Parameter] public string Density { get; set; } = "editor";
     [Parameter] public Func<RuleBuilderPreviewRequest, CancellationToken, Task<CollectionPreviewResult?>>? PreviewLoader { get; set; }
 
+    /// <summary>The groups layout (today's) or the plain-sentence layout: rules joined by "and" with a "but never when" list.</summary>
+    [Parameter] public RuleBuilderLayout Layout { get; set; } = RuleBuilderLayout.Groups;
+
+    /// <summary>False when the owner draws its own title (the collection editor does).</summary>
+    [Parameter] public bool ShowHeader { get; set; } = true;
+
+    /// <summary>False when the owner draws its own order and limit controls.</summary>
+    [Parameter] public bool ShowSort { get; set; } = true;
+
+    private const string IncludeTarget = "\u0001include";
+    private const string ExceptionTarget = "\u0001exceptions";
+
     private string _pickerCategory = string.Empty;
     private string _pickerSearch = string.Empty;
-    private string? _pickerGroupId;
+    private string? _pickerTarget;
     private string? _draggedGroupId;
     private bool _initialPreviewQueued;
     private CancellationTokenSource? _previewCts;
@@ -245,6 +166,8 @@
     private IReadOnlyList<RuleFieldDefinition> Fields => Catalog.Fields.Where(IsCapabilityEnabled).ToList();
     private List<CollectionRulePredicateViewModel> CompleteConditions => Definition.AllConditions.Where(IsComplete).ToList();
     private IReadOnlyList<RuleFieldDefinition> PickerFields => Fields
+        .Where(item => _pickerTarget != ExceptionTarget || CollectionRuleSentence.CanBeException(item))
+        .Where(item => _pickerTarget != IncludeTarget || item.Key != CollectionRuleSentence.MediaField)
         .Where(item => !string.IsNullOrWhiteSpace(_pickerSearch) || item.Category == _pickerCategory)
         .Where(item => string.IsNullOrWhiteSpace(_pickerSearch)
             || item.Label.Contains(_pickerSearch, StringComparison.OrdinalIgnoreCase)
@@ -255,7 +178,9 @@
     protected override void OnParametersSet()
     {
         _pickerCategory = string.IsNullOrWhiteSpace(_pickerCategory) ? Catalog.DefaultCategory : _pickerCategory;
-        if (Definition.Groups.Count == 0)
+        if (Layout == RuleBuilderLayout.Sentence)
+            CollectionRuleSentence.IncludeGroup(Definition);
+        else if (Definition.Groups.Count == 0)
             Definition.Groups.Add(NewGroup());
         foreach (var condition in Definition.AllConditions.Where(condition => Fields.All(field => field.Key != condition.Field)))
         {
@@ -315,14 +240,14 @@
         _ => false,
     };
 
-    private void OpenConditionPicker(CollectionRuleGroupViewModel group)
+    private void OpenConditionPicker(string target)
     {
-        if (string.Equals(_pickerGroupId, group.Id, StringComparison.Ordinal))
+        if (string.Equals(_pickerTarget, target, StringComparison.Ordinal))
         {
-            _pickerGroupId = null;
+            _pickerTarget = null;
             return;
         }
-        _pickerGroupId = group.Id;
+        _pickerTarget = target;
         _pickerCategory = Catalog.DefaultCategory;
         _pickerSearch = string.Empty;
     }
@@ -330,10 +255,25 @@
     private Task OnPickerSearchChanged(string? value) { _pickerSearch = value ?? string.Empty; return Task.CompletedTask; }
     private void SelectPickerCategory(string category) { _pickerCategory = category; _pickerSearch = string.Empty; }
 
-    private async Task SelectFieldAsync(CollectionRuleGroupViewModel group, RuleFieldDefinition field)
+    private async Task SelectFieldAsync(RuleFieldDefinition field)
     {
-        group.Conditions.Add(new() { Field = field.Key, Op = field.Operators[0].Key });
-        _pickerGroupId = null;
+        if (_pickerTarget == ExceptionTarget)
+        {
+            var exception = new CollectionRulePredicateViewModel { Field = field.Key };
+            CollectionRuleSentence.ApplyDisplayedCondition(exception, field, CollectionRuleSentence.ExceptionConditions(field)[0].Key);
+            CollectionRuleSentence.EnsureExceptionsGroup(Definition).Conditions.Add(exception);
+        }
+        else if (_pickerTarget == IncludeTarget)
+        {
+            CollectionRuleSentence.IncludeGroup(Definition).Conditions.Add(new() { Field = field.Key, Op = field.Operators[0].Key });
+        }
+        else
+        {
+            var group = Definition.Groups.FirstOrDefault(candidate => candidate.Id == _pickerTarget);
+            group?.Conditions.Add(new() { Field = field.Key, Op = field.Operators[0].Key });
+        }
+
+        _pickerTarget = null;
         await NotifyChangedAsync();
     }
 
@@ -342,12 +282,18 @@
         var group = NewGroup();
         group.JoinWithPrevious = "or";
         Definition.Groups.Add(group);
-        OpenConditionPicker(group);
+        OpenConditionPicker(group.Id);
         await NotifyChangedAsync();
     }
 
     private async Task RemoveGroupAsync(int index) { Definition.Groups.RemoveAt(index); await NotifyChangedAsync(); }
-    private async Task RemoveConditionAsync(CollectionRuleGroupViewModel group, int index) { group.Conditions.RemoveAt(index); await NotifyChangedAsync(); }
+    private async Task RemoveConditionAsync(CollectionRuleGroupViewModel group, int index)
+    {
+        group.Conditions.RemoveAt(index);
+        if (Layout == RuleBuilderLayout.Sentence && CollectionRuleSentence.IsExceptionsGroup(group) && group.Conditions.Count == 0)
+            Definition.Groups.Remove(group);
+        await NotifyChangedAsync();
+    }
     private async Task SetGroupModeAsync(CollectionRuleGroupViewModel group, string mode) { group.MatchMode = mode; await NotifyChangedAsync(); }
     private async Task SetGroupJoinAsync(CollectionRuleGroupViewModel group, string join) { group.JoinWithPrevious = join; await NotifyChangedAsync(); }
     private void BeginGroupDrag(string groupId) => _draggedGroupId = groupId;
@@ -369,21 +315,28 @@
         await NotifyChangedAsync();
     }
 
-    private async Task OnFieldChangedAsync(CollectionRulePredicateViewModel condition, string fieldKey)
+    private async Task OnFieldChangedAsync(CollectionRulePredicateViewModel condition, string fieldKey, bool negated)
     {
         var field = FieldFor(fieldKey);
         condition.Field = field.Key;
-        condition.Op = field.Operators[0].Key;
+        if (negated)
+            CollectionRuleSentence.ApplyDisplayedCondition(condition, field, CollectionRuleSentence.ExceptionConditions(field)[0].Key);
+        else
+            condition.Op = field.Operators[0].Key;
         ClearValue(condition);
         await NotifyChangedAsync();
     }
 
-    private async Task OnOperatorChangedAsync(CollectionRulePredicateViewModel condition, string op)
+    private async Task OnOperatorChangedAsync(CollectionRulePredicateViewModel condition, string op, bool negated)
     {
         // A day count and a date are different kinds of value, so switching between them starts the value fresh.
-        var changesKind = RuleOperators.TakesWholeNumber(condition.Op) != RuleOperators.TakesWholeNumber(op);
-        condition.Op = op;
-        if (IsValueFreeOperator(op) || changesKind)
+        var previous = negated ? CollectionRuleSentence.DisplayedCondition(condition, FieldFor(condition.Field)) : condition.Op;
+        var changesKind = RuleOperators.TakesWholeNumber(previous) != RuleOperators.TakesWholeNumber(op);
+        if (negated)
+            CollectionRuleSentence.ApplyDisplayedCondition(condition, FieldFor(condition.Field), op);
+        else
+            condition.Op = op;
+        if (IsValueFreeOperator(condition.Op) || changesKind)
             ClearValue(condition);
         else if (RuleOperators.TakesRange(op))
         {
@@ -404,16 +357,18 @@
         await NotifyChangedAsync();
     }
 
-    private async Task OnTextValueChangedAsync(CollectionRulePredicateViewModel condition, string? value)
+    private async Task OnTextValueChangedAsync(CollectionRulePredicateViewModel condition, string? value, bool negated = false)
     {
-        condition.Value = value;
+        condition.Value = negated && FieldFor(condition.Field).ValueProvider.Kind == RuleValueProviderKind.Boolean
+            ? CollectionRuleSentence.StoredBoolean(value)
+            : value;
         condition.DisplayValue = null;
         condition.Values = null;
         condition.DisplayValues = null;
         await NotifyChangedAsync();
     }
 
-    private async Task OnOptionsChangedAsync(CollectionRulePredicateViewModel condition, IReadOnlyList<CollectionRuleValueDto> options)
+    private async Task OnOptionsChangedAsync(CollectionRulePredicateViewModel condition, IReadOnlyList<CollectionRuleValueDto> options, bool negated = false)
     {
         ClearValue(condition);
         if (options.Count == 1)
@@ -421,12 +376,14 @@
             condition.Value = options[0].Value;
             condition.DisplayValue = options[0].Label;
             if (condition.Op == "in") condition.Op = "eq";
+            // An exception stores "is not"; one value or several, it reads the same, and several are written one by one on save.
+            if (negated && condition.Op == "eq") condition.Op = "neq";
         }
         else if (options.Count > 1)
         {
             condition.Values = options.Select(option => option.Value).ToArray();
             condition.DisplayValues = options.Select(option => option.Label).ToArray();
-            condition.Op = "in";
+            condition.Op = negated ? "neq" : "in";
         }
         await NotifyChangedAsync();
     }
@@ -482,6 +439,224 @@
         await SchedulePreviewAsync();
     }
 
+    private RenderFragment RenderSentence() => @<div class="collection-rule-builder__sentence">
+        @{
+            var include = CollectionRuleSentence.IncludeGroup(Definition);
+            var exceptions = CollectionRuleSentence.ExceptionsGroup(Definition);
+            var joinWord = include.MatchMode == "any" ? "or" : "and";
+        }
+        <section class="collection-rule-builder__block" aria-label="Include titles where">
+            <span class="collection-rule-builder__label">Include titles where</span>
+            @if (include.Conditions.Count == 0)
+            {
+                <p class="collection-rule-builder__hint">No rules yet. Add one, for example “Director is Denis Villeneuve”.</p>
+            }
+            @for (var index = 0; index < include.Conditions.Count; index++)
+            {
+                var condition = include.Conditions[index];
+                var capturedIndex = index;
+                @if (index > 0)
+                {
+                    <span class="collection-rule-builder__and">@joinWord</span>
+                }
+                <div class="collection-rule-builder__row collection-rule-builder__row--sentence" @key="condition">
+                    <div class="collection-rule-builder__sentence-fields">
+                        @RenderRowControls(condition, negated: false)
+                    </div>
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.RemoveCircleOutline" Size="AppControlSize.Compact"
+                                   Tooltip="Remove rule" AriaLabel="Remove rule"
+                                   OnClick="@(() => RemoveConditionAsync(include, capturedIndex))" />
+                </div>
+            }
+            <div class="collection-rule-builder__actions">
+                <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" StartIcon="@AppMaterialIcons.Outlined.Add"
+                           Class="collection-rule-builder__add-rule"
+                           OnClick="@(() => OpenConditionPicker(IncludeTarget))">Add rule</AppButton>
+                <AppSwitchRow Label="Match any of these instead" Value="@(include.MatchMode == "any")"
+                              ValueChanged="SetMatchAnyAsync" Size="AppSize.Small" Class="collection-rule-builder__match-any" />
+            </div>
+            @if (_pickerTarget == IncludeTarget)
+            {
+                @RenderPicker()
+            }
+        </section>
+
+        <section class="collection-rule-builder__block collection-rule-builder__block--exceptions" aria-label="But never when">
+            <span class="collection-rule-builder__label collection-rule-builder__label--exceptions">But never when</span>
+            @for (var index = 0; exceptions is not null && index < exceptions.Conditions.Count; index++)
+            {
+                var condition = exceptions.Conditions[index];
+                var capturedIndex = index;
+                var capturedGroup = exceptions;
+                @if (index > 0)
+                {
+                    <span class="collection-rule-builder__and">or</span>
+                }
+                <div class="collection-rule-builder__row collection-rule-builder__row--sentence" @key="condition">
+                    <div class="collection-rule-builder__sentence-fields">
+                        @RenderRowControls(condition, negated: true)
+                    </div>
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.RemoveCircleOutline" Size="AppControlSize.Compact"
+                                   Tooltip="Remove exception" AriaLabel="Remove exception"
+                                   OnClick="@(() => RemoveConditionAsync(capturedGroup, capturedIndex))" />
+                </div>
+            }
+            <div class="collection-rule-builder__actions">
+                <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" StartIcon="@AppMaterialIcons.Outlined.Add"
+                           Class="collection-rule-builder__add-rule"
+                           OnClick="@(() => OpenConditionPicker(ExceptionTarget))">Add exception</AppButton>
+            </div>
+            @if (_pickerTarget == ExceptionTarget)
+            {
+                @RenderPicker()
+            }
+        </section>
+    </div>;
+
+    private async Task SetMatchAnyAsync(bool any)
+    {
+        CollectionRuleSentence.SetMatchAny(Definition, any);
+        await NotifyChangedAsync();
+    }
+
+    private IReadOnlyList<AppSelectOption> FieldOptions(bool negated)
+    {
+        var order = Catalog.Categories.Select((category, index) => (category.Key, index)).ToDictionary(pair => pair.Key, pair => pair.index);
+        var options = new List<AppSelectOption>();
+        string? previous = null;
+        foreach (var field in Fields.Where(field => !negated || CollectionRuleSentence.CanBeException(field))
+                     .OrderBy(field => order.GetValueOrDefault(field.Category, int.MaxValue)))
+        {
+            options.Add(new AppSelectOption(field.Key, field.Label, SeparatorBefore: previous is not null && previous != field.Category));
+            previous = field.Category;
+        }
+
+        return options;
+    }
+
+    /// <summary>The field, condition and value controls of one rule. An exception reads in positive words and is stored as the opposite.</summary>
+    private RenderFragment RenderRowControls(CollectionRulePredicateViewModel condition, bool negated) => @<text>
+        @{
+            var field = FieldFor(condition.Field);
+            var conditions = negated ? CollectionRuleSentence.ExceptionConditions(field) : field.Operators;
+            var shownOp = negated ? CollectionRuleSentence.DisplayedCondition(condition, field) : condition.Op;
+        }
+        @if (Layout == RuleBuilderLayout.Sentence)
+        {
+            <AppSelect T="string" Value="@condition.Field"
+                       ValueChanged="@(value => OnFieldChangedAsync(condition, value ?? condition.Field, negated))"
+                       Options="@FieldOptions(negated)"
+                       Label="Field" HideLabel="true" Variant="AppVariant.Outlined" Dense="true" Class="app-dialog-select" />
+        }
+        else
+        {
+            <AppSelect T="string" Value="@condition.Field"
+                       ValueChanged="@(value => OnFieldChangedAsync(condition, value ?? condition.Field, negated))"
+                       Label="Field" Variant="AppVariant.Outlined" Dense="true" Class="app-dialog-select">
+                @foreach (var option in Fields)
+                {
+                    <AppSelectItem T="string" Value="@option.Key">@option.Label</AppSelectItem>
+                }
+            </AppSelect>
+        }
+        <AppSelect T="string" Value="@shownOp"
+                   ValueChanged="@(value => OnOperatorChangedAsync(condition, value ?? shownOp, negated))"
+                   Label="Condition" HideLabel="@(Layout == RuleBuilderLayout.Sentence)" Variant="AppVariant.Outlined" Dense="true" Class="app-dialog-select">
+            @foreach (var op in conditions)
+            {
+                <AppSelectItem T="string" Value="@op.Key">@op.Label</AppSelectItem>
+            }
+        </AppSelect>
+        @if (IsValueFreeOperator(condition.Op))
+        {
+            <div class="collection-rule-builder__no-value">No value needed</div>
+        }
+        else if (field.ValueProvider.Kind == RuleValueProviderKind.Boolean)
+        {
+            <AppSelect T="string" Value="@(negated ? CollectionRuleSentence.DisplayedBoolean(condition.Value) : condition.Value)"
+                       ValueChanged="@(value => OnTextValueChangedAsync(condition, value, negated))"
+                       Label="Value" HideLabel="@(Layout == RuleBuilderLayout.Sentence)" Variant="AppVariant.Outlined" Dense="true">
+                <AppSelectItem T="string" Value="@("true")">Yes</AppSelectItem>
+                <AppSelectItem T="string" Value="@("false")">No</AppSelectItem>
+            </AppSelect>
+        }
+        else if (field.ValueProvider.Kind == RuleValueProviderKind.StaticOptions)
+        {
+            <AppSelect T="string" Value="@condition.Value"
+                       ValueChanged="@(value => OnTextValueChangedAsync(condition, value))"
+                       Label="Value" HideLabel="@(Layout == RuleBuilderLayout.Sentence)" Variant="AppVariant.Outlined" Dense="true">
+                @foreach (var option in field.ValueProvider.Options ?? [])
+                {
+                    <AppSelectItem T="string" Value="@option.Value">@option.Label</AppSelectItem>
+                }
+            </AppSelect>
+        }
+        else if (field.ValueProvider.Kind == RuleValueProviderKind.CollectionLibrary)
+        {
+            <CollectionRuleValuePicker Field="@condition.Field"
+                                       EntityField="@field.ValueProvider.ResolvesEntities"
+                                       OptionGroup="@field.ValueProvider.OptionGroup"
+                                       SelectedOptions="@SelectedOptions(condition, field)"
+                                       SelectedOptionsChanged="@(options => OnOptionsChangedAsync(condition, options, negated))"
+                                       SearchPlaceholder="@field.ValueProvider.SearchPlaceholder" />
+        }
+        else if (RuleOperators.TakesRange(condition.Op))
+        {
+            <div class="collection-rule-builder__range" data-value-provider="@field.ValueProvider.ProviderKey">
+                <AppTextField T="string" Value="@RangeValue(condition, 0)"
+                              ValueChanged="@(value => OnRangeValueChangedAsync(condition, 0, value))"
+                              Label="From" InputType="@InputTypeFor(field, condition.Op)"
+                              Variant="AppVariant.Outlined" Immediate="true"
+                              DebounceInterval="300" Class="app-dialog-field" />
+                <AppTextField T="string" Value="@RangeValue(condition, 1)"
+                              ValueChanged="@(value => OnRangeValueChangedAsync(condition, 1, value))"
+                              Label="To" InputType="@InputTypeFor(field, condition.Op)"
+                              Variant="AppVariant.Outlined" Immediate="true"
+                              DebounceInterval="300" Class="app-dialog-field" />
+            </div>
+        }
+        else
+        {
+            <div data-value-provider="@field.ValueProvider.ProviderKey">
+                <AppTextField T="string" Value="@condition.Value"
+                              ValueChanged="@(value => OnTextValueChangedAsync(condition, value))"
+                              Label="@(RuleOperators.TakesWholeNumber(condition.Op) ? "Number" : "Value")"
+                              Placeholder="@field.ValueProvider.SearchPlaceholder"
+                              InputType="@InputTypeFor(field, condition.Op)"
+                              Variant="AppVariant.Outlined" Immediate="true"
+                              DebounceInterval="300" Class="app-dialog-field" />
+            </div>
+        }
+    </text>;
+
+    private RenderFragment RenderPicker() => @<div class="collection-rule-builder__picker">
+        <div class="collection-rule-builder__picker-title"><strong>@(_pickerTarget == ExceptionTarget ? "Add exception" : "Add condition")</strong></div>
+        <AppTextField T="string" Value="@_pickerSearch" ValueChanged="OnPickerSearchChanged"
+                      Placeholder="Search rule types..." Adornment="AppAdornment.Start"
+                      AdornmentIcon="@AppMaterialIcons.Outlined.Search" Immediate="true"
+                      Class="collection-rule-builder__picker-search" />
+        <nav class="collection-rule-builder__picker-families" aria-label="Rule families">
+            @foreach (var category in Catalog.Categories)
+            {
+                <AppNativeButton Type="button" Class="@(category.Key == _pickerCategory ? "is-selected" : null)"
+                                 OnClick="@(() => SelectPickerCategory(category.Key))">
+                    <AppMaterialIcon Icon="@category.Icon" /><span>@category.Label</span>
+                </AppNativeButton>
+            }
+        </nav>
+        <div class="collection-rule-builder__picker-options">
+            @foreach (var option in PickerFields)
+            {
+                <AppNativeButton Type="button" Class="collection-rule-builder__picker-option"
+                                 OnClick="@(() => SelectFieldAsync(option))">
+                    <AppMaterialIcon Icon="@option.Icon" />
+                    <span><strong>@option.Label</strong><small>@option.Description</small></span>
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" />
+                </AppNativeButton>
+            }
+        </div>
+    </div>;
+
     private RenderFragment RenderSortFieldSelect(string value, Func<string, Task> changed) => @<AppSelect T="string" Value="@value" ValueChanged="@changed" Dense="true">
         @foreach (var option in Catalog.SortFields)
         {
@@ -494,7 +669,7 @@
         <AppSelectItem T="string" Value="@("desc")">@DirectionLabel(field, "desc")</AppSelectItem>
     </AppSelect>;
 
-    private static string DirectionLabel(string field, string direction) => (field, direction) switch
+    internal static string DirectionLabel(string field, string direction) => (field, direction) switch
     {
         ("provider_rating", "asc") => "Lowest first",
         ("provider_rating", _) => "Highest first",

@@ -113,3 +113,20 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
 }
+
+/* The plain-sentence layout: rules joined by "and", with a "but never when" list (Collections and lists spec D2). */
+.collection-rule-builder__sentence { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.collection-rule-builder__block { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.collection-rule-builder__block--exceptions { padding: 12px; border: 1px dashed var(--tl-divider); border-radius: 12px; background: color-mix(in srgb, var(--tl-status-error) 5%, transparent); }
+.collection-rule-builder__label { color: var(--tl-text-muted); font-size: .75rem; letter-spacing: .04em; text-transform: uppercase; }
+.collection-rule-builder__label--exceptions { color: var(--tl-status-warning); }
+.collection-rule-builder__hint { margin: 0; color: var(--tl-text-muted); font-size: .85rem; }
+.collection-rule-builder__and { padding-left: 4px; color: var(--tl-text-muted); font-size: .8rem; }
+.collection-rule-builder__row--sentence { grid-template-columns: minmax(0, 1fr) 36px; padding: 0; border: 0; background: transparent; }
+.collection-rule-builder__row.collection-rule-builder__row--sentence > .collection-rule-builder__sentence-fields { grid-column: 1; }
+.collection-rule-builder__sentence-fields { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .9fr) minmax(0, 1.6fr); align-items: center; gap: 10px; min-width: 0; }
+.collection-rule-builder__actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 20px; }
+
+@media (max-width: 840px) {
+    .collection-rule-builder__sentence-fields { grid-template-columns: minmax(0, 1fr); }
+}

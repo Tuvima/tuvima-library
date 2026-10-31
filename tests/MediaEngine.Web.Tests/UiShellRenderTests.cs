@@ -1800,7 +1800,8 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("app-artwork-picker", source);
         Assert.Contains("app-artwork-picker__edit", source);
         Assert.Contains("collection-editor-field", source);
-        Assert.Equal(1, source.Split("OnClick=\"SaveCollection\"", StringSplitOptions.None).Length - 1);
+        // One Save in the editing bar, and one on the last step of the New collection flow.
+        Assert.Equal(2, source.Split("OnClick=\"SaveCollection\"", StringSplitOptions.None).Length - 1);
         Assert.Contains("<CollectionRuleBuilder", source);
         Assert.Contains("<SharedRuleBuilder", ruleBuilder);
         Assert.Contains("<CollectionRuleValuePicker", sharedRuleBuilder);

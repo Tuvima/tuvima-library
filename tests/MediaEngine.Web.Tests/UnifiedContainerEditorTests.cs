@@ -13,7 +13,7 @@ public sealed class UnifiedContainerEditorTests
         Assert.False(File.Exists(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Collections", "CollectionWizard.razor")));
         Assert.Contains("ShowAsync<CollectionEditorShell>", launcher, StringComparison.Ordinal);
         Assert.Contains("ContainerEditorKind", models, StringComparison.Ordinal);
-        Assert.Contains("(\"membership\", \"Membership\"", editor, StringComparison.Ordinal);
+        Assert.Contains("(\"membership\", \"Contents\"", editor, StringComparison.Ordinal);
         Assert.Contains("(\"companions\", \"Companions\"", editor, StringComparison.Ordinal);
         Assert.Contains("Ownership and visibility", editor, StringComparison.Ordinal);
         Assert.Contains("Primary area", editor, StringComparison.Ordinal);

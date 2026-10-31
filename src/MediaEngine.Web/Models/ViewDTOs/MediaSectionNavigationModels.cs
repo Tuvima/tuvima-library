@@ -74,13 +74,17 @@ public sealed record MediaSectionNavigationCreateOptions(
     string InputPlaceholder,
     MediaSectionNavigationCreateTarget ManualTarget,
     MediaSectionNavigationCreateTarget SmartTarget,
-    MediaSectionNavigationDropTarget? ManualDropTarget = null);
+    MediaSectionNavigationDropTarget? ManualDropTarget = null,
+    bool OpensCollectionFlow = false);
 
 public abstract record MediaSectionNavigationCreateTarget;
 
 public sealed record ManualPlaylistCreateTarget : MediaSectionNavigationCreateTarget;
 
 public sealed record SmartPlaylistCreateTarget : MediaSectionNavigationCreateTarget;
+
+/// <summary>The rail "+" on Watch and Read: opens the New collection flow with that area's media type chips ticked.</summary>
+public sealed record CollectionFlowCreateTarget(string Area) : MediaSectionNavigationCreateTarget;
 
 public sealed record ManualGalleryCreateTarget : MediaSectionNavigationCreateTarget;
 

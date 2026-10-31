@@ -11,6 +11,7 @@
 @using MediaEngine.Contracts.Metadata
 @using DayMonth = MediaEngine.Domain.Models.DayMonth
 @using MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Components.Rules
 
 @inject IEngineApiClient ApiClient
 @inject UIOrchestratorService Orchestrator
@@ -22,7 +23,7 @@
                 OnBeforeInternalNavigation="ConfirmNavigationWithUnsavedChanges" />
 
 <MediaEditorSurface Inline="@Inline">
-    <div class="sme-shell collection-editor-workspace">
+    <div class="sme-shell collection-editor-workspace @(IsCreateFlow ? "collection-editor-workspace--flow" : null)">
         <header class="sme-header collection-editor-header">
             <div class="collection-editor-header-icon" aria-hidden="true">
                 <AppMaterialIcon Icon="@CollectionTypeIcon" />
@@ -30,7 +31,19 @@
             <div class="sme-header-copy">
                 <div class="sme-kicker">@DialogEyebrow</div>
                 <h2 class="sme-title" tabindex="-1">@EditorIdentityTitle</h2>
-                <div class="sme-subtitle">@HeaderSubtitle</div>
+                @if (IsCreateFlow)
+                {
+                    <ol class="collection-flow__steps" aria-label="Steps">
+                        @for (var number = 1; number <= 3; number++)
+                        {
+                            <li class="@(number == _step ? "is-current" : null)" aria-current="@(number == _step ? "step" : null)">@number · @StepLabel(number)</li>
+                        }
+                    </ol>
+                }
+                else
+                {
+                    <div class="sme-subtitle">@HeaderSubtitle</div>
+                }
             </div>
             <div class="collection-editor-header-actions">
                 <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
@@ -43,6 +56,12 @@
             </div>
         </header>
 
+        @if (IsCreateFlow)
+        {
+            @RenderFlow()
+        }
+        else
+        {
         <div class="sme-workspace collection-editor-layout">
             <nav class="sme-section-nav collection-editor-rail" aria-label="Collection editor sections">
                 @for (var index = 0; index < VisibleTabs.Length; index++)
@@ -133,6 +152,7 @@
                 </footer>
             </main>
         </div>
+        }
     </div>
 </MediaEditorSurface>
 
@@ -146,7 +166,7 @@
     [
         ("details", "Details", AppMaterialIcons.Outlined.Article),
         ("artwork", "Artwork", AppMaterialIcons.Outlined.PhotoLibrary),
-        ("membership", "Membership", AppMaterialIcons.Outlined.Inventory2),
+        ("membership", "Contents", AppMaterialIcons.Outlined.Inventory2),
         ("companions", "Companions", AppMaterialIcons.Outlined.Link),
         ("history", "History", AppMaterialIcons.Outlined.History),
     ];
@@ -154,7 +174,7 @@
     [
         ("details", "Details", AppMaterialIcons.Outlined.Article),
         ("artwork", "Artwork", AppMaterialIcons.Outlined.PhotoLibrary),
-        ("membership", "Membership", AppMaterialIcons.Outlined.Inventory2),
+        ("membership", "Contents", AppMaterialIcons.Outlined.Inventory2),
         ("history", "History", AppMaterialIcons.Outlined.History),
     ];
     private static readonly (string Slot, string Label, string Icon)[] DraftArtworkRoles =
@@ -166,7 +186,7 @@
     private static readonly (string Label, string Icon)[] IconChoices =
     [
         ("Playlist", AppMaterialIcons.Outlined.QueueMusic),
-        ("Smart", AppMaterialIcons.Outlined.AutoAwesomeMotion),
+        ("Rules", AppMaterialIcons.Outlined.AutoAwesomeMotion),
         ("Favorites", AppMaterialIcons.Outlined.FavoriteBorder),
         ("Recent", AppMaterialIcons.Outlined.Schedule),
         ("Albums", AppMaterialIcons.Outlined.Album),
@@ -232,16 +252,14 @@
     private string _audience = "Private";
     private List<ProfileViewModel> _availableAudienceProfiles = [];
     private readonly HashSet<Guid> _selectedProfileIds = [];
-    private CollectionRuleDefinitionViewModel _ruleDefinition = new()
-    {
-        Groups = [new CollectionRuleGroupViewModel { Conditions = [new CollectionRulePredicateViewModel()] }],
-    };
+    private CollectionRuleDefinitionViewModel _ruleDefinition = new();
     private string _sortField = "title";
     private string _sortDirection = "asc";
     private string? _secondarySortField;
     private string? _secondarySortDirection;
     // Display options (Collections and lists spec D11 and D12): minimum items, "at most N", daily random order and a
-    // seasonal window. The full builder for these comes with the new collection flow; this is the Details-tab form.
+    // seasonal window. Order and "at most" are drawn by the rules builder for a rule-driven collection and by the Display
+    // options panel (Details, and the last step of the New collection flow) otherwise.
     private int _minItems;
     private int _maxItems;
     private bool _randomOrder;
@@ -314,8 +332,8 @@
     private string DialogTitle => EditingCollection is not null
         ? (IsPlaylistDialog ? "Edit Playlist" : "Edit Collection")
         : IsPlaylistDialog
-                ? "New Playlist"
-                : "New Collection";
+                ? "New playlist"
+                : "New collection";
     private string EditorIdentityTitle => string.IsNullOrWhiteSpace(_name) ? DialogTitle : _name;
 
     private string HeaderSubtitle =>
@@ -324,6 +342,8 @@
             : EditingCollection is null
                 ? "Create a saved collection using either live rules or manual membership."
                 : "Update the collection settings, rules, and saved items.";
+
+    private string WayTitle => _rulesEnabled ? "Rules" : "Hand-picked";
 
     private string? FooterSummary =>
         IsPlaylistDialog
@@ -356,6 +376,11 @@
             _name = Request.InitialTitle ?? string.Empty;
             _collectionType = IsPlaylistDialog ? "Playlist" : "Custom";
             _rulesEnabled = string.Equals(Request.InitialMembershipMode, "Smart", StringComparison.OrdinalIgnoreCase);
+            _way = _rulesEnabled ? FillWay.SetRules : FillWay.PickTitles;
+            // The chips the place we came from ticks (Watch: Movies and TV), kept to the types this kind of container holds.
+            CollectionRuleSentence.SetMediaTypes(_ruleDefinition, Request.InitialMediaTypes
+                .Where(type => MediaChoices.Any(choice => string.Equals(choice.Key, type, StringComparison.OrdinalIgnoreCase)))
+                .ToList());
             _primaryArea = IsPlaylistDialog ? "Listen" : Request.InitialPrimaryArea;
             _ownerKind = Request.InitialOwnerKind;
             _audience = Request.InitialAudience;
@@ -413,6 +438,9 @@
                         }).ToList(),
                     }).ToList(),
                 };
+                // Exceptions fold back into one row each; several groups of any other kind open in Advanced.
+                _ruleDefinition = CollectionRuleSentence.FromWire(_ruleDefinition);
+                _advanced = !CollectionRuleSentence.IsPlain(_ruleDefinition);
                 if (!string.Equals(EditingCollection.Resolution, "materialized", StringComparison.OrdinalIgnoreCase))
                     _rulesEnabled = true;
             }
@@ -560,6 +588,7 @@
     private Task OnNameChanged(string value)
     {
         _name = value;
+        _suggestedName = null;
         MarkDirty();
         return Task.CompletedTask;
     }
@@ -633,7 +662,7 @@
     {
         if (!Inline && DialogContext is not null)
             _dialogCloseGuard ??= DialogContext.RegisterCloseGuard(CanCloseAsync);
-        if (firstRender && _rulesEnabled && _ruleDefinition.AllConditions.Any(IsCompleteRule))
+        if (firstRender && !IsCreateFlow && _rulesEnabled && _ruleDefinition.AllConditions.Any(IsCompleteRule))
             await RunPreview();
     }
 
@@ -757,9 +786,13 @@
         }
     }
 
-    private async Task OnArtworkSelected(InputFileChangeEventArgs args)
+    private Task OnArtworkSelected(InputFileChangeEventArgs args) => OnArtworkChosenAsync(args.File);
+
+    private async Task OnArtworkChosenAsync(IBrowserFile? file)
     {
-        var file = args.File;
+        if (file is null)
+            return;
+
         var slot = IsPlaylistDialog ? "poster" : _activeArtworkSlot;
         if (slot == "logo" && !string.Equals(Path.GetExtension(file.Name), ".png", StringComparison.OrdinalIgnoreCase))
         {
@@ -918,10 +951,10 @@
         }
 
         _previewResult = await ApiClient.PreviewCollectionRulesAsync(
-            _ruleDefinition,
+            CollectionRuleSentence.ToWire(_ruleDefinition),
             _sortField,
             _sortDirection,
-            limit: 24,
+            limit: 60,
             secondarySortField: _secondarySortField,
             secondarySortDirection: _secondarySortDirection);
         StateHasChanged();
@@ -945,8 +978,9 @@
 
         if (_rulesEnabled && !_ruleDefinition.AllConditions.Any(IsCompleteRule))
         {
-            Snackbar.Add("Add at least one complete rule before saving a dynamic collection.", AppSeverity.Warning);
+            Snackbar.Add("Add at least one complete rule before saving a collection that fills up from rules.", AppSeverity.Warning);
             _activeTab = "membership";
+            _step = 2;
             return;
         }
 
@@ -954,6 +988,7 @@
         {
             Snackbar.Add(EmptyCuratedCollectionMessage, AppSeverity.Warning);
             _activeTab = "membership";
+            _step = 2;
             return;
         }
 
@@ -1256,7 +1291,7 @@
         Snackbar.Add(_activeArtworkSlot == "poster" ? "Automatic stacked artwork restored." : $"{ArtworkSlotTitle} removed.", AppSeverity.Success);
     }
 
-    private CollectionRuleDefinitionViewModel BuildPersistableDefinition() => new()
+    private CollectionRuleDefinitionViewModel BuildPersistableDefinition() => CollectionRuleSentence.ToWire(new()
     {
         Version = _ruleDefinition.Version,
         Groups = _ruleDefinition.Groups
@@ -1269,7 +1304,7 @@
             })
             .Where(group => group.Conditions.Count > 0)
             .ToList(),
-    };
+    });
 
     private async Task DeleteCollectionAsync()
     {
@@ -1322,46 +1357,570 @@
         IconChoices.FirstOrDefault(choice => string.Equals(choice.Icon, icon, StringComparison.Ordinal)).Label
         ?? "Collection";
 
+    // ── The New collection flow (Collections and lists spec 4b): how it fills up, build it, name and show it ───────────
+
+    private enum FillWay { PickTitles, SetRules, FromList, Pack }
+
+    private record WayCard(FillWay Way, string Title, string Text, string Icon, bool Available);
+
+    private static readonly WayCard[] WayCards =
+    [
+        new(FillWay.PickTitles, "Pick titles", "Search your library and add titles yourself.", AppMaterialIcons.Outlined.PlaylistAdd, true),
+        new(FillWay.SetRules, "Set rules", "Library keeps it up to date from rules you set, like “directed by” or “unwatched”.", AppMaterialIcons.Outlined.Tune, true),
+        new(FillWay.FromList, "From a list", "Paste a link or upload a file from IMDb, Letterboxd, Goodreads, Trakt or MDBList. Keep it in sync.", AppMaterialIcons.Outlined.UploadFile, false),
+        new(FillWay.Pack, "Start from a pack", "Ready-made sets built from your own library: Decades, Award winners, Based on a book you own.", AppMaterialIcons.Outlined.AutoAwesome, false),
+    ];
+
+    private FillWay _way = FillWay.SetRules;
+    private int _step = 1;
+    private bool _advanced;
+    private bool _changingWay;
+    private bool _showAllPreview;
+    private string? _strictestRule;
+    private string? _suggestedName;
+    private CollectionRuleBuilder? _ruleBuilder;
+
+    private bool IsCreateFlow => EditingCollection is null;
+    private IReadOnlyList<CollectionMediaChips.MediaChipType> MediaChoices => IsPlaylistDialog ? CollectionMediaChips.PlaylistTypes : CollectionMediaChips.CollectionTypes;
+    private bool HasUsableRules => _ruleDefinition.AllConditions.Any(IsCompleteRule);
+
+    private string StepLabel(int step) => step switch
+    {
+        1 => "How it fills up",
+        2 => _way switch { FillWay.PickTitles => "Pick titles", FillWay.SetRules => "Set rules", FillWay.FromList => "From a list", _ => "Pick a pack" },
+        _ => "Name and show it",
+    };
+
+    private bool NextBlocked => _step == 2 && (_way == FillWay.SetRules ? !HasUsableRules : IsEmptyCuratedCollection);
+
+    private string FlowFooterSummary => _step switch
+    {
+        1 => "Choose how this fills up. You can go Back and change your mind.",
+        2 when _way == FillWay.SetRules && !HasUsableRules => "Add a rule or tick a media type to continue.",
+        2 when _way == FillWay.SetRules => _previewResult is null ? "Working out what matches…" : FormatMatchSummary(_previewResult),
+        2 when IsEmptyCuratedCollection => EmptyCuratedCollectionMessage,
+        2 => $"{_manualItems.Count} item(s) staged for this collection.",
+        _ => "Nothing is saved until you create it.",
+    };
+
+    private async Task ChooseWayAsync(FillWay way)
+    {
+        var card = WayCards.First(candidate => candidate.Way == way);
+        if (!card.Available)
+            return;
+
+        _way = way;
+        var rules = way == FillWay.SetRules;
+        if (_rulesEnabled != rules)
+        {
+            _rulesEnabled = rules;
+            _previewResult = null;
+        }
+
+        await Task.CompletedTask;
+    }
+
+    private async Task NextAsync()
+    {
+        if (_step == 1)
+        {
+            _step = 2;
+            if (_way == FillWay.PickTitles)
+            {
+                _showItemPicker = true;
+                await EnsureLibraryItemsLoadedAsync();
+            }
+
+            return;
+        }
+
+        if (_step == 2 && !NextBlocked)
+        {
+            SuggestName();
+            _step = 3;
+        }
+    }
+
+    private void Back()
+    {
+        if (_step > 1)
+            _step--;
+    }
+
+    private Task OnMediaTypesChosenAsync(IReadOnlyList<string> types)
+    {
+        CollectionRuleSentence.SetMediaTypes(_ruleDefinition, types);
+        MarkDirty();
+        return Task.CompletedTask;
+    }
+
+    private Task OnAdvancedChangedAsync(bool advanced)
+    {
+        _advanced = advanced;
+        return Task.CompletedTask;
+    }
+
+    private Task OnOrderRandomChangedAsync(bool random)
+    {
+        _randomOrder = random;
+        MarkDirty();
+        return Task.CompletedTask;
+    }
+
+    private Task OnMaxItemsChosenAsync(int value)
+    {
+        _maxItems = Math.Max(0, value);
+        MarkDirty();
+        return Task.CompletedTask;
+    }
+
+    private Task OnStrictestRuleChangedAsync(string? rule)
+    {
+        _strictestRule = rule;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    // The name offered on the last step: "Movies directed by Denis Villeneuve". Anything the person typed is kept.
+    private void SuggestName()
+    {
+        var suggestion = _way == FillWay.SetRules ? NameFromRules() : null;
+        if (suggestion is null)
+            return;
+        if (string.IsNullOrWhiteSpace(_name) || _name == _suggestedName)
+            _name = suggestion;
+        _suggestedName = suggestion;
+    }
+
+    private string? NameFromRules()
+    {
+        var types = CollectionRuleSentence.MediaTypes(_ruleDefinition);
+        var noun = types.Count == 0
+            ? "Titles"
+            : string.Join(" and ", types.Select(type => type switch { "TV" => "TV shows", _ => type }));
+        var rule = CollectionRuleSentence.IncludeGroup(_ruleDefinition).Conditions
+            .FirstOrDefault(condition => condition.Op is "eq" or "in" && IsCompleteRule(condition));
+        if (rule is null)
+            return types.Count == 0 ? null : noun;
+
+        var who = string.Join(" or ", rule.DisplayValues is { Length: > 0 } labels ? labels : rule.Values is { Length: > 0 } values ? values : [rule.DisplayValue ?? rule.Value ?? string.Empty]);
+        return rule.Field switch
+        {
+            "director" => $"{noun} directed by {who}",
+            "author" or "artist" => $"{noun} by {who}",
+            "cast_member" => $"{noun} with {who}",
+            "narrator" => $"{noun} narrated by {who}",
+            "composer" => $"{noun} composed by {who}",
+            "genre" => $"{who} {noun.ToLowerInvariant()}",
+            _ => $"{noun}: {CollectionRuleSentence.Describe(rule, CollectionRuleCatalog.Instance)}",
+        };
+    }
+
+    private RenderFragment RenderFlow() => @<main class="sme-main-pane collection-editor-main">
+        <div class="sme-body collection-editor-body collection-flow" data-flow-step="@_step">
+            @switch (_step)
+            {
+                case 1:
+                    @RenderStartStep()
+                    break;
+                case 2:
+                    @RenderBuildStep()
+                    break;
+                default:
+                    @RenderNameStep()
+                    break;
+            }
+        </div>
+
+        <footer class="sme-footer collection-editor-footer">
+            <div class="collection-editor-footer-copy" aria-live="polite">@FlowFooterSummary</div>
+            <div class="collection-editor-footer-actions">
+                @if (_step == 1)
+                {
+                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="Cancel" Disabled="@_saving">Cancel</AppButton>
+                }
+                else
+                {
+                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" StartIcon="@AppMaterialIcons.Outlined.ArrowBack"
+                               OnClick="Back" Disabled="@_saving">Back</AppButton>
+                }
+                @if (_step < 3)
+                {
+                    <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="NextAsync" Disabled="@(_saving || NextBlocked)">Next</AppButton>
+                }
+                else
+                {
+                    <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Save"
+                               OnClick="SaveCollection" Disabled="@(_saving || IsEmptyCuratedCollection)">
+                        @if (_saving)
+                        {
+                            <AppSpinner Indeterminate="true" Size="AppSize.Small" Class="tl-u-color-inherit tl-u-width-14px tl-u-height-14px" />
+                        }
+                        @SaveButtonText
+                    </AppButton>
+                }
+            </div>
+        </footer>
+    </main>;
+
+    private RenderFragment RenderWayCards() => @<div class="collection-flow__ways" role="radiogroup" aria-label="How should it fill up?">
+        @foreach (var card in WayCards)
+        {
+            <AppChoiceCard Title="@card.Title"
+                           Description="@card.Text"
+                           Icon="@card.Icon"
+                           Selected="@(card.Way == _way)"
+                           Disabled="@(!card.Available)"
+                           Badge="@(card.Available ? null : "Coming soon")"
+                           OnClick="@(() => IsCreateFlow ? ChooseWayAsync(card.Way) : ChangeWayAsync(card.Way))" />
+        }
+    </div>;
+
+    private RenderFragment RenderStartStep() => @<div class="collection-flow__start">
+        <div class="collection-flow__field">
+            <span class="collection-flow__label">What goes in</span>
+            <CollectionMediaChips Types="@MediaChoices"
+                                  Selected="@CollectionRuleSentence.MediaTypes(_ruleDefinition)"
+                                  SelectedChanged="OnMediaTypesChosenAsync" />
+        </div>
+        <div class="collection-flow__field">
+            <span class="collection-flow__label">How should it fill up?</span>
+            @RenderWayCards()
+        </div>
+    </div>;
+
+    private RenderFragment RenderBuildStep() => @<div class="collection-flow__build">
+        @if (_way == FillWay.SetRules)
+        {
+            @RenderRulesWithPreview()
+        }
+        else
+        {
+            @RenderItemsTab()
+        }
+    </div>;
+
+    private RenderFragment RenderRulesWithPreview() => @<div class="collection-flow__cols">
+        <div class="collection-flow__rules">
+            <CollectionRuleBuilder @ref="_ruleBuilder"
+                                   Definition="@_ruleDefinition"
+                                   DefinitionChanged="OnRuleDefinitionChanged"
+                                   SortField="@_sortField"
+                                   SortFieldChanged="@(value => { _sortField = value ?? "title"; MarkDirty(); })"
+                                   SortDirection="@_sortDirection"
+                                   SortDirectionChanged="@(value => { _sortDirection = value; MarkDirty(); })"
+                                   SecondarySortField="@_secondarySortField"
+                                   SecondarySortFieldChanged="@(value => { _secondarySortField = value; MarkDirty(); })"
+                                   SecondarySortDirection="@_secondarySortDirection"
+                                   SecondarySortDirectionChanged="@(value => { _secondarySortDirection = value; MarkDirty(); })"
+                                   Preview="@_previewResult"
+                                   PreviewChanged="OnRuleBuilderPreviewChanged"
+                                   Changed="OnRuleBuilderChanged"
+                                   Advanced="@_advanced"
+                                   AdvancedChanged="OnAdvancedChangedAsync"
+                                   RandomOrder="@_randomOrder"
+                                   RandomOrderChanged="OnOrderRandomChangedAsync"
+                                   MaxItems="@_maxItems"
+                                   MaxItemsChanged="OnMaxItemsChosenAsync"
+                                   MediaTypeChoices="@MediaChoices"
+                                   StrictestRuleChanged="OnStrictestRuleChangedAsync"
+                                   Density="editor" />
+        </div>
+        @RenderPreviewPanel()
+    </div>;
+
+    private RenderFragment RenderPreviewPanel() => @<aside class="collection-flow__preview" aria-label="Preview" aria-live="polite">
+        @if (_previewResult is null)
+        {
+            <div>
+                <div class="collection-flow__preview-big">No preview yet</div>
+                <div class="collection-flow__preview-sub">Add a rule or tick a media type to see what matches in your library.</div>
+            </div>
+        }
+        else if (_previewResult.Count == 0)
+        {
+            <div>
+                <div class="collection-flow__preview-big">Nothing matches yet</div>
+                <div class="collection-flow__preview-sub">
+                    @(string.IsNullOrWhiteSpace(_strictestRule)
+                        ? "Loosen a rule to bring titles in."
+                        : $"“{_strictestRule}” leaves the fewest titles on its own. Loosen it to bring some in.")
+                </div>
+            </div>
+            <p class="collection-flow__preview-note">You can still save. The collection fills up as matching titles arrive.</p>
+        }
+        else
+        {
+            <div>
+                <div class="collection-flow__preview-big">@_previewResult.Count @(_previewResult.Count == 1 ? "title" : "titles")</div>
+                <div class="collection-flow__preview-sub">match now@(_previewResult.UsesPerProfileFields && !string.IsNullOrWhiteSpace(_previewResult.EvaluatedForProfileName) ? $", counted for {_previewResult.EvaluatedForProfileName}" : string.Empty). Updates as you type.</div>
+            </div>
+            <div class="collection-flow__pills">
+                @foreach (var group in PreviewTypeCounts(_previewResult))
+                {
+                    <span class="collection-flow__pill" data-media="@group.Label">@FormatMediaCount(group.Label, group.Count)</span>
+                }
+            </div>
+            <div class="collection-flow__covers">
+                @foreach (var item in _previewResult.Items.Take(12))
+                {
+                    <div class="collection-flow__cover" title="@item.Title">
+                        @if (!string.IsNullOrWhiteSpace(item.CoverUrl))
+                        {
+                            <img src="@MediaTileArtworkUrl.ForDrawnSize(item.CoverUrl, 120)"
+                                 srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(item.CoverUrl, 120)"
+                                 alt="@item.Title" loading="lazy" decoding="async" />
+                        }
+                        else
+                        {
+                            <small>@item.Title</small>
+                        }
+                    </div>
+                }
+            </div>
+            @if (_previewResult.Count > 12)
+            {
+                <div class="collection-flow__show-all">
+                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary"
+                               OnClick="@(() => _showAllPreview = !_showAllPreview)">@(_showAllPreview ? "Show fewer" : $"Show all {_previewResult.Count}")</AppButton>
+                </div>
+            }
+            @if (_showAllPreview)
+            {
+                <div class="collection-flow__all" role="list">
+                    @foreach (var item in _previewResult.Items)
+                    {
+                        <div class="collection-flow__all-row" role="listitem">
+                            <span class="collection-flow__all-title">@item.Title</span>
+                            <span class="collection-flow__all-meta">@FormatPreviewMeta(item)</span>
+                        </div>
+                    }
+                    @if (_previewResult.Count > _previewResult.Items.Count)
+                    {
+                        <small class="collection-flow__preview-note">Showing the first @_previewResult.Items.Count of @_previewResult.Count.</small>
+                    }
+                </div>
+            }
+            @if (_previewResult.UsesPerProfileFields)
+            {
+                <p class="collection-flow__preview-note">Each profile sees its own set in this collection.</p>
+            }
+        }
+    </aside>;
+
+    private static readonly Dictionary<string, string> MediaTypeColors = new(StringComparer.Ordinal)
+    {
+        ["movie"] = "var(--tl-media-movies)", ["TV show"] = "var(--tl-media-tv)", ["book"] = "var(--tl-media-books)",
+        ["audiobook"] = "var(--tl-media-audiobooks)", ["music item"] = "var(--tl-media-music)", ["comic"] = "var(--tl-media-comics)",
+    };
+
+    private static IEnumerable<(string Label, int Count, string Color)> PreviewTypeCounts(CollectionPreviewResult preview)
+    {
+        var normalized = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (mediaType, count) in preview.MediaTypeCounts)
+        {
+            var key = NormalizeMediaType(mediaType);
+            normalized[key] = normalized.GetValueOrDefault(key) + count;
+        }
+
+        return normalized.Select(pair => (pair.Key, pair.Value, MediaTypeColors.GetValueOrDefault(pair.Key, "var(--tl-media-unknown)")));
+    }
+
+    private RenderFragment RenderNameStep() => @<div class="collection-flow__name">
+        <div class="collection-editor-details-grid">
+            <div class="collection-editor-panel-stack">
+                @RenderBasicInformationPanel()
+                @RenderFlowArtworkPanel()
+            </div>
+            <div class="collection-editor-panel-stack">
+                @if (!IsPlaylistDialog)
+                {
+                    @RenderOwnershipPanel()
+                }
+                @RenderDisplayOptionsPanel(includeOrderAndLimit: _way != FillWay.SetRules)
+                @* Show on (Home, Watch, Read, Listen) joins this column when the lanes packet lands. *@
+            </div>
+        </div>
+    </div>;
+
+    private RenderFragment RenderFlowArtworkPanel() => @<MediaEditorPanel Title="Artwork" Description="An automatic stack of covers by default. Upload your own here, or change it from the collection later.">
+        @if (_artworkPreviewUrls.TryGetValue("poster", out var chosenArtwork))
+        {
+            <div class="collection-flow__stack"><img src="@chosenArtwork" alt="Selected artwork" /></div>
+        }
+        else if (AutomaticArtworkItems.Count > 0)
+        {
+            <div class="collection-flow__stack">
+                <MediaArtworkGroupPreview Items="@AutomaticArtworkItems" TotalCount="@AutomaticArtworkItems.Count"
+                                          Layout="MediaArtworkGroupPreviewLayout.Cluster" ShowOverflowCount="false"
+                                          AriaLabel="Automatic stacked collection artwork" />
+            </div>
+        }
+        else
+        {
+            <p class="collection-editor-note">Covers of the titles inside stack up here once there are some.</p>
+        }
+        <AppFileUpload T="IBrowserFile" Accept=".jpg,.jpeg,.png" FilesChanged="OnArtworkChosenAsync">
+            <CustomContent Context="upload">
+                <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" StartIcon="@AppMaterialIcons.Outlined.CloudUpload"
+                           OnClick="upload.OpenFilePickerAsync">Upload your own</AppButton>
+            </CustomContent>
+        </AppFileUpload>
+        <p class="collection-editor-note">JPG or PNG, up to 5 MB.</p>
+    </MediaEditorPanel>;
+
+    private RenderFragment RenderBasicInformationPanel() => @<text>
+        <MediaEditorPanel Title="Basic information" Description="The name and description shown throughout Library.">
+            @if (IsPlaylistDialog && EditingCollection is not null)
+            {
+                <label class="app-artwork-picker collection-editor-artwork-picker">
+                    @if (_artworkPreviewUrls.TryGetValue("poster", out var playlistPreview))
+                    {
+                        <img src="@playlistPreview" alt="Selected playlist artwork" />
+                    }
+                    else if (!string.IsNullOrWhiteSpace(EditingCollection?.CoverUrl))
+                    {
+                        <img src="@MediaTileArtworkUrl.ForDrawnSize(EditingCollection.CoverUrl, 112)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(EditingCollection.CoverUrl, 112)" alt="Current playlist artwork" />
+                    }
+                    else
+                    {
+                        <span class="app-artwork-picker__placeholder"><AppMaterialIcon Icon="@CollectionTypeIcon" /></span>
+                    }
+                    <span class="app-artwork-picker__edit" title="Edit artwork"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PhotoCamera" /></span>
+                    <InputFile class="app-artwork-picker__input" OnChange="OnArtworkSelected" accept=".jpg,.jpeg,.png" />
+                </label>
+            }
+            <AppTextField T="string"
+                          Value="@_name"
+                          ValueChanged="OnNameChanged"
+                          Label="Name"
+                          Placeholder="Name this collection"
+                          Variant="AppVariant.Outlined"
+                          Immediate="true"
+                          Class="collection-editor-field" />
+
+            <AppTextarea Value="@_description"
+                             ValueChanged="OnDescriptionChanged"
+                             Label="Description (optional)"
+                             Placeholder="Describe what belongs here"
+                             Lines="5"
+                             Immediate="true"
+                             Class="collection-editor-field collection-editor-field--multiline" />
+        </MediaEditorPanel>
+    </text>;
+
+    private RenderFragment RenderOwnershipPanel() => @<text>
+        <MediaEditorPanel Title="Ownership and visibility" Description="Keep this personal or publish it for the library.">
+            <AppSelect T="string" @bind-Value="_ownerKind" Label="Owner" Variant="AppVariant.Outlined">
+                <AppSelectItem T="string" Value="@("Profile")">My profile</AppSelectItem>
+                <AppSelectItem T="string" Value="@("Library")">Library</AppSelectItem>
+            </AppSelect>
+            @if (_ownerKind == "Profile")
+            {
+                <AppSelect T="string" @bind-Value="_audience" Label="Who can see this?" Variant="AppVariant.Outlined">
+                    <AppSelectItem T="string" Value="@("Private")">Only me</AppSelectItem>
+                    <AppSelectItem T="string" Value="@("SelectedProfiles")">Selected profiles</AppSelectItem>
+                </AppSelect>
+                @if (_audience == "SelectedProfiles")
+                {
+                    <div class="collection-editor-profile-picker" aria-label="Profiles who can see this collection">
+                        @if (_availableAudienceProfiles.Count == 0)
+                        {
+                            <small>No other enabled profiles are available.</small>
+                        }
+                        else
+                        {
+                            @foreach (var profile in _availableAudienceProfiles)
+                            {
+                                <AppCheckbox Value="@_selectedProfileIds.Contains(profile.Id)"
+                                             ValueChanged="@(selected => SetAudienceProfileAsync(profile.Id, selected))"
+                                             Label="@profile.DisplayName" />
+                            }
+                        }
+                    </div>
+                }
+            }
+            else
+            {
+                <p>Library-owned collections are available to everyone.</p>
+            }
+        </MediaEditorPanel>
+    </text>;
+
+    private RenderFragment RenderDisplayOptionsPanel(bool includeOrderAndLimit) => @<text>
+        <MediaEditorPanel Title="Display options" Description="How many items show, in what order, and when this collection is shown.">
+            @if (HiddenUntilNote is { } hiddenNote)
+            {
+                <small><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" /> @hiddenNote</small>
+            }
+            <AppNumericField Label="Minimum items"
+                             Value="@_minItems"
+                             ValueChanged="OnMinItemsChanged"
+                             Min="0"
+                             HelpText="Skipped on lanes and the Collections page until it has this many items. 0 uses the default (3 on a lane)."
+                             Class="collection-editor-field" />
+            @if (includeOrderAndLimit)
+    {
+        <AppNumericField Label="At most"
+                                 Value="@_maxItems"
+                                 ValueChanged="OnMaxItemsChanged"
+                                 Min="0"
+                                 HelpText="Show no more than this many items. 0 shows them all."
+                                 Class="collection-editor-field" />
+                <AppSelect T="string"
+                           Value="@(_randomOrder ? "random" : "set")"
+                           ValueChanged="OnRandomOrderChanged"
+                           ToStringFunc="@(value => value == "random" ? "Random (a new pick each day)" : "In the order set by this collection")"
+                           Label="Order"
+                           Variant="AppVariant.Outlined"
+                           Class="collection-editor-field">
+                    <AppSelectItem T="string" Value="@("set")">In the order set by this collection</AppSelectItem>
+                    <AppSelectItem T="string" Value="@("random")">Random (a new pick each day)</AppSelectItem>
+                </AppSelect>
+            }
+    <AppCheckbox Value="@_seasonal"
+                         ValueChanged="OnSeasonalChanged"
+                         Label="Show only between two dates each year" />
+            @if (_seasonal)
+            {
+                <AppSelect T="string"
+                           Value="@_seasonFromMonth.ToString()"
+                           ValueChanged="@(value => OnSeasonEdgeChanged(() => _seasonFromMonth = int.Parse(value ?? "10")))"
+                           ToStringFunc="MonthLabel"
+                           Label="From month"
+                           Variant="AppVariant.Outlined"
+                           Class="collection-editor-field">
+                    @for (var month = 1; month <= 12; month++)
+                    {
+                        <AppSelectItem T="string" Value="@month.ToString()">@MonthNames[month - 1]</AppSelectItem>
+                    }
+                </AppSelect>
+                <AppNumericField Label="From day" Value="@_seasonFromDay" Min="1" Max="31"
+                                 ValueChanged="@(value => OnSeasonEdgeChanged(() => _seasonFromDay = value))"
+                                 Class="collection-editor-field" />
+                <AppSelect T="string"
+                           Value="@_seasonToMonth.ToString()"
+                           ValueChanged="@(value => OnSeasonEdgeChanged(() => _seasonToMonth = int.Parse(value ?? "11")))"
+                           ToStringFunc="MonthLabel"
+                           Label="To month"
+                           Variant="AppVariant.Outlined"
+                           Class="collection-editor-field">
+                    @for (var month = 1; month <= 12; month++)
+                    {
+                        <AppSelectItem T="string" Value="@month.ToString()">@MonthNames[month - 1]</AppSelectItem>
+                    }
+                </AppSelect>
+                <AppNumericField Label="To day" Value="@_seasonToDay" Min="1" Max="31"
+                                 ValueChanged="@(value => OnSeasonEdgeChanged(() => _seasonToDay = value))"
+                                 HelpText="Both days are included. A window that ends before it starts runs over New Year."
+                                 Class="collection-editor-field" />
+            }
+        </MediaEditorPanel>
+    </text>;
+
     private RenderFragment RenderDetailsTab() => @<div class="collection-editor-pane collection-editor-details">
         <div class="collection-editor-details-grid">
             <div class="collection-editor-panel-stack">
-                <MediaEditorPanel Title="Basic information" Description="The name and description shown throughout Library.">
-                    @if (IsPlaylistDialog && EditingCollection is not null)
-                    {
-                        <label class="app-artwork-picker collection-editor-artwork-picker">
-                            @if (_artworkPreviewUrls.TryGetValue("poster", out var playlistPreview))
-                            {
-                                <img src="@playlistPreview" alt="Selected playlist artwork" />
-                            }
-                            else if (!string.IsNullOrWhiteSpace(EditingCollection?.CoverUrl))
-                            {
-                                <img src="@MediaTileArtworkUrl.ForDrawnSize(EditingCollection.CoverUrl, 112)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(EditingCollection.CoverUrl, 112)" alt="Current playlist artwork" />
-                            }
-                            else
-                            {
-                                <span class="app-artwork-picker__placeholder"><AppMaterialIcon Icon="@CollectionTypeIcon" /></span>
-                            }
-                            <span class="app-artwork-picker__edit" title="Edit artwork"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PhotoCamera" /></span>
-                            <InputFile class="app-artwork-picker__input" OnChange="OnArtworkSelected" accept=".jpg,.jpeg,.png" />
-                        </label>
-                    }
-                    <AppTextField T="string"
-                                  Value="@_name"
-                                  ValueChanged="OnNameChanged"
-                                  Label="Name"
-                                  Placeholder="Name this collection"
-                                  Variant="AppVariant.Outlined"
-                                  Immediate="true"
-                                  Class="collection-editor-field" />
-
-                    <AppTextarea Value="@_description"
-                                     ValueChanged="OnDescriptionChanged"
-                                     Label="Description (optional)"
-                                     Placeholder="Describe what belongs here"
-                                     Lines="5"
-                                     Immediate="true"
-                                     Class="collection-editor-field collection-editor-field--multiline" />
-                </MediaEditorPanel>
+                @RenderBasicInformationPanel()
 
                 @if (!IsPlaylistDialog)
                 {
@@ -1370,26 +1929,7 @@
                             <div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Collections" /><span>Type</span><strong>Curated collection</strong></div>
                             <div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Public" /><span>Media scope</span><strong>Cross-media</strong></div>
                             <div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AccountBalance" /><span>Owner</span><strong>Library</strong></div>
-                            <div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Sync" /><span>Membership</span><strong>@(SupportsManualItems ? "Manual" : "Dynamic")</strong></div>
-                        </div>
-
-                        <div class="collection-editor-membership-mode">
-                            <span>Membership mode</span>
-                            <div class="collection-editor-membership-mode__options" role="group" aria-label="Membership mode">
-                                <AppNativeButton Type="button"
-                                                 Class="@(!_rulesEnabled ? "is-selected" : null)"
-                                                 OnClick="@(() => SetMembershipModeAsync(false))">
-                                    Manual
-                                </AppNativeButton>
-                                <AppNativeButton Type="button"
-                                                 Class="@(_rulesEnabled ? "is-selected" : null)"
-                                                 OnClick="@(() => SetMembershipModeAsync(true))">
-                                    Dynamic
-                                </AppNativeButton>
-                            </div>
-                            <small>@(_rulesEnabled
-                                ? "Rules automatically keep this collection up to date."
-                                : "You choose and order the items in this collection.")</small>
+                            <div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Sync" /><span>Fills up</span><strong>@WayTitle</strong></div>
                         </div>
 
                         <AppSelect T="string"
@@ -1409,41 +1949,7 @@
                         </AppSelect>
                     </MediaEditorPanel>
 
-                    <MediaEditorPanel Title="Ownership and visibility" Description="Keep this personal or publish it for the library.">
-                        <AppSelect T="string" @bind-Value="_ownerKind" Label="Owner" Variant="AppVariant.Outlined">
-                            <AppSelectItem T="string" Value="@("Profile")">My profile</AppSelectItem>
-                            <AppSelectItem T="string" Value="@("Library")">Library</AppSelectItem>
-                        </AppSelect>
-                        @if (_ownerKind == "Profile")
-                        {
-                            <AppSelect T="string" @bind-Value="_audience" Label="Who can see this?" Variant="AppVariant.Outlined">
-                                <AppSelectItem T="string" Value="@("Private")">Only me</AppSelectItem>
-                                <AppSelectItem T="string" Value="@("SelectedProfiles")">Selected profiles</AppSelectItem>
-                            </AppSelect>
-                            @if (_audience == "SelectedProfiles")
-                            {
-                                <div class="collection-editor-profile-picker" aria-label="Profiles who can see this collection">
-                                    @if (_availableAudienceProfiles.Count == 0)
-                                    {
-                                        <small>No other enabled profiles are available.</small>
-                                    }
-                                    else
-                                    {
-                                        @foreach (var profile in _availableAudienceProfiles)
-                                        {
-                                            <AppCheckbox Value="@_selectedProfileIds.Contains(profile.Id)"
-                                                         ValueChanged="@(selected => SetAudienceProfileAsync(profile.Id, selected))"
-                                                         Label="@profile.DisplayName" />
-                                        }
-                                    }
-                                </div>
-                            }
-                        }
-                        else
-                        {
-                            <p>Library-owned collections are available to everyone.</p>
-                        }
-                    </MediaEditorPanel>
+                    @RenderOwnershipPanel()
 
                     @if (!IsPlaylistDialog)
                     {
@@ -1457,71 +1963,7 @@
                         </MediaEditorPanel>
                     }
 
-                    <MediaEditorPanel Title="Display options" Description="How many items show, in what order, and when this collection is shown.">
-                        @if (HiddenUntilNote is { } hiddenNote)
-                        {
-                            <small><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" /> @hiddenNote</small>
-                        }
-                        <AppNumericField Label="Minimum items"
-                                         Value="@_minItems"
-                                         ValueChanged="OnMinItemsChanged"
-                                         Min="0"
-                                         HelpText="Skipped on lanes and the Collections page until it has this many items. 0 uses the default (3 on a lane)."
-                                         Class="collection-editor-field" />
-                        <AppNumericField Label="At most"
-                                         Value="@_maxItems"
-                                         ValueChanged="OnMaxItemsChanged"
-                                         Min="0"
-                                         HelpText="Show no more than this many items. 0 shows them all."
-                                         Class="collection-editor-field" />
-                        <AppSelect T="string"
-                                   Value="@(_randomOrder ? "random" : "set")"
-                                   ValueChanged="OnRandomOrderChanged"
-                                   ToStringFunc="@(value => value == "random" ? "Random (a new pick each day)" : "In the order set by this collection")"
-                                   Label="Order"
-                                   Variant="AppVariant.Outlined"
-                                   Class="collection-editor-field">
-                            <AppSelectItem T="string" Value="@("set")">In the order set by this collection</AppSelectItem>
-                            <AppSelectItem T="string" Value="@("random")">Random (a new pick each day)</AppSelectItem>
-                        </AppSelect>
-                        <AppCheckbox Value="@_seasonal"
-                                     ValueChanged="OnSeasonalChanged"
-                                     Label="Show only between two dates each year" />
-                        @if (_seasonal)
-                        {
-                            <AppSelect T="string"
-                                       Value="@_seasonFromMonth.ToString()"
-                                       ValueChanged="@(value => OnSeasonEdgeChanged(() => _seasonFromMonth = int.Parse(value ?? "10")))"
-                                       ToStringFunc="MonthLabel"
-                                       Label="From month"
-                                       Variant="AppVariant.Outlined"
-                                       Class="collection-editor-field">
-                                @for (var month = 1; month <= 12; month++)
-                                {
-                                    <AppSelectItem T="string" Value="@month.ToString()">@MonthNames[month - 1]</AppSelectItem>
-                                }
-                            </AppSelect>
-                            <AppNumericField Label="From day" Value="@_seasonFromDay" Min="1" Max="31"
-                                             ValueChanged="@(value => OnSeasonEdgeChanged(() => _seasonFromDay = value))"
-                                             Class="collection-editor-field" />
-                            <AppSelect T="string"
-                                       Value="@_seasonToMonth.ToString()"
-                                       ValueChanged="@(value => OnSeasonEdgeChanged(() => _seasonToMonth = int.Parse(value ?? "11")))"
-                                       ToStringFunc="MonthLabel"
-                                       Label="To month"
-                                       Variant="AppVariant.Outlined"
-                                       Class="collection-editor-field">
-                                @for (var month = 1; month <= 12; month++)
-                                {
-                                    <AppSelectItem T="string" Value="@month.ToString()">@MonthNames[month - 1]</AppSelectItem>
-                                }
-                            </AppSelect>
-                            <AppNumericField Label="To day" Value="@_seasonToDay" Min="1" Max="31"
-                                             ValueChanged="@(value => OnSeasonEdgeChanged(() => _seasonToDay = value))"
-                                             HelpText="Both days are included. A window that ends before it starts runs over New Year."
-                                             Class="collection-editor-field" />
-                        }
-                    </MediaEditorPanel>
+                    @RenderDisplayOptionsPanel(includeOrderAndLimit: !_rulesEnabled)
 
                     <MediaEditorPanel Title="Show on" Description="Show this collection as a row on these pages. It is always on the Collections page.">
                         @foreach (var (placeKey, placeLabel) in ShowOnPlaces)
@@ -1537,7 +1979,7 @@
             </div>
 
             <div class="collection-editor-panel-stack">
-                <MediaEditorPanel Title="Membership summary" Description="A live view of what belongs to this collection.">
+                <MediaEditorPanel Title="Contents summary" Description="A live view of what belongs to this collection.">
                     <div class="collection-editor-membership-summary">
                         <strong>@(EditingCollection?.ItemCount ?? _manualItems.Count) item(s)</strong>
                         <span>@(SupportsManualItems
@@ -1547,7 +1989,7 @@
                                    Tone="AppUiTone.Primary"
                                    StartIcon="@(SupportsManualItems ? AppMaterialIcons.Outlined.Inventory2 : AppMaterialIcons.Outlined.FilterAlt)"
                                    OnClick='@(() => SetActiveTab("membership"))'>
-                            Manage membership
+                            Open contents
                         </AppButton>
                     </div>
                 </MediaEditorPanel>
@@ -1673,14 +2115,20 @@
     </div>;
 
     private RenderFragment RenderMembershipTab() => @<div class="collection-editor-pane">
-        <MediaEditorPanel Title="Membership" Description="Choose whether you select items or let rules keep this up to date.">
-            <div class="collection-editor-membership-mode">
-                <div class="collection-editor-membership-mode__options" role="group" aria-label="Membership mode">
-                    <AppNativeButton Type="button" Class="@(!_rulesEnabled ? "is-selected" : null)" OnClick="@(() => SetMembershipModeAsync(false))">Manual</AppNativeButton>
-                    <AppNativeButton Type="button" Class="@(_rulesEnabled ? "is-selected" : null)" OnClick="@(() => SetMembershipModeAsync(true))">Smart</AppNativeButton>
+        <MediaEditorPanel Title="How it fills up" Description="Hand-picked titles stay as you set them. Rules keep the collection up to date on their own.">
+            <div class="collection-flow__fills">
+                <div class="collection-flow__fills-copy">
+                    <strong>@WayTitle</strong>
+                    <span>@(_rulesEnabled ? "Library keeps it up to date from the rules below." : "You choose and order every title.")</span>
                 </div>
-                <small>@(_rulesEnabled ? "Rules automatically include matching items." : "You choose and order every item.")</small>
+                <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary"
+                           StartIcon="@AppMaterialIcons.Outlined.Tune"
+                           OnClick="@(() => _changingWay = !_changingWay)">Change how it fills up</AppButton>
             </div>
+            @if (_changingWay)
+            {
+                @RenderWayCards()
+            }
         </MediaEditorPanel>
         @if (_rulesEnabled)
         {
@@ -1692,30 +2140,58 @@
         }
     </div>;
 
+    // Changing the way in from the Contents tab warns first when it would throw away work: the rules, or the picked titles.
+    private async Task ChangeWayAsync(FillWay way)
+    {
+        var card = WayCards.First(candidate => candidate.Way == way);
+        if (!card.Available || (way == FillWay.SetRules) == _rulesEnabled)
+        {
+            _changingWay = false;
+            return;
+        }
+
+        if (way == FillWay.SetRules)
+        {
+            if (_manualItems.Count > 0 && await AppConfirmDialog.ShowAsync(
+                    Dialogs,
+                    "Switch to rules?",
+                    "The titles you picked are not used once the collection fills up from rules. They are removed when you save.",
+                    primaryLabel: "Switch to rules",
+                    secondaryLabel: "Keep my titles",
+                    primaryDestructive: true,
+                    tone: AppUiTone.Warning) != AppConfirmResult.Primary)
+            {
+                return;
+            }
+        }
+        else if (HasUsableRules && await AppConfirmDialog.ShowAsync(
+                     Dialogs,
+                     "Switch to picking titles?",
+                     "The rules are removed when you save, and you choose every title yourself.",
+                     primaryLabel: "Switch to picking",
+                     secondaryLabel: "Keep my rules",
+                     primaryDestructive: true,
+                     tone: AppUiTone.Warning) != AppConfirmResult.Primary)
+        {
+            return;
+        }
+
+        _way = way;
+        _changingWay = false;
+        await SetMembershipModeAsync(way == FillWay.SetRules);
+    }
+
     private RenderFragment RenderRulesSection() => @<section class="collection-editor-section collection-editor-section--rules">
         @if (_rulesEnabled)
         {
-            <CollectionRuleBuilder Definition="@_ruleDefinition"
-                                   DefinitionChanged="OnRuleDefinitionChanged"
-                                   SortField="@_sortField"
-                                   SortFieldChanged="@(value => { _sortField = value ?? "title"; MarkDirty(); })"
-                                   SortDirection="@_sortDirection"
-                                   SortDirectionChanged="@(value => { _sortDirection = value; MarkDirty(); })"
-                                   SecondarySortField="@_secondarySortField"
-                                   SecondarySortFieldChanged="@(value => { _secondarySortField = value; MarkDirty(); })"
-                                   SecondarySortDirection="@_secondarySortDirection"
-                                   SecondarySortDirectionChanged="@(value => { _secondarySortDirection = value; MarkDirty(); })"
-                                   Preview="@_previewResult"
-                                   PreviewChanged="OnRuleBuilderPreviewChanged"
-                                   Changed="OnRuleBuilderChanged"
-                                   Density="editor" />
+            @RenderRulesWithPreview()
         }
         else
         {
             <div class="collection-editor-empty">
                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Inventory2" />
-                <strong>This collection uses manual membership.</strong>
-                <span>Switch to smart membership from Details to build automatic rules.</span>
+                <strong>This collection is hand-picked.</strong>
+                <span>Use Change how it fills up to let rules keep it up to date.</span>
             </div>
         }
     </section>;
@@ -1740,7 +2216,7 @@
                             <strong>@_manualItems.Count item(s) in this collection</strong>
                             <span>Reorder or remove the items already included here.</span>
                         </div>
-                        @if (EditingCollection is not null && !_showItemPicker)
+                        @if (!_showItemPicker)
                         {
                             <AppButton ButtonStyle="AppButtonStyle.Outlined"
                                        Tone="AppUiTone.Primary"

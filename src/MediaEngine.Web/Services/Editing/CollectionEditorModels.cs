@@ -8,11 +8,20 @@ public sealed class CollectionEditorLaunchRequest
     public CollectionListItemViewModel? EditingCollection { get; init; }
     public Guid? ActiveProfileId { get; init; }
     public ContainerEditorKind Kind { get; init; } = ContainerEditorKind.Collection;
-    public string InitialMembershipMode { get; init; } = "Manual";
+
+    /// <summary>
+    /// The way in the New collection flow opens on: "Smart" highlights Set rules (the default), "Manual" highlights
+    /// Pick titles. The first step always shows all four; this only chooses which card is ticked.
+    /// </summary>
+    public string InitialMembershipMode { get; init; } = "Smart";
+
     public string InitialPrimaryArea { get; init; } = "Mixed";
     public string InitialOwnerKind { get; init; } = "Profile";
     public string InitialAudience { get; init; } = "Private";
     public string? InitialTitle { get; init; }
+
+    /// <summary>The media type chips ticked when the flow opens (for example Movies and TV from Watch). Empty means Everything.</summary>
+    public IReadOnlyList<string> InitialMediaTypes { get; init; } = [];
 }
 
 public enum ContainerEditorKind
@@ -20,4 +29,33 @@ public enum ContainerEditorKind
     Collection,
     Playlist,
     Gallery,
+}
+
+/// <summary>
+/// Where the New collection flow was opened from (Collections and lists spec 4a), and the chips that place pre-ticks:
+/// Watch ticks Movies and TV, Read ticks Books and Comics, Listen ticks Music, and the Collections page ticks none.
+/// </summary>
+public static class CollectionEditorEntryPoints
+{
+    public const string Collections = "Collections";
+    public const string Watch = "Watch";
+    public const string Read = "Read";
+    public const string Listen = "Listen";
+
+    public static IReadOnlyList<string> MediaTypesFor(string? area) => area switch
+    {
+        Watch => ["Movies", "TV"],
+        Read => ["Books", "Comics"],
+        Listen => ["Music"],
+        _ => [],
+    };
+
+    /// <summary>The launch request for the New collection flow opened from <paramref name="area"/>. Listen makes a playlist.</summary>
+    public static CollectionEditorLaunchRequest For(string? area, Guid? activeProfileId) => new()
+    {
+        ActiveProfileId = activeProfileId,
+        Kind = string.Equals(area, Listen, StringComparison.Ordinal) ? ContainerEditorKind.Playlist : ContainerEditorKind.Collection,
+        InitialPrimaryArea = area is Watch or Read or Listen ? area : "Mixed",
+        InitialMediaTypes = MediaTypesFor(area),
+    };
 }
