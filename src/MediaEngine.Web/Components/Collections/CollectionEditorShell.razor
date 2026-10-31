@@ -9,6 +9,7 @@
 @using MediaEngine.Contracts.Artwork
 @using MediaEngine.Contracts.Details
 @using MediaEngine.Contracts.Metadata
+@using DayMonth = MediaEngine.Domain.Models.DayMonth
 @using MediaEngine.Web.Components.Details
 
 @inject IEngineApiClient ApiClient
@@ -239,6 +240,16 @@
     private string _sortDirection = "asc";
     private string? _secondarySortField;
     private string? _secondarySortDirection;
+    // Display options (Collections and lists spec D11 and D12): minimum items, "at most N", daily random order and a
+    // seasonal window. The full builder for these comes with the new collection flow; this is the Details-tab form.
+    private int _minItems;
+    private int _maxItems;
+    private bool _randomOrder;
+    private bool _seasonal;
+    private int _seasonFromMonth = 10;
+    private int _seasonFromDay = 1;
+    private int _seasonToMonth = 11;
+    private int _seasonToDay = 1;
     private bool _saving;
     private bool _hasUnsavedChanges;
     private IDisposable? _dialogCloseGuard;
@@ -359,7 +370,11 @@
         _ownerKind = EditingCollection.OwnerKind;
         _audience = EditingCollection.Audience;
         _selectedProfileIds.UnionWith(EditingCollection.SelectedProfileIds);
-        _sortField = EditingCollection.SortField ?? "title";
+        _randomOrder = string.Equals(EditingCollection.SortField, "random", StringComparison.OrdinalIgnoreCase);
+        _sortField = _randomOrder ? "title" : EditingCollection.SortField ?? "title";
+        _minItems = EditingCollection.MinItems;
+        _maxItems = EditingCollection.MaxItems ?? 0;
+        LoadSeasonWindow(EditingCollection.SeasonFrom, EditingCollection.SeasonTo);
         _sortDirection = string.IsNullOrWhiteSpace(EditingCollection.SortDirection) ? "asc" : EditingCollection.SortDirection;
         _secondarySortField = EditingCollection.SecondarySortField;
         _secondarySortDirection = EditingCollection.SecondarySortDirection;
@@ -447,6 +462,68 @@
 
     // The callback re-renders this editor, so the footer and Save button see the sources that were just loaded.
     private Task OnPersonalMediaLoadedAsync() => Task.CompletedTask;
+
+    private static readonly string[] MonthNames =
+        ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+    private static string SeasonText(int month, int day) =>
+        string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{month:00}-{day:00}");
+
+    private static string? MonthLabel(string? month) =>
+        int.TryParse(month, out var number) && number is >= 1 and <= 12 ? MonthNames[number - 1] : month;
+
+    private void LoadSeasonWindow(string? from, string? to)
+    {
+        if (!DayMonth.TryParse(from, out var start) || !DayMonth.TryParse(to, out var end))
+        {
+            return;
+        }
+
+        _seasonal = true;
+        (_seasonFromMonth, _seasonFromDay) = (start.Month, start.Day);
+        (_seasonToMonth, _seasonToDay) = (end.Month, end.Day);
+    }
+
+    /// <summary>"Hidden until 1 October" while the saved collection is outside its window, else null.</summary>
+    private string? HiddenUntilNote =>
+        DateOnly.TryParseExact(EditingCollection?.HiddenUntil, "yyyy-MM-dd", out var until)
+            ? $"Hidden until {until.Day} {MonthNames[until.Month - 1]}. It stays here so you can edit it, but lanes and the Collections page skip it until then."
+            : null;
+
+    private Task OnMinItemsChanged(int value)
+    {
+        _minItems = Math.Max(0, value);
+        MarkDirty();
+        return Task.CompletedTask;
+    }
+
+    private Task OnMaxItemsChanged(int value)
+    {
+        _maxItems = Math.Max(0, value);
+        MarkDirty();
+        return Task.CompletedTask;
+    }
+
+    private Task OnRandomOrderChanged(string? value)
+    {
+        _randomOrder = string.Equals(value, "random", StringComparison.Ordinal);
+        MarkDirty();
+        return Task.CompletedTask;
+    }
+
+    private Task OnSeasonalChanged(bool value)
+    {
+        _seasonal = value;
+        MarkDirty();
+        return Task.CompletedTask;
+    }
+
+    private Task OnSeasonEdgeChanged(Action apply)
+    {
+        apply();
+        MarkDirty();
+        return Task.CompletedTask;
+    }
 
     private Task OnNameChanged(string value)
     {
@@ -848,6 +925,13 @@
             return;
         }
 
+        if (_seasonal && (!new DayMonth(_seasonFromMonth, _seasonFromDay).IsValid || !new DayMonth(_seasonToMonth, _seasonToDay).IsValid))
+        {
+            Snackbar.Add("Choose real days for the seasonal window, for example 1 October to 1 November.", AppSeverity.Warning);
+            _activeTab = "details";
+            return;
+        }
+
         if (_ownerKind == "Profile" && _audience == "SelectedProfiles" && _selectedProfileIds.Count == 0)
         {
             Snackbar.Add("Choose at least one other profile to share this collection with.", AppSeverity.Warning);
@@ -869,7 +953,10 @@
         {
             var definition = _rulesEnabled ? BuildPersistableDefinition() : new CollectionRuleDefinitionViewModel();
 
-            var normalizedSortField = string.IsNullOrWhiteSpace(_sortField) ? null : _sortField;
+            var normalizedSortField = _randomOrder ? "random" : string.IsNullOrWhiteSpace(_sortField) ? null : _sortField;
+            // Update treats empty text on both edges as "remove the window"; create just leaves it out.
+            var seasonFrom = _seasonal ? SeasonText(_seasonFromMonth, _seasonFromDay) : string.Empty;
+            var seasonTo = _seasonal ? SeasonText(_seasonToMonth, _seasonToDay) : string.Empty;
             Guid? savedCollectionId = EditingCollection?.Id ?? _createdCollectionId;
             var ok = false;
 
@@ -896,7 +983,11 @@
                     selectedProfileIds: _selectedProfileIds.ToList(),
                     // Switching a rule-driven collection to manual brings its staged items in the same save, so it
                     // is never manual and empty at any point.
-                    workIds: _storedRuleDriven && !_rulesEnabled ? _manualItems.Select(item => item.WorkId).ToList() : null);
+                    workIds: _storedRuleDriven && !_rulesEnabled ? _manualItems.Select(item => item.WorkId).ToList() : null,
+                    minItems: _minItems,
+                    maxItems: _maxItems,
+                    seasonFrom: seasonFrom,
+                    seasonTo: seasonTo);
             }
             else
             {
@@ -918,7 +1009,11 @@
                     audience: _ownerKind == "Library" ? "Everyone" : _audience,
                     selectedProfileIds: _selectedProfileIds.ToList(),
                     // Curated items travel with the create call, so an empty curated collection never exists.
-                    workIds: SupportsManualItems ? _manualItems.Select(item => item.WorkId).ToList() : null);
+                    workIds: SupportsManualItems ? _manualItems.Select(item => item.WorkId).ToList() : null,
+                    minItems: _minItems,
+                    maxItems: _maxItems,
+                    seasonFrom: _seasonal ? seasonFrom : null,
+                    seasonTo: _seasonal ? seasonTo : null);
                 _createdCollectionId = savedCollectionId;
                 ok = savedCollectionId.HasValue;
             }
@@ -1327,6 +1422,72 @@
                             </AppSelect>
                         </MediaEditorPanel>
                     }
+
+                    <MediaEditorPanel Title="Display options" Description="How many items show, in what order, and when this collection is shown.">
+                        @if (HiddenUntilNote is { } hiddenNote)
+                        {
+                            <small><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" /> @hiddenNote</small>
+                        }
+                        <AppNumericField Label="Minimum items"
+                                         Value="@_minItems"
+                                         ValueChanged="OnMinItemsChanged"
+                                         Min="0"
+                                         HelpText="Skipped on lanes and the Collections page until it has this many items. 0 uses the default (3 on a lane)."
+                                         Class="collection-editor-field" />
+                        <AppNumericField Label="At most"
+                                         Value="@_maxItems"
+                                         ValueChanged="OnMaxItemsChanged"
+                                         Min="0"
+                                         HelpText="Show no more than this many items. 0 shows them all."
+                                         Class="collection-editor-field" />
+                        <AppSelect T="string"
+                                   Value="@(_randomOrder ? "random" : "set")"
+                                   ValueChanged="OnRandomOrderChanged"
+                                   ToStringFunc="@(value => value == "random" ? "Random (a new pick each day)" : "In the order set by this collection")"
+                                   Label="Order"
+                                   Variant="AppVariant.Outlined"
+                                   Class="collection-editor-field">
+                            <AppSelectItem T="string" Value="@("set")">In the order set by this collection</AppSelectItem>
+                            <AppSelectItem T="string" Value="@("random")">Random (a new pick each day)</AppSelectItem>
+                        </AppSelect>
+                        <AppCheckbox Value="@_seasonal"
+                                     ValueChanged="OnSeasonalChanged"
+                                     Label="Show only between two dates each year" />
+                        @if (_seasonal)
+                        {
+                            <AppSelect T="string"
+                                       Value="@_seasonFromMonth.ToString()"
+                                       ValueChanged="@(value => OnSeasonEdgeChanged(() => _seasonFromMonth = int.Parse(value ?? "10")))"
+                                       ToStringFunc="MonthLabel"
+                                       Label="From month"
+                                       Variant="AppVariant.Outlined"
+                                       Class="collection-editor-field">
+                                @for (var month = 1; month <= 12; month++)
+                                {
+                                    <AppSelectItem T="string" Value="@month.ToString()">@MonthNames[month - 1]</AppSelectItem>
+                                }
+                            </AppSelect>
+                            <AppNumericField Label="From day" Value="@_seasonFromDay" Min="1" Max="31"
+                                             ValueChanged="@(value => OnSeasonEdgeChanged(() => _seasonFromDay = value))"
+                                             Class="collection-editor-field" />
+                            <AppSelect T="string"
+                                       Value="@_seasonToMonth.ToString()"
+                                       ValueChanged="@(value => OnSeasonEdgeChanged(() => _seasonToMonth = int.Parse(value ?? "11")))"
+                                       ToStringFunc="MonthLabel"
+                                       Label="To month"
+                                       Variant="AppVariant.Outlined"
+                                       Class="collection-editor-field">
+                                @for (var month = 1; month <= 12; month++)
+                                {
+                                    <AppSelectItem T="string" Value="@month.ToString()">@MonthNames[month - 1]</AppSelectItem>
+                                }
+                            </AppSelect>
+                            <AppNumericField Label="To day" Value="@_seasonToDay" Min="1" Max="31"
+                                             ValueChanged="@(value => OnSeasonEdgeChanged(() => _seasonToDay = value))"
+                                             HelpText="Both days are included. A window that ends before it starts runs over New Year."
+                                             Class="collection-editor-field" />
+                        }
+                    </MediaEditorPanel>
 
                 }
             </div>

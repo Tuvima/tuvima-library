@@ -34,11 +34,13 @@ public sealed class LegacyCollectionContractTests
         AssertJsonFields<CollectionCreateRequest>(
             "name", "description", "visibility", "icon_name", "collection_type", "rule_definition",
             "membership_mode", "primary_area", "owner_kind", "audience", "selected_profile_ids",
-            "sort_field", "sort_direction", "secondary_sort_field", "secondary_sort_direction", "display_limit", "placements", "work_ids");
+            "sort_field", "sort_direction", "secondary_sort_field", "secondary_sort_direction", "display_limit", "placements", "work_ids",
+            "min_items", "max_items", "season_from", "season_to");
         AssertJsonFields<CollectionUpdateRequest>(
             "name", "description", "visibility", "icon_name", "rule_definition",
             "membership_mode", "primary_area", "owner_kind", "audience", "selected_profile_ids",
-            "sort_field", "sort_direction", "secondary_sort_field", "secondary_sort_direction", "is_enabled", "is_featured", "work_ids");
+            "sort_field", "sort_direction", "secondary_sort_field", "secondary_sort_direction", "is_enabled", "is_featured", "work_ids",
+            "min_items", "max_items", "season_from", "season_to");
         AssertJsonFields<CollectionRuleDefinitionDto>("version", "groups");
         AssertJsonFields<CollectionRuleGroupDto>("id", "join_with_previous", "match_mode", "conditions");
         AssertJsonFields<CollectionRulePredicateDto>("display_value", "display_values", "field", "op", "value", "values");

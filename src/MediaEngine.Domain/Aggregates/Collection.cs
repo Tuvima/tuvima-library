@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
+using MediaEngine.Domain.Models;
 
 namespace MediaEngine.Domain.Aggregates;
 
@@ -156,8 +157,34 @@ public sealed class Collection
     /// <summary>Whether this collection is pinned to media lane pages.</summary>
     public bool IsFeatured { get; set; }
 
-    /// <summary>Minimum item count for smart collection generation threshold.</summary>
+    /// <summary>
+    /// Fewest items the collection needs before it is shown on a lane or the Collections page. Zero means "use the
+    /// surface's default" (3 for a lane, 1 for the collection page); see CollectionOptionsPolicy in the Engine.
+    /// </summary>
     public int MinItems { get; set; }
+
+    /// <summary>
+    /// "At most N" (Collections and lists spec D11): the most items every read of this collection returns. Null means
+    /// no limit. With random order it is "N at random", sampled afresh each day.
+    /// </summary>
+    public int? MaxItems { get; set; }
+
+    /// <summary>Start of the optional seasonal window as MM-dd (spec D12). Null when the collection is not seasonal.</summary>
+    public string? SeasonFrom { get; set; }
+
+    /// <summary>End of the optional seasonal window as MM-dd, edge included. Null when the collection is not seasonal.</summary>
+    public string? SeasonTo { get; set; }
+
+    /// <summary>The seasonal window, or null when none is set (or the stored text is not a valid pair).</summary>
+    public CollectionSeasonWindow? SeasonWindow =>
+        CollectionSeasonWindow.TryCreate(SeasonFrom, SeasonTo, out var window) ? window : null;
+
+    /// <summary>Sets or clears (null) the seasonal window.</summary>
+    public void SetSeasonWindow(CollectionSeasonWindow? window)
+    {
+        SeasonFrom = window?.From.ToString();
+        SeasonTo = window?.To.ToString();
+    }
 
     /// <summary>JSON rule definition for smart collections (e.g. genre filter, vibe filter).</summary>
     public string? RuleJson { get; set; }

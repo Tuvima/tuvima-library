@@ -629,7 +629,11 @@ public sealed partial class EngineApiClient
         string ownerKind = "Profile",
         string audience = "Private",
         IReadOnlyList<Guid>? selectedProfileIds = null,
-        IReadOnlyList<Guid>? workIds = null)
+        IReadOnlyList<Guid>? workIds = null,
+        int minItems = 0,
+        int maxItems = 0,
+        string? seasonFrom = null,
+        string? seasonTo = null)
     {
         try
         {
@@ -650,6 +654,10 @@ public sealed partial class EngineApiClient
                 SortDirection = sortDirection,
                 SecondarySortField = secondarySortField,
                 SecondarySortDirection = secondarySortDirection,
+                MinItems = minItems,
+                MaxItems = maxItems,
+                SeasonFrom = seasonFrom,
+                SeasonTo = seasonTo,
                 WorkIds = workIds?.Where(id => id != Guid.Empty).Distinct().ToList() ?? [],
             };
             var response = await _http.PostAsJsonAsync(AppendCollectionProfileQuery("/collections", profileId), body, ct);
@@ -771,7 +779,11 @@ public sealed partial class EngineApiClient
         string? ownerKind = null,
         string? audience = null,
         IReadOnlyList<Guid>? selectedProfileIds = null,
-        IReadOnlyList<Guid>? workIds = null)
+        IReadOnlyList<Guid>? workIds = null,
+        int? minItems = null,
+        int? maxItems = null,
+        string? seasonFrom = null,
+        string? seasonTo = null)
     {
         try
         {
@@ -793,6 +805,10 @@ public sealed partial class EngineApiClient
                 SecondarySortDirection = secondarySortDirection,
                 IsEnabled = isEnabled,
                 IsFeatured = isFeatured,
+                MinItems = minItems,
+                MaxItems = maxItems,
+                SeasonFrom = seasonFrom,
+                SeasonTo = seasonTo,
                 WorkIds = workIds?.Where(id => id != Guid.Empty).Distinct().ToList(),
             };
             var url = AppendCollectionProfileQuery($"/collections/{collectionId}", profileId);

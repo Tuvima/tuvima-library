@@ -76,6 +76,9 @@ public sealed class CollectionRepository : ICollectionRepository
         is_enabled        AS IsEnabled,
         is_featured       AS IsFeatured,
         min_items         AS MinItems,
+        max_items         AS MaxItems,
+        season_from       AS SeasonFrom,
+        season_to         AS SeasonTo,
         rule_json         AS RuleJson,
         resolution        AS Resolution,
         rule_hash         AS RuleHash,
@@ -207,6 +210,9 @@ public sealed class CollectionRepository : ICollectionRepository
             IsEnabled = !reader.IsDBNull(12) && reader.GetInt32(12) == 1,
             IsFeatured = !reader.IsDBNull(13) && reader.GetInt32(13) == 1,
             MinItems = reader.IsDBNull(14) ? 0 : reader.GetInt32(14),
+            MaxItems = reader.IsDBNull(32) ? null : reader.GetInt32(32),
+            SeasonFrom = reader.IsDBNull(33) ? null : reader.GetString(33),
+            SeasonTo = reader.IsDBNull(34) ? null : reader.GetString(34),
             RuleJson = reader.IsDBNull(15) ? null : reader.GetString(15),
             RefreshSchedule = reader.IsDBNull(16) ? null : reader.GetString(16),
             LastRefreshedAt = reader.IsDBNull(17) ? null : DateTimeOffset.Parse(reader.GetString(17)),
@@ -390,7 +396,8 @@ public sealed class CollectionRepository : ICollectionRepository
                        w.id, w.media_type, w.ordinal,
                        w.universe_mismatch, w.universe_mismatch_at,
                        w.wikidata_status, w.wikidata_checked_at, w.wikidata_qid,
-                       h.membership_mode, h.primary_area, h.owner_kind, h.audience, h.universe_qid
+                       h.membership_mode, h.primary_area, h.owner_kind, h.audience, h.universe_qid,
+                       h.max_items, h.season_from, h.season_to
                 FROM   collections h
                 LEFT JOIN works w ON w.collection_id = h.id
                 ORDER  BY h.created_at, w.id;
@@ -708,13 +715,13 @@ public sealed class CollectionRepository : ICollectionRepository
                 cover_artwork_path, cover_artwork_mime_type, background_artwork_path, background_artwork_mime_type,
                 banner_artwork_path, banner_artwork_mime_type, logo_artwork_path, logo_artwork_mime_type, scope, profile_id,
                 membership_mode, primary_area, owner_kind, audience,
-                is_enabled, is_featured, min_items, rule_json, resolution, rule_hash,
+                is_enabled, is_featured, min_items, max_items, season_from, season_to, rule_json, resolution, rule_hash,
                 group_by_field, match_mode, sort_field, sort_direction, secondary_sort_field, secondary_sort_direction, media_type, universe_qid)
                 VALUES (@id, @uid, @phid, @dn, @ca, @us, @wqid, @ht, @desc, @icon,
                     @coverArtworkPath, @coverArtworkMimeType, @backgroundArtworkPath, @backgroundArtworkMimeType,
                     @bannerArtworkPath, @bannerArtworkMimeType, @logoArtworkPath, @logoArtworkMimeType, @scope, @pid,
                     @membershipMode, @primaryArea, @ownerKind, @audience,
-                    @enabled, @featured, @minItems, @ruleJson, @resolution, @ruleHash,
+                    @enabled, @featured, @minItems, @maxItems, @seasonFrom, @seasonTo, @ruleJson, @resolution, @ruleHash,
                     @groupByField, @matchMode, @sortField, @sortDirection, @secondarySortField, @secondarySortDirection, @mediaType, @universeQid);
             UPDATE collections SET display_name = @dn, universe_status = @us, parent_collection_id = @phid,
                             universe_qid = @universeQid,
@@ -732,6 +739,7 @@ public sealed class CollectionRepository : ICollectionRepository
                             membership_mode = @membershipMode, primary_area = @primaryArea,
                             owner_kind = @ownerKind, audience = @audience,
                             is_enabled = @enabled, is_featured = @featured, min_items = @minItems,
+                            max_items = @maxItems, season_from = @seasonFrom, season_to = @seasonTo,
                             rule_json = @ruleJson, resolution = @resolution, rule_hash = @ruleHash,
                             group_by_field = @groupByField, match_mode = @matchMode,
                             sort_field = @sortField, sort_direction = @sortDirection,
@@ -768,6 +776,9 @@ public sealed class CollectionRepository : ICollectionRepository
                 enabled = collection.IsEnabled ? 1 : 0,
                 featured = collection.IsFeatured ? 1 : 0,
                 minItems = collection.MinItems,
+                maxItems = collection.MaxItems,
+                seasonFrom = collection.SeasonFrom,
+                seasonTo = collection.SeasonTo,
                 ruleJson = collection.RuleJson,
                 resolution = collection.Resolution.ToStorageValue(),
                 ruleHash = collection.RuleHash,
@@ -798,13 +809,13 @@ public sealed class CollectionRepository : ICollectionRepository
                     cover_artwork_path, cover_artwork_mime_type, background_artwork_path, background_artwork_mime_type,
                     banner_artwork_path, banner_artwork_mime_type, logo_artwork_path, logo_artwork_mime_type, scope, profile_id,
                     membership_mode, primary_area, owner_kind, audience,
-                    is_enabled, is_featured, min_items, rule_json, resolution, rule_hash,
+                    is_enabled, is_featured, min_items, max_items, season_from, season_to, rule_json, resolution, rule_hash,
                     group_by_field, match_mode, sort_field, sort_direction, secondary_sort_field, secondary_sort_direction)
                 VALUES (@id, @uid, @phid, @dn, @ca, @us, @wqid, @ht, @desc, @icon,
                     @coverArtworkPath, @coverArtworkMimeType, @backgroundArtworkPath, @backgroundArtworkMimeType,
                     @bannerArtworkPath, @bannerArtworkMimeType, @logoArtworkPath, @logoArtworkMimeType, @scope, @pid,
                     @membershipMode, @primaryArea, @ownerKind, @audience,
-                    @enabled, @featured, @minItems, @ruleJson, @resolution, @ruleHash,
+                    @enabled, @featured, @minItems, @maxItems, @seasonFrom, @seasonTo, @ruleJson, @resolution, @ruleHash,
                     @groupByField, @matchMode, @sortField, @sortDirection, @secondarySortField, @secondarySortDirection)
                 """,
                 new
@@ -836,6 +847,9 @@ public sealed class CollectionRepository : ICollectionRepository
                     enabled = collection.IsEnabled ? 1 : 0,
                     featured = collection.IsFeatured ? 1 : 0,
                     minItems = collection.MinItems,
+                    maxItems = collection.MaxItems,
+                    seasonFrom = collection.SeasonFrom,
+                    seasonTo = collection.SeasonTo,
                     ruleJson = collection.RuleJson,
                     resolution = collection.Resolution.ToStorageValue(),
                     ruleHash = collection.RuleHash,
@@ -1908,7 +1922,8 @@ public sealed class CollectionRepository : ICollectionRepository
                        w.id, w.media_type, w.ordinal,
                        w.universe_mismatch, w.universe_mismatch_at,
                        w.wikidata_status, w.wikidata_checked_at, w.wikidata_qid,
-                       h.membership_mode, h.primary_area, h.owner_kind, h.audience, h.universe_qid
+                       h.membership_mode, h.primary_area, h.owner_kind, h.audience, h.universe_qid,
+                       h.max_items, h.season_from, h.season_to
                 FROM   collections h
                 INNER JOIN works w ON w.collection_id = h.id
                                AND {visibleWorkPredicate}
@@ -1995,7 +2010,8 @@ public sealed class CollectionRepository : ICollectionRepository
                        w.id, w.media_type, w.ordinal,
                        w.universe_mismatch, w.universe_mismatch_at,
                        w.wikidata_status, w.wikidata_checked_at, w.wikidata_qid,
-                       h.membership_mode, h.primary_area, h.owner_kind, h.audience, h.universe_qid
+                       h.membership_mode, h.primary_area, h.owner_kind, h.audience, h.universe_qid,
+                       h.max_items, h.season_from, h.season_to
                 FROM   collections h
                 LEFT JOIN works w ON w.collection_id = h.id
                 WHERE  h.id IN ({string.Join(", ", parameterNames)})

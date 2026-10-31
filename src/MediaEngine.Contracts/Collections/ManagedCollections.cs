@@ -69,6 +69,25 @@ public class ManagedCollectionDto
     [JsonPropertyName("min_items")]
     public int MinItems { get; init; }
 
+    /// <summary>"At most N": the most items any read returns. Null means no limit.</summary>
+    [JsonPropertyName("max_items")]
+    public int? MaxItems { get; init; }
+
+    /// <summary>Start of the optional seasonal window as MM-dd. Null when the collection is not seasonal.</summary>
+    [JsonPropertyName("season_from")]
+    public string? SeasonFrom { get; init; }
+
+    /// <summary>End of the optional seasonal window as MM-dd, edge included.</summary>
+    [JsonPropertyName("season_to")]
+    public string? SeasonTo { get; init; }
+
+    /// <summary>
+    /// ISO date (yyyy-MM-dd) the collection is next shown, set only on the editor's list while it is outside its
+    /// seasonal window ("Hidden until 1 October"). Null while it is shown. Lanes and the Collections page never list a hidden collection.
+    /// </summary>
+    [JsonPropertyName("hidden_until")]
+    public string? HiddenUntil { get; init; }
+
     [JsonPropertyName("rule_json")]
     public string? RuleJson { get; init; }
 

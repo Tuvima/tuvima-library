@@ -2289,7 +2289,6 @@ public static class CollectionEndpoints
                 Description = body.Description,
                 IconName = body.IconName,
                 IsEnabled = true,
-                MinItems = 0,
                 RuleJson = ruleJson,
                 RuleHash = ruleHash,
                 SortField = body.SortField,
@@ -2313,6 +2312,11 @@ public static class CollectionEndpoints
                 CollectionMatchMode.All,
                 AggregateStateSerializer.ParseCollectionSortDirection(body.SortDirection),
                 CollectionUniverseStatus.Unknown);
+            if (CollectionOptionsPolicy.TryApplyRequested(
+                    collection, body.MinItems, body.MaxItems, body.SeasonFrom, body.SeasonTo) is { } optionsError)
+            {
+                return ApiErrors.BadRequest(optionsError);
+            }
             CollectionAccessPolicy.ApplyOwnership(collection, activeProfile?.Id);
             var selectedAudienceProfileIds = collection.OwnerKind == ContainerOwnerKind.Profile
                 && collection.Audience == ContainerAudience.SelectedProfiles
@@ -2461,6 +2465,12 @@ public static class CollectionEndpoints
             if (body.IsFeatured.HasValue)
             {
                 collection.IsFeatured = body.IsFeatured.Value;
+            }
+
+            if (CollectionOptionsPolicy.TryApplyRequested(
+                    collection, body.MinItems, body.MaxItems, body.SeasonFrom, body.SeasonTo) is { } optionsError)
+            {
+                return ApiErrors.BadRequest(optionsError);
             }
 
             if (collection.CollectionType == CollectionType.Custom)
