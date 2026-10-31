@@ -43,7 +43,8 @@
     border-radius: var(--tl-radius-sm);
 }
 
-.media-section-shell__rail-heading:has(.media-section-shell__create-menu):hover {
+.media-section-shell__rail-heading:has(.media-section-shell__create-menu):hover,
+.media-section-shell__rail-heading:has(.media-section-shell__flow-add):hover {
     background: rgba(136, 82, 252, 0.08);
 }
 
@@ -64,6 +65,18 @@
 
 ::deep .media-section-shell__create-menu .app-overflow-menu__trigger:hover,
 ::deep .media-section-shell__create-menu .app-overflow-menu__trigger:focus-visible {
+    color: white;
+    background: rgba(136, 82, 252, 0.2);
+}
+
+.media-section-shell__flow-add {
+    width: 28px;
+    height: 28px;
+    color: rgba(226, 232, 240, 0.7);
+}
+
+.media-section-shell__flow-add:hover,
+.media-section-shell__flow-add:focus-visible {
     color: white;
     background: rgba(136, 82, 252, 0.2);
 }

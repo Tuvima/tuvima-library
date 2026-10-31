@@ -537,3 +537,68 @@
     .collection-editor-footer-copy { display: none; }
     .collection-editor-footer-actions > * { flex: 1; }
 }
+
+/* The New collection flow: how it fills up, build it, name and show it (Collections and lists spec 4b). */
+
+.collection-editor-workspace > .collection-editor-main { flex: 1 1 auto; }
+.collection-flow { width: 100%; }
+
+.collection-flow__steps { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 0; padding: 0; list-style: none; color: var(--tl-text-muted); font-size: .85rem; }
+.collection-flow__steps li + li::before { margin-right: 6px; content: "›"; opacity: .5; }
+.collection-flow__steps li.is-current { color: var(--tl-text-primary); font-weight: 600; }
+
+.collection-flow__start,
+.collection-flow__build,
+.collection-flow__name { width: 100%; max-width: 1040px; margin: 0 auto; }
+.collection-flow__start { display: flex; flex-direction: column; gap: 22px; }
+.collection-flow__field { display: flex; flex-direction: column; gap: 8px; }
+.collection-flow__label { color: var(--tl-text-muted); font-size: .75rem; letter-spacing: .04em; text-transform: uppercase; }
+
+.collection-flow__ways { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+.collection-flow__cols { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(280px, .9fr); gap: 18px; align-items: start; }
+.collection-flow__rules { min-width: 0; }
+
+.collection-flow__preview {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid var(--tl-divider);
+    border-radius: 12px;
+    background: var(--tl-bg-surface-raised);
+}
+.collection-flow__preview-big { font-size: 1.65rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.collection-flow__preview-sub,
+.collection-flow__preview-note { margin: 0; color: var(--tl-text-secondary); font-size: .85rem; }
+.collection-flow__pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.collection-flow__pill { padding: 3px 9px; border: 1px solid var(--pill, var(--tl-divider)); border-radius: 999px; color: var(--pill, var(--tl-text-secondary)); font-size: .75rem; }
+.collection-flow__pill[data-media="Movies"] { --pill: var(--tl-media-movies); }
+.collection-flow__pill[data-media="TV"] { --pill: var(--tl-media-tv); }
+.collection-flow__pill[data-media="Books"] { --pill: var(--tl-media-books); }
+.collection-flow__pill[data-media="Audiobooks"] { --pill: var(--tl-media-audiobooks); }
+.collection-flow__pill[data-media="Music"] { --pill: var(--tl-media-music); }
+.collection-flow__pill[data-media="Comics"] { --pill: var(--tl-media-comics); }
+.collection-flow__pill[data-media="Videos"] { --pill: var(--tl-media-video); }
+.collection-flow__covers { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+.collection-flow__cover { position: relative; aspect-ratio: 2 / 3; overflow: hidden; border-radius: 6px; background: linear-gradient(160deg, var(--tl-bg-surface-elevated), var(--tl-bg-surface)); }
+.collection-flow__cover img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.collection-flow__cover small { position: absolute; right: 5px; bottom: 4px; left: 5px; color: var(--tl-text-secondary); font-size: .75rem; line-height: 1.1; }
+.collection-flow__show-all { align-self: flex-start; }
+.collection-flow__all { display: flex; flex-direction: column; gap: 4px; max-height: 260px; overflow: auto; }
+.collection-flow__all-row { display: flex; justify-content: space-between; gap: 10px; padding: 6px 8px; border-radius: 6px; background: var(--tl-bg-surface); font-size: .82rem; }
+.collection-flow__all-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.collection-flow__all-meta { flex: 0 0 auto; color: var(--tl-text-muted); }
+
+.collection-flow__fills { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 16px; }
+.collection-flow__fills-copy { display: flex; flex-direction: column; gap: 4px; }
+.collection-flow__fills-copy span { color: var(--tl-text-secondary); font-size: .85rem; }
+.collection-flow__stack { display: grid; place-items: center; min-height: 150px; margin-bottom: 12px; }
+.collection-flow__stack img { max-width: 100%; max-height: 200px; border-radius: 8px; object-fit: contain; }
+
+@media (max-width: 840px) {
+    .collection-flow__cols { grid-template-columns: minmax(0, 1fr); }
+    .collection-flow__preview { position: static; }
+}

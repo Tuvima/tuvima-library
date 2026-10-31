@@ -1142,12 +1142,8 @@
             return;
         }
 
-        var changed = await CollectionEditorLauncher.OpenAsync(new CollectionEditorLaunchRequest
-        {
-            ActiveProfileId = _activeProfile.Id,
-            InitialMembershipMode = "Manual",
-            Kind = ContainerEditorKind.Collection,
-        });
+        var changed = await CollectionEditorLauncher.OpenAsync(
+            CollectionEditorEntryPoints.For(CollectionEditorEntryPoints.Collections, _activeProfile.Id));
 
         if (changed)
         {

@@ -3,6 +3,16 @@ using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Components.Rules;
 
+/// <summary>How a rule builder lays out its rules.</summary>
+public enum RuleBuilderLayout
+{
+    /// <summary>Rule groups, each with its own all/any, joined with AND/OR (the Advanced layout).</summary>
+    Groups,
+
+    /// <summary>Rules joined by "and", with a "but never when" Exceptions list and one "match any" switch.</summary>
+    Sentence,
+}
+
 public enum RuleValueProviderKind
 {
     Text,

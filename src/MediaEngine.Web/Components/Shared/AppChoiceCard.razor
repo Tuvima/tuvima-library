@@ -2,16 +2,22 @@
 
 <button type="button"
         class="@RootClass"
+        role="@(Selected is null ? null : "radio")"
+        aria-checked="@(Selected is null ? null : (Selected == true ? "true" : "false"))"
         disabled="@Disabled"
         @onclick="OnClick">
     @if (!string.IsNullOrWhiteSpace(Icon))
     {
-        <AppMaterialIcon Icon="@Icon" />
+        <span class="app-choice-card__icon" aria-hidden="true"><AppMaterialIcon Icon="@Icon" Size="AppSize.Medium" /></span>
     }
     <strong>@Title</strong>
     @if (!string.IsNullOrWhiteSpace(Description))
     {
-        <span>@Description</span>
+        <span class="app-choice-card__text">@Description</span>
+    }
+    @if (!string.IsNullOrWhiteSpace(Badge))
+    {
+        <em class="app-choice-card__badge">@Badge</em>
     }
 </button>
 
@@ -19,10 +25,16 @@
     [Parameter] public string? Icon { get; set; }
     [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
     [Parameter] public string? Description { get; set; }
+
+    /// <summary>A small label in the corner, such as "Coming soon".</summary>
+    [Parameter] public string? Badge { get; set; }
+
+    /// <summary>Null for a plain button; true or false when the card is one choice of a group (it then reads as a radio).</summary>
+    [Parameter] public bool? Selected { get; set; }
     [Parameter] public bool Disabled { get; set; }
     [Parameter] public EventCallback OnClick { get; set; }
     [Parameter] public string? Class { get; set; }
 
-    private string RootClass => string.Join(" ", new[] { "app-choice-card", Class }
+    private string RootClass => string.Join(" ", new[] { "app-choice-card", Selected == true ? "is-on" : null, Disabled ? "is-disabled" : null, Class }
         .Where(value => !string.IsNullOrWhiteSpace(value)));
 }

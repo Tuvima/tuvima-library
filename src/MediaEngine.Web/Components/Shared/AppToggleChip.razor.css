@@ -1,0 +1,21 @@
+.app-toggle-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 34px;
+    padding: 6px 14px;
+    border: 1px solid var(--tl-divider);
+    border-radius: 999px;
+    background: var(--tl-bg-surface-raised);
+    color: var(--tl-text-secondary);
+    font: inherit;
+    font-size: .85rem;
+    cursor: pointer;
+}
+
+.app-toggle-chip:hover { background: var(--tl-bg-surface-hover); }
+.app-toggle-chip:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
+.app-toggle-chip:disabled { cursor: not-allowed; opacity: .6; }
+.app-toggle-chip.is-on { border-color: var(--tl-accent-primary); background: color-mix(in srgb, var(--tl-accent-primary) 18%, transparent); color: var(--tl-text-primary); }
+
+@media (pointer: coarse) { .app-toggle-chip { min-height: 44px; } }
