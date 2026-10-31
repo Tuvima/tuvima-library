@@ -41,12 +41,19 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 44px;
+    min-width: 28px;
     min-height: 44px;
     border: 0;
     color: var(--playback-text-secondary);
     background: transparent;
     cursor: grab;
+    opacity: .4;
+}
+
+.listen-context-sidebar ::deep .playback-context-row:hover .playback-context-row__handle button,
+.listen-context-sidebar ::deep .playback-context-row__handle button:focus-visible {
+    opacity: 1;
+    color: var(--playback-text);
 }
 
 .listen-context-sidebar ::deep .playback-context-row__actions button {

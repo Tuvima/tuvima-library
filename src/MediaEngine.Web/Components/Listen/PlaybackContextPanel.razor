@@ -129,8 +129,8 @@
                 }
                 @foreach (var item in MusicHistory)
                 {
-                    <PlaybackContextRow Variant="history-played" LeadingWidth="56px" ArtworkUrl="@PlaybackArtworkUrl.ForItem(item, "s")" Duration="@PlayedAt(item)"
-                                       Title="@item.Title" Subtitle="@item.Subtitle"
+                    <PlaybackContextRow Variant="history" LeadingWidth="56px" ArtworkUrl="@PlaybackArtworkUrl.ForItem(item, "s")"
+                                       Title="@item.Title" Subtitle="@HistorySubtitle(item)"
                                        OnClick="@(() => SendAsync(panelSnapshot, new() { Action = ListenPlaybackCommandActions.PlayHistory, QueueEntryId = item.QueueEntryId, QueueItem = ToQueueItem(item) }))" AriaLabel="@($"Play {item.Title}")">
                         <Actions><PlaybackPopover Title="@($"History actions for {item.Title}")" Kind="menu" ShowHeading="false">
                             <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.More" /></TriggerContent>
@@ -250,6 +250,8 @@
         && item.Chapters.Where(candidate => candidate.AssetId == item.AssetId && candidate.StartSeconds <= Snapshot.CurrentTimeSeconds
             && (candidate.EndSeconds is null || Snapshot.CurrentTimeSeconds < candidate.EndSeconds))
             .OrderByDescending(candidate => candidate.StartSeconds).FirstOrDefault() == chapter;
+    // The played time rides under the title so every history row is one height and none needs a column of its own.
+    private static string HistorySubtitle(ListenQueueItem item) => string.IsNullOrWhiteSpace(item.Subtitle) ? PlayedAt(item) : $"{item.Subtitle} · {PlayedAt(item)}";
     private static string PlayedAt(ListenQueueItem item)
     {
         if (item.PlayedAt is not { } played) return "Played recently";
