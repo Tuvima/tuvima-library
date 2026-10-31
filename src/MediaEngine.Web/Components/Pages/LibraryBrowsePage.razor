@@ -109,7 +109,7 @@
                 <RecentMediaFeed Type="@_recentType" TypeChanged="RecentTypeChanged" RefreshKey="@_recentRefreshKey" HasItemsChanged="RecentItemsChanged" />
                 @foreach (var (shelf, shelfIndex) in VisibleShelves.Where(s => s.Kind != MediaTileShelfKind.Continue).Select((shelf, shelfIndex) => (shelf, shelfIndex)))
                 {
-                    <MediaTileShelf Shelf="@shelf" IsHomeSurface="true" HideMediaKindBadges="true" HideSourceBadges="true" HideGroupIndicators="true" EagerItemCount="@(shelfIndex == 0 ? FirstShelfEagerTileCount : 0)" @key="shelf.Key" />
+                    <MediaTileShelf Shelf="@shelf" IsHomeSurface="true" HideMediaKindBadges="true" HideSourceBadges="true" HideGroupIndicators="true" EagerItemCount="@(shelfIndex == 0 ? FirstShelfEagerTileCount : 0)" LanePlace="home" OnLaneHidden="HideLane" @key="shelf.Key" />
                 }
             </div>
         </div>
@@ -145,7 +145,17 @@
     private IReadOnlyList<MediaTileShelfViewModel> _visibleShelves = [];
     private IReadOnlyList<DiscoveryHeroViewModel> _homeHeroCandidates = [];
 
-    private IReadOnlyList<MediaTileShelfViewModel> VisibleShelves => _visibleShelves;
+    // Lanes the viewer just hid; the Engine has saved it, and the next load leaves them out.
+    private readonly HashSet<string> _hiddenLanes = new(StringComparer.OrdinalIgnoreCase);
+
+    private IReadOnlyList<MediaTileShelfViewModel> VisibleShelves =>
+        _hiddenLanes.Count == 0 ? _visibleShelves : _visibleShelves.Where(shelf => !_hiddenLanes.Contains(shelf.Key)).ToList();
+
+    private Task HideLane(string shelfKey)
+    {
+        _hiddenLanes.Add(shelfKey);
+        return Task.CompletedTask;
+    }
 
     private IReadOnlyList<DiscoveryHeroViewModel> HomeHeroCandidates => _homeHeroCandidates;
 

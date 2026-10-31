@@ -239,6 +239,18 @@ public sealed class DisplayJourneyRow : IDisplayArtworkRow
     public string? AccentColor { get; set; }
 }
 
+/// <summary>
+/// One collection shown as a lane (Collections and lists spec D9): its name and the display root ids of the items the
+/// profile may see, in the collection's order, up to the lane limit. The composer turns the ids into tiles.
+/// </summary>
+public sealed class DisplayCollectionLaneRow
+{
+    public Guid CollectionId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string? Subtitle { get; set; }
+    public IReadOnlyList<Guid> WorkIds { get; set; } = [];
+}
+
 public sealed class DisplayHomeCollectionRow : IDisplayArtworkRow
 {
     public Guid CollectionId { get; set; }

@@ -1,0 +1,43 @@
+@namespace MediaEngine.Web.Components.MediaTiles
+@using MediaEngine.Web.Models.ViewDTOs
+@inject IEngineApiClient ApiClient
+@inject IAppToastService Snackbar
+
+@* The "..." menu on a collection lane's header (Collections and lists spec D10): "Hide this lane" for the active profile.
+   Shown on every device, phone and TV included. Renders nothing for any other shelf. *@
+@if (MediaTileShelfKeys.TryGetLaneCollectionId(ShelfKey, out _))
+{
+    <AppRowMenu AriaLabel="@($"More actions for {Title}")" Title="@Title" Items="@_items" />
+}
+
+@code {
+    /// <summary>The shelf key; only a lane key ("lane-...") shows the menu.</summary>
+    [Parameter, EditorRequired] public string ShelfKey { get; set; } = string.Empty;
+    /// <summary>Where the lane is shown: home, watch, read or listen.</summary>
+    [Parameter, EditorRequired] public string Place { get; set; } = string.Empty;
+    [Parameter] public string Title { get; set; } = string.Empty;
+    /// <summary>Raised with the shelf key once the Engine has saved the hide, so the page can drop the lane at once.</summary>
+    [Parameter] public EventCallback<string> OnHidden { get; set; }
+
+    private IReadOnlyList<AppRowMenuItem> _items = [];
+
+    protected override void OnInitialized() =>
+        _items = [new AppRowMenuItem { Label = "Hide this lane", OnClick = EventCallback.Factory.Create(this, HideAsync) }];
+
+    private async Task HideAsync()
+    {
+        if (!MediaTileShelfKeys.TryGetLaneCollectionId(ShelfKey, out var collectionId))
+        {
+            return;
+        }
+
+        if (await ApiClient.SetDisplayLaneHiddenAsync(Place, collectionId, hidden: true))
+        {
+            await OnHidden.InvokeAsync(ShelfKey);
+        }
+        else
+        {
+            Snackbar.Add("That lane could not be hidden. Nothing was changed.", AppSeverity.Error);
+        }
+    }
+}

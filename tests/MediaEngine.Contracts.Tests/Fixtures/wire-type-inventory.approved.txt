@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1329; api=0; web-client=54
+# scopes: contracts=1335; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1809,9 +1809,10 @@
   SeasonFrom: System.String | json=season_from | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SeasonTo: System.String | json=season_to | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   DisplayLimit: System.Int32 | json=display_limit | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ShowOn: System.Collections.Generic.List<System.String> | json=show_on | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Placements: System.Collections.Generic.List<MediaEngine.Contracts.Collections.CollectionPlacementRequest> | json=placements | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   WorkIds: System.Collections.Generic.List<System.Guid> | json=work_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"name":"sample","description":"sample","visibility":"sample","icon_name":"sample","collection_type":"sample","membership_mode":"sample","primary_area":"sample","owner_kind":"sample","audience":"sample","selected_profile_ids":[],"rule_definition":null,"sort_field":"sample","sort_direction":"sample","secondary_sort_field":"sample","secondary_sort_direction":"sample","min_items":7,"max_items":7,"season_from":"sample","season_to":"sample","display_limit":7,"placements":[],"work_ids":[]}
+  sample={"name":"sample","description":"sample","visibility":"sample","icon_name":"sample","collection_type":"sample","membership_mode":"sample","primary_area":"sample","owner_kind":"sample","audience":"sample","selected_profile_ids":[],"rule_definition":null,"sort_field":"sample","sort_direction":"sample","secondary_sort_field":"sample","secondary_sort_direction":"sample","min_items":7,"max_items":7,"season_from":"sample","season_to":"sample","display_limit":7,"show_on":[],"placements":[],"work_ids":[]}
 
 [contracts] MediaEngine.Contracts.Collections.CollectionCreatedResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -2180,8 +2181,9 @@
   MaxItems: System.Int32? | json=max_items | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SeasonFrom: System.String | json=season_from | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SeasonTo: System.String | json=season_to | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ShowOn: System.Collections.Generic.List<System.String> | json=show_on | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   WorkIds: System.Collections.Generic.List<System.Guid> | json=work_ids | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"name":"sample","description":"sample","visibility":"sample","icon_name":"sample","membership_mode":"sample","primary_area":"sample","owner_kind":"sample","audience":"sample","selected_profile_ids":[],"rule_definition":null,"sort_field":"sample","sort_direction":"sample","secondary_sort_field":"sample","secondary_sort_direction":"sample","is_enabled":true,"is_featured":true,"min_items":7,"max_items":7,"season_from":"sample","season_to":"sample","work_ids":[]}
+  sample={"name":"sample","description":"sample","visibility":"sample","icon_name":"sample","membership_mode":"sample","primary_area":"sample","owner_kind":"sample","audience":"sample","selected_profile_ids":[],"rule_definition":null,"sort_field":"sample","sort_direction":"sample","secondary_sort_field":"sample","secondary_sort_direction":"sample","is_enabled":true,"is_featured":true,"min_items":7,"max_items":7,"season_from":"sample","season_to":"sample","show_on":[],"work_ids":[]}
 
 [contracts] MediaEngine.Contracts.Collections.ContentGroupDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -3527,6 +3529,35 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   Ids: System.Collections.Generic.IReadOnlyList<System.Guid> | json=ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
+[contracts] MediaEngine.Contracts.Display.DisplayLaneDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  CollectionId: System.Guid | json=collectionId | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Name: System.String | json=name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CollectionType: System.String | json=collectionType | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IconName: System.String | json=iconName | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Visible: System.Boolean | json=visible | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Display.DisplayLaneHideRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Hidden: System.Boolean | json=hidden | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Display.DisplayLaneOrderEntry
+  kind=class | converter=default | number-handling=default | unmapped=default
+  CollectionId: System.Guid | json=collectionId | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Visible: System.Boolean | json=visible | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Display.DisplayLaneSettingsDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Location: System.String | json=location | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CanManageShared: System.Boolean | json=canManageShared | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Shared: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Display.DisplayLaneDto> | json=shared | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Mine: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Display.DisplayLaneDto> | json=mine | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  HiddenByMe: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Display.DisplayLaneDto> | json=hiddenByMe | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Display.DisplayOwnLaneOrderRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  CollectionIds: System.Collections.Generic.IReadOnlyList<System.Guid> | json=collectionIds | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
 [contracts] MediaEngine.Contracts.Display.DisplayPageDto
   kind=class | converter=default | number-handling=default | unmapped=default
   Key: System.String | json=key | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -3576,6 +3607,10 @@
   Height: System.Int32? | json=height | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   DurationSeconds: System.Double? | json=durationSeconds | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AddedAt: System.DateTimeOffset | json=addedAt | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Display.DisplaySharedLaneOrderRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Lanes: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Display.DisplayLaneOrderEntry> | json=lanes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Display.DisplayShelfDto
   kind=class | converter=default | number-handling=default | unmapped=default

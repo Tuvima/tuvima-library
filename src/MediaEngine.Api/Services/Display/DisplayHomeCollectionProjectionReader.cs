@@ -16,15 +16,47 @@ public sealed class DisplayHomeCollectionProjectionReader
     private readonly ICollectionPlacementRepository _placements;
     private readonly CollectionCatalogReadService _catalog;
     private readonly IProfileRepository _profiles;
+    private readonly CollectionLaneReadService? _lanes;
 
     public DisplayHomeCollectionProjectionReader(
         ICollectionPlacementRepository placements,
         CollectionCatalogReadService catalog,
-        IProfileRepository profiles)
+        IProfileRepository profiles,
+        CollectionLaneReadService? lanes = null)
     {
         _placements = placements;
         _catalog = catalog;
         _profiles = profiles;
+        _lanes = lanes;
+    }
+
+    /// <summary>
+    /// The collections shown as lanes at <paramref name="location"/> for one profile (Collections and lists spec D9 to D11).
+    /// The profile's hides, the seasonal window, the minimum, the Kids levels (through <paramref name="allowedWorkIds"/>)
+    /// and who owns a private collection are all settled by the lane read service; this only shapes its answer for the composer.
+    /// </summary>
+    public async Task<IReadOnlyList<DisplayCollectionLaneRow>> LoadLanesAsync(
+        Guid? profileId,
+        string location,
+        CancellationToken ct,
+        IReadOnlySet<Guid>? allowedWorkIds = null)
+    {
+        if (_lanes is null)
+        {
+            return [];
+        }
+
+        var activeProfile = await ResolveActiveProfileAsync(profileId, ct);
+        var lanes = await _lanes.GetLanesAsync(activeProfile, location, allowedWorkIds, ct);
+        return lanes
+            .Select(lane => new DisplayCollectionLaneRow
+            {
+                CollectionId = lane.CollectionId,
+                Title = lane.Name,
+                Subtitle = null,
+                WorkIds = lane.Items.Select(item => item.WorkId).ToList(),
+            })
+            .ToList();
     }
 
     public async Task<IReadOnlyList<DisplayHomeCollectionRow>> LoadAsync(

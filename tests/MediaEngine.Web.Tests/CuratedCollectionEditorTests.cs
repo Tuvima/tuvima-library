@@ -193,7 +193,7 @@ public sealed class CuratedCollectionEditorTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.GetCollectionItemsAsync), _ => Task.FromResult(new List<CollectionItemDto>()));
             stub.SetHandler(nameof(IEngineApiClient.UpdateCollectionAsync), args =>
             {
-                _updatedWorkIds.Add((IReadOnlyList<Guid>?)args![^5]);
+                _updatedWorkIds.Add((IReadOnlyList<Guid>?)args![^6]);
                 return Task.FromResult(true);
             });
         });
@@ -230,7 +230,7 @@ public sealed class CuratedCollectionEditorTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.CreateCollectionAndReturnIdAsync), args =>
             {
                 _createdTypes.Add((string)args![3]!);
-                _createdWorkIds.Add((IReadOnlyList<Guid>?)args[^5]);
+                _createdWorkIds.Add((IReadOnlyList<Guid>?)args[^6]);
                 return Task.FromResult<Guid?>(Guid.NewGuid());
             }));
         _stub = (EngineApiClientStub)(object)client;

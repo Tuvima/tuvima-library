@@ -89,4 +89,16 @@ public partial interface IEngineApiClient
     /// <summary>PUT /api/v1/display/hero-settings/plugins/{pluginId} - switches one plugin's Home slides on or off for the active profile.</summary>
     Task<bool> SetDisplayHeroPluginSlidesAsync(string pluginId, bool enabled, CancellationToken ct = default);
 
+    /// <summary>GET /api/v1/display/lanes/{place} — the lanes at home, watch, read or listen for the Lanes settings.</summary>
+    Task<DisplayLaneSettingsDto?> GetDisplayLaneSettingsAsync(string place, CancellationToken ct = default);
+
+    /// <summary>PUT /api/v1/display/lanes/{place}/shared — orders the shared lanes and switches each on or off for everyone (administrators).</summary>
+    Task<bool> SetDisplaySharedLanesAsync(string place, IReadOnlyList<DisplayLaneOrderEntry> lanes, CancellationToken ct = default);
+
+    /// <summary>PUT /api/v1/display/lanes/{place}/mine — orders the active profile's own lanes.</summary>
+    Task<bool> SetDisplayOwnLanesAsync(string place, IReadOnlyList<Guid> collectionIds, CancellationToken ct = default);
+
+    /// <summary>PUT /api/v1/display/lanes/{place}/hidden/{collectionId} — hides a lane from the active profile, or shows it again.</summary>
+    Task<bool> SetDisplayLaneHiddenAsync(string place, Guid collectionId, bool hidden, CancellationToken ct = default);
+
 }

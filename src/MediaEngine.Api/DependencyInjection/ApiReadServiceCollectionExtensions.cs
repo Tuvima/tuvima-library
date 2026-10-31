@@ -54,6 +54,7 @@ public static class ApiReadServiceCollectionExtensions
         services.AddScoped<IUniversalSearchReadService, UniversalSearchReadService>();
         services.AddSingleton<ICollectionMediaLookupReadService, CollectionMediaLookupReadService>();
         services.AddSingleton<CollectionCatalogReadService>();
+        services.AddSingleton<CollectionLaneReadService>();
         services.AddScoped<CharacterFirstSeenReader>();
         services.AddScoped<CharacterSpoilerService>();
         services.AddScoped<CharacterCreditSpoilerFilter>();

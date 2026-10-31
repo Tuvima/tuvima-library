@@ -1,3 +1,4 @@
+using MediaEngine.Api.Services.Collections;
 using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaEngine.Api.Services.Display;
@@ -120,6 +121,30 @@ public sealed class DisplayProjectionReadService : IRawDisplayProjectionReadServ
         Guid? profileId,
         IReadOnlySet<Guid> allowedWorkIds,
         CancellationToken ct) => _homeCollections.LoadAsync(profileId, ct, allowedWorkIds);
+
+    // Cached per profile and location for the same 30 seconds as the other projections; saving a "Show on" choice or a
+    // profile's hide changes CollectionLanePolicy.Version, which is part of the key, so a change is never held back.
+    public async Task<IReadOnlyList<DisplayCollectionLaneRow>> LoadCollectionLanesAsync(
+        Guid? profileId,
+        string location,
+        CancellationToken ct)
+    {
+        var cacheKey = $"display:collection-lanes:{CollectionLanePolicy.Version}:{location}:{profileId?.ToString("N") ?? "shared"}";
+        if (_cache.TryGetValue(cacheKey, out IReadOnlyList<DisplayCollectionLaneRow>? cached) && cached is not null)
+        {
+            return cached;
+        }
+
+        var rows = await _homeCollections.LoadLanesAsync(profileId, location, ct);
+        _cache.Set(cacheKey, rows, ProjectionCacheDuration);
+        return rows;
+    }
+
+    public Task<IReadOnlyList<DisplayCollectionLaneRow>> LoadCollectionLanesAsync(
+        Guid? profileId,
+        string location,
+        IReadOnlySet<Guid> allowedWorkIds,
+        CancellationToken ct) => _homeCollections.LoadLanesAsync(profileId, location, ct, allowedWorkIds);
 }
 
 

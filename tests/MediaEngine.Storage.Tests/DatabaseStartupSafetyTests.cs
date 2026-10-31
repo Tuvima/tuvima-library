@@ -382,6 +382,7 @@ public sealed class DatabaseStartupSafetyTests
             ("collection_items", "work_id"),
             ("collection_placements", "id"),
             ("collection_placements", "collection_id"),
+            ("collection_placements", "profile_id"),
             ("collection_relationships", "id"),
             ("collection_relationships", "collection_id"),
             ("collections", "universe_id"),

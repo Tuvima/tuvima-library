@@ -250,6 +250,10 @@
     private int _seasonFromDay = 1;
     private int _seasonToMonth = 11;
     private int _seasonToDay = 1;
+    private readonly HashSet<string> _showOn = new(StringComparer.Ordinal);
+    private bool _showOnLoaded;
+    private static readonly (string Key, string Label)[] ShowOnPlaces =
+        [("home", "Home"), ("watch", "Watch"), ("read", "Read"), ("listen", "Listen")];
     private bool _saving;
     private bool _hasUnsavedChanges;
     private IDisposable? _dialogCloseGuard;
@@ -427,6 +431,34 @@
             .ToList();
         if (SupportsManualItems)
             await LoadManualItemsAsync();
+        await LoadShowOnAsync();
+    }
+
+    // Show on (Collections and lists spec D9): the places this collection is a lane. A new collection starts shown nowhere.
+    // When an existing collection's places cannot be read, nothing is sent on save, so a failed read never clears them.
+    private async Task LoadShowOnAsync()
+    {
+        if (EditingCollection is null)
+        {
+            _showOnLoaded = true;
+            return;
+        }
+
+        if (await ApiClient.GetCollectionShowOnAsync(EditingCollection.Id) is { } places)
+        {
+            _showOn.UnionWith(places);
+            _showOnLoaded = true;
+        }
+    }
+
+    private Task OnShowOnChanged(string place, bool selected)
+    {
+        if (selected)
+            _showOn.Add(place);
+        else
+            _showOn.Remove(place);
+        MarkDirty();
+        return Task.CompletedTask;
     }
 
     private Task SetAudienceProfileAsync(Guid profileId, bool selected)
@@ -987,7 +1019,8 @@
                     minItems: _minItems,
                     maxItems: _maxItems,
                     seasonFrom: seasonFrom,
-                    seasonTo: seasonTo);
+                    seasonTo: seasonTo,
+                    showOn: _showOnLoaded ? _showOn.ToList() : null);
             }
             else
             {
@@ -1013,7 +1046,8 @@
                     minItems: _minItems,
                     maxItems: _maxItems,
                     seasonFrom: _seasonal ? seasonFrom : null,
-                    seasonTo: _seasonal ? seasonTo : null);
+                    seasonTo: _seasonal ? seasonTo : null,
+                    showOn: _showOn.ToList());
                 _createdCollectionId = savedCollectionId;
                 ok = savedCollectionId.HasValue;
             }
@@ -1486,6 +1520,16 @@
                                              ValueChanged="@(value => OnSeasonEdgeChanged(() => _seasonToDay = value))"
                                              HelpText="Both days are included. A window that ends before it starts runs over New Year."
                                              Class="collection-editor-field" />
+                        }
+                    </MediaEditorPanel>
+
+                    <MediaEditorPanel Title="Show on" Description="Show this collection as a row on these pages. It is always on the Collections page.">
+                        @foreach (var (placeKey, placeLabel) in ShowOnPlaces)
+                        {
+                            var key = placeKey;
+                            <AppCheckbox Value="@_showOn.Contains(key)"
+                                         ValueChanged="@(selected => OnShowOnChanged(key, selected))"
+                                         Label="@placeLabel" />
                         }
                     </MediaEditorPanel>
 

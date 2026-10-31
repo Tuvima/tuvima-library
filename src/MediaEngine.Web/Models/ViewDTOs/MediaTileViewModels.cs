@@ -211,6 +211,8 @@ public enum MediaTileShelfKind
     Continue,
     Collections,
     ReadSeries,
+    /// <summary>A collection shown as a lane (Collections and lists spec D9); the key carries the collection id.</summary>
+    Lane,
 }
 
 public static class MediaTileShelfKeys
@@ -224,8 +226,25 @@ public static class MediaTileShelfKeys
     public const string HomeCollections = "home-collections";
     public const string ListenCollections = "listen-collections";
 
+    /// <summary>Prefix of a collection lane's shelf key: "lane-" and the collection id without dashes.</summary>
+    public const string LanePrefix = "lane-";
+
+    /// <summary>Reads the collection id out of a lane's shelf key; false for any other shelf.</summary>
+    public static bool TryGetLaneCollectionId(string? key, out Guid collectionId)
+    {
+        collectionId = Guid.Empty;
+        return key is not null
+            && key.StartsWith(LanePrefix, StringComparison.OrdinalIgnoreCase)
+            && Guid.TryParseExact(key[LanePrefix.Length..], "N", out collectionId);
+    }
+
     public static MediaTileShelfKind Classify(string? key)
     {
+        if (TryGetLaneCollectionId(key, out _))
+        {
+            return MediaTileShelfKind.Lane;
+        }
+
         if (string.Equals(key, Continue, StringComparison.OrdinalIgnoreCase)
             || string.Equals(key, ContinueReading, StringComparison.OrdinalIgnoreCase)
             || string.Equals(key, ContinueWatching, StringComparison.OrdinalIgnoreCase)

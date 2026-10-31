@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0073 collection_options).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0074 collection_lane_profile_hides).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -564,7 +564,7 @@ CREATE TABLE collection_placements (
     display_mode  TEXT NOT NULL DEFAULT 'swimlane',
     is_visible    INTEGER NOT NULL DEFAULT 1,
     created_at    TEXT NOT NULL DEFAULT (datetime('now'))
-);
+, profile_id BLOB REFERENCES profiles(id) ON DELETE CASCADE);
 
 CREATE TABLE collection_profile_audience (
     collection_id BLOB NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
@@ -3365,6 +3365,8 @@ CREATE INDEX idx_collection_placements_collection_id
 
 CREATE INDEX idx_collection_placements_location
     ON collection_placements(location);
+
+CREATE INDEX idx_collection_placements_profile ON collection_placements(profile_id) WHERE profile_id IS NOT NULL;
 
 CREATE INDEX idx_collection_rel_collection_id
     ON collection_relationships(collection_id);

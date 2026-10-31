@@ -186,6 +186,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     {
         public int FullReadCount { get; private set; }
         public IReadOnlySet<Guid>? AllowedWorkIdsPassedToHomeCollections { get; private set; }
+        public IReadOnlySet<Guid>? AllowedWorkIdsPassedToLanes { get; private set; }
 
         public async Task<IReadOnlyList<DisplayWorkRow>> LoadWorksAsync(CancellationToken ct)
         {
@@ -207,6 +208,21 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         {
             AllowedWorkIdsPassedToHomeCollections = allowedWorkIds;
             return Task.FromResult<IReadOnlyList<DisplayHomeCollectionRow>>([]);
+        }
+
+        public Task<IReadOnlyList<DisplayCollectionLaneRow>> LoadCollectionLanesAsync(
+            Guid? profileId,
+            string location,
+            CancellationToken ct) => Task.FromResult<IReadOnlyList<DisplayCollectionLaneRow>>([]);
+
+        public Task<IReadOnlyList<DisplayCollectionLaneRow>> LoadCollectionLanesAsync(
+            Guid? profileId,
+            string location,
+            IReadOnlySet<Guid> allowedWorkIds,
+            CancellationToken ct)
+        {
+            AllowedWorkIdsPassedToLanes = allowedWorkIds;
+            return Task.FromResult<IReadOnlyList<DisplayCollectionLaneRow>>([]);
         }
     }
 }

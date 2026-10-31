@@ -635,7 +635,8 @@ public sealed partial class EngineApiClient
         int minItems = 0,
         int maxItems = 0,
         string? seasonFrom = null,
-        string? seasonTo = null)
+        string? seasonTo = null,
+        IReadOnlyList<string>? showOn = null)
     {
         try
         {
@@ -660,6 +661,7 @@ public sealed partial class EngineApiClient
                 MaxItems = maxItems,
                 SeasonFrom = seasonFrom,
                 SeasonTo = seasonTo,
+                ShowOn = showOn?.ToList(),
                 WorkIds = workIds?.Where(id => id != Guid.Empty).Distinct().ToList() ?? [],
             };
             var response = await _http.PostAsJsonAsync(AppendCollectionProfileQuery("/collections", profileId), body, ct);
@@ -785,7 +787,8 @@ public sealed partial class EngineApiClient
         int? minItems = null,
         int? maxItems = null,
         string? seasonFrom = null,
-        string? seasonTo = null)
+        string? seasonTo = null,
+        IReadOnlyList<string>? showOn = null)
     {
         try
         {
@@ -811,6 +814,7 @@ public sealed partial class EngineApiClient
                 MaxItems = maxItems,
                 SeasonFrom = seasonFrom,
                 SeasonTo = seasonTo,
+                ShowOn = showOn?.ToList(),
                 WorkIds = workIds?.Where(id => id != Guid.Empty).Distinct().ToList(),
             };
             var url = AppendCollectionProfileQuery($"/collections/{collectionId}", profileId);
@@ -835,6 +839,26 @@ public sealed partial class EngineApiClient
             LastError = ex.Message;
             return false;
         }
+    }
+
+    public async Task<IReadOnlyList<string>?> GetCollectionShowOnAsync(Guid collectionId, CancellationToken ct = default)
+    {
+        var placements = await GetAsync<List<CollectionPlacementSummary>>(
+            "GET /collections/{id}/placements",
+            $"/collections/{collectionId}/placements",
+            ct: ct);
+        if (placements is null)
+        {
+            return null;
+        }
+
+        // Stored places are "home" and "area:watch", "area:read", "area:listen"; the editor and requests use the short keys.
+        // A lane an administrator switched off for everyone is still "shown on" that place, so saving the editor keeps it.
+        return placements
+            .Select(placement => placement.location.StartsWith("area:", StringComparison.Ordinal) ? placement.location[5..] : placement.location)
+            .Where(key => key is "home" or "watch" or "read" or "listen")
+            .Distinct()
+            .ToList();
     }
 
     private static CollectionRulePredicateDto ToContract(CollectionRulePredicateViewModel source) => new()
