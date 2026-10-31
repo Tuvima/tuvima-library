@@ -45,6 +45,8 @@ internal sealed partial class ProviderFlowRunner
             case DigitsOfExpression digits:
                 return Text(digits.Sources.Select(source => TextOf(Evaluate(source)))
                     .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value) && value.All(char.IsDigit)));
+            case PartsOfExpression parts:
+                return PartsOf(TextOf(Evaluate(parts.Source)));
             case ClampExpression clamp:
                 return double.TryParse(TextOf(Evaluate(clamp.Source)), NumberStyles.Float, CultureInfo.InvariantCulture, out var clamped)
                     ? Number(Math.Clamp(clamped, clamp.Min, clamp.Max))
@@ -133,4 +135,29 @@ internal sealed partial class ProviderFlowRunner
         int.TryParse(left, NumberStyles.Integer, CultureInfo.InvariantCulture, out var a)
         && int.TryParse(right, NumberStyles.Integer, CultureInfo.InvariantCulture, out var b)
         && a == b;
+
+    private static readonly string[] NamePartSeparators = [" - ", " \u2013 ", " \u2014 ", ": "];
+
+    /// <summary>The shorter search texts of <see cref="PartsOfExpression"/>; null when the name has only one part.</summary>
+    private static JsonNode? PartsOf(string? name)
+    {
+        var parts = (name ?? string.Empty)
+            .Split(NamePartSeparators, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length < 2)
+        {
+            return null;
+        }
+
+        var texts = new List<string>();
+        for (var index = 0; index < parts.Length - 1; index++)
+        {
+            texts.Add(parts[index] + " " + parts[index + 1]);
+        }
+
+        texts.AddRange(parts.OrderByDescending(part => part.Length));
+        return new JsonArray(texts
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Select(text => (JsonNode?)JsonValue.Create(text))
+            .ToArray());
+    }
 }

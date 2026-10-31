@@ -606,10 +606,10 @@ public static class FlowParser
         private FlowExpression ParseOperation(JsonElement element, string path)
         {
             var keys = element.EnumerateObject().Select(property => property.Name).ToList();
-            var operation = keys.FirstOrDefault(key => key is "first_chars" or "format" or "url_on_hosts" or "digits_of" or "first_non_null" or "clamp" or "int" or "object" or "literal");
+            var operation = keys.FirstOrDefault(key => key is "first_chars" or "format" or "url_on_hosts" or "digits_of" or "parts_of" or "first_non_null" or "clamp" or "int" or "object" or "literal");
             if (operation is null)
             {
-                errors.Add($"{path} is not an expression; use one of first_chars, format, url_on_hosts, digits_of, first_non_null, clamp, int, object, literal.");
+                errors.Add($"{path} is not an expression; use one of first_chars, format, url_on_hosts, digits_of, parts_of, first_non_null, clamp, int, object, literal.");
                 return new LiteralExpression(string.Empty);
             }
 
@@ -644,6 +644,8 @@ public static class FlowParser
                         .ToDictionary(property => property.Name, property => ParseExpression(property.Value, $"{path}.object.{property.Name}"), StringComparer.Ordinal));
                 case "digits_of":
                     return new DigitsOfExpression(List(value, $"{path}.digits_of"));
+                case "parts_of":
+                    return new PartsOfExpression(ParseExpression(value, $"{path}.parts_of"));
                 case "first_non_null":
                     return new FirstNonNullExpression(List(value, $"{path}.first_non_null"));
                 case "url_on_hosts":

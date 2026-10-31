@@ -41,6 +41,13 @@ public sealed record UrlOnHostsExpression(IReadOnlyList<FlowExpression> Sources,
 /// <summary>The first value that is made of digits only.</summary>
 public sealed record DigitsOfExpression(IReadOnlyList<FlowExpression> Sources) : FlowExpression;
 
+/// <summary>
+/// Shorter search texts made from a long name: the name is split where it holds " - ", " – " or ": ", and the list
+/// holds each pair of neighbouring parts joined by a space, then each single part, longest first. The whole name is
+/// not repeated. Empty when the name has only one part.
+/// </summary>
+public sealed record PartsOfExpression(FlowExpression Source) : FlowExpression;
+
 public sealed record ClampExpression(FlowExpression Source, double Min, double Max) : FlowExpression;
 
 /// <summary>A whole number read from text; no value when it is not one.</summary>
