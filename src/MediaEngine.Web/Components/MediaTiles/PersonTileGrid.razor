@@ -1,0 +1,14 @@
+@namespace MediaEngine.Web.Components.MediaTiles
+
+@* The one grid every people list uses (Artists, authors, narrators, directors, cast). *@
+<div class="person-tile-grid @Class">
+    @foreach (var item in Items)
+    {
+        <PersonTile Item="@item" />
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<MediaEngine.Web.Models.ViewDTOs.MediaTileViewModel> Items { get; set; } = [];
+    [Parameter] public string? Class { get; set; }
+}

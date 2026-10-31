@@ -409,6 +409,10 @@
                             YearSemantic="@CurrentTab.YearSemantic"
                             ItemNoun="@CurrentTab.TimelineItemNoun" />
     }
+    else if (_cards.All(card => card.Person is not null))
+    {
+        <PersonTileGrid Items="@_cards" />
+    }
     else
     {
         <MediaTileGrid Items="@_cards"
