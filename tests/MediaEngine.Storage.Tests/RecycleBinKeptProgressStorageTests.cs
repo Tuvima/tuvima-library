@@ -117,6 +117,26 @@ public sealed class RecycleBinKeptProgressStorageTests : IDisposable
     }
 
     [Fact]
+    public async Task Deleting_ForgetsTheFilesIntakeRecord_SoAPutBackFileIsPickedUpByTheNextScan()
+    {
+        var file = AddFile("fingerprint-7");
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute(
+                """
+                INSERT INTO media_operations (id, operation_type, operation_kind, source_path, status, position_key, created_at, updated_at, idempotency_key)
+                SELECT @id, 'ingestion.file', 'ingestion', file_path_root, 'no_result', 1, '2026-10-31T00:00:00Z', '2026-10-31T00:00:00Z', 'ingestion:file:x:1:1'
+                FROM media_assets WHERE id = @asset;
+                """,
+                new { id = Guid.NewGuid(), asset = file.Asset });
+        }
+
+        await new LibraryItemDeletionRepository(_database).DeleteWorksAsync([file.Work], keepPersonalState: true);
+
+        Assert.Equal(0, Count("media_operations WHERE operation_type = 'ingestion.file'"));
+    }
+
+    [Fact]
     public async Task DeletingWithoutTheRecycleBin_KeepsNothing()
     {
         var file = AddFile("fingerprint-3");

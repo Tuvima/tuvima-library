@@ -252,7 +252,7 @@
         .GroupBy(file => (Label: FolderOf(file), file.Outcome, Reason: file.Outcome == LibraryItemDeletionOutcomes.KeepProtected ? file.Reason : null))
         .OrderBy(group => OutcomeRank(group.Key.Outcome))
         .ThenBy(group => group.Key.Label, StringComparer.CurrentCultureIgnoreCase)
-        .Select(ToGroup)
+        .Select(group => ToGroup(group, _preview?.GoesToRecycleBin == true))
         .ToList();
 
     private static string FolderOf(LibraryItemDeletionFileDto file) =>
@@ -269,7 +269,7 @@
         _ => 4,
     };
 
-    private static FileGroup ToGroup(IGrouping<(string Label, string Outcome, string? Reason), LibraryItemDeletionFileDto> group)
+    private static FileGroup ToGroup(IGrouping<(string Label, string Outcome, string? Reason), LibraryItemDeletionFileDto> group, bool toRecycleBin)
     {
         var files = group.ToList();
         var outcome = group.Key.Outcome;
@@ -290,7 +290,7 @@
 
         var phrase = outcome switch
         {
-            LibraryItemDeletionOutcomes.Delete => "will be deleted from disk",
+            LibraryItemDeletionOutcomes.Delete => toRecycleBin ? "will move to the Recycle bin" : "will be deleted from disk",
             LibraryItemDeletionOutcomes.KeepAsIs => "stays on disk: Library only reads this folder",
             LibraryItemDeletionOutcomes.KeepProtected => string.IsNullOrWhiteSpace(group.Key.Reason) ? "stays on disk" : $"stays on disk: {group.Key.Reason}",
             LibraryItemDeletionOutcomes.KeepMissing => "already gone from disk",

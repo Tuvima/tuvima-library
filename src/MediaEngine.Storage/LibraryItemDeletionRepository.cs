@@ -514,6 +514,14 @@ public sealed partial class LibraryItemDeletionRepository(
             "UPDATE series_manifest_items SET linked_work_id = NULL WHERE linked_work_id IN (SELECT id FROM deletion_works);",
             transaction: transaction);
 
+        // The files' intake records go too: a file put back from the Recycle bin has the same path, size and date as before, so a
+        // surviving record would make the next scan treat it as already done and never bring it back.
+        connection.Execute("""
+            DELETE FROM media_operations
+            WHERE operation_type = 'ingestion.file'
+              AND source_path IN (SELECT file_path_root FROM media_assets WHERE id IN (SELECT id FROM deletion_assets));
+            """, transaction: transaction);
+
         // A title going to the Recycle bin keeps every profile's progress by file fingerprint, so restoring the file gives it back.
         if (keepPersonalState)
         {
