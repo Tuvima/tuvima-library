@@ -103,6 +103,7 @@ else if (Model is not null)
                                                                      OnTabRequested="SetActiveTabAsync"
                                                                      OnContainerSelected="HandleContainerSelectedAsync" />
                 }
+                <ExtrasSection Extras="Model.Extras" />
             }
             else if (CurrentActiveTab is "tracks" && IsAudiobook)
             {

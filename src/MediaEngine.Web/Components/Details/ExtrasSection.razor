@@ -1,0 +1,75 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Details
+
+@* The Extras row on a title's page: guidebooks, picture folders and clips found beside it. Hidden when there are none. A picture
+   folder is one card however many pictures it holds. Every card is a link, so it works with a remote, a keyboard and a finger. *@
+@if (Cards.Count > 0)
+{
+    <section class="tl-extras" aria-labelledby="tl-extras-heading" data-testid="extras-section">
+        <div class="tl-section-heading tl-extras__heading">
+            <h2 id="tl-extras-heading">Extras</h2>
+            <span class="tl-extras__count">@Cards.Count</span>
+        </div>
+        <ul class="tl-extras__shelf">
+            @foreach (var card in Cards)
+            {
+                <li class="tl-extras__item">
+                    @if (card.IsMissing)
+                    {
+                        <div class="tl-extras-card tl-extras-card--missing" data-kind="@card.Kind" aria-disabled="true">
+                            <div class="tl-extras-card__art" aria-hidden="true">
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Warning" Size="AppSize.Medium" />
+                            </div>
+                            <div class="tl-extras-card__text">
+                                <span class="tl-extras-card__title">@card.Title</span>
+                                <span class="tl-extras-card__subtitle">File not found</span>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <a class="tl-extras-card" href="@ViewerHref(card)" data-kind="@card.Kind">
+                            <div class="tl-extras-card__art" aria-hidden="true">
+                                @if (card.Kind == DetailExtraCardKinds.Pictures && card.PreviewIds.Count > 0)
+                                {
+                                    <div class="tl-extras-card__mosaic" data-count="@Math.Min(4, card.PreviewIds.Count)">
+                                        @foreach (var previewId in card.PreviewIds.Take(4))
+                                        {
+                                            <img src="@ThumbnailSrc(previewId)" alt="" loading="lazy" decoding="async" />
+                                        }
+                                    </div>
+                                }
+                                else if (card.Kind == DetailExtraCardKinds.Clip)
+                                {
+                                    <img src="@ThumbnailSrc(card.Id)" alt="" loading="lazy" decoding="async" />
+                                    <span class="tl-extras-card__play"><AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayCircle" Size="AppSize.Medium" /></span>
+                                }
+                                else
+                                {
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Description" Size="AppSize.Medium" />
+                                }
+                            </div>
+                            <div class="tl-extras-card__text">
+                                <span class="tl-extras-card__title">@card.Title</span>
+                                @if (!string.IsNullOrWhiteSpace(card.Subtitle))
+                                {
+                                    <span class="tl-extras-card__subtitle">@card.Subtitle</span>
+                                }
+                            </div>
+                        </a>
+                    }
+                </li>
+            }
+        </ul>
+    </section>
+}
+
+@code {
+    [Parameter] public IReadOnlyList<DetailExtraCardViewModel>? Extras { get; set; }
+
+    private IReadOnlyList<DetailExtraCardViewModel> Cards => Extras ?? [];
+
+    private static string ViewerHref(DetailExtraCardViewModel card) => $"/extras/{Uri.EscapeDataString(card.Id)}";
+
+    private static string ThumbnailSrc(string extraId) => $"/engine-extra/{Uri.EscapeDataString(extraId)}/thumbnail";
+}
