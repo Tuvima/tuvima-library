@@ -53,7 +53,7 @@ else
                 <section class="listen-rail__section" @onclick:stopPropagation="true">
                     <div class="listen-rail__section-heading">
                         <AppNativeButton Type="button" Class="listen-rail__section-toggle" aria-expanded="@_playlistsExpanded" OnClick="@(() => _playlistsExpanded = !_playlistsExpanded)">
-                            <span>@L["Common_Playlists"]</span>
+                            <span>@L["Glossary_Playlists"]</span>
                             <AppMaterialIcon Icon="@(_playlistsExpanded ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.ExpandMore)" Class="tl-u-font-size-18px" />
                         </AppNativeButton>
                         <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.Add"
@@ -242,7 +242,7 @@ else
                             </AppSelect>
                         </label>
                         <div class="listen-filter-toggle-stack">
-                            <AppQuickFilterToggle Label="@L["Common_Favorites"].Value" @bind-Selected="_albumFavoriteOnly" />
+                            <AppQuickFilterToggle Label="@L["Glossary_Favorites"].Value" @bind-Selected="_albumFavoriteOnly" />
                             <AppQuickFilterToggle Label="@L["ListenPage_CompleteAlbums"].Value" @bind-Selected="_albumArtOnly" />
                         </div>
                         <div class="listen-display-group" aria-label="@L["ListenPage_AlbumDisplayControls"].Value">
@@ -628,7 +628,7 @@ else
                     <div class="listen-section__header">
                         <div>
                             <div class="listen-kicker">@L["Nav_Music"]</div>
-                            <h2>@L["Common_Playlists"]</h2>
+                            <h2>@L["Glossary_Playlists"]</h2>
                             <p class="listen-section__summary">@L["ListenPage_SavedPlaylistsCreatedFromYour"]</p>
                         </div>
                     </div>
@@ -949,7 +949,7 @@ else
                             <label class="audiobooks-sort">
                                 <span>@L["Common_SortBy"]</span>
                                 <AppSelect T="string" Class="audiobooks-select" @bind-Value="_audiobookSort" aria-label="@L["ListenPage_SortAudiobooks"].Value">
-                                    <AppSelectItem T="string" Value="@("recent")">@L["Home_RecentlyAdded"]</AppSelectItem>
+                                    <AppSelectItem T="string" Value="@("recent")">@L["Glossary_RecentlyAdded"]</AppSelectItem>
                                     <AppSelectItem T="string" Value="@("title")">@L["Common_Title"]</AppSelectItem>
                                     <AppSelectItem T="string" Value="@("author")">@L["ListenPage_Author"]</AppSelectItem>
                                     <AppSelectItem T="string" Value="@("length")">@L["Common_Length"]</AppSelectItem>

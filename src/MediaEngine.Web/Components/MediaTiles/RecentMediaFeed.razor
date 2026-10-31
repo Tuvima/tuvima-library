@@ -15,8 +15,8 @@
 @* Nothing recent on the unfiltered Home feed means an empty library: show nothing rather than a heading over an empty shelf. *@
 @if (Browse || _loading || _error is not null || _items.Count > 0 || Type != "all")
 {
-<section class="recent-feed" aria-label="@L["Home_RecentlyAdded"].Value">
-    <div class="recent-feed-heading"><h2>@L["Home_RecentlyAdded"]</h2><RecentMediaFilters Selected="@Type" Available="@_available" SelectedChanged="ChangeTypeAsync" />@if (!Browse) { <a class="recent-view-all" href="@($"/recently-added?type={Type}")">@(DeviceContext.IsPhone ? "See All" : "View all")</a> }</div>
+<section class="recent-feed" aria-label="@L["Glossary_RecentlyAdded"].Value">
+    <div class="recent-feed-heading"><h2>@L["Glossary_RecentlyAdded"]</h2><RecentMediaFilters Selected="@Type" Available="@_available" SelectedChanged="ChangeTypeAsync" />@if (!Browse) { <a class="recent-view-all" href="@($"/recently-added?type={Type}")">@(DeviceContext.IsPhone ? "See All" : "View all")</a> }</div>
     @if (_error is not null) { <p role="status">@_error</p> }
     else if (_items.Count == 0 && !_loading) { <p role="status">@L["RecentMediaFeed_NoAccessibleRecentAdditionsIn"]</p> }
     @if (Browse) { <div class="recent-items recent-items--browse" aria-busy="@_loading">@RecentItems</div> }

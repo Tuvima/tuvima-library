@@ -14,7 +14,7 @@
     <div @onkeydown="NoteKeyDown" @onkeydown:stopPropagation="true">
         <InputText @bind-Value="_note" class="video-bookmark-quick__note" maxlength="200" placeholder="@L["VideoBookmarkQuickList_AddANoteOptional"].Value" aria-label="@L["VideoBookmarkQuickList_BookmarkNote"].Value" />
     </div>
-    <ul class="video-bookmark-quick__list" aria-label="@L["Common_Bookmarks"].Value">
+    <ul class="video-bookmark-quick__list" aria-label="@L["Glossary_Bookmarks"].Value">
         @if (Bookmarks.Count == 0)
         {
             <li class="video-bookmark-quick__empty">@L["VideoBookmarkQuickList_NoBookmarksYetClickAbove"]</li>

@@ -13,7 +13,7 @@
 
 @if (!Embedded) { <div class="audiobook-bookmark-dialog-backdrop @(IsMobile ? null : "is-light")" @onclick="CloseAsync" aria-hidden="true"></div> }
 <div class="audiobook-bookmark-dialog-layer @(Embedded ? "is-embedded" : IsMobile ? "is-mobile" : null)" @ref="_gestureRoot" @onclick="StopPropagation" @onclick:stopPropagation="true">
-    <PlaybackToolSheet Title="@L["Common_Bookmarks"].Value"
+    <PlaybackToolSheet Title="@L["Glossary_Bookmarks"].Value"
                        Subtitle="@WorkTitle"
                        Icon="@AppMaterialIcons.Outlined.Bookmarks"
                        Surface="@Surface"

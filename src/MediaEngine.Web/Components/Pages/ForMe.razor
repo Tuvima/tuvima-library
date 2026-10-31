@@ -104,7 +104,7 @@
         @if (ActiveView == "my-list" && FavoriteStates.Count > 0)
         {
             <a class="for-me-favorites-card" href="/for-me?view=favorites&area=listen" aria-label="@L["ForMe_OpenFavoritesPlaylist"].Value">
-                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Favorite" /><strong>@L["Common_Favorites"]</strong><span>@FavoriteStates.Count songs</span>
+                <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Favorite" /><strong>@L["Glossary_Favorites"]</strong><span>@FavoriteStates.Count songs</span>
                 @foreach (var cover in FavoriteItems.Select(item => item.TileImageUrl ?? item.CoverUrl).Where(url => !string.IsNullOrWhiteSpace(url)).Distinct().Take(4)) { <img src="@MediaTileArtworkUrl.ForDrawnSize(cover, 48)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(cover, 48)" alt="" loading="lazy" decoding="async" /> }
             </a>
         }

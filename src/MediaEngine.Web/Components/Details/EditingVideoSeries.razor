@@ -8,8 +8,8 @@
    shows the video; the file is never moved or renamed. Nothing is drawn for anything that is not a video. *@
 @if (Mode is { IsOn: true } mode && mode.Fields.Loaded && _state is { Supported: true })
 {
-    <section class="tl-editing-series" aria-label="@L["Common_Series"].Value">
-        <header class="tl-editing-series__heading"><span>@L["Common_Series"]</span></header>
+    <section class="tl-editing-series" aria-label="@L["Glossary_Series"].Value">
+        <header class="tl-editing-series__heading"><span>@L["Glossary_Series"]</span></header>
         @if (_state.InSeries)
         {
             <p class="tl-editing-series__text">@L["EditingVideoSeries_InTheSeries"] <strong>@_state.SeriesTitle</strong>.</p>
@@ -20,7 +20,7 @@
         else
         {
             <p class="tl-editing-series__text">@L["EditingVideoSeries_ThisVideoStandsOnIts"]</p>
-            <AppSelect Label="@L["Common_Series"].Value" Native="true" Value="@_choice" ValueChanged="@(value => _choice = value ?? string.Empty)"
+            <AppSelect Label="@L["Glossary_Series"].Value" Native="true" Value="@_choice" ValueChanged="@(value => _choice = value ?? string.Empty)"
                        Options="Options" Disabled="@_busy" />
             @if (_choice == NewSeries)
             {

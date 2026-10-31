@@ -50,7 +50,7 @@
         }
         else
         {
-            @if (OnFavorite.HasDelegate) { <AppNativeButton Type="button" Class="view-selection-toolbar__action" OnClick="@(_ => OnFavorite.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FavoriteBorder" />@L["ViewSelectionToolbar_Favorite"]</AppNativeButton> }
+            @if (OnFavorite.HasDelegate) { <AppNativeButton Type="button" Class="view-selection-toolbar__action" OnClick="@(_ => OnFavorite.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FavoriteBorder" />@L["Glossary_Favorite"]</AppNativeButton> }
             @if (ShowRestore)
             {
                 <AppNativeButton Type="button" Class="view-selection-toolbar__action" OnClick="@(_ => OnRestore.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Restore" />@L["Common_Restore"]</AppNativeButton>

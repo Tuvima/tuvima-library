@@ -1,0 +1,36 @@
+{
+  "_about": "US English is the master copy of every word. Each rule turns a US spelling (a regular expression, matched on whole words and case-aware) into the spelling used by another English region. A test checks that every master word these rules touch has an override in SharedStrings.en-GB.resx, en-AU and en-CA.",
+  "uk": [
+    ["(?i)\\b(favor)(ite)", "favour$2"],
+    ["(?i)\\bcolor", "colour"],
+    ["(?i)\\bcenter", "centre"],
+    ["(?i)\\bbehavior", "behaviour"],
+    ["(?i)\\bneighbor", "neighbour"],
+    ["(?i)\\bgray\\b", "grey"],
+    ["(?i)\\bcatalog(s?)\\b", "catalogue$1"],
+    ["(?i)\\bcanceled\\b", "cancelled"],
+    ["(?i)\\bcanceling\\b", "cancelling"],
+    ["(?i)\\blabeled\\b", "labelled"],
+    ["(?i)\\btraveled\\b", "travelled"],
+    ["(?i)\\bdefense\\b", "defence"],
+    ["(?i)\\btheater", "theatre"],
+    ["(?i)\\bfulfill\\b", "fulfil"],
+    ["(?i)\\baging\\b", "ageing"],
+    ["(?i)\\b(organi|customi|personali|normali|optimi|initiali|authori|synchroni|recogni|summari|categori|prioriti|visuali|emphasi|minimi|maximi|standardi|finali|utili|digiti|localis|capitali)z", "\\1s"],
+    ["(?i)\\banalyz", "analys"]
+  ],
+  "canada": [
+    ["(?i)\\b(favor)(ite)", "favour$2"],
+    ["(?i)\\bcolor", "colour"],
+    ["(?i)\\bcenter", "centre"],
+    ["(?i)\\bbehavior", "behaviour"],
+    ["(?i)\\bneighbor", "neighbour"],
+    ["(?i)\\bgray\\b", "grey"],
+    ["(?i)\\bcanceled\\b", "cancelled"],
+    ["(?i)\\bcanceling\\b", "cancelling"],
+    ["(?i)\\blabeled\\b", "labelled"],
+    ["(?i)\\btraveled\\b", "travelled"],
+    ["(?i)\\bdefense\\b", "defence"],
+    ["(?i)\\btheater", "theatre"]
+  ]
+}

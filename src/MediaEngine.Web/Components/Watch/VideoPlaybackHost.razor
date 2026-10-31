@@ -113,7 +113,7 @@
                     }
                     @if (VideoControlState.CanBookmark && Playback.CurrentItem is { WorkId: var bookmarkWorkId, AssetId: Guid bookmarkAssetId })
                     {
-                        <PlaybackPopover Title="@L["Common_Bookmarks"].Value" ToolId="video-bookmarks" Kind="video" Surface="video" ShowHeading="false" ItemKey="@VideoInstanceKey">
+                        <PlaybackPopover Title="@L["Glossary_Bookmarks"].Value" ToolId="video-bookmarks" Kind="video" Surface="video" ShowHeading="false" ItemKey="@VideoInstanceKey">
                             <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Bookmark" /></TriggerContent>
                             <ChildContent>
                                 <VideoBookmarkPanel ProfileId="@(Playback.ActiveProfileId ?? Guid.Empty)" WorkId="@bookmarkWorkId" AssetId="@bookmarkAssetId"

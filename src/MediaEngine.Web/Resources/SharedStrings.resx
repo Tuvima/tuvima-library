@@ -1205,7 +1205,7 @@
   <data name="Home_ContinueYourJourney" xml:space="preserve">
     <value>Continue Your Journey</value>
   </data>
-  <data name="Home_RecentlyAdded" xml:space="preserve">
+  <data name="Glossary_RecentlyAdded" xml:space="preserve">
     <value>Recently Added</value>
   </data>
   <data name="Home_YouMightLike" xml:space="preserve">
@@ -2436,7 +2436,7 @@
   <data name="EditingVideoOrder_RenameFilesToMatchThis" xml:space="preserve">
     <value>Rename files to match this order</value>
   </data>
-  <data name="Common_Series" xml:space="preserve">
+  <data name="Glossary_Series" xml:space="preserve">
     <value>Series</value>
   </data>
   <data name="EditingVideoSeries_InTheSeries" xml:space="preserve">
@@ -3498,7 +3498,7 @@
   <data name="ForMe_YourProgressSavedItemsFavorites" xml:space="preserve">
     <value>Your progress, saved items, favorites, and personal spaces—kept distinct and brought together here.</value>
   </data>
-  <data name="Common_Favorites" xml:space="preserve">
+  <data name="Glossary_Favorites" xml:space="preserve">
     <value>Favorites</value>
   </data>
   <data name="ForMe_ForMeSections" xml:space="preserve">
@@ -3564,7 +3564,7 @@
   <data name="ListenPage_ListenCouldNotLoad" xml:space="preserve">
     <value>Listen could not load</value>
   </data>
-  <data name="Common_Playlists" xml:space="preserve">
+  <data name="Glossary_Playlists" xml:space="preserve">
     <value>Playlists</value>
   </data>
   <data name="ListenPage_AllGenres" xml:space="preserve">
@@ -4785,7 +4785,7 @@
   <data name="ViewPlacesPage_ToggleChronologicalJourneyLayer" xml:space="preserve">
     <value>Toggle chronological Journey layer</value>
   </data>
-  <data name="ViewSelectionToolbar_Favorite" xml:space="preserve">
+  <data name="Glossary_Favorite" xml:space="preserve">
     <value>Favorite</value>
   </data>
   <data name="Common_Restore" xml:space="preserve">
@@ -8955,7 +8955,7 @@
   <data name="AudiobookBookmarkDialog_DeleteThisBookmark" xml:space="preserve">
     <value>Delete this bookmark?</value>
   </data>
-  <data name="Common_Bookmarks" xml:space="preserve">
+  <data name="Glossary_Bookmarks" xml:space="preserve">
     <value>Bookmarks</value>
   </data>
   <data name="AudiobookBookmarkDialog_BookmarkSections" xml:space="preserve">
