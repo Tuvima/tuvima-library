@@ -65,17 +65,11 @@
   <data name="Nav_Search" xml:space="preserve">
     <value>Search</value>
   </data>
-  <data name="Nav_Books" xml:space="preserve">
-    <value>Books</value>
-  </data>
   <data name="Nav_Video" xml:space="preserve">
     <value>Video</value>
   </data>
   <data name="Nav_Music" xml:space="preserve">
     <value>Music</value>
-  </data>
-  <data name="Nav_Comics" xml:space="preserve">
-    <value>Comics</value>
   </data>
   <data name="Nav_Settings" xml:space="preserve">
     <value>Settings</value>
@@ -101,9 +95,6 @@
   <data name="Nav_OpenNavigation" xml:space="preserve">
     <value>Open navigation</value>
   </data>
-  <data name="Nav_SearchPlaceholder" xml:space="preserve">
-    <value>Search your library...</value>
-  </data>
   <data name="Nav_ReviewQueue" xml:space="preserve">
     <value>Review queue</value>
   </data>
@@ -113,23 +104,8 @@
   <data name="Nav_Library" xml:space="preserve">
     <value>Library</value>
   </data>
-  <data name="Nav_ReviewPending" xml:space="preserve">
-    <value>Review ({0} pending)</value>
-  </data>
   <data name="Nav_Universes" xml:space="preserve">
     <value>Universes</value>
-  </data>
-  <data name="Nav_ExpandNavigation" xml:space="preserve">
-    <value>Expand navigation</value>
-  </data>
-  <data name="Nav_CollapseNavigation" xml:space="preserve">
-    <value>Collapse navigation</value>
-  </data>
-  <data name="Nav_Expand" xml:space="preserve">
-    <value>Expand</value>
-  </data>
-  <data name="Nav_Collapse" xml:space="preserve">
-    <value>Collapse</value>
   </data>
   <data name="TopBar_OpenProfileMenu" xml:space="preserve">
     <value>Open profile menu</value>
@@ -139,9 +115,6 @@
   </data>
   <data name="TopBar_SwitchProfile" xml:space="preserve">
     <value>Switch profile</value>
-  </data>
-  <data name="TopBar_NeedsReview" xml:space="preserve">
-    <value>Needs Review</value>
   </data>
   <data name="TopBar_Help" xml:space="preserve">
     <value>Help</value>
@@ -176,37 +149,10 @@
   <data name="Downloads_NativeAppMessage" xml:space="preserve">
     <value>Download movies, shows, books and music in the Library app to enjoy them offline.</value>
   </data>
-  <data name="TopBar_SignedInAs" xml:space="preserve">
-    <value>Signed in as</value>
-  </data>
   <data name="TopBar_ServiceUnavailable" xml:space="preserve">
     <value>Library is temporarily unavailable.</value>
   </data>
-  <data name="TopBar_LiveUpdatesConnected" xml:space="preserve">
-    <value>Live updates connected</value>
-  </data>
-  <data name="TopBar_LiveUpdatesOffline" xml:space="preserve">
-    <value>Live updates offline</value>
-  </data>
-  <data name="TopBar_LiveUpdatesReconnecting" xml:space="preserve">
-    <value>Live updates reconnecting…</value>
-  </data>
   <!-- Command Palette -->
-  <data name="CmdPalette_Placeholder" xml:space="preserve">
-    <value>Search collections, navigate...</value>
-  </data>
-  <data name="CmdPalette_Hint" xml:space="preserve">
-    <value>↑↓ navigate · Enter select · Esc close</value>
-  </data>
-  <data name="CmdPalette_Library" xml:space="preserve">
-    <value>Library</value>
-  </data>
-  <data name="CmdPalette_Settings" xml:space="preserve">
-    <value>Settings</value>
-  </data>
-  <data name="CmdPalette_SettingsSubtitle" xml:space="preserve">
-    <value>Preferences, library, API keys</value>
-  </data>
   <!-- Status Pill -->
   <data name="StatusPill_Verified" xml:space="preserve">
     <value>VERIFIED</value>
@@ -216,9 +162,6 @@
   </data>
   <data name="StatusPill_NeedsReview" xml:space="preserve">
     <value>NEEDS REVIEW</value>
-  </data>
-  <data name="StatusPill_Failed" xml:space="preserve">
-    <value>FAILED</value>
   </data>
   <data name="StatusPill_Quarantined" xml:space="preserve">
     <value>QUARANTINED</value>
@@ -239,153 +182,15 @@
     <value>Deletes in {0}d</value>
   </data>
   <!-- Profile Tab -->
-  <data name="Profile_AccountIdentity" xml:space="preserve">
-    <value>Account Identity</value>
-  </data>
-  <data name="Profile_UploadAvatarComingSoon" xml:space="preserve">
-    <value>Upload avatar (coming soon)</value>
-  </data>
-  <data name="Profile_DisplayName" xml:space="preserve">
-    <value>Display Name</value>
-  </data>
   <data name="Profile_Role" xml:space="preserve">
     <value>Role</value>
   </data>
-  <data name="Profile_AvatarColour" xml:space="preserve">
-    <value>Avatar Colour</value>
-  </data>
-  <data name="Profile_AvatarColourHint" xml:space="preserve">
-    <value>Choose a colour for your avatar circle.</value>
-  </data>
-  <data name="Profile_DisplayAndLocale" xml:space="preserve">
-    <value>Display &amp; Locale</value>
-  </data>
-  <data name="Profile_DateFormat" xml:space="preserve">
-    <value>Date Format</value>
-  </data>
-  <data name="Profile_SystemDefault" xml:space="preserve">
-    <value>System Default</value>
-  </data>
-  <data name="Profile_TimeFormat" xml:space="preserve">
-    <value>Time Format</value>
-  </data>
-  <data name="Profile_TimeFormat12Hour" xml:space="preserve">
-    <value>12-hour (AM/PM)</value>
-  </data>
-  <data name="Profile_TimeFormat24Hour" xml:space="preserve">
-    <value>24-hour</value>
-  </data>
-  <data name="Profile_LanguagePreferences" xml:space="preserve">
-    <value>Language Preferences</value>
-  </data>
-  <data name="Profile_LanguagePreferencesHint" xml:space="preserve">
-    <value>Control which languages the Engine uses for metadata lookups and which content languages are accepted without review.</value>
-  </data>
-  <data name="Profile_DisplayLanguage" xml:space="preserve">
-    <value>Display Language</value>
-  </data>
-  <data name="Profile_DisplayLanguageHelper" xml:space="preserve">
-    <value>Language for UI labels and Wikidata display</value>
-  </data>
-  <data name="Profile_MetadataLanguage" xml:space="preserve">
-    <value>Metadata Language</value>
-  </data>
-  <data name="Profile_MetadataLanguageHelper" xml:space="preserve">
-    <value>Language for provider queries and Wikidata lookups</value>
-  </data>
-  <data name="Profile_AdditionalContentLanguages" xml:space="preserve">
-    <value>Additional Content Languages</value>
-  </data>
-  <data name="Profile_AdditionalContentLanguagesHelper" xml:space="preserve">
-    <value>Languages you consume content in - files in these languages won't be flagged</value>
-  </data>
-  <data name="Profile_AcceptAnyLanguage" xml:space="preserve">
-    <value>Accept any language</value>
-  </data>
-  <data name="Profile_AcceptAnyLanguageHint" xml:space="preserve">
-    <value>When enabled, files in any language are ingested without review flags. Disable this to restrict accepted languages to your display, metadata, and additional languages.</value>
-  </data>
-  <data name="Profile_Saving" xml:space="preserve">
-    <value>Saving...</value>
-  </data>
-  <data name="Profile_SaveProfile" xml:space="preserve">
-    <value>Save Profile</value>
-  </data>
-  <data name="Profile_ProfileUpdated" xml:space="preserve">
-    <value>Profile updated</value>
-  </data>
-  <data name="Profile_CouldNotSaveProfile" xml:space="preserve">
-    <value>Could not save profile - is the Engine running?</value>
-  </data>
-  <data name="Profile_CouldNotSaveLanguagePreferences" xml:space="preserve">
-    <value>Could not save language preferences</value>
-  </data>
   <!-- Models Tab -->
-  <data name="Models_AiModels" xml:space="preserve">
-    <value>AI Models</value>
-  </data>
-  <data name="Models_AiModelsDescription" xml:space="preserve">
-    <value>Download, load, and manage the local AI models that power intelligent features. Models run entirely on your machine - no data leaves.</value>
-  </data>
-  <data name="Models_HardwareProfile" xml:space="preserve">
-    <value>Hardware Profile</value>
-  </data>
-  <data name="Models_ReRunBenchmark" xml:space="preserve">
-    <value>Re-run Benchmark</value>
-  </data>
-  <data name="Models_PerformanceTier" xml:space="preserve">
-    <value>PERFORMANCE TIER</value>
-  </data>
-  <data name="Models_ComputeBackend" xml:space="preserve">
-    <value>COMPUTE BACKEND</value>
-  </data>
-  <data name="Models_CpuOnly" xml:space="preserve">
-    <value>CPU Only</value>
-  </data>
-  <data name="Models_InferenceSpeed" xml:space="preserve">
-    <value>INFERENCE SPEED</value>
-  </data>
-  <data name="Models_AvailableMemory" xml:space="preserve">
-    <value>AVAILABLE MEMORY</value>
-  </data>
-  <data name="Models_LastBenchmark" xml:space="preserve">
-    <value>LAST BENCHMARK</value>
-  </data>
-  <data name="Models_NoBenchmarkData" xml:space="preserve">
-    <value>No benchmark data yet - the Engine will benchmark automatically on first startup.</value>
-  </data>
-  <data name="Models_ResourceMonitor" xml:space="preserve">
-    <value>Resource Monitor</value>
-  </data>
-  <data name="Models_EngineRam" xml:space="preserve">
-    <value>ENGINE RAM</value>
-  </data>
-  <data name="Models_FreeRam" xml:space="preserve">
-    <value>FREE RAM</value>
-  </data>
-  <data name="Models_CpuPressure" xml:space="preserve">
-    <value>CPU PRESSURE</value>
-  </data>
-  <data name="Models_Transcoding" xml:space="preserve">
-    <value>TRANSCODING</value>
-  </data>
-  <data name="Models_TranscodingActive" xml:space="preserve">
-    <value>Active</value>
-  </data>
-  <data name="Models_TranscodingIdle" xml:space="preserve">
-    <value>Idle</value>
-  </data>
   <data name="Models_Status" xml:space="preserve">
     <value>Status</value>
   </data>
-  <data name="Models_Ram" xml:space="preserve">
-    <value>RAM</value>
-  </data>
   <data name="Models_Size" xml:space="preserve">
     <value>Size</value>
-  </data>
-  <data name="Models_Downloading" xml:space="preserve">
-    <value>Downloading...</value>
   </data>
   <data name="Models_Download" xml:space="preserve">
     <value>Download</value>
@@ -396,303 +201,24 @@
   <data name="Models_Unload" xml:space="preserve">
     <value>Unload</value>
   </data>
-  <data name="Models_DeleteModelFiles" xml:space="preserve">
-    <value>Delete model files from disk</value>
-  </data>
-  <data name="Models_StorageAndRuntimeSettings" xml:space="preserve">
-    <value>Storage &amp; Runtime Settings</value>
-  </data>
-  <data name="Models_ModelsDirectory" xml:space="preserve">
-    <value>Models Directory</value>
-  </data>
-  <data name="Models_IdleAutoUnloadTimeout" xml:space="preserve">
-    <value>Idle auto-unload timeout (seconds)</value>
-  </data>
-  <data name="Models_IdleAutoUnloadTimeoutHelper" xml:space="preserve">
-    <value>Unload model from RAM after this many seconds of inactivity.</value>
-  </data>
-  <data name="Models_GpuAcceleration" xml:space="preserve">
-    <value>GPU Acceleration (CUDA / Vulkan)</value>
-  </data>
-  <data name="Models_GpuActive" xml:space="preserve">
-    <value>Active - using</value>
-  </data>
-  <data name="Models_GpuOn" xml:space="preserve">
-    <value>on</value>
-  </data>
-  <data name="Models_GpuFallback" xml:space="preserve">
-    <value>GPU</value>
-  </data>
-  <data name="Models_CpuInferenceActive" xml:space="preserve">
-    <value>CPU inference active. A dedicated GPU (NVIDIA, AMD, or Intel Arc) enables 6-7x faster inference.</value>
-  </data>
   <!-- AI Features Tab -->
-  <data name="AiFeatures_AiFeatures" xml:space="preserve">
-    <value>AI Features</value>
-  </data>
-  <data name="AiFeatures_AiFeaturesDescription" xml:space="preserve">
-    <value>Enable or disable individual AI-powered features. Changes take effect immediately for future operations - they do not reprocess already-ingested files.</value>
-  </data>
-  <data name="AiFeatures_Ingestion" xml:space="preserve">
-    <value>Ingestion</value>
-  </data>
-  <data name="AiFeatures_Automatic" xml:space="preserve">
-    <value>Automatic</value>
-  </data>
-  <data name="AiFeatures_On" xml:space="preserve">
-    <value>on</value>
-  </data>
-  <data name="AiFeatures_IngestionDescription" xml:space="preserve">
-    <value>Runs automatically during file ingestion. Every new file benefits from these features without any user action.</value>
-  </data>
-  <data name="AiFeatures_BuiltIn" xml:space="preserve">
-    <value>built-in</value>
-  </data>
-  <data name="AiFeatures_Requires" xml:space="preserve">
-    <value>Requires</value>
-  </data>
-  <data name="AiFeatures_Tier" xml:space="preserve">
-    <value>tier</value>
-  </data>
   <data name="AiFeatures_Enrichment" xml:space="preserve">
     <value>Enrichment</value>
-  </data>
-  <data name="AiFeatures_Background" xml:space="preserve">
-    <value>Background</value>
-  </data>
-  <data name="AiFeatures_EnrichmentDescription" xml:space="preserve">
-    <value>Runs in the background after ingestion, when the Engine is idle. Adds depth and personality to your library without blocking other work.</value>
-  </data>
-  <data name="AiFeatures_OnDemand" xml:space="preserve">
-    <value>On Demand</value>
-  </data>
-  <data name="AiFeatures_UserTriggered" xml:space="preserve">
-    <value>User-Triggered</value>
-  </data>
-  <data name="AiFeatures_OnDemandDescription" xml:space="preserve">
-    <value>Activated by user actions - a search query, a button click, or browsing a work's detail page. Fast responses expected.</value>
   </data>
   <data name="AiFeatures_Scheduled" xml:space="preserve">
     <value>Scheduled</value>
   </data>
-  <data name="AiFeatures_ScheduledDescription" xml:space="preserve">
-    <value>Runs on a nightly or weekly cron schedule. These features are long-running and are designed to run while you sleep.</value>
-  </data>
   <!-- AI Schedule Tab -->
-  <data name="Schedule_AiSchedule" xml:space="preserve">
-    <value>AI Schedule</value>
-  </data>
-  <data name="Schedule_AiScheduleDescription" xml:space="preserve">
-    <value>Configure when each background AI job runs. Changes take effect after the Engine restarts.</value>
-  </data>
-  <data name="Schedule_EnrichmentProgress" xml:space="preserve">
-    <value>Enrichment Progress</value>
-  </data>
-  <data name="Schedule_ItemsEnriched" xml:space="preserve">
-    <value>items enriched</value>
-  </data>
-  <data name="Schedule_AllItemsEnriched" xml:space="preserve">
-    <value>All items enriched</value>
-  </data>
-  <data name="Schedule_NoItemsInQueue" xml:space="preserve">
-    <value>No items in the enrichment queue yet. Add media to your library to begin.</value>
-  </data>
-  <data name="Schedule_Job" xml:space="preserve">
-    <value>Job</value>
-  </data>
-  <data name="Schedule_CronExpression" xml:space="preserve">
-    <value>Cron Expression</value>
-  </data>
-  <data name="Schedule_Schedule" xml:space="preserve">
-    <value>Schedule</value>
-  </data>
-  <data name="Schedule_LastRun" xml:space="preserve">
-    <value>Last Run</value>
-  </data>
-  <data name="Schedule_NextRun" xml:space="preserve">
-    <value>Next Run</value>
-  </data>
   <data name="Schedule_Enabled" xml:space="preserve">
     <value>Enabled</value>
   </data>
-  <data name="Schedule_ChangesRequireRestart" xml:space="preserve">
-    <value>Changes require an Engine restart to take effect.</value>
-  </data>
-  <data name="Schedule_SaveSchedules" xml:space="preserve">
-    <value>Save Schedules</value>
-  </data>
   <!-- Libraries Tab -->
-  <data name="Libraries_NotAvailable" xml:space="preserve">
-    <value>Not Available</value>
-  </data>
-  <data name="Libraries_NotAvailableDescription" xml:space="preserve">
-    <value>Library folder settings are not available on this device. Please use the web or mobile interface to configure your library.</value>
-  </data>
-  <data name="Libraries_LibraryPaths" xml:space="preserve">
-    <value>Library Paths</value>
-  </data>
-  <data name="Libraries_ViewOnly" xml:space="preserve">
-    <value>View Only</value>
-  </data>
-  <data name="Libraries_LibraryFolder" xml:space="preserve">
-    <value>Library Folder</value>
-  </data>
-  <data name="Libraries_WatchFolder" xml:space="preserve">
-    <value>Watch Folder</value>
-  </data>
-  <data name="Libraries_BrowseFolders" xml:space="preserve">
-    <value>Browse folders</value>
-  </data>
-  <data name="Libraries_FileOrganization" xml:space="preserve">
-    <value>File Organization</value>
-  </data>
-  <data name="Libraries_FileOrganizationHint" xml:space="preserve">
-    <value>Click a field to append it to the path. Use / to separate folders. Text outside braces is literal.</value>
-  </data>
-  <data name="Libraries_ResetPathToDefault" xml:space="preserve">
-    <value>Reset path to default</value>
-  </data>
-  <data name="Libraries_PreviewExampleOutput" xml:space="preserve">
-    <value>Preview - example output</value>
-  </data>
   <data name="Libraries_Reset" xml:space="preserve">
     <value>Reset</value>
   </data>
-  <data name="Libraries_Saving" xml:space="preserve">
-    <value>Saving...</value>
-  </data>
-  <data name="Libraries_SaveChanges" xml:space="preserve">
-    <value>Save Changes</value>
-  </data>
-  <data name="Libraries_CannotReachEngine" xml:space="preserve">
-    <value>Cannot reach the Engine - please make sure it is running.</value>
-  </data>
-  <data name="Libraries_WatchFolderNotAccessible" xml:space="preserve">
-    <value>Watch Folder is not accessible - please check the path and permissions.</value>
-  </data>
-  <data name="Libraries_LibraryFolderNotAccessible" xml:space="preserve">
-    <value>Library Folder is not accessible - please check the path and permissions.</value>
-  </data>
-  <data name="Libraries_InvalidTemplate" xml:space="preserve">
-    <value>Invalid template - please check your tokens.</value>
-  </data>
-  <data name="Libraries_SettingsSaved" xml:space="preserve">
-    <value>Settings saved - now watching</value>
-  </data>
-  <data name="Libraries_CouldNotSaveFolderSettings" xml:space="preserve">
-    <value>Could not save folder settings - please make sure the Engine is running.</value>
-  </data>
-  <data name="Libraries_CouldNotSave" xml:space="preserve">
-    <value>Could not save:</value>
-  </data>
-  <data name="Libraries_Checking" xml:space="preserve">
-    <value>Checking...</value>
-  </data>
-  <data name="Libraries_FolderNotFound" xml:space="preserve">
-    <value>Folder not found</value>
-  </data>
-  <data name="Libraries_ReadWriteConfirmed" xml:space="preserve">
-    <value>Read &amp; Write access confirmed</value>
-  </data>
-  <data name="Libraries_ReadOnly" xml:space="preserve">
-    <value>Read only - cannot write</value>
-  </data>
-  <data name="Libraries_AccessDenied" xml:space="preserve">
-    <value>Access denied</value>
-  </data>
-  <data name="Libraries_ConfiguredLibraries" xml:space="preserve">
-    <value>Configured Libraries</value>
-  </data>
-  <data name="Libraries_ConfiguredLibrariesHint" xml:space="preserve">
-    <value>Libraries defined in config/libraries.json. Each library can span multiple source paths across different drives. Edit the config file directly to add or modify libraries.</value>
-  </data>
   <!-- Status Dashboard Tab -->
-  <data name="Status_StatusDashboard" xml:space="preserve">
-    <value>Status Dashboard</value>
-  </data>
-  <data name="Status_StatusDashboardDescription" xml:space="preserve">
-    <value>A live overview of Engine health, library size, and storage usage.</value>
-  </data>
-  <data name="Status_ServerUptime" xml:space="preserve">
-    <value>Server Uptime</value>
-  </data>
-  <data name="Status_TotalAssets" xml:space="preserve">
-    <value>Total Assets</value>
-  </data>
-  <data name="Status_Database" xml:space="preserve">
-    <value>Database</value>
-  </data>
-  <data name="Status_GlobalCache" xml:space="preserve">
-    <value>Global Cache</value>
-  </data>
-  <data name="Status_CacheUsed" xml:space="preserve">
-    <value>62% used</value>
-  </data>
-  <data name="Status_EngineInformation" xml:space="preserve">
-    <value>Engine Information</value>
-  </data>
-  <data name="Status_ServerName" xml:space="preserve">
-    <value>Server Name</value>
-  </data>
-  <data name="Status_EngineUrl" xml:space="preserve">
-    <value>Engine URL</value>
-  </data>
-  <data name="Status_Version" xml:space="preserve">
-    <value>Version</value>
-  </data>
-  <data name="Status_AiModels" xml:space="preserve">
-    <value>AI Models</value>
-  </data>
   <!-- Security Tab -->
-  <data name="Security_Security" xml:space="preserve">
-    <value>Security</value>
-  </data>
-  <data name="Security_SecurityDescription" xml:space="preserve">
-    <value>Control how the Engine accepts connections and enforces authentication.</value>
-  </data>
-  <data name="Security_ConnectionSettings" xml:space="preserve">
-    <value>Connection Settings</value>
-  </data>
-  <data name="Security_LocalhostBypass" xml:space="preserve">
-    <value>Localhost Bypass</value>
-  </data>
-  <data name="Security_LocalhostBypassDescription" xml:space="preserve">
-    <value>Allow unauthenticated requests from this machine</value>
-  </data>
-  <data name="Security_RequireHttps" xml:space="preserve">
-    <value>Require HTTPS for Remote Connections</value>
-  </data>
-  <data name="Security_RequireHttpsDescription" xml:space="preserve">
-    <value>Reject non-HTTPS requests from other devices on the network</value>
-  </data>
-  <data name="Security_RateLimits" xml:space="preserve">
-    <value>Rate Limits</value>
-  </data>
-  <data name="Security_ReadOnly" xml:space="preserve">
-    <value>Read-only</value>
-  </data>
-  <data name="Security_KeyGeneration" xml:space="preserve">
-    <value>Key Generation</value>
-  </data>
-  <data name="Security_FileStreaming" xml:space="preserve">
-    <value>File Streaming</value>
-  </data>
-  <data name="Security_GeneralApi" xml:space="preserve">
-    <value>General API</value>
-  </data>
   <!-- API Keys Tab -->
-  <data name="ApiKeys_GuestApiKeys" xml:space="preserve">
-    <value>Guest API Keys</value>
-  </data>
-  <data name="ApiKeys_GenerateKey" xml:space="preserve">
-    <value>Generate Key</value>
-  </data>
-  <data name="ApiKeys_GuestApiKeysDescription" xml:space="preserve">
-    <value>Any application connecting to the Engine - Radarr, Sonarr, a mobile app - must present a valid Guest API Key. Each key is labelled and can be revoked individually.</value>
-  </data>
-  <data name="ApiKeys_NoKeysIssued" xml:space="preserve">
-    <value>No Guest API Keys have been issued yet. Generate one to allow external connections.</value>
-  </data>
   <data name="ApiKeys_Label" xml:space="preserve">
     <value>Label</value>
   </data>
@@ -705,493 +231,43 @@
   <data name="ApiKeys_Actions" xml:space="preserve">
     <value>Actions</value>
   </data>
-  <data name="ApiKeys_ToggleKeyVisibility" xml:space="preserve">
-    <value>Toggle key prefix visibility</value>
-  </data>
-  <data name="ApiKeys_RevokeThisKey" xml:space="preserve">
-    <value>Revoke this key</value>
-  </data>
-  <data name="ApiKeys_RevokeAllKeys" xml:space="preserve">
-    <value>Revoke All Keys</value>
-  </data>
-  <data name="ApiKeys_GenerateGuestApiKey" xml:space="preserve">
-    <value>Generate Guest API Key</value>
-  </data>
-  <data name="ApiKeys_LabelPlaceholder" xml:space="preserve">
-    <value>e.g. Radarr integration, Mobile app</value>
-  </data>
-  <data name="ApiKeys_CopyKeyNow" xml:space="preserve">
-    <value>Copy this key now - it will not be shown again.</value>
-  </data>
-  <data name="ApiKeys_CopyKeyToClipboard" xml:space="preserve">
-    <value>Copy key to clipboard</value>
-  </data>
-  <data name="ApiKeys_Cancel" xml:space="preserve">
-    <value>Cancel</value>
-  </data>
-  <data name="ApiKeys_Generating" xml:space="preserve">
-    <value>Generating...</value>
-  </data>
   <data name="ApiKeys_Generate" xml:space="preserve">
     <value>Generate</value>
-  </data>
-  <data name="ApiKeys_IveSavedTheKey" xml:space="preserve">
-    <value>I've saved the key</value>
-  </data>
-  <data name="ApiKeys_RevokeAllGuestApiKeys" xml:space="preserve">
-    <value>Revoke All Guest API Keys</value>
-  </data>
-  <data name="ApiKeys_All" xml:space="preserve">
-    <value>all</value>
-  </data>
-  <data name="ApiKeys_RevokeAllConfirmation1" xml:space="preserve">
-    <value>This will revoke</value>
-  </data>
-  <data name="ApiKeys_RevokeAllConfirmation2" xml:space="preserve">
-    <value>Guest API Keys immediately. Any application currently connected to the Engine will lose access.</value>
-  </data>
-  <data name="ApiKeys_ActionCannotBeUndone" xml:space="preserve">
-    <value>This action cannot be undone.</value>
-  </data>
-  <data name="ApiKeys_Revoking" xml:space="preserve">
-    <value>Revoking...</value>
-  </data>
-  <data name="ApiKeys_RevokeAll" xml:space="preserve">
-    <value>Revoke All</value>
-  </data>
-  <data name="ApiKeys_CouldNotGenerateKey" xml:space="preserve">
-    <value>Could not generate key - is the Engine running?</value>
-  </data>
-  <data name="ApiKeys_KeyCopiedToClipboard" xml:space="preserve">
-    <value>Key copied to clipboard</value>
-  </data>
-  <data name="ApiKeys_KeyRevoked" xml:space="preserve">
-    <value>Key revoked</value>
-  </data>
-  <data name="ApiKeys_RevokeFailed" xml:space="preserve">
-    <value>Revoke failed - is the Engine running?</value>
   </data>
   <data name="ApiKeys_AllKeysRevoked" xml:space="preserve">
     <value>All</value>
   </data>
-  <data name="ApiKeys_Keys" xml:space="preserve">
-    <value>keys revoked</value>
-  </data>
-  <data name="ApiKeys_CouldNotRevokeKeys" xml:space="preserve">
-    <value>Could not revoke keys - is the Engine running?</value>
-  </data>
   <!-- Users Tab -->
-  <data name="Users_PageTitle" xml:space="preserve">
-    <value>Users &amp; Profiles</value>
-  </data>
-  <data name="Users_PageDescription" xml:space="preserve">
-    <value>Manage the profiles that have access to this Library instance. The seed profile (Owner) cannot be deleted.</value>
-  </data>
-  <data name="Users_NewProfile" xml:space="preserve">
-    <value>New Profile</value>
-  </data>
-  <data name="Users_NoProfiles" xml:space="preserve">
-    <value>No profiles found. Create one to get started.</value>
-  </data>
-  <data name="Users_ColAvatar" xml:space="preserve">
-    <value>Avatar</value>
-  </data>
   <data name="Users_ColName" xml:space="preserve">
     <value>Name</value>
-  </data>
-  <data name="Users_ColRole" xml:space="preserve">
-    <value>Role</value>
-  </data>
-  <data name="Users_ColLastActive" xml:space="preserve">
-    <value>Last Active</value>
-  </data>
-  <data name="Users_ColStatus" xml:space="preserve">
-    <value>Status</value>
-  </data>
-  <data name="Users_ColActions" xml:space="preserve">
-    <value>Actions</value>
   </data>
   <data name="Users_DeleteProfileTooltip" xml:space="preserve">
     <value>Delete profile</value>
   </data>
-  <data name="Users_CreateProfileTitle" xml:space="preserve">
-    <value>Create Profile</value>
-  </data>
-  <data name="Users_DisplayNameLabel" xml:space="preserve">
-    <value>Display Name</value>
-  </data>
-  <data name="Users_DisplayNamePlaceholder" xml:space="preserve">
-    <value>e.g. Alice, Bob</value>
-  </data>
-  <data name="Users_RoleLabel" xml:space="preserve">
-    <value>Role</value>
-  </data>
-  <data name="Users_RoleAdministrator" xml:space="preserve">
-    <value>Administrator</value>
-  </data>
-  <data name="Users_RoleCurator" xml:space="preserve">
-    <value>Curator</value>
-  </data>
-  <data name="Users_RoleConsumer" xml:space="preserve">
-    <value>Consumer</value>
-  </data>
-  <data name="Users_AvatarColour" xml:space="preserve">
-    <value>Avatar Colour</value>
-  </data>
-  <data name="Users_Cancel" xml:space="preserve">
-    <value>Cancel</value>
-  </data>
-  <data name="Users_Creating" xml:space="preserve">
-    <value>Creating...</value>
-  </data>
-  <data name="Users_Create" xml:space="preserve">
-    <value>Create</value>
-  </data>
-  <data name="Users_CreateError" xml:space="preserve">
-    <value>Could not create profile - is the Engine running?</value>
-  </data>
-  <data name="Users_DeleteError" xml:space="preserve">
-    <value>Could not delete profile - is the Engine running?</value>
-  </data>
   <!-- Activity Tab -->
-  <data name="Activity_PageTitle" xml:space="preserve">
-    <value>Activity Log</value>
-  </data>
-  <data name="Activity_PageDescription" xml:space="preserve">
-    <value>A complete record of every significant action taken by the Engine - ingestion, enrichment, review resolutions, and scheduled maintenance.</value>
-  </data>
-  <data name="Activity_RetentionPolicy" xml:space="preserve">
-    <value>Retention Policy</value>
-  </data>
-  <data name="Activity_KeepEntriesFor" xml:space="preserve">
-    <value>Keep entries for</value>
-  </data>
-  <data name="Activity_Days" xml:space="preserve">
-    <value>days</value>
-  </data>
-  <data name="Activity_SevenDays" xml:space="preserve">
-    <value>7 days</value>
-  </data>
-  <data name="Activity_OneYear" xml:space="preserve">
-    <value>1 year</value>
-  </data>
-  <data name="Activity_Pruning" xml:space="preserve">
-    <value>Pruning...</value>
-  </data>
-  <data name="Activity_PruneNow" xml:space="preserve">
-    <value>Prune Now</value>
-  </data>
   <data name="Activity_Filter" xml:space="preserve">
     <value>Filter</value>
   </data>
   <data name="Activity_Clear" xml:space="preserve">
     <value>Clear</value>
   </data>
-  <data name="Activity_NoEntries" xml:space="preserve">
-    <value>No activity entries match the current filter.</value>
-  </data>
-  <data name="Activity_LoadMore" xml:space="preserve">
-    <value>Load More</value>
-  </data>
-  <data name="Activity_Remaining" xml:space="preserve">
-    <value>remaining</value>
-  </data>
-  <data name="Activity_PruneError" xml:space="preserve">
-    <value>Prune failed - is the Engine running?</value>
-  </data>
   <!-- Maintenance Tab -->
-  <data name="Maintenance_PageTitle" xml:space="preserve">
-    <value>Maintenance</value>
-  </data>
-  <data name="Maintenance_PageDescription" xml:space="preserve">
-    <value>Housekeeping tools for library integrity and periodic metadata refresh.</value>
-  </data>
-  <data name="Maintenance_ReconciliationTitle" xml:space="preserve">
-    <value>Library Reconciliation</value>
-  </data>
-  <data name="Maintenance_ReconciliationDescription" xml:space="preserve">
-    <value>Scan all library assets and verify their files still exist on disk. Missing files are cleaned up automatically - orphaned cover art, sidecar XML, and empty folders are removed.</value>
-  </data>
-  <data name="Maintenance_Scanning" xml:space="preserve">
-    <value>Scanning...</value>
-  </data>
-  <data name="Maintenance_ReconcileNow" xml:space="preserve">
-    <value>Reconcile Now</value>
-  </data>
-  <data name="Maintenance_UniverseEnrichmentTitle" xml:space="preserve">
-    <value>Universe Enrichment</value>
-  </data>
-  <data name="Maintenance_UniverseEnrichmentDescription" xml:space="preserve">
-    <value>Run deep enrichment for all pending items - character relationships, franchise connections, and cross-media narrative links.</value>
-  </data>
-  <data name="Maintenance_Running" xml:space="preserve">
-    <value>Running...</value>
-  </data>
-  <data name="Maintenance_RunPass2Now" xml:space="preserve">
-    <value>Run Pass 2 Now</value>
-  </data>
-  <data name="Maintenance_Pending" xml:space="preserve">
-    <value>pending</value>
-  </data>
-  <data name="Maintenance_LibraryCrawlTitle" xml:space="preserve">
-    <value>Library Crawl</value>
-  </data>
-  <data name="Maintenance_LibraryCrawlDescription" xml:space="preserve">
-    <value>Scan the Library Root for library.xml sidecars and rebuild the database from the filesystem. Coming in a future update.</value>
-  </data>
-  <data name="Maintenance_WeeklySyncTitle" xml:space="preserve">
-    <value>Weekly Sync</value>
-  </data>
-  <data name="Maintenance_WeeklySyncDescription" xml:space="preserve">
-    <value>Periodic metadata refresh with artwork hash verification. Coming in a future update.</value>
-  </data>
-  <data name="Maintenance_ReconciliationComplete" xml:space="preserve">
-    <value>Reconciliation complete - all files present</value>
-  </data>
-  <data name="Maintenance_ReconciliationError" xml:space="preserve">
-    <value>Reconciliation failed - is the Engine running?</value>
-  </data>
-  <data name="Maintenance_Pass2Error" xml:space="preserve">
-    <value>Failed to trigger Pass 2 - is the Engine running?</value>
-  </data>
   <!-- Connectivity Tab -->
-  <data name="Connectivity_Title" xml:space="preserve">
-    <value>Connectivity</value>
-  </data>
-  <data name="Connectivity_ComingSoon" xml:space="preserve">
-    <value>Feature in Development - Network and sync settings will appear here in a future update.</value>
-  </data>
   <!-- Server General Tab -->
-  <data name="ServerGeneral_ServerIdentityTitle" xml:space="preserve">
-    <value>Server Identity</value>
-  </data>
-  <data name="ServerGeneral_ServerIdentityDescription" xml:space="preserve">
-    <value>The server name appears in network discovery (mDNS/Bonjour) so other apps on your home network can find your library by name.</value>
-  </data>
-  <data name="ServerGeneral_ServerNameLabel" xml:space="preserve">
-    <value>Server Name</value>
-  </data>
-  <data name="ServerGeneral_ServerNameHelper" xml:space="preserve">
-    <value>Visible to media apps on your local network</value>
-  </data>
-  <data name="ServerGeneral_RegionalSettingsTitle" xml:space="preserve">
-    <value>Regional Settings</value>
-  </data>
-  <data name="ServerGeneral_RegionalSettingsDescription" xml:space="preserve">
-    <value>These settings affect metadata downloads (book descriptions, genres, Wikidata labels) and how dates and times are displayed throughout the Dashboard.</value>
-  </data>
-  <data name="ServerGeneral_LanguageLabel" xml:space="preserve">
-    <value>Language</value>
-  </data>
-  <data name="ServerGeneral_LanguageHelper" xml:space="preserve">
-    <value>Used for metadata provider queries</value>
-  </data>
   <data name="ServerGeneral_CountryLabel" xml:space="preserve">
     <value>Country</value>
   </data>
-  <data name="ServerGeneral_CountryHelper" xml:space="preserve">
-    <value>Used for regional store lookups (e.g. Apple API)</value>
-  </data>
-  <data name="ServerGeneral_DateFormatLabel" xml:space="preserve">
-    <value>Date Format</value>
-  </data>
-  <data name="ServerGeneral_DateFormatSystem" xml:space="preserve">
-    <value>System default</value>
-  </data>
-  <data name="ServerGeneral_DateFormatShort" xml:space="preserve">
-    <value>Short</value>
-  </data>
-  <data name="ServerGeneral_DateFormatLong" xml:space="preserve">
-    <value>Long</value>
-  </data>
-  <data name="ServerGeneral_DateFormatIso" xml:space="preserve">
-    <value>ISO 8601</value>
-  </data>
-  <data name="ServerGeneral_TimeFormatLabel" xml:space="preserve">
-    <value>Time Format</value>
-  </data>
-  <data name="ServerGeneral_TimeFormatSystem" xml:space="preserve">
-    <value>System default</value>
-  </data>
-  <data name="ServerGeneral_TimeFormat12h" xml:space="preserve">
-    <value>12-hour</value>
-  </data>
-  <data name="ServerGeneral_TimeFormat24h" xml:space="preserve">
-    <value>24-hour</value>
-  </data>
-  <data name="ServerGeneral_LanguageChangeNotice" xml:space="preserve">
-    <value>Changing the language will reload the page to apply the new UI locale.</value>
-  </data>
-  <data name="ServerGeneral_Reset" xml:space="preserve">
-    <value>Reset</value>
-  </data>
-  <data name="ServerGeneral_Saving" xml:space="preserve">
-    <value>Saving...</value>
-  </data>
-  <data name="ServerGeneral_SaveChanges" xml:space="preserve">
-    <value>Save Changes</value>
-  </data>
-  <data name="ServerGeneral_ServerNameEmpty" xml:space="preserve">
-    <value>Server name cannot be empty.</value>
-  </data>
-  <data name="ServerGeneral_SavedSuccess" xml:space="preserve">
-    <value>Settings saved.</value>
-  </data>
-  <data name="ServerGeneral_SaveError" xml:space="preserve">
-    <value>Failed to save settings. Check the Engine connection.</value>
-  </data>
   <!-- Vibe Vocabulary Tab -->
-  <data name="Vibes_PageTitle" xml:space="preserve">
-    <value>Vibe Vocabulary</value>
-  </data>
-  <data name="Vibes_PageDescription" xml:space="preserve">
-    <value>Mood and atmosphere tags the AI draws from when enriching your library.</value>
-  </data>
-  <data name="Vibes_InfoAlert" xml:space="preserve">
-    <value>The AI can generate tags outside this list but prefers these. Edit freely - changes take effect on the next enrichment run.</value>
-  </data>
-  <data name="Vibes_TagSingular" xml:space="preserve">
-    <value>tag</value>
-  </data>
-  <data name="Vibes_TagPlural" xml:space="preserve">
-    <value>tags</value>
-  </data>
-  <data name="Vibes_NoTags" xml:space="preserve">
-    <value>No tags - add one below.</value>
-  </data>
-  <data name="Vibes_NewTagPlaceholder" xml:space="preserve">
-    <value>New tag...</value>
-  </data>
   <data name="Vibes_Add" xml:space="preserve">
     <value>Add</value>
   </data>
-  <data name="Vibes_ResetToDefaults" xml:space="preserve">
-    <value>Reset to Defaults</value>
-  </data>
   <!-- Wikidata Configuration Tab -->
-  <data name="Wikidata_PageTitle" xml:space="preserve">
-    <value>Wikidata Configuration</value>
-  </data>
-  <data name="Wikidata_PageDescription" xml:space="preserve">
-    <value>Wikidata is the sole identity authority for your library. Every book, film, person, and franchise is identified by a Wikidata Q-identifier. Stage 2 resolves identity during ingestion; Stage 3 enriches your library's universe in the background.</value>
-  </data>
-  <data name="Wikidata_Stage2Title" xml:space="preserve">
-    <value>Stage 2 - Identity &amp; Core Data</value>
-  </data>
-  <data name="Wikidata_Stage2Badge" xml:space="preserve">
-    <value>Ingestion</value>
-  </data>
-  <data name="Wikidata_Stage2Description" xml:space="preserve">
-    <value>Runs immediately after retail providers (Stage 1) deposit bridge IDs. Resolves the Q-identifier and fetches core properties via the Data Extension API.</value>
-  </data>
-  <data name="Wikidata_PropertiesFetched" xml:space="preserve">
-    <value>PROPERTIES FETCHED</value>
-  </data>
-  <data name="Wikidata_MatchingThresholds" xml:space="preserve">
-    <value>MATCHING THRESHOLDS</value>
-  </data>
-  <data name="Wikidata_AutoAcceptThresholdLabel" xml:space="preserve">
-    <value>Auto-accept threshold</value>
-  </data>
-  <data name="Wikidata_AutoAcceptThresholdDescription" xml:space="preserve">
-    <value>Reconciliation score at which a QID match is accepted automatically. Scores below this go to the review queue.</value>
-  </data>
-  <data name="Wikidata_ReviewThresholdLabel" xml:space="preserve">
-    <value>Review threshold</value>
-  </data>
-  <data name="Wikidata_ReviewThresholdDescription" xml:space="preserve">
-    <value>Minimum score for a match to appear in the review queue at all. Matches below this are discarded.</value>
-  </data>
-  <data name="Wikidata_PipelineOptions" xml:space="preserve">
-    <value>PIPELINE OPTIONS</value>
-  </data>
-  <data name="Wikidata_ContinueOnFailureLabel" xml:space="preserve">
-    <value>Continue pipeline if Wikidata fails</value>
-  </data>
-  <data name="Wikidata_MaxQidCandidatesLabel" xml:space="preserve">
-    <value>Max QID candidates in review</value>
-  </data>
-  <data name="Wikidata_MaxQidCandidatesHelper" xml:space="preserve">
-    <value>How many Wikidata candidates are shown in the review queue for manual selection.</value>
-  </data>
-  <data name="Wikidata_WikipediaMaxCharsLabel" xml:space="preserve">
-    <value>Wikipedia description max chars</value>
-  </data>
-  <data name="Wikidata_WikipediaMaxCharsHelper" xml:space="preserve">
-    <value>Long descriptions are truncated to this length before being stored as a metadata claim.</value>
-  </data>
-  <data name="Wikidata_Stage3Title" xml:space="preserve">
-    <value>Stage 3 - Universe Data</value>
-  </data>
-  <data name="Wikidata_Stage3Badge" xml:space="preserve">
-    <value>Background</value>
-  </data>
-  <data name="Wikidata_Stage3Description" xml:space="preserve">
-    <value>Runs in the background after Stage 2 completes, or during the nightly sweep. Populates the Chronicle Explorer with deep universe relationships.</value>
-  </data>
-  <data name="Wikidata_DataGroups" xml:space="preserve">
-    <value>DATA GROUPS</value>
-  </data>
   <data name="Wikidata_PeopleGroupTitle" xml:space="preserve">
     <value>People</value>
-  </data>
-  <data name="Wikidata_PeopleGroupDescription" xml:space="preserve">
-    <value>Headshots, biographies, social links, pseudonyms</value>
-  </data>
-  <data name="Wikidata_UniverseLoreGroupTitle" xml:space="preserve">
-    <value>Universe / Lore</value>
-  </data>
-  <data name="Wikidata_UniverseLoreGroupDescription" xml:space="preserve">
-    <value>Characters, locations, organizations, relationships</value>
-  </data>
-  <data name="Wikidata_CrossMediaGroupTitle" xml:space="preserve">
-    <value>Cross-Media Links</value>
-  </data>
-  <data name="Wikidata_CrossMediaGroupDescription" xml:space="preserve">
-    <value>Adaptations, sequels, shared universes</value>
-  </data>
-  <data name="Wikidata_SchedulingDepth" xml:space="preserve">
-    <value>SCHEDULING &amp; DEPTH</value>
-  </data>
-  <data name="Wikidata_BackgroundIdleDelayLabel" xml:space="preserve">
-    <value>Background idle delay (seconds)</value>
-  </data>
-  <data name="Wikidata_BackgroundIdleDelayHelper" xml:space="preserve">
-    <value>How long the Engine waits after the ingestion queue empties before starting Stage 3 processing.</value>
-  </data>
-  <data name="Wikidata_NightlySweepCronLabel" xml:space="preserve">
-    <value>Nightly sweep schedule (cron)</value>
-  </data>
-  <data name="Wikidata_NightlySweepCronHelper" xml:space="preserve">
-    <value>Standard 5-field cron expression in your local timezone. Default: 2 AM daily.</value>
-  </data>
-  <data name="Wikidata_RelationshipDepthLabel" xml:space="preserve">
-    <value>Relationship depth</value>
-  </data>
-  <data name="Wikidata_RelationshipDepthDescription" xml:space="preserve">
-    <value>How many hops the Engine follows when building the universe graph. Depth 1 = direct relationships only. Depth 3 = grandparents, sub-factions.</value>
-  </data>
-  <data name="Wikidata_LoreDeltaLabel" xml:space="preserve">
-    <value>Auto-check Lore Delta on Chronicle Explorer open</value>
-  </data>
-  <data name="Wikidata_LoreDeltaDescription" xml:space="preserve">
-    <value>Detects when Wikidata has updated information about your universe since the last enrichment pass.</value>
-  </data>
-  <data name="Wikidata_ResetToDefaults" xml:space="preserve">
-    <value>Reset to Defaults</value>
-  </data>
-  <data name="Wikidata_Saving" xml:space="preserve">
-    <value>Saving...</value>
-  </data>
-  <data name="Wikidata_SaveConfiguration" xml:space="preserve">
-    <value>Save Configuration</value>
   </data>
   <!-- Home Page -->
   <data name="Home_EmptyTitle" xml:space="preserve">
     <value>Your library is empty</value>
-  </data>
-  <data name="Home_EmptySubtitle" xml:space="preserve">
-    <value>Drop files into your Watch Folder, or seed the library with sample books to get started.</value>
   </data>
   <data name="Home_Seeding" xml:space="preserve">
     <value>Seeding...</value>
@@ -1199,26 +275,8 @@
   <data name="Home_SeedLibrary" xml:space="preserve">
     <value>Seed Library</value>
   </data>
-  <data name="Home_SearchPlaceholder" xml:space="preserve">
-    <value>Search your library...</value>
-  </data>
-  <data name="Home_ContinueYourJourney" xml:space="preserve">
-    <value>Continue Your Journey</value>
-  </data>
   <data name="Glossary_RecentlyAdded" xml:space="preserve">
     <value>Recently Added</value>
-  </data>
-  <data name="Home_YouMightLike" xml:space="preserve">
-    <value>You Might Like</value>
-  </data>
-  <data name="Home_ExploreYourLibrary" xml:space="preserve">
-    <value>Explore Your Library</value>
-  </data>
-  <data name="Home_SeedSuccess" xml:space="preserve">
-    <value>7 books are being processed - they'll appear here momentarily.</value>
-  </data>
-  <data name="Home_SeedFailure" xml:space="preserve">
-    <value>Could not seed the library. Make sure the Watch Folder is configured.</value>
   </data>
   <data name="Home_CarouselPrevious" xml:space="preserve">
     <value>Previous</value>
@@ -1227,72 +285,12 @@
     <value>Next</value>
   </data>
   <!-- Settings Page -->
-  <data name="Settings_Title" xml:space="preserve">
-    <value>Settings</value>
-  </data>
-  <data name="Settings_Subtitle" xml:space="preserve">
-    <value>Manage your experience.</value>
-  </data>
-  <data name="Settings_Save" xml:space="preserve">
-    <value>Save Changes</value>
-  </data>
-  <data name="Settings_Reset" xml:space="preserve">
-    <value>Reset</value>
-  </data>
-  <data name="Settings_Saving" xml:space="preserve">
-    <value>Saving...</value>
-  </data>
   <!-- Search Page -->
   <data name="Search_Title" xml:space="preserve">
     <value>Search your library</value>
   </data>
-  <data name="Search_Subtitle" xml:space="preserve">
-    <value>Search across books, audiobooks, comics, movies, shows, and music.</value>
-  </data>
-  <data name="Search_AllTitles" xml:space="preserve">
-    <value>All titles</value>
-  </data>
   <!-- Provider Language Strategy -->
-  <data name="Provider_LanguageStrategy" xml:space="preserve">
-    <value>Language Strategy</value>
-  </data>
-  <data name="Provider_LanguageStrategy_Source" xml:space="preserve">
-    <value>Source (always English)</value>
-  </data>
-  <data name="Provider_LanguageStrategy_Localized" xml:space="preserve">
-    <value>Localized (your language)</value>
-  </data>
-  <data name="Provider_LanguageStrategy_Both" xml:space="preserve">
-    <value>Both (try both, merge)</value>
-  </data>
-  <data name="Provider_LanguageStrategy_Help" xml:space="preserve">
-    <value>Controls whether this provider queries in your metadata language, English, or both.</value>
-  </data>
   <!-- Stage 3 Universe Enrichment -->
-  <data name="Wikidata_Stage3Enabled" xml:space="preserve">
-    <value>Stage 3 Enabled</value>
-  </data>
-  <data name="Wikidata_Stage3Schedule" xml:space="preserve">
-    <value>Schedule</value>
-  </data>
-  <data name="Wikidata_Stage3BatchSizeHelper" xml:space="preserve">
-    <value>Maximum works processed per sweep.</value>
-  </data>
-  <data name="Wikidata_Stage3RefreshDays" xml:space="preserve">
-    <value>Refresh Cycle (days)</value>
-  </data>
-  <data name="Wikidata_Stage3RefreshDaysHelper" xml:space="preserve">
-    <value>Re-check entities enriched longer than this many days ago.</value>
-  </data>
-  <data name="Wikidata_Stage3MaxDepth" xml:space="preserve">
-    <value>Relationship Depth</value>
-  </data>
-  <data name="Wikidata_Stage3TriggerNow" xml:space="preserve">
-    <value>Trigger Now</value>
-  </data>
-  <data name="Wikidata_Stage3TriggerHint" xml:space="preserve">
-    <value>Manually start a Stage 3 enrichment sweep</value>
-  </data>
   <!-- Universe Explorer modes -->
   <data name="Universe_ModeWeb" xml:space="preserve">
     <value>Web</value>
@@ -1315,32 +313,14 @@
   <data name="Universe_PathEnd" xml:space="preserve">
     <value>End</value>
   </data>
-  <data name="Universe_PathClear" xml:space="preserve">
-    <value>Clear</value>
-  </data>
   <data name="Universe_PathSteps" xml:space="preserve">
     <value>Steps</value>
-  </data>
-  <data name="Universe_FamilySelectCharacter" xml:space="preserve">
-    <value>Select character</value>
   </data>
   <data name="Universe_FamilyGenerations" xml:space="preserve">
     <value>Generations</value>
   </data>
   <data name="Universe_CastMultiActorOnly" xml:space="preserve">
     <value>Multi-actor only</value>
-  </data>
-  <data name="Universe_CastPerformers" xml:space="preserve">
-    <value>Performers</value>
-  </data>
-  <data name="Universe_AdaptationOriginal" xml:space="preserve">
-    <value>Original</value>
-  </data>
-  <data name="Universe_GuideSearch" xml:space="preserve">
-    <value>Search entities…</value>
-  </data>
-  <data name="Universe_GuideFilterAll" xml:space="preserve">
-    <value>All</value>
   </data>
   <data name="Universe_GuideFilterCharacters" xml:space="preserve">
     <value>Characters</value>
@@ -1364,192 +344,24 @@
   <data name="Listen_NothingPlaying" xml:space="preserve">
     <value>Nothing is playing right now.</value>
   </data>
-  <data name="Listen_PlayingNext" xml:space="preserve">
-    <value>Playing Next</value>
-  </data>
   <data name="Listen_History" xml:space="preserve">
     <value>History</value>
   </data>
-  <data name="Common_Clear" xml:space="preserve">
-    <value>Clear</value>
-  </data>
-  <data name="Listen_QueueEndsWithCurrent" xml:space="preserve">
-    <value>The queue ends with the current track.</value>
-  </data>
-  <data name="Listen_HistoryEmpty" xml:space="preserve">
-    <value>Played tracks will appear here for this session.</value>
-  </data>
-  <data name="Listen_PlayedEarlier" xml:space="preserve">
-    <value>Played earlier</value>
-  </data>
-  <data name="Listen_LibraryAudio" xml:space="preserve">
-    <value>Library audio</value>
-  </data>
   <!-- Ingestion dashboard -->
-  <data name="Ingestion_Title" xml:space="preserve">
-    <value>Active Ingestion</value>
-  </data>
-  <data name="Ingestion_Subtitle" xml:space="preserve">
-    <value>Current scans, retail identification, Wikidata matching, enrichment, and summary outcomes.</value>
-  </data>
-  <data name="Ingestion_Updated" xml:space="preserve">
-    <value>Updated {0}</value>
-  </data>
-  <data name="Ingestion_RefreshTooltip" xml:space="preserve">
-    <value>Refresh ingestion status</value>
-  </data>
   <data name="Ingestion_Refresh" xml:space="preserve">
     <value>Refresh</value>
-  </data>
-  <data name="Ingestion_ScanNow" xml:space="preserve">
-    <value>Scan Now</value>
-  </data>
-  <data name="Ingestion_Engine" xml:space="preserve">
-    <value>Ingestion engine</value>
-  </data>
-  <data name="Ingestion_FullLogs" xml:space="preserve">
-    <value>Full logs</value>
-  </data>
-  <data name="Ingestion_ReviewQueue" xml:space="preserve">
-    <value>Review queue</value>
   </data>
   <data name="Ingestion_HealthHealthy" xml:space="preserve">
     <value>Healthy</value>
   </data>
-  <data name="Ingestion_HealthDisconnected" xml:space="preserve">
-    <value>Live updates disconnected</value>
-  </data>
-  <data name="Ingestion_HealthOffline" xml:space="preserve">
-    <value>Offline</value>
-  </data>
-  <data name="Ingestion_HealthDegraded" xml:space="preserve">
-    <value>Degraded</value>
-  </data>
-  <data name="Ingestion_HealthChecking" xml:space="preserve">
-    <value>Checking</value>
-  </data>
-  <data name="Ingestion_MetricTotalFiles" xml:space="preserve">
-    <value>Total Files</value>
-  </data>
-  <data name="Ingestion_MetricAcrossSources" xml:space="preserve">
-    <value>Across all sources</value>
-  </data>
-  <data name="Ingestion_MetricProcessedFiles" xml:space="preserve">
-    <value>Processed Files</value>
-  </data>
-  <data name="Ingestion_MetricPercentOfTotal" xml:space="preserve">
-    <value>{0}% of total</value>
-  </data>
-  <data name="Ingestion_MetricWaitingForFiles" xml:space="preserve">
-    <value>Waiting for files</value>
-  </data>
-  <data name="Ingestion_MetricActiveFiles" xml:space="preserve">
-    <value>Active Files</value>
-  </data>
-  <data name="Ingestion_MetricCurrentlyProcessing" xml:space="preserve">
-    <value>Currently processing</value>
-  </data>
-  <data name="Ingestion_MetricUnresolvedItems" xml:space="preserve">
-    <value>Unresolved Items</value>
-  </data>
-  <data name="Ingestion_MetricRequireAttention" xml:space="preserve">
-    <value>Require attention</value>
-  </data>
-  <data name="Ingestion_OverallTitle" xml:space="preserve">
-    <value>Overall ingestion progress</value>
-  </data>
-  <data name="Ingestion_OverallSubtitle" xml:space="preserve">
-    <value>Across scanning, retail identification, Wikidata matching, enrichment, and summary outcomes.</value>
-  </data>
-  <data name="Ingestion_OverallProcessed" xml:space="preserve">
-    <value>{0} of {1} files processed</value>
-  </data>
-  <data name="Ingestion_OverallComplete" xml:space="preserve">
-    <value>complete</value>
-  </data>
-  <data name="Ingestion_OverallPipelineComplete" xml:space="preserve">
-    <value>pipeline complete</value>
-  </data>
-  <data name="Ingestion_OverallActiveStage" xml:space="preserve">
-    <value>{0} is currently active</value>
-  </data>
-  <data name="Ingestion_OverallStageProgress" xml:space="preserve">
-    <value>{0}: {1} of {2} ({3}%)</value>
-  </data>
-  <data name="Ingestion_OverallRemaining" xml:space="preserve">
-    <value>Est. {0} remaining</value>
-  </data>
-  <data name="Ingestion_StageRailLabel" xml:space="preserve">
-    <value>Ingestion pipeline stages</value>
-  </data>
   <data name="Ingestion_StageScanning" xml:space="preserve">
     <value>Scanning</value>
-  </data>
-  <data name="Ingestion_StageScanningDetail" xml:space="preserve">
-    <value>New files queued from watched folders and scanned for embedded metadata.</value>
-  </data>
-  <data name="Ingestion_StageRetailIdentification" xml:space="preserve">
-    <value>Retail Identification</value>
-  </data>
-  <data name="Ingestion_StageRetailIdentificationDetail" xml:space="preserve">
-    <value>Provider lookup, cover art discovery, edition matching, and review routing.</value>
-  </data>
-  <data name="Ingestion_StageWikidataMatch" xml:space="preserve">
-    <value>Wikidata Match</value>
-  </data>
-  <data name="Ingestion_StageWikidataMatchDetail" xml:space="preserve">
-    <value>Canonical identity matching using bridge IDs such as ISBN, ASIN, and TMDB.</value>
-  </data>
-  <data name="Ingestion_StageEnrichment" xml:space="preserve">
-    <value>Enrichment</value>
-  </data>
-  <data name="Ingestion_StageEnrichmentDetail" xml:space="preserve">
-    <value>People, series, universe, relationships, artwork, and supporting metadata.</value>
-  </data>
-  <data name="Ingestion_StageRetailSplit" xml:space="preserve">
-    <value>{0} matched, {1} need review</value>
-  </data>
-  <data name="Ingestion_StageRetailSplitWithSkipped" xml:space="preserve">
-    <value>{0} matched, {1} need review, {2} skipped</value>
-  </data>
-  <data name="Ingestion_StageOutcomeSummary" xml:space="preserve">
-    <value>{0} matched, {1} need review</value>
-  </data>
-  <data name="Ingestion_StageOutcomeSummaryWithSkipped" xml:space="preserve">
-    <value>{0} matched, {1} need review, {2} skipped</value>
-  </data>
-  <data name="Ingestion_StatusActive" xml:space="preserve">
-    <value>Active</value>
-  </data>
-  <data name="Ingestion_StatusIdle" xml:space="preserve">
-    <value>Idle</value>
-  </data>
-  <data name="Ingestion_StatusComplete" xml:space="preserve">
-    <value>Complete</value>
   </data>
   <data name="Ingestion_StatusPending" xml:space="preserve">
     <value>Pending</value>
   </data>
-  <data name="Ingestion_CurrentActivity" xml:space="preserve">
-    <value>Workers</value>
-  </data>
-  <data name="Ingestion_NoActiveWork" xml:space="preserve">
-    <value>No active ingestion work</value>
-  </data>
-  <data name="Ingestion_WatchedFoldersMonitored" xml:space="preserve">
-    <value>Watched folders are still being monitored.</value>
-  </data>
   <data name="Ingestion_ActivityReview" xml:space="preserve">
     <value>Needs review</value>
-  </data>
-  <data name="Ingestion_ActivityReviewDetail" xml:space="preserve">
-    <value>This item requires a curator decision before it is fully complete.</value>
-  </data>
-  <data name="Ingestion_ActivityProcessing" xml:space="preserve">
-    <value>Processing</value>
-  </data>
-  <data name="Ingestion_ActivityProcessingDetail" xml:space="preserve">
-    <value>Processing library data.</value>
   </data>
   <data name="PluginPage_NotFoundTitle" xml:space="preserve">
     <value>This page isn't available</value>

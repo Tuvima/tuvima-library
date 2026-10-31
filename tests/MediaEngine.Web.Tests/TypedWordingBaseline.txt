@@ -1,0 +1,1 @@
+# Typed-in wording that still has to move into SharedStrings.resx. file|count. Counts may only go down.
