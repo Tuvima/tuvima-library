@@ -195,7 +195,6 @@
     scrollbar-width: thin;
 }
 
-::deep .tl-credit-card,
 ::deep .tl-series-item {
     border: 1px solid rgba(246, 240, 232, 0.1);
     border-radius: 0.85rem;

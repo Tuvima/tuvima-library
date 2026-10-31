@@ -89,7 +89,6 @@ public partial class ListenPage
     private HashSet<Guid> _dislikedWorkIds = [];
     private bool _loading = true;
     private bool _redirecting;
-    private bool _artistLoading;
     private bool _uiStateLoaded;
     private string? _error;
     private string _songSortColumn = "dateAdded";
@@ -490,7 +489,6 @@ public partial class ListenPage
         _redirecting = false;
         _albumDetail = null;
         _artistDetail = null;
-        _artistLoading = false;
         _activePlaylistSaved = false;
         _playlistItems.Clear();
         _selectedTrackIds.Clear();
@@ -1317,7 +1315,6 @@ public partial class ListenPage
         }
 
         _selectedArtistName = artistName;
-        _artistLoading = true;
         _artistDetail = null;
         StateHasChanged();
 
@@ -1345,7 +1342,6 @@ public partial class ListenPage
         {
             if (string.Equals(_selectedArtistName, artistName, StringComparison.OrdinalIgnoreCase))
             {
-                _artistLoading = false;
 
                 if (persistSelection)
                 {
