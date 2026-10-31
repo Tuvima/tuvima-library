@@ -224,32 +224,34 @@ internal sealed partial class ProviderFlowRunner(
         // Exact tests are tried against every candidate before any word-overlap test, so a close name never
         // outranks an exact one further down the list.
         foreach (var fuzzyPass in new[] { false, true })
-        foreach (var candidate in candidates)
         {
-            _variables["candidate"] = candidate;
-            _variables["candidate_id"] = Text(pick.CandidateIdPaths
-                .Select(path => TextOf(JsonPathEvaluator.Evaluate(candidate, path)))
-                .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value) && value.All(char.IsDigit)));
-            foreach (var test in pick.Tests.Where(test => (test.MinWordOverlap is not null) == fuzzyPass))
+            foreach (var candidate in candidates)
             {
-                JsonNode? subject = candidate;
-                if (test.Via is not null)
+                _variables["candidate"] = candidate;
+                _variables["candidate_id"] = Text(pick.CandidateIdPaths
+                    .Select(path => TextOf(JsonPathEvaluator.Evaluate(candidate, path)))
+                    .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value) && value.All(char.IsDigit)));
+                foreach (var test in pick.Tests.Where(test => (test.MinWordOverlap is not null) == fuzzyPass))
                 {
-                    if (!HasValue(_variables["candidate_id"]))
+                    JsonNode? subject = candidate;
+                    if (test.Via is not null)
                     {
-                        break;
+                        if (!HasValue(_variables["candidate_id"]))
+                        {
+                            break;
+                        }
+
+                        subject = await _api.GetAsync(_providerName, test.Via.Endpoint, Arguments(test.Via.Arguments), ct).ConfigureAwait(false);
                     }
 
-                    subject = await _api.GetAsync(_providerName, test.Via.Endpoint, Arguments(test.Via.Arguments), ct).ConfigureAwait(false);
-                }
-
-                var actual = TrimmedTextOf(JsonPathEvaluator.Evaluate(subject, test.Path));
-                var expected = TextOf(Evaluate(test.Expected));
-                if (test.MinWordOverlap is { } minimum
-                    ? WordOverlap(actual, expected) >= minimum
-                    : string.Equals(actual, expected, test.IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
-                {
-                    return candidate!.DeepClone();
+                    var actual = TrimmedTextOf(JsonPathEvaluator.Evaluate(subject, test.Path));
+                    var expected = TextOf(Evaluate(test.Expected));
+                    if (test.MinWordOverlap is { } minimum
+                        ? WordOverlap(actual, expected) >= minimum
+                        : string.Equals(actual, expected, test.IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+                    {
+                        return candidate!.DeepClone();
+                    }
                 }
             }
         }
