@@ -129,6 +129,27 @@ else if (_settings is not null)
                         LanguageOptionsFor(Subtitles.DefaultSubtitleLanguage),
                         value => UpdateAndSaveAsync(s => s.Subtitles.DefaultSubtitleLanguage = value))
                     @StringSelectRow(
+                        L["PlaybackSettingsPage_SecondSubtitleLanguage"].Value,
+                        L["PlaybackSettingsPage_SecondSubtitleLanguageHint"].Value,
+                        AlternateLanguage(0),
+                        OptionalLanguageOptions(AlternateLanguage(0)),
+                        value => UpdateAndSaveAsync(s => SetAlternateLanguage(s, 0, value)))
+                    @if (!string.IsNullOrEmpty(AlternateLanguage(0)))
+                    {
+                        @StringSelectRow(
+                            L["PlaybackSettingsPage_ThirdSubtitleLanguage"].Value,
+                            L["PlaybackSettingsPage_ThirdSubtitleLanguageHint"].Value,
+                            AlternateLanguage(1),
+                            OptionalLanguageOptions(AlternateLanguage(1)),
+                            value => UpdateAndSaveAsync(s => SetAlternateLanguage(s, 1, value)))
+                    }
+                    @StringSelectRow(
+                        L["PlaybackSettingsPage_LyricsLanguage"].Value,
+                        L["PlaybackSettingsPage_LyricsLanguageHint"].Value,
+                        Subtitles.LyricsLanguage ?? string.Empty,
+                        OptionalLanguageOptions(Subtitles.LyricsLanguage),
+                        value => UpdateAndSaveAsync(s => s.Subtitles.LyricsLanguage = value))
+                    @StringSelectRow(
                         "Show subtitles",
                         "Auto shows them only when the audio is not in your subtitle language.",
                         ShowSubtitlesValue,
@@ -205,12 +226,30 @@ else if (_settings is not null)
         new(PlaybackPreferenceValues.Large, "Large"),
     ];
 
-    private static readonly IReadOnlyList<AppSelectOption> ShowSubtitlesOptions =
+    private IReadOnlyList<AppSelectOption> ShowSubtitlesOptions =>
     [
         new(PlaybackPreferenceValues.Auto, "Auto (only when audio is not my language)"),
+        new(PlaybackPreferenceValues.ForeignAudioOnly, L["PlaybackSettingsPage_OnlyWhenAudioIsAnotherLanguage"].Value),
         new(PlaybackPreferenceValues.Always, "Always"),
         new(PlaybackPreferenceValues.Never, "Off"),
     ];
+
+    // The second and third subtitle languages are stored as an ordered list; an empty slot means "none".
+    private string AlternateLanguage(int slot) =>
+        Subtitles.AlternateSubtitleLanguages is { } list && slot < list.Count ? list[slot] : string.Empty;
+
+    private static void SetAlternateLanguage(UserPlaybackSettingsDto settings, int slot, string value)
+    {
+        var list = (settings.Subtitles.AlternateSubtitleLanguages ?? []).ToList();
+        while (list.Count <= slot) list.Add(string.Empty);
+        list[slot] = value;
+        // Dropping the second choice drops the third as well; blanks never reach the Engine.
+        settings.Subtitles.AlternateSubtitleLanguages = (string.IsNullOrEmpty(list[0]) ? [] : list).Where(language => !string.IsNullOrWhiteSpace(language)).ToList();
+    }
+
+    // A language list with a leading "none" entry, for choices that are optional.
+    private IReadOnlyList<AppSelectOption> OptionalLanguageOptions(string? current) =>
+        [new(string.Empty, L["PlaybackSettingsPage_NoPreference"].Value), .. LanguageOptionsFor(current)];
 
     // The Engine accepts ExtraLarge; this page offers three sizes, so it shows as the largest.
     private string NormalizedSubtitleSize => Subtitles.SubtitleSize switch

@@ -9258,4 +9258,28 @@
   <data name="ViewGalleryDetailPage_GalleryTitle" xml:space="preserve">
     <value>Gallery</value>
   </data>
+  <data name="PlaybackSettingsPage_SecondSubtitleLanguage" xml:space="preserve">
+    <value>Second subtitle language</value>
+  </data>
+  <data name="PlaybackSettingsPage_SecondSubtitleLanguageHint" xml:space="preserve">
+    <value>Used when a title has no subtitles in your first language.</value>
+  </data>
+  <data name="PlaybackSettingsPage_ThirdSubtitleLanguage" xml:space="preserve">
+    <value>Third subtitle language</value>
+  </data>
+  <data name="PlaybackSettingsPage_ThirdSubtitleLanguageHint" xml:space="preserve">
+    <value>Used when a title has neither of your first two languages.</value>
+  </data>
+  <data name="PlaybackSettingsPage_LyricsLanguage" xml:space="preserve">
+    <value>Lyrics language</value>
+  </data>
+  <data name="PlaybackSettingsPage_LyricsLanguageHint" xml:space="preserve">
+    <value>Shown first when a song has lyrics in more than one language.</value>
+  </data>
+  <data name="PlaybackSettingsPage_OnlyWhenAudioIsAnotherLanguage" xml:space="preserve">
+    <value>Only when the audio is in another language</value>
+  </data>
+  <data name="PlaybackSettingsPage_NoPreference" xml:space="preserve">
+    <value>No preference</value>
+  </data>
 </root>

@@ -148,8 +148,9 @@ public static class PlaybackLyricsTimeline
 }
 
 /// <summary>Authorized text presentation shared by every audio host, with no playback ownership.</summary>
-public sealed partial class PlaybackLyricsPresenter(IEngineApiClient api) : IDisposable
+public sealed partial class PlaybackLyricsPresenter(IEngineApiClient api, IUserPlaybackPreferencesAccessor? preferences = null) : IDisposable
 {
+    private string? _lyricsLanguage;
     private PlaybackLyricsIdentity? _identity;
     private Guid? _observedProjection, _projectedChoice;
     private ListenPlaybackSnapshot _snapshot = new();
@@ -183,6 +184,22 @@ public sealed partial class PlaybackLyricsPresenter(IEngineApiClient api) : IDis
         ResetLookup();
     }
 
+    /// <summary>
+    /// Among a song's lyrics, the one in the language the profile prefers; null when it has no preference or no lyrics in that language.
+    /// A choice made for this song (the preferred track, or one picked on screen) is applied before this.
+    /// </summary>
+    public static TextTrackDto? PickByLanguage(IReadOnlyList<TextTrackDto> tracks, string? language) =>
+        string.IsNullOrWhiteSpace(language)
+            ? null
+            : tracks.FirstOrDefault(track => VideoPresentationResolver.LanguageMatches(language, track.Language, null));
+
+    private async Task<string?> ReadLyricsLanguageAsync()
+    {
+        try { return preferences is null ? null : (await preferences.GetAsync(_reads.Token))?.Subtitles.LyricsLanguage; }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception) { return null; }
+    }
+
     private bool Current(PlaybackLyricsIdentity identity, long generation) =>
         !_disposed && _identity == identity && _generation == generation;
 
@@ -210,6 +227,7 @@ public sealed partial class PlaybackLyricsPresenter(IEngineApiClient api) : IDis
                 }
                 Tracks = tracks.Where(track => track.Id != Guid.Empty && track.Kind.Equals("Lyrics", StringComparison.OrdinalIgnoreCase))
                     .DistinctBy(track => track.Id).ToArray();
+                _lyricsLanguage = await ReadLyricsLanguageAsync();
                 _tracksLoaded = true;
             }
             catch (Exception) { if (Current(identity, generation)) { Status = "Lyrics could not be loaded."; _tracksLoaded = true; } }
@@ -228,7 +246,7 @@ public sealed partial class PlaybackLyricsPresenter(IEngineApiClient api) : IDis
         var projected = _projectedChoice;
         var choice = projected is Guid p && Tracks.Any(track => track.Id == p) ? p
             : SelectedTrackId is Guid previous && Tracks.Any(track => track.Id == previous) ? previous
-            : Tracks.FirstOrDefault(track => track.IsPreferred)?.Id ?? Tracks.FirstOrDefault()?.Id;
+            : Tracks.FirstOrDefault(track => track.IsPreferred)?.Id ?? PickByLanguage(Tracks, _lyricsLanguage)?.Id ?? Tracks.FirstOrDefault()?.Id;
         if (choice is not Guid selected)
         {
             Lines = []; SelectedTrackId = null; _contentLoaded = true;
