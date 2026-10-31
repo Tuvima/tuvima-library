@@ -1,0 +1,379 @@
+<title>Collection Builder Mockups</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: one dark Dashboard frame, five screens switched by tabs (hash). Tokens follow engineering/design/design-system.md. */
+:root{
+  --bg:#070A12; --shell:#0B1020; --surface:#111827; --raised:#151E2F; --hover:#1A2438; --elevated:#1D2940;
+  --text:#F5F7FB; --text2:#B6C2D6; --muted:#94A3B8; --line:rgba(182,194,214,.14);
+  --accent:#8852FC; --accent-h:#A46FFF; --accent2:#38BDF8; --coll:#D6A84F;
+  --ok:#22C55E; --warn:#F59E0B; --danger:#EF4444;
+  --movies:#FB7185; --tv:#A78BFA; --books:#60A5FA; --audio:#34D399; --music:#FBBF24; --comics:#22D3EE;
+  --font:"Segoe UI Variable","Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+h1,h2,h3{margin:0;text-wrap:balance;font-weight:600}
+h1{font-size:22px} h2{font-size:17px} h3{font-size:14px}
+p{margin:0}
+.wrap{max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.intro{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:baseline;justify-content:space-between}
+.intro p{color:var(--text2);max-width:70ch}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tabs a{color:var(--muted);text-decoration:none;padding:10px 12px;border-bottom:2px solid transparent;white-space:nowrap;font-size:14px}
+.tabs a.on{color:var(--text);border-color:var(--accent)}
+.tabs a:hover{color:var(--text)}
+.screen{display:none;flex-direction:column;gap:14px}
+.screen.on{display:flex}
+.note{color:var(--muted);font-size:13px;max-width:80ch}
+.frame{background:var(--shell);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.topbar{display:flex;gap:18px;align-items:center;padding:12px 20px;border-bottom:1px solid var(--line);background:rgba(11,16,32,.9)}
+.brand{font-weight:700;letter-spacing:.02em}
+.topbar nav{display:flex;gap:16px;color:var(--muted);font-size:13px}
+.topbar nav span.on{color:var(--text);border-bottom:2px solid var(--accent);padding-bottom:2px}
+.topbar .sp{flex:1}
+.avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2))}
+.body{padding:20px}
+/* dialog */
+.dialog{background:var(--surface);border:1px solid var(--line);border-radius:14px;max-width:1100px;margin:0 auto;display:flex;flex-direction:column;min-height:520px}
+.dhead{display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--line)}
+.steps{display:flex;gap:6px;align-items:center;color:var(--muted);font-size:13px}
+.steps b{color:var(--text);font-weight:600}
+.steps i{font-style:normal;opacity:.5}
+.dhead .sp{flex:1}
+.x{width:32px;height:32px;border-radius:8px;border:1px solid var(--line);display:grid;place-items:center;color:var(--muted)}
+.dbody{padding:20px;display:flex;flex-direction:column;gap:16px;flex:1}
+.dfoot{display:flex;gap:10px;align-items:center;padding:14px 20px;border-top:1px solid var(--line)}
+.dfoot .sp{flex:1}
+.btn{border:1px solid var(--line);background:var(--raised);color:var(--text);border-radius:10px;padding:9px 14px;font:inherit;font-weight:600;cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent)}
+.btn.ghost{background:transparent}
+.btn.sm{padding:6px 10px;font-weight:500;font-size:13px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--raised);color:var(--text2);font-size:13px;display:inline-flex;gap:6px;align-items:center}
+.chip.on{border-color:var(--accent);color:var(--text);background:rgba(136,82,252,.18)}
+.chip .dot{width:8px;height:8px;border-radius:50%}
+.cards4{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.way{background:var(--raised);border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:8px;min-height:150px;cursor:pointer}
+.way:hover{background:var(--hover)}
+.way.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.way .ic{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:rgba(136,82,252,.18);color:var(--accent-h);font-size:18px}
+.way h3{font-size:15px}
+.way p{color:var(--text2);font-size:13px}
+/* builder two columns */
+.cols{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(280px,.9fr);gap:18px}
+.cols>*{min-width:0}
+.field{display:flex;flex-direction:column;gap:6px}
+.label{font-size:12px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.rule{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.9fr) minmax(0,1.6fr) 32px;gap:8px;align-items:center}
+.sel{background:var(--raised);border:1px solid var(--line);border-radius:9px;padding:8px 10px;display:flex;justify-content:space-between;align-items:center;gap:8px;min-width:0}
+.sel span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sel .car{color:var(--muted);font-size:11px}
+.sel.val{border-color:rgba(136,82,252,.5)}
+.and{color:var(--muted);font-size:12px;padding-left:4px}
+.rm{color:var(--muted);text-align:center}
+.exc{border:1px dashed var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;background:rgba(239,68,68,.04)}
+.exc .label{color:var(--warn)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.switch{width:34px;height:20px;border-radius:999px;background:var(--elevated);position:relative;border:1px solid var(--line);flex:none}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:var(--muted)}
+.switch.on{background:var(--accent);border-color:var(--accent)}
+.switch.on::after{left:16px;background:#fff}
+.preview{background:var(--raised);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:12px;position:sticky;top:12px}
+.preview .big{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
+.preview .sub{color:var(--text2);font-size:13px}
+.counts{display:flex;gap:6px;flex-wrap:wrap}
+.pill{font-size:12px;padding:3px 9px;border-radius:999px;border:1px solid var(--line);color:var(--text2)}
+.pill.m{border-color:var(--movies);color:var(--movies)} .pill.t{border-color:var(--tv);color:var(--tv)} .pill.b{border-color:var(--books);color:var(--books)} .pill.a{border-color:var(--audio);color:var(--audio)} .pill.mu{border-color:var(--music);color:var(--music)}
+.covers{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.cov{aspect-ratio:2/3;border-radius:6px;background:linear-gradient(160deg,var(--c1,#2b3550),var(--c2,#121a2c));position:relative;overflow:hidden;max-width:100%}
+.cov.wide{aspect-ratio:16/9}
+.cov.sq{aspect-ratio:1}
+.cov.ghost{opacity:.35;border:1px dashed var(--muted);background:var(--surface)}
+.cov small{position:absolute;left:5px;bottom:4px;font-size:9px;color:rgba(255,255,255,.75);line-height:1.1}
+/* list import */
+.drop{border:1px dashed rgba(136,82,252,.6);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:8px;background:rgba(136,82,252,.06)}
+.drop input{background:var(--surface);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:10px 12px;font:inherit;width:100%}
+.src{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--raised);border:1px solid var(--line);border-radius:10px;flex-wrap:wrap}
+.src .tag{font-size:12px;padding:2px 8px;border-radius:6px;background:rgba(56,189,248,.15);color:var(--accent2)}
+.stat{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.stat>div{background:var(--raised);border:1px solid var(--line);border-radius:10px;padding:12px}
+.stat .n{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.stat .l{color:var(--muted);font-size:12px}
+.stat .ok{color:var(--ok)} .stat .wn{color:var(--warn)}
+.unm{display:flex;flex-direction:column;gap:6px}
+.unm div{display:flex;justify-content:space-between;gap:10px;padding:8px 10px;background:var(--surface);border:1px solid var(--line);border-radius:8px;font-size:13px;flex-wrap:wrap}
+.unm div span:last-child{color:var(--accent-h)}
+/* show on */
+.opt{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.box{background:var(--raised);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.cb{display:flex;gap:10px;align-items:center;font-size:14px}
+.cb i{width:18px;height:18px;border-radius:5px;border:1px solid var(--muted);display:inline-grid;place-items:center;font-style:normal;font-size:12px;flex:none}
+.cb i.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.input{background:var(--surface);border:1px solid var(--line);color:var(--text);border-radius:9px;padding:9px 12px;font:inherit}
+/* home */
+.hero{height:200px;background:linear-gradient(90deg,rgba(7,10,18,.95) 20%,rgba(7,10,18,.2)),linear-gradient(160deg,#3b2a6b,#0b1020 70%);display:flex;align-items:flex-end;padding:20px;border-bottom:1px solid var(--line)}
+.hero .t{font-size:24px;font-weight:700}
+.hero .s{color:var(--text2);font-size:13px}
+.lane{padding:14px 20px 4px;display:flex;flex-direction:column;gap:8px}
+.lane .lh{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.lane .lh h3{font-size:15px}
+.lane .lh .srcl{color:var(--muted);font-size:12px}
+.lane .lh .more{margin-left:auto;color:var(--muted);font-size:14px}
+.lane .lh .new{font-size:11px;color:var(--coll);border:1px solid var(--coll);border-radius:999px;padding:1px 7px}
+.tiles{display:grid;grid-template-columns:repeat(8,1fr);gap:8px}
+.tiles .cov.va{display:grid;place-items:center;background:var(--raised);border:1px solid var(--line);color:var(--text2);font-size:11px;text-align:center}
+.settings{display:grid;grid-template-columns:220px minmax(0,1fr);gap:18px}
+.snav{display:flex;flex-direction:column;gap:2px;color:var(--muted);font-size:13px}
+.snav span{padding:7px 10px;border-radius:8px}
+.snav span.on{background:var(--raised);color:var(--text)}
+.lanes{display:flex;flex-direction:column;gap:6px}
+.lanerow{display:grid;grid-template-columns:20px minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:10px 12px;background:var(--raised);border:1px solid var(--line);border-radius:10px}
+.lanerow .g{color:var(--muted);letter-spacing:-2px}
+.lanerow .k{color:var(--muted);font-size:12px}
+.lanerow.fixed{opacity:.7}
+
+/* tile family */
+.fam{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:18px;padding:20px}
+.fam .kind{display:flex;flex-direction:column;gap:10px;min-width:0}
+.fam .kind h3{font-size:14px}
+.fam .kind p{color:var(--muted);font-size:12px}
+.t{display:flex;flex-direction:column;gap:6px;width:150px;max-width:100%}
+.t .nm{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.t .ct{display:flex;gap:10px;color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+.t .ct span{display:inline-flex;gap:4px;align-items:center}
+.t .ct i{font-style:normal;font-size:11px;opacity:.9}
+.gt{aspect-ratio:16/9;border-radius:10px;position:relative;overflow:hidden;background:linear-gradient(90deg,#0b1020 0%,#1a2438 100%);border:1px solid var(--line)}
+.gt .st{position:absolute;inset:0;}
+.gt .st b{position:absolute;top:50%;width:30%;aspect-ratio:2/3;border-radius:5px;box-shadow:0 8px 18px rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.15)}
+.gt .st b:nth-child(1){left:40%;transform:translate(-50%,-50%) rotate(-8deg);background:linear-gradient(160deg,#c87d3a,#2a1a0e)}
+.gt .st b:nth-child(2){left:60%;transform:translate(-50%,-50%);background:linear-gradient(160deg,#3a5a7a,#0b1a2c);z-index:2}
+.gt .st b:nth-child(3){left:80%;transform:translate(-50%,-50%) rotate(8deg);background:linear-gradient(160deg,#5a3a2a,#140c08)}
+.gt .eb{position:absolute;left:8px;top:8px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--coll);background:rgba(7,10,18,.7);padding:2px 6px;border-radius:5px}
+.rt{aspect-ratio:1;border-radius:50%;background:linear-gradient(135deg,#3b2a8c,#c2417d);border:2px solid rgba(255,255,255,.12)}
+.sq{aspect-ratio:1;border-radius:8px;background:linear-gradient(135deg,#2f6bd0,#8852FC)}
+.pt{aspect-ratio:2/3;border-radius:8px;background:linear-gradient(160deg,#c87d3a,#2a1a0e)}
+.today{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;padding:0 20px 20px}
+.today .cov,.today .gt{max-width:100%}
+.today p{font-size:11px;color:var(--muted);margin-top:4px}
+@media (max-width:900px){.cols{grid-template-columns:1fr}.preview{position:static}.tiles{grid-template-columns:repeat(4,1fr)}.settings{grid-template-columns:1fr}.rule{grid-template-columns:1fr 1fr;grid-auto-rows:auto}.rule .rm{display:none}.covers{grid-template-columns:repeat(4,1fr)}}
+@media (prefers-reduced-motion:no-preference){.way{transition:background .15s}}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent2);outline-offset:2px}
+</style>
+
+<div class="wrap">
+  <div class="intro">
+    <div>
+      <h1>Collection builder mockups</h1>
+      <p>Draft layouts for the "Collections and lists" spec. Desktop Dashboard at 1440 px; every screen also stacks at phone width. Titles and counts are examples.</p>
+    </div>
+  </div>
+  <nav class="tabs" id="tabs">
+    <a href="#start" class="on">1 · Start</a>
+    <a href="#rules">2 · Set rules</a>
+    <a href="#list">3 · From a list</a>
+    <a href="#show">4 · Name and show it</a>
+    <a href="#home">5 · Home lanes</a>
+    <a href="#settings">6 · Lane order</a>
+    <a href="#tiles">7 · Tile family</a>
+  </nav>
+
+  <!-- 1 START -->
+  <section class="screen on" id="s-start">
+    <p class="note">One window for every collection and playlist. The media chips are pre-ticked from where the person came (Watch pre-ticks Movies and TV). The four cards replace today's hidden Manual/Smart switch.</p>
+    <div class="frame"><div class="topbar"><span class="brand">Library</span><nav><span>Read</span><span>Watch</span><span>Listen</span><span>View</span><span class="on">Collections</span></nav><span class="sp"></span><span class="avatar"></span></div>
+    <div class="body"><div class="dialog">
+      <div class="dhead"><h2>New collection</h2><div class="steps"><b>1 How it fills up</b><i>›</i><span>2 Build it</span><i>›</i><span>3 Name and show it</span></div><span class="sp"></span><span class="x">✕</span></div>
+      <div class="dbody">
+        <div class="field"><span class="label">What goes in</span>
+          <div class="chips"><span class="chip on"><span class="dot" style="background:var(--movies)"></span>Movies</span><span class="chip on"><span class="dot" style="background:var(--tv)"></span>TV</span><span class="chip"><span class="dot" style="background:var(--books)"></span>Books</span><span class="chip"><span class="dot" style="background:var(--audio)"></span>Audiobooks</span><span class="chip"><span class="dot" style="background:var(--music)"></span>Music</span><span class="chip"><span class="dot" style="background:var(--comics)"></span>Comics</span><span class="chip">Everything</span></div></div>
+        <div class="field"><span class="label">How should it fill up?</span>
+        <div class="cards4">
+          <div class="way"><div class="ic">☰</div><h3>Pick titles</h3><p>Search your library and add titles yourself. Drag to order.</p></div>
+          <div class="way on"><div class="ic">⚙</div><h3>Set rules</h3><p>Library keeps it up to date from rules you set, like "directed by" or "unwatched".</p></div>
+          <div class="way"><div class="ic">⇩</div><h3>From a list</h3><p>Paste a link or drop a file from IMDb, Letterboxd, Goodreads, Trakt or MDBList. Keep it in sync.</p></div>
+          <div class="way"><div class="ic">✦</div><h3>Start from a pack</h3><p>Ready-made sets built from your own library: Decades, Award winners, Based on a book you own.</p></div>
+        </div></div>
+      </div>
+      <div class="dfoot"><button class="btn ghost">Cancel</button><span class="sp"></span><button class="btn primary">Next</button></div>
+    </div></div></div>
+  </section>
+
+  <!-- 2 RULES -->
+  <section class="screen" id="s-rules">
+    <p class="note">Rules read as one sentence per line and are joined by "and". Exceptions live in their own box instead of a second rule group with NOT logic. The preview is always visible and says which profile it is counting for. The Advanced switch brings back today's rule groups unchanged.</p>
+    <div class="frame"><div class="topbar"><span class="brand">Library</span><nav><span>Read</span><span>Watch</span><span>Listen</span><span>View</span><span class="on">Collections</span></nav><span class="sp"></span><span class="avatar"></span></div>
+    <div class="body"><div class="dialog">
+      <div class="dhead"><h2>New collection</h2><div class="steps"><span>1 How it fills up</span><i>›</i><b>2 Set rules</b><i>›</i><span>3 Name and show it</span></div><span class="sp"></span><span class="x">✕</span></div>
+      <div class="dbody"><div class="cols">
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div class="chips"><span class="chip on"><span class="dot" style="background:var(--movies)"></span>Movies</span><span class="chip on"><span class="dot" style="background:var(--tv)"></span>TV</span><span class="chip">+ Books</span><span class="chip">+ Audiobooks</span><span class="chip">+ Music</span></div>
+          <div class="field"><span class="label">Include titles where</span>
+            <div class="rule"><div class="sel"><span>Director</span><span class="car">▾</span></div><div class="sel"><span>is</span><span class="car">▾</span></div><div class="sel val"><span>Denis Villeneuve</span><span class="car">✕</span></div><span class="rm">–</span></div>
+            <span class="and">and</span>
+            <div class="rule"><div class="sel"><span>Released</span><span class="car">▾</span></div><div class="sel"><span>is after</span><span class="car">▾</span></div><div class="sel val"><span>2010</span><span class="car">▾</span></div><span class="rm">–</span></div>
+            <span class="and">and</span>
+            <div class="rule"><div class="sel"><span>Watched by me</span><span class="car">▾</span></div><div class="sel"><span>is</span><span class="car">▾</span></div><div class="sel val"><span>No</span><span class="car">▾</span></div><span class="rm">–</span></div>
+            <div class="row"><button class="btn sm">+ Add rule</button><span class="row" style="gap:8px;color:var(--text2);font-size:13px"><span class="switch"></span>Match any of these instead</span></div>
+          </div>
+          <div class="exc"><span class="label">But never when</span>
+            <div class="rule"><div class="sel"><span>Genre</span><span class="car">▾</span></div><div class="sel"><span>is</span><span class="car">▾</span></div><div class="sel val"><span>Horror</span><span class="car">✕</span></div><span class="rm">–</span></div>
+            <button class="btn sm" style="align-self:flex-start">+ Add exception</button>
+          </div>
+          <div class="field"><span class="label">Order and limits</span>
+            <div class="row"><div class="sel" style="min-width:180px"><span>Release date, newest first</span><span class="car">▾</span></div><div class="sel" style="min-width:140px"><span>Show all</span><span class="car">▾</span></div><span class="row" style="gap:8px;color:var(--text2);font-size:13px"><span class="switch"></span>Advanced (rule groups)</span></div>
+          </div>
+        </div>
+        <aside class="preview">
+          <div><div class="big">7 titles</div><div class="sub">match now, counted for Shy. Updates as you type.</div></div>
+          <div class="counts"><span class="pill m">6 movies</span><span class="pill t">1 show</span></div>
+          <div class="covers">
+            <div class="cov" style="--c1:#c87d3a;--c2:#2a1a0e"><small>Dune: Part Two</small></div>
+            <div class="cov" style="--c1:#b9743b;--c2:#1b1208"><small>Dune</small></div>
+            <div class="cov" style="--c1:#3a5a7a;--c2:#0b1a2c"><small>Blade Runner 2049</small></div>
+            <div class="cov" style="--c1:#6b7a8a;--c2:#111a22"><small>Arrival</small></div>
+            <div class="cov" style="--c1:#5a3a2a;--c2:#140c08"><small>Sicario</small></div>
+            <div class="cov" style="--c1:#4a4a5a;--c2:#0c0c14"><small>Prisoners</small></div>
+          </div>
+          <button class="btn sm ghost" style="align-self:flex-start">Show all 7</button>
+          <p class="note" style="font-size:12px">Each profile sees its own "unwatched" set in this collection.</p>
+        </aside>
+      </div></div>
+      <div class="dfoot"><button class="btn ghost">Back</button><span class="sp"></span><button class="btn primary">Next</button></div>
+    </div></div></div>
+  </section>
+
+  <!-- 3 LIST -->
+  <section class="screen" id="s-list">
+    <p class="note">One field takes a dropped file or a pasted address. Library names the source it recognised, shows how many titles you own, and lists what it could not match so the person can fix it or ignore it. Nothing about the library is sent anywhere; a web source gets only the address.</p>
+    <div class="frame"><div class="topbar"><span class="brand">Library</span><nav><span>Read</span><span class="on">Watch</span><span>Listen</span><span>View</span><span>Collections</span></nav><span class="sp"></span><span class="avatar"></span></div>
+    <div class="body"><div class="dialog">
+      <div class="dhead"><h2>New collection</h2><div class="steps"><span>1 How it fills up</span><i>›</i><b>2 From a list</b><i>›</i><span>3 Name and show it</span></div><span class="sp"></span><span class="x">✕</span></div>
+      <div class="dbody"><div class="cols">
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div class="drop"><input id="list-src" value="letterboxd-top-250-narrative-features.csv" readonly><p class="note" style="font-size:12px">Drop a file or paste a link. Files: IMDb, Letterboxd, Trakt, Goodreads and StoryGraph exports, any CSV, or one title per line. Links: TMDb lists, MDBList, Open Library lists, MusicBrainz collections.</p></div>
+          <div class="src"><span class="tag">Letterboxd export</span><span>Top 250 Narrative Feature Films</span><span class="note" style="font-size:12px">250 entries · file stays on this machine</span></div>
+          <div class="stat"><div><div class="n ok">83</div><div class="l">you own</div></div><div><div class="n">163</div><div class="l">not in your library</div></div><div><div class="n wn">4</div><div class="l">couldn't match</div></div></div>
+          <div class="field"><span class="label">Couldn't match · pick the right title or ignore</span>
+            <div class="unm"><div><span>Le Samouraï (1967)</span><span>Search library ›</span></div><div><span>Yi Yi (2000)</span><span>Search library ›</span></div><div><span>Harakiri (1962)</span><span>Search library ›</span></div><div><span>Come and See (1985)</span><span>Search library ›</span></div></div>
+          </div>
+          <div class="field"><span class="label">Keep it in step</span>
+            <div class="row"><div class="sel" style="min-width:170px"><span>Order: list order</span><span class="car">▾</span></div><div class="sel" style="min-width:170px"><span>Refresh: never (file)</span><span class="car">▾</span></div><div class="sel" style="min-width:230px"><span>When a title leaves the list: remove it</span><span class="car">▾</span></div></div>
+          </div>
+        </div>
+        <aside class="preview">
+          <div><div class="big">83 of 250</div><div class="sub">in your library, in list order</div></div>
+          <div class="counts"><span class="pill m">83 movies</span></div>
+          <div class="covers">
+            <div class="cov" style="--c1:#8a2a2a;--c2:#1a0808"><small>Harakiri</small></div>
+            <div class="cov" style="--c1:#2a4a8a;--c2:#080e1a"><small>12 Angry Men</small></div>
+            <div class="cov" style="--c1:#5a6a2a;--c2:#101408"><small>Seven Samurai</small></div>
+            <div class="cov" style="--c1:#8a6a2a;--c2:#1a1408"><small>The Godfather</small></div>
+            <div class="cov" style="--c1:#2a7a6a;--c2:#081a14"><small>Parasite</small></div>
+            <div class="cov" style="--c1:#6a2a8a;--c2:#14081a"><small>Spirited Away</small></div>
+            <div class="cov ghost"></div><div class="cov ghost"></div><div class="cov ghost"></div><div class="cov ghost"></div><div class="cov ghost"></div><div class="cov ghost"></div>
+          </div>
+          <p class="note" style="font-size:12px">Greyed tiles stand for titles you don't own. They can show on the collection's own page (Q3), never on Home or lanes.</p>
+        </aside>
+      </div></div>
+      <div class="dfoot"><button class="btn ghost">Back</button><span class="sp"></span><button class="btn primary">Next</button></div>
+    </div></div></div>
+  </section>
+
+  <!-- 4 SHOW -->
+  <section class="screen" id="s-show">
+    <p class="note">The last step names the collection and decides where it shows. "Show on" writes the placements Library already stores but has never let anyone set. Seasonal and minimum items are here too, folded away unless used.</p>
+    <div class="frame"><div class="topbar"><span class="brand">Library</span><nav><span>Read</span><span class="on">Watch</span><span>Listen</span><span>View</span><span>Collections</span></nav><span class="sp"></span><span class="avatar"></span></div>
+    <div class="body"><div class="dialog">
+      <div class="dhead"><h2>New collection</h2><div class="steps"><span>1 How it fills up</span><i>›</i><span>2 From a list</span><i>›</i><b>3 Name and show it</b></div><span class="sp"></span><span class="x">✕</span></div>
+      <div class="dbody">
+        <div class="cols">
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div class="field"><span class="label">Name</span><input class="input" id="coll-name" value="Letterboxd Top 250" readonly></div>
+            <div class="field"><span class="label">Description (optional)</span><input class="input" id="coll-desc" value="The 83 we own, in list order" readonly></div>
+            <div class="opt">
+              <div class="box"><span class="label">Show on</span><span class="cb"><i class="on">✓</i>Home</span><span class="cb"><i class="on">✓</i>Watch</span><span class="cb"><i>&nbsp;</i>Read</span><span class="cb"><i>&nbsp;</i>Listen</span><span class="note" style="font-size:12px">Always on the Collections page.</span></div>
+              <div class="box"><span class="label">Who can see it</span><div class="sel"><span>Everyone in the household</span><span class="car">▾</span></div><span class="note" style="font-size:12px">Kids profiles see only what their levels allow.</span></div>
+              <div class="box"><span class="label">More</span><span class="row" style="gap:8px;font-size:13px"><span class="switch"></span>Seasonal: only between … and …</span><span class="row" style="gap:8px;font-size:13px">Minimum items for a lane <span class="sel" style="padding:4px 8px"><span>3</span><span class="car">▾</span></span></span></div>
+            </div>
+          </div>
+          <aside class="preview">
+            <span class="label">Artwork</span>
+            <div class="row"><div class="cov" style="width:84px;--c1:#8a2a2a;--c2:#1a0808"></div><div class="cov" style="width:84px;margin-left:-60px;--c1:#2a4a8a;--c2:#080e1a"></div><div class="cov" style="width:84px;margin-left:-60px;--c1:#5a6a2a;--c2:#101408"></div></div>
+            <p class="sub">Automatic stack from the first three covers. Choose or upload another.</p>
+            <button class="btn sm ghost" style="align-self:flex-start">Change artwork</button>
+          </aside>
+        </div>
+      </div>
+      <div class="dfoot"><button class="btn ghost">Back</button><span class="sp"></span><button class="btn primary">Create collection</button></div>
+    </div></div></div>
+  </section>
+
+  <!-- 5 HOME -->
+  <section class="screen" id="s-home">
+    <p class="note">Collections with Show on Home appear as ordinary rows after Pick up where you left off and Recently Added, with the same tiles and View all. A source line sits under the title. The row's "..." offers Hide this lane for anyone and Edit collection for editors.</p>
+    <div class="frame"><div class="topbar"><span class="brand">Library</span><nav><span class="on">Home</span><span>Read</span><span>Watch</span><span>Listen</span><span>View</span><span>Collections</span></nav><span class="sp"></span><span class="avatar"></span></div>
+      <div class="hero"><div><div class="t">Dune: Part Two</div><div class="s">Jump back in · 1 h 12 min left</div></div></div>
+      <div class="lane"><div class="lh"><h3>Pick up where you left off</h3><span class="more">›</span></div><div class="tiles"><div class="cov wide" style="--c1:#c87d3a;--c2:#2a1a0e"></div><div class="cov wide" style="--c1:#3a5a7a;--c2:#0b1a2c"></div><div class="cov wide" style="--c1:#2a7a6a;--c2:#081a14"></div><div class="cov wide" style="--c1:#6a2a8a;--c2:#14081a"></div></div></div>
+      <div class="lane"><div class="lh"><h3>Letterboxd Top 250</h3><span class="srcl">From a Letterboxd list · 83 titles</span><span class="more">···</span></div><div class="tiles"><div class="cov" style="--c1:#8a2a2a;--c2:#1a0808"></div><div class="cov" style="--c1:#2a4a8a;--c2:#080e1a"></div><div class="cov" style="--c1:#5a6a2a;--c2:#101408"></div><div class="cov" style="--c1:#8a6a2a;--c2:#1a1408"></div><div class="cov" style="--c1:#2a7a6a;--c2:#081a14"></div><div class="cov" style="--c1:#6a2a8a;--c2:#14081a"></div><div class="cov" style="--c1:#3a3a3a;--c2:#0a0a0a"></div><div class="cov va">View all<br>83</div></div></div>
+      <div class="lane"><div class="lh"><h3>Unwatched Villeneuve</h3><span class="srcl">Rules · counted for Shy</span><span class="more">···</span></div><div class="tiles"><div class="cov" style="--c1:#5a3a2a;--c2:#140c08"></div><div class="cov" style="--c1:#4a4a5a;--c2:#0c0c14"></div><div class="cov" style="--c1:#6b7a8a;--c2:#111a22"></div></div></div>
+      <div class="lane" style="padding-bottom:18px"><div class="lh"><h3>Halloween</h3><span class="new">Seasonal · until 1 Nov</span><span class="srcl">Pack</span><span class="more">···</span></div><div class="tiles"><div class="cov" style="--c1:#7a2a1a;--c2:#120604"></div><div class="cov" style="--c1:#2a1a3a;--c2:#060410"></div><div class="cov" style="--c1:#1a3a2a;--c2:#041008"></div><div class="cov" style="--c1:#3a2a1a;--c2:#100804"></div><div class="cov" style="--c1:#1a1a3a;--c2:#040410"></div><div class="cov va">View all<br>12</div></div></div>
+    </div>
+  </section>
+
+  <!-- 6 SETTINGS -->
+  <section class="screen" id="s-settings">
+    <p class="note">An administrator orders the shared lanes once, under Settings → Home, next to the existing hero settings. Library's own rows are listed too but stay in place. Each profile can still hide any lane from the row's "..." menu; private collections follow the shared ones on that profile's Home only.</p>
+    <div class="frame"><div class="topbar"><span class="brand">Library</span><nav><span>Home</span><span>Read</span><span>Watch</span><span>Listen</span><span>View</span><span>Collections</span></nav><span class="sp"></span><span class="avatar"></span></div>
+    <div class="body"><div class="settings">
+      <div class="snav"><span>Overview</span><span class="on">Home</span><span>Libraries</span><span>Users &amp; Households</span><span>Plugins</span><span>Security</span></div>
+      <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
+        <div><h2>Home lanes</h2><p class="note">Drag to order. Switch a lane off to hide it for everyone. People can hide any lane for themselves.</p></div>
+        <div class="lanes">
+          <div class="lanerow fixed"><span class="g">⋮⋮</span><span>Pick up where you left off</span><span class="k">Library</span><span class="switch on"></span></div>
+          <div class="lanerow fixed"><span class="g">⋮⋮</span><span>Recently Added</span><span class="k">Library</span><span class="switch on"></span></div>
+          <div class="lanerow"><span class="g">⋮⋮</span><span>Letterboxd Top 250 <span class="k">· From a Letterboxd list</span></span><span class="k">Everyone</span><span class="switch on"></span></div>
+          <div class="lanerow"><span class="g">⋮⋮</span><span>Unwatched Villeneuve <span class="k">· Rules</span></span><span class="k">Everyone</span><span class="switch on"></span></div>
+          <div class="lanerow"><span class="g">⋮⋮</span><span>Halloween <span class="k">· Pack · seasonal</span></span><span class="k">Adults</span><span class="switch on"></span></div>
+          <div class="lanerow"><span class="g">⋮⋮</span><span>Saturday morning <span class="k">· Rules</span></span><span class="k">Everyone</span><span class="switch"></span></div>
+          <div class="lanerow fixed"><span class="g">⋮⋮</span><span>Watch · Read · Listen</span><span class="k">Library</span><span class="switch on"></span></div>
+        </div>
+      </div>
+    </div></div></div>
+  </section>
+  <!-- 7 TILES -->
+  <section class="screen" id="s-tiles">
+    <p class="note">Today a group of titles is drawn four different ways (collection card with text inside, ordered series card, the atmosphere tile with a round badge for people groups, and a separate Artists grid). Proposal: one small family where the <b>shape says what opens</b>, text always sits below the picture like an item tile, and every count uses the same icon-plus-number line the music thread proposes for artists.</p>
+    <div class="frame">
+      <div class="fam">
+        <div class="kind"><h3>Portrait · one title</h3><div class="t"><div class="pt"></div><div class="nm">Dune: Part Two</div><div class="ct"><span>2024</span></div></div><p>Unchanged. Movies, shows, books, comics, audiobooks.</p></div>
+        <div class="kind"><h3>Round · a person</h3><div class="t"><div class="rt"></div><div class="nm">Evanescence</div><div class="ct"><span><i>◎</i>4</span><span><i>♪</i>52</span></div></div><p>Artists, authors, directors, narrators. The music thread's shared Artist tile; the same tile on people pages and Home.</p></div>
+        <div class="kind"><h3>Square · an album or playlist</h3><div class="t"><div class="sq" style="display:grid;grid-template-columns:1fr 1fr;gap:2px;overflow:hidden;background:var(--raised)"><span style="background:linear-gradient(135deg,#2f6bd0,#8852FC)"></span><span style="background:linear-gradient(135deg,#c2417d,#3b2a8c)"></span><span style="background:linear-gradient(135deg,#0f7b6c,#5fc3a4)"></span><span style="background:linear-gradient(135deg,#b4650b,#f0b05a)"></span></div><div class="nm">Late night jazz</div><div class="ct"><span><i>♪</i>30</span><span>Playlist</span></div></div><p>Albums as today. Albums as today. Playlists share the square and keep the 2×2 mosaic of album covers they have now; your own artwork replaces the mosaic.</p></div>
+        <div class="kind"><h3>Landscape + stack · a group of titles</h3><div class="t"><div class="gt"><span class="eb">List</span><span class="st"><b></b><b></b><b></b></span></div><div class="nm">Letterboxd Top 250</div><div class="ct"><span><i>▭</i>83</span></div></div><div class="t"><div class="gt"><span class="eb">Universe</span><span class="st"><b></b><b></b><b></b></span></div><div class="nm">Dune</div><div class="ct"><span><i>▭</i>3</span><span><i>▯</i>8</span><span><i>◎</i>2</span></div></div><p>Collections, Series, Universes, imported lists and pack sets all use this one tile. A small corner word says the kind. Custom artwork replaces the stack. Counts per media type, so a cross-media Universe reads at a glance.</p></div>
+      </div>
+      <p class="note" style="padding:0 20px 10px">For comparison, today's four group looks:</p>
+      <div class="today">
+        <div><div class="gt" style="background:linear-gradient(90deg,#2a1a0e 0%,#1a2438 100%)"><span style="position:absolute;left:10px;bottom:10px;font-size:12px;font-weight:600">Dune<br><span style="font-size:10px;color:var(--muted)">3 movies · 8 books</span></span><span class="st" style="left:38%"><b></b><b></b><b></b></span></div><p>Collection card: text inside, stack on the right, nothing below.</p></div>
+        <div><div class="gt"><span class="st" style="inset:8px 12px 40px"><b></b><b></b><b></b></span><span style="position:absolute;left:10px;bottom:8px;font-size:12px;font-weight:600">Dune Novels</span></div><p>Ordered series card: strip of covers, title inside at the bottom.</p></div>
+        <div><div class="gt" style="background:radial-gradient(circle at 70% 30%,#3b2a6b,#0b1020)"><span style="position:absolute;left:12px;bottom:10px;width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#3b2a8c,#c2417d);border:2px solid var(--coll)"></span><span style="position:absolute;left:64px;bottom:12px;font-size:12px;font-weight:600">Frank Herbert<br><span style="font-size:10px;color:var(--muted)">6 books</span></span></div><p>People group tile: atmosphere, round badge, text inside.</p></div>
+        <div><div class="t" style="width:auto"><div class="sq" style="border-radius:8px"></div><div class="nm">Evanescence</div><div class="ct"><span>4 albums</span></div></div><p>Artists page: its own square grid, separate two-pane layout.</p></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+  var ids=['start','rules','list','show','home','settings','tiles'];
+  function show(){
+    var h=(location.hash||'#start').slice(1); if(ids.indexOf(h)<0) h='start';
+    ids.forEach(function(id){
+      var s=document.getElementById('s-'+id); if(s) s.classList.toggle('on',id===h);
+    });
+    var links=document.querySelectorAll('#tabs a');
+    for(var i=0;i<links.length;i++){ links[i].classList.toggle('on',links[i].getAttribute('href')==='#'+h); }
+  }
+  window.addEventListener('hashchange',show); show();
+})();
+</script>
