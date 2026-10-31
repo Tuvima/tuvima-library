@@ -150,7 +150,7 @@
 
     /// <summary>Only the profile's own bookmarks on this file can go in a pack: never a shared one.</summary>
     private IReadOnlyList<AudiobookBookmarkDto> OwnBookmarks => Saved
-        .Where(bookmark => !bookmark.IsGlobal && bookmark.ProfileId == ProfileId && bookmark.AssetId == AssetId)
+        .Where(bookmark => !bookmark.IsGlobal && bookmark.AssetId == AssetId)
         .OrderBy(bookmark => bookmark.PositionSeconds).ToList();
 
     private IReadOnlyList<BookmarkPackChapterDto> ChapterDtos => Chapters

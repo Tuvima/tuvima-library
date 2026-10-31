@@ -140,6 +140,8 @@ export function update(root, panel, open, pinned, restoreFocus = false) {
         };
         state.onFocusOut = event => {
             if (state.pinnedDock()) return;
+            // Blazor replacing the focused button (Delete -> Delete?) fires focusout with no target; a real click-away is handled by pointerdown.
+            if (!event.relatedTarget) return;
             if (state.panel.classList.contains('playback-popover--sheet')) return;
             if (event.relatedTarget?.closest?.('[data-playback-owned-menu]')?.dataset.playbackOwnedMenu === state.panel.id) return;
             if (!state.panel.contains(event.relatedTarget) && !state.trigger.contains(event.relatedTarget)) state.close(false);

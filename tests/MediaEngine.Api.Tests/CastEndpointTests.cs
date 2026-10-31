@@ -411,9 +411,7 @@ internal sealed record PairedDevice(
         };
         await accounts.CreateAccountAsync(
             account,
-            new TestGrant(account.Id, Profile.SeedProfileId, IsDefault: true, AdminEnabled: false),
-            new HashSet<AccountFeatureId> { AccountFeatureId.Watch },
-            new HashSet<Guid>());
+            new TestGrant(account.Id, Profile.SeedProfileId, IsDefault: true, AdminEnabled: false));
 
         var application = new MediaEngine.Domain.Entities.Application
         {

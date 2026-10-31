@@ -130,7 +130,8 @@ public sealed record ViewSource(
     string ContentKind = ViewContentKinds.Photos,
     Guid? AddedByProfileId = null,
     int SkippedFileCount = 0,
-    int KeptInLibraryCount = 0);
+    int KeptInLibraryCount = 0,
+    bool FolderOffline = false);
 
 public enum ViewDeviceBackupState
 {

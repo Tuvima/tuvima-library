@@ -65,6 +65,30 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
         return GetPendingCoreAsync(limit, libraryId.Trim(), ct);
     }
 
+    public async Task<IReadOnlyDictionary<string, int>> GetPendingCountsByLibraryAsync(CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        using var conn = _db.CreateConnection();
+        // The same items GetPendingForLibraryAsync lists: pending and review-ready, a Work through its first asset, never a Vault entity.
+        var rows = await conn.QueryAsync<(string LibraryId, int Count)>($$"""
+            SELECT lower(ma.library_id) AS LibraryId, COUNT(*) AS Count
+            FROM review_queue rq
+            JOIN media_assets ma ON ma.id = CASE
+                WHEN rq.entity_type = 'MediaAsset' THEN rq.entity_id
+                WHEN rq.entity_type = 'Work' THEN (
+                    SELECT ma2.id FROM editions e JOIN media_assets ma2 ON ma2.edition_id = e.id
+                    WHERE e.work_id = rq.entity_id ORDER BY ma2.file_path_root LIMIT 1)
+                END
+            WHERE rq.status = @status
+              AND rq.review_ready_at IS NOT NULL
+              AND {{VaultSql.NotVaultEntity("rq.entity_id")}}
+              AND ma.library_id IS NOT NULL AND ma.library_id <> ''
+            GROUP BY lower(ma.library_id)
+            """, new { status = ReviewStatus.Pending }).ConfigureAwait(false);
+        return rows.ToDictionary(row => row.LibraryId, row => row.Count, StringComparer.OrdinalIgnoreCase);
+    }
+
     private async Task<IReadOnlyList<ReviewItemDto>> GetPendingCoreAsync(int limit, string? libraryId, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();

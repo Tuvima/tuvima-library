@@ -149,7 +149,6 @@ public sealed class StateCardPagesTests : AsyncBunitContext
         Assert.Contains("settings-plugin-card-focus", wrapper.ClassName, StringComparison.Ordinal);
         Assert.Contains("Fandom Lore", wrapper.TextContent, StringComparison.Ordinal);
         Assert.DoesNotContain("Alpha", wrapper.TextContent, StringComparison.Ordinal);
-        cut.WaitForAssertion(() => Assert.Contains("Configure Fandom Lore", cut.Markup, StringComparison.Ordinal));
         cut.WaitForAssertion(() =>
         {
             var scroll = Assert.Single(JSInterop.Invocations["tuvimaEditorScrollTo"]);

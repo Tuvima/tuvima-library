@@ -10,6 +10,7 @@
        drawn with the shared list card. The detail facts show only when ShowFacts is set ("View what it can access"). *@
     <AppListCard Title="@Name"
                  Icon="@Icon"
+                 Logo="@Logo"
                  Kind="@(KindText ?? StateCardHealth.KindLabel(Kind))"
                  Description="@Description"
                  Class="app-state-card app-state-card--compact"
@@ -18,15 +19,17 @@
         <Badges>
             @if (Badges is not null) { @Badges }
         </Badges>
-        <Aside>
+        <Status>
             @if (Loading)
             {
                 <AppSkeleton Width="5rem" Height="1.5rem" Class="app-state-card__placeholder" />
             }
             else
             {
-                <AppStatusBadge Text="@StateCardHealth.Text(Health)" Tone="@StateCardHealth.Tone(Health)" Class="app-state-card__health" />
+                <AppStatusBadge Text="@(StatusPillText ?? StateCardHealth.Text(Health))" Tone="@(StatusPillTone ?? StateCardHealth.Tone(Health))" Title="@StatusPillTitle" Class="app-state-card__health" />
             }
+        </Status>
+        <Aside>
             @if (IsOn is { } switchedOn)
             {
                 <AppSwitchRow Value="@switchedOn"
@@ -231,8 +234,20 @@ else
     /// <summary>Compact only: the icon at the top left.</summary>
     [Parameter] public string? Icon { get; set; }
 
+    /// <summary>Compact only: a brand logo drawn instead of the icon.</summary>
+    [Parameter] public RenderFragment? Logo { get; set; }
+
     /// <summary>Compact only: the small label under the name (a category such as "Metadata"); the kind word when null.</summary>
     [Parameter] public string? KindText { get; set; }
+
+    /// <summary>Compact only: the status pill's own words (for example "Needs a key"); the health word when null.</summary>
+    [Parameter] public string? StatusPillText { get; set; }
+
+    /// <summary>Compact only: the status pill's colour when <see cref="StatusPillText"/> is set.</summary>
+    [Parameter] public AppUiTone? StatusPillTone { get; set; }
+
+    /// <summary>Compact only: the full sentence behind the status pill, shown as its tooltip.</summary>
+    [Parameter] public string? StatusPillTitle { get; set; }
 
     /// <summary>Compact only: words shown instead of a switch when the item has none (for example "Enabled" or "Read only").</summary>
     [Parameter] public string? StatusText { get; set; }

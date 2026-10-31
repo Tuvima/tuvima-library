@@ -36,6 +36,18 @@ public static class DetailMenuGrouping
         IsDestructive = true,
     };
 
+    /// <summary>
+    /// The Delete entry for a whole show, season, album or Series ("Delete show…", "Delete Season 2…", "Delete album…", "Delete Series…"):
+    /// the last red entry of the page's "..." menu, as for a single title (Delete a show, season, album or Series D2).
+    /// </summary>
+    public static DetailAction DeleteGroupAction(string label, bool season = false) => new()
+    {
+        Key = season ? DetailActionKeys.DeleteSeason : DetailActionKeys.DeleteFromLibrary,
+        Label = label,
+        Icon = "delete",
+        IsDestructive = true,
+    };
+
     public static bool IsEditAction(DetailAction action) =>
         action.Key is DetailActionKeys.Edit or DetailActionKeys.EditMedia;
 

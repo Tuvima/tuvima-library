@@ -1,0 +1,132 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Services.Settings
+@implements IDisposable
+@inject IEngineApiClient ApiClient
+@inject IAppToastService Snackbar
+
+@* Stash-box's own parts on its plugin page (Plugins and Integrations screens v3 D18, D25): its servers (the default StashDB and any
+   the administrator added), each server's own key, and the separate "sends a fingerprint of your file" permission. *@
+<AppCard Title="Servers" Description="Stash-box videos are looked up on these servers, in this order. Each has its own account key." Class="metadata-provider-configuration">
+    @if (_settings is null)
+    {
+        <AppSkeleton Size="AppControlSize.Large" />
+    }
+    else
+    {
+        <ul class="stashbox-servers">
+            @foreach (var server in _settings.Servers)
+            {
+                <li @key="server.Id">
+                    <div class="stashbox-servers__copy">
+                        <strong>@server.Name</strong>
+                        <small>@server.Address</small>
+                    </div>
+                    <AppStatusBadge Text="@ConnectionWords(server.Connection)" Tone="@ConnectionTone(server.Connection)" />
+                    <div class="stashbox-servers__actions">
+                        <AppTextField Value="@_keys.GetValueOrDefault(server.Id)" ValueChanged="@(value => _keys[server.Id] = value ?? string.Empty)"
+                                      Label="Account key" Placeholder="Paste your key" FullWidth="false" />
+                        <AppButton Label="Replace key" Size="AppControlSize.Compact" Disabled="@(string.IsNullOrWhiteSpace(_keys.GetValueOrDefault(server.Id)) || _busy)" OnClick="@(() => SaveKeyAsync(server))" />
+                        <AppButton Label="Test connection" Size="AppControlSize.Compact" Disabled="@_busy" OnClick="@(() => TestAsync(server))" />
+                        @if (!server.IsDefault)
+                        {
+                            <AppButton Label="Remove" Size="AppControlSize.Compact" Tone="AppUiTone.Error" Disabled="@_busy" OnClick="@(() => RemoveAsync(server))" />
+                        }
+                    </div>
+                    @if (_messages.TryGetValue(server.Id, out var message))
+                    {
+                        <small class="stashbox-servers__message" role="status">@message</small>
+                    }
+                </li>
+            }
+        </ul>
+        <AppSwitchRow Label="Send a fingerprint of the file"
+                      Description="Off by default. A short fingerprint of the video file helps StashDB find an exact match; the file itself is never sent."
+                      Value="@_settings.FingerprintPermission"
+                      ValueChanged="@SetFingerprintAsync" />
+    }
+</AppCard>
+
+@code {
+    private readonly CancellationTokenSource _disposed = new();
+    private readonly Dictionary<string, string> _keys = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _messages = new(StringComparer.Ordinal);
+    private StashBoxSettingsDto? _settings;
+    private bool _busy;
+
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    protected override async Task OnInitializedAsync() => _settings = await ApiClient.GetStashBoxSettingsAsync(_disposed.Token);
+
+    private async Task SaveKeyAsync(StashBoxServerDto server)
+    {
+        _busy = true;
+        try
+        {
+            var result = await ApiClient.SaveStashBoxServerKeyAsync(server.Id, _keys[server.Id].Trim(), _disposed.Token);
+            _messages[server.Id] = result?.Message ?? "The key could not be checked.";
+            if (result?.Connected == true)
+                _keys[server.Id] = string.Empty;
+            _settings = await ApiClient.GetStashBoxSettingsAsync(_disposed.Token);
+            await OnChanged.InvokeAsync();
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task TestAsync(StashBoxServerDto server)
+    {
+        _busy = true;
+        try
+        {
+            var result = await ApiClient.TestStashBoxServerAsync(server.Id, _disposed.Token);
+            _messages[server.Id] = result?.Message ?? "No answer from the server.";
+            _settings = await ApiClient.GetStashBoxSettingsAsync(_disposed.Token);
+            await OnChanged.InvokeAsync();
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task RemoveAsync(StashBoxServerDto server)
+    {
+        if (!await ApiClient.RemoveStashBoxServerAsync(server.Id, _disposed.Token))
+        {
+            Snackbar.Add("The server could not be removed.", AppSeverity.Error);
+            return;
+        }
+
+        _settings = await ApiClient.GetStashBoxSettingsAsync(_disposed.Token);
+    }
+
+    private async Task SetFingerprintAsync(bool allowed)
+    {
+        var updated = await ApiClient.SetStashBoxFingerprintPermissionAsync(allowed, _disposed.Token);
+        if (updated is null)
+        {
+            Snackbar.Add("That could not be saved.", AppSeverity.Error);
+            return;
+        }
+
+        _settings = updated;
+    }
+
+    private static string ConnectionWords(string connection) => connection switch
+    {
+        "connected" => "Connected",
+        "failed" or "key_rejected" => "Key not accepted",
+        "unavailable" => "Not reachable",
+        _ => "No key yet",
+    };
+
+    private static AppUiTone ConnectionTone(string connection) => connection switch
+    {
+        "connected" => AppUiTone.Success,
+        "failed" or "key_rejected" or "unavailable" => AppUiTone.Error,
+        _ => AppUiTone.Warning,
+    };
+
+    public void Dispose()
+    {
+        _disposed.Cancel();
+        _disposed.Dispose();
+    }
+}

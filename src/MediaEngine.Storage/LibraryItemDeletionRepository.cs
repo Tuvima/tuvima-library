@@ -15,7 +15,7 @@ namespace MediaEngine.Storage;
 /// </summary>
 /// <param name="leaseWaitLimit">How long <see cref="CancelProcessingAsync"/> waits for a running job to let go (default 30 seconds).</param>
 /// <param name="leasePollInterval">How often it looks (default 400 ms).</param>
-public sealed class LibraryItemDeletionRepository(
+public sealed partial class LibraryItemDeletionRepository(
     IDatabaseConnection db,
     ILogger<LibraryItemDeletionRepository>? logger = null,
     TimeSpan? leaseWaitLimit = null,
@@ -410,8 +410,12 @@ public sealed class LibraryItemDeletionRepository(
             new { now, ids }).ToList();
     }
 
+    public Task<int> DiscardKeptProgressAsync(DateTimeOffset? olderThan, CancellationToken ct = default) =>
+        db.ExecuteWriteAsync((connection, _, _) => RecycleBinPersonalState.Discard(connection, olderThan), ct);
+
     public async Task<LibraryItemDeletionDataResult> DeleteWorksAsync(
         IReadOnlyList<Guid> workIds,
+        bool keepPersonalState = false,
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(workIds);
@@ -423,7 +427,7 @@ public sealed class LibraryItemDeletionRepository(
         }
 
         return await db.ExecuteWriteAsync(
-            (connection, transaction, _) => DeleteWorksCore(connection, transaction, distinct),
+            (connection, transaction, _) => DeleteWorksCore(connection, transaction, distinct, keepPersonalState),
             ct).ConfigureAwait(false);
     }
 
@@ -434,7 +438,8 @@ public sealed class LibraryItemDeletionRepository(
     internal static LibraryItemDeletionDataResult DeleteWorksCore(
         Microsoft.Data.Sqlite.SqliteConnection connection,
         Microsoft.Data.Sqlite.SqliteTransaction transaction,
-        IReadOnlyList<Guid> distinct)
+        IReadOnlyList<Guid> distinct,
+        bool keepPersonalState = false)
     {
         // The ids of everything that goes live in connection-private scratch tables for the length of this transaction, so no
         // statement carries a long parameter list. They are emptied before the commit (and a rollback takes the rows away too).
@@ -508,6 +513,20 @@ public sealed class LibraryItemDeletionRepository(
         connection.Execute(
             "UPDATE series_manifest_items SET linked_work_id = NULL WHERE linked_work_id IN (SELECT id FROM deletion_works);",
             transaction: transaction);
+
+        // The files' intake records go too: a file put back from the Recycle bin has the same path, size and date as before, so a
+        // surviving record would make the next scan treat it as already done and never bring it back.
+        connection.Execute("""
+            DELETE FROM media_operations
+            WHERE operation_type = 'ingestion.file'
+              AND source_path IN (SELECT file_path_root FROM media_assets WHERE id IN (SELECT id FROM deletion_assets));
+            """, transaction: transaction);
+
+        // A title going to the Recycle bin keeps every profile's progress by file fingerprint, so restoring the file gives it back.
+        if (keepPersonalState)
+        {
+            RecycleBinPersonalState.Snapshot(connection, transaction);
+        }
 
         // Everything else that belongs to the titles (progress, bookmarks, highlights, queue entries, play counts, telemetry
         // links, text tracks, derived files, coverage) hangs off the asset or the Work with ON DELETE CASCADE or SET NULL.

@@ -31,7 +31,7 @@ public sealed class PopupCardGuardrailTests
         // Editors (Group C): their layout belongs to the edit panels work; they use the shared close prompt.
         ["Components/Profiles/ProfileEditorSheet.razor"] = "Profile editor sheet.",
         ["Components/Details/DetailsOverlayHost.razor"] = "The details page overlay host.",
-        ["Components/Details/FloatingArtworkPicker.razor"] = "The universal editor's Artwork picker: a non-modal tool window that floats over the page, can be dragged and shrunk to a chip (universal editor spec D8); role=\"dialog\" names it for screen readers, it is not a popup card.",
+        ["Components/Details/EditorPanelHost.razor"] = "The universal editor window (v2 spec D1): a large modal window over the dimmed page with a tool rail and a fixed Cancel and Save footer; its layout belongs to the editor, and Esc and Cancel use the shared unsaved-changes prompt.",
         // Special layouts that keep their behaviour.
         ["Components/Layout/ReconnectModal.razor"] = "Connection-lost modal; keeps its special behaviour.",
         ["Components/Search/UniversalSearchOverlay.razor"] = "Large search overlay; keeps its search layout.",

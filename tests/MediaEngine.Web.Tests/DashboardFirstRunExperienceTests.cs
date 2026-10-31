@@ -11,7 +11,7 @@ public sealed class DashboardFirstRunExperienceTests
         var dashboard = Read("src/MediaEngine.Web/Services/Integration/DashboardAuthenticationEndpoints.cs");
         var setup = Read("src/MediaEngine.Web/Components/Pages/SetupPage.razor");
         var setupClient = Read("src/MediaEngine.Web/Services/Integration/EngineApiClient.Setup.cs");
-        var preflight = Read("src/MediaEngine.Web/Components/Setup/SetupServerStage.razor");
+        var preflight = Read("src/MediaEngine.Web/Components/Setup/SetupWelcomeStage.razor");
         var engine = Read("src/MediaEngine.Api/Endpoints/AuthenticationEndpoints.cs");
         var setupSessions = Read("src/MediaEngine.Api/Services/SetupSessionService.cs");
 
@@ -100,12 +100,12 @@ public sealed class DashboardFirstRunExperienceTests
     public void SetupWizard_IsReversibleFocusedAndProtectsCredentialEntry()
     {
         var setup = Read("src/MediaEngine.Web/Components/Pages/SetupPage.razor");
-        var administrator = Read("src/MediaEngine.Web/Components/Setup/SetupAdministratorStage.razor");
+        var administrator = Read("src/MediaEngine.Web/Components/Setup/SetupProfileStage.razor");
         var recoveryCodes = Read("src/MediaEngine.Web/Components/Shared/RecoveryCodesDisplay.razor");
-        var preflight = Read("src/MediaEngine.Web/Components/Setup/SetupPreflightStage.razor");
-        var providers = Read("src/MediaEngine.Web/Components/Setup/SetupProvidersStage.razor");
+        var preflight = Read("src/MediaEngine.Web/Components/Setup/SetupToolsStage.razor");
+        var providers = Read("src/MediaEngine.Web/Components/Setup/SetupMetadataStage.razor");
         var providerDialog = Read("src/MediaEngine.Web/Components/Shared/Providers/ProviderOnboardingDialog.razor");
-        var metadataSettings = Read("src/MediaEngine.Web/Components/Settings/MetadataSettingsPage.razor");
+        var metadataSettings = Read("src/MediaEngine.Web/Components/Settings/Plugins/ProviderDetail.razor");
         var readiness = Read("src/MediaEngine.Web/Components/Setup/SetupReadinessStage.razor");
         var stageFooter = Read("src/MediaEngine.Web/Components/Setup/SetupStageFooter.razor");
         var workflow = Read("src/MediaEngine.Contracts/Setup/SetupContracts.cs");
@@ -127,9 +127,9 @@ public sealed class DashboardFirstRunExperienceTests
         Assert.DoesNotContain("TMDB", providers, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Fanart.tv", providers, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("Ownership", providerDialog, StringComparison.Ordinal);
-        Assert.Contains("RunPreflightAsync(automaticallyAdvance: true)", setup, StringComparison.Ordinal);
+        Assert.Contains("await RunPreflightAsync();", setup, StringComparison.Ordinal);
         Assert.Contains("LoadReadinessAsync", setup, StringComparison.Ordinal);
-        Assert.Contains("Ready · later", readiness, StringComparison.Ordinal);
+        Assert.Contains("\"Later\"", readiness, StringComparison.Ordinal);
         Assert.DoesNotContain("case \"local-ai\"", setup, StringComparison.Ordinal);
         Assert.DoesNotContain("case \"access\"", setup, StringComparison.Ordinal);
         Assert.DoesNotContain("\"local-ai\", \"access\"", workflow, StringComparison.Ordinal);

@@ -41,7 +41,7 @@ public static partial class MetadataEndpoints
         group.MapGet("/{entityId:guid}/artwork/{scopeId}/provider-candidates/{role}", async (
             Guid entityId, string scopeId, string role, int? page, int? pageSize,
             string? sourceAssetType, string? provider, string? providerItemId, string? releaseId, string? orderContext,
-            HttpContext http, ArtworkScopeService scopes,
+            HttpContext http, ArtworkScopeService scopes, IConfigurationLoader configLoader,
             IImageEnrichmentService images, ProviderApiClient tvdb,
             ICanonicalValueRepository canonicals, ArtworkAssetService assets, IMemoryCache cache, CancellationToken ct) =>
         {
@@ -108,6 +108,7 @@ public static partial class MetadataEndpoints
                 .DistinctBy(candidate => candidate.Id, StringComparer.OrdinalIgnoreCase)
                 .DistinctBy(candidate => candidate.Url, StringComparer.OrdinalIgnoreCase)
                 .ToList();
+            deduplicated = ProviderArtworkLanguageOrder.Apply(deduplicated, configLoader.LoadCore()?.Language.Metadata).ToList();
             var requestedPage = Math.Max(1, page ?? 1);
             var requestedPageSize = Math.Clamp(pageSize ?? 48, 1, 100);
             var pageItems = deduplicated.Skip((requestedPage - 1) * requestedPageSize).Take(requestedPageSize).ToList();
@@ -118,7 +119,7 @@ public static partial class MetadataEndpoints
                 sourceType, scope.DisplayTitle, scope.MediaType, requestContext, deduplicated), TimeSpan.FromMinutes(15));
             return Results.Ok(new ProviderArtworkDiscoveryDto(pageItems.Select(c => new ProviderArtworkCandidateDto(
                 c.Id, c.Provider, c.ThumbnailUrl, c.Width, c.Height,
-                workspace.Variants.Any(v => v.Role == role && v.SourceUrl == c.Url))).ToList(), discovery.Message,
+                workspace.Variants.Any(v => v.Role == role && v.SourceUrl == c.Url), c.Language)).ToList(), discovery.Message,
                 attributionUrl, requestContext, requestedPage, requestedPageSize, deduplicated.Count,
                 requestedPage * requestedPageSize < deduplicated.Count));
         }).WithName("DiscoverScopedProviderArtwork")

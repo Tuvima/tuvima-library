@@ -1,6 +1,6 @@
 # Universal editor v2 mockups
 
-Eleven static screens at 1440 × 900 for the Locked spec [`engineering/specs/universal-editor-v2.md`](../../../specs/universal-editor-v2.md). Open any file in a browser. A1–A9 are the chosen design (the Editor window); B1–B2 are the side-panel alternative Shy did not choose, kept for the record.
+Eleven static screens at 1440 × 900 for the Locked spec [`engineering/specs/archive/universal-editor-v2.md`](../../../specs/archive/universal-editor-v2.md). Open any file in a browser. A1–A9 are the chosen design (the Editor window); B1–B2 are the side-panel alternative Shy did not choose, kept for the record.
 
 | File | Screen |
 |---|---|

@@ -62,7 +62,9 @@ public sealed record LocalAssetDto(
     [property: JsonPropertyName("can_trash")] bool CanTrash = true,
     [property: JsonPropertyName("content_kind")] string? ContentKind = null,
     [property: JsonPropertyName("added_by_profile_id")] Guid? AddedByProfileId = null,
-    [property: JsonPropertyName("added_by_name")] string? AddedByName = null);
+    [property: JsonPropertyName("added_by_name")] string? AddedByName = null,
+    [property: JsonPropertyName("file_missing")] bool FileMissing = false,
+    [property: JsonPropertyName("part_missing")] bool PartMissing = false);
 
 /// <summary>
 /// What is known about the words read from a document, and how it has been organised. <c>text_source</c> is
@@ -317,7 +319,8 @@ public sealed record ViewSourceAdminDto(
     [property: JsonPropertyName("skipped_file_count")] int SkippedFileCount = 0,
     [property: JsonPropertyName("added_by_profile_id")] Guid? AddedByProfileId = null,
     [property: JsonPropertyName("accepts_photos_and_videos")] bool AcceptsPhotosAndVideos = false,
-    [property: JsonPropertyName("kept_in_library_count")] int KeptInLibraryCount = 0);
+    [property: JsonPropertyName("kept_in_library_count")] int KeptInLibraryCount = 0,
+    [property: JsonPropertyName("folder_offline")] bool FolderOffline = false);
 
 /// <param name="ContentKind">
 /// What the folder holds: <c>photos</c>, <c>personal_videos</c> or <c>documents</c>. Required; it decides which files

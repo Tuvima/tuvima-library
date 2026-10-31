@@ -35,14 +35,18 @@
 
         <div class="libpage__header">
             <div class="libpage__facts">
+                @if (CanRename)
+                {
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Edit"
+                                   Tooltip="Rename"
+                                   AriaLabel="@($"Rename {row.Name}")"
+                                   Disabled="@_renaming"
+                                   OnClick="RenameAsync" />
+                }
                 <span class="libpage__type"><AppMaterialIcon Icon="@row.Type.Icon" />@row.Type.Label</span>
                 @if (row.Access == LibraryListing.Vault)
                 {
                     <AppChip Icon="@AppMaterialIcons.Outlined.Lock" Text="@LibraryListing.AccessText(row.Access)" />
-                }
-                else
-                {
-                    <span class="libpage__access">@LibraryListing.AccessText(row.Access)</span>
                 }
                 <span class="libpage__counts">@LibraryRollup.CountsText(row.Folders, row.Titles)</span>
                 <LibraryStatusCell Row="@row" />
@@ -87,6 +91,40 @@
             <AppAlert Tone="AppUiTone.Warning" Dense="true">@_addError</AppAlert>
         }
 
+        @* The attention strip (Libraries redesign D4): only when there is something to do, one sentence and one button each. *@
+        @if (!IsVault && (row.Unidentified > 0 || row.NeedsReview > 0 || row.Status == LibraryStatusKind.FolderOffline))
+        {
+            <div class="libpage__strip" role="status" data-testid="library-attention">
+                @if (row.Status == LibraryStatusKind.FolderOffline)
+                {
+                    <div class="libpage__strip-line" data-strip="offline">
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" />
+                        <span>Folder offline: @row.StatusDetail</span>
+                        @if (!ReadOnly)
+                        {
+                            <AppButton Label="Check again" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Changed.InvokeAsync())" />
+                        }
+                    </div>
+                }
+                @if (row.Unidentified > 0)
+                {
+                    <div class="libpage__strip-line" data-strip="unidentified">
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" />
+                        <span>@LibraryListing.UnidentifiedText(row.Unidentified) could not be identified.</span>
+                        <AppButton Label="Review them" ButtonStyle="AppButtonStyle.Text" Href="@LibraryListing.UnidentifiedAddress(row.Key)" />
+                    </div>
+                }
+                @if (row.NeedsReview > 0)
+                {
+                    <div class="libpage__strip-line" data-strip="needs-review">
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" />
+                        <span>@LibraryListing.NeedsReviewText(row.NeedsReview) a look.</span>
+                        <AppButton Label="Open Needs Review" ButtonStyle="AppButtonStyle.Text" Href="@LibraryListing.NeedsReviewAddress(row.Key)" />
+                    </div>
+                }
+            </div>
+        }
+
         <AppTabs ActivePanelIndex="@ActiveIndex" ActivePanelIndexChanged="SelectTab" Label="Library sections">
             @foreach (var tab in Tabs)
             {
@@ -129,6 +167,10 @@
                                                 ReadOnly="@ReadOnly"
                                                 Changed="ChangedAsync" />
                     }
+                    else if (tab.Slug == UnidentifiedTab)
+                    {
+                        <LibraryUnidentifiedTab Library="@Library" Kinds="@Kinds" Configuration="@Configuration" ReadOnly="@ReadOnly" Changed="ChangedAsync" />
+                    }
                     else if (tab.Slug == ActivityTab && IsVault)
                     {
                         @* A Vault library's activity is listed in the Vault, never here (Vault sections D40), so nothing about it is read from this page. *@
@@ -165,6 +207,7 @@
     public const string FileHandlingTab = "file-handling";
     public const string ActivityTab = "activity";
     public const string LookupTab = "lookup";
+    public const string UnidentifiedTab = "unidentified";
 
     [Parameter, EditorRequired] public LibraryFolderDto Library { get; set; } = default!;
     [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
@@ -221,6 +264,12 @@
                 new(FileHandlingTab, "File handling"),
                 new(ActivityTab, "Activity"),
             };
+            // The Engine's unmatched files get their own tab only while there are some (Libraries redesign D5); a Vault library never lists them here.
+            if (Library.UnmatchedCount > 0 && !IsVault)
+            {
+                tabs.Add(new(UnidentifiedTab, $"Unidentified ({Library.UnmatchedCount:N0})"));
+            }
+
             if (LibraryLookupRules.HasLookupTab(Library, Kinds.Find(Library.KindKey)))
             {
                 tabs.Add(new(LookupTab, "Lookup"));
@@ -395,6 +444,44 @@
         if (await dialog.Result is { Canceled: false, Data: MediaEngine.Contracts.Library.LibraryAddFilesResultDto { Copied: > 0 } })
         {
             await FolderAddedAsync();
+        }
+    }
+
+    // A library can be renamed from its own header (the pencil), except the ones whose name is the kind's (View) or the Vault's. The Engine's refusal (a name
+    // already in use, a name that reads as another kind) is shown as it comes.
+    private bool CanRename => !ReadOnly && !IsVault && !string.Equals(Library.Area, "view", StringComparison.OrdinalIgnoreCase);
+
+    private bool _renaming;
+
+    private async Task RenameAsync()
+    {
+        if (_renaming) return;
+        var copy = System.Text.Json.JsonSerializer.Deserialize<LibraryFolderDto>(System.Text.Json.JsonSerializer.Serialize(Library));
+        if (copy is null) return;
+        var dialog = await DialogService.ShowAsync<LibraryTextEditDialog>(string.Empty, new AppDialogParameters<LibraryTextEditDialog>
+        {
+            { component => component.Label, "Library name" },
+            { component => component.Value, Library.Name ?? string.Empty },
+        }, new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Small });
+        if (await dialog.Result is not { Canceled: false, Data: string name } || string.Equals(name, Library.Name, StringComparison.Ordinal)) return;
+
+        _renaming = true;
+        try
+        {
+            copy.Name = name;
+            var saved = await AddService.SaveLibraryAsync(FolderAddScope.Settings, Configuration, copy);
+            if (saved is null)
+            {
+                _addError = Api.LastError ?? "The library could not be renamed. Try a different name.";
+                return;
+            }
+
+            _addError = null;
+            await Changed.InvokeAsync();
+        }
+        finally
+        {
+            _renaming = false;
         }
     }
 

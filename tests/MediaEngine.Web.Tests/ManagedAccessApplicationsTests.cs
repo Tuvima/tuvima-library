@@ -33,7 +33,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
     public void EditDisabledApplication_PreservesStatusAndSavesPermissionsAndBindings()
     {
         var cut = RenderApplications();
-        OpenEdit(cut);
+        OpenEdit(cut, "access");
 
         PermissionCheckbox(cut, "Write playback progress").Change(true);
         ButtonNamed(cut, "Save application").Click();
@@ -68,15 +68,15 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
     public void Credential_IsShownOnceAndClearedWhenDrawerCloses()
     {
         var cut = RenderApplications();
-        OpenEdit(cut);
+        OpenEdit(cut, "keys");
         ButtonNamed(cut, "Generate credential").Click();
 
         cut.WaitForAssertion(() => Assert.Contains(ApplicationsHandler.Secret, cut.Markup));
-        cut.WaitForElement("button[aria-label='Close application drawer']").Click();
+        ClosePage(cut);
         cut.WaitForAssertion(() =>
         {
             Assert.DoesNotContain(ApplicationsHandler.Secret, cut.Markup);
-            Assert.Empty(cut.FindAll("button[aria-label='Close application drawer']"));
+            Assert.Empty(cut.FindAll("[data-testid=integration-page]"));
         });
     }
 
@@ -86,7 +86,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         _handler.RequireApprovalHash = true;
         var dialogs = Render<AppDialogHost>();
         var cut = RenderApplications();
-        OpenEdit(cut);
+        OpenEdit(cut, "keys");
 
         ButtonNamed(cut, "Generate credential").Click();
 
@@ -112,7 +112,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         _handler.RequireApprovalHash = true;
         var dialogs = Render<AppDialogHost>();
         var cut = RenderApplications();
-        OpenEdit(cut);
+        OpenEdit(cut, "keys");
         ButtonNamed(cut, "Generate credential").Click();
         dialogs.WaitForAssertion(() => Assert.Contains("Issue this key?", dialogs.Markup));
 
@@ -130,7 +130,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         _handler.RequireApprovalHash = true;
         var dialogs = Render<AppDialogHost>();
         var cut = RenderApplications();
-        OpenEdit(cut);
+        OpenEdit(cut, "deliveries");
         cut.WaitForAssertion(() => Assert.Contains("Add webhook", cut.Markup));
         ButtonNamed(cut, "Add webhook").Click();
         var editor = cut.WaitForElement(".application-webhook-editor");
@@ -155,7 +155,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         _handler.RequireApprovalHash = true;
         var dialogs = Render<AppDialogHost>();
         var cut = RenderApplications();
-        OpenEdit(cut);
+        OpenEdit(cut, "deliveries");
         cut.WaitForAssertion(() => Assert.Contains("Add webhook", cut.Markup));
         ButtonNamed(cut, "Add webhook").Click();
         var editor = cut.WaitForElement(".application-webhook-editor");
@@ -180,7 +180,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         _handler.RequireApprovalHash = true;
         var dialogs = Render<AppDialogHost>();
         var cut = RenderApplications();
-        OpenEdit(cut);
+        OpenEdit(cut, "access");
         PermissionCheckbox(cut, "Write playback progress").Change(true);
 
         ButtonNamed(cut, "Save application").Click();
@@ -207,7 +207,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         _handler.RequireApprovalHash = true;
         var dialogs = Render<AppDialogHost>();
         var cut = RenderApplications();
-        OpenEdit(cut);
+        OpenEdit(cut, "access");
         PermissionCheckbox(cut, "Write playback progress").Change(true);
         ButtonNamed(cut, "Save application").Click();
         dialogs.WaitForAssertion(() => Assert.Contains("keys can do?", dialogs.Markup));
@@ -280,7 +280,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         _handler.CredentialGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
         _handler.CredentialStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
         var cut = RenderApplications();
-        OpenEdit(cut);
+        OpenEdit(cut, "keys");
 
         var pending = ButtonNamed(cut, "Generate credential")
             .ClickAsync(new());
@@ -288,8 +288,8 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.True(cut.FindAll("button")
             .Single(button => button.TextContent.Trim() == "Generate credential").HasAttribute("disabled")));
 
-        cut.WaitForElement("button[aria-label='Close application drawer']").Click();
-        OpenEdit(cut);
+        ClosePage(cut);
+        OpenEdit(cut, "keys");
         _handler.CredentialGate.SetResult();
         await pending;
 
@@ -318,11 +318,61 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
     }
 
     [Fact]
+    public void Manage_OpensTheIntegrationsOwnPage_ByItsAddress()
+    {
+        var cut = RenderApplications();
+
+        cut.FindAll("article[aria-label='Living room'] button").Single(button => button.TextContent.Trim() == "Manage").Click();
+
+        Assert.EndsWith($"/settings/integrations/{_handler.ApplicationId:D}", Services.GetRequiredService<NavigationManager>().Uri);
+    }
+
+    [Fact]
+    public void ThePage_HasTabsThatAreAddresses_AndDeliveriesOnlyForIntegrationsThatCanHostWebhooks()
+    {
+        var plain = RenderApplications();
+        OpenEdit(plain);
+        var plainTabs = plain.FindAll("[data-testid=integration-page] a[role=tab]").Select(tab => tab.GetAttribute("href")).ToList();
+        Assert.Contains($"/settings/integrations/{_handler.ApplicationId:D}/keys", plainTabs);
+        Assert.DoesNotContain($"/settings/integrations/{_handler.ApplicationId:D}/deliveries", plainTabs);
+
+        _handler.ApplicationType = ApplicationTypeDto.ServerIntegration;
+        var host = RenderApplications();
+        OpenEdit(host);
+        Assert.Contains(host.FindAll("[data-testid=integration-page] a[role=tab]"), tab => tab.GetAttribute("href")!.EndsWith("/deliveries", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ThePage_SaysSoWhenTheIntegrationDoesNotExist()
+    {
+        var cut = RenderApplications();
+
+        cut.Render(parameters => parameters.Add(component => component.IntegrationId, Guid.NewGuid().ToString("D")));
+
+        cut.WaitForAssertion(() => Assert.Contains("That integration is not available", cut.Markup));
+    }
+
+    [Fact]
+    public void TheListView_ShowsOneRowPerIntegration_WhenTheDeviceRemembersIt()
+    {
+        JSInterop.Setup<string?>("localStorage.getItem", "tuvima.integrations.layout").SetResult("list");
+        var cut = Render<ManagedAccessApplications>();
+
+        cut.WaitForAssertion(() =>
+        {
+            var row = Assert.Single(cut.FindAll("[data-testid=integration-rows] tbody tr"));
+            Assert.Contains("Living room", row.TextContent);
+            Assert.Contains(row.QuerySelectorAll("button"), button => button.TextContent.Trim() == "Manage");
+        });
+        Assert.Empty(cut.FindAll("article[aria-label='Living room']"));
+    }
+
+    [Fact]
     public void ServerIntegration_ShowsWebhookDeliveryState()
     {
         _handler.ApplicationType = ApplicationTypeDto.ServerIntegration;
         var cut = RenderApplications();
-        OpenEdit(cut);
+        OpenEdit(cut, "deliveries");
 
         cut.WaitForAssertion(() =>
         {
@@ -343,7 +393,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         }
         _handler.Attempts.Insert(0, new(Guid.NewGuid(), "webhook.test", 1, DateTimeOffset.UtcNow, true, "HTTP 204", 25, true));
         var cut = RenderApplications();
-        OpenEdit(cut);
+        OpenEdit(cut, "deliveries");
 
         cut.WaitForAssertion(() =>
         {
@@ -368,7 +418,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         _handler.ApplicationType = ApplicationTypeDto.ServerIntegration;
         _handler.Attempts.Add(new(Guid.NewGuid(), "ingestion.completed", 1, DateTimeOffset.UtcNow, false, "Skipped: webhook disabled or changed", 0, false));
         var cut = RenderApplications();
-        OpenEdit(cut);
+        OpenEdit(cut, "deliveries");
 
         cut.WaitForAssertion(() =>
         {
@@ -383,7 +433,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
     {
         _handler.ApplicationType = ApplicationTypeDto.ServerIntegration;
         var cut = RenderApplications();
-        OpenEdit(cut);
+        OpenEdit(cut, "deliveries");
 
         cut.WaitForAssertion(() =>
         {
@@ -398,7 +448,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         _handler.ApplicationType = ApplicationTypeDto.ServerIntegration;
         _handler.AttemptsStatus = HttpStatusCode.InternalServerError;
         var cut = RenderApplications();
-        OpenEdit(cut);
+        OpenEdit(cut, "deliveries");
 
         cut.WaitForAssertion(() =>
         {
@@ -413,7 +463,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         _handler.ApplicationType = ApplicationTypeDto.ServerIntegration;
         _handler.AttemptsThrow = true;
         var cut = RenderApplications();
-        OpenEdit(cut);
+        OpenEdit(cut, "deliveries");
 
         cut.WaitForAssertion(() => Assert.Contains("Delivery history could not be loaded.", cut.Markup));
         Assert.Contains(_logs.Entries, entry =>
@@ -425,7 +475,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
     {
         _handler.ApplicationType = ApplicationTypeDto.ServerIntegration;
         var cut = RenderApplications();
-        OpenEdit(cut);
+        OpenEdit(cut, "deliveries");
         cut.WaitForAssertion(() => Assert.Contains("No deliveries yet", cut.Markup));
 
         ButtonNamed(cut, "Send test").Click();
@@ -448,7 +498,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         _handler.TestDelivered = false;
         _handler.TestResult = "HTTP 503";
         var cut = RenderApplications();
-        OpenEdit(cut);
+        OpenEdit(cut, "deliveries");
         cut.WaitForAssertion(() => Assert.Contains("No deliveries yet", cut.Markup));
 
         ButtonNamed(cut, "Send test").Click();
@@ -466,7 +516,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         _handler.ApplicationType = ApplicationTypeDto.ServerIntegration;
         _handler.WebhookIsEnabled = false;
         var cut = RenderApplications();
-        OpenEdit(cut);
+        OpenEdit(cut, "deliveries");
 
         cut.WaitForAssertion(() =>
         {
@@ -483,7 +533,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         _handler.ApplicationType = ApplicationTypeDto.ServerIntegration;
         _handler.TestRefusal = "Turn this webhook on to send a test.";
         var cut = RenderApplications();
-        OpenEdit(cut);
+        OpenEdit(cut, "deliveries");
         cut.WaitForAssertion(() => Assert.Contains("No deliveries yet", cut.Markup));
 
         ButtonNamed(cut, "Send test").Click();
@@ -499,7 +549,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         _handler.AddCredential("Used key", DateTimeOffset.UtcNow.AddDays(30), DateTimeOffset.UtcNow.AddHours(-3));
         _handler.AddCredential("Lapsed key", DateTimeOffset.UtcNow.AddDays(-2), DateTimeOffset.UtcNow.AddDays(-5));
         var cut = RenderApplications();
-        OpenEdit(cut);
+        OpenEdit(cut, "keys");
 
         cut.WaitForAssertion(() =>
         {
@@ -547,7 +597,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
     {
         _handler.ApplicationType = ApplicationTypeDto.Automation;
         var cut = RenderApplications();
-        OpenEdit(cut);
+        OpenEdit(cut, "deliveries");
         cut.WaitForAssertion(() => Assert.Contains("Add webhook", cut.Markup));
 
         ButtonNamed(cut, "Add webhook").Click();
@@ -568,7 +618,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         Assert.True(payload.AllowLocalNetwork);
         Assert.Equal([ApplicationsHandler.EventType], payload.EventTypes);
 
-        cut.WaitForElement("button[aria-label='Close application drawer']").Click();
+        ClosePage(cut);
         cut.WaitForAssertion(() => Assert.DoesNotContain(ApplicationsHandler.WebhookSecret, cut.Markup));
     }
 
@@ -577,7 +627,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
     {
         _handler.ApplicationType = ApplicationTypeDto.ServerIntegration;
         var cut = RenderApplications();
-        OpenEdit(cut);
+        OpenEdit(cut, "deliveries");
         cut.WaitForAssertion(() => Assert.Contains("Rotate signing secret", cut.Markup));
 
         ButtonNamed(cut, "Rotate signing secret").Click();
@@ -597,7 +647,7 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
     {
         _handler.ApplicationType = ApplicationTypeDto.ServerIntegration;
         var cut = RenderApplications();
-        OpenEdit(cut);
+        OpenEdit(cut, "deliveries");
         cut.WaitForAssertion(() => Assert.Contains(ApplicationsHandler.WebhookUrl, cut.Markup));
 
         ButtonNamed(cut, "Edit").Click();
@@ -625,18 +675,18 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         _handler.WebhookRotateStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
         _handler.IgnoreWebhookRotateCancellation = true;
         var cut = RenderApplications();
-        OpenEdit(cut);
+        OpenEdit(cut, "deliveries");
         cut.WaitForAssertion(() => Assert.Contains("Rotate signing secret", cut.Markup));
 
         var pending = ButtonNamed(cut, "Rotate signing secret")
             .ClickAsync(new());
         await _handler.WebhookRotateStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
-        cut.WaitForElement("button[aria-label='Close application drawer']").Click();
+        ClosePage(cut);
         _handler.WebhookRotateGate.SetResult();
         await pending;
 
         Assert.DoesNotContain(ApplicationsHandler.WebhookSecret, cut.Markup);
-        Assert.Empty(cut.FindAll("button[aria-label='Close application drawer']"));
+        Assert.Empty(cut.FindAll("[data-testid=integration-page]"));
     }
 
     [Theory]
@@ -868,13 +918,18 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         return cut;
     }
 
-    private static void OpenEdit(IRenderedComponent<ManagedAccessApplications> cut)
+    // Manage navigates to the integration's own page (Plugins and Integrations screens v3 D24), so these tests open the page by its
+    // address parameters and pick the tab the step needs.
+    private void OpenEdit(IRenderedComponent<ManagedAccessApplications> cut, string? tab = null)
     {
-        cut.WaitForAssertion(() => cut.FindAll("article[aria-label='Living room'] button")
-            .Single(button => button.TextContent.Trim() == "Manage")
-            .Click());
-        cut.WaitForAssertion(() => Assert.Contains("Credentials", cut.Markup));
+        cut.Render(parameters => parameters
+            .Add(component => component.IntegrationId, _handler.ApplicationId.ToString("D"))
+            .Add(component => component.DetailTab, tab));
+        cut.WaitForElement("[data-testid=integration-page]");
     }
+
+    private static void ClosePage(IRenderedComponent<ManagedAccessApplications> cut) =>
+        cut.Render(parameters => parameters.Add(component => component.IntegrationId, null));
 
     // Rows and buttons appear after a render, so lookups wait for the element instead of assuming the render already happened.
     private static AngleSharp.Dom.IElement WizardNameField(IRenderedComponent<ManagedAccessApplications> cut)

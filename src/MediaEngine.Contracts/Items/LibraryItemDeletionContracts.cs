@@ -46,6 +46,74 @@ public sealed class LibraryItemDeletionPreview
 
     /// <summary>Identifies this exact plan. Confirming a deletion sends it back so the Engine can tell nothing changed since the preview.</summary>
     [JsonPropertyName("fingerprint")] public string Fingerprint { get; init; } = string.Empty;
+
+    /// <summary>Set when the titles are a whole show, season, album or Series (see <see cref="LibraryGroupDeletionPreviewRequest"/>); null for a plain list of titles.</summary>
+    [JsonPropertyName("group")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public LibraryItemDeletionGroupDto? Group { get; init; }
+}
+
+/// <summary>What the whole group is, for the dialog's heading, totals and typed confirmation.</summary>
+public sealed class LibraryItemDeletionGroupDto
+{
+    /// <summary>One of <c>show</c>, <c>season</c>, <c>album</c> or <c>series</c>.</summary>
+    [JsonPropertyName("kind")] public string Kind { get; init; } = string.Empty;
+
+    /// <summary>The group's name as the heading shows it ("The Expanse", "Season 2").</summary>
+    [JsonPropertyName("title")] public string Title { get; init; } = string.Empty;
+
+    /// <summary>What the person types to confirm. Empty when no typing is asked (the counted button is enough).</summary>
+    [JsonPropertyName("confirm_name")] public string ConfirmName { get; init; } = string.Empty;
+
+    /// <summary>True when files will be removed for good and the delete is a whole show, a whole Series, a big group or a big space (D4).</summary>
+    [JsonPropertyName("requires_typed_confirmation")] public bool RequiresTypedConfirmation { get; init; }
+
+    /// <summary>Titles the library owns in the group; these are the ones deleted.</summary>
+    [JsonPropertyName("titles_owned")] public int TitlesOwned { get; init; }
+
+    /// <summary>Titles the group lists that the library does not own. Never deleted, never counted.</summary>
+    [JsonPropertyName("titles_not_owned")] public int TitlesNotOwned { get; init; }
+
+    /// <summary>The parts that hold something owned (the seasons of a show), with how much of each is owned.</summary>
+    [JsonPropertyName("sub_groups")] public List<LibraryItemDeletionSubGroupDto> SubGroups { get; init; } = [];
+
+    /// <summary>True for the last owned season of a show: the show goes too.</summary>
+    [JsonPropertyName("removes_parent")] public bool RemovesParent { get; init; }
+
+    /// <summary>The show a season belongs to.</summary>
+    [JsonPropertyName("parent_title")] public string? ParentTitle { get; init; }
+}
+
+public sealed class LibraryItemDeletionSubGroupDto
+{
+    [JsonPropertyName("title")] public string Title { get; init; } = string.Empty;
+    [JsonPropertyName("owned")] public int Owned { get; init; }
+    [JsonPropertyName("total")] public int Total { get; init; }
+}
+
+/// <summary>
+/// Asks what deleting a whole show, season, album or Series would do. <see cref="GroupId"/> is the show's, season's or album's own id,
+/// or the Series' id. <see cref="WorkIds"/> and <see cref="GroupTitle"/> are used only for a group the Engine cannot find by id itself
+/// (a grouping the page builds from its titles); the Engine still checks every id is a title the library owns.
+/// </summary>
+public sealed class LibraryGroupDeletionPreviewRequest
+{
+    [JsonPropertyName("group_id")] public Guid GroupId { get; init; }
+
+    /// <summary>One of <c>show</c>, <c>season</c>, <c>album</c> or <c>series</c>; used only with <see cref="WorkIds"/>.</summary>
+    [JsonPropertyName("group_kind")] public string? GroupKind { get; init; }
+
+    [JsonPropertyName("group_title")] public string? GroupTitle { get; init; }
+
+    [JsonPropertyName("work_ids")] public IReadOnlyList<Guid> WorkIds { get; init; } = [];
+}
+
+/// <summary>Deletes the group as confirmed. A changed plan answers 409 with a fresh preview, exactly as a single-title delete does.</summary>
+public sealed class LibraryGroupDeletionRequest
+{
+    [JsonPropertyName("group_id")] public Guid GroupId { get; init; }
+    [JsonPropertyName("group_kind")] public string? GroupKind { get; init; }
+    [JsonPropertyName("group_title")] public string? GroupTitle { get; init; }
+    [JsonPropertyName("work_ids")] public IReadOnlyList<Guid> WorkIds { get; init; } = [];
+    [JsonPropertyName("fingerprint")] public string Fingerprint { get; init; } = string.Empty;
 }
 
 public sealed class LibraryItemDeletionItemDto
@@ -167,12 +235,49 @@ public sealed class RecycleBinEmptiedDto
     [JsonPropertyName("removed")] public int Removed { get; init; }
 }
 
-/// <summary>One file waiting in the recycle bin. The folder it came from stays inside the Engine.</summary>
-public sealed class RecycleBinItemDto
+/// <summary>
+/// What a profile may see of the Recycle bin (spec Delete a show, season, album or Series, D12 to D15, D18, D23). Everyone sees the totals;
+/// the list holds only what the profile may see, and everything else is rolled into <c>other_items</c> with no title or kind.
+/// </summary>
+public sealed class RecycleBinSummaryDto
+{
+    [JsonPropertyName("total_items")] public int TotalItems { get; init; }
+    [JsonPropertyName("total_bytes")] public long TotalBytes { get; init; }
+
+    /// <summary>True for an administrator at the Dashboard: Restore, Delete now and Empty are offered.</summary>
+    [JsonPropertyName("can_manage")] public bool CanManage { get; init; }
+
+    [JsonPropertyName("items")] public IReadOnlyList<RecycleBinListItemDto> Items { get; init; } = [];
+
+    /// <summary>Items the caller may not see: counted and sized, never named.</summary>
+    [JsonPropertyName("other_items")] public int OtherItems { get; init; }
+    [JsonPropertyName("other_bytes")] public long OtherBytes { get; init; }
+
+    /// <summary>Administrators only: items that will leave the bin within the warning days.</summary>
+    [JsonPropertyName("leaving_soon_items")] public int LeavingSoonItems { get; init; }
+    [JsonPropertyName("leaving_soon_bytes")] public long LeavingSoonBytes { get; init; }
+    [JsonPropertyName("leaving_soon_days")] public int? LeavingSoonDays { get; init; }
+
+    /// <summary>The warning window: items with this many days or fewer left count as leaving soon.</summary>
+    [JsonPropertyName("leaving_soon_window_days")] public int LeavingSoonWindowDays { get; init; }
+}
+
+/// <summary>One item in the Recycle bin as a profile may see it.</summary>
+public sealed class RecycleBinListItemDto
 {
     [JsonPropertyName("id")] public Guid Id { get; init; }
-    [JsonPropertyName("file_name")] public string FileName { get; init; } = string.Empty;
-    [JsonPropertyName("title")] public string? Title { get; init; }
+    [JsonPropertyName("title")] public string Title { get; init; } = string.Empty;
+    [JsonPropertyName("media_type")] public string? MediaType { get; init; }
     [JsonPropertyName("size_bytes")] public long SizeBytes { get; init; }
     [JsonPropertyName("deleted_at")] public DateTimeOffset DeletedAt { get; init; }
+    [JsonPropertyName("deleted_by")] public string? DeletedBy { get; init; }
+
+    /// <summary>Whole days left before the automatic removal; null when the bin never empties itself.</summary>
+    [JsonPropertyName("leaves_in_days")] public int? LeavesInDays { get; init; }
+
+    /// <summary>The caller already asked to keep this item.</summary>
+    [JsonPropertyName("requested")] public bool Requested { get; init; }
+
+    /// <summary>Administrators only: who asked to keep it.</summary>
+    [JsonPropertyName("requested_by")] public IReadOnlyList<string> RequestedBy { get; init; } = [];
 }

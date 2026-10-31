@@ -1,0 +1,163 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Contracts.Realtime
+@using MediaEngine.Web.Services.Integration
+@implements IDisposable
+@inject IServiceProvider Provider
+
+@* The page proves the save (universal editor v2, D7): once the Editor window closes after a save, a ribbon under the top bar says how many
+   changes were saved and when, in plain text. It goes away on its own after a few seconds, with its close button, or when editing starts
+   again. No toast, no sound. *@
+@if (Flow?.LastSave is { } saved)
+{
+    <div class="tl-saved-ribbon" role="status" aria-live="polite">
+        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" Size="AppSize.Small" />
+        <span>@Message(saved)@(_arrived.Count == 0 ? string.Empty : " " + Arrived())</span>
+        <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
+                       Size="AppControlSize.Compact"
+                       Tone="AppUiTone.Neutral"
+                       Tooltip="Dismiss"
+                       AriaLabel="Dismiss the saved message"
+                       OnClick="@(() => Flow.ClearLastSave())" />
+    </div>
+}
+
+@code {
+    private static readonly TimeSpan Lifetime = TimeSpan.FromSeconds(8);
+
+    private EditSessionFlow? _subscribed;
+    private EditSaveSummary? _timed;
+    private CancellationTokenSource? _cts;
+    private readonly List<string> _arrived = [];
+    private bool _listening;
+    private UIOrchestratorService? _orchestrator;
+
+    [Parameter, EditorRequired] public EditSessionFlow? Flow { get; set; }
+
+    private static string Message(EditSaveSummary saved) =>
+        $"Saved {saved.Count} {(saved.Count == 1 ? "change" : "changes")} at {saved.At.ToString("t", System.Globalization.CultureInfo.CurrentCulture)}.";
+
+    // The Engine keeps working after Save (details from the providers, pictures, cast); each step that arrives for a saved item is named here.
+    private string Arrived() =>
+        $"Updated from {string.Join(" and ", _arrived)}.";
+
+    private void OnStage(HydrationStageCompletedEvent stage)
+    {
+        var ids = Flow?.LastSave?.ItemIds;
+        if (ids is null || !ids.Contains(stage.EntityId) || string.IsNullOrWhiteSpace(stage.ProviderName) || stage.ClaimsAdded <= 0)
+        {
+            return;
+        }
+
+        _ = InvokeAsync(() =>
+        {
+            if (!_arrived.Contains(stage.ProviderName))
+            {
+                _arrived.Add(stage.ProviderName);
+            }
+
+            // More work is arriving, so the line stays a little longer than the first eight seconds.
+            if (Flow?.LastSave is { } saved)
+            {
+                _cts?.Cancel();
+                _cts?.Dispose();
+                var cts = _cts = new CancellationTokenSource();
+                _ = ClearAfterAsync(saved, cts.Token);
+            }
+
+            StateHasChanged();
+        });
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (!_listening)
+        {
+            // Pages that show no live Engine feed (a test host, an offline preview) simply never hear a step.
+            _listening = true;
+            _orchestrator = Provider.GetService(typeof(UIOrchestratorService)) as UIOrchestratorService;
+            if (_orchestrator is not null)
+            {
+                _orchestrator.OnHydrationStageCompleted += OnStage;
+            }
+        }
+
+        if (!ReferenceEquals(_subscribed, Flow))
+        {
+            if (_subscribed is not null)
+            {
+                _subscribed.Changed -= OnChanged;
+            }
+
+            _subscribed = Flow;
+            if (_subscribed is not null)
+            {
+                _subscribed.Changed += OnChanged;
+            }
+        }
+
+        StartTimer();
+    }
+
+    // A new save starts the clock once; the ribbon then clears itself.
+    private void StartTimer()
+    {
+        var saved = Flow?.LastSave;
+        if (saved is null || ReferenceEquals(saved, _timed))
+        {
+            return;
+        }
+
+        _timed = saved;
+        _arrived.Clear();
+        _cts?.Cancel();
+        _cts?.Dispose();
+        var cts = _cts = new CancellationTokenSource();
+        _ = ClearAfterAsync(saved, cts.Token);
+    }
+
+    private async Task ClearAfterAsync(EditSaveSummary saved, CancellationToken ct)
+    {
+        try
+        {
+            await Task.Delay(Lifetime, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            // A newer save or the page closing replaced this timer.
+            return;
+        }
+
+        await InvokeAsync(() =>
+        {
+            if (ReferenceEquals(Flow?.LastSave, saved))
+            {
+                Flow!.ClearLastSave();
+            }
+        });
+    }
+
+    private void OnChanged()
+    {
+        _ = InvokeAsync(() =>
+        {
+            StartTimer();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        if (_orchestrator is not null)
+        {
+            _orchestrator.OnHydrationStageCompleted -= OnStage;
+        }
+        if (_subscribed is not null)
+        {
+            _subscribed.Changed -= OnChanged;
+        }
+
+        _cts?.Cancel();
+        _cts?.Dispose();
+    }
+}

@@ -35,11 +35,13 @@ public sealed class OnboardingRepository(IDatabaseConnection database)
         var steps = connection.Query<StepRow>("""
             SELECT step_key AS StepKey, status AS Status, detail AS Detail,
                    repair_target AS RepairTarget, completed_at AS CompletedAt
-            FROM onboarding_steps WHERE workflow_version = @version
+            FROM onboarding_steps
+            WHERE workflow_version = @version
+              AND step_key IN ('welcome','profile','tools','libraries','vault','metadata','done')
             ORDER BY CASE step_key
-                WHEN 'server' THEN 0 WHEN 'preflight' THEN 1 WHEN 'administrator' THEN 2
-                WHEN 'media-locations' THEN 3 WHEN 'providers' THEN 4
-                WHEN 'readiness' THEN 5 ELSE 99 END;
+                WHEN 'welcome' THEN 0 WHEN 'profile' THEN 1 WHEN 'tools' THEN 2
+                WHEN 'libraries' THEN 3 WHEN 'vault' THEN 4 WHEN 'metadata' THEN 5
+                WHEN 'done' THEN 6 ELSE 99 END;
             """, new { version = CurrentVersion }).AsList();
         return new OnboardingWorkflowRecord(
             workflow.WorkflowVersion, workflow.State, workflow.CurrentStep,
@@ -161,11 +163,11 @@ public sealed class OnboardingRepository(IDatabaseConnection database)
             var blocking = connection.ExecuteScalar<int>("""
                 SELECT COUNT(*) FROM onboarding_steps
                 WHERE workflow_version = @version
-                  AND step_key <> 'readiness'
+                  AND step_key <> 'done'
                   AND (
-                    (step_key IN ('preflight','administrator') AND status <> 'passed')
+                    (step_key IN ('welcome','profile','tools') AND status <> 'passed')
                     OR
-                    (step_key IN ('providers','media-locations') AND status NOT IN ('passed','deferred'))
+                    (step_key IN ('libraries','metadata') AND status NOT IN ('passed','deferred'))
                   );
                 """, new { version = CurrentVersion }, transaction);
             if (blocking > 0)
@@ -176,8 +178,8 @@ public sealed class OnboardingRepository(IDatabaseConnection database)
             connection.Execute("""
                 UPDATE onboarding_steps SET status = 'passed', detail = 'Setup readiness accepted.',
                     completed_at = @now, updated_at = @now
-                WHERE workflow_version = @version AND step_key = 'readiness';
-                UPDATE onboarding_workflows SET state = 'complete', current_step = 'readiness',
+                WHERE workflow_version = @version AND step_key = 'done';
+                UPDATE onboarding_workflows SET state = 'complete', current_step = 'done',
                     completed_at = @now, updated_at = @now, revision = revision + 1
                 WHERE workflow_version = @version;
                 UPDATE onboarding_sessions SET revoked_at = @now
@@ -219,15 +221,17 @@ public sealed class OnboardingRepository(IDatabaseConnection database)
             """, new { id, version = CurrentVersion, now = DateTimeOffset.UtcNow.ToString("O") });
     }
 
+    // The optional Vault entry is never the step setup is waiting on: the Dashboard offers it after Libraries and records the answer.
     private static string NextIncomplete(Microsoft.Data.Sqlite.SqliteConnection connection, Microsoft.Data.Sqlite.SqliteTransaction transaction) =>
         connection.QuerySingleOrDefault<string>("""
             SELECT step_key FROM onboarding_steps
             WHERE workflow_version = @version AND status NOT IN ('passed','deferred')
+              AND step_key IN ('welcome','profile','tools','libraries','metadata','done')
             ORDER BY CASE step_key
-                WHEN 'server' THEN 0 WHEN 'preflight' THEN 1 WHEN 'administrator' THEN 2
-                WHEN 'media-locations' THEN 3 WHEN 'providers' THEN 4
-                WHEN 'readiness' THEN 5 ELSE 99 END LIMIT 1;
-            """, new { version = CurrentVersion }, transaction) ?? "readiness";
+                WHEN 'welcome' THEN 0 WHEN 'profile' THEN 1 WHEN 'tools' THEN 2
+                WHEN 'libraries' THEN 3 WHEN 'vault' THEN 4 WHEN 'metadata' THEN 5
+                WHEN 'done' THEN 6 ELSE 99 END LIMIT 1;
+            """, new { version = CurrentVersion }, transaction) ?? "done";
 
     private static DateTimeOffset? Parse(string? value) =>
         DateTimeOffset.TryParse(value, out var parsed) ? parsed : null;
@@ -236,7 +240,7 @@ public sealed class OnboardingRepository(IDatabaseConnection database)
     {
         public int WorkflowVersion { get; init; }
         public string State { get; init; } = "in_progress";
-        public string CurrentStep { get; init; } = "server";
+        public string CurrentStep { get; init; } = "welcome";
         public Guid? AdministratorProfileId { get; init; }
         public long Revision { get; init; }
         public string? CompletedAt { get; init; }

@@ -92,22 +92,55 @@ public sealed class DisplayFactBuilderTests
     }
 
     [Fact]
-    public void MusicFacts_FormatDurationSecondsAsTrackLength()
+    public void TvFacts_ReadFileProbeSecondsAsMinutesNotAsMinutesOfSeconds()
     {
-        var facts = DisplayFactBuilder.Build(
-            "Music",
-            "Soul Love",
-            artist: "David Bowie",
-            duration: "214");
+        var facts = DisplayFactBuilder.Build("TV", "The Show", year: "2020", durationSeconds: "1361.4");
+
+        Assert.Equal(["2020", "23 min"], facts);
+    }
+
+    [Fact]
+    public void MovieFacts_PreferTheProviderRuntimeOverTheFileProbeSeconds()
+    {
+        var facts = DisplayFactBuilder.Build("Movie", "Arrival", runtime: "116", durationSeconds: "6980");
+
+        Assert.Equal(["116 min"], facts);
+    }
+
+    [Fact]
+    public void MusicFacts_ReadFileProbeSecondsAsTrackLength()
+    {
+        var facts = DisplayFactBuilder.Build("Music", "Soul Love", artist: "David Bowie", durationSeconds: "214.2");
 
         Assert.Equal(["David Bowie", "3:34"], facts);
     }
 
     [Fact]
-    public void MovieFacts_ReadRuntimeAsMinutesAndDurationAsSeconds()
+    public void MusicFacts_PreferTheFilesLengthOverTheProvidersRoundedMinutes()
     {
-        Assert.Contains("142 min", DisplayFactBuilder.Build("Movie", "Heat", runtime: "142"));
-        Assert.Contains("120 min", DisplayFactBuilder.Build("Movie", "Heat", duration: "7200"));
+        var facts = DisplayFactBuilder.Build("Music", "Soul Love", artist: "David Bowie", duration: "3.5", durationSeconds: "214.2");
+
+        Assert.Equal(["David Bowie", "3:34"], facts);
+    }
+
+    [Fact]
+    public void MusicFacts_ReadASmallProviderLengthAsMinutes()
+    {
+        var facts = DisplayFactBuilder.Build("Music", "Soul Love", artist: "David Bowie", duration: "3.5");
+
+        Assert.Equal(["David Bowie", "3:30"], facts);
+    }
+
+    [Fact]
+    public void MusicFacts_FormatProviderMillisecondsAsTrackLength()
+    {
+        var facts = DisplayFactBuilder.Build(
+            "Music",
+            "Soul Love",
+            artist: "David Bowie",
+            duration: "214200");
+
+        Assert.Equal(["David Bowie", "3:34"], facts);
     }
 
     [Fact]

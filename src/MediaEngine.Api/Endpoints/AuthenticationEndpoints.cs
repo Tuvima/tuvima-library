@@ -856,7 +856,7 @@ public static class AuthenticationEndpoints
         _ => Results.Unauthorized(),
     };
 
-    private static async Task<AuthSessionResponse> ToResponseAsync(SessionIssueResult issued, DashboardAuthorityProjector projector, CancellationToken ct) => new()
+    internal static async Task<AuthSessionResponse> ToResponseAsync(SessionIssueResult issued, DashboardAuthorityProjector projector, CancellationToken ct) => new()
     {
         SessionId = issued.Session.Id,
         SessionToken = issued.PlaintextToken,

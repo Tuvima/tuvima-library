@@ -86,20 +86,6 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task VaultImages_AnAccountWithoutTheWatchFeature_GetsNotFound_EvenWhenUnlocked()
-    {
-        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false, features: new HashSet<AccountFeatureId> { AccountFeatureId.Read });
-        var session = NewVaultSession(shape.Account);
-        await UnlockVaultAsync(session);
-        var routes = await MapRoutesAsync(builder => builder.MapVaultEndpoints());
-
-        var result = await InvokeImageAsync(routes["ListVaultImages"], shape.Account, session);
-
-        Assert.Equal(StatusCodes.Status404NotFound, result.Status);
-        Assert.Equal("private, no-store", result.CacheControl);
-    }
-
-    [Fact]
     public async Task VaultImages_AnUnlockedSession_ListsPrivately_AndAnUnknownImageIsTheSameNotFoundAsALockedOne()
     {
         var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);

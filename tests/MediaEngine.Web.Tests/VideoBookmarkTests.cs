@@ -80,13 +80,14 @@ public sealed class VideoBookmarkTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task ASharedBookmarkFromAnotherProfile_IsListedAndCanBeReplayed_ButAPersonalOneFromThemIsNot()
+    public async Task EveryBookmarkTheEngineReturns_IsListedAndCanBeReplayed_WhateverProfileIdTheDashboardHolds()
     {
+        // The Engine already returns only the signed-in profile's own bookmarks plus the shared ones, so the
+        // Dashboard must not second-guess ownership with its own copy of the profile id.
         var shared = Dto(Guid.NewGuid(), SomeoneElse, 300, global: true);
-        var theirs = Dto(Guid.NewGuid(), SomeoneElse, 400);
-        var mine = Dto(Guid.NewGuid(), Me, 500);
+        var personal = Dto(Guid.NewGuid(), SomeoneElse, 400);
         var api = EngineApiClientStub.Create(stub => stub.SetHandler(nameof(IEngineApiClient.GetAudiobookBookmarksWithOutcomeAsync), _ =>
-            Task.FromResult(AudiobookBookmarkOperationResult<IReadOnlyList<AudiobookBookmarkDto>>.Succeeded([theirs, shared, mine]))));
+            Task.FromResult(AudiobookBookmarkOperationResult<IReadOnlyList<AudiobookBookmarkDto>>.Succeeded([personal, shared]))));
         AudiobookBookmarkDto? replayed = null;
         var service = new AudiobookBookmarkActionService(api, null, (bookmark, _) => { replayed = bookmark; return Task.CompletedTask; });
         var context = Context();
@@ -95,13 +96,10 @@ public sealed class VideoBookmarkTests : AsyncBunitContext
 
         await service.LoadSavedAsync(context, assets);
 
-        Assert.Equal([mine.Id, shared.Id], service.GetSnapshot(context.DialogId).Saved.Select(item => item.Id).ToArray());
-        var result = await service.ReplayAsync(context, shared.Id, assets);
+        Assert.Equal([personal.Id, shared.Id], service.GetSnapshot(context.DialogId).Saved.Select(item => item.Id).ToArray());
+        var result = await service.ReplayAsync(context, personal.Id, assets);
         Assert.Equal(AudiobookBookmarkOperationOutcome.Success, result.Outcome);
-        Assert.Equal(shared.Id, replayed!.Id);
-        replayed = null;
-        Assert.Equal(AudiobookBookmarkOperationOutcome.DefiniteFailure, (await service.ReplayAsync(context, theirs.Id, assets)).Outcome);
-        Assert.Null(replayed);
+        Assert.Equal(personal.Id, replayed!.Id);
     }
 
     // ---------------------------------------------------------------- the dialog
@@ -239,7 +237,7 @@ public sealed class VideoBookmarkTests : AsyncBunitContext
         Assert.Contains("For everyone", card.TextContent);
         Assert.DoesNotContain(cut.FindAll(".playback-seek-rail__quicklook button.playback-seek-rail__more"), button => button.TextContent == "More");
 
-        var jump = cut.FindAll(".playback-seek-rail__quicklook button.playback-seek-rail__more").First(button => button.TextContent == "Jump here");
+        var jump = cut.FindAll(".playback-seek-rail__quicklook button.playback-seek-rail__more").First(button => button.TextContent == "Play");
         await jump.ClickAsync();
         Assert.Equal(1800, Assert.Single(jumped).Seconds);
         Assert.Empty(cut.FindAll(".playback-seek-rail__quicklook"));
@@ -291,6 +289,7 @@ public sealed class VideoBookmarkTests : AsyncBunitContext
             })
             .Add(component => component.JumpTo, (Func<double, bool, Task>)((seconds, play) => { jumps.Add((seconds, play)); return Task.CompletedTask; })));
 
+        await cut.Find(".video-bookmark-quick__more").ClickAsync();
         cut.WaitForAssertion(() => Assert.Contains("00:12:30", cut.Markup));
         Assert.Contains("The Bridge", cut.Markup);
         Assert.Equal("Add", cut.Find("button.audiobook-bookmark-dialog__tab.is-selected").TextContent.Trim());
@@ -320,6 +319,7 @@ public sealed class VideoBookmarkTests : AsyncBunitContext
             .Add(component => component.Duration, 7200d)
             .Add(component => component.CanShare, true)
             .Add(component => component.SavedChanged, EventCallback.Factory.Create<IReadOnlyList<AudiobookBookmarkDto>>(this, saved => reported = saved)));
+        await cut.Find(".video-bookmark-quick__more").ClickAsync();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("textarea")));
 
         // The video keeps playing while the person types: the new position must not replace the captured one.

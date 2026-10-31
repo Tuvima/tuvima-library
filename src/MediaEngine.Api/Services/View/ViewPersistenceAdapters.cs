@@ -309,7 +309,8 @@ public sealed class ViewAssetQueryService(ILocalAssetRepository assets) : IViewA
             plan.AnchorBefore, plan.WithoutLocation, plan.PersonKey, plan.From, plan.To, plan.SortByAddedAt, plan.AddedBefore, plan.AddedAfterKey,
             documentFilter,
             plan.ExcludedContentKinds,
-            plan.AddedByProfileIds), ct);
+            plan.AddedByProfileIds,
+            IncludeMissing: plan.IncludeMissing), ct);
         return Task.FromResult(new ViewAssetTimelinePageDto(
             page.Items,
             plan.SortByAddedAt ? null
@@ -337,7 +338,8 @@ public sealed class ViewAssetQueryService(ILocalAssetRepository assets) : IViewA
             IncludeSharedLibraryAssets: plan.IncludeSharedLibraryAssets,
             DocumentFilter: plan.DocumentFilter,
             ExcludedContentKinds: plan.ExcludedContentKinds,
-            AddedByProfileIds: plan.AddedByProfileIds), ct);
+            AddedByProfileIds: plan.AddedByProfileIds,
+            IncludeMissing: plan.IncludeMissing), ct);
         return Task.FromResult(new ViewTimelineIndexDto(buckets.Select(bucket => new ViewTimelineBucketDto(
             bucket.Year,
             bucket.Month,

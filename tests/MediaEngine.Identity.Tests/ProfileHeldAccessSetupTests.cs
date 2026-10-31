@@ -48,7 +48,7 @@ public sealed class ProfileHeldAccessSetupTests : IDisposable
         Assert.Equal(MediaEngine.Domain.Aggregates.Profile.SeedProfileId, profile.Id);
         Assert.True(profile.IsServerAdministrator);
         Assert.True(profile.IsHouseholdAdministrator);
-        Assert.Equal(AccountFeatureId.All.OrderBy(feature => feature.Value), (await _access.GetFeatureGrantsAsync(profile.Id)).OrderBy(feature => feature.Value));
+        Assert.Equal(AccountFeatureId.All.OrderBy(feature => feature.Value), (await _access.GetAreasAsync(profile.Id)).OrderBy(feature => feature.Value));
         Assert.NotNull(profile.HouseholdId);
         Assert.Equal(profile.HouseholdId, (await new HouseholdRepository(_database).GetForAccountAsync(account.Id))!.Id);
         Assert.Equal(profile.HouseholdId, await _access.GetDefaultHouseholdIdAsync());

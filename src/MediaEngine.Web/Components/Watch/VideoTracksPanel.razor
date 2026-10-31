@@ -1,0 +1,22 @@
+@namespace MediaEngine.Web.Components.Watch
+@* The video player's Subtitles & Audio panel (video-player-controls-and-bookmarks D10): audio on the left, subtitles on the right.
+   Subtitle size and background stay in Settings; the panel links there. *@
+<div class="video-tracks-panel">
+    <section class="video-tracks-panel__column" aria-label="Audio">
+        <h3>Audio</h3>
+        @Audio
+    </section>
+    <section class="video-tracks-panel__column" aria-label="Subtitles">
+        <h3>Subtitles</h3>
+        @Subtitles
+    </section>
+    <p class="video-tracks-panel__footer"><a href="@SettingsHref">Subtitle size and background in Settings</a></p>
+</div>
+
+@code {
+    [Parameter] public RenderFragment? Audio { get; set; }
+    [Parameter] public RenderFragment? Subtitles { get; set; }
+
+    /// <summary>Where the profile's playback preferences live.</summary>
+    [Parameter] public string SettingsHref { get; set; } = "/settings/profiles";
+}

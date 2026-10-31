@@ -70,7 +70,7 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
         var decisions = new RealAdministratorDecisions();
         var mutations = AccountSetupKit.Attach(new AccountAccessMutationService(
             _accounts, new ProfileAccessRepository(_database), identities, profiles, _configuration, decisions, new AllowEvaluator(),
-            new NoOpInvalidation(), new NoOpAudit(), _identity, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate(), new FixedVaultLibraries()),
+            new NoOpInvalidation(), new NoOpAudit(), _identity, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate()),
             _accounts, new ProfileAccessRepository(_database), _identity);
         _devices = new ClientAuthorizationRepository(_database);
         var applications = new ApplicationRepository(_database);
@@ -97,19 +97,6 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
             new AddHouseholdPersonCommand(homeHousehold.Id, "Jim", null, false, null));
         _sam = await mutations.AddHouseholdPersonAsync(serverAdmin,
             new AddHouseholdPersonCommand(homeHousehold.Id, "Sam", null, true, null));
-
-        using (var connection = _database.CreateConnection())
-        {
-            // Each person holds their own access: Jim and Sam are given what Mary has.
-            connection.Execute("""
-                INSERT OR IGNORE INTO profile_library_hidden (profile_id, library_id, created_at)
-                SELECT p.id, g.library_id, g.created_at FROM profile_library_hidden g, profiles p
-                WHERE g.profile_id = @mary AND p.id IN (@jim, @sam);
-                INSERT OR IGNORE INTO profile_feature_grants (profile_id, feature_id, granted_at)
-                SELECT p.id, g.feature_id, g.granted_at FROM profile_feature_grants g, profiles p
-                WHERE g.profile_id = @mary AND p.id IN (@jim, @sam);
-                """, new { mary = _mary.Id, jim = _jim.Id, sam = _sam.Id });
-        }
 
         _paired = await PairPhoneAsync(applications);
         _phoneId = _paired.DeviceId;
@@ -829,7 +816,7 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
         var downloadDecisions = new AccountAccessDecisionService(
             new ProfileAccessRepository(_database),
             new GrantAdminUnlockService(new ProfileAccessRepository(_database), new StubProfilePins(), TimeProvider.System),
-            TestLibraryVisibility.Rule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
+            TestLibraryVisibility.Rule(new VaultLibraryRepository(_database)));
         var downloadApplications = new ApplicationRepository(_database);
         var downloadEvaluator = new AuthorizationEvaluator(
             downloadDecisions, downloadApplications, new PermissionRegistry(), new AuthorizationAuditWriter(_accounts), downloadAccessor);
@@ -1017,7 +1004,7 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
         var decisions = new AccountAccessDecisionService(
             new ProfileAccessRepository(_database),
             new GrantAdminUnlockService(new ProfileAccessRepository(_database), new StubProfilePins(), TimeProvider.System),
-            TestLibraryVisibility.Rule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
+            TestLibraryVisibility.Rule(new VaultLibraryRepository(_database)));
         var applications = new ApplicationRepository(_database);
         return new CatalogueResourceAuthorizationService(
             _database,
@@ -1103,8 +1090,6 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
     private static CreateAccountAccessCommand NewAccount(string email, bool administrator, string personName) => new(
         email, IsAdministrator: administrator, ProfileId: null,
         NewProfile: new NewAccountProfileCommand(personName, "#112233"),
-        Features: new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch },
-        HiddenLibraries: new HashSet<Guid>(),
         TemporaryPassword: null);
 
     private static RequestAuthority Authority(

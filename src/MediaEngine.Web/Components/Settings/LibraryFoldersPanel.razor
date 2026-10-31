@@ -189,15 +189,6 @@
             </AppCard>
         }
 
-        <details class="library-folders__advanced">
-            <summary><strong>Advanced</strong><span>File handling and naming</span></summary>
-            <LibraryAdvancedSettings Types="AdvancedTypes"
-                                     DuplicatePolicy="@(_configuration.FileHandling.DuplicatePolicy)"
-                                     ReadOnly="@ReadOnly"
-                                     Busy="@_saving"
-                                     OnLibraryChanged="SaveAdvancedLibraryAsync"
-                                     OnDuplicatePolicyChanged="SaveDuplicatePolicyAsync" />
-        </details>
     }
 </div>
 
@@ -240,12 +231,6 @@
     private bool _pathsChecked;
     // Titles the catalogue holds for each folder of a library page's library (the Titles column); null until read.
     private IReadOnlyDictionary<string, int>? _titles;
-
-    // Advanced tabs follow the order of the list of kinds; the template key is the kind's entry in organization_templates.
-    private IReadOnlyList<LibraryAdvancedSettings.AdvancedType> AdvancedTypes => LibraryTypes
-        .Where(type => !string.IsNullOrWhiteSpace(type.NamingTemplate))
-        .Select(type => new LibraryAdvancedSettings.AdvancedType(type.Key, type.Label, type.NamingTemplate!, PrimaryLibraryFor(type)))
-        .ToList();
 
     // The seventh entry in the list is not a media type; it has its own panel.
     private static readonly LibraryTypeOption ImportEntry = new("import", "Import folder", "import", string.Empty, [], AppMaterialIcons.Outlined.MoveToInbox);
@@ -549,78 +534,6 @@
         await SaveAsync(library, "Label saved.");
     }
 
-    // A naming change applies to files Tuvima adds from now on. When the type already has files in managed folders the person is
-    // asked, never surprised with a long job: Apply to existing files now, or Only new files.
-    private async Task SaveAdvancedLibraryAsync(LibraryFolderDto library)
-    {
-        var before = _configuration?.Libraries.FirstOrDefault(item => item.Id == library.Id)?.OrganizationPolicy;
-        var namingChanged = before is not null
-            && (!string.Equals(before.Mode, library.OrganizationPolicy.Mode, StringComparison.Ordinal)
-                || !string.Equals(before.CustomTemplate ?? string.Empty, library.OrganizationPolicy.CustomTemplate ?? string.Empty, StringComparison.Ordinal));
-        var saved = await SaveAsync(library, "Saved.");
-        if (saved && namingChanged && !ReadOnly) await OfferApplyNamingAsync(library.Id);
-    }
-
-    private async Task OfferApplyNamingAsync(string libraryId)
-    {
-        var library = _configuration?.Libraries.FirstOrDefault(item => item.Id == libraryId);
-        var managed = library?.Sources.Where(IsManaged).ToList() ?? [];
-        if (library is null || managed.Count == 0) return;
-
-        var files = 0;
-        foreach (var folder in managed)
-        {
-            var quick = await ApiClient.PreviewFolderConversionAsync(new FolderConversionPreviewRequest { SourceId = folder.Id, Quick = true });
-            files += quick?.TotalFiles ?? 0;
-        }
-
-        if (files == 0) return;
-        var name = string.IsNullOrWhiteSpace(library.Name) ? "library" : library.Name;
-        var apply = await DialogService.ShowMessageBoxAsync(
-            $"Apply the new naming to your existing {name}?",
-            $"{files:N0} {(files == 1 ? "file" : "files")} in your managed {(managed.Count == 1 ? "folder" : "folders")} would be renamed. " +
-            "This can take hours for a large folder; you can keep using Library while it runs. Other programs that use these folders (Plex, Jellyfin) will need to rescan, " +
-            "and it cannot be undone automatically (Library keeps a full log of every move). Or choose Only new files: nothing is renamed now, and the new naming applies to files added from now on.",
-            yesText: "Apply to existing files now", noText: "Only new files");
-        if (apply != true) return;
-
-        foreach (var folder in managed)
-        {
-            var job = await ApiClient.ConvertFolderAsync(folder.Id);
-            if (job is null)
-            {
-                _notice = ApiClient.LastError ?? $"Library could not start organising {folder.DisplayName()}.";
-                break;
-            }
-        }
-
-        Snackbar.Add($"Library is renaming your existing {name}. You can keep using Library meanwhile.", AppSeverity.Success);
-        await ReloadConfigurationAsync();
-        await RefreshJobsAsync();
-        await Changed.InvokeAsync();
-    }
-
-
-    // Copy the saved file handling and change only the duplicate rule, so settings added later are not dropped.
-    private static FileHandlingDto WithDuplicatePolicy(FileHandlingDto current, string policy)
-    {
-        var copy = JsonSerializer.Deserialize<FileHandlingDto>(JsonSerializer.Serialize(current))!;
-        copy.DuplicatePolicy = policy;
-        return copy;
-    }
-
-    private Task SaveDuplicatePolicyAsync(string policy) => PutAsync(
-        baseline => new UpdateLibrariesRequest
-        {
-            SchemaVersion = baseline.SchemaVersion,
-            StorageLocations = baseline.StorageLocations,
-            ViewStorage = baseline.ViewStorage,
-            Libraries = baseline.Libraries,
-            PersonalLibraryPolicy = baseline.PersonalLibraryPolicy,
-            FileHandling = WithDuplicatePolicy(baseline.FileHandling, policy),
-        },
-        "Saved.");
-
     private async Task ChooseImportFolderAsync()
     {
         if (_configuration is null || _saving) return;
@@ -770,6 +683,16 @@
         if (library is null || _saving) return;
         library.RecycleBin = value;
         await SaveAsync(library, value ? "Deleted files now go to the recycle bin." : "Deleted files are removed straight away.");
+    }
+
+    private async Task SetRecycleBinDaysAsync(LibraryFolderDto source, int days)
+    {
+        var library = Clone(source);
+        if (library is null || _saving) return;
+        library.RecycleBinDays = Math.Clamp(days, 0, 3650);
+        await SaveAsync(library, library.RecycleBinDays == 0
+            ? "Deleted files stay in the recycle bin until it is emptied."
+            : $"Deleted files stay in the recycle bin for {library.RecycleBinDays} days.");
     }
 
     private async Task<bool> SaveAsync(LibraryFolderDto library, string message)
@@ -1016,6 +939,13 @@
                               Value="@library.RecycleBin"
                               Disabled="@(_saving || ReadOnly)"
                               ValueChanged="@((bool value) => SetRecycleBinAsync(library, value))" />
+                @if (library.RecycleBin)
+                {
+                    <AppNumericField Label="Keep deleted files for (days, 0 keeps them until the bin is emptied)"
+                                     Value="@library.RecycleBinDays" Min="0" Max="3650"
+                                     Disabled="@(_saving || ReadOnly)"
+                                     ValueChanged="@((int value) => SetRecycleBinDaysAsync(library, value))" />
+                }
             </div>
         }
     };

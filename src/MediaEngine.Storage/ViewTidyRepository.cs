@@ -121,7 +121,7 @@ public sealed class ViewTidyRepository(IDatabaseConnection database) : IViewTidy
               FROM local_file_sources lfs
               LEFT JOIN local_item_files lif ON lif.file_id = lfs.file_id
               LEFT JOIN local_items li ON li.id = lif.item_id
-             WHERE lfs.source_id = @sourceId
+             WHERE lfs.source_id = @sourceId AND lfs.missing_since IS NULL
              GROUP BY lfs.id, lfs.file_path
              ORDER BY lfs.file_path;
             """, new { sourceId }, cancellationToken: ct)).Select(row => new ViewTidySourceFile(row.SourceFileId, row.FilePath, row.TakenAt)).ToList();

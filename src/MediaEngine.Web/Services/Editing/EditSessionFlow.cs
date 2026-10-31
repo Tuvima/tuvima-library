@@ -41,6 +41,21 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
     /// <summary>Raised after a save that reached the library, so the page can refresh before edit mode ends.</summary>
     public Func<Task>? Saved { get; set; }
 
+    /// <summary>What the last successful save wrote, for the confirmation ribbon (universal editor v2, D7); null until a save, and cleared when the ribbon is dismissed or editing starts again.</summary>
+    public EditSaveSummary? LastSave { get; private set; }
+
+    /// <summary>Takes the confirmation away (the person dismissed it, or the time ran out).</summary>
+    public void ClearLastSave()
+    {
+        if (LastSave is null)
+        {
+            return;
+        }
+
+        LastSave = null;
+        Changed?.Invoke();
+    }
+
     public bool Saving { get; private set; }
 
     /// <summary>True while another item's fields are being loaded after the person switched to it (the bar and panel show a busy state).</summary>
@@ -97,6 +112,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
         {
             if (!_session.IsActive)
             {
+                LastSave = null;
                 _session.Begin(_trail());
             }
         }
@@ -117,7 +133,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
         {
             _session.SetTool(open);
         }
-        else if (tool is null && _mode.OpenSectionKind is null && _session.ActiveTool is EditTool.Artwork or EditTool.Match)
+        else if (tool is null && _mode.OpenSectionKind is null && _session.ActiveTool is EditTool.Artwork or EditTool.Match or EditTool.History)
         {
             _session.SetTool(null);
         }
@@ -139,8 +155,8 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
 
         var opened = tool switch
         {
-            // History is the block at the bottom of Details, so the Details tool hosts it.
-            EditTool.Details => await _mode.ShowSectionAsync(EditingSection.History),
+            EditTool.Details => await _mode.ShowSectionAsync(EditingSection.Details),
+            EditTool.History => await _mode.ShowSectionAsync(EditingSection.History),
             EditTool.Artwork => _mode.Fields.CanEditArtwork && await _mode.ShowSectionAsync(EditingSection.Artwork),
             EditTool.Match => _mode.Fields.CanMatch && await _mode.ShowSectionAsync(EditingSection.Match),
             _ => false,
@@ -210,7 +226,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
     /// <summary>The overlay is closing (close button, Esc, backdrop, Back, a link to another title): leaving goes through <see cref="LeaveAsync"/>.</summary>
     public async ValueTask<bool> CanDismissAsync() => await LeaveAsync();
 
-    /// <summary>Esc from outside a field: closes the open panel; with the panel closed and changes pending it asks "Unsaved changes". False means the press was not ours.</summary>
+    /// <summary>Esc from outside a field: closes the open window (asking first when changes are staged); with the panel closed and changes pending it asks "Unsaved changes". False means the press was not ours.</summary>
     public async ValueTask<bool> HandleEscapeAsync()
     {
         if (!_mode.IsOn || !_session.IsActive)
@@ -225,7 +241,8 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
 
         if (_session.ActiveTool is not null)
         {
-            await ClosePanelAsync();
+            // The editor is a window (v2 spec D15): Esc closes it, asking "Unsaved changes" first when something is staged.
+            await LeaveAsync();
             return true;
         }
 
@@ -281,6 +298,9 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
             return false;
         }
 
+        // Counted before the applied changes leave the list: the ribbon says how many this save wrote.
+        var savedCount = _session.Pending.ChangeCount;
+        var savedItems = _session.Pending.Changes.Select(change => change.EntityId).Where(id => id != Guid.Empty).Distinct().ToList();
         if (Saved is { } refresh)
         {
             await refresh();
@@ -301,6 +321,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
         _session.End();
         WriteIntoFiles = null;
         _mode.Leave();
+        LastSave = new EditSaveSummary(savedCount, DateTimeOffset.Now, savedItems);
         Changed?.Invoke();
         return true;
     }
@@ -467,7 +488,8 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
     {
         EditingSection.Artwork => EditTool.Artwork,
         EditingSection.Match => EditTool.Match,
-        EditingSection.History => EditTool.Details,
+        EditingSection.History => EditTool.History,
+        EditingSection.Details => EditTool.Details,
         _ => null,
     };
 
@@ -477,3 +499,9 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
         Changed?.Invoke();
     }
 }
+
+/// <summary>
+/// What a save wrote: how many changes and when, shown in the confirmation ribbon after the window closes, and which items they were on so
+/// the ribbon can say when the Engine's follow-up work for them arrives.
+/// </summary>
+public sealed record EditSaveSummary(int Count, DateTimeOffset At, IReadOnlyList<Guid>? ItemIds = null);

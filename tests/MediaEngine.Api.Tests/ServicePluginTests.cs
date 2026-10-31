@@ -401,7 +401,7 @@ public sealed class ServicePluginTests : IDisposable
         await host.StopAllAsync();
     }
 
-    [SingleProcessPythonFact]
+    [PythonFact]
     public async Task AProgramThatUsesTooMuchMemory_IsStoppedAndSaysSo()
     {
         Add("svc.hungry", """ "permissions": ["process.execute"], "service": { "command": "python3", "arguments": ["-c", "import time; x = bytearray(150 * 1024 * 1024); time.sleep(60)"], "max_memory_mb": 64, "startup_seconds": 30 } """);
@@ -512,24 +512,6 @@ public sealed class ServicePluginTests : IDisposable
         }
     }
 
-    /// <summary>
-    /// True when <c>python3</c> is a launcher stub (the Microsoft Store one in WindowsApps) that starts the real interpreter as a child
-    /// process. The memory watcher measures the process it started, so a stub that holds a few MB hides the child's memory.
-    /// </summary>
-    internal static bool PythonRunsThroughLauncher()
-    {
-        if (!OperatingSystem.IsWindows())
-        {
-            return false;
-        }
-
-        var first = (Environment.GetEnvironmentVariable("PATH") ?? string.Empty)
-            .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
-            .Select(directory => Path.Combine(directory, "python3.exe"))
-            .FirstOrDefault(File.Exists);
-        return first is not null && first.Contains("WindowsApps", StringComparison.OrdinalIgnoreCase);
-    }
-
     private static int ProcessId(ServiceLookupResult result) =>
         JsonDocument.Parse(result.Json ?? "{}").RootElement.GetProperty("pid").GetInt32();
 
@@ -613,22 +595,6 @@ internal sealed class PythonFactAttribute : FactAttribute
         if (!ServicePluginTests.PythonAvailable())
         {
             Skip = "python3 is not installed on this machine, so the Python sample program cannot run.";
-        }
-    }
-}
-
-/// <summary>Skips when <c>python3</c> is missing, or is a launcher stub whose child process the host does not measure.</summary>
-internal sealed class SingleProcessPythonFactAttribute : FactAttribute
-{
-    public SingleProcessPythonFactAttribute()
-    {
-        if (!ServicePluginTests.PythonAvailable())
-        {
-            Skip = "python3 is not installed on this machine, so the Python sample program cannot run.";
-        }
-        else if (ServicePluginTests.PythonRunsThroughLauncher())
-        {
-            Skip = "python3 here is a launcher that starts Python as a separate process, so the program's own memory is not the one measured.";
         }
     }
 }

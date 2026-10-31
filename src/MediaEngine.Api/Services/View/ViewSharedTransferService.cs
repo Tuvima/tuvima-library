@@ -7,6 +7,10 @@ using MediaEngine.Api.Services.LocalAssets.Intake;
 using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.PersonalMedia;
+using MediaEngine.Ingestion.Contracts;
+using MediaEngine.Ingestion.Models;
+using MediaEngine.Ingestion.Services;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
 
@@ -19,12 +23,17 @@ public sealed class ViewSharedTransferService(
     IDatabaseConnection database,
     ILocalAssetRepository assets,
     ViewStorageService storage,
+    IViewPersonalSpaceRepository spaces,
+    ISourceMutationPolicyGate gate,
     IFileWriteQueue? fileWrites = null,
     ILogger<ViewSharedTransferService>? logger = null,
     IConfigurationLoader? configuration = null)
 {
     /// <summary>What a person is told when the Shared Library already holds an exact copy.</summary>
     public const string AlreadyInSharedMessage = "Already in the Shared Library.";
+
+    /// <summary>What a person is told when the safety gate keeps a personal original in place after its Shared copy was made.</summary>
+    public const string OriginalNotRemovedMessage = "The original couldn't be removed: ";
 
     private static readonly SemaphoreSlim TransferGate = new(1, 1);
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -364,6 +373,7 @@ public sealed class ViewSharedTransferService(
         }
 
         var updated = new List<DestinationManifestFile>(destinations.Count);
+        string? refusal = null;
         foreach (var file in destinations)
         {
             ct.ThrowIfCancellationRequested();
@@ -383,8 +393,17 @@ public sealed class ViewSharedTransferService(
                         throw new InvalidDataException("A personal original changed while Shared cleanup was pending.");
                     }
 
-                    File.Delete(file.Source);
-                    removed = !File.Exists(file.Source);
+                    // The shared safety gate decides on top of the content check: it can only make this stricter.
+                    var verdict = await EvaluateOriginalDeleteAsync(item, file.Source, ct);
+                    if (verdict.Refusal is { } reason)
+                    {
+                        refusal ??= reason;
+                    }
+                    else
+                    {
+                        File.Delete(verdict.ResolvedPath!);
+                        removed = !File.Exists(file.Source);
+                    }
                 }
                 catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
                 {
@@ -417,7 +436,11 @@ public sealed class ViewSharedTransferService(
                 itemId = item.Id,
                 state = cleanupPending ? "cleanup_pending" : "completed",
                 manifest,
-                error = cleanupPending ? "The Shared copy is safe, but one or more personal originals still need cleanup." : null,
+                error = cleanupPending
+                    ? refusal is null
+                        ? "The Shared copy is safe, but one or more personal originals still need cleanup."
+                        : OriginalNotRemovedMessage + refusal
+                    : null,
                 now,
                 cleanupPending,
             }, transaction);
@@ -426,6 +449,76 @@ public sealed class ViewSharedTransferService(
         return new ViewSharedTransferResultDto(item.Id,
             cleanupPending ? "cleanup_pending" : "completed", existing.Operation,
             updated.Count, updated.Select(file => file.Destination).ToList(), cleanupPending);
+    }
+
+    /// <summary>
+    /// Asks the shared source-file safety gate whether this personal original may be deleted, after its path has been followed through
+    /// every link and shown to lie inside the owner's own profile folder (the same route Empty Trash takes). Returns the real path to
+    /// delete, or the plain-English reason it must stay. The gate's own wording can carry technical detail, so it is only logged.
+    /// </summary>
+    private async Task<(string? ResolvedPath, string? Refusal)> EvaluateOriginalDeleteAsync(
+        LocalAssetDto item, string path, CancellationToken ct)
+    {
+        var space = await spaces.GetByLibraryAsync(item.LibraryId, ct);
+        if (space is null)
+        {
+            return (null, ViewTrashDeletionPlanner.SourceMissingReason);
+        }
+
+        Guid? sourceId;
+        using (var connection = database.CreateConnection())
+        {
+            sourceId = connection.QueryFirstOrDefault<Guid?>(new CommandDefinition(
+                "SELECT source_id FROM local_file_sources WHERE library_id = @LibraryId AND file_path = @path;",
+                new { item.LibraryId, path }, cancellationToken: ct));
+        }
+
+        var source = sourceId is { } id
+            ? (await spaces.GetSourcesAsync(space.Id, ct)).FirstOrDefault(candidate => candidate.Id == id)
+            : null;
+        if (source is null)
+        {
+            return (null, ViewTrashDeletionPlanner.SourceMissingReason);
+        }
+
+        if (source.StorageMode == ViewSourceStorageMode.Linked)
+        {
+            return (null, ViewTrashDeletionPlanner.ReadOnlyReason);
+        }
+
+        string profileRoot;
+        bool writable;
+        try
+        {
+            profileRoot = storage.GetProfileRoot(space, requireWrite: false);
+            writable = storage.IsStorageWritable();
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or IOException or UnauthorizedAccessException
+            or MediaEngine.Storage.Configuration.ConfigValidationException or ArgumentException)
+        {
+            logger?.LogWarning(exception, "View storage could not be resolved while cleaning up a Shared transfer original.");
+            return (null, ViewTrashDeletionPlanner.StorageUnavailableReason);
+        }
+
+        if (!ViewStorageService.TryResolveContainedPath(profileRoot, path, out var resolved, out var containment))
+        {
+            return (null, containment);
+        }
+
+        var policy = ViewSourceMutationPolicyFactory.Create(space, source, resolved.Root, writable);
+        var verdict = gate.Evaluate(new SourceMutationRequest
+        {
+            Source = policy,
+            Mutation = SourceMutationKind.Delete,
+            Path = resolved.Path,
+        });
+        if (!verdict.Allowed)
+        {
+            logger?.LogInformation("The source-file safety gate refused to let Shared cleanup delete a personal original: {Reason}", verdict.Reason);
+            return (null, writable ? ViewTrashDeletionPlanner.NotAllowedReason : ViewTrashDeletionPlanner.StorageReadOnlyReason);
+        }
+
+        return (resolved.Path, null);
     }
 
     private IReadOnlyList<TransferFile> GetFiles(Guid itemId, CancellationToken ct)

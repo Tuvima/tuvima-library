@@ -37,6 +37,8 @@ public static class NotificationEventIds
     public const string IngestionCompleted = "ingestion.completed";
     public const string ReviewWaiting = "review.waiting";
     public const string AccountInvited = "account.invited";
+    public const string RecycleBinKeepRequested = "recycle_bin.keep_requested";
+    public const string RecycleBinLeavingSoon = "recycle_bin.leaving_soon";
 
     /// <summary>The "Send test" message. Never routed; it goes straight to the channel being tested.</summary>
     public const string SystemTest = "system.test";

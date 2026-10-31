@@ -559,10 +559,6 @@
       "important": 1,
       "deep": 2
     },
-    "src/MediaEngine.Web/Components/Settings/ManagedAccessUserPermissions.razor.css": {
-      "important": 0,
-      "deep": 0
-    },
     "src/MediaEngine.Web/Components/Settings/ManagedAccessUsers.razor.css": {
       "important": 2,
       "deep": 4
@@ -1508,10 +1504,6 @@
     "src/MediaEngine.Web/Components/Settings/ManagedAccessApplications.razor.css": {
       "important": 1,
       "deep": 2
-    },
-    "src/MediaEngine.Web/Components/Settings/ManagedAccessUserPermissions.razor.css": {
-      "important": 0,
-      "deep": 0
     },
     "src/MediaEngine.Web/Components/Settings/ManagedAccessUsers.razor.css": {
       "important": 2,

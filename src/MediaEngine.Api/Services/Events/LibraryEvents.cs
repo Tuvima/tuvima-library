@@ -67,6 +67,10 @@ internal static class LibraryEvents
             Notification: new("Storage is running low", "A drive the Library uses is nearly full.", true, InboxAndEmail), PublishedByNotifications: true),
         new(NotificationEventIds.ReviewWaiting, ApplicationPermissionIds.ReviewRead, false,
             Notification: new("Items are waiting in Needs Review", "The Library was not sure about some items and wants a person to look.", true, InboxOnly), PublishedByNotifications: true),
+        new(NotificationEventIds.RecycleBinKeepRequested, ApplicationPermissionIds.SystemStatusRead, false,
+            Notification: new("Someone asked to keep a deleted item", "A person asked for an item in the Recycle bin to be put back.", true, InboxOnly), PublishedByNotifications: true),
+        new(NotificationEventIds.RecycleBinLeavingSoon, ApplicationPermissionIds.SystemStatusRead, false,
+            Notification: new("Items are about to leave the Recycle bin", "Some deleted items will be removed for good within days unless they are put back.", true, InboxOnly), PublishedByNotifications: true),
         new(NotificationEventIds.AccountInvited, ApplicationPermissionIds.SystemStatusRead, false,
             Notification: new("Someone was invited", "An invitation to join this Library was created.", true, Nowhere), PublishedByNotifications: true),
     ];

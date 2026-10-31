@@ -148,9 +148,9 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
     }
 
     [Fact]
-    public async Task ItemLookup_AppliesLaneAndHiddenLibrariesAcrossMixedLanes()
+    public async Task ItemLookup_AppliesTheHouseholdsHiddenLibrariesAcrossMixedLanes()
     {
-        // Watch and Read are granted, Listen is not, and one of the two libraries is hidden from the person.
+        // Every profile reaches Watch, Listen and Read; one of the two libraries is turned off for the household.
         var otherLibrary = Guid.NewGuid();
         var (context, library) = await SignInForLookupsAsync(new HashSet<Guid> { otherLibrary }, AccountFeatureId.Watch, AccountFeatureId.Read);
         var film = await InsertOwnedWorkWithIdAsync(library, "Arrival", "Movie");
@@ -161,14 +161,14 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         var page = await CreateItemsComposer(context).BuildItemsAsync(
             [film.WorkId, book.WorkId, song.WorkId, filmElsewhere.WorkId], ProfileForLookups);
 
-        Assert.Equal(["Arrival", "Dune"], Titles(page));
-        // The same areas and hidden libraries leave the same items on the lane pages.
+        Assert.Equal(["Arrival", "Dune", "Roads"], Titles(page));
+        // The same hidden libraries leave the same items on the lane pages.
         var watch = await CreateItemsComposer(context).BuildBrowseAsync("watch", null, "all", null, 0, 48, profileId: ProfileForLookups);
         var read = await CreateItemsComposer(context).BuildBrowseAsync("read", null, "all", null, 0, 48, profileId: ProfileForLookups);
         var listen = await CreateItemsComposer(context).BuildBrowseAsync("listen", null, "all", null, 0, 48, profileId: ProfileForLookups);
         Assert.Equal(["Arrival"], Titles(watch));
         Assert.Equal(["Dune"], Titles(read));
-        Assert.Empty(Titles(listen));
+        Assert.Equal(["Roads"], Titles(listen));
     }
 
     [Fact]

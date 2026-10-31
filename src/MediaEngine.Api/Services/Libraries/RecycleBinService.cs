@@ -12,7 +12,13 @@ public sealed record RecycleBinEntry(
     [property: JsonPropertyName("library_id")] string? LibraryId,
     [property: JsonPropertyName("original_path")] string OriginalPath,
     [property: JsonPropertyName("size_bytes")] long SizeBytes,
-    [property: JsonPropertyName("deleted_at")] DateTimeOffset DeletedAt);
+    [property: JsonPropertyName("deleted_at")] DateTimeOffset DeletedAt,
+    [property: JsonPropertyName("media_type")] string? MediaType = null,
+    [property: JsonPropertyName("deleted_by")] string? DeletedBy = null,
+    [property: JsonPropertyName("keep_requested_by")] IReadOnlyList<string>? KeepRequestedBy = null);
+
+/// <summary>What the automatic purge removed.</summary>
+public sealed record RecycleBinPurgeResult(int Items, long Bytes);
 
 /// <summary>What happened when a file was put back.</summary>
 public enum RecycleBinRestoreResult
@@ -36,7 +42,7 @@ public sealed class RecycleBinService(string dataRoot, ILogger logger)
     private string Root => Path.Combine(dataRoot, "recycle-bin");
 
     /// <summary>Moves the file into the bin. Returns the entry, or throws the file system's own exception when it cannot be moved.</summary>
-    public RecycleBinEntry MoveIn(string path, string? title, string? libraryId)
+    public RecycleBinEntry MoveIn(string path, string? title, string? libraryId, string? mediaType = null, string? deletedBy = null)
     {
         var info = new FileInfo(path);
         var size = info.Length;
@@ -44,7 +50,7 @@ public sealed class RecycleBinService(string dataRoot, ILogger logger)
         var folder = Directory.CreateDirectory(Path.Combine(Root, id.ToString("N"))).FullName;
         var stored = Path.Combine(folder, info.Name);
         File.Move(path, stored);
-        var entry = new RecycleBinEntry(id, info.Name, title, libraryId, path, size, DateTimeOffset.UtcNow);
+        var entry = new RecycleBinEntry(id, info.Name, title, libraryId, path, size, DateTimeOffset.UtcNow, mediaType, deletedBy);
         File.WriteAllText(Path.Combine(folder, "entry.json"), JsonSerializer.Serialize(entry, Json));
         return entry;
     }
@@ -131,6 +137,70 @@ public sealed class RecycleBinService(string dataRoot, ILogger logger)
         }
 
         return removed;
+    }
+
+    /// <summary>
+    /// Removes every entry deleted more than its library's retention days before <paramref name="now"/> (the automatic purge, D18).
+    /// <paramref name="retentionDaysFor"/> answers per library id; 0 days means never. Vault entries are skipped here too: only the Vault's
+    /// own tools remove those. Returns what was removed.
+    /// </summary>
+    public RecycleBinPurgeResult PurgeExpired(DateTimeOffset now, Func<string?, int> retentionDaysFor, IReadOnlySet<string>? skipLibraryIds = null)
+    {
+        if (!Directory.Exists(Root))
+        {
+            return new RecycleBinPurgeResult(0, 0);
+        }
+
+        var items = 0;
+        long bytes = 0;
+        foreach (var folder in Directory.EnumerateDirectories(Root))
+        {
+            if (TryRead(folder) is not { } entry || IsHidden(entry, skipLibraryIds))
+            {
+                continue;
+            }
+
+            var retentionDays = retentionDaysFor(entry.LibraryId);
+            if (retentionDays <= 0 || entry.DeletedAt > now - TimeSpan.FromDays(retentionDays))
+            {
+                continue;
+            }
+
+            try
+            {
+                Directory.Delete(folder, recursive: true);
+                items++;
+                bytes += entry.SizeBytes;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger.LogWarning(ex, "Could not remove one expired recycle bin entry; it stays in the bin");
+            }
+        }
+
+        return new RecycleBinPurgeResult(items, bytes);
+    }
+
+    /// <summary>
+    /// Records that <paramref name="requester"/> asked to keep an entry (D15). Returns false when the entry is not in the bin (or is
+    /// hidden from the caller). Asking twice is harmless.
+    /// </summary>
+    public bool AddKeepRequest(Guid id, string requester, IReadOnlySet<string>? hiddenLibraryIds = null)
+    {
+        var folder = FolderOf(id);
+        if (TryRead(folder) is not { } entry || IsHidden(entry, hiddenLibraryIds))
+        {
+            return false;
+        }
+
+        var names = (entry.KeepRequestedBy ?? []).ToList();
+        if (!names.Contains(requester, StringComparer.OrdinalIgnoreCase))
+        {
+            names.Add(requester);
+        }
+
+        File.WriteAllText(Path.Combine(folder, "entry.json"), JsonSerializer.Serialize(entry with { KeepRequestedBy = names }, Json));
+        return true;
     }
 
     /// <summary>True while the bin still holds the entry with this id.</summary>

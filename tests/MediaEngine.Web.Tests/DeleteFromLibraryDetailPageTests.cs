@@ -275,19 +275,18 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
 
     [Theory]
     [InlineData(DetailEntityType.TvShow)]
-    [InlineData(DetailEntityType.TvSeason)]
     [InlineData(DetailEntityType.MusicAlbum)]
     [InlineData(DetailEntityType.BookSeries)]
-    public async Task Entry_IsAbsentOnGroupPagesBecauseOnlySingleTitlesAreDeleted(DetailEntityType type)
+    public async Task Entry_OnGroupPagesIsTheGroupsOwnDeleteNotTheSingleTitleOne(DetailEntityType type)
     {
         await UseDeviceAsync("desktop");
         SetAdministrator(true);
         var cut = RenderPage(type);
 
-        // Not in the page's own "..." either (this also holds where Editing Mode is not offered for the page at all).
+        // The page's "..." offers the group's own Delete entry, never the single-title wording.
         var items = OpenPageMoreMenu(cut);
-        Assert.DoesNotContain(items, item => item.TextContent.Contains("Delete from library"));
-        Assert.Empty(cut.FindAll("button.tl-editing-bar__more"));
+        Assert.DoesNotContain(items, item => item.TextContent.Trim() == Label);
+        Assert.Contains(items, item => item.TextContent.Trim().StartsWith("Delete ", StringComparison.Ordinal));
         Assert.DoesNotContain(Label, cut.Markup, StringComparison.Ordinal);
     }
 
@@ -327,18 +326,17 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
 
     [Theory]
     [InlineData(DetailEntityType.TvShow)]
-    [InlineData(DetailEntityType.TvSeason)]
     [InlineData(DetailEntityType.MusicAlbum)]
     [InlineData(DetailEntityType.BookSeries)]
-    public async Task Handler_DoesNothingOnAGroupPageEvenIfInvoked(DetailEntityType type)
+    public async Task Handler_OnAGroupPageNeverUsesTheSingleTitlePreview(DetailEntityType type)
     {
         await UseDeviceAsync("desktop");
         SetAdministrator(true);
         var cut = RenderPage(type);
 
-        await InvokeActionAsync(cut);
+        // The group dialog stays open until someone answers it, so the call is left running.
+        _ = InvokeActionAsync(cut);
 
-        Assert.Empty(Services.GetRequiredService<AppDialogService>().Dialogs);
         Assert.Equal(0, _previewCalls);
         Assert.Empty(Toasts);
     }

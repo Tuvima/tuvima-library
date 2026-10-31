@@ -71,12 +71,9 @@
                               OnEdit="EditUniverseAsync"
                               EnrichmentRunning="@(overview.Enrichment.State == UniverseEnrichmentStateDto.Running)" />
 
-                @if (_editing is { IsOn: true, CanEdit: true } && _flow.Session is { IsActive: true, ActiveTool: EditTool.Artwork })
-                {
-                    <FloatingArtworkPicker Mode="_editing" Flow="_flow" Picker="_artworkPicker" />
-                }
 
-                <EditorPanelHost Mode="_editing" Flow="_flow">
+                <EditSavedRibbon Flow="_flow" />
+                <EditorPanelHost Mode="_editing" Flow="_flow" Picker="_artworkPicker">
                     @if (context == EditTool.Details)
                     {
                         <EditorDetailsPanel Mode="_editing" Session="_flow.Session">

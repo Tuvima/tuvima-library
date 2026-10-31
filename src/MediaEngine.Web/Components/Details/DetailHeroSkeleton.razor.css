@@ -165,3 +165,20 @@
         height: clamp(18rem, 30vw, 30rem);
     }
 }
+
+/* A page that answers within a quarter of a second never shows grey boxes: they stay invisible for 250 ms, then appear.
+   The cover and title a tile already knows are not boxes and show straight away. The first animation is the shared shimmer. */
+.tl-detail-skeleton__artwork,
+.tl-detail-skeleton__eyebrow,
+.tl-detail-skeleton__title,
+.tl-detail-skeleton__meta,
+.tl-detail-skeleton__line,
+.tl-detail-skeleton__button,
+.tl-detail-skeleton__tab {
+    animation: app-skeleton-shimmer 1.4s infinite linear, tl-detail-skeleton-reveal 0.01s linear 250ms backwards;
+}
+
+@keyframes tl-detail-skeleton-reveal {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}

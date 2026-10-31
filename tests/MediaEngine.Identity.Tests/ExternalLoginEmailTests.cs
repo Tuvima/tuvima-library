@@ -95,8 +95,7 @@ public sealed class ExternalLoginEmailTests : IDisposable
         var profile = new MediaEngine.Domain.Aggregates.Profile { Id = Guid.NewGuid(), DisplayName = "Person", CreatedAt = now };
         await _accounts.CreateAccountAsync(
             new Account { Id = id, IsEnabled = true, AuthorizationVersion = 1, CreatedAt = now, UpdatedAt = now },
-            new TestGrant(id, profile.Id, IsDefault: true),
-            new HashSet<AccountFeatureId>(), new HashSet<Guid>(), newProfile: profile);
+            new TestGrant(id, profile.Id, IsDefault: true), newProfile: profile);
         return id;
     }
 

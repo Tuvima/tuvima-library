@@ -71,7 +71,7 @@ public sealed class BookmarkPackUiTests : AsyncBunitContext
     {
         var api = EngineApiClientStub.Create(_ => { });
 
-        var none = RenderSection(api, saved: [Own(100, "shared", global: true), Own(200, "someone else's", profile: Guid.NewGuid())]);
+        var none = RenderSection(api, saved: [Own(100, "shared", global: true)]);
         Assert.True(none.FindAll("button").First(button => button.TextContent.Trim() == "Export").HasAttribute("disabled"));
     }
 
@@ -305,6 +305,7 @@ public sealed class BookmarkPackUiTests : AsyncBunitContext
                 .Add(component => component.Position, 750d)
                 .Add(component => component.Duration, 7200d)
                 .Add(component => component.AllowPacks, allowPacks));
+            await cut.Find(".video-bookmark-quick__more").ClickAsync();
             cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("button.audiobook-bookmark-dialog__tab")));
             await cut.FindAll("button.audiobook-bookmark-dialog__tab").First(tab => tab.TextContent.Trim() == "Saved").ClickAsync();
             return cut;

@@ -27,7 +27,8 @@ public sealed record ViewAssetQueryRequest(
     DateTimeOffset? AddedBefore = null,
     string? AddedAfterKey = null,
     LocalAssetDocumentFilter? DocumentFilter = null,
-    IReadOnlyCollection<Guid>? AddedByProfileIds = null);
+    IReadOnlyCollection<Guid>? AddedByProfileIds = null,
+    bool IncludeMissing = false);
 
 /// <summary>
 /// Authorized persistence plan. Backends receive only library IDs approved by
@@ -57,7 +58,8 @@ public sealed record ViewAssetQueryPlan(
     string? AddedAfterKey = null,
     LocalAssetDocumentFilter? DocumentFilter = null,
     IReadOnlyCollection<string>? ExcludedContentKinds = null,
-    IReadOnlyCollection<Guid>? AddedByProfileIds = null);
+    IReadOnlyCollection<Guid>? AddedByProfileIds = null,
+    bool IncludeMissing = false);
 
 public sealed record ViewAddedByResult(
     ViewAccessOutcome Outcome,
@@ -163,7 +165,9 @@ public sealed class ViewQueryOrchestrator(
             request.AnchorBefore, request.WithoutLocation, request.PersonKey, request.From, request.To, request.SortByAddedAt, request.AddedBefore, request.AddedAfterKey,
             request.DocumentFilter,
             await BlockedKindsAsync(ct).ConfigureAwait(false),
-            request.AddedByProfileIds);
+            request.AddedByProfileIds,
+            // Missing files are found only by a search (D9); the same scope, content-limit and Kids rules as everywhere else still apply.
+            IncludeMissing: request.IncludeMissing && !string.IsNullOrWhiteSpace(request.Search));
         var page = await backend.QueryAsync(plan, ct).ConfigureAwait(false);
         return new ViewQueryResult(ViewAccessOutcome.Allowed, page, decision.Scope);
     }
@@ -213,7 +217,8 @@ public sealed class ViewQueryOrchestrator(
             null,
             DocumentFilter: request.DocumentFilter,
             ExcludedContentKinds: await BlockedKindsAsync(ct).ConfigureAwait(false),
-            AddedByProfileIds: request.AddedByProfileIds);
+            AddedByProfileIds: request.AddedByProfileIds,
+            IncludeMissing: request.IncludeMissing && !string.IsNullOrWhiteSpace(request.Search));
         var index = await backend.IndexAsync(plan, ct).ConfigureAwait(false);
         return new ViewTimelineIndexResult(ViewAccessOutcome.Allowed, index, decision.Scope);
     }

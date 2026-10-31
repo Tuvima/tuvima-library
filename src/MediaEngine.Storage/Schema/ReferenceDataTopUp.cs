@@ -33,16 +33,17 @@ internal sealed class ReferenceDataTopUp
             INSERT OR IGNORE INTO onboarding_workflows
                 (workflow_version, state, current_step, revision, created_at, updated_at)
             VALUES
-                (1, 'in_progress', 'server', 0, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'));
+                (1, 'in_progress', 'welcome', 0, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'));
 
             INSERT OR IGNORE INTO onboarding_steps (workflow_version, step_key, status, updated_at)
             VALUES
-                (1, 'server', 'not_started', strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-                (1, 'preflight', 'not_started', strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-                (1, 'administrator', 'not_started', strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-                (1, 'media-locations', 'not_started', strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-                (1, 'providers', 'not_started', strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-                (1, 'readiness', 'not_started', strftime('%Y-%m-%dT%H:%M:%fZ','now'));
+                (1, 'welcome', 'not_started', strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+                (1, 'profile', 'not_started', strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+                (1, 'tools', 'not_started', strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+                (1, 'libraries', 'not_started', strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+                (1, 'vault', 'not_started', strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+                (1, 'metadata', 'not_started', strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+                (1, 'done', 'not_started', strftime('%Y-%m-%dT%H:%M:%fZ','now'));
             """;
         cmd.ExecuteNonQuery();
     }

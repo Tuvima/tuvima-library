@@ -77,7 +77,6 @@ public sealed class AccountEndpointContractTests
         // Profiles are managed by a household administrator for their own household too (the service limits them to it).
         var profiles = new (string Route, string Method)[]
         {
-            ("/access/profiles/{profileId:guid}/access", "PUT"),
             ("/access/profiles/{profileId:guid}/roles", "PUT"),
             ("/access/profiles/{profileId:guid}/admin-protection", "PUT"),
             ("/access/profiles/{profileId:guid}", "DELETE"),

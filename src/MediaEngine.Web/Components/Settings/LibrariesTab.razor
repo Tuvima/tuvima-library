@@ -7,6 +7,7 @@
 @inject MediaEngine.Web.Services.Settings.LibraryKindsState LibraryKinds
 @inject DeviceContextService DeviceContext
 @inject NavigationManager Navigation
+@inject MediaEngine.Web.Services.Ui.IAppDialogService DialogService
 @inject MediaEngine.Web.Services.Vault.NsfwModeState Nsfw
 @inject DashboardSessionAccessor Session
 @implements IDisposable
@@ -45,24 +46,7 @@
     else
     {
         var level = CurrentLevel;
-
-        @* The folders panel carries its own phone note; this one covers the View settings, which are read-only on a phone too. *@
-        @if (readOnly && level.Kind == LevelKind.ViewKind)
-        {
-            <p class="libraries__mobile-note">Library storage and intake are read-only on mobile. Use a desktop or tablet to change library configuration.</p>
-        }
-
-        @if (_engineUnavailable)
-        {
-            <AppAlert Tone="AppUiTone.Error">
-                The Engine is unavailable. Existing library values remain visible and are not replaced with sample data.
-            </AppAlert>
-        }
-        else if (!string.IsNullOrWhiteSpace(_loadError))
-        {
-            <AppAlert Tone="AppUiTone.Warning">@_loadError</AppAlert>
-        }
-
+        RenderFragment content = @<text>
         @switch (level.Kind)
         {
             case LevelKind.Overview:
@@ -73,8 +57,11 @@
                                    PathIssues="@_pathIssues"
                                    ShowVault="@VaultVisible"
                                    ReadOnly="@readOnly"
-                                   Area="@AreaQuery"
                                    FolderAdded="FolderAddedAsync" />
+                @if (!readOnly)
+                {
+                    <LibraryServerRulesCard Configuration="@_configuration" ReadOnly="@_engineUnavailable" Changed="RefreshConfigurationAsync" />
+                }
                 break;
             case LevelKind.Library:
                 <LibraryShell @key="@level.Library!.Id"
@@ -114,6 +101,47 @@
                     </Actions>
                 </AppPageState>
                 break;
+        }
+        </text>;
+
+        @* The folders panel carries its own phone note; this one covers the View settings, which are read-only on a phone too. *@
+        @if (readOnly && level.Kind == LevelKind.ViewKind)
+        {
+            <p class="libraries__mobile-note">Library storage and intake are read-only on mobile. Use a desktop or tablet to change library configuration.</p>
+        }
+
+        @if (_engineUnavailable)
+        {
+            <AppAlert Tone="AppUiTone.Error">
+                The Engine is unavailable. Existing library values remain visible and are not replaced with sample data.
+            </AppAlert>
+        }
+        else if (!string.IsNullOrWhiteSpace(_loadError))
+        {
+            <AppAlert Tone="AppUiTone.Warning">@_loadError</AppAlert>
+        }
+
+        @if (!readOnly && level.Kind is LevelKind.Overview or LevelKind.Library or LevelKind.ViewKind or LevelKind.Import)
+        {
+            @* The rail never goes away on a Libraries page (Libraries redesign D1): every area and library, one click from anywhere. *@
+            <div class="libraries__layout">
+                <LibrariesRail Configuration="@_configuration"
+                               Kinds="@Kinds"
+                               Overview="@_overview"
+                               ViewFolders="@_viewFolders"
+                               PathIssues="@_pathIssues"
+                               ShowVault="@VaultVisible"
+                               Selected="@RailSelection(level)"
+                               ReadOnly="@readOnly"
+                               OnAddLibrary="OpenAddLibraryAsync" />
+                <div class="libraries__pane">
+                    @content
+                </div>
+            </div>
+        }
+        else
+        {
+            @content
         }
     }
 </div>
@@ -334,6 +362,19 @@
         await RefreshConfigurationAsync();
         await LoadSummaryAsync();
     }
+
+    // What the rail highlights: the overview, a library, a View kind or the Import folder.
+    private static string RailSelection(Level level) => level.Kind switch
+    {
+        LevelKind.Library => level.Library!.Id,
+        LevelKind.ViewKind => level.TypeKey!,
+        LevelKind.Import => LibraryTypeCatalog.ImportKey,
+        _ => LibrariesRail.OverviewKey,
+    };
+
+    // A rail heading's Add link and the overview's button start the same two-step dialog, which lands on the new library's page.
+    private Task OpenAddLibraryAsync(string areaKey) => _configuration is null ? Task.CompletedTask : LibraryAddFlow.OpenAsync(
+        DialogService, _configuration, Kinds, areaKey, VaultVisible, setup: false, setupSession: null, onCreated: _ => FolderAddedAsync());
 
     private Level CurrentLevel => ResolveLevel();
 

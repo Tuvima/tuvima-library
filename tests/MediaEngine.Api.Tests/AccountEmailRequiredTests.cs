@@ -45,7 +45,7 @@ public sealed class AccountEmailRequiredTests
                         new NoOpInvalidation(),
                         new NoOpAudit(),
                         firstParty,
-                        new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate(), new FixedVaultLibraries()), accounts, new ProfileAccessRepository(database), firstParty);
+                        new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate()), accounts, new ProfileAccessRepository(database), firstParty);
                     var actor = new RequestAuthority(
                         PrincipalKind.Human,
                         true,
@@ -62,18 +62,16 @@ public sealed class AccountEmailRequiredTests
                             missing,
                             IsAdministrator: false,
                             ProfileId: null,
-                            NewProfile: new NewAccountProfileCommand("Nameless", "#7C4DFF"),
-                            Features: new HashSet<AccountFeatureId>(),
-                            HiddenLibraries: new HashSet<Guid>())));
+                            NewProfile: new NewAccountProfileCommand("Nameless", "#7C4DFF")
+                            )));
                     }
 
                     var account = await mutations.CreateAsync(actor, new CreateAccountAccessCommand(
                         "household@example.com",
                         IsAdministrator: false,
                         ProfileId: null,
-                        NewProfile: new NewAccountProfileCommand("Household", "#7C4DFF"),
-                        Features: new HashSet<AccountFeatureId>(),
-                        HiddenLibraries: new HashSet<Guid>()));
+                        NewProfile: new NewAccountProfileCommand("Household", "#7C4DFF")
+                        ));
                     var profileId = account.ProfileId;
                     var identity = new FirstPartyIdentityService(
                         identities,
@@ -159,7 +157,7 @@ public sealed class AccountEmailRequiredTests
                         new NoOpInvalidation(),
                         new NoOpAudit(),
                         firstParty,
-                        new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate(), new FixedVaultLibraries()), accounts, new ProfileAccessRepository(database), firstParty);
+                        new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate()), accounts, new ProfileAccessRepository(database), firstParty);
                     var actor = new RequestAuthority(
                         PrincipalKind.Human,
                         true,
@@ -174,9 +172,8 @@ public sealed class AccountEmailRequiredTests
                         "owner@example.com",
                         IsAdministrator: false,
                         ProfileId: null,
-                        NewProfile: new NewAccountProfileCommand("Owner", "#7C4DFF"),
-                        Features: new HashSet<AccountFeatureId>(),
-                        HiddenLibraries: new HashSet<Guid>()));
+                        NewProfile: new NewAccountProfileCommand("Owner", "#7C4DFF")
+                        ));
                     var ownerHousehold = await households.GetForAccountAsync(owner.Id);
                     Assert.NotNull(ownerHousehold);
 
@@ -254,7 +251,7 @@ public sealed class AccountEmailRequiredTests
                         new NoOpInvalidation(),
                         new NoOpAudit(),
                         firstParty,
-                        new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate(), new FixedVaultLibraries()), accounts, new ProfileAccessRepository(database), firstParty);
+                        new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate()), accounts, new ProfileAccessRepository(database), firstParty);
                     var actor = new RequestAuthority(
                         PrincipalKind.Human, true, AccountId: Guid.NewGuid(), ActiveProfileId: Guid.NewGuid(),
                         SessionId: Guid.NewGuid(), AccountEnabled: true, ActiveProfileInUserHousehold: true,
@@ -262,8 +259,8 @@ public sealed class AccountEmailRequiredTests
 
                     var child = await mutations.CreateAsync(actor, new CreateAccountAccessCommand(
                         "child@example.com", IsAdministrator: false, ProfileId: null,
-                        NewProfile: new NewAccountProfileCommand("Child", "#7C4DFF"),
-                        Features: new HashSet<AccountFeatureId>(), HiddenLibraries: new HashSet<Guid>()));
+                        NewProfile: new NewAccountProfileCommand("Child", "#7C4DFF")
+                        ));
                     var childProfileId = child.ProfileId;
                     // A new profile is an ordinary member; this one is then made a Kids profile.
                     Assert.Equal(MediaEngine.Domain.Enums.ProfileRole.StandardUser,
@@ -283,8 +280,8 @@ public sealed class AccountEmailRequiredTests
 
                     var admin = await mutations.CreateAsync(actor, new CreateAccountAccessCommand(
                         "admin@example.com", IsAdministrator: true, ProfileId: null,
-                        NewProfile: new NewAccountProfileCommand("Parent", "#7C4DFF"),
-                        Features: new HashSet<AccountFeatureId>(), HiddenLibraries: new HashSet<Guid>()));
+                        NewProfile: new NewAccountProfileCommand("Parent", "#7C4DFF")
+                        ));
                     Assert.True((await new ProfileAccessRepository(database).GetAdminFlagsAsync(admin.ProfileId))!.IsServerAdministrator);
                     Assert.Equal(MediaEngine.Domain.Enums.ProfileRole.StandardUser,
                         (await profiles.GetByIdAsync(admin.ProfileId))!.Role);
@@ -331,15 +328,14 @@ public sealed class AccountEmailRequiredTests
                         new ProfileAccessRepository(database), new IdentityRepository(database), new ProfileRepository(database), configuration,
                         new AllowAdministratorDecisions(), new AllowEvaluator(),
                         new NoOpInvalidation(), new NoOpAudit(),
-                        firstParty, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate(), new FixedVaultLibraries()), accounts, new ProfileAccessRepository(database), firstParty);
+                        firstParty, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate()), accounts, new ProfileAccessRepository(database), firstParty);
                     var human = new RequestAuthority(
                         PrincipalKind.Human, true, AccountId: Guid.NewGuid(), ActiveProfileId: Guid.NewGuid(),
                         SessionId: Guid.NewGuid(), AccountEnabled: true, ActiveProfileInUserHousehold: true,
                         ActiveProfileIsServerAdministrator: true);
 
                     CreateAccountAccessCommand Command(string email, bool administrator) => new(
-                        email, administrator, null, new NewAccountProfileCommand(email, "#7C4DFF"),
-                        new HashSet<AccountFeatureId>(), new HashSet<Guid>());
+                        email, administrator, null, new NewAccountProfileCommand(email, "#7C4DFF"));
                     var member = await mutations.CreateAsync(human, Command("member@example.com", false));
                     var admin = await mutations.CreateAsync(human, Command("admin@example.com", true));
 

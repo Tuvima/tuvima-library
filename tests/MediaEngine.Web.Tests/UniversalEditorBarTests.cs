@@ -2,6 +2,7 @@ using Bunit;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Contracts.Metadata;
+using MediaEngine.Contracts.Realtime;
 using MediaEngine.Web.Components.Details;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Editing;
@@ -10,6 +11,7 @@ using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Web.Tests;
@@ -38,6 +40,11 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
         Services.AddSingleton(_device);
         // Save changes opens Review changes, which reads the write-back setting through the same client the editor uses.
         Services.AddSingleton(Api());
+        Services.AddSingleton(new DashboardSessionAccessor());
+        Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        Services.AddScoped<ActiveProfileSessionService>();
+        Services.AddScoped<UniverseStateContainer>();
+        Services.AddScoped<UIOrchestratorService>();
         Render<AppPopoverHost>();
         _dialogs = Render<AppDialogHost>();
     }
@@ -140,6 +147,7 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
                 builder.OpenComponent<EditorPanelHost>(0);
                 builder.AddComponentParameter(1, nameof(EditorPanelHost.Mode), editor.Mode);
                 builder.AddComponentParameter(2, nameof(EditorPanelHost.Flow), editor.Flow);
+                builder.AddComponentParameter(8, nameof(EditorPanelHost.ShowHistory), true);
                 builder.AddComponentParameter(3, nameof(EditorPanelHost.ChildContent), (RenderFragment<EditTool>)(tool => inner =>
                 {
                     if (tool == EditTool.Details)
@@ -345,24 +353,46 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
     // -- The panel -------------------------------------------------------------------------------
 
     [Fact]
-    public async Task ThePanelIsClosedUntilAToolIsChosen_AndDetailsIsNarrowerThanMatch()
+    public async Task TheWindowIsClosedUntilAToolIsChosen_AndHasTheSameSizeForEveryTool()
     {
         var editor = await StartEditorAsync();
         var cut = RenderPanel(editor);
         Assert.Empty(cut.FindAll(".tl-editor-panel"));
 
         await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-editor-panel.tl-editor-panel--narrow")));
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-editor-window")));
         Assert.Equal("Details", cut.Find(".tl-editor-panel__title").TextContent.Trim());
+        Assert.NotEmpty(cut.FindAll(".tl-editor-window__cancel"));
+        Assert.NotEmpty(cut.FindAll(".tl-editor-window__save"));
 
         await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Match));
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-editor-panel.tl-editor-panel--wide")));
+        cut.WaitForAssertion(() => Assert.Equal("match", cut.Find(".tl-editor-window").GetAttribute("data-tool")));
+        Assert.NotEmpty(cut.FindAll(".tl-editor-window__save"));
     }
 
     [Fact]
-    public async Task ClosingThePanel_KeepsEditModeAndThePendingChanges_WithoutAsking()
+    public async Task HistoryIsATabOfTheWindow_AndOpeningDetailsAgainClosesIt()
     {
         var editor = await StartEditorAsync();
+        var cut = RenderPanel(editor);
+
+        await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
+        cut.WaitForAssertion(() => Assert.Contains("History", cut.FindAll(".tl-editor-window__tool").Select(tool => tool.TextContent.Trim())));
+
+        await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.History));
+        cut.WaitForAssertion(() => Assert.Equal("history", cut.Find(".tl-editor-window").GetAttribute("data-tool")));
+        Assert.Equal(EditingSection.History, editor.Mode.OpenSectionKind);
+        Assert.Equal("History", cut.Find(".tl-editor-panel__title").TextContent.Trim());
+
+        await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
+        cut.WaitForAssertion(() => Assert.Equal("details", cut.Find(".tl-editor-window").GetAttribute("data-tool")));
+        Assert.Equal(EditingSection.Details, editor.Mode.OpenSectionKind);
+    }
+
+    [Fact]
+    public async Task ClosingTheWindowWithChangesStaged_Asks_AndKeepEditingKeepsEverything()
+    {
+        var editor = await StartEditorAsync(discardWhenAsked: false);
         var cut = RenderPanel(editor);
         await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-editor-details")));
@@ -370,15 +400,15 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
 
         cut.Find("button.tl-editor-panel__close").Click();
 
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-editor-panel")));
+        cut.WaitForAssertion(() => Assert.Single(editor.Asked));
+        Assert.NotEmpty(cut.FindAll(".tl-editor-panel"));
         Assert.True(editor.Mode.IsOn);
         Assert.True(editor.Session.IsActive);
         Assert.Equal(1, editor.Session.Pending.Count);
-        Assert.Empty(editor.Asked);
     }
 
     [Fact]
-    public async Task OpeningThePanel_MovesFocusIntoIt_AndClosingIt_PutsFocusBackOnTheToolsButton()
+    public async Task OpeningTheWindow_MovesFocusIntoIt_AndClosingItWithNothingStaged_LeavesEditing()
     {
         var editor = await StartEditorAsync();
         var bar = RenderBar(editor);
@@ -390,7 +420,27 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
 
         panel.Find("button.tl-editor-panel__close").Click();
 
-        bar.WaitForAssertion(() => Assert.Equal("tl-editing-tool-details", FocusedIds().Last()));
+        bar.WaitForAssertion(() => Assert.False(editor.Mode.IsOn));
+    }
+
+    [Fact]
+    public async Task SaveInTheWindow_OpensReviewAsAPageOfTheWindow_AndBackToEditingReturnsToTheTool()
+    {
+        var editor = await StartEditorAsync();
+        var cut = RenderPanel(editor);
+        await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-editor-details")));
+        editor.Session.Pending.SetField(MovieId, "title", "Dune");
+
+        cut.Find(".tl-editor-window__save").Click();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".review-changes--page")));
+        Assert.Equal("Review changes", cut.Find(".tl-editor-panel__title").TextContent.Trim());
+        Assert.Empty(cut.FindAll(".app-dialog-shell"));
+        Assert.Empty(cut.FindAll(".tl-editor-window__save"));
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Back to editing").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-editor-details")));
+        Assert.Equal("Details", cut.Find(".tl-editor-panel__title").TextContent.Trim());
         Assert.True(editor.Session.IsActive);
     }
 
@@ -400,19 +450,17 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
         .ToList();
 
     [Fact]
-    public async Task EscClosesTheOpenPanelFirst_ThenAsksOnlyWhenChangesArePending()
+    public async Task EscAsksUnsavedChangesWhenChangesArePending_AndKeepEditingLeavesTheWindowOpen()
     {
         var editor = await StartEditorAsync(discardWhenAsked: false);
         await editor.Flow.SelectToolAsync(EditTool.Details);
         editor.Session.Pending.SetField(MovieId, "title", "Dune");
 
-        Assert.True(await editor.Flow.HandleEscapeAsync());
-        Assert.Null(editor.Session.ActiveTool);
-        Assert.Empty(editor.Asked);
-
+        // The editor is a window: Esc asks "Unsaved changes" straight away when something is staged, and Keep editing leaves it open.
         Assert.True(await editor.Flow.HandleEscapeAsync());
         Assert.Single(editor.Asked);
         Assert.True(editor.Mode.IsOn);
+        Assert.Equal(EditTool.Details, editor.Session.ActiveTool);
     }
 
     [Fact]
@@ -527,6 +575,42 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
         Assert.Equal(1, _refreshes);
         Assert.True(editor.Session.Pending.IsEmpty);
         Assert.False(editor.Session.IsActive);
+        Assert.Equal(1, editor.Flow.LastSave?.Count);
+    }
+
+    [Fact]
+    public async Task AfterASave_TheRibbonSaysHowManyChangesWereSaved_AndDismissClearsIt()
+    {
+        var editor = await StartEditorAsync();
+        editor.Session.Pending.SetField(MovieId, "title", "Dune 2");
+        var bar = RenderBar(editor);
+        var ribbon = Render<EditSavedRibbon>(parameters => parameters.Add(component => component.Flow, editor.Flow));
+        Assert.Empty(ribbon.FindAll(".tl-saved-ribbon"));
+
+        SaveFromReview(bar);
+
+        ribbon.WaitForAssertion(() => Assert.Contains("Saved 1 change at", ribbon.Find(".tl-saved-ribbon").TextContent, StringComparison.Ordinal));
+        ribbon.Find(".tl-saved-ribbon button").Click();
+        ribbon.WaitForAssertion(() => Assert.Empty(ribbon.FindAll(".tl-saved-ribbon")));
+        Assert.Null(editor.Flow.LastSave);
+    }
+
+    [Fact]
+    public async Task AfterASave_TheRibbonNamesTheProviderWhoseDetailsArriveForTheSavedItem_AndIgnoresOtherItems()
+    {
+        var editor = await StartEditorAsync();
+        editor.Session.Pending.SetField(MovieId, "title", "Dune 2");
+        var bar = RenderBar(editor);
+        var ribbon = Render<EditSavedRibbon>(parameters => parameters.Add(component => component.Flow, editor.Flow));
+        var orchestrator = Services.GetRequiredService<UIOrchestratorService>();
+        SaveFromReview(bar);
+        ribbon.WaitForElement(".tl-saved-ribbon");
+
+        await ribbon.InvokeAsync(() => orchestrator.RaiseHydrationStageCompleted(new HydrationStageCompletedEvent(Guid.NewGuid(), 1, 5, "Other")));
+        await ribbon.InvokeAsync(() => orchestrator.RaiseHydrationStageCompleted(new HydrationStageCompletedEvent(MovieId, 1, 5, "TMDB")));
+
+        ribbon.WaitForAssertion(() => Assert.Contains("Updated from TMDB.", ribbon.Find(".tl-saved-ribbon").TextContent, StringComparison.Ordinal));
+        Assert.DoesNotContain("Other", ribbon.Find(".tl-saved-ribbon").TextContent, StringComparison.Ordinal);
     }
 
     [Fact]

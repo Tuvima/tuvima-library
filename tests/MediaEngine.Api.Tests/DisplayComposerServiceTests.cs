@@ -959,8 +959,8 @@ public sealed class DisplayComposerServiceTests
         var profileId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
         var repository = new StubDisplayProjectionRepository(
             [
-                Work(firstTrack, "Music", "Static", artist: "Among The Outcasts", album: "Static On The Line", genre: "Rock", track: "1", collectionId: albumId, duration: "180"),
-                Work(secondTrack, "Music", "Signals", artist: "Among The Outcasts", album: "Static On The Line", genre: "Rock", track: "2", collectionId: albumId, duration: "240"),
+                Work(firstTrack, "Music", "Static", artist: "Among The Outcasts", album: "Static On The Line", genre: "Rock", track: "1", collectionId: albumId, duration: "180000"),
+                Work(secondTrack, "Music", "Signals", artist: "Among The Outcasts", album: "Static On The Line", genre: "Rock", track: "2", collectionId: albumId, duration: "240000"),
             ],
             [
                 Journey(secondTrack, "Music", "Signals", progressPct: 44, artist: "Among The Outcasts", album: "Static On The Line", genre: "Rock", track: "2", collectionId: albumId),

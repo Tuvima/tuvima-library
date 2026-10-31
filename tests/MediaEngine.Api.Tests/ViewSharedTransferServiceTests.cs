@@ -7,6 +7,9 @@ using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.PersonalMedia;
+using MediaEngine.Ingestion;
+using MediaEngine.Ingestion.Contracts;
+using MediaEngine.Ingestion.Models;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
 using MediaEngine.TestSupport;
@@ -310,6 +313,52 @@ public sealed class ViewSharedTransferServiceTests
         Assert.Equal("completed", result.State);
         Assert.Equal(fixture.SharedItemId(indexed.ItemId), Assert.Single(fixture.WriteQueue.ViewItems).ItemId);
         Assert.True(File.Exists(original));
+    }
+
+    [Fact]
+    public async Task WhenTheSafetyGateRefuses_TheOriginalStaysAndTheTransferSaysWhy()
+    {
+        using var fixture = new Fixture();
+        var original = fixture.WriteManaged("gate-refused.jpg", [9, 8, 7, 6]);
+        var indexed = await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, original);
+        Assert.NotNull(indexed);
+        var refusing = fixture.NewTransfers(new RefusingGate());
+
+        var result = await refusing.ExecuteAsync(indexed!.ItemId, fixture.ProfileId, "timeline", null);
+
+        Assert.Equal("cleanup_pending", result.State);
+        Assert.True(result.SourceCleanupPending);
+        Assert.True(File.Exists(original));
+        var destination = Assert.Single(result.DestinationPaths);
+        Assert.Equal([9, 8, 7, 6], await File.ReadAllBytesAsync(destination));
+        var error = fixture.TransferError(indexed.ItemId);
+        Assert.StartsWith(ViewSharedTransferService.OriginalNotRemovedMessage, error, StringComparison.Ordinal);
+        Assert.DoesNotContain("technical", error, StringComparison.OrdinalIgnoreCase);
+
+        // Once the gate agrees, a retry finishes the cleanup and removes the original.
+        var retried = await fixture.Transfers.ExecuteAsync(indexed.ItemId, fixture.ProfileId, "timeline", null);
+        Assert.Equal("completed", retried.State);
+        Assert.False(File.Exists(original));
+    }
+
+    [Fact]
+    public async Task AnOriginalThatIsNoLongerInsideTheOwnersProfileFolder_IsNeverRemovedByCleanup()
+    {
+        using var fixture = new Fixture();
+        var original = fixture.WriteManaged("moved-away.jpg", [4, 3, 2, 1]);
+        var indexed = await fixture.Library.IndexPathAsync(fixture.Space.LibraryId, original);
+        Assert.NotNull(indexed);
+        var refusing = fixture.NewTransfers(new RefusingGate());
+        await refusing.ExecuteAsync(indexed!.ItemId, fixture.ProfileId, "timeline", null);
+
+        // The recorded original now points outside the owner's folder, as if the record had been tampered with.
+        var outside = Path.Combine(fixture.Root, "outside-profile.jpg");
+        File.Copy(original, outside);
+        fixture.PointOriginalAt(indexed.ItemId, original, outside);
+        var retried = await fixture.Transfers.ExecuteAsync(indexed.ItemId, fixture.ProfileId, "timeline", null);
+
+        Assert.Equal("cleanup_pending", retried.State);
+        Assert.True(File.Exists(outside));
     }
 
     [Fact]
@@ -902,6 +951,12 @@ public sealed class ViewSharedTransferServiceTests
             ValueTask.FromResult(authority);
     }
 
+    private sealed class RefusingGate : ISourceMutationPolicyGate
+    {
+        public SourceMutationDecision Evaluate(SourceMutationRequest request) =>
+            SourceMutationDecision.Deny("technical detail that must never reach a person");
+    }
+
     private sealed class Fixture : IDisposable
     {
         private readonly ConfigurationDirectoryLoader _configuration;
@@ -951,7 +1006,7 @@ public sealed class ViewSharedTransferServiceTests
             Space = Storage.EnsurePersonalSpaceAsync(ProfileId).GetAwaiter().GetResult();
             Library = new ViewLibraryService(_assets, _configuration, _spaces, Storage,
                 NullLogger<ViewLibraryService>.Instance, fileWrites: WriteQueue);
-            Transfers = new ViewSharedTransferService(_database, _assets, Storage, WriteQueue);
+            Transfers = new ViewSharedTransferService(_database, _assets, Storage, _spaces, new SourceMutationPolicyGate(), WriteQueue);
             Policies = new ViewProfileRepository(_database);
             Authorization = new TestAllowAuthorizationEvaluator();
             Decisions = new AdministratorDecisions();
@@ -1006,6 +1061,28 @@ public sealed class ViewSharedTransferServiceTests
         public ViewStorageService Storage { get; }
         public ViewLibraryService Library { get; }
         public ViewSharedTransferService Transfers { get; }
+
+        /// <summary>A second transfer service over the same data and files, asking the given gate instead of the real one.</summary>
+        public ViewSharedTransferService NewTransfers(ISourceMutationPolicyGate gate) =>
+            new(_database, _assets, Storage, _spaces, gate, WriteQueue);
+
+        public string? TransferError(Guid itemId)
+        {
+            using var connection = _database.CreateConnection();
+            return connection.QuerySingleOrDefault<string?>("SELECT error FROM view_shared_transfers WHERE item_id = @itemId;", new { itemId });
+        }
+
+        public void PointOriginalAt(Guid itemId, string from, string to)
+        {
+            using var connection = _database.CreateConnection();
+            connection.Execute("UPDATE local_file_sources SET file_path = @to WHERE file_path = @from;", new { from, to });
+            connection.Execute("""
+                UPDATE view_shared_transfers
+                   SET destination_manifest_json = REPLACE(destination_manifest_json, @fromJson, @toJson)
+                 WHERE item_id = @itemId;
+                """, new { itemId, fromJson = System.Text.Json.JsonSerializer.Serialize(from).Trim('"'), toJson = System.Text.Json.JsonSerializer.Serialize(to).Trim('"') });
+        }
+
         public TestAllowAuthorizationEvaluator Authorization { get; }
         public AdministratorDecisions Decisions { get; }
         public RecordingAuditWriter Audit { get; }

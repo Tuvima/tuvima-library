@@ -107,15 +107,17 @@ public sealed class ServerFolderBrowserService(
         List<ServerFolderEntryDto> directories;
         try
         {
-            directories = Directory.EnumerateDirectories(resolved.Path)
-                .Select(path => new DirectoryInfo(path))
-                .Where(directory => !directory.Name.StartsWith('.')
-                    && (directory.Attributes & (FileAttributes.Hidden | FileAttributes.System)) == 0
-                    && !IsInsideOwnFolder(ownFolders, PhysicalOrFull(directory.FullName))
-                    && !IsHidden(hidden, PhysicalOrFull(directory.FullName)))
-                .Where(directory => string.IsNullOrWhiteSpace(search)
-                    || directory.Name.Contains(search, StringComparison.OrdinalIgnoreCase))
-                .Select(directory => CreateEntry(resolved, directory))
+            // Names first: the enumeration already carries each folder's attributes, so a plain folder (not a link) costs no further disk
+            // reads here. Only a link is followed to find where it really points, which is what keeps a slow or network drive quick to list.
+            directories = new DirectoryInfo(resolved.Path).EnumerateDirectories()
+                .Select(directory => (Directory: directory, Physical: PhysicalPathOf(resolved.Path, directory)))
+                .Where(item => !item.Directory.Name.StartsWith('.')
+                    && (item.Directory.Attributes & (FileAttributes.Hidden | FileAttributes.System)) == 0
+                    && !IsInsideOwnFolder(ownFolders, item.Physical)
+                    && !IsHidden(hidden, item.Physical))
+                .Where(item => string.IsNullOrWhiteSpace(search)
+                    || item.Directory.Name.Contains(search, StringComparison.OrdinalIgnoreCase))
+                .Select(item => CreateEntry(resolved, item.Directory, item.Physical))
                 .Where(entry => entry is not null)
                 .Cast<ServerFolderEntryDto>()
                 .OrderBy(entry => entry.Name, StringComparer.OrdinalIgnoreCase)
@@ -443,11 +445,21 @@ public sealed class ServerFolderBrowserService(
         return SupportedFileCounter.Count(path, SupportedFileCounter.ExtensionsFor(_extensions, kind.Format), label, cancellationToken);
     }
 
-    private ServerFolderEntryDto? CreateEntry(ResolvedSelection parent, DirectoryInfo directory)
+    // A folder that is not a link lives under its parent's real path; only a link needs the slow walk to its target.
+    private static string PhysicalPathOf(string parentPhysical, DirectoryInfo directory) =>
+        (directory.Attributes & FileAttributes.ReparsePoint) == 0
+            ? Path.Combine(parentPhysical, directory.Name)
+            : PhysicalOrFull(directory.FullName);
+
+    private ServerFolderEntryDto? CreateEntry(ResolvedSelection parent, DirectoryInfo directory, string physical)
     {
         try
         {
-            var physical = ResolvePhysicalPath(parent.RootPath, directory.FullName);
+            if ((directory.Attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                physical = ResolvePhysicalPath(parent.RootPath, directory.FullName);
+            }
+
             if (!IsWithin(parent.RootPath, physical))
             {
                 logger.LogWarning(

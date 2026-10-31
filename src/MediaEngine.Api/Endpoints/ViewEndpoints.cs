@@ -207,7 +207,7 @@ public static partial class ViewEndpoints
             bool? withoutLocation, string? personKey, DateTimeOffset? from, DateTimeOffset? to,
             Guid[]? tag, Guid? correspondent, Guid? docType, DateOnly? docFrom, DateOnly? docTo,
             string? filing, string[]? field, string? docSort,
-            [FromQuery(Name = "added_by")] Guid[]? addedBy,
+            [FromQuery(Name = "added_by")] Guid[]? addedBy, bool? missing,
             IViewRequestProfileContext identity, IViewProfileRepository preferences,
             IViewResourceAuthorizationService authorization,
             IViewQueryOrchestrator queries, CancellationToken ct) =>
@@ -244,7 +244,8 @@ public static partial class ViewEndpoints
                     AllowStaleSelectionFallback: string.IsNullOrWhiteSpace(scope),
                     AnchorBefore: anchorBefore, WithoutLocation: withoutLocation == true,
                     PersonKey: personKey, From: from, To: to, DocumentFilter: documentFilter,
-                    AddedByProfileIds: addedBy is { Length: > 0 } ? addedBy : null), ct);
+                    AddedByProfileIds: addedBy is { Length: > 0 } ? addedBy : null,
+                    IncludeMissing: missing == true), ct);
                 return Access(result.Outcome, result.Page is { } timelinePage
                     ? timelinePage with { Items = ViewItemCapabilities.ForViewer(timelinePage.Items, authority.ActiveProfileId) }
                     : null);
@@ -1962,7 +1963,8 @@ public static partial class ViewEndpoints
             source.SkippedFileCount,
             source.AddedByProfileId,
             ViewKindAcceptance.IsIntakeSource(source.SourceKey),
-            source.KeptInLibraryCount);
+            source.KeptInLibraryCount,
+            source.FolderOffline);
 
     private static ViewSourceAdminDto ToAdminSource(
         ViewSharedSource source,
@@ -1983,7 +1985,8 @@ public static partial class ViewEndpoints
             source.SkippedFileCount,
             source.AddedByProfileId,
             ViewKindAcceptance.IsIntakeSource(source.SourceKey),
-            source.KeptInLibraryCount);
+            source.KeptInLibraryCount,
+            source.FolderOffline);
 
     private static string SourceTypeValue(ViewSourceType value) => value switch
     {

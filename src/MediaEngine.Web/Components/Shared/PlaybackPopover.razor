@@ -87,8 +87,9 @@
         if (Open != _lastControlledOpen)
         {
             _lastControlledOpen = Open;
-            if (Open == true && !Disabled) _tools?.Open(EffectiveToolId, pinned: true, parentPanel: ParentPanel);
-            else if (Open == false) _tools?.Close(EffectiveToolId);
+            // A controlled Open that only echoes this popover's own report (hover-open) must not re-open it pinned.
+            if (Open == true && !Disabled && !IsOpen) _tools?.Open(EffectiveToolId, pinned: true, parentPanel: ParentPanel);
+            else if (Open == false && !_reportedOpen) _tools?.Close(EffectiveToolId);
         }
         if (_lastItemKey == ItemKey) return;
         _lastItemKey = ItemKey;

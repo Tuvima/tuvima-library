@@ -3,6 +3,7 @@
 @using MediaEngine.Contracts.Editing
 @using MediaEngine.Contracts.Library
 @using MediaEngine.Contracts.Matching
+@using MediaEngine.Contracts.Metadata
 @using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Integration
 @implements IDisposable
@@ -16,18 +17,14 @@
    relationship and the physical files. "Use this match" only stages the choice in the pending list; Save changes writes it. *@
 @if (Subject is not null)
 {
-    <div class="tl-match" data-step="@_step">
-        <AppStepIndicator Steps="@Steps" ActiveStep="@_step" Class="tl-match__steps" />
+    <div class="tl-match">
         @if (!CanEdit)
         {
             <AppAlert Severity="AppSeverity.Info" Dense="true">You can look at matches but not change them.</AppAlert>
         }
 
-        @if (_step == 1)
-        {
-            @FindStep()
-        }
-        else if (_selected is not null)
+        @FindStep()
+        @if (_selected is not null)
         {
             @ReviewStep(_selected)
         }
@@ -35,12 +32,8 @@
 }
 
 @code {
-    private static readonly IReadOnlyList<AppStepIndicator.AppStep> Steps =
-        [new(1, "Find match"), new(2, "Review selected match")];
-
     private CancellationTokenSource? _searchCts;
     private Guid _startedFor;
-    private int _step = 1;
     private string _query = string.Empty;
     private string _group = string.Empty;
     private string _provider = string.Empty;
@@ -82,6 +75,13 @@
     /// <summary>Raised after the video lookup matched something, so the page can refresh.</summary>
     [Parameter] public EventCallback OnMatched { get; set; }
 
+    private bool UsesTvBrowser => Subject is not null && EditorTvMatchCandidates.UsesBrowser(Subject.MediaType, Subject.ScopeId);
+
+    // A pick in the TV browser becomes the same kind of candidate a search result is, so the switches and staging below are shared.
+    private Task OnShowChosenAsync(TvMatchBrowserShowDto show) => SelectAsync(EditorTvMatchCandidates.ForShow(show));
+
+    private Task OnEpisodeChosenAsync(TvMatchBrowserEpisodeDto episode) => SelectAsync(EditorTvMatchCandidates.ForEpisode(episode));
+
     private string SearchInLabel => _providers.FirstOrDefault(p => p.Name == _provider)?.DisplayName ?? "All providers";
 
     private IReadOnlyList<EditorMatchTab> Tabs => Subject is null ? [] : EditorMatchRules.TabsFor(Subject.MediaType, Subject.TargetGroup);
@@ -98,7 +98,6 @@
         }
 
         _startedFor = Subject.EntityId;
-        _step = 1;
         _group = Subject.TargetGroup;
         _query = Subject.Title;
         _provider = string.Empty;
@@ -111,6 +110,12 @@
     private RenderFragment FindStep() => __builder =>
     {
         <div class="tl-match__find">
+            @if (UsesTvBrowser)
+            {
+                <EditorTvMatchBrowser Subject="Subject" CanEdit="CanEdit" OnShowChosen="OnShowChosenAsync" OnEpisodeChosen="OnEpisodeChosenAsync" />
+            }
+            else
+            {
             <div class="tl-match__searchrow">
                 <AppTextField Label="Search" HideLabel="true" Value="@_query" ValueChanged="@(value => _query = value ?? string.Empty)"
                               Placeholder="@($"Search for {Subject!.Title}")" Immediate="true" OnKeyDown="OnQueryKey" aria-label="Search for a match" />
@@ -165,6 +170,7 @@
                     }
                 </div>
             }
+            }
 
             @if (Mode is not null)
             {
@@ -215,6 +221,7 @@
     {
         var facts = EditorMatchRules.FactsOf(candidate);
         <div class="tl-match__review" id="tl-match-review" role="group" aria-label="Review selected match" tabindex="-1">
+            <h3 class="tl-match__happen">What will happen</h3>
             <div class="tl-match__compare">
                 <section class="tl-match__side" aria-label="Your item">
                     <h3 class="tl-match__side-heading">Your item</h3>
@@ -263,7 +270,7 @@
             }
 
             <div class="tl-match__actions">
-                <AppButton Label="Back to results" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="BackToResults" />
+                <AppButton Label="Choose another" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="BackToResults" />
                 <AppButton Label="Use this match" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!CanUse)" OnClick="UseThisMatch" />
             </div>
         </div>
@@ -338,7 +345,6 @@
         _loading = true;
         _problem = null;
         _selected = null;
-        _step = 1;
         StateHasChanged();
 
         ItemCanonicalSearchResponseDto? response = null;
@@ -441,7 +447,6 @@
         _selected = candidate;
         _selectedIndex = Math.Max(0, _results.ToList().IndexOf(candidate));
         _focusAfterRender = "tl-match-review";
-        _step = 2;
         _staged = false;
         _keepDetails = true;
         _useRetail = true;
@@ -563,7 +568,6 @@
     private void BackToResults()
     {
         _focusAfterRender = SelectButtonId(_selectedIndex);
-        _step = 1;
         _selected = null;
         _staged = false;
     }

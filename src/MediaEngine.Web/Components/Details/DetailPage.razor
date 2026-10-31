@@ -51,6 +51,7 @@ else if (Model is not null)
         <EditingBar Mode="_editing"
                     Flow="_flow"
                     CanDelete="@CanDeleteFromLibrary"
+                    GroupDeleteActions="GroupDeleteMenuActions"
                     GuardInternalNavigation="@(Overlay is null)"
                     OnActionSelected="HandleDetailActionAsync" />
 
@@ -64,6 +65,7 @@ else if (Model is not null)
 
             <DetailHero Model="Model"
                         CanDelete="@CanDeleteFromLibrary"
+                        DeleteActions="GroupDeleteMenuActions"
                         OnActionSelected="HandleDetailActionAsync"
                         OnTabRequested="SetActiveTabAsync"
                         ActionAttributes="@(IsAudiobook ? AudiobookActionAttributes : null)" />
@@ -118,15 +120,11 @@ else if (Model is not null)
             }
         </section>
 
-        @* The Artwork tool is a floating picker, not a panel (spec D8): it hangs over the page so the preview stays in view. *@
-        @if (_editing is { IsOn: true, CanEdit: true } && _flow.Session is { IsActive: true, ActiveTool: EditTool.Artwork })
-        {
-            <FloatingArtworkPicker Mode="_editing" Flow="_flow" Picker="_artworkPicker" />
-        }
 
         @* The right-hand panel of the editor: Details here (or the bulk panel while rows are ticked and the bar opened it), Match through the
            editor section it has always used. *@
-        <EditorPanelHost Mode="_editing" Flow="_flow" TitleOverride="@BulkPanelTitle">
+        <EditSavedRibbon Flow="_flow" />
+        <EditorPanelHost Mode="_editing" Flow="_flow" Picker="_artworkPicker" TitleOverride="@BulkPanelTitle" ShowHistory="true">
             @if (context == EditTool.Details)
             {
                 @if (_batch.Panel != BulkPanelKind.None)
@@ -153,11 +151,10 @@ else if (Model is not null)
                                   OnMatched="RefreshAfterSectionCommitAsync" />
             }
 
-            <EditingSectionSlot Mode="_editing"
-                                InPanel="true"
-                                ItemKey="@_flow.Session.ActiveItem?.EntityId"
-                                BuildRequest="BuildSectionRequest"
-                                OnCommitted="RefreshAfterSectionCommitAsync" />
+            @if (context == EditTool.History)
+            {
+                <EditorHistoryTool EntityId="@(_flow.Session.ActiveItem?.EntityId ?? Guid.Empty)" />
+            }
         </EditorPanelHost>
     </article>
     </CascadingValue>
@@ -276,15 +273,11 @@ else if (Model is not null)
             return;
         }
 
-        _resumeMoveLine = resume.ResultLine;
         _editing.OpenSection(resume.Section);
     }
 
     // The one-shot note lives in the overlay state: this page's own cascade when it is in the overlay, else the circuit's.
     private DetailsOverlayState? EditResumeStore => Overlay ?? Services.GetService<DetailsOverlayState>();
-
-    // The result line the Match and Identity section shows when it first opens after a move was carried over; the section takes it once.
-    private string? _resumeMoveLine;
 
     protected override void OnParametersSet()
     {
@@ -572,8 +565,69 @@ else if (Model is not null)
     private bool CanDeleteFromLibrary =>
         Model is not null
         && !_removed
-        && LibraryItemDeletionFlow.IsSingleTitle(Model.EntityType)
+        && (LibraryItemDeletionFlow.IsSingleTitle(Model.EntityType) || GroupTargets.Count > 0)
         && LibraryItemDeletionFlow.CanDelete(DeviceContext, Services.GetService<DashboardSessionAccessor>());
+
+    /// <summary>
+    /// The groups this page can delete (Delete a show, season, album or Series D2): a show page offers its show, and also the season
+    /// selected in the season control, which has no page of its own; an album page its album; a book or comic Series page its Series.
+    /// The season comes first so the menu reads "Delete Season 2…" above "Delete show…".
+    /// </summary>
+    private IReadOnlyList<LibraryGroupTarget> GroupTargets
+    {
+        get
+        {
+            if (Model is null || !Guid.TryParse(Model.Id, out var id) || !LibraryItemDeletionFlow.IsGroupPage(Model.EntityType))
+            {
+                return [];
+            }
+
+            var kind = Model.EntityType switch
+            {
+                DetailEntityType.TvShow => LibraryGroupKinds.Show,
+                DetailEntityType.MusicAlbum => LibraryGroupKinds.Album,
+                _ => LibraryGroupKinds.Series,
+            };
+            var owned = (Model.SequencePlacement?.Groups ?? [])
+                .SelectMany(group => group.Items)
+                .Concat(Model.SequencePlacement?.OrderedItems ?? [])
+                .Where(item => item.IsOwned && Guid.TryParse(item.Id, out _))
+                .Select(item => Guid.Parse(item.Id))
+                .Distinct()
+                .ToList();
+            var targets = new List<LibraryGroupTarget>();
+            if (kind == LibraryGroupKinds.Show
+                && SelectedSeasonId is { } seasonId
+                && Model.SequencePlacement?.Groups.FirstOrDefault(group =>
+                    Guid.TryParse(group.EntityId, out var groupId) && groupId == seasonId && group.OwnedCount > 0) is { } season)
+            {
+                targets.Add(new LibraryGroupTarget(seasonId, LibraryGroupKinds.Season, season.Title, season.Items.Where(item => item.IsOwned && Guid.TryParse(item.Id, out _)).Select(item => Guid.Parse(item.Id)).ToList()));
+            }
+
+            targets.Add(new LibraryGroupTarget(id, kind, Model.Title, owned));
+            return targets;
+        }
+    }
+
+    // The "..." entries for a group page; null for a single title, whose menu keeps "Delete from library…".
+    private IReadOnlyList<DetailAction>? GroupDeleteMenuActions
+    {
+        get
+        {
+            var targets = GroupTargets;
+            return targets.Count == 0
+                ? null
+                : [.. targets.Select(target => DetailMenuGrouping.DeleteGroupAction(GroupDeleteLabel(target), target.Kind == LibraryGroupKinds.Season))];
+        }
+    }
+
+    private static string GroupDeleteLabel(LibraryGroupTarget target) => target.Kind switch
+    {
+        LibraryGroupKinds.Season => $"Delete {target.Title}…",
+        LibraryGroupKinds.Show => "Delete show…",
+        LibraryGroupKinds.Album => "Delete album…",
+        _ => "Delete Series…",
+    };
 
     private void UpdateEditingEligibility()
     {
@@ -622,30 +676,6 @@ else if (Model is not null)
             target.InitialScope,
             _editingProfileId);
         RememberPageItem();
-    }
-
-    // The request for the editor hosted in the section slot: the section id (artwork, links or history) is its one tab.
-    private MediaEditorLaunchRequest? BuildSectionRequest(string tab, string? artworkSlot)
-    {
-        if (Model is null || !Guid.TryParse(Model.Id, out var entityId))
-        {
-            return null;
-        }
-
-        // Another item of the page is being edited (spec D7): the section is about that item, not the page's own.
-        if (_flow.Session is { IsActive: true, ActiveItem: { } active } && !IsPageItem(active))
-        {
-            return BuildOtherItemRequest(active, tab, artworkSlot);
-        }
-
-        string? moveLine = null;
-        if (tab == "links")
-        {
-            moveLine = _resumeMoveLine;
-            _resumeMoveLine = null;
-        }
-
-        return BuildMediaEditorRequest(entityId, ResolveEditorTarget(entityId), _editingProfileId, tab, artworkSlot, moveLine);
     }
 
     // Save changes went through: refresh what the page shows, and reload the editor's fields so the next edit starts from the saved values.
@@ -736,7 +766,7 @@ else if (Model is not null)
         }
     }
 
-    private async Task DeleteFromLibraryAsync()
+    private async Task DeleteFromLibraryAsync(bool season = false)
     {
         if (Model is null || _deleting || _leaving || _removed || !Guid.TryParse(Model.Id, out var workId))
         {
@@ -751,6 +781,7 @@ else if (Model is not null)
 
         if (!LibraryItemDeletionFlow.IsSingleTitle(Model.EntityType))
         {
+            await DeleteGroupAsync(season);
             return;
         }
 
@@ -777,6 +808,43 @@ else if (Model is not null)
         }
     }
 
+    // Delete show, season, album or Series: the dialog asks the Engine for the whole group. Deleting a season leaves the show, so the page
+    // stays and shows the show again; deleting anything else (or the last season) takes the page's own subject, so it closes as for a title.
+    private async Task DeleteGroupAsync(bool season)
+    {
+        var target = GroupTargets.FirstOrDefault(candidate => (candidate.Kind == LibraryGroupKinds.Season) == season);
+        if (target is null)
+        {
+            return;
+        }
+
+        _deleting = true;
+        LibraryItemDeletionDialogResult? answer = null;
+        try
+        {
+            answer = await LibraryItemDeletionFlow.RunGroupAsync(Dialogs, Snackbar, target);
+        }
+        finally
+        {
+            _leaving = answer is not null && (target.Kind != LibraryGroupKinds.Season || answer.RemovedParent);
+            _deleting = false;
+        }
+
+        if (_leaving)
+        {
+            await LeaveAfterRemovalAsync();
+        }
+        else if (answer?.Deleted is not null && target.Kind == LibraryGroupKinds.Season && Guid.TryParse(Model?.Id, out var showId))
+        {
+            // The season is gone; the show page opens on its first season again.
+            DetailsOverlayNavigation.ReplaceAddress(Nav, Overlay, $"/details/tvshow/{showId:D}");
+        }
+        else if (_removedWhileDeleting && !_disposed)
+        {
+            await HandleRemovedByAnotherAsync();
+        }
+    }
+
     // Another window (or another person) deleted the title this page shows.
     private void OnLibraryItemsRemoved(LibraryItemsRemovedEvent removed) => _ = InvokeAsync(async () =>
     {
@@ -785,7 +853,7 @@ else if (Model is not null)
             return;
         }
 
-        if (!removed.WorkIds.Contains(id))
+        if (!removed.WorkIds.Contains(id) && removed.GroupIds?.Contains(id) != true)
         {
             // A show, album, series or collection page that lists a deleted title refreshes so the row leaves it.
             if (!_deleting && ListsRemovedTitle(removed))
@@ -900,8 +968,10 @@ else if (Model is not null)
     }
 
     private bool ListsRemovedTitle(LibraryItemsRemovedEvent removed) => Model is not null
-        && Model.MediaGroups.SelectMany(group => group.Items)
-            .Any(item => Guid.TryParse(item.Id, out var workId) && removed.WorkIds.Contains(workId));
+        && (Model.MediaGroups.SelectMany(group => group.Items)
+                .Any(item => Guid.TryParse(item.Id, out var workId) && removed.WorkIds.Contains(workId))
+            || (Model.SequencePlacement?.Groups ?? []).SelectMany(group => group.Items)
+                .Any(item => Guid.TryParse(item.Id, out var workId) && removed.WorkIds.Contains(workId)));
 
     // The title is gone: end Editing Mode (nothing typed matters now, and it must not ask) and go back to where the person came from.
     private async Task LeaveAfterRemovalAsync()
@@ -1031,9 +1101,9 @@ else if (Model is not null)
             return;
         }
 
-        if (action.Key == DetailActionKeys.DeleteFromLibrary)
+        if (action.Key is DetailActionKeys.DeleteFromLibrary or DetailActionKeys.DeleteSeason)
         {
-            await DeleteFromLibraryAsync();
+            await DeleteFromLibraryAsync(action.Key == DetailActionKeys.DeleteSeason);
             return;
         }
 
@@ -1186,92 +1256,6 @@ else if (Model is not null)
         finally { _changingUnmatched = false; }
     }
 
-    // The same request shape for an item of the page other than its own (a season or episode of a show, a track of an album).
-    private MediaEditorLaunchRequest? BuildOtherItemRequest(EditTrailItem item, string initialTab, string? initialArtworkSlot)
-    {
-        if (Model is null)
-        {
-            return null;
-        }
-
-        var mediaType = ResolveEditorMediaType(Model.EntityType, Model.PresentationContext);
-        return new MediaEditorLaunchRequest
-        {
-            EntityIds = [item.EntityId],
-            LaunchEntityId = item.EntityId,
-            LaunchEntityKind = item.Kind == EditTrailKinds.Person ? "Person" : "Work",
-            ContainerMode = "Canonical",
-            ActiveProfileId = _editingProfileId,
-            Mode = SharedMediaEditorMode.Normal,
-            InitialTab = initialTab,
-            InitialArtworkSlot = initialArtworkSlot,
-            MediaType = mediaType,
-            HeaderTitle = item.Title,
-            CoverUrl = item.ImageUrl,
-            OnArtworkChanged = RefreshCurrentDetailAsync,
-            PreviewItems =
-            [
-                new MediaEditorPreviewItem
-                {
-                    EntityId = item.EntityId,
-                    Title = item.Title,
-                    CoverUrl = item.ImageUrl,
-                    MediaType = mediaType,
-                },
-            ],
-        };
-    }
-
-    // One request shape for the modal (people, and any caller outside Editing Mode) and for the Editing Mode section slot.
-    private MediaEditorLaunchRequest? BuildMediaEditorRequest(
-        Guid entityId,
-        (Guid EntityId, string EntityKind, string ContainerMode, string? InitialTab, string? InitialScope) target,
-        Guid? activeProfileId,
-        string initialTab,
-        string? initialArtworkSlot,
-        string? initialMoveResult = null)
-    {
-        if (Model is null)
-        {
-            return null;
-        }
-
-        var coverUrl = Model.Artwork.CoverUrl ?? Model.Artwork.PosterUrl ?? Model.Artwork.PortraitUrl;
-        var mediaType = ResolveEditorMediaType(Model.EntityType, Model.PresentationContext);
-        return new MediaEditorLaunchRequest
-        {
-            EntityIds = [target.EntityId],
-            LaunchEntityId = target.EntityId,
-            LaunchEntityKind = target.EntityKind,
-            ContainerMode = target.ContainerMode,
-            ActiveProfileId = activeProfileId,
-            InitialMediaGroups = Model.MediaGroups,
-            InitialSequencePlacement = Model.SequencePlacement,
-            Mode = SharedMediaEditorMode.Normal,
-            InitialTab = initialTab,
-            InitialArtworkSlot = initialArtworkSlot,
-            InitialScope = target.InitialScope,
-            MediaType = mediaType,
-            HeaderTitle = Model.Title,
-            HeaderSubtitle = Model.Subtitle,
-            CoverUrl = coverUrl,
-            OnArtworkChanged = RefreshCurrentDetailAsync,
-            OnEditedItemReplaced = FollowMovedItemAsync,
-            InitialMoveResult = initialMoveResult,
-            IsUnmatched = Model.IsUnmatched && Guid.TryParse(Model.Id, out var pageItemId) && pageItemId == target.EntityId,
-            PreviewItems =
-            [
-                new MediaEditorPreviewItem
-                {
-                    EntityId = entityId,
-                    Title = Model.Title,
-                    CoverUrl = coverUrl,
-                    MediaType = mediaType,
-                },
-            ],
-        };
-    }
-
     private (Guid EntityId, string EntityKind, string ContainerMode, string? InitialTab, string? InitialScope) ResolveEditorTarget(Guid fallbackEntityId)
     {
         var target = Model?.EditorTarget;
@@ -1280,29 +1264,6 @@ else if (Model is not null)
         return target is not null && Guid.TryParse(target.EntityId, out var targetId)
             ? (targetId, target.EntityKind, target.ContainerMode, target.InitialTab, target.InitialScope)
             : (fallbackEntityId, Model?.EntityType.ToString() ?? "Work", "Canonical", "details", null);
-    }
-
-    // A move merged the title this page shows into another (or emptied the audiobook it shows), so the Work in the address is gone: the
-    // address now names the Work the item lives in. In the overlay the entry is replaced with its underlay kept, so Back still returns to
-    // the page beneath. The page that loads there picks Editing Mode, the Match and Identity section and the result line back up from
-    // the note left here, so following the item does not end the edit. A page showing something else (an album with a song moved out of
-    // it) keeps its address and answers false, so the editor re-targets itself.
-    private Task<bool> FollowMovedItemAsync(Guid previousId, Guid survivingId, string? resultLine)
-    {
-        if (Model is null || _disposed || !Guid.TryParse(Model.Id, out var pageId) || pageId != previousId)
-        {
-            return Task.FromResult(false);
-        }
-
-        var store = EditResumeStore;
-        store?.OfferEditResume(new DetailsEditResume(survivingId, EditingSection.Match, resultLine));
-        if (!DetailsOverlayNavigation.FollowItem(Nav, Overlay, previousId, survivingId))
-        {
-            store?.WithdrawEditResume();
-            return Task.FromResult(false);
-        }
-
-        return Task.FromResult(true);
     }
 
     private async Task RefreshCurrentDetailAsync()

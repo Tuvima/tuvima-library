@@ -1,10 +1,10 @@
 
-.recent-feed { min-width:0; --home-shelf-height:clamp(150px,11.25vw,195px); }
+.recent-feed { min-width:0; --home-shelf-height:clamp(176px,16.1vw,240px); }
 .recent-feed-heading { min-height:48px; display:flex; align-items:center; gap:1.5rem; flex-wrap:wrap; }
 .recent-feed-heading h2 { margin:0; font-size:clamp(1.4rem,2vw,2rem); }
 .recent-view-all { margin-left:auto; display:inline-flex; align-items:center; min-height:48px; color:inherit; }
 .recent-item { flex:0 0 auto; scroll-snap-align:start; }
-.recent-feed ::deep .media-tile { --media-tile-media-height:var(--home-shelf-height,clamp(200px,15vw,260px)); }
+.recent-feed ::deep .media-tile:not(.is-shelf-sized) { --media-tile-media-height:var(--home-shelf-height,clamp(200px,15vw,260px)); }
 .recent-items--browse { display:flex; flex-wrap:wrap; align-items:flex-start; gap:24px; padding-block:24px; }
 .recent-feed ::deep .recent-view-card { display:flex; flex-direction:column; gap:8px; width:var(--home-shelf-height,clamp(200px,15vw,260px)); padding:0; border:0; color:inherit; background:transparent; cursor:pointer; text-align:left; }
 .recent-view-art { display:block; width:100%; aspect-ratio:1; border-radius:8px; overflow:hidden; background:rgba(255,255,255,.04); }

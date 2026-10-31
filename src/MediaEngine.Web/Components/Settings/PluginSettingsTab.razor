@@ -17,6 +17,7 @@
 @inject ApprovalFlow Approvals
 @inject IJSRuntime JS
 @inject NavigationManager Navigation
+@inject IServiceProvider Services
 @using MediaEngine.Contracts.Plugins
 
 @if (_loading)
@@ -36,43 +37,15 @@ else
         {
             <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
         }
-        @* One page: the installed plugins first, then Available plugins, then the advanced plugin sections
-           (health and jobs, capabilities, danger zone). The advanced sections and Available plugins are desktop and tablet only. *@
-        @PluginsListPage()
-        @if (!DeviceContext.IsMobile)
+        @* Nothing sits under the grid (Plugins and Integrations screens v3 D16): the list is tiles, and Configure opens the
+           plugin's own page. *@
+        @if (!string.IsNullOrWhiteSpace(DetailPluginId))
         {
-            @if (ConfiguredPlugin is not null)
-            {
-                <AppCard Class="settings-plugin-configure-panel">
-                    <nav class="settings-plugin-breadcrumb" aria-label="Breadcrumb">
-                        <AppButton Label="Plugins" StartIcon="@AppMaterialIcons.Outlined.ArrowBack" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" OnClick="@(() => ConfigurePlugin(ConfiguredPlugin.Id))" />
-                        <span aria-hidden="true">/</span>
-                        <span aria-current="page">@ConfiguredPlugin.Name</span>
-                    </nav>
-                    <div class="settings-plugin-detail-header">
-                        <span class="settings-plugin-detail-header__icon"><AppMaterialIcon Icon="@PluginIcon(ConfiguredPlugin)" /></span>
-                        <div class="settings-plugin-detail-header__copy">
-                            <strong class="settings-plugin-detail-header__title">Configure @ConfiguredPlugin.Name</strong>
-                            <span class="settings-plugin-detail-header__description">@ConfiguredPlugin.Description</span>
-                        </div>
-                        <AppStatusBadge Text="@(ConfiguredPlugin.Enabled ? "Enabled" : "Disabled")" Tone="@(ConfiguredPlugin.Enabled ? AppUiTone.Success : AppUiTone.Neutral)" />
-                        @if (!DeviceContext.IsMobile)
-                        {
-                            <AppRowMenu AriaLabel="@($"More actions for {ConfiguredPlugin.Name}")" Items="@PluginMenuItems(ConfiguredPlugin)" />
-                        }
-                    </div>
-                    @if (!string.IsNullOrWhiteSpace(ConfiguredPlugin.LoadError))
-                    {
-                        <AppAlert Tone="AppUiTone.Warning" Class="tl-sp-mb-3">@ConfiguredPlugin.LoadError</AppAlert>
-                    }
-                    @PluginSettingsPanel(ConfiguredPlugin)
-                    @PluginDetailSections(ConfiguredPlugin)
-                    <AppButton Label="Back to plugins" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" OnClick="@(() => ConfigurePlugin(ConfiguredPlugin.Id))" />
-                </AppCard>
-            }
-            <MetadataSourcesPanel />
-            <AvailablePluginsPanel OnChanged="ReloadAsync" />
-            @AdvancedPluginPanel()
+            @PluginDetailPage()
+        }
+        else
+        {
+            @PluginsListPage()
         }
     </div>
 }
@@ -89,8 +62,6 @@ else
     private bool _loading = true;
     private string? _error;
     private readonly Dictionary<string, ApprovalRecordResponse> _latestApproval = new(StringComparer.OrdinalIgnoreCase);
-    private string? _selectedPluginId;
-    private string? _configurePluginId;
     private string? _deletePluginId;
     private PluginRemovalPreviewResponse? _removalPreview;
     private string _removeOutput = "keep";
@@ -109,16 +80,27 @@ else
     /// </summary>
     [Parameter] public string? FocusPluginId { get; set; }
 
+    /// <summary>The plugin or provider whose own page is open (<c>/settings/plugins/{id}</c>); null shows the list.</summary>
+    [Parameter] public string? DetailPluginId { get; set; }
+
+    /// <summary>The open tab of the plugin's page: <c>settings</c>, <c>access</c> or <c>activity</c>; anything else is Overview.</summary>
+    [Parameter] public string? DetailTab { get; set; }
+
+    /// <summary>Tells the Settings page the plugin's name for its breadcrumb.</summary>
+    [Parameter] public EventCallback<string> NameChanged { get; set; }
+
+    private string? _appliedDetailId;
+    private readonly Dictionary<string, ProviderStatusDto> _providerStatus = new(StringComparer.OrdinalIgnoreCase);
+
     private string? _focusedPluginId;
     private string? _appliedFocusRequest;
     private bool _scrollToFocused;
 
-    private PluginSummaryResponse? SelectedPlugin => _plugins.FirstOrDefault(p => string.Equals(p.Id, _selectedPluginId, StringComparison.OrdinalIgnoreCase));
-    private PluginSummaryResponse? ConfiguredPlugin => _plugins.FirstOrDefault(p => string.Equals(p.Id, _configurePluginId, StringComparison.OrdinalIgnoreCase));
+    private PluginSummaryResponse? DetailPlugin => string.IsNullOrWhiteSpace(DetailPluginId)
+        ? null
+        : _plugins.FirstOrDefault(p => string.Equals(p.Id, DetailPluginId, StringComparison.OrdinalIgnoreCase));
 
-    private IReadOnlyList<AppSelectOption> PluginOptions => _plugins
-        .Select(plugin => new AppSelectOption(plugin.Id, plugin.Name))
-        .ToList();
+    private static bool IsProvider(PluginSummaryResponse plugin) => string.Equals(plugin.ListingKind, "provider", StringComparison.OrdinalIgnoreCase);
 
     private const int PageSize = 24;
     private static readonly AppCountTab[] NoTabs = [];
@@ -135,10 +117,10 @@ else
     private string _statusFilter = "all";
     private string _mediaFilter = "all";
     private string _sort = "name";
+    private string _layout = AppLayoutSwitch.Cards;
     private bool _officialOnly;
     private string _categoryTab = "all";
     private int _page = 1;
-    private readonly HashSet<string> _accessOpen = new(StringComparer.OrdinalIgnoreCase);
 
     private static readonly IReadOnlyList<AppSelectOption> StatusOptions =
     [
@@ -178,7 +160,7 @@ else
     private static string CategoryLabel(PluginSummaryResponse plugin) =>
         Categories.FirstOrDefault(category => category.Key == PluginCategories.Resolve(plugin.Category)).Label ?? "Utilities";
 
-    private bool Narrowed => !string.IsNullOrWhiteSpace(_search) || _statusFilter != "all" || _mediaFilter != "all" || _officialOnly || _categoryTab != "all";
+    private bool Narrowed => !string.IsNullOrWhiteSpace(_search) || _statusFilter != "all" || _mediaFilter != "all" || _officialOnly;
 
     private HealthWord WordOf(PluginSummaryResponse plugin)
     {
@@ -255,7 +237,6 @@ else
         _statusFilter = "all";
         _mediaFilter = "all";
         _officialOnly = false;
-        _categoryTab = "all";
         _page = 1;
     }
 
@@ -297,8 +278,9 @@ else
                                ValueChanged="@(value => Narrow(() => _mediaFilter = value ?? "all"))" />
                     <AppSelect Label="Sort" Value="@_sort" Options="@SortOptions" Native="true" FullWidth="false"
                                ValueChanged="@(value => Narrow(() => _sort = value ?? "name"))" />
-                    <AppSwitchRow Label="Official Tuvima" Icon="@AppMaterialIcons.Outlined.Shield" Value="@_officialOnly"
+                    <AppSwitchRow Label="Official Tuvima" ImageIcon="images/tuvima-icon.svg" Value="@_officialOnly"
                                   ValueChanged="@(value => Narrow(() => _officialOnly = value))" />
+                    <AppLayoutSwitch StorageKey="tuvima.plugins.layout" Value="@_layout" ValueChanged="@(value => _layout = value)" AriaLabel="Plugins layout" />
                 </AppSearchFilterRow>
             }
             <AppCountTabs Tabs="@CategoryTabs()" Selected="@_categoryTab" AriaLabel="Plugin categories"
@@ -307,36 +289,234 @@ else
             _page = Math.Clamp(_page, 1, Math.Max(1, (int)Math.Ceiling(visible.Count / (double)PageSize)));
             @if (visible.Count == 0)
             {
-                <AppEmptyState Title="No plugins match" Message="Nothing installed fits that search or filter.">
-                    <Action><AppButton Label="Clear filters" Size="AppControlSize.Compact" OnClick="@ClearFilters" /></Action>
-                </AppEmptyState>
+                @if (Narrowed)
+                {
+                    <AppEmptyState Title="No plugins match" Message="Nothing installed fits that search or filter.">
+                        <Action><AppButton Label="Clear filters" Size="AppControlSize.Compact" OnClick="@ClearFilters" /></Action>
+                    </AppEmptyState>
+                }
+                else
+                {
+                    <AppEmptyState Title="Nothing in this category yet" Message="Plugins of this kind will appear here." />
+                }
             }
             else
             {
-                <div class="app-card-grid" role="list">
-                    @foreach (var plugin in visible.Skip((_page - 1) * PageSize).Take(PageSize))
-                    {
-                        var focused = IsFocused(plugin);
-                        <div role="listitem"
-                             @key="plugin.Id"
-                             id="@CardElementId(plugin.Id)"
-                             class="@(focused ? "settings-plugin-card-focus" : null)"
-                             data-focused="@(focused ? "true" : null)">@PluginCard(plugin)</div>
-                    }
-                </div>
+                @if (_layout == AppLayoutSwitch.List && !DeviceContext.IsMobile)
+                {
+                    @PluginRows(visible.Skip((_page - 1) * PageSize).Take(PageSize).ToList())
+                }
+                else
+                {
+                    <div class="app-card-grid" role="list">
+                        @foreach (var plugin in visible.Skip((_page - 1) * PageSize).Take(PageSize))
+                        {
+                            var focused = IsFocused(plugin);
+                            <div role="listitem"
+                                 @key="plugin.Id"
+                                 id="@CardElementId(plugin.Id)"
+                                 class="@(focused ? "settings-plugin-card-focus" : null)"
+                                 data-focused="@(focused ? "true" : null)">@PluginCard(plugin)</div>
+                        }
+                    </div>
+                }
                 <AppPager Total="@visible.Count" PageSize="@PageSize" Page="@_page" Noun="plugins" PageChanged="@(page => _page = page)" />
             }
         }
     </div>;
+
+    // The plugin's own page (Plugins and Integrations screens v3 D17): header, then Overview, Settings, Access and Activity as
+    // real addresses so a tab can be bookmarked or shared.
+    private RenderFragment PluginDetailPage()
+    {
+        if (DetailPlugin is not { } plugin)
+        {
+            return @<AppEmptyState Title="That plugin is not installed" Message="Nothing installed has that name. Go back to the list to pick one.">
+                <Action><AppButton Label="All plugins" Href="/settings/plugins" Size="AppControlSize.Compact" /></Action>
+            </AppEmptyState>;
+        }
+
+        _health.TryGetValue(plugin.Id, out var health);
+        var state = StateCardHealth.ForPlugin(plugin, health, StateCardHealth.LatestRun(_tasks, plugin.Id));
+        var pill = StatusPill(plugin, state);
+        var canChange = !DeviceContext.IsMobile;
+        var official = string.Equals(plugin.TrustLevel, "official", StringComparison.OrdinalIgnoreCase);
+        var hasSettings = HasSettingsTab(plugin);
+        var tab = DetailTab is "settings" && hasSettings ? "settings" : DetailTab is "access" or "activity" ? DetailTab : "overview";
+        var tabs = new List<AppCountTab> { new("overview", "Overview", null, DetailHref(plugin.Id, "overview")) };
+        if (hasSettings)
+            tabs.Add(new("settings", "Settings", null, DetailHref(plugin.Id, "settings")));
+        tabs.Add(new("access", "Access", null, DetailHref(plugin.Id, "access")));
+        tabs.Add(new("activity", "Activity", null, DetailHref(plugin.Id, "activity")));
+
+        return @<div class="plugin-page" data-testid="plugin-page">
+            <header class="plugin-page__header">
+                <span class="plugin-page__logo">
+                    @if (ProviderLogo(plugin, 48) is { } logo)
+                    {
+                        @logo
+                    }
+                    else
+                    {
+                        <AppMaterialIcon Icon="@PluginIcon(plugin)" />
+                    }
+                </span>
+                <div class="plugin-page__title">
+                    <h2>@plugin.Name</h2>
+                    <p>@plugin.Description</p>
+                    @if (_latestApproval.TryGetValue(plugin.Id, out var approved))
+                    {
+                        <small data-testid="plugin-approval">Turned on by @approved.ApprovedByName on @DisplayFormat.FormatPlainDate(approved.ApprovedAt)</small>
+                    }
+                    <div class="plugin-page__pills">
+                        <AppStatusBadge Text="@CategoryLabel(plugin)" Tone="AppUiTone.Neutral" />
+                        @MediaPills(plugin)
+                        @if (official)
+                        {
+                            <AppOfficialPill />
+                        }
+                        else
+                        {
+                            <AppStatusBadge Text="@TrustLabel(plugin.TrustLevel)" Tone="@TrustTone(plugin.TrustLevel)" />
+                        }
+                        @if (pill.Text is not null)
+                        {
+                            <AppStatusBadge Text="@pill.Text" Tone="@(pill.Tone ?? AppUiTone.Neutral)" Title="@pill.Title" />
+                        }
+                    </div>
+                </div>
+                @if (canChange)
+                {
+                    <div class="plugin-page__actions">
+                        @if (SwitchState(plugin, canChange) is { } on)
+                        {
+                            <AppSwitchRow Value="@on" ValueChanged="@(value => SetEnabledAsync(plugin, value))"
+                                          Disabled="@(SwitchDisabledReason(plugin) is not null)" AriaLabel="@($"Switch {plugin.Name} on or off")" />
+                        }
+                        <AppRowMenu AriaLabel="@($"More actions for {plugin.Name}")" Items="@PluginMenuItems(plugin)" />
+                    </div>
+                }
+            </header>
+            <AppCountTabs Tabs="@tabs" Selected="@tab" AriaLabel="@($"{plugin.Name} sections")" />
+            @switch (tab)
+            {
+                case "settings":
+                    @if (IsProvider(plugin))
+                    {
+                        <ProviderDetail ProviderKey="@plugin.Id" Plugin="@plugin" Section="settings" Changed="@ReloadAsync" />
+                    }
+                    else
+                    {
+                        @PluginSettingsPanel(plugin)
+                    }
+                    break;
+                case "access":
+                    @PluginAccessSection(plugin)
+                    break;
+                case "activity":
+                    @PluginActivitySection(plugin)
+                    break;
+                default:
+                    @PluginOverview(plugin, state)
+                    break;
+            }
+        </div>;
+    }
+
+    private bool HasSettingsTab(PluginSummaryResponse plugin) => IsProvider(plugin)
+        ? plugin.Provider is { AlwaysOn: false }
+        : GetSettingEntries(plugin).Any();
+
+    private RenderFragment PluginOverview(PluginSummaryResponse plugin, StateCardHealthResult state)
+    {
+        if (IsProvider(plugin))
+            return @<ProviderDetail ProviderKey="@plugin.Id" Plugin="@plugin" Section="overview" Changed="@ReloadAsync" />;
+
+        var missing = MissingToolText(plugin, state.Word);
+        var waiting = WaitingFor(plugin);
+        return @<div class="settings-plugin-tab-body" data-testid="plugin-overview">
+            @if (waiting.Count > 0 || missing is not null)
+            {
+                <AppAlert Tone="AppUiTone.Warning" data-testid="plugin-overview-attention">
+                    @(waiting.Count > 0 ? $"It is waiting for {string.Join(" and ", waiting)}." : missing)
+                    <AppActionBar Align="AppHorizontalAlignment.Start">
+                        @if (missing is not null)
+                        {
+                            <AppButton Label="Open Tools & requirements" Href="/settings/tools" Size="AppControlSize.Compact" />
+                        }
+                        <AppButton Label="Check again" StartIcon="@AppMaterialIcons.Outlined.Refresh" Size="AppControlSize.Compact" OnClick="@(() => CheckNowAsync(plugin))" />
+                    </AppActionBar>
+                </AppAlert>
+            }
+            <section class="settings-plugin-detail-section" aria-label="What it does">
+                <AppText Typo="AppTypo.subtitle1">What it does</AppText>
+                <AppText Typo="AppTypo.body2">@plugin.Description</AppText>
+                @if (plugin.Capabilities.Count > 0)
+                {
+                    <ul>
+                        @foreach (var capability in plugin.Capabilities) { <li>@capability.Name@(string.IsNullOrWhiteSpace(capability.Description) ? null : $": {capability.Description}")</li> }
+                    </ul>
+                }
+            </section>
+            @PluginVersionSection(plugin)
+            @PluginRemovalSection(plugin)
+        </div>;
+    }
+
+    // The List view (Plugins and Integrations screens v3 D27): one 56 px row per plugin with the same status pill, switch and menu.
+    private RenderFragment PluginRows(IReadOnlyList<PluginSummaryResponse> plugins) => @<AppTable Class="settings-plugin-rows" data-testid="plugin-rows">
+        <thead>
+            <tr><th scope="col">Plugin</th><th scope="col">Status</th><th scope="col">Category</th><th scope="col">Works on</th><th scope="col"><span class="settings-plugin-rows__sr">Switch</span></th><th scope="col"><span class="settings-plugin-rows__sr">Actions</span></th></tr>
+        </thead>
+        <tbody>
+            @foreach (var plugin in plugins)
+            {
+                _health.TryGetValue(plugin.Id, out var health);
+                var state = StateCardHealth.ForPlugin(plugin, health, StateCardHealth.LatestRun(_tasks, plugin.Id));
+                var pill = StatusPill(plugin, state);
+                var official = string.Equals(plugin.TrustLevel, "official", StringComparison.OrdinalIgnoreCase);
+                var focused = IsFocused(plugin);
+                <tr @key="plugin.Id" id="@CardElementId(plugin.Id)" data-plugin-row="@plugin.Id" class="@(focused ? "settings-plugin-card-focus" : null)" data-focused="@(focused ? "true" : null)">
+                    <td>
+                        <div class="settings-plugin-rows__name">
+                            <span class="settings-plugin-rows__logo">
+                                @if (ProviderLogo(plugin, 32) is { } logo) { @logo } else { <AppMaterialIcon Icon="@PluginIcon(plugin)" /> }
+                            </span>
+                            <span class="settings-plugin-rows__copy">
+                                <a href="@DetailHref(plugin.Id, "overview")">@plugin.Name</a>
+                                @if (official) { <img class="app-official-pill__icon" src="images/tuvima-icon.svg" alt="Official Tuvima" title="Made by Tuvima" width="16" height="16" /> }
+                                <small>@plugin.Description</small>
+                            </span>
+                        </div>
+                    </td>
+                    <td>@if (pill.Text is not null) { <AppStatusBadge Text="@pill.Text" Tone="@(pill.Tone ?? AppUiTone.Neutral)" Title="@pill.Title" /> }</td>
+                    <td>@CategoryLabel(plugin)</td>
+                    <td><div class="settings-plugin-rows__media">@MediaPills(plugin)</div></td>
+                    <td>
+                        @if (SwitchState(plugin, true) is { } on)
+                        {
+                            <AppSwitchRow Value="@on" ValueChanged="@(value => SetEnabledAsync(plugin, value))" Disabled="@(SwitchDisabledReason(plugin) is not null)" AriaLabel="@($"Switch {plugin.Name} on or off")" />
+                        }
+                    </td>
+                    <td>
+                        <div class="settings-plugin-rows__actions">
+                            <AppButton Label="Configure" Size="AppControlSize.Compact" OnClick="@(() => ConfigurePlugin(plugin.Id))" />
+                            <AppRowMenu AriaLabel="@($"More actions for {plugin.Name}")" Items="@PluginMenuItems(plugin)" />
+                        </div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </AppTable>;
 
     private IReadOnlyList<AppSummaryItem> SummaryItems()
     {
         var attention = _plugins.Count(NeedsAttention);
         return
         [
-            new("installed", _plugins.Count.ToString(CultureInfo.InvariantCulture), AppMaterialIcons.Outlined.Extension),
-            new("switched on", _plugins.Count(plugin => plugin.Enabled).ToString(CultureInfo.InvariantCulture), AppMaterialIcons.Outlined.CheckCircle),
-            new("need attention", attention.ToString(CultureInfo.InvariantCulture), AppMaterialIcons.Outlined.Warning),
+            new("installed", _plugins.Count.ToString(CultureInfo.InvariantCulture), AppMaterialIcons.Outlined.Extension, AppSummaryTone.Accent),
+            new("switched on", _plugins.Count(plugin => plugin.Enabled).ToString(CultureInfo.InvariantCulture), AppMaterialIcons.Outlined.CheckCircle, AppSummaryTone.Ok),
+            new("need attention", attention.ToString(CultureInfo.InvariantCulture), attention == 0 ? AppMaterialIcons.Outlined.CheckCircle : AppMaterialIcons.Outlined.Warning, attention == 0 ? AppSummaryTone.Mute : AppSummaryTone.Warn),
         ];
     }
 
@@ -345,52 +525,118 @@ else
         _health.TryGetValue(plugin.Id, out var health);
         var run = StateCardHealth.LatestRun(_tasks, plugin.Id);
         var state = StateCardHealth.ForPlugin(plugin, health, run);
-        // What the plugin may do and where its data goes are the Engine's own words, the same ones the approval dialog shows.
-        var sendsOut = !string.IsNullOrWhiteSpace(plugin.SendsDataTo);
         // Phones read the cards; switching and configuring plugins stays on desktop and tablet.
         var canChange = !DeviceContext.IsMobile;
         var official = string.Equals(plugin.TrustLevel, "official", StringComparison.OrdinalIgnoreCase);
+        var pill = StatusPill(plugin, state);
         return @<AppStateCard Name="@plugin.Name"
                               Kind="StateCardKind.Plugin"
                               Compact="true"
                               Icon="@PluginIcon(plugin)"
+                              Logo="@ProviderLogo(plugin, 40)"
                               KindText="@CategoryLabel(plugin)"
                               Description="@plugin.Description"
-                              IsOn="@(canChange ? plugin.Enabled : null)"
+                              IsOn="@SwitchState(plugin, canChange)"
                               IsOnChanged="@(value => SetEnabledAsync(plugin, value))"
                               SwitchDisabledReason="@SwitchDisabledReason(plugin)"
                               Health="@state.Word"
-                              LastProblem="@state.LastProblem"
+                              StatusPillText="@pill.Text"
+                              StatusPillTone="@pill.Tone"
+                              StatusPillTitle="@pill.Title"
+                              LastProblem="@(IsProvider(plugin) ? null : state.LastProblem)"
                               AllowedTo="@plugin.AllowedTo"
-                              SendsDataOut="@sendsOut"
+                              SendsDataOut="@(!string.IsNullOrWhiteSpace(plugin.SendsDataTo))"
                               SendsDataTo="@plugin.SendsDataTo"
                               LastActivity="@StateCardHealth.ActivityTime(run)"
-                              Loading="@_healthLoading.Contains(plugin.Id)"
-                              ShowFacts="@_accessOpen.Contains(plugin.Id)"
-
+                              Loading="@(!IsProvider(plugin) && _healthLoading.Contains(plugin.Id))"
+                              ShowFacts="false"
                               Footer="@PluginFooter(plugin, state.Word, canChange)">
             <Badges>
+                @MediaPills(plugin)
                 @if (official)
                 {
-                    <AppStatusBadge Text="Official Tuvima" Icon="@AppMaterialIcons.Outlined.Shield" Tone="AppUiTone.Primary" />
+                    <AppOfficialPill />
                 }
                 else
                 {
                     <AppStatusBadge Text="@TrustLabel(plugin.TrustLevel)" Tone="@TrustTone(plugin.TrustLevel)" />
                 }
             </Badges>
-            <Warning>
-                @if (WaitingFor(plugin) is { Count: > 0 } waiting)
-                {
-                    <AppWarningStrip Text="@($"Waiting for {string.Join(" and ", waiting)}")" ShortText="@($"Waiting for {string.Join(" and ", waiting)}")" />
-                }
-                else if (MissingToolText(plugin, state.Word) is { } missing)
-                {
-                    <AppWarningStrip Text="@missing" ShortText="@MissingToolShortText(plugin)" OnClick="@(() => Navigation.NavigateTo(SettingsNav.RouteFor(SettingsSection.Tools)))" />
-                }
-            </Warning>
         </AppStateCard>;
     }
+
+    // One status pill per tile (Plugins and Integrations screens v3 D19): Working, Off, Always on, Broken, or the amber reason
+    // itself. Never two amber pills; the full sentence is the pill's tooltip and the page's Overview says what to do.
+    private (string? Text, AppUiTone? Tone, string? Title) StatusPill(PluginSummaryResponse plugin, StateCardHealthResult state)
+    {
+        if (IsProvider(plugin) && plugin.Provider is { } provider)
+        {
+            if (provider.AlwaysOn)
+                return ("Always on", AppUiTone.Neutral, "A core source: it is always on and has no switch.");
+            if (provider.RequiresKey && !provider.KeyPresent)
+                return ("Needs a key", AppUiTone.Warning, "Add your own key on its page to switch it on.");
+            if (!plugin.Enabled)
+                return ("Off", AppUiTone.Neutral, null);
+            return _providerStatus.TryGetValue(plugin.Id, out var status) && ProviderIsFailing(status)
+                ? ("Broken", AppUiTone.Error, status.LastFailureReason)
+                : ("Working", AppUiTone.Success, null);
+        }
+
+        if (WaitingFor(plugin) is { Count: > 0 } waiting)
+        {
+            var words = $"Waiting for {string.Join(" and ", waiting)}";
+            return (words, AppUiTone.Warning, words);
+        }
+
+        if (MissingToolText(plugin, state.Word) is { } missing)
+            return (MissingToolShortText(plugin), AppUiTone.Warning, missing);
+
+        if (state.Word == HealthWord.Off)
+            return ("Off", AppUiTone.Neutral, null);
+
+        return (null, null, null);
+    }
+
+    private static bool ProviderIsFailing(ProviderStatusDto status) =>
+        string.Equals(status.HealthStatus, "Down", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(status.ConnectionStatus, "failed", StringComparison.OrdinalIgnoreCase);
+
+    private bool? SwitchState(PluginSummaryResponse plugin, bool canChange)
+    {
+        if (!canChange || (plugin.Provider?.AlwaysOn ?? false))
+            return null;
+        return plugin.Enabled;
+    }
+
+    // A provider shows its own mark in its own colour; a plugin keeps the extension icon.
+    private RenderFragment? ProviderLogo(PluginSummaryResponse plugin, int size)
+    {
+        if (!IsProvider(plugin))
+            return null;
+
+        var (colour, icon) = Services.GetService<ProviderCatalogueService>()?.GetAccent(plugin.Id) ?? (string.Empty, AppMaterialIcons.Outlined.Extension);
+        return @<AppProviderLogo ImageUrl="@ApiClient.GetProviderIconUrl(plugin.Id)" Icon="@icon" AccentColor="@colour"
+                                 FallbackText="@plugin.Name[..1]" Size="@(size > 32 ? AppControlSize.Normal : AppControlSize.Compact)" AltText="" />;
+    }
+
+    // Two media pills and "+N" (the rest are on the plugin's page); a plugin for every type says so in one neutral pill.
+    private static RenderFragment MediaPills(PluginSummaryResponse plugin) => @<text>
+        @if (plugin.MediaTypes.Count == 0)
+        {
+            <AppStatusBadge Text="All media" Tone="AppUiTone.Neutral" />
+        }
+        else
+        {
+            @foreach (var media in plugin.MediaTypes.Take(2))
+            {
+                <AppMediaPill Media="@media" />
+            }
+            @if (plugin.MediaTypes.Count > 2)
+            {
+                <AppStatusBadge Text="@($"+{plugin.MediaTypes.Count - 2}")" Tone="AppUiTone.Neutral" Title="@string.Join(", ", plugin.MediaTypes.Skip(2))" />
+            }
+        }
+    </text>;
 
     // A plugin that needs a tool the health check cannot find: the strip names the tools and opens Tools and requirements.
     private static string? MissingToolText(PluginSummaryResponse plugin, HealthWord word)
@@ -421,7 +667,7 @@ else
             return null;
 
         return @<div class="settings-plugin-card-actions">
-            @if (word == HealthWord.Broken)
+            @if (word == HealthWord.Broken && !IsProvider(plugin))
             {
                 <AppButton Label="Retry" StartIcon="@AppMaterialIcons.Outlined.Refresh" Size="AppControlSize.Compact" OnClick="@ReloadAsync" />
             }
@@ -436,25 +682,23 @@ else
         </div>;
     }
 
+    // The "..." menu opens the matching tab of the plugin's own page.
     private IReadOnlyList<AppRowMenuItem> PluginMenuItems(PluginSummaryResponse plugin)
     {
-        var items = new List<AppRowMenuItem>
+        var items = new List<AppRowMenuItem>();
+        if (!IsProvider(plugin))
         {
-            new() { Label = "Check health", Icon = AppMaterialIcons.Outlined.HealthAndSafety, OnClick = EventCallback.Factory.Create(this, () => CheckHealthFromMenuAsync(plugin)) },
-            new() { Label = _accessOpen.Contains(plugin.Id) ? "Hide what it can access" : "View what it can access", Icon = AppMaterialIcons.Outlined.Visibility, OnClick = EventCallback.Factory.Create(this, () => ToggleAccess(plugin.Id)) },
-        };
+            items.Add(new() { Label = "Check health", Icon = AppMaterialIcons.Outlined.HealthAndSafety, OnClick = EventCallback.Factory.Create(this, () => CheckHealthFromMenuAsync(plugin)) });
+        }
+
+        items.Add(new() { Label = "What it can access", Icon = AppMaterialIcons.Outlined.Visibility, OnClick = EventCallback.Factory.Create(this, () => ConfigurePlugin(plugin.Id, "access")) });
+        items.Add(new() { Label = "Activity", Icon = AppMaterialIcons.Outlined.History, OnClick = EventCallback.Factory.Create(this, () => ConfigurePlugin(plugin.Id, "activity")) });
         if (!plugin.IsBuiltIn)
         {
-            items.Add(new() { Label = "Remove", Icon = AppMaterialIcons.Outlined.Delete, Destructive = true, OnClick = EventCallback.Factory.Create(this, () => BeginRemoveFromMenuAsync(plugin)) });
+            items.Add(new() { Label = "Remove", Icon = AppMaterialIcons.Outlined.Delete, Destructive = true, OnClick = EventCallback.Factory.Create(this, () => ConfigurePlugin(plugin.Id)) });
         }
 
         return items;
-    }
-
-    private void ToggleAccess(string pluginId)
-    {
-        if (!_accessOpen.Remove(pluginId))
-            _accessOpen.Add(pluginId);
     }
 
     private async Task CheckHealthFromMenuAsync(PluginSummaryResponse plugin)
@@ -463,23 +707,11 @@ else
         Snackbar.Add($"{plugin.Name}: health checked.", AppSeverity.Info);
     }
 
-    // The menu's Remove opens the plugin's details with the same confirmation as before (what would have no source, and what stays).
-    private async Task BeginRemoveFromMenuAsync(PluginSummaryResponse plugin)
-    {
-        SelectPlugin(plugin.Id);
-        await BeginDeleteAsync(plugin);
-        try
-        {
-            await JS.InvokeVoidAsync("tuvimaEditorScrollTo", "#plugin-details-panel");
-        }
-        catch (JSDisconnectedException)
-        {
-            // The circuit ended; there is nothing left to scroll.
-        }
-    }
-
     // A plugin that cannot work here cannot be switched on; once it is on, switching off is always allowed.
-    private static string? SwitchDisabledReason(PluginSummaryResponse plugin) => !plugin.IsCompatible && !plugin.Enabled
+    private static string? SwitchDisabledReason(PluginSummaryResponse plugin) =>
+        plugin.Provider is { RequiresKey: true, KeyPresent: false } && !plugin.Enabled
+        ? "Add your key first."
+        : !plugin.IsCompatible && !plugin.Enabled
         ? string.IsNullOrWhiteSpace(plugin.CompatibilityProblem) ? "This plugin cannot be switched on here." : plugin.CompatibilityProblem
         : null;
 
@@ -498,50 +730,6 @@ else
         "verified" => AppUiTone.Info,
         _ => AppUiTone.Neutral,
     };
-
-    private RenderFragment AdvancedPluginPanel() => @<text>
-        <span id="plugin-details-panel"></span>
-        <AppCard Title="Plugin details" Description="Check one plugin's health and jobs, review what it can access, or remove it.">
-            <AppSelect Label="Plugin" Value="@_selectedPluginId" ValueChanged="@SelectPluginValue" Options="@PluginOptions" />
-        </AppCard>
-        <AppCard>
-            @if (SelectedPlugin is null)
-            {
-                <AppEmptyState Title="No plugin selected" Message="Choose an installed plugin to inspect its details." />
-            }
-            else
-            {
-                var plugin = SelectedPlugin;
-                <div class="settings-plugin-detail-stack">
-                    <div class="settings-plugin-detail-header">
-                        <span class="settings-plugin-detail-header__icon"><AppMaterialIcon Icon="@PluginIcon(plugin)" /></span>
-                        <div class="settings-plugin-detail-header__copy">
-                            <strong class="settings-plugin-detail-header__title">@plugin.Name</strong>
-                            <span class="settings-plugin-detail-header__description">@plugin.Description</span>
-                            @if (_latestApproval.TryGetValue(plugin.Id, out var approved))
-                            {
-                                <span class="settings-plugin-detail-header__description" data-testid="plugin-approval">Turned on by @approved.ApprovedByName on @DisplayFormat.FormatPlainDate(approved.ApprovedAt)</span>
-                            }
-                        </div>
-                        <AppStatusBadge Text="@(plugin.Enabled ? "Enabled" : "Disabled")" Tone="@(plugin.Enabled ? AppUiTone.Success : AppUiTone.Neutral)" />
-                    </div>
-                    <section class="settings-plugin-detail-section" aria-label="Health and jobs">
-                        <AppText Typo="AppTypo.subtitle1">Health &amp; Jobs</AppText>
-                        <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Check one plugin's current health and recent operations.</AppText>
-                        @PluginHealthJobsPanel(plugin)
-                    </section>
-                    <section class="settings-plugin-detail-section" aria-label="Capabilities and AI permissions">
-                        <AppText Typo="AppTypo.subtitle1">Capabilities &amp; AI permissions</AppText>
-                        <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Review what one plugin declares and can access.</AppText>
-                        @PluginCapabilitiesPanel(plugin)
-                    </section>
-                    <section class="settings-plugin-detail-section" aria-label="Danger zone">
-                        @DangerPanel(plugin)
-                    </section>
-                </div>
-            }
-        </AppCard>
-    </text>;
 
     private RenderFragment PluginSettingsPanel(PluginSummaryResponse plugin) => @<div class="settings-plugin-tab-body">
         @{ var settingEntries = GetSettingEntries(plugin).ToList(); var primarySettings = settingEntries.Where(setting => !setting.Advanced).ToList(); var advancedSettings = settingEntries.Where(setting => setting.Advanced).ToList(); }
@@ -563,10 +751,8 @@ else
         }
     </div>;
 
-    // The plugin detail page: who can use the plugin, what it needs, what it did, and what removing it would do. The lists the
-    // Plugin architecture build supplies (libraries a plugin is limited to, what depends on it, the update note) show their
-    // labelled place now, with an honest "nothing yet" line.
-    private RenderFragment PluginDetailSections(PluginSummaryResponse plugin) => @<div class="settings-plugin-tab-body" data-testid="plugin-detail-sections">
+    // The plugin's own page (Plugins and Integrations screens v3 D17): the sections the v2 detail panel held, now on the tabs.
+    private RenderFragment PluginAccessSection(PluginSummaryResponse plugin) => @<div class="settings-plugin-tab-body" data-testid="plugin-detail-sections">
         <section class="settings-plugin-detail-section" aria-label="Access">
             <AppText Typo="AppTypo.subtitle1">Access</AppText>
             <AppTable Class="settings-plugin-job-table">
@@ -606,6 +792,10 @@ else
                 </div>
             }
         </section>
+        <section class="settings-plugin-detail-section" aria-label="Capabilities and AI permissions">
+            <AppText Typo="AppTypo.subtitle1">Capabilities &amp; AI permissions</AppText>
+            @PluginCapabilitiesPanel(plugin)
+        </section>
         <section class="settings-plugin-detail-section" aria-label="Needs and needed by">
             <AppText Typo="AppTypo.subtitle1">Needs</AppText>
             @{ var needs = NeedLines(plugin); }
@@ -632,6 +822,9 @@ else
                 <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Nothing else depends on it.</AppText>
             }
         </section>
+    </div>;
+
+    private RenderFragment PluginActivitySection(PluginSummaryResponse plugin) => @<div class="settings-plugin-tab-body">
         <section class="settings-plugin-detail-section" aria-label="Activity">
             <AppText Typo="AppTypo.subtitle1">Activity</AppText>
             <AppActionBar Align="AppHorizontalAlignment.Start">
@@ -678,16 +871,26 @@ else
                 <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Nothing has run yet.</AppText>
             }
         </section>
+        <section class="settings-plugin-detail-section" aria-label="Health and jobs">
+            <AppText Typo="AppTypo.subtitle1">Health &amp; Jobs</AppText>
+            @PluginHealthJobsPanel(plugin)
+        </section>
+    </div>;
+
+    private RenderFragment PluginVersionSection(PluginSummaryResponse plugin) => @<text>
         <section class="settings-plugin-detail-section" aria-label="Update note">
             <AppText Typo="AppTypo.subtitle1">Version @plugin.Version</AppText>
             <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">@(string.IsNullOrWhiteSpace(plugin.Access.Changelog) ? "No update note for this version." : plugin.Access.Changelog)</AppText>
         </section>
+    </text>;
+
+    private RenderFragment PluginRemovalSection(PluginSummaryResponse plugin) => @<text>
         <section class="settings-plugin-detail-section" aria-label="Removing this plugin">
             <AppText Typo="AppTypo.subtitle1">Removing this plugin</AppText>
             <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">See what removing it would clean up before you confirm. What it already added to your Library is kept.</AppText>
             @DangerPanel(plugin)
         </section>
-    </div>;
+    </text>;
 
     private static string AudienceWords(string audience) => audience switch
     {
@@ -974,7 +1177,27 @@ else
     protected override void OnParametersSet()
     {
         if (!_loading)
+        {
             ApplyFocusRequest();
+            ApplyDetailRequest();
+        }
+    }
+
+    // Opening a plugin's page reads what the page shows beyond the summary, once per plugin, and tells the breadcrumb its name.
+    private void ApplyDetailRequest()
+    {
+        if (string.Equals(_appliedDetailId, DetailPluginId, StringComparison.Ordinal))
+            return;
+
+        _appliedDetailId = DetailPluginId;
+        if (DetailPlugin is not { } plugin)
+            return;
+
+        _ = LoadLatestApprovalAsync(plugin.Id);
+        _ = LoadDetailAsync(plugin.Id);
+        _ = NameChanged.InvokeAsync(plugin.Name);
+        if (!_health.ContainsKey(plugin.Id) && !IsProvider(plugin) && plugin.Enabled && _healthLoading.Add(plugin.Id))
+            _ = CheckHealthInBackgroundAsync(plugin);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -1019,11 +1242,7 @@ else
         ClearFilters();
         var position = VisiblePlugins().FindIndex(plugin => plugin.Id == match.Id);
         _page = position < 0 ? 1 : (position / PageSize) + 1;
-        _selectedPluginId = match.Id;
-        _configurePluginId = match.Id;
         _scrollToFocused = true;
-        _ = LoadLatestApprovalAsync(match.Id);
-        _ = LoadDetailAsync(match.Id);
     }
 
     public void Dispose()
@@ -1040,13 +1259,9 @@ else
         {
             _plugins = (await Orchestrator.GetPluginsAsync()).OrderBy(p => p.Name).ToList();
             ApplyFocusRequest();
-            if (_plugins.Count > 0 && SelectedPlugin is null)
-            {
-                _selectedPluginId = _plugins[0].Id;
-                _ = LoadLatestApprovalAsync(_selectedPluginId);
-            }
-
-            Attention.ReportPlugins(_plugins);
+            Attention.ReportPlugins(_plugins.Where(plugin => !IsProvider(plugin)).ToList());
+            ApplyDetailRequest();
+            await LoadProviderStatusAsync();
             if (!_tasksLoaded)
             {
                 // The run records are read once per visit; they only give each card its last activity and last failure.
@@ -1063,8 +1278,26 @@ else
             _loading = false;
         }
 
-        StartHealthChecks(_plugins.Where(plugin => plugin.Enabled && plugin.IsCompatible && string.IsNullOrWhiteSpace(plugin.LoadError)));
-        _ = LoadWaitingAsync(_plugins);
+        StartHealthChecks(_plugins.Where(plugin => !IsProvider(plugin) && plugin.Enabled && plugin.IsCompatible && string.IsNullOrWhiteSpace(plugin.LoadError)));
+        _ = LoadWaitingAsync(_plugins.Where(plugin => !IsProvider(plugin)).ToList());
+    }
+
+    // The connection state of each provider (working, failing) comes from the provider status the Engine keeps.
+    private async Task LoadProviderStatusAsync()
+    {
+        try
+        {
+            foreach (var status in await ApiClient.GetProviderStatusAsync(_disposed.Token))
+                _providerStatus[status.Name] = status;
+        }
+        catch (OperationCanceledException)
+        {
+            // The page closed while the answer was on its way.
+        }
+        catch (HttpRequestException)
+        {
+            // Without the statuses the tiles still say On, Off and Needs a key; they just cannot say Broken.
+        }
     }
 
     private async Task ReloadAsync()
@@ -1104,13 +1337,6 @@ else
             await InvokeAsync(StateHasChanged);
     }
 
-    private void SelectPlugin(string pluginId)
-    {
-        _selectedPluginId = pluginId;
-        _deletePluginId = null;
-        _ = LoadLatestApprovalAsync(pluginId);
-    }
-
     // The newest approval for a plugin: who turned it on and when, from the Engine's approval record.
     private async Task LoadLatestApprovalAsync(string pluginId)
     {
@@ -1129,25 +1355,27 @@ else
             await InvokeAsync(StateHasChanged);
     }
 
-    private void SelectPluginValue(string? pluginId)
-    {
-        if (!string.IsNullOrWhiteSpace(pluginId))
-            SelectPlugin(pluginId);
-    }
+    // Configure opens the plugin's own page; the tab it opens on is Overview unless a menu item asked for another.
+    private void ConfigurePlugin(string pluginId, string tab = "overview") =>
+        Navigation.NavigateTo(DetailHref(pluginId, tab));
 
-    private void ConfigurePlugin(string pluginId)
-    {
-        _configurePluginId = string.Equals(_configurePluginId, pluginId, StringComparison.OrdinalIgnoreCase)
-            ? null
-            : pluginId;
-        _editLibrariesFor = null;
-        _deletePluginId = null;
-        if (_configurePluginId is not null)
-            _ = LoadDetailAsync(_configurePluginId);
-    }
+    private static string DetailHref(string pluginId, string tab) =>
+        $"/settings/plugins/{Uri.EscapeDataString(pluginId)}" + (tab == "overview" ? string.Empty : "/" + tab);
 
     private async Task SetEnabledAsync(PluginSummaryResponse plugin, bool enabled)
     {
+        if (IsProvider(plugin))
+        {
+            if (!await ApiClient.UpdateProviderAsync(plugin.Id, enabled, _disposed.Token))
+            {
+                Snackbar.Add("The source could not be switched.", AppSeverity.Error);
+                return;
+            }
+
+            plugin.Enabled = enabled;
+            return;
+        }
+
         var result = await Orchestrator.SetPluginEnabledAsync(plugin.Id, enabled);
         if (enabled && result.Approval is { } approval)
         {
@@ -1244,11 +1472,10 @@ else
         }
 
         Snackbar.Add($"{plugin.Name} deleted.", AppSeverity.Success);
-        _selectedPluginId = null;
         _deletePluginId = null;
         _removalPreview = null;
         _removeProblem = null;
-        await ReloadAsync();
+        Navigation.NavigateTo("/settings/plugins");
     }
 
     private async Task CheckHealthAsync(PluginSummaryResponse plugin)

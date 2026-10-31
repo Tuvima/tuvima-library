@@ -1,0 +1,56 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Plugins
+@implements IDisposable
+@inject UIOrchestratorService Orchestrator
+
+@* Compare (moved here from the old Metadata sources box, Plugins and Integrations screens v3 D16): this source next to another,
+   to see what both supply and what only one does. Read-only. *@
+@if (_options.Count > 0)
+{
+    <AppCard Title="Compare with another source" Class="metadata-summary-card">
+        <div class="provider-compare__row">
+            <AppSelect Native="true" Value="@_with" ValueChanged="@(value => _with = value)" Label="Compare with" Options="@_options" />
+            <AppButton Label="Compare" Size="AppControlSize.Compact" Disabled="@(string.IsNullOrEmpty(_with))" OnClick="@CompareAsync" data-testid="metadata-sources-compare-go" />
+        </div>
+        @if (_comparison is not null)
+        {
+            <div class="provider-compare__result" data-testid="metadata-sources-result">
+                <p>Both supply: @Join(_comparison.Both)</p>
+                <p>Only @_comparison.From supplies: @Join(_comparison.OnlyFrom)</p>
+                <p>Only @_comparison.To supplies: @Join(_comparison.OnlyTo)</p>
+                <p class="provider-compare__keeps">@_comparison.Keeps</p>
+            </div>
+        }
+    </AppCard>
+}
+
+@code {
+    private readonly CancellationTokenSource _disposed = new();
+    private IReadOnlyList<AppSelectOption> _options = [];
+    private PluginSourceComparisonDto? _comparison;
+    private string? _with;
+
+    /// <summary>The source whose page this is.</summary>
+    [Parameter, EditorRequired] public string Current { get; set; } = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var sources = await Orchestrator.GetPluginSourcesAsync(_disposed.Token);
+        _options = sources?.Sources
+            .Where(source => !string.Equals(source.Name, Current, StringComparison.OrdinalIgnoreCase))
+            .Select(source => new AppSelectOption(source.Name, source.DisplayName))
+            .ToList() ?? [];
+        _with = _options.FirstOrDefault()?.Value;
+    }
+
+    private async Task CompareAsync() =>
+        _comparison = string.IsNullOrEmpty(_with) ? null : await Orchestrator.ComparePluginSourcesAsync(Current, _with, _disposed.Token);
+
+    private static string Join(IReadOnlyList<string> items) => items.Count == 0 ? "nothing" : string.Join(", ", items);
+
+    public void Dispose()
+    {
+        _disposed.Cancel();
+        _disposed.Dispose();
+    }
+}

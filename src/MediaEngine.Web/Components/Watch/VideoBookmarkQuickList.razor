@@ -1,0 +1,94 @@
+@namespace MediaEngine.Web.Components.Watch
+@using Microsoft.AspNetCore.Components.Forms
+@using MediaEngine.Web.Components.Shared
+
+@* The video player's Bookmarks panel (video-player-controls-and-bookmarks D6, D7): one click adds a bookmark at the time the panel
+   opened, and the title's bookmarks sit below in time order with Play and Delete. "More…" opens the full panel. *@
+<div class="video-bookmark-quick">
+    <AppNativeButton Type="button" Class="video-bookmark-quick__add" OnClick="AddAsync" Disabled="@_saving"
+                     AriaLabel="@($"Add bookmark here at {PlaybackSeekRail.Time(Position)}")">
+        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Bookmark" />
+        <span>@(_failed ? "Couldn’t save · Try again" : $"Add bookmark here · {PlaybackSeekRail.Time(Position)}")</span>
+    </AppNativeButton>
+    <div @onkeydown="NoteKeyDown" @onkeydown:stopPropagation="true">
+        <InputText @bind-Value="_note" class="video-bookmark-quick__note" maxlength="200" placeholder="Add a note (optional)" aria-label="Bookmark note" />
+    </div>
+    <ul class="video-bookmark-quick__list" aria-label="Bookmarks">
+        @if (Bookmarks.Count == 0)
+        {
+            <li class="video-bookmark-quick__empty">No bookmarks yet. Click above, or press B while watching.</li>
+        }
+        @{ var nearest = NearestId(); }
+        @foreach (var bookmark in Bookmarks)
+        {
+            <li class="video-bookmark-quick__row @(bookmark.Id == nearest ? "is-near" : null)" @key="bookmark.Id">
+                <span class="video-bookmark-quick__dot @(bookmark.IsGlobal ? "is-global" : bookmark.IsPack ? "is-pack" : null)" aria-hidden="true"></span>
+                <span class="video-bookmark-quick__copy">
+                    <strong>@PlaybackSeekRail.Time(bookmark.Seconds)</strong>
+                    <span>@Owner(bookmark)@(string.IsNullOrWhiteSpace(bookmark.Note) ? null : $" · {bookmark.Note}")</span>
+                </span>
+                @if (_confirmId == bookmark.Id)
+                {
+                    <AppNativeButton Type="button" Class="video-bookmark-quick__action is-danger" OnClick="@(() => DeleteAsync(bookmark))" AriaLabel="Confirm delete">Delete?</AppNativeButton>
+                    <AppNativeButton Type="button" Class="video-bookmark-quick__action" OnClick="@(() => _confirmId = null)" AriaLabel="Keep bookmark">Keep</AppNativeButton>
+                }
+                else
+                {
+                    <AppNativeButton Type="button" Class="video-bookmark-quick__action" OnClick="@(() => Play.InvokeAsync(bookmark.Seconds))" AriaLabel="@($"Play from {PlaybackSeekRail.Time(bookmark.Seconds)}")">Play</AppNativeButton>
+                    @if (CanDelete(bookmark))
+                    {
+                        <AppNativeButton Type="button" Class="video-bookmark-quick__action" OnClick="@(() => _confirmId = bookmark.Id)" AriaLabel="@($"Delete bookmark at {PlaybackSeekRail.Time(bookmark.Seconds)}")">Delete</AppNativeButton>
+                    }
+                }
+            </li>
+        }
+    </ul>
+    <AppNativeButton Type="button" Class="video-bookmark-quick__more" OnClick="More">More…</AppNativeButton>
+</div>
+
+@code {
+    /// <summary>Where the video was when the panel opened (the add row saves this time).</summary>
+    [Parameter] public double Position { get; set; }
+    /// <summary>Where the video is now, used only to highlight the nearest row.</summary>
+    [Parameter] public double Current { get; set; }
+    [Parameter] public IReadOnlyList<PlaybackRailBookmark> Bookmarks { get; set; } = [];
+    /// <summary>True for a server administrator, who may also delete Everyone bookmarks (the Engine checks again).</summary>
+    [Parameter] public bool CanShare { get; set; }
+    /// <summary>Saves a bookmark at the time with an optional note; true when it was saved.</summary>
+    [Parameter] public Func<double, string?, Task<bool>>? Add { get; set; }
+    [Parameter] public EventCallback<double> Play { get; set; }
+    [Parameter] public Func<PlaybackRailBookmark, Task<bool>>? Delete { get; set; }
+    [Parameter] public EventCallback More { get; set; }
+
+    private string? _note;
+    private bool _saving, _failed;
+    private Guid? _confirmId;
+
+    private static string Owner(PlaybackRailBookmark bookmark) => bookmark.IsPack ? bookmark.PackLabel! : bookmark.IsGlobal ? "Everyone" : "Mine";
+    private bool CanDelete(PlaybackRailBookmark bookmark) => !bookmark.IsPack && (!bookmark.IsGlobal || CanShare);
+
+    private Guid? NearestId() => Bookmarks.Count == 0 ? null : Bookmarks.OrderBy(item => Math.Abs(item.Seconds - Current)).First().Id;
+
+    private async Task NoteKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter") await AddAsync();
+    }
+
+    private async Task AddAsync()
+    {
+        if (_saving || Add is null) return;
+        _saving = true;
+        try
+        {
+            _failed = !await Add(Position, _note);
+            if (!_failed) _note = null;
+        }
+        finally { _saving = false; }
+    }
+
+    private async Task DeleteAsync(PlaybackRailBookmark bookmark)
+    {
+        _confirmId = null;
+        if (Delete is not null) await Delete(bookmark);
+    }
+}

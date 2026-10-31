@@ -27,6 +27,42 @@
                     <AppAlert Tone="AppUiTone.Warning" Class="delete-library__notice">@_notice</AppAlert>
                 }
 
+                @if (_preview.Group is { } groupInfo)
+                {
+                    <section class="delete-library__section delete-library__group" aria-label="What will be deleted">
+                        <h3>@LibraryGroupDeletionText.Totals(groupInfo, Items)</h3>
+                        @if (groupInfo.RemovesParent)
+                        {
+                            <p class="delete-library__emphasis">@LibraryGroupDeletionText.LastSeasonLine</p>
+                        }
+
+                        @if (LibraryGroupDeletionText.SeriesLine(groupInfo, Items) is { } seriesLine)
+                        {
+                            <p class="delete-library__emphasis">@seriesLine</p>
+                        }
+
+                        @foreach (var partial in LibraryGroupDeletionText.PartialLines(groupInfo, Items))
+                        {
+                            <p class="delete-library__partial">@partial</p>
+                        }
+
+                        @if (groupInfo.TitlesNotOwned > 0 && groupInfo.SubGroups.Count == 0)
+                        {
+                            <p class="delete-library__partial">@DisplayFormat.FormatCount(groupInfo.TitlesOwned) of @DisplayFormat.FormatCount(groupInfo.TitlesOwned + groupInfo.TitlesNotOwned) @LibraryGroupDeletionText.Noun(Items, groupInfo.TitlesOwned + groupInfo.TitlesNotOwned) owned. Only what you own is deleted.</p>
+                        }
+
+                        @if (Items.Count <= LibraryGroupDeletionText.NamedTitlesLimit)
+                        {
+                            <ul class="delete-library__titles">
+                                @foreach (var item in Items)
+                                {
+                                    <li>@item.Title</li>
+                                }
+                            </ul>
+                        }
+                    </section>
+                }
+
                 <section class="delete-library__section" aria-label="Files">
                     <h3>Files</h3>
                     @if (FileGroups.Count == 0)
@@ -88,7 +124,7 @@
                         <h3>Progress</h3>
                         <p>
                             @(_preview.ProfilesWithProgress == 1 ? "1 person has" : $"{DisplayFormat.FormatCount(_preview.ProfilesWithProgress)} people have")
-                            progress on @(IsSeveral ? "these" : "this"). It will be removed.
+                            progress on @(IsSeveral ? "these" : "this"). @(_preview.GoesToRecycleBin ? "It is kept while the file is in the Recycle bin, and comes back if you restore it." : "It will be removed.")
                         </p>
                     </section>
                 }
@@ -96,6 +132,17 @@
                 @if (_preview.ProcessingRunning)
                 {
                     <p class="delete-library__processing">Processing for @(IsSeveral ? "these titles" : "this title") will be stopped.</p>
+                }
+
+                @if (_preview.Group is { RequiresTypedConfirmation: true } typed)
+                {
+                    <section class="delete-library__section delete-library__confirm" aria-label="Type the name to confirm">
+                        <AppTextField Label="@($"Type {typed.ConfirmName} to confirm")"
+                                      Value="@_typedName"
+                                      ValueChanged="@((string? value) => _typedName = value ?? string.Empty)"
+                                      Disabled="@(_state == DialogState.Deleting)"
+                                      Placeholder="@typed.ConfirmName" />
+                    </section>
                 }
 
                 @if (AnyFileDeleted)
@@ -125,11 +172,11 @@
         }
         else if (_state is DialogState.Ready or DialogState.Deleting && _preview is not null)
         {
-            <AppButton Label="@(_state == DialogState.Deleting ? "Deleting…" : ConfirmLabel)"
+            <AppButton Label="@(_state == DialogState.Deleting ? DeletingLabel : ConfirmLabel)"
                        ButtonStyle="AppButtonStyle.Filled"
                        Tone="AppUiTone.Error"
                        Loading="@(_state == DialogState.Deleting)"
-                       Disabled="@(_state == DialogState.Deleting)"
+                       Disabled="@(_state == DialogState.Deleting || !NameConfirmed)"
                        OnClick="ConfirmAsync" />
         }
     </FooterContent>
@@ -150,20 +197,34 @@
     /// <summary>The title to name in the question when there is one title; the Engine's own title is used when this is empty.</summary>
     [Parameter] public string? ItemTitle { get; set; }
 
+    /// <summary>A whole show, season, album or Series. When set, the Engine finds the titles itself and <see cref="WorkIds"/> is not used.</summary>
+    [Parameter] public LibraryGroupTarget? Group { get; set; }
+
     private DialogState _state = DialogState.Loading;
     private LibraryItemDeletionPreview? _preview;
     private string? _notice;
+    private string _typedName = string.Empty;
     private string? _failure;
     private bool _canRetry;
     private bool _collectionsExpanded;
     private IDisposable? _closeGuard;
 
     private IReadOnlyCollection<LibraryItemDeletionItemDto> Items => _preview?.Items ?? [];
-    private string Heading => LibraryItemDeletionText.Heading(ItemTitle, Items, WorkIds.Count);
-    private bool IsSeveral => (Items.Count > 0 ? Items.Count : WorkIds.Count) > 1;
+    private string Heading => Group is null
+        ? LibraryItemDeletionText.Heading(ItemTitle, Items, WorkIds.Count)
+        : LibraryGroupDeletionText.Heading(Group.Title, _preview?.Group);
+    private bool IsSeveral => Group is not null || (Items.Count > 0 ? Items.Count : WorkIds.Count) > 1;
     private bool AnyFileDeleted => _preview?.Files.Any(file => file.Outcome == LibraryItemDeletionOutcomes.Delete) == true;
     private bool AnyFileStays => _preview?.Files.Any(file => file.Outcome is LibraryItemDeletionOutcomes.KeepAsIs or LibraryItemDeletionOutcomes.KeepProtected) == true;
-    private string ConfirmLabel => AnyFileDeleted ? "Delete from library and disk" : "Delete from library";
+    private string ConfirmLabel => _preview?.Group is { } group
+        ? LibraryGroupDeletionText.ConfirmLabel(group, Items, _preview.Files.Count(file => file.Outcome == LibraryItemDeletionOutcomes.Delete))
+        : AnyFileDeleted ? "Delete from library and disk" : "Delete from library";
+
+    private string DeletingLabel => _preview?.Group is { } group ? LibraryGroupDeletionText.DeletingLabel(group, Items) : "Deleting…";
+
+    // The biggest deletes ask for the group's name first; every other delete is confirmed by the counted button alone (D4).
+    private bool NameConfirmed => _preview?.Group is not { RequiresTypedConfirmation: true } typed
+        || LibraryGroupDeletionText.NameMatches(_typedName, typed.ConfirmName);
 
     private string FreedLine => DisplayFormat.FormatFileSize(_preview?.BytesFreed ?? 0) is { } freed ? $"Deleting frees {freed}." : string.Empty;
 
@@ -191,7 +252,7 @@
         .GroupBy(file => (Label: FolderOf(file), file.Outcome, Reason: file.Outcome == LibraryItemDeletionOutcomes.KeepProtected ? file.Reason : null))
         .OrderBy(group => OutcomeRank(group.Key.Outcome))
         .ThenBy(group => group.Key.Label, StringComparer.CurrentCultureIgnoreCase)
-        .Select(ToGroup)
+        .Select(group => ToGroup(group, _preview?.GoesToRecycleBin == true))
         .ToList();
 
     private static string FolderOf(LibraryItemDeletionFileDto file) =>
@@ -208,7 +269,7 @@
         _ => 4,
     };
 
-    private static FileGroup ToGroup(IGrouping<(string Label, string Outcome, string? Reason), LibraryItemDeletionFileDto> group)
+    private static FileGroup ToGroup(IGrouping<(string Label, string Outcome, string? Reason), LibraryItemDeletionFileDto> group, bool toRecycleBin)
     {
         var files = group.ToList();
         var outcome = group.Key.Outcome;
@@ -229,7 +290,7 @@
 
         var phrase = outcome switch
         {
-            LibraryItemDeletionOutcomes.Delete => "will be deleted from disk",
+            LibraryItemDeletionOutcomes.Delete => toRecycleBin ? "will move to the Recycle bin" : "will be deleted from disk",
             LibraryItemDeletionOutcomes.KeepAsIs => "stays on disk: Library only reads this folder",
             LibraryItemDeletionOutcomes.KeepProtected => string.IsNullOrWhiteSpace(group.Key.Reason) ? "stays on disk" : $"stays on disk: {group.Key.Reason}",
             LibraryItemDeletionOutcomes.KeepMissing => "already gone from disk",
@@ -258,10 +319,13 @@
         _failure = null;
         StateHasChanged();
 
-        var outcome = await ApiClient.GetLibraryItemDeletionPreviewAsync(WorkIds);
+        var outcome = Group is null
+            ? await ApiClient.GetLibraryItemDeletionPreviewAsync(WorkIds)
+            : await ApiClient.GetLibraryGroupDeletionPreviewAsync(Group);
         if (outcome.IsOk)
         {
             _preview = outcome.Value;
+            _typedName = string.Empty;
             _state = DialogState.Ready;
             return;
         }
@@ -271,7 +335,7 @@
 
     private async Task ConfirmAsync()
     {
-        if (_preview is null || _state != DialogState.Ready)
+        if (_preview is null || _state != DialogState.Ready || !NameConfirmed)
         {
             return;
         }
@@ -279,12 +343,19 @@
         _state = DialogState.Deleting;
         StateHasChanged();
 
-        var outcome = await ApiClient.DeleteLibraryItemsAsync(WorkIds, _preview.Fingerprint);
+        var outcome = Group is null
+            ? await ApiClient.DeleteLibraryItemsAsync(WorkIds, _preview.Fingerprint)
+            : await ApiClient.DeleteLibraryGroupAsync(Group, _preview.Fingerprint);
         if (outcome.IsOk)
         {
             var noun = LibraryItemDeletionText.Noun(Items);
             _state = DialogState.Ready;
-            await Dialog.CloseAsync(AppDialogResult.Ok(new LibraryItemDeletionDialogResult(outcome.Value, false, noun)));
+            await Dialog.CloseAsync(AppDialogResult.Ok(new LibraryItemDeletionDialogResult(
+                outcome.Value,
+                false,
+                noun,
+                Group is null ? null : LibraryGroupDeletionText.DisplayName(_preview.Group, Group.Title),
+                _preview.Group?.RemovesParent == true)));
             return;
         }
 
@@ -295,6 +366,7 @@
             if (outcome.FreshPreview is not null)
             {
                 _preview = outcome.FreshPreview;
+                _typedName = string.Empty;
                 _notice = LibraryItemDeletionText.Changed;
                 _collectionsExpanded = false;
                 return;

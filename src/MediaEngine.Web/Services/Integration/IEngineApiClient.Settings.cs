@@ -239,6 +239,9 @@ public partial interface IEngineApiClient
     /// <summary>GET /settings/vault-libraries/destination — where Move to Vault would put an item of a content type (administrators); null when the Engine refused or could not be read.</summary>
     Task<VaultMoveDestinationDto?> GetVaultMoveDestinationAsync(string kindKey, CancellationToken ct = default);
 
+    /// <summary>GET /library/unmatched/libraries/{libraryId} — one library's Unmatched files, newest first, a page at a time (administrators); null when the Engine refused or could not be read.</summary>
+    Task<MediaEngine.Contracts.Library.UnmatchedPageDto?> GetUnmatchedItemsAsync(string libraryId, int skip = 0, int take = 50, CancellationToken ct = default);
+
     /// <summary>POST /library/unmatched/libraries/{libraryId}/retry — Retry now for one library's Unmatched files (administrators); the files affected, or null when the Engine refused or could not be read.</summary>
     Task<MediaEngine.Contracts.Library.UnmatchedActionResultDto?> RetryUnmatchedLibraryAsync(string libraryId, CancellationToken ct = default);
 
@@ -324,6 +327,21 @@ public partial interface IEngineApiClient
 
     /// <summary>DELETE /settings/providers/{name} — disable/delete a provider.</summary>
     Task<bool> DeleteProviderAsync(string name, CancellationToken ct = default);
+
+    /// <summary>GET /settings/stashbox — the Stash-box servers, their connection state and the fingerprint permission. Never a key.</summary>
+    Task<StashBoxSettingsDto?> GetStashBoxSettingsAsync(CancellationToken ct = default);
+
+    /// <summary>POST /settings/stashbox/test — checks a saved server's own key and saves only the connection state.</summary>
+    Task<StashBoxTestResultDto?> TestStashBoxServerAsync(string serverId, CancellationToken ct = default);
+
+    /// <summary>PUT /settings/stashbox/servers/{id}/key — checks a key against its server and keeps it only if the server accepts it.</summary>
+    Task<StashBoxTestResultDto?> SaveStashBoxServerKeyAsync(string serverId, string apiKey, CancellationToken ct = default);
+
+    /// <summary>DELETE /settings/stashbox/servers/{id} — removes an added server (the default one stays).</summary>
+    Task<bool> RemoveStashBoxServerAsync(string serverId, CancellationToken ct = default);
+
+    /// <summary>PUT /settings/stashbox/fingerprint-permission — turns "sends a fingerprint of your file" on or off.</summary>
+    Task<StashBoxSettingsDto?> SetStashBoxFingerprintPermissionAsync(bool allowed, CancellationToken ct = default);
 
     // ── Organization template ─────────────────────────────────────────────────
 

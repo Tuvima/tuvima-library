@@ -85,6 +85,7 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddSingleton<IViewSourceWatcherFactory, FileSystemViewSourceWatcherFactory>();
         services.AddSingleton<ViewSourceIndexingHostedService>();
         services.AddHostedService(sp => sp.GetRequiredService<ViewSourceIndexingHostedService>());
+        services.AddHostedService<ViewMissingFileHostedService>();
         services.AddHostedService<ViewTrashRecoveryHostedService>();
         services.AddSingleton<ViewIntakeHostedService>();
         services.AddHostedService(sp => sp.GetRequiredService<ViewIntakeHostedService>());
@@ -94,6 +95,9 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddSingleton<ArtworkWritebackService>();
         services.AddHostedService<ArtworkWritebackWorker>();
         services.AddHostedService<MissingUniverseSweepService>();
+        services.AddSingleton<MediaEngine.Api.Services.Libraries.RecycleBinKeptProgress>();
+        services.AddSingleton<MediaEngine.Api.Services.Libraries.RecycleBinRetentionHostedService>();
+        services.AddHostedService(sp => sp.GetRequiredService<MediaEngine.Api.Services.Libraries.RecycleBinRetentionHostedService>());
         services.AddSingleton<MediaEngine.Api.Services.Libraries.HeldSubtitleExporter>();
         services.AddSingleton<MediaEngine.Api.Services.Libraries.FolderFirstCheckService>();
         services.AddHostedService<MediaEngine.Api.Services.Libraries.FolderFirstCheckHostedService>();

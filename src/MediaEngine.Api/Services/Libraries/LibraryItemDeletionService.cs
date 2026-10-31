@@ -82,7 +82,22 @@ public sealed record LibraryItemDeletionPlan(
     IReadOnlyList<LibraryItemDeletionWork> Works,
     IReadOnlyList<LibraryItemDeletionPlannedFile> Files,
     LibraryItemDeletionRelatedFacts Related,
-    LibraryItemDeletionPreview Preview);
+    LibraryItemDeletionPreview Preview,
+    LibraryItemDeletionGroupContext? Group = null);
+
+/// <summary>
+/// The group a plan deletes (a show, season, album or Series). <see cref="GroupId"/> and <see cref="ParentGroupId"/> are only for telling open
+/// screens which pages are gone; <see cref="RemovesParent"/> is true for the last owned season of a show.
+/// </summary>
+public sealed record LibraryItemDeletionGroupContext(
+    Guid GroupId,
+    string Kind,
+    string Title,
+    int NotOwnedCount,
+    IReadOnlyList<LibraryItemDeletionSubGroup> SubGroups,
+    string? ParentTitle,
+    Guid? ParentGroupId,
+    bool RemovesParent);
 
 /// <summary>
 /// Works out what deleting titles from the library would do (<see cref="PreviewAsync"/>, which changes nothing) and does it
@@ -100,9 +115,13 @@ public sealed partial class LibraryItemDeletionService(
     ISystemActivityRepository activity,
     IEventPublisher events,
     AssetPathService assetPaths,
-    ILogger<LibraryItemDeletionService> logger)
+    ILogger<LibraryItemDeletionService> logger,
+    IConfigurationLoader? configuration = null)
 {
     public const int MaxWorks = 200;
+
+    /// <summary>The most titles one group delete will plan in one go (a very large show or Series).</summary>
+    public const int MaxGroupWorks = 5000;
 
     private RecycleBinService? _bin;
 
@@ -133,7 +152,8 @@ public sealed partial class LibraryItemDeletionService(
     public async Task<LibraryItemDeletionResult<LibraryItemDeletionPlan>> BuildPlanAsync(
         IReadOnlyList<Guid>? workIds,
         CancellationToken ct = default,
-        bool vaultItems = false)
+        bool vaultItems = false,
+        LibraryItemDeletionGroupContext? group = null)
     {
         var requested = (workIds ?? []).Distinct().ToList();
         if (requested.Count == 0 || requested.Contains(Guid.Empty))
@@ -141,11 +161,12 @@ public sealed partial class LibraryItemDeletionService(
             return Refused(LibraryItemDeletionRefusalKind.Validation, "Choose at least one item to delete.", []);
         }
 
-        if (requested.Count > MaxWorks)
+        var limit = group is null ? MaxWorks : MaxGroupWorks;
+        if (requested.Count > limit)
         {
             return Refused(
                 LibraryItemDeletionRefusalKind.Validation,
-                $"Up to {MaxWorks.ToString(CultureInfo.InvariantCulture)} items can be deleted at a time.",
+                $"Up to {limit.ToString(CultureInfo.InvariantCulture)} items can be deleted at a time.",
                 []);
         }
 
@@ -306,6 +327,11 @@ public sealed partial class LibraryItemDeletionService(
                 WillBeDeleted = collection.WillBeDeleted,
             }).ToList();
 
+        var bytesFreed = planned.Where(file => file.Outcome == LibraryItemDeletionOutcomes.Delete).Sum(file => file.SizeBytes ?? 0);
+        var goesToRecycleBin = planned.Any(file => file.Outcome == LibraryItemDeletionOutcomes.Delete
+            && !string.IsNullOrWhiteSpace(file.FullPath)
+            && folders.ResolveSourceForPath(file.FullPath)?.Library.RecycleBin == true);
+
         var preview = new LibraryItemDeletionPreview
         {
             Items = items,
@@ -313,15 +339,16 @@ public sealed partial class LibraryItemDeletionService(
             CuratedCollections = collections,
             ProfilesWithProgress = related.ProfilesWithPersonalState,
             ProcessingRunning = related.ProcessingRunning,
-            BytesFreed = planned.Where(file => file.Outcome == LibraryItemDeletionOutcomes.Delete).Sum(file => file.SizeBytes ?? 0),
-            GoesToRecycleBin = planned.Any(file => file.Outcome == LibraryItemDeletionOutcomes.Delete
-                && !string.IsNullOrWhiteSpace(file.FullPath)
-                && folders.ResolveSourceForPath(file.FullPath)?.Library.RecycleBin == true),
-            Fingerprint = ComputeFingerprint(requested, planned, collections, related.ProfilesWithPersonalState),
+            BytesFreed = bytesFreed,
+            GoesToRecycleBin = goesToRecycleBin,
+            Group = group is null ? null : DescribeGroup(group, requested.Count, planned, bytesFreed, goesToRecycleBin),
+            Fingerprint = ComputeFingerprint(
+                requested, planned, collections, related.ProfilesWithPersonalState,
+                group is null ? null : $"group|{group.GroupId:D}|{(group.RemovesParent ? 1 : 0)}"),
         };
 
         return LibraryItemDeletionResult<LibraryItemDeletionPlan>.Ok(
-            new LibraryItemDeletionPlan(requested, works, planned, related, preview));
+            new LibraryItemDeletionPlan(requested, works, planned, related, preview, group));
     }
 
     private Decision DecideMedia(LibraryItemDeletionAsset asset, IReadOnlySet<string> usedElsewhere)
@@ -519,7 +546,8 @@ public sealed partial class LibraryItemDeletionService(
         IReadOnlyList<Guid> workIds,
         IReadOnlyList<LibraryItemDeletionPlannedFile> files,
         IReadOnlyList<LibraryItemDeletionCollectionDto> collections,
-        int profilesWithProgress)
+        int profilesWithProgress,
+        string? extraLine = null)
     {
         var lines = new List<string>();
         lines.AddRange(workIds
@@ -536,6 +564,10 @@ public sealed partial class LibraryItemDeletionService(
                 collection.WillBeDeleted ? "1" : "0"))
             .Order(StringComparer.Ordinal));
         lines.Add("profiles|" + profilesWithProgress.ToString(CultureInfo.InvariantCulture));
+        if (extraLine is not null)
+        {
+            lines.Add(extraLine);
+        }
 
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(string.Join('\n', lines)));
         return Convert.ToHexStringLower(bytes);

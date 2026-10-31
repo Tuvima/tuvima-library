@@ -21,7 +21,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Web.Tests;
 
 // First-run setup after library setup and add-folder v2 (packets 7 to 9): View is the fourth area and takes folders through the View folder dialog;
-// after Continue the first administrator is offered the Vault once ("Turn on the Vault?"), with a PIN that is strongly suggested and never required.
+// the first administrator is offered the Vault once, as its own step ("Turn on the Vault?"), with a PIN that is strongly suggested and never required.
 public sealed class SetupViewAndVaultTests : AsyncBunitContext
 {
     private const string Session = "setup-session";
@@ -157,9 +157,9 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
     private int _continued;
     private int _deferred;
 
-    private IRenderedComponent<SetupMediaStage> RenderStage()
+    private IRenderedComponent<SetupLibrariesStage> RenderStage()
     {
-        var cut = Render<SetupMediaStage>(parameters => parameters
+        var cut = Render<SetupLibrariesStage>(parameters => parameters
             .Add(x => x.SetupSession, Session)
             .Add(x => x.HasLibraries, true)
             .Add(x => x.DeferMedia, EventCallback.Factory.Create(this, () => _deferred++))
@@ -168,14 +168,15 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
         return cut;
     }
 
-    private static AngleSharp.Dom.IElement Button(IRenderedComponent<SetupMediaStage> cut, string text) => cut.FindAll("button").Single(x => Text(x) == text);
+    private static AngleSharp.Dom.IElement Button(IRenderedComponent<SetupLibrariesStage> cut, string text) => cut.FindAll("button").Single(x => Text(x) == text);
 
     private AngleSharp.Dom.IElement DialogButton(string text) => _dialogs.FindAll("button").Single(x => Text(x) == text);
 
-    private static void ChooseArea(IRenderedComponent<SetupMediaStage> cut, string label) =>
-        cut.FindAll("[aria-label='Library areas'] button").Single(tab => Text(tab) == label).Click();
+    // Setup lists every area in one table (Libraries redesign D2, D13), so there is no area to choose; the argument only names what the caller expects to see.
+    private static void ChooseArea(IRenderedComponent<SetupLibrariesStage> cut, string label) =>
+        Assert.Contains(cut.FindAll(".libs__group-heading"), heading => Text(heading).StartsWith(label, StringComparison.Ordinal));
 
-    private void OpenViewFolderDialog(IRenderedComponent<SetupMediaStage> cut, string kindLabel)
+    private void OpenViewFolderDialog(IRenderedComponent<SetupLibrariesStage> cut, string kindLabel)
     {
         ChooseArea(cut, "View");
         cut.FindAll("button").Single(button => button.GetAttribute("aria-label") == $"Add a folder to {kindLabel}").Click();
@@ -191,10 +192,10 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
 
         ChooseArea(cut, "View");
 
-        Assert.Equal(["Watch", "Listen", "Read", "View"], cut.FindAll("[aria-label='Library areas'] button").Select(Text).ToArray());
-        Assert.Equal(3, cut.FindAll("tbody tr").Count);
-        Assert.Equal(3, cut.FindAll("button").Count(button => button.GetAttribute("aria-label")?.StartsWith("Add a folder to ", StringComparison.Ordinal) == true));
-        Assert.DoesNotContain(cut.FindAll("button"), button => Text(button) == "Add library");
+        Assert.Equal(["Watch", "Listen", "Read", "View"], cut.FindAll(".libs__group").Select(group => group.GetAttribute("aria-label")!).ToArray());
+        Assert.Equal(3, cut.FindAll(".libs__group[data-area=view] tbody tr").Count);
+        Assert.Equal(3, cut.FindAll(".libs__group[data-area=view] button").Count(button => button.GetAttribute("aria-label")?.StartsWith("Add a folder to ", StringComparison.Ordinal) == true));
+        Assert.DoesNotContain(cut.FindAll(".libs__group[data-area=view] button"), button => Text(button) == "Add library");
         Assert.Empty(cut.FindAll("a.libs__link"));
     }
 
@@ -314,16 +315,33 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
 
     // ----- The Vault step (packet 8) ---------------------------------------------------------------------------------------------
 
+    private readonly List<bool> _vaultFinished = [];
+
+    private IRenderedComponent<SetupVaultOffer> RenderOffer() => Render<SetupVaultOffer>(parameters => parameters
+        .Add(x => x.ProfileId, _me)
+        .Add(x => x.AdministratorHasPin, _hasPin)
+        .Add(x => x.SetupSession, Session)
+        .Add(x => x.Finished, EventCallback.Factory.Create<bool>(this, turnedOn => _vaultFinished.Add(turnedOn))));
+
+    private static AngleSharp.Dom.IElement Button(IRenderedComponent<SetupVaultOffer> cut, string text) => cut.FindAll("button").Single(x => Text(x) == text);
+
+    private Task<ProfileViewModel?> EligibleProfileAsync() => SetupVaultEligibility.FindProfileAsync(
+        Services.GetRequiredService<IEngineApiClient>(),
+        Services.GetRequiredService<DashboardSessionAccessor>(),
+        Services.GetRequiredService<DashboardIdentityClient>(),
+        Services.GetRequiredService<NsfwModeState>(),
+        Services.GetRequiredService<DeviceContextService>(),
+        Services.GetRequiredService<Microsoft.AspNetCore.Components.Authorization.AuthenticationStateProvider>());
+
     [Fact]
-    public async Task AnAdministratorWhoPressesContinueIsOfferedTheVaultOnceBeforeSetupMovesOn()
+    public async Task AnAdministratorIsOfferedTheVaultAsItsOwnStepWithNotNowAndSetUp()
     {
         SignInAsAdministrator();
-        var cut = RenderStage();
 
-        await cut.ClickAsync(page => Button(page, "Continue"));
+        Assert.NotNull(await EligibleProfileAsync());
+        var cut = RenderOffer();
 
-        cut.WaitForAssertion(() => Assert.Equal("Turn on the Vault?", Text(cut.Find("h2"))));
-        Assert.Equal(0, _continued);
+        Assert.Equal("Turn on the Vault?", Text(cut.Find("h2")));
         Assert.Contains("stays hidden until you turn it on", cut.Markup, StringComparison.Ordinal);
         Assert.Equal(["Not now", "Set up the Vault"], cut.FindAll("[data-setup-vault] button").Select(Text).ToArray());
     }
@@ -331,32 +349,22 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
     [Fact]
     public async Task NotNowLeavesNoTraceAnywhere()
     {
-        SignInAsAdministrator();
-        var cut = RenderStage();
-        await cut.ClickAsync(page => Button(page, "Continue"));
-        cut.WaitForAssertion(() => Assert.Equal("Turn on the Vault?", Text(cut.Find("h2"))));
+        var cut = RenderOffer();
 
         await cut.ClickAsync(page => Button(page, "Not now"));
 
-        Assert.Equal(1, _continued);
+        Assert.Equal([false], _vaultFinished);
         Assert.Empty(_accessSaves);
         Assert.Empty(_unlocks);
         Assert.Empty(_pinRequests);
         Assert.DoesNotContain(nameof(IEngineApiClient.SetProfileNsfwAccessAsync), _stub.Calls);
         Assert.DoesNotContain(nameof(IEngineApiClient.SetNsfwNavigationAsync), _stub.Calls);
-        cut.WaitForAssertion(() => Assert.Equal("What do you have?", Text(cut.Find("h2"))));
-        Assert.DoesNotContain("Vault", cut.Markup, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public async Task APersonWhoIsNotAnAdministratorSeesNoVaultWordAndTheEngineIsNeverAskedAboutIt()
+    public async Task APersonWhoIsNotAnAdministratorIsNeverOfferedTheVaultAndTheEngineIsNeverAskedAboutIt()
     {
-        var cut = RenderStage();
-
-        await cut.ClickAsync(page => Button(page, "Continue"));
-
-        Assert.Equal(1, _continued);
-        Assert.DoesNotContain("Vault", cut.Markup, StringComparison.OrdinalIgnoreCase);
+        Assert.Null(await EligibleProfileAsync());
         Assert.DoesNotContain(nameof(IEngineApiClient.GetNsfwStatusAsync), _stub.Calls);
     }
 
@@ -365,12 +373,8 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
     {
         _isKid = true;
         SignInAsAdministrator();
-        var cut = RenderStage();
 
-        await cut.ClickAsync(page => Button(page, "Continue"));
-
-        Assert.Equal(1, _continued);
-        Assert.DoesNotContain("Vault", cut.Markup, StringComparison.OrdinalIgnoreCase);
+        Assert.Null(await EligibleProfileAsync());
         Assert.DoesNotContain(nameof(IEngineApiClient.GetNsfwStatusAsync), _stub.Calls);
     }
 
@@ -380,20 +384,14 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
         _mode = "pin";
         _hasPin = true;
         SignInAsAdministrator();
-        var cut = RenderStage();
 
-        await cut.ClickAsync(page => Button(page, "Continue"));
-
-        Assert.Equal(1, _continued);
-        Assert.DoesNotContain("Turn on the Vault?", cut.Markup, StringComparison.Ordinal);
+        Assert.Null(await EligibleProfileAsync());
     }
 
     [Fact]
     public async Task ThePinIsTypedTwiceAMismatchShowsOneAmberLineAndSkipAsksOnceMore()
     {
-        SignInAsAdministrator();
-        var cut = RenderStage();
-        await cut.ClickAsync(page => Button(page, "Continue"));
+        var cut = RenderOffer();
         await cut.ClickAsync(page => Button(page, "Set up the Vault"));
         cut.WaitForAssertion(() => Assert.Equal("Protect it with a PIN?", Text(cut.Find("h2"))));
         Assert.Contains("A PIN is strongly suggested", cut.Markup, StringComparison.Ordinal);
@@ -416,9 +414,7 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
     [Fact]
     public async Task SettingAPinTurnsTheVaultOnForThisAdministratorOnlyUnlocksItAndLeavesItOutOfTheMenu()
     {
-        SignInAsAdministrator();
-        var cut = RenderStage();
-        await cut.ClickAsync(page => Button(page, "Continue"));
+        var cut = RenderOffer();
         await cut.ClickAsync(page => Button(page, "Set up the Vault"));
         cut.WaitForAssertion(() => Assert.Equal("Protect it with a PIN?", Text(cut.Find("h2"))));
         cut.FindAll("input")[0].Input(RightPin);
@@ -435,20 +431,17 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
         Assert.Equal([RightPin], _unlocks);
         Assert.DoesNotContain(nameof(IEngineApiClient.SetNsfwNavigationAsync), _stub.Calls);
         Assert.False(Services.GetRequiredService<NsfwModeState>().ShowInNavigation);
-        Assert.Contains(cut.FindAll("[aria-label='Library areas'] button"), tab => Text(tab) == "Vault");
-        Assert.Equal("true", cut.FindAll("[aria-label='Library areas'] button").Single(tab => Text(tab) == "Vault").GetAttribute("aria-pressed"));
+        Assert.Contains(cut.FindAll(".libs__group-heading"), heading => Text(heading).StartsWith("Vault", StringComparison.Ordinal));
         Assert.Contains("stays out of the menu", cut.Markup, StringComparison.Ordinal);
 
         await cut.ClickAsync(page => Button(page, "Continue"));
-        Assert.Equal(1, _continued);
+        Assert.Equal([true], _vaultFinished);
     }
 
     [Fact]
     public async Task SkippingThePinOpensTheVaultWithNoPinAfterOnePlainWarning()
     {
-        SignInAsAdministrator();
-        var cut = RenderStage();
-        await cut.ClickAsync(page => Button(page, "Continue"));
+        var cut = RenderOffer();
         await cut.ClickAsync(page => Button(page, "Set up the Vault"));
         await cut.ClickAsync(page => Button(page, "Skip PIN"));
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-pin-skip-warning]")));
@@ -467,9 +460,7 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
     public async Task AnAdministratorWhoAlreadyHasAPinEntersItOnceAndSetsNoNewOne()
     {
         _hasPin = true;
-        SignInAsAdministrator();
-        var cut = RenderStage();
-        await cut.ClickAsync(page => Button(page, "Continue"));
+        var cut = RenderOffer();
         await cut.ClickAsync(page => Button(page, "Set up the Vault"));
         cut.WaitForAssertion(() => Assert.Equal("Enter your PIN", Text(cut.Find("h2"))));
         cut.Find("input").Input(RightPin);

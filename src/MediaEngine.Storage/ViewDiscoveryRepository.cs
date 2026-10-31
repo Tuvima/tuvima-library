@@ -97,7 +97,7 @@ public sealed class ViewDiscoveryRepository(IDatabaseConnection database) : IVie
                  WHERE ({{libraryPredicate}})
                    AND li.hidden = 0
                    AND li.archived_at IS NULL
-                   AND li.trashed_at IS NULL
+                   AND li.trashed_at IS NULL AND li.missing_since IS NULL
                    AND LOWER(li.media_kind) IN ('image', 'video')
                    AND (@HasExcludedKinds = 0 OR li.content_kind IS NULL OR li.content_kind NOT IN @ExcludedKinds)
                    AND lm.latitude IS NOT NULL
@@ -122,7 +122,7 @@ public sealed class ViewDiscoveryRepository(IDatabaseConnection database) : IVie
                  WHERE ({{libraryPredicate}})
                    AND li.hidden = 0
                    AND li.archived_at IS NULL
-                   AND li.trashed_at IS NULL
+                   AND li.trashed_at IS NULL AND li.missing_since IS NULL
                    AND LOWER(li.media_kind) IN ('image', 'video')
                    AND (@HasExcludedKinds = 0 OR li.content_kind IS NULL OR li.content_kind NOT IN @ExcludedKinds)
                    AND lm.latitude IS NOT NULL
@@ -213,7 +213,7 @@ public sealed class ViewDiscoveryRepository(IDatabaseConnection database) : IVie
                  OR printf('%.3f,%.3f', ROUND(lm.latitude, 3), ROUND(lm.longitude, 3)) LIKE @SearchPattern ESCAPE '\')
             AND li.hidden = 0
             AND li.archived_at IS NULL
-            AND li.trashed_at IS NULL
+            AND li.trashed_at IS NULL AND li.missing_since IS NULL
             AND (@MediaKind IS NULL OR LOWER(li.media_kind) = @MediaKind)
             AND (@FavoritesOnly = 0 OR li.favorite = 1)
             """;
@@ -394,7 +394,7 @@ public sealed class ViewDiscoveryRepository(IDatabaseConnection database) : IVie
                   FROM local_items li
                   JOIN local_item_metadata lm ON lm.item_id = li.id
                  WHERE ({{libraryPredicate}})
-                   AND li.hidden = 0 AND li.archived_at IS NULL AND li.trashed_at IS NULL
+                   AND li.hidden = 0 AND li.archived_at IS NULL AND li.trashed_at IS NULL AND li.missing_since IS NULL
                    AND LOWER(li.media_kind) IN ('image', 'video')
                    AND (@HasExcludedKinds = 0 OR li.content_kind IS NULL OR li.content_kind NOT IN @ExcludedKinds)
                    AND lm.latitude BETWEEN -90 AND 90 AND lm.longitude BETWEEN -180 AND 180
@@ -451,7 +451,7 @@ public sealed class ViewDiscoveryRepository(IDatabaseConnection database) : IVie
                  WHERE ({{libraryPredicate}})
                    AND li.hidden = 0
                    AND li.archived_at IS NULL
-                   AND li.trashed_at IS NULL
+                   AND li.trashed_at IS NULL AND li.missing_since IS NULL
                    AND LOWER(li.media_kind) IN ('image', 'video')
                    AND (@HasExcludedKinds = 0 OR li.content_kind IS NULL OR li.content_kind NOT IN @ExcludedKinds)
                    AND TRIM(lia.annotation_value) <> ''
@@ -472,7 +472,7 @@ public sealed class ViewDiscoveryRepository(IDatabaseConnection database) : IVie
                  WHERE ({{libraryPredicate}})
                    AND li.hidden = 0
                    AND li.archived_at IS NULL
-                   AND li.trashed_at IS NULL
+                   AND li.trashed_at IS NULL AND li.missing_since IS NULL
                    AND LOWER(li.media_kind) IN ('image', 'video')
                    AND (@HasExcludedKinds = 0 OR li.content_kind IS NULL OR li.content_kind NOT IN @ExcludedKinds)
                    AND TRIM(lia.annotation_value) <> ''

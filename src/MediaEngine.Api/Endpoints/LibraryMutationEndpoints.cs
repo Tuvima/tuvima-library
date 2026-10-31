@@ -157,10 +157,12 @@ internal static class LibraryMutationEndpoints
             // The Unmatched count is read-only and changes without anyone editing the library, so it never counts as "changed in another
             // session": the copy the screen read carries the count it saw, and the current library here carries none.
             edited.UnmatchedCount = 0;
+            edited.ReviewCount = 0;
             SettingsContractMapper.ClearFirstChecks(edited);
             if (request.ExpectedLibrary is { } expectedLibrary)
             {
                 expectedLibrary.UnmatchedCount = 0;
+                expectedLibrary.ReviewCount = 0;
                 SettingsContractMapper.ClearFirstChecks(expectedLibrary);
             }
 

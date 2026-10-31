@@ -16,8 +16,8 @@ namespace MediaEngine.Api.Tests;
 
 /// <summary>
 /// Shy's walkthrough (users, profiles and households spec section 2) through the real sign-in, switching and per-request authority:
-/// a user signs into its own profile, administrator rights and Read/Watch/Listen/View and library access belong to the profile being
-/// acted as, and switching stays inside the user's household.
+/// a user signs into its own profile, administrator rights belong to the profile being acted as, libraries are on or off for the
+/// household of that profile, and switching stays inside the user's household.
 /// </summary>
 public sealed class ProfileHeldAccessWalkthroughTests : IDisposable
 {
@@ -48,7 +48,7 @@ public sealed class ProfileHeldAccessWalkthroughTests : IDisposable
             TimeProvider.System, new FixedPolicy());
         _resolver = new RequestAuthorityResolver(_accounts, new ApplicationRepository(_database));
         _decisions = new AccountAccessDecisionService(_access, new GrantAdminUnlockService(_access, new StubProfilePins(), TimeProvider.System),
-            TestLibraryVisibility.Rule(_access, new VaultLibraryRepository(_database)));
+            new LibraryVisibilityRule(new HouseholdLibraryAccessRepository(_database), new VaultLibraryRepository(_database)));
     }
 
     [Fact]
@@ -122,24 +122,26 @@ public sealed class ProfileHeldAccessWalkthroughTests : IDisposable
     }
 
     [Fact]
-    public async Task FeatureAndLibraryAccess_FollowTheProfileBeingActedAs()
+    public async Task LibraryAccess_FollowsTheHouseholdOfTheProfileBeingActedAs_NotThePerson()
     {
         var world = await WorldAsync();
+        var shyHousehold = (await _accounts.GetHouseholdIdAsync(_database, world.Shy.Account.Id))!.Value;
+        await new HouseholdLibraryAccessRepository(_database).ReplaceHiddenLibrariesAsync(
+            shyHousehold, new HashSet<Guid> { _libraryB }, DateTimeOffset.UtcNow, null);
         var mom = await SignInAsync(world.Mom);
         var asMom = await AuthorityAsync(mom.Session, world.Mom);
 
         Assert.True((await _decisions.EvaluateFeatureAsync(asMom, AccountFeatureId.Watch)).IsAllowed);
-        Assert.False((await _decisions.EvaluateFeatureAsync(asMom, AccountFeatureId.Listen)).IsAllowed);
-        // Mom sees every library in her areas except the one hidden from her profile.
+        Assert.True((await _decisions.EvaluateFeatureAsync(asMom, AccountFeatureId.Listen)).IsAllowed);
+        // Mom sees every library except the one her household turned off.
         Assert.True((await _decisions.EvaluateLibraryAsync(asMom, _libraryA)).IsAllowed);
         Assert.False((await _decisions.EvaluateLibraryAsync(asMom, _libraryB)).IsAllowed);
 
-        // On the Kids profile only what is hidden from that profile counts, not Mom's own hidden library.
+        // On a Kids profile of the same household the very same libraries are off: nothing is stored per person.
         var onKid2 = await _service.SwitchActiveProfileAsync(mom.PlaintextToken, world.Kid2.Id, null);
         var asKid2 = await AuthorityAsync(onKid2.Session, world.Mom);
-        Assert.False((await _decisions.EvaluateFeatureAsync(asKid2, AccountFeatureId.Watch)).IsAllowed);
-        Assert.False((await _decisions.EvaluateLibraryAsync(asKid2, _libraryA)).IsAllowed);
-        Assert.True((await _decisions.EvaluateLibraryAsync(asKid2, _libraryB)).IsAllowed);
+        Assert.True((await _decisions.EvaluateLibraryAsync(asKid2, _libraryA)).IsAllowed);
+        Assert.False((await _decisions.EvaluateLibraryAsync(asKid2, _libraryB)).IsAllowed);
 
         // On the server administrator's profile the administrator bypass applies, as before.
         var onShy = await _service.SwitchActiveProfileAsync(mom.PlaintextToken, world.Shy.Profile.Id, null);
@@ -149,18 +151,20 @@ public sealed class ProfileHeldAccessWalkthroughTests : IDisposable
     }
 
     [Fact]
-    public async Task ChangingAProfilesAccess_ChangesItsAuthorizationVersion_SoSessionsAndPairedAppsCheckAgain()
+    public async Task TurningALibraryOffForAHousehold_ChangesTheAuthorizationVersionOfItsProfiles_SoSessionsAndPairedAppsCheckAgain()
     {
         var world = await WorldAsync();
+        var shyHousehold = (await _accounts.GetHouseholdIdAsync(_database, world.Shy.Account.Id))!.Value;
         var mom = await SignInAsync(world.Mom);
         var before = await AuthorityAsync(mom.Session, world.Mom);
+        Assert.True((await _decisions.EvaluateLibraryAsync(before, _libraryA)).IsAllowed);
 
-        await _access.ReplaceAccessAsync(world.MomProfile.Id, new HashSet<AccountFeatureId> { AccountFeatureId.Read },
-            new HashSet<Guid>(), DateTimeOffset.UtcNow);
+        await new HouseholdLibraryAccessRepository(_database).ReplaceHiddenLibrariesAsync(
+            shyHousehold, new HashSet<Guid> { _libraryA }, DateTimeOffset.UtcNow, null);
         var after = await AuthorityAsync(mom.Session, world.Mom);
 
         Assert.True(after.ProfileAuthorizationVersion > before.ProfileAuthorizationVersion);
-        Assert.False((await _decisions.EvaluateFeatureAsync(after, AccountFeatureId.Watch)).IsAllowed);
+        Assert.False((await _decisions.EvaluateLibraryAsync(after, _libraryA)).IsAllowed);
         Assert.Equal(before.AccountAuthorizationVersion, after.AccountAuthorizationVersion);
     }
 
@@ -194,22 +198,20 @@ public sealed class ProfileHeldAccessWalkthroughTests : IDisposable
         var now = DateTimeOffset.UtcNow;
 
         var momProfile = new Profile { Id = Guid.NewGuid(), DisplayName = "Mom", AvatarColor = "#7C4DFF", Role = ProfileRole.StandardUser, CreatedAt = now };
-        var mom = await AddUserAsync("mom@example.com", momProfile, household, new HashSet<AccountFeatureId> { AccountFeatureId.Read, AccountFeatureId.Watch }, new HashSet<Guid> { _libraryB });
+        var mom = await AddUserAsync("mom@example.com", momProfile, household);
         var kid1Profile = new Profile { Id = Guid.NewGuid(), DisplayName = "Kid 1", AvatarColor = "#7C4DFF", Role = ProfileRole.RestrictedProfile, CreatedAt = now };
-        var kid1 = await AddUserAsync("kid1@example.com", kid1Profile, household, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid>());
+        var kid1 = await AddUserAsync("kid1@example.com", kid1Profile, household);
 
         var kid2 = new Profile { Id = Guid.NewGuid(), DisplayName = "Kid 2", AvatarColor = "#7C4DFF", Role = ProfileRole.RestrictedProfile, CreatedAt = now };
         await _accounts.CreateHouseholdPersonAsync(kid2, household);
 
-        await _access.ReplaceAccessAsync(kid2.Id, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid> { _libraryA }, now);
-
         var outsiderProfile = new Profile { Id = Guid.NewGuid(), DisplayName = "Outsider", AvatarColor = "#112233", Role = ProfileRole.StandardUser, CreatedAt = now };
-        await AddUserAsync("outsider@example.com", outsiderProfile, null, new HashSet<AccountFeatureId> { AccountFeatureId.Read }, new HashSet<Guid>());
+        await AddUserAsync("outsider@example.com", outsiderProfile, null);
 
         return new World(shy, mom, momProfile, kid1, kid1Profile, kid2, outsiderProfile);
     }
 
-    private async Task<Account> AddUserAsync(string email, Profile profile, Guid? household, IReadOnlySet<AccountFeatureId> features, IReadOnlySet<Guid> hiddenLibraries)
+    private async Task<Account> AddUserAsync(string email, Profile profile, Guid? household)
     {
         var now = DateTimeOffset.UtcNow;
         var account = new Account
@@ -224,8 +226,7 @@ public sealed class ProfileHeldAccessWalkthroughTests : IDisposable
         };
         await _accounts.CreateAccountAsync(
             account,
-            new TestGrant(account.Id, profile.Id, IsDefault: true, AdminEnabled: false),
-            features, hiddenLibraries, newProfile: profile, householdId: household);
+            new TestGrant(account.Id, profile.Id, IsDefault: true, AdminEnabled: false), newProfile: profile, householdId: household);
         return (await _accounts.GetByIdAsync(account.Id))!;
     }
 

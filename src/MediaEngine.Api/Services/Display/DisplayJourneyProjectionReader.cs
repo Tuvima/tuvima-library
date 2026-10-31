@@ -117,18 +117,16 @@ public sealed class DisplayJourneyProjectionReader
                     (SELECT value FROM canonical_values WHERE entity_id = COALESCE(gpw.id, pw.id, w.id) AND key = 'runtime' LIMIT 1),
                     (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key = 'runtime' LIMIT 1)
                 ) AS Runtime,
-                -- Always whole seconds: the file's measured length (any level) beats a provider's minutes.
-                CAST(COALESCE(
-                    NULLIF(CAST(ROUND(CAST(NULLIF(CAST((SELECT value FROM canonical_values WHERE entity_id = w.id AND key = 'duration_sec' LIMIT 1) AS TEXT), '') AS REAL)) AS INTEGER), 0),
-                    NULLIF(CAST(ROUND(CAST(NULLIF(CAST((SELECT value FROM canonical_values WHERE entity_id = COALESCE(gpw.id, pw.id, w.id) AND key = 'duration_sec' LIMIT 1) AS TEXT), '') AS REAL)) AS INTEGER), 0),
-                    NULLIF(CAST(ROUND(CAST(NULLIF(CAST((SELECT value FROM canonical_values WHERE entity_id = ma.id AND key = 'duration_sec' LIMIT 1) AS TEXT), '') AS REAL)) AS INTEGER), 0),
-                    NULLIF(CAST(ROUND(CAST(NULLIF(CAST((SELECT value FROM canonical_values WHERE entity_id = w.id AND key = 'duration_seconds' LIMIT 1) AS TEXT), '') AS REAL)) AS INTEGER), 0),
-                    NULLIF(CAST(ROUND(CAST(NULLIF(CAST((SELECT value FROM canonical_values WHERE entity_id = COALESCE(gpw.id, pw.id, w.id) AND key = 'duration_seconds' LIMIT 1) AS TEXT), '') AS REAL)) AS INTEGER), 0),
-                    NULLIF(CAST(ROUND(CAST(NULLIF(CAST((SELECT value FROM canonical_values WHERE entity_id = ma.id AND key = 'duration_seconds' LIMIT 1) AS TEXT), '') AS REAL)) AS INTEGER), 0),
-                    NULLIF(CAST(ROUND(CAST(NULLIF(CAST((SELECT value FROM canonical_values WHERE entity_id = w.id AND key = 'duration' LIMIT 1) AS TEXT), '') AS REAL) * 60) AS INTEGER), 0),
-                    NULLIF(CAST(ROUND(CAST(NULLIF(CAST((SELECT value FROM canonical_values WHERE entity_id = COALESCE(gpw.id, pw.id, w.id) AND key = 'duration' LIMIT 1) AS TEXT), '') AS REAL) * 60) AS INTEGER), 0),
-                    NULLIF(CAST(ROUND(CAST(NULLIF(CAST((SELECT value FROM canonical_values WHERE entity_id = ma.id AND key = 'duration' LIMIT 1) AS TEXT), '') AS REAL) * 60) AS INTEGER), 0)
-                ) AS TEXT) AS Duration,
+                COALESCE(
+                    (SELECT value FROM canonical_values WHERE entity_id = w.id AND key = 'duration' LIMIT 1),
+                    (SELECT value FROM canonical_values WHERE entity_id = COALESCE(gpw.id, pw.id, w.id) AND key = 'duration' LIMIT 1),
+                    (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key = 'duration' LIMIT 1)
+                ) AS Duration,
+                COALESCE(
+                    (SELECT value FROM canonical_values WHERE entity_id = w.id AND key IN ('duration_sec', 'duration_seconds') LIMIT 1),
+                    (SELECT value FROM canonical_values WHERE entity_id = COALESCE(gpw.id, pw.id, w.id) AND key IN ('duration_sec', 'duration_seconds') LIMIT 1),
+                    (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key IN ('duration_sec', 'duration_seconds') LIMIT 1)
+                ) AS FileDurationSeconds,
                 COALESCE(
                     (SELECT value FROM canonical_values WHERE entity_id = w.id AND key = 'page_count' LIMIT 1),
                     (SELECT value FROM canonical_values WHERE entity_id = COALESCE(gpw.id, pw.id, w.id) AND key = 'page_count' LIMIT 1),

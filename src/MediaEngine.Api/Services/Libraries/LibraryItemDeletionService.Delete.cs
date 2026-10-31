@@ -113,7 +113,7 @@ public sealed partial class LibraryItemDeletionService
         await repository.CancelProcessingAsync(plan.WorkIds, ct).ConfigureAwait(false);
 
         // 4. Files, each one through the gate again.
-        var files = DeleteFiles(plan, actor.VaultMove);
+        var files = DeleteFiles(plan, actor.VaultMove, actor.DisplayName);
 
         // 5. Media files that are still on disk are remembered so the next scan does not bring the title back.
         try
@@ -130,7 +130,7 @@ public sealed partial class LibraryItemDeletionService
         LibraryItemDeletionDataResult data;
         try
         {
-            data = await repository.DeleteWorksAsync(plan.WorkIds, ct).ConfigureAwait(false);
+            data = await repository.DeleteWorksAsync(plan.WorkIds, plan.Preview.GoesToRecycleBin && !actor.VaultMove, ct).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -197,7 +197,7 @@ public sealed partial class LibraryItemDeletionService
         // 10. Open screens drop the titles. Vault titles are not announced to everyone; the Vault screens read the list again.
         if (announce)
         {
-            await PublishRemovedAsync(plan.WorkIds, data.AssetIds).ConfigureAwait(false);
+            await PublishRemovedAsync(plan.WorkIds, data.AssetIds, GroupIdsToAnnounce(plan.Group)).ConfigureAwait(false);
         }
 
         return result;
@@ -205,7 +205,7 @@ public sealed partial class LibraryItemDeletionService
 
     // ----- step 4: files ---------------------------------------------------------------------------------------------------
 
-    private FileRun DeleteFiles(LibraryItemDeletionPlan plan, bool vaultMove)
+    private FileRun DeleteFiles(LibraryItemDeletionPlan plan, bool vaultMove, string? deletedBy)
     {
         var run = new FileRun();
         var titles = plan.Preview.Items.ToDictionary(item => item.WorkId, item => item.Title);
@@ -241,7 +241,7 @@ public sealed partial class LibraryItemDeletionService
                 continue;
             }
 
-            var attempt = TryDelete(file, titles.GetValueOrDefault(file.WorkId), vaultMove);
+            var attempt = TryDelete(file, titles.GetValueOrDefault(file.WorkId), vaultMove, deletedBy);
             switch (attempt.Kind)
             {
                 case DeleteAttemptKind.Deleted:
@@ -273,7 +273,7 @@ public sealed partial class LibraryItemDeletionService
     /// Deletes one file. The source is resolved again and the policy rebuilt now, and the gate is asked at this moment: the plan's own
     /// policy is never trusted, because a folder can be switched to as-is, or a merge can list the file, between the plan and here.
     /// </summary>
-    private DeleteAttempt TryDelete(LibraryItemDeletionPlannedFile file, string? title, bool vaultMove)
+    private DeleteAttempt TryDelete(LibraryItemDeletionPlannedFile file, string? title, bool vaultMove, string? deletedBy)
     {
         var path = file.FullPath;
         var resolved = string.IsNullOrWhiteSpace(path) ? null : folders.ResolveSourceForPath(path);
@@ -300,7 +300,7 @@ public sealed partial class LibraryItemDeletionService
             // A moved title's file is already safe in its new place, and the shared bin would show its name, so a move skips the bin.
             if (resolved?.Library.RecycleBin == true && !vaultMove)
             {
-                Bin.MoveIn(path, title, resolved.Library.Id);
+                Bin.MoveIn(path, title, resolved.Library.Id, resolved.Library.MediaTypes.Select(type => type.ToString()).FirstOrDefault(name => name != nameof(MediaEngine.Domain.Enums.MediaType.Unknown)), string.IsNullOrWhiteSpace(deletedBy) ? null : deletedBy.Trim());
                 return DeleteAttempt.WasDeleted(0);
             }
 
@@ -594,7 +594,7 @@ public sealed partial class LibraryItemDeletionService
 
     private async Task LogActivityAsync(LibraryItemDeletionPlan plan, LibraryItemDeletionActor actor, LibraryItemDeletionResultDto result)
     {
-        var titles = DescribeTitles(plan);
+        var titles = plan.Group is { } group ? DescribeGroupForActivity(group, plan) : DescribeTitles(plan);
         var parts = new List<string>
         {
             result.FilesDeleted == 0
@@ -612,7 +612,7 @@ public sealed partial class LibraryItemDeletionService
         var entry = new SystemActivityEntry
         {
             ActionType = SystemActionType.MediaRemoved,
-            CollectionName = titles,
+            CollectionName = plan.Group?.Title ?? titles,
             // The titles are gone, so the entry points at no entity; it stands on its own.
             EntityType = "Work",
             ProfileId = actor.ProfileId,
@@ -658,13 +658,13 @@ public sealed partial class LibraryItemDeletionService
         }
     }
 
-    private async Task PublishRemovedAsync(IReadOnlyList<Guid> workIds, IReadOnlyList<Guid> assetIds)
+    private async Task PublishRemovedAsync(IReadOnlyList<Guid> workIds, IReadOnlyList<Guid> assetIds, IReadOnlyList<Guid> groupIds)
     {
         try
         {
             await events.PublishAsync(
                 SignalREvents.LibraryItemsRemoved,
-                new LibraryItemsRemovedEvent([.. workIds], [.. assetIds])).ConfigureAwait(false);
+                new LibraryItemsRemovedEvent([.. workIds], [.. assetIds], groupIds.Count == 0 ? null : [.. groupIds])).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

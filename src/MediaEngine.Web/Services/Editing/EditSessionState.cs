@@ -1,11 +1,12 @@
 namespace MediaEngine.Web.Services.Editing;
 
-/// <summary>The three tools of the universal editor (spec D1).</summary>
+/// <summary>The tools of the universal editor window (spec D1, D3).</summary>
 public enum EditTool
 {
     Details,
     Artwork,
     Match,
+    History,
 }
 
 /// <summary>What the page behind the editor is showing: the normal page, or the labelled temporary view used while picking artwork (spec D9).</summary>

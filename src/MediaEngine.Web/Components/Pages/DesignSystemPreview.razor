@@ -121,14 +121,14 @@
             </div>
         </AppCard>
 
-        <AppCard Title="List page parts" Description="The one flat tab, the card grid (3 columns on desktop, 2 on tablet, 1 on phone) and equal-height cards: one-line name, two-line description, one row of small pills, a compact amber badge for a missing requirement.">
+        <AppCard Title="List page parts" Description="The one flat tab, the card grid (3 columns on desktop, 2 on tablet, 1 on phone) and equal-height cards: one-line name, two-line description, one row of small pills (status first, then category, media colours and Official with the brand icon); the amber reason is the status pill itself.">
             <AppCountTabs Tabs="@ListTabs" Selected="@_listTab" SelectedChanged="@((string key) => _listTab = key)" AriaLabel="Example categories" />
             <div class="app-card-grid" role="list">
                 <div role="listitem">
                     <AppListCard Title="Commercial Skip" Icon="@AppMaterialIcons.Outlined.Extension" Kind="Media processing" Description="Detects likely commercial breaks in TV recordings using Comskip when available, with an FFmpeg-based fallback.">
-                        <Aside><AppStatusBadge Text="Needs attention" Tone="AppUiTone.Warning" /><AppSwitchRow Value="true" AriaLabel="Commercial Skip" /></Aside>
-                        <Badges><AppStatusBadge Text="Official" Icon="@AppMaterialIcons.Outlined.Shield" Tone="AppUiTone.Primary" /></Badges>
-                        <Warning><AppWarningStrip Text="Requires Comskip or FFmpeg. Install it for full functionality." ShortText="Requires Comskip" /></Warning>
+                        <Status><AppStatusBadge Text="Requires Comskip or FFmpeg" Tone="AppUiTone.Warning" Title="Requires Comskip or FFmpeg. Install it for full functionality." /></Status>
+                        <Aside><AppSwitchRow Value="true" AriaLabel="Commercial Skip" /></Aside>
+                        <Badges><AppMediaPill Media="tv" /><AppMediaPill Media="movies" /><AppOfficialPill /></Badges>
                         <Footer><AppButton Label="Configure" StartIcon="@AppMaterialIcons.Outlined.Settings" Size="AppControlSize.Compact" /></Footer>
                     </AppListCard>
                 </div>

@@ -202,6 +202,27 @@ public sealed partial class ViewTrashDeletionTests
         Assert.False(Directory.Exists(StagingRoot(alice)));
     }
 
+    [Fact]
+    public async Task EmptyTrash_AnItemWhoseFileWasDeletedOutsideLibrary_IsRemovedAndCountedAsAlreadyMissing()
+    {
+        var alice = await CreatePerson();
+        var vanished = await AddPhoto(alice, "vanished", size: 300);
+        var present = await AddPhoto(alice, "present", size: 500);
+        File.Delete(vanished.Paths[0]);
+        var preview = (await PlanAsync(alice)).Preview;
+        Assert.Equal(2, preview.DeleteCount);
+        Assert.Equal(1, preview.AlreadyMissingCount);
+        using var service = BuildService(new MediaEngine.Ingestion.SourceMutationPolicyGate());
+
+        var outcome = await service.EmptyAsync(alice.Authority, preview.Fingerprint);
+
+        Assert.Equal(ViewTrashEmptyStatus.Ok, outcome.Status);
+        Assert.Equal(2, outcome.Result!.DeletedCount);
+        Assert.Equal(1, outcome.Result.AlreadyMissingCount);
+        Assert.Empty(outcome.Result.Failed);
+        Assert.Equal(0, CountItems(vanished.ItemId, present.ItemId));
+    }
+
     // ---------------------------------------------------------------- all or nothing
 
     [WindowsOnlyFact]

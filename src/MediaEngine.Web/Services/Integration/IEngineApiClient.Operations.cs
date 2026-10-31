@@ -113,6 +113,17 @@ public partial interface IEngineApiClient
     Task<LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>> DeleteLibraryItemsAsync(
         IReadOnlyList<Guid> workIds, string fingerprint, CancellationToken ct = default);
 
+    /// <summary>
+    /// POST /library/items/group-deletion-preview - what deleting a whole show, season, album or Series would do. The Engine finds the owned
+    /// titles itself. Same outcomes as <see cref="GetLibraryItemDeletionPreviewAsync"/>.
+    /// </summary>
+    Task<LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionPreview>> GetLibraryGroupDeletionPreviewAsync(
+        LibraryGroupTarget target, CancellationToken ct = default);
+
+    /// <summary>POST /library/items/group-delete - deletes the group as confirmed, with the preview's fingerprint. Same outcomes as <see cref="DeleteLibraryItemsAsync"/>.</summary>
+    Task<LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>> DeleteLibraryGroupAsync(
+        LibraryGroupTarget target, string fingerprint, CancellationToken ct = default);
+
     Task<IngestionPresentationSnapshotDto?> GetIngestionPresentationAsync(CancellationToken ct = default);
 
     /// <summary>GET /ingestion/queue-progress — the Engine's live ingestion numbers (files found, tally, bar, state).</summary>

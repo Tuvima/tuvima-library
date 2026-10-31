@@ -152,7 +152,7 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
                 """
                 SELECT COUNT(1) FROM view_gallery_items vgi
                  WHERE vgi.gallery_id = @GalleryId
-                   AND NOT EXISTS (SELECT 1 FROM local_items li WHERE li.id = vgi.item_id AND li.trashed_at IS NOT NULL);
+                   AND NOT EXISTS (SELECT 1 FROM local_items li WHERE li.id = vgi.item_id AND (li.trashed_at IS NOT NULL OR li.missing_since IS NOT NULL));
                 """,
                 command, transaction, cancellationToken: token));
             var row = connection.QuerySingle<GalleryRow>(new CommandDefinition(
@@ -208,7 +208,7 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
                -- An item in Trash leaves the Gallery while it is there; its place is kept, so Restore brings it back.
                AND NOT EXISTS (
                         SELECT 1 FROM local_items li
-                         WHERE li.id = view_gallery_items.item_id AND li.trashed_at IS NOT NULL)
+                         WHERE li.id = view_gallery_items.item_id AND (li.trashed_at IS NOT NULL OR li.missing_since IS NOT NULL))
              ORDER BY position, item_id
              LIMIT @take;
             """, new DynamicParameters(new
@@ -415,13 +415,13 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
                vg.description AS Description, vg.gallery_kind AS GalleryKind,
                vg.smart_rule_json AS SmartRuleJson,
                -- A cover in Trash reads as no cover (the Gallery falls back to its newest photo); Restore brings it back.
-               CASE WHEN EXISTS (SELECT 1 FROM local_items cv WHERE cv.id = vg.cover_item_id AND cv.trashed_at IS NOT NULL)
+               CASE WHEN EXISTS (SELECT 1 FROM local_items cv WHERE cv.id = vg.cover_item_id AND (cv.trashed_at IS NOT NULL OR cv.missing_since IS NOT NULL))
                     THEN NULL ELSE vg.cover_item_id END AS CoverItemId,
                vg.soundtrack_playlist_id AS SoundtrackPlaylistId,
                vg.sort_order AS SortOrder,
                COUNT(CASE WHEN (@includeDocuments = 1 OR vli.media_kind <> 'document')
                                AND (@hasBlockedKinds = 0 OR vli.content_kind IS NULL OR vli.content_kind NOT IN @blockedKinds)
-                               AND vli.trashed_at IS NULL THEN vgi.item_id END) AS ItemCount,
+                               AND vli.trashed_at IS NULL AND vli.missing_since IS NULL THEN vgi.item_id END) AS ItemCount,
                vg.created_at AS CreatedAt, vg.updated_at AS UpdatedAt
           FROM view_galleries vg
           LEFT JOIN view_gallery_items vgi ON vgi.gallery_id = vg.id
@@ -547,7 +547,7 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
                       FROM view_gallery_items vgi
                       JOIN view_galleries vg ON vg.id = vgi.gallery_id AND vg.gallery_kind = 'manual'
                       JOIN view_gallery_shares vgs ON vgs.gallery_id = vg.id
-                      JOIN local_items li ON li.id = vgi.item_id AND li.trashed_at IS NULL
+                      JOIN local_items li ON li.id = vgi.item_id AND li.trashed_at IS NULL AND li.missing_since IS NULL
                      WHERE vgi.item_id = @itemId AND vgs.profile_id = @profileId
                 );
                 """, new { itemId, profileId }, cancellationToken: ct)) != 0)
@@ -622,7 +622,7 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
                   FROM view_gallery_items vgi
                   JOIN view_galleries vg ON vg.id = vgi.gallery_id AND vg.gallery_kind = 'manual'
                   JOIN view_gallery_shares vgs ON vgs.gallery_id = vg.id
-                  JOIN local_items li ON li.id = vgi.item_id AND li.trashed_at IS NULL
+                  JOIN local_items li ON li.id = vgi.item_id AND li.trashed_at IS NULL AND li.missing_since IS NULL
                  WHERE vgs.profile_id = @profileId AND vgi.item_id IN @itemIds;
                 """, new { profileId, itemIds = chunk.Select(GuidSql.ToBlob).ToArray() }, cancellationToken: ct)));
         }
@@ -716,6 +716,7 @@ public sealed class ViewGalleryRepository(IDatabaseConnection database) : IViewG
                    AND li.hidden = 0
                    AND li.archived_at IS NULL
                    AND li.trashed_at IS NULL
+                   AND li.missing_since IS NULL
                    AND (@SmartIncludeDocuments = 1 OR li.media_kind <> 'document')
                    AND (@SmartHasBlockedKinds = 0 OR li.content_kind IS NULL OR li.content_kind NOT IN @SmartBlockedKinds)
                    AND ({{compiled.Predicate}});

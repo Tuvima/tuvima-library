@@ -248,7 +248,8 @@ public sealed class ViewTrashDeletionPlanner(
             skipped,
             bytesFreed,
             deleted.Any(item => item.IsCompound),
-            ComputeFingerprint(ownerId, plannedItems, memberships, galleryItemCount));
+            ComputeFingerprint(ownerId, plannedItems, memberships, galleryItemCount),
+            deleted.Count(IsAlreadyMissing));
 
         return new ViewTrashPlanResult(ViewTrashPlanStatus.Ok, new ViewTrashPlan(space.Id, ownerId, plannedItems, preview));
     }
@@ -385,6 +386,10 @@ public sealed class ViewTrashDeletionPlanner(
             file.FileId, file.Role, place.SourceRowId, sourceId, place.FilePath, resolved.Path, action, bytes, policy);
         return null;
     }
+
+    /// <summary>An item whose every file was already deleted outside Library: Empty Trash only has records to remove.</summary>
+    internal static bool IsAlreadyMissing(ViewTrashPlannedItem item) =>
+        item.Outcome == ViewTrashOutcomes.Delete && item.Files.Count > 0 && item.Files.All(file => file.Action == ViewTrashFileAction.AlreadyGone);
 
     private string? TryGetProfileRoot(ViewPersonalSpace space, out string? profileRoot)
     {

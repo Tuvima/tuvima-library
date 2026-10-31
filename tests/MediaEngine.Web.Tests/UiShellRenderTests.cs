@@ -205,7 +205,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.Equal(5, cut.FindAll(".layout-shell__nav-link").Count);
             Assert.Contains(cut.FindAll(".layout-shell__nav-link"),
                 link => string.Equals(link.GetAttribute("href"), "/view", StringComparison.Ordinal));
-            Assert.Equal("Tuvima", cut.Find(".layout-shell__brand-wordmark").TextContent);
+            Assert.Equal("Library", cut.Find(".layout-shell__brand-wordmark").TextContent);
             Assert.Empty(cut.FindAll(".layout-shell__mobile-menu"));
             Assert.Contains("Body content", cut.Markup);
             // Desktop uses the top navigation: no phone dock and no hamburger.
@@ -826,10 +826,11 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         }
 
         Assert.Empty(cut.FindAll(".libraries nav[aria-label=Breadcrumb]"));
-        // The Import folder panel and View's settings are unchanged panels with headings of their own; every other level has none.
+        // The Import folder panel and View's settings are unchanged panels with headings of their own; every other level has no page title of its own
+        // (the area headings and the rules card title are section headings, level three).
         if (subsection != "import" && detail != "photos")
         {
-            Assert.Empty(cut.FindAll(".libraries h1, .libraries h2, .libraries h3"));
+            Assert.Empty(cut.FindAll(".libraries h1, .libraries h2"));
         }
     }
 

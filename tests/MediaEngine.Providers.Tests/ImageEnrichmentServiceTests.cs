@@ -296,6 +296,57 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
         Assert.Contains(covers, asset => asset.ImageUrl == retailCover && !asset.IsPreferred);
     }
 
+    [Fact]
+    public async Task TvdbImagesPass_ForAShow_StoresAStillForEveryOwnedEpisodeAndKeepsSeasonPostersOffTheShow()
+    {
+        // A show re-match starts from the show, so every owned episode needs its still from that one pass,
+        // found by season and episode number when the episode has no TheTVDB id yet. The show's own artwork
+        // list also carries its season posters and logos in other languages; neither may become the show's.
+        ShippedProviderHarness.SaveShipped(_configLoader, "tvdb", "installation-key");
+        var show = await _works.InsertParentAsync(MediaType.TV, "tvdb:fixture:stills-show", null, null);
+        var season = await _works.InsertParentAsync(MediaType.TV, $"season:{show}:1", show, 1);
+        var first = await _works.InsertChildAsync(MediaType.TV, season, 1);
+        var second = await _works.InsertChildAsync(MediaType.TV, season, 2);
+        var asset = await SeedAssetForExistingWorkAsync(first, Path.Combine("TV", "Stills", "Season 01", "Stills - s01e01.mkv"));
+        await SeedCanonicalsAsync(show, ("media_type", "TV"), (MetadataFieldConstants.IdentityProvider, "tvdb"), (BridgeIdKeys.TvdbId, "55"));
+        await SeedCanonicalsAsync(season, (MetadataFieldConstants.SeasonNumber, "1"));
+        await SeedCanonicalsAsync(first, (MetadataFieldConstants.IdentityProvider, "tvdb"), (BridgeIdKeys.TvdbEpisodeId, "9001"));
+        await SeedCanonicalsAsync(second, (MetadataFieldConstants.EpisodeNumber, "2"));
+        var image = CreateLogoPng(hasVisibleContent: true);
+        var factory = new RoutingHttpClientFactory(request =>
+        {
+            var path = request.RequestUri!.AbsolutePath;
+            return path switch
+            {
+                "/v4/login" => JsonResponse("""{"data":{"token":"token"}}"""),
+                "/v4/artwork/types" => JsonResponse("""{"data":[{"id":2,"name":"Poster"},{"id":7,"name":"Season Poster"},{"id":23,"name":"Clear Logo"}]}"""),
+                "/v4/series/55/extended" => JsonResponse("""{"data":{"id":55,"defaultSeasonType":1,"seasons":[{"id":66,"number":1,"type":{"id":1}}],"artworks":[{"type":7,"language":"eng","score":99999,"image":"https://artworks.thetvdb.com/season-poster.png"},{"type":2,"language":"eng","score":10,"image":"https://artworks.thetvdb.com/show-poster.png"},{"type":23,"language":"fra","score":99999,"image":"https://artworks.thetvdb.com/logo-fr.png"},{"type":23,"language":"eng","score":5,"image":"https://artworks.thetvdb.com/logo-en.png"}]}}"""),
+                "/v4/seasons/66/extended" => JsonResponse("""{"data":{"id":66,"artworks":[{"type":7,"image":"https://artworks.thetvdb.com/season-one.png"}]}}"""),
+                var episodes when episodes.StartsWith("/v4/series/55/episodes/") => JsonResponse("""{"data":{"episodes":[{"id":9001,"seasonNumber":1,"number":1,"image":"https://artworks.thetvdb.com/ep1.png"},{"id":9002,"seasonNumber":1,"number":2,"image":"https://artworks.thetvdb.com/ep2.png"}]},"links":{"next":null}}"""),
+                _ => ImageResponse(image),
+            };
+        });
+        var client = new ProviderApiClient(_configLoader, factory, new ProviderRateLimiterCoordinator());
+        var service = new ImageEnrichmentService(
+            _entityAssets, _mediaAssets, new StubCharacterPortraitRepository(), _canonicals, _works,
+            new StubFictionalEntityRepository(), new StubPersonRepository(),
+            new StubProviderConfigurationRepository(), _configLoader, _imageCache, _assetPaths,
+            new StubAssetExportService(), factory, new StubFuzzyMatchingService(),
+            NullLogger<ImageEnrichmentService>.Instance, tvdb: client);
+
+        await service.EnrichWorkImagesAsync(asset.AssetId, null);
+
+        var firstStill = Assert.Single(await _entityAssets.GetByEntityAsync(first.ToString(), "EpisodeStill"));
+        Assert.Equal("https://artworks.thetvdb.com/ep1.png", firstStill.ImageUrl);
+        var secondStill = Assert.Single(await _entityAssets.GetByEntityAsync(second.ToString(), "EpisodeStill"));
+        Assert.Equal("https://artworks.thetvdb.com/ep2.png", secondStill.ImageUrl);
+        Assert.Equal("9002", await GetCanonicalAsync(second, BridgeIdKeys.TvdbEpisodeId));
+        var showPoster = Assert.Single(await _entityAssets.GetByEntityAsync(show.ToString(), "CoverArt"));
+        Assert.Equal("https://artworks.thetvdb.com/show-poster.png", showPoster.ImageUrl);
+        var logo = Assert.Single(await _entityAssets.GetByEntityAsync(show.ToString(), "Logo"));
+        Assert.Equal("https://artworks.thetvdb.com/logo-en.png", logo.ImageUrl);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

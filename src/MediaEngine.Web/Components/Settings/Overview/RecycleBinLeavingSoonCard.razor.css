@@ -1,0 +1,18 @@
+.leaving-soon {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--tl-space-3);
+}
+
+.leaving-soon__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-3);
+}
+
+.leaving-soon__review {
+    color: var(--tl-accent-primary);
+    text-decoration: none;
+}

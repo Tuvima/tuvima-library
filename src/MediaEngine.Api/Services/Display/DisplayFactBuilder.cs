@@ -26,6 +26,7 @@ public static class DisplayFactBuilder
         string? runtime = null,
         string? duration = null,
         string? pageCount = null,
+        string? durationSeconds = null,
         string? starRating = null)
     {
         var facts = new List<string>();
@@ -35,7 +36,7 @@ public static class DisplayFactBuilder
             case "TV":
                 AddFact(facts, NormalizeContentRating(contentRating), title);
                 AddFact(facts, year, title);
-                AddFact(facts, FormatLength(runtime, duration, durationFirst: false), title);
+                AddFact(facts, FormatDuration(StringHelpers.FirstNonBlank(runtime, duration), durationSeconds, mediaKind), title);
                 AddFact(facts, FormatStarRating(starRating ?? rating), title);
                 break;
             case "Book":
@@ -55,21 +56,21 @@ public static class DisplayFactBuilder
                 AddFact(facts, string.IsNullOrWhiteSpace(narrator) ? null : $"Narrated by {narrator.Trim()}", title);
                 AddFact(facts, NormalizeContentRating(contentRating), title);
                 AddFact(facts, year, title);
-                AddFact(facts, FormatLength(runtime, duration, durationFirst: true), title);
+                AddFact(facts, FormatDuration(StringHelpers.FirstNonBlank(duration, runtime), durationSeconds, mediaKind), title);
                 AddFact(facts, FormatStarRating(starRating ?? rating), title);
                 break;
             case "Music":
                 AddFact(facts, artist ?? author, title);
                 AddFact(facts, NormalizeContentRating(contentRating), title);
                 AddFact(facts, year, title);
-                AddFact(facts, FormatLength(runtime, duration, durationFirst: true), title);
+                AddFact(facts, FormatDuration(StringHelpers.FirstNonBlank(duration, runtime), durationSeconds, mediaKind), title);
                 AddFact(facts, FormatStarRating(starRating ?? rating), title);
                 break;
             default:
                 AddFact(facts, author ?? artist, title);
                 AddFact(facts, NormalizeContentRating(contentRating), title);
                 AddFact(facts, year, title);
-                AddFact(facts, FormatLength(runtime, duration, durationFirst: false), title);
+                AddFact(facts, FormatDuration(StringHelpers.FirstNonBlank(runtime, duration), durationSeconds, mediaKind), title);
                 AddFact(facts, FormatStarRating(starRating ?? rating), title);
                 break;
         }
@@ -138,29 +139,60 @@ public static class DisplayFactBuilder
             : $"{cleaned} pages";
     }
 
-    // "Duration" arrives as whole seconds (the data store converts minutes and the measured file length to
-    // seconds); "runtime" is minutes. Reading either as the other is what showed songs as "0:03".
-    private static string? FormatLength(string? runtime, string? duration, bool durationFirst)
+    // "duration" and "runtime" carry the provider's own unit (minutes for video, milliseconds for songs); "duration_sec"
+    // always carries seconds. Keeping them apart stops a file-probed 1361.4 seconds reading as 1361.4 minutes.
+    private static string? FormatDuration(string? duration, string? durationSeconds, string mediaKind)
     {
-        var seconds = ParseNumber(duration);
-        var minutes = ParseNumber(runtime);
-        if (durationFirst)
+        var hasSeconds = TryParseNumber(durationSeconds, out var seconds) && seconds > 0;
+        // A song's or audiobook's own file length is exact; a provider's rounded figure only fills a gap.
+        if (hasSeconds && mediaKind is "Music" or "Audiobook")
         {
-            return seconds is > 0 ? FormatElapsed(TimeSpan.FromSeconds(seconds.Value))
-                : minutes is > 0 ? FormatElapsed(TimeSpan.FromMinutes(minutes.Value))
-                : NonNumericText(duration) ?? NonNumericText(runtime);
+            return FormatFromSeconds(seconds, mediaKind);
         }
 
-        return minutes is > 0 ? $"{minutes.Value:0.#} min"
-            : seconds is > 0 ? $"{Math.Round(seconds.Value / 60d):0} min"
-            : NonNumericText(runtime) ?? NonNumericText(duration);
+        if (string.IsNullOrWhiteSpace(duration))
+        {
+            return hasSeconds ? FormatFromSeconds(seconds, mediaKind) : null;
+        }
+
+        var cleaned = duration.Trim();
+        if (!TryParseNumber(cleaned, out var numeric))
+        {
+            return cleaned;
+        }
+
+        if (mediaKind == "Music")
+        {
+            return FormatElapsed(MusicProviderLength(numeric));
+        }
+
+        if (mediaKind == "Audiobook")
+        {
+            var elapsed = numeric >= 100_000
+                ? TimeSpan.FromMilliseconds(numeric)
+                : TimeSpan.FromSeconds(numeric);
+            return FormatElapsed(elapsed);
+        }
+
+        return $"{numeric:0.#} min";
     }
 
-    private static double? ParseNumber(string? value)
-        => double.TryParse(value?.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var number) ? number : null;
+    // Retail providers give a song's length in milliseconds or (Apple, after conversion) in minutes; nothing under a second
+    // is a song, so a small number is minutes.
+    internal static TimeSpan MusicProviderLength(double value)
+        => value >= 1000 ? TimeSpan.FromMilliseconds(value) : TimeSpan.FromMinutes(value);
 
-    private static string? NonNumericText(string? value)
-        => string.IsNullOrWhiteSpace(value) || ParseNumber(value) is not null ? null : value.Trim();
+    private static string FormatFromSeconds(double seconds, string mediaKind)
+        => mediaKind is "Music" or "Audiobook"
+            ? FormatElapsed(TimeSpan.FromSeconds(seconds))
+            : $"{Math.Max(1, Math.Round(seconds / 60d, MidpointRounding.AwayFromZero)):0} min";
+
+    private static bool TryParseNumber(string? text, out double value)
+    {
+        value = 0;
+        return !string.IsNullOrWhiteSpace(text)
+            && double.TryParse(text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out value);
+    }
 
     private static string FormatElapsed(TimeSpan elapsed)
     {

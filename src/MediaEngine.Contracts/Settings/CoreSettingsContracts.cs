@@ -164,6 +164,13 @@ public sealed class LibraryFolderDto
     [JsonPropertyName("recycle_bin")]
     public bool RecycleBin { get; set; }
 
+    /// <summary>
+    /// Days a deleted file stays in this library's recycle bin before it is removed for good (spec Delete a show, season, album or Series, D18).
+    /// 0 means never: the bin then empties only when an administrator empties it. Used only while <c>recycle_bin</c> is on.
+    /// </summary>
+    [JsonPropertyName("recycle_bin_days")]
+    public int RecycleBinDays { get; set; } = 90;
+
     /// <summary>True for a Vault-protected library (the Vault keeps its own access). Every other library is shown or hidden per household and per person.</summary>
     [JsonPropertyName("vault")]
     public bool IsVault { get; set; }
@@ -195,6 +202,15 @@ public sealed class LibraryFolderDto
     [JsonPropertyName("unmatched_count")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public int UnmatchedCount { get; set; }
+
+    /// <summary>
+    /// Read-only: how many identified items in this library wait in Needs Review (Libraries redesign D3). Not the same list as
+    /// <see cref="UnmatchedCount"/>. Filled on the list read for an administrator and ignored when the list is saved; zero (left out of the
+    /// JSON) when none.
+    /// </summary>
+    [JsonPropertyName("review_count")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public int ReviewCount { get; set; }
 }
 
 public sealed class LibrarySourceDto

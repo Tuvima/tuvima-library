@@ -1,11 +1,23 @@
 ﻿@namespace MediaEngine.Web.Components.Shared
 
-<AppChip Text="@Text"
-         Icon="@Icon"
-         Title="@Title"
-         Tone="@Tone"
-         Size="@Size"
-         Class="@RootClass" />
+@if (ChildContent is null)
+{
+    <AppChip Text="@Text"
+             Icon="@Icon"
+             Title="@Title"
+             Tone="@Tone"
+             Size="@Size"
+             Class="@RootClass" />
+}
+else
+{
+    <AppChip Text="@Text"
+             Icon="@Icon"
+             Title="@Title"
+             Tone="@Tone"
+             Size="@Size"
+             Class="@RootClass">@ChildContent</AppChip>
+}
 
 @code {
     [Parameter, EditorRequired] public string Text { get; set; } = string.Empty;
@@ -14,6 +26,9 @@
     [Parameter] public string? Icon { get; set; }
     [Parameter] public string? Title { get; set; }
     [Parameter] public string? Class { get; set; }
+
+    /// <summary>Replaces the text, for a pill that needs its own mark (the Tuvima icon in the Official pill).</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
 
     private string RootClass =>
         string.Join(" ", new[]

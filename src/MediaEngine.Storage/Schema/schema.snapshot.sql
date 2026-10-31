@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0068 household_kid_settings).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0071 missing_files).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -1235,7 +1235,7 @@ CREATE TABLE local_file_sources (
     device_id           BLOB REFERENCES view_devices(id) ON DELETE SET NULL,
     file_path           TEXT NOT NULL,
     modified_at         TEXT NOT NULL,
-    indexed_at          TEXT NOT NULL,
+    indexed_at          TEXT NOT NULL, missing_since TEXT,
     UNIQUE (library_id, file_path COLLATE NOCASE)
 );
 
@@ -1339,7 +1339,7 @@ CREATE TABLE local_items (
     hidden              INTEGER NOT NULL DEFAULT 0 CHECK (hidden IN (0, 1)),
     archived_at         TEXT,
     trashed_at          TEXT, content_kind TEXT
-    CHECK (content_kind IS NULL OR content_kind IN ('photos', 'personal_videos', 'documents')), added_by_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL,
+    CHECK (content_kind IS NULL OR content_kind IN ('photos', 'personal_videos', 'documents')), added_by_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL, missing_since TEXT, part_missing INTEGER NOT NULL DEFAULT 0 CHECK (part_missing IN (0, 1)),
     CHECK ((scope_kind = 'personal' AND personal_space_id IS NOT NULL AND owner_profile_id IS NOT NULL)
         OR (scope_kind = 'shared' AND personal_space_id IS NULL AND owner_profile_id IS NULL)),
     UNIQUE (personal_space_id, id)
@@ -2183,13 +2183,6 @@ CREATE TABLE profile_credentials (
     UNIQUE(profile_id, credential_kind)
 );
 
-CREATE TABLE profile_feature_grants (
-    profile_id BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-    feature_id TEXT NOT NULL CHECK (feature_id IN ('read','watch','listen','view')),
-    granted_at TEXT NOT NULL,
-    PRIMARY KEY (profile_id, feature_id)
-);
-
 CREATE TABLE profile_grid_preferences (
     profile_id  BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
     grid_key    TEXT NOT NULL CHECK (grid_key IN ('watch', 'read', 'listen', 'my-list', 'liked')),
@@ -2214,14 +2207,6 @@ CREATE TABLE profile_hero_settings (
     allow_listen   INTEGER NOT NULL DEFAULT 1 CHECK (allow_listen IN (0, 1)),
     continued_only INTEGER NOT NULL DEFAULT 0 CHECK (continued_only IN (0, 1)),
     updated_at     TEXT    NOT NULL   -- ISO 8601 UTC
-);
-
-CREATE TABLE profile_library_hidden (
-    profile_id            BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-    library_id            BLOB NOT NULL,
-    created_at            TEXT NOT NULL,
-    created_by_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL,
-    PRIMARY KEY (profile_id, library_id)
 );
 
 CREATE TABLE profile_notice_dismissals (
@@ -2413,6 +2398,14 @@ CREATE TABLE reader_statistics (
     avg_words_per_minute    REAL NOT NULL DEFAULT 0.0,
     last_session_at         TEXT,
     UNIQUE (user_id, asset_id)
+);
+
+CREATE TABLE recycle_bin_personal_state (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    content_hash TEXT NOT NULL,
+    table_name   TEXT NOT NULL,
+    row_json     TEXT NOT NULL,
+    kept_at      TEXT NOT NULL
 );
 
 CREATE TABLE resolver_cache (
@@ -3142,7 +3135,7 @@ CREATE TABLE view_sources (
     last_activity_at    TEXT,
     created_at          TEXT NOT NULL,
     updated_at          TEXT NOT NULL, content_kind TEXT NOT NULL DEFAULT 'photos'
-    CHECK (content_kind IN ('photos', 'personal_videos', 'documents')), added_by_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL, skipped_file_count INTEGER NOT NULL DEFAULT 0 CHECK (skipped_file_count >= 0),
+    CHECK (content_kind IN ('photos', 'personal_videos', 'documents')), added_by_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL, skipped_file_count INTEGER NOT NULL DEFAULT 0 CHECK (skipped_file_count >= 0), folder_reachable INTEGER NOT NULL DEFAULT 1 CHECK (folder_reachable IN (0, 1)),
     CHECK ((storage_mode = 'managed' AND relative_path IS NOT NULL AND external_path IS NULL)
         OR (storage_mode = 'linked' AND external_path IS NOT NULL AND relative_path IS NULL)),
     CHECK ((scope_kind = 'personal' AND personal_space_id IS NOT NULL)
@@ -3690,6 +3683,8 @@ CREATE INDEX idx_reader_bookmarks_user_asset
 CREATE INDEX idx_reader_highlights_user_asset
     ON reader_highlights (user_id, asset_id);
 
+CREATE INDEX idx_recycle_bin_personal_state_hash ON recycle_bin_personal_state (content_hash);
+
 CREATE INDEX idx_resolver_cache_expires
     ON resolver_cache(expires_at);
 
@@ -3868,6 +3863,8 @@ CREATE INDEX ix_local_file_sources_file
 CREATE INDEX ix_local_file_sources_library
     ON local_file_sources(library_id, file_path COLLATE NOCASE);
 
+CREATE INDEX ix_local_file_sources_missing ON local_file_sources (source_id, missing_since) WHERE missing_since IS NOT NULL;
+
 CREATE INDEX ix_local_file_sources_source
     ON local_file_sources(source_id, indexed_at DESC, id);
 
@@ -3917,6 +3914,8 @@ CREATE INDEX ix_local_items_library_kind
 CREATE INDEX ix_local_items_library_timeline
     ON local_items(library_id, archived_at, trashed_at,
                    COALESCE(captured_at, created_at) DESC, id DESC);
+
+CREATE INDEX ix_local_items_missing ON local_items (missing_since) WHERE missing_since IS NOT NULL;
 
 CREATE INDEX ix_local_items_owner_timeline
     ON local_items(owner_profile_id, archived_at, trashed_at,

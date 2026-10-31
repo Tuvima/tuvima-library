@@ -197,8 +197,15 @@ public sealed class LibraryFolderConfig
     public bool RecycleBin { get; set; }
 
     /// <summary>
+    /// Days a deleted file stays in this library's recycle bin before it is removed for good (spec Delete a show, season, album or Series, D18).
+    /// 0 means never: the bin then empties only when an administrator empties it. Used only while <see cref="RecycleBin"/> is on.
+    /// </summary>
+    [JsonPropertyName("recycle_bin_days")]
+    public int RecycleBinDays { get; set; } = 90;
+
+    /// <summary>
     /// True for a Vault-protected library: it lives under the Vault's own rules and is never listed through the library visibility rule.
-    /// Every other library is visible to a profile unless it is hidden for the profile's household or for the profile (library access D2).
+    /// Every other library is visible to a profile unless it is hidden for the profile's household (library access D2 and v4).
     /// </summary>
     [JsonPropertyName("vault")]
     public bool IsVault { get; set; }

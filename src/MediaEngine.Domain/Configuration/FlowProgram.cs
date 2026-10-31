@@ -41,6 +41,13 @@ public sealed record UrlOnHostsExpression(IReadOnlyList<FlowExpression> Sources,
 /// <summary>The first value that is made of digits only.</summary>
 public sealed record DigitsOfExpression(IReadOnlyList<FlowExpression> Sources) : FlowExpression;
 
+/// <summary>
+/// Shorter search texts made from a long name: the name is split where it holds " - ", " – " or ": ", and the list
+/// holds each pair of neighbouring parts joined by a space, then each single part, longest first. The whole name is
+/// not repeated. Empty when the name has only one part.
+/// </summary>
+public sealed record PartsOfExpression(FlowExpression Source) : FlowExpression;
+
 public sealed record ClampExpression(FlowExpression Source, double Min, double Max) : FlowExpression;
 
 /// <summary>A whole number read from text; no value when it is not one.</summary>
@@ -94,13 +101,18 @@ public sealed record PagesStep(
 
 public sealed record FindStep(string Location, string Variable, FlowExpression Source, IReadOnlyList<FlowElementTest> Tests) : FlowStep(Location);
 
-/// <summary>A test of <see cref="PickStep"/>: a field of the candidate, or of a lookup made for it, equals an expression.</summary>
+/// <summary>
+/// A test of <see cref="PickStep"/>: a field of the candidate, or of a lookup made for it, equals an expression.
+/// With <paramref name="MinWordOverlap"/> set, the two texts only have to share that fraction of their words
+/// (shared words over all distinct words, ignoring case and punctuation); such tests run after every exact test.
+/// </summary>
 public sealed record PickTest(
     string Location,
     string Path,
     FlowExpression Expected,
     bool IgnoreCase,
-    CallStep? Via);
+    CallStep? Via,
+    double? MinWordOverlap = null);
 
 public sealed record PickStep(
     string Location,

@@ -21,7 +21,6 @@ public sealed class UiCompositionGuardrailTests
         "src/MediaEngine.Web/Components/Library/LibraryConfigurableTable.razor",
         "src/MediaEngine.Web/Components/Library/StatusPill.razor",
         "src/MediaEngine.Web/Components/Details/DetailPage.razor",
-        "src/MediaEngine.Web/Components/MediaEditor/SharedMediaEditorShell.razor",
     ];
 
     // Only the old workspace name (the word Library before the area name) stays retired; the plain area name is the adult-video area (Videos spec D15).

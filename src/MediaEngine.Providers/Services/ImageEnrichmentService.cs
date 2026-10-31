@@ -90,7 +90,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             .Select(n => new ProviderArtworkCandidate("tmdb:" + n!["file_path"]!.GetValue<string>(), "TMDB",
                 TmdbImageBaseUrl + n["file_path"]!.GetValue<string>(),
                 "https://image.tmdb.org/t/p/w300" + n["file_path"]!.GetValue<string>(),
-                n["width"]?.GetValue<int>(), n["height"]?.GetValue<int>())).DistinctBy(n => n.Id).Take(150).ToList();
+                n["width"]?.GetValue<int>(), n["height"]?.GetValue<int>(), n["iso_639_1"]?.GetValue<string>())).DistinctBy(n => n.Id).Take(150).ToList();
         return new(items, items.Count == 0 ? "The provider returned no artwork for this type." : null);
     }
 
@@ -277,22 +277,16 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             }
 
             var art = scopeId == "episode"
-                ? new[] { (Url: detail["image"]?.ToString(), Type: (AssetType?)AssetType.EpisodeStill) }
-                : detail["artworks"] is JsonArray artworks
-                    ? artworks.Where(node => node is not null)
-                        .Select(node => (Url: node!["image"]?.ToString(),
-                            Type: ResolveTvdbArtworkType(node!, scopeId, typeNames)))
-                        .Where(item => item.Type.HasValue)
-                        .GroupBy(item => item.Type!.Value)
-                        .SelectMany(group => group.Take(MaxVariantsPerAssetType)).ToArray()
-                    : [];
-            foreach (var (url, type) in art)
+                ? new[] { (Url: detail["image"]?.ToString(), Type: (AssetType?)AssetType.EpisodeStill, Preferred: true) }
+                : SelectTvdbArtworks(detail, scopeId, typeNames)
+                    .Select(item => (Url: item.Node["image"]?.ToString(), Type: (AssetType?)item.Type, item.Preferred)).ToArray();
+            foreach (var (url, type, isBest) in art)
             {
                 if (!type.HasValue || !IsSafeTvdbImageUrl(url))
                 {
                     continue;
                 }
-                var processed = await ProcessRemoteImageAsync(url!, type.Value, ownerWorkId, ct, "tvdb")
+                var processed = await ProcessRemoteImageAsync(url!, type.Value, ownerWorkId, ct, "tvdb", isBest)
                     .ConfigureAwait(false);
                 AddCount(counts, type.Value, processed.StoredCount);
                 held += processed.HeldCount;
@@ -532,21 +526,21 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         var showHeld = 0;
         var preferred = 0;
         var offered = new Dictionary<(Guid Owner, AssetType Type), List<string>>();
-        async Task AddAsync(string? value, AssetType type, Guid owner)
+        async Task<bool> AddAsync(string? value, AssetType type, Guid owner, bool makePreferred = true)
         {
             if (!Uri.TryCreate(value, UriKind.Absolute, out var uri)
                 || uri.Scheme != Uri.UriSchemeHttps
                 || !(uri.Host.Equals("thetvdb.com", StringComparison.OrdinalIgnoreCase)
                     || uri.Host.EndsWith(".thetvdb.com", StringComparison.OrdinalIgnoreCase)))
             {
-                return;
+                return false;
             }
             if (!offered.TryGetValue((owner, type), out var urls))
             {
                 offered[(owner, type)] = urls = [];
             }
             urls.Add(uri.ToString());
-            var processed = await ProcessRemoteImageAsync(uri.ToString(), type, owner, ct, "tvdb")
+            var processed = await ProcessRemoteImageAsync(uri.ToString(), type, owner, ct, "tvdb", makePreferred)
                 .ConfigureAwait(false);
             AddCount(counts, type, processed.StoredCount);
             if (processed.HeldCount > 0)
@@ -556,6 +550,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             held += processed.HeldCount;
             showHeld += owner == context.RootWorkId ? processed.HeldCount : 0;
             preferred += processed.UpdatedPreferredCount;
+            return processed.StoredCount + processed.HeldCount + processed.UpdatedPreferredCount > 0;
         }
         async Task AddArtworksAsync(JsonNode? record, string scope, Guid owner)
         {
@@ -563,14 +558,16 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             {
                 return;
             }
-            var selected = artworks.Where(node => node is not null)
-                .Select(node => (Node: node!, Type: ResolveTvdbArtworkType(node!, scope, typeNames)))
-                .Where(item => item.Type.HasValue)
-                .GroupBy(item => item.Type!.Value)
-                .SelectMany(group => group.Take(MaxVariantsPerAssetType));
-            foreach (var item in selected)
+            // When the best picture of a type cannot be fetched, the next one takes its place as preferred.
+            var settled = new HashSet<AssetType>();
+            foreach (var item in SelectTvdbArtworks(record, scope, typeNames))
             {
-                await AddAsync(item.Node["image"]?.ToString(), item.Type!.Value, owner).ConfigureAwait(false);
+                var stored = await AddAsync(item.Node["image"]?.ToString(), item.Type, owner,
+                    item.Preferred || !settled.Contains(item.Type)).ConfigureAwait(false);
+                if (stored)
+                {
+                    settled.Add(item.Type);
+                }
             }
         }
 
@@ -584,7 +581,8 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             await RecordPosterChoiceAsync(context.RootWorkId, "tvdb", showId, ct).ConfigureAwait(false);
         }
 
-        foreach (var season in await ResolveRepresentedSeasonsAsync(context, ct).ConfigureAwait(false))
+        var representedSeasons = await ResolveRepresentedSeasonsAsync(context, ct).ConfigureAwait(false);
+        foreach (var season in representedSeasons)
         {
             var seasonValues = await _canonicalRepo.GetByEntityAsync(season.WorkId, ct).ConfigureAwait(false);
             var seasonSource = seasonValues.FirstOrDefault(value =>
@@ -625,6 +623,75 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             }
         }
 
+        // Every owned episode gets its still, not just the one that started this pass: a show re-match
+        // is started from the show, and its episodes would otherwise keep no pictures at all.
+        var episodeOwners = new HashSet<Guid>();
+        IReadOnlyList<JsonNode>? showEpisodes = null;
+        foreach (var season in representedSeasons)
+        {
+            foreach (var episode in await _workRepo.GetDirectChildrenAsync(season.WorkId, ct).ConfigureAwait(false))
+            {
+                if (episode.IsCatalogOnly || episode.WorkKind == WorkKind.Parent)
+                {
+                    continue;
+                }
+                var episodeValues = await _canonicalRepo.GetByEntityAsync(episode.WorkId, ct).ConfigureAwait(false);
+                var episodeSource = episodeValues.FirstOrDefault(value =>
+                    string.Equals(value.Key, MetadataFieldConstants.IdentityProvider, StringComparison.OrdinalIgnoreCase))?.Value;
+                if (!string.IsNullOrWhiteSpace(episodeSource)
+                    && !string.Equals(episodeSource, "tvdb", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+                var storedEpisodeId = episodeValues.FirstOrDefault(value => value.Key == BridgeIdKeys.TvdbEpisodeId)?.Value;
+                var episodeNumber = episode.Ordinal;
+                if (!episodeNumber.HasValue
+                    && int.TryParse(episodeValues.FirstOrDefault(value =>
+                        string.Equals(value.Key, MetadataFieldConstants.EpisodeNumber, StringComparison.OrdinalIgnoreCase))?.Value,
+                        NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedEpisode))
+                {
+                    episodeNumber = parsedEpisode;
+                }
+
+                if (showEpisodes is null)
+                {
+                    try
+                    {
+                        showEpisodes = await _tvdb.GetAllPagesAsync("tvdb", "series_episodes",
+                            ProviderApiClient.Args(("id", showId), ("season_type", "default"), ("lang", "eng")), ct).ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        _logger.LogWarning(ex, "TheTVDB episode list for show {ShowId} could not be read; episode pictures were skipped", showId);
+                        showEpisodes = [];
+                    }
+                }
+                var match = !string.IsNullOrWhiteSpace(storedEpisodeId)
+                    ? showEpisodes.FirstOrDefault(node => node["id"]?.ToString() == storedEpisodeId)
+                    : episodeNumber.HasValue
+                        ? showEpisodes.FirstOrDefault(node =>
+                            node["seasonNumber"]?.ToString() == season.SeasonNumber.ToString(CultureInfo.InvariantCulture)
+                            && node["number"]?.ToString() == episodeNumber.Value.ToString(CultureInfo.InvariantCulture))
+                        : null;
+                if (match is null)
+                {
+                    continue;
+                }
+                var matchedId = match["id"]?.ToString();
+                if (string.IsNullOrWhiteSpace(storedEpisodeId) && !string.IsNullOrWhiteSpace(matchedId))
+                {
+                    await _canonicalRepo.UpsertBatchAsync([new CanonicalValue
+                        {
+                            EntityId = episode.WorkId, Key = BridgeIdKeys.TvdbEpisodeId,
+                            Value = matchedId, WinningProviderId = WellKnownProviders.Tvdb,
+                            LastScoredAt = checkedAt,
+                        }], ct).ConfigureAwait(false);
+                }
+                episodeOwners.Add(episode.WorkId);
+                await AddAsync(match["image"]?.ToString(), AssetType.EpisodeStill, episode.WorkId).ConfigureAwait(false);
+            }
+        }
+
         if (HeldArtworkIsForAnotherIdentity(canonicals, "tvdb", showId))
         {
             // The show was identified as a different show; the earlier show's artwork and its seasons' artwork go.
@@ -632,6 +699,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             {
                 (context.RootWorkId, AssetType.CoverArt), (context.RootWorkId, AssetType.Background), (context.RootWorkId, AssetType.Logo),
             };
+            scopes.AddRange(episodeOwners.Select(owner => (owner, AssetType.EpisodeStill)));
             scopes.AddRange(offered.Keys.Where(key => key.Owner != context.RootWorkId
                 && key.Type is AssetType.SeasonPoster or AssetType.SeasonThumb));
             foreach (var (owner, type) in scopes.Distinct())
@@ -646,6 +714,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             string.Equals(value.Key, MetadataFieldConstants.IdentityProvider, StringComparison.OrdinalIgnoreCase))?.Value;
         var episodeId = own.FirstOrDefault(value => value.Key == BridgeIdKeys.TvdbEpisodeId)?.Value;
         if (!string.IsNullOrWhiteSpace(episodeId)
+            && !episodeOwners.Contains(context.SelfWorkId)
             && (string.IsNullOrWhiteSpace(ownSource)
                 || string.Equals(ownSource, "tvdb", StringComparison.OrdinalIgnoreCase)))
         {
@@ -677,40 +746,41 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         }, ct, rootHeldCount: showHeld);
     }
 
-    private static AssetType? ResolveTvdbArtworkType(JsonNode artwork, string scope,
-        IReadOnlyDictionary<string, string> names)
+    /// <summary>
+    /// The artwork of a TheTVDB record that this scope uses, best first within each kind. Only the best
+    /// of a kind is marked <c>Preferred</c>, so a lesser picture stored after it never takes its place.
+    /// </summary>
+    private List<(JsonNode Node, AssetType Type, bool Preferred)> SelectTvdbArtworks(
+        JsonNode? record, string scope, IReadOnlyDictionary<string, string> names)
     {
-        var typeId = artwork["type"]?.ToString() ?? artwork["imageType"]?.ToString() ?? string.Empty;
-        var typeObjectName = artwork["type"] is JsonObject typeObject ? typeObject["name"]?.ToString() : null;
-        var name = (names.GetValueOrDefault(typeId) ?? typeObjectName ?? typeId)
-            .ToLowerInvariant();
-        if (scope == "series")
+        var selected = new List<(JsonNode, AssetType, bool)>();
+        if (record?["artworks"] is not JsonArray artworks)
         {
-            if (name.Contains("logo"))
+            return selected;
+        }
+
+        var language = ResolveMetadataLanguage();
+        var byType = artworks.Where(node => node is not null)
+            .Select(node =>
             {
-                return AssetType.Logo;
-            }
-            if (name.Contains("background") || name.Contains("fanart"))
+                var typeId = node!["type"]?.ToString() ?? node["imageType"]?.ToString() ?? string.Empty;
+                var typeObjectName = node["type"] is JsonObject typeObject ? typeObject["name"]?.ToString() : null;
+                var name = names.GetValueOrDefault(typeId) ?? typeObjectName ?? typeId;
+                return (Node: node, Type: TvdbArtworkSelection.Classify(scope, name));
+            })
+            .Where(item => item.Type.HasValue)
+            .GroupBy(item => item.Type!.Value);
+        foreach (var group in byType)
+        {
+            var ranked = TvdbArtworkSelection.Rank(group.Select(item => item.Node), group.Key, language)
+                .Take(MaxVariantsPerAssetType)
+                .ToList();
+            for (var i = 0; i < ranked.Count; i++)
             {
-                return AssetType.Background;
-            }
-            if (name.Contains("poster"))
-            {
-                return AssetType.CoverArt;
+                selected.Add((ranked[i], group.Key, i == 0));
             }
         }
-        else if (scope == "season")
-        {
-            if (name.Contains("background"))
-            {
-                return AssetType.SeasonThumb;
-            }
-            if (name.Contains("poster"))
-            {
-                return AssetType.SeasonPoster;
-            }
-        }
-        return null;
+        return selected;
     }
 
     private async Task<ImageAssetProcessingResult> ProcessRankedImagesAsync(IEnumerable<JsonNode?> imageNodes, AssetType assetType,
@@ -850,7 +920,8 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         AssetType assetType,
         Guid ownerEntityId,
         CancellationToken ct,
-        string sourceProvider = TmdbProviderName)
+        string sourceProvider = TmdbProviderName,
+        bool setPreferred = true)
     {
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
         {
@@ -885,7 +956,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             }
         }
 
-        if (currentPreferred?.IsUserOverride == true)
+        if (currentPreferred?.IsUserOverride == true || !setPreferred)
         {
             return new ImageAssetProcessingResult(existing!.LocalImagePath, stored, 1, 0);
         }

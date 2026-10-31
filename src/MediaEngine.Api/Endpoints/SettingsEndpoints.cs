@@ -385,6 +385,7 @@ public static class SettingsEndpoints
             [Microsoft.AspNetCore.Mvc.FromServices] MediaEngine.Api.Security.IRequestAuthorityResolver authorities,
             [Microsoft.AspNetCore.Mvc.FromServices] MediaEngine.Api.Services.Unmatched.UnmatchedCountService unmatchedCounts,
             [Microsoft.AspNetCore.Mvc.FromServices] MediaEngine.Api.Services.Libraries.FolderFirstCheckService firstChecks,
+            [Microsoft.AspNetCore.Mvc.FromServices] MediaEngine.Application.Services.IReviewQueueReadService reviewQueue,
             CancellationToken ct) =>
         {
             // Vault libraries are in no Libraries list (Videos spec D45).
@@ -398,6 +399,16 @@ public static class SettingsEndpoints
             foreach (var library in result.Libraries)
             {
                 library.UnmatchedCount = counts.GetValueOrDefault(library.Id);
+            }
+
+            // Needs Review items per library (a different list from Unmatched), read for the same administrator scope only.
+            if (scope.AllLibraries)
+            {
+                var reviews = await reviewQueue.GetPendingCountsByLibraryAsync(ct);
+                foreach (var library in result.Libraries)
+                {
+                    library.ReviewCount = reviews.GetValueOrDefault(library.Id);
+                }
             }
 
             // A folder's first check (Library setup spec D35) is shown to an administrator only, like the Unmatched count above.

@@ -39,6 +39,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IViewIntakeRepository, ViewIntakeRepository>();
         services.AddSingleton<IViewTrashRepository, ViewTrashRepository>();
         services.AddSingleton<IViewTrashPurgeRepository, ViewTrashPurgeRepository>();
+        services.AddSingleton<IViewMissingFileRepository, ViewMissingFileRepository>();
         services.AddSingleton<IViewCatalogueRepository, ViewCatalogueRepository>();
         services.AddSingleton<IDocumentFilingRepository, DocumentFilingRepository>();
         services.AddSingleton<IDocumentBulkRepository, DocumentBulkRepository>();
@@ -56,6 +57,8 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<PersonalMediaActivityRecorder>();
         services.AddHostedService(sp => sp.GetRequiredService<PersonalMediaActivityRecorder>());
         services.AddSingleton<ViewLibraryService>();
+        services.AddSingleton<ViewMissingFileService>();
+        services.AddSingleton<IViewMissingFileSweeper>(sp => sp.GetRequiredService<ViewMissingFileService>());
         services.AddSingleton<ViewIntakeAreas>();
         services.AddSingleton<ViewIntakeActivity>();
         services.AddSingleton<ViewIntakeFiler>();

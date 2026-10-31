@@ -1,7 +1,7 @@
 namespace MediaEngine.Contracts.Artwork;
 
 public sealed record ProviderArtworkCandidateDto(string Id, string Provider, string ThumbnailUrl,
-    int? Width, int? Height, bool AlreadyAdded);
+    int? Width, int? Height, bool AlreadyAdded, string? Language = null);
 public sealed record ProviderArtworkDiscoveryDto(IReadOnlyList<ProviderArtworkCandidateDto> Items, string? Message,
     string? AttributionUrl = null,
     ProviderArtworkRequestContextDto? Context = null,

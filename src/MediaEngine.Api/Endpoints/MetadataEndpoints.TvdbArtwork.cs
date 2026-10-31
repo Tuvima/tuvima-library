@@ -5,6 +5,7 @@ using MediaEngine.Contracts.Artwork;
 using MediaEngine.Contracts.Metadata;
 using MediaEngine.Domain;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
 using MediaEngine.Providers.Services;
 
@@ -190,7 +191,7 @@ public static partial class MetadataEndpoints
                 output.Add((category.Value.Role, category.Value.AssetType, new ProviderArtworkCandidate(
                     "tvdb:artwork:" + (TvdbText(artwork, "id") ?? url), "TheTVDB", url,
                     thumbnail, ParseTvdbNumber(TvdbText(artwork, "width")),
-                    ParseTvdbNumber(TvdbText(artwork, "height")))));
+                    ParseTvdbNumber(TvdbText(artwork, "height")), TvdbText(artwork, "language"))));
             }
         }
         if (output.Count == 0 && SafeTvdbArtworkUrl(TvdbText(detail, "image")) is { } primary)
@@ -202,37 +203,16 @@ public static partial class MetadataEndpoints
         return output;
     }
 
-    private static (string Role, string AssetType)? ClassifyTvdbArtwork(string scope, string name)
-    {
-        var normalized = name.ToLowerInvariant();
-        if (scope == "series")
+    private static (string Role, string AssetType)? ClassifyTvdbArtwork(string scope, string name) =>
+        TvdbArtworkSelection.Classify(scope, name) switch
         {
-            if (normalized.Contains("logo"))
-            {
-                return ("Logo", "Logo");
-            }
-            if (normalized.Contains("background") || normalized.Contains("fanart"))
-            {
-                return ("Background", "Background");
-            }
-            if (normalized.Contains("poster"))
-            {
-                return ("Primary", "CoverArt");
-            }
-        }
-        else if (scope == "season")
-        {
-            if (normalized.Contains("background"))
-            {
-                return ("Background", "SeasonThumb");
-            }
-            if (normalized.Contains("poster"))
-            {
-                return ("Primary", "SeasonPoster");
-            }
-        }
-        return null;
-    }
+            AssetType.Logo => ("Logo", "Logo"),
+            AssetType.Background => ("Background", "Background"),
+            AssetType.CoverArt => ("Primary", "CoverArt"),
+            AssetType.SeasonThumb => ("Background", "SeasonThumb"),
+            AssetType.SeasonPoster => ("Primary", "SeasonPoster"),
+            _ => null,
+        };
 
     private static string? SafeTvdbArtworkUrl(string? value)
     {

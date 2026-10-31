@@ -69,11 +69,9 @@ public sealed class PeopleBackupRoundTripTests : IDisposable
 
         // Access, content limits, the default household and the optional administrator PIN question.
         using var check = fresh.CreateConnection();
-        Assert.Equal(["listen", "read", "view", "watch"], FeaturesOf(check, people.Shy));
-        Assert.Equal(["read", "watch"], FeaturesOf(check, people.Mom));
-        Assert.Equal(["read"], FeaturesOf(check, people.Kid1));
-        Assert.Equal(["watch"], FeaturesOf(check, people.Pat));
-        Assert.Equal(1, check.ExecuteScalar<int>("SELECT COUNT(*) FROM profile_library_hidden WHERE profile_id = @id", new { id = GuidSql.ToBlob(people.Mom) }));
+        // A library is on or off per household: the household's list comes back, and no per-profile table exists.
+        Assert.Equal(1, check.ExecuteScalar<int>("SELECT COUNT(*) FROM household_library_hidden WHERE household_id = @id", new { id = GuidSql.ToBlob(people.Household1) }));
+        Assert.Equal(0, check.ExecuteScalar<int>("SELECT COUNT(*) FROM household_library_hidden WHERE household_id = @id", new { id = GuidSql.ToBlob(people.Household2) }));
         // The household's Kid settings come back with the household; a Kid's profile has no limit of its own.
         var kidSettings = check.QuerySingle<(string Watch, string Read, string Listen, long Unrated)>(
             "SELECT kid_watch_level, kid_read_level, kid_listen_level, kid_show_unrated FROM households WHERE id = @id", new { id = GuidSql.ToBlob(people.Household1) });
@@ -109,9 +107,6 @@ public sealed class PeopleBackupRoundTripTests : IDisposable
         // The current one is accepted.
         RestoreArchiveValidator.Validate(path);
     }
-
-    private static List<string> FeaturesOf(Microsoft.Data.Sqlite.SqliteConnection connection, Guid profile) =>
-        connection.Query<string>("SELECT feature_id FROM profile_feature_grants WHERE profile_id = @id ORDER BY feature_id", new { id = GuidSql.ToBlob(profile) }).ToList();
 
     /// <summary>The archive with its manifest's <c>database_epoch</c> set (or removed when null), as a file from another version would carry it.</summary>
     private static byte[] WithManifestEpoch(byte[] archiveBytes, string? epoch)
@@ -220,13 +215,9 @@ public sealed class PeopleBackupRoundTripTests : IDisposable
             AddUser(c, MomUser, Mom, "mom@home.com");
             AddUser(c, Kid1User, Kid1, "kid@home.com");
             AddUser(c, PatUser, Pat, "pat@other.com");
-            Grant(c, Shy, "read", "watch", "listen", "view");
-            Grant(c, Mom, "read", "watch");
-            Grant(c, Kid1, "read");
-            Grant(c, Pat, "watch");
             c.Execute(
-                "INSERT INTO profile_library_hidden(profile_id,library_id,created_at) VALUES(@id,@library,@now)",
-                new { id = GuidSql.ToBlob(Mom), library = GuidSql.ToBlob(Guid.NewGuid()), now = Stamp });
+                "INSERT INTO household_library_hidden(household_id,library_id,created_at) VALUES(@id,@library,@now)",
+                new { id = GuidSql.ToBlob(Household1), library = GuidSql.ToBlob(Guid.NewGuid()), now = Stamp });
             c.Execute(
                 "INSERT INTO profile_admin_protections(profile_id,is_enabled,unlock_mode,unlock_minutes,protection_version,updated_at) VALUES(@id,1,'FixedDuration',30,1,@now)",
                 new { id = GuidSql.ToBlob(Shy), now = Stamp });
@@ -252,16 +243,6 @@ public sealed class PeopleBackupRoundTripTests : IDisposable
                 VALUES(@credential,@id,'Password',@hash,'pbkdf2',1,'stamp',@now,@now)
                 """,
                 new { credential = GuidSql.ToBlob(Guid.NewGuid()), id = GuidSql.ToBlob(id), hash = "HASH-" + email, now = Stamp });
-        }
-
-        private static void Grant(Microsoft.Data.Sqlite.SqliteConnection c, Guid profile, params string[] features)
-        {
-            foreach (var feature in features)
-            {
-                c.Execute(
-                    "INSERT INTO profile_feature_grants(profile_id,feature_id,granted_at) VALUES(@id,@feature,@now)",
-                    new { id = GuidSql.ToBlob(profile), feature, now = Stamp });
-            }
         }
     }
 }

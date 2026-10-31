@@ -1,0 +1,110 @@
+@namespace MediaEngine.Web.Components.Setup
+@using MediaEngine.Contracts.Setup
+@using MediaEngine.Web.Components.Settings
+
+<div class="setup-stage-content">
+    <div class="setup-stage__heading">
+        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Dns" />
+        <div><h2 id="setup-stage-title">Welcome to your library</h2><p>Choose your language, then give this server a friendly name. Phones, TVs and other computers on your network can then find it by name instead of by number.</p></div>
+    </div>
+
+    <SetupLocaleStage Value="@Locale" ValueChanged="LocaleChanged" ShowDisplay="true" ShowMetadata="false" />
+
+    <div class="setup-server-form">
+        <AppTextField Label="Server name" Value="@ServerName" ValueChanged="OnNameChanged" Placeholder="Shaya's Library" />
+        <AppTextField Label="Network name" Value="@HostName" ValueChanged="OnHostChanged" Placeholder="tuvima" />
+        <p class="setup-server-form__preview">Other devices on your home network can open <strong>http://@(string.IsNullOrWhiteSpace(HostName) ? "tuvima" : HostName).local</strong>. If a device cannot find it by name, the numeric address keeps working.</p>
+    </div>
+
+    <SetupStageFooter ShowReturnToCurrentStep="@ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
+        <AppButton Label="Continue" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                   Loading="@Busy" Disabled="@(string.IsNullOrWhiteSpace(ServerName))" OnClick="Save" />
+    </SetupStageFooter>
+
+    @if (ShowRestore)
+    {
+        <div class="setup-restore">
+            <h3>Restore a backup file</h3>
+            <p>Choose a Library backup ZIP. It is inspected before anything is replaced.</p>
+            <InputFile OnChange="UploadBackup" accept=".zip,application/zip" class="setup-file-input" />
+            @if (!string.IsNullOrWhiteSpace(BackupError))
+            {
+                <AppAlert Tone="AppUiTone.Error" data-testid="setup-restore-error">@BackupError</AppAlert>
+            }
+            @if (Backup is not null)
+            {
+                <dl class="setup-facts"><div><dt>File</dt><dd>@Backup.FileName</dd></div><div><dt>Created</dt><dd>@(Backup.CreatedAt?.ToString("g") ?? "Unknown")</dd></div><div><dt>Entries</dt><dd>@Backup.EntryCount</dd></div></dl>
+                <AppAlert Tone="AppUiTone.Warning" data-testid="setup-restore-first-look">
+                    @if (Backup.Contents is { } contents)
+                    {
+                        <BackupContentsSummary Contents="contents" />
+                        <div>The application will restart after confirmation.</div>
+                    }
+                    else
+                    {
+                        <div>@Backup.Warning</div><div>The application will restart after confirmation.</div>
+                    }
+                </AppAlert>
+                <div class="setup-actions"><AppButton Label="Cancel restore" OnClick="CancelRestore" /><AppButton Label="Restore and restart" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Warning" Loading="@Busy" OnClick="ConfirmRestore" /></div>
+            }
+            else
+            {
+                <div class="setup-actions"><AppButton Label="Cancel restore" OnClick="CancelRestore" /></div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="setup-actions setup-actions--secondary"><AppButton Label="Restore a backup instead" StartIcon="@AppMaterialIcons.Outlined.Restore" ButtonStyle="AppButtonStyle.Text" OnClick="OpenRestore" /></div>
+    }
+</div>
+
+@code {
+    /// <summary>Display language and region, saved together with the server name when Continue is pressed.</summary>
+    [Parameter] public SetupLocaleDto? Locale { get; set; }
+    [Parameter] public EventCallback<SetupLocaleDto> LocaleChanged { get; set; }
+    [Parameter] public string ServerName { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> ServerNameChanged { get; set; }
+    [Parameter] public string HostName { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> HostNameChanged { get; set; }
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public EventCallback Save { get; set; }
+    [Parameter] public bool ShowReturnToCurrentStep { get; set; }
+    [Parameter] public EventCallback ReturnToCurrentStep { get; set; }
+    [Parameter] public SetupBackupInspectionDto? Backup { get; set; }
+    /// <summary>The Engine's one sentence when it refused the chosen file (an older layout, a damaged file); shown as it is.</summary>
+    [Parameter] public string? BackupError { get; set; }
+    [Parameter] public bool ShowRestore { get; set; }
+    [Parameter] public EventCallback OpenRestore { get; set; }
+    [Parameter] public EventCallback CancelRestore { get; set; }
+    [Parameter] public EventCallback<InputFileChangeEventArgs> UploadBackup { get; set; }
+    [Parameter] public EventCallback ConfirmRestore { get; set; }
+
+    // The network name follows the friendly name until the person edits it themselves.
+    private bool _hostEdited;
+
+    private async Task OnNameChanged(string? value)
+    {
+        var name = value ?? string.Empty;
+        await ServerNameChanged.InvokeAsync(name);
+        if (!_hostEdited) await HostNameChanged.InvokeAsync(ToLabel(name));
+    }
+
+    private Task OnHostChanged(string? value)
+    {
+        _hostEdited = true;
+        return HostNameChanged.InvokeAsync(ToLabel(value ?? string.Empty));
+    }
+
+    private static string ToLabel(string value)
+    {
+        var builder = new System.Text.StringBuilder();
+        foreach (var character in value.Trim().ToLowerInvariant())
+        {
+            if (character is >= 'a' and <= 'z' or >= '0' and <= '9') builder.Append(character);
+            else if (builder.Length > 0 && builder[^1] != '-') builder.Append('-');
+        }
+        var label = builder.ToString().TrimEnd('-');
+        return label.Length > 63 ? label[..63].TrimEnd('-') : label;
+    }
+}

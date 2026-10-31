@@ -441,7 +441,6 @@ public static class SettingsNav
             [SettingsSection.DevHarness] = [],
             [SettingsSection.Providers] =
             [
-                new("providers", "Providers", AppMaterialIcons.Outlined.Dns),
                 new(IngestionFlowSubsection, "Ingestion Flow", AppMaterialIcons.Outlined.AccountTree),
             ],
             [SettingsSection.LocalAi] =
@@ -681,7 +680,7 @@ public static class SettingsNav
         return section switch
         {
             SettingsSection.Profiles => string.IsNullOrWhiteSpace(normalized) || Guid.TryParse(normalized, out _),
-            SettingsSection.Providers => normalized is "" or "providers",
+            SettingsSection.Providers => normalized is "" or IngestionFlowSubsection,
             SettingsSection.Network => normalized is "" or "overview",
             SettingsSection.Access => normalized is "" or "users" or "authentication" or HouseholdsSubsection,
             // The Logs page (technical log, retention) is a desktop and tablet page; a phone keeps the System summary.

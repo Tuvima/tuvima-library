@@ -128,7 +128,7 @@ public sealed class MappedEndpointInventoryTests
         var inventory = EndpointInventory.From(app);
         var expected = new Dictionary<ApplicationPermissionId, string[]>
         {
-            [ApplicationPermissionIds.MetadataRead] = ["GetClaimHistory", "GetSeriesPlacement", "GetMediaEditorContext", "GetScopedArtworkEditor", "GetArtworkEditor", "GetArtworkWritebackStatus", "GetArtworkWritebackStatuses", "GetAssetFileWriteStatus", "GetEditionRenditions", "GetSearchResultsCache", "GetCanonicalValues", "ResolveLabels", "GetWikidataAliases", "GetMediaEditorNavigator", "GetMediaEditorWorkVersions", "SearchMediaEditorOwnedChildren", "SnapshotMediaEditorOwnedChildSelection", "PreviewParentFirstMediaEditorPairing", "SearchReviewedTvPairingChildren", "GetMediaEditorFileCoverage", "PreviewMediaEditorMembershipChange", "GetCanonDiscrepancies", "GetTvdbMatchPreview", "GetTvdbScopedMatchCandidates", "PreviewTvdbShowOrder"],
+            [ApplicationPermissionIds.MetadataRead] = ["GetClaimHistory", "GetSeriesPlacement", "GetMediaEditorContext", "GetScopedArtworkEditor", "GetArtworkEditor", "GetArtworkWritebackStatus", "GetArtworkWritebackStatuses", "GetAssetFileWriteStatus", "GetEditionRenditions", "GetSearchResultsCache", "GetCanonicalValues", "ResolveLabels", "GetWikidataAliases", "GetMediaEditorNavigator", "GetMediaEditorWorkVersions", "SearchMediaEditorOwnedChildren", "SnapshotMediaEditorOwnedChildSelection", "PreviewParentFirstMediaEditorPairing", "SearchReviewedTvPairingChildren", "GetMediaEditorFileCoverage", "PreviewMediaEditorMembershipChange", "GetCanonDiscrepancies", "GetTvdbMatchPreview", "GetTvdbScopedMatchCandidates", "GetTvMatchBrowserShows", "GetTvMatchBrowserSeasons", "GetTvMatchBrowserEpisodes", "PreviewTvdbShowOrder"],
             [ApplicationPermissionIds.MetadataWrite] = ["LockClaim", "SetSeriesPlacement", "OverrideMetadata", "ReclassifyMediaType", "UploadCover", "UploadScopedArtwork", "UploadScopedArtworkFromUrl", "UploadEntityArtwork", "SetPreferredArtwork", "DeleteArtworkVariant", "CoverFromUrl", "ApplyTvdbScopedMatch", "ApplyTvdbShowOrder", "ImportSelectedProviderArtwork", "RetryArtworkWriteback", "UpdateAssetRendition", "PreviewEditionCoverPreference", "SaveEditionCoverPreference", "SaveMediaEditorFileCoverage", "PreviewReviewedTvEpisodeStill", "PreviewReviewedTvSharedArtwork"],
             [ApplicationPermissionIds.MetadataMatch] = ["SearchMetadata", "SearchMetadataFanOut", "PutSearchResultsCache", "WikidataTest", "SaveReviewedParentFirstTvPairing"],
             [ApplicationPermissionIds.MetadataEnrichmentRun] = ["HydrateEntity", "RefreshScopedProviderArtwork", "DiscoverScopedProviderArtwork", "TriggerPass2"],
@@ -164,8 +164,6 @@ public sealed class MappedEndpointInventoryTests
             .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersRead);
         inventory.Require("/access/users/{userId:guid}", HttpMethods.Delete)
             .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite);
-        inventory.Require("/access/profiles/{profileId:guid}/access", HttpMethods.Put)
-            .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite, allowHouseholdAdministrator: true);
         inventory.Require("/access/profiles/{profileId:guid}/admin-protection", HttpMethods.Put)
             .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersWrite, allowHouseholdAdministrator: true);
 

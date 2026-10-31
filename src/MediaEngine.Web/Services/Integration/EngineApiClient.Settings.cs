@@ -489,6 +489,10 @@ public sealed partial class EngineApiClient
         PostAsync<MediaEngine.Contracts.Library.LibraryAddFilesRequest, MediaEngine.Contracts.Library.LibraryAddFilesResultDto>(
             "POST /library/libraries/{libraryId}/add-files", $"/library/libraries/{Uri.EscapeDataString(libraryId)}/add-files", request, ct: ct);
 
+    public Task<MediaEngine.Contracts.Library.UnmatchedPageDto?> GetUnmatchedItemsAsync(string libraryId, int skip = 0, int take = 50, CancellationToken ct = default) =>
+        GetAsync<MediaEngine.Contracts.Library.UnmatchedPageDto>(
+            "GET /library/unmatched/libraries/{libraryId}", $"/library/unmatched/libraries/{Uri.EscapeDataString(libraryId)}?skip={skip}&take={take}", ct: ct);
+
     public Task<MediaEngine.Contracts.Library.UnmatchedActionResultDto?> KeepAllUnmatchedLibraryAsync(string libraryId, CancellationToken ct = default) =>
         PostAsync<object?, MediaEngine.Contracts.Library.UnmatchedActionResultDto>(
             "POST /library/unmatched/libraries/{libraryId}/keep", $"/library/unmatched/libraries/{Uri.EscapeDataString(libraryId)}/keep", null, ct: ct);
@@ -630,6 +634,33 @@ public sealed partial class EngineApiClient
         bool enabled,
         CancellationToken ct = default)
         => await _providerClient.UpdateProviderAsync(name, enabled, ct);
+
+    public Task<StashBoxSettingsDto?> GetStashBoxSettingsAsync(CancellationToken ct = default) =>
+        GetAsync<StashBoxSettingsDto>("GET /settings/stashbox", "/settings/stashbox", ct: ct);
+
+    public Task<StashBoxTestResultDto?> TestStashBoxServerAsync(string serverId, CancellationToken ct = default) =>
+        PostAsync<StashBoxTestRequest, StashBoxTestResultDto>("POST /settings/stashbox/test", "/settings/stashbox/test", new StashBoxTestRequest { ServerId = serverId }, ct: ct);
+
+    public Task<StashBoxTestResultDto?> SaveStashBoxServerKeyAsync(string serverId, string apiKey, CancellationToken ct = default) =>
+        PutAsync<StashBoxKeyRequest, StashBoxTestResultDto>("PUT /settings/stashbox/servers/key", $"/settings/stashbox/servers/{Uri.EscapeDataString(serverId)}/key", new StashBoxKeyRequest { ApiKey = apiKey }, ct: ct);
+
+    public async Task<bool> RemoveStashBoxServerAsync(string serverId, CancellationToken ct = default)
+    {
+        try
+        {
+            using var response = await _http.DeleteAsync($"/settings/stashbox/servers/{Uri.EscapeDataString(serverId)}", ct);
+            return response.IsSuccessStatusCode;
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogWarning(ex, "DELETE /settings/stashbox/servers failed");
+            LastError = ex.Message;
+            return false;
+        }
+    }
+
+    public Task<StashBoxSettingsDto?> SetStashBoxFingerprintPermissionAsync(bool allowed, CancellationToken ct = default) =>
+        PutAsync<StashBoxFingerprintPermissionRequest, StashBoxSettingsDto>("PUT /settings/stashbox/fingerprint-permission", "/settings/stashbox/fingerprint-permission", new StashBoxFingerprintPermissionRequest { Allowed = allowed }, ct: ct);
 
     public async Task<List<ProviderHealthStatusResponse>> GetProviderHealthAsync(
         CancellationToken ct = default)

@@ -103,6 +103,9 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
 
         Assert.Equal(4, Assert.Single(asAdministrator.Libraries).UnmatchedCount);
         Assert.Equal(0, Assert.Single(asSomeoneElse.Libraries).UnmatchedCount);
+        // Needs Review items are a different list from the unmatched files, counted per library for an administrator only.
+        Assert.Equal(2, Assert.Single(asAdministrator.Libraries).ReviewCount);
+        Assert.Equal(0, Assert.Single(asSomeoneElse.Libraries).ReviewCount);
     }
 
     [Fact]
@@ -410,6 +413,7 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
         builder.Services.AddSingleton<IRequestAuthorityResolver>(new FixedAuthority(() => _asAdministrator));
         builder.Services.AddSingleton(sp => new MediaEngine.Api.Services.Unmatched.UnmatchedCountService(
             new UnmatchedCountsSpy(), sp.GetRequiredService<IVaultLibraryRepository>()));
+        builder.Services.AddSingleton<MediaEngine.Application.Services.IReviewQueueReadService>(new ReviewCountsSpy());
         builder.Services.AddSingleton<IAccountAccessDecisionService>(new AllowEverything());
         builder.Services.AddSingleton(_firstChecks);
         builder.Services.AddSingleton(sp => new FolderFirstCheckService(
@@ -495,6 +499,18 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
         public Task<bool> PauseAsync(string sourceId, int tried, int unmatched, DateTimeOffset now, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<bool> KeepGoingAsync(string sourceId, DateTimeOffset now, CancellationToken ct = default) => throw new NotSupportedException();
         public bool IsHeld(string sourceId) => throw new NotSupportedException();
+    }
+
+    private sealed class ReviewCountsSpy : MediaEngine.Application.Services.IReviewQueueReadService
+    {
+        public Task<IReadOnlyDictionary<string, int>> GetPendingCountsByLibraryAsync(CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyDictionary<string, int>>(new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase) { ["dddddddd-0000-4000-8000-000000000001"] = 2 });
+
+        public Task<IReadOnlyList<MediaEngine.Contracts.Review.ReviewItemDto>> GetPendingAsync(int limit, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<MediaEngine.Contracts.Review.ReviewItemDto>> GetPendingForLibraryAsync(int limit, string libraryId, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<MediaEngine.Contracts.Review.ReviewItemDto?> GetByIdAsync(Guid id, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<int> GetPendingCountAsync(CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<IReadOnlyList<MediaEngine.Application.ReadModels.ReviewReasonCount>> GetPendingReasonCountsAsync(CancellationToken ct = default) => throw new NotSupportedException();
     }
 
     private sealed class UnmatchedCountsSpy : IUnmatchedAssetRepository

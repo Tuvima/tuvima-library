@@ -1,0 +1,739 @@
+<title>Libraries Redesign Mockups</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a mockup viewer. A top strip switches between screens; each screen is a 1440px-wide Dashboard frame drawn to
+   scale (it scales down to fit the window, so 1280 and narrower also read), with numbered callouts explained beside it.
+   The frame commits to Library's dark look (design-system tokens); the viewer chrome around it follows the theme. */
+:root {
+  color-scheme: dark;
+  --v-bg: #0b0f1a; --v-fg: #e9edf5; --v-muted: #9aa6bb; --v-line: #253047; --v-card: #121829; --v-accent: #8852fc;
+  /* Library app tokens (tuvima.tokens.css) */
+  --bg: #070a12; --shell: #0b1020; --surface: #111827; --raised: #151e2f; --hover: #1a2438; --elevated: #1d2940;
+  --text: #f5f7fb; --text-2: #b6c2d6; --text-3: #94a3b8; --line: #243049; --line-2: #2f3c58;
+  --accent: #8852fc; --accent-hover: #a46fff; --accent-soft: rgba(136,82,252,.18);
+  --ok: #22c55e; --info: #38bdf8; --warn: #f59e0b; --danger: #ef4444; --unmatched: #fb7185; --idle: #7f8da5;
+  --m-movies: #fb7185; --m-tv: #a78bfa; --m-music: #fbbf24; --m-books: #60a5fa; --m-audio: #34d399; --m-comics: #22d3ee; --m-view: #38bdf8;
+  --ui: "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { color-scheme: light; --v-bg: #f3f4f8; --v-fg: #171c2a; --v-muted: #5b6577; --v-line: #d9dde8; --v-card: #ffffff; } }
+:root[data-theme="light"] { color-scheme: light; --v-bg: #f3f4f8; --v-fg: #171c2a; --v-muted: #5b6577; --v-line: #d9dde8; --v-card: #ffffff; }
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--v-bg); color: var(--v-fg); font: 14px/1.5 var(--ui); }
+.wrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 16px 40px; max-width: 1500px; margin: 0 auto; }
+h1 { font-size: 20px; margin: 0; text-wrap: balance; }
+.lead { color: var(--v-muted); margin: 4px 0 14px; max-width: 70ch; }
+.strip { display: flex; flex-wrap: wrap; gap: 6px; position: sticky; top: env(safe-area-inset-top, 0px); background: var(--v-bg); padding-block: 8px; z-index: 5; border-bottom: 1px solid var(--v-line); }
+.strip a { color: var(--v-fg); text-decoration: none; border: 1px solid var(--v-line); border-radius: 999px; padding: 5px 12px; font-size: 13px; }
+.strip a[aria-current="true"] { background: var(--v-accent); border-color: var(--v-accent); color: #fff; }
+.strip a:focus-visible, button:focus-visible { outline: 3px solid #a78bfa; outline-offset: 2px; }
+.screen { display: none; margin-top: 18px; }
+.screen.is-on { display: block; }
+.screen h2 { font-size: 17px; margin: 0 0 2px; }
+.screen .what { color: var(--v-muted); margin: 0 0 12px; max-width: 80ch; }
+.stage { width: 100%; overflow: hidden; border: 1px solid var(--v-line); border-radius: 10px; background: var(--bg); }
+.frame { width: 1440px; min-height: 900px; transform-origin: top left; background: var(--bg); color: var(--text); font-family: var(--ui); position: relative; }
+.notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; margin-top: 12px; }
+.note { background: var(--v-card); border: 1px solid var(--v-line); border-radius: 8px; padding: 10px 12px; font-size: 13px; display: flex; gap: 10px; }
+.note b.n { flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--v-accent); color: #fff; font-size: 12px; display: grid; place-items: center; }
+.callout { position: absolute; width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; font-size: 12px; display: grid; place-items: center; box-shadow: 0 0 0 3px rgba(136,82,252,.35); z-index: 3; }
+
+/* ---- App frame chrome ---- */
+.topnav { height: 56px; background: var(--shell); border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 26px; padding: 0 28px; }
+.brand { font-weight: 700; letter-spacing: .02em; display: flex; align-items: center; gap: 10px; }
+.brand i { width: 24px; height: 24px; border-radius: 6px; background: linear-gradient(135deg, var(--accent), #38bdf8); display: inline-block; }
+.topnav nav { display: flex; gap: 22px; color: var(--text-2); font-weight: 500; }
+.topnav nav span.on { color: var(--text); border-bottom: 2px solid var(--accent); padding-bottom: 16px; margin-bottom: -18px; }
+.topnav .spacer { flex: 1; }
+.avatar { width: 32px; height: 32px; border-radius: 50%; background: #d6a84f; }
+.body { display: grid; grid-template-columns: 236px 1fr; min-height: 844px; }
+.smenu { background: var(--shell); border-right: 1px solid var(--line); padding: 20px 12px; color: var(--text-2); font-size: 13.5px; }
+.smenu h4 { margin: 14px 10px 6px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); font-weight: 600; }
+.smenu div { padding: 7px 10px; border-radius: 8px; }
+.smenu div.on { background: var(--accent-soft); color: var(--text); font-weight: 600; }
+.page { padding: 26px 36px 40px; min-width: 0; }
+.crumbs { color: var(--text-3); font-size: 13px; display: flex; gap: 8px; }
+.crumbs b { color: var(--text-2); font-weight: 500; }
+.ptitle { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin: 6px 0 20px; }
+.ptitle h1 { font-size: 26px; font-weight: 700; color: var(--text); }
+.ptitle p { margin: 2px 0 0; color: var(--text-3); }
+
+/* Libraries two-pane */
+.libs { display: grid; grid-template-columns: 264px minmax(0, 1fr); gap: 28px; }
+.rail { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 8px 12px; align-self: start; position: sticky; top: 16px; }
+.rail .ov { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; font-weight: 600; }
+.rail .ov.on, .rail .lib.on { background: var(--accent-soft); color: var(--text); }
+.rail h5 { margin: 12px 10px 4px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+.rail h5 small { font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--accent-hover); font-size: 12px; }
+.rail .lib { display: grid; grid-template-columns: 28px 1fr auto; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px; color: var(--text-2); cursor: pointer; }
+.rail .lib:hover { background: var(--hover); color: var(--text); }
+.rail .lib .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+.rail .lib .dot.warn { background: var(--warn); } .rail .lib .dot.off { background: var(--danger); } .rail .lib .dot.idle { background: var(--idle); } .rail .lib .dot.scan { background: var(--info); }
+.rail .lib .cnt { font-size: 12px; color: var(--warn); font-variant-numeric: tabular-nums; }
+.rail hr { border: 0; border-top: 1px solid var(--line); margin: 10px 6px; }
+.rail .quiet { padding: 7px 10px; color: var(--text-3); font-size: 13px; display: flex; gap: 10px; align-items: center; }
+.tile { width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center; font-size: 13px; font-weight: 700; color: #0b0f1a; }
+.tile.movies { background: var(--m-movies); } .tile.tv { background: var(--m-tv); } .tile.music { background: var(--m-music); } .tile.books { background: var(--m-books); } .tile.audio { background: var(--m-audio); } .tile.comics { background: var(--m-comics); } .tile.view { background: var(--m-view); } .tile.plain { background: var(--idle); } .tile.vault { background: #d6a84f; }
+.tile.lg { width: 44px; height: 44px; border-radius: 10px; font-size: 18px; }
+
+.pane { min-width: 0; }
+.toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; }
+.search { flex: 1; max-width: 420px; height: 40px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface); color: var(--text-3); display: flex; align-items: center; padding: 0 12px; gap: 8px; }
+.select { height: 40px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface); color: var(--text-2); display: flex; align-items: center; padding: 0 12px; gap: 8px; }
+.btn { height: 40px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--line-2); background: transparent; color: var(--text); font: 600 14px var(--ui); display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.btn.pri { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.txt { border-color: transparent; color: var(--text-2); }
+.btn.sm { height: 32px; padding: 0 12px; font-size: 13px; border-radius: 8px; }
+.btn.ico { width: 40px; padding: 0; justify-content: center; }
+.btn.danger { color: var(--danger); }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+table.t { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.t th { text-align: left; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); font-weight: 600; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+table.t td { padding: 0 14px; height: 56px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+table.t tr:last-child td { border-bottom: 0; }
+table.t tr.row { cursor: pointer; }
+table.t tr.row:hover td { background: var(--hover); }
+table.t tr.row td:first-child { font-weight: 600; }
+table.t .group td { height: 40px; background: var(--raised); color: var(--text-2); font-weight: 600; font-size: 13px; }
+table.t .group td small { color: var(--text-3); font-weight: 500; margin-left: 8px; }
+table.t .group td a { float: right; color: var(--accent-hover); font-weight: 500; font-size: 13px; }
+.name { display: flex; align-items: center; gap: 12px; }
+.num { font-variant-numeric: tabular-nums; }
+.status { display: inline-flex; align-items: center; gap: 7px; font-weight: 500; }
+.status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+.status.warn::before { background: var(--warn); } .status.off::before { background: var(--danger); } .status.idle::before { background: var(--idle); } .status.scan::before { background: var(--info); }
+.status.link { color: var(--warn); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.chev { color: var(--text-3); text-align: right; }
+.path { font-family: var(--mono); font-size: 12px; color: var(--text-3); }
+.sub { color: var(--text-3); font-size: 13px; }
+.muted { color: var(--text-3); }
+.defaults { margin-top: 22px; padding: 18px 20px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 22px; }
+.defaults h3 { grid-column: 1 / -1; margin: 0; font-size: 15px; }
+.defaults h3 small { color: var(--text-3); font-weight: 400; margin-left: 10px; }
+.row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.row b { font-weight: 600; display: block; } .row small { color: var(--text-3); display: block; }
+.seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; font-size: 13px; }
+.seg span { padding: 6px 12px; color: var(--text-2); } .seg span.on { background: var(--accent-soft); color: var(--text); font-weight: 600; }
+.switch { width: 40px; height: 22px; border-radius: 999px; background: var(--line-2); position: relative; flex: none; }
+.switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; }
+.switch.on { background: var(--accent); } .switch.on::after { left: 21px; }
+
+/* Library page header */
+.lhead { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 14px; }
+.lhead .id { display: flex; gap: 14px; align-items: center; }
+.lhead h2 { margin: 0; font-size: 24px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.lhead h2 .pencil { color: var(--text-3); font-size: 14px; font-weight: 400; }
+.lhead .facts { color: var(--text-3); display: flex; gap: 14px; margin-top: 2px; }
+.actions { display: flex; gap: 10px; }
+.attn { border: 1px solid rgba(245,158,11,.45); background: rgba(245,158,11,.08); border-radius: 12px; padding: 12px 16px; display: grid; gap: 10px; margin-bottom: 16px; }
+.attn .r { display: flex; justify-content: space-between; align-items: center; gap: 14px; }
+.attn .r > span { display: flex; align-items: center; gap: 10px; }
+.attn .r > span::before { content: "!"; width: 20px; height: 20px; border-radius: 50%; background: var(--warn); color: #0b0f1a; font-weight: 700; font-size: 12px; display: grid; place-items: center; flex: none; }
+.attn .r.off > span::before { background: var(--danger); color: #fff; }
+.tabs { display: flex; gap: 26px; border-bottom: 1px solid var(--line); margin-bottom: 16px; font-weight: 500; color: var(--text-3); font-size: 15px; }
+.tabs span { padding: 10px 2px; } .tabs span.on { color: var(--text); border-bottom: 2px solid var(--accent); margin-bottom: -1px; }
+.tabs span .n { color: var(--warn); margin-left: 6px; font-size: 13px; }
+.menu { color: var(--text-3); font-weight: 700; letter-spacing: 1px; }
+.radio { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line-2); display: inline-block; vertical-align: middle; }
+.radio.on { border-color: var(--accent); box-shadow: inset 0 0 0 4px var(--surface); background: var(--accent); }
+.handling { display: inline-flex; align-items: center; gap: 6px; color: var(--text-2); }
+.footnote { color: var(--text-3); font-size: 13px; margin: 12px 2px 0; }
+
+/* File handling 2-column */
+.fh { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.fh .card { padding: 18px 20px; }
+.fh h3 { margin: 0 0 12px; font-size: 15px; display: flex; justify-content: space-between; }
+.fh h3 i { color: var(--text-3); font-style: normal; font-size: 13px; font-weight: 400; }
+.choice { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; grid-template-columns: 18px 1fr; gap: 12px; align-items: center; margin-bottom: 8px; color: var(--text-2); }
+.choice.on { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
+.choice b { display: block; } .choice small { color: var(--text-3); }
+.ex { margin-top: 10px; color: var(--text-3); font-size: 13px; } .ex code { font-family: var(--mono); color: var(--text-2); font-size: 12px; margin-left: 8px; }
+.savebar { position: absolute; left: 236px; right: 0; bottom: 0; background: var(--elevated); border-top: 1px solid var(--line-2); padding: 12px 36px; display: flex; justify-content: space-between; align-items: center; }
+
+/* Dialogs */
+.dim { position: absolute; inset: 0; background: rgba(2,4,10,.62); display: grid; place-items: start center; padding-top: 70px; z-index: 2; }
+.dlg { background: var(--raised); border: 1px solid var(--line-2); border-radius: 16px; box-shadow: 0 30px 80px rgba(0,0,0,.6); width: 640px; overflow: hidden; }
+.dlg.wide { width: 1060px; }
+.dlg header { padding: 22px 26px 6px; }
+.dlg header small { color: var(--text-3); letter-spacing: .08em; text-transform: uppercase; font-size: 11px; font-weight: 600; }
+.dlg header h3 { margin: 4px 0 2px; font-size: 22px; }
+.dlg header p { margin: 0; color: var(--text-3); }
+.dlg .bodyc { padding: 16px 26px 8px; }
+.dlg footer { padding: 14px 26px 20px; display: flex; justify-content: space-between; align-items: center; gap: 12px; border-top: 1px solid var(--line); }
+.dlg footer .right { display: flex; gap: 10px; margin-left: auto; }
+.kinds { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.kind { border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: grid; grid-template-columns: 44px 1fr; gap: 14px; align-items: center; color: var(--text-2); }
+.kind.on { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
+.kind b { display: block; font-size: 15px; } .kind small { color: var(--text-3); display: block; }
+.kind.dis { opacity: .5; }
+
+/* Folder browser */
+.browser { display: grid; grid-template-columns: 220px 1fr; min-height: 420px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.locs { background: var(--surface); padding: 12px 10px; border-right: 1px solid var(--line); }
+.locs h6 { margin: 8px 10px 4px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); }
+.locs div { padding: 8px 10px; border-radius: 8px; color: var(--text-2); display: flex; gap: 10px; align-items: center; }
+.locs div.on { background: var(--accent-soft); color: var(--text); font-weight: 600; }
+.locs small { display: block; color: var(--text-3); font-family: var(--mono); font-size: 11px; font-weight: 400; }
+.files { padding: 10px 14px; min-width: 0; }
+.addr { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.addr .nav { display: flex; gap: 4px; } .addr .nav span { width: 32px; height: 32px; border: 1px solid var(--line-2); border-radius: 8px; display: grid; place-items: center; color: var(--text-2); }
+.addr .bar { flex: 1; height: 36px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--shell); display: flex; align-items: center; padding: 0 10px; gap: 6px; font-family: var(--mono); font-size: 13px; color: var(--text-2); }
+.addr .bar b { color: var(--text); font-weight: 500; }
+.addr .bar .sep { color: var(--text-3); }
+.addr .fsearch { width: 200px; height: 36px; border: 1px solid var(--line-2); border-radius: 8px; color: var(--text-3); display: flex; align-items: center; padding: 0 10px; }
+.flist { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.flist .h, .flist .f { display: grid; grid-template-columns: 1fr 160px 140px; padding: 0 14px; align-items: center; }
+.flist .h { height: 34px; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); background: var(--raised); }
+.flist .f { height: 40px; border-top: 1px solid var(--line); color: var(--text-2); }
+.flist .f:hover { background: var(--hover); } .flist .f.on { background: var(--accent-soft); color: var(--text); }
+.flist .f .fn { display: flex; align-items: center; gap: 10px; } .flist .f .fn::before { content: ""; width: 16px; height: 13px; border-radius: 3px; background: #d6a84f; }
+.flist .f .ex2 { color: var(--text-3); font-size: 12px; text-align: right; }
+.result { margin-top: 12px; border-radius: 10px; padding: 12px 14px; background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.4); display: flex; justify-content: space-between; align-items: center; gap: 14px; }
+.result.checking { background: var(--surface); border-color: var(--line-2); }
+.result.bad { background: rgba(245,158,11,.1); border-color: rgba(245,158,11,.5); }
+.result b { color: var(--text); } .result .path { margin-left: 8px; }
+.result .ok { color: var(--ok); font-weight: 700; margin-right: 8px; }
+.result .warnm { color: var(--warn); font-weight: 700; margin-right: 8px; }
+.namef { display: flex; align-items: center; gap: 10px; }
+.namef label { color: var(--text-3); font-size: 13px; }
+.namef .in { height: 36px; min-width: 260px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--shell); display: flex; align-items: center; padding: 0 10px; }
+
+/* Unidentified list */
+.unid td { height: 60px; }
+.reason { color: var(--text-3); font-size: 13px; }
+.bulk { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; }
+.bulk .sub { margin-right: auto; }
+
+/* Setup frame */
+.setup { max-width: 980px; margin: 40px auto; }
+.steps { display: flex; gap: 22px; color: var(--text-3); font-size: 13px; margin-bottom: 26px; }
+.steps span.on { color: var(--text); font-weight: 600; } .steps span.done { color: var(--ok); }
+.setup h1 { font-size: 28px; }
+.setup .foot { display: flex; justify-content: space-between; margin-top: 20px; }
+
+/* Narrow variant */
+.narrow .libs { grid-template-columns: 1fr; }
+.narrow .rail { position: static; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; padding: 8px; }
+.narrow .rail h5 { margin: 0 4px 0 10px; }
+.narrow .rail .lib { padding: 6px 10px; border: 1px solid var(--line); }
+.narrow .rail hr, .narrow .rail .quiet { display: none; }
+
+@media (max-width: 700px) { .notes { grid-template-columns: 1fr; } }
+</style>
+
+<div class="wrap">
+  <h1>Libraries redesign</h1>
+  <p class="lead">Target screens for Settings &gt; Libraries, the library page, Add library and Add folder, drawn at 1440 px (they shrink to fit this window; screen 9 shows the layout at 1280 and narrower). Numbered badges match the notes under each screen. Example data only.</p>
+  <nav class="strip" id="strip">
+    <a href="#overview">1 · Overview</a>
+    <a href="#library">2 · Library page</a>
+    <a href="#unidentified">3 · Unidentified files</a>
+    <a href="#handling">4 · File handling</a>
+    <a href="#add-type">5 · Add library, step 1</a>
+    <a href="#add-folder">6 · Add library, step 2</a>
+    <a href="#add-existing">7 · Add folder</a>
+    <a href="#setup">8 · First-run setup</a>
+    <a href="#narrow">9 · At 1280</a>
+  </nav>
+
+  <!-- 1 OVERVIEW -->
+  <section class="screen" id="s-overview">
+    <h2>1 · Settings &gt; Libraries, the overview</h2>
+    <p class="what">One page with two panes. The left rail lists every library under its area and never goes away. The right pane shows all libraries in one table grouped by area, or the library you clicked.</p>
+    <div class="stage"><div class="frame" data-frame>
+      <div class="topnav"><span class="brand"><i></i>Library</span><nav><span>Home</span><span>Watch</span><span>Listen</span><span>Read</span><span>View</span></nav><span class="spacer"></span><span class="avatar"></span></div>
+      <div class="body">
+        <aside class="smenu"><h4>Personal</h4><div>Profile</div><div>Manage profiles</div><div>Security and devices</div><h4>Server</h4><div class="on">Libraries</div><div>Recently added</div><div>Providers</div><div>Plugins</div><div>Network</div><div>System</div></aside>
+        <main class="page">
+          <div class="crumbs"><span>Settings</span>›<b>Libraries</b></div>
+          <div class="ptitle"><div><h1>Libraries</h1><p>Where your media lives and how Library looks after it.</p></div></div>
+          <div class="libs">
+            <aside class="rail">
+              <span class="callout" style="left:-12px;top:-12px">1</span>
+              <div class="ov on">▦ &nbsp;All libraries</div>
+              <h5>Watch <small>Add</small></h5>
+              <div class="lib"><span class="tile movies">M</span><span>Movies</span><span class="dot"></span></div>
+              <div class="lib"><span class="tile tv">TV</span><span>TV Shows</span><span class="cnt">12</span></div>
+              <div class="lib"><span class="tile plain">▶</span><span>YouTube</span><span class="dot idle"></span></div>
+              <h5>Listen <small>Add</small></h5>
+              <div class="lib"><span class="tile music">♪</span><span>Music</span><span class="dot"></span></div>
+              <div class="lib"><span class="tile audio">A</span><span>Audiobooks</span><span class="dot scan"></span></div>
+              <h5>Read <small>Add</small></h5>
+              <div class="lib"><span class="tile books">B</span><span>Books</span><span class="dot"></span></div>
+              <div class="lib"><span class="tile comics">C</span><span>Comics</span><span class="dot off"></span></div>
+              <h5>View</h5>
+              <div class="lib"><span class="tile view">◉</span><span>Photos</span><span class="dot"></span></div>
+              <div class="lib"><span class="tile view">◉</span><span>Personal videos</span><span class="dot idle"></span></div>
+              <div class="lib"><span class="tile view">◉</span><span>Documents</span><span class="dot idle"></span></div>
+              <h5>Vault 🔒 <small>Add</small></h5>
+              <div class="lib"><span class="tile vault">M</span><span>Private Movies</span><span class="dot"></span></div>
+              <hr>
+              <div class="quiet">⤓ &nbsp;Import folder <span class="muted" style="margin-left:auto">set</span></div>
+            </aside>
+            <div class="pane">
+              <div class="toolbar"><div class="search">⌕ &nbsp;Search libraries</div><div class="select">Status: Any ▾</div><span style="flex:1"></span><span class="callout" style="position:static">2</span><button class="btn pri">+ Add library</button></div>
+              <div class="card">
+                <table class="t">
+                  <thead><tr><th>Name</th><th>Content type</th><th>Folders</th><th>Titles</th><th>Status</th><th></th></tr></thead>
+                  <tbody>
+                    <tr class="group"><td colspan="6">Watch <small>3 libraries</small></td></tr>
+                    <tr class="row"><td><span class="name"><span class="tile movies">M</span>Movies</span></td><td>Movies</td><td class="num">2</td><td class="num">1,284</td><td><span class="status">Healthy</span></td><td class="chev">›</td></tr>
+                    <tr class="row"><td><span class="name"><span class="tile tv">TV</span>TV Shows</span></td><td>TV Shows</td><td class="num">1</td><td class="num">318</td><td><span class="status warn link">12 files not identified</span> <span class="callout" style="position:static;display:inline-grid;vertical-align:middle">3</span></td><td class="chev">›</td></tr>
+                    <tr class="row"><td><span class="name"><span class="tile plain">▶</span>YouTube</span></td><td>YouTube</td><td class="num">1</td><td class="num">0</td><td><span class="status idle">Empty</span></td><td class="chev">›</td></tr>
+                    <tr class="group"><td colspan="6">Listen <small>2 libraries</small></td></tr>
+                    <tr class="row"><td><span class="name"><span class="tile music">♪</span>Music</span></td><td>Music</td><td class="num">1</td><td class="num">4,912</td><td><span class="status">Healthy</span></td><td class="chev">›</td></tr>
+                    <tr class="row"><td><span class="name"><span class="tile audio">A</span>Audiobooks</span></td><td>Audiobooks</td><td class="num">1</td><td class="num">96</td><td><span class="status scan">Scanning</span></td><td class="chev">›</td></tr>
+                    <tr class="group"><td colspan="6">Read <small>2 libraries</small></td></tr>
+                    <tr class="row"><td><span class="name"><span class="tile books">B</span>Books</span></td><td>Books</td><td class="num">1</td><td class="num">640</td><td><span class="status">Healthy</span></td><td class="chev">›</td></tr>
+                    <tr class="row"><td><span class="name"><span class="tile comics">C</span>Comics</span></td><td>Comics</td><td class="num">1</td><td class="num">1,102</td><td><span class="status off">Folder offline</span></td><td class="chev">›</td></tr>
+                    <tr class="group"><td colspan="6">View <small>3 libraries</small></td></tr>
+                    <tr class="row"><td><span class="name"><span class="tile view">◉</span>Photos</span></td><td>Photos</td><td class="num">2</td><td class="num">18,430</td><td><span class="status">Healthy</span></td><td class="chev">›</td></tr>
+                    <tr class="row"><td><span class="name"><span class="tile view">◉</span>Personal videos</span></td><td>Personal videos</td><td class="num">0</td><td class="num">—</td><td><span class="status idle">Empty</span></td><td class="chev">›</td></tr>
+                    <tr class="row"><td><span class="name"><span class="tile view">◉</span>Documents</span></td><td>Documents</td><td class="num">0</td><td class="num">—</td><td><span class="status idle">Empty</span></td><td class="chev">›</td></tr>
+                    <tr class="group"><td colspan="6">Vault 🔒 <small>1 library · only you can see this row</small></td></tr>
+                    <tr class="row"><td><span class="name"><span class="tile vault">M</span>Private Movies</span></td><td>Movies</td><td class="num">1</td><td class="num">37</td><td><span class="status">Healthy</span></td><td class="chev">›</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="card defaults">
+                <span class="callout" style="position:static">4</span>
+                <h3>Rules for every library <small>Each library can override these on its File handling tab.</small></h3>
+                <div class="row"><div><b>When the same file arrives twice</b><small>Compares what is inside, so renamed copies count.</small></div><span class="seg"><span class="on">Keep one</span><span>Keep both</span></span></div>
+                <div class="row"><div><b>Write metadata into files</b><small>Runs on a schedule, nightly at 03:00.</small></div><span class="switch"></span></div>
+                <div class="row"><div><b>Embed artwork in files</b><small>Only where metadata writing is on.</small></div><span class="switch"></span></div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div></div>
+    <div class="notes">
+      <div class="note"><b class="n">1</b><span><b>The rail is the navigation.</b> Areas are headings, libraries are rows with a status dot, and the selected one is highlighted. It stays on every Libraries page, so Watch, Listen, Read, View and the Vault are always one click away. The Vault section exists only while it is unlocked for an administrator.</span></div>
+      <div class="note"><b class="n">2</b><span><b>One table, grouped by area.</b> No area tabs to lose. Rows highlight on hover and end in a chevron; the group heading is plain text. Search and the status filter stay. Add library asks for the area as part of the content type.</span></div>
+      <div class="note"><b class="n">3</b><span><b>Status says what it is and goes where it says.</b> "12 files not identified" opens that library's Unidentified files tab (screen 3). "3 need review" would open Needs Review filtered to the library. Today one number mixes both, which is why the link opened an empty page.</span></div>
+      <div class="note"><b class="n">4</b><span><b>Server-wide rules live here once.</b> This replaces the old "Advanced" panel that repeated every media type inside every library page. Per-library naming and switches stay on each library's File handling tab.</span></div>
+    </div>
+  </section>
+
+  <!-- 2 LIBRARY PAGE -->
+  <section class="screen" id="s-library">
+    <h2>2 · A library's page: Folders</h2>
+    <p class="what">Same rail on the left. The library's identity, counts and actions sit in one header; anything that needs you is a strip under it with a button; the tabs are Folders, File handling, Activity (and Lookup where it applies). No Advanced tab.</p>
+    <div class="stage"><div class="frame" data-frame>
+      <div class="topnav"><span class="brand"><i></i>Library</span><nav><span>Home</span><span>Watch</span><span>Listen</span><span>Read</span><span>View</span></nav><span class="spacer"></span><span class="avatar"></span></div>
+      <div class="body">
+        <aside class="smenu"><h4>Personal</h4><div>Profile</div><div>Manage profiles</div><div>Security and devices</div><h4>Server</h4><div class="on">Libraries</div><div>Recently added</div><div>Providers</div><div>Plugins</div><div>Network</div><div>System</div></aside>
+        <main class="page">
+          <div class="crumbs"><span>Settings</span>›<span>Libraries</span>›<b>TV Shows</b></div>
+          <div class="ptitle"><div><h1>Libraries</h1></div></div>
+          <div class="libs">
+            <aside class="rail">
+              <div class="ov">▦ &nbsp;All libraries</div>
+              <h5>Watch <small>Add</small></h5>
+              <div class="lib"><span class="tile movies">M</span><span>Movies</span><span class="dot"></span></div>
+              <div class="lib on"><span class="tile tv">TV</span><span>TV Shows</span><span class="cnt">12</span></div>
+              <div class="lib"><span class="tile plain">▶</span><span>YouTube</span><span class="dot idle"></span></div>
+              <h5>Listen <small>Add</small></h5>
+              <div class="lib"><span class="tile music">♪</span><span>Music</span><span class="dot"></span></div>
+              <div class="lib"><span class="tile audio">A</span><span>Audiobooks</span><span class="dot scan"></span></div>
+              <h5>Read <small>Add</small></h5>
+              <div class="lib"><span class="tile books">B</span><span>Books</span><span class="dot"></span></div>
+              <div class="lib"><span class="tile comics">C</span><span>Comics</span><span class="dot off"></span></div>
+              <h5>View</h5>
+              <div class="lib"><span class="tile view">◉</span><span>Photos</span><span class="dot"></span></div>
+              <div class="lib"><span class="tile view">◉</span><span>Personal videos</span><span class="dot idle"></span></div>
+              <div class="lib"><span class="tile view">◉</span><span>Documents</span><span class="dot idle"></span></div>
+              <h5>Vault 🔒 <small>Add</small></h5>
+              <div class="lib"><span class="tile vault">M</span><span>Private Movies</span><span class="dot"></span></div>
+              <hr>
+              <div class="quiet">⤓ &nbsp;Import folder <span class="muted" style="margin-left:auto">set</span></div>
+            </aside>
+            <div class="pane">
+              <div class="lhead">
+                <div class="id"><span class="tile tv lg">TV</span><div><h2>TV Shows <span class="pencil">✎</span></h2><div class="facts"><span>TV Shows</span><span>1 folder</span><span>318 titles</span><span class="status warn">Needs attention</span></div></div><span class="callout" style="position:static">1</span></div>
+                <div class="actions"><button class="btn">↻ Scan now</button><button class="btn pri">+ Add folder</button><button class="btn">⇪ Add files</button><button class="btn ico menu">···</button><span class="callout" style="position:static">2</span></div>
+              </div>
+              <div class="attn">
+                <div class="r"><span>12 files could not be identified and are not shown in Watch yet.</span><span style="display:flex;gap:8px;align-items:center"><button class="btn sm">Review them</button><span class="callout" style="position:static">3</span></span></div>
+                <div class="r off"><span>Folder offline: Z:\TV Shows\Specials has not been reachable since 09:14 today.</span><button class="btn sm">Check again</button></div>
+              </div>
+              <div class="tabs"><span class="on">Folders</span><span>File handling</span><span>Activity</span><span>Unidentified <span class="n">12</span></span><span class="callout" style="position:static;align-self:center">4</span></div>
+              <div class="card">
+                <table class="t">
+                  <thead><tr><th>Folder</th><th>Files</th><th>Handling</th><th>New media goes here</th><th>Status</th><th></th></tr></thead>
+                  <tbody>
+                    <tr><td><span class="name"><span class="tile tv">▣</span><span><b>TV Shows</b><br><span class="path">Z:\TV Shows</span></span></span></td><td class="num">2,406 video files</td><td><span class="handling">🔒 Read-only</span></td><td><span class="radio on"></span></td><td><span class="status">Healthy</span></td><td class="chev"><span class="menu">···</span></td></tr>
+                    <tr><td><span class="name"><span class="tile tv">▣</span><span><b>Specials</b><br><span class="path">Z:\TV Shows\Specials</span></span></span></td><td class="num">—</td><td><span class="handling">🔒 Read-only</span></td><td><span class="radio"></span></td><td><span class="status off">Folder offline</span></td><td class="chev"><span class="menu">···</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="footnote">Library scans these folders and their subfolders. Read-only means your files are never renamed, moved or changed. <span class="callout" style="position:static;display:inline-grid;vertical-align:middle">5</span></p>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div></div>
+    <div class="notes">
+      <div class="note"><b class="n">1</b><span><b>One header, one truth.</b> Icon tile in the area's colour, name with a pencil to rename, then content type, folder and title counts, and one status word. The Settings page title stays "Libraries"; the breadcrumb carries the library name.</span></div>
+      <div class="note"><b class="n">2</b><span><b>Actions in one row, in order of use.</b> Scan now, Add folder (primary), Add files; the "..." holds Rename, Move to Vault and Remove library. Nothing else on the header.</span></div>
+      <div class="note"><b class="n">3</b><span><b>Needs-attention strip, only when needed.</b> Each line is a plain sentence with the one button that resolves it. Unidentified files, an offline folder, a paused first check. Healthy libraries show no strip at all.</span></div>
+      <div class="note"><b class="n">4</b><span><b>Tabs: Folders, File handling, Activity, and Unidentified only when there are such files.</b> Lookup appears for YouTube and Vault libraries. The old Advanced section is gone; its one server-wide part moved to the overview (screen 1, note 4).</span></div>
+      <div class="note"><b class="n">5</b><span><b>Folder rows are not links and do not look like links.</b> Their actions are in "...": change handling for this folder, pause scanning, change what this folder is, remove. The two sentences that matter are written once under the table, with no "i" bubbles.</span></div>
+    </div>
+  </section>
+
+  <!-- 3 UNIDENTIFIED -->
+  <section class="screen" id="s-unidentified">
+    <h2>3 · Unidentified files tab</h2>
+    <p class="what">What the "Needs review" number was pointing at all along: the files the Engine scanned but could not match to a title. Today they have a count and two buttons but no list. This tab lists them and lets you act on each.</p>
+    <div class="stage"><div class="frame" data-frame style="min-height:760px">
+      <div class="topnav"><span class="brand"><i></i>Library</span><nav><span>Home</span><span>Watch</span><span>Listen</span><span>Read</span><span>View</span></nav><span class="spacer"></span><span class="avatar"></span></div>
+      <div class="body" style="min-height:704px">
+        <aside class="smenu"><h4>Personal</h4><div>Profile</div><div>Manage profiles</div><div>Security and devices</div><h4>Server</h4><div class="on">Libraries</div><div>Recently added</div><div>Providers</div><div>Plugins</div><div>Network</div><div>System</div></aside>
+        <main class="page">
+          <div class="crumbs"><span>Settings</span>›<span>Libraries</span>›<b>TV Shows</b></div>
+          <div class="ptitle"><div><h1>Libraries</h1></div></div>
+          <div class="libs">
+            <aside class="rail">
+              <div class="ov">▦ &nbsp;All libraries</div>
+              <h5>Watch <small>Add</small></h5>
+              <div class="lib"><span class="tile movies">M</span><span>Movies</span><span class="dot"></span></div>
+              <div class="lib on"><span class="tile tv">TV</span><span>TV Shows</span><span class="cnt">12</span></div>
+              <div class="lib"><span class="tile plain">▶</span><span>YouTube</span><span class="dot idle"></span></div>
+              <h5>Listen <small>Add</small></h5>
+              <div class="lib"><span class="tile music">♪</span><span>Music</span><span class="dot"></span></div>
+              <div class="lib"><span class="tile audio">A</span><span>Audiobooks</span><span class="dot scan"></span></div>
+              <h5>Read <small>Add</small></h5>
+              <div class="lib"><span class="tile books">B</span><span>Books</span><span class="dot"></span></div>
+              <div class="lib"><span class="tile comics">C</span><span>Comics</span><span class="dot off"></span></div>
+              <h5>View</h5>
+              <div class="lib"><span class="tile view">◉</span><span>Photos</span><span class="dot"></span></div>
+              <div class="lib"><span class="tile view">◉</span><span>Personal videos</span><span class="dot idle"></span></div>
+              <div class="lib"><span class="tile view">◉</span><span>Documents</span><span class="dot idle"></span></div>
+            </aside>
+            <div class="pane">
+              <div class="lhead">
+                <div class="id"><span class="tile tv lg">TV</span><div><h2>TV Shows <span class="pencil">✎</span></h2><div class="facts"><span>TV Shows</span><span>1 folder</span><span>318 titles</span><span class="status warn">Needs attention</span></div></div></div>
+                <div class="actions"><button class="btn">↻ Scan now</button><button class="btn pri">+ Add folder</button><button class="btn">⇪ Add files</button><button class="btn ico menu">···</button></div>
+              </div>
+              <div class="tabs"><span>Folders</span><span>File handling</span><span>Activity</span><span class="on">Unidentified <span class="n">12</span></span></div>
+              <div class="bulk"><span class="sub">12 files were scanned but no show or episode matched them. They are not shown in Watch until you decide. <span class="callout" style="position:static;display:inline-grid;vertical-align:middle">1</span></span><button class="btn sm">↻ Try again for all</button><button class="btn sm txt">Keep all as they are</button><span class="callout" style="position:static">2</span></div>
+              <div class="card">
+                <table class="t unid">
+                  <thead><tr><th>File</th><th>Why</th><th>Last tried</th><th></th></tr></thead>
+                  <tbody>
+                    <tr><td><b>Severance.S02E01.Hello.Ms.Cobel.mkv</b><br><span class="path">Z:\TV Shows\Severance\Season 2</span></td><td class="reason">Looked like an episode, but no show named "Severance S02E01 Hello Ms Cobel" was found on TMDB. <span class="callout" style="position:static;display:inline-grid;vertical-align:middle">3</span></td><td class="sub">Today, 09:20</td><td class="chev"><button class="btn sm">Identify…</button> <span class="menu">···</span></td></tr>
+                    <tr><td><b>ep 3 final cut.mp4</b><br><span class="path">Z:\TV Shows\Random</span></td><td class="reason">The file name has no show, season or episode in it.</td><td class="sub">Today, 09:20</td><td class="chev"><button class="btn sm">Identify…</button> <span class="menu">···</span></td></tr>
+                    <tr><td><b>The.Bear.S03E04.1080p.mkv</b><br><span class="path">Z:\TV Shows\The Bear</span></td><td class="reason">TMDB did not answer in time. Library will try again on the next scan.</td><td class="sub">Today, 09:21</td><td class="chev"><button class="btn sm">Identify…</button> <span class="menu">···</span></td></tr>
+                    <tr><td><b>sample.mkv</b><br><span class="path">Z:\TV Shows\Shogun\Season 1</span></td><td class="reason">Looks like a sample file (under 2 minutes).</td><td class="sub">Today, 09:21</td><td class="chev"><button class="btn sm">Identify…</button> <span class="menu">···</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="footnote">"..." on a row: Try again, Keep as it is (shown with its file name), Change what this folder is, Remove from library. Identify opens the usual Match panel so you can pick the show and episode yourself. <span class="callout" style="position:static;display:inline-grid;vertical-align:middle">4</span></p>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div></div>
+    <div class="notes">
+      <div class="note"><b class="n">1</b><span><b>Plain words first.</b> What these files are, why they are not in Watch, and that nothing happens until you decide.</span></div>
+      <div class="note"><b class="n">2</b><span><b>The two bulk actions that already exist</b> (Retry, Keep all as they are) move here from the folder panel, where they sat beside a bare number.</span></div>
+      <div class="note"><b class="n">3</b><span><b>Each row says why.</b> The Engine already records the reason; today it is never shown. Wording is per cause: no match, no episode pattern, provider timed out, sample file.</span></div>
+      <div class="note"><b class="n">4</b><span><b>Identify reuses the Match panel</b> of the universal editor rather than inventing a new one, so matching an episode to a show works the same here as on an item page.</span></div>
+    </div>
+  </section>
+
+  <!-- 4 FILE HANDLING -->
+  <section class="screen" id="s-handling">
+    <h2>4 · File handling tab at desktop width</h2>
+    <p class="what">The same four choices as today, laid out in two columns so the tab uses the screen. The example line under each card shows the result in that library. Save and Discard sit in a bar at the bottom.</p>
+    <div class="stage"><div class="frame" data-frame style="min-height:820px">
+      <div class="topnav"><span class="brand"><i></i>Library</span><nav><span>Home</span><span>Watch</span><span>Listen</span><span>Read</span><span>View</span></nav><span class="spacer"></span><span class="avatar"></span></div>
+      <div class="body" style="min-height:764px">
+        <aside class="smenu"><h4>Personal</h4><div>Profile</div><div>Manage profiles</div><div>Security and devices</div><h4>Server</h4><div class="on">Libraries</div><div>Recently added</div><div>Providers</div><div>Plugins</div><div>Network</div><div>System</div></aside>
+        <main class="page">
+          <div class="crumbs"><span>Settings</span>›<span>Libraries</span>›<b>Movies</b></div>
+          <div class="ptitle"><div><h1>Libraries</h1></div></div>
+          <div class="libs">
+            <aside class="rail">
+              <div class="ov">▦ &nbsp;All libraries</div>
+              <h5>Watch <small>Add</small></h5>
+              <div class="lib on"><span class="tile movies">M</span><span>Movies</span><span class="dot"></span></div>
+              <div class="lib"><span class="tile tv">TV</span><span>TV Shows</span><span class="cnt">12</span></div>
+              <div class="lib"><span class="tile plain">▶</span><span>YouTube</span><span class="dot idle"></span></div>
+              <h5>Listen <small>Add</small></h5>
+              <div class="lib"><span class="tile music">♪</span><span>Music</span><span class="dot"></span></div>
+              <div class="lib"><span class="tile audio">A</span><span>Audiobooks</span><span class="dot scan"></span></div>
+              <h5>Read <small>Add</small></h5>
+              <div class="lib"><span class="tile books">B</span><span>Books</span><span class="dot"></span></div>
+              <div class="lib"><span class="tile comics">C</span><span>Comics</span><span class="dot off"></span></div>
+              <h5>View</h5>
+              <div class="lib"><span class="tile view">◉</span><span>Photos</span><span class="dot"></span></div>
+              <div class="lib"><span class="tile view">◉</span><span>Personal videos</span><span class="dot idle"></span></div>
+              <div class="lib"><span class="tile view">◉</span><span>Documents</span><span class="dot idle"></span></div>
+            </aside>
+            <div class="pane">
+              <div class="lhead">
+                <div class="id"><span class="tile movies lg">M</span><div><h2>Movies <span class="pencil">✎</span></h2><div class="facts"><span>Movies</span><span>2 folders</span><span>1,284 titles</span><span class="status">Healthy</span></div></div></div>
+                <div class="actions"><button class="btn">↻ Scan now</button><button class="btn pri">+ Add folder</button><button class="btn">⇪ Add files</button><button class="btn ico menu">···</button></div>
+              </div>
+              <div class="tabs"><span>Folders</span><span class="on">File handling</span><span>Activity</span></div>
+              <div class="fh">
+                <div class="card"><h3>Organization <i>How files are named and filed <span class="callout" style="position:static;display:inline-grid;vertical-align:middle">1</span></i></h3>
+                  <div class="choice on"><span class="radio on"></span><span><b>Preserve original names</b><small>Files and folders keep the names they have now.</small></span></div>
+                  <div class="choice"><span class="radio"></span><span><b>Library standard</b><small>Every film is named and filed the same way.</small></span></div>
+                  <div class="choice"><span class="radio"></span><span><b>Custom pattern</b><small>Write your own naming pattern.</small></span></div>
+                  <div class="ex">Example <code>Dune (2021)/Dune (2021).mkv</code></div>
+                </div>
+                <div class="card"><h3>File changes <i>Both off until you turn them on</i></h3>
+                  <div class="row" style="padding:10px 0"><div><b>Rename or move files automatically</b><small>Uses the naming on the left. Shows how many files will change before anything happens.</small></div><span class="switch"></span></div>
+                  <div class="row" style="padding:10px 0"><div><b>Write metadata into media files</b><small>Titles, people and artwork go into the files themselves, in folders Library may change.</small></div><span class="switch"></span></div>
+                  <div class="ex">Example <code>Nothing on disk changes after a scan.</code></div>
+                </div>
+                <div class="card"><h3>Duplicates <i>When the same film arrives twice</i></h3>
+                  <span class="seg"><span class="on">Server default (keep one)</span><span>Keep one</span><span>Keep both</span></span>
+                  <div class="ex">Example <code>A second copy of Dune (2021) is skipped and listed in Activity.</code></div>
+                </div>
+                <div class="card"><h3>Deleted files <i>When you delete a title from disk</i></h3>
+                  <div class="row" style="padding:10px 0"><div><b>Use Recycle bin</b><small>Deleted files wait in the Recycle bin for 90 days.</small></div><span class="switch on"></span></div>
+                  <div class="ex">Example <code>Delete Dune (2021) and its file waits in the Recycle bin.</code></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+      <div class="savebar"><span class="muted">You have unsaved changes. <span class="callout" style="position:static;display:inline-grid;vertical-align:middle">2</span></span><span class="actions"><button class="btn txt">Discard</button><button class="btn pri">Save changes</button></span></div>
+    </div></div>
+    <div class="notes">
+      <div class="note"><b class="n">1</b><span><b>Explanations are the card's subtitle, not an "i".</b> Each card says in one phrase what it is about. Two columns at 1180 px and wider, one column below.</span></div>
+      <div class="note"><b class="n">2</b><span><b>One sticky Save bar.</b> Turning "Rename or move" on for a library with files still shows the count and asks to confirm when saving, as today.</span></div>
+    </div>
+  </section>
+
+  <!-- 5 ADD LIBRARY STEP 1 -->
+  <section class="screen" id="s-add-type">
+    <h2>5 · Add library, step 1: What is it?</h2>
+    <p class="what">Add library asks one question per screen. Step 1 is the content type. A row of area tabs at the top is pre-selected to the area you clicked Add from, so only that area's three or four types show and nothing scrolls. A type that already has a library is shown with a reason instead of being hidden.</p>
+    <div class="stage"><div class="frame" data-frame style="min-height:760px">
+      <div class="topnav"><span class="brand"><i></i>Library</span><nav><span>Home</span><span>Watch</span><span>Listen</span><span>Read</span><span>View</span></nav><span class="spacer"></span><span class="avatar"></span></div>
+      <div class="body" style="min-height:704px"><aside class="smenu"><h4>Personal</h4><div>Profile</div><div>Manage profiles</div><div>Security and devices</div><h4>Server</h4><div class="on">Libraries</div><div>Recently added</div><div>Providers</div><div>Plugins</div><div>Network</div><div>System</div></aside><main class="page"><div class="crumbs"><span>Settings</span>›<b>Libraries</b></div><div class="ptitle"><div><h1>Libraries</h1></div></div></main></div>
+      <div class="dim">
+        <div class="dlg">
+          <header><small>Step 1 of 2</small><h3>What is it?</h3><p>Pick the kind of media you are adding.</p></header>
+          <div class="bodyc">
+            <div class="tabs" style="margin-bottom:14px"><span class="on">Watch</span><span>Listen</span><span>Read</span><span>View</span><span class="callout" style="position:static;align-self:center">1</span></div>
+            <div class="kinds">
+              <div class="kind dis"><span class="tile movies lg">M</span><span><b>Movies</b><small>You already have a Movies library. Add a folder to it instead.</small></span></div>
+              <div class="kind on"><span class="tile tv lg">TV</span><span><b>TV Shows</b><small>Shows with seasons and episodes.</small></span></div>
+              <div class="kind"><span class="tile plain lg">▶</span><span><b>YouTube</b><small>Downloaded videos, looked up by their YouTube ID.</small></span></div>
+              <div class="kind"><span class="tile plain lg">▶</span><span><b>Videos</b><small>Like home videos, recordings or clips. You can have several.</small></span></div>
+            </div>
+            <p class="sub" style="margin:14px 0 4px">The View tab lists Photos, Personal videos and Documents and adds a folder to the one you pick. <span class="callout" style="position:static;display:inline-grid;vertical-align:middle">2</span></p>
+          </div>
+          <footer><button class="btn txt">Cancel</button><div class="right"><button class="btn pri">Next: choose the folder →</button></div></footer>
+        </div>
+      </div>
+    </div></div>
+    <div class="notes">
+      <div class="note"><b class="n">1</b><span><b>Area tabs, pre-selected.</b> Opened from an area's "Add" in the rail, that tab is selected and its first available type is highlighted; opened from the toolbar it starts on Watch. Switching tabs swaps the three or four tiles below; nothing scrolls. Inside the Vault there are no tabs: one list of Movies, TV Shows, Music, Books, Adult content, Other.</span></div>
+      <div class="note"><b class="n">2</b><span><b>View (open question 6).</b> Recommended: a fourth tab, View, listing Photos, Personal videos and Documents; choosing one goes to the same folder pop-up, whose footer gains one line for View's extras ("Shared with everyone ▾", and where View keeps its files only when that is not set yet). The alternative keeps View out and adds folders from the View rows only.</span></div>
+    </div>
+  </section>
+
+  <!-- 6 ADD LIBRARY STEP 2 = PICKER -->
+  <section class="screen" id="s-add-folder">
+    <h2>6 · Add library, step 2: Where is it? (the folder pop-up is the step)</h2>
+    <p class="what">Step 2 is the folder browser itself, not a form with a Browse button that opens a third window. Folder names appear at once; the check of the selected folder runs underneath and never blocks browsing. The name is a quiet line in the footer, already filled in.</p>
+    <div class="stage"><div class="frame" data-frame style="min-height:800px">
+      <div class="topnav"><span class="brand"><i></i>Library</span><nav><span>Home</span><span>Watch</span><span>Listen</span><span>Read</span><span>View</span></nav><span class="spacer"></span><span class="avatar"></span></div>
+      <div class="body" style="min-height:744px"><aside class="smenu"><h4>Personal</h4><div>Profile</div><div>Manage profiles</div><div>Security and devices</div><h4>Server</h4><div class="on">Libraries</div><div>Recently added</div><div>Providers</div><div>Plugins</div><div>Network</div><div>System</div></aside><main class="page"><div class="crumbs"><span>Settings</span>›<b>Libraries</b></div><div class="ptitle"><div><h1>Libraries</h1></div></div></main></div>
+      <div class="dim" style="padding-top:48px">
+        <div class="dlg wide">
+          <header><small>Step 2 of 2 · TV Shows</small><h3>Where is it?</h3><p>Open the folder that holds your shows and choose it. Library scans it and its subfolders. Your files are never changed. <span class="callout" style="position:static;display:inline-grid;vertical-align:middle">1</span></p></header>
+          <div class="browser">
+            <aside class="locs">
+              <h6>This server</h6>
+              <div><span>⛁</span><span>C: <small>Windows</small></span></div>
+              <div class="on"><span>⛁</span><span>Z: <small>Media (NAS)</small></span></div>
+              <h6>Recent</h6>
+              <div><span>▭</span><span>Z:\Movies</span></div>
+            </aside>
+            <div class="files">
+              <div class="addr"><div class="nav"><span>‹</span><span>›</span><span>↑</span><span>↻</span></div><div class="bar"><b>Z:</b><span class="sep">›</span><b>TV Shows</b><span class="sep">›</span><span class="muted">type a path…</span></div><div class="fsearch">⌕ Search here</div></div>
+              <div class="flist">
+                <div class="h"><span>Name</span><span>Folders inside</span><span style="text-align:right">Modified</span></div>
+                <div class="f"><span class="fn">Documentaries</span><span class="num muted">14</span><span class="ex2">12 Oct 2026</span></div>
+                <div class="f on"><span class="fn">Drama</span><span class="num muted">61</span><span class="ex2">Yesterday</span></div>
+                <div class="f"><span class="fn">Kids</span><span class="num muted">9</span><span class="ex2">3 Sep 2026</span></div>
+                <div class="f"><span class="fn">Specials</span><span class="num muted">—</span><span class="ex2">Offline</span></div>
+                <div class="f"><span class="fn">_incoming</span><span class="num muted">2</span><span class="ex2">Today</span></div>
+              </div>
+              <div class="result"><span><span class="ok">✓</span><b>Z:\TV Shows\Drama</b> is ready. <span class="muted">2,406 video files found, 61 folders.</span></span><span class="sub">Click a name to open it. Double-click or press Enter to go inside.</span><span class="callout" style="position:static">2</span></div>
+            </div>
+          </div>
+          <footer>
+            <div class="namef"><label>Library name</label><span class="in">TV Shows</span><span class="sub">You can rename it later.</span><span class="callout" style="position:static">3</span></div>
+            <div class="right"><button class="btn txt">← Back</button><button class="btn pri">Add library</button><span class="callout" style="position:static">4</span></div>
+          </footer>
+        </div>
+      </div>
+    </div></div>
+    <div class="notes">
+      <div class="note"><b class="n">1</b><span><b>The two sentences that matter are the subtitle.</b> No "i" bubbles anywhere in the pop-up, so nothing can hide behind it.</span></div>
+      <div class="note"><b class="n">2</b><span><b>Names first, check second.</b> The folder list comes from one cheap listing. The selected folder's check (reachable, files found, overlaps) runs after and shows "Checking…" in this card, capped at a few seconds; browsing on never waits for it. Today each click waits for a full walk of the folder before the card appears, which is the likely cause of the slowness; the Engine log on your PC confirms it.</span></div>
+      <div class="note"><b class="n">3</b><span><b>The name is pre-filled from the type</b> and only becomes a question if you want it to.</span></div>
+      <div class="note"><b class="n">4</b><span><b>Add library saves and lands on the new library's page</b> with the first scan running. No "go to…" question, no toast; the new row in the rail glows for two seconds. Clicks from the Libraries page: Add library, a type, Next, the folder, Add library. Five.</span></div>
+    </div>
+  </section>
+
+  <!-- 7 ADD FOLDER -->
+  <section class="screen" id="s-add-existing">
+    <h2>7 · Add folder to an existing library</h2>
+    <p class="what">Exactly the same pop-up as step 2, with no step label and no name field, because the library already has one. Adding a Vault folder uses it too, with one extra line for administrators.</p>
+    <div class="stage"><div class="frame" data-frame style="min-height:760px">
+      <div class="topnav"><span class="brand"><i></i>Library</span><nav><span>Home</span><span>Watch</span><span>Listen</span><span>Read</span><span>View</span></nav><span class="spacer"></span><span class="avatar"></span></div>
+      <div class="body" style="min-height:704px"><aside class="smenu"><h4>Personal</h4><div>Profile</div><div>Manage profiles</div><div>Security and devices</div><h4>Server</h4><div class="on">Libraries</div><div>Recently added</div><div>Providers</div><div>Plugins</div><div>Network</div><div>System</div></aside><main class="page"><div class="crumbs"><span>Settings</span>›<span>Libraries</span>›<b>Movies</b></div><div class="ptitle"><div><h1>Libraries</h1></div></div></main></div>
+      <div class="dim" style="padding-top:48px">
+        <div class="dlg wide">
+          <header><h3>Add a folder to Movies</h3><p>Open the folder that holds more of your films and choose it. Library scans it and its subfolders. Your files are never changed.</p></header>
+          <div class="browser">
+            <aside class="locs">
+              <h6>This server</h6>
+              <div><span>⛁</span><span>C: <small>Windows</small></span></div>
+              <div class="on"><span>⛁</span><span>Z: <small>Media (NAS)</small></span></div>
+              <h6>Recent</h6>
+              <div><span>▭</span><span>Z:\TV Shows\Drama</span></div>
+            </aside>
+            <div class="files">
+              <div class="addr"><div class="nav"><span>‹</span><span>›</span><span>↑</span><span>↻</span></div><div class="bar"><b>Z:</b><span class="sep">›</span><span class="muted">type a path…</span></div><div class="fsearch">⌕ Search here</div></div>
+              <div class="flist">
+                <div class="h"><span>Name</span><span>Folders inside</span><span style="text-align:right">Modified</span></div>
+                <div class="f"><span class="fn">Movies</span><span class="num muted">1,284</span><span class="ex2">Yesterday</span></div>
+                <div class="f on"><span class="fn">Movies 4K</span><span class="num muted">212</span><span class="ex2">Today</span></div>
+                <div class="f"><span class="fn">Music</span><span class="num muted">830</span><span class="ex2">2 Oct 2026</span></div>
+                <div class="f"><span class="fn">TV Shows</span><span class="num muted">4</span><span class="ex2">Yesterday</span></div>
+              </div>
+              <div class="result checking"><span><span class="muted">◌</span><b>Z:\Movies 4K</b> <span class="muted">Checking… counting video files</span></span><span class="sub">You can keep browsing.</span><span class="callout" style="position:static">1</span></div>
+            </div>
+          </div>
+          <footer>
+            <span class="sub">Added folders are scanned straight away. <span class="callout" style="position:static;display:inline-grid;vertical-align:middle">2</span></span>
+            <div class="right"><button class="btn txt">Cancel</button><button class="btn pri">Add folder</button></div>
+          </footer>
+        </div>
+      </div>
+    </div></div>
+    <div class="notes">
+      <div class="note"><b class="n">1</b><span><b>While checking, the card says so and the button waits.</b> A folder that cannot be used shows the plain reason in amber in the same card ("This folder is already part of Movies", "This folder is inside Z:\Movies, which Movies already scans").</span></div>
+      <div class="note"><b class="n">2</b><span><b>Done means done.</b> Add folder closes, the table shows the new row glowing, and the scan starts. Nothing asks "where next". Three clicks after opening: the folder, Add folder, and you are back.</span></div>
+    </div>
+  </section>
+
+  <!-- 8 SETUP -->
+  <section class="screen" id="s-setup">
+    <h2>8 · First-run setup, the Libraries step</h2>
+    <p class="what">The very same table and the very same two-step Add library, inside the setup frame. Rows do not open pages here (there are none yet); each has Add folder instead of a chevron. Nothing in this step can leave setup.</p>
+    <div class="stage"><div class="frame" data-frame style="min-height:760px">
+      <div class="topnav"><span class="brand"><i></i>Library</span><span class="spacer"></span><span class="muted">Setting up your Library</span></div>
+      <div class="setup">
+        <div class="steps"><span class="done">✓ Welcome</span><span class="done">✓ Your profile</span><span class="done">✓ Tools</span><span class="on">What do you have?</span><span>Vault (optional)</span><span>Done</span></div>
+        <h1>What do you have?</h1>
+        <p class="muted" style="margin:4px 0 18px">Add a library for each kind of media you own. You can add more later in Settings &gt; Libraries. <span class="callout" style="position:static;display:inline-grid;vertical-align:middle">1</span></p>
+        <div class="toolbar"><span style="flex:1"></span><button class="btn pri">+ Add library</button></div>
+        <div class="card">
+          <table class="t">
+            <thead><tr><th>Name</th><th>Content type</th><th>Folders</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              <tr class="group"><td colspan="5">Watch</td></tr>
+              <tr><td><span class="name"><span class="tile movies">M</span>Movies</span></td><td>Movies</td><td class="num">1</td><td><span class="status scan">Scanning</span></td><td class="chev"><button class="btn sm txt">+ Add folder</button></td></tr>
+              <tr class="group"><td colspan="5">Listen</td></tr>
+              <tr><td><span class="name"><span class="tile music">♪</span>Music</span></td><td>Music</td><td class="num">1</td><td><span class="status scan">Scanning</span></td><td class="chev"><button class="btn sm txt">+ Add folder</button></td></tr>
+              <tr class="group"><td colspan="5">Read <small>nothing yet</small> <a href="#setup" onclick="return false">Add a Read library</a></td></tr>
+              <tr class="group"><td colspan="5">View <small>nothing yet</small> <a href="#setup" onclick="return false">Add a View folder</a></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="foot"><button class="btn txt">← Back</button><button class="btn pri">Continue →</button><span class="callout" style="position:static">2</span></div>
+      </div>
+    </div></div>
+    <div class="notes">
+      <div class="note"><b class="n">1</b><span><b>Same component, one switch.</b> Setup renders the overview table with "setup mode": no rail, no per-library pages, no Import folder, no Vault group until the Vault step turns it on. A test fails if setup grows its own copy.</span></div>
+      <div class="note"><b class="n">2</b><span><b>Continue is the only way out.</b> Area headings and rows never navigate in setup, so the earlier "clicking a row jumps to Settings and abandons setup" cannot happen.</span></div>
+    </div>
+  </section>
+
+  <!-- 9 NARROW -->
+  <section class="screen" id="s-narrow">
+    <h2>9 · At 1280 px and narrower</h2>
+    <p class="what">Below 1180 px of page width the rail folds into a strip of library chips above the pane, still grouped by area, so nothing is lost on a smaller monitor or a tablet. Phones keep today's read-only list.</p>
+    <div class="stage"><div class="frame narrow" data-frame style="width:1280px;min-height:720px">
+      <div class="topnav"><span class="brand"><i></i>Library</span><nav><span>Home</span><span>Watch</span><span>Listen</span><span>Read</span><span>View</span></nav><span class="spacer"></span><span class="avatar"></span></div>
+      <div class="body" style="min-height:664px">
+        <aside class="smenu"><h4>Personal</h4><div>Profile</div><div>Manage profiles</div><div>Security and devices</div><h4>Server</h4><div class="on">Libraries</div><div>Recently added</div><div>Providers</div><div>Plugins</div><div>Network</div><div>System</div></aside>
+        <main class="page">
+          <div class="crumbs"><span>Settings</span>›<span>Libraries</span>›<b>Movies</b></div>
+          <div class="ptitle"><div><h1>Libraries</h1></div></div>
+          <div class="libs">
+            <aside class="rail">
+              <div class="ov">▦ All</div>
+              <h5>Watch</h5><div class="lib on"><span class="tile movies">M</span><span>Movies</span><span class="dot"></span></div><div class="lib"><span class="tile tv">TV</span><span>TV Shows</span><span class="cnt">12</span></div><div class="lib"><span class="tile plain">▶</span><span>YouTube</span><span class="dot idle"></span></div>
+              <h5>Listen</h5><div class="lib"><span class="tile music">♪</span><span>Music</span><span class="dot"></span></div><div class="lib"><span class="tile audio">A</span><span>Audiobooks</span><span class="dot scan"></span></div>
+              <h5>Read</h5><div class="lib"><span class="tile books">B</span><span>Books</span><span class="dot"></span></div><div class="lib"><span class="tile comics">C</span><span>Comics</span><span class="dot off"></span></div>
+              <h5>View</h5><div class="lib"><span class="tile view">◉</span><span>Photos</span><span class="dot"></span></div>
+              <span class="callout" style="position:static">1</span>
+            </aside>
+            <div class="pane">
+              <div class="lhead">
+                <div class="id"><span class="tile movies lg">M</span><div><h2>Movies <span class="pencil">✎</span></h2><div class="facts"><span>Movies</span><span>2 folders</span><span>1,284 titles</span><span class="status">Healthy</span></div></div></div>
+                <div class="actions"><button class="btn">↻ Scan now</button><button class="btn pri">+ Add folder</button><button class="btn">⇪ Add files</button><button class="btn ico menu">···</button></div>
+              </div>
+              <div class="tabs"><span class="on">Folders</span><span>File handling</span><span>Activity</span></div>
+              <div class="card">
+                <table class="t">
+                  <thead><tr><th>Folder</th><th>Files</th><th>Handling</th><th>New media goes here</th><th>Status</th><th></th></tr></thead>
+                  <tbody>
+                    <tr><td><span class="name"><span class="tile movies">▣</span><span><b>Movies</b><br><span class="path">Z:\Movies</span></span></span></td><td class="num">1,284 video files</td><td><span class="handling">⚙ Managed</span></td><td><span class="radio on"></span></td><td><span class="status">Healthy</span></td><td class="chev"><span class="menu">···</span></td></tr>
+                    <tr><td><span class="name"><span class="tile movies">▣</span><span><b>Movies 4K</b><br><span class="path">Z:\Movies 4K</span></span></span></td><td class="num">212 video files</td><td><span class="handling">🔒 Read-only</span></td><td><span class="radio"></span></td><td><span class="status">Healthy</span></td><td class="chev"><span class="menu">···</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div></div>
+    <div class="notes">
+      <div class="note"><b class="n">1</b><span><b>Chips, grouped by area, wrap to as many lines as needed.</b> Same dots, same highlight. Between 1180 and 1440 the rail still shows but narrower (220 px). This keeps to the existing breakpoints (600 / 840 / 1180).</span></div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  var ids = ['overview','library','unidentified','handling','add-type','add-folder','add-existing','setup','narrow'];
+  var links = document.querySelectorAll('#strip a');
+  function show() {
+    var h = (location.hash || '#overview').slice(1);
+    if (ids.indexOf(h) < 0) h = 'overview';
+    ids.forEach(function (id) { document.getElementById('s-' + id).classList.toggle('is-on', id === h); });
+    links.forEach(function (a) { a.setAttribute('aria-current', a.getAttribute('href') === '#' + h ? 'true' : 'false'); });
+    fit();
+  }
+  function fit() {
+    document.querySelectorAll('.stage').forEach(function (stage) {
+      var frame = stage.querySelector('[data-frame]');
+      if (!frame || stage.offsetParent === null) return;
+      var w = frame.offsetWidth; var avail = stage.clientWidth;
+      var s = Math.min(1, avail / w);
+      frame.style.transform = 'scale(' + s + ')';
+      stage.style.height = (frame.offsetHeight * s) + 'px';
+    });
+  }
+  window.addEventListener('hashchange', show);
+  window.addEventListener('resize', fit);
+  show();
+})();
+</script>

@@ -137,6 +137,18 @@ public sealed record PluginSummaryResponse
     [JsonPropertyName("load_error")]
     public string? LoadError { get; set; }
 
+    /// <summary>
+    /// What the entry is: <c>plugin</c>, or <c>provider</c> for a metadata source such as TMDB that the Plugins page lists beside the plugins
+    /// (Plugins and Integrations screens v3 D15). Providers keep their own ids (for example <c>stashbox</c>). Not to be confused with
+    /// <see cref="Kind"/>, which says how a plugin runs.
+    /// </summary>
+    [JsonPropertyName("listing_kind")]
+    public string ListingKind { get; set; } = "plugin";
+
+    /// <summary>What only a provider has: its key, whether it can be switched, what it supplies. Null for a plugin.</summary>
+    [JsonPropertyName("provider")]
+    public PluginProviderInfoDto? Provider { get; set; }
+
     /// <summary>How the plugin runs: <c>official</c>, <c>declarative</c>, <c>service</c> or <c>sandboxed</c>.</summary>
     [JsonPropertyName("kind")]
     public string Kind { get; set; } = "official";
@@ -220,6 +232,42 @@ public sealed record PluginSummaryResponse
     /// <summary>How the plugin is getting on with the Library's host services (its own records, recurring jobs, events, background work and web connection). Always present; kept in memory, so it starts clean after an Engine restart.</summary>
     [JsonPropertyName("host_services")]
     public PluginHostServicesDto HostServices { get; set; } = new();
+}
+
+/// <summary>The extra facts a provider tile and page need (Plugins and Integrations screens v3 D15 and D18).</summary>
+public sealed record PluginProviderInfoDto
+{
+    /// <summary>True for a source that needs your own key (TMDB, TheTVDB, SubDL, Stash-box).</summary>
+    [JsonPropertyName("requires_key")]
+    public bool RequiresKey { get; set; }
+
+    /// <summary>True when a key has been entered. Never the key itself.</summary>
+    [JsonPropertyName("key_present")]
+    public bool KeyPresent { get; set; }
+
+    /// <summary>True for a core source (Wikidata, Local files): always on, no switch.</summary>
+    [JsonPropertyName("always_on")]
+    public bool AlwaysOn { get; set; }
+
+    /// <summary>True when the source is only asked about Vault items (Stash-box).</summary>
+    [JsonPropertyName("vault_only")]
+    public bool VaultOnly { get; set; }
+
+    /// <summary>One plain phrase for each thing it supplies ("Movie artwork").</summary>
+    [JsonPropertyName("supplies")]
+    public List<string> Supplies { get; set; } = [];
+
+    /// <summary>The web addresses (hosts) it contacts.</summary>
+    [JsonPropertyName("sends_data_to")]
+    public List<string> SendsDataTo { get; set; } = [];
+
+    /// <summary>The whole plain-English explanation of the source: what it is, what it is asked and what is sent where.</summary>
+    [JsonPropertyName("about")]
+    public string About { get; set; } = "";
+
+    /// <summary>Where to get a key, or null.</summary>
+    [JsonPropertyName("signup_url")]
+    public string? SignupUrl { get; set; }
 }
 
 /// <summary>The state of a plugin's host services. <see cref="State"/> is <c>working</c>, <c>needs_attention</c> or <c>broken</c>.</summary>

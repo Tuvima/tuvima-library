@@ -1457,7 +1457,7 @@ internal sealed class ViewWriteHarness : IDisposable
     private ViewSharedTransferService? _transfers;
 
     public ViewSharedTransferService Transfers =>
-        _transfers ??= new ViewSharedTransferService(Fixture.Database, Fixture.Repository, Fixture.Storage, Queue);
+        _transfers ??= new ViewSharedTransferService(Fixture.Database, Fixture.Repository, Fixture.Storage, Fixture.Spaces, new SourceMutationPolicyGate(), Queue);
 
     public Guid SharedItemOf(Guid originItemId)
     {

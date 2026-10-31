@@ -23,32 +23,24 @@
 
 @code {
     [Parameter, EditorRequired] public IReadOnlyList<SetupStepStatusDto> Steps { get; set; } = [];
-    [Parameter, EditorRequired] public string CurrentStep { get; set; } = "server";
-    [Parameter, EditorRequired] public string WorkflowStep { get; set; } = "server";
+    [Parameter, EditorRequired] public string CurrentStep { get; set; } = "welcome";
+    [Parameter, EditorRequired] public string WorkflowStep { get; set; } = "welcome";
     [Parameter] public EventCallback<string> StepSelected { get; set; }
 
-    // "language" is a sidebar-only step: the workflow records one "providers" step, but the wizard shows
-    // the language screen and the Enhance your library screen separately, so each gets its own entry.
-    // The server check ("preflight") runs silently after the server name is saved, so it has no entry.
-    private static readonly string[] DisplayKeys = SetupWorkflow.StepKeys
-        .Where(key => key != "preflight")
-        .SelectMany(key => key == "providers" ? new[] { "language", "providers" } : new[] { key })
-        .ToArray();
+    /// <summary>
+    /// The Vault is an optional entry: offered only to the first administrator on a desktop or tablet, and gone for good after
+    /// Not now. Every other entry is exactly one of the Engine's step keys, in the Engine's order; nothing is mapped, split or hidden.
+    /// </summary>
+    [Parameter] public bool ShowVault { get; set; }
 
-    private static string WorkflowKey(string key) => key == "language" ? "providers" : key;
+    private IEnumerable<string> DisplayKeys => SetupWorkflow.StepKeys.Where(key => key != "vault" || (ShowVault && StateFor(key) != "deferred"));
 
-    // While the silent server check is the workflow step, the person is still on the first entry.
-    private static string DisplayKey(string key) => key == "preflight" ? "server" : key;
+    private static string DisplayKey(string key) => key;
 
-    private string StateFor(string key)
-    {
-        var status = Steps.FirstOrDefault(step => step.Key == WorkflowKey(key))?.Status ?? "not_started";
-        // Language is saved before providers are reviewed or deferred, so it never shows "Later".
-        return key == "language" && status == "deferred" ? "passed" : status;
-    }
+    private string StateFor(string key) => Steps.FirstOrDefault(step => step.Key == key)?.Status ?? "not_started";
 
     private bool CanNavigate(string key) =>
-        Array.IndexOf(DisplayKeys, key) <= Array.IndexOf(DisplayKeys, DisplayKey(WorkflowStep))
+        Array.IndexOf(SetupWorkflow.StepKeys, key) <= Array.IndexOf(SetupWorkflow.StepKeys, WorkflowStep)
         || StateFor(key) is "passed" or "deferred";
 
     private string StepClass(string key, string state) => string.Join(' ', new[]
@@ -59,23 +51,24 @@
         state == "blocked" ? "is-blocked" : null,
     }.Where(value => value is not null));
 
-    private static string StepMarker(string key, string state) => state switch
+    private string StepMarker(string key, string state) => state switch
     {
         "passed" => "✓",
         "deferred" => "✓",
         "blocked" => "!",
-        _ => (Array.IndexOf(DisplayKeys, key) + 1).ToString(),
+        _ => (DisplayKeys.ToList().IndexOf(key) + 1).ToString(),
     };
 
     private static string AriaLabel(string key, string state) => $"{Friendly(key)}, {Friendly(state)}";
     private static string Friendly(string value) => value switch
     {
-        "server" => "Name your server",
-        "administrator" => "Your account",
-        "media-locations" => "Libraries",
-        "language" => "Language",
-        "providers" => "Enhance your library",
-        "readiness" => "All set",
+        "welcome" => "Welcome",
+        "profile" => "Your profile",
+        "tools" => "Tools",
+        "libraries" => "Libraries",
+        "vault" => "Vault",
+        "metadata" => "Metadata",
+        "done" => "All set",
         _ => Humanise(value),
     };
 

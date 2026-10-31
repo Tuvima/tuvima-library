@@ -47,20 +47,13 @@ public sealed class IntercomAudienceTests : IDisposable
             _identities, _accounts, new ProfileAccessRepository(_database), new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
             TimeProvider.System,
             new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), new NoVaultPaths(),
-            TestLibraryVisibility.Rule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
+            TestLibraryVisibility.Rule(new VaultLibraryRepository(_database)));
         var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
         var media = new MediaAddedEvent(Guid.NewGuid(), null, "Movies", "Visible", _assetId);
 
         Assert.True(await authorizer.CanReceiveAsync(connection, SignalREvents.MediaAdded, media));
         Assert.False(await authorizer.CanReceiveAsync(connection, SignalREvents.ProviderStatusChanged,
             new ProviderStatusChangedEvent("provider", "healthy", string.Empty)));
-
-        using (var database = _database.CreateConnection())
-        {
-            database.Execute("DELETE FROM profile_feature_grants WHERE profile_id=@profileId;", new { profileId = Profile.SeedProfileId });
-        }
-
-        Assert.False(await authorizer.CanReceiveAsync(connection, SignalREvents.MediaAdded, media));
 
         using (var database = _database.CreateConnection())
         {
@@ -98,30 +91,6 @@ public sealed class IntercomAudienceTests : IDisposable
     }
 
     [Fact]
-    public async Task LiveAudience_NeverDeliversMediaOfALibraryHiddenFromTheProfile_AndDeliversItAgainOnceItIsShown()
-    {
-        await SeedHumanAsync();
-        var authorizer = new IntercomAudienceAuthorizer(
-            _identities, _accounts, new ProfileAccessRepository(_database), new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
-            TimeProvider.System,
-            new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), new NoVaultPaths(),
-            TestLibraryVisibility.Rule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
-        var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
-        var media = new MediaAddedEvent(Guid.NewGuid(), null, "Movies", "Visible", _assetId);
-        var watch = new HashSet<AccountFeatureId> { AccountFeatureId.Watch };
-
-        // Nothing is hidden, so a library nobody listed is still delivered through the Watch area.
-        Assert.True(await authorizer.CanReceiveAsync(connection, SignalREvents.MediaAdded, media));
-
-        var profileAccess = new ProfileAccessRepository(_database);
-        await profileAccess.ReplaceAccessAsync(Profile.SeedProfileId, watch, new HashSet<Guid> { _libraryId }, DateTimeOffset.UtcNow);
-        Assert.False(await authorizer.CanReceiveAsync(connection, SignalREvents.MediaAdded, media));
-
-        await profileAccess.ReplaceAccessAsync(Profile.SeedProfileId, watch, new HashSet<Guid>(), DateTimeOffset.UtcNow);
-        Assert.True(await authorizer.CanReceiveAsync(connection, SignalREvents.MediaAdded, media));
-    }
-
-    [Fact]
     public async Task LiveAudience_KidsProfileOfAnAdministratorGetsNoAdministratorEvents()
     {
         await SeedHumanAsync();
@@ -137,7 +106,7 @@ public sealed class IntercomAudienceTests : IDisposable
             _identities, _accounts, new ProfileAccessRepository(_database), new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
             TimeProvider.System,
             new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), new NoVaultPaths(),
-            TestLibraryVisibility.Rule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
+            TestLibraryVisibility.Rule(new VaultLibraryRepository(_database)));
         var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
 
         Assert.False(await authorizer.CanReceiveAsync(connection, SignalREvents.ReviewItemCreated,
@@ -157,7 +126,7 @@ public sealed class IntercomAudienceTests : IDisposable
             _identities, _accounts, new ProfileAccessRepository(_database), new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
             TimeProvider.System,
             new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), new NoVaultPaths(),
-            TestLibraryVisibility.Rule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
+            TestLibraryVisibility.Rule(new VaultLibraryRepository(_database)));
         var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
         var removed = new LibraryItemsRemovedEvent([Guid.NewGuid()], [Guid.NewGuid()]);
 
@@ -196,7 +165,7 @@ public sealed class IntercomAudienceTests : IDisposable
             _identities, _accounts, new ProfileAccessRepository(_database), new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
             TimeProvider.System,
             new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), new NoVaultPaths(),
-            TestLibraryVisibility.Rule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
+            TestLibraryVisibility.Rule(new VaultLibraryRepository(_database)));
         var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
         var media = new MediaAddedEvent(Guid.NewGuid(), null, "Videos", "Secret", _assetId);
 
@@ -229,7 +198,7 @@ public sealed class IntercomAudienceTests : IDisposable
             _identities, _accounts, new ProfileAccessRepository(_database), new FixedResources(_assetId, _libraryId, AccountFeatureId.Watch),
             TimeProvider.System,
             new VaultLibraryRepository(_database), new NsfwAccessRepository(_database), new NoVaultPaths(),
-            TestLibraryVisibility.Rule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)));
+            TestLibraryVisibility.Rule(new VaultLibraryRepository(_database)));
         var connection = new IntercomAudienceConnection("connection", _sessionId, _accountId);
         await _identities.RevokeSessionAsync(_sessionId, DateTimeOffset.UtcNow, "test");
 
@@ -242,8 +211,7 @@ public sealed class IntercomAudienceTests : IDisposable
     {
         await SeedHumanAsync();
         var householdLibraries = new HouseholdLibraryAccessRepository(_database);
-        var rule = new LibraryVisibilityRule(
-            new ProfileAccessRepository(_database), householdLibraries, new VaultLibraryRepository(_database));
+        var rule = new LibraryVisibilityRule(householdLibraries, new VaultLibraryRepository(_database));
         Guid household;
         using (var lookup = _database.CreateConnection())
         {
@@ -298,9 +266,7 @@ public sealed class IntercomAudienceTests : IDisposable
                 CreatedAt = now,
                 UpdatedAt = now,
             },
-            new TestGrant(_accountId, Profile.SeedProfileId, IsDefault: true, AdminEnabled: false),
-            new HashSet<AccountFeatureId> { AccountFeatureId.Watch },
-            new HashSet<Guid>());
+            new TestGrant(_accountId, Profile.SeedProfileId, IsDefault: true, AdminEnabled: false));
         await _identities.InsertSessionAsync(new AuthSession
         {
             Id = _sessionId,

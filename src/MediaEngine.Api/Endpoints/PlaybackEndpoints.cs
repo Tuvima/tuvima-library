@@ -44,6 +44,7 @@ public static class PlaybackEndpoints
             double? bandwidthMbps,
             int? latencyMs,
             Guid? roomId,
+            string? delivery,
             HttpContext httpContext,
             ClaimsPrincipal user,
             ClientAuthorizationService authorization,
@@ -70,7 +71,8 @@ public static class PlaybackEndpoints
                 }
             }
             var trustedClient = TrustedClient(user, client);
-            var manifest = await playback.BuildManifestAsync(assetId, trustedClient, profileId, ct, connection, capabilities, deviceId);
+            var forceAdaptive = string.Equals(delivery, "hls", StringComparison.OrdinalIgnoreCase);
+            var manifest = await playback.BuildManifestAsync(assetId, trustedClient, profileId, ct, connection, capabilities, deviceId, forceAdaptive);
             if (manifest?.DirectStreamUrl is { } streamUrl)
             {
                 manifest = manifest with { DirectStreamUrl = "/api/v1" + streamUrl };

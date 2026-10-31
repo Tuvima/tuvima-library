@@ -161,15 +161,18 @@ internal sealed class LibraryItemDeletionTestWorld : IDisposable
         IReadOnlyList<string> filePaths,
         string mediaType = "Movies",
         string workKind = "standalone",
-        bool catalogOnly = false)
+        bool catalogOnly = false,
+        Guid? parentWorkId = null,
+        int? ordinal = null,
+        Guid? collectionId = null)
     {
         var workId = Guid.NewGuid();
         var editionId = Guid.NewGuid();
         var assets = new List<Guid>();
         using var connection = Database.CreateConnection();
         connection.Execute("""
-            INSERT INTO works (id, media_type, work_kind, is_catalog_only, ownership)
-            VALUES (@workId, @mediaType, @workKind, @catalogOnly, @ownership);
+            INSERT INTO works (id, media_type, work_kind, is_catalog_only, ownership, parent_work_id, ordinal, collection_id)
+            VALUES (@workId, @mediaType, @workKind, @catalogOnly, @ownership, @parentWorkId, @ordinal, @collectionId);
             INSERT INTO editions (id, work_id) VALUES (@editionId, @workId);
             INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
             VALUES (@workId, 'title', @title, @now);
@@ -182,6 +185,9 @@ internal sealed class LibraryItemDeletionTestWorld : IDisposable
                 workKind,
                 catalogOnly = catalogOnly ? 1 : 0,
                 ownership = catalogOnly ? "Unowned" : "Owned",
+                parentWorkId,
+                ordinal,
+                collectionId,
                 title,
                 now = DateTimeOffset.UtcNow.ToString("O"),
             });
@@ -193,6 +199,15 @@ internal sealed class LibraryItemDeletionTestWorld : IDisposable
         }
 
         return (workId, assets);
+    }
+
+    /// <summary>A group (a show, a season, an album) holds titles, not files: it has no edition of its own.</summary>
+    public Guid AddGroup(string title, string mediaType, Guid? parentWorkId = null, int? ordinal = null)
+    {
+        var (workId, _) = AddWork(title, [], mediaType, "parent", parentWorkId: parentWorkId, ordinal: ordinal);
+        using var connection = Database.CreateConnection();
+        connection.Execute("DELETE FROM editions WHERE work_id = @workId;", new { workId });
+        return workId;
     }
 
     /// <summary>Adds another file to an existing title's edition.</summary>
@@ -231,6 +246,17 @@ internal sealed class LibraryItemDeletionTestWorld : IDisposable
             AddMember(collectionId, workId);
         }
 
+        return collectionId;
+    }
+
+    /// <summary>Adds a Series (a generated content group) that titles join through their own collection id.</summary>
+    public Guid AddSeries(string name)
+    {
+        var collectionId = Guid.NewGuid();
+        using var connection = Database.CreateConnection();
+        connection.Execute(
+            "INSERT INTO collections (id, display_name, membership_mode, collection_type, resolution) VALUES (@collectionId, @name, 'Smart', 'ContentGroup', 'query');",
+            new { collectionId, name });
         return collectionId;
     }
 

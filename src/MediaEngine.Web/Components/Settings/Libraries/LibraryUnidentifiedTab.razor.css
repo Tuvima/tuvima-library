@@ -1,0 +1,8 @@
+.lib-unid { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.lib-unid__bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.lib-unid__summary { margin: 0; color: var(--tl-text-secondary, var(--tl-text-muted)); }
+.lib-unid__bulk, .lib-unid__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.lib-unid__file { display: block; font-weight: 600; overflow-wrap: anywhere; }
+.lib-unid__folder { display: block; color: var(--tl-text-muted); font-size: 0.85rem; overflow-wrap: anywhere; }
+.lib-unid__reason { color: var(--tl-text-secondary, var(--tl-text-muted)); }
+.lib-unid__desktop { color: var(--tl-text-muted); font-size: 0.85rem; }

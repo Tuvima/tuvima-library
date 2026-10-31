@@ -350,6 +350,7 @@ builder.Services.AddSingleton<INativeAppAccessGate>(new NetworkSettingsNativeApp
 builder.Services.AddSingleton<NativeAppPairingThrottle>();
 builder.Services.AddSingleton<IOutsideAddressSource, EngineOutsideAddressSource>();
 builder.Services.AddSingleton<SignInAttemptLimiter>();
+builder.Services.AddSingleton<SetupSignInHandoff>();
 builder.Services.AddClientApiProxyClient(new Uri(apiBase));
 builder.Services.AddHealthChecks()
     .AddCheck<DashboardEngineHealthCheck>("engine_liveness", tags: ["readiness"]);

@@ -207,7 +207,7 @@ public sealed class ManagedSessionServiceTests
             world._mutations = AccountSetupKit.Attach(new AccountAccessMutationService(
                 world._accounts,
                 new ProfileAccessRepository(world._database), world.Identities, world._profiles, world._configuration,
-                new AllowAllDecisions(), new AllowEvaluator(), new NoOpInvalidation(), world.Audit, world._identity, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate(), new FixedVaultLibraries()),
+                new AllowAllDecisions(), new AllowEvaluator(), new NoOpInvalidation(), world.Audit, world._identity, new NoProfilePhotos(), TimeProvider.System, new AlwaysUsableAdministrators(), new AuthenticationPolicyMutationGate()),
                 world._accounts, new ProfileAccessRepository(world._database), world._identity);
             world._setupActor = new RequestAuthority(
                 PrincipalKind.Human, true, Guid.NewGuid(), Guid.NewGuid(), SessionId: Guid.NewGuid(),
@@ -286,16 +286,15 @@ public sealed class ManagedSessionServiceTests
                 UpdatedAt = now,
             };
             await _accounts.CreateAccountAsync(peer,
-                new TestGrant(peer.Id, peerProfile.Id, IsDefault: true, AdminEnabled: false),
-                new HashSet<AccountFeatureId>(), new HashSet<Guid>(), newProfile: peerProfile, householdId: HouseholdOf(Owner));
+                new TestGrant(peer.Id, peerProfile.Id, IsDefault: true, AdminEnabled: false), newProfile: peerProfile, householdId: HouseholdOf(Owner));
             await _mutations.SetHouseholdAdminAsync(_setupActor, peer.Id, true);
             return (await _accounts.GetByIdAsync(peer.Id))!;
         }
 
         private async Task<Account> CreateMainAsync(string email, string person, bool isAdministrator) =>
             await _mutations.CreateAsync(_setupActor, new CreateAccountAccessCommand(
-                email, isAdministrator, ProfileId: null, NewProfile: new NewAccountProfileCommand(person, "#7C4DFF"),
-                Features: new HashSet<AccountFeatureId>(), HiddenLibraries: new HashSet<Guid>()));
+                email, isAdministrator, ProfileId: null, NewProfile: new NewAccountProfileCommand(person, "#7C4DFF")
+                ));
 
         private RequestAuthority Authority(Account account, AuthSession session,
             bool administrator = false, bool householdAdministrator = false) => new(

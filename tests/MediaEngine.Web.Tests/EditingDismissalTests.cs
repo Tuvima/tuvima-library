@@ -226,22 +226,17 @@ public sealed class EditingDismissalTests : AsyncBunitContext
     // -- Esc, in order ---------------------------------------------------------------------------
 
     [Fact]
-    public async Task EscClosesTheOpenPanelFirst_ThenAsksAboutStagedChanges_AndOnlyThenDismissesTheOverlay()
+    public async Task EscAsksAboutStagedChanges_AndKeepEditingLeavesTheWindowOpen()
     {
         var host = Render<AppDialogHost>();
         var cut = await StartEditingAsync();
         TypeIntoTheTitle(cut, "Dune");
 
-        // 1. The panel closes without a question; edit mode and the staged change stay.
-        Assert.True(await EscAsync(cut));
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-editor-panel")));
-        Assert.Single(cut.FindAll(".tl-editing-bar"));
-        Assert.Empty(host.FindAll(".app-confirm"));
-
-        // 2. With the panel closed and a change staged, Esc asks; keeping the edit leaves everything as it was.
+        // The editor is a window: with a change staged, Esc asks first; keeping the edit leaves the window and the change as they were.
         var esc = EscAsync(cut);
         Answer(host, "Keep editing");
         Assert.True(await esc);
+        Assert.NotEmpty(cut.FindAll(".tl-editor-panel"));
         Assert.Single(cut.FindAll(".tl-editing-bar"));
         Assert.Equal("Save 1 change", cut.Find("button.tl-editing-bar__save").TextContent.Trim());
         Assert.Empty(_steps);
@@ -280,13 +275,8 @@ public sealed class EditingDismissalTests : AsyncBunitContext
         overlay.FindAll(".tl-editing-bar__tool").Single(tool => tool.TextContent.Trim() == "Details").Click();
         overlay.WaitForElement("input[aria-label='Title']").Input("Dune");
 
-        // app-dialog.js reports a click on the backdrop (and Esc outside a field, and the sheet's grip) through RequestCancel. The open
-        // panel closes first, keeping the staged change and asking nothing.
-        await overlay.InvokeAsync(() => overlay.Instance.RequestCancel());
-        overlay.WaitForAssertion(() => Assert.Empty(overlay.FindAll(".tl-editor-panel")));
-        Assert.Empty(dialogs.FindAll(".app-confirm"));
-
-        // With the panel closed the next one asks, and Keep editing leaves everything where it was.
+        // app-dialog.js reports a click on the backdrop (and Esc outside a field, and the sheet's grip) through RequestCancel. The editor is a
+        // window, so with changes staged the very first one asks.
         var backdrop = overlay.InvokeAsync(() => overlay.Instance.RequestCancel());
         Answer(dialogs, "Keep editing");
         await backdrop;
@@ -307,9 +297,8 @@ public sealed class EditingDismissalTests : AsyncBunitContext
 
         ChooseEdit(cut);
         OpenDetails(cut);
+        // Esc closes the editor window; with nothing staged that simply leaves editing.
         Assert.True(await EscAsync(cut));
-
-        cut.Find("button.tl-editing-bar__cancel").Click();
         cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-editing-bar")));
         Assert.False(await EscAsync(cut));
     }

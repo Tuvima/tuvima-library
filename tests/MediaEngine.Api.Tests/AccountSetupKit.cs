@@ -16,8 +16,6 @@ internal sealed record CreateAccountAccessCommand(
     bool IsAdministrator,
     Guid? ProfileId,
     NewAccountProfileCommand? NewProfile,
-    IReadOnlySet<AccountFeatureId> Features,
-    IReadOnlySet<Guid> HiddenLibraries,
     string? TemporaryPassword = null);
 
 internal sealed record NewAccountProfileCommand(string DisplayName, string? AvatarColor);
@@ -123,9 +121,7 @@ internal static class AccountSetupKit
             var placement = new NewUserPlacement(
                 newProfile,
                 HouseholdId: newProfile is not null && command.IsAdministrator ? defaultHousehold : null,
-                IsServerAdministrator: newProfile is not null && command.IsAdministrator,
-                Features: newProfile is null ? null : command.Features,
-                HiddenLibraries: newProfile is null ? null : command.HiddenLibraries);
+                IsServerAdministrator: newProfile is not null && command.IsAdministrator);
             await Accounts.CreateUserAsync(account, placement, null, ct).ConfigureAwait(false);
             if (newProfile is null && command.IsAdministrator)
             {

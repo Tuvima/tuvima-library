@@ -327,7 +327,8 @@
     font-family: var(--font-brand);
     font-size: 1.35rem;
     font-weight: 600;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
 }
 
 .layout-shell__appbar,

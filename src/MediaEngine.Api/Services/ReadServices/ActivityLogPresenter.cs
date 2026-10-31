@@ -62,6 +62,12 @@ public static partial class ActivityLogPresenter
                 dto.Detail = FirstText(entry.Detail);
                 break;
 
+            case SystemActionType.PersonalMissingPurged:
+                // Counts only: how many leftover records were removed. No file name or title exists here.
+                dto.Title = FirstText(entry.CollectionName) ?? "Removed records of missing files";
+                dto.Detail = FirstText(entry.Detail);
+                break;
+
             case SystemActionType.PersonalMediaAdded:
                 dto.Title = FirstText(entry.CollectionName) ?? "Personal media";
                 dto.Detail = FirstText(entry.Detail);

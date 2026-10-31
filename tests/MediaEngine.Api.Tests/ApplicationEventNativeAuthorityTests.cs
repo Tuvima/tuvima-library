@@ -121,18 +121,12 @@ public sealed class ApplicationEventNativeAuthorityTests : IDisposable
     }
 
     [Fact]
-    public async Task Delivery_DeniesRevokedFeatureGrantAndOtherMediaFeature()
+    public async Task Delivery_DeniesAnEventOfTheViewArea_ToAProfileOutsideTheDefaultHousehold()
     {
         var fixture = await CreateSubscriptionAsync();
         Assert.False(await fixture.Authorizer.CanDeliverDelegatedAsync(
             fixture.Subscriber,
-            Event() with { Subject = Event().Subject with { FeatureId = AccountFeatureId.Read } }));
-        using var connection = _database.CreateConnection();
-        connection.Execute(
-            "DELETE FROM profile_feature_grants WHERE profile_id=@profileId AND feature_id='watch';",
-            new { profileId = Profile.SeedProfileId });
-
-        Assert.False(await fixture.Authorizer.CanDeliverDelegatedAsync(fixture.Subscriber, Event()));
+            Event() with { Subject = Event().Subject with { FeatureId = AccountFeatureId.View } }));
     }
 
     private async Task<Fixture> CreateSubscriptionAsync()
@@ -149,9 +143,7 @@ public sealed class ApplicationEventNativeAuthorityTests : IDisposable
                 CreatedAt = now,
                 UpdatedAt = now,
             },
-            new TestGrant(_accountId, Profile.SeedProfileId, IsDefault: true, AdminEnabled: false),
-            new HashSet<AccountFeatureId> { AccountFeatureId.Watch },
-            new HashSet<Guid>());
+            new TestGrant(_accountId, Profile.SeedProfileId, IsDefault: true, AdminEnabled: false));
         await _applications.ReplacePermissionsAsync(
             BuiltInApplicationIds.NativeClient,
             Scopes.ToHashSet(),
@@ -225,7 +217,7 @@ public sealed class ApplicationEventNativeAuthorityTests : IDisposable
             registry,
             new ApplicationEventDeliveryAuthorizer(_applications, permissions, registry),
             _clock,
-            rule ?? TestLibraryVisibility.Rule(new ProfileAccessRepository(_database), new VaultLibraryRepository(_database)),
+            rule ?? TestLibraryVisibility.Rule(new VaultLibraryRepository(_database)),
             configuration);
     }
 
@@ -257,7 +249,7 @@ public sealed class ApplicationEventNativeAuthorityTests : IDisposable
     }
 
     [Fact]
-    public async Task Subscribe_IsRefusedForAnUnknownLibrary_AndForALibraryInAnAreaTheAccountLacks_ButNotForOneItMaySee()
+    public async Task Subscribe_IsRefusedForAnUnknownLibrary_ButNotForALibraryTheProfileMaySee_InAnyOfRead_Watch_Listen()
     {
         var otherLibrary = Guid.NewGuid();
         var fixture = await CreateSubscriptionAsync();
@@ -266,15 +258,11 @@ public sealed class ApplicationEventNativeAuthorityTests : IDisposable
         var configured = ConfiguredLibraries("watch", otherLibrary);
         var subscription = NewAuthorizer(configured);
 
-        // The account has Watch only: the Watch library is fine, the unknown id and the Read library are refused.
+        // Every profile reaches Watch, Listen and Read: the Watch library and the Read library are fine, an unknown id is refused.
         Assert.True(await subscription.CanSubscribeAsync(authority, fixture.Subscriber.Consent, types, new HashSet<Guid> { _libraryId }, CancellationToken.None));
         Assert.False(await subscription.CanSubscribeAsync(authority, fixture.Subscriber.Consent, types, new HashSet<Guid> { Guid.NewGuid() }, CancellationToken.None));
-        Assert.False(await subscription.CanSubscribeAsync(authority, fixture.Subscriber.Consent, types, new HashSet<Guid> { otherLibrary }, CancellationToken.None));
-        Assert.False(await subscription.CanSubscribeAsync(authority, fixture.Subscriber.Consent, types, new HashSet<Guid> { _libraryId, otherLibrary }, CancellationToken.None));
-
-        // A library hidden from the account is refused too.
-        await new ProfileAccessRepository(_database).ReplaceAccessAsync(Profile.SeedProfileId, new HashSet<AccountFeatureId> { AccountFeatureId.Watch }, new HashSet<Guid> { _libraryId }, _clock.GetUtcNow());
-        Assert.False(await subscription.CanSubscribeAsync(authority, fixture.Subscriber.Consent, types, new HashSet<Guid> { _libraryId }, CancellationToken.None));
+        Assert.True(await subscription.CanSubscribeAsync(authority, fixture.Subscriber.Consent, types, new HashSet<Guid> { otherLibrary }, CancellationToken.None));
+        Assert.False(await subscription.CanSubscribeAsync(authority, fixture.Subscriber.Consent, types, new HashSet<Guid> { _libraryId, Guid.NewGuid() }, CancellationToken.None));
     }
 
     [Fact]
@@ -282,8 +270,7 @@ public sealed class ApplicationEventNativeAuthorityTests : IDisposable
     {
         var fixture = await CreateSubscriptionAsync();
         var householdLibraries = new HouseholdLibraryAccessRepository(_database);
-        var rule = new LibraryVisibilityRule(
-            new ProfileAccessRepository(_database), householdLibraries, new VaultLibraryRepository(_database));
+        var rule = new LibraryVisibilityRule(householdLibraries, new VaultLibraryRepository(_database));
         Guid household;
         using (var connection = _database.CreateConnection())
         {

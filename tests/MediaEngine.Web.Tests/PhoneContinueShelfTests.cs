@@ -56,34 +56,33 @@ public sealed class PhoneContinueShelfTests : AsyncBunitContext
         Item("Audiobook", "The Martian", 25, 10, MediaTileShape.Square, progressLabel: "Chapter 4"),
         Item("TV", "The Continental", 60, 60, MediaTileShape.Landscape, remainingSeconds: 23 * 60,
             episode: new DisplayEpisodeContextDto(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "The Continental", "Night 1", 1, 2, DisplayContinuationState.InProgress, null, null)),
-        Item("Music", "Jagged Little Pill", 10, 120, MediaTileShape.Square),
+        Item("Music", "Jagged Little Pill", null, 120, MediaTileShape.Square, state: DisplayContinuationState.Unstarted),
         Item("Movie", "Never Started", null, 5, MediaTileShape.Landscape, state: DisplayContinuationState.Unstarted),
         Item("TV", "Next Up", 0, 200, MediaTileShape.Landscape, remainingSeconds: 40 * 60,
             episode: new DisplayEpisodeContextDto(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "Next Up", "Pilot", 1, 1, DisplayContinuationState.InProgress, null, null)),
     ];
 
     [Fact]
-    public async Task PickUpRowIsOneRowOfStartedItemsAndRecentAlbumsNewestFirstOnEveryDevice()
+    public async Task PickUpRowIsOneRowOfStartedItemsNewestFirstAndNeverListsAlbumsOnEveryDevice()
     {
         foreach (var device in new[] { "phone", "desktop" })
         {
             await UseAsync(device);
             var cut = Render<ContinueAcrossMediaSection>(p => p.Add(c => c.Shelf, new MediaTileShelfViewModel { Items = Seed() }));
             var cards = cut.FindAll(".pickup-card");
-            // The never-started movie is out; the rest run newest activity first: audiobook, episode, album, next-up episode, book.
-            Assert.Equal(5, cards.Count);
+            // The never-started movie and the album (music has no progress) are out; the rest run newest activity first: audiobook, episode, next-up episode, book.
+            Assert.Equal(4, cards.Count);
             string Text(int index) => cards[index].TextContent;
             Assert.Contains("The Martian", Text(0));
             Assert.Contains("Listen", Text(0));
             Assert.Contains("The Continental", Text(1));
             Assert.Contains("S1 E2 · Night 1", Text(1));
             Assert.Contains("23 min left", Text(1));
-            Assert.Contains("Jagged Little Pill", Text(2));
-            Assert.Contains("Recently played", Text(2));
-            Assert.Contains("S1 E1 · Pilot", Text(3));
-            Assert.Contains("Leviathan Wakes", Text(4));
-            Assert.Contains("42% complete", Text(4));
+            Assert.Contains("S1 E1 · Pilot", Text(2));
+            Assert.Contains("Leviathan Wakes", Text(3));
+            Assert.Contains("42% complete", Text(3));
             Assert.DoesNotContain("Never Started", cut.Markup);
+            Assert.DoesNotContain("Jagged Little Pill", cut.Markup);
         }
     }
 

@@ -157,7 +157,14 @@
         {
           "set": "season",
           "from": {
-            "int": "@request.season_number"
+            "int": {
+              "first_non_null": [
+                "@request.season_number",
+                {
+                  "literal": "1"
+                }
+              ]
+            }
           }
         },
         {
@@ -257,9 +264,70 @@
                   "path": "name",
                   "equals": "$show_name",
                   "ignore_case": true
+                },
+                {
+                  "path": "name",
+                  "equals": "$show_name",
+                  "ignore_case": true,
+                  "min_word_overlap": 0.8
                 }
               ],
               "fallback": "only_candidate"
+            },
+            {
+              "if": [
+                {
+                  "blank": "$show"
+                }
+              ],
+              "then": [
+                {
+                  "each": "term",
+                  "in": {
+                    "parts_of": "$show_name"
+                  },
+                  "do": [
+                    {
+                      "if": [
+                        {
+                          "blank": "$show"
+                        }
+                      ],
+                      "then": [
+                        {
+                          "call": "search",
+                          "args": {
+                            "query": "$term"
+                          },
+                          "into": "hits"
+                        },
+                        {
+                          "pick": "show",
+                          "from": "$hits",
+                          "take": 10,
+                          "candidate_id": [
+                            "tvdb_id",
+                            "id"
+                          ],
+                          "tests": [
+                            {
+                              "path": "name",
+                              "equals": "$show_name",
+                              "ignore_case": true
+                            },
+                            {
+                              "path": "name",
+                              "equals": "$show_name",
+                              "ignore_case": true,
+                              "min_word_overlap": 0.8
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
             }
           ]
         },

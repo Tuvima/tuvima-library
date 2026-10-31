@@ -104,7 +104,7 @@
                 <CompanionNowPlayingCard />
                 @foreach (var shelf in VisibleShelves.Where(s => s.Kind == MediaTileShelfKind.Continue))
                 {
-                    <ContinueAcrossMediaSection Shelf="@shelf" @key="shelf.Key" />
+                    <MediaTileShelf Shelf="@PickUpShelf(shelf)" UseContinueWatchingOrListeningTiles="true" IsHomeSurface="true" HideMediaKindBadges="true" HideSourceBadges="true" ShowCompactCaptions="true" @key="shelf.Key" />
                 }
                 <RecentMediaFeed Type="@_recentType" TypeChanged="RecentTypeChanged" RefreshKey="@_recentRefreshKey" HasItemsChanged="RecentItemsChanged" />
                 @foreach (var (shelf, shelfIndex) in VisibleShelves.Where(s => s.Kind != MediaTileShelfKind.Continue).Select((shelf, shelfIndex) => (shelf, shelfIndex)))
@@ -167,6 +167,14 @@
         await Orchestrator.StartSignalRAsync();
         await LoadAsync();
     }
+
+    // Home's Pick up row uses the same Continue tiles as Read, Watch and Listen: started items only, newest first.
+    private static MediaTileShelfViewModel PickUpShelf(MediaTileShelfViewModel shelf) => new()
+    {
+        Key = shelf.Key,
+        Title = "Pick up where you left off",
+        Items = PhoneContinueLogic.Select(shelf.Items),
+    };
 
     private static DiscoveryHeroViewModel HeroFromTile(MediaTileViewModel item) => new()
     {

@@ -154,7 +154,14 @@ public partial interface IEngineApiClient
     /// <summary>POST /library/items/{entityId}/video-series/remove — take a video out of its series; files never move.</summary>
     Task<bool> RemoveVideoFromSeriesAsync(Guid entityId, CancellationToken ct = default);
     /// <summary>GET /library/items/recycle-bin — the files waiting in the recycle bin.</summary>
-    Task<IReadOnlyList<RecycleBinItemDto>?> GetRecycleBinAsync(CancellationToken ct = default);
+    /// <summary>The Recycle bin as the signed-in profile may see it; <paramref name="mediaType"/> narrows it to one library type.</summary>
+    Task<RecycleBinSummaryDto?> GetRecycleBinSummaryAsync(string? mediaType = null, CancellationToken ct = default);
+
+    /// <summary>Asks the administrators to keep an item that is in the Recycle bin.</summary>
+    Task<bool> AskToKeepFromRecycleBinAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>Removes one item in the Recycle bin from the disk for good (administrators).</summary>
+    Task<bool> DeleteFromRecycleBinNowAsync(Guid id, CancellationToken ct = default);
     /// <summary>POST /library/items/recycle-bin/{id}/restore — put a file back where it was.</summary>
     Task<bool> RestoreFromRecycleBinAsync(Guid id, CancellationToken ct = default);
     /// <summary>POST /library/items/recycle-bin/empty — remove every file in the bin from the disk for good.</summary>

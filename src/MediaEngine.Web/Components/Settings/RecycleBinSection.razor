@@ -1,44 +1,91 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Items
 @using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Formatting
 @inject IEngineApiClient Api
 @inject IAppDialogService Dialogs
 
-@* Settings > Libraries: the files waiting in the recycle bin for the types that have it on. Putting a file back never
-   overwrites anything; Empty is the only step that removes files from the disk. *@
+@* The Recycle bin as the signed-in profile may see it (spec Delete a show, season, album or Series, D12 to D19). Everyone sees the
+   total; the list holds only what the profile may see and the rest is one "Other media" line. Administrators Restore, Delete now and
+   Empty (putting a file back never overwrites anything); everyone else can Ask to keep. *@
 <section class="recycle-bin" aria-label="Recycle bin">
     <header class="recycle-bin__head">
         <strong>Recycle bin</strong>
-        @if (_items is { Count: > 0 })
+        @if (_summary is { CanManage: true, TotalItems: > 0 })
         {
             <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" Size="AppControlSize.Compact"
                        Disabled="@_busy" OnClick="EmptyAsync">Empty recycle bin</AppButton>
         }
     </header>
-    @if (_items is null)
+    @if (!string.IsNullOrWhiteSpace(MediaType))
     {
-        <p class="recycle-bin__note" role="status">Loading…</p>
+        <p class="recycle-bin__filter">
+            @(_showAll ? "Showing: All media" : $"Showing: {MediaType}")
+            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                       OnClick="ToggleScopeAsync">@(_showAll ? $"Only {MediaType}" : "Show all")</AppButton>
+        </p>
     }
-    else if (_items.Count == 0)
+    @if (_summary is null)
+    {
+        <p class="recycle-bin__note" role="status">@(_failed ? "Couldn't reach the Engine." : "Loading…")</p>
+        @if (_failed)
+        {
+            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="LoadAsync">Try again</AppButton>
+        }
+    }
+    else if (_summary.TotalItems == 0)
     {
         <p class="recycle-bin__note">Nothing in the recycle bin.</p>
     }
     else
     {
+        <p class="recycle-bin__note">@Count(_summary.TotalItems) · @DisplayFormat.FormatFileSize(_summary.TotalBytes)</p>
+        @if (_summary.CanManage && _summary.LeavingSoonItems > 0)
+        {
+            <p class="recycle-bin__soon" role="status">
+                @Count(_summary.LeavingSoonItems) (@DisplayFormat.FormatFileSize(_summary.LeavingSoonBytes)) will be deleted for good @SoonText.
+            </p>
+        }
         <ul class="recycle-bin__list">
-            @foreach (var item in _items)
+            @foreach (var item in _summary.Items)
             {
                 var captured = item;
                 <li class="recycle-bin__row">
                     <span class="recycle-bin__name">
-                        <strong>@(string.IsNullOrWhiteSpace(item.Title) ? item.FileName : item.Title)</strong>
-                        <span>@DisplayFormat.FormatFileSize(item.SizeBytes) · deleted @item.DeletedAt.ToLocalTime().ToString("d MMM yyyy")</span>
+                        <strong>@item.Title</strong>
+                        <span>
+                            @DisplayFormat.FormatFileSize(item.SizeBytes) · deleted @item.DeletedAt.ToLocalTime().ToString("d MMM yyyy")@(string.IsNullOrWhiteSpace(item.DeletedBy) ? string.Empty : $" by {item.DeletedBy}")@LeavesText(item)
+                        </span>
+                        @if (item.RequestedBy.Count > 0)
+                        {
+                            <span class="recycle-bin__request">Requested by @string.Join(", ", item.RequestedBy)</span>
+                        }
                     </span>
-                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
-                               Disabled="@_busy" OnClick="@(() => RestoreAsync(captured))">Put back</AppButton>
+                    @if (_summary.CanManage)
+                    {
+                        <span class="recycle-bin__actions">
+                            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                                       Disabled="@_busy" OnClick="@(() => RestoreAsync(captured))">Put back</AppButton>
+                            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" Size="AppControlSize.Compact"
+                                       Disabled="@_busy" OnClick="@(() => DeleteNowAsync(captured))">Delete now</AppButton>
+                        </span>
+                    }
+                    else if (item.Requested)
+                    {
+                        <span class="recycle-bin__note">Requested</span>
+                    }
+                    else
+                    {
+                        <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                                   Disabled="@_busy" OnClick="@(() => AskToKeepAsync(captured))">Ask to keep</AppButton>
+                    }
                 </li>
             }
         </ul>
+        @if (_summary.OtherItems > 0)
+        {
+            <p class="recycle-bin__note">Other media: @Count(_summary.OtherItems), @DisplayFormat.FormatFileSize(_summary.OtherBytes)</p>
+        }
     }
     @if (_message is not null)
     {
@@ -47,36 +94,102 @@
 </section>
 
 @code {
-    private List<RecycleBinItemDto>? _items;
+    /// <summary>The library type of the page the person came from (for example "Movies"); the bin opens narrowed to it (D19).</summary>
+    [Parameter] public string? MediaType { get; set; }
+
+    /// <summary>Raised after the contents change, so a page can refresh its own count.</summary>
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private RecycleBinSummaryDto? _summary;
     private bool _busy;
+    private bool _failed;
+    private bool _showAll;
     private string? _message;
 
-    protected override Task OnInitializedAsync() => LoadAsync();
+    protected override Task OnParametersSetAsync() => LoadAsync();
 
-    private async Task LoadAsync() => _items = (await Api.GetRecycleBinAsync())?.ToList() ?? [];
+    private string? Scope => _showAll || string.IsNullOrWhiteSpace(MediaType) ? null : MediaType;
 
-    private async Task RestoreAsync(RecycleBinItemDto item)
+    private static string Count(int items) => items == 1 ? "1 item" : $"{items} items";
+
+    private string SoonText => _summary?.LeavingSoonDays switch
+    {
+        0 => "today",
+        1 => "tomorrow",
+        { } days => $"in {days} days",
+        _ => "soon",
+    };
+
+    private static string LeavesText(RecycleBinListItemDto item) => item.LeavesInDays switch
+    {
+        null => string.Empty,
+        0 => " · leaves today",
+        1 => " · leaves tomorrow",
+        { } days => $" · leaves in {days} days",
+    };
+
+    private async Task LoadAsync()
+    {
+        _summary = await Api.GetRecycleBinSummaryAsync(Scope);
+        _failed = _summary is null;
+    }
+
+    private async Task ToggleScopeAsync()
+    {
+        _showAll = !_showAll;
+        await LoadAsync();
+    }
+
+    private async Task FinishAsync(string message)
+    {
+        _message = message;
+        await LoadAsync();
+        _busy = false;
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task RestoreAsync(RecycleBinListItemDto item)
     {
         _busy = true;
         _message = null;
         var ok = await Api.RestoreFromRecycleBinAsync(item.Id);
-        _message = ok
+        await FinishAsync(ok
             ? "Put back. It comes back into the library on the next scan."
-            : "That could not be put back. Something may already be at its old place.";
-        await LoadAsync();
-        _busy = false;
+            : "That could not be put back. Something may already be at its old place.");
+    }
+
+    private async Task AskToKeepAsync(RecycleBinListItemDto item)
+    {
+        _busy = true;
+        _message = null;
+        var ok = await Api.AskToKeepFromRecycleBinAsync(item.Id);
+        await FinishAsync(ok ? "Asked. The administrators can see your request." : "That could not be sent. It may already be gone.");
+    }
+
+    private async Task DeleteNowAsync(RecycleBinListItemDto item)
+    {
+        var confirmed = await Dialogs.ShowMessageBoxAsync(
+            $"Delete \"{item.Title}\" for good?",
+            $"It is removed from your disk and can't be recovered. {DisplayFormat.FormatFileSize(item.SizeBytes)} is freed.",
+            yesText: "Delete now", cancelText: "Keep");
+        if (confirmed != true) return;
+        _busy = true;
+        _message = null;
+        var ok = await Api.DeleteFromRecycleBinNowAsync(item.Id);
+        await FinishAsync(ok ? "Deleted for good." : "That could not be deleted.");
     }
 
     private async Task EmptyAsync()
     {
+        var total = _summary is null ? string.Empty : $"{Count(_summary.TotalItems)} and free {DisplayFormat.FormatFileSize(_summary.TotalBytes)}";
         var confirmed = await Dialogs.ShowMessageBoxAsync(
             "Empty the recycle bin?",
-            "Every file in it is removed from your disk and can't be recovered.",
+            $"Permanently delete {total}? This can't be undone.",
             yesText: "Empty", cancelText: "Keep");
         if (confirmed != true) return;
         _busy = true;
-        _message = await Api.EmptyRecycleBinAsync() ? "The recycle bin is empty." : "The recycle bin could not be emptied.";
-        await LoadAsync();
-        _busy = false;
+        _message = null;
+        var ok = await Api.EmptyRecycleBinAsync();
+        await FinishAsync(ok ? "The recycle bin is empty." : "The recycle bin could not be emptied.");
     }
 }
