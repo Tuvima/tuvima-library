@@ -1,0 +1,25 @@
+@namespace MediaEngine.Web.Components.Shared
+
+@* The one shared "icon + number" line used under every tile that counts things
+   (artists, authors, collections, Universes). The icon says what is counted; the
+   tooltip and screen-reader text spell it out ("52 songs"). *@
+@if (Counts.Count > 0)
+{
+    <span class="media-count-line">
+        @foreach (var count in Counts)
+        {
+            <span class="media-count-line__item" title="@Spell(count)">
+                <AppMaterialIcon Icon="@count.Icon" />
+                <span aria-hidden="true">@count.Count</span>
+                <span class="media-count-line__sr">@Spell(count)</span>
+            </span>
+        }
+    </span>
+}
+
+@code {
+    [Parameter] public IReadOnlyList<MediaEngine.Web.Models.ViewDTOs.MediaTileMediaCountViewModel> Counts { get; set; } = [];
+
+    private static string Spell(MediaEngine.Web.Models.ViewDTOs.MediaTileMediaCountViewModel count)
+        => $"{count.Count} {count.Label.ToLowerInvariant()}";
+}

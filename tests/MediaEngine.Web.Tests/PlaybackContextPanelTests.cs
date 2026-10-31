@@ -204,14 +204,15 @@ public sealed class PlaybackContextPanelTests : AsyncBunitContext
     }
 
     [Fact]
-    public void MusicHistoryRows_GiveThePlayedTimeItsOwnWrappingColumn()
+    public void MusicHistoryRows_ShowThePlayedTimeUnderTheTitle()
     {
         var played = new ListenQueueItem { WorkId = Guid.NewGuid(), AssetId = Guid.NewGuid(), Title = "Old", MediaType = "Music", QueueEntryId = Guid.NewGuid(), PlayedAt = DateTimeOffset.UtcNow.AddMinutes(-3) };
         var snapshot = new ListenPlaybackSnapshot { ProfileId = Guid.NewGuid(), CurrentIndex = -1, History = [played] };
         var cut = Render<ListenContextSidebar>(parameters => parameters.Add(p => p.Snapshot, snapshot).Add(p => p.Commands, new RecordingSink()).Add(p => p.ActivePanelKey, "history"));
 
-        var row = cut.Find(".playback-context-row--history-played");
-        Assert.Equal("Played 3 min ago", row.QuerySelector(".playback-context-row__duration")!.TextContent);
+        var row = cut.Find(".playback-context-row--history");
+        Assert.Equal("Played 3 min ago", row.QuerySelector(".playback-context-row__identity span")!.TextContent);
+        Assert.Null(row.QuerySelector(".playback-context-row__duration"));
     }
 
     private sealed class RecordingSink : IPlaybackCommandSink, IPlaybackIdentityNavigationSink

@@ -401,11 +401,12 @@ else
                         }
                         else
                         {
-                            <MediaTileGrid Items="@ArtistPersonTiles"
-                                           ShowCompactCaptions="true"
-                                           HideGroupIndicators="true"
-                                           TileSizePx="300"
-                                           Class="listen-card-grid listen-card-grid--people" />
+                            <div class="listen-artist-grid">
+                                @foreach (var artistTile in ArtistPersonTiles)
+                                {
+                                    <PersonTile Item="@artistTile" />
+                                }
+                            </div>
                         }
                     </section>
                 }

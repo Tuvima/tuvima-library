@@ -1,0 +1,23 @@
+.media-count-line {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-3, 0.75rem);
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm, 0.8125rem);
+}
+
+.media-count-line__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.media-count-line__sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
