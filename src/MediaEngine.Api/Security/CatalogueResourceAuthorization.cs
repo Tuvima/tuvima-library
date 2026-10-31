@@ -88,7 +88,7 @@ internal sealed class CatalogueResourceAuthorizationService(
         }
 
         var authority = await authorities.ResolveAsync(context, ct).ConfigureAwait(false);
-        var candidates = await GetEntityAssetCandidatesAsync(entityType, entityId, ct).ConfigureAwait(false);
+        var candidates = await GetEntityAssetCandidatesAsync(entityType, entityId, ViewerProfileOf(authority), ct).ConfigureAwait(false);
         if (candidates.Count == 0)
         {
             return CatalogueResourceAccess.NotFound;
@@ -481,9 +481,17 @@ internal sealed class CatalogueResourceAuthorizationService(
         DisplayMediaRules.IsListenKind(mediaType) ? AccountFeatureId.Listen :
         null;
 
+    /// <summary>The profile a rule collection is evaluated for: the person behind the request, none for a service application.</summary>
+    private static Guid? ViewerProfileOf(RequestAuthority authority) =>
+        authority.PrincipalKind is PrincipalKind.Human or PrincipalKind.DelegatedUserClient
+            && authority.ActiveProfileId is { } profileId && profileId != Guid.Empty
+                ? profileId
+                : null;
+
     private async Task<IReadOnlyList<Guid>> GetEntityAssetCandidatesAsync(
         string entityType,
         Guid entityId,
+        Guid? viewerProfileId,
         CancellationToken ct)
     {
         var normalized = entityType.Replace("-", string.Empty, StringComparison.Ordinal)
@@ -584,6 +592,7 @@ internal sealed class CatalogueResourceAuthorizationService(
         var dynamicCandidates = await GetDynamicCollectionAssetCandidatesAsync(
             connection,
             entityId,
+            viewerProfileId,
             ct).ConfigureAwait(false);
         return candidates
             .Concat(dynamicCandidates)
@@ -594,6 +603,7 @@ internal sealed class CatalogueResourceAuthorizationService(
     private async Task<IReadOnlyList<Guid>> GetDynamicCollectionAssetCandidatesAsync(
         System.Data.IDbConnection connection,
         Guid collectionId,
+        Guid? viewerProfileId,
         CancellationToken ct)
     {
         var collection = await connection.QuerySingleOrDefaultAsync<DynamicCollectionRule>(new CommandDefinition(
@@ -632,7 +642,8 @@ internal sealed class CatalogueResourceAuthorizationService(
                 collection.SortField,
                 string.IsNullOrWhiteSpace(collection.SortDirection) ? "desc" : collection.SortDirection,
                 secondarySortField: collection.SecondarySortField,
-                secondarySortDirection: collection.SecondarySortDirection);
+                secondarySortDirection: collection.SecondarySortDirection,
+                viewerProfileId: viewerProfileId);
         }
         catch (FormatException)
         {

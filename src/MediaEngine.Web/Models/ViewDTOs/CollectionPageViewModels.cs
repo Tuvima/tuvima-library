@@ -19,6 +19,15 @@ public sealed class CollectionListItemViewModel
     public IReadOnlyList<Guid> SelectedProfileIds { get; init; } = [];
     public bool IsEnabled { get; init; } = true;
     public bool IsFeatured { get; init; }
+    /// <summary>Fewest items before a lane or the Collections page shows it; zero uses the surface default.</summary>
+    public int MinItems { get; init; }
+    /// <summary>"At most N"; null means no limit.</summary>
+    public int? MaxItems { get; init; }
+    /// <summary>Seasonal window as MM-dd; null when the collection is not seasonal.</summary>
+    public string? SeasonFrom { get; init; }
+    public string? SeasonTo { get; init; }
+    /// <summary>ISO date the collection is next shown while it is outside its window.</summary>
+    public string? HiddenUntil { get; init; }
     public int ItemCount { get; init; }
     public string? RuleJson { get; init; }
     public string? RuleHash { get; init; }
@@ -58,6 +67,12 @@ public sealed class CollectionPreviewResult
     public int Count { get; init; }
     public List<CollectionResolvedItemViewModel> Items { get; init; } = [];
     public Dictionary<string, int> MediaTypeCounts { get; init; } = [];
+
+    /// <summary>True when the rules depend on who is looking, so the preview is that profile's view.</summary>
+    public bool UsesPerProfileFields { get; init; }
+
+    /// <summary>The profile the preview was worked out for (set when <see cref="UsesPerProfileFields"/> is true).</summary>
+    public string? EvaluatedForProfileName { get; init; }
 }
 
 /// <summary>A rule predicate for the collection builder.</summary>

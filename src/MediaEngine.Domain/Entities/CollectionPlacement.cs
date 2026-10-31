@@ -26,4 +26,10 @@ public sealed class CollectionPlacement
     public bool IsVisible { get; set; } = true;
 
     public DateTimeOffset CreatedAt { get; set; }
+
+    /// <summary>
+    /// Null for the shared "Show on" choice every profile sees. Set for one profile's own choice about the same collection
+    /// and location: an invisible row is that profile's "Hide this lane".
+    /// </summary>
+    public Guid? ProfileId { get; set; }
 }

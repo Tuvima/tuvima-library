@@ -9,7 +9,7 @@ src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor|1
 src/MediaEngine.Web/Components/Listen/PlaybackLyrics.razor|1
 src/MediaEngine.Web/Components/MediaHub/MediaHubPage.razor|1
 src/MediaEngine.Web/Components/Pages/LibraryBrowsePage.razor|2
-src/MediaEngine.Web/Components/Pages/ListenPage.razor|3
+src/MediaEngine.Web/Components/Pages/ListenPage.razor|2
 src/MediaEngine.Web/Components/Pages/ReadPage.razor|2
 src/MediaEngine.Web/Components/Pages/ViewContributionsPage.razor|1
 src/MediaEngine.Web/Components/Pages/WatchPage.razor|3

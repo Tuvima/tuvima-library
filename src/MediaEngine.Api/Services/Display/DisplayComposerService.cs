@@ -1,3 +1,4 @@
+using MediaEngine.Api.Services.Collections;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
@@ -69,12 +70,12 @@ public sealed partial class DisplayComposerService
     {
         var worksTask = _readService.LoadHomeWorksAsync(ct);
         var journeyTask = _readService.LoadJourneyAsync(profileId, null, ct);
-        var homeCollectionsTask = _readService.LoadHomeCollectionsAsync(profileId, ct);
-        await Task.WhenAll(worksTask, journeyTask, homeCollectionsTask);
+        var lanesTask = _readService.LoadCollectionLanesAsync(profileId, CollectionLanePolicy.HomeLocation, ct);
+        await Task.WhenAll(worksTask, journeyTask, lanesTask);
 
         var works = (await worksTask).ToList();
         var journey = (await journeyTask).ToList();
-        var homeCollections = await homeCollectionsTask;
+        var collectionLanes = await lanesTask;
         var progressByWork = LatestProgressByWork(await _readService.LoadStatesAsync(profileId, null, ct));
         var tvShowCards = _cards.BuildTvShowCards(works, progressByWork);
         var videoCards = _cards.BuildVideoCards(works, progressByWork);
@@ -128,17 +129,13 @@ public sealed partial class DisplayComposerService
             .Take(Math.Max(1, shelfLimit))
             .ToList();
 
-        var collectionCards = homeCollections
-            .Take(Math.Max(1, shelfLimit))
-            .Select(DisplayCardBuilder.FromHomeCollection)
-            .ToList();
-
         var shelves = new List<DisplayShelfDto>();
         DisplayShelfBuilder.AddShelf(shelves, "continue", "Continue Across Media", "Pick up where you left off", continueCards, DisplayGridCatalog.RouteFor("home", "continue"));
         DisplayShelfBuilder.AddShelf(shelves, "watch-next", "Watch", "Movies and shows ready to play", watchCards, DisplayGridCatalog.RouteFor("home", "watch-next"));
         DisplayShelfBuilder.AddShelf(shelves, "read-next", "Read", "Books and comics ready to open", readCards, DisplayGridCatalog.RouteFor("home", "read-next"));
         DisplayShelfBuilder.AddShelf(shelves, "listen-next", "Listen", "Music and audiobooks ready to resume", listenCards, DisplayGridCatalog.RouteFor("home", "listen-next"));
-        DisplayShelfBuilder.AddShelf(shelves, "home-collections", "Collections & Lists", "Curated lists and broader rollups from your library", collectionCards, "/collections");
+        // Collections with Show on Home are lanes after the standard rows (Collections and lists spec D9 and D10).
+        shelves.AddRange(await BuildCollectionLaneShelvesAsync(collectionLanes, "home", progressByWork, ct));
 
         var heroSettings = _heroSettings is not null && profileId is { } heroProfile
             ? await _heroSettings.GetAsync(heroProfile, ct)
@@ -653,10 +650,12 @@ public sealed partial class DisplayComposerService
     {
         var worksTask = _readService.LoadWorksAsync(ct);
         var journeyTask = _readService.LoadJourneyAsync(profileId, lane, ct);
-        await Task.WhenAll(worksTask, journeyTask);
+        var lanesTask = _readService.LoadCollectionLanesAsync(profileId, CollectionLanePolicy.AreaLocation(lane), ct);
+        await Task.WhenAll(worksTask, journeyTask, lanesTask);
 
         var works = (await worksTask).ToList();
         var journey = (await journeyTask).ToList();
+        var collectionLanes = await lanesTask;
         var progressByWork = LatestProgressByWork(await _readService.LoadStatesAsync(profileId, null, ct));
 
         var laneSource = works
@@ -706,12 +705,15 @@ public sealed partial class DisplayComposerService
                 ? shelves.SelectMany(shelf => shelf.Items).FirstOrDefault()
                 : catalog.FirstOrDefault();
 
+        // Collections with Show on this page follow the page's own rows (Collections and lists spec D9).
+        var collectionLaneShelves = await BuildCollectionLaneShelvesAsync(collectionLanes, lane, progressByWork, ct);
+
         return new DisplayPageDto(
             Key: lane,
             Title: TitleForLane(lane),
             Subtitle: SubtitleForLane(lane),
             Hero: heroCard is null ? null : DisplayCardBuilder.ToHero(heroCard, EyebrowForLane(lane, laneJourney.Count > 0)),
-            Shelves: shelves,
+            Shelves: collectionLaneShelves.Count == 0 ? shelves : [.. shelves, .. collectionLaneShelves],
             Catalog: includeCatalog ? catalog : []);
     }
 

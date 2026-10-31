@@ -549,6 +549,8 @@ public sealed partial class EngineApiClient
             {
                 Count = result.Count,
                 MediaTypeCounts = result.MediaTypeCounts,
+                UsesPerProfileFields = result.UsesPerProfileFields,
+                EvaluatedForProfileName = result.EvaluatedForProfileName,
                 Items = result.Items.Select(item => new CollectionResolvedItemViewModel
                 {
                     EntityId = item.EntityId,
@@ -629,7 +631,12 @@ public sealed partial class EngineApiClient
         string ownerKind = "Profile",
         string audience = "Private",
         IReadOnlyList<Guid>? selectedProfileIds = null,
-        IReadOnlyList<Guid>? workIds = null)
+        IReadOnlyList<Guid>? workIds = null,
+        int minItems = 0,
+        int maxItems = 0,
+        string? seasonFrom = null,
+        string? seasonTo = null,
+        IReadOnlyList<string>? showOn = null)
     {
         try
         {
@@ -650,6 +657,11 @@ public sealed partial class EngineApiClient
                 SortDirection = sortDirection,
                 SecondarySortField = secondarySortField,
                 SecondarySortDirection = secondarySortDirection,
+                MinItems = minItems,
+                MaxItems = maxItems,
+                SeasonFrom = seasonFrom,
+                SeasonTo = seasonTo,
+                ShowOn = showOn?.ToList(),
                 WorkIds = workIds?.Where(id => id != Guid.Empty).Distinct().ToList() ?? [],
             };
             var response = await _http.PostAsJsonAsync(AppendCollectionProfileQuery("/collections", profileId), body, ct);
@@ -771,7 +783,12 @@ public sealed partial class EngineApiClient
         string? ownerKind = null,
         string? audience = null,
         IReadOnlyList<Guid>? selectedProfileIds = null,
-        IReadOnlyList<Guid>? workIds = null)
+        IReadOnlyList<Guid>? workIds = null,
+        int? minItems = null,
+        int? maxItems = null,
+        string? seasonFrom = null,
+        string? seasonTo = null,
+        IReadOnlyList<string>? showOn = null)
     {
         try
         {
@@ -793,6 +810,11 @@ public sealed partial class EngineApiClient
                 SecondarySortDirection = secondarySortDirection,
                 IsEnabled = isEnabled,
                 IsFeatured = isFeatured,
+                MinItems = minItems,
+                MaxItems = maxItems,
+                SeasonFrom = seasonFrom,
+                SeasonTo = seasonTo,
+                ShowOn = showOn?.ToList(),
                 WorkIds = workIds?.Where(id => id != Guid.Empty).Distinct().ToList(),
             };
             var url = AppendCollectionProfileQuery($"/collections/{collectionId}", profileId);
@@ -817,6 +839,26 @@ public sealed partial class EngineApiClient
             LastError = ex.Message;
             return false;
         }
+    }
+
+    public async Task<IReadOnlyList<string>?> GetCollectionShowOnAsync(Guid collectionId, CancellationToken ct = default)
+    {
+        var placements = await GetAsync<List<CollectionPlacementSummary>>(
+            "GET /collections/{id}/placements",
+            $"/collections/{collectionId}/placements",
+            ct: ct);
+        if (placements is null)
+        {
+            return null;
+        }
+
+        // Stored places are "home" and "area:watch", "area:read", "area:listen"; the editor and requests use the short keys.
+        // A lane an administrator switched off for everyone is still "shown on" that place, so saving the editor keeps it.
+        return placements
+            .Select(placement => placement.location.StartsWith("area:", StringComparison.Ordinal) ? placement.location[5..] : placement.location)
+            .Where(key => key is "home" or "watch" or "read" or "listen")
+            .Distinct()
+            .ToList();
     }
 
     private static CollectionRulePredicateDto ToContract(CollectionRulePredicateViewModel source) => new()

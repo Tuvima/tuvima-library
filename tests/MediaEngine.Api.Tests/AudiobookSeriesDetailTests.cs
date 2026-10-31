@@ -202,10 +202,11 @@ public sealed class AudiobookSeriesDetailTests : IDisposable
             int limit = 0,
             string? query = null,
             string? secondarySortField = null,
-            string? secondarySortDirection = null) =>
+            string? secondarySortDirection = null,
+            Guid? viewerProfileId = null) =>
             [];
 
-        public int CountRuleMatches(CollectionRuleDefinition definition, string? query = null) => 0;
+        public int CountRuleMatches(CollectionRuleDefinition definition, string? query = null, Guid? viewerProfileId = null) => 0;
 
         public Task<IReadOnlyList<string>> GetFieldValuesAsync(
             string field,

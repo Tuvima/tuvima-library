@@ -155,7 +155,17 @@ public sealed class CollectionCreateRequest
     [JsonPropertyName("sort_direction")] public string SortDirection { get; init; } = "desc";
     [JsonPropertyName("secondary_sort_field")] public string? SecondarySortField { get; init; }
     [JsonPropertyName("secondary_sort_direction")] public string? SecondarySortDirection { get; init; }
+    /// <summary>Fewest items before the collection is shown on a lane or the Collections page. Zero uses the surface default.</summary>
+    [JsonPropertyName("min_items")] public int MinItems { get; init; }
+    /// <summary>"At most N". Zero or absent means no limit.</summary>
+    [JsonPropertyName("max_items")] public int MaxItems { get; init; }
+    /// <summary>Seasonal window start as MM-dd; send both edges or neither.</summary>
+    [JsonPropertyName("season_from")] public string? SeasonFrom { get; init; }
+    /// <summary>Seasonal window end as MM-dd, edge included.</summary>
+    [JsonPropertyName("season_to")] public string? SeasonTo { get; init; }
     [JsonPropertyName("display_limit")] public int DisplayLimit { get; init; }
+    /// <summary>Where the collection is shown as a lane: any of <c>home</c>, <c>watch</c>, <c>read</c>, <c>listen</c>. Absent or empty shows it on none.</summary>
+    [JsonPropertyName("show_on")] public List<string>? ShowOn { get; init; }
     [JsonPropertyName("placements")] public List<CollectionPlacementRequest>? Placements { get; init; }
     [JsonPropertyName("work_ids")] public List<Guid> WorkIds { get; init; } = [];
 }
@@ -186,6 +196,15 @@ public sealed class CollectionUpdateRequest
     [JsonPropertyName("secondary_sort_direction")] public string? SecondarySortDirection { get; init; }
     [JsonPropertyName("is_enabled")] public bool? IsEnabled { get; init; }
     [JsonPropertyName("is_featured")] public bool? IsFeatured { get; init; }
+    /// <summary>Absent leaves the minimum unchanged; zero returns to the surface default.</summary>
+    [JsonPropertyName("min_items")] public int? MinItems { get; init; }
+    /// <summary>Absent leaves "at most N" unchanged; zero removes the limit.</summary>
+    [JsonPropertyName("max_items")] public int? MaxItems { get; init; }
+    /// <summary>Absent leaves the seasonal window unchanged; an empty string on both edges removes it.</summary>
+    [JsonPropertyName("season_from")] public string? SeasonFrom { get; init; }
+    [JsonPropertyName("season_to")] public string? SeasonTo { get; init; }
+    /// <summary>Absent leaves the lanes as they are; a list (possibly empty) replaces where the collection is shown as a lane: <c>home</c>, <c>watch</c>, <c>read</c>, <c>listen</c>.</summary>
+    [JsonPropertyName("show_on")] public List<string>? ShowOn { get; init; }
     /// <summary>Works to add in the same save, used when a rule-driven Custom collection is switched to manual membership.</summary>
     [JsonPropertyName("work_ids")] public List<Guid>? WorkIds { get; init; }
 }
@@ -207,6 +226,14 @@ public sealed record CollectionPreviewResponse(
 {
     [JsonPropertyName("media_type_counts")]
     public Dictionary<string, int> MediaTypeCounts { get; init; } = [];
+
+    /// <summary>True when the rules depend on who is looking (Unwatched, On My List, Your rating and the like).</summary>
+    [JsonPropertyName("uses_per_profile_fields")]
+    public bool UsesPerProfileFields { get; init; }
+
+    /// <summary>The profile the preview was evaluated for, set only when <see cref="UsesPerProfileFields"/> is true.</summary>
+    [JsonPropertyName("evaluated_for_profile_name")]
+    public string? EvaluatedForProfileName { get; init; }
 }
 
 public sealed class CollectionItemAddRequest

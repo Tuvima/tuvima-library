@@ -1,0 +1,233 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Display
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient ApiClient
+@inject IAppToastService Snackbar
+@inject IStringLocalizer<SharedStrings> L
+
+@* Lanes (Collections and lists spec D10): the collection rows on Home, Watch, Read and Listen. An administrator orders the
+   shared lanes and switches one off for everyone; each person orders their own private lanes and can show again a lane they
+   hid from its "..." menu. Up and down buttons stand in for dragging. The Engine applies every change. *@
+<div class="settings-listening-page" data-home-section="lanes">
+    <AppText Typo="AppTypo.h6">@L["HomeLanesSettings_Lanes"]</AppText>
+    <AppSelect Label="@L["HomeLanesSettings_Page"].Value"
+               Value="@_place"
+               ValueChanged="SelectPlaceAsync"
+               Options="Places"
+               Size="AppControlSize.Compact" />
+
+    @if (_loading)
+    {
+        <div class="listening-settings-skeleton" aria-label="@L["HomeLanesSettings_LoadingLanes"].Value">
+            <AppSkeleton Height="160px" />
+        </div>
+    }
+    else if (_settings is null)
+    {
+        <AppErrorState Title="@L["HomeLanesSettings_LanesAreUnavailable"].Value"
+                       Message="@L["HomeLanesSettings_TheLibraryCouldNotRead"].Value"
+                       Retry="@(() => LoadAsync())" />
+    }
+    else
+    {
+        <div class="listening-settings-grid">
+            @if (_settings.CanManageShared)
+            {
+                <SettingsSectionPanel Title="@L["HomeLanesSettings_SharedLanes"].Value"
+                                      Description="@L["HomeLanesSettings_CollectionsShownHereForEveryone"].Value"
+                                      Class="tl-card settings-section-card listening-settings-card">
+                    @if (_settings.Shared.Count == 0)
+                    {
+                        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@L["HomeLanesSettings_NoSharedLaneIsShown"]</AppText>
+                    }
+                    @for (var index = 0; index < _settings.Shared.Count; index++)
+                    {
+                        var position = index;
+                        var lane = _settings.Shared[index];
+                        <div class="listening-preference-row" data-lane-id="@lane.CollectionId">
+                            <div class="listening-preference-row__copy">
+                                <AppText Typo="AppTypo.body1">@lane.Name</AppText>
+                                <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@(lane.Visible ? "Shown for everyone" : "Hidden for everyone")</AppText>
+                            </div>
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowUpward"
+                                           Tooltip="@L["Common_MoveUp"].Value"
+                                           AriaLabel="@($"Move {lane.Name} up")"
+                                           Disabled="@(position == 0)"
+                                           OnClick="@(() => MoveSharedAsync(position, -1))" />
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowDownward"
+                                           Tooltip="@L["Common_MoveDown"].Value"
+                                           AriaLabel="@($"Move {lane.Name} down")"
+                                           Disabled="@(position == _settings.Shared.Count - 1)"
+                                           OnClick="@(() => MoveSharedAsync(position, 1))" />
+                            <AppSwitchRow T="bool"
+                                          Value="@lane.Visible"
+                                          ValueChanged="@(value => SetSharedVisibleAsync(position, value))"
+                                          Color="AppColor.Primary"
+                                          AriaLabel="@($"Show {lane.Name} for everyone")" />
+                        </div>
+                    }
+                </SettingsSectionPanel>
+            }
+
+            @if (_settings.Mine.Count > 0)
+            {
+                <SettingsSectionPanel Title="@L["HomeLanesSettings_YourOwnLanes"].Value"
+                                      Description="@L["HomeLanesSettings_YourPrivateCollectionsShownOn"].Value"
+                                      Class="tl-card settings-section-card listening-settings-card">
+                    @for (var index = 0; index < _settings.Mine.Count; index++)
+                    {
+                        var position = index;
+                        var lane = _settings.Mine[index];
+                        <div class="listening-preference-row" data-lane-id="@lane.CollectionId">
+                            <div class="listening-preference-row__copy">
+                                <AppText Typo="AppTypo.body1">@lane.Name</AppText>
+                            </div>
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowUpward"
+                                           Tooltip="@L["Common_MoveUp"].Value"
+                                           AriaLabel="@($"Move {lane.Name} up")"
+                                           Disabled="@(position == 0)"
+                                           OnClick="@(() => MoveOwnAsync(position, -1))" />
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowDownward"
+                                           Tooltip="@L["Common_MoveDown"].Value"
+                                           AriaLabel="@($"Move {lane.Name} down")"
+                                           Disabled="@(position == _settings.Mine.Count - 1)"
+                                           OnClick="@(() => MoveOwnAsync(position, 1))" />
+                        </div>
+                    }
+                </SettingsSectionPanel>
+            }
+
+            @if (_settings.HiddenByMe.Count > 0)
+            {
+                <SettingsSectionPanel Title="@L["HomeLanesSettings_LanesYouHid"].Value"
+                                      Description="@L["HomeLanesSettings_YouChoseHideThisLane"].Value"
+                                      Class="tl-card settings-section-card listening-settings-card">
+                    @foreach (var lane in _settings.HiddenByMe)
+                    {
+                        var hidden = lane;
+                        <div class="listening-preference-row" data-lane-id="@hidden.CollectionId">
+                            <div class="listening-preference-row__copy">
+                                <AppText Typo="AppTypo.body1">@hidden.Name</AppText>
+                            </div>
+                            <AppButton Label="@L["HomeLanesSettings_ShowAgain"].Value"
+                                       ButtonStyle="AppButtonStyle.Text"
+                                       Size="AppControlSize.Compact"
+                                       OnClick="@(() => ShowAgainAsync(hidden))" />
+                        </div>
+                    }
+                </SettingsSectionPanel>
+            }
+
+            @if (!_settings.CanManageShared && _settings.Mine.Count == 0 && _settings.HiddenByMe.Count == 0)
+            {
+                <SettingsSectionPanel Title="@L["HomeLanesSettings_NothingToChangeHere"].Value"
+                                      Description="@L["HomeLanesSettings_SharedLanesAreSetBy"].Value"
+                                      Class="tl-card settings-section-card listening-settings-card" />
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private static readonly IReadOnlyList<AppSelectOption> Places =
+    [
+        new("home", "Home"),
+        new("watch", "Watch"),
+        new("read", "Read"),
+        new("listen", "Listen"),
+    ];
+
+    private string _place = "home";
+    private DisplayLaneSettingsDto? _settings;
+    private bool _loading = true;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _settings = await ApiClient.GetDisplayLaneSettingsAsync(_place);
+        _loading = false;
+    }
+
+    private Task SelectPlaceAsync(string place)
+    {
+        _place = place;
+        return LoadAsync();
+    }
+
+    // Each change shows at once and is put back, with a message, when the Engine could not keep it.
+    private async Task SaveSharedAsync(IReadOnlyList<DisplayLaneDto> next)
+    {
+        var previous = _settings;
+        if (previous is null)
+        {
+            return;
+        }
+
+        _settings = previous with { Shared = next };
+        var entries = next.Select(lane => new DisplayLaneOrderEntry(lane.CollectionId, lane.Visible)).ToList();
+        if (!await ApiClient.SetDisplaySharedLanesAsync(_place, entries))
+        {
+            _settings = previous;
+            Snackbar.Add(L["HomeLanesSettings_TheLanesCouldNotBe"].Value, AppSeverity.Error);
+        }
+    }
+
+    private Task MoveSharedAsync(int position, int step)
+    {
+        var lanes = _settings?.Shared.ToList();
+        var target = position + step;
+        if (lanes is null || target < 0 || target >= lanes.Count)
+        {
+            return Task.CompletedTask;
+        }
+
+        (lanes[position], lanes[target]) = (lanes[target], lanes[position]);
+        return SaveSharedAsync(lanes);
+    }
+
+    private Task SetSharedVisibleAsync(int position, bool visible)
+    {
+        var lanes = _settings?.Shared.ToList();
+        if (lanes is null || position < 0 || position >= lanes.Count)
+        {
+            return Task.CompletedTask;
+        }
+
+        lanes[position] = lanes[position] with { Visible = visible };
+        return SaveSharedAsync(lanes);
+    }
+
+    private async Task MoveOwnAsync(int position, int step)
+    {
+        var previous = _settings;
+        var lanes = previous?.Mine.ToList();
+        var target = position + step;
+        if (previous is null || lanes is null || target < 0 || target >= lanes.Count)
+        {
+            return;
+        }
+
+        (lanes[position], lanes[target]) = (lanes[target], lanes[position]);
+        _settings = previous with { Mine = lanes };
+        if (!await ApiClient.SetDisplayOwnLanesAsync(_place, lanes.Select(lane => lane.CollectionId).ToList()))
+        {
+            _settings = previous;
+            Snackbar.Add(L["HomeLanesSettings_YourLanesCouldNotBe"].Value, AppSeverity.Error);
+        }
+    }
+
+    private async Task ShowAgainAsync(DisplayLaneDto lane)
+    {
+        if (await ApiClient.SetDisplayLaneHiddenAsync(_place, lane.CollectionId, hidden: false))
+        {
+            await LoadAsync();
+        }
+        else
+        {
+            Snackbar.Add($"{lane.Name} could not be shown again. Nothing was changed.", AppSeverity.Error);
+        }
+    }
+}

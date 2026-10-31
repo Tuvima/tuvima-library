@@ -2415,24 +2415,6 @@
   <data name="ListenPage_NoArtistsMatchTheseFilters" xml:space="preserve">
     <value>No artists match these filters.</value>
   </data>
-  <data name="ListenPage_LoadingArtistDetails" xml:space="preserve">
-    <value>Loading artist details...</value>
-  </data>
-  <data name="ListenPage_ChooseAnArtistToView" xml:space="preserve">
-    <value>Choose an artist to view albums.</value>
-  </data>
-  <data name="ListenPage_ViewArtistPage" xml:space="preserve">
-    <value>View artist page</value>
-  </data>
-  <data name="ListenPage_Discography" xml:space="preserve">
-    <value>Discography</value>
-  </data>
-  <data name="ListenPage_OpenAnAlbumToView" xml:space="preserve">
-    <value>Open an album to view and manage its tracks.</value>
-  </data>
-  <data name="ListenPage_NoSongsAreReadyFor" xml:space="preserve">
-    <value>No songs are ready for this artist yet.</value>
-  </data>
   <data name="ListenPage_NoSongsAreReadyTo" xml:space="preserve">
     <value>No songs are ready to play yet.</value>
   </data>
@@ -9281,5 +9263,77 @@
   </data>
   <data name="PlaybackSettingsPage_NoPreference" xml:space="preserve">
     <value>No preference</value>
+  </data>
+  <data name="Common_Number" xml:space="preserve">
+    <value>Number</value>
+  </data>
+  <data name="CollectionEditorShell_ChooseRealDaysForThe" xml:space="preserve">
+    <value>Choose real days for the seasonal window, for example 1 October to 1 November.</value>
+  </data>
+  <data name="CollectionEditorShell_FromMonth" xml:space="preserve">
+    <value>From month</value>
+  </data>
+  <data name="CollectionEditorShell_ToMonth" xml:space="preserve">
+    <value>To month</value>
+  </data>
+  <data name="CollectionEditorShell_BothDaysAreIncludedA" xml:space="preserve">
+    <value>Both days are included. A window that ends before it starts runs over New Year.</value>
+  </data>
+  <data name="LaneMenu_ThatLaneCouldNotBe" xml:space="preserve">
+    <value>That lane could not be hidden. Nothing was changed.</value>
+  </data>
+  <data name="LaneMenu_HideThisLane" xml:space="preserve">
+    <value>Hide this lane</value>
+  </data>
+  <data name="HomeLanesSettings_Lanes" xml:space="preserve">
+    <value>Lanes</value>
+  </data>
+  <data name="HomeLanesSettings_NoSharedLaneIsShown" xml:space="preserve">
+    <value>No shared lane is shown on this page yet.</value>
+  </data>
+  <data name="HomeLanesSettings_Page" xml:space="preserve">
+    <value>Page</value>
+  </data>
+  <data name="HomeLanesSettings_LoadingLanes" xml:space="preserve">
+    <value>Loading lanes</value>
+  </data>
+  <data name="HomeLanesSettings_LanesAreUnavailable" xml:space="preserve">
+    <value>Lanes are unavailable</value>
+  </data>
+  <data name="HomeLanesSettings_TheLibraryCouldNotRead" xml:space="preserve">
+    <value>The Library could not read your lanes. Try again in a moment.</value>
+  </data>
+  <data name="HomeLanesSettings_SharedLanes" xml:space="preserve">
+    <value>Shared lanes</value>
+  </data>
+  <data name="HomeLanesSettings_CollectionsShownHereForEveryone" xml:space="preserve">
+    <value>Collections shown here for everyone who can see them, in this order. A collection joins this list when you pick this page under Show on, in its editor.</value>
+  </data>
+  <data name="HomeLanesSettings_YourOwnLanes" xml:space="preserve">
+    <value>Your own lanes</value>
+  </data>
+  <data name="HomeLanesSettings_YourPrivateCollectionsShownOn" xml:space="preserve">
+    <value>Your private collections shown on this page. Only you see them.</value>
+  </data>
+  <data name="HomeLanesSettings_LanesYouHid" xml:space="preserve">
+    <value>Lanes you hid</value>
+  </data>
+  <data name="HomeLanesSettings_YouChoseHideThisLane" xml:space="preserve">
+    <value>You chose Hide this lane on these. Show one again and it returns to its place.</value>
+  </data>
+  <data name="HomeLanesSettings_ShowAgain" xml:space="preserve">
+    <value>Show again</value>
+  </data>
+  <data name="HomeLanesSettings_NothingToChangeHere" xml:space="preserve">
+    <value>Nothing to change here</value>
+  </data>
+  <data name="HomeLanesSettings_SharedLanesAreSetBy" xml:space="preserve">
+    <value>Shared lanes are set by an administrator. Choose Hide this lane in a lane's menu to remove one from your pages, and it will be listed here.</value>
+  </data>
+  <data name="HomeLanesSettings_TheLanesCouldNotBe" xml:space="preserve">
+    <value>The lanes could not be saved. Nothing was changed.</value>
+  </data>
+  <data name="HomeLanesSettings_YourLanesCouldNotBe" xml:space="preserve">
+    <value>Your lanes could not be saved. Nothing was changed.</value>
   </data>
 </root>

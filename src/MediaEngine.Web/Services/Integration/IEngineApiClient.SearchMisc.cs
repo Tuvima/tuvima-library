@@ -112,14 +112,20 @@ public partial interface IEngineApiClient
     Task<IReadOnlyList<string>> GetCollectionFieldValuesAsync(string field, string? query = null, int limit = 100, CancellationToken ct = default);
 
     /// <summary>POST /collections — create a new collection.</summary>
-    Task<Guid?> CreateCollectionAndReturnIdAsync(string name, string? description, string? iconName, string collectionType, CollectionRuleDefinitionViewModel definition, string? sortField, string sortDirection, string visibility, Guid? profileId = null, CancellationToken ct = default, string? secondarySortField = null, string? secondarySortDirection = null, string membershipMode = "Manual", string primaryArea = "Mixed", string ownerKind = "Profile", string audience = "Private", IReadOnlyList<Guid>? selectedProfileIds = null, IReadOnlyList<Guid>? workIds = null);
+    Task<Guid?> CreateCollectionAndReturnIdAsync(string name, string? description, string? iconName, string collectionType, CollectionRuleDefinitionViewModel definition, string? sortField, string sortDirection, string visibility, Guid? profileId = null, CancellationToken ct = default, string? secondarySortField = null, string? secondarySortDirection = null, string membershipMode = "Manual", string primaryArea = "Mixed", string ownerKind = "Profile", string audience = "Private", IReadOnlyList<Guid>? selectedProfileIds = null, IReadOnlyList<Guid>? workIds = null, int minItems = 0, int maxItems = 0, string? seasonFrom = null, string? seasonTo = null, IReadOnlyList<string>? showOn = null);
 
     Task<Guid?> CreateCollectionWithItemsAsync(string name, string? description, string? iconName, string collectionType, CollectionRuleDefinitionViewModel definition, string? sortField, string sortDirection, string visibility, IReadOnlyList<Guid> workIds, Guid? profileId = null, CancellationToken ct = default, string? secondarySortField = null, string? secondarySortDirection = null);
 
     Task<bool> CreateCollectionAsync(string name, string? description, string? iconName, string collectionType, CollectionRuleDefinitionViewModel definition, string? sortField, string sortDirection, string visibility, Guid? profileId = null, CancellationToken ct = default, string? secondarySortField = null, string? secondarySortDirection = null);
 
     /// <summary>PUT /collections/{id} — update a collection.</summary>
-    Task<bool> UpdateCollectionAsync(Guid collectionId, string? name, string? description, string? iconName, CollectionRuleDefinitionViewModel? definition, string? visibility, string? sortField, string? sortDirection, bool? isEnabled, bool? isFeatured, Guid? profileId = null, CancellationToken ct = default, string? secondarySortField = null, string? secondarySortDirection = null, string? membershipMode = null, string? primaryArea = null, string? ownerKind = null, string? audience = null, IReadOnlyList<Guid>? selectedProfileIds = null, IReadOnlyList<Guid>? workIds = null);
+    Task<bool> UpdateCollectionAsync(Guid collectionId, string? name, string? description, string? iconName, CollectionRuleDefinitionViewModel? definition, string? visibility, string? sortField, string? sortDirection, bool? isEnabled, bool? isFeatured, Guid? profileId = null, CancellationToken ct = default, string? secondarySortField = null, string? secondarySortDirection = null, string? membershipMode = null, string? primaryArea = null, string? ownerKind = null, string? audience = null, IReadOnlyList<Guid>? selectedProfileIds = null, IReadOnlyList<Guid>? workIds = null, int? minItems = null, int? maxItems = null, string? seasonFrom = null, string? seasonTo = null, IReadOnlyList<string>? showOn = null);
+
+    /// <summary>
+    /// GET /collections/{id}/placements — the places (home, watch, read, listen) the collection is shown as a lane.
+    /// Null when the Engine could not be read, so a save never mistakes a failed read for "shown nowhere".
+    /// </summary>
+    Task<IReadOnlyList<string>?> GetCollectionShowOnAsync(Guid collectionId, CancellationToken ct = default);
 
     Task<bool> DeleteCollectionAsync(Guid collectionId, Guid? profileId = null, CancellationToken ct = default);
 

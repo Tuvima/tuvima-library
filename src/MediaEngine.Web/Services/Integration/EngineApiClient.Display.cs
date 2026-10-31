@@ -295,6 +295,33 @@ public sealed partial class EngineApiClient
     public Task<bool> SetDisplayHeroSettingsAsync(DisplayHeroSettingsDto settings, CancellationToken ct = default) =>
         PutAsync("PUT /api/v1/display/hero-settings", "/api/v1/display/hero-settings", settings, ct: ct);
 
+    public Task<DisplayLaneSettingsDto?> GetDisplayLaneSettingsAsync(string place, CancellationToken ct = default) =>
+        GetAsync<DisplayLaneSettingsDto>(
+            "GET /api/v1/display/lanes/{place}",
+            $"/api/v1/display/lanes/{Uri.EscapeDataString(place)}",
+            ct: ct);
+
+    public Task<bool> SetDisplaySharedLanesAsync(string place, IReadOnlyList<DisplayLaneOrderEntry> lanes, CancellationToken ct = default) =>
+        PutAsync(
+            "PUT /api/v1/display/lanes/{place}/shared",
+            $"/api/v1/display/lanes/{Uri.EscapeDataString(place)}/shared",
+            new DisplaySharedLaneOrderRequest(lanes),
+            ct: ct);
+
+    public Task<bool> SetDisplayOwnLanesAsync(string place, IReadOnlyList<Guid> collectionIds, CancellationToken ct = default) =>
+        PutAsync(
+            "PUT /api/v1/display/lanes/{place}/mine",
+            $"/api/v1/display/lanes/{Uri.EscapeDataString(place)}/mine",
+            new DisplayOwnLaneOrderRequest(collectionIds),
+            ct: ct);
+
+    public Task<bool> SetDisplayLaneHiddenAsync(string place, Guid collectionId, bool hidden, CancellationToken ct = default) =>
+        PutAsync(
+            "PUT /api/v1/display/lanes/{place}/hidden/{collectionId}",
+            $"/api/v1/display/lanes/{Uri.EscapeDataString(place)}/hidden/{collectionId:D}",
+            new DisplayLaneHideRequest(hidden),
+            ct: ct);
+
     public Task<bool> SetDisplayHeroPluginSlidesAsync(string pluginId, bool enabled, CancellationToken ct = default) =>
         PutAsync(
             "PUT /api/v1/display/hero-settings/plugins/{pluginId}",

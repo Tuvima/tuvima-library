@@ -21,11 +21,13 @@ using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
+using MediaEngine.Ingestion.Models;
 using MediaEngine.Providers.Services;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using static MediaEngine.Api.Services.Collections.CollectionResponseFormatting;
 using CollectionCreateRequest = MediaEngine.Contracts.Collections.CollectionCreateRequest;
 using CollectionDto = MediaEngine.Contracts.Collections.CollectionDto;
@@ -1959,6 +1961,7 @@ public static class CollectionEndpoints
             ICollectionBrowseReadService browseReadService,
             ICollectionMediaLookupReadService mediaLookupReadService,
             IDisplayProjectionReadService display,
+            HttpContext httpContext,
             CancellationToken ct) =>
         {
             var collection = await collectionRepo.GetByIdAsync(id, ct);
@@ -2013,7 +2016,8 @@ public static class CollectionEndpoints
                 collection.SortDirection.ToStorageValue(),
                 limit ?? 0,
                 secondarySortField: collection.SecondarySortField,
-                secondarySortDirection: collection.SecondarySortDirection?.ToStorageValue())
+                secondarySortDirection: collection.SecondarySortDirection?.ToStorageValue(),
+                viewerProfileId: await ResolveViewerProfileIdAsync(httpContext, ct))
                 .Where(visibleWorkIds.Contains)
                 .ToList();
 
@@ -2140,6 +2144,8 @@ public static class CollectionEndpoints
             CollectionCatalogReadService catalogReadService,
             ICollectionMediaLookupReadService mediaLookupReadService,
             IDisplayProjectionReadService display,
+            IProfileRepository profileRepo,
+            HttpContext httpContext,
             CancellationToken ct) =>
         {
             var definition = body.RuleDefinition.ToDomain();
@@ -2147,6 +2153,13 @@ public static class CollectionEndpoints
             {
                 return Results.Ok(new CollectionPreviewResponse(0, []));
             }
+
+            // A preview evaluates for the profile that is editing, and says so when the rules depend on the viewer.
+            var viewerProfileId = await ResolveViewerProfileIdAsync(httpContext, ct);
+            var usesPerProfileFields = CollectionRuleEvaluator.UsesPerProfileFields(definition);
+            var viewerName = usesPerProfileFields && viewerProfileId is { } viewerId
+                ? (await profileRepo.GetByIdAsync(viewerId, ct))?.DisplayName
+                : null;
 
             var visibleWorkIds = await display.LoadVisibleWorkIdsAsync(ct);
             var matchedWorkIds = browseReadService.EvaluateRules(
@@ -2156,7 +2169,8 @@ public static class CollectionEndpoints
                 0,
                 body.Query,
                 body.SecondarySortField,
-                body.SecondarySortDirection)
+                body.SecondarySortDirection,
+                viewerProfileId)
                 .Where(visibleWorkIds.Contains)
                 .ToList();
             var displayWorkIds = await catalogReadService.GetDisplayWorkIdsAsync(matchedWorkIds, ct);
@@ -2170,6 +2184,8 @@ public static class CollectionEndpoints
             return Results.Ok(new CollectionPreviewResponse(total, resolved)
             {
                 MediaTypeCounts = mediaTypeCounts,
+                UsesPerProfileFields = usesPerProfileFields,
+                EvaluatedForProfileName = viewerName,
             });
         })
         .WithName("PreviewCollection")
@@ -2192,6 +2208,11 @@ public static class CollectionEndpoints
             if (string.IsNullOrWhiteSpace(body.Name))
             {
                 return ApiErrors.BadRequest("Collection name is required.");
+            }
+
+            if (!CollectionLanePolicy.TryParseShowOn(body.ShowOn, out var showOnLocations))
+            {
+                return ApiErrors.BadRequest(ShowOnMessage);
             }
 
             var normalizedCollectionType = string.Equals(body.CollectionType, "Smart", StringComparison.OrdinalIgnoreCase)
@@ -2289,7 +2310,6 @@ public static class CollectionEndpoints
                 Description = body.Description,
                 IconName = body.IconName,
                 IsEnabled = true,
-                MinItems = 0,
                 RuleJson = ruleJson,
                 RuleHash = ruleHash,
                 SortField = body.SortField,
@@ -2313,6 +2333,11 @@ public static class CollectionEndpoints
                 CollectionMatchMode.All,
                 AggregateStateSerializer.ParseCollectionSortDirection(body.SortDirection),
                 CollectionUniverseStatus.Unknown);
+            if (CollectionOptionsPolicy.TryApplyRequested(
+                    collection, body.MinItems, body.MaxItems, body.SeasonFrom, body.SeasonTo) is { } optionsError)
+            {
+                return ApiErrors.BadRequest(optionsError);
+            }
             CollectionAccessPolicy.ApplyOwnership(collection, activeProfile?.Id);
             var selectedAudienceProfileIds = collection.OwnerKind == ContainerOwnerKind.Profile
                 && collection.Audience == ContainerAudience.SelectedProfiles
@@ -2360,6 +2385,13 @@ public static class CollectionEndpoints
                 }
             }
 
+            if (showOnLocations.Count > 0)
+            {
+                await placementRepo.SyncSharedLocationsAsync(
+                    collection.Id, showOnLocations, CollectionLanePolicy.Locations, CollectionLanePolicy.LaneItemLimit, ct);
+                CollectionLanePolicy.MarkChanged();
+            }
+
             return Results.Created($"/collections/{collection.Id}", new CollectionCreatedResponse(collection.Id, collection.DisplayName));
         })
         .WithName("CreateCollection")
@@ -2372,6 +2404,7 @@ public static class CollectionEndpoints
             Guid id,
             CollectionUpdateRequest body,
             ICollectionRepository collectionRepo,
+            ICollectionPlacementRepository placementRepo,
             IProfileRepository profileRepo,
             HttpContext httpContext,
             Guid? profileId,
@@ -2379,6 +2412,11 @@ public static class CollectionEndpoints
             IDisplayProjectionReadService display,
             CancellationToken ct) =>
         {
+            if (!CollectionLanePolicy.TryParseShowOn(body.ShowOn, out var showOnLocations))
+            {
+                return ApiErrors.BadRequest(ShowOnMessage);
+            }
+
             var activeProfile = await ResolveActiveProfileAsync(profileId, profileRepo, httpContext, ct);
             var collection = await collectionRepo.GetByIdAsync(id, ct);
             if (collection is null)
@@ -2461,6 +2499,12 @@ public static class CollectionEndpoints
             if (body.IsFeatured.HasValue)
             {
                 collection.IsFeatured = body.IsFeatured.Value;
+            }
+
+            if (CollectionOptionsPolicy.TryApplyRequested(
+                    collection, body.MinItems, body.MaxItems, body.SeasonFrom, body.SeasonTo) is { } optionsError)
+            {
+                return ApiErrors.BadRequest(optionsError);
             }
 
             if (collection.CollectionType == CollectionType.Custom)
@@ -2570,6 +2614,15 @@ public static class CollectionEndpoints
             }
 
             await collectionRepo.ReplaceAudienceProfileIdsAsync(collection.Id, selectedAudienceProfileIds, ct);
+
+            // Absent leaves the lanes alone; a list (even an empty one) is the new set of places this collection is shown as a lane.
+            if (body.ShowOn is not null)
+            {
+                await placementRepo.SyncSharedLocationsAsync(
+                    collection.Id, showOnLocations, CollectionLanePolicy.Locations, CollectionLanePolicy.LaneItemLimit, ct);
+                CollectionLanePolicy.MarkChanged();
+            }
+
             return Results.Ok();
         })
         .WithName("UpdateCollection")
@@ -2640,16 +2693,29 @@ public static class CollectionEndpoints
             string? q,
             int? limit,
             ICollectionBrowseReadService browseReadService,
+            IOptionsMonitor<IngestionOptions> ingestionOptions,
             CancellationToken ct) =>
         {
             var isGenericEntityField = StructuredDiscoveryFieldCatalog.IsEntityBacked(field);
             if (!isGenericEntityField
-                && field is not ("person_qid" or "wikidata_franchise"))
+                && field is not ("person_qid" or "wikidata_franchise" or "library" or "in_collection"))
             {
                 return ApiErrors.BadRequest("The requested collection field is not entity-backed.");
             }
 
             var page = PagedRequest.From(null, limit, defaultLimit: 100);
+            if (field == "library")
+            {
+                // Library folders live in configuration, not the data store: offer each configured library by name.
+                return Results.Ok(ingestionOptions.CurrentValue.LibraryFolders
+                    .Where(library => !string.IsNullOrWhiteSpace(library.Id)
+                        && (string.IsNullOrWhiteSpace(q) || library.Name.Contains(q.Trim(), StringComparison.OrdinalIgnoreCase)))
+                    .OrderBy(library => library.Name, StringComparer.OrdinalIgnoreCase)
+                    .Take(page.Limit)
+                    .Select(library => new CollectionRuleValueDto(library.Id, string.IsNullOrWhiteSpace(library.Name) ? library.Id : library.Name, 0, "Cross-media"))
+                    .ToList());
+            }
+
             return Results.Ok(await browseReadService.GetEntityFieldValuesAsync(field, q, page.Limit, ct));
         })
         .WithName("GetEntityFieldValues")
@@ -2700,6 +2766,8 @@ public static class CollectionEndpoints
                     CreatedAt = DateTimeOffset.UtcNow,
                 }, ct);
             }
+
+            CollectionLanePolicy.MarkChanged();
             return Results.Ok();
         })
         .WithName("UpdateCollectionPlacements")
@@ -2712,6 +2780,8 @@ public static class CollectionEndpoints
     }
 
     // ── Request bodies ────────────────────────────────────────────────────────
+
+    private const string ShowOnMessage = "Show on can be: home, watch, read, listen.";
 
     public sealed record EnabledRequest(bool Enabled);
     public sealed record FeaturedRequest(bool Featured);
@@ -2786,6 +2856,21 @@ public static class CollectionEndpoints
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
         return creators.Count == 0 ? null : string.Join(", ", creators);
+    }
+
+    /// <summary>
+    /// The profile whose activity a rule collection is evaluated for: the person (or the app acting for a person) making the
+    /// request. A service application acts for nobody, so it gets none and per-profile conditions match nothing.
+    /// </summary>
+    private static async Task<Guid?> ResolveViewerProfileIdAsync(HttpContext httpContext, CancellationToken ct)
+    {
+        var authority = await httpContext.RequestServices
+            .GetRequiredService<IRequestAuthorityResolver>()
+            .ResolveAsync(httpContext, ct);
+        return authority.PrincipalKind is PrincipalKind.Human or PrincipalKind.DelegatedUserClient
+            && authority.ActiveProfileId is { } profileId && profileId != Guid.Empty
+                ? profileId
+                : null;
     }
 
     private static async Task<Profile?> ResolveActiveProfileAsync(

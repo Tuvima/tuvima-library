@@ -30,8 +30,14 @@ public sealed class CollectionCatalogReadService(
     IArtworkPaletteService artworkPaletteService,
     ICollectionMediaLookupReadService mediaLookupReadService,
     IDatabaseConnection db,
-    ILogger<CollectionCatalogReadService> logger)
+    ILogger<CollectionCatalogReadService> logger,
+    TimeProvider? timeProvider = null)
 {
+    private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
+
+    /// <summary>Today's date on this machine: the day the seasonal windows and the daily random sample are read against.</summary>
+    private DateOnly Today => DateOnly.FromDateTime(_clock.GetLocalNow().DateTime);
+
     public async Task<List<ManagedCollectionDto>> GetManagedAsync(
         Profile? activeProfile,
         CancellationToken ct = default,
@@ -61,16 +67,20 @@ public sealed class CollectionCatalogReadService(
 
             var collectionWorkIds = allowedWorkIds is null
                 ? []
-                : (await GetCollectionWorkIdsAsync(collection, ct).ConfigureAwait(false))
+                : (await GetCollectionWorkIdsAsync(collection, ct, activeProfile?.Id).ConfigureAwait(false))
                     .Where(allowedWorkIds.Contains)
                     .Distinct()
                     .ToList();
             var count = allowedWorkIds is not null
                 ? collectionWorkIds.Count
                 : collection.Resolution == CollectionResolution.Query
-                    ? (await GetCollectionWorkIdsAsync(collection, ct).ConfigureAwait(false)).Count
+                    ? (await GetCollectionWorkIdsAsync(collection, ct, activeProfile?.Id).ConfigureAwait(false)).Count
                     : GetManagedCollectionItemCount(collection, materializedCounts, []);
-            results.Add(ManagedCollectionMapper.FromDomain(collection, count, activeProfile));
+            results.Add(ManagedCollectionMapper.FromDomain(
+                collection,
+                CollectionOptionsPolicy.CapCount(collection, count),
+                activeProfile,
+                today: Today));
         }
 
         return results;
@@ -95,8 +105,16 @@ public sealed class CollectionCatalogReadService(
         var collections = await GetAccessibleCollectionsAsync(activeProfile, ct).ConfigureAwait(false);
         var allowedMemberIds = await ExpandAllowedMembersAsync(allowedWorkIds, ct).ConfigureAwait(false);
         var candidates = new List<CollectionManagementCatalogCandidate>();
+        var today = Today;
         foreach (var collection in collections)
         {
+            // Outside its seasonal window a collection is left out of the Collections page and the lanes; the
+            // editor's list (GetManagedAsync) still has it, with a "Hidden until" note.
+            if (!CollectionOptionsPolicy.IsInSeason(collection, today))
+            {
+                continue;
+            }
+
             if (!HasSupportedRuleDefinition(collection))
             {
                 logger.LogWarning(
@@ -107,7 +125,7 @@ public sealed class CollectionCatalogReadService(
             }
 
             var classification = ClassifyCollectionForCatalog(collection);
-            var sourceWorkIds = await GetCollectionCatalogSourceWorkIdsAsync(collection, collections, ct).ConfigureAwait(false);
+            var sourceWorkIds = await GetCollectionCatalogSourceWorkIdsAsync(collection, collections, ct, activeProfile?.Id).ConfigureAwait(false);
             // Only members the profile may see count; TV, comic and music members are then collapsed to their display
             // root, so an owned episode keeps its show tile, but a restricted episode never lends its show to the count.
             if (allowedMemberIds is not null)
@@ -122,6 +140,13 @@ public sealed class CollectionCatalogReadService(
                 workIds = workIds.Where(allowedMemberIds.Contains).ToList();
             }
 
+            // "At most N" and random order decide which members the collection shows today, so the tile's count
+            // and artwork agree with the collection's own page; a minimum the person chose then hides a short one.
+            workIds = CollectionOptionsPolicy.Arrange(collection, workIds, id => id, today).ToList();
+            if (!CollectionOptionsPolicy.MeetsMinimum(collection, workIds.Count, CollectionSurface.CollectionsPage))
+            {
+                continue;
+            }
 
             var itemCount = workIds.Count;
             var mediaCounts = await GetCollectionMediaCountsAsync(workIds, ct).ConfigureAwait(false);
@@ -275,7 +300,8 @@ public sealed class CollectionCatalogReadService(
         if (!collection.IsEnabled
             || !CollectionAccessPolicy.CanAccess(collection, activeProfile)
             || !HasSupportedRuleDefinition(collection)
-            || IsPlaylistCatalogCollection(collection))
+            || IsPlaylistCatalogCollection(collection)
+            || !CollectionOptionsPolicy.IsInSeason(collection, Today))
         {
             return new CollectionItemPageResult(true, true, 0, []);
         }
@@ -380,12 +406,18 @@ public sealed class CollectionCatalogReadService(
             var onePerRoot = members
                 .Where(item => seenRoots.Add(foldedRoots.GetValueOrDefault(item.WorkId, item.WorkId)))
                 .ToList();
-            return new CollectionRootMembers(null, PreserveOrder: true, onePerRoot);
+            return new CollectionRootMembers(
+                null,
+                PreserveOrder: true,
+                CollectionOptionsPolicy.Arrange(collection, onePerRoot, item => item.WorkId, Today));
         }
 
-        var queryIds = await GetCollectionWorkIdsAsync(collection, ct).ConfigureAwait(false);
+        var queryIds = await GetCollectionWorkIdsAsync(collection, ct, activeProfile?.Id).ConfigureAwait(false);
         var queryRootIds = await CollapseToOwnedRootsAsync(queryIds, allowedMemberIds, ct).ConfigureAwait(false);
-        return new CollectionRootMembers(queryRootIds, PreserveOrder: true, []);
+        return new CollectionRootMembers(
+            CollectionOptionsPolicy.Arrange(collection, queryRootIds, id => id, Today),
+            PreserveOrder: true,
+            []);
     }
 
     /// <summary>Keeps the members the caller may see, then collapses them to owned, unique display roots in order.</summary>
@@ -1174,7 +1206,7 @@ public sealed class CollectionCatalogReadService(
             : null;
     }
 
-    private async Task<IReadOnlyList<Guid>> GetCollectionWorkIdsAsync(Collection collection, CancellationToken ct)
+    private async Task<IReadOnlyList<Guid>> GetCollectionWorkIdsAsync(Collection collection, CancellationToken ct, Guid? viewerProfileId = null)
     {
         if (collection.Resolution == CollectionResolution.Query
             && !string.IsNullOrWhiteSpace(collection.RuleJson))
@@ -1192,7 +1224,8 @@ public sealed class CollectionCatalogReadService(
                 collection.SortDirection.ToStorageValue(),
                 0,
                 secondarySortField: collection.SecondarySortField,
-                secondarySortDirection: collection.SecondarySortDirection?.ToStorageValue());
+                secondarySortDirection: collection.SecondarySortDirection?.ToStorageValue(),
+                viewerProfileId: viewerProfileId);
         }
 
         var items = await collectionRepo.GetCollectionItemsAsync(collection.Id, 5000, ct).ConfigureAwait(false);
@@ -1231,7 +1264,7 @@ public sealed class CollectionCatalogReadService(
         var workIds = new List<Guid>();
         foreach (var collection in ExpandWithChildCollections(siblingCollections, accessibleCollections))
         {
-            workIds.AddRange(await GetCollectionWorkIdsAsync(collection, ct).ConfigureAwait(false));
+            workIds.AddRange(await GetCollectionWorkIdsAsync(collection, ct, activeProfile?.Id).ConfigureAwait(false));
         }
 
         return workIds;
@@ -1240,12 +1273,13 @@ public sealed class CollectionCatalogReadService(
     private async Task<IReadOnlyList<Guid>> GetCollectionCatalogSourceWorkIdsAsync(
         Collection collection,
         IReadOnlyList<Collection> accessibleCollections,
-        CancellationToken ct)
+        CancellationToken ct,
+        Guid? viewerProfileId = null)
     {
         var workIds = new List<Guid>();
         foreach (var sourceCollection in ExpandWithChildCollections([collection], accessibleCollections))
         {
-            workIds.AddRange(await GetCollectionWorkIdsAsync(sourceCollection, ct).ConfigureAwait(false));
+            workIds.AddRange(await GetCollectionWorkIdsAsync(sourceCollection, ct, viewerProfileId).ConfigureAwait(false));
         }
 
         return workIds.Distinct().ToList();

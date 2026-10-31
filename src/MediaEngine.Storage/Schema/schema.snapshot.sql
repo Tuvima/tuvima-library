@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0072 item_extras).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0074 collection_lane_profile_hides).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -564,7 +564,7 @@ CREATE TABLE collection_placements (
     display_mode  TEXT NOT NULL DEFAULT 'swimlane',
     is_visible    INTEGER NOT NULL DEFAULT 1,
     created_at    TEXT NOT NULL DEFAULT (datetime('now'))
-);
+, profile_id BLOB REFERENCES profiles(id) ON DELETE CASCADE);
 
 CREATE TABLE collection_profile_audience (
     collection_id BLOB NOT NULL REFERENCES collections(id) ON DELETE CASCADE,
@@ -629,7 +629,7 @@ CREATE TABLE collections (
     wikidata_qid      TEXT,
     universe_status   TEXT NOT NULL DEFAULT 'Unknown',
     created_at        TEXT NOT NULL DEFAULT (datetime('now'))
-, resolution TEXT NOT NULL DEFAULT 'query', rule_hash TEXT, group_by_field TEXT, match_mode TEXT NOT NULL DEFAULT 'all', sort_field TEXT, sort_direction TEXT NOT NULL DEFAULT 'desc', secondary_sort_field TEXT, secondary_sort_direction TEXT, cover_artwork_path TEXT, cover_artwork_mime_type TEXT, background_artwork_path TEXT, background_artwork_mime_type TEXT, banner_artwork_path TEXT, banner_artwork_mime_type TEXT, logo_artwork_path TEXT, logo_artwork_mime_type TEXT, media_type TEXT, universe_qid TEXT REFERENCES narrative_roots(qid) ON DELETE SET NULL);
+, resolution TEXT NOT NULL DEFAULT 'query', rule_hash TEXT, group_by_field TEXT, match_mode TEXT NOT NULL DEFAULT 'all', sort_field TEXT, sort_direction TEXT NOT NULL DEFAULT 'desc', secondary_sort_field TEXT, secondary_sort_direction TEXT, cover_artwork_path TEXT, cover_artwork_mime_type TEXT, background_artwork_path TEXT, background_artwork_mime_type TEXT, banner_artwork_path TEXT, banner_artwork_mime_type TEXT, logo_artwork_path TEXT, logo_artwork_mime_type TEXT, media_type TEXT, universe_qid TEXT REFERENCES narrative_roots(qid) ON DELETE SET NULL, max_items INTEGER CHECK (max_items IS NULL OR max_items >= 1), season_from TEXT CHECK (season_from IS NULL OR season_from GLOB '[0-1][0-9]-[0-3][0-9]'), season_to TEXT CHECK (season_to IS NULL OR season_to GLOB '[0-1][0-9]-[0-3][0-9]'));
 
 CREATE TABLE companion_sessions (
     profile_id              BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -3365,6 +3365,8 @@ CREATE INDEX idx_collection_placements_collection_id
 
 CREATE INDEX idx_collection_placements_location
     ON collection_placements(location);
+
+CREATE INDEX idx_collection_placements_profile ON collection_placements(profile_id) WHERE profile_id IS NOT NULL;
 
 CREATE INDEX idx_collection_rel_collection_id
     ON collection_relationships(collection_id);

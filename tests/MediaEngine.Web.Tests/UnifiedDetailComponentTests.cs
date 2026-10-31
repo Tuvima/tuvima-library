@@ -513,7 +513,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("tl-credit-group__toggle", group);
         Assert.Contains(".tl-credit-card__image .tl-person-avatar", appStyles);
         Assert.Contains("aspect-ratio: 1 / 1", appStyles);
-        Assert.Contains("linear-gradient(to top", appStyles);
+        Assert.Contains("border-radius: 50%", appStyles);
     }
 
     [Fact]

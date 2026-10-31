@@ -48,6 +48,7 @@
                 <MediaShelf Shelf="@shelf"
                             SectionType="@SectionType"
                             HideSourceBadges="@(SectionType == MediaHubSectionType.Watch)"
+                            OnLaneHidden="HideLane"
                             @key="shelf.Key" />
             }
         }
@@ -117,8 +118,18 @@
         }
     }
 
+    // Lanes the viewer just hid; the Engine has saved it, and the next load leaves them out.
+    private readonly HashSet<string> _hiddenLanes = new(StringComparer.OrdinalIgnoreCase);
+
+    private Task HideLane(string shelfKey)
+    {
+        _hiddenLanes.Add(shelfKey);
+        return Task.CompletedTask;
+    }
+
     private IReadOnlyList<MediaHubShelfViewModel> VisibleShelves => Shelves
         .Where(shelf => SupportsContinueRow || !shelf.IsContinueShelf)
+        .Where(shelf => !_hiddenLanes.Contains(shelf.Key))
         .Select(shelf => new MediaHubShelfViewModel
         {
             Key = shelf.Key,

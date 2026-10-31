@@ -1985,9 +1985,3 @@
         min-width: var(--tl-touch-target-min, 48px);
     }
 }
-
-.listen-artist-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: var(--tl-space-5, 1.25rem) var(--tl-space-4, 1rem);
-}

@@ -76,6 +76,7 @@ public static class ApiEndpointRouteBuilderExtensions
         app.MapLogEndpoints();
         app.MapDisplayEndpoints();
         app.MapDisplayGridPreferenceEndpoints();
+        app.MapDisplayLanePreferenceEndpoints();
         app.MapCollectionClientEndpoints();
         app.MapDetailEndpoints();
         app.MapExtrasEndpoints();

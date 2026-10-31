@@ -796,7 +796,7 @@ public sealed class DisplayComposerServiceTests
     }
 
     [Fact]
-    public async Task Home_ComposesCinematicShelfOrderAndProfileAwareCollections()
+    public async Task Home_ComposesCinematicShelfOrderAndProfileAwareCollectionLanes()
     {
         var profileId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
         var movieId = Guid.Parse("aaaaaaaa-1111-1111-1111-aaaaaaaaaaaa");
@@ -812,27 +812,26 @@ public sealed class DisplayComposerServiceTests
             [
                 Journey(movieId, "Movie", "Arrival", progressPct: 42, year: "2016", genre: "Science Fiction", quality: "Ultra HD", source: "Max"),
             ],
-            homeCollections:
-            [
-                new DisplayHomeCollectionRow
-                {
-                    CollectionId = collectionId,
-                    Title = "Sci-Fi Favorites",
-                    CollectionType = "Smart",
-                    PrimaryLane = "CrossMedia",
-                    ItemCount = 12,
-                    WatchCount = 7,
-                    ReadCount = 5,
-                    CreatedAt = DateTimeOffset.Parse("2026-04-24T12:00:00Z"),
-                },
-            ]);
+            collectionLanes: new Dictionary<string, IReadOnlyList<DisplayCollectionLaneRow>>
+            {
+                ["home"] =
+                [
+                    new DisplayCollectionLaneRow
+                    {
+                        CollectionId = collectionId,
+                        Title = "Sci-Fi Favorites",
+                        // The second id is a title that left the library after the lane was read; it gets no tile.
+                        WorkIds = [bookId, Guid.NewGuid(), movieId],
+                    },
+                ],
+            });
         var composer = CreateComposer(repository);
 
         var page = await composer.BuildHomeAsync(includeCatalog: false, profileId: profileId);
 
-        Assert.Equal(profileId, repository.LastHomeCollectionsProfileId);
+        Assert.Equal(profileId, repository.LastLaneProfileId);
         Assert.Equal(
-            ["continue", "watch-next", "read-next", "listen-next", "home-collections"],
+            ["continue", "watch-next", "read-next", "listen-next", $"lane-{collectionId:N}"],
             page.Shelves.Select(shelf => shelf.Key));
         Assert.Equal("Continue Across Media", page.Shelves[0].Title);
         Assert.Equal("Watch", page.Shelves[1].Title);
@@ -841,13 +840,18 @@ public sealed class DisplayComposerServiceTests
         Assert.Equal("/all/home/read-next", page.Shelves[2].SeeAllRoute);
         Assert.Equal("Listen", page.Shelves[3].Title);
         Assert.Equal("/all/home/listen-next", page.Shelves[3].SeeAllRoute);
-        Assert.Equal("Collections & Lists", page.Shelves[4].Title);
-        Assert.Equal("/collections", page.Shelves[4].SeeAllRoute);
+        // The old "Collections & Lists" tile shelf is gone: a collection is a lane of its own items, in the collection's order.
+        Assert.DoesNotContain(page.Shelves, shelf => shelf.Key == "home-collections");
+        var lane = page.Shelves[4];
+        Assert.Equal("Sci-Fi Favorites", lane.Title);
+        Assert.Null(lane.Subtitle);
+        Assert.Equal($"/details/collection/{collectionId:D}?context=default", lane.SeeAllRoute);
+        Assert.Equal(["Dune", "Arrival"], lane.Items.Select(card => card.Title));
         Assert.Equal(page.Shelves[0].Items[0].Facts, page.Hero?.Facts);
     }
 
     [Fact]
-    public async Task Home_HidesCollectionsShelfWhenNoPlacedCollectionsAreEligible()
+    public async Task Home_HasNoLaneWhenNoCollectionIsShownOnIt()
     {
         var repository = new StubDisplayProjectionRepository(
             [Work(Guid.Parse("aaaaaaaa-5555-5555-5555-aaaaaaaaaaaa"), "Movie", "Arrival")],
@@ -856,7 +860,68 @@ public sealed class DisplayComposerServiceTests
 
         var page = await composer.BuildHomeAsync(includeCatalog: false);
 
+        Assert.DoesNotContain(page.Shelves, shelf => shelf.Key.StartsWith("lane-", StringComparison.Ordinal));
         Assert.DoesNotContain(page.Shelves, shelf => shelf.Key == "home-collections");
+    }
+
+    [Fact]
+    public async Task AreaPages_ShowTheirOwnLanesAfterTheirOwnRowsAndNeverAnotherPagesLane()
+    {
+        var movieId = Guid.Parse("aaaaaaaa-1111-1111-1111-aaaaaaaaaaaa");
+        var bookId = Guid.Parse("aaaaaaaa-2222-2222-2222-aaaaaaaaaaaa");
+        var watchLane = Guid.Parse("cccccccc-1111-1111-1111-cccccccccccc");
+        var readLane = Guid.Parse("cccccccc-2222-2222-2222-cccccccccccc");
+        var repository = new StubDisplayProjectionRepository(
+            [
+                Work(movieId, "Movie", "Arrival", year: "2016"),
+                Work(bookId, "Book", "Dune", author: "Frank Herbert"),
+            ],
+            [],
+            collectionLanes: new Dictionary<string, IReadOnlyList<DisplayCollectionLaneRow>>
+            {
+                ["area:watch"] = [new DisplayCollectionLaneRow { CollectionId = watchLane, Title = "Saturday morning", WorkIds = [movieId] }],
+                ["area:read"] = [new DisplayCollectionLaneRow { CollectionId = readLane, Title = "Classics", WorkIds = [bookId] }],
+            });
+        var composer = CreateComposer(repository);
+
+        var watch = await composer.BuildBrowseAsync("watch", null, "all", null, 0, 24);
+        var read = await composer.BuildBrowseAsync("read", null, "all", null, 0, 24);
+
+        Assert.Equal($"lane-{watchLane:N}", watch.Shelves.Last().Key);
+        Assert.Equal(["Arrival"], watch.Shelves.Last().Items.Select(card => card.Title));
+        Assert.DoesNotContain(watch.Shelves, shelf => shelf.Key == $"lane-{readLane:N}");
+        Assert.Equal($"lane-{readLane:N}", read.Shelves.Last().Key);
+        Assert.Equal(["Dune"], read.Shelves.Last().Items.Select(card => card.Title));
+        Assert.Equal(["area:watch", "area:read"], repository.LaneLocationsRead.Where(location => location.StartsWith("area:", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public async Task Lane_ShowsAtMostTwentyTilesInTheCollectionsOrder()
+    {
+        var works = Enumerable.Range(1, 30)
+            .Select(index => Work(Guid.NewGuid(), "Book", $"Book {index:00}", author: "Author"))
+            .ToList();
+        var collectionId = Guid.NewGuid();
+        var repository = new StubDisplayProjectionRepository(
+            works,
+            [],
+            collectionLanes: new Dictionary<string, IReadOnlyList<DisplayCollectionLaneRow>>
+            {
+                ["home"] = [new DisplayCollectionLaneRow
+                {
+                    CollectionId = collectionId,
+                    Title = "Thirty books",
+                    WorkIds = works.AsEnumerable().Reverse().Select(work => work.WorkId).ToList(),
+                }],
+            });
+        var composer = CreateComposer(repository);
+
+        var page = await composer.BuildHomeAsync(includeCatalog: false);
+
+        var lane = page.Shelves.Single(shelf => shelf.Key == $"lane-{collectionId:N}");
+        Assert.Equal(20, lane.Items.Count);
+        Assert.Equal("Book 30", lane.Items[0].Title);
+        Assert.Equal("Book 11", lane.Items[^1].Title);
     }
 
     [Fact]
@@ -1132,19 +1197,33 @@ public sealed class DisplayComposerServiceTests
         private readonly IReadOnlyList<DisplayJourneyRow> _journey;
         private readonly IReadOnlySet<Guid> _favoriteWorkIds;
         private readonly IReadOnlyList<DisplayHomeCollectionRow> _homeCollections;
+        private readonly IReadOnlyDictionary<string, IReadOnlyList<DisplayCollectionLaneRow>> _collectionLanes;
 
         public Guid? LastHomeCollectionsProfileId { get; private set; }
+
+        public Guid? LastLaneProfileId { get; private set; }
+
+        public List<string> LaneLocationsRead { get; } = [];
 
         public StubDisplayProjectionRepository(
             IReadOnlyList<DisplayWorkRow> works,
             IReadOnlyList<DisplayJourneyRow> journey,
             IReadOnlySet<Guid>? favoriteWorkIds = null,
-            IReadOnlyList<DisplayHomeCollectionRow>? homeCollections = null)
+            IReadOnlyList<DisplayHomeCollectionRow>? homeCollections = null,
+            IReadOnlyDictionary<string, IReadOnlyList<DisplayCollectionLaneRow>>? collectionLanes = null)
         {
             _works = works;
             _journey = journey;
             _favoriteWorkIds = favoriteWorkIds ?? new HashSet<Guid>();
             _homeCollections = homeCollections ?? [];
+            _collectionLanes = collectionLanes ?? new Dictionary<string, IReadOnlyList<DisplayCollectionLaneRow>>();
+        }
+
+        public Task<IReadOnlyList<DisplayCollectionLaneRow>> LoadCollectionLanesAsync(Guid? profileId, string location, CancellationToken ct)
+        {
+            LastLaneProfileId = profileId;
+            LaneLocationsRead.Add(location);
+            return Task.FromResult(_collectionLanes.GetValueOrDefault(location) ?? []);
         }
 
         public Task<IReadOnlyList<DisplayWorkRow>> LoadWorksAsync(CancellationToken ct) =>

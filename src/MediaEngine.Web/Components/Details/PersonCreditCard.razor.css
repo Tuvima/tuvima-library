@@ -4,19 +4,15 @@
     min-width: 0;
     position: relative;
     display: block;
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 0.42rem;
-    background: rgba(255,255,255,0.045);
     color: #fff;
-    overflow: hidden;
+    text-align: center;
     text-decoration: none;
-    box-shadow: 0 0.85rem 2rem rgba(0,0,0,0.2);
 }
 
 :where(.tl-detail-page) .tl-credit-card__image {
     width: 100%;
     aspect-ratio: 1 / 1;
-    border-radius: 0;
+    border-radius: 50%;
     overflow: hidden;
     border: 0;
     background: rgba(0,0,0,0.2);
@@ -30,11 +26,7 @@
 }
 
 :where(.tl-detail-page) .tl-credit-card__body {
-    position: absolute;
-    inset-inline: 0;
-    bottom: 0;
-    padding: 1.75rem 0.65rem 0.62rem;
-    background: linear-gradient(to top, rgba(6,9,12,0.96), rgba(6,9,12,0.78) 58%, rgba(6,9,12,0));
+    padding: 0.5rem 0.25rem 0;
 }
 
 :where(.tl-detail-page) .tl-credit-card__name {
@@ -89,7 +81,7 @@
 :where(.tl-detail-page) .tl-media-overview-credits-list--bookish .tl-credit-card--compact {
     width: clamp(9.5rem, 13vw, 11rem);
     max-width: none;
-    text-align: left;
+    text-align: center;
 }
 
 :where(.tl-detail-page) .tl-media-overview-credits-list--bookish .tl-credit-card--compact .tl-credit-card__image {
@@ -108,7 +100,7 @@
 :where(.tl-detail-page) .tl-media-overview-credits-list--video .tl-credit-card--compact {
     width: clamp(8.75rem, 11vw, 10.25rem);
     max-width: none;
-    text-align: left;
+    text-align: center;
 }
 
 :where(.tl-detail-page) .tl-media-overview-credits-list--video .tl-credit-card--compact .tl-credit-card__image {

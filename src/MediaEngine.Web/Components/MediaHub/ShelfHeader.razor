@@ -19,6 +19,11 @@
     {
         <a href="@Route" class="shelf-header__link">@L["Common_ViewAll"]</a>
     }
+
+    @if (!string.IsNullOrEmpty(LanePlace) && !string.IsNullOrEmpty(ShelfKey))
+    {
+        <LaneMenu ShelfKey="@ShelfKey" Place="@LanePlace" Title="@Title" OnHidden="OnLaneHidden" />
+    }
 </div>
 
 @code {
@@ -26,4 +31,8 @@
     [Parameter] public string? Subtitle { get; set; }
     [Parameter] public int? Count { get; set; }
     [Parameter] public string? Route { get; set; }
+    /// <summary>The shelf key and the page it is on (watch, read, listen); together they give a collection lane its "Hide this lane" menu.</summary>
+    [Parameter] public string? ShelfKey { get; set; }
+    [Parameter] public string? LanePlace { get; set; }
+    [Parameter] public EventCallback<string> OnLaneHidden { get; set; }
 }

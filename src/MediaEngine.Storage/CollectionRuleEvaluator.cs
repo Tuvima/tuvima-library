@@ -23,6 +23,7 @@ namespace MediaEngine.Storage;
 public sealed class CollectionRuleEvaluator
 {
     private readonly IDatabaseConnection _db;
+    private readonly CollectionRuleExtendedFields _extended;
 
     /// <summary>
     /// Builds a "w.id IN (...)" clause that finds works whose canonical scalar
@@ -97,10 +98,22 @@ public sealed class CollectionRuleEvaluator
         )
         """;
 
-    public CollectionRuleEvaluator(IDatabaseConnection db) => _db = db;
+    public CollectionRuleEvaluator(IDatabaseConnection db, TimeProvider? clock = null)
+    {
+        _db = db;
+        _extended = new CollectionRuleExtendedFields(db, clock ?? TimeProvider.System);
+    }
+
+    /// <summary>True when the definition has a condition whose answer depends on the profile looking at the collection (Unwatched, On My List, Your rating and the like).</summary>
+    public static bool UsesPerProfileFields(CollectionRuleDefinition definition) =>
+        definition.AllConditions.Any(condition =>
+            CollectionRuleExtendedFields.IsPerProfile(condition.Field.ToLowerInvariant().Trim()));
 
     /// <summary>
     /// Evaluates a grouped rule definition and returns matching work IDs from the works table.
+    /// <paramref name="viewerProfileId"/> is the profile looking at the collection: activity fields (Unwatched, In progress,
+    /// Play count, Last played, On My List, Favourite, Your rating) and the viewer's own tags evaluate for that profile, and
+    /// match nothing when it is null.
     /// </summary>
     public IReadOnlyList<Guid> Evaluate(
         CollectionRuleDefinition definition,
@@ -109,7 +122,8 @@ public sealed class CollectionRuleEvaluator
         int limit = 0,
         string? query = null,
         string? secondarySortField = null,
-        string? secondarySortDirection = null)
+        string? secondarySortDirection = null,
+        Guid? viewerProfileId = null)
     {
         if (definition.Groups.Count == 0)
         {
@@ -119,7 +133,7 @@ public sealed class CollectionRuleEvaluator
         using var conn = _db.CreateConnection();
         using var cmd = conn.CreateCommand();
         int paramIdx = 0;
-        var whereClause = BuildWhereClause(definition, cmd, ref paramIdx);
+        var whereClause = BuildWhereClause(definition, cmd, ref paramIdx, viewerProfileId);
         if (string.IsNullOrWhiteSpace(whereClause))
         {
             return [];
@@ -161,7 +175,7 @@ public sealed class CollectionRuleEvaluator
     }
 
     /// <summary>Returns the uncapped number of works matching the definition.</summary>
-    public int Count(CollectionRuleDefinition definition, string? query = null)
+    public int Count(CollectionRuleDefinition definition, string? query = null, Guid? viewerProfileId = null)
     {
         if (definition.Groups.Count == 0)
         {
@@ -171,7 +185,7 @@ public sealed class CollectionRuleEvaluator
         using var conn = _db.CreateConnection();
         using var cmd = conn.CreateCommand();
         var paramIdx = 0;
-        var whereClause = BuildWhereClause(definition, cmd, ref paramIdx);
+        var whereClause = BuildWhereClause(definition, cmd, ref paramIdx, viewerProfileId);
         if (string.IsNullOrWhiteSpace(whereClause))
         {
             return 0;
@@ -196,7 +210,8 @@ public sealed class CollectionRuleEvaluator
     private string BuildWhereClause(
         CollectionRuleDefinition definition,
         System.Data.Common.DbCommand cmd,
-        ref int paramIdx)
+        ref int paramIdx,
+        Guid? viewerProfileId)
     {
         var groupSql = new List<(string Sql, string Join)>();
         foreach (var group in definition.Groups)
@@ -204,7 +219,7 @@ public sealed class CollectionRuleEvaluator
             var conditions = new List<string>();
             foreach (var condition in group.Conditions)
             {
-                var (sql, parameters) = TranslatePredicate(condition, ref paramIdx);
+                var (sql, parameters) = TranslatePredicate(condition, ref paramIdx, viewerProfileId);
                 if (sql is null)
                 {
                     continue;
@@ -339,12 +354,30 @@ public sealed class CollectionRuleEvaluator
         ParseDefinition(ruleJson).AllConditions;
 
     private (string? sql, List<(string name, object value)> parameters) TranslatePredicate(
-        CollectionRulePredicate pred, ref int paramIdx)
+        CollectionRulePredicate pred, ref int paramIdx, Guid? viewerProfileId)
     {
         var parameters = new List<(string, object)>();
         var field = pred.Field.ToLowerInvariant().Trim();
         var op = pred.Op.ToLowerInvariant().Trim();
         var effectiveValues = pred.GetEffectiveValues();
+
+        // The fields added for easy collections and lists (dates, age levels, activity, library, quality, variants).
+        if (CollectionRuleExtendedFields.Handles(field))
+        {
+            return _extended.Translate(pred, viewerProfileId, ref paramIdx);
+        }
+
+        // Tags also count the viewer's own local tags, next to the tags saved on the title itself.
+        if (field == "custom_tags" && viewerProfileId is { } tagViewer && op is "eq" or "in" or "contains" or "known" or "is_known" or "has_any_value")
+        {
+            var (libraryTags, libraryParameters) = TranslatePredicate(pred, ref paramIdx, null);
+            var binder = new CollectionRuleExtendedFields.Binder(libraryParameters, paramIdx);
+            var ownTags = _extended.ViewerTags(op, effectiveValues, tagViewer, binder);
+            paramIdx = binder.Index;
+            return libraryTags is null || ownTags is null
+                ? (libraryTags ?? ownTags, libraryParameters)
+                : ($"(({libraryTags}) OR ({ownTags}))", libraryParameters);
+        }
 
         if (op is "known" or "is_known" or "has_any_value")
         {

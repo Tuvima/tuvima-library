@@ -350,6 +350,31 @@ internal sealed class AuthorizedDisplayProjectionReadService(
         return await inner.LoadHomeCollectionsAsync(profileId, allowedWorkIds, ct).ConfigureAwait(false);
     }
 
+    public async Task<IReadOnlyList<DisplayCollectionLaneRow>> LoadCollectionLanesAsync(Guid? profileId, string location, CancellationToken ct)
+    {
+        var scope = await ResolveScopeAsync(ct).ConfigureAwait(false);
+        if (profileId is null || profileId != scope.Authority.ActiveProfileId || !scope.IsValid)
+        {
+            return [];
+        }
+
+        var allowedWorkIds = await AllowedWorkIdsAsync(scope, false, ct).ConfigureAwait(false);
+        if (scope.AllLibraries && scope.Content.NeedsNoFiltering && scope.Content.Vault.VaultLibraryIds.Count == 0
+            && allowedWorkIds.Count == (await inner.LoadVisibleWorkIdsAsync(ct).ConfigureAwait(false)).Count)
+        {
+            // Nothing is narrowed: no limit, no Vault, and no work left out as Unmatched.
+            return await inner.LoadCollectionLanesAsync(profileId, location, ct).ConfigureAwait(false);
+        }
+
+        if (allowedWorkIds.Count == 0)
+        {
+            return [];
+        }
+
+        // Kids levels, hidden libraries and the Vault narrow what each lane may hold; a lane left under its minimum is dropped by the lane read.
+        return await inner.LoadCollectionLanesAsync(profileId, location, allowedWorkIds, ct).ConfigureAwait(false);
+    }
+
     private async ValueTask<CatalogueScope> ResolveScopeAsync(CancellationToken ct)
     {
         if (http.HttpContext is not { } context)

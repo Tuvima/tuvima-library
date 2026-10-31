@@ -372,8 +372,6 @@ else
             }
             else if (IsArtistsSurface)
             {
-                @if (string.IsNullOrWhiteSpace(ArtistKey))
-                {
                     <section class="listen-section listen-section--people">
                         <div class="listen-section__header">
                             <div>
@@ -402,176 +400,9 @@ else
                         }
                         else
                         {
-                            <div class="listen-artist-grid">
-                                @foreach (var artistTile in ArtistPersonTiles)
-                                {
-                                    <PersonTile Item="@artistTile" />
-                                }
-                            </div>
+                            <PersonTileGrid Items="@ArtistPersonTiles" />
                         }
                     </section>
-                }
-                else
-                {
-                    <section class="listen-artists">
-                    <div class="listen-artists__list">
-                        <div class="listen-section__header">
-                            <div>
-                                <div class="listen-kicker">@L["Nav_Music"]</div>
-                                <h2>@L["ListenPage_Artists"]</h2>
-                                <p class="listen-section__summary">@Pluralize(FilteredArtistGroups.Count, "artist") in your library.</p>
-                            </div>
-                        </div>
-
-                        <div class="listen-filter-bar listen-filter-bar--compact">
-                            <AppNativeInput Class="listen-filter-input" @bind="_artistSearch" @bind:event="oninput" Placeholder="@L["ListenPage_SearchArtists"].Value" />
-                            <AppSelect T="string" Class="listen-filter-select" @bind-Value="_artistSort">
-                                <AppSelectItem T="string" Value="@("name")">@L["ListenPage_ArtistName"]</AppSelectItem>
-                                <AppSelectItem T="string" Value="@("tracks")">@L["ListenPage_MostTracks"]</AppSelectItem>
-                            </AppSelect>
-                        </div>
-
-                        <div class="listen-artists__list-body">
-                            @foreach (var artist in FilteredArtistGroups)
-                            {
-                                <AppNativeButton Type="button" Class='@($"listen-list-item {(string.Equals(artist.DisplayName, SelectedArtistName, StringComparison.OrdinalIgnoreCase) ? " is-active" : null)}")' OnClick="@(() => SelectArtistAsync(artist.DisplayName))">
-                                    <div class="listen-list-item__thumb">
-                                        @if (!string.IsNullOrWhiteSpace(artist.ArtistPhotoUrl))
-                                        {
-                                            <img src="@MediaTileArtworkUrl.ForDrawnSize(artist.ArtistPhotoUrl, 54)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(artist.ArtistPhotoUrl, 54)" alt="@artist.DisplayName" loading="lazy" decoding="async" />
-                                        }
-                                        else
-                                        {
-                                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PersonOutline" Class="tl-u-font-size-20px" />
-                                        }
-                                    </div>
-                                    <div>
-                                        <div class="listen-card__title">@artist.DisplayName</div>
-                                        <div class="listen-card__meta">@Pluralize(artist.WorkCount, "track")</div>
-                                    </div>
-                                </AppNativeButton>
-                            }
-                        </div>
-                    </div>
-
-                    <div class="listen-artists__detail">
-                        @if (_artistLoading)
-                        {
-                            <div class="listen-empty">
-                                <div>
-                                    <AppSpinner Indeterminate="true" Size="AppSize.Large" Class="tl-u-color-rgba-255-255-255-0-32" />
-                                    <p>@L["ListenPage_LoadingArtistDetails"]</p>
-                                </div>
-                            </div>
-                        }
-                        else if (_artistDetail is null)
-                        {
-                            <div class="listen-empty">
-                                <div>
-                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PersonOutline" Class="tl-u-font-size-56px tl-u-opacity-0-22" />
-                                    <p>@L["ListenPage_ChooseAnArtistToView"]</p>
-                                </div>
-                            </div>
-                        }
-                        else
-                        {
-                            <section class="listen-detail listen-detail--artist">
-                                <div class="listen-detail__art">
-                                    @if (!string.IsNullOrWhiteSpace(_artistDetail.ArtistPhotoUrl))
-                                    {
-                                        <img src="@MediaTileArtworkUrl.ForDrawnSize(_artistDetail.ArtistPhotoUrl, 320)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(_artistDetail.ArtistPhotoUrl, 320)" alt="@_artistDetail.DisplayName" decoding="async" />
-                                    }
-                                    else
-                                    {
-                                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PersonOutline" Class="tl-u-font-size-64px" />
-                                    }
-                                </div>
-                                <div class="listen-detail__copy">
-                                    <div class="listen-kicker">@L["ListenPage_Artist"]</div>
-                                    <h2>@_artistDetail.DisplayName</h2>
-                                    <div class="listen-detail__meta">
-                                        <span>@Pluralize(ArtistAlbums.Count, "album")</span>
-                                        <span>@Pluralize(ArtistTracks.Count, "track")</span>
-                                    </div>
-                                    @if (!string.IsNullOrWhiteSpace(_artistDetail.Description))
-                                    {
-                                        <p>@_artistDetail.Description</p>
-                                    }
-                                    <div class="listen-actions">
-                                        <AppNativeButton Type="button" Class="listen-button listen-button--primary" OnClick="@(() => PlayTracksAsync(ArtistTracks, null, _artistDetail.DisplayName))" Disabled="@(ArtistTracks.Count == 0)">
-                                            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.PlayArrow" Size="AppSize.Small" />
-                                            <span>@L["Common_Play"]</span>
-                                        </AppNativeButton>
-                                        <AppNativeButton Type="button" Class="listen-button listen-button--secondary" OnClick="@(() => PlayTracksAsync(ArtistTracks, null, _artistDetail.DisplayName, true))" Disabled="@(ArtistTracks.Count == 0)">
-                                            <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Shuffle" Size="AppSize.Small" />
-                                            <span>@L["Common_Shuffle"]</span>
-                                        </AppNativeButton>
-                                        @if (_artistDetail.ArtistPersonId.HasValue)
-                                        {
-                                            <AppNativeButton Type="button" Class="listen-button listen-button--secondary" OnClick="@(() => Nav.NavigateTo($"/details/person/{_artistDetail.ArtistPersonId.Value}"))">@L["ListenPage_ViewArtistPage"]</AppNativeButton>
-                                        }
-                                    </div>
-                                </div>
-                            </section>
-
-                            @if (ArtistAlbums.Count > 0)
-                            {
-                                <section class="listen-section">
-                                    <div class="listen-section__header">
-                                        <div>
-                                            <div class="listen-kicker">@L["ListenPage_Albums"]</div>
-                                            <h2>@L["ListenPage_Discography"]</h2>
-                                            <p class="listen-section__summary">@L["ListenPage_OpenAnAlbumToView"]</p>
-                                        </div>
-                                    </div>
-                                    <MediaTileGrid Items="@ArtistAlbumTiles"
-                                                   ShowCompactCaptions="true"
-                                                   TileSizePx="@_albumTileSizePx"
-                                                   Class="listen-card-grid listen-card-grid--albums" />
-                                </section>
-                            }
-
-                            <section class="listen-section">
-                                <div class="listen-section__header">
-                                    <div>
-                                        <div class="listen-kicker">@L["Common_Songs"]</div>
-                                        <h2>@Pluralize(ArtistTracks.Count, "track")</h2>
-                                    </div>
-                                </div>
-
-                                @if (ArtistTracks.Count == 0)
-                                {
-                                    <div class="listen-empty">
-                                        <div>
-                                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MusicNote" Class="tl-u-font-size-56px tl-u-opacity-0-22" />
-                                            <p>@L["ListenPage_NoSongsAreReadyFor"]</p>
-                                        </div>
-                                    </div>
-                                }
-                                else
-                                {
-                                    <ListenSongTable Tracks="@ArtistTracks"
-                                                     FavoriteIds="@_favoriteWorkIds"
-                                                     SourceLabel="@_artistDetail!.DisplayName"
-                                                     AriaLabel="@($"{_artistDetail!.DisplayName} songs")"
-                                                     ShowArtist="false"
-                                                     ShowGenre="false"
-                                                     ShowDateAdded="false"
-                                                     DefaultSortColumn="album"
-                                                     DefaultSortDescending="false"
-                                                     OnPlayRequested="PlayTracksAsync"
-                                                     OnFavoriteToggled="ToggleFavoriteAsync"
-                                                     OnQueueRequested="QueueTrackAsync"
-                                                     OnPlayNextRequested="PlayNextTrackAsync"
-                                                     OnTracksChanged="RefreshSongsAsync"
-                                                     OnDragStarted="OnTrackDragStarted"
-                                                     OnDragEnded="OnTrackDragEnded" />
-                                }
-                            </section>
-                        }
-                    </div>
-                    </section>
-                }
             }
             else if (IsSongsView)
             {
@@ -1092,11 +923,7 @@ else
                             }
                             else
                             {
-                                <MediaTileGrid Items="@AudiobookAuthorPersonTiles"
-                                               ShowCompactCaptions="true"
-                                               HideGroupIndicators="true"
-                                               TileSizePx="300"
-                                               Class="listen-card-grid listen-card-grid--people" />
+                                <PersonTileGrid Items="@AudiobookAuthorPersonTiles" />
                             }
                         }
                         else if (_audiobookView == "narrators")
@@ -1107,11 +934,7 @@ else
                             }
                             else
                             {
-                                <MediaTileGrid Items="@AudiobookNarratorPersonTiles"
-                                               ShowCompactCaptions="true"
-                                               HideGroupIndicators="true"
-                                               TileSizePx="300"
-                                               Class="listen-card-grid listen-card-grid--people" />
+                                <PersonTileGrid Items="@AudiobookNarratorPersonTiles" />
                             }
                         }
                         else if (_audiobookView == "timeline")

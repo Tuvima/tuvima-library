@@ -21,6 +21,11 @@
                 {
                     <a href="@Shelf.SeeAllRoute" class="media-tile-shelf-link">@(DeviceContext.IsPhone ? "See All" : "View all")</a>
                 }
+
+                @if (!string.IsNullOrEmpty(LanePlace))
+                {
+                    <LaneMenu ShelfKey="@Shelf.Key" Place="@LanePlace" Title="@Shelf.Title" OnHidden="OnLaneHidden" />
+                }
             </div>
         }
 
@@ -93,6 +98,10 @@ else if (ShowHeader && !string.IsNullOrWhiteSpace(EmptyMessage))
     [Parameter] public int EagerItemCount { get; set; }
     /// <summary>When set, an empty shelf keeps its header and shows this helper text instead of disappearing.</summary>
     [Parameter] public string? EmptyMessage { get; set; }
+    /// <summary>Where this shelf is shown (home, watch, read, listen). When set, a collection lane gets a "Hide this lane" menu.</summary>
+    [Parameter] public string? LanePlace { get; set; }
+    /// <summary>Raised with the shelf key after a lane is hidden, so the page drops it at once.</summary>
+    [Parameter] public EventCallback<string> OnLaneHidden { get; set; }
 
     private bool HasViewAllTile => !string.IsNullOrWhiteSpace(Shelf.SeeAllRoute);
 
