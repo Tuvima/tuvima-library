@@ -157,7 +157,14 @@
         {
           "set": "season",
           "from": {
-            "int": "@request.season_number"
+            "int": {
+              "first_non_null": [
+                "@request.season_number",
+                {
+                  "literal": "1"
+                }
+              ]
+            }
           }
         },
         {

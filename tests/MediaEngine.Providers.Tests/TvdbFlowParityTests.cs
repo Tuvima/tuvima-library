@@ -26,14 +26,14 @@ public sealed class TvdbFlowParityTests
         return RecordingHandler.Json("""{"data":null}""");
     });
 
-    private static ProviderLookupRequest Request(string? showName, string? series, IReadOnlyDictionary<string, string>? hints = null) => new()
+    private static ProviderLookupRequest Request(string? showName, string? series, IReadOnlyDictionary<string, string>? hints = null, string? season = "1", string? episode = "1") => new()
     {
         EntityType = EntityType.MediaAsset,
         MediaType = MediaType.TV,
         ShowName = showName,
         Series = series,
-        SeasonNumber = "1",
-        EpisodeNumber = "1",
+        SeasonNumber = season,
+        EpisodeNumber = episode,
         Hints = hints,
     };
 
@@ -97,5 +97,27 @@ public sealed class TvdbFlowParityTests
 
         Assert.Contains(handler.Lines, line => line.Contains("/series/1/extended", StringComparison.Ordinal));
         Assert.DoesNotContain(handler.Lines, line => line.Contains("/series/2/extended", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task EpisodeWithoutSeason_StillSearchesTheShowAsSeasonOne()
+    {
+        var handler = Handler();
+        using var rig = new ShippedProviderHarness.TvdbRig(handler);
+
+        await rig.Provider.FetchAsync(Request("Orbit", null, season: null));
+
+        Assert.Contains(handler.Lines, line => line.Contains("/search?query=Orbit", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task SeasonWithoutEpisode_StillSearchesNothing()
+    {
+        var handler = Handler();
+        using var rig = new ShippedProviderHarness.TvdbRig(handler);
+
+        await rig.Provider.FetchAsync(Request("Orbit", null, episode: null));
+
+        Assert.DoesNotContain(handler.Lines, line => line.Contains("/search", StringComparison.Ordinal));
     }
 }
