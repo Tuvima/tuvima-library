@@ -264,6 +264,12 @@
                   "path": "name",
                   "equals": "$show_name",
                   "ignore_case": true
+                },
+                {
+                  "path": "name",
+                  "equals": "$show_name",
+                  "ignore_case": true,
+                  "min_word_overlap": 0.8
                 }
               ],
               "fallback": "only_candidate"

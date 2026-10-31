@@ -193,7 +193,7 @@ public static class FlowParser
                 return new PickTest(path, string.Empty, new LiteralExpression(string.Empty), false, null);
             }
 
-            foreach (var property in test.EnumerateObject().Where(property => property.Name is not ("path" or "equals" or "ignore_case" or "via")))
+            foreach (var property in test.EnumerateObject().Where(property => property.Name is not ("path" or "equals" or "ignore_case" or "via" or "min_word_overlap")))
             {
                 errors.Add($"{path}.{property.Name} is not a known property of a pick test.");
             }
@@ -212,7 +212,20 @@ public static class FlowParser
                 via = new CallStep($"{path}.via", endpoint, arguments, string.Empty, false, false);
             }
 
-            return new PickTest(path, Text(test, "path", path), Expression(test, "equals", path), Flag(test, "ignore_case", path), via);
+            double? minWordOverlap = null;
+            if (test.TryGetProperty("min_word_overlap", out var overlap))
+            {
+                if (overlap.ValueKind == JsonValueKind.Number && overlap.TryGetDouble(out var fraction) && fraction is > 0 and <= 1)
+                {
+                    minWordOverlap = fraction;
+                }
+                else
+                {
+                    errors.Add($"{path}.min_word_overlap must be a number above 0 and at most 1.");
+                }
+            }
+
+            return new PickTest(path, Text(test, "path", path), Expression(test, "equals", path), Flag(test, "ignore_case", path), via, minWordOverlap);
         }
 
         private IfStep ParseIf(JsonElement element, string path)

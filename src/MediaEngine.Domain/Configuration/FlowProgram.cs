@@ -94,13 +94,18 @@ public sealed record PagesStep(
 
 public sealed record FindStep(string Location, string Variable, FlowExpression Source, IReadOnlyList<FlowElementTest> Tests) : FlowStep(Location);
 
-/// <summary>A test of <see cref="PickStep"/>: a field of the candidate, or of a lookup made for it, equals an expression.</summary>
+/// <summary>
+/// A test of <see cref="PickStep"/>: a field of the candidate, or of a lookup made for it, equals an expression.
+/// With <paramref name="MinWordOverlap"/> set, the two texts only have to share that fraction of their words
+/// (shared words over all distinct words, ignoring case and punctuation); such tests run after every exact test.
+/// </summary>
 public sealed record PickTest(
     string Location,
     string Path,
     FlowExpression Expected,
     bool IgnoreCase,
-    CallStep? Via);
+    CallStep? Via,
+    double? MinWordOverlap = null);
 
 public sealed record PickStep(
     string Location,
