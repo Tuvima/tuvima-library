@@ -2106,6 +2106,8 @@
   Count: System.Int32 | json=count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Items: System.Collections.Generic.List<MediaEngine.Contracts.Collections.CollectionResolvedItemDto> | json=items | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   MediaTypeCounts: System.Collections.Generic.Dictionary<System.String, System.Int32> | json=media_type_counts | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  UsesPerProfileFields: System.Boolean | json=uses_per_profile_fields | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  EvaluatedForProfileName: System.String | json=evaluated_for_profile_name | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Collections.CollectionResolvedItemDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -12929,7 +12931,9 @@
   Count: System.Int32 | json=count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Items: System.Collections.Generic.List<MediaEngine.Web.Models.ViewDTOs.CollectionResolvedItemViewModel> | json=items | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   MediaTypeCounts: System.Collections.Generic.Dictionary<System.String, System.Int32> | json=mediaTypeCounts | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"count":7,"items":[],"mediaTypeCounts":{}}
+  UsesPerProfileFields: System.Boolean | json=usesPerProfileFields | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  EvaluatedForProfileName: System.String | json=evaluatedForProfileName | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"count":7,"items":[],"mediaTypeCounts":{},"usesPerProfileFields":true,"evaluatedForProfileName":"sample"}
 
 [web-client] MediaEngine.Web.Models.ViewDTOs.CollectionResolvedItemViewModel
   kind=class | converter=default | number-handling=default | unmapped=default

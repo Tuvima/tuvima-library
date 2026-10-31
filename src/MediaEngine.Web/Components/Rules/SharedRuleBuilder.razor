@@ -110,12 +110,29 @@
                                                                SelectedOptionsChanged="@(options => OnOptionsChangedAsync(condition, options))"
                                                                SearchPlaceholder="@field.ValueProvider.SearchPlaceholder" />
                                 }
+                                else if (RuleOperators.TakesRange(condition.Op))
+                                {
+                                    <div class="collection-rule-builder__range" data-value-provider="@field.ValueProvider.ProviderKey">
+                                        <AppTextField T="string" Value="@RangeValue(condition, 0)"
+                                                      ValueChanged="@(value => OnRangeValueChangedAsync(condition, 0, value))"
+                                                      Label="From" InputType="@InputTypeFor(field, condition.Op)"
+                                                      Variant="AppVariant.Outlined" Immediate="true"
+                                                      DebounceInterval="300" Class="app-dialog-field" />
+                                        <AppTextField T="string" Value="@RangeValue(condition, 1)"
+                                                      ValueChanged="@(value => OnRangeValueChangedAsync(condition, 1, value))"
+                                                      Label="To" InputType="@InputTypeFor(field, condition.Op)"
+                                                      Variant="AppVariant.Outlined" Immediate="true"
+                                                      DebounceInterval="300" Class="app-dialog-field" />
+                                    </div>
+                                }
                                 else
                                 {
                                     <div data-value-provider="@field.ValueProvider.ProviderKey">
                                         <AppTextField T="string" Value="@condition.Value"
                                                       ValueChanged="@(value => OnTextValueChangedAsync(condition, value))"
-                                                      Label="Value" Placeholder="@field.ValueProvider.SearchPlaceholder"
+                                                      Label="@(RuleOperators.TakesWholeNumber(condition.Op) ? "Number" : "Value")"
+                                                      Placeholder="@field.ValueProvider.SearchPlaceholder"
+                                                      InputType="@InputTypeFor(field, condition.Op)"
                                                       Variant="AppVariant.Outlined" Immediate="true"
                                                       DebounceInterval="300" Class="app-dialog-field" />
                                     </div>
@@ -261,7 +278,31 @@
     private static CollectionRuleGroupViewModel NewGroup() => new() { Conditions = [] };
     private RuleFieldDefinition FieldFor(string key) => Fields.FirstOrDefault(field => field.Key == key) ?? Fields[0];
     private bool IsComplete(CollectionRulePredicateViewModel condition) =>
-        !string.IsNullOrWhiteSpace(condition.Field) && (IsValueFreeOperator(condition.Op) || !string.IsNullOrWhiteSpace(condition.Value) || condition.Values?.Length > 0);
+        !string.IsNullOrWhiteSpace(condition.Field)
+        && (IsValueFreeOperator(condition.Op)
+            || (RuleOperators.TakesRange(condition.Op)
+                ? condition.Values is { Length: >= 2 } range && range.All(value => !string.IsNullOrWhiteSpace(value))
+                : !string.IsNullOrWhiteSpace(condition.Value) || condition.Values?.Length > 0));
+
+    /// <summary>A date picker for date fields, a whole-number box for "within the last N days", plain text otherwise.</summary>
+    private static AppInputType InputTypeFor(RuleFieldDefinition field, string op) =>
+        RuleOperators.TakesWholeNumber(op) ? AppInputType.Number
+        : field.ValueProvider.Kind == RuleValueProviderKind.Date ? AppInputType.Date
+        : AppInputType.Text;
+
+    private static string RangeValue(CollectionRulePredicateViewModel condition, int index) =>
+        condition.Values is { } values && index < values.Length ? values[index] : string.Empty;
+
+    private async Task OnRangeValueChangedAsync(CollectionRulePredicateViewModel condition, int index, string? value)
+    {
+        var pair = new[] { RangeValue(condition, 0), RangeValue(condition, 1) };
+        pair[index] = value ?? string.Empty;
+        condition.Value = null;
+        condition.DisplayValue = null;
+        condition.DisplayValues = null;
+        condition.Values = pair.All(string.IsNullOrWhiteSpace) ? null : pair;
+        await NotifyChangedAsync();
+    }
 
     private bool IsCapabilityEnabled(RuleFieldDefinition field) => field.RequiredCapability switch
     {
@@ -339,9 +380,20 @@
 
     private async Task OnOperatorChangedAsync(CollectionRulePredicateViewModel condition, string op)
     {
+        // A day count and a date are different kinds of value, so switching between them starts the value fresh.
+        var changesKind = RuleOperators.TakesWholeNumber(condition.Op) != RuleOperators.TakesWholeNumber(op);
         condition.Op = op;
-        if (IsValueFreeOperator(op))
+        if (IsValueFreeOperator(op) || changesKind)
             ClearValue(condition);
+        else if (RuleOperators.TakesRange(op))
+        {
+            if (condition.Values is not { Length: >= 2 } && !string.IsNullOrWhiteSpace(condition.Value))
+            {
+                condition.Values = [condition.Value, string.Empty];
+                condition.Value = null;
+                condition.DisplayValue = null;
+            }
+        }
         else if (op != "in" && condition.Values is { Length: > 0 })
         {
             condition.Value = condition.Values[0];

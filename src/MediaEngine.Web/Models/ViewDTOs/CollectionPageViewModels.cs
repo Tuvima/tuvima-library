@@ -58,6 +58,12 @@ public sealed class CollectionPreviewResult
     public int Count { get; init; }
     public List<CollectionResolvedItemViewModel> Items { get; init; } = [];
     public Dictionary<string, int> MediaTypeCounts { get; init; } = [];
+
+    /// <summary>True when the rules depend on who is looking, so the preview is that profile's view.</summary>
+    public bool UsesPerProfileFields { get; init; }
+
+    /// <summary>The profile the preview was worked out for (set when <see cref="UsesPerProfileFields"/> is true).</summary>
+    public string? EvaluatedForProfileName { get; init; }
 }
 
 /// <summary>A rule predicate for the collection builder.</summary>

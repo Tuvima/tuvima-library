@@ -507,11 +507,12 @@ public sealed class CollectionBrowseReadService(
         int limit = 0,
         string? query = null,
         string? secondarySortField = null,
-        string? secondarySortDirection = null) =>
-        _ruleEvaluator.Evaluate(definition, sortField, sortDirection, limit, query, secondarySortField, secondarySortDirection);
+        string? secondarySortDirection = null,
+        Guid? viewerProfileId = null) =>
+        _ruleEvaluator.Evaluate(definition, sortField, sortDirection, limit, query, secondarySortField, secondarySortDirection, viewerProfileId);
 
-    public int CountRuleMatches(CollectionRuleDefinition definition, string? query = null) =>
-        _ruleEvaluator.Count(definition, query);
+    public int CountRuleMatches(CollectionRuleDefinition definition, string? query = null, Guid? viewerProfileId = null) =>
+        _ruleEvaluator.Count(definition, query, viewerProfileId);
 
     public Task<IReadOnlyList<string>> GetFieldValuesAsync(
         string field,
@@ -580,6 +581,18 @@ public sealed class CollectionBrowseReadService(
                     OR MIN(person_name) LIKE @Query COLLATE NOCASE
                     OR person_qid LIKE @Query COLLATE NOCASE
                 ORDER BY LocalCount DESC, Label COLLATE NOCASE
+                LIMIT @Limit
+                """,
+            // Hand-picked collections and playlists (rule-driven ones hold no stored members), for the "In collection" rule.
+            "in_collection" => """
+                SELECT lower(hex(c.id)) AS Value,
+                       COALESCE(NULLIF(TRIM(c.display_name), ''), 'Untitled') AS Label,
+                       (SELECT COUNT(*) FROM collection_items ci WHERE ci.collection_id = c.id) AS LocalCount
+                FROM collections c
+                WHERE c.is_enabled = 1
+                  AND c.resolution <> 'query'
+                  AND (@Query IS NULL OR c.display_name LIKE @Query COLLATE NOCASE)
+                ORDER BY Label COLLATE NOCASE
                 LIMIT @Limit
                 """,
             "wikidata_franchise" => """

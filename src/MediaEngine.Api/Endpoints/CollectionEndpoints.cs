@@ -21,11 +21,13 @@ using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Models;
 using MediaEngine.Domain.Services;
+using MediaEngine.Ingestion.Models;
 using MediaEngine.Providers.Services;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using static MediaEngine.Api.Services.Collections.CollectionResponseFormatting;
 using CollectionCreateRequest = MediaEngine.Contracts.Collections.CollectionCreateRequest;
 using CollectionDto = MediaEngine.Contracts.Collections.CollectionDto;
@@ -1959,6 +1961,7 @@ public static class CollectionEndpoints
             ICollectionBrowseReadService browseReadService,
             ICollectionMediaLookupReadService mediaLookupReadService,
             IDisplayProjectionReadService display,
+            HttpContext httpContext,
             CancellationToken ct) =>
         {
             var collection = await collectionRepo.GetByIdAsync(id, ct);
@@ -2013,7 +2016,8 @@ public static class CollectionEndpoints
                 collection.SortDirection.ToStorageValue(),
                 limit ?? 0,
                 secondarySortField: collection.SecondarySortField,
-                secondarySortDirection: collection.SecondarySortDirection?.ToStorageValue())
+                secondarySortDirection: collection.SecondarySortDirection?.ToStorageValue(),
+                viewerProfileId: await ResolveViewerProfileIdAsync(httpContext, ct))
                 .Where(visibleWorkIds.Contains)
                 .ToList();
 
@@ -2140,6 +2144,8 @@ public static class CollectionEndpoints
             CollectionCatalogReadService catalogReadService,
             ICollectionMediaLookupReadService mediaLookupReadService,
             IDisplayProjectionReadService display,
+            IProfileRepository profileRepo,
+            HttpContext httpContext,
             CancellationToken ct) =>
         {
             var definition = body.RuleDefinition.ToDomain();
@@ -2147,6 +2153,13 @@ public static class CollectionEndpoints
             {
                 return Results.Ok(new CollectionPreviewResponse(0, []));
             }
+
+            // A preview evaluates for the profile that is editing, and says so when the rules depend on the viewer.
+            var viewerProfileId = await ResolveViewerProfileIdAsync(httpContext, ct);
+            var usesPerProfileFields = CollectionRuleEvaluator.UsesPerProfileFields(definition);
+            var viewerName = usesPerProfileFields && viewerProfileId is { } viewerId
+                ? (await profileRepo.GetByIdAsync(viewerId, ct))?.DisplayName
+                : null;
 
             var visibleWorkIds = await display.LoadVisibleWorkIdsAsync(ct);
             var matchedWorkIds = browseReadService.EvaluateRules(
@@ -2156,7 +2169,8 @@ public static class CollectionEndpoints
                 0,
                 body.Query,
                 body.SecondarySortField,
-                body.SecondarySortDirection)
+                body.SecondarySortDirection,
+                viewerProfileId)
                 .Where(visibleWorkIds.Contains)
                 .ToList();
             var displayWorkIds = await catalogReadService.GetDisplayWorkIdsAsync(matchedWorkIds, ct);
@@ -2170,6 +2184,8 @@ public static class CollectionEndpoints
             return Results.Ok(new CollectionPreviewResponse(total, resolved)
             {
                 MediaTypeCounts = mediaTypeCounts,
+                UsesPerProfileFields = usesPerProfileFields,
+                EvaluatedForProfileName = viewerName,
             });
         })
         .WithName("PreviewCollection")
@@ -2640,16 +2656,29 @@ public static class CollectionEndpoints
             string? q,
             int? limit,
             ICollectionBrowseReadService browseReadService,
+            IOptionsMonitor<IngestionOptions> ingestionOptions,
             CancellationToken ct) =>
         {
             var isGenericEntityField = StructuredDiscoveryFieldCatalog.IsEntityBacked(field);
             if (!isGenericEntityField
-                && field is not ("person_qid" or "wikidata_franchise"))
+                && field is not ("person_qid" or "wikidata_franchise" or "library" or "in_collection"))
             {
                 return ApiErrors.BadRequest("The requested collection field is not entity-backed.");
             }
 
             var page = PagedRequest.From(null, limit, defaultLimit: 100);
+            if (field == "library")
+            {
+                // Library folders live in configuration, not the data store: offer each configured library by name.
+                return Results.Ok(ingestionOptions.CurrentValue.LibraryFolders
+                    .Where(library => !string.IsNullOrWhiteSpace(library.Id)
+                        && (string.IsNullOrWhiteSpace(q) || library.Name.Contains(q.Trim(), StringComparison.OrdinalIgnoreCase)))
+                    .OrderBy(library => library.Name, StringComparer.OrdinalIgnoreCase)
+                    .Take(page.Limit)
+                    .Select(library => new CollectionRuleValueDto(library.Id, string.IsNullOrWhiteSpace(library.Name) ? library.Id : library.Name, 0, "Cross-media"))
+                    .ToList());
+            }
+
             return Results.Ok(await browseReadService.GetEntityFieldValuesAsync(field, q, page.Limit, ct));
         })
         .WithName("GetEntityFieldValues")
@@ -2786,6 +2815,21 @@ public static class CollectionEndpoints
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
         return creators.Count == 0 ? null : string.Join(", ", creators);
+    }
+
+    /// <summary>
+    /// The profile whose activity a rule collection is evaluated for: the person (or the app acting for a person) making the
+    /// request. A service application acts for nobody, so it gets none and per-profile conditions match nothing.
+    /// </summary>
+    private static async Task<Guid?> ResolveViewerProfileIdAsync(HttpContext httpContext, CancellationToken ct)
+    {
+        var authority = await httpContext.RequestServices
+            .GetRequiredService<IRequestAuthorityResolver>()
+            .ResolveAsync(httpContext, ct);
+        return authority.PrincipalKind is PrincipalKind.Human or PrincipalKind.DelegatedUserClient
+            && authority.ActiveProfileId is { } profileId && profileId != Guid.Empty
+                ? profileId
+                : null;
     }
 
     private static async Task<Profile?> ResolveActiveProfileAsync(

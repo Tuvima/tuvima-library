@@ -549,6 +549,8 @@ public sealed partial class EngineApiClient
             {
                 Count = result.Count,
                 MediaTypeCounts = result.MediaTypeCounts,
+                UsesPerProfileFields = result.UsesPerProfileFields,
+                EvaluatedForProfileName = result.EvaluatedForProfileName,
                 Items = result.Items.Select(item => new CollectionResolvedItemViewModel
                 {
                     EntityId = item.EntityId,
