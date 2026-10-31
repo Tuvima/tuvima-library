@@ -294,8 +294,8 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void MainLayout_StartsLiveUpdatesAndUsesDedicatedNavbarComponents()
     {
-        var source = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Shared", "MainLayout.razor"));
-        var accountSource = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Navigation", "TopNavAccountMenu.razor"));
+        var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Shared", "MainLayout.razor"));
+        var accountSource = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Navigation", "TopNavAccountMenu.razor"));
         var accountCss = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Navigation", "TopNavAccountMenu.razor.css"));
         var activityIndicator = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Navigation", "SystemActivityIndicator.razor"));
         var activityIndicatorCss = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Navigation", "SystemActivityIndicator.razor.css"));
@@ -461,7 +461,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void MainLayout_CancelsStartupAndUnregistersObserversAfterDisposal()
     {
-        var source = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Shared", "MainLayout.razor"));
+        var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Shared", "MainLayout.razor"));
         var disposeStart = source.IndexOf("public async ValueTask DisposeAsync()", StringComparison.Ordinal);
         Assert.True(disposeStart >= 0);
         var dispose = source[disposeStart..];

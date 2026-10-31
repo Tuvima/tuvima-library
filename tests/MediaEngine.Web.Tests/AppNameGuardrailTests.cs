@@ -57,7 +57,7 @@ public sealed partial class AppNameGuardrailTests
         new("src/MediaEngine.Api/Services/Approvals/ApprovalStatementBuilder.cs", "\"Added by hand, not checked by Tuvima\"", "The company that verifies plugins (developer-tools spec D-H trust levels)."),
         new("src/MediaEngine.Web/Components/Settings/PluginSettingsTab.razor", "Official Tuvima", "The company that publishes Official plugins: the badge and the filter switch on the Plugins page (Plugins and Integrations screens spec D7)."),
         new("src/MediaEngine.Web/Components/Shared/AppOfficialPill.razor", "Official Tuvima", "The company that publishes Official plugins: the pill with the Tuvima icon (Plugins and Integrations screens v3 D28)."),
-        new("src/MediaEngine.Web/Components/Shared/AppOfficialPill.razor", "Made by Tuvima", "The company that publishes Official plugins: the pill's tooltip."),
+        new("src/MediaEngine.Web/Resources/SharedStrings.resx", "Made by Tuvima", "The company that publishes Official plugins: the pill's tooltip."),
         new("src/MediaEngine.Api/Services/Approvals/ApprovalStatementBuilder.cs", "\"Tuvima hasn't checked this plugin.", "The company that verifies plugins; the not-verified warning (developer-tools spec D-H trust levels)."),
     ];
 
@@ -127,7 +127,7 @@ public sealed partial class AppNameGuardrailTests
                     continue;
                 }
 
-                var text = LocalizedSource.ReadAllText(path);
+                var text = File.ReadAllText(path);
                 if (!text.Contains("Tuvima", StringComparison.Ordinal))
                 {
                     continue;

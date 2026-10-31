@@ -96,7 +96,7 @@
                             @CollectionsLead@for (var i = 0; i < ShownCollections.Count; i++)
                             {
                                 var collection = ShownCollections[i];
-                                <strong>@collection.Name</strong>@if (IsSeveral) { <text> @L["DeleteFromLibraryDialog_OfThese", collection.ItemsInRequest]</text> }@(i < ShownCollections.Count - 1 ? ", " : string.Empty)
+                                <strong>@collection.Name</strong>@if (IsSeveral) { <text>@(" ")@L["DeleteFromLibraryDialog_OfThese", collection.ItemsInRequest]</text> }@(i < ShownCollections.Count - 1 ? ", " : string.Empty)
                             }
                             @if (HiddenCollectionCount > 0)
                             {

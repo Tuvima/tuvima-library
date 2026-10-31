@@ -6744,7 +6744,7 @@
   <data name="Common_LibrariesCouldNotBeLoaded" xml:space="preserve">
     <value>Libraries could not be loaded</value>
   </data>
-  <data name="LibrariesTab_ThisLibraryPageDoesNot" xml:space="preserve">
+  <data name="LibrariesTab_ThisPageDoesNot" xml:space="preserve">
     <value>This library page does not exist</value>
   </data>
   <data name="Common_BackToLibraries" xml:space="preserve">
@@ -8648,9 +8648,6 @@
   </data>
   <data name="SetupCodeStage_OpenTheInstallFolderIn" xml:space="preserve">
     <value>Open the install folder in a terminal as administrator and run:</value>
-  </data>
-  <data name="SetupCodeStage_TuvimaAdminSetupCode" xml:space="preserve">
-    <value>tuvima-admin setup code</value>
   </data>
   <data name="SetupCodeStage_SetupCode" xml:space="preserve">
     <value>Setup code</value>
