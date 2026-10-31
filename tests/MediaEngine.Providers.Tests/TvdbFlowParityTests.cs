@@ -168,4 +168,65 @@ public sealed class TvdbFlowParityTests
         Assert.Contains(handler.Lines, line => line.Contains("/series/2/extended", StringComparison.Ordinal));
         Assert.DoesNotContain(handler.Lines, line => line.Contains("/series/1/extended", StringComparison.Ordinal));
     }
+
+    private static RecordingHandler HandlerWithQueryHits() => new(request =>
+    {
+        var path = request.Uri.AbsolutePath;
+        if (path.EndsWith("/login", StringComparison.Ordinal))
+        {
+            return RecordingHandler.Json("""{"data":{"token":"bearer-token"}}""");
+        }
+
+        if (path.EndsWith("/search", StringComparison.Ordinal))
+        {
+            var query = Uri.UnescapeDataString(request.Uri.Query).Replace('+', ' ');
+            return query.Contains("Stephen Curry MasterClass", StringComparison.Ordinal)
+                ? RecordingHandler.Json("""{"data":[{"tvdb_id":"7","name":"Stephen Curry"},{"tvdb_id":"343791","name":"MasterClass: Stephen Curry Teaches Shooting, Ball-Handling, and Scoring"}]}""")
+                : query.Contains("Stephen Curry", StringComparison.Ordinal) && !query.Contains("Shooting", StringComparison.Ordinal)
+                    ? RecordingHandler.Json("""{"data":[{"tvdb_id":"7","name":"Stephen Curry"}]}""")
+                    : RecordingHandler.Json("""{"data":[]}""");
+        }
+
+        return RecordingHandler.Json("""{"data":null}""");
+    });
+
+    [Fact]
+    public async Task ALongFolderNameWithNoHits_IsRetriedWithItsPartsAndPicksTheCloseSeries()
+    {
+        var handler = HandlerWithQueryHits();
+        using var rig = new ShippedProviderHarness.TvdbRig(handler);
+
+        await rig.Provider.FetchAsync(Request("Stephen Curry - MasterClass - Shooting, Ball-Handling, and Scoring", null, season: null));
+
+        Assert.Contains(handler.Lines, line => line.Contains("/series/343791/extended", StringComparison.Ordinal));
+        Assert.DoesNotContain(handler.Lines, line => line.Contains("/series/7/extended", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task APartThatReturnsOneUnrelatedHit_IsNotAccepted()
+    {
+        var handler = new RecordingHandler(request =>
+        {
+            var path = request.Uri.AbsolutePath;
+            if (path.EndsWith("/login", StringComparison.Ordinal))
+            {
+                return RecordingHandler.Json("""{"data":{"token":"bearer-token"}}""");
+            }
+
+            if (path.EndsWith("/search", StringComparison.Ordinal))
+            {
+                var query = Uri.UnescapeDataString(request.Uri.Query).Replace('+', ' ');
+                return query.Contains("Alpha - Beta", StringComparison.Ordinal)
+                    ? RecordingHandler.Json("""{"data":[]}""")
+                    : RecordingHandler.Json("""{"data":[{"tvdb_id":"7","name":"Alpha Centauri Chronicles"}]}""");
+            }
+
+            return RecordingHandler.Json("""{"data":null}""");
+        });
+        using var rig = new ShippedProviderHarness.TvdbRig(handler);
+
+        await rig.Provider.FetchAsync(Request("Alpha - Beta", null));
+
+        Assert.DoesNotContain(handler.Lines, line => line.Contains("/extended", StringComparison.Ordinal));
+    }
 }

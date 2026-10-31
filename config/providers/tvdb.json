@@ -273,6 +273,61 @@
                 }
               ],
               "fallback": "only_candidate"
+            },
+            {
+              "if": [
+                {
+                  "blank": "$show"
+                }
+              ],
+              "then": [
+                {
+                  "each": "term",
+                  "in": {
+                    "parts_of": "$show_name"
+                  },
+                  "do": [
+                    {
+                      "if": [
+                        {
+                          "blank": "$show"
+                        }
+                      ],
+                      "then": [
+                        {
+                          "call": "search",
+                          "args": {
+                            "query": "$term"
+                          },
+                          "into": "hits"
+                        },
+                        {
+                          "pick": "show",
+                          "from": "$hits",
+                          "take": 10,
+                          "candidate_id": [
+                            "tvdb_id",
+                            "id"
+                          ],
+                          "tests": [
+                            {
+                              "path": "name",
+                              "equals": "$show_name",
+                              "ignore_case": true
+                            },
+                            {
+                              "path": "name",
+                              "equals": "$show_name",
+                              "ignore_case": true,
+                              "min_word_overlap": 0.8
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
             }
           ]
         },
