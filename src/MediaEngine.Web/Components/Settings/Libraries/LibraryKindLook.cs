@@ -1,5 +1,4 @@
 using MediaEngine.Contracts.Settings;
-using MediaEngine.Web.Services.Formatting;
 
 namespace MediaEngine.Web.Components.Settings;
 
@@ -46,9 +45,4 @@ public static class LibraryKindLook
         var supplies = SuppliesText(capabilities);
         return supplies.Length == 0 ? name : $"{name}: {supplies}";
     }
-
-    /// <summary>The tooltip of the amber Unmatched count.</summary>
-    public static string UnmatchedText(int count) => count == 1
-        ? "1 file couldn't be matched. It stays where it is and is tried again."
-        : $"{DisplayFormat.FormatCount(count)} files couldn't be matched. They stay where they are and are tried again.";
 }

@@ -203,9 +203,6 @@
     <value>Descargar de memoria</value>
   </data>
   <!-- AI Features Tab -->
-  <data name="AiFeatures_Enrichment" xml:space="preserve">
-    <value>Enriquecimiento</value>
-  </data>
   <data name="AiFeatures_Scheduled" xml:space="preserve">
     <value>Programado</value>
   </data>

@@ -100,6 +100,16 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
             new ConfigurationBuilder().Build(),
             NullLogger<UIOrchestratorService>.Instance,
             dashboardSession: session));
+        // The merged Activity list reads the live Libraries state and the context sidebar, as it does in the app.
+        Services.AddSingleton(new UniverseStateContainer());
+        Services.AddSingleton(provider => new MediaEngine.Web.Services.Integration.IngestionLiveDashboardState(
+            api,
+            provider.GetRequiredService<UIOrchestratorService>(),
+            provider.GetRequiredService<UniverseStateContainer>()));
+        Services.AddSingleton(provider => new MediaEngine.Web.Services.Playback.ContextSidebarPreferences(
+            provider.GetRequiredService<UIOrchestratorService>(),
+            new MediaEngine.Web.Tests.Support.LiveLibraryTestContext.NoPlaybackPreferences()));
+        Services.AddSingleton<MediaEngine.Web.Services.Playback.ContextSidebarCoordinator>();
         JSInterop.Mode = JSRuntimeMode.Loose;
         return result;
     }

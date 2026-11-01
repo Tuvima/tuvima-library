@@ -46,7 +46,7 @@ public sealed class IngestionQueueProgressGuardrailTests
     public void LivePage_DoesNotReadAnEstimateOfItsOwn()
     {
         // The queue snapshot's own EstimatedSecondsRemaining is read only by the shared formatter (and the state's change signature).
-        foreach (var relative in new[] { "Components/Settings/IngestionTasksTab.razor", "Components/Settings/LibrarySummary.razor" })
+        foreach (var relative in new[] { "Components/Settings/Libraries/LibraryStatusLine.razor", "Components/Pages/RecentlyAddedPageContent.razor" })
         {
             Assert.DoesNotContain("EstimatedSecondsRemaining", File.ReadAllText(Path.Combine(WebRoot, relative)), StringComparison.Ordinal);
         }
@@ -104,7 +104,7 @@ public sealed class IngestionQueueProgressGuardrailTests
     {
         var files = new List<string>
         {
-            Path.Combine(WebRoot, "Components", "Settings", "IngestionTasksTab.razor"),
+            Path.Combine(WebRoot, "Components", "Settings", "Libraries", "LibraryStatusLine.razor"),
             Path.Combine(WebRoot, "Components", "Settings", "IngestionQueueProgressText.cs"),
             // The menu indicator shows the same snapshot, so it may not work out a percentage of its own either.
             Path.Combine(WebRoot, "Services", "Integration", "ShellActivityState.cs"),

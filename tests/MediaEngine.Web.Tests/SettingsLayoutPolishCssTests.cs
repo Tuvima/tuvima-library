@@ -16,23 +16,6 @@ public sealed class SettingsLayoutPolishCssTests
     }
 
     [Fact]
-    public void LibrarySummaryTiles_WrapInCentredBalancedRows_AtEveryWidth()
-    {
-        var css = Read("src/MediaEngine.Web/Components/Settings/LibrarySummary.razor.css");
-
-        var breakdown = Rule(css, ".library-summary__breakdown");
-        Assert.Contains("display: flex;", breakdown, StringComparison.Ordinal);
-        Assert.Contains("flex-wrap: wrap;", breakdown, StringComparison.Ordinal);
-        Assert.Contains("justify-content: center;", breakdown, StringComparison.Ordinal);
-        Assert.Contains("--library-summary-columns: 4;", breakdown, StringComparison.Ordinal);
-
-        // Seven tiles: 4 + 3 on desktop, 3 + 3 + 1 on tablet, pairs on a phone. Never five then two.
-        Assert.Matches(new Regex(@"@media \(max-width: 1180px\)\s*\{\s*\.library-summary__breakdown \{ --library-summary-columns: 3; \}"), css);
-        Assert.Matches(new Regex(@"@media \(max-width: 600px\)\s*\{\s*\.library-summary__breakdown \{ --library-summary-columns: 2; \}"), css);
-        Assert.DoesNotContain("repeat(6", css, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void SettingsMenuToggleSlot_CentresTheChevronOnTheRowsMiddle()
     {
         var css = Read("src/MediaEngine.Web/Components/MediaHub/MediaSectionShell.razor.css");

@@ -203,9 +203,6 @@
     <value>Décharger</value>
   </data>
   <!-- AI Features Tab -->
-  <data name="AiFeatures_Enrichment" xml:space="preserve">
-    <value>Enrichissement</value>
-  </data>
   <data name="AiFeatures_Scheduled" xml:space="preserve">
     <value>Planifié</value>
   </data>

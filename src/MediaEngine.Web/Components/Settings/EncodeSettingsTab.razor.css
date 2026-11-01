@@ -5,6 +5,12 @@
 }
 
 .encode-settings__grid,
+.encode-settings__window {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    gap: var(--tl-space-4);
+}
+
 .encode-settings__diagnostics {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

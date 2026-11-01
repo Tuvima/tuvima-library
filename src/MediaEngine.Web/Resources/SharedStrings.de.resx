@@ -203,9 +203,6 @@
     <value>Entladen</value>
   </data>
   <!-- AI Features Tab -->
-  <data name="AiFeatures_Enrichment" xml:space="preserve">
-    <value>Anreicherung</value>
-  </data>
   <data name="AiFeatures_Scheduled" xml:space="preserve">
     <value>Geplant</value>
   </data>

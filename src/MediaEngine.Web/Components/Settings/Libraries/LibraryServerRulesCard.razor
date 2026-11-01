@@ -34,12 +34,6 @@
                   Value="@(_artwork?.ArtworkEnabled ?? false)"
                   ValueChanged="SetArtworkAsync"
                   Disabled="@(ReadOnly || _saving || !AnyTagsOn)" />
-    <div class="libs-rules__row">
-        <div>
-            <strong>@L["LibraryServerRulesCard_WhenAFileWithThe"]</strong>
-            <small>The new file gets a unique name; nothing is overwritten.</small>
-        </div>
-    </div>
     @if (_saved)
     {
         <p class="libs-rules__saved" role="status">@L["Common_Saved"]</p>

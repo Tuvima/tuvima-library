@@ -170,7 +170,6 @@
                                                    AriaLabel="@($"Rename {NameOf(library)}")"
                                                    Disabled="@(_saving || ReadOnly)"
                                                    OnClick="@(() => RenameLibraryAsync(library))" />
-                                    @UnmatchedBar(library)
                                 </div>
                             </header>
                             @LibraryBody(library, library.Id == BinLibraryId)
@@ -179,11 +178,6 @@
                 }
                 else
                 {
-                    @if (SelectedLibrary is { UnmatchedCount: > 0 })
-                    {
-                        <div class="library-folders__detail-actions">@UnmatchedBar(SelectedLibrary)</div>
-                    }
-
                     @LibraryBody(SelectedLibrary, true)
                 }
                 </LibraryUploadZone>
@@ -682,14 +676,6 @@
             : $"File handling saved for {target.DisplayName()}.");
     }
 
-    private async Task SetRecycleBinAsync(LibraryFolderDto source, bool value)
-    {
-        var library = Clone(source);
-        if (library is null || _saving) return;
-        library.RecycleBin = value;
-        await SaveAsync(library, value ? "Deleted files now go to the recycle bin." : "Deleted files are removed straight away.");
-    }
-
     private async Task SetRecycleBinDaysAsync(LibraryFolderDto source, int days)
     {
         var library = Clone(source);
@@ -930,46 +916,21 @@
             <ExcludedFilesSection LibraryId="@library.Id" ReadOnly="@ReadOnly" />
         }
 
-        // Pinned to the bottom of the pane, so the switch sits in the same place for every library. What is in the bin lists above it.
-        if (library is not null)
+        // What is in the bin, and how long it is kept, sit at the bottom of the pane while the bin is on. The on/off switch itself is
+        // the library's File handling tab (one switch, not two).
+        if (library is not null && library.RecycleBin)
         {
             <div class="library-folders__recycle">
-                @if (library.RecycleBin && showBin)
+                @if (showBin)
                 {
                     <RecycleBinSection />
                 }
-                <AppSwitchRow Label="Recycle bin"
-                              Icon="@AppMaterialIcons.Outlined.DeleteOutline"
-                              Description="Deleted files wait in a recycle bin inside Library's data folder instead of being removed straight away. You can put them back, or empty the bin."
-                              Value="@library.RecycleBin"
-                              Disabled="@(_saving || ReadOnly)"
-                              ValueChanged="@((bool value) => SetRecycleBinAsync(library, value))" />
-                @if (library.RecycleBin)
-                {
-                    <AppNumericField Label="Keep deleted files for (days, 0 keeps them until the bin is emptied)"
-                                     Value="@library.RecycleBinDays" Min="0" Max="3650"
-                                     Disabled="@(_saving || ReadOnly)"
-                                     ValueChanged="@((int value) => SetRecycleBinDaysAsync(library, value))" />
-                }
+                <AppNumericField Label="Keep deleted files for (days, 0 keeps them until the bin is emptied)"
+                                 Value="@library.RecycleBinDays" Min="0" Max="3650"
+                                 Disabled="@(_saving || ReadOnly)"
+                                 ValueChanged="@((int value) => SetRecycleBinDaysAsync(library, value))" />
             </div>
         }
-    };
-
-    // The amber Unmatched count with Retry now and Keep all as they are.
-    private RenderFragment UnmatchedBar(LibraryFolderDto library) => __builder =>
-    {
-        if (library.UnmatchedCount <= 0) return;
-        <LibraryUnmatchedCount Count="@library.UnmatchedCount" />
-        <AppButton Label="Retry now"
-                   ButtonStyle="AppButtonStyle.Outlined"
-                   Disabled="@(_saving || ReadOnly)"
-                   aria-label="@($"Retry now for {NameOf(library)}")"
-                   OnClick="@(() => RetryUnmatchedAsync(library))" />
-        <AppButton Label="Keep all as they are"
-                   ButtonStyle="AppButtonStyle.Text"
-                   Disabled="@(_saving || ReadOnly)"
-                   aria-label="@($"Keep all unmatched files in {NameOf(library)} as they are")"
-                   OnClick="@(() => KeepAllUnmatchedAsync(library))" />
     };
 
     // The libraries of the selected kind when it holds several named ones and has any; otherwise the one library (or none yet).
@@ -1003,55 +964,6 @@
         copy.Name = name;
         await SaveAsync(copy, "Library renamed.");
     }
-
-    // Retry now: the Engine makes the library's Unmatched files due and looks them up in the background.
-    private async Task RetryUnmatchedAsync(LibraryFolderDto library)
-    {
-        if (_saving) return;
-        // Busy while the request runs, so a double click sends one.
-        _saving = true;
-        try
-        {
-            var result = await ApiClient.RetryUnmatchedLibraryAsync(library.Id);
-            await AfterUnmatchedActionAsync(result, affected => $"Trying {affected} again in {NameOf(library)}.");
-        }
-        finally { _saving = false; }
-    }
-
-    // Keep all as they are stops the retries and clears them from the count; it asks first, because it ends the lookups for those files.
-    private async Task KeepAllUnmatchedAsync(LibraryFolderDto library)
-    {
-        if (_saving) return;
-        // Busy from the question to the answer, so a double click asks and sends once.
-        _saving = true;
-        try
-        {
-            var confirmed = await DialogService.ShowMessageBoxAsync(
-                $"Stop trying to match {FilesText(library.UnmatchedCount)} in {NameOf(library)}?",
-                "You can look them up again later.",
-                yesText: "Keep all as they are", cancelText: "Cancel");
-            if (confirmed != true) return;
-            var result = await ApiClient.KeepAllUnmatchedLibraryAsync(library.Id);
-            await AfterUnmatchedActionAsync(result, affected => $"Kept {affected} in {NameOf(library)} as they are.");
-        }
-        finally { _saving = false; }
-    }
-
-    // The toast says how many files the action touched; the counts are read again.
-    private async Task AfterUnmatchedActionAsync(MediaEngine.Contracts.Library.UnmatchedActionResultDto? result, Func<string, string> message)
-    {
-        if (result is null)
-        {
-            _notice = ApiClient.LastError ?? "That could not be done. Try again in a moment.";
-            return;
-        }
-
-        Snackbar.Add(message(FilesText(result.Affected)), AppSeverity.Success);
-        await ReloadConfigurationAsync();
-        await Changed.InvokeAsync();
-    }
-
-    private static string FilesText(int count) => count == 1 ? "1 file" : $"{DisplayFormat.FormatCount(count)} files";
 
     private static LibraryFolderDto? Clone(LibraryFolderDto? library) => library is null
         ? null

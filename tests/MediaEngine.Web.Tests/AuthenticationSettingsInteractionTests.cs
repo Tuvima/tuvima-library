@@ -67,6 +67,34 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
     }
 
     [Fact]
+    public void AdvancedTab_HoldsEverySignInControlUnderOneOfThreeHeadings()
+    {
+        var cut = Render<SecurityTab>();
+        cut.WaitForElement(".security-settings__facts");
+
+        Assert.Equal(["How people sign in", "Sessions and invitations", "Status"], cut.FindAll("h3").Select(h => h.TextContent.Trim()));
+
+        string[] InGroup(string id) => cut.Find($"#{id}").NextElementSibling is { } group ? [group.TextContent] : [];
+        var signIn = string.Concat(InGroup("security-group-sign-in")) + cut.Find("h4").TextContent;
+        Assert.Contains("Password sign-in", signIn, StringComparison.Ordinal);
+        Assert.Contains("Passkey sign-in", signIn, StringComparison.Ordinal);
+        Assert.Contains("External provider sign-in", signIn, StringComparison.Ordinal);
+        Assert.Contains("External providers", signIn, StringComparison.Ordinal);
+        Assert.Single(cut.FindAll("select"), select => select.InnerHtml.Contains("Optional", StringComparison.Ordinal));
+
+        var sessions = string.Concat(InGroup("security-group-sessions"));
+        Assert.Contains("Session lifetime (hours)", sessions, StringComparison.Ordinal);
+        Assert.Contains("Maximum active sessions per account", sessions, StringComparison.Ordinal);
+        Assert.Contains("Invitation lifetime (hours)", sessions, StringComparison.Ordinal);
+        Assert.Contains("Trusted local networks", sessions, StringComparison.Ordinal);
+
+        var status = cut.Find("dl.security-settings__facts").TextContent;
+        Assert.Contains("Public address", status, StringComparison.Ordinal);
+        Assert.Contains("Passkeys", status, StringComparison.Ordinal);
+        Assert.Contains("Recovery delivery", status, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void GeneralNotifications_OffersTheTestEmailOnceOutgoingEmailIsSetUp()
     {
         var cut = Render<NotificationsEmailTest>();

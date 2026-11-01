@@ -5618,8 +5618,7 @@ input[type="reset"],
 .lib-meta { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
 .lib-meta__icon { display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; }
 .lib-meta__icon--plain { min-width: var(--tl-control-height-compact); min-height: var(--tl-control-height-compact); color: var(--tl-text-muted); font-size: 1.25rem; }
-.lib-meta__icon:focus-visible, .lib-unmatched:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
-.lib-unmatched { display: inline-flex; align-items: center; justify-content: center; min-width: 1.5rem; padding: 0 6px; border: 1px solid var(--tl-status-warning-border); border-radius: 999px; color: var(--tl-status-warning); background: var(--tl-status-warning-soft); font-size: .75rem; font-weight: 700; }
+.lib-meta__icon:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
 
 /* Phone search: the visible Cancel button next to the full-screen search field. */
 .universal-search-overlay__cancel {

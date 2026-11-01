@@ -515,10 +515,6 @@
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Settings/EnrichmentRefreshSchedulePanel.razor.css": {
-      "important": 1,
-      "deep": 0
-    },
     "src/MediaEngine.Web/Components/Settings/IngestionBatchHistory.razor.css": {
       "important": 6,
       "deep": 13
@@ -542,10 +538,6 @@
     "src/MediaEngine.Web/Components/Settings/IngestionRecentlyAddedPreview.razor.css": {
       "important": 0,
       "deep": 3
-    },
-    "src/MediaEngine.Web/Components/Settings/IngestionTasksTab.razor.css": {
-      "important": 3,
-      "deep": 9
     },
     "src/MediaEngine.Web/Components/Settings/LibrariesTab.razor.css": {
       "important": 0,
@@ -575,10 +567,6 @@
       "important": 3,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Settings/MetadataPipelineStrip.razor.css": {
-      "important": 0,
-      "deep": 7
-    },
     "src/MediaEngine.Web/Components/Settings/MetadataSettingsPage.razor.css": {
       "important": 1,
       "deep": 14
@@ -599,10 +587,6 @@
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Settings/LibrarySummary.razor.css": {
-      "important": 0,
-      "deep": 6
-    },
     "src/MediaEngine.Web/Components/Settings/PlaybackDeliverySettingsTab.razor.css": {
       "important": 0,
       "deep": 2
@@ -618,10 +602,6 @@
     "src/MediaEngine.Web/Components/Settings/ProviderTesterToolTab.razor.css": {
       "important": 0,
       "deep": 0
-    },
-    "src/MediaEngine.Web/Components/Settings/RecentlyAddedDateRow.razor.css": {
-      "important": 0,
-      "deep": 1
     },
     "src/MediaEngine.Web/Components/Settings/SecurityTab.razor.css": {
       "important": 0,
@@ -1469,10 +1449,6 @@
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Settings/EnrichmentRefreshSchedulePanel.razor.css": {
-      "important": 1,
-      "deep": 0
-    },
     "src/MediaEngine.Web/Components/Settings/Frame/SettingsPageFrame.razor.css": {
       "important": 0,
       "deep": 14
@@ -1487,10 +1463,6 @@
     },
     "src/MediaEngine.Web/Components/Settings/IngestionMediaDrawer.razor.css": {
       "important": 1,
-      "deep": 7
-    },
-    "src/MediaEngine.Web/Components/Settings/IngestionTasksTab.razor.css": {
-      "important": 3,
       "deep": 7
     },
     "src/MediaEngine.Web/Components/Settings/LibrariesTab.razor.css": {
@@ -1521,10 +1493,6 @@
       "important": 3,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Settings/MetadataPipelineStrip.razor.css": {
-      "important": 0,
-      "deep": 7
-    },
     "src/MediaEngine.Web/Components/Settings/MetadataSettingsPage.razor.css": {
       "important": 1,
       "deep": 14
@@ -1545,10 +1513,6 @@
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Settings/LibrarySummary.razor.css": {
-      "important": 0,
-      "deep": 6
-    },
     "src/MediaEngine.Web/Components/Settings/PlaybackDeliverySettingsTab.razor.css": {
       "important": 0,
       "deep": 2
@@ -1564,10 +1528,6 @@
     "src/MediaEngine.Web/Components/Settings/ProviderTesterToolTab.razor.css": {
       "important": 0,
       "deep": 0
-    },
-    "src/MediaEngine.Web/Components/Settings/RecentlyAddedDateRow.razor.css": {
-      "important": 0,
-      "deep": 1
     },
     "src/MediaEngine.Web/Components/Settings/SecurityTab.razor.css": {
       "important": 0,

@@ -28,6 +28,9 @@ public sealed class IngestionLiveDashboardState : IDisposable, IAsyncDisposable
     private bool _signalsDisposed;
     private bool _disposed;
     private bool _initialized;
+    // The Libraries tabs that show the live state (the status line on the first tab, the Activity list) share this one scoped
+    // instance. Each Initialize is a hold and each StopAsync releases one, so moving between tabs never stops the other's updates.
+    private int _holds;
     // Written by both the snapshot handler and the poll's load, on different threads.
     private volatile bool _queueFetchFailed;
     private volatile string? _error;
@@ -66,6 +69,7 @@ public sealed class IngestionLiveDashboardState : IDisposable, IAsyncDisposable
 
     public async Task InitializeAsync(CancellationToken ct = default)
     {
+        System.Threading.Interlocked.Increment(ref _holds);
         if (!_initialized)
         {
             _stateContainer.OnStateChanged += OnRealtimeStateChanged;
@@ -438,6 +442,13 @@ public sealed class IngestionLiveDashboardState : IDisposable, IAsyncDisposable
 
     public async ValueTask StopAsync()
     {
+        // Another tab still holds the live state: leave it running.
+        if (System.Threading.Interlocked.Decrement(ref _holds) > 0)
+        {
+            return;
+        }
+
+        System.Threading.Interlocked.Exchange(ref _holds, 0);
         UnsubscribeAndCancel();
 
         var tasks = new[] { _pollTask, _snapshotRefreshTask, _liveNotifyTask }

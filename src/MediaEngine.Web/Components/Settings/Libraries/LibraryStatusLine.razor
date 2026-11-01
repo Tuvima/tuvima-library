@@ -1,0 +1,67 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Ingestion
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Integration
+@implements IAsyncDisposable
+@inject IngestionLiveDashboardState Dashboard
+@inject IStringLocalizer<SharedStrings> L
+
+@* The one line above the libraries table (settings-and-setup-simplified D6): what the Library is doing right now, in the Engine's own
+   words, with the button that checks the folders for changes beside it. It replaces the old Library & Ingestion overview. *@
+<div class="libs-status" data-testid="library-status-line" aria-live="polite" aria-busy="@(IsBusy ? "true" : "false")">
+    @if (Dashboard.IsEngineUnreachable)
+    {
+        <p class="libs-status__text is-unreachable">@L["Common_TheLibrarySEngineIsn"]</p>
+        <AppButton Label="@L["Common_Retry"].Value" ButtonStyle="AppButtonStyle.Outlined" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="RetryAsync" />
+    }
+    else if (Queue is not { } queue)
+    {
+        <AppSkeleton Width="16rem" Height="1.1rem" />
+    }
+    else
+    {
+        <p class="@TextClass(queue)">
+            <i class="libs-status__dot" aria-hidden="true"></i>
+            <span data-testid="library-status-text">@IngestionQueueProgressText.LibraryStatus(queue, DateTimeOffset.UtcNow)</span>
+            @if (IngestionQueueProgressText.IsWaiting(queue))
+            {
+                <AppLink Href="@SettingsNav.RouteFor(SettingsSection.Tools)">@L["LibraryStatusLine_ToolsAndRequirements"]</AppLink>
+            }
+        </p>
+        <AppButton Label="@L["IngestionScanAction_CheckFoldersForChanges"].Value"
+                   ButtonStyle="AppButtonStyle.Outlined"
+                   Size="AppControlSize.Compact"
+                   StartIcon="@AppMaterialIcons.Outlined.FolderOpen"
+                   Disabled="@(ReadOnly || Dashboard.IsLoading || Dashboard.IsScanStarting || IngestionQueueProgressText.IsWorking(queue))"
+                   OnClick="ScanNowAsync" />
+    }
+</div>
+
+@code {
+    /// <summary>A phone only reads the Libraries page, so it cannot start a check.</summary>
+    [Parameter] public bool ReadOnly { get; set; }
+
+    private IngestionQueueProgressDto? Queue => Dashboard.QueueProgress;
+    private bool IsBusy => !Dashboard.IsEngineUnreachable && (Queue is null || IngestionQueueProgressText.IsWorking(Queue));
+
+    private static string TextClass(IngestionQueueProgressDto queue) =>
+        "libs-status__text " + (IngestionQueueProgressText.IsWorking(queue) ? "is-working" : IngestionQueueProgressText.IsWaiting(queue) ? "is-waiting" : "is-idle");
+
+    protected override async Task OnInitializedAsync()
+    {
+        Dashboard.OnChanged += OnDashboardChanged;
+        await Dashboard.InitializeAsync();
+    }
+
+    private Task RetryAsync() => Dashboard.LoadAsync();
+
+    private Task ScanNowAsync() => Dashboard.ScanNowAsync();
+
+    private void OnDashboardChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public async ValueTask DisposeAsync()
+    {
+        Dashboard.OnChanged -= OnDashboardChanged;
+        await Dashboard.StopAsync();
+    }
+}
