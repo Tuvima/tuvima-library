@@ -4,6 +4,7 @@ using MediaEngine.Contracts.Setup;
 using MediaEngine.Web.Components.Setup;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Tests.Support;
+using Microsoft.AspNetCore.Components;
 
 namespace MediaEngine.Web.Tests;
 
@@ -151,6 +152,63 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
         Assert.Contains("app-button--outlined", restore!.ClassName, StringComparison.Ordinal);
         Assert.Contains("Restore a backup", restore.TextContent, StringComparison.Ordinal);
         Assert.Contains("app-button--filled", footer.QuerySelector(".setup-stage__footer-actions .app-button")!.ClassName, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Welcome_AsksOneNameAndShowsTheDerivedNetworkNameWithAChangeLink()
+    {
+        var cut = Render<SetupWelcomeStage>(parameters => parameters
+            .Add(p => p.ServerName, "Shaya's Library")
+            .Add(p => p.HostName, "shayas-library"));
+
+        Assert.Contains("What should we call this Library?", cut.Markup, StringComparison.Ordinal);
+        Assert.Single(cut.FindAll("input"));
+        var line = cut.Find("[data-testid='setup-network-name-line']").TextContent;
+        Assert.Contains("Phones and TVs on your home network will find it at shayas-library.local", line, StringComparison.Ordinal);
+        Assert.Contains("Change", line, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Welcome_ChangeRevealsTheNetworkNameFieldAndAHandSetNameStopsFollowingTheFriendlyName()
+    {
+        var host = "shayas-library";
+        var derived = true;
+        var cut = Render<SetupWelcomeStage>(parameters => parameters
+            .Add(p => p.ServerName, "Shaya's Library")
+            .Add(p => p.HostName, host)
+            .Add(p => p.HostNameDerived, derived)
+            .Add(p => p.HostNameChanged, EventCallback.Factory.Create<string>(this, value => host = value))
+            .Add(p => p.HostNameDerivedChanged, EventCallback.Factory.Create<bool>(this, value => derived = value)));
+
+        cut.Find("[data-testid='setup-network-name-change']").Click();
+
+        Assert.Empty(cut.FindAll("[data-testid='setup-network-name-change']"));
+        Assert.Equal(2, cut.FindAll("input").Count);
+        cut.Find("input[placeholder='tuvima']").Input("Den TV");
+        Assert.Equal("den-tv", host);
+        Assert.False(derived);
+    }
+
+    [Fact]
+    public void Welcome_WhileDerivedTheNetworkNameFollowsTheFriendlyName_AndAHandSetOneIsLeftAlone()
+    {
+        var host = string.Empty;
+        var hostChanged = EventCallback.Factory.Create<string>(this, value => host = value);
+
+        var following = Render<SetupWelcomeStage>(parameters => parameters
+            .Add(p => p.HostNameDerived, true)
+            .Add(p => p.HostNameChanged, hostChanged));
+        following.Find("input").Input("Shaya's Library");
+        Assert.Equal("shayas-library", host);
+
+        host = "den";
+        var handSet = Render<SetupWelcomeStage>(parameters => parameters
+            .Add(p => p.HostName, "den")
+            .Add(p => p.HostNameDerived, false)
+            .Add(p => p.HostNameChanged, hostChanged));
+        handSet.Find("input").Input("Another Name");
+        Assert.Equal("den", host);
+        Assert.Contains("den.local", handSet.Find("[data-testid='setup-network-name-line']").TextContent, StringComparison.Ordinal);
     }
 
     [Fact]

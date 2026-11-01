@@ -15,7 +15,7 @@ public sealed class VideosLibraryValidationTests
             dir = Path.GetDirectoryName(dir);
         }
 
-        var json = File.ReadAllText(Path.Combine(dir!, "config", "libraries.json"));
+        var json = File.ReadAllText(Path.Combine(dir!, "tests", "fixtures", "libraries.seven-defaults.json"));
         return JsonSerializer.Deserialize<LibrariesConfiguration>(json)!;
     }
 

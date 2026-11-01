@@ -177,7 +177,7 @@
         var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, new AppDialogParameters<ServerFolderPicker>
         {
             { x => x.InitialPath, path }, { x => x.SelectionMode, mode },
-        }, new AppDialogOptions { MaxWidth = AppMaxWidth.ExtraExtraLarge, CloseButton = false, CloseOnEscapeKey = true });
+        }, ServerFolderPicker.DialogOptions);
         return await dialog.Result is { Canceled: false, Data: ServerFolderValidationResultDto result } ? result : null;
     }
 

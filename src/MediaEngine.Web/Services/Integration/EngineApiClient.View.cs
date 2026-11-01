@@ -478,6 +478,14 @@ public sealed partial class EngineApiClient
         PostAsync<CreateViewSourceRequest, ViewSourceAdminDto>(
             "POST /view/admin/shared/sources", "/view/admin/shared/sources", request, ct: ct);
 
+    public Task<ViewSourceAdminDto?> UpdateViewSharedSourceAsync(
+        Guid sourceId, UpdateViewSourceRequest request, CancellationToken ct = default) =>
+        PutAsync<UpdateViewSourceRequest, ViewSourceAdminDto>(
+            "PUT /view/admin/shared/sources/{sourceId}", $"/view/admin/shared/sources/{sourceId:D}", request, ct: ct);
+
+    public Task<bool> DeleteViewSharedSourceAsync(Guid sourceId, CancellationToken ct = default) =>
+        DeleteAsync("DELETE /view/admin/shared/sources/{sourceId}", $"/view/admin/shared/sources/{sourceId:D}", ct: ct);
+
     public async Task<ViewSourceAdminDto?> UpdateViewProfileSourceAsync(
         Guid profileId, Guid sourceId, UpdateViewSourceRequest request, CancellationToken ct = default)
     {

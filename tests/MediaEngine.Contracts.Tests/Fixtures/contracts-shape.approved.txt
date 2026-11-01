@@ -10022,6 +10022,8 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.ViewStorageSummary
   Sources: System.Int32 | nullability=not-null | accessors=get,init
   Items: System.Int32 | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.NetworkNameRules
+
 MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupAdministratorRefusalCodes
 
 MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupAdministratorRequest
@@ -10114,6 +10116,7 @@ MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupRestoreConfirmation
 MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupServerIdentityDto
   ServerName: System.String | nullability=not-null | accessors=get,init
   HostName: System.String | nullability=not-null | accessors=get,init
+  HostNameDerived: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Setup.MediaEngine.Contracts.Setup.SetupSignInModes
 

@@ -11948,6 +11948,7 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   ServerName: System.String | json=server_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   HostName: System.String | json=host_name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  HostNameDerived: System.Boolean | json=host_name_derived | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Setup.SetupStartResponse
   kind=class | converter=default | number-handling=default | unmapped=default
