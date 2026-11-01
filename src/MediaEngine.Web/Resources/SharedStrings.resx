@@ -9354,4 +9354,31 @@
   <data name="CollectionRuleBuilder_AdvancedRuleGroups" xml:space="preserve">
     <value>Advanced (rule groups)</value>
   </data>
+  <data name="CollectionPack_TickFirst" xml:space="preserve">
+    <value>Tick at least one pack first.</value>
+  </data>
+  <data name="CollectionPack_ChooseProfiles" xml:space="preserve">
+    <value>Choose at least one other profile to share these collections with.</value>
+  </data>
+  <data name="CollectionPack_Reading" xml:space="preserve">
+    <value>Reading your library…</value>
+  </data>
+  <data name="CollectionPack_NoPacks" xml:space="preserve">
+    <value>There are no packs to offer yet.</value>
+  </data>
+  <data name="CollectionPack_WouldCreateOne" xml:space="preserve">
+    <value>Would create 1 collection from your library</value>
+  </data>
+  <data name="CollectionPack_WouldCreateMany" xml:space="preserve">
+    <value>Would create {0} collections from your library</value>
+  </data>
+  <data name="CollectionPack_WouldCreateOneForYou" xml:space="preserve">
+    <value>Would create 1 collection from your library, counted for you</value>
+  </data>
+  <data name="CollectionPack_WouldCreateManyForYou" xml:space="preserve">
+    <value>Would create {0} collections from your library, counted for you</value>
+  </data>
+  <data name="CollectionPack_NotEnough" xml:space="preserve">
+    <value>Your library doesn't have enough for this pack yet.</value>
+  </data>
 </root>

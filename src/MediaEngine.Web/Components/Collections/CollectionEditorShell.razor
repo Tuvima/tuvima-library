@@ -1421,20 +1421,20 @@
     {
         if (_selectedPacks.Count == 0)
         {
-            Snackbar.Add("Tick at least one pack first.", AppSeverity.Warning);
+            Snackbar.Add(L["CollectionPack_TickFirst"].Value, AppSeverity.Warning);
             _step = 2;
             return;
         }
 
         if (_ownerKind == "Profile" && _audience == "SelectedProfiles" && _selectedProfileIds.Count == 0)
         {
-            Snackbar.Add("Choose at least one other profile to share these collections with.", AppSeverity.Warning);
+            Snackbar.Add(L["CollectionPack_ChooseProfiles"].Value, AppSeverity.Warning);
             return;
         }
 
         if (string.Equals(PersistenceVisibility, "private", StringComparison.OrdinalIgnoreCase) && !Request.ActiveProfileId.HasValue)
         {
-            Snackbar.Add("An active profile is required to save a private collection.", AppSeverity.Warning);
+            Snackbar.Add(L["CollectionEditorShell_AnActiveProfileIsRequired"].Value, AppSeverity.Warning);
             return;
         }
 

@@ -1,12 +1,13 @@
 @namespace MediaEngine.Web.Components.Collections
 @using MediaEngine.Contracts.Collections
+@inject IStringLocalizer<SharedStrings> L
 
 @* Start from a pack (Collections and lists spec D14, 4b): a grid of pack cards. Each says how many collections it would
    create from this library, previews them with their counts, and can be ticked together with others. *@
 <div class="collection-packs">
     @if (Loading)
     {
-        <div class="collection-packs__state" role="status"><AppSpinner Indeterminate="true" Size="AppSize.Small" /> Reading your library…</div>
+        <div class="collection-packs__state" role="status"><AppSpinner Indeterminate="true" Size="AppSize.Small" /> @L["CollectionPack_Reading"]</div>
     }
     else if (!string.IsNullOrWhiteSpace(Error))
     {
@@ -14,7 +15,7 @@
     }
     else if (Packs.Count == 0)
     {
-        <p class="collection-packs__state">There are no packs to offer yet.</p>
+        <p class="collection-packs__state">@L["CollectionPack_NoPacks"]</p>
     }
     else
     {
@@ -35,7 +36,7 @@
                     <p class="collection-pack__text">@pack.Description</p>
                     @if (available)
                     {
-                        <p class="collection-pack__count">Would create @pack.WouldCreateCount @(pack.WouldCreateCount == 1 ? "collection" : "collections") from your library@(pack.UsesPerProfileFields ? ", counted for you" : null)</p>
+                        <p class="collection-pack__count">@WouldCreateText(pack)</p>
                         <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary"
                                    EndIcon="@(open ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.ExpandMore)"
                                    OnClick="@(() => TogglePreview(id))">@(open ? "Hide preview" : "Preview")</AppButton>
@@ -54,7 +55,7 @@
                     }
                     else
                     {
-                        <p class="collection-pack__count">Your library doesn't have enough for this pack yet.</p>
+                        <p class="collection-pack__count">@L["CollectionPack_NotEnough"]</p>
                     }
                 </section>
             }
@@ -70,6 +71,14 @@
     [Parameter] public bool Loading { get; set; }
     [Parameter] public string? Error { get; set; }
     [Parameter] public EventCallback<(string Id, bool Selected)> SelectionChanged { get; set; }
+
+    private string WouldCreateText(CollectionPackSummaryDto pack) => (pack.WouldCreateCount, pack.UsesPerProfileFields) switch
+    {
+        (1, false) => L["CollectionPack_WouldCreateOne"].Value,
+        (1, true) => L["CollectionPack_WouldCreateOneForYou"].Value,
+        (var count, false) => L["CollectionPack_WouldCreateMany", count].Value,
+        (var count, true) => L["CollectionPack_WouldCreateManyForYou", count].Value,
+    };
 
     private void TogglePreview(string id)
     {
