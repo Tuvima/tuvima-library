@@ -82,21 +82,6 @@
         --media-tile-media-height: clamp(134px, 12.9vw, 162px);
     }
 
-    .media-tile-shelf--compact ::deep .media-tile.is-collection-card.is-landscape {
-        width: clamp(266px, 18.1vw, 350px);
-        --media-tile-media-height: clamp(119px, 7.7vw, 153px);
-    }
-
-    .media-tile-shelf--compact ::deep .media-tile.is-ordered-series-card.is-landscape {
-        width: clamp(238px, 14.7vw, 301px);
-        --media-tile-media-height: clamp(119px, 7.6vw, 144px);
-    }
-
-    .media-tile-shelf--compact ::deep .media-group-tile {
-        --media-group-tile-width: clamp(392px, 28vw, 518px);
-        --media-group-tile-height: clamp(210px, 14vw, 256px);
-    }
-
     @media (max-width: 640px) {
         .media-tile-shelf--compact .media-tile-shelf-track {
             grid-template-columns: minmax(0, 1fr);
@@ -173,3 +158,8 @@
 
 /* Phones: the poster rows are narrower, so the end tile is narrower too. */
 :root[data-form-factor="phone"] .media-tile-shelf { --media-tile-shelf-view-all-width: clamp(96px, 28vw, 120px); }
+
+.media-tile-shelf ::deep .person-tile {
+    flex: 0 0 auto;
+    width: clamp(130px, 9vw, 180px);
+}

@@ -172,12 +172,33 @@ public sealed class MediaTileViewModel
     public bool IsCollection { get; init; }
     public bool UseLandscapeGroupTile { get; init; }
 
+    /// <summary>The small corner word on a group tile: Collection, Series, Universe, List or Set.</summary>
+    public MediaTileGroupKind GroupKind { get; init; }
+
+    /// <summary>True when the group carries artwork somebody chose; it replaces the fanned cover stack.</summary>
+    public bool HasCustomArtwork { get; init; }
+
+    /// <summary>True for a playlist, which draws as the square tile beside albums.</summary>
+    public bool IsPlaylist { get; init; }
+
+    /// <summary>A group of titles (collection, Series, Universe, list, set) draws as the landscape tile with a cover stack.</summary>
     public bool RenderAsLandscapeGroupTile =>
-        UseLandscapeGroupTile
-        || (IsCollection
-            && Presentation is not (MediaTilePresentation.TvSeries
-                or MediaTilePresentation.Album
-                or MediaTilePresentation.Artist));
+        !IsPlaylist
+        && (UseLandscapeGroupTile
+            || Presentation is MediaTilePresentation.MovieSeries
+                or MediaTilePresentation.BookSeries
+                or MediaTilePresentation.ComicSeries
+                or MediaTilePresentation.AudiobookSeries
+            || (IsCollection
+                && Presentation is not (MediaTilePresentation.TvSeries
+                    or MediaTilePresentation.Album
+                    or MediaTilePresentation.Artist)));
+
+    /// <summary>A person (artist, author, director) drawn as a group tile uses the one round person tile instead.</summary>
+    public bool RenderAsPersonTile => Person is not null && RenderAsLandscapeGroupTile;
+
+    /// <summary>Group, person and playlist tiles share one family drawn by their own components, not the single-title tile.</summary>
+    public bool RenderAsFamilyTile => IsPlaylist || RenderAsLandscapeGroupTile;
 
     /// <summary>
     /// Stable render identity for a display card. Journey rows may share a work while
@@ -203,6 +224,15 @@ public sealed class MediaTileShelfViewModel
     public string? SeeAllRoute { get; init; }
 
     public MediaTileShelfKind Kind => MediaTileShelfKeys.Classify(Key);
+}
+
+public enum MediaTileGroupKind
+{
+    Collection,
+    Series,
+    Universe,
+    List,
+    Set,
 }
 
 public enum MediaTileShelfKind

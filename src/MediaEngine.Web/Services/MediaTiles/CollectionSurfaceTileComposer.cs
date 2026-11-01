@@ -95,6 +95,7 @@ public static class CollectionSurfaceTileComposer
             SortTimestamp = group.CreatedAt,
             IsCollection = true,
             UseLandscapeGroupTile = true,
+            GroupKind = MediaTileGroupKind.Series,
         };
     }
 
@@ -165,6 +166,7 @@ public static class CollectionSurfaceTileComposer
             SortYear = shelf.LatestYear ?? shelf.EarliestYear ?? 0,
             IsCollection = true,
             UseLandscapeGroupTile = true,
+            GroupKind = MediaTileGroupKind.Collection,
             Person = new MediaTilePersonViewModel
             {
                 Id = shelf.PersonId,
@@ -279,6 +281,26 @@ public static class CollectionSurfaceTileComposer
             SortTimestamp = collection.ModifiedAt ?? collection.CreatedAt,
             IsCollection = true,
             UseLandscapeGroupTile = true,
+            GroupKind = GroupKindFor(collection),
+            HasCustomArtwork = !string.IsNullOrWhiteSpace(collection.CoverArtworkUrl),
+        };
+    }
+
+    // The corner word on the tile: what kind of group this is. A universe is recognised by its Wikidata id as well as its type.
+    private static MediaTileGroupKind GroupKindFor(CollectionManagementCatalogViewModel collection)
+    {
+        if (!string.IsNullOrWhiteSpace(collection.UniverseQid)
+            || string.Equals(collection.CollectionType, "Universe", StringComparison.OrdinalIgnoreCase))
+        {
+            return MediaTileGroupKind.Universe;
+        }
+
+        return collection.CollectionType?.Trim() switch
+        {
+            "Series" or "ContentGroup" or "Franchise" => MediaTileGroupKind.Series,
+            "Set" => MediaTileGroupKind.Set,
+            "List" => MediaTileGroupKind.List,
+            _ => MediaTileGroupKind.Collection,
         };
     }
 

@@ -19,21 +19,19 @@ public sealed class RightSizedPictureRenderTests : LocalizedBunitContext
     private const string Face = "/engine-image/persons/6f6b4d6e-0000-4000-8000-000000000001/headshot?v=abc123";
 
     [Fact]
-    public void PeopleList_AsksForTheTinyCopyOfEachFaceAndLoadsThemLazily()
+    public void PeopleList_AsksForTheSmallCopyOfEachFaceAndLoadsThemLazily()
     {
         var person = new PersonListItemResponse(Guid.NewGuid(), "Frank Herbert", ["Author"], null, Face, true, false, false, null, null);
 
         var cut = Render<PeopleCatalogList>(parameters => parameters.Add(component => component.Items, [person]));
 
-        var image = cut.Find(".people-catalog-row__portrait img");
-        Assert.Equal($"{Face.Split('?')[0]}?v=abc123&size=t", image.GetAttribute("src"));
+        var image = cut.Find(".person-tile__photo img");
+        Assert.Equal($"{Face.Split('?')[0]}?v=abc123&size=s", image.GetAttribute("src"));
         Assert.Equal("lazy", image.GetAttribute("loading"));
         Assert.Equal("async", image.GetAttribute("decoding"));
         var srcset = image.GetAttribute("srcset");
         Assert.NotNull(srcset);
-        Assert.Contains("size=t", srcset);
         Assert.Contains("size=s", srcset);
-        Assert.EndsWith("3x", srcset);
     }
 
     [Fact]
@@ -44,7 +42,7 @@ public sealed class RightSizedPictureRenderTests : LocalizedBunitContext
 
         var cut = Render<PeopleCatalogList>(parameters => parameters.Add(component => component.Items, [person]));
 
-        var image = cut.Find(".people-catalog-row__portrait img");
+        var image = cut.Find(".person-tile__photo img");
         Assert.Equal(External, image.GetAttribute("src"));
         Assert.Null(image.GetAttribute("srcset"));
     }

@@ -388,24 +388,7 @@
 .collection-editor-artwork-preview.is-logo { min-height: 300px; padding: 42px; background-image: linear-gradient(45deg,rgba(255,255,255,.035) 25%,transparent 25%),linear-gradient(-45deg,rgba(255,255,255,.035) 25%,transparent 25%),linear-gradient(45deg,transparent 75%,rgba(255,255,255,.035) 75%),linear-gradient(-45deg,transparent 75%,rgba(255,255,255,.035) 75%); background-size:24px 24px; background-position:0 0,0 12px,12px -12px,-12px 0; }
 .collection-editor-artwork-preview.is-logo > img { width: 100%; max-height: 220px; object-fit: contain; }
 .collection-editor-artwork-page ::deep .collection-editor-automatic-stack {
-    position: relative;
-    width: min(78%, 390px);
-    aspect-ratio: 1 / 1;
-    overflow: hidden;
-    contain: layout paint;
-    pointer-events: none;
-}
-.collection-editor-artwork-page ::deep .collection-editor-automatic-stack .media-artwork-group-preview {
-    position: absolute !important;
-    inset: 0;
-    width: 100% !important;
-    height: 100% !important;
-    max-width: 100% !important;
-    max-height: 100% !important;
-    overflow: hidden !important;
-    pointer-events: none;
-}
-.collection-editor-artwork-page ::deep .collection-editor-automatic-stack .media-artwork-group-preview * {
+    width: min(100%, 340px);
     pointer-events: none;
 }
 .collection-editor-artwork-choice { display:flex;align-items:center;gap:12px;margin-top:14px;padding:13px;border:1px solid rgba(167,139,250,.48);border-radius:10px;background:rgba(136, 82, 252,.08); }

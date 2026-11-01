@@ -5,6 +5,7 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Components.MediaEditor
+@using MediaEngine.Web.Components.MediaTiles
 @using MediaEngine.Web.Components.Artwork
 @using MediaEngine.Contracts.Artwork
 @using MediaEngine.Contracts.Details
@@ -1300,6 +1301,25 @@
     private string ArtworkEmptyTitle => _activeArtworkSlot switch { "background" => "Neutral collection background", "logo" => "No custom logo", _ => "Automatic stacked artwork" };
     private string ArtworkEmptyDescription => _activeArtworkSlot switch { "background" => "The standard Library collection wash will be used until a custom background is uploaded.", "logo" => "The collection name remains the visual identity until a transparent logo is uploaded.", _ => "Representative item art appears as members become available." };
     private string ArtworkSlotIcon => _activeArtworkSlot switch { "background" => AppMaterialIcons.Outlined.Panorama, "logo" => AppMaterialIcons.Outlined.BrandingWatermark, _ => AppMaterialIcons.Outlined.AutoAwesomeMotion };
+    // The automatic artwork is previewed on the real group tile, so what is shown here is what the Collections page draws.
+    private MediaTileViewModel AutomaticPreviewTile => new()
+    {
+        Id = EditingCollection?.Id ?? Guid.Empty,
+        Title = EditingCollection?.Name ?? _name,
+        ArtworkStackItems = AutomaticArtworkItems,
+        PreviewTotalCount = EditingCollection?.ItemCount ?? AutomaticArtworkItems.Count,
+        IsCollection = true,
+        UseLandscapeGroupTile = true,
+        GroupKind = EditingCollection?.CollectionType switch
+        {
+            "Series" => MediaTileGroupKind.Series,
+            "Universe" => MediaTileGroupKind.Universe,
+            "Set" => MediaTileGroupKind.Set,
+            _ => MediaTileGroupKind.Collection,
+        },
+        NavigationUrl = "/",
+    };
+
     private IReadOnlyList<ArtworkStackItem> AutomaticArtworkItems => (SupportsManualItems
             ? _manualItems.Select(item => (item.WorkId, item.Title, item.CoverUrl, item.MediaType))
             : (_previewResult?.Items ?? []).Select(item => (item.EntityId, item.Title, item.CoverUrl, item.MediaType)))
@@ -2251,9 +2271,7 @@
                     else if (_activeArtworkSlot == "poster" && AutomaticArtworkItems.Count > 0)
                     {
                         <div class="collection-editor-automatic-stack">
-                            <MediaArtworkGroupPreview Items="@AutomaticArtworkItems" TotalCount="@(EditingCollection?.ItemCount ?? AutomaticArtworkItems.Count)"
-                                                      Layout="MediaArtworkGroupPreviewLayout.Cluster" ShowOverflowCount="false"
-                                                      AriaLabel="Automatic stacked collection artwork" />
+                            <MediaGroupTile Item="@AutomaticPreviewTile" />
                         </div>
                     }
                     else

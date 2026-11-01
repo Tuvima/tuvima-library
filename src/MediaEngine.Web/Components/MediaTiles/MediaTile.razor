@@ -10,9 +10,23 @@
 @implements IAsyncDisposable
 @inject IStringLocalizer<SharedStrings> L
 
+@if (Item.RenderAsPersonTile)
+{
+    <PersonTile Item="@Item" />
+}
+else if (Item.IsPlaylist)
+{
+    <MediaSquareTile Item="@Item" />
+}
+else if (Item.RenderAsLandscapeGroupTile)
+{
+    <MediaGroupTile Item="@Item" />
+}
+else
+{
 <AppCssElement Tag="div"
                Css="@PaletteScopeStyle">
-<article class='@($"media-tile {(UsesCinematicHover ? "tl-card-hover--media" : "")} {(IsContinueCard ? "is-continue-card" : "")} {ShapeClass} {MediaKindClass} {PresentationClass} {HoverLayoutClass} {SurfaceClass} {HoverPlacementClass} {HoverModeClass} {(UsesCollectionVisualTreatment ? "is-collection-card" : "")} {(UsesOrderedSeriesStack ? "is-ordered-series-card" : "")} {(UsesStaticCoverHover ? "is-static-cover-hover" : "")} {(UsesCinematicHover ? "is-cinematic-hover" : "")} {(ShowsCompactTitleCaption ? "has-compact-caption" : "")} {(UseShelfTileSize ? "is-shelf-sized" : "")}")'
+<article class='@($"media-tile {(UsesCinematicHover ? "tl-card-hover--media" : "")} {(IsContinueCard ? "is-continue-card" : "")} {ShapeClass} {MediaKindClass} {PresentationClass} {HoverLayoutClass} {SurfaceClass} {HoverPlacementClass} {HoverModeClass} {(UsesStaticCoverHover ? "is-static-cover-hover" : "")} {(UsesCinematicHover ? "is-cinematic-hover" : "")} {(ShowsCompactTitleCaption ? "has-compact-caption" : "")} {(UseShelfTileSize ? "is-shelf-sized" : "")}")'
          @ref="_cardRef"
          aria-label="@Item.Title">
     <a class="media-tile-link" href="@DetailsNavigationUrl" aria-label="@DetailsActionAriaLabel" @onclick="OpenDetails" @onclick:preventDefault="true">
@@ -39,17 +53,6 @@
                          decoding="async" />
                 }
                 <div class="media-tile-collection-wash"></div>
-                @if (ShowCollectionArtworkStack)
-                {
-                    <TuvimaArtworkStack Items="@CollectionArtworkStackItems"
-                                        Seed="@CollectionStackSeed"
-                                        Variant="@(UsesOrderedSeriesStack ? ArtworkStackVariant.SeriesStrip : ArtworkStackVariant.Card)"
-                                        MaxVisible="4"
-                                        IsDecorative="true"
-                                        PreserveOrder="@UsesOrderedSeriesStack"
-                                        Palette="@Item.ArtworkPalette"
-                                        Class="@ArtworkStackClass" />
-                }
             }
             else if (ShowPreviewStack)
             {
@@ -230,19 +233,6 @@
                         </div>
                     }
 
-                    @if (ShowHoverSeriesStack)
-                    {
-                        <TuvimaArtworkStack Items="@CollectionArtworkStackItems"
-                                            Seed="@CollectionStackSeed"
-                                            Variant="ArtworkStackVariant.SeriesStrip"
-                                            MaxVisible="4"
-                                            IsDecorative="false"
-                                            AriaLabel="@($"{Item.Title} series preview")"
-                                            PreserveOrder="true"
-                                            Palette="@Item.ArtworkPalette"
-                                            Class="media-tile-hover-series-stack" />
-                    }
-
                 </div>
 
                 @if (ShowExpandedHoverBody)
@@ -319,6 +309,7 @@
     }
 </article>
 </AppCssElement>
+}
 
 @code {
     [Parameter] public bool IsContinueCard { get; set; }
@@ -351,7 +342,6 @@
     private IReadOnlyList<string> _hoverImageCandidates = [];
     private IReadOnlyList<string> _previewImages = [];
     private IReadOnlyList<ArtworkStackItem> _collectionArtworkStackItems = [];
-    private IReadOnlyList<MediaTileMediaCountViewModel> _collectionMediaCounts = [];
     private IReadOnlyList<string> _displayChips = [];
     private IReadOnlyList<string> _rawHoverFacts = [];
     private IReadOnlyList<string> _compactHoverFacts = [];
@@ -542,9 +532,9 @@
         _ => "is-hover-expanded",
     };
 
-    private string HoverPanelClass => $"media-tile-hover-panel {ShapeClass} {HoverArtworkShapeClass} {MediaKindClass} {PresentationClass} {HoverLayoutClass} {HoverPresentationClass} {SurfaceClass} {HoverPlacementClass} {HoverModeClass} {(UsesCollectionVisualTreatment ? "is-collection-hover" : "")} {(UsesOrderedSeriesStack ? "is-ordered-series-hover" : "")}";
+    private string HoverPanelClass => $"media-tile-hover-panel {ShapeClass} {HoverArtworkShapeClass} {MediaKindClass} {PresentationClass} {HoverLayoutClass} {HoverPresentationClass} {SurfaceClass} {HoverPlacementClass} {HoverModeClass}";
 
-    private bool IsCoverLedHover => Item.HoverLayout == MediaTileHoverLayout.ArtOnlyPopover && !UsesCollectionVisualTreatment;
+    private bool IsCoverLedHover => Item.HoverLayout == MediaTileHoverLayout.ArtOnlyPopover;
 
     private string HoverPresentationClass => IsCoverLedHover ? "is-cover-led" : "is-cinematic";
 
@@ -554,9 +544,6 @@
         MediaTileShape.Square => "has-hover-square-art",
         _ => "has-hover-portrait-art",
     };
-
-    private bool UsesCollectionVisualTreatment =>
-        Item.IsCollection && Item.Presentation is not (MediaTilePresentation.TvSeries or MediaTilePresentation.Album);
 
     private string TileStyle => $"{Item.ArtworkPalette?.CssVariableStyle} --media-tile-accent: {Item.AccentColor}; --media-tile-secondary-accent: {Item.SecondaryAccentColor}; {HoverAtmosphereStyle}";
 
@@ -635,19 +622,6 @@
 
     private bool ShowCollectionBanner => Item.IsCollection && Item.SurfaceKind == MediaTileSurfaceKind.BannerLandscape;
 
-    private bool UsesOrderedSeriesStack =>
-        Item.ArtworkStackItems.Count > 0
-        && Item.Presentation is MediaTilePresentation.BookSeries
-            or MediaTilePresentation.ComicSeries
-            or MediaTilePresentation.MovieSeries
-            or MediaTilePresentation.AudiobookSeries;
-
-    private bool ShowCollectionArtworkStack => ShowCollectionBanner
-        && Item.Presentation is not MediaTilePresentation.TvSeries
-        && CollectionArtworkStackItems.Count > 0;
-
-    private bool ShowHoverSeriesStack => !ShowGroupCollage && UsesOrderedSeriesStack && CollectionArtworkStackItems.Count > 0;
-
     private IReadOnlyList<ArtworkStackItem> GroupCollageItems => _groupCollageItems;
 
     private bool ShowGroupCollage =>
@@ -701,10 +675,6 @@
             return $"{count} {noun} owned";
         }
     }
-
-    private string ArtworkStackClass => UsesOrderedSeriesStack
-        ? "media-tile-artwork-stack media-tile-artwork-stack--collection-tile media-tile-artwork-stack--series-tile"
-        : "media-tile-artwork-stack media-tile-artwork-stack--collection-tile";
 
     private bool ShowSourceBadge => !HideSourceBadge && !ShowCollectionBanner && !string.IsNullOrWhiteSpace(Item.SourceBadgeLabel);
 
@@ -761,32 +731,6 @@
         };
 
         return backdropImages.All(candidate => !string.Equals(candidate, image, StringComparison.OrdinalIgnoreCase));
-    }
-
-    private string CollectionStackSeed => Item.CollectionId?.ToString("D") ?? Item.Id.ToString("D");
-
-    private IReadOnlyList<MediaTileMediaCountViewModel> CollectionMediaCounts => _collectionMediaCounts;
-
-    private bool ShowCollectionMediaIcon =>
-        UsesOrderedSeriesStack
-        && !string.IsNullOrWhiteSpace(MediaKindIcon);
-
-    private bool ShowCollectionSubtitle =>
-        UsesOrderedSeriesStack
-        && !string.IsNullOrWhiteSpace(Item.Subtitle);
-
-    private string? SeriesOverflowLabel
-    {
-        get
-        {
-            if (!UsesOrderedSeriesStack || Item.PreviewTotalCount is not > 0)
-            {
-                return null;
-            }
-
-            var overflow = Item.PreviewTotalCount.Value - CollectionArtworkStackItems.Count;
-            return overflow > 0 ? $"+{overflow} more" : null;
-        }
     }
 
     private IReadOnlyList<string> DisplayChips => _displayChips;
@@ -1101,7 +1045,6 @@
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Cast<string>()
             .ToList();
-        _collectionMediaCounts = Item.MediaCounts.Where(count => count.Count > 0).Take(4).ToList();
         _displayChips = (Item.VibeTags.Count > 0 ? Item.VibeTags : Item.Genres)
             .Where(chip => !string.IsNullOrWhiteSpace(chip))
             .Distinct(StringComparer.OrdinalIgnoreCase)

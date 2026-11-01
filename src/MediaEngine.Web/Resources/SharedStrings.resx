@@ -897,15 +897,6 @@
   <data name="GalleryEditorShell_Playlist" xml:space="preserve">
     <value>Playlist</value>
   </data>
-  <data name="PeopleCatalogList_Read" xml:space="preserve">
-    <value>{0} Read</value>
-  </data>
-  <data name="PeopleCatalogList_Watch" xml:space="preserve">
-    <value>{0} Watch</value>
-  </data>
-  <data name="PeopleCatalogList_Listen" xml:space="preserve">
-    <value>{0} Listen</value>
-  </data>
   <data name="PeopleCatalogList_PeopleInYourLibrary" xml:space="preserve">
     <value>People in your library</value>
   </data>
@@ -1922,9 +1913,6 @@
   </data>
   <data name="MediaSectionShell_SmartMembershipIsControlledBy" xml:space="preserve">
     <value>Smart — membership is controlled by rules</value>
-  </data>
-  <data name="MediaGroupTile_Open" xml:space="preserve">
-    <value>Open {0}</value>
   </data>
   <data name="MediaShelfScroller_ScrollLeft" xml:space="preserve">
     <value>Scroll left</value>
@@ -9380,5 +9368,47 @@
   </data>
   <data name="CollectionPack_NotEnough" xml:space="preserve">
     <value>Your library doesn't have enough for this pack yet.</value>
+  </data>
+  <data name="MediaGroupTile_KindCollection" xml:space="preserve">
+    <value>Collection</value>
+  </data>
+  <data name="MediaGroupTile_KindSeries" xml:space="preserve">
+    <value>Series</value>
+  </data>
+  <data name="MediaGroupTile_KindUniverse" xml:space="preserve">
+    <value>Universe</value>
+  </data>
+  <data name="MediaGroupTile_KindList" xml:space="preserve">
+    <value>List</value>
+  </data>
+  <data name="MediaGroupTile_KindSet" xml:space="preserve">
+    <value>Set</value>
+  </data>
+  <data name="MediaGroupTile_Label" xml:space="preserve">
+    <value>{0}, {1}</value>
+  </data>
+  <data name="MediaGroupTile_NoArtwork" xml:space="preserve">
+    <value>No artwork available for {0}</value>
+  </data>
+  <data name="MediaSquareTile_Playlist" xml:space="preserve">
+    <value>Playlist</value>
+  </data>
+  <data name="PeopleCatalogList_LabelRead" xml:space="preserve">
+    <value>titles to read</value>
+  </data>
+  <data name="PeopleCatalogList_LabelWatch" xml:space="preserve">
+    <value>titles to watch</value>
+  </data>
+  <data name="PeopleCatalogList_LabelListen" xml:space="preserve">
+    <value>titles to listen to</value>
+  </data>
+  <data name="PeopleCatalogList_LabelReadOne" xml:space="preserve">
+    <value>title to read</value>
+  </data>
+  <data name="PeopleCatalogList_LabelWatchOne" xml:space="preserve">
+    <value>title to watch</value>
+  </data>
+  <data name="PeopleCatalogList_LabelListenOne" xml:space="preserve">
+    <value>title to listen to</value>
   </data>
 </root>

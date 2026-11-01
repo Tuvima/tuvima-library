@@ -74,7 +74,7 @@
     --media-tile-media-height: clamp(280px, 18.2vw, 322px);
 }
 
-.media-hub-shelf--listen ::deep .media-tile.is-landscape:not(.is-collection-card):not(.is-ordered-series-card) {
+.media-hub-shelf--listen ::deep .media-tile.is-landscape {
     --media-tile-media-height: clamp(192px, 12.5vw, 220px);
 }
 
