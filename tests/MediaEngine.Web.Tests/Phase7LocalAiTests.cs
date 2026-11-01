@@ -26,12 +26,27 @@ public sealed class Phase7LocalAiTests
     }
 
     [Fact]
+    public void TheBlockedNotice_IsDrawnOnceByThePageHeader_AndByNoTab()
+    {
+        var page = ReadRepoFile(@"src/MediaEngine.Web/Components/Pages/Settings.razor");
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(page, "<LocalAiBlockedNotice"));
+
+        foreach (var file in new[] { "LocalAiSettingsTab", "ModelsTab", "LocalAiRuntimePanel", "LocalAiBudgetPanel", "LocalAiUsagePanel", "LocalAiModelFilesPanel" })
+        {
+            var source = ReadRepoFile($"src/MediaEngine.Web/Components/Settings/{file}.razor");
+            Assert.DoesNotContain("LocalAiBlockedNotice", source, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
     public void ModelsTab_RendersEngineModelStatusesAndLifecycleActions()
     {
         var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/ModelsTab.razor");
 
         Assert.Contains("RunBenchmarkAsync", source, StringComparison.Ordinal);
-        Assert.Contains("InvalidateBenchmarkAsync", source, StringComparison.Ordinal);
+        // Invalidating the saved benchmark is an Advanced action, not a Models one.
+        Assert.DoesNotContain("InvalidateBenchmarkAsync", source, StringComparison.Ordinal);
+        Assert.Contains("InvalidateBenchmarkAsync", ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/LocalAiRuntimePanel.razor"), StringComparison.Ordinal);
         Assert.Contains("Qwen3 1.7B Q5", source, StringComparison.Ordinal);
         Assert.Contains("Optional Whisper feature pack", source, StringComparison.Ordinal);
         Assert.Contains("result.Problem?.ToUserMessage()", source, StringComparison.Ordinal);
@@ -89,7 +104,7 @@ public sealed class Phase7LocalAiTests
         Assert.Contains("/settings/plugins", source, StringComparison.Ordinal);
         Assert.DoesNotContain("tuvima.ai-vibe-tags", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Save features", source, StringComparison.Ordinal);
-        // Budget and Usage are their own pages, as well as Model and hardware.
+        // Budget and Usage are no longer pages: the allowance and the detailed usage table sit on Advanced, the plugin counts on Status.
         Assert.Contains("LocalAiBudgetPanel", source, StringComparison.Ordinal);
         Assert.Contains("LocalAiUsagePanel", source, StringComparison.Ordinal);
         Assert.DoesNotContain("/settings/ai/vocabulary", source, StringComparison.Ordinal);

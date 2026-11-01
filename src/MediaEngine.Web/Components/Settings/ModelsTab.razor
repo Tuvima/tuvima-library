@@ -12,8 +12,6 @@
         <AppAlert Tone="@MessageTone" Class="tl-sp-mb-3">@_message</AppAlert>
     }
 
-    <LocalAiModelFilesPanel />
-
     @if (_config is not null)
     {
         <AppCard Title="@L["ModelsTab_ResourceProfile"].Value"
@@ -48,10 +46,11 @@
             }
             <AppActionBar Align="AppHorizontalAlignment.Start" Class="tl-sp-mt-3">
                 <AppButton Label="@L["ModelsTab_RunBenchmarkAgain"].Value" Size="AppControlSize.Compact" Tone="AppUiTone.Primary" Disabled="_benchmarking" OnClick="RunHardwareBenchmarkAsync" />
-                <AppButton Label="@L["ModelsTab_InvalidateBenchmark"].Value" Size="AppControlSize.Compact" Tone="AppUiTone.Warning" Disabled="_benchmarking" OnClick="InvalidateBenchmarkAsync" />
             </AppActionBar>
         </AppCard>
     }
+
+    <LocalAiModelFilesPanel />
 
     @if (_loading)
     {
@@ -123,16 +122,6 @@
         _benchmarking = false;
         _messageSeverity = result.Succeeded && result.Value?.Outcome == "succeeded" ? AppSeverity.Success : AppSeverity.Warning;
         _message = result.Succeeded ? BenchmarkSummary(result.Value) : result.Problem?.ToUserMessage() ?? "Benchmark failed.";
-        await RefreshAsync();
-    }
-
-    private async Task InvalidateBenchmarkAsync()
-    {
-        _benchmarking = true;
-        var result = await Orchestrator.InvalidateBenchmarkAsync();
-        _benchmarking = false;
-        _messageSeverity = result.Succeeded ? AppSeverity.Success : AppSeverity.Error;
-        _message = result.Succeeded ? "The saved benchmark was invalidated." : result.Problem?.ToUserMessage() ?? "Benchmark invalidation failed.";
         await RefreshAsync();
     }
 

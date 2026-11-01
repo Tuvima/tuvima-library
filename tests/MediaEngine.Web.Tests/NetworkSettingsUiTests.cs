@@ -151,6 +151,43 @@ public sealed class NetworkSettingsUiTests
     }
 
     [Fact]
+    public void HomeNetwork_ShowsStatusAddressTestAndDiscoverySwitchWithNothingToType()
+    {
+        var home = Read(@"src/MediaEngine.Web/Components/Settings/LocalNetworkSettingsPanel.razor");
+        var overview = Read(@"src/MediaEngine.Web/Components/Settings/NetworkOverviewPanel.razor");
+
+        Assert.Contains("PreferredLocalAddress", home, StringComparison.Ordinal);
+        Assert.Contains("DiscoveryEnabled", home, StringComparison.Ordinal);
+        Assert.Contains("TestAsync", overview, StringComparison.Ordinal);
+        Assert.DoesNotContain("<AppTextField", home, StringComparison.Ordinal);
+        Assert.DoesNotContain("PreferredServerName=", home, StringComparison.Ordinal);
+        Assert.DoesNotContain("@bind-Value=\"Settings.Local.PreferredServerName\"", home, StringComparison.Ordinal);
+        Assert.DoesNotContain("ServerPort", home, StringComparison.Ordinal);
+        Assert.DoesNotContain("IPv6Support", home, StringComparison.Ordinal);
+        Assert.DoesNotContain("NetworkInterface", home, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AdvancedNetwork_OwnsPortInterfaceAndIpv6()
+    {
+        var advanced = Read(@"src/MediaEngine.Web/Components/Settings/AdvancedNetworkSettingsPanel.razor");
+
+        Assert.Contains("OpenPortDialog", advanced, StringComparison.Ordinal);
+        Assert.Contains("ChangeInterfaceAsync", advanced, StringComparison.Ordinal);
+        Assert.Contains("ChangeIpv6Async", advanced, StringComparison.Ordinal);
+        Assert.Contains("NetworkPortChangeDialog", advanced, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void NetworkPage_NoLongerEditsTheServerName()
+    {
+        foreach (var file in new[] { "NetworkRemoteAccessSettings.razor", "NetworkOverviewPanel.razor", "LocalNetworkSettingsPanel.razor", "AdvancedNetworkSettingsPanel.razor" })
+        {
+            Assert.DoesNotContain("PreferredServerName\"", Read($@"src/MediaEngine.Web/Components/Settings/{file}"), StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
     public void NoNetworkSettingsPanelMentionsTheRemovedRuleOrAppSwitch()
     {
         foreach (var file in new[]

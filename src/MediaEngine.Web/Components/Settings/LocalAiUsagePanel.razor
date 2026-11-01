@@ -2,8 +2,9 @@
 @inject UIOrchestratorService Orchestrator
 @inject IStringLocalizer<SharedStrings> L
 
-@* The Usage page of Local AI: which callers used which ability over the last week, and each AI plugin's standing against its
-   hourly allowance. AI features are plugins, so every plugin row links to its card on the Plugins page. *@
+@* Two views of the same usage report. Plugins (Local AI > Status) lists each AI plugin's standing against its hourly
+   allowance; AI features are plugins, so every row links to its card on the Plugins page. Table (Local AI > Advanced) is the
+   detailed week of use by caller and ability. *@
 <div class="local-ai-usage" data-testid="local-ai-usage">
     @if (_loading)
     {
@@ -15,7 +16,9 @@
     }
     else
     {
-        <AppCard Title="@L["LocalAiUsagePanel_Plugins"].Value" Description="@L["LocalAiUsagePanel_EachAIFeatureIsA"].Value" Density="AppSurfaceDensity.Compact">
+      @if (View == LocalAiUsageView.Plugins)
+      {
+        <AppCard Title="@L["LocalAiUsagePanel_PluginsUsingLocalAI"].Value" Description="@L["LocalAiUsagePanel_EachAIFeatureIsA"].Value" Density="AppSurfaceDensity.Compact">
             @if (_usage.Plugins.Count == 0)
             {
                 <AppEmptyState Title="@L["LocalAiUsagePanel_NoPluginUsesLocalAI"].Value" Message="@L["LocalAiUsagePanel_PluginsThatAskForLocal"].Value" />
@@ -38,7 +41,9 @@
                 </ul>
             }
         </AppCard>
-
+      }
+      else
+      {
         <AppCard Title="@($"Use in the last {_usage.Days} days")" Density="AppSurfaceDensity.Compact">
             @if (_usage.Rows.Count == 0)
             {
@@ -71,10 +76,15 @@
                 </AppTable>
             }
         </AppCard>
+      }
     }
 </div>
 
 @code {
+    public enum LocalAiUsageView { Plugins, Table }
+
+    [Parameter] public LocalAiUsageView View { get; set; } = LocalAiUsageView.Table;
+
     private AiUsageResponse? _usage;
     private bool _loading = true;
 
