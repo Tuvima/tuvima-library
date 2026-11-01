@@ -1049,8 +1049,8 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.DoesNotContain("Local AI is partially available", source);
         // The runtime (resource profile, benchmark, limits) lives once, on Tools and requirements; Local AI keeps AI settings only.
         var runtime = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "LocalAiRuntimePanel.razor"));
-        Assert.DoesNotContain("<ModelsTab />", source);
-        Assert.Single(Regex.Matches(runtime, "<ModelsTab />"));
+        Assert.Single(Regex.Matches(source, "<ModelsTab />"));
+        Assert.DoesNotContain("<ModelsTab />", runtime);
         Assert.DoesNotContain("TODO: Persist AI limits", source);
     }
 

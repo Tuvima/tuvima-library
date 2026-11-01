@@ -13,16 +13,17 @@
             @* Desktop and tablet only, like the other runtime controls. *@
             @if (!DeviceContext.IsMobile)
             {
-                <LocalAiRuntimePanel />
+                <ModelsTab />
             }
             break;
         case "advanced":
-            @* Until the Local AI packet regroups them, Advanced holds the budget and usage panels that were tabs of their own. *@
+            @* Runtime settings, invalidate benchmark and diagnostics, then the plugin allowance, then the detailed usage table. *@
             @if (!DeviceContext.IsMobile)
             {
+                <LocalAiRuntimePanel />
                 <LocalAiBudgetPanel />
             }
-            <LocalAiUsagePanel />
+            <LocalAiUsagePanel View="LocalAiUsagePanel.LocalAiUsageView.Table" />
             break;
         default:
             @StatusContent()
@@ -76,6 +77,8 @@
         else
         {
             @EngineCard()
+
+            <LocalAiUsagePanel View="LocalAiUsagePanel.LocalAiUsageView.Plugins" />
 
             <SettingsAdvancedLinkRow Title="AI features are plugins" Description="Smart labelling, vibe tags and the other AI features are switched on, approved and changed on the Plugins page. Turning one on for the first time may download an AI model." Href="/settings/plugins" ActionLabel="Open Plugins" />
         }

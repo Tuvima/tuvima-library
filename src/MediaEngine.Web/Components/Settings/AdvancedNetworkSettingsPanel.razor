@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
 @inject IAppToastService Snackbar
@@ -10,9 +11,22 @@
     <details class="network-advanced-card">
         <summary><span class="network-advanced-card__icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SettingsEthernet" /></span><span><strong>Ports &amp; Binding</strong><small>@L["AdvancedNetworkSettingsPanel_InspectTheLocalDashboardListener"]</small></span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></summary>
         <div class="network-advanced-card__body">
+            <div class="network-setting-rows">
+                <div class="network-setting-row">
+                    <div><strong>@L["LocalNetworkSettingsPanel_ServerPort"]</strong><span>@L["LocalNetworkSettingsPanel_PortUsedByLibraryFor"]</span></div>
+                    <div class="network-setting-row__control"><code>@Settings.Local.Port</code><AppButton Label="@L["LocalNetworkSettingsPanel_ChangePort"].Value" OnClick="OpenPortDialog" /></div>
+                </div>
+                <div class="network-setting-row">
+                    <div><strong>@L["LocalNetworkSettingsPanel_NetworkInterface"]</strong><span>@L["LocalNetworkSettingsPanel_WhichNetworkInterfaceShouldLibrary"]</span></div>
+                    <AppSelect T="string" Value="@InterfaceValue" ValueChanged="ChangeInterfaceAsync"
+                               Label="@L["LocalNetworkSettingsPanel_NetworkInterface2"].Value" HideLabel="true" Options="@InterfaceOptions" />
+                </div>
+                <AppSwitchRow Label="@L["LocalNetworkSettingsPanel_IPv6Support"].Value"
+                              Description="@L["LocalNetworkSettingsPanel_AllowConnectionsOverIPv6When"].Value"
+                              Value="@Settings.Local.Ipv6Enabled"
+                              ValueChanged="ChangeIpv6Async" />
+            </div>
             <dl class="network-facts">
-                @Fact("Dashboard HTTP port", Settings.Local.Port.ToString())
-                @Fact("Binding", Settings.Local.BindMode == "automatic" ? "Automatic — All Interfaces" : Settings.Local.InterfaceId ?? "Selected interface unavailable")
                 @Fact("IPv4", "Automatic")
                 @Fact("IPv6", Settings.Local.Ipv6Enabled ? "Enabled when available" : "Disabled")
             </dl>
@@ -91,6 +105,10 @@
     </AppCard>
 </div>
 
+<NetworkPortChangeDialog @bind-Visible="_portDialogOpen"
+                         CurrentPort="@Settings.Local.Port"
+                         Applied="PortAppliedAsync" />
+
 <ManualPortForwardingDialog @bind-Visible="_manualDialogOpen"
                             InternalPort="@(Settings.Remote.TlsTerminationPort ?? 443)"
                             ExternalPort="@(Settings.Remote.ExternalPort ?? 443)"
@@ -117,6 +135,7 @@
     [Parameter] public EventCallback<NetworkSettingsDto> SettingsReplaced { get; set; }
     [Parameter] public EventCallback StatusRefreshRequested { get; set; }
 
+    private bool _portDialogOpen;
     private bool _resetDialogOpen;
     private bool _manualDialogOpen;
     private string? _trustedProxyText;
@@ -127,6 +146,38 @@
     private string InternalAddress => Status?.LocalAddresses.FirstOrDefault(address => address.AddressFamily == "ipv4")?.Address
         ?? Status?.LocalAddresses.FirstOrDefault()?.Address
         ?? "Unavailable";
+
+    private string InterfaceValue => Settings.Local.BindMode == "specific-interface"
+        ? Settings.Local.InterfaceId ?? "automatic"
+        : "automatic";
+
+    private IReadOnlyList<AppSelectOption> InterfaceOptions =>
+        [new("automatic", "Automatic — All Interfaces"),
+         .. (Status?.LocalAddresses ?? []).GroupBy(address => address.InterfaceId)
+             .Select(group => new AppSelectOption(group.Key, $"{group.First().InterfaceName} · {string.Join(", ", group.Select(address => address.Address))}"))];
+
+    private void OpenPortDialog() => _portDialogOpen = true;
+
+    private async Task ChangeInterfaceAsync(string? value)
+    {
+        Settings.Local.BindMode = value == "automatic" ? "automatic" : "specific-interface";
+        Settings.Local.InterfaceId = value == "automatic" ? null : value;
+        await SaveRequested.InvokeAsync();
+    }
+
+    private async Task ChangeIpv6Async(bool value)
+    {
+        Settings.Local.Ipv6Enabled = value;
+        await SaveRequested.InvokeAsync();
+    }
+
+    private async Task PortAppliedAsync(PortAvailabilityResultDto result)
+    {
+        Settings.Local.Port = result.Port;
+        _portDialogOpen = false;
+        Snackbar.Add(result.Message, AppSeverity.Success);
+        await StatusRefreshRequested.InvokeAsync();
+    }
 
     protected override void OnParametersSet()
     {

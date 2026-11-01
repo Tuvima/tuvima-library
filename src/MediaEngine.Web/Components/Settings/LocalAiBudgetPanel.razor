@@ -2,8 +2,9 @@
 @inject UIOrchestratorService Orchestrator
 @inject IStringLocalizer<SharedStrings> L
 
-@* The Budget page of Local AI: how much of the machine each plugin may use. Ingestion and a person's own requests are
-   never held to a budget; they only go first in the queue. Plugins with their own allowance are listed on Usage. *@
+@* The plugin allowance card on the Local AI Advanced tab: how much of the machine each plugin may use. Ingestion and a
+   person's own requests are never held to a budget; they only go first in the queue. Plugins with their own allowance are
+   listed on the Status tab. *@
 <div class="local-ai-budget" data-testid="local-ai-budget">
     <AppCard Title="@L["LocalAiBudgetPanel_PluginAllowance"].Value" Description="@L["LocalAiBudgetPanel_HowMuchLocalAIA"].Value" Density="AppSurfaceDensity.Compact">
         @if (_config is null)

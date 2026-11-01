@@ -217,14 +217,22 @@ public sealed class ApprovalFlowTests : AsyncBunitContext
             ],
         };
 
-        var cut = Render<LocalAiSettingsTab>(parameters => parameters.Add(p => p.Subsection, "advanced"));
+        // Status lists the plugins with this hour's counts and no table.
+        var status = Render<LocalAiSettingsTab>(parameters => parameters.Add(p => p.Subsection, "status"));
 
-        cut.WaitForAssertion(() => Assert.Contains("Vibe tags", cut.Markup, StringComparison.Ordinal));
-        Assert.Contains("Smart labelling", cut.Markup, StringComparison.Ordinal);
-        Assert.Contains("130 of 120 requests this hour", cut.Markup, StringComparison.Ordinal);
-        Assert.Contains("Needs attention", cut.Markup, StringComparison.Ordinal);
-        Assert.Contains(cut.FindAll("a"), link => link.GetAttribute("href") == "/settings/plugins?plugin=tuvima.ai-vibe-tags");
-        Assert.Contains("Classify", cut.Find("table").TextContent, StringComparison.Ordinal);
+        status.WaitForAssertion(() => Assert.Contains("Vibe tags", status.Markup, StringComparison.Ordinal));
+        Assert.Contains("Plugins using Local AI", status.Markup, StringComparison.Ordinal);
+        Assert.Contains("Smart labelling", status.Markup, StringComparison.Ordinal);
+        Assert.Contains("130 of 120 requests this hour", status.Markup, StringComparison.Ordinal);
+        Assert.Contains("Needs attention", status.Markup, StringComparison.Ordinal);
+        Assert.Contains(status.FindAll("a"), link => link.GetAttribute("href") == "/settings/plugins?plugin=tuvima.ai-vibe-tags");
+        Assert.Empty(status.FindAll("table"));
+
+        // Advanced holds the detailed usage table and not the plugin list.
+        var advanced = Render<LocalAiSettingsTab>(parameters => parameters.Add(p => p.Subsection, "advanced"));
+
+        advanced.WaitForAssertion(() => Assert.Contains("Classify", advanced.Find("table").TextContent, StringComparison.Ordinal));
+        Assert.DoesNotContain("Plugins using Local AI", advanced.Markup, StringComparison.Ordinal);
     }
 
     [Fact]

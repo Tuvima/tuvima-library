@@ -1,127 +1,31 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Settings
-@using MediaEngine.Web.Models.ViewDTOs
-@using MediaEngine.Web.Services.Integration
-@inject IEngineApiClient ApiClient
-@inject IAppToastService Snackbar
 @inject IStringLocalizer<SharedStrings> L
 
 <div class="network-panel">
-    <header class="network-panel__heading">
-        <div><h3>@L["LocalNetworkSettingsPanel_LocalNetworkSettings"]</h3><p>@L["LocalNetworkSettingsPanel_ConfigureHowLibraryWorksOn"]</p></div>
-    </header>
-
-    <SettingsSectionPanel Title="@L["LocalNetworkSettingsPanel_LocalNetwork"].Value" Icon="@AppMaterialIcons.Outlined.Lan">
+    <SettingsSectionPanel Title="@L["LocalNetworkSettingsPanel_Address"].Value" Icon="@AppMaterialIcons.Outlined.Lan">
+        <dl class="network-facts network-facts--compact">
+            <div><dt>@L["LocalNetworkSettingsPanel_NameOnYourNetwork"]</dt><dd>@(Settings.Local.PreferredServerName).local</dd></div>
+            <div><dt>@L["LocalNetworkSettingsPanel_LocalAddress"]</dt><dd>@(Status?.PreferredLocalAddress ?? "Unavailable")</dd></div>
+        </dl>
+        <p class="network-supporting-copy">@L["LocalNetworkSettingsPanel_NameIsEditedOn"] <a href="/settings/general">@L["LocalNetworkSettingsPanel_General"]</a>.</p>
         <div class="network-setting-rows">
-            <div class="network-setting-row">
-                <div><strong>@L["LocalNetworkSettingsPanel_ServerPort"]</strong><span>@L["LocalNetworkSettingsPanel_PortUsedByLibraryFor"]</span></div>
-                <div class="network-setting-row__control"><code>@Settings.Local.Port</code><AppButton Label="@L["LocalNetworkSettingsPanel_ChangePort"].Value" OnClick="OpenPortDialog" /></div>
-            </div>
-            <div class="network-setting-row">
-                <div><strong>@L["LocalNetworkSettingsPanel_NetworkInterface"]</strong><span>@L["LocalNetworkSettingsPanel_WhichNetworkInterfaceShouldLibrary"]</span></div>
-                <AppSelect T="string" Value="@InterfaceValue" ValueChanged="ChangeInterfaceAsync"
-                           Label="@L["LocalNetworkSettingsPanel_NetworkInterface2"].Value" HideLabel="true" Options="@InterfaceOptions" />
-            </div>
-            <AppSwitchRow Label="@L["LocalNetworkSettingsPanel_LocalDiscovery"].Value"
+            <AppSwitchRow Label="@L["LocalNetworkSettingsPanel_LetDevicesFindLibraryByName"].Value"
                           Description="@L["LocalNetworkSettingsPanel_AllowOtherDevicesOnYour"].Value"
                           Value="@Settings.Local.DiscoveryEnabled"
                           ValueChanged="ChangeDiscoveryAsync" />
-            <div class="network-setting-row">
-                <div><strong>@L["LocalNetworkSettingsPanel_PreferredServerName"]</strong><span>@L["LocalNetworkSettingsPanel_ShownToDevicesOnYour"]</span></div>
-                <div class="network-server-name-control">
-                    <AppTextField T="string" @bind-Value="Settings.Local.PreferredServerName" Label="@L["Common_ServerName"].Value" HideLabel="true" />
-                    <span>.local</span>
-                    <AppButton Label="@L["Common_Save"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="SaveRequested" />
-                </div>
-            </div>
-            <AppSwitchRow Label="@L["LocalNetworkSettingsPanel_IPv6Support"].Value"
-                          Description="@L["LocalNetworkSettingsPanel_AllowConnectionsOverIPv6When"].Value"
-                          Value="@Settings.Local.Ipv6Enabled"
-                          ValueChanged="ChangeIpv6Async" />
         </div>
     </SettingsSectionPanel>
-
-    <SettingsSectionPanel Title="@L["LocalNetworkSettingsPanel_LocalConnection"].Value" Icon="@AppMaterialIcons.Outlined.NetworkCheck">
-        <dl class="network-facts network-facts--compact">
-            @Fact("Status", Display(Status?.LocalAccess))
-            @Fact("Local Address", Status?.PreferredLocalAddress ?? "Unavailable")
-        </dl>
-        <div class="network-card-actions">
-            <AppButton Label="@L["LocalNetworkSettingsPanel_TestLocalConnection"].Value" StartIcon="@AppMaterialIcons.Outlined.Science" OnClick="TestLocalAsync" />
-        </div>
-    </SettingsSectionPanel>
-
-    <AppAlert Tone="AppUiTone.Info" Icon="@AppMaterialIcons.Outlined.Info">
-        @L["LocalNetworkSettingsPanel_YouCanAccessLibraryOn", Settings.Local.PreferredServerName]
-    </AppAlert>
 </div>
-
-<NetworkPortChangeDialog @bind-Visible="_portDialogOpen"
-                         CurrentPort="@Settings.Local.Port"
-                         Applied="PortAppliedAsync" />
-<NetworkTestDialog @bind-Visible="_testDialogOpen" Busy="@_testing" Result="@_testResult" />
 
 @code {
     [Parameter, EditorRequired] public NetworkSettingsDto Settings { get; set; } = new();
     [Parameter] public NetworkRuntimeStatusDto? Status { get; set; }
     [Parameter] public EventCallback SaveRequested { get; set; }
-    [Parameter] public EventCallback StatusRefreshRequested { get; set; }
-
-    private bool _portDialogOpen;
-    private bool _testDialogOpen;
-    private bool _testing;
-    private NetworkTestResultDto? _testResult;
-
-    private string InterfaceValue => Settings.Local.BindMode == "specific-interface"
-        ? Settings.Local.InterfaceId ?? "automatic"
-        : "automatic";
-
-    private IReadOnlyList<AppSelectOption> InterfaceOptions =>
-        [new("automatic", "Automatic — All Interfaces"),
-         .. (Status?.LocalAddresses ?? []).GroupBy(address => address.InterfaceId)
-             .Select(group => new AppSelectOption(group.Key, $"{group.First().InterfaceName} · {string.Join(", ", group.Select(address => address.Address))}"))];
-
-    private void OpenPortDialog() => _portDialogOpen = true;
-
-    private async Task ChangeInterfaceAsync(string? value)
-    {
-        Settings.Local.BindMode = value == "automatic" ? "automatic" : "specific-interface";
-        Settings.Local.InterfaceId = value == "automatic" ? null : value;
-        await SaveRequested.InvokeAsync();
-    }
 
     private async Task ChangeDiscoveryAsync(bool value)
     {
         Settings.Local.DiscoveryEnabled = value;
         await SaveRequested.InvokeAsync();
     }
-
-    private async Task ChangeIpv6Async(bool value)
-    {
-        Settings.Local.Ipv6Enabled = value;
-        await SaveRequested.InvokeAsync();
-    }
-
-    private async Task PortAppliedAsync(PortAvailabilityResultDto result)
-    {
-        Settings.Local.Port = result.Port;
-        _portDialogOpen = false;
-        Snackbar.Add(result.Message, AppSeverity.Success);
-        await StatusRefreshRequested.InvokeAsync();
-    }
-
-    private async Task TestLocalAsync()
-    {
-        _testDialogOpen = true;
-        _testing = true;
-        _testResult = await ApiClient.TestLocalNetworkAsync();
-        _testing = false;
-        await StatusRefreshRequested.InvokeAsync();
-    }
-
-    private static string Display(string? value) => string.IsNullOrWhiteSpace(value)
-        ? "Unavailable"
-        : string.Join(' ', value.Split('-', StringSplitOptions.RemoveEmptyEntries).Select(part => char.ToUpperInvariant(part[0]) + part[1..]));
-
-    private static RenderFragment Fact(string label, string value) => @<div><dt>@label</dt><dd>@value</dd></div>;
 }

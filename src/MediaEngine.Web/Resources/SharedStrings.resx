@@ -5655,6 +5655,9 @@
   <data name="LocalAiRuntimePanel_CPUPressure" xml:space="preserve">
     <value>CPU pressure</value>
   </data>
+  <data name="LocalAiRuntimePanel_InvalidateBenchmarkHelp" xml:space="preserve">
+    <value>Forget the saved speed test so the next run measures this machine again.</value>
+  </data>
   <data name="LocalAiRuntimePanel_RuntimeSettings" xml:space="preserve">
     <value>Runtime settings</value>
   </data>
@@ -5703,8 +5706,8 @@
   <data name="LocalAiUsagePanel_TheEngineCouldNotBe" xml:space="preserve">
     <value>The Engine could not be asked for Local AI usage.</value>
   </data>
-  <data name="LocalAiUsagePanel_Plugins" xml:space="preserve">
-    <value>Plugins</value>
+  <data name="LocalAiUsagePanel_PluginsUsingLocalAI" xml:space="preserve">
+    <value>Plugins using Local AI</value>
   </data>
   <data name="LocalAiUsagePanel_EachAIFeatureIsA" xml:space="preserve">
     <value>Each AI feature is a plugin. Open one to switch it on or off or change when it runs.</value>
@@ -5718,12 +5721,6 @@
   <data name="LocalAiUsagePanel_NothingHasAskedLocalAI" xml:space="preserve">
     <value>Nothing has asked Local AI for anything in this period.</value>
   </data>
-  <data name="LocalNetworkSettingsPanel_LocalNetworkSettings" xml:space="preserve">
-    <value>Local Network Settings</value>
-  </data>
-  <data name="LocalNetworkSettingsPanel_ConfigureHowLibraryWorksOn" xml:space="preserve">
-    <value>Configure how Library works on your home network.</value>
-  </data>
   <data name="LocalNetworkSettingsPanel_ServerPort" xml:space="preserve">
     <value>Server Port</value>
   </data>
@@ -5736,44 +5733,38 @@
   <data name="LocalNetworkSettingsPanel_WhichNetworkInterfaceShouldLibrary" xml:space="preserve">
     <value>Which network interface should Library listen on.</value>
   </data>
-  <data name="LocalNetworkSettingsPanel_PreferredServerName" xml:space="preserve">
-    <value>Preferred Server Name</value>
-  </data>
-  <data name="LocalNetworkSettingsPanel_ShownToDevicesOnYour" xml:space="preserve">
-    <value>Shown to devices on your local network.</value>
-  </data>
-  <data name="LocalNetworkSettingsPanel_YouCanAccessLibraryOn" xml:space="preserve">
-    <value>You can access Library on your local network using the address above or {0}.local where supported.</value>
-  </data>
-  <data name="LocalNetworkSettingsPanel_LocalNetwork" xml:space="preserve">
-    <value>Local network</value>
-  </data>
   <data name="LocalNetworkSettingsPanel_ChangePort" xml:space="preserve">
     <value>Change Port</value>
   </data>
   <data name="LocalNetworkSettingsPanel_NetworkInterface2" xml:space="preserve">
     <value>Network interface</value>
   </data>
-  <data name="LocalNetworkSettingsPanel_LocalDiscovery" xml:space="preserve">
-    <value>Local Discovery</value>
-  </data>
   <data name="LocalNetworkSettingsPanel_AllowOtherDevicesOnYour" xml:space="preserve">
     <value>Allow other devices on your network to find Library automatically.</value>
   </data>
-  <data name="Common_ServerName" xml:space="preserve">
-    <value>Server name</value>
+  <data name="LocalNetworkSettingsPanel_Address" xml:space="preserve">
+    <value>Address</value>
+  </data>
+  <data name="LocalNetworkSettingsPanel_NameOnYourNetwork" xml:space="preserve">
+    <value>Name on your network</value>
+  </data>
+  <data name="LocalNetworkSettingsPanel_LocalAddress" xml:space="preserve">
+    <value>Local address</value>
+  </data>
+  <data name="LocalNetworkSettingsPanel_NameIsEditedOn" xml:space="preserve">
+    <value>The name is edited on</value>
+  </data>
+  <data name="LocalNetworkSettingsPanel_General" xml:space="preserve">
+    <value>General</value>
+  </data>
+  <data name="LocalNetworkSettingsPanel_LetDevicesFindLibraryByName" xml:space="preserve">
+    <value>Let devices find Library by name</value>
   </data>
   <data name="LocalNetworkSettingsPanel_IPv6Support" xml:space="preserve">
     <value>IPv6 Support</value>
   </data>
   <data name="LocalNetworkSettingsPanel_AllowConnectionsOverIPv6When" xml:space="preserve">
     <value>Allow connections over IPv6 when the network supports it.</value>
-  </data>
-  <data name="LocalNetworkSettingsPanel_LocalConnection" xml:space="preserve">
-    <value>Local Connection</value>
-  </data>
-  <data name="LocalNetworkSettingsPanel_TestLocalConnection" xml:space="preserve">
-    <value>Test Local Connection</value>
   </data>
   <data name="LogExportPanel_Areas" xml:space="preserve">
     <value>Areas</value>

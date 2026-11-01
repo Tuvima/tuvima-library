@@ -549,9 +549,15 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
     [Fact]
     public void LocalAiRuntimePage_HoldsTheResourceProfileRuntimeSettingsAndDiagnostics()
     {
-        var cut = Render<LocalAiSettingsTab>(parameters => parameters.Add(p => p.Subsection, "models"));
+        var models = Render<LocalAiSettingsTab>(parameters => parameters.Add(p => p.Subsection, "models"));
+        models.WaitForAssertion(() => Assert.Contains("Resource profile", models.Markup, StringComparison.Ordinal));
+        Assert.Empty(models.FindAll("[data-testid=local-ai-runtime]"));
+
+        var cut = Render<LocalAiSettingsTab>(parameters => parameters.Add(p => p.Subsection, "advanced"));
 
         cut.WaitForAssertion(() => Assert.Contains("Runtime settings", cut.Find("[data-testid=local-ai-runtime]").TextContent, StringComparison.Ordinal));
+        Assert.Contains("Runtime diagnostics", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("Invalidate benchmark", cut.Markup, StringComparison.Ordinal);
         Assert.DoesNotContain("AI features are plugins", cut.Markup, StringComparison.Ordinal);
     }
 

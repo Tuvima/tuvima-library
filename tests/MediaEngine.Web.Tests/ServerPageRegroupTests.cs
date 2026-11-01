@@ -50,10 +50,10 @@ public sealed class ServerPageRegroupTests
             "PlaybackToolsStatusCard.razor", "Title=\"Playback tools and services\"", "PlaybackDeliverySettingsTab.razor", "Current status"),
         // The runtime stays on Local AI > Runtime until Developer tools rebuilds Local AI; it is not on Tools and requirements.
         new("Resource profile and benchmark", "/settings/tools", "/settings/ai/models", SettingsSection.LocalAi, "models",
-            "LocalAiRuntimePanel.razor", "<ModelsTab />", "ToolsRequirementsTab.razor", "LocalAiRuntimePanel"),
-        new("Runtime settings", "/settings/tools", "/settings/ai/models", SettingsSection.LocalAi, "models",
+            "LocalAiSettingsTab.razor", "<ModelsTab />", "ToolsRequirementsTab.razor", "LocalAiRuntimePanel"),
+        new("Runtime settings", "/settings/tools", "/settings/ai/advanced", SettingsSection.LocalAi, "advanced",
             "LocalAiRuntimePanel.razor", "Title=\"Runtime settings\"", "ToolsRequirementsTab.razor", "LocalAiRuntimePanel"),
-        new("Runtime diagnostics", "/settings/tools", "/settings/ai/models", SettingsSection.LocalAi, "models",
+        new("Runtime diagnostics", "/settings/tools", "/settings/ai/advanced", SettingsSection.LocalAi, "advanced",
             "LocalAiRuntimePanel.razor", "Title=\"Runtime diagnostics\"", "ToolsRequirementsTab.razor", "LocalAiRuntimePanel"),
         new("AI features", "/settings/ai/models", "/settings/ai/status", SettingsSection.LocalAi, null,
             "LocalAiSettingsTab.razor", "Title=\"AI features are plugins\"", null, null),
