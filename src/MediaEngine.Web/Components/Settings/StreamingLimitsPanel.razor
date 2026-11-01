@@ -38,11 +38,7 @@
         <div class="streaming-limits__actions"><AppButton Label="@L["StreamingLimitsPanel_TestBandwidth"].Value" StartIcon="@AppMaterialIcons.Outlined.NetworkCheck" OnClick="TestBandwidthAsync" /></div>
     </SettingsSectionPanel>
 
-    <SettingsSectionPanel Title="@L["StreamingLimitsPanel_ConcurrentRemoteStreaming"].Value" Icon="@AppMaterialIcons.Outlined.Groups">
-        <AppSelect T="string" Value="automatic" Label="@L["StreamingLimitsPanel_RemoteStreamAllocation"].Value"
-                   Options="@ConcurrencyOptions" Disabled="true" />
-        <p class="streaming-limits__supporting-copy">@L["StreamingLimitsPanel_LibraryConsidersAvailableUploadBandwidth"]</p>
-    </SettingsSectionPanel>
+    <p class="streaming-limits__supporting-copy">@L["StreamingLimitsPanel_LibraryConsidersAvailableUploadBandwidth"]</p>
 </div>
 
 @code {
@@ -60,8 +56,6 @@
         new("720p", "720p"),
         new("data-saver", "Data Saver"),
     ];
-    private static readonly IReadOnlyList<AppSelectOption> ConcurrencyOptions =
-        [new("automatic", "Automatic — Recommended")];
 
     private async Task ChangeUploadProtectionAsync(bool value)
     {

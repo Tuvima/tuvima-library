@@ -5,7 +5,7 @@
 @inject IEngineApiClient ApiClient
 @inject IStringLocalizer<SharedStrings> L
 
-@* The playback service's current facts (formerly the "Current status" card on Playback and Delivery), shown on Tools and requirements. *@
+@* The playback service's current facts (formerly the "Current status" card on Playback and Delivery), shown under Playback > Advanced. FFmpeg is reported once, in the playback checks above. *@
 <AppCard Title="@L["PlaybackToolsStatusCard_PlaybackToolsAndServices"].Value"
          Description="@L["PlaybackToolsStatusCard_CurrentFactsReportedByThe"].Value"
          Class="playback-tools-status">
@@ -21,16 +21,8 @@
     {
         <dl class="playback-tools-status__facts">
             <div>
-                <dt>@L["Common_ActiveEncodeJobs"]</dt>
-                <dd>@_diagnostics.ActiveJobs.Count</dd>
-            </div>
-            <div>
                 <dt>@L["PlaybackToolsStatusCard_ConfiguredProfiles"]</dt>
                 <dd>@(_settings?.QualityProfiles.Count.ToString() ?? "Unavailable")</dd>
-            </div>
-            <div>
-                <dt>@L["Common_FFmpeg"]</dt>
-                <dd>@ToolStatus(_diagnostics.FFmpegAvailable)</dd>
             </div>
         </dl>
     }

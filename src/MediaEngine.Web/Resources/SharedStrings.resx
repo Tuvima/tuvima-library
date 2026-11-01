@@ -7222,7 +7222,7 @@
     <value>A trusted external measurement target is not configured. No sample bandwidth result has been substituted.</value>
   </data>
   <data name="StreamingLimitsPanel_LibraryConsidersAvailableUploadBandwidth" xml:space="preserve">
-    <value>Library considers available upload bandwidth, device needs, active streams, and hardware encode limits before starting a new remote stream.</value>
+    <value>Library shares your internet connection between remote streams automatically.</value>
   </data>
   <data name="StreamingLimitsPanel_RemoteStreamingQuality" xml:space="preserve">
     <value>Remote Streaming Quality</value>
@@ -7247,12 +7247,6 @@
   </data>
   <data name="StreamingLimitsPanel_TestBandwidth" xml:space="preserve">
     <value>Test Bandwidth</value>
-  </data>
-  <data name="StreamingLimitsPanel_ConcurrentRemoteStreaming" xml:space="preserve">
-    <value>Concurrent Remote Streaming</value>
-  </data>
-  <data name="StreamingLimitsPanel_RemoteStreamAllocation" xml:space="preserve">
-    <value>Remote stream allocation</value>
   </data>
   <data name="StreamingLimitsSettingsTab_StreamingLimitsAreUnavailable" xml:space="preserve">
     <value>Streaming limits are unavailable</value>
@@ -9872,5 +9866,17 @@
   </data>
   <data name="NotificationsEmailTest_TestEmailSent" xml:space="preserve">
     <value>Test email sent to your account address.</value>
+  </data>
+  <data name="EncodeSettingsTab_MaintenanceWindowStarts" xml:space="preserve">
+    <value>Maintenance window starts</value>
+  </data>
+  <data name="EncodeSettingsTab_MaintenanceWindowEnds" xml:space="preserve">
+    <value>Maintenance window ends</value>
+  </data>
+  <data name="EncodeSettingsTab_MaintenanceWindowHelp" xml:space="preserve">
+    <value>Optimized copies are prepared between these two times, on a 24-hour clock.</value>
+  </data>
+  <data name="EncodeSettingsTab_FFmpegDetails" xml:space="preserve">
+    <value>FFmpeg and the other media tools are managed on Tools.</value>
   </data>
 </root>

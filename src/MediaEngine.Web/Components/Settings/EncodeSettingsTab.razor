@@ -41,6 +41,8 @@
                                    Value="@_diagnostics.ActiveJobs.Count.ToString()" />
                 </div>
 
+                <p class="encode-settings__tools-link">@L["EncodeSettingsTab_FFmpegDetails"] <AppLink Href="/settings/tools">@L["LibraryWriteSchedulePanel_OpenTools"]</AppLink></p>
+
                 @if (_diagnostics.Warnings.Count > 0)
                 {
                     <AppAlert Tone="AppUiTone.Warning" Class="tl-sp-mt-4">
@@ -100,9 +102,13 @@
                 <AppSwitchRow @bind-Value="_scheduledEncodesEnabled"
                               Label="@L["EncodeSettingsTab_SchedulePreparedEncodes"].Value"
                               Description="@L["EncodeSettingsTab_QueueNonUrgentOptimizedCopy"].Value" />
-                <AppTextField @bind-Value="_maintenanceWindow"
-                              Label="@L["EncodeSettingsTab_MaintenanceWindow"].Value"
-                              HelpText="Use 24-hour time, for example 01:00-05:00." />
+                <div class="encode-settings__window" role="group" aria-label="@L["EncodeSettingsTab_MaintenanceWindow"].Value">
+                    <AppTextField @bind-Value="_windowStart" InputType="AppInputType.Time"
+                                  Label="@L["EncodeSettingsTab_MaintenanceWindowStarts"].Value"
+                                  HelpText="@L["EncodeSettingsTab_MaintenanceWindowHelp"].Value" />
+                    <AppTextField @bind-Value="_windowEnd" InputType="AppInputType.Time"
+                                  Label="@L["EncodeSettingsTab_MaintenanceWindowEnds"].Value" />
+                </div>
             </div>
         </SettingsSectionPanel>
 
@@ -140,7 +146,8 @@
     private bool _settingsAvailable;
     private bool _saving;
     private bool _scheduledEncodesEnabled;
-    private string _maintenanceWindow = string.Empty;
+    private string? _windowStart;
+    private string? _windowEnd;
     private int _maxConcurrentJobs;
     private string _hardwarePreference = string.Empty;
     private string _variantRoot = string.Empty;
@@ -196,6 +203,16 @@
         _loading = false;
     }
 
+    /// <summary>The stored value stays one "HH:mm-HH:mm" string; the two pickers are just a friendlier way to edit it.</summary>
+    internal static (string? Start, string? End) SplitMaintenanceWindow(string? window)
+    {
+        var parts = (window ?? string.Empty).Split('-', 2, StringSplitOptions.TrimEntries);
+        return parts.Length == 2 ? (parts[0], parts[1]) : (null, null);
+    }
+
+    internal static string JoinMaintenanceWindow(string? start, string? end, string current) =>
+        string.IsNullOrWhiteSpace(start) || string.IsNullOrWhiteSpace(end) ? current : $"{start.Trim()}-{end.Trim()}";
+
     private bool IsSection(string section) =>
         string.Equals(Section, section, StringComparison.OrdinalIgnoreCase);
 
@@ -238,7 +255,7 @@
     {
         _defaultProfile = settings.DefaultMobileProfile;
         _scheduledEncodesEnabled = settings.ScheduledEncodesEnabled;
-        _maintenanceWindow = settings.MaintenanceWindow;
+        (_windowStart, _windowEnd) = SplitMaintenanceWindow(settings.MaintenanceWindow);
         _maxConcurrentJobs = settings.MaxConcurrentTranscodes;
         _hardwarePreference = settings.HardwareAcceleration;
         _variantRoot = settings.VariantCachePath;
@@ -251,7 +268,7 @@
     {
         settings.DefaultMobileProfile = _defaultProfile;
         settings.ScheduledEncodesEnabled = _scheduledEncodesEnabled;
-        settings.MaintenanceWindow = _maintenanceWindow;
+        settings.MaintenanceWindow = JoinMaintenanceWindow(_windowStart, _windowEnd, settings.MaintenanceWindow);
         settings.MaxConcurrentTranscodes = _maxConcurrentJobs;
         settings.HardwareAcceleration = _hardwarePreference;
         settings.VariantCachePath = _variantRoot;

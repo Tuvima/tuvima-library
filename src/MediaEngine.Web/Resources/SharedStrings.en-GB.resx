@@ -176,4 +176,7 @@
   <data name="EncodeSettingsTab_OptimizedCopySettingsCouldNot" xml:space="preserve">
     <value>Optimised copy settings could not be saved.</value>
   </data>
+  <data name="EncodeSettingsTab_MaintenanceWindowHelp" xml:space="preserve">
+    <value>Optimised copies are prepared between these two times, on a 24-hour clock.</value>
+  </data>
 </root>
