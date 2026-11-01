@@ -3,8 +3,8 @@
 @using MediaEngine.Web.Components.Shared.Tools
 @inject IStringLocalizer<SharedStrings> L
 
-@* "Here is what Library needs": every tool is listed with the same row Settings > Tools and requirements draws, ready or not. A missing optional tool
-   has a "Download now" tick, on by default, that starts its download when Continue is pressed. Nothing here blocks: Continue is always offered once the
+@* "Here is what Library needs": every tool is listed with the same row Settings > Tools and requirements draws, ready or not. A tool that is not installed
+   offers Install, which starts its download at once and carries on in the background. Nothing here blocks: Continue is always offered once the
    server check has passed, and downloads carry on in the background through the rest of setup. Local AI is not part of setup (it is set up in Settings). *@
 <div class="setup-stage-content">
     @if (!Busy && NeedsAttention)
@@ -26,20 +26,10 @@
             <div><h2 id="setup-stage-title">@L["Common_Tools"]</h2><p>@L["SetupToolsStage_LibraryUsesAFewOutside"]</p></div>
         </div>
         <div class="setup-tools" data-testid="setup-tools">
+            <ToolsSummaryLine Tools="@Listed" />
             @foreach (var tool in Listed)
             {
-                <ToolRequirementRow Tool="@tool" Busy="@Busy">
-                    <Actions>
-                        @if (SetupToolRules.Action(tool) == SetupToolAction.Download)
-                        {
-                            <AppCheckbox Label="@L["SetupToolsStage_DownloadNow"].Value" Value="@(!Skipped.Contains(tool.Id))" ValueChanged="@(value => DownloadChanged.InvokeAsync((tool.Id, value)))" />
-                        }
-                        else if (SetupToolRules.Action(tool) == SetupToolAction.RunInstaller)
-                        {
-                            <AppButton Label="@L["Common_RunInstaller"].Value" Size="AppControlSize.Compact" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="@(() => RunInstaller.InvokeAsync(tool))" />
-                        }
-                    </Actions>
-                </ToolRequirementRow>
+                <ToolRequirementRow Tool="@tool" Busy="@Busy" OnInstall="InstallTool" OnRunInstaller="RunInstaller" />
             }
         </div>
         <small>@L["SetupToolsStage_TheLocalAIEngineIs"]</small>
@@ -73,9 +63,8 @@
     [Parameter] public bool ShowReturnToCurrentStep { get; set; }
     [Parameter] public EventCallback ReturnToCurrentStep { get; set; }
 
-    /// <summary>Tool ids whose "Download now" tick the person turned off; every missing optional tool is ticked until then.</summary>
-    [Parameter] public IReadOnlySet<string> Skipped { get; set; } = new HashSet<string>();
-    [Parameter] public EventCallback<(string ToolId, bool Download)> DownloadChanged { get; set; }
+    /// <summary>Starts the download of a tool that is not installed (the row's Install); it carries on in the background.</summary>
+    [Parameter] public EventCallback<MediaEngine.Contracts.Settings.ToolRequirementDto> InstallTool { get; set; }
     [Parameter] public EventCallback<MediaEngine.Contracts.Settings.ToolRequirementDto> RunInstaller { get; set; }
 
     private bool NeedsAttention => !string.IsNullOrWhiteSpace(Error) || Preflight is { Passed: false };

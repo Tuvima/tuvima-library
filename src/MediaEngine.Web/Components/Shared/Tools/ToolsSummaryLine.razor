@@ -1,0 +1,35 @@
+@namespace MediaEngine.Web.Components.Shared.Tools
+@inject IStringLocalizer<SharedStrings> L
+
+@* "5 tools detected · 4 ready · 1 needs setup", counted from the same rows the list draws so the line and the rows never disagree. *@
+<p class="tools-summary" data-testid="tools-summary">@Text</p>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<ToolRequirementDto> Tools { get; set; } = [];
+
+    /// <summary>The counts the line shows: every row, the ready ones, and the rest.</summary>
+    public static (int Detected, int Ready, int NeedsSetup) Count(IReadOnlyList<ToolRequirementDto> tools)
+    {
+        var ready = tools.Count(tool => tool.State == ToolRequirementStates.Ready);
+        return (tools.Count, ready, tools.Count - ready);
+    }
+
+    private string Text
+    {
+        get
+        {
+            var (detected, ready, needsSetup) = Count(Tools);
+            var parts = new List<string>
+            {
+                detected == 1 ? L["ToolsSummaryLine_DetectedOne"].Value : L["ToolsSummaryLine_DetectedMany", detected].Value,
+                L["ToolsSummaryLine_Ready", ready].Value,
+            };
+            if (needsSetup > 0)
+            {
+                parts.Add(needsSetup == 1 ? L["ToolsSummaryLine_NeedsSetupOne"].Value : L["ToolsSummaryLine_NeedsSetupMany", needsSetup].Value);
+            }
+
+            return string.Join(" · ", parts);
+        }
+    }
+}

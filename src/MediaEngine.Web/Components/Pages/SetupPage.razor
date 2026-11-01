@@ -68,7 +68,7 @@
                     break;
                 case "tools":
                     <SetupToolsStage Preflight="@_preflight" Error="@_preflightError" Busy="@_busy" Retry="RunPreflightManualAsync" Continue="ContinuePastToolsAsync"
-                                     Skipped="@_skippedDownloads" DownloadChanged="DownloadChanged" RunInstaller="RunToolInstallerAsync"
+                                     InstallTool="InstallToolAsync" RunInstaller="RunToolInstallerAsync"
                                      Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
                 case "profile":
@@ -426,24 +426,16 @@
     }
 
     // The Tools step is always shown, even when every tool is ready; Continue is what passes it, and a missing tool never blocks it.
-    // Every missing optional tool still ticked "Download now" starts its download here; the downloads finish in the background.
-    private async Task ContinuePastToolsAsync()
-    {
-        foreach (var tool in SetupToolRules.ListedTools(_preflight?.Tools))
-        {
-            if (SetupToolRules.Action(tool) != SetupToolAction.Download || _skippedDownloads.Contains(tool.Id)) continue;
-            try { await ApiClient.InstallToolAsync(tool.Id); }
-            catch (Exception ex) { Logger.LogWarning(ex, "Setup could not start the {Tool} download", tool.Id); }
-        }
+    private async Task ContinuePastToolsAsync() =>
         await DecideStepAsync("tools", "passed", "Tools reviewed during first-run setup.");
-    }
 
-    private readonly HashSet<string> _skippedDownloads = new(StringComparer.Ordinal);
-
-    private Task DownloadChanged((string ToolId, bool Download) change)
+    // A row's Install starts that tool's download at once (the same call the old "Download now" tick made when Continue was pressed);
+    // the download finishes in the background and the list is read again so the row shows Downloading.
+    private async Task InstallToolAsync(ToolRequirementDto tool)
     {
-        if (change.Download) _skippedDownloads.Remove(change.ToolId); else _skippedDownloads.Add(change.ToolId);
-        return Task.CompletedTask;
+        try { await ApiClient.InstallToolAsync(tool.Id); }
+        catch (Exception ex) { Logger.LogWarning(ex, "Setup could not start the {Tool} download", tool.Id); }
+        _preflight = await ApiClient.RunSetupPreflightAsync(_setupSession) ?? _preflight;
     }
 
     // Welcome starts the server check in the background so the Tools step already has its answers; a failure here just leaves the

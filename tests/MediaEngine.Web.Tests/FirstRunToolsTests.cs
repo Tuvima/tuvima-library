@@ -129,7 +129,7 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
         var cut = Render<SetupToolsStage>(parameters => parameters
             .Add(p => p.Preflight, Passed(Tools(Tool("ffmpeg", "FFmpeg", canLocate: true)))));
 
-        Assert.DoesNotContain("Locate it", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Locate", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -165,33 +165,102 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
     }
 
     [Fact]
-    public void SetupStep_ASingleOptionalToolMissing_HasADownloadNowTickThatIsOnByDefault_AndReportsTheChange()
+    public void SetupStep_ANotInstalledTool_OffersInstall_AndHasNoDownloadNowTick()
     {
-        (string ToolId, bool Download)? change = null;
+        ToolRequirementDto? installed = null;
         var cut = Render<SetupToolsStage>(parameters => parameters
-            .Add(p => p.Preflight, Passed(Tools(Tool("tesseract", "Tesseract", requirement: ToolRequirementLevels.Optional))))
-            .Add(p => p.DownloadChanged, EventCallback.Factory.Create<(string ToolId, bool Download)>(this, value => change = value)));
+            .Add(p => p.Preflight, Passed(Tools(
+                Tool("tesseract", "Tesseract", requirement: ToolRequirementLevels.Optional, canInstall: true),
+                Tool("exiftool", "ExifTool", requirement: ToolRequirementLevels.Optional, state: ToolRequirementStates.Ready))))
+            .Add(p => p.InstallTool, EventCallback.Factory.Create<ToolRequirementDto>(this, tool => installed = tool)));
 
-        var tick = cut.Find("input[type=checkbox]");
-        Assert.True(tick.HasAttribute("checked"));
-        Assert.Contains("Download now", cut.Markup, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("input[type=checkbox]"));
+        Assert.DoesNotContain("Download now", cut.Markup, StringComparison.Ordinal);
+        cut.Find("[data-tool-id=tesseract] [data-column=action] button").Click();
 
-        tick.Change(false);
+        Assert.Equal("tesseract", installed?.Id);
+        Assert.Empty(cut.FindAll("[data-tool-id=exiftool] [data-column=action] button"));
+    }
 
-        Assert.Equal(("tesseract", false), change);
+    // Each state draws its status in the status column and its action (or a dash) in the action column, so rows line up.
+    [Theory]
+    [InlineData(ToolRequirementStates.Ready, "Ready", null)]
+    [InlineData(ToolRequirementStates.Missing, "Not installed", "Install")]
+    [InlineData(ToolRequirementStates.Downloading, "Downloading 30%", "Cancel")]
+    [InlineData(ToolRequirementStates.InstallerReady, "Not installed", "Run installer")]
+    [InlineData(ToolRequirementStates.Problem, "Broken", "Install")]
+    public void ToolRow_ForEachState_DrawsTheStatusAndTheActionInTheirOwnColumns(string state, string status, string? action)
+    {
+        var tool = Tool("tesseract", "Tesseract", requirement: ToolRequirementLevels.Optional, state: state, percent: 30, canInstall: true) with { Version = "5.3" };
+
+        var cut = Render<Components.Shared.Tools.ToolRequirementRow>(parameters => parameters
+            .Add(p => p.Tool, tool)
+            .Add(p => p.OnInstall, EventCallback.Factory.Create<ToolRequirementDto>(this, _ => { }))
+            .Add(p => p.OnCancel, EventCallback.Factory.Create<ToolRequirementDto>(this, _ => { }))
+            .Add(p => p.OnRunInstaller, EventCallback.Factory.Create<ToolRequirementDto>(this, _ => { })));
+
+        Assert.Equal(status, cut.Find("[data-column=status]").TextContent.Trim());
+        Assert.Contains("Tesseract", cut.Find(".tool-row__title").TextContent, StringComparison.Ordinal);
+        Assert.Contains("v5.3", cut.Find(".tool-row__title").TextContent, StringComparison.Ordinal);
+        Assert.Equal("Reads text in scanned documents", cut.Find(".tool-row__description").TextContent.Trim());
+        var column = cut.Find("[data-column=action]");
+        if (action is null)
+        {
+            Assert.Empty(column.QuerySelectorAll("button"));
+            Assert.Contains("—", column.TextContent, StringComparison.Ordinal);
+        }
+        else
+        {
+            Assert.Equal([action], column.QuerySelectorAll("button").Select(button => button.TextContent.Trim()));
+        }
     }
 
     [Fact]
-    public void SetupStep_ATickTurnedOffStaysOff_AndAReadyToolHasNoTick()
+    public void ToolRow_WithLocateAndInstall_OffersBothInTheActionColumn()
     {
-        var cut = Render<SetupToolsStage>(parameters => parameters
-            .Add(p => p.Skipped, new HashSet<string> { "tesseract" })
-            .Add(p => p.Preflight, Passed(Tools(
-                Tool("tesseract", "Tesseract", requirement: ToolRequirementLevels.Optional),
-                Tool("exiftool", "ExifTool", requirement: ToolRequirementLevels.Optional, state: ToolRequirementStates.Ready)))));
+        var tool = Tool("ffmpeg", "FFmpeg", canLocate: true, canInstall: true);
 
-        Assert.Single(cut.FindAll("input[type=checkbox]"));
-        Assert.False(cut.Find("input[type=checkbox]").HasAttribute("checked"));
+        var cut = Render<Components.Shared.Tools.ToolRequirementRow>(parameters => parameters
+            .Add(p => p.Tool, tool)
+            .Add(p => p.OnLocate, EventCallback.Factory.Create<ToolRequirementDto>(this, _ => { }))
+            .Add(p => p.OnInstall, EventCallback.Factory.Create<ToolRequirementDto>(this, _ => { })));
+
+        Assert.Equal(["Locate", "Install"], cut.Find("[data-column=action]").QuerySelectorAll("button").Select(button => button.TextContent.Trim()));
+    }
+
+    [Fact]
+    public void ToolsSummaryLine_CountsMatchTheRows()
+    {
+        var rows = new[]
+        {
+            Tool("ffmpeg", "FFmpeg", state: ToolRequirementStates.Ready),
+            Tool("adaptive_streaming", "Smooth streaming", state: ToolRequirementStates.Ready),
+            Tool("tesseract", "Tesseract", requirement: ToolRequirementLevels.Optional),
+            Tool("exiftool", "ExifTool", state: ToolRequirementStates.Ready),
+            Tool("image_engine", "Image engine", state: ToolRequirementStates.Ready),
+        };
+
+        var cut = Render<Components.Shared.Tools.ToolsSummaryLine>(parameters => parameters.Add(p => p.Tools, rows));
+
+        Assert.Equal("5 tools detected · 4 ready · 1 needs setup", cut.Find("[data-testid=tools-summary]").TextContent.Trim());
+
+        var allReady = Render<Components.Shared.Tools.ToolsSummaryLine>(parameters => parameters.Add(p => p.Tools, rows.Where(row => row.State == ToolRequirementStates.Ready).ToList()));
+        Assert.Equal("4 tools detected · 4 ready", allReady.Find("[data-testid=tools-summary]").TextContent.Trim());
+
+        var two = Render<Components.Shared.Tools.ToolsSummaryLine>(parameters => parameters.Add(p => p.Tools, new[] { rows[2], Tool("x", "X", state: ToolRequirementStates.Problem) }));
+        Assert.Equal("2 tools detected · 0 ready · 2 need setup", two.Find("[data-testid=tools-summary]").TextContent.Trim());
+    }
+
+    [Fact]
+    public void SetupStep_AndSettingsTools_ShowTheSummaryLineAboveTheRows()
+    {
+        var setup = Render<SetupToolsStage>(parameters => parameters.Add(p => p.Preflight, Passed(Tools(
+            Tool("ffmpeg", "FFmpeg", state: ToolRequirementStates.Ready), Tool("tesseract", "Tesseract", requirement: ToolRequirementLevels.Optional)))));
+        Assert.Equal("2 tools detected · 1 ready · 1 needs setup", setup.Find("[data-testid=tools-summary]").TextContent.Trim());
+
+        _onGet = _ => Tools(Tool("ffmpeg", "FFmpeg", state: ToolRequirementStates.Ready));
+        var settings = Render<ToolsRequirementsTab>();
+        Assert.Equal("1 tool detected · 1 ready", settings.Find("[data-testid=tools-summary]").TextContent.Trim());
     }
 
     [Fact]
@@ -312,8 +381,8 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
         Assert.Contains("FFmpeg", tools.TextContent, StringComparison.Ordinal);
         Assert.Contains("12 files are waiting for FFmpeg.", tools.TextContent, StringComparison.Ordinal);
         Assert.Contains(FfmpegFix, tools.TextContent, StringComparison.Ordinal);
-        Assert.Equal("Missing", cut.Find("[data-tool-id=ffmpeg] .app-chip").TextContent.Trim());
-        Assert.Equal("Optional", cut.Find("[data-tool-id=tesseract] .app-chip").TextContent.Trim());
+        Assert.Equal("Not installed", cut.Find("[data-tool-id=ffmpeg] .app-chip").TextContent.Trim());
+        Assert.Equal("Not installed", cut.Find("[data-tool-id=tesseract] .app-chip").TextContent.Trim());
         Assert.Equal("Ready", cut.Find("[data-tool-id=image_engine] .app-chip").TextContent.Trim());
         // The model files are listed once, on Local AI > Models & Hardware; Tools and requirements only links there.
         Assert.Empty(cut.FindAll("[data-testid=models-list]"));
@@ -334,8 +403,8 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
 
         var cut = Render<ToolsRequirementsTab>();
 
-        Assert.Single(cut.FindAll("[data-tool-id=ffmpeg] button"), button => button.TextContent.Contains("Locate it", StringComparison.Ordinal));
-        Assert.Single(cut.FindAll("[data-tool-id=tesseract] button"), button => button.TextContent.Contains("Locate it", StringComparison.Ordinal));
+        Assert.Single(cut.FindAll("[data-tool-id=ffmpeg] button"), button => button.TextContent.Contains("Locate", StringComparison.Ordinal));
+        Assert.Single(cut.FindAll("[data-tool-id=tesseract] button"), button => button.TextContent.Contains("Locate", StringComparison.Ordinal));
         Assert.Empty(cut.FindAll("[data-tool-id=image_engine] button"));
         Assert.Empty(cut.FindAll("[data-tool-id=adaptive_streaming] button"));
     }
@@ -382,7 +451,7 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
         _onGet = _ => Tools(Tool("ffmpeg", "FFmpeg"));
         _onCheck = () => Tools(Tool("ffmpeg", "FFmpeg", state: ToolRequirementStates.Ready));
         var cut = Render<ToolsRequirementsTab>();
-        Assert.Equal("Missing", cut.Find("[data-tool-id=ffmpeg] .app-chip").TextContent.Trim());
+        Assert.Equal("Not installed", cut.Find("[data-tool-id=ffmpeg] .app-chip").TextContent.Trim());
 
         cut.FindAll("button").Single(button => button.TextContent.Contains("Check again", StringComparison.Ordinal)).Click();
 
@@ -513,10 +582,11 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
         int waiting = 0,
         bool canLocate = false,
         bool canDownloadAgain = false,
+        bool canInstall = false,
         int? percent = null) =>
         new(id, name, kind, requirement, state, FfmpegEffect, null,
             state == ToolRequirementStates.Ready ? string.Empty : FfmpegFix,
-            null, waiting, canLocate && state != ToolRequirementStates.Ready, false, canDownloadAgain, percent);
+            null, waiting, canLocate && state != ToolRequirementStates.Ready, canInstall, canDownloadAgain, percent);
 
     private static string RepoFile(params string[] parts)
     {
