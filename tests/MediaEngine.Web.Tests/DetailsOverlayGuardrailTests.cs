@@ -86,7 +86,7 @@ public sealed partial class DetailsOverlayGuardrailTests
         ["Components/Pages/Operations.razor"] = (2, "Redirects to Settings routes."),
         ["Components/Pages/ProfilePickerPage.razor"] = (1, "Full reload to the sanitized same-site return address after choosing a profile (ProfilePickerRoute)."),
         ["Components/Pages/SearchPage.razor"] = (1, "The search page rewriting its own query."),
-        ["Components/Pages/Settings.razor"] = (9, "Settings redirects to Home, /not-found or another Settings route."),
+        ["Components/Pages/Settings.razor"] = (7, "Settings redirects to Home, /not-found or another Settings route."),
         ["Components/Pages/SetupPage.razor"] = (1, "Full reload to Home or the sign-in page when setup ends."),
         ["Components/Pages/ShelfGridPage.razor.cs"] = (4, "The View all grid rewriting its own sort and filter address."),
         ["Components/Settings/IngestionTasksTab.razor"] = (1, "Redirect to the Activity log route."),

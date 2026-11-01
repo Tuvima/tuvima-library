@@ -21,10 +21,18 @@
 
     [Parameter] public string PageLabel { get; set; } = "Settings";
 
+    /// <summary>Items waiting in Needs Review, shown on that tab.</summary>
+    [Parameter] public int ReviewCount { get; set; }
+
     // A tab's address is its key, so a link, the selection and the keyboard all agree on which tab is which.
     private IReadOnlyList<AppCountTab> TabItems => Tabs
-        .Select(tab => new AppCountTab(tab.Route, tab.Label, null, tab.Route, tab.Icon))
+        .Select(tab => new AppCountTab(tab.Route, tab.Label, CountFor(tab), tab.Route, tab.Icon, tab.IsAdvanced))
+        .OrderBy(tab => tab.Advanced ? 1 : 0)
         .ToList();
+
+    // Needs Review carries how many items wait for the person; no other tab has a count.
+    private int? CountFor(SettingsPageTab tab) =>
+        tab.Section == SettingsSection.Review && ReviewCount > 0 ? ReviewCount : null;
 
     private Task OpenAsync(string route)
     {

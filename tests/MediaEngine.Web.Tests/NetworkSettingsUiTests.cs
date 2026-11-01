@@ -14,8 +14,8 @@ public sealed class NetworkSettingsUiTests
     {
         var subsections = SettingsNav.GetSubsections(SettingsSection.Network).ToArray();
 
-        Assert.Equal(["overview", "local", "remote", "advanced"], subsections.Select(item => item.Slug));
-        Assert.Equal("/settings/network/overview", SettingsNav.RouteFor(SettingsSection.Network));
+        Assert.Equal(["home", "remote", "advanced"], subsections.Select(item => item.Slug));
+        Assert.Equal("/settings/network/home", SettingsNav.RouteFor(SettingsSection.Network));
         Assert.Equal("/settings/network/remote", SettingsNav.RouteFor(SettingsSection.Network, "remote"));
     }
 

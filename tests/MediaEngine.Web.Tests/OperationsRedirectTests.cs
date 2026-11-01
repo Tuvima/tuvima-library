@@ -24,8 +24,8 @@ public sealed class OperationsRedirectTests : AsyncBunitContext
     }
 
     [Theory]
-    [InlineData("/operations/ingestion", "/settings/ingestion")]
-    [InlineData("/operations/recently-added", "/settings/recently-added")]
+    [InlineData("/operations/ingestion", "/settings/libraries")]
+    [InlineData("/operations/recently-added", "/settings/library-activity")]
     public void TheOtherOldAddresses_StillRedirectAsBefore(string address, string expected)
     {
         var navigation = Services.GetRequiredService<NavigationManager>();

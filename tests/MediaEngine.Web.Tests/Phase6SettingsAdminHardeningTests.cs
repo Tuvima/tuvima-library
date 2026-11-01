@@ -79,7 +79,7 @@ public sealed class Phase6SettingsAdminHardeningTests
         Assert.Contains("SettingsStatusKind.Partial", source, StringComparison.Ordinal);
         Assert.Contains("public static SettingsStatusKind GetStatus", source, StringComparison.Ordinal);
         Assert.Contains("SettingsSection.LocalAi", source, StringComparison.Ordinal);
-        Assert.Contains("SettingsSection.Delivery", source, StringComparison.Ordinal);
+        Assert.Contains("SettingsSection.Playback", source, StringComparison.Ordinal);
         Assert.Contains("SettingsSection.Plugins", source, StringComparison.Ordinal);
     }
 
@@ -92,7 +92,7 @@ public sealed class Phase6SettingsAdminHardeningTests
 
         Assert.DoesNotContain("aria-label=\"Media Management sections\"", source, StringComparison.Ordinal);
         Assert.Contains("new(SettingsSection.Libraries", nav, StringComparison.Ordinal);
-        Assert.Contains("new(SettingsSection.Ingestion", nav, StringComparison.Ordinal);
+        Assert.Contains("new(SettingsSection.RecentlyAdded", nav, StringComparison.Ordinal);
         Assert.DoesNotContain("<SettingsSubsectionNav", settings, StringComparison.Ordinal);
 
         Assert.Contains("Personal Space", ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/Libraries/ViewFoldersTab.razor"), StringComparison.Ordinal);
@@ -223,9 +223,9 @@ public sealed class Phase6SettingsAdminHardeningTests
         Assert.False(File.Exists(metadataTabPath));
         Assert.DoesNotContain("MetadataMatchingTab", settings, StringComparison.Ordinal);
         Assert.DoesNotContain("Metadata & Matching", nav, StringComparison.Ordinal);
-        Assert.Contains("\"metadata\"", nav, StringComparison.Ordinal);
+        Assert.Contains("\"matching\"", nav, StringComparison.Ordinal);
         Assert.DoesNotContain("\"providers\", \"Providers\"", nav, StringComparison.Ordinal);
-        Assert.Contains("IngestionFlowSubsection, \"Ingestion Flow\"", nav, StringComparison.Ordinal);
+        Assert.Contains("new(SettingsSection.Providers, \"library\", \"matching\"", nav, StringComparison.Ordinal);
         Assert.DoesNotContain("\"enrichment\", \"Enrichment\"", nav, StringComparison.Ordinal);
         Assert.DoesNotContain("\"canonical\", \"Canonical & Universes\"", nav, StringComparison.Ordinal);
     }
@@ -265,7 +265,7 @@ public sealed class Phase6SettingsAdminHardeningTests
         // The user-facing name is "optimized copies" (the code still calls them variants).
         Assert.Contains("Optimized copy storage", encode, StringComparison.Ordinal);
         Assert.DoesNotContain("Variant storage", encode, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Diagnostics", delivery, StringComparison.Ordinal);
+        Assert.Contains("Section=\"diagnostics\"", delivery, StringComparison.Ordinal);
         // No "planned" note: Available plugins draws an Install button only when the Engine says installing is supported.
         Assert.DoesNotContain("marketplace flows are planned", plugins, StringComparison.Ordinal);
         // The directory panel is kept but not drawn on the Plugins page (Plugins and Integrations screens v3).

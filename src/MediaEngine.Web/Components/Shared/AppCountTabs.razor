@@ -8,7 +8,7 @@
         var tab = Tabs[index];
         var position = index;
         var selected = string.Equals(tab.Key, Selected, StringComparison.Ordinal);
-        var tabClass = "tl-tab" + (selected ? " tl-tab-active" : "");
+        var tabClass = "tl-tab" + (selected ? " tl-tab-active" : "") + (tab.Advanced ? " tl-tab--advanced" : "");
         @if (!string.IsNullOrWhiteSpace(tab.Href))
         {
             <a href="@tab.Href"
@@ -20,7 +20,7 @@
                tabindex="@(selected ? 0 : -1)"
                @onclick="() => SelectAsync(tab.Key)"
                @onkeydown="args => KeyDownAsync(args, position)">
-                @if (!string.IsNullOrWhiteSpace(tab.Icon)) { <AppMaterialIcon Icon="@tab.Icon" /> }
+                @if (!string.IsNullOrWhiteSpace(tab.Icon)) { <AppMaterialIcon Icon="@tab.Icon" Size="@(tab.Advanced ? AppSize.Small : AppSize.Medium)" /> }
                 <span>@tab.Label</span>
                 @if (tab.Count is not null) { <span class="tl-tab__count">@tab.Count</span> }
             </a>

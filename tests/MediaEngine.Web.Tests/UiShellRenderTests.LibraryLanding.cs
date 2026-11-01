@@ -11,8 +11,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// Library & Ingestion opens on one live page (library summary, live ingestion, recently added); Recently Added is
-/// reached from its "View all" link and is not a menu row (Settings revamp D37).
+/// Libraries is one page with tabs (Libraries, Activity, Needs Review, Matching, Rules); the old Library & Ingestion overview
+/// is gone and its address is not found (settings-and-setup-simplified D6, D19). Activity is a tab, not a menu row.
 /// </summary>
 public sealed partial class UiShellRenderTests
 {
@@ -49,36 +49,27 @@ public sealed partial class UiShellRenderTests
     }
 
     [Fact]
-    public void LibraryAndIngestionLandingPage_ShowsTheLibrarySummary_ThenLiveIngestion_ThenTheAddedSummaryWithAViewAllLinkToTheActivityLog()
+    public void TheOldLibraryAndIngestionOverviewAddress_IsNotFound_AndIsNotForwarded()
     {
         UseLandingApi();
+        var navigation = Services.GetRequiredService<NavigationManager>();
+        navigation.NavigateTo("/settings/ingestion");
+        var visited = new List<string>();
+        navigation.LocationChanged += (_, args) => visited.Add(args.Location);
 
-        var cut = RenderSettings("ingestion");
+        RenderSettings("ingestion");
 
-        cut.WaitForAssertion(() =>
-        {
-            Assert.Single(cut.FindAll("[data-testid='library-summary']"));
-            Assert.Equal(7, cut.FindAll(".library-summary__media").Count);
-            Assert.Contains("2 items need review", cut.Find("[data-testid='library-summary-review']").TextContent, StringComparison.Ordinal);
-            Assert.NotEmpty(cut.FindAll(".ingestion-status"));
-            var viewAll = cut.Find(".ingestion-added a[href='/settings/system/logs?tab=events&filter=added']");
-            Assert.Contains("View all", viewAll.TextContent, StringComparison.Ordinal);
-
-            var markup = cut.Markup;
-            var summary = markup.IndexOf("data-testid=\"library-summary\"", StringComparison.Ordinal);
-            var live = markup.IndexOf("ingestion-status", StringComparison.Ordinal);
-            var recent = markup.IndexOf("ingestion-added", StringComparison.Ordinal);
-            Assert.True(summary >= 0 && summary < live && live < recent, "Summary, live ingestion, then the added summary.");
-            Assert.DoesNotContain("Continue optional setup", markup, StringComparison.Ordinal);
-        });
+        // Without a router the page is not re-routed afterwards, so the redirect is read from the locations visited.
+        Assert.Contains(visited, uri => uri.EndsWith("/not-found", StringComparison.Ordinal));
+        Assert.DoesNotContain(visited, uri => uri.Contains("/settings/libraries", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void RecentlyAddedPage_IsNotInTheMenu_ButItsRouteResolvesWithAServerLibraryAndIngestionBreadcrumb()
+    public void ActivityTab_IsNotInTheMenu_ButItsRouteResolvesWithALibraryLibrariesBreadcrumb()
     {
         UseLandingApi();
 
-        var cut = RenderSettings("recently-added");
+        var cut = RenderSettings("library-activity");
 
         cut.WaitForAssertion(() =>
         {
@@ -87,31 +78,32 @@ public sealed partial class UiShellRenderTests
                 .Where(text => text.Length > 0)
                 .Distinct()
                 .ToArray();
-            Assert.Equal(["Settings", "Server", "Library & Ingestion", "Recently Added"], trail);
+            Assert.Equal(["Settings", "Library", "Libraries", "Activity"], trail);
             var links = cut.FindAll(".media-section-shell__tree-link");
             Assert.DoesNotContain(links, link => link.TextContent.Contains("Recently Added", StringComparison.Ordinal));
-            Assert.Single(links, link => link.TextContent.Contains("Library & Ingestion", StringComparison.Ordinal));
+            Assert.DoesNotContain(links, link => link.TextContent.Contains("Activity", StringComparison.Ordinal));
+            Assert.Single(links, link => link.TextContent.Trim() == "Libraries");
         });
     }
 
     [Fact]
-    public void LibraryAndIngestionRow_HasNoNeedsReviewCountBubble()
+    public void LibrariesRow_HasNoNeedsReviewCountBubble()
     {
         UseLandingApi();
 
-        var cut = RenderSettings("ingestion");
+        var cut = RenderSettings("libraries");
 
         cut.WaitForAssertion(() =>
         {
             var row = cut.FindAll(".media-section-shell__tree-link")
-                .First(link => link.TextContent.Contains("Library & Ingestion", StringComparison.Ordinal));
+                .First(link => link.TextContent.Trim() == "Libraries");
             var badge = row.QuerySelector(".media-section-shell__rail-meta--notification");
             Assert.Null(badge);
         });
     }
 
     [Fact]
-    public void LegacyRecentlyAddedReviewLink_RedirectsToTheNeedsReviewPage()
+    public void TheOldRecentlyAddedReviewLink_IsNotFound_AndIsNotForwarded()
     {
         UseLandingApi();
         var navigation = Services.GetRequiredService<NavigationManager>();
@@ -132,7 +124,8 @@ public sealed partial class UiShellRenderTests
 
         // Without a router the page is not re-routed afterwards, so the redirect is read from the locations visited.
         cut.WaitForAssertion(
-            () => Assert.Contains(visited, uri => uri.EndsWith("/settings/review", StringComparison.Ordinal)));
+            () => Assert.Contains(visited, uri => uri.EndsWith("/not-found", StringComparison.Ordinal)));
+        Assert.DoesNotContain(visited, uri => uri.EndsWith("/settings/review", StringComparison.Ordinal));
     }
 
     [Fact]

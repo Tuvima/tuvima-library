@@ -122,7 +122,7 @@ public sealed partial class UiShellRenderTests
     }
 
     [Fact]
-    public void NeedsReviewRoute_IsOffTheMenu_WithAServerLibraryAndIngestionBreadcrumb()
+    public void NeedsReviewRoute_IsATabOfLibraries_WithALibraryLibrariesBreadcrumb()
     {
         UseSpiedReviewApi();
 
@@ -135,7 +135,7 @@ public sealed partial class UiShellRenderTests
                 .Where(text => text.Length > 0)
                 .Distinct()
                 .ToArray();
-            Assert.Equal(["Settings", "Server", "Library & Ingestion", "Needs Review"], trail);
+            Assert.Equal(["Settings", "Library", "Libraries", "Needs Review"], trail);
             Assert.DoesNotContain(host.FindAll(".media-section-shell__tree-link"),
                 link => link.TextContent.Contains("Needs Review", StringComparison.Ordinal));
         });

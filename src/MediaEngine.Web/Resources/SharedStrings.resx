@@ -9780,6 +9780,12 @@
   <data name="ListSection_SignInAgainAction" xml:space="preserve">
     <value>Sign in again</value>
   </data>
+  <data name="SettingsPageFrame_AdvancedWarning" xml:space="preserve">
+    <value>These settings are for experienced administrators. Everyday use never needs them.</value>
+  </data>
+  <data name="Settings_BackupsAdvancedPending" xml:space="preserve">
+    <value>The restored-progress wait and the archive facts are still on the Backups tab. They move here soon.</value>
+  </data>
   <data name="PluginProvides_RunsOnLocalAi" xml:space="preserve">
     <value>runs on Local AI</value>
   </data>

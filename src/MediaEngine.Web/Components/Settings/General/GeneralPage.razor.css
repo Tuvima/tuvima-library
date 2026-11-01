@@ -1,17 +1,17 @@
-.configuration-page {
+.general-page {
     display: flex;
     flex-direction: column;
     gap: var(--tl-space-8, 40px);
 }
 
-.configuration-page__group {
+.general-page__group {
     display: flex;
     flex-direction: column;
     gap: var(--tl-space-3, 12px);
     min-width: 0;
 }
 
-.configuration-page__heading {
+.general-page__heading {
     margin: 0;
     color: var(--tl-text-primary);
     font-size: var(--tl-font-size-lg);

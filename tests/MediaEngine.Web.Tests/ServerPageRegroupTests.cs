@@ -28,23 +28,23 @@ public sealed class ServerPageRegroupTests
 
     public static TheoryData<MovedPanel> MovedPanels =>
     [
-        new("Remote Streaming Quality", "/settings/network/streaming", "/settings/delivery", SettingsSection.Delivery, null,
+        new("Remote Streaming Quality", "/settings/network/streaming", "/settings/playback", SettingsSection.Playback, null,
             "StreamingLimitsPanel.razor", "Remote Streaming Quality", "NetworkRemoteAccessSettings.razor", "StreamingLimits"),
-        new("Upload Capacity and the bandwidth test", "/settings/network/streaming", "/settings/delivery", SettingsSection.Delivery, null,
+        new("Upload Capacity and the bandwidth test", "/settings/network/streaming", "/settings/playback", SettingsSection.Playback, null,
             "StreamingLimitsPanel.razor", "TestNetworkBandwidthAsync", "NetworkRemoteAccessSettings.razor", "StreamingLimits"),
-        new("Concurrent Remote Streaming", "/settings/network/streaming", "/settings/delivery", SettingsSection.Delivery, null,
+        new("Concurrent Remote Streaming", "/settings/network/streaming", "/settings/playback", SettingsSection.Playback, null,
             "StreamingLimitsPanel.razor", "Concurrent Remote Streaming", "NetworkRemoteAccessSettings.razor", "StreamingLimits"),
         new("Hardware acceleration setting", "/settings/delivery (Delivery settings) and /settings/network/streaming (read-only)",
-            "/settings/delivery/hardware", SettingsSection.Delivery, "hardware",
+            "/settings/playback/advanced", SettingsSection.Playback, "advanced",
             "EncodeSettingsTab.razor", "Label=\"Hardware acceleration\"", "PlaybackDeliverySettingsTab.razor", "Hardware acceleration"),
         new("Prepared download quality and maximum active encodes", "/settings/delivery (Delivery settings)",
-            "/settings/delivery/optimized-copies", SettingsSection.Delivery, "optimized-copies",
+            "/settings/playback/advanced", SettingsSection.Playback, "advanced",
             "EncodeSettingsTab.razor", "Label=\"Maximum active encodes\"", "PlaybackDeliverySettingsTab.razor", "Maximum active encodes"),
-        new("Scheduling", "/settings/delivery/scheduling", "/settings/delivery/optimized-copies", SettingsSection.Delivery, "optimized-copies",
+        new("Scheduling", "/settings/delivery/scheduling", "/settings/playback/advanced", SettingsSection.Playback, "advanced",
             "EncodeSettingsTab.razor", "Title=\"Scheduling\"", null, null),
-        new("Optimized copy storage", "/settings/delivery/storage", "/settings/delivery/optimized-copies", SettingsSection.Delivery, "optimized-copies",
+        new("Optimized copy storage", "/settings/delivery/storage", "/settings/playback/advanced", SettingsSection.Playback, "advanced",
             "EncodeSettingsTab.razor", "Title=\"Optimized copy storage\"", null, null),
-        new("Active jobs", "/settings/delivery/active-jobs", "/settings/delivery/optimized-copies", SettingsSection.Delivery, "optimized-copies",
+        new("Active jobs", "/settings/delivery/active-jobs", "/settings/playback/advanced", SettingsSection.Playback, "advanced",
             "EncodeSettingsTab.razor", "<OfflineDownloadsTab />", "PlaybackDeliverySettingsTab.razor", "OfflineDownloadsTab"),
         new("Playback tools and services (was Current status)", "/settings/delivery", "/settings/tools", SettingsSection.Tools, null,
             "PlaybackToolsStatusCard.razor", "Title=\"Playback tools and services\"", "PlaybackDeliverySettingsTab.razor", "Current status"),
@@ -84,9 +84,9 @@ public sealed class ServerPageRegroupTests
 
     [Theory]
     [InlineData(SettingsSection.Network, "streaming")]
-    [InlineData(SettingsSection.Delivery, "scheduling")]
-    [InlineData(SettingsSection.Delivery, "storage")]
-    [InlineData(SettingsSection.Delivery, "active-jobs")]
+    [InlineData(SettingsSection.Playback, "scheduling")]
+    [InlineData(SettingsSection.Playback, "storage")]
+    [InlineData(SettingsSection.Playback, "active-jobs")]
     [InlineData(SettingsSection.Plugins, "jobs-health")]
     [InlineData(SettingsSection.Plugins, "catalog")]
     [InlineData(SettingsSection.Plugins, "capabilities")]
@@ -99,16 +99,17 @@ public sealed class ServerPageRegroupTests
     }
 
     [Fact]
-    public void StreamingIsListedOnceInTheMenu_AndEachServerPageHasItsOwnTabs()
+    public void PlaybackIsListedOnceInTheMenu_AndEachServerPageHasItsOwnTabs()
     {
         var rows = SettingsNav.MenuGroups.SelectMany(group => group.Nodes).ToArray();
 
-        Assert.Single(rows, node => node.Label == "Streaming");
-        Assert.Equal(["Overview", "Local Network", "Remote Access", "Advanced"],
+        Assert.Single(rows, node => node.Label == "Playback");
+        Assert.DoesNotContain(rows, node => node.Label == "Streaming");
+        Assert.Equal(["Home network", "Remote access", "Advanced"],
             rows.Single(node => node.Section == SettingsSection.Network).Tabs.Select(tab => tab.Label));
-        Assert.Equal(["Limits & Quality", "Hardware Acceleration", "Optimized Copies", "Diagnostics"],
-            rows.Single(node => node.Section == SettingsSection.Delivery).Tabs.Select(tab => tab.Label));
-        Assert.Equal(["Status", "Models & Hardware", "Budget", "Usage"],
+        Assert.Equal(["Quality", "Advanced"],
+            rows.Single(node => node.Section == SettingsSection.Playback).Tabs.Select(tab => tab.Label));
+        Assert.Equal(["Status", "Models", "Advanced"],
             rows.Single(node => node.Section == SettingsSection.LocalAi).Tabs.Select(tab => tab.Label));
         Assert.Empty(rows.Single(node => node.Section == SettingsSection.Plugins).Tabs);
     }

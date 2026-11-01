@@ -14,7 +14,7 @@ public sealed class MetadataSettingsCompositionTests
         Assert.DoesNotContain("ProvidersPage()", page, StringComparison.Ordinal);
         Assert.DoesNotContain("ProviderDetailPage()", page, StringComparison.Ordinal);
         Assert.DoesNotContain("\"providers\", \"Providers\"", nav, StringComparison.Ordinal);
-        Assert.Contains("IngestionFlowSubsection, \"Ingestion Flow\"", nav, StringComparison.Ordinal);
+        Assert.Contains("new(SettingsSection.Providers, \"library\", \"matching\"", nav, StringComparison.Ordinal);
         Assert.DoesNotContain("\"enrichment\", \"Enrichment\"", nav, StringComparison.Ordinal);
         Assert.DoesNotContain("\"canonical\", \"Canonical & Universes\"", nav, StringComparison.Ordinal);
     }
@@ -92,7 +92,7 @@ public sealed class MetadataSettingsCompositionTests
 
         Assert.Contains("_pipeline.Identification", summary, StringComparison.Ordinal);
         Assert.Contains("_pipeline.Enrichment", summary, StringComparison.Ordinal);
-        Assert.Contains("/settings/metadata/ingestion-flow", summary, StringComparison.Ordinal);
+        Assert.Contains("/settings/matching", summary, StringComparison.Ordinal);
         Assert.Contains("Local metadata only", summary, StringComparison.Ordinal);
     }
 

@@ -195,7 +195,7 @@ public sealed class UiArchitectureGuardrailTests
         Assert.DoesNotContain("<ProviderStageSelector", markup);
         Assert.Contains("[Parameter] public string? Subsection", markup);
         Assert.Contains("[Parameter] public string? Detail", markup);
-        Assert.Contains("<MetadataSettingsPage Subsection=\"@_activeSubsection\" Detail=\"@Detail\" />", settings);
+        Assert.Contains("<MetadataSettingsPage Subsection=\"ingestion-flow\" Detail=\"@Detail\" />", settings);
     }
 
     [Fact]

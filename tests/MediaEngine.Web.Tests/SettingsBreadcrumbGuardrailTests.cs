@@ -15,8 +15,8 @@ public sealed class SettingsBreadcrumbGuardrailTests
         Assert.Contains("aria-current=\"page\"", frame, StringComparison.Ordinal);
         Assert.DoesNotContain("runId", settings, StringComparison.Ordinal);
         Assert.DoesNotContain("IngestionBatchDisplay", settings, StringComparison.Ordinal);
-        Assert.Contains("SettingsSection.Ingestion => \"What your library holds", settings, StringComparison.Ordinal);
-        Assert.Contains("<IngestionTasksTab", settings, StringComparison.Ordinal);
+        Assert.Contains("SettingsSection.LibraryRules => \"The rules every library follows", settings, StringComparison.Ordinal);
+        Assert.Contains("<LibraryRulesPage", settings, StringComparison.Ordinal);
         Assert.Contains("<RecentlyAddedPageContent", settings, StringComparison.Ordinal);
         Assert.Contains("focus-visible", frameCss, StringComparison.Ordinal);
         Assert.DoesNotContain("<AppBreadcrumbs>", metadata, StringComparison.Ordinal);

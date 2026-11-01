@@ -190,7 +190,7 @@ public sealed class SettingsAttentionBannerTests : AsyncBunitContext
         // The shading in the Settings menu keeps reading the same shared state, so it stays after the line is dismissed.
         Assert.Equal(3, State.ReviewCount);
         var groups = SettingsMenuBuilder.Build(MenuContext(State));
-        Assert.Equal(MediaSectionAttentionLevel.Waiting, Flatten(groups).Single(row => row.Label == "Library & Ingestion").Attention);
+        Assert.Equal(MediaSectionAttentionLevel.Waiting, Flatten(groups).Single(row => row.Label == "Libraries").Attention);
 
         cut.Find("[data-settings-notice='missing-tools'] button[aria-label='Dismiss']").Click();
         cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-settings-notice]")));
@@ -632,8 +632,9 @@ public sealed class SettingsAttentionBannerTests : AsyncBunitContext
 
         Assert.Equal(MediaSectionAttentionLevel.Blocked, rows.Single(row => row.Label == "Local AI").Attention);
         Assert.Equal("Broken", rows.Single(row => row.Label == "Local AI").AttentionLabel);
-        Assert.Equal(MediaSectionAttentionLevel.Waiting, rows.Single(row => row.Label == "Library & Ingestion").Attention);
-        Assert.Null(rows.Single(row => row.Label == "Library & Ingestion").Meta);
+        Assert.Equal(MediaSectionAttentionLevel.Waiting, rows.Single(row => row.Label == "Libraries").Attention);
+        Assert.Null(rows.Single(row => row.Label == "Libraries").Meta);
+        Assert.Equal(MediaSectionAttentionLevel.None, rows.Single(row => row.Label == "Tools").EffectiveAttention);
         Assert.Equal(MediaSectionAttentionLevel.None, rows.Single(row => row.Label == "System").EffectiveAttention);
     }
 
