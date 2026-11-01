@@ -164,7 +164,7 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
             .Add(x => x.HasLibraries, true)
             .Add(x => x.DeferMedia, EventCallback.Factory.Create(this, () => _deferred++))
             .Add(x => x.ValidateMedia, EventCallback.Factory.Create(this, () => _continued++)));
-        cut.WaitForAssertion(() => Assert.True(cut.FindAll(".libs").Count > 0));
+        cut.WaitForAssertion(() => Assert.True(cut.FindAll("[data-setup-areas]").Count > 0));
         return cut;
     }
 
@@ -172,31 +172,29 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
 
     private AngleSharp.Dom.IElement DialogButton(string text) => _dialogs.FindAll("button").Single(x => Text(x) == text);
 
-    // Setup lists every area in one table (Libraries redesign D2, D13), so there is no area to choose; the argument only names what the caller expects to see.
-    private static void ChooseArea(IRenderedComponent<SetupLibrariesStage> cut, string label) =>
-        Assert.Contains(cut.FindAll(".libs__group-heading"), heading => Text(heading).StartsWith(label, StringComparison.Ordinal));
-
+    // View's Add opens the one Add library pop-up on View ("What is it?" lists its three kinds); Next goes to the View folder dialog for the chosen kind.
     private void OpenViewFolderDialog(IRenderedComponent<SetupLibrariesStage> cut, string kindLabel)
     {
-        ChooseArea(cut, "View");
-        cut.FindAll("button").Single(button => button.GetAttribute("aria-label") == $"Add a folder to {kindLabel}").Click();
+        cut.Find(".setup-area[data-area=view] button[aria-label='Add a View library']").Click();
+        _dialogs.WaitForElement(".create-library");
+        _dialogs.FindAll(".create-library__rows button").Single(row => Text(row).StartsWith(kindLabel, StringComparison.Ordinal)).Click();
+        DialogButton("Next").Click();
         _dialogs.WaitForElement(".add-view-folder");
     }
 
     // ----- View in setup (packet 7) ----------------------------------------------------------------------------------------------
 
     [Fact]
-    public void ViewIsTheFourthAreaWithItsThreeKindsEachTakingFoldersAndNoAddLibrary()
+    public void ViewIsTheFourthAreaCardWithItsOwnAddAndNothingYetUntilAFolderIsAdded()
     {
         var cut = RenderStage();
 
-        ChooseArea(cut, "View");
-
-        Assert.Equal(["Watch", "Listen", "Read", "View"], cut.FindAll(".libs__group").Select(group => group.GetAttribute("aria-label")!).ToArray());
-        Assert.Equal(3, cut.FindAll(".libs__group[data-area=view] tbody tr").Count);
-        Assert.Equal(3, cut.FindAll(".libs__group[data-area=view] button").Count(button => button.GetAttribute("aria-label")?.StartsWith("Add a folder to ", StringComparison.Ordinal) == true));
-        Assert.DoesNotContain(cut.FindAll(".libs__group[data-area=view] button"), button => Text(button) == "Add library");
-        Assert.Empty(cut.FindAll("a.libs__link"));
+        Assert.Equal(["Watch", "Listen", "Read", "View"], cut.FindAll(".setup-area").Select(card => card.GetAttribute("aria-label")!).ToArray());
+        var view = cut.Find(".setup-area[data-area=view]");
+        Assert.Contains("Photos and personal videos", Text(view), StringComparison.Ordinal);
+        Assert.Equal("Nothing yet", Text(view.QuerySelector(".setup-area__empty")!));
+        Assert.Single(view.QuerySelectorAll("button[aria-label='Add a View library']"));
+        Assert.DoesNotContain(cut.FindAll("button"), button => button.GetAttribute("aria-label")?.StartsWith("Add a folder to ", StringComparison.Ordinal) == true);
     }
 
     [Fact]
@@ -206,7 +204,7 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
 
         OpenViewFolderDialog(cut, "Photos");
 
-        Assert.Equal("Choose your Photos folder", Text(_dialogs.Find("h1, h2, [role=heading]")));
+        Assert.Equal("Choose your Photos folder", Text(_dialogs.FindAll("h1, h2, [role=heading]").Last()));
         Assert.Empty(_dialogs.FindAll(".add-view-folder [aria-label='More information'], .add-view-folder .app-info-tip"));
         Assert.Empty(_dialogs.FindAll("[data-view-storage]"));
         Assert.Contains("Library scans this folder and its subfolders. Your files are never changed.", _dialogs.Markup, StringComparison.Ordinal);
@@ -236,8 +234,8 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
         Assert.True(created.IncludeSubdirectories);
         Assert.True(created.IncludeInTimeline);
         Assert.Equal("Pictures", created.Name);
-        cut.WaitForAssertion(() => Assert.Contains("libs__row--new", cut.Find("tr[data-library='photos']").ClassName));
-        cut.WaitForAssertion(() => Assert.Equal("1 folder", Text(cut.Find("tr[data-library='photos'] .libs__counts"))));
+        cut.WaitForAssertion(() => Assert.Equal(["Pictures"], cut.FindAll(".setup-area[data-area=view] .setup-area__name").Select(Text).ToArray()));
+        Assert.Equal("E:\\Pictures", Text(cut.Find(".setup-area[data-area=view] .setup-area__path")));
     }
 
     [Fact]
@@ -431,7 +429,11 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
         Assert.Equal([RightPin], _unlocks);
         Assert.DoesNotContain(nameof(IEngineApiClient.SetNsfwNavigationAsync), _stub.Calls);
         Assert.False(Services.GetRequiredService<NsfwModeState>().ShowInNavigation);
-        Assert.Contains(cut.FindAll(".libs__group-heading"), heading => Text(heading).StartsWith("Vault", StringComparison.Ordinal));
+        var vault = cut.Find(".setup-area[data-area=vault]");
+        Assert.Single(cut.FindAll(".setup-area"));
+        Assert.Equal("Nothing yet", Text(vault.QuerySelector(".setup-area__empty")!));
+        Assert.Single(vault.QuerySelectorAll("button[aria-label='Add a Vault library']"));
+        Assert.Equal(["Not now", "Continue"], cut.FindAll("footer button").Select(Text).ToArray());
         Assert.Contains("stays out of the menu", cut.Markup, StringComparison.Ordinal);
 
         await cut.ClickAsync(page => Button(page, "Continue"));

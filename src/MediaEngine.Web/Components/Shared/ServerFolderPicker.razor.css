@@ -337,6 +337,8 @@ input.server-folder-picker__address-field { padding: 0 12px; }
     width: 100%;
 }
 
+.server-folder-picker__footer-start { flex: 1 1 100%; max-width: 360px; }
+
 .server-folder-picker__selected {
     display: flex;
     flex: 1 1 320px;

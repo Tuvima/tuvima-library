@@ -7593,11 +7593,14 @@
   <data name="SetupWelcomeStage_ChooseYourLanguageThenGive" xml:space="preserve">
     <value>Choose your language, then give this server a friendly name. Phones, TVs and other computers on your network can then find it by name instead of by number.</value>
   </data>
-  <data name="SetupWelcomeStage_OtherDevicesOnYourHome" xml:space="preserve">
-    <value>Other devices on your home network can open</value>
+  <data name="SetupWelcomeStage_WhatShouldWeCallThisLibrary" xml:space="preserve">
+    <value>What should we call this Library?</value>
   </data>
-  <data name="SetupWelcomeStage_IfADeviceCannotFind" xml:space="preserve">
-    <value>. If a device cannot find it by name, the numeric address keeps working.</value>
+  <data name="SetupWelcomeStage_PhonesAndTVsOnYourHome" xml:space="preserve">
+    <value>Phones and TVs on your home network will find it at</value>
+  </data>
+  <data name="SetupWelcomeStage_Change" xml:space="preserve">
+    <value>Change</value>
   </data>
   <data name="SetupWelcomeStage_RestoreABackupFile" xml:space="preserve">
     <value>Restore a backup file</value>
@@ -9833,5 +9836,11 @@
   </data>
   <data name="CreateLibraryDialog_ConnectASource" xml:space="preserve">
     <value>Connect a source</value>
+  </data>
+  <data name="SetupAreaCards_Add" xml:space="preserve">
+    <value>Add</value>
+  </data>
+  <data name="SetupAreaCards_ChangeFolder" xml:space="preserve">
+    <value>Change folder</value>
   </data>
 </root>

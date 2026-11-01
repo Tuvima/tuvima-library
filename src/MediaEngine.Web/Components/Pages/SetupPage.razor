@@ -61,6 +61,7 @@
                     <SetupWelcomeStage Locale="@_locale" LocaleChanged="@((SetupLocaleDto value) => _locale = value)"
                                       ServerName="@_serverName" ServerNameChanged="@((string value) => _serverName = value)"
                                       HostName="@_hostName" HostNameChanged="@((string value) => _hostName = value)"
+                                      HostNameDerived="@_hostDerived" HostNameDerivedChanged="@((bool value) => _hostDerived = value)"
                                       Busy="@_busy" Save="SaveWelcomeAsync"
                                       Backup="@_backup" BackupError="@_backupError" ShowRestore="@_showRestore" OpenRestore="@(() => _showRestore = true)" CancelRestore="CancelRestore"
                                       UploadBackup="UploadBackupAsync" ConfirmRestore="ConfirmRestoreAsync"
@@ -145,7 +146,7 @@
     private bool _providersLoaded;
     private SetupLocaleDto? _locale;
     private string _serverName = string.Empty, _hostName = string.Empty;
-    private bool _serverIdentityLoaded;
+    private bool _serverIdentityLoaded, _hostDerived = true;
 
     // The Dashboard's own classification of this visitor, set by the host page. Never read from the browser.
     [CascadingParameter(Name = "ClientIngress")]
@@ -347,6 +348,7 @@
             {
                 _serverName = identity.ServerName;
                 _hostName = identity.HostName;
+                _hostDerived = identity.HostNameDerived;
                 _serverIdentityLoaded = true;
             }
             if (_locale is null)
@@ -390,10 +392,11 @@
                 return;
             }
 
-            var saved = await ApiClient.SaveSetupServerIdentityAsync(new SetupServerIdentityDto(_serverName, _hostName), _setupSession);
+            var saved = await ApiClient.SaveSetupServerIdentityAsync(new SetupServerIdentityDto(_serverName, _hostName, _hostDerived), _setupSession);
             if (saved is null) { Snackbar.Add(L["SetupPage_TheServerNameCouldNot"].Value, AppSeverity.Error); return; }
             _serverName = saved.ServerName;
             _hostName = saved.HostName;
+            _hostDerived = saved.HostNameDerived;
         }
         finally { _busy = false; }
         _selectedStep = null;

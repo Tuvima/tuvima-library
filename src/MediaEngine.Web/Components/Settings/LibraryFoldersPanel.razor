@@ -556,13 +556,7 @@
             { component => component.InitialPath, ImportStatus.Configured ? ImportStatus.Path : SuggestedImportPath },
             { component => component.HelpText, "Choose a folder on the Library server where new media will be dropped. It must be separate from your library folders." },
         };
-        var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, parameters, new AppDialogOptions
-        {
-            MaxWidth = AppMaxWidth.ExtraExtraLarge,
-            FullWidth = false,
-            CloseButton = false,
-            CloseOnEscapeKey = true,
-        });
+        var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, parameters, ServerFolderPicker.DialogOptions);
         if (await dialog.Result is not { Canceled: false, Data: ServerFolderValidationResultDto selected }) return;
         await SaveImportFolderAsync(selected.Path, "Import folder saved.");
     }

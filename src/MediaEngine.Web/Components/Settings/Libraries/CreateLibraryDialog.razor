@@ -61,16 +61,6 @@
             else
             {
                 <div class="create-library__picker" data-folder-step>
-                    <div class="create-library__name" data-library-name>
-                        <AppTextField Label="@L["Common_LibraryName"].Value"
-                                      Value="@_name"
-                                      ValueChanged="NameChanged"
-                                      MaxLength="@MaxNameLength"
-                                      ReadOnly="@_saving"
-                                      Error="@(NameProblem is not null)"
-                                      ErrorText="@NameProblem" />
-                        <span class="create-library__hint">@L["CreateLibraryDialog_YouCanRenameItLater"]</span>
-                    </div>
                     <ServerFolderPicker @key="@_pickerKey"
                                         Inline="true"
                                         HideConfirm="true"
@@ -80,7 +70,20 @@
                                         KindKey="@_kindKey"
                                         SetupSession="@SetupSession"
                                         InitialPath="@_pickerStart"
-                                        OnValidationChanged="FolderChecked" />
+                                        OnValidationChanged="FolderChecked">
+                        <FooterStart>
+                            <div class="create-library__name" data-library-name>
+                                <AppTextField Label="@L["Common_LibraryName"].Value"
+                                              Value="@_name"
+                                              ValueChanged="NameChanged"
+                                              MaxLength="@MaxNameLength"
+                                              ReadOnly="@_saving"
+                                              Error="@(NameProblem is not null)"
+                                              ErrorText="@NameProblem" />
+                                <span class="create-library__hint">@L["CreateLibraryDialog_YouCanRenameItLater"]</span>
+                            </div>
+                        </FooterStart>
+                    </ServerFolderPicker>
                     <p class="create-library__line" data-scan-line>@ScanLine</p>
                     @if (HeldWords is { } held)
                     {
@@ -126,8 +129,8 @@
     /// <summary>The centred dialog every host opens Add library with.</summary>
     public static AppDialogOptions DialogOptions { get; } = new()
     {
-        MaxWidth = AppMaxWidth.Large,
-        FullWidth = true,
+        MaxWidth = ServerFolderPicker.DialogOptions.MaxWidth,
+        FullWidth = false,
         CloseButton = false,
         NoHeader = true,
         CloseOnEscapeKey = true,

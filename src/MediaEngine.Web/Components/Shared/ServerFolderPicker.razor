@@ -272,6 +272,11 @@ else
                 </div>
                 <span class="server-folder-picker__copied" aria-live="polite">@_copyMessage</span>
             </div>
+            @if (FooterStart is not null)
+            {
+                @* The host's own field (the library name in Add library) sits in the footer, so every caller shares one picker size and one footer. *@
+                <div class="server-folder-picker__footer-start" data-picker-footer-start>@FooterStart</div>
+            }
             @if (OfferManagedChoice)
             {
                 <AppSwitchRow Label="Let Library manage this folder"
@@ -297,6 +302,8 @@ else
     </text>;
 
     [Parameter] public string? SetupSession { get; set; }
+    /// <summary>A host's own field drawn in the footer beside the selected path (Add library puts the library name here).</summary>
+    [Parameter] public RenderFragment? FooterStart { get; set; }
     [CascadingParameter] private IAppDialogContext DialogInstance { get; set; } = null!;
     [Parameter] public string Title { get; set; } = "Choose a folder";
     [Parameter] public string HelpText { get; set; } = "Choose a folder on the Library server.";

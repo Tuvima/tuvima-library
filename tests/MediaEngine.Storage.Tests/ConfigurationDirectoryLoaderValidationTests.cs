@@ -794,7 +794,15 @@ public sealed class ConfigurationDirectoryLoaderValidationTests
             var parsed = System.Text.Json.JsonSerializer.Deserialize<LibrariesConfiguration>(json)!;
             Assert.Equal("10.0", parsed.SchemaVersion);
             Assert.Equal(LibraryDuplicatePolicies.KeepOne, parsed.FileHandling.DuplicatePolicy);
-            Assert.NotEmpty(parsed.Libraries);
+            // A true first run starts with no libraries (Settings and setup simplified D3); the Docker image keeps its starter folders.
+            if (path.EndsWith(System.IO.Path.Combine("docker", "config", "libraries.json"), StringComparison.Ordinal))
+            {
+                Assert.NotEmpty(parsed.Libraries);
+            }
+            else
+            {
+                Assert.Empty(parsed.Libraries);
+            }
             Assert.All(parsed.Libraries, library => Assert.NotNull(library.PrimaryDestination));
         }
     }

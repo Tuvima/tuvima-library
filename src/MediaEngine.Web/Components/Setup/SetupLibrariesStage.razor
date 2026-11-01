@@ -1,4 +1,5 @@
 @namespace MediaEngine.Web.Components.Setup
+@using MediaEngine.Contracts.LocalAssets
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Contracts.Setup
 @using MediaEngine.Web.Components.Settings
@@ -7,9 +8,9 @@
 @inject DeviceContextService DeviceContext
 @inject IStringLocalizer<SharedStrings> L
 
-@* "What do you have?": the same Libraries table Settings shows (LibrariesOverview), with Simple on (Library pages D13). Add library opens the
-   one Create library dialog, which saves through setup's own session; View's rows take folders through the View folder dialog (add-folder v2 D14, D15).
-   The footer, the step key and the deferral belong to this step. The optional private step that may follow is the page's to offer. *@
+@* "What do you have?": the four area cards (SetupAreaCards), each with its own Add, which opens the one Add library pop-up on that area and saves through
+   setup's own session. Rows under an area rename, change folder or remove through the same session. The footer, the step key and the deferral belong to this step.
+   The optional private step that may follow is the page's to offer. *@
 <div class="setup-stage-content">
     <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" /><div><h2 id="setup-stage-title">@L["SetupLibrariesStage_WhatDoYouHave"]</h2><p>@L["SetupLibrariesStage_AddALibraryForWhat"]</p></div></div>
 
@@ -20,13 +21,12 @@
     }
     else if (_configuration is not null)
     {
-        <LibrariesOverview Simple="true"
-                           SetupSession="@SetupSession"
-                           Configuration="@_configuration"
-                           Kinds="@_kinds"
-                           ViewFolders="@_viewFolders"
-                           ReadOnly="@DeviceContext.IsMobile"
-                           FolderAdded="LibraryAddedAsync" />
+        <SetupAreaCards SetupSession="@SetupSession"
+                        Configuration="@_configuration"
+                        Kinds="@_kinds"
+                        ViewFolders="@_viewFolders"
+                        ReadOnly="@DeviceContext.IsMobile"
+                        Changed="LibraryChangedAsync" />
     }
 
     @if (HasLibraries && Media is not null)
@@ -34,7 +34,7 @@
         <AppAlert Tone="@(Media.Passed ? AppUiTone.Success : AppUiTone.Warning)" Class="setup-media-notice"><span>@Media.Detail</span></AppAlert>
     }
     <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
-        @if (!HasLibraries)
+        @if (!HasLibraries && !HasViewFolders)
         {
             <AppButton Label="@L["SetupLibrariesStage_SkipForNow"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@Busy" OnClick="DeferMedia" />
         }
@@ -59,7 +59,8 @@
 
     private LibrariesConfigurationDto? _configuration;
     private string? _loadError;
-    private IReadOnlyDictionary<string, int>? _viewFolders;
+    private IReadOnlyList<ViewSourceAdminDto>? _viewFolders;
+    private bool HasViewFolders => _viewFolders?.Any(source => source.StorageMode == "linked" && !string.IsNullOrWhiteSpace(source.Location)) == true;
 
     // The list of library kinds the setup session can read; the areas and the Create library dialog are drawn from it.
     private LibraryKindCatalog _kinds = LibraryKindCatalog.Empty;
@@ -88,26 +89,12 @@
         _kinds = new LibraryKindCatalog(kinds);
         _configuration = fresh;
         _loadError = null;
-        _viewFolders = await CountViewFoldersAsync();
-    }
-
-    // View's folders in setup are all shared ones; the counts are unknown (null) when they could not be read, never a guessed zero.
-    private async Task<IReadOnlyDictionary<string, int>?> CountViewFoldersAsync()
-    {
-        var sources = await ApiClient.GetViewSharedSourcesAsync();
-        if (sources is null) return null;
-        return _kinds.ViewKinds.ToDictionary(
-            kind => kind.Key,
-            kind => sources
-                .Where(source => !string.IsNullOrWhiteSpace(source.Location) && LibraryRollup.ViewFolderBelongsTo(source, kind.Key))
-                .Select(source => source.Location)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Count());
+        _viewFolders = await ApiClient.GetViewSharedSourcesAsync();
     }
 
     private Task ContinueAsync() => ValidateMedia.InvokeAsync();
 
-    private async Task LibraryAddedAsync()
+    private async Task LibraryChangedAsync()
     {
         await LoadAsync();
         await LibraryCreated.InvokeAsync();
