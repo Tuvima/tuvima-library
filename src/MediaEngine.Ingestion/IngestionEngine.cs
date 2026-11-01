@@ -150,6 +150,7 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
     private readonly IdentityJobStageDependencies _identityStageDependencies;
     private readonly ILibraryFolderResolver? _libraryFolderResolver;
     private readonly IExcludedSourceFileFilter? _excludedFileFilter;
+    private readonly IIdentificationSourceGate? _identificationGate;
     private readonly ISourceMutationPolicyGate? _sourceMutationPolicyGate;
     private readonly IImportFolderService? _importFolders;
     private readonly IImportFolderFiler? _importFiler;
@@ -230,8 +231,10 @@ public sealed partial class IngestionEngine : BackgroundService, IIngestionEngin
         IProviderAudienceGate? audienceGate = null,
         IFileMoveInProgress? moveInProgress = null,
         UnmatchedFileMarker? unmatchedMarker = null,
-        IItemExtrasScanner? extrasScanner = null)
+        IItemExtrasScanner? extrasScanner = null,
+        IIdentificationSourceGate? identificationGate = null)
     {
+        _identificationGate = identificationGate;
         _extrasScanner = extrasScanner;
         _unmatchedMarker = unmatchedMarker;
         _moveInProgress = moveInProgress;

@@ -9822,4 +9822,16 @@
   <data name="ManagedAccessApplications_ProtectedNote" xml:space="preserve">
     <value>Your Library apps use this integration, so it can be switched off or have its keys revoked, but not deleted.</value>
   </data>
+  <data name="CreateLibraryDialog_NothingCanIdentifyFilms" xml:space="preserve">
+    <value>Nothing can identify films yet. Connect TMDB or TheTVDB first.</value>
+  </data>
+  <data name="CreateLibraryDialog_NothingCanIdentifyShows" xml:space="preserve">
+    <value>Nothing can identify TV shows yet. Connect TMDB or TheTVDB first.</value>
+  </data>
+  <data name="CreateLibraryDialog_NothingCanIdentifyComics" xml:space="preserve">
+    <value>Nothing can identify comics yet. Connect Comic Vine first.</value>
+  </data>
+  <data name="CreateLibraryDialog_ConnectASource" xml:space="preserve">
+    <value>Connect a source</value>
+  </data>
 </root>

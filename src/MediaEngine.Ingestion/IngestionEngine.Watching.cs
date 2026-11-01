@@ -82,6 +82,7 @@ public sealed partial class IngestionEngine
         var acceptedPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var skipped = 0;
         var excluded = 0;
+        var heldForSource = 0;
         var resumed = 0;
 
         foreach (var target in scanTargets)
@@ -107,6 +108,13 @@ public sealed partial class IngestionEngine
                     if (await IsExcludedScanFileAsync(_excludedFileFilter, _logger, filePath, ct).ConfigureAwait(false))
                     {
                         excluded++;
+                        continue;
+                    }
+
+                    // A Movies, TV or Comics file waits until a source that can identify it works (Plugins screens v4 D38).
+                    if (_identificationGate?.IsHeld(filePath) == true)
+                    {
+                        heldForSource++;
                         continue;
                     }
 
@@ -207,6 +215,13 @@ public sealed partial class IngestionEngine
             _logger.LogInformation(
                 "Initial scan: left {Excluded} excluded file(s) alone across {TargetCount} scan target(s)",
                 excluded, scanTargets.Count);
+        }
+
+        if (heldForSource > 0)
+        {
+            _logger.LogInformation(
+                "Initial scan: {Held} file(s) are waiting for a source that can identify them; a later sweep adds them once one works",
+                heldForSource);
         }
 
         if (skipped > 0)
@@ -395,6 +410,13 @@ public sealed partial class IngestionEngine
 
                         // Counted with the ignored files: it is left alone on purpose.
                         if (await IsExcludedScanFileAsync(_excludedFileFilter, _logger, filePath, ct).ConfigureAwait(false))
+                        {
+                            ignored++;
+                            continue;
+                        }
+
+                        // Held files are looked at again on the next sweep, so they are added by themselves once a source works.
+                        if (_identificationGate?.IsHeld(filePath) == true)
                         {
                             ignored++;
                             continue;
@@ -757,6 +779,13 @@ public sealed partial class IngestionEngine
             // The folder watcher reports a file put back or changed in a source folder; one that was deleted from the library stays out.
             if (evt.EventType != FileEventType.Deleted
                 && await IsExcludedScanFileAsync(_excludedFileFilter, _logger, normalizedPath, ct).ConfigureAwait(false))
+            {
+                ReleaseActivePath(evt.Path);
+                continue;
+            }
+
+            // A file added while no source can identify it is left until a later sweep finds a source working.
+            if (evt.EventType != FileEventType.Deleted && _identificationGate?.IsHeld(normalizedPath) == true)
             {
                 ReleaseActivePath(evt.Path);
                 continue;

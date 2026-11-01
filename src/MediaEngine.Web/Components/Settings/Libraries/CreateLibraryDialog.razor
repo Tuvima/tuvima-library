@@ -82,6 +82,15 @@
                                         InitialPath="@_pickerStart"
                                         OnValidationChanged="FolderChecked" />
                     <p class="create-library__line" data-scan-line>@ScanLine</p>
+                    @if (HeldWords is { } held)
+                    {
+                        <AppAlert Tone="AppUiTone.Warning" data-testid="create-library-held">
+                            @held
+                            <AppActionBar Align="AppHorizontalAlignment.Start">
+                                <AppButton Label="@L["CreateLibraryDialog_ConnectASource"].Value" Size="AppControlSize.Compact" OnClick="ConnectASource" />
+                            </AppActionBar>
+                        </AppAlert>
+                    }
                 </div>
             }
 
@@ -289,6 +298,42 @@
         && Kind is not null
         && AvailabilityOf(Kind).Enabled
         && FolderUsable;
+
+    // Movies, TV Shows and Comics wait for a source that can identify them (Plugins screens v4 D38); the dialog says so before the
+    // library is made. First-run setup has no signed-in plugin list, so it says nothing.
+    private IReadOnlySet<string> _heldKinds = new HashSet<string>();
+
+    private string? HeldWords => _kindKey is { } key && _heldKinds.Contains(key)
+        ? L[key switch
+        {
+            "movies" => "CreateLibraryDialog_NothingCanIdentifyFilms",
+            "tv" => "CreateLibraryDialog_NothingCanIdentifyShows",
+            _ => "CreateLibraryDialog_NothingCanIdentifyComics",
+        }].Value
+        : null;
+
+    private void ConnectASource()
+    {
+        Dialog.Cancel();
+        Navigation.NavigateTo("/settings/plugins");
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Simple || SetupSession is not null)
+        {
+            return;
+        }
+
+        try
+        {
+            _heldKinds = LibraryFolderHealth.HeldKinds(await Api.GetPluginsAsync());
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            // The plugin list could not be read: the dialog simply does not show the line.
+        }
+    }
 
     protected override void OnInitialized()
     {
