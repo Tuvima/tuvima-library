@@ -107,6 +107,7 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
                 _rescans.Add((string?)args![0]);
                 return Task.FromResult(true);
             });
+            stub.SetHandler(nameof(IEngineApiClient.GetPluginsAsync), _ => Task.FromResult<IReadOnlyList<MediaEngine.Contracts.Plugins.PluginSummaryResponse>>(_plugins));
             stub.SetHandler(nameof(IEngineApiClient.GetServerFolderRootsAsync), _ => Task.FromResult<IReadOnlyList<ServerStorageLocationDto>>(_configuration.StorageLocations));
             stub.SetHandler(nameof(IEngineApiClient.BrowseServerFoldersAsync), _ => Task.FromResult<BrowseServerFoldersResultDto?>(new() { DisplayPath = _picked.Path }));
             stub.SetHandler(nameof(IEngineApiClient.GetSetupServerFolderRootsAsync), _ => Task.FromResult<IReadOnlyList<ServerStorageLocationDto>>(_configuration.StorageLocations));
@@ -561,6 +562,50 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
         _picked = new ServerFolderValidationResultDto { Path = "E:\\Slow", StorageLocationId = "media", Exists = true, HasRead = true, CanSelect = true, SupportedFileCountUnavailable = true };
         _dialogs.Find("button[aria-label='Refresh folders']").Click();
         _dialogs.WaitForAssertion(() => Assert.Contains("file count isn't available", Text(_dialogs.Find("[data-folder-result=accessible]")), StringComparison.Ordinal));
+    }
+
+    private IReadOnlyList<MediaEngine.Contracts.Plugins.PluginSummaryResponse> _plugins = [];
+
+    private static MediaEngine.Contracts.Plugins.PluginSummaryResponse Source(string id, bool keyPresent) => new()
+    {
+        Id = id,
+        Name = id,
+        Enabled = true,
+        Provider = new MediaEngine.Contracts.Plugins.PluginProviderInfoDto { RequiresKey = true, KeyPresent = keyPresent },
+    };
+
+    [Fact]
+    public async Task ATvLibrary_WarnsInAmber_WhileNothingCanIdentifyShows_AndOffersToConnectASource()
+    {
+        _plugins = [Source("tmdb", keyPresent: false), Source("tvdb", keyPresent: false)];
+
+        await OpenAsync(kind: "tv");
+
+        var held = _dialogs.WaitForElement("[data-testid=create-library-held]");
+        Assert.Contains("Nothing can identify TV shows yet. Connect TMDB or TheTVDB first.", held.TextContent);
+        Assert.Contains(held.QuerySelectorAll("button"), button => button.TextContent.Trim() == "Connect a source");
+    }
+
+    [Fact]
+    public async Task ATvLibrary_SaysNothing_OnceOneSourceHasItsKey()
+    {
+        _plugins = [Source("tmdb", keyPresent: true), Source("tvdb", keyPresent: false)];
+
+        await OpenAsync(kind: "tv");
+
+        Assert.Empty(_dialogs.FindAll("[data-testid=create-library-held]"));
+    }
+
+    [Fact]
+    public void OnlyMoviesTvAndComicsAreEverHeld_AndOnlyWhileNoAcceptedSourceWorks()
+    {
+        var none = new[] { Source("tmdb", keyPresent: false), Source("tvdb", keyPresent: false), Source("comicvine", keyPresent: false) };
+        Assert.Equal(new[] { "comics", "movies", "tv" }, LibraryFolderHealth.HeldKinds(none).Order().ToArray());
+
+        var tmdb = new[] { Source("tmdb", keyPresent: true), Source("tvdb", keyPresent: false), Source("comicvine", keyPresent: false) };
+        Assert.Equal(new[] { "comics" }, LibraryFolderHealth.HeldKinds(tmdb).ToArray());
+
+        Assert.Empty(LibraryFolderHealth.HeldKinds([]));
     }
 
     [Fact]

@@ -19,3 +19,4 @@
 .folder-grid__row.is-highlighted { background: var(--tl-accent-primary-soft); box-shadow: inset 3px 0 0 var(--tl-accent-primary); }
 
 @media (max-width: 600px) { .folder-grid__path { white-space: normal; overflow-wrap: anywhere; } }
+.folder-grid__access[data-access="waiting-for-source"] { color: var(--tl-status-warning); }

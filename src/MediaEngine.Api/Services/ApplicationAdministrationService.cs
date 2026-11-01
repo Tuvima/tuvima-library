@@ -221,6 +221,11 @@ public sealed class ApplicationAdministrationService(
     {
         await RequireAuthorityAsync(authority, ct).ConfigureAwait(false);
         var application = await RequireApplicationAsync(applicationId, ct).ConfigureAwait(false);
+        if (applicationId == BuiltInApplicationIds.NativeClient)
+        {
+            throw ApplicationAdministrationException.Conflict("Your Library apps use this integration, so it can be switched off or have its keys revoked, but not deleted.");
+        }
+
         var now = timeProvider.GetUtcNow();
         if (!await applications.DeleteApplicationAsync(applicationId, now, ct).ConfigureAwait(false))
         {

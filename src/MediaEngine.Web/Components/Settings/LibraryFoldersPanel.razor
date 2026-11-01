@@ -275,7 +275,17 @@
     private async Task RefreshPathIssuesAsync()
     {
         if (_configuration is null) return;
-        _pathIssues = await LibraryFolderHealth.CheckAsync(_configuration, path => Orchestrator.TestPathAsync(path));
+        var issues = await LibraryFolderHealth.CheckAsync(_configuration, path => Orchestrator.TestPathAsync(path));
+        try
+        {
+            issues = LibraryFolderHealth.WithHeldKinds(issues, _configuration, LibraryFolderHealth.HeldKinds(await ApiClient.GetPluginsAsync()));
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            // The plugin list could not be read: keep the plain folder check.
+        }
+
+        _pathIssues = issues;
         _pathsChecked = true;
         await InvokeAsync(StateHasChanged);
     }

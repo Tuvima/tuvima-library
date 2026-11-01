@@ -30,12 +30,7 @@ public sealed class ProviderListings(IConfigurationLoader loader, ProviderCapabi
 
     public static bool IsCore(string name) => CoreSources.Contains(name);
 
-    internal static bool HasKey(ProviderConfiguration config) =>
-        !string.IsNullOrWhiteSpace(config.HttpClient?.ApiKeyOverride)
-        || !string.IsNullOrWhiteSpace(config.HttpClient?.ApiKey)
-        || (string.Equals(config.HttpClient?.ApiKeyDelivery, "basic", StringComparison.OrdinalIgnoreCase)
-            && !string.IsNullOrWhiteSpace(config.HttpClient?.Username)
-            && !string.IsNullOrWhiteSpace(config.HttpClient?.Password));
+    internal static bool HasKey(ProviderConfiguration config) => IdentificationSourceRules.HasKey(config);
 
     private static PluginSummaryResponse ToSummary(ProviderConfiguration config, PluginSourceDto? sheet)
     {

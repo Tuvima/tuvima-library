@@ -764,20 +764,21 @@ public sealed class ManagedAccessApplicationsTests : AsyncBunitContext
         var cut = RenderApplications();
 
         var card = cut.WaitForElement("article[aria-label='Living room']");
-        Assert.Contains("User Client", card.TextContent);
-        Assert.Contains("Disabled", card.TextContent);
+        Assert.DoesNotContain("User Client", card.TextContent);
+        Assert.Equal("Status: Disabled", card.QuerySelector(".app-status-dot")!.GetAttribute("aria-label"));
         Assert.Contains("Manage on a computer or tablet", cut.WaitForElement("p[role='note']").TextContent);
         Assert.Empty(cut.FindAll("button[aria-label^='Actions for']"));
         Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Contains("Manage") || button.TextContent.Contains("New integration"));
     }
 
     [Fact]
-    public void OnADesktop_ApplicationsKeepTheRowActionsAndNoPhoneNote()
+    public void OnADesktop_ApplicationsHaveOneManageButtonAndNoPhoneNote()
     {
         var cut = RenderApplications();
 
         cut.WaitForElement("article[aria-label='Living room']");
-        Assert.NotEmpty(cut.FindAll("button[aria-label='Actions for Living room']"));
+        Assert.NotEmpty(cut.FindAll("button[aria-label='Manage for Living room']"));
+        Assert.Empty(cut.FindAll("button[aria-label='Actions for Living room']"));
         Assert.DoesNotContain("Manage on a computer or tablet", cut.Markup);
     }
 

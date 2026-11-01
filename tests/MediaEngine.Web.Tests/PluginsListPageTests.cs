@@ -129,9 +129,9 @@ public sealed class PluginsListPageTests : AsyncBunitContext
 
         var page = cut.WaitForElement("[data-testid=plugin-page]");
         Assert.Contains("Alpha", page.QuerySelector("h2")!.TextContent);
-        Assert.NotNull(page.QuerySelector("button[aria-label='More actions for Alpha']"));
+        Assert.NotNull(page.QuerySelector("[data-testid=plugin-status-sentence]"));
         var tabs = page.QuerySelectorAll("a[role=tab]").Select(tab => tab.GetAttribute("href")).ToList();
-        Assert.Contains("/settings/plugins/a/access", tabs);
+        Assert.Contains("/settings/plugins/a", tabs);
         Assert.Contains("/settings/plugins/a/activity", tabs);
     }
 
@@ -167,23 +167,18 @@ public sealed class PluginsListPageTests : AsyncBunitContext
     {
         _plugins = [Plugin("a", "Alpha", enabled: true)];
 
-        var access = RenderDetail("a", "access").WaitForElement("[data-testid=plugin-detail-sections]");
-        foreach (var label in new[] { "Access", "Needs and needed by" })
-        {
-            Assert.NotNull(access.QuerySelector($"section[aria-label='{label}']"));
-        }
-
-        Assert.Contains("Who can use it", access.TextContent);
-        Assert.Contains("Nothing else depends on it.", access.TextContent);
+        var setup = RenderDetail("a", null).WaitForElement("[data-testid=plugin-setup]");
+        Assert.NotNull(setup.QuerySelector("[data-testid=plugin-privacy-card]"));
+        Assert.NotNull(setup.QuerySelector("[data-testid=plugin-about-card]"));
+        Assert.Contains("Who can use it", setup.TextContent);
+        Assert.Contains("Nothing else depends on it.", setup.TextContent);
 
         var activity = RenderDetail("a", "activity");
         var text = activity.WaitForElement("section[aria-label='Activity']").TextContent;
         Assert.Contains("Nothing has run yet.", text);
         Assert.Contains(activity.FindAll("button"), button => button.TextContent.Trim() == "Check now");
 
-        var overview = RenderDetail("a", null).WaitForElement("[data-testid=plugin-overview]");
-        Assert.NotNull(overview.QuerySelector("section[aria-label='Update note']"));
-        Assert.NotNull(overview.QuerySelector("section[aria-label='Removing this plugin']"));
+        Assert.NotNull(setup.QuerySelector("section[aria-label='Removing this plugin']"));
     }
 
     [Fact]
@@ -199,12 +194,11 @@ public sealed class PluginsListPageTests : AsyncBunitContext
             Changelog = "Reads chapter names first.",
         };
         _plugins = [plugin];
-        var text = RenderDetail("a", "access").WaitForElement("[data-testid=plugin-detail-sections]").TextContent;
+        var text = RenderDetail("a", null).WaitForElement("[data-testid=plugin-setup]").TextContent;
         Assert.Contains("Everyone who can use this Library", text);
-        Assert.Contains("Only if the section's online lookup is on", text);
         Assert.Contains("The song title goes to LRCLIB", text);
         Assert.Contains("Heavy: works when the machine is idle", text);
-        Assert.Contains("Reads chapter names first.", RenderDetail("a", null).WaitForElement("[data-testid=plugin-overview]").TextContent);
+        Assert.Contains("Reads chapter names first.", text);
     }
 
     [Fact]
@@ -217,7 +211,7 @@ public sealed class PluginsListPageTests : AsyncBunitContext
             Needs = [new PluginNeedDto { Id = "b", Name = "Skip markers", State = "off" }],
             NeededBy = [new PluginNeededByDto { Id = "c", Name = "Gamma" }],
         };
-        var cut = RenderDetail("a", "access");
+        var cut = RenderDetail("a", null);
 
         cut.WaitForAssertion(() =>
         {
@@ -239,7 +233,7 @@ public sealed class PluginsListPageTests : AsyncBunitContext
                 new PluginLibraryChoiceDto { Id = "movies", Name = "Movies" },
             ],
         };
-        var cut = RenderDetail("a", "access");
+        var cut = RenderDetail("a", null);
         cut.WaitForAssertion(() => Assert.Contains("All libraries", cut.Find("[data-testid=plugin-detail-sections]").TextContent));
 
         cut.FindAll("[data-testid=plugin-detail-sections] button").First(button => button.TextContent.Trim() == "Change").Click();
@@ -265,13 +259,13 @@ public sealed class PluginsListPageTests : AsyncBunitContext
         };
         var cut = RenderDetail("a", null);
 
-        cut.WaitForElement("[data-testid=plugin-overview]").QuerySelectorAll("button")
+        cut.WaitForElement("[data-testid=plugin-setup]").QuerySelectorAll("button")
             .First(button => button.TextContent.Trim() == "Delete plugin").Click();
 
         var preview = cut.WaitForElement("[data-testid=plugin-removal-preview]");
         Assert.Contains("12 skip markers it saved can go with it or stay.", preview.TextContent);
         cut.FindAll("button").First(button => button.TextContent.Trim() == "Remove the skip markers").Click();
-        cut.Find("[data-testid=plugin-overview] input[type=checkbox]").Change(true);
+        cut.Find("[data-testid=plugin-setup] input[type=checkbox]").Change(true);
         cut.FindAll("button").First(button => button.TextContent.Trim() == "Confirm delete").Click();
 
         cut.WaitForAssertion(() =>
@@ -289,7 +283,7 @@ public sealed class PluginsListPageTests : AsyncBunitContext
         _removalPreview = new PluginRemovalPreviewResponse { PluginId = "a", Name = "Alpha", Lines = ["Its files are removed."] };
         _removeResult = PluginActionResult.Failure("Gamma needs this plugin. Switch it off too, or cancel.");
         var cut = RenderDetail("a", null);
-        cut.WaitForElement("[data-testid=plugin-overview]").QuerySelectorAll("button")
+        cut.WaitForElement("[data-testid=plugin-setup]").QuerySelectorAll("button")
             .First(button => button.TextContent.Trim() == "Delete plugin").Click();
         cut.WaitForElement("[data-testid=plugin-removal-preview]");
 
@@ -574,6 +568,7 @@ public sealed class PluginsListPageTests : AsyncBunitContext
         {
             Id = id,
             Name = name,
+            Removable = true,
             Description = name + " does something useful.",
             ShortDescription = name + " does something useful.",
             LongDescription = name + " does something useful.",

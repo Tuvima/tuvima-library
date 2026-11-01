@@ -266,6 +266,8 @@ builder.Services.AddSingleton<IConfigSecretsStore>(configSecrets);
 ConfigurationDirectoryLoader configLoader;
 try
 {
+    // A provider file that ships with the Library and has gone missing or cannot be read is put back before anything reads it.
+    MediaEngine.Api.Services.Plugins.Sources.ShippedProviderFiles.Repair(configDirectory, Log.Logger);
     configLoader = new ConfigurationDirectoryLoader(configDirectory, configSecrets);
     // Library kinds refer to providers and naming templates in other files; a typo in a user-edited kinds file stops start-up here
     // with the entry named, like any other invalid configuration file.

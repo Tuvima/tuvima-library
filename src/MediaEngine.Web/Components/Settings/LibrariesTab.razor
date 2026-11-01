@@ -287,6 +287,21 @@
         await LoadSummaryAsync();
     }
 
+    // The folder check plus the folders whose import is held because nothing can identify their files yet.
+    private async Task<IReadOnlyDictionary<string, string>> CheckFoldersAsync(LibrariesConfigurationDto configuration)
+    {
+        var issues = await LibraryFolderHealth.CheckAsync(configuration, path => Orchestrator.TestPathAsync(path));
+        try
+        {
+            return LibraryFolderHealth.WithHeldKinds(issues, configuration, LibraryFolderHealth.HeldKinds(await ApiClient.GetPluginsAsync()));
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            // The plugin list could not be read: show the folder check as it is rather than guess which sources work.
+            return issues;
+        }
+    }
+
     // The overview and library pages show counts and status. They load after the first render so the rows appear at once;
     // anything that cannot be read is left out rather than guessed (no overview means folder counts only).
     private async Task LoadSummaryAsync()
@@ -294,7 +309,7 @@
         if (_configuration is null || DeviceContext.IsTelevision || CurrentLevel.Kind is not (LevelKind.Overview or LevelKind.Library)) return;
         var configuration = _configuration;
         var overview = ApiClient.GetLibraryOverviewAsync();
-        var issues = LibraryFolderHealth.CheckAsync(configuration, path => Orchestrator.TestPathAsync(path));
+        var issues = CheckFoldersAsync(configuration);
         var viewFolders = CurrentLevel.Kind == LevelKind.Overview ? CountViewFoldersAsync() : Task.FromResult(_viewFolders);
 
         _overview = await overview;

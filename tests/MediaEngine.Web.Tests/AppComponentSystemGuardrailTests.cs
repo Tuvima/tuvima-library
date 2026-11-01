@@ -54,7 +54,7 @@ public sealed class AppComponentSystemGuardrailTests
     [Fact]
     public void MetadataSettingsPage_UsesApprovedProviderComponentLayer()
     {
-        var contents = ReadRepoFile("src/MediaEngine.Web/Components/Settings/Plugins/ProviderDetail.razor");
+        var contents = ReadRepoFile("src/MediaEngine.Web/Components/Settings/Plugins/ProviderDetail.razor") + ReadRepoFile("src/MediaEngine.Web/Components/Settings/PluginSettingsTab.razor");
 
         Assert.Contains("<AppTextField", contents, StringComparison.Ordinal);
         Assert.Contains("<AppSelect", contents, StringComparison.Ordinal);

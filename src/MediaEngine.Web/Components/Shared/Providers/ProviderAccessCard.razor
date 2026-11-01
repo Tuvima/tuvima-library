@@ -1,0 +1,59 @@
+@namespace MediaEngine.Web.Components.Shared.Providers
+@inject IStringLocalizer<SharedStrings> L
+
+@* The one Access card (Plugins and Integrations screens v4 D34): the plugin page shows it first. It says whether a key is needed,
+   whether one is saved, and offers Connect, Replace key and Test connection with the same words first-run setup uses
+   (ProviderAccessWords). The key dialog itself is the shared ProviderOnboardingDialog. *@
+<AppCard Title="@L["ProviderAccess_Title"].Value" Class="provider-access-card" data-testid="provider-access-card" data-access-state="@State.ToString().ToLowerInvariant()">
+    <div class="provider-access-card__state">
+        <AppMaterialIcon Icon="@(State == ProviderAccessState.NoKey ? AppMaterialIcons.Outlined.Key : AppMaterialIcons.Filled.CheckCircle)"
+                         Class="@(State == ProviderAccessState.NoKey ? "provider-access-card__icon--needs" : "provider-access-card__icon--ok")" />
+        <div>
+            <strong>@ProviderAccessWords.StateSentence(L, State)</strong>
+            @if (!string.IsNullOrWhiteSpace(Message))
+            {
+                <p>@Message</p>
+            }
+        </div>
+    </div>
+    @if (State != ProviderAccessState.NoKeyNeeded)
+    {
+        <div class="provider-access-card__actions">
+            @if (State == ProviderAccessState.NoKey)
+            {
+                <AppButton Label="@ProviderAccessWords.ConnectLabel(L)" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Link" OnClick="OnConnect" />
+            }
+            else
+            {
+                <AppButton Label="@ProviderAccessWords.ReplaceLabel(L)" StartIcon="@AppMaterialIcons.Outlined.Key" OnClick="OnReplace" />
+                <AppButton Label="@(Testing ? L["ProviderAccess_Testing"].Value : L["ProviderAccess_Test"].Value)" StartIcon="@AppMaterialIcons.Outlined.NetworkCheck" Disabled="@(Testing || TestDisabled)" OnClick="OnTest" />
+                @if (CanRemove)
+                {
+                    <AppButton Label="@L["ProviderAccess_Remove"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" StartIcon="@AppMaterialIcons.Outlined.DeleteOutline" OnClick="OnRemove" />
+                }
+            }
+            @if (!string.IsNullOrWhiteSpace(SignupUrl))
+            {
+                <AppButton Label="@string.Format(L["ProviderAccess_GetKey"].Value, SignupHost)" Href="@SignupUrl" Target="_blank" ButtonStyle="AppButtonStyle.Text" EndIcon="@AppMaterialIcons.Outlined.OpenInNew" />
+            }
+        </div>
+    }
+</AppCard>
+
+@code {
+    [Parameter] public ProviderAccessState State { get; set; }
+
+    /// <summary>The last check in plain words ("Key saved · tested just now"), shown under the state.</summary>
+    [Parameter] public string? Message { get; set; }
+
+    [Parameter] public string? SignupUrl { get; set; }
+    [Parameter] public bool Testing { get; set; }
+    [Parameter] public bool TestDisabled { get; set; }
+    [Parameter] public bool CanRemove { get; set; }
+    [Parameter] public EventCallback OnConnect { get; set; }
+    [Parameter] public EventCallback OnReplace { get; set; }
+    [Parameter] public EventCallback OnTest { get; set; }
+    [Parameter] public EventCallback OnRemove { get; set; }
+
+    private string SignupHost => Uri.TryCreate(SignupUrl, UriKind.Absolute, out var uri) ? uri.Host : string.Empty;
+}

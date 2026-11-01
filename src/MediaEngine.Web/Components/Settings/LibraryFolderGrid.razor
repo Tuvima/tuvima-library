@@ -204,6 +204,7 @@
     {
         LibraryFolderHealth.Unavailable => "Folder offline",
         LibraryFolderHealth.NoAccess => "Needs access",
+        LibraryFolderHealth.WaitingForSource => "Waiting for a source",
         _ => "Accessible",
     };
 
@@ -283,12 +284,16 @@
     {
         LibraryFolderHealth.Unavailable => "offline",
         LibraryFolderHealth.NoAccess => "needs-access",
+        LibraryFolderHealth.WaitingForSource => "waiting-for-source",
         _ => "accessible",
     };
 
-    private static string WarningText(string issue, string name) => issue == LibraryFolderHealth.Unavailable
-        ? $"{name} is offline. Library cannot reach this folder, so its titles stay as they are until it is back."
-        : $"{name} needs access. Library cannot read or write this folder the way it is set up.";
+    private static string WarningText(string issue, string name) => issue switch
+    {
+        LibraryFolderHealth.Unavailable => $"{name} is offline. Library cannot reach this folder, so its titles stay as they are until it is back.",
+        LibraryFolderHealth.WaitingForSource => $"{name} is waiting for a source. Nothing is added until something that can identify these files is connected.",
+        _ => $"{name} needs access. Library cannot read or write this folder the way it is set up.",
+    };
 
     private string TitlesText(LibrarySourceDto source) =>
         Titles is not null && Titles.TryGetValue(source.Id, out var count) ? DisplayFormat.FormatCount(count) : "—";
