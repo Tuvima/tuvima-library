@@ -1,0 +1,7 @@
+.import-page {
+    display: flex;
+    min-width: 0;
+    max-width: 56rem;
+    flex-direction: column;
+    gap: var(--tl-space-4, 16px);
+}

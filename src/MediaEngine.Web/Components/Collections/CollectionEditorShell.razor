@@ -12,6 +12,7 @@
 @using DayMonth = MediaEngine.Domain.Models.DayMonth
 @using MediaEngine.Web.Components.Details
 @using MediaEngine.Web.Components.Rules
+@using MediaEngine.Web.Components.Import
 
 @inject IEngineApiClient ApiClient
 @inject IServiceProvider ServiceProvider
@@ -301,6 +302,7 @@
         && !(IsCreateFlow && _way == FillWay.Pack)
         && string.Equals(_collectionType, "Custom", StringComparison.OrdinalIgnoreCase)
         && SupportsManualItems
+        && !(IsCreateFlow && _way == FillWay.FromList)
         && _manualItems.Count == 0
         && (_personalMediaSection?.AttachedSourceCount ?? 0) == 0;
     private string EmptyCuratedCollectionMessage => EditingCollection is null
@@ -346,7 +348,7 @@
                 ? "Create a saved collection using either live rules or manual membership."
                 : "Update the collection settings, rules, and saved items.";
 
-    private string WayTitle => _rulesEnabled ? "Rules" : "Hand-picked";
+    private string WayTitle => _rulesEnabled ? "Rules" : _isListCollection || (IsCreateFlow && _way == FillWay.FromList) ? "From a list" : "Hand-picked";
 
     private string? FooterSummary =>
         IsPlaylistDialog
@@ -382,6 +384,17 @@
             _collectionType = IsPlaylistDialog ? "Playlist" : "Custom";
             _rulesEnabled = string.Equals(Request.InitialMembershipMode, "Smart", StringComparison.OrdinalIgnoreCase);
             _way = _rulesEnabled ? FillWay.SetRules : FillWay.PickTitles;
+            if (!IsPlaylistDialog && string.Equals(Request.InitialWay, "FromList", StringComparison.Ordinal))
+            {
+                // Settings, Profile, Import hands over a list it already read: open on From a list with it loaded.
+                _way = FillWay.FromList;
+                _rulesEnabled = false;
+                if (Request.InitialImport is { Preview.List: { } initialList } initialImport)
+                {
+                    _listDraft.Set(initialImport, initialList);
+                    _step = 2;
+                }
+            }
             // The chips the place we came from ticks (Watch: Movies and TV), kept to the types this kind of container holds.
             CollectionRuleSentence.SetMediaTypes(_ruleDefinition, Request.InitialMediaTypes
                 .Where(type => MediaChoices.Any(choice => string.Equals(choice.Key, type, StringComparison.OrdinalIgnoreCase)))
@@ -1049,6 +1062,12 @@
             return;
         }
 
+        if (IsCreateFlow && _way == FillWay.FromList)
+        {
+            await SaveListCollectionsAsync();
+            return;
+        }
+
         _saving = true;
         StateHasChanged();
 
@@ -1160,6 +1179,143 @@
                     ? $"Collection \"{_name}\" updated."
                     : $"Collection \"{_name}\" created.",
                 AppSeverity.Success);
+
+            _hasUnsavedChanges = false;
+            await CloseEditorAsync(applied: true);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to save collection: {ex.Message}", AppSeverity.Error);
+        }
+        finally
+        {
+            _saving = false;
+            StateHasChanged();
+        }
+    }
+
+    // From a list (Collections and lists spec 4b): one collection for the whole list, or one for each shelf ticked. Each collection is
+    // created with the titles Library owns, then the list is attached as its source. If attaching fails the collection is taken
+    // away again, so a half-made collection never stays behind.
+    private async Task SaveListCollectionsAsync()
+    {
+        if (_listDraft.Recognition is not { } source || !ListReady)
+        {
+            Snackbar.Add(L["CollectionEditor_ListNeedsOwned"].Value, AppSeverity.Warning);
+            _step = 2;
+            return;
+        }
+
+        _saving = true;
+        StateHasChanged();
+
+        var created = new List<Guid>();
+        var skipped = new List<string>();
+        try
+        {
+            var shelves = _listDraft.Shelves.Count == 0
+                ? new List<string?> { null }
+                : _listDraft.Shelves.OrderBy(shelf => shelf, StringComparer.OrdinalIgnoreCase).Select(shelf => (string?)shelf).ToList();
+            var seasonFrom = _seasonal ? SeasonText(_seasonFromMonth, _seasonFromDay) : null;
+            var seasonTo = _seasonal ? SeasonText(_seasonToMonth, _seasonToDay) : null;
+            var sortField = _randomOrder ? "random" : string.IsNullOrWhiteSpace(_sortField) ? null : _sortField;
+
+            foreach (var shelf in shelves)
+            {
+                var preview = await ApiClient.PreviewCollectionListAsync(new ListImportPreviewRequest
+                {
+                    FileName = source.FileName,
+                    ContentBase64 = source.ContentBase64,
+                    Text = source.Text,
+                    Shelf = shelf,
+                    Overrides = _listDraft.Overrides,
+                    ProfileId = Request.ActiveProfileId,
+                });
+                if (preview is null)
+                {
+                    Snackbar.Add(ApiClient.LastError ?? "The list could not be read again. Try again.", AppSeverity.Error);
+                    break;
+                }
+
+                if (preview.MatchedWorkIds.Count == 0)
+                {
+                    skipped.Add(shelf ?? "the list");
+                    continue;
+                }
+
+                var name = shelves.Count > 1 ? $"{_name.Trim()}: {shelf}" : _name.Trim();
+                var collectionId = await ApiClient.CreateCollectionAndReturnIdAsync(
+                    name,
+                    _description,
+                    _iconName,
+                    _collectionType,
+                    new CollectionRuleDefinitionViewModel(),
+                    sortField,
+                    _sortDirection,
+                    PersistenceVisibility,
+                    Request.ActiveProfileId,
+                    secondarySortField: _secondarySortField,
+                    secondarySortDirection: _secondarySortDirection,
+                    membershipMode: "Manual",
+                    primaryArea: _primaryArea,
+                    ownerKind: _ownerKind,
+                    audience: _ownerKind == "Library" ? "Everyone" : _audience,
+                    selectedProfileIds: _selectedProfileIds.ToList(),
+                    workIds: preview.MatchedWorkIds,
+                    minItems: _minItems,
+                    maxItems: _maxItems,
+                    seasonFrom: seasonFrom,
+                    seasonTo: seasonTo,
+                    showOn: _showOn.ToList());
+                if (collectionId is not { } id)
+                {
+                    Snackbar.Add(string.IsNullOrWhiteSpace(ApiClient.LastError) ? "Failed to save collection." : ApiClient.LastError, AppSeverity.Error);
+                    break;
+                }
+
+                var attached = await ApiClient.ImportCollectionListAsync(id, new ListImportRequest
+                {
+                    FileName = source.FileName,
+                    ContentBase64 = source.ContentBase64,
+                    Text = source.Text,
+                    Shelf = shelf,
+                    Order = _listDraft.Order,
+                    Refresh = _listDraft.Refresh,
+                    SyncMode = _listDraft.SyncMode,
+                    Overrides = _listDraft.Overrides,
+                    ProfileId = Request.ActiveProfileId,
+                });
+                if (attached is null)
+                {
+                    var reason = ApiClient.LastError;
+                    await ApiClient.DeleteCollectionAsync(id, Request.ActiveProfileId);
+                    Snackbar.Add(string.IsNullOrWhiteSpace(reason) ? "The list could not be attached, so the collection was not created." : reason, AppSeverity.Error);
+                    break;
+                }
+
+                created.Add(id);
+                foreach (var (slot, file) in _artworkFiles)
+                {
+                    await using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+                    if (!await ApiClient.UploadCollectionArtworkAsync(id, slot, stream, file.Name, Request.ActiveProfileId))
+                        Snackbar.Add($"Collection saved, but {slot} artwork could not be uploaded.", AppSeverity.Warning);
+                }
+            }
+
+            if (skipped.Count > 0)
+                Snackbar.Add($"Nothing from {string.Join(", ", skipped)} is in your library, so no collection was made for it.", AppSeverity.Warning);
+
+            if (created.Count > 0)
+            {
+                Snackbar.Add(
+                    created.Count == 1 ? $"Collection \"{_name.Trim()}\" created." : $"{created.Count} collections created.",
+                    AppSeverity.Success);
+            }
+
+            // Nothing was made: stay on the last step so the person can fix it and try again. If some were made before a
+            // failure the editor closes, so a retry cannot make them twice; the error above says what did not happen.
+            if (created.Count == 0)
+                return;
 
             _hasUnsavedChanges = false;
             await CloseEditorAsync(applied: true);
@@ -1513,11 +1669,13 @@
     [
         new(FillWay.PickTitles, "Pick titles", "Search your library and add titles yourself.", AppMaterialIcons.Outlined.PlaylistAdd, true),
         new(FillWay.SetRules, "Set rules", "Library keeps it up to date from rules you set, like “directed by” or “unwatched”.", AppMaterialIcons.Outlined.Tune, true),
-        new(FillWay.FromList, "From a list", "Paste a link or upload a file from IMDb, Letterboxd, Goodreads, Trakt or MDBList. Keep it in sync.", AppMaterialIcons.Outlined.UploadFile, false),
+        new(FillWay.FromList, "From a list", "Drop an export from IMDb, Letterboxd, Trakt, Goodreads or StoryGraph, or paste titles. Library finds the ones you own.", AppMaterialIcons.Outlined.UploadFile, true),
         new(FillWay.Pack, "Start from a pack", "Ready-made collections built from your own library: Decades, Award winners, Based on a book you own.", AppMaterialIcons.Outlined.AutoAwesome, true),
     ];
 
     private FillWay _way = FillWay.SetRules;
+    private readonly ListImportDraft _listDraft = new();
+    private bool _isListCollection;
     private int _step = 1;
     private bool _advanced;
     private bool _changingWay;
@@ -1537,9 +1695,12 @@
         _ => "Name and show it",
     };
 
+    private bool ListReady => _listDraft.HasList && _listDraft.OwnedCount > 0;
+
     private bool NextBlocked => _step == 2 && (_way switch
     {
         FillWay.SetRules => !HasUsableRules,
+        FillWay.FromList => !ListReady,
         FillWay.Pack => _selectedPacks.Count == 0 || _packsLoading,
         _ => IsEmptyCuratedCollection,
     });
@@ -1552,6 +1713,9 @@
         3 when _way == FillWay.Pack => "Nothing is created until you press Create.",
         2 when _way == FillWay.SetRules && !HasUsableRules => "Add a rule or tick a media type to continue.",
         2 when _way == FillWay.SetRules => _previewResult is null ? "Working out what matches…" : FormatMatchSummary(_previewResult),
+        2 when _way == FillWay.FromList && !_listDraft.HasList => "Drop a list file or paste titles to continue.",
+        2 when _way == FillWay.FromList && !ListReady => "None of these titles are in your library yet, so there is nothing to put in a collection.",
+        2 when _way == FillWay.FromList => $"You own {_listDraft.OwnedCount} of {_listDraft.EntryCount}. {(_listDraft.CollectionCount > 1 ? $"{_listDraft.CollectionCount} collections will be made." : "One collection will be made.")}",
         2 when IsEmptyCuratedCollection => EmptyCuratedCollectionMessage,
         2 => $"{_manualItems.Count} item(s) staged for this collection.",
         _ => "Nothing is saved until you create it.",
@@ -1641,7 +1805,11 @@
     // The name offered on the last step: "Movies directed by Denis Villeneuve". Anything the person typed is kept.
     private void SuggestName()
     {
-        var suggestion = _way == FillWay.SetRules ? NameFromRules() : null;
+        var suggestion = _way == FillWay.SetRules
+            ? NameFromRules()
+            : _way == FillWay.FromList && _listDraft.Current is { } listPreview
+                ? (_listDraft.Shelves.Count > 1 ? listPreview.SourceLabel.Replace(" export", string.Empty, StringComparison.Ordinal) : listPreview.SuggestedName)
+                : null;
         if (suggestion is null)
             return;
         if (string.IsNullOrWhiteSpace(_name) || _name == _suggestedName)
@@ -1727,8 +1895,8 @@
                            Description="@card.Text"
                            Icon="@card.Icon"
                            Selected="@(card.Way == _way)"
-                           Disabled="@(!card.Available || (!IsCreateFlow && card.Way == FillWay.Pack))"
-                           Badge="@(card.Available ? null : "Coming soon")"
+                           Disabled="@(!card.Available || (!IsCreateFlow && card.Way is FillWay.FromList or FillWay.Pack))"
+                           Badge="@(!card.Available ? "Coming soon" : !IsCreateFlow && card.Way == FillWay.FromList ? "New collections only" : null)"
                            OnClick="@(() => IsCreateFlow ? ChooseWayAsync(card.Way) : ChangeWayAsync(card.Way))" />
         }
     </div>;
@@ -1755,6 +1923,10 @@
         else if (_way == FillWay.SetRules)
         {
             @RenderRulesWithPreview()
+        }
+        else if (_way == FillWay.FromList)
+        {
+            <CollectionListImportStep Draft="_listDraft" OnChanged="OnListDraftChanged" />
         }
         else
         {
@@ -1895,6 +2067,10 @@
         }
         else
         {
+        @if (_way == FillWay.FromList && _listDraft.Shelves.Count > 1)
+        {
+            <p class="collection-editor-note">@_listDraft.Shelves.Count collections will be made, one for each shelf you ticked. Each is named after this name and its shelf, for example “@(string.IsNullOrWhiteSpace(_name) ? "Reading" : _name.Trim()): @_listDraft.Shelves.First()”.</p>
+        }
         <div class="collection-editor-details-grid">
             <div class="collection-editor-panel-stack">
                 @RenderBasicInformationPanel()
@@ -1906,7 +2082,10 @@
                     @RenderOwnershipPanel()
                 }
                 @RenderDisplayOptionsPanel(includeOrderAndLimit: _way != FillWay.SetRules)
-                @* Show on (Home, Watch, Read, Listen) joins this column when the lanes packet lands. *@
+                @if (!IsPlaylistDialog)
+                {
+                    @RenderShowOnPanel()
+                }
             </div>
         </div>
         }
@@ -2125,6 +2304,16 @@
         </MediaEditorPanel>
     </text>;
 
+    private RenderFragment RenderShowOnPanel() => @<MediaEditorPanel Title="Show on" Description="Show this collection as a row on these pages. It is always on the Collections page.">
+        @foreach (var (placeKey, placeLabel) in ShowOnPlaces)
+        {
+            var key = placeKey;
+            <AppCheckbox Value="@_showOn.Contains(key)"
+                         ValueChanged="@(selected => OnShowOnChanged(key, selected))"
+                         Label="@placeLabel" />
+        }
+    </MediaEditorPanel>;
+
     private RenderFragment RenderDetailsTab() => @<div class="collection-editor-pane collection-editor-details">
         <div class="collection-editor-details-grid">
             <div class="collection-editor-panel-stack">
@@ -2173,15 +2362,7 @@
 
                     @RenderDisplayOptionsPanel(includeOrderAndLimit: !_rulesEnabled)
 
-                    <MediaEditorPanel Title="Show on" Description="Show this collection as a row on these pages. It is always on the Collections page.">
-                        @foreach (var (placeKey, placeLabel) in ShowOnPlaces)
-                        {
-                            var key = placeKey;
-                            <AppCheckbox Value="@_showOn.Contains(key)"
-                                         ValueChanged="@(selected => OnShowOnChanged(key, selected))"
-                                         Label="@placeLabel" />
-                        }
-                    </MediaEditorPanel>
+                    @RenderShowOnPanel()
 
                 }
             </div>
@@ -2338,6 +2519,13 @@
                 @RenderWayCards()
             }
         </MediaEditorPanel>
+        @if (EditingCollection is not null && !IsPlaylistDialog && !_rulesEnabled)
+        {
+            <CollectionListSection CollectionId="EditingCollection.Id"
+                                   ProfileId="Request.ActiveProfileId"
+                                   OnLoaded="OnListSectionLoaded"
+                                   OnContentsChanged="OnListContentsChangedAsync" />
+        }
         @if (_rulesEnabled)
         {
             @RenderRulesSection()
@@ -2347,6 +2535,32 @@
             @RenderItemsTab()
         }
     </div>;
+
+    private Task OnListDraftChanged()
+    {
+        MarkDirty();
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private Task OnListSectionLoaded(bool isListCollection)
+    {
+        if (_isListCollection != isListCollection)
+        {
+            _isListCollection = isListCollection;
+            if (isListCollection)
+                _way = FillWay.FromList;
+            return InvokeAsync(StateHasChanged);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    // The list changed which titles the collection holds: read the item list again.
+    private async Task OnListContentsChangedAsync()
+    {
+        await LoadManualItemsAsync();
+        await InvokeAsync(StateHasChanged);
+    }
 
     // Changing the way in from the Contents tab warns first when it would throw away work: the rules, or the picked titles.
     private async Task ChangeWayAsync(FillWay way)

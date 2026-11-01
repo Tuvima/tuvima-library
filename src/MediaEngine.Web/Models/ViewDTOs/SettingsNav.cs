@@ -209,6 +209,9 @@ public static class SettingsNav
     /// <summary>The Taste sub-page of Overview: your taste in plain groups (Genres, Moods, Eras), editable for your own and read-only for others.</summary>
     public const string TasteSubsection = "taste";
 
+    /// <summary>The Import sub-page of Overview: drop a file and Library says what it is (a list, a collection pack, a bookmark pack, plugin settings) and where it goes.</summary>
+    public const string ImportSubsection = "import";
+
     /// <summary>The Activity page's address under Settings: everything watched, listened to, read and added to My list, with search, filters and a date rail.</summary>
     public const string ActivityRoute = "/settings/overview/activity";
 
@@ -334,6 +337,7 @@ public static class SettingsNav
                 Tab("Overview", AppMaterialIcons.Outlined.AccountCircle, SettingsSection.Overview),
                 Tab("Activity", AppMaterialIcons.Outlined.History, SettingsSection.Overview, ActivitySubsection),
                 Tab("Taste", AppMaterialIcons.Outlined.Category, SettingsSection.Overview, TasteSubsection),
+                Tab("Import", AppMaterialIcons.Outlined.UploadFile, SettingsSection.Overview, ImportSubsection),
             ]),
             Page("Manage Profiles", AppMaterialIcons.Outlined.Group, SettingsSection.Profiles),
             Page("Security & Devices", AppMaterialIcons.Outlined.Lock, SettingsSection.Security,
@@ -424,6 +428,7 @@ public static class SettingsNav
                 new(AppsSubsection, "Apps", AppMaterialIcons.Outlined.Smartphone),
                 new(ActivitySubsection, "Activity", AppMaterialIcons.Outlined.History),
                 new(TasteSubsection, "Taste", AppMaterialIcons.Outlined.Category),
+                new(ImportSubsection, "Import", AppMaterialIcons.Outlined.UploadFile),
             ],
             [SettingsSection.Profiles] = [],
             [SettingsSection.Security] =

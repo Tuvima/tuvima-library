@@ -28,6 +28,7 @@ public static class ApiEndpointRouteBuilderExtensions
         app.MapMaintenanceEndpoints();
         app.MapAdminEndpoints();
         app.MapCollectionEndpoints();
+        app.MapImportEndpoints();
         app.MapLibraryEndpoints();
         app.MapUnmatchedEndpoints();
         app.MapLibraryFolderActionEndpoints();
