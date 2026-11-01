@@ -517,12 +517,12 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.Single(cut.FindAll(".media-section-shell"));
             Assert.Single(cut.FindAll(".media-section-shell__rail"));
             Assert.NotEmpty(cut.FindAll(".media-section-shell__tree-row"));
-            // Recently Added is no longer a menu row: Library and Ingestion is shaded amber, with no count bubble.
-            var libraryAndIngestion = cut.FindAll(".media-section-shell__tree-link")
-                .First(item => item.TextContent.Contains("Library & Ingestion", StringComparison.Ordinal));
-            var reviewNotification = libraryAndIngestion.QuerySelector(".media-section-shell__rail-meta--notification");
+            // Activity is a tab, not a menu row: Libraries is shaded amber when items wait, with no count bubble.
+            var libraries = cut.FindAll(".media-section-shell__tree-link")
+                .First(item => item.TextContent.Trim() == "Libraries");
+            var reviewNotification = libraries.QuerySelector(".media-section-shell__rail-meta--notification");
             Assert.Null(reviewNotification);
-            // System opens on the resources summary; the old library overview now lives under Library and Ingestion.
+            // System opens on the resources summary.
             Assert.Single(cut.FindAll("[data-settings-system-summary]"));
             Assert.DoesNotContain("System exceptions", cut.Markup);
             Assert.Empty(cut.FindAll(".admin-library-summary"));
@@ -889,12 +889,12 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public void LegacyRecentlyAddedReviewLink_RedirectsToTheNeedsReviewPageInSource()
+    public void TheRetiredRecentlyAddedRedirects_AreGoneFromTheSettingsPage()
     {
         var source = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "Settings.razor"));
-        Assert.Contains("SettingsNav.RouteFor(SettingsSection.Review)", source, StringComparison.Ordinal);
-        Assert.Contains("string.Equals(ReviewState, \"expanded\"", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("\"/settings/recently-added?review=expanded\"", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("string.Equals(ReviewState, \"expanded\"", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("/settings/recently-added", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("_legacyRedirectIssued", source, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1164,7 +1164,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         var nav = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Models", "ViewDTOs", "SettingsNav.cs"));
 
         Assert.Contains("SettingsSection.LocalAi", nav);
-        Assert.Contains("SettingsSection.Delivery", nav);
+        Assert.Contains("SettingsSection.Playback", nav);
         Assert.Contains("SettingsSection.Plugins", nav);
         Assert.Contains("SettingsSection.Access", nav);
         Assert.Contains("SettingsStatusKind.Partial", nav);

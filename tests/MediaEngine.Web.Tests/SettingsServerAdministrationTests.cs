@@ -11,14 +11,15 @@ public sealed class SettingsServerAdministrationTests
         Assert.Contains("data-delivery-section", source, StringComparison.Ordinal);
         Assert.Contains("Streaming limits and quality", source, StringComparison.Ordinal);
         Assert.DoesNotContain("private RenderFragment LandingPage", source, StringComparison.Ordinal);
-        // Streaming opens on Limits and Quality; hardware acceleration, optimized copies and diagnostics are its sub-pages.
+        // Playback opens on Quality; hardware acceleration, optimized copies and diagnostics sit under its Advanced tab.
         Assert.Contains("<StreamingLimitsSettingsTab />", source, StringComparison.Ordinal);
-        Assert.Contains("case \"hardware\"", source, StringComparison.Ordinal);
-        Assert.Contains("case \"optimized-copies\"", source, StringComparison.Ordinal);
+        Assert.Contains("case \"advanced\"", source, StringComparison.Ordinal);
+        Assert.Contains("Section=\"hardware\"", source, StringComparison.Ordinal);
+        Assert.Contains("Section=\"optimized-copies\"", source, StringComparison.Ordinal);
         Assert.Contains("Section=\"diagnostics\"", source, StringComparison.Ordinal);
         Assert.DoesNotContain("case \"scheduling\"", source, StringComparison.Ordinal);
         Assert.DoesNotContain("case \"active-jobs\"", source, StringComparison.Ordinal);
-        // Hardware Acceleration, Optimized Copies and Diagnostics are rows of the Settings menu tree, not link cards.
+        // Advanced is a tab of the Settings page, not a link card.
         Assert.DoesNotContain("/settings/delivery/", source, StringComparison.Ordinal);
         Assert.DoesNotContain("<AppTabs", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Active streams", source, StringComparison.Ordinal);

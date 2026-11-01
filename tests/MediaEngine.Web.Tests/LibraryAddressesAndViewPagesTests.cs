@@ -58,14 +58,14 @@ public sealed class LibraryAddressesAndViewPagesTests : AsyncBunitContext
 
     // Libraries has pages below it (a group, then a type), so its menu row matches them; every other row stays exact.
     [Fact]
-    public void SettingsMenu_LibraryAndIngestionRow_StaysLitOnTheLibrariesTabAndThePagesBelowIt()
+    public void SettingsMenu_LibrariesRow_StaysLitOnTheLibrariesTabAndThePagesBelowIt()
     {
         var rows = Flatten(MediaEngine.Web.Services.Navigation.SettingsMenuBuilder.Build(
             new MediaEngine.Web.Services.Navigation.SettingsMenuContext(true, IsMobile: false, 0, false))).ToList();
 
-        // Libraries is a tab of Library & Ingestion now, so the row is lit by it and by the group and type pages beneath it.
-        Assert.DoesNotContain(rows, item => item.Route == "/settings/libraries");
-        var libraryRow = rows.Single(item => item.Label == "Library & Ingestion");
+        // The Libraries row is lit by its own tab and by the group and type pages beneath it.
+        var libraryRow = rows.Single(item => item.Label == "Libraries");
+        Assert.Equal("/settings/libraries", libraryRow.Route);
         Assert.False(libraryRow.Exact);
         Assert.Contains("/settings/libraries", libraryRow.ActiveRoutes!);
     }

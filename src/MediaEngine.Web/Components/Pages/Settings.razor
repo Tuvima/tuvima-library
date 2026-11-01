@@ -84,7 +84,8 @@ else
                            Description="@GetSectionDescription(_activeSection)"
                            Notices="@(ShowAttentionBanner ? AttentionBanner : null)"
                            PageNotice="@PageNoticeFragment"
-                           Tabs="@PageTabsFragment">
+                           Tabs="@PageTabsFragment"
+                           AdvancedWarning="@IsAdvancedTabOpen">
             <div @key="DeviceContext.DeviceClass" class="@PageCanvasClass">
                 <AdministratorSurfaceGate Required="@(_profileRoleLoaded && RequiresAdministratorSurface)">
                 @if (ShouldDeferForRoleResolution)
@@ -187,6 +188,12 @@ else
                                 {
                                     <ScheduledTasksPage />
                                 }
+                                else if (_activeSubsection == SettingsNav.AdvancedSubsection)
+                                {
+                                    @* Retention and export until the System packet regroups them. *@
+                                    <LogRetentionPanel />
+                                    <LogExportPanel />
+                                }
                                 else
                                 {
                                     <SystemSummaryPage />
@@ -194,9 +201,6 @@ else
                                 break;
                             case SettingsSection.Libraries:
                                 <LibrariesTab Subsection="@_activeSubsection" Detail="@Detail" />
-                                break;
-                            case SettingsSection.Ingestion:
-                                <IngestionTasksTab View="@IngestionView" />
                                 break;
                             case SettingsSection.RecentlyAdded:
                                 <RecentlyAddedPageContent InitialSearch="@RecentSearch" />
@@ -210,7 +214,10 @@ else
                                     new Dictionary<string, object?> { ["Subsection"] = _activeSubsection })
                                 break;
                             case SettingsSection.Providers:
-                                <MetadataSettingsPage Subsection="@_activeSubsection" Detail="@Detail" />
+                                <MetadataSettingsPage Subsection="ingestion-flow" Detail="@Detail" />
+                                break;
+                            case SettingsSection.LibraryRules:
+                                <LibraryRulesPage />
                                 break;
                             case SettingsSection.LocalAi:
                                 <LocalAiSettingsTab Subsection="@_activeSubsection" />
@@ -218,12 +225,14 @@ else
                             case SettingsSection.Plugins:
                                 <PluginSettingsTab FocusPluginId="@PluginFocusId" DetailPluginId="@PluginDetailId" DetailTab="@PluginDetailTab" NameChanged="OnPluginNameChanged" />
                                 break;
-                            case SettingsSection.Delivery:
+                            case SettingsSection.Playback:
                                 <PlaybackDeliverySettingsTab Subsection="@_activeSubsection" />
                                 break;
                             case SettingsSection.Tools:
-                            case SettingsSection.Notifications:
-                                <ConfigurationPage />
+                                <ToolsRequirementsTab />
+                                break;
+                            case SettingsSection.General:
+                                <GeneralPage />
                                 break;
                             case SettingsSection.Network:
                                 <NetworkRemoteAccessSettings Subsection="@_activeSubsection" RemoteAccessOffChanged="OnRemoteAccessOffChanged" />
@@ -235,14 +244,27 @@ else
                                 }
                                 else
                                 {
-                                    <UsersAccessSettingsTab Subsection="@_activeSubsection" />
+                                    @* Advanced holds what Sign-in Methods held; the tab keeps the page's shared address segment. *@
+                                    <UsersAccessSettingsTab Subsection="@(_activeSubsection == SettingsNav.AdvancedSubsection ? "authentication" : _activeSubsection)" />
                                 }
                                 break;
                             case SettingsSection.Integrations:
                                 <UsersAccessSettingsTab Subsection="applications" IntegrationId="@IntegrationDetailId" DetailTab="@IntegrationDetailTab" NameChanged="OnIntegrationNameChanged" />
                                 break;
-                            case SettingsSection.Server:
-                                <BackupRecoveryPanel />
+                            case SettingsSection.Backups:
+                                @if (_activeSubsection == SettingsNav.DestinationsSubsection)
+                                {
+                                    <BackupDestinationsSection />
+                                }
+                                else if (_activeSubsection == SettingsNav.AdvancedSubsection)
+                                {
+                                    @* The restored-progress wait and archive facts still sit on the Backups tab until the Backups packet splits them out. *@
+                                    <AppAlert Severity="AppSeverity.Info" Variant="AppVariant.Outlined" Dense="true">@L["Settings_BackupsAdvancedPending"]</AppAlert>
+                                }
+                                else
+                                {
+                                    <BackupRecoveryPanel />
+                                }
                                 break;
                             case SettingsSection.ProviderTester:
                                 @RenderInternalTool("MediaEngine.Web.Components.Settings.ProviderTesterToolTab")
@@ -329,7 +351,6 @@ else
     private bool _restricted;
     private bool _leavingSettings;
 
-    private bool _legacyRedirectIssued;
     private SystemStatusViewModel? _systemStatus;
     private bool _shellStateLoading = true;
     private bool _developmentToolsLoading = true;
@@ -402,7 +423,10 @@ else
     private RenderFragment ProfileTabsFragment => @<ProfileTabs ProfileId="@ProfileDetailId" Active="@ProfileTab" />;
 
     private RenderFragment RenderPageTabs(SettingsMenuLocation location) =>
-        @<SettingsPageTabs Tabs="@location.Page.Tabs" Active="@location.Tab" PageLabel="@location.Page.Label" />;
+        @<SettingsPageTabs Tabs="@location.Page.Tabs" Active="@location.Tab" PageLabel="@location.Page.Label" ReviewCount="@Attention.ReviewCount" />;
+
+    // The page's Advanced tab is open: the frame draws the one warning line first.
+    private bool IsAdvancedTabOpen => CurrentLocation?.Tab?.IsAdvanced == true && !IsMobileRouteUnavailable;
     private IReadOnlyList<SettingsBreadcrumb> Breadcrumbs => BuildBreadcrumbs();
     private bool IsProfileDetailRoute => _activeSection == SettingsSection.Profiles && ProfileDetailId != Guid.Empty;
     private Guid ProfileDetailId => Guid.TryParse(_activeSubsection, out var id) ? id : Guid.Empty;
@@ -680,27 +704,6 @@ else
             return;
         }
 
-        if (!_legacyRedirectIssued
-            && Section is not null
-            && (Section.Equals("activity", StringComparison.OrdinalIgnoreCase)
-                || Section.Equals("timeline", StringComparison.OrdinalIgnoreCase)))
-        {
-            _legacyRedirectIssued = true;
-            Nav.NavigateTo("/settings/recently-added", replace: true);
-            return;
-        }
-
-        // Needs Review has its own page now; the old Recently Added link that opened its collapsed block lands there.
-        if (!_legacyRedirectIssued
-            && Section is not null
-            && Section.Equals("recently-added", StringComparison.OrdinalIgnoreCase)
-            && string.Equals(ReviewState, "expanded", StringComparison.OrdinalIgnoreCase))
-        {
-            _legacyRedirectIssued = true;
-            Nav.NavigateTo(SettingsNav.RouteFor(SettingsSection.Review), replace: true);
-            return;
-        }
-
         var resolution = SettingsNav.ResolveRoute(Section, CanManageAdministration, _restricted);
         _activeSection = resolution.Section;
 
@@ -735,10 +738,6 @@ else
         else if (_activeSection is SettingsSection.Plugins or SettingsSection.Integrations && !string.IsNullOrWhiteSpace(Subsection))
         {
             _activeSubsection = Subsection!.Trim();
-        }
-        else if (_activeSection == SettingsSection.Providers && string.IsNullOrWhiteSpace(Subsection))
-        {
-            _activeSubsection = SettingsNav.IngestionFlowSubsection;
         }
         else if (string.IsNullOrWhiteSpace(Subsection))
         {
@@ -921,9 +920,8 @@ else
 
         if (_activeSection == SettingsSection.Libraries)
         {
-            // Library & Ingestion > Libraries > Watch > Movies: the frame carries the level, so Libraries is a link once the page is deeper.
+            // Libraries > Watch > Movies: the page is Libraries, so it is a link once the page is deeper.
             var levels = LibrariesLevel.Crumbs;
-            steps.Add(new SettingsBreadcrumb("Libraries", SettingsNav.RouteFor(SettingsSection.Libraries)));
             foreach (var level in levels.Skip(1))
                 steps.Add(new SettingsBreadcrumb(level.Label, level.Href));
         }
@@ -994,40 +992,40 @@ else
             : "Password, email and extra protection.",
         SettingsSection.AdminOverview => _activeSubsection switch
         {
-            SettingsNav.LogsSubsection => "What the Library did, the Engine's technical log, and how long logs are kept.",
+            SettingsNav.LogsSubsection => "What the Library did and the Engine's technical log.",
             SettingsNav.ScheduledTasksSubsection => "What runs by itself, when it last ran, and when it runs next.",
+            SettingsNav.AdvancedSubsection => "How long logs are kept, and exporting them.",
             _ => "How this server is doing: its version, processor, memory and storage.",
         },
         // Only the overview has a subtitle; the pages below it are named by their title and breadcrumb.
         SettingsSection.Libraries => LibrariesLevel.Crumbs.Count == 0 ? "Your media, grouped the way you browse it." : null,
-        SettingsSection.Ingestion => "What your library holds, what is being added right now, and what was added lately.",
         SettingsSection.RecentlyAdded => "Review new library additions and resolve anything that needs your attention.",
+        SettingsSection.LibraryRules => "The rules every library follows. Each library can override them.",
         SettingsSection.Network => "Manage how devices reach Library at home and away without exposing unnecessary technical detail.",
         SettingsSection.DevHarness => "Development builds only: reset, seed or rescan the test library.",
         SettingsSection.Providers => GetMetadataDescription(),
         SettingsSection.LocalAi => _activeSubsection switch
         {
             "models" => "Choose the resource profile and set runtime limits.",
+            SettingsNav.AdvancedSubsection => "Runtime limits, the plugin allowance and what Local AI has done lately.",
             _ => "Manage local intelligence features while keeping technical details out of the way.",
         },
         SettingsSection.Plugins => "Manage installed extensions and keep plugin health under control.",
-        SettingsSection.Delivery => _activeSubsection switch
+        SettingsSection.Playback => _activeSubsection switch
         {
-            "hardware" => "Choose what the server uses to prepare video for playback.",
-            "optimized-copies" => "Set how optimized copies are prepared, scheduled and stored, and watch the jobs that make them.",
-            "diagnostics" => "Technical checks on playback delivery reported by the server.",
+            SettingsNav.AdvancedSubsection => "Hardware acceleration, optimized copies and technical checks on playback.",
             _ => "Set the limits and quality for streaming away from home.",
         },
-        SettingsSection.Notifications or SettingsSection.Tools =>
-            "The tools and downloads the Library relies on, and what it tells you about and where those messages go.",
+        SettingsSection.Tools => "The tools and downloads the Library relies on.",
+        SettingsSection.General => "Language and region, and what the Library tells you about and where those messages go.",
         SettingsSection.Integrations => "Credentials and webhooks that let other software use Library.",
         SettingsSection.Access => _activeSubsection switch
         {
-            "authentication" => "How people sign in, and the rules for passwords, sessions and invitations.",
+            SettingsNav.AdvancedSubsection => "How people sign in, and the rules for passwords, sessions and invitations.",
             SettingsNav.HouseholdsSubsection => "Add, rename and remove households. Each has its own people, library access and Shared Library.",
             _ => "Who can sign in, and which profile each sign-in opens.",
         },
-        SettingsSection.Server => "Protect your Library configuration and recover it when needed.",
+        SettingsSection.Backups => "Protect your Library configuration and recover it when needed.",
         SettingsSection.Review => "Resolve items Library could not identify confidently.",
         SettingsSection.ProviderTester => "Try a search against each metadata provider and see what comes back.",
         // Temporary: the Enrichment Tester is removed at beta (Developer tools spec, section 4).

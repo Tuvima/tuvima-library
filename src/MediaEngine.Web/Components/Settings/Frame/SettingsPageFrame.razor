@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Web.Components.Shared.Shell
+@inject IStringLocalizer<SharedStrings> L
 
 @* The one frame every Settings page sits in: administrator notices, breadcrumb, title and one-line description,
    an optional permanent page notice, optional in-page tabs, then the page content. Everything shares one left
@@ -43,7 +44,18 @@
         <div class="settings-frame__tabs" data-settings-frame-slot="tabs">@Tabs</div>
     }
 
-    <div class="settings-frame__content" data-settings-frame-slot="content">@ChildContent</div>
+    <div class="settings-frame__content" data-settings-frame-slot="content">
+        @if (AdvancedWarning)
+        {
+            @* The one warning every Advanced tab opens with (settings-and-setup-simplified D1). *@
+            <AppAlert Severity="AppSeverity.Warning"
+                      Variant="AppVariant.Outlined"
+                      Dense="true"
+                      Class="tl-sp-mb-4"
+                      data-testid="settings-advanced-warning">@L["SettingsPageFrame_AdvancedWarning"]</AppAlert>
+        }
+        @ChildContent
+    </div>
 </div>
 
 @code {
@@ -64,6 +76,9 @@
 
     /// <summary>Tabs for sections inside this one page. Nothing is drawn when null.</summary>
     [Parameter] public RenderFragment? Tabs { get; set; }
+
+    /// <summary>Draws the Advanced warning line first in the content: set while a page's Advanced tab is open.</summary>
+    [Parameter] public bool AdvancedWarning { get; set; }
 
     [Parameter] public RenderFragment? ChildContent { get; set; }
 }

@@ -14,19 +14,22 @@ public enum SettingsSection
 
     AdminOverview,
     Libraries,
-    Ingestion,
+    /// <summary>The Activity tab of Libraries: what is being added and what was added lately.</summary>
     RecentlyAdded,
     DevHarness,
+    /// <summary>The Matching tab of Libraries (was Ingestion Flow).</summary>
     Providers,
+    /// <summary>The Rules tab of Libraries: the rules every library follows.</summary>
+    LibraryRules,
     LocalAi,
     Plugins,
-    Delivery,
+    Playback,
     Tools,
-    Notifications,
+    General,
     Network,
     Access,
     Integrations,
-    Server,
+    Backups,
 
     Review,
     ProviderTester,
@@ -86,17 +89,28 @@ public sealed record SettingsSubsectionDef(
     string Label,
     string Icon);
 
+/// <summary>How a tab is drawn: an ordinary tab, or the one Advanced tab a page may have (always last, gear icon, amber).</summary>
+public enum SettingsPageTabKind
+{
+    Standard,
+    Advanced,
+}
+
 /// <summary>
 /// One tab of a Settings page. A tab is a link to its own address, so deep links, reload and Back all work; it opens one
 /// (section, sub-page) of the Settings route table.
 /// </summary>
 /// <param name="Subsection">The sub-page this tab opens, or <see langword="null"/> for the section's own main page.</param>
+/// <param name="Kind">An Advanced tab is drawn last, at the right end, with a gear and an amber tint (settings-and-setup-simplified D1).</param>
 public sealed record SettingsPageTab(
     string Label,
     string Icon,
     SettingsSection Section,
-    string? Subsection = null)
+    string? Subsection = null,
+    SettingsPageTabKind Kind = SettingsPageTabKind.Standard)
 {
+    public bool IsAdvanced => Kind == SettingsPageTabKind.Advanced;
+
     public string Route => Subsection is null
         ? SettingsNav.RouteFor(Section)
         : SettingsNav.RouteFor(Section, Subsection);
@@ -147,7 +161,7 @@ public sealed record SettingsMenuNode(
     }
 }
 
-/// <summary>A top-level group of the Settings menu (Personal, Server, Platform, System, Developer).</summary>
+/// <summary>A top-level group of the Settings menu (Personal, Library, Server, Developer).</summary>
 public sealed record SettingsMenuGroup(
     string Key,
     string Label,
@@ -191,6 +205,18 @@ public static class SettingsNav
     /// <summary>The Households sub-page of Users & Households (server administrators only).</summary>
     public const string HouseholdsSubsection = "households";
 
+    /// <summary>The Advanced tab of any page that has one (settings-and-setup-simplified D1): always the same address segment.</summary>
+    public const string AdvancedSubsection = "advanced";
+
+    /// <summary>The Destinations tab of Backups.</summary>
+    public const string DestinationsSubsection = "destinations";
+
+    /// <summary>The Home network tab of Network &amp; Remote Access.</summary>
+    public const string HomeNetworkSubsection = "home";
+
+    /// <summary>The Remote access tab of Network &amp; Remote Access.</summary>
+    public const string RemoteAccessSubsection = "remote";
+
     /// <summary>The Logs sub-page of System: the Activity log (Events), technical log, retention and export (server administrators only).</summary>
     public const string LogsSubsection = "logs";
 
@@ -199,9 +225,6 @@ public static class SettingsNav
 
     /// <summary>The Devices &amp; Sessions sub-page of Security &amp; Devices.</summary>
     public const string DevicesSubsection = "devices";
-
-    /// <summary>The Ingestion Flow sub-page of Metadata Providers, a tab of Library &amp; Ingestion.</summary>
-    public const string IngestionFlowSubsection = "ingestion-flow";
 
     /// <summary>The Apps sub-page of Overview: store links, the server address and its QR code. It has no menu row; an icon on the Overview opens it.</summary>
     public const string AppsSubsection = "apps";
@@ -212,7 +235,7 @@ public static class SettingsNav
     /// <summary>The Import sub-page of Overview: drop a file and Library says what it is (a list, a collection pack, a bookmark pack, plugin settings) and where it goes.</summary>
     public const string ImportSubsection = "import";
 
-    /// <summary>The Accounts sub-page of Overview: the accounts on other sites this profile has linked for plugins (Trakt), signed in to by approving a code on another device.</summary>
+    /// <summary>The Linked accounts sub-page of Overview: the accounts on other sites this profile has linked for plugins (Trakt), signed in to by approving a code on another device.</summary>
     public const string AccountsSubsection = "accounts";
 
     /// <summary>The Activity page's address under Settings: everything watched, listened to, read and added to My list, with search, filters and a date rail.</summary>
@@ -243,16 +266,16 @@ public static class SettingsNav
             [SettingsSection.Security] = Complete(),
             [SettingsSection.AdminOverview] = Complete(),
             [SettingsSection.Libraries] = Complete(),
-            [SettingsSection.Ingestion] = Complete(),
             [SettingsSection.RecentlyAdded] = Complete(),
             [SettingsSection.Providers] = Complete(),
+            [SettingsSection.LibraryRules] = Complete(),
             [SettingsSection.Review] = Complete(),
             [SettingsSection.Network] = Complete(),
-            [SettingsSection.Server] = Complete(),
+            [SettingsSection.Backups] = Complete(),
             [SettingsSection.LocalAi] = Complete(),
-            [SettingsSection.Delivery] = Complete(),
+            [SettingsSection.Playback] = Complete(),
             [SettingsSection.Tools] = Complete(),
-            [SettingsSection.Notifications] = Complete(),
+            [SettingsSection.General] = Complete(),
             [SettingsSection.Access] = Complete(),
             [SettingsSection.Integrations] = Complete(),
         };
@@ -284,9 +307,8 @@ public static class SettingsNav
     public static readonly SettingsGroupDef[] AllGroups =
     [
         new("personal", "Personal", AppMaterialIcons.Outlined.Person, false, SettingsSection.Overview),
-        new("server", "Server", AppMaterialIcons.Outlined.Dns, true, SettingsSection.Ingestion),
-        new("platform", "Platform", AppMaterialIcons.Outlined.Extension, true, SettingsSection.LocalAi),
-        new("system", "System", AppMaterialIcons.Outlined.DesktopWindows, true, SettingsSection.AdminOverview),
+        new("library", "Library", AppMaterialIcons.Outlined.VideoLibrary, true, SettingsSection.Libraries),
+        new("server", "Server", AppMaterialIcons.Outlined.Dns, true, SettingsSection.General),
         new("developer", "Developer", AppMaterialIcons.Outlined.DataObject, true, SettingsSection.ProviderTester),
     ];
 
@@ -299,23 +321,24 @@ public static class SettingsNav
         new(SettingsSection.Profiles, "personal", "profiles", AppMaterialIcons.Outlined.Group, "Manage Profiles", false, null, ["profile", "household"], "sqlite", Status: SettingsStatusKind.Live),
         new(SettingsSection.Security, "personal", "security", AppMaterialIcons.Outlined.Lock, "Security & Devices", false, null, ["account"], "sqlite", Status: SettingsStatusKind.Live),
 
-        new(SettingsSection.Ingestion, "server", "ingestion", AppMaterialIcons.Outlined.VideoLibrary, "Library & Ingestion", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
-        new(SettingsSection.RecentlyAdded, "server", "recently-added", AppMaterialIcons.Outlined.History, "Recently Added", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
-        new(SettingsSection.Libraries, "server", "libraries", AppMaterialIcons.Outlined.Folder, "Libraries", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
-        new(SettingsSection.Providers, "server", "metadata", AppMaterialIcons.Outlined.Hub, "Metadata Providers", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
-        new(SettingsSection.Review, "server", "review", AppMaterialIcons.Outlined.RateReview, "Needs Review", true, "review", [], "mixed", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
-        new(SettingsSection.Network, "server", "network", AppMaterialIcons.Outlined.WifiTethering, "Network & Remote Access", true, null, [], "json+runtime", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
-        new(SettingsSection.Delivery, "server", "delivery", AppMaterialIcons.Outlined.Stream, "Streaming", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        // Library: the media and how it is matched and played. Libraries, Activity, Needs Review, Matching and Rules are the five tabs of one page.
+        new(SettingsSection.Libraries, "library", "libraries", AppMaterialIcons.Outlined.Folder, "Libraries", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.RecentlyAdded, "library", "library-activity", AppMaterialIcons.Outlined.History, "Activity", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
+        new(SettingsSection.Review, "library", "review", AppMaterialIcons.Outlined.RateReview, "Needs Review", true, "review", [], "mixed", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
+        new(SettingsSection.Providers, "library", "matching", AppMaterialIcons.Outlined.AccountTree, "Matching", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.LibraryRules, "library", "rules", AppMaterialIcons.Outlined.Tune, "Rules", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.DesktopOnly),
+        new(SettingsSection.Playback, "library", "playback", AppMaterialIcons.Outlined.Stream, "Playback", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+
+        // Server: this machine and who may reach it. Retired addresses are not forwarded (settings-and-setup-simplified D19).
+        new(SettingsSection.General, "server", "general", AppMaterialIcons.Outlined.Settings, "General", true, null, [], "sqlite", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
         new(SettingsSection.Access, "server", "access", AppMaterialIcons.Outlined.AdminPanelSettings, "Users & Households", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
-
-        new(SettingsSection.LocalAi, "platform", "ai", AppMaterialIcons.Outlined.Memory, "Local AI", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
-        new(SettingsSection.Plugins, "platform", "plugins", AppMaterialIcons.Outlined.Extension, "Plugins", true, null, [], "sqlite", Status: SettingsStatusKind.Partial, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
-        new(SettingsSection.Integrations, "platform", "integrations", AppMaterialIcons.Outlined.Link, "Integrations", true, null, [], "sqlite", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
-
-        new(SettingsSection.AdminOverview, "system", "system", AppMaterialIcons.Outlined.DesktopWindows, "System", true, null, [], "json+sqlite", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
-        new(SettingsSection.Tools, "system", "tools", AppMaterialIcons.Outlined.Build, "Configuration", true, null, [], "runtime", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
-        new(SettingsSection.Notifications, "system", "notifications", AppMaterialIcons.Outlined.Mail, "Notifications", true, null, [], "sqlite", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
-        new(SettingsSection.Server, "system", "backup-recovery", AppMaterialIcons.Outlined.Backup, "Backups", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.Network, "server", "network", AppMaterialIcons.Outlined.WifiTethering, "Network & Remote Access", true, null, [], "json+runtime", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.Tools, "server", "tools", AppMaterialIcons.Outlined.Build, "Tools", true, null, [], "runtime", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
+        new(SettingsSection.LocalAi, "server", "ai", AppMaterialIcons.Outlined.Memory, "Local AI", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.Plugins, "server", "plugins", AppMaterialIcons.Outlined.Extension, "Plugins", true, null, [], "sqlite", Status: SettingsStatusKind.Partial, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.Integrations, "server", "integrations", AppMaterialIcons.Outlined.Link, "Integrations", true, null, [], "sqlite", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.Full),
+        new(SettingsSection.Backups, "server", "backups", AppMaterialIcons.Outlined.Backup, "Backups", true, null, [], Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
+        new(SettingsSection.AdminOverview, "server", "system", AppMaterialIcons.Outlined.DesktopWindows, "System", true, null, [], "json+sqlite", Status: SettingsStatusKind.Live, MobileAvailability: SettingsMobileAvailability.SummaryOnly),
 
         // Developer Tools opens on the Provider Tester, so that page owns the "developer" address and its old "provider-tester" address.
         // Enrichment Tester and Development data are its other tabs; they are offered only when the running Engine is a development
@@ -326,10 +349,10 @@ public static class SettingsNav
     ];
 
     /// <summary>
-    /// The one Settings menu: groups of flat pages, no expanding rows. A page with several related areas carries one row of
-    /// route-linked tabs (<see cref="SettingsPageTab"/>); a page with a single purpose has none. Recently Added and Needs Review
-    /// stay out of the menu and open beneath Library &amp; Ingestion (see <see cref="OffMenuParents"/>). The desktop menu, the phone
-    /// page selector, the tab strip and the breadcrumb all read this.
+    /// The one Settings menu: groups of flat pages, no expanding rows (settings-and-setup-simplified D2). A page with several
+    /// related areas carries one row of route-linked tabs (<see cref="SettingsPageTab"/>); a page with a single purpose has none.
+    /// A page's Advanced tab, when it has one, is always its last tab (D1). The desktop menu, the phone page selector, the tab
+    /// strip and the breadcrumb all read this.
     /// </summary>
     public static readonly SettingsMenuGroup[] MenuGroups =
     [
@@ -340,8 +363,8 @@ public static class SettingsNav
                 Tab("Overview", AppMaterialIcons.Outlined.AccountCircle, SettingsSection.Overview),
                 Tab("Activity", AppMaterialIcons.Outlined.History, SettingsSection.Overview, ActivitySubsection),
                 Tab("Taste", AppMaterialIcons.Outlined.Category, SettingsSection.Overview, TasteSubsection),
+                Tab("Linked accounts", AppMaterialIcons.Outlined.Link, SettingsSection.Overview, AccountsSubsection),
                 Tab("Import", AppMaterialIcons.Outlined.UploadFile, SettingsSection.Overview, ImportSubsection),
-                Tab("Accounts", AppMaterialIcons.Outlined.Link, SettingsSection.Overview, AccountsSubsection),
             ]),
             Page("Manage Profiles", AppMaterialIcons.Outlined.Group, SettingsSection.Profiles),
             Page("Security & Devices", AppMaterialIcons.Outlined.Lock, SettingsSection.Security,
@@ -350,57 +373,59 @@ public static class SettingsNav
                 Tab("Devices & Sessions", AppMaterialIcons.Outlined.Devices, SettingsSection.Security, DevicesSubsection),
             ]),
         ]),
+        new("library", "Library", AppMaterialIcons.Outlined.VideoLibrary,
+        [
+            Page("Libraries", AppMaterialIcons.Outlined.Folder, SettingsSection.Libraries,
+            [
+                Tab("Libraries", AppMaterialIcons.Outlined.Folder, SettingsSection.Libraries),
+                Tab("Activity", AppMaterialIcons.Outlined.History, SettingsSection.RecentlyAdded),
+                Tab("Needs Review", AppMaterialIcons.Outlined.RateReview, SettingsSection.Review),
+                Tab("Matching", AppMaterialIcons.Outlined.AccountTree, SettingsSection.Providers),
+                Tab("Rules", AppMaterialIcons.Outlined.Tune, SettingsSection.LibraryRules),
+            ]),
+            Page("Playback", AppMaterialIcons.Outlined.Stream, SettingsSection.Playback,
+            [
+                Tab("Quality", AppMaterialIcons.Outlined.Speed, SettingsSection.Playback),
+                AdvancedTab(SettingsSection.Playback),
+            ]),
+        ]),
         new("server", "Server", AppMaterialIcons.Outlined.Dns,
         [
-            Page("Library & Ingestion", AppMaterialIcons.Outlined.VideoLibrary, SettingsSection.Ingestion,
-            [
-                Tab("Overview", AppMaterialIcons.Outlined.Dashboard, SettingsSection.Ingestion),
-                Tab("Libraries", AppMaterialIcons.Outlined.Folder, SettingsSection.Libraries),
-                Tab("Ingestion Flow", AppMaterialIcons.Outlined.AccountTree, SettingsSection.Providers, IngestionFlowSubsection),
-            ], also: [SettingsSection.RecentlyAdded, SettingsSection.Review]),
-            Page("Network & Remote Access", AppMaterialIcons.Outlined.WifiTethering, SettingsSection.Network,
-            [
-                Tab("Overview", AppMaterialIcons.Outlined.Dashboard, SettingsSection.Network, "overview"),
-                Tab("Local Network", AppMaterialIcons.Outlined.Lan, SettingsSection.Network, "local"),
-                Tab("Remote Access", AppMaterialIcons.Outlined.Public, SettingsSection.Network, "remote"),
-                Tab("Advanced", AppMaterialIcons.Outlined.Tune, SettingsSection.Network, "advanced"),
-            ]),
-            Page("Streaming", AppMaterialIcons.Outlined.Stream, SettingsSection.Delivery,
-            [
-                Tab("Limits & Quality", AppMaterialIcons.Outlined.Speed, SettingsSection.Delivery),
-                Tab("Hardware Acceleration", AppMaterialIcons.Outlined.Memory, SettingsSection.Delivery, "hardware"),
-                Tab("Optimized Copies", AppMaterialIcons.Outlined.Storage, SettingsSection.Delivery, "optimized-copies"),
-                Tab("Diagnostics", AppMaterialIcons.Outlined.MonitorHeart, SettingsSection.Delivery, "diagnostics"),
-            ]),
+            Page("General", AppMaterialIcons.Outlined.Settings, SettingsSection.General),
             Page("Users & Households", AppMaterialIcons.Outlined.AdminPanelSettings, SettingsSection.Access,
             [
                 Tab("Users", AppMaterialIcons.Outlined.ManageAccounts, SettingsSection.Access, "users"),
-                Tab("Sign-in Methods", AppMaterialIcons.Outlined.Security, SettingsSection.Access, "authentication"),
                 Tab("Households", AppMaterialIcons.Outlined.Home, SettingsSection.Access, HouseholdsSubsection),
+                AdvancedTab(SettingsSection.Access),
             ]),
-        ]),
-        new("platform", "Platform", AppMaterialIcons.Outlined.Extension,
-        [
+            Page("Network & Remote Access", AppMaterialIcons.Outlined.WifiTethering, SettingsSection.Network,
+            [
+                Tab("Home network", AppMaterialIcons.Outlined.Lan, SettingsSection.Network, HomeNetworkSubsection),
+                Tab("Remote access", AppMaterialIcons.Outlined.Public, SettingsSection.Network, RemoteAccessSubsection),
+                AdvancedTab(SettingsSection.Network),
+            ]),
+            Page("Tools", AppMaterialIcons.Outlined.Build, SettingsSection.Tools),
             Page("Local AI", AppMaterialIcons.Outlined.Memory, SettingsSection.LocalAi,
             [
                 Tab("Status", AppMaterialIcons.Outlined.Memory, SettingsSection.LocalAi, "status"),
-                Tab("Models & Hardware", AppMaterialIcons.Outlined.Storage, SettingsSection.LocalAi, "models"),
-                Tab("Budget", AppMaterialIcons.Outlined.Speed, SettingsSection.LocalAi, "budget"),
-                Tab("Usage", AppMaterialIcons.Outlined.Assessment, SettingsSection.LocalAi, "usage"),
+                Tab("Models", AppMaterialIcons.Outlined.Storage, SettingsSection.LocalAi, "models"),
+                AdvancedTab(SettingsSection.LocalAi),
             ]),
             Page("Plugins", AppMaterialIcons.Outlined.Extension, SettingsSection.Plugins),
             Page("Integrations", AppMaterialIcons.Outlined.Link, SettingsSection.Integrations),
-        ]),
-        new("system", "System", AppMaterialIcons.Outlined.DesktopWindows,
-        [
+            Page("Backups", AppMaterialIcons.Outlined.Backup, SettingsSection.Backups,
+            [
+                Tab("Backups", AppMaterialIcons.Outlined.Backup, SettingsSection.Backups),
+                Tab("Destinations", AppMaterialIcons.Outlined.Storage, SettingsSection.Backups, DestinationsSubsection),
+                AdvancedTab(SettingsSection.Backups),
+            ]),
             Page("System", AppMaterialIcons.Outlined.DesktopWindows, SettingsSection.AdminOverview,
             [
-                Tab("Overview", AppMaterialIcons.Outlined.Dashboard, SettingsSection.AdminOverview),
-                Tab("Scheduled Tasks", AppMaterialIcons.Outlined.Schedule, SettingsSection.AdminOverview, ScheduledTasksSubsection),
+                Tab("Health", AppMaterialIcons.Outlined.HealthAndSafety, SettingsSection.AdminOverview),
+                Tab("Scheduled tasks", AppMaterialIcons.Outlined.Schedule, SettingsSection.AdminOverview, ScheduledTasksSubsection),
                 Tab("Logs", AppMaterialIcons.Outlined.List, SettingsSection.AdminOverview, LogsSubsection),
-                Tab("Backups", AppMaterialIcons.Outlined.Backup, SettingsSection.Server),
-                Tab("Configuration", AppMaterialIcons.Outlined.Build, SettingsSection.Tools),
-            ], also: [SettingsSection.Notifications]),
+                AdvancedTab(SettingsSection.AdminOverview),
+            ]),
         ]),
         new("developer", "Developer", AppMaterialIcons.Outlined.DataObject,
         [
@@ -424,6 +449,10 @@ public static class SettingsNav
     private static SettingsPageTab Tab(string label, string icon, SettingsSection section, string? subsection = null) =>
         new(label, icon, section, subsection);
 
+    /// <summary>The page's one Advanced tab: last in its row, drawn with a gear and an amber tint (D1).</summary>
+    private static SettingsPageTab AdvancedTab(SettingsSection section) =>
+        new("Advanced", AppMaterialIcons.Outlined.Settings, section, AdvancedSubsection, SettingsPageTabKind.Advanced);
+
     public static readonly IReadOnlyDictionary<SettingsSection, IReadOnlyList<SettingsSubsectionDef>> Subsections =
         new Dictionary<SettingsSection, IReadOnlyList<SettingsSubsectionDef>>
         {
@@ -433,7 +462,7 @@ public static class SettingsNav
                 new(ActivitySubsection, "Activity", AppMaterialIcons.Outlined.History),
                 new(TasteSubsection, "Taste", AppMaterialIcons.Outlined.Category),
                 new(ImportSubsection, "Import", AppMaterialIcons.Outlined.UploadFile),
-                new(AccountsSubsection, "Accounts", AppMaterialIcons.Outlined.Link),
+                new(AccountsSubsection, "Linked accounts", AppMaterialIcons.Outlined.Link),
             ],
             [SettingsSection.Profiles] = [],
             [SettingsSection.Security] =
@@ -444,46 +473,44 @@ public static class SettingsNav
             [
                 new(ScheduledTasksSubsection, "Scheduled Tasks", AppMaterialIcons.Outlined.Schedule),
                 new(LogsSubsection, "Logs", AppMaterialIcons.Outlined.List),
+                new(AdvancedSubsection, "Advanced", AppMaterialIcons.Outlined.Settings),
             ],
             [SettingsSection.Libraries] = [],
-            [SettingsSection.Ingestion] = [],
             [SettingsSection.RecentlyAdded] = [],
             [SettingsSection.DevHarness] = [],
-            [SettingsSection.Providers] =
-            [
-                new(IngestionFlowSubsection, "Ingestion Flow", AppMaterialIcons.Outlined.AccountTree),
-            ],
+            [SettingsSection.Providers] = [],
+            [SettingsSection.LibraryRules] = [],
             [SettingsSection.LocalAi] =
             [
                 new("status", "Status", AppMaterialIcons.Outlined.Memory),
-                new("models", "Models & Hardware", AppMaterialIcons.Outlined.Storage),
-                new("budget", "Budget", AppMaterialIcons.Outlined.Speed),
-                new("usage", "Usage", AppMaterialIcons.Outlined.Assessment),
+                new("models", "Models", AppMaterialIcons.Outlined.Storage),
+                new(AdvancedSubsection, "Advanced", AppMaterialIcons.Outlined.Settings),
             ],
             [SettingsSection.Plugins] = [],
-            [SettingsSection.Delivery] =
+            [SettingsSection.Playback] =
             [
-                new("hardware", "Hardware Acceleration", AppMaterialIcons.Outlined.Memory),
-                new("optimized-copies", "Optimized Copies", AppMaterialIcons.Outlined.Storage),
-                new("diagnostics", "Diagnostics", AppMaterialIcons.Outlined.MonitorHeart),
+                new(AdvancedSubsection, "Advanced", AppMaterialIcons.Outlined.Settings),
             ],
             [SettingsSection.Network] =
             [
-                new("overview", "Overview", AppMaterialIcons.Outlined.Dashboard),
-                new("local", "Local Network", AppMaterialIcons.Outlined.Lan),
-                new("remote", "Remote Access", AppMaterialIcons.Outlined.Public),
-                new("advanced", "Advanced", AppMaterialIcons.Outlined.Tune),
+                new(HomeNetworkSubsection, "Home network", AppMaterialIcons.Outlined.Lan),
+                new(RemoteAccessSubsection, "Remote access", AppMaterialIcons.Outlined.Public),
+                new(AdvancedSubsection, "Advanced", AppMaterialIcons.Outlined.Settings),
             ],
             [SettingsSection.Access] =
             [
                 new("users", "Users", AppMaterialIcons.Outlined.ManageAccounts),
-                new("authentication", "Sign-in Methods", AppMaterialIcons.Outlined.Security),
                 new(HouseholdsSubsection, "Households", AppMaterialIcons.Outlined.Home),
+                new(AdvancedSubsection, "Advanced", AppMaterialIcons.Outlined.Settings),
             ],
             [SettingsSection.Integrations] = [],
             [SettingsSection.Tools] = [],
-            [SettingsSection.Notifications] = [],
-            [SettingsSection.Server] = [],
+            [SettingsSection.General] = [],
+            [SettingsSection.Backups] =
+            [
+                new(DestinationsSubsection, "Destinations", AppMaterialIcons.Outlined.Storage),
+                new(AdvancedSubsection, "Advanced", AppMaterialIcons.Outlined.Settings),
+            ],
             [SettingsSection.Review] = [],
             [SettingsSection.ProviderTester] = [new("overview", "Overview", AppMaterialIcons.Outlined.Biotech)],
             [SettingsSection.EnrichmentTester] = [new("overview", "Overview", AppMaterialIcons.Outlined.Science)],
@@ -514,15 +541,16 @@ public static class SettingsNav
         SettingsSection.Security,
         SettingsSection.AdminOverview,
         SettingsSection.Libraries,
-        SettingsSection.Ingestion,
         SettingsSection.RecentlyAdded,
         SettingsSection.Review,
-        SettingsSection.Delivery,
+        SettingsSection.Providers,
+        SettingsSection.LibraryRules,
+        SettingsSection.Playback,
         SettingsSection.Tools,
-        SettingsSection.Notifications,
+        SettingsSection.General,
         SettingsSection.Access,
         SettingsSection.Integrations,
-        SettingsSection.Server,
+        SettingsSection.Backups,
         SettingsSection.LocalAi,
         SettingsSection.Plugins,
         SettingsSection.ProviderTester,
@@ -584,8 +612,8 @@ public static class SettingsNav
     /// <summary>
     /// Finds where a page sits in the menu: the row that owns its section, and the tab it is on. A sub-page the tabs do not
     /// name (a landing view, a profile or provider detail) falls to the section's own tab. A page that opens beneath a row without
-    /// being a tab (Recently Added and Needs Review under Library &amp; Ingestion, Apps under Profile) has no tab and names itself
-    /// as the <see cref="SettingsMenuLocation.Leaf"/>, so its breadcrumb reads Server, Library &amp; Ingestion, Needs Review.
+    /// being a tab (Apps under Profile) has no tab and names itself
+    /// as the <see cref="SettingsMenuLocation.Leaf"/>, so its breadcrumb reads Personal, Profile, Apps.
     /// Returns <see langword="null"/> for a page the menu does not place.
     /// </summary>
     public static SettingsMenuLocation? FindMenuLocation(SettingsSection section, string? subsection = null)
@@ -619,17 +647,6 @@ public static class SettingsNav
 
         return null;
     }
-
-    /// <summary>
-    /// Pages that have their own route but no tab, and the page they open from. They keep their place in the breadcrumb; the
-    /// tab strip does not list them.
-    /// </summary>
-    public static readonly IReadOnlyDictionary<SettingsSection, SettingsSection> OffMenuParents =
-        new Dictionary<SettingsSection, SettingsSection>
-        {
-            [SettingsSection.RecentlyAdded] = SettingsSection.Ingestion,
-            [SettingsSection.Review] = SettingsSection.Ingestion,
-        };
 
     /// <summary>
     /// Sub-pages that have their own route but no tab, because a link on their page's main tab opens them. They sit beneath
@@ -690,11 +707,11 @@ public static class SettingsNav
         return section switch
         {
             SettingsSection.Profiles => string.IsNullOrWhiteSpace(normalized) || Guid.TryParse(normalized, out _),
-            SettingsSection.Providers => normalized is "" or IngestionFlowSubsection,
-            SettingsSection.Network => normalized is "" or "overview",
-            SettingsSection.Access => normalized is "" or "users" or "authentication" or HouseholdsSubsection,
+            SettingsSection.Network => normalized is "" or HomeNetworkSubsection,
+            SettingsSection.Access => normalized is "" or "users" or AdvancedSubsection or HouseholdsSubsection,
             // The Logs page (technical log, retention) is a desktop and tablet page; a phone keeps the System summary.
-            SettingsSection.AdminOverview or SettingsSection.Delivery or SettingsSection.LocalAi or SettingsSection.Plugins =>
+            SettingsSection.AdminOverview or SettingsSection.Playback or SettingsSection.LocalAi or SettingsSection.Plugins
+                or SettingsSection.Providers or SettingsSection.Backups =>
                 string.IsNullOrWhiteSpace(normalized),
             _ => true,
         };
@@ -774,12 +791,6 @@ public static class SettingsNav
         }
 
         var normalized = NormalizeKey(slug);
-        normalized = (section, normalized) switch
-        {
-            // The old My household tab is gone: people, PINs and sign-ins live on each person's profile page.
-            (SettingsSection.Access, "household") => "users",
-            _ => normalized,
-        };
         return subsections.FirstOrDefault(subsection =>
             string.Equals(NormalizeKey(subsection.Slug), normalized, StringComparison.OrdinalIgnoreCase));
     }

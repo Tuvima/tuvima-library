@@ -46,7 +46,7 @@ public sealed class DevHarnessSettingsTests
         Assert.Contains("RunDevHarnessAsync", client, StringComparison.Ordinal);
         Assert.Contains("RunDevHarnessAsync", implementation, StringComparison.Ordinal);
         Assert.DoesNotContain("MediaEngine.Storage", source, StringComparison.Ordinal);
-        Assert.Contains("/settings/ingestion", source, StringComparison.Ordinal);
+        Assert.Contains("/settings/libraries", source, StringComparison.Ordinal);
         Assert.DoesNotContain("/settings/media-management", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Integration depth", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Stage 1", source, StringComparison.Ordinal);

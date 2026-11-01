@@ -16,13 +16,12 @@
                 <LocalAiRuntimePanel />
             }
             break;
-        case "budget":
+        case "advanced":
+            @* Until the Local AI packet regroups them, Advanced holds the budget and usage panels that were tabs of their own. *@
             @if (!DeviceContext.IsMobile)
             {
                 <LocalAiBudgetPanel />
             }
-            break;
-        case "usage":
             <LocalAiUsagePanel />
             break;
         default:
@@ -37,8 +36,7 @@
     private string NormalizedSubsection => Subsection?.Trim().ToLowerInvariant() switch
     {
         "models" => "models",
-        "budget" => "budget",
-        "usage" => "usage",
+        "advanced" => "advanced",
         _ => "status",
     };
 

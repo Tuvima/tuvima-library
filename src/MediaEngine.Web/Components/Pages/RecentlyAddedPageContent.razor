@@ -28,7 +28,7 @@
     </section>
 
     <section class="recent-history" aria-labelledby="recent-history-title">
-        <header><div><h2 id="recent-history-title">@L["RecentlyAddedPageContent_LibraryActivity"]</h2><p>@L["RecentlyAddedPageContent_ItemsBeingAddedAndCompleted"] <a href="/settings/ingestion">@L["RecentlyAddedPageContent_ViewProcessingQueue"]</a></p></div><span>@(_history?.TotalCount ?? 0) items</span></header>
+        <header><div><h2 id="recent-history-title">@L["RecentlyAddedPageContent_LibraryActivity"]</h2><p>@L["RecentlyAddedPageContent_ItemsBeingAddedAndCompleted"] <a href="/settings/libraries">@L["RecentlyAddedPageContent_ViewProcessingQueue"]</a></p></div><span>@(_history?.TotalCount ?? 0) items</span></header>
 
         @if (_historyLoading && _history is null)
         {
