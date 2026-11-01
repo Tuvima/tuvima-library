@@ -612,6 +612,18 @@ public sealed class SettingsNavTests
     }
 
     [Fact]
+    public void UsersAndHouseholds_OpensItsThreeTabsByAddress_AndNoOneButAServerAdministratorSeesAdvanced()
+    {
+        foreach (var slug in new[] { "users", "households", "advanced" })
+        {
+            Assert.Equal(slug, SettingsNav.FindMenuLocation(SettingsSection.Access, slug)!.Tab!.Route.Split('/')[^1]);
+        }
+
+        var memberGroups = SettingsNav.FilteredMenuGroups(administrationAllowed: false);
+        Assert.DoesNotContain(memberGroups.SelectMany(group => group.Nodes), node => node.Label == "Users & Households");
+    }
+
+    [Fact]
     public void ManageProfiles_IsOpenToEveryoneSignedIn_AndAKidsProfileGetsProfileOnly()
     {
         Assert.True(SettingsNav.IsVisible(SettingsSection.Profiles, administrationAllowed: false));

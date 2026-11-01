@@ -6942,8 +6942,14 @@
   <data name="SecurityTab_SignInRequired" xml:space="preserve">
     <value>Sign-in required</value>
   </data>
-  <data name="SecurityTab_Sessions" xml:space="preserve">
-    <value>Sessions</value>
+  <data name="SecurityTab_HowPeopleSignIn" xml:space="preserve">
+    <value>How people sign in</value>
+  </data>
+  <data name="SecurityTab_SessionsAndInvitations" xml:space="preserve">
+    <value>Sessions and invitations</value>
+  </data>
+  <data name="SecurityTab_Status" xml:space="preserve">
+    <value>Status</value>
   </data>
   <data name="SecurityTab_ActiveSessionsKeepTheirExisting" xml:space="preserve">
     <value>Active sessions keep their existing expiry. New sessions use the saved policy.</value>

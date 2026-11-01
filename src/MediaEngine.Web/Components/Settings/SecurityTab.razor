@@ -19,7 +19,8 @@
         }
         else
         {
-            <div class="security-settings__controls">
+            <h3 id="security-group-sign-in">@L["SecurityTab_HowPeopleSignIn"]</h3>
+            <div class="security-settings__controls" role="group" aria-labelledby="security-group-sign-in">
                 <label class="app-field__label">@L["SecurityTab_AuthenticationMode"]</label>
                 <AppNativeSelect Value="@_mode" OnChange="ChangeMode">
                     <option value="Local">@L["SecurityTab_LocalAccountSignIn"]</option>
@@ -39,36 +40,9 @@
                               Value="@(_externalSignInEnabled && ExternalCapableMode)"
                               ValueChanged="value => _externalSignInEnabled = value"
                               Disabled="@(!ExternalCapableMode)" />
-                <AppTextField T="string" @bind-Value="_trustedLocalNetworks"
-                              Label="@L["SecurityTab_TrustedLocalNetworks"].Value"
-                              HelpText="Optional comma-separated CIDR ranges. With none configured, only this computer is local." />
-                <AppTextField T="string" @bind-Value="_invitationLifetimeHours"
-                              Label="@L["SecurityTab_InvitationLifetimeHours"].Value"
-                              HelpText="1 to 720 hours. New invitations use this lifetime." />
             </div>
 
-            <h3 class="tl-sp-mt-5">@L["SecurityTab_Sessions"]</h3>
-            <div class="security-settings__controls">
-                <AppTextField T="string" @bind-Value="_sessionLifetimeHours"
-                              Label="@L["SecurityTab_SessionLifetimeHours"].Value"
-                              HelpText="1 to 8760 hours. New sessions use this lifetime." />
-                <AppTextField T="string" @bind-Value="_maximumActiveSessions"
-                              Label="@L["SecurityTab_MaximumActiveSessionsPerAccount"].Value"
-                              HelpText="1 to 100. Creating another session revokes the oldest active session." />
-            </div>
-            <AppAlert Tone="AppUiTone.Info" Class="tl-sp-mt-4">
-                @L["SecurityTab_ActiveSessionsKeepTheirExisting"]
-            </AppAlert>
-            <AppAlert Tone="AppUiTone.Info" Class="tl-sp-mt-3">
-                @L["SecurityTab_AdministratorSurfaceProtectionIsOptional"]
-            </AppAlert>
-
-            <dl class="security-settings__facts tl-sp-mt-5">
-                <div><dt>@L["SecurityTab_PublicAddress"]</dt><dd>@CanonicalOriginStatus <a href="/settings/network/remote">@L["SecurityTab_ChangeItInNetworkSettings"]</a></dd></div>
-                <div><dt>@L["SecurityTab_Passkeys"]</dt><dd>@PasskeyStatus</dd></div>
-                <div><dt>@L["SecurityTab_RecoveryDelivery"]</dt><dd>@RecoveryStatus</dd></div>
-            </dl>
-            <h3 class="tl-sp-mt-5">@L["SecurityTab_ExternalProviders"]</h3>
+            <h4 class="tl-sp-mt-5">@L["SecurityTab_ExternalProviders"]</h4>
             @if (ProvidersNeedRestart)
             {
                 <AppAlert Tone="AppUiTone.Warning" Class="tl-sp-mb-3" aria-live="polite">
@@ -133,6 +107,34 @@
             <AppAlert Tone="AppUiTone.Info" Class="tl-sp-mt-4">
                 @L["SecurityTab_ProviderSecretsStayInThe"]
             </AppAlert>
+            <h3 class="tl-sp-mt-5" id="security-group-sessions">@L["SecurityTab_SessionsAndInvitations"]</h3>
+            <div class="security-settings__controls" role="group" aria-labelledby="security-group-sessions">
+                <AppTextField T="string" @bind-Value="_sessionLifetimeHours"
+                              Label="@L["SecurityTab_SessionLifetimeHours"].Value"
+                              HelpText="1 to 8760 hours. New sessions use this lifetime." />
+                <AppTextField T="string" @bind-Value="_maximumActiveSessions"
+                              Label="@L["SecurityTab_MaximumActiveSessionsPerAccount"].Value"
+                              HelpText="1 to 100. Creating another session revokes the oldest active session." />
+                <AppTextField T="string" @bind-Value="_invitationLifetimeHours"
+                              Label="@L["SecurityTab_InvitationLifetimeHours"].Value"
+                              HelpText="1 to 720 hours. New invitations use this lifetime." />
+                <AppTextField T="string" @bind-Value="_trustedLocalNetworks"
+                              Label="@L["SecurityTab_TrustedLocalNetworks"].Value"
+                              HelpText="Optional comma-separated CIDR ranges. With none configured, only this computer is local." />
+            </div>
+            <AppAlert Tone="AppUiTone.Info" Class="tl-sp-mt-4">
+                @L["SecurityTab_ActiveSessionsKeepTheirExisting"]
+            </AppAlert>
+            <AppAlert Tone="AppUiTone.Info" Class="tl-sp-mt-3">
+                @L["SecurityTab_AdministratorSurfaceProtectionIsOptional"]
+            </AppAlert>
+
+            <h3 class="tl-sp-mt-5" id="security-group-status">@L["SecurityTab_Status"]</h3>
+            <dl class="security-settings__facts" aria-labelledby="security-group-status">
+                <div><dt>@L["SecurityTab_PublicAddress"]</dt><dd>@CanonicalOriginStatus <a href="/settings/network/remote">@L["SecurityTab_ChangeItInNetworkSettings"]</a></dd></div>
+                <div><dt>@L["SecurityTab_Passkeys"]</dt><dd>@PasskeyStatus</dd></div>
+                <div><dt>@L["SecurityTab_RecoveryDelivery"]</dt><dd>@RecoveryStatus</dd></div>
+            </dl>
             <div class="security-settings__actions tl-sp-mt-5">
                 <AppButton Label="@(_saving ? "Saving…" : "Save authentication settings")"
                            Disabled="@_saving" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Loading="@_saving" OnClick="SaveAsync" />

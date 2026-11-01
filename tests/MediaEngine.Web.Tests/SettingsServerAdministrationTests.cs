@@ -56,7 +56,7 @@ public sealed class SettingsServerAdministrationTests
 
         var security = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/SecurityTab.razor");
         Assert.DoesNotContain("Who can connect", security, StringComparison.Ordinal);
-        Assert.Contains(">Sessions</h3>", security, StringComparison.Ordinal);
+        Assert.Contains(">Sessions and invitations</h3>", security, StringComparison.Ordinal);
         Assert.Contains("Trusted local networks", security, StringComparison.Ordinal);
         Assert.Contains("UpdateExternalAuthProviderAsync", security, StringComparison.Ordinal);
         Assert.Contains("Disabled=\"@(!ExternalCapableMode)\"", security, StringComparison.Ordinal);
