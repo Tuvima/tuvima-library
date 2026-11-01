@@ -26,6 +26,7 @@ public static class CollectionListEndpoints
         group.MapPost("/preview-list", async (
             ListImportPreviewRequest body,
             [FromServices] ListImportService service,
+            [FromServices] ListInputReader reader,
             IDisplayProjectionReadService display,
             CancellationToken ct) =>
         {
@@ -36,7 +37,7 @@ public static class CollectionListEndpoints
 
             try
             {
-                var parsed = ListFileParser.Parse(body.FileName, bytes!);
+                var parsed = await reader.ReadAsync(body.FileName, bytes!, ct);
                 var allowed = await display.LoadVisibleWorkIdsAsync(ct);
                 return Results.Ok(await service.PreviewAsync(body.FileName, parsed, body.Shelf, body.Overrides, allowed, ct));
             }
@@ -58,6 +59,7 @@ public static class CollectionListEndpoints
             IProfileRepository profiles,
             HttpContext http,
             [FromServices] ListImportService service,
+            [FromServices] ListInputReader reader,
             IDisplayProjectionReadService display,
             CancellationToken ct) =>
         {
@@ -81,7 +83,7 @@ public static class CollectionListEndpoints
 
             try
             {
-                var parsed = ListFileParser.Parse(body.FileName, bytes!);
+                var parsed = await reader.ReadAsync(body.FileName, bytes!, ct);
                 var allowed = await display.LoadVisibleWorkIdsAsync(ct);
                 var result = await service.ImportAsync(
                     id, body.FileName, parsed, body.Shelf, body.Order, body.Refresh, body.SyncMode, body.Overrides, allowed, ct);
@@ -181,6 +183,7 @@ public static class CollectionListEndpoints
             IProfileRepository profiles,
             HttpContext http,
             [FromServices] ListImportService service,
+            [FromServices] ListInputReader reader,
             IDisplayProjectionReadService display,
             CancellationToken ct) =>
         {
@@ -207,7 +210,7 @@ public static class CollectionListEndpoints
 
                 try
                 {
-                    fresh = ListFileParser.Parse(body.FileName ?? string.Empty, bytes!);
+                    fresh = await reader.ReadAsync(body.FileName ?? string.Empty, bytes!, ct);
                 }
                 catch (ListFileNotUnderstoodException ex)
                 {
@@ -216,7 +219,7 @@ public static class CollectionListEndpoints
             }
 
             var allowed = await display.LoadVisibleWorkIdsAsync(ct);
-            var result = await service.RefreshAsync(id, fresh, allowed, ct);
+            var result = await service.RefreshNowAsync(id, fresh, allowed, ct);
             if (result is null)
             {
                 return ApiErrors.NotFound("This collection was not made from a list.");

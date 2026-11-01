@@ -6,7 +6,7 @@
   "domain": "Music",
   "icon": "images/providers/musicbrainz.svg",
   "capability_tags": ["title", "author", "artist", "album_artist", "year", "genre", "cover", "musicbrainz_release_id", "musicbrainz_recording_id", "musicbrainz_release_group_id", "album", "isrc"],
-  "provider_capabilities": ["identity", "metadata", "artwork", "relationships", "people"],
+  "provider_capabilities": ["identity", "metadata", "artwork", "relationships", "people", "lists"],
   "available_fields": ["title", "author", "artist", "album_artist", "year", "genre", "cover", "musicbrainz_release_id", "musicbrainz_recording_id", "musicbrainz_release_group_id", "isrc", "album"],
   "field_weights": {
     "title": 0.8,
@@ -395,6 +395,6 @@
     "weight_class": "light",
     "on_failure": "skip_and_retry",
     "notify": "tell_me",
-    "changelog": "First built-in version: music identity and track listings from MusicBrainz."
+    "changelog": "Now also turns a pasted MusicBrainz collection address into a collection, at one request a second."
   }
 }

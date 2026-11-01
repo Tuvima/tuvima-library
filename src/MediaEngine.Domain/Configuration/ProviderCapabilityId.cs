@@ -14,5 +14,6 @@ public static class ProviderCapabilityId
     public const string Ratings = "ratings";
     public const string People = "people";
     public const string Relationships = "relationships";
+    public const string Lists = "lists";
     public const string Other = "other";
 }

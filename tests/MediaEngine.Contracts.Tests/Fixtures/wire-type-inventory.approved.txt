@@ -1977,6 +1977,8 @@
   SourceKind: System.String | json=sourceKind | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SourceLabel: System.String | json=sourceLabel | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SourceName: System.String | json=sourceName | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SourceAddress: System.String | json=sourceAddress | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IsWebSource: System.Boolean | json=isWebSource | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Shelf: System.String | json=shelf | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Order: System.String | json=order | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Refresh: System.String | json=refresh | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -1986,7 +1988,7 @@
   OwnedCount: System.Int32 | json=ownedCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   UnmatchedCount: System.Int32 | json=unmatchedCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Unmatched: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Collections.CollectionListEntryDto> | json=unmatched | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"collectionId":"11111111-2222-3333-4444-555555555555","sourceKind":"sample","sourceLabel":"sample","sourceName":"sample","shelf":"sample","order":"sample","refresh":"sample","syncMode":"sample","lastRefreshedAt":"2025-01-02T03:04:05+00:00","entryCount":7,"ownedCount":7,"unmatchedCount":7,"unmatched":[]}
+  sample={"collectionId":"11111111-2222-3333-4444-555555555555","sourceKind":"sample","sourceLabel":"sample","sourceName":"sample","sourceAddress":"sample","isWebSource":true,"shelf":"sample","order":"sample","refresh":"sample","syncMode":"sample","lastRefreshedAt":"2025-01-02T03:04:05+00:00","entryCount":7,"ownedCount":7,"unmatchedCount":7,"unmatched":[]}
 
 [contracts] MediaEngine.Contracts.Collections.CollectionLocationPlacementSummary
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -2488,6 +2490,9 @@
   SourceKind: System.String | json=sourceKind | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SourceLabel: System.String | json=sourceLabel | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SourceName: System.String | json=sourceName | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SourceAddress: System.String | json=sourceAddress | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IsWebSource: System.Boolean | json=isWebSource | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  WillTryAgain: System.Boolean | json=willTryAgain | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SuggestedName: System.String | json=suggestedName | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   EntryCount: System.Int32 | json=entryCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   OwnedCount: System.Int32 | json=ownedCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -2498,7 +2503,7 @@
   Owned: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Collections.ListImportOwnedItemDto> | json=owned | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   MatchedWorkIds: System.Collections.Generic.IReadOnlyList<System.Guid> | json=matchedWorkIds | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   MediaTypes: System.Collections.Generic.IReadOnlyList<System.String> | json=mediaTypes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"sourceKind":"sample","sourceLabel":"sample","sourceName":"sample","suggestedName":"sample","entryCount":7,"ownedCount":7,"unmatchedCount":7,"ignoredCount":7,"shelves":[],"entries":[],"owned":[],"matchedWorkIds":[],"mediaTypes":[]}
+  sample={"sourceKind":"sample","sourceLabel":"sample","sourceName":"sample","sourceAddress":"sample","isWebSource":true,"willTryAgain":true,"suggestedName":"sample","entryCount":7,"ownedCount":7,"unmatchedCount":7,"ignoredCount":7,"shelves":[],"entries":[],"owned":[],"matchedWorkIds":[],"mediaTypes":[]}
 
 [contracts] MediaEngine.Contracts.Collections.ListImportPreviewRequest
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -2550,6 +2555,7 @@
   Removed: System.Int32 | json=removed | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Matched: System.Int32 | json=matched | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Unmatched: System.Int32 | json=unmatched | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  WillTryAgain: System.Boolean | json=willTryAgain | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.Collections.ListSourceSettingsRequest
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -4064,12 +4070,14 @@
   Facts: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Import.ImportFactDto> | json=facts | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Notes: System.Collections.Generic.IReadOnlyList<System.String> | json=notes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Message: System.String | json=message | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MessageLinkHref: System.String | json=messageLinkHref | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MessageLinkLabel: System.String | json=messageLinkLabel | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CanApply: System.Boolean | json=canApply | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ApplyLabel: System.String | json=applyLabel | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   PrivacyNote: System.String | json=privacyNote | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   List: MediaEngine.Contracts.Collections.ListImportPreviewDto | json=list | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   BookmarkPack: MediaEngine.Contracts.Import.ImportBookmarkPackSummaryDto | json=bookmarkPack | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"kind":"sample","kindLabel":"sample","recognised":true,"heading":"sample","subheading":"sample","facts":[],"notes":[],"message":"sample","canApply":true,"applyLabel":"sample","privacyNote":"sample","list":null,"bookmarkPack":null}
+  sample={"kind":"sample","kindLabel":"sample","recognised":true,"heading":"sample","subheading":"sample","facts":[],"notes":[],"message":"sample","messageLinkHref":"sample","messageLinkLabel":"sample","canApply":true,"applyLabel":"sample","privacyNote":"sample","list":null,"bookmarkPack":null}
 
 [contracts] MediaEngine.Contracts.Import.ImportRecogniseRequest
   kind=class | converter=default | number-handling=default | unmapped=default

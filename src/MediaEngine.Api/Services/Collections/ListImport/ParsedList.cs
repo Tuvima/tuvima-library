@@ -26,8 +26,27 @@ public static class ListSourceKinds
     public const string Csv = "csv";
     public const string Text = "text";
 
+    // The web sources (Collections and lists spec D7): the list is read from an address through the site's documented API.
+    public const string TmdbList = "tmdb_list";
+    public const string TmdbCollection = "tmdb_collection";
+    public const string MdbList = "mdblist";
+    public const string OpenLibrary = "openlibrary";
+    public const string MusicBrainz = "musicbrainz";
+    public const string TraktList = "trakt_list";
+    public const string TraktWatchlist = "trakt_watchlist";
+
+    /// <summary>True for a kind that is read from a web address, so it can be refreshed from where it came from.</summary>
+    public static bool IsWeb(string kind) => kind is TmdbList or TmdbCollection or MdbList or OpenLibrary or MusicBrainz or TraktList or TraktWatchlist;
+
     public static string LabelFor(string kind) => kind switch
     {
+        TmdbList => "TMDb list",
+        TmdbCollection => "TMDb collection",
+        MdbList => "MDBList list",
+        OpenLibrary => "Open Library list",
+        MusicBrainz => "MusicBrainz collection",
+        TraktList => "Trakt list",
+        TraktWatchlist => "Trakt watchlist",
         Imdb => "IMDb export",
         Letterboxd => "Letterboxd export",
         Trakt => "Trakt export",
@@ -73,10 +92,19 @@ public sealed record ParsedList
 
     /// <summary>The shelves found, in the order they first appear, with how many entries each holds.</summary>
     public IReadOnlyList<(string Name, int Count)> Shelves { get; init; } = [];
+
+    /// <summary>The web address a web list was read from, in its plain form. Null for a file.</summary>
+    public string? SourceAddress { get; init; }
+
+    /// <summary>
+    /// True when the list is a web list whose site could not be reached: it has no entries yet and the collection is saved to
+    /// try again (Collections and lists spec 4h, "Will try again").
+    /// </summary>
+    public bool WillTryAgain { get; init; }
 }
 
 /// <summary>A list file that could not be read. The message is safe to show to the person.</summary>
-public sealed class ListFileNotUnderstoodException(string message) : Exception(message)
+public class ListFileNotUnderstoodException(string message) : Exception(message)
 {
     /// <summary>The sentence the New collection flow shows (Collections and lists spec 4h).</summary>
     public const string StandardMessage =

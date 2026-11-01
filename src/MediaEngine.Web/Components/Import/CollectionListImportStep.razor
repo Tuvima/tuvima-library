@@ -32,6 +32,10 @@
                     <p class="list-step__hint">@L["ListStep_NoneOwned"]</p>
                 }
             </div>
+            @if (current.WillTryAgain)
+            {
+                <AppAlert Tone="AppUiTone.Warning" Dense="true" data-list-will-try-again>@L["ListStep_WillTryAgain", current.SourceLabel]</AppAlert>
+            }
             @if (current.Owned.Count > 0 && Draft.CollectionCount == 1)
             {
                 <ul class="list-step__covers" aria-label="@L["ListStep_OwnedCovers"].Value">
@@ -65,7 +69,9 @@
                               OrderChanged="@(value => ChangeAsync(() => Draft.Order = value))"
                               SyncMode="@Draft.SyncMode"
                               SyncModeChanged="@(value => ChangeAsync(() => Draft.SyncMode = value))"
-                              ShowRefresh="false" />
+                              Refresh="@Draft.Refresh"
+                              RefreshChanged="@(value => ChangeAsync(() => Draft.Refresh = value))"
+                              ShowRefresh="@Draft.IsWeb" />
         </section>
 
         @if (Unresolved.Count > 0)

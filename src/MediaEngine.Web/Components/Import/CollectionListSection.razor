@@ -25,7 +25,9 @@
                               OrderChanged="@(value => SaveSettingsAsync(order: value))"
                               SyncMode="@source.SyncMode"
                               SyncModeChanged="@(value => SaveSettingsAsync(sync: value))"
-                              ShowRefresh="false"
+                              Refresh="@source.Refresh"
+                              RefreshChanged="@(value => SaveSettingsAsync(refresh: value))"
+                              ShowRefresh="@source.IsWebSource"
                               Disabled="@_busy" />
 
             <div class="list-section__actions">
@@ -92,7 +94,7 @@
         await OnLoaded.InvokeAsync(_source is not null);
     }
 
-    private async Task SaveSettingsAsync(string? order = null, string? sync = null)
+    private async Task SaveSettingsAsync(string? order = null, string? sync = null, string? refresh = null)
     {
         if (_source is null)
             return;
@@ -103,7 +105,7 @@
             var ok = await Api.UpdateCollectionListSettingsAsync(CollectionId, new ListSourceSettingsRequest
             {
                 Order = order ?? _source.Order,
-                Refresh = _source.Refresh,
+                Refresh = refresh ?? _source.Refresh,
                 SyncMode = sync ?? _source.SyncMode,
                 ProfileId = ProfileId,
             });
@@ -134,7 +136,11 @@
                 return;
             }
 
-            Toast.Add($"Checked the list: you own {result.Matched}, {result.Unmatched} still unmatched.", AppSeverity.Success);
+            Toast.Add(
+                result.WillTryAgain
+                    ? L["ListSection_WillTryAgain", _source?.SourceLabel ?? string.Empty].Value
+                    : $"Checked the list: you own {result.Matched}, {result.Unmatched} still unmatched.",
+                result.WillTryAgain ? AppSeverity.Warning : AppSeverity.Success);
             await LoadAsync();
             await OnContentsChanged.InvokeAsync();
         }

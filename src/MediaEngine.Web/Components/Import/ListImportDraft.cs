@@ -35,6 +35,9 @@ public sealed class ListImportDraft
 
     public bool HasList => Whole is not null && Recognition is not null;
 
+    /// <summary>True when the list came from a web address, so it can be looked at again where it came from.</summary>
+    public bool IsWeb => Whole?.IsWebSource == true;
+
     /// <summary>The single shelf to preview, or null for the whole list (none ticked, or several that each make their own collection).</summary>
     public string? PreviewShelf => _shelves.Count == 1 ? _shelves.First() : null;
 
@@ -57,6 +60,9 @@ public sealed class ListImportDraft
         Current = list;
         _overrides.Clear();
         _shelves.Clear();
+
+        // A web list is looked at again every week unless the person says otherwise; a file has nowhere to look again.
+        Refresh = list.IsWebSource ? ListImportChoices.RefreshWeekly : ListImportChoices.RefreshNever;
     }
 
     public void Clear()

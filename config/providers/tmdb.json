@@ -6,7 +6,7 @@
   "domain": "Video",
   "icon": "images/providers/tmdb.svg",
   "capability_tags": [],
-  "provider_capabilities": ["identity", "metadata", "artwork", "ratings", "people", "relationships"],
+  "provider_capabilities": ["identity", "metadata", "artwork", "ratings", "people", "relationships", "lists"],
   "available_fields": [
     "title",
     "director",
@@ -894,6 +894,6 @@
     "weight_class": "light",
     "on_failure": "skip_and_retry",
     "notify": "tell_me",
-    "changelog": "First built-in version: film and TV identity, artwork and details from TMDB."
+    "changelog": "Now also turns a pasted TMDb list or collection address into a collection, using your TMDb key."
   }
 }
