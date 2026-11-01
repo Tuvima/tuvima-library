@@ -2255,7 +2255,7 @@ input.app-control.tl-input-slot,
 .app-button--outlined {
     color: var(--tl-text-primary) !important;
     background: var(--tl-bg-surface-raised) !important;
-    border-color: var(--tl-border-default) !important;
+    border-color: var(--tl-border-strong) !important;
 }
 
 .app-button.tl-button {
@@ -2298,11 +2298,6 @@ input.app-control.tl-input-slot,
     flex: 0 0 auto;
     margin-right: var(--tl-space-2);
     color: currentColor !important;
-}
-
-.app-button--ghost.tl-button {
-    color: var(--tl-text-secondary) !important;
-    background: transparent !important;
 }
 
 .app-icon-button.tl-icon-button {

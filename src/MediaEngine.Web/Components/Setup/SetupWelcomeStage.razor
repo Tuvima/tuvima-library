@@ -18,8 +18,16 @@
     </div>
 
     <SetupStageFooter ShowReturnToCurrentStep="@ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
+        <Leading>
+            @if (!ShowRestore)
+            {
+                <AppButton Label="@L["SetupWelcomeStage_RestoreABackupInstead"].Value" StartIcon="@AppMaterialIcons.Outlined.Restore" ButtonStyle="AppButtonStyle.Outlined" OnClick="OpenRestore" data-testid="setup-restore-open" />
+            }
+        </Leading>
+        <ChildContent>
         <AppButton Label="@L["Common_Continue"].Value" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
                    Loading="@Busy" Disabled="@(string.IsNullOrWhiteSpace(ServerName))" OnClick="Save" />
+        </ChildContent>
     </SetupStageFooter>
 
     @if (ShowRestore)
@@ -53,10 +61,6 @@
                 <div class="setup-actions"><AppButton Label="@L["SetupWelcomeStage_CancelRestore"].Value" OnClick="CancelRestore" /></div>
             }
         </div>
-    }
-    else
-    {
-        <div class="setup-actions setup-actions--secondary"><AppButton Label="@L["SetupWelcomeStage_RestoreABackupInstead"].Value" StartIcon="@AppMaterialIcons.Outlined.Restore" ButtonStyle="AppButtonStyle.Text" OnClick="OpenRestore" /></div>
     }
 </div>
 
