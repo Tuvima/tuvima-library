@@ -509,8 +509,7 @@ public sealed class FirstRunToolsTests : AsyncBunitContext
         var settings = File.ReadAllText(RepoFile("src", "MediaEngine.Web", "Components", "Pages", "Settings.razor"));
 
         Assert.Contains("case SettingsSection.Tools:", settings, StringComparison.Ordinal);
-        Assert.Contains("<ConfigurationPage />", settings, StringComparison.Ordinal);
-        Assert.Contains("<ToolsRequirementsTab />", File.ReadAllText(RepoFile("src", "MediaEngine.Web", "Components", "Settings", "ConfigurationPage.razor")), StringComparison.Ordinal);
+        Assert.Contains("<ToolsRequirementsTab />", settings, StringComparison.Ordinal);
     }
 
     // ── Local AI keeps only AI settings ──────────────────────────────────────

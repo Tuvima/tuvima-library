@@ -256,7 +256,7 @@ public sealed class SystemActivityIndicatorTests : AsyncBunitContext
 
         cut.Find("button.system-activity-indicator").Click();
 
-        Assert.EndsWith("/settings/ingestion", Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>().Uri);
+        Assert.EndsWith("/settings/libraries", Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>().Uri);
     }
 
     [Fact]

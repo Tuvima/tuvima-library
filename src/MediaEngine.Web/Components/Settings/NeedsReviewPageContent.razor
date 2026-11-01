@@ -85,7 +85,7 @@
                                 }
                                 <AppOverflowMenu AriaLabel="@($"More actions for {DisplayTitle(item)}")" Size="AppControlSize.Compact">
                                     <AppMenuItem Label="@L["Common_Review"].Value" Icon="@AppMaterialIcons.Outlined.ManageSearch" OnClick="@(() => OpenReviewEditorAsync(item))" />
-                                    <AppMenuItem Label="@L["NeedsReviewPageContent_FindInRecentHistory"].Value" Icon="@AppMaterialIcons.Outlined.ReceiptLong" OnClick="@(() => Nav.NavigateTo($"/settings/recently-added?q={Uri.EscapeDataString(DisplayTitle(item))}"))" />
+                                    <AppMenuItem Label="@L["NeedsReviewPageContent_FindInRecentHistory"].Value" Icon="@AppMaterialIcons.Outlined.ReceiptLong" OnClick="@(() => Nav.NavigateTo($"/settings/library-activity?q={Uri.EscapeDataString(DisplayTitle(item))}"))" />
                                     @if (IsWikidataReview(item.Trigger))
                                     {
                                         <AppMenuItem Label="@L["NeedsReviewPageContent_KeepProviderMatch"].Value" Icon="@AppMaterialIcons.Outlined.Link" OnClick="@(() => SkipUniverseAsync(item))" />

@@ -15,8 +15,8 @@ public sealed class OperationsRecentlyAddedGuardrailTests
         Assert.Contains("@page \"/operations/ingestion\"", operations, StringComparison.Ordinal);
         Assert.Contains("@page \"/operations/recently-added\"", operations, StringComparison.Ordinal);
         Assert.Contains("@page \"/operations/needs-review\"", operations, StringComparison.Ordinal);
-        Assert.Contains("/settings/ingestion", operations, StringComparison.Ordinal);
-        Assert.Contains("/settings/recently-added", operations, StringComparison.Ordinal);
+        Assert.Contains("/settings/libraries", operations, StringComparison.Ordinal);
+        Assert.Contains("/settings/library-activity", operations, StringComparison.Ordinal);
         Assert.Contains("/settings/review", operations, StringComparison.Ordinal);
         Assert.DoesNotContain("<MediaSectionShell", operations, StringComparison.Ordinal);
         Assert.Contains("GetPendingReviewsAttemptAsync(int.MaxValue)", review, StringComparison.Ordinal);
@@ -37,7 +37,6 @@ public sealed class OperationsRecentlyAddedGuardrailTests
         Assert.Contains("ingestion-media-list-row__identity", card, StringComparison.Ordinal);
         Assert.Contains("ingestion-media-list-row__step", card, StringComparison.Ordinal);
         Assert.Contains("ingestion-media-list-row__details", card, StringComparison.Ordinal);
-        Assert.Contains("<IngestionTasksTab", settings, StringComparison.Ordinal);
         Assert.Contains("<RecentlyAddedPageContent", settings, StringComparison.Ordinal);
         Assert.Contains("<NeedsReviewPageContent", settings, StringComparison.Ordinal);
         Assert.DoesNotContain("<IngestionSettingsTab", settings, StringComparison.Ordinal);

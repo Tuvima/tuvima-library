@@ -217,7 +217,7 @@ public sealed class ApprovalFlowTests : AsyncBunitContext
             ],
         };
 
-        var cut = Render<LocalAiSettingsTab>(parameters => parameters.Add(p => p.Subsection, "usage"));
+        var cut = Render<LocalAiSettingsTab>(parameters => parameters.Add(p => p.Subsection, "advanced"));
 
         cut.WaitForAssertion(() => Assert.Contains("Vibe tags", cut.Markup, StringComparison.Ordinal));
         Assert.Contains("Smart labelling", cut.Markup, StringComparison.Ordinal);
@@ -230,7 +230,7 @@ public sealed class ApprovalFlowTests : AsyncBunitContext
     [Fact]
     public void LocalAiBudget_ShowsTheDefaultPluginAllowance_AndSavesWhatTheAdministratorChanges()
     {
-        var cut = Render<LocalAiSettingsTab>(parameters => parameters.Add(p => p.Subsection, "budget"));
+        var cut = Render<LocalAiSettingsTab>(parameters => parameters.Add(p => p.Subsection, "advanced"));
 
         cut.WaitForAssertion(() => Assert.Contains("Plugin allowance", cut.Markup, StringComparison.Ordinal));
         Assert.Contains("Requests per hour", cut.Markup, StringComparison.Ordinal);

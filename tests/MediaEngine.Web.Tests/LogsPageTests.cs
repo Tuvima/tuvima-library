@@ -86,11 +86,11 @@ public sealed class LogsPageTests : AsyncBunitContext
     // ── Menu ─────────────────────────────────────────────────────────────────
 
     [Fact]
-    public void System_ListsLogsAsATabBetweenScheduledTasksAndBackups_WithItsOwnAddress()
+    public void System_ListsLogsAsATabAfterScheduledTasks_WithItsOwnAddress()
     {
         var system = SettingsNav.MenuGroups.SelectMany(group => group.Nodes).Single(node => node.Label == "System");
 
-        Assert.Equal(["Overview", "Scheduled Tasks", "Logs", "Backups", "Configuration"], system.Tabs.Select(tab => tab.Label));
+        Assert.Equal(["Health", "Scheduled tasks", "Logs", "Advanced"], system.Tabs.Select(tab => tab.Label));
         var logs = system.Tabs.Single(tab => tab.Label == "Logs");
         Assert.Equal(SettingsSection.AdminOverview, logs.Section);
         Assert.Equal("logs", logs.Subsection);

@@ -1,0 +1,44 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@inject IEngineApiClient ApiClient
+@inject IStringLocalizer<SharedStrings> L
+
+@* The Rules tab of Libraries: the rules every library follows (the server-wide rules card that used to sit under the libraries table). *@
+<div class="libraries-rules-page" data-testid="library-rules-page">
+    @if (_loading)
+    {
+        <AppPageState Kind="AppPageStateKind.Loading" Title="@L["Common_LoadingLibraries"].Value" Class="tl-sp-py-8" />
+    }
+    else if (_configuration is null)
+    {
+        <AppPageState Kind="AppPageStateKind.Error"
+                      Icon="@AppMaterialIcons.Outlined.CloudOff"
+                      Title="@L["Common_LibrariesCouldNotBeLoaded"].Value"
+                      Message="@L["LibrariesTab_TheEngineIsUnavailableExisting"].Value">
+            <Actions>
+                <AppButton Label="@L["Common_TryAgain"].Value" ButtonStyle="AppButtonStyle.Outlined" OnClick="LoadAsync" />
+            </Actions>
+        </AppPageState>
+    }
+    else
+    {
+        <LibraryServerRulesCard Configuration="@_configuration" Changed="RefreshAsync" />
+    }
+</div>
+
+@code {
+    private LibrariesConfigurationDto? _configuration;
+    private bool _loading = true;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _configuration = await ApiClient.GetLibrariesAsync();
+        _loading = false;
+    }
+
+    // A saved rule re-reads the configuration without going back to the loading state, so the card keeps its "Saved" note.
+    private async Task RefreshAsync() => _configuration = await ApiClient.GetLibrariesAsync() ?? _configuration;
+}

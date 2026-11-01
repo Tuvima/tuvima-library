@@ -22,9 +22,9 @@
 
         var target = current.AbsolutePath.ToLowerInvariant() switch
         {
-            "/operations/ingestion" => "/settings/ingestion",
+            "/operations/ingestion" => "/settings/libraries",
             "/operations/needs-review" => "/settings/review",
-            _ => "/settings/recently-added",
+            _ => "/settings/library-activity",
         };
 
         Nav.NavigateTo($"{target}{current.Query}", replace: true);

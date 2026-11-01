@@ -1,20 +1,16 @@
 @namespace MediaEngine.Web.Components.Settings
 
-@* Streaming. It opens on Limits & Quality; Hardware Acceleration, Optimized Copies and Diagnostics are its other tabs.
-   The playback tools and services status shows once, under Diagnostics. *@
+@* Playback. It opens on Quality; Advanced holds hardware acceleration, optimized copies and diagnostics (until the Playback packet
+   regroups them). The playback tools and services status shows once, under diagnostics. *@
 <section class="tl-page playback-delivery"
          data-delivery-section="@ActiveSection"
          aria-label="@ActiveSectionLabel">
     @switch (ActiveSection)
     {
-        case "hardware":
-            <EncodeSettingsTab @key="ActiveSection" Section="hardware" />
-            break;
-        case "optimized-copies":
-            <EncodeSettingsTab @key="ActiveSection" Section="optimized-copies" />
-            break;
-        case "diagnostics":
-            <EncodeSettingsTab @key="ActiveSection" Section="diagnostics" />
+        case "advanced":
+            <EncodeSettingsTab Section="hardware" />
+            <EncodeSettingsTab Section="optimized-copies" />
+            <EncodeSettingsTab Section="diagnostics" />
             <PlaybackToolsStatusCard />
             break;
         default:
@@ -28,17 +24,13 @@
 
     private string ActiveSection => Subsection.ToLowerInvariant() switch
     {
-        "hardware" => "hardware",
-        "optimized-copies" => "optimized-copies",
-        "diagnostics" => "diagnostics",
+        "advanced" => "advanced",
         _ => "limits",
     };
 
     private string ActiveSectionLabel => ActiveSection switch
     {
-        "hardware" => "Hardware Acceleration",
-        "optimized-copies" => "Optimized Copies",
-        "diagnostics" => "Diagnostics",
+        "advanced" => "Advanced playback settings",
         _ => "Streaming limits and quality",
     };
 }

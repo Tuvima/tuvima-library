@@ -24,7 +24,7 @@ public sealed class LaunchFeatureContractTests
         using var production = SettingsNav.UseEnvironmentScope(productionMode: true);
 
         Assert.True(SettingsNav.IsVisible(SettingsSection.AdminOverview, true));
-        Assert.True(SettingsNav.IsVisible(SettingsSection.Delivery, true));
+        Assert.True(SettingsNav.IsVisible(SettingsSection.Playback, true));
         Assert.True(SettingsNav.IsVisible(SettingsSection.Access, true));
         Assert.False(SettingsNav.IsVisible(SettingsSection.Plugins, true));
         Assert.False(SettingsNav.IsVisible(SettingsSection.DevHarness, true));

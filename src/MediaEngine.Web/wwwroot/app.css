@@ -476,6 +476,22 @@ body {
     cursor: default;
 }
 
+/* The Advanced tab (settings-and-setup-simplified D1): last in the row and pushed to the right end, a small gear, amber instead of
+   the purple accent at rest and when open, and no pill or marker. */
+.tl-tab.tl-tab--advanced {
+    margin-left: auto;
+    color: var(--tl-status-warning);
+}
+
+.tl-tab.tl-tab--advanced:hover,
+.tl-tab.tl-tab--advanced.tl-tab-active {
+    color: var(--tl-status-warning);
+}
+
+.tl-tab.tl-tab--advanced.tl-tab-active {
+    border-bottom-color: var(--tl-status-warning);
+}
+
 .tl-tab__count {
     color: var(--tl-text-muted);
     font-size: var(--tl-font-size-sm);

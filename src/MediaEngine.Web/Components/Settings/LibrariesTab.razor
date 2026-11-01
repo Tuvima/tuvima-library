@@ -59,10 +59,6 @@
                                    ShowVault="@VaultVisible"
                                    ReadOnly="@readOnly"
                                    FolderAdded="FolderAddedAsync" />
-                @if (!readOnly)
-                {
-                    <LibraryServerRulesCard Configuration="@_configuration" ReadOnly="@_engineUnavailable" Changed="RefreshConfigurationAsync" />
-                }
                 break;
             case LevelKind.Library:
                 <LibraryShell @key="@level.Library!.Id"

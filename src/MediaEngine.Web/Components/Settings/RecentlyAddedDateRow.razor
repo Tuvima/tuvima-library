@@ -19,7 +19,7 @@
 @code {
     [Parameter, EditorRequired] public IngestionRecentDayDto Day { get; set; } = new();
     private int Remaining => Math.Max(0, Day.TotalCount - Day.Items.Count);
-    private string Href => $"/settings/recently-added?date={Day.Date:yyyy-MM-dd}";
+    private string Href => $"/settings/library-activity?date={Day.Date:yyyy-MM-dd}";
     private string DateLabel
     {
         get
