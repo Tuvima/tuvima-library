@@ -10,13 +10,11 @@ public sealed class IngestionNoBatchesOnScreenGuardrailTests
 {
     private static readonly string[] LivePageSources =
     [
-        "Components/Settings/IngestionTasksTab.razor",
-        "Components/Settings/IngestionNowPanel.razor",
+        "Components/Pages/RecentlyAddedPageContent.razor",
+        "Components/Settings/Libraries/LibraryStatusLine.razor",
         "Components/Settings/IngestionMediaCard.razor",
         "Components/Settings/IngestionFacetIndicators.razor",
-        "Components/Settings/IngestionAddedSummary.razor",
         "Components/Settings/IngestionMediaDrawer.razor",
-        "Components/Settings/IngestionScanAction.razor",
         "Components/Settings/IngestionNowText.cs",
         "Components/Settings/IngestionNowWindow.cs",
     ];

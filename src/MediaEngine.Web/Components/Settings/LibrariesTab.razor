@@ -132,12 +132,17 @@
                                ReadOnly="@readOnly"
                                OnAddLibrary="OpenAddLibraryAsync" />
                 <div class="libraries__pane">
+                    <LibraryStatusLine ReadOnly="@readOnly" />
                     @content
                 </div>
             </div>
         }
         else
         {
+            @if (level.Kind != LevelKind.NotFound)
+            {
+                <LibraryStatusLine ReadOnly="@readOnly" />
+            }
             @content
         }
     }

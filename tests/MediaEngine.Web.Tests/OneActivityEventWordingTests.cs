@@ -15,10 +15,9 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// Spec ingestion-and-readiness WP7 (D8): one event reads the same on the live Library and Ingestion page, in the
-/// Activity log and in the menu indicator's tooltip. The tooltip describes the Library's work as a whole, so it shares
-/// the page's status sentence and its last-activity time; the page's Now row and the log share the item's title; the
-/// log's time is the moment the page and the tooltip call the last activity.
+/// Spec ingestion-and-readiness WP7 (D8): one event reads the same on the Libraries page (its Activity tab and status
+/// line), in the Activity log and in the menu indicator's tooltip. The page's adding row and the log share the item's
+/// title; the log's time is the moment the status line and the tooltip call the last activity.
 /// </summary>
 public sealed class OneActivityEventWordingTests : AsyncBunitContext
 {
@@ -99,31 +98,27 @@ public sealed class OneActivityEventWordingTests : AsyncBunitContext
             }],
             0, 50, false, 1);
 
-        // While the Library works: the page's status sentence is the tooltip's, and the Now row names Dune as the log does.
-        var page = Render<IngestionTasksTab>();
+        // While the Library works: the Activity list's adding row names Dune as the log does.
+        var page = Render<MediaEngine.Web.Components.Pages.RecentlyAddedPageContent>();
         page.WaitForAssertion(() => Assert.NotEmpty(page.FindAll($"[data-group-id='{DuneId}']")));
         _state.PushIngestionQueueProgress(_queue);
         var indicator = Render<SystemActivityIndicator>();
         var log = Render<ActivityLogPanel>(parameters => parameters.Add(p => p.Filter, ActivityLogCategoryValues.Added));
         log.WaitForAssertion(() => Assert.NotEmpty(log.FindAll("[data-testid='activity-log-row']")));
 
-        var workingSentence = $"{page.Find(".ingestion-status h2").TextContent.Trim()} · {page.Find(".ingestion-status__line").TextContent.Trim()}";
-        Assert.StartsWith(workingSentence, Tooltip(indicator), StringComparison.Ordinal);
-
-        var nowTitle = page.Find($"[data-group-id='{DuneId}'] .ingestion-media-list-row__open strong").TextContent.Trim();
+        var nowTitle = page.Find($"[data-group-id='{DuneId}'] .history-row__open strong").TextContent.Trim();
         var logRow = log.Find("[data-testid='activity-log-row']");
         Assert.Equal("Dune", nowTitle);
         Assert.Equal(nowTitle, logRow.QuerySelector(".activity-log__title")!.TextContent.Trim());
 
-        // Once the Library is idle: the page and the tooltip give the same last-activity time, and it is the log row's moment.
+        // Once the Library is idle: the status line and the tooltip give the same last-activity time, and it is the log row's moment.
+        var statusLine = Render<LibraryStatusLine>();
         var idle = Queue("idle", addedAt, filesDone: 508);
         _state.PushIngestionQueueProgress(idle);
-        page.WaitForAssertion(() => Assert.NotEmpty(page.FindAll(".ingestion-status.is-idle")));
+        statusLine.WaitForAssertion(() => Assert.Equal("Up to date · last checked 2 min ago", statusLine.Find("[data-testid='library-status-text']").TextContent.Trim()));
         indicator.WaitForAssertion(() => Assert.StartsWith(SystemActivityText.IdleLabel, Tooltip(indicator), StringComparison.Ordinal));
 
-        var pageLastActivity = page.Find(".ingestion-status__meta").TextContent.Trim();
-        Assert.Equal("Last activity 2 minutes ago", pageLastActivity);
-        Assert.Equal($"{SystemActivityText.IdleLabel} · {pageLastActivity}", Tooltip(indicator));
+        Assert.Equal($"{SystemActivityText.IdleLabel} · Last activity 2 minutes ago", Tooltip(indicator));
         Assert.Equal(addedAt.ToString("O"), logRow.QuerySelector("time")!.GetAttribute("datetime"));
     }
 

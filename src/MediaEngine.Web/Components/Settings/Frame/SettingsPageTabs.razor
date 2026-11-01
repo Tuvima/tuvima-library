@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Web.Models.ViewDTOs
 @inject NavigationManager Nav
+@inject IStringLocalizer<SharedStrings> L
 
 @* The one row of tabs under a Settings page title. Every tab is a link with its own address, so reload, Back and a pasted link open
    exactly that tab. The look is the shared tab (AppCountTabs); the row scrolls sideways on a phone and never wraps. *@
@@ -26,7 +27,7 @@
 
     // A tab's address is its key, so a link, the selection and the keyboard all agree on which tab is which.
     private IReadOnlyList<AppCountTab> TabItems => Tabs
-        .Select(tab => new AppCountTab(tab.Route, tab.Label, CountFor(tab), tab.Route, tab.Icon, tab.IsAdvanced))
+        .Select(tab => new AppCountTab(tab.Route, tab.LabelKey is { } key ? L[key].Value : tab.Label, CountFor(tab), tab.Route, tab.Icon, tab.IsAdvanced))
         .OrderBy(tab => tab.Advanced ? 1 : 0)
         .ToList();
 

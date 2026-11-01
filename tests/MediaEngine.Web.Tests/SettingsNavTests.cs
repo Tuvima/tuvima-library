@@ -15,6 +15,17 @@ public sealed class SettingsNavTests
     }
 
     [Fact]
+    public void TheLibrariesPage_HasFiveTabsInOrder_EachNamedFromTheWordingFile()
+    {
+        var page = SettingsNav.MenuGroups.SelectMany(group => group.Nodes).Single(node => node.Section == SettingsSection.Libraries);
+
+        Assert.Equal(["Libraries", "Activity", "Needs Review", "Matching", "Rules"], page.Tabs.Select(tab => tab.Label).ToArray());
+        Assert.Equal(
+            ["SettingsLibrariesTabs_Libraries", "SettingsLibrariesTabs_Activity", "SettingsLibrariesTabs_NeedsReview", "SettingsLibrariesTabs_Matching", "SettingsLibrariesTabs_Rules"],
+            page.Tabs.Select(tab => tab.LabelKey!).ToArray());
+    }
+
+    [Fact]
     public void SettingsPage_UsesTheMediaLaneShellInsteadOfAParallelSidebar()
     {
         var settingsSource = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Pages/Settings.razor"));

@@ -8,7 +8,7 @@ public sealed class OperationsRecentlyAddedGuardrailTests
         var operations = Read(@"src/MediaEngine.Web/Components/Pages/Operations.razor");
         var recent = Read(@"src/MediaEngine.Web/Components/Pages/RecentlyAddedPageContent.razor");
         var review = Read(@"src/MediaEngine.Web/Components/Settings/NeedsReviewPageContent.razor");
-        var ingestion = Read(@"src/MediaEngine.Web/Components/Settings/IngestionTasksTab.razor");
+        var statusLine = Read(@"src/MediaEngine.Web/Components/Settings/Libraries/LibraryStatusLine.razor");
         var card = Read(@"src/MediaEngine.Web/Components/Settings/IngestionMediaCard.razor");
         var settings = Read(@"src/MediaEngine.Web/Components/Pages/Settings.razor");
 
@@ -31,9 +31,10 @@ public sealed class OperationsRecentlyAddedGuardrailTests
         Assert.DoesNotContain("review-pinned", recent, StringComparison.Ordinal);
         Assert.DoesNotContain("GetPendingReviews", recent, StringComparison.Ordinal);
         Assert.DoesNotContain("SharedMediaEditorMode.Review", recent, StringComparison.Ordinal);
-        Assert.Contains("<IngestionNowPanel", ingestion, StringComparison.Ordinal);
-        Assert.Contains("<IngestionAddedSummary", ingestion, StringComparison.Ordinal);
-        Assert.DoesNotContain("<IngestionBatchHistory", ingestion, StringComparison.Ordinal);
+        Assert.Contains("data-activity-state", recent, StringComparison.Ordinal);
+        Assert.Contains("IngestionNowWindow", recent, StringComparison.Ordinal);
+        Assert.DoesNotContain("<IngestionBatchHistory", recent, StringComparison.Ordinal);
+        Assert.Contains("data-testid=\"library-status-line\"", statusLine, StringComparison.Ordinal);
         Assert.Contains("ingestion-media-list-row__identity", card, StringComparison.Ordinal);
         Assert.Contains("ingestion-media-list-row__step", card, StringComparison.Ordinal);
         Assert.Contains("ingestion-media-list-row__details", card, StringComparison.Ordinal);

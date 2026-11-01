@@ -202,9 +202,6 @@
     <value>Unload</value>
   </data>
   <!-- AI Features Tab -->
-  <data name="AiFeatures_Enrichment" xml:space="preserve">
-    <value>Enrichment</value>
-  </data>
   <data name="AiFeatures_Scheduled" xml:space="preserve">
     <value>Scheduled</value>
   </data>
@@ -4596,45 +4593,6 @@
   <data name="EncodeSettingsTab_FreeSpaceByRemovingThe" xml:space="preserve">
     <value>Free space by removing the least recently used prepared files before newer ones.</value>
   </data>
-  <data name="EnrichmentRefreshSchedulePanel_ENRICHMENTCALENDAR" xml:space="preserve">
-    <value>ENRICHMENT CALENDAR</value>
-  </data>
-  <data name="EnrichmentRefreshSchedulePanel_UpcomingRefreshes" xml:space="preserve">
-    <value>Upcoming refreshes</value>
-  </data>
-  <data name="EnrichmentRefreshSchedulePanel_ReviewScheduledProviderRefreshesOr" xml:space="preserve">
-    <value>Review scheduled provider refreshes or start the full enrichment cycle early.</value>
-  </data>
-  <data name="EnrichmentRefreshSchedulePanel_Overdue" xml:space="preserve">
-    <value>Overdue</value>
-  </data>
-  <data name="EnrichmentRefreshSchedulePanel_NextSevenDays" xml:space="preserve">
-    <value>Next seven days</value>
-  </data>
-  <data name="EnrichmentRefreshSchedulePanel_ScheduledEntities" xml:space="preserve">
-    <value>Scheduled entities</value>
-  </data>
-  <data name="EnrichmentRefreshSchedulePanel_LoadingRefreshSchedule" xml:space="preserve">
-    <value>Loading refresh schedule...</value>
-  </data>
-  <data name="EnrichmentRefreshSchedulePanel_NoRefreshableEnrichedEntitiesAre" xml:space="preserve">
-    <value>No refreshable enriched entities are currently scheduled.</value>
-  </data>
-  <data name="EnrichmentRefreshSchedulePanel_Item" xml:space="preserve">
-    <value>Item</value>
-  </data>
-  <data name="EnrichmentRefreshSchedulePanel_Stage" xml:space="preserve">
-    <value>Stage</value>
-  </data>
-  <data name="EnrichmentRefreshSchedulePanel_NextRefresh" xml:space="preserve">
-    <value>Next refresh</value>
-  </data>
-  <data name="EnrichmentRefreshSchedulePanel_Policy" xml:space="preserve">
-    <value>Policy</value>
-  </data>
-  <data name="EnrichmentRefreshSchedulePanel_EveryDays" xml:space="preserve">
-    <value>Every {0} days</value>
-  </data>
   <data name="ExcludedFilesSection_ExcludedFiles" xml:space="preserve">
     <value>Excluded files</value>
   </data>
@@ -4746,9 +4704,6 @@
   <data name="HouseholdsTab_AddAHouseholdToGive" xml:space="preserve">
     <value>Add a household to give a group of people their own library space.</value>
   </data>
-  <data name="IngestionAddedSummary_NothingAddedInTheLast" xml:space="preserve">
-    <value>Nothing added in the last {0} days</value>
-  </data>
   <data name="IngestionFacetIndicators_EnrichmentStatus" xml:space="preserve">
     <value>Enrichment status</value>
   </data>
@@ -4791,32 +4746,11 @@
   <data name="Common_Now" xml:space="preserve">
     <value>Now</value>
   </data>
-  <data name="IngestionNowPanel_Step" xml:space="preserve">
-    <value>Step</value>
-  </data>
-  <data name="IngestionNowPanel_IdentifyingMedia" xml:space="preserve">
-    <value>Identifying media</value>
-  </data>
-  <data name="IngestionNowPanel_RecognizableAlbumsShowsBooksAnd" xml:space="preserve">
-    <value>Recognizable albums, shows, books, and movies appear here once their identity and primary cover art are ready.</value>
-  </data>
-  <data name="IngestionNowPanel_ItemsBeingAddedNow" xml:space="preserve">
-    <value>Items being added now</value>
-  </data>
   <data name="IngestionScanAction_CheckFoldersForChanges" xml:space="preserve">
     <value>Check folders for changes</value>
   </data>
-  <data name="IngestionScanAction_FoldersAreWatchedAutomaticallyUse" xml:space="preserve">
-    <value>Folders are watched automatically. Use this after changing files while Library was off, or for network drives.</value>
-  </data>
-  <data name="IngestionScanAction_MoreIngestionActions" xml:space="preserve">
-    <value>More ingestion actions</value>
-  </data>
   <data name="Common_NeedsAttention" xml:space="preserve">
     <value>Needs attention</value>
-  </data>
-  <data name="IngestionTasksTab_IngestionStatusIsUnavailable" xml:space="preserve">
-    <value>Ingestion status is unavailable</value>
   </data>
   <data name="InvitationShare_InvitationCreated" xml:space="preserve">
     <value>Invitation created.</value>
@@ -5093,9 +5027,6 @@
   </data>
   <data name="LibraryServerRulesCard_LibraryComparesFileContentsSo" xml:space="preserve">
     <value>Library compares file contents, so renamed copies count as the same file.</value>
-  </data>
-  <data name="LibraryServerRulesCard_WhenAFileWithThe" xml:space="preserve">
-    <value>When a file with the same name already exists</value>
   </data>
   <data name="LibraryServerRulesCard_EmbedArtworkInFiles" xml:space="preserve">
     <value>Embed artwork in files</value>
@@ -5609,24 +5540,6 @@
   </data>
   <data name="Common_Choose" xml:space="preserve">
     <value>Choose</value>
-  </data>
-  <data name="LibrarySummary_CouldNotBeIdentifiedConfidently" xml:space="preserve">
-    <value>Could not be identified confidently.</value>
-  </data>
-  <data name="LibrarySummary_LibrarySummary" xml:space="preserve">
-    <value>Library summary</value>
-  </data>
-  <data name="LibrarySummary_ManageLibraries" xml:space="preserve">
-    <value>Manage libraries</value>
-  </data>
-  <data name="LibrarySummary_LibraryMediaTypeBreakdown" xml:space="preserve">
-    <value>Library media type breakdown</value>
-  </data>
-  <data name="LibrarySummary_ReviewItems" xml:space="preserve">
-    <value>Review items</value>
-  </data>
-  <data name="LibrarySummary_LibraryStorageProblems" xml:space="preserve">
-    <value>Library storage problems</value>
   </data>
   <data name="Common_Apply" xml:space="preserve">
     <value>Apply</value>
@@ -6230,45 +6143,6 @@
   </data>
   <data name="MergeFolderDialog_Merge" xml:space="preserve">
     <value>Merge</value>
-  </data>
-  <data name="MetadataPipelineStrip_LoadingMetadataPipeline" xml:space="preserve">
-    <value>Loading metadata pipeline…</value>
-  </data>
-  <data name="MetadataPipelineStrip_LocalMetadataOnly" xml:space="preserve">
-    <value>Local metadata only</value>
-  </data>
-  <data name="MetadataPipelineStrip_ThisPersonalSpaceDoesNot" xml:space="preserve">
-    <value>This Personal Space does not send files to catalogue, canonical identity, or enrichment providers.</value>
-  </data>
-  <data name="MetadataPipelineStrip_MetadataProvider" xml:space="preserve">
-    <value>Metadata Provider</value>
-  </data>
-  <data name="MetadataPipelineStrip_Wikidata" xml:space="preserve">
-    <value>Wikidata</value>
-  </data>
-  <data name="MetadataPipelineStrip_CanonicalIdentity" xml:space="preserve">
-    <value>Canonical Identity</value>
-  </data>
-  <data name="MetadataPipelineStrip_Stage1MetadataProvider" xml:space="preserve">
-    <value>Stage 1 — Metadata Provider</value>
-  </data>
-  <data name="MetadataPipelineStrip_Stage2CanonicalIdentity" xml:space="preserve">
-    <value>Stage 2 — Canonical Identity</value>
-  </data>
-  <data name="MetadataPipelineStrip_Stage3Enrichment" xml:space="preserve">
-    <value>Stage 3 — Enrichment</value>
-  </data>
-  <data name="MetadataPipelineStrip_ThisLibraryUsesTheGlobal" xml:space="preserve">
-    <value>This library uses the global {0} metadata settings.</value>
-  </data>
-  <data name="MetadataPipelineStrip_MetadataPipelineSummary" xml:space="preserve">
-    <value>Metadata pipeline summary</value>
-  </data>
-  <data name="MetadataPipelineStrip_MetadataSummary" xml:space="preserve">
-    <value>Metadata Summary</value>
-  </data>
-  <data name="MetadataPipelineStrip_ManageMetadataSettings" xml:space="preserve">
-    <value>Manage Metadata Settings</value>
   </data>
   <data name="MetadataSettingsPage_LoadingMetadataSettings" xml:space="preserve">
     <value>Loading metadata settings</value>
@@ -8901,9 +8775,6 @@
   <data name="EncodeSettingsTab_PlaybackDeliverySettingsSaved" xml:space="preserve">
     <value>Playback delivery settings saved.</value>
   </data>
-  <data name="EnrichmentRefreshSchedulePanel_TheEnrichmentRefreshCouldNot" xml:space="preserve">
-    <value>The enrichment refresh could not be queued.</value>
-  </data>
   <data name="HomeSettingsPage_YourHomeSettingsCouldNot" xml:space="preserve">
     <value>Your Home settings could not be saved. Nothing was changed.</value>
   </data>
@@ -9878,5 +9749,26 @@
   </data>
   <data name="EncodeSettingsTab_FFmpegDetails" xml:space="preserve">
     <value>FFmpeg and the other media tools are managed on Tools.</value>
+  </data>
+  <data name="RecentlyAddedPageContent_AddingToLibrary" xml:space="preserve">
+    <value>Adding to library</value>
+  </data>
+  <data name="LibraryStatusLine_ToolsAndRequirements" xml:space="preserve">
+    <value>Tools and requirements</value>
+  </data>
+  <data name="SettingsLibrariesTabs_Libraries" xml:space="preserve">
+    <value>Libraries</value>
+  </data>
+  <data name="SettingsLibrariesTabs_Activity" xml:space="preserve">
+    <value>Activity</value>
+  </data>
+  <data name="SettingsLibrariesTabs_NeedsReview" xml:space="preserve">
+    <value>Needs Review</value>
+  </data>
+  <data name="SettingsLibrariesTabs_Matching" xml:space="preserve">
+    <value>Matching</value>
+  </data>
+  <data name="SettingsLibrariesTabs_Rules" xml:space="preserve">
+    <value>Rules</value>
   </data>
 </root>

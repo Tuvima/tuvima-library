@@ -430,12 +430,15 @@ else
     /// <summary>The tab of a person's page: empty for Profile, otherwise <c>preferences</c> or <c>access</c>.</summary>
     private string ProfileTab => (Detail ?? string.Empty).Trim().ToLowerInvariant();
 
+    // A tab's name comes from the wording file when it has a key there; the English name in the menu table is the fallback.
+    private string TabLabel(SettingsPageTab tab) => tab.LabelKey is { } key ? L[key].Value : tab.Label;
+
     private string BrowserTitle => IsProfileDetailRoute
         ? $"{_profileBreadcrumbName ?? "Profile"} - Manage Profiles - Library"
         : _activeSection == SettingsSection.Libraries
         ? LibrariesBrowserTitle
-        : CurrentLocation?.Tab is { } tab && !string.Equals(tab.Label, GetHeroTitle(), StringComparison.Ordinal)
-        ? $"{tab.Label} - {GetHeroTitle()} - Library"
+        : CurrentLocation?.Tab is { } tab && !string.Equals(TabLabel(tab), GetHeroTitle(), StringComparison.Ordinal)
+        ? $"{TabLabel(tab)} - {GetHeroTitle()} - Library"
         : $"{GetHeroTitle()} - Library";
     // The Vault's title and breadcrumb follow the same rule as the Libraries page itself (an administrator with Vault mode on).
     private LibraryLevelDescription LibrariesLevel => LibraryAddress.Describe(
@@ -937,7 +940,7 @@ else
         }
         else
         {
-            var leaf = location?.Tab?.Label ?? location?.Leaf;
+            var leaf = location?.Tab is { } leafTab ? TabLabel(leafTab) : location?.Leaf;
             if (leaf is not null && !string.Equals(leaf, pageLabel, StringComparison.Ordinal))
                 steps.Add(new SettingsBreadcrumb(leaf, location?.Tab?.Route ?? SettingsNav.RouteFor(_activeSection)));
             if (!string.IsNullOrWhiteSpace(Detail))

@@ -14,7 +14,6 @@ public sealed class UiCompositionGuardrailTests
         "src/MediaEngine.Web/Components/Pages/LibraryBrowsePage.razor",
         "src/MediaEngine.Web/Components/Pages/ChronicleExplorer.razor",
         "src/MediaEngine.Web/Components/Pages/Settings.razor",
-        "src/MediaEngine.Web/Components/Settings/LibrarySummary.razor",
         "src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor",
         "src/MediaEngine.Web/Components/Pages/Collections.razor",
         "src/MediaEngine.Web/Components/Collections/CollectionEditorShell.razor",

@@ -73,30 +73,6 @@ public sealed class MetadataSettingsCompositionTests
     }
 
     [Fact]
-    public void EnrichmentRefreshSchedule_DoesNotCompeteWithMediaFirstIngestionPage()
-    {
-        var metadata = Read("src/MediaEngine.Web/Components/Settings/MetadataSettingsPage.razor");
-        var ingestion = Read("src/MediaEngine.Web/Components/Settings/IngestionTasksTab.razor");
-        var schedule = Read("src/MediaEngine.Web/Components/Settings/EnrichmentRefreshSchedulePanel.razor");
-
-        Assert.DoesNotContain("<EnrichmentRefreshSchedulePanel", metadata, StringComparison.Ordinal);
-        Assert.DoesNotContain("<EnrichmentRefreshSchedulePanel", ingestion, StringComparison.Ordinal);
-        Assert.Contains("GetEnrichmentRefreshScheduleAsync", schedule, StringComparison.Ordinal);
-        Assert.Contains("QueueEnrichmentRefreshNowAsync", schedule, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void LibraryOverview_UsesTheSameConfiguredFlowSnapshot()
-    {
-        var summary = Read("src/MediaEngine.Web/Components/Settings/MetadataPipelineStrip.razor");
-
-        Assert.Contains("_pipeline.Identification", summary, StringComparison.Ordinal);
-        Assert.Contains("_pipeline.Enrichment", summary, StringComparison.Ordinal);
-        Assert.Contains("/settings/matching", summary, StringComparison.Ordinal);
-        Assert.Contains("Local metadata only", summary, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void RemovedMetadataWorkspaceComponents_RemainRetired()
     {
         Assert.False(File.Exists(PathFor("src/MediaEngine.Web/Components/Settings/ProviderPriorityTab.razor")));

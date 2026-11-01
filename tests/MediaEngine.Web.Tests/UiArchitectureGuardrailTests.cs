@@ -150,7 +150,8 @@ public sealed class UiArchitectureGuardrailTests
     public void IngestionDashboard_BackgroundLoopsAreOwnedAndAwaited()
     {
         var state = Read("src/MediaEngine.Web/Services/Integration/IngestionLiveDashboardState.cs");
-        var component = Read("src/MediaEngine.Web/Components/Settings/IngestionTasksTab.razor");
+        var component = Read("src/MediaEngine.Web/Components/Pages/RecentlyAddedPageContent.razor");
+        var statusLine = Read("src/MediaEngine.Web/Components/Settings/Libraries/LibraryStatusLine.razor");
 
         Assert.Contains("IDisposable, IAsyncDisposable", state);
         Assert.Contains("private Task? _pollTask", state);
@@ -162,13 +163,15 @@ public sealed class UiArchitectureGuardrailTests
         Assert.DoesNotContain("Task.Run", state);
         Assert.Contains("@implements IAsyncDisposable", component);
         Assert.Contains("await Dashboard.StopAsync()", component);
+        Assert.Contains("@implements IAsyncDisposable", statusLine);
+        Assert.Contains("await Dashboard.StopAsync()", statusLine);
     }
 
     [Fact]
     public void IngestionDashboard_StateHoldsOnlyTheLifecycleAndTheEnginesSnapshots()
     {
         var lifecycle = Read("src/MediaEngine.Web/Services/Integration/IngestionLiveDashboardState.cs");
-        var css = Read("src/MediaEngine.Web/Components/Settings/IngestionTasksTab.razor.css");
+        var css = Read("src/MediaEngine.Web/Components/Pages/RecentlyAddedPageContent.razor.css");
 
         Assert.Contains("public sealed class IngestionLiveDashboardState", lifecycle);
         Assert.Contains("public IngestionQueueProgressDto? QueueProgress", lifecycle);

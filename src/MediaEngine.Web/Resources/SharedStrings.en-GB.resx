@@ -143,9 +143,6 @@
   <data name="EncodeSettingsTab_RemoveLeastUsedOptimizedCopies" xml:space="preserve">
     <value>Remove least-used optimised copies first</value>
   </data>
-  <data name="IngestionNowPanel_RecognizableAlbumsShowsBooksAnd" xml:space="preserve">
-    <value>Recognisable albums, shows, books, and movies appear here once their identity and primary cover art are ready.</value>
-  </data>
   <data name="Common_Organization" xml:space="preserve">
     <value>Organisation</value>
   </data>

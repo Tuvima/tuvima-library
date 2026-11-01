@@ -34,6 +34,11 @@ internal static class NativeUiTestServices
         services.TryAddScoped<MediaEngine.Web.Services.Vault.IVaultFolderAttachment, MediaEngine.Web.Services.Vault.EngineVaultFolderAttachment>();
         services.TryAddScoped<MediaEngine.Web.Services.Integration.IItsYouConfirmer>(_ => new ConfirmedActionRunnerTests.SpyConfirmer(confirmed: false));
         services.TryAddScoped<MediaEngine.Web.Components.Settings.LibraryFolderAddService>();
+        // The Libraries page's status line and Activity list follow the Engine's live ingestion state.
+        services.TryAddScoped(provider => new MediaEngine.Web.Services.Integration.IngestionLiveDashboardState(
+            provider.GetRequiredService<MediaEngine.Web.Services.Integration.IEngineApiClient>(),
+            provider.GetRequiredService<MediaEngine.Web.Services.Integration.UIOrchestratorService>(),
+            provider.GetRequiredService<MediaEngine.Web.Services.Integration.UniverseStateContainer>()));
         return services;
     }
 }

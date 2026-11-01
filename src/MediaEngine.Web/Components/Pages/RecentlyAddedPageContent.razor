@@ -2,13 +2,19 @@
 @using MediaEngine.Contracts.Ingestion
 @using MediaEngine.Contracts.Paging
 @using MediaEngine.Web.Components.Library
+@using MediaEngine.Web.Components.Settings
 @using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.Navigation
+@using MediaEngine.Web.Services.Playback
 @inject IEngineApiClient Api
 @inject IServiceProvider Services
 @inject DeviceContextService DeviceContext
 @inject NavigationManager Nav
-@implements IDisposable
+@inject IngestionLiveDashboardState Dashboard
+@inject ContextSidebarPreferences ContextPreferences
+@inject ContextSidebarCoordinator ContextSidebar
+@implements IAsyncDisposable
 @inject IStringLocalizer<SharedStrings> L
 
 <div class="recently-added-page">
@@ -24,41 +30,66 @@
         <AppSelect Label="@L["Common_MediaType"].Value" Value="@_mediaType" ValueChanged="OnMediaTypeChanged" Options="MediaTypeOptions" />
         <AppSelect Label="@L["Models_Status"].Value" Value="@_status" ValueChanged="OnStatusChanged" Options="StatusFilterOptions" />
         <AppSelect Label="@L["RecentlyAddedPageContent_DateRange"].Value" Value="@_dateRange" ValueChanged="OnDateRangeChanged" Options="DateRangeOptions" />
-        <AppSelect Label="@L["Common_SortBy"].Value" Value="@_sort" ValueChanged="OnSortChanged" Options="SortOptions" />
     </section>
 
+    @* One list, newest first: what is being added right now sits at the top, then what was added (the old Now and Added panels and
+       Recently Added, merged). The type, status and date filters above narrow all of it. *@
     <section class="recent-history" aria-labelledby="recent-history-title">
-        <header><div><h2 id="recent-history-title">@L["RecentlyAddedPageContent_LibraryActivity"]</h2><p>@L["RecentlyAddedPageContent_ItemsBeingAddedAndCompleted"] <a href="/settings/libraries">@L["RecentlyAddedPageContent_ViewProcessingQueue"]</a></p></div><span>@(_history?.TotalCount ?? 0) items</span></header>
+        <header><div><h2 id="recent-history-title">@L["RecentlyAddedPageContent_LibraryActivity"]</h2><p>@L["RecentlyAddedPageContent_ItemsBeingAddedAndCompleted"] <a href="/settings/libraries">@L["RecentlyAddedPageContent_ViewProcessingQueue"]</a></p></div><span>@TotalText</span></header>
 
-        @if (_historyLoading && _history is null)
+        @if (PersonalLine is { } personal)
+        {
+            <p class="recent-history__personal">@personal</p>
+        }
+
+        @if (_historyLoading && _history is null && Rows.Count == 0)
         {
             <AppProgressBar Indeterminate="true" />
         }
-        else if (!string.IsNullOrWhiteSpace(_historyError) && _history is null)
+        else if (!string.IsNullOrWhiteSpace(_historyError) && _history is null && Rows.Count == 0)
         {
             <AppAlert Tone="AppUiTone.Warning">@_historyError</AppAlert>
         }
-        else if (_history?.Items.Count == 0)
+        else if (Rows.Count == 0)
         {
             <AppEmptyState Title="@L["RecentlyAddedPageContent_NoRecentAdditionsFound"].Value" Message="@L["RecentlyAddedPageContent_NoHistoricalItemsMatchThese"].Value" />
         }
-        else if (_history is not null)
+        else
         {
-            <MediaToolsWaitingNotice Items="_history.Items" />
-            <div class="recent-history__list">
-                @foreach (var item in _history.Items)
+            <MediaToolsWaitingNotice Items="Rows.Select(row => row.Item).ToList()" />
+            <div class="recent-history__list" data-testid="library-activity-list">
+                @foreach (var row in Rows)
                 {
-                    <AppRowErrorBoundary @key="item.GroupId" ItemTitle="@IngestionMediaCard.DisplayTitleFor(item.Title)" ResetKey="@item">
-                    <article class="history-row">
-                        <time datetime="@item.AddedAt.ToString("O")"><strong>@LocalClock(item.AddedAt)</strong><small>@RelativeDate(item.AddedAt)</small></time>
+                    var item = row.Item;
+                    <AppRowErrorBoundary @key="item.GroupId" ItemTitle="@IngestionMediaCard.DisplayTitleFor(item.Title)" ResetKey="@row.Key">
+                    <article class="history-row" data-group-id="@item.GroupId" data-activity-state="@(row.Adding ? "adding" : "added")">
+                        <time datetime="@row.When.ToString("O")"><strong>@(row.Adding ? "Now" : LocalClock(row.When))</strong><small>@(row.Adding ? string.Empty : RelativeDate(row.When))</small></time>
                         <span class="history-row__identity">
                             <span class="history-row__art"><AppMediaArtwork ImageUrl="@item.CoverUrl" Alt="" FallbackIcon="@IngestionMediaCard.MediaIcon(item.MediaType)" /></span>
-                            <span><strong>@IngestionMediaCard.DisplayTitleFor(item.Title)</strong><small>@IngestionMediaCard.FriendlyType(item.MediaType)@ContextSuffix(item)</small></span>
+                            <span>
+                                @if (row.Adding)
+                                {
+                                    <AppNativeButton Type="button" Class="history-row__open" AriaLabel="@($"Open ingestion details for {IngestionMediaCard.DisplayTitleFor(item.Title)}")" OnClick="@(() => OpenDrawerAsync(item))"><strong>@IngestionMediaCard.DisplayTitleFor(item.Title)</strong></AppNativeButton>
+                                }
+                                else
+                                {
+                                    <strong>@IngestionMediaCard.DisplayTitleFor(item.Title)</strong>
+                                }
+                                <small>@IngestionMediaCard.FriendlyType(item.MediaType)@ContextSuffix(item)</small>
+                            </span>
                         </span>
-                        <span class="history-row__result"><strong>@L["RecentlyAddedPageContent_AddedToLibrary"]</strong><small>@ResultSummary(item)</small></span>
-                        <span class="history-row__status"><AppMaterialIcon Icon="@(MediaToolsWaitingNotice.IsWaiting(item) ? AppMaterialIcons.Outlined.HourglassTop : AppMaterialIcons.Outlined.CheckCircle)" /><span><strong>@item.StatusLabel</strong><small>@RelativeAge(item.UpdatedAt) ago</small></span></span>
+                        @if (row.Adding)
+                        {
+                            <span class="history-row__result"><strong>@L["RecentlyAddedPageContent_AddingToLibrary"]</strong><small>@AddingSummary(item)</small><IngestionFacetIndicators Item="item" /></span>
+                            <span class="history-row__status is-adding"><AppMaterialIcon Icon="@(MediaToolsWaitingNotice.IsWaiting(item) ? AppMaterialIcons.Outlined.HourglassTop : AppMaterialIcons.Outlined.Sync)" /><span><strong>@ReadinessWaitingText.StatusFor(item)</strong><small>@RelativeAge(item.UpdatedAt) ago</small></span></span>
+                        }
+                        else
+                        {
+                            <span class="history-row__result"><strong>@L["RecentlyAddedPageContent_AddedToLibrary"]</strong><small>@ResultSummary(item)</small></span>
+                            <span class="history-row__status"><AppMaterialIcon Icon="@(MediaToolsWaitingNotice.IsWaiting(item) ? AppMaterialIcons.Outlined.HourglassTop : AppMaterialIcons.Outlined.CheckCircle)" /><span><strong>@item.StatusLabel</strong><small>@RelativeAge(item.UpdatedAt) ago</small></span></span>
+                        }
                         <AppOverflowMenu AriaLabel="@($"More actions for {IngestionMediaCard.DisplayTitleFor(item.Title)}")" Size="AppControlSize.Compact">
-                            @if (DeviceContext.CanEdit)
+                            @if (DeviceContext.CanEdit && !row.Adding)
                             {
                                 <AppMenuItem Label="@L["Common_Edit"].Value" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="@(() => OpenMediaEditorAsync(item))" />
                             }
@@ -71,7 +102,10 @@
                     </AppRowErrorBoundary>
                 }
             </div>
-            <AppCompactPager Offset="@_history.Offset" Limit="@_history.Limit" HasMore="@_history.HasMore" TotalCount="@_history.TotalCount" Loading="@_historyLoading" OffsetChanged="OnPageChanged" />
+            @if (_history is not null)
+            {
+                <AppCompactPager Offset="@_history.Offset" Limit="@_history.Limit" HasMore="@_history.HasMore" TotalCount="@_history.TotalCount" Loading="@_historyLoading" OffsetChanged="OnPageChanged" />
+            }
         }
     </section>
 </div>
@@ -80,18 +114,36 @@
     [Parameter] public string? InitialSearch { get; set; }
 
     private const int PageSize = 25;
+
+    // One line of the list: either something being added right now (from the live snapshot) or something that was added.
+    private sealed record ActivityRow(IngestionMediaGroupDto Item, bool Adding, DateTimeOffset When)
+    {
+        public object Key => (Item.GroupId, Item.UpdatedAt, Item.Availability, Item.StatusLabel, Item.CurrentGateKey, Adding);
+    }
+
     private PagedResponse<IngestionMediaGroupDto>? _history;
     private CancellationTokenSource? _loadCts;
     private string? _search;
     private string _mediaType = "all";
     private string _status = "all";
     private string _dateRange = "30";
-    private string _sort = "newest";
     private bool _historyLoading = true;
     private string? _historyError;
     private bool _initialized;
     private string? _loadedInitialSearch;
     private int _revision;
+    private int _offset;
+    private bool _wasRunning;
+    private bool _disposed;
+
+    private readonly IngestionNowWindow _window = new();
+    private Timer? _timer;
+
+    private IngestionMediaGroupDto? _selectedItem;
+    private int _drawerWidth = 340;
+    private Guid? _contextLeaseId;
+    private int _drawerRevision;
+    private bool _drawerRefreshInFlight;
 
     private static readonly IReadOnlyList<AppSelectOption> MediaTypeOptions =
     [
@@ -99,11 +151,52 @@
         new("music", "Music"), new("books", "Books"), new("audiobooks", "Audiobooks"), new("comics", "Comics"),
     ];
     private static readonly IReadOnlyList<AppSelectOption> StatusFilterOptions =
-    [new("all", "All statuses"), new("added", "Added")];
+    [new("all", "All statuses"), new("adding", "Adding"), new("added", "Added")];
     private static readonly IReadOnlyList<AppSelectOption> DateRangeOptions =
     [new("today", "Today"), new("7", "Last 7 days"), new("30", "Last 30 days"), new("all", "All time")];
-    private static readonly IReadOnlyList<AppSelectOption> SortOptions =
-    [new("newest", "Date added (newest)"), new("oldest", "Date added (oldest)"), new("title", "Title A–Z"), new("media", "Media type")];
+
+    private bool ShowAdding => _status != "added";
+    private bool ShowAdded => _status != "adding";
+
+    // The in-flight rows that pass the filters, then the added rows, newest first. An item that is in both is shown once, as "adding".
+    private IReadOnlyList<ActivityRow> Rows
+    {
+        get
+        {
+            var rows = new List<ActivityRow>();
+            if (ShowAdding && _offset == 0)
+            {
+                rows.AddRange(_window.Rows.Where(MatchesFilters).Select(item => new ActivityRow(item, true, item.UpdatedAt)));
+            }
+
+            if (ShowAdded && _history is not null)
+            {
+                var adding = rows.Select(row => row.Item.GroupId).ToHashSet();
+                rows.AddRange(_history.Items.Where(item => !adding.Contains(item.GroupId)).Select(item => new ActivityRow(item, false, item.AddedAt)));
+            }
+
+            return rows.OrderByDescending(row => row.When).ToList();
+        }
+    }
+
+    private string TotalText => $"{(ShowAdded ? _history?.TotalCount ?? 0 : 0) + (ShowAdding && _offset == 0 ? _window.Rows.Count(MatchesFilters) : 0)} items";
+
+    private string? PersonalLine => ShowAdding ? IngestionNowText.PersonalMediaLine(Dashboard.Presentation?.PersonalMediaInProgress) : null;
+
+    // The same type and search words the Engine's list uses: a type key is the lower-case media type.
+    private bool MatchesFilters(IngestionMediaGroupDto item) =>
+        (_mediaType == "all" || string.Equals(item.MediaType, _mediaType, StringComparison.OrdinalIgnoreCase))
+        && (string.IsNullOrWhiteSpace(_search) || (item.Title ?? string.Empty).Contains(_search.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        Dashboard.OnChanged += OnDashboardChanged;
+        _drawerWidth = (await ContextPreferences.GetAsync("desktop:ingestion")).Width;
+        await Dashboard.InitializeAsync();
+        _wasRunning = Dashboard.Presentation?.IsRunning == true;
+        _window.Update(Dashboard.Presentation?.CurrentMedia ?? []);
+        EnsureTimer();
+    }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -128,17 +221,27 @@
     private async Task LoadHistoryAsync(int offset)
     {
         var revision = ++_revision;
-        _historyLoading = true;
+        _offset = offset;
         _historyError = null;
         _loadCts?.Cancel();
         _loadCts?.Dispose();
         _loadCts = new CancellationTokenSource();
         var ct = _loadCts.Token;
+
+        // Only "Adding" is asked for: nothing from the added history is wanted, so the Engine is not asked for it.
+        if (!ShowAdded)
+        {
+            _history = null;
+            _historyLoading = false;
+            return;
+        }
+
+        _historyLoading = true;
         try
         {
             var (start, end) = DateBounds();
             var page = await Api.GetRecentIngestionAdditionsAsync(
-                _search, _mediaType == "all" ? null : _mediaType, start, end, offset, PageSize, _sort,
+                _search, _mediaType == "all" ? null : _mediaType, start, end, offset, PageSize, "newest",
                 _status == "added" ? "added" : null, ct);
             if (revision == _revision) _history = page;
         }
@@ -152,7 +255,6 @@
     private Task OnMediaTypeChanged(string? value) { _mediaType = value ?? "all"; return LoadHistoryAsync(0); }
     private Task OnStatusChanged(string? value) { _status = value ?? "all"; return LoadHistoryAsync(0); }
     private Task OnDateRangeChanged(string? value) { _dateRange = value ?? "30"; return LoadHistoryAsync(0); }
-    private Task OnSortChanged(string? value) { _sort = value ?? "newest"; return LoadHistoryAsync(0); }
     private Task OnPageChanged(int offset) => LoadHistoryAsync(offset);
 
     private (DateTimeOffset? Start, DateTimeOffset? End) DateBounds()
@@ -165,6 +267,144 @@
             "30" => (now.AddDays(-30), now),
             _ => (null, null),
         };
+    }
+
+    // The live snapshot changed: the rows being added are refreshed, and when a run has just finished the added list is read again so
+    // what it added appears without a reload.
+    private void OnDashboardChanged()
+    {
+        if (_disposed) return;
+        _ = InvokeAsync(async () =>
+        {
+            if (_disposed) return;
+            _window.Update(Dashboard.Presentation?.CurrentMedia ?? []);
+            EnsureTimer();
+
+            var running = Dashboard.Presentation?.IsRunning == true;
+            var finished = _wasRunning && !running;
+            _wasRunning = running;
+
+            if (_selectedItem is not null && Dashboard.Presentation is not null)
+            {
+                var updated = Dashboard.Presentation.CurrentMedia.FirstOrDefault(item => item.GroupId == _selectedItem.GroupId);
+                if (updated is not null)
+                {
+                    _selectedItem = updated;
+                    _ = OpenOrUpdateContextAsync();
+                }
+                else if (!_drawerRefreshInFlight)
+                {
+                    _ = RefreshPinnedDrawerAsync(_selectedItem.GroupId, _drawerRevision);
+                }
+            }
+
+            StateHasChanged();
+            if (finished && _offset == 0) await LoadHistoryAsync(0);
+            if (!_disposed) StateHasChanged();
+        });
+    }
+
+    // About once a second while a row is only being held for its minimum time.
+    private void EnsureTimer()
+    {
+        if (_disposed) return;
+        if (_window.NeedsTick) _timer ??= new Timer(_ => OnTick(), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+        else StopTimer();
+    }
+
+    private void OnTick()
+    {
+        if (_disposed) return;
+        _ = InvokeAsync(() =>
+        {
+            if (_disposed) return;
+            if (_window.Tick()) StateHasChanged();
+            if (!_window.NeedsTick) StopTimer();
+        });
+    }
+
+    private void StopTimer()
+    {
+        _timer?.Dispose();
+        _timer = null;
+    }
+
+    // The details of a row being added open in the Ingestion side panel (the same lease and width as before).
+    private async Task OpenDrawerAsync(IngestionMediaGroupDto item)
+    {
+        _drawerRevision++;
+        _selectedItem = item;
+        await OpenOrUpdateContextAsync();
+    }
+
+    private Task CloseDrawer()
+    {
+        _drawerRevision++;
+        _selectedItem = null;
+        if (_contextLeaseId is { } leaseId) ContextSidebar.Release(leaseId);
+        _contextLeaseId = null;
+        return Task.CompletedTask;
+    }
+
+    private async Task SaveDrawerWidthAsync(int width)
+    {
+        _drawerWidth = width;
+        var layout = await ContextPreferences.GetAsync("desktop:ingestion");
+        layout.Width = width;
+        await ContextPreferences.SaveAsync("desktop:ingestion", layout);
+    }
+
+    private async Task RefreshPinnedDrawerAsync(Guid groupId, int revision)
+    {
+        _drawerRefreshInFlight = true;
+        try
+        {
+            var updated = await Api.GetIngestionMediaGroupAsync(groupId);
+            if (updated is not null
+                && revision == _drawerRevision
+                && _selectedItem is not null
+                && _selectedItem.GroupId == groupId)
+            {
+                _selectedItem = updated;
+                await OpenOrUpdateContextAsync();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        finally
+        {
+            _drawerRefreshInFlight = false;
+        }
+    }
+
+    private async Task OpenOrUpdateContextAsync()
+    {
+        if (_selectedItem is null) return;
+        var body = DrawerBody(_selectedItem);
+        if (_contextLeaseId is { } leaseId && ContextSidebar.Update(leaseId, "Ingestion details", _drawerWidth, body,
+                CloseDrawer, SaveDrawerWidthAsync, () => ClearDisplacedDrawerAsync(leaseId)))
+            return;
+
+        var createdLease = Guid.NewGuid();
+        createdLease = await ContextSidebar.OpenExplicitAsync(ContextSidebarOwner.Ingestion, "Ingestion details", _drawerWidth, body,
+            CloseDrawer, SaveDrawerWidthAsync, () => ClearDisplacedDrawerAsync(createdLease));
+        _contextLeaseId = createdLease;
+    }
+
+    private RenderFragment DrawerBody(IngestionMediaGroupDto item) => builder =>
+    {
+        builder.OpenComponent<IngestionMediaDrawer>(0);
+        builder.AddAttribute(1, nameof(IngestionMediaDrawer.Item), item);
+        builder.AddAttribute(2, nameof(IngestionMediaDrawer.Close), EventCallback.Factory.Create(this, CloseDrawer));
+        builder.CloseComponent();
+    };
+
+    private async Task ClearDisplacedDrawerAsync(Guid expectedLease)
+    {
+        if (_contextLeaseId != expectedLease) return;
+        _contextLeaseId = null;
+        _drawerRevision++;
+        _selectedItem = null;
+        await InvokeAsync(StateHasChanged);
     }
 
     // Edit opens the item's own page with the editor already on, on the Details tool (universal editor spec D2): the same bar and panel as
@@ -188,7 +428,21 @@
     private static string RelativeDate(DateTimeOffset value) => value == default ? string.Empty : value.ToLocalTime().Date == DateTime.Today ? "Today" : value.ToLocalTime().ToString("MMM d, yyyy");
     private static string ContextSuffix(IngestionMediaGroupDto item) => string.IsNullOrWhiteSpace(item.Subtitle) ? string.Empty : $" · {item.Subtitle}";
     private static string ResultSummary(IngestionMediaGroupDto item) => item.ChildUnit is not null && item.ChildCompleted > 0 ? $"{item.ChildCompleted:N0} {Pluralize(item.ChildUnit, item.ChildCompleted)} added" : IngestionMediaCard.FriendlyType(item.MediaType) + " added successfully";
+    // What an item being added is on now: how many of its parts are in, or the step it is working through.
+    private static string AddingSummary(IngestionMediaGroupDto item) => item.ChildUnit is not null && item.ChildCompleted > 0
+        ? $"{item.ChildCompleted:N0} {Pluralize(item.ChildUnit, item.ChildCompleted)} added so far"
+        : string.IsNullOrWhiteSpace(item.CurrentGateLabel) ? item.StatusLabel : item.CurrentGateLabel;
     private static string Pluralize(string value, int count) => count == 1 && value.EndsWith('s') ? value[..^1] : value;
 
-    public void Dispose() { _loadCts?.Cancel(); _loadCts?.Dispose(); }
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        _drawerRevision++;
+        StopTimer();
+        Dashboard.OnChanged -= OnDashboardChanged;
+        _loadCts?.Cancel();
+        _loadCts?.Dispose();
+        if (_contextLeaseId is { } leaseId) ContextSidebar.Release(leaseId);
+        await Dashboard.StopAsync();
+    }
 }

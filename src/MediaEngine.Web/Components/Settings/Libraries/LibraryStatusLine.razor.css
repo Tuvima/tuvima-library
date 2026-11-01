@@ -1,0 +1,7 @@
+.libs-status { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; min-width: 0; }
+.libs-status__text { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; margin: 0; color: var(--tl-text-primary); font-size: .9rem; }
+.libs-status__dot { flex: 0 0 auto; width: .55rem; height: .55rem; border-radius: 50%; background: var(--tl-text-muted); }
+.libs-status__text.is-idle .libs-status__dot { background: var(--tl-palette-success); }
+.libs-status__text.is-working .libs-status__dot { background: var(--tl-palette-primary); }
+.libs-status__text.is-waiting .libs-status__dot { background: var(--tl-status-warning); }
+.libs-status__text.is-unreachable { color: var(--tl-status-warning); }

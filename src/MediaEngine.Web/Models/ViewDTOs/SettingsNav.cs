@@ -102,12 +102,14 @@ public enum SettingsPageTabKind
 /// </summary>
 /// <param name="Subsection">The sub-page this tab opens, or <see langword="null"/> for the section's own main page.</param>
 /// <param name="Kind">An Advanced tab is drawn last, at the right end, with a gear and an amber tint (settings-and-setup-simplified D1).</param>
+/// <param name="LabelKey">The wording-file key of the tab's name, when the name is in the wording file; <paramref name="Label"/> is the English fallback.</param>
 public sealed record SettingsPageTab(
     string Label,
     string Icon,
     SettingsSection Section,
     string? Subsection = null,
-    SettingsPageTabKind Kind = SettingsPageTabKind.Standard)
+    SettingsPageTabKind Kind = SettingsPageTabKind.Standard,
+    string? LabelKey = null)
 {
     public bool IsAdvanced => Kind == SettingsPageTabKind.Advanced;
 
@@ -374,11 +376,11 @@ public static class SettingsNav
         [
             Page("Libraries", AppMaterialIcons.Outlined.Folder, SettingsSection.Libraries,
             [
-                Tab("Libraries", AppMaterialIcons.Outlined.Folder, SettingsSection.Libraries),
-                Tab("Activity", AppMaterialIcons.Outlined.History, SettingsSection.RecentlyAdded),
-                Tab("Needs Review", AppMaterialIcons.Outlined.RateReview, SettingsSection.Review),
-                Tab("Matching", AppMaterialIcons.Outlined.AccountTree, SettingsSection.Providers),
-                Tab("Rules", AppMaterialIcons.Outlined.Tune, SettingsSection.LibraryRules),
+                Tab("Libraries", AppMaterialIcons.Outlined.Folder, SettingsSection.Libraries, labelKey: "SettingsLibrariesTabs_Libraries"),
+                Tab("Activity", AppMaterialIcons.Outlined.History, SettingsSection.RecentlyAdded, labelKey: "SettingsLibrariesTabs_Activity"),
+                Tab("Needs Review", AppMaterialIcons.Outlined.RateReview, SettingsSection.Review, labelKey: "SettingsLibrariesTabs_NeedsReview"),
+                Tab("Matching", AppMaterialIcons.Outlined.AccountTree, SettingsSection.Providers, labelKey: "SettingsLibrariesTabs_Matching"),
+                Tab("Rules", AppMaterialIcons.Outlined.Tune, SettingsSection.LibraryRules, labelKey: "SettingsLibrariesTabs_Rules"),
             ]),
             Page("Playback", AppMaterialIcons.Outlined.Stream, SettingsSection.Playback,
             [
@@ -443,8 +445,8 @@ public static class SettingsNav
         IReadOnlyList<SettingsSection>? also = null) =>
         new(label, icon, section, tabs, also);
 
-    private static SettingsPageTab Tab(string label, string icon, SettingsSection section, string? subsection = null) =>
-        new(label, icon, section, subsection);
+    private static SettingsPageTab Tab(string label, string icon, SettingsSection section, string? subsection = null, string? labelKey = null) =>
+        new(label, icon, section, subsection, SettingsPageTabKind.Standard, labelKey);
 
     /// <summary>The page's one Advanced tab: last in its row, drawn with a gear and an amber tint (D1).</summary>
     private static SettingsPageTab AdvancedTab(SettingsSection section) =>

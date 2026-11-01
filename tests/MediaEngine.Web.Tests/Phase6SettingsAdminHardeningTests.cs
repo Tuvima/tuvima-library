@@ -4,23 +4,6 @@ namespace MediaEngine.Web.Tests;
 public sealed class Phase6SettingsAdminHardeningTests
 {
     [Fact]
-    public void LibrarySummary_RemainsConciseAndRoutesReviewAndLibrariesOnward()
-    {
-        var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/LibrarySummary.razor");
-
-        Assert.Contains("Library summary", source, StringComparison.Ordinal);
-        Assert.Contains("CompositionAccessibleLabel", source, StringComparison.Ordinal);
-        Assert.Contains("item.Percent.ToString", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("Math.Max(item.Percent", source, StringComparison.Ordinal);
-        Assert.Contains("<AppIconTile", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("<BackupRecoveryPanel", source, StringComparison.Ordinal);
-        Assert.Contains("/settings/review", source, StringComparison.Ordinal);
-        Assert.Contains("/settings/libraries", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("Local AI", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("optional setup", source, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
     public void SharedPresentation_DefinesReusableMediaAndActivityColors()
     {
         var media = ReadRepoFile(@"src/MediaEngine.Web/Components/Shared/AppMediaPresentation.cs");
@@ -35,27 +18,6 @@ public sealed class Phase6SettingsAdminHardeningTests
         Assert.Contains("--tl-media-comics", media, StringComparison.Ordinal);
         Assert.Contains("public static AppActivityDescriptor For", activity, StringComparison.Ordinal);
         Assert.Contains("AccentColor", iconTile, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void LibrarySummary_UsesTheCompactReferenceSizingRhythm()
-    {
-        var summary = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/LibrarySummary.razor");
-        var styles = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/LibrarySummary.razor.css");
-        var settingsStyles = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/Frame/SettingsPageFrame.razor.css");
-        var iconTile = ReadRepoFile(@"src/MediaEngine.Web/Components/Shared/AppIconTile.razor");
-
-        Assert.Contains("library-summary__attention", summary, StringComparison.Ordinal);
-        Assert.Contains("height: 6px", styles, StringComparison.Ordinal);
-        Assert.Contains("min-height: 46px", styles, StringComparison.Ordinal);
-        Assert.Contains(".library-summary__breakdown ::deep .library-summary__media", styles, StringComparison.Ordinal);
-        Assert.Contains(".library-summary__media::after", styles, StringComparison.Ordinal);
-        Assert.Contains(".library-summary__composition ::deep .library-summary__segment", styles, StringComparison.Ordinal);
-        Assert.DoesNotContain("legend", summary, StringComparison.Ordinal);
-        Assert.Contains("var(--tl-font-size-secondary)", styles, StringComparison.Ordinal);
-        Assert.Contains("font-size: clamp(2rem, 2.4vw, 2.25rem)", settingsStyles, StringComparison.Ordinal);
-        Assert.Contains("font-weight: 600", settingsStyles, StringComparison.Ordinal);
-        Assert.Contains("AppControlSize.Large => \"1.75rem\"", iconTile, StringComparison.Ordinal);
     }
 
     [Fact]

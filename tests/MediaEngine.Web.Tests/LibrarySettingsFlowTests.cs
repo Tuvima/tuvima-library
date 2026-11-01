@@ -26,8 +26,6 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     private int _saves;
     private LibraryFolderDto? _lastLibrary;
     private LibraryMutationRequest? _lastRequest;
-    // Holds the Retry now answer open, to press the button again while the first request is still running.
-    private TaskCompletionSource? _retryGate;
     private UpdateLibrariesRequest? _lastUpdate;
     private MediaEngine.Contracts.Ingestion.ImportFolderWaitingResponse? _waiting;
     private Func<string, PathTestResultDto> _pathProbe = _ => new() { Exists = true, HasRead = true, HasWrite = true };
@@ -272,10 +270,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     private async Task<MediaEngine.Contracts.Library.UnmatchedActionResultDto?> RetryAnswerAsync(string libraryId)
     {
         _unmatchedActions.Add(("retry", libraryId));
-        if (_retryGate is not null)
-        {
-            await _retryGate.Task;
-        }
+        await Task.CompletedTask;
 
         return new MediaEngine.Contracts.Library.UnmatchedActionResultDto { Affected = _unmatchedAffected };
     }
@@ -885,15 +880,14 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.NotEmpty(cut.FindAll(".library-folders__detail .folder-table"));
     }
 
-    // The Recycle bin switch is the last thing in the pane (the stylesheet pins that block to the pane's bottom) and carries a bin icon.
+    // The Recycle bin on/off switch lives in each library's File handling tab (one switch, not two), so the folders pane has none.
     [Fact]
-    public void TheRecycleBinSwitchSitsInAPinnedFooterWithABinIcon()
+    public void TheFoldersPaneHasNoRecycleBinSwitch()
     {
         var cut = Open("Movies");
-        var footer = cut.Find(".library-folders__recycle");
-        Assert.Contains("Recycle bin", Text(footer));
-        Assert.NotNull(footer.QuerySelector(".app-switch-row__icon"));
-        Assert.Equal(footer.OuterHtml, cut.Find(".library-folders__detail .app-card__body").LastElementChild!.OuterHtml);
+
+        Assert.Empty(cut.FindAll(".library-folders__detail .app-switch-row"));
+        Assert.DoesNotContain(cut.FindAll(".library-folders__detail label, .library-folders__detail strong"), element => Text(element) == "Recycle bin");
     }
 
     // Library access D4: what Kid's profiles see is one household setting, so no folder row of any type carries a "Suitable for limited profiles" switch.
@@ -1155,56 +1149,16 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         Assert.Equal(["Lectures", "Family recordings"], cut.FindAll(".library-folders__library h3").Select(Text).ToArray());
     }
 
-    // Unmatched on a library (D34, D40b): the amber count with Retry now and Keep all as they are.
+    // Unmatched files are worked on from the library's own Unmatched tab and the Needs Review tab; the folders pane carries no bar for them.
     [Fact]
-    public void ALibraryWithUnmatchedFilesOffersRetryNowAndKeepAllAndOneWithNoneOffersNeither()
+    public void TheFoldersPaneHasNoUnmatchedBarEvenWhenALibraryHasUnmatchedFiles()
     {
         _configuration.Libraries[0].UnmatchedCount = 3;
 
         var cut = Open("Movies");
 
-        Assert.Equal("3", Text(cut.Find(".lib-unmatched")));
-        Assert.Contains(cut.FindAll("button"), button => Text(button) == "Retry now");
-        Assert.Contains(cut.FindAll("button"), button => Text(button) == "Keep all as they are");
-
-        var quiet = Open("TV Shows");
-        Assert.Empty(quiet.FindAll(".lib-unmatched"));
-        Assert.DoesNotContain(quiet.FindAll("button"), button => Text(button) == "Retry now");
-    }
-
-    [Fact]
-    public void RetryNowCallsTheEnginesLibraryActionAndSaysHowManyFilesItChanged()
-    {
-        _configuration.Libraries[0].UnmatchedCount = 3;
-        var toasts = Render<AppToastHost>();
-        var cut = Open("Movies");
-
-        cut.FindAll("button").Single(button => Text(button) == "Retry now").Click();
-
-        cut.WaitForAssertion(() => Assert.Equal([("retry", MoviesId)], _unmatchedActions));
-        toasts.WaitForAssertion(() => Assert.Contains("3 files", toasts.Markup));
-    }
-
-    [Fact]
-    public void KeepAllAsksFirstThenCallsTheEngineAndCancellingSendsNothing()
-    {
-        _configuration.Libraries[0].UnmatchedCount = 3;
-        var dialogs = Render<AppDialogHost>();
-        var toasts = Render<AppToastHost>();
-        var cut = Open("Movies");
-
-        cut.FindAll("button").Single(button => Text(button) == "Keep all as they are").Click();
-        dialogs.WaitForAssertion(() => Assert.Contains("Stop trying to match 3 files in Movies?", dialogs.Markup));
-        Assert.Contains("You can look them up again later.", dialogs.Markup);
-        dialogs.FindAll("button").Single(button => Text(button) == "Cancel").Click();
-        Assert.Empty(_unmatchedActions);
-
-        cut.FindAll("button").Single(button => Text(button) == "Keep all as they are").Click();
-        dialogs.WaitForAssertion(() => Assert.Contains("Stop trying to match 3 files in Movies?", dialogs.Markup));
-        dialogs.FindAll("button").Single(button => Text(button) == "Keep all as they are").Click();
-
-        cut.WaitForAssertion(() => Assert.Equal([("keep", MoviesId)], _unmatchedActions));
-        toasts.WaitForAssertion(() => Assert.Contains("3 files", toasts.Markup));
+        Assert.Empty(cut.FindAll(".lib-unmatched"));
+        Assert.DoesNotContain(cut.FindAll("button"), button => Text(button) is "Retry now" or "Keep all as they are");
     }
 
     // The first check of a newly added folder (Library setup D35): checking is a quiet line; a paused folder says why and offers Keep going, Remove or Change what this folder is.
@@ -1285,21 +1239,6 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
 
         Assert.Empty(cut.FindAll("[data-first-check]"));
         Assert.DoesNotContain(cut.FindAll("button"), button => Text(button) is "Keep going" or "Remove the folder");
-    }
-
-    [Fact]
-    public void ADoubleClickOnRetryNowSendsOneRequest()
-    {
-        _configuration.Libraries[0].UnmatchedCount = 3;
-        _retryGate = new TaskCompletionSource();
-        var cut = Open("Movies");
-
-        cut.FindAll("button").Single(button => Text(button) == "Retry now").Click();
-        cut.WaitForAssertion(() => Assert.True(cut.FindAll("button").Single(button => Text(button) == "Retry now").HasAttribute("disabled")));
-        _retryGate.SetResult();
-
-        cut.WaitForAssertion(() => Assert.Equal([("retry", MoviesId)], _unmatchedActions));
-        Assert.Single(_unmatchedActions);
     }
 
     // D23: under the one card breakpoint (840px of viewport width, so portrait tablets too) folders are read-only. With no browser to measure, the stylesheets are read: every control that adds, converts or merges is hidden

@@ -14,20 +14,17 @@ using Microsoft.Extensions.Logging;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// A book that is only half added (no title yet, no cover, no type, no progress gates) must still show as a row, in the Now
-/// panel and in its details drawer, and must never replace the whole screen with "Something went wrong" (ingestion WP8, bug 13).
+/// A book that is only half added (no title yet, no cover, no type, no progress gates) must still show as a row, in the
+/// Activity list and in its details drawer, and must never replace the whole screen with "Something went wrong" (ingestion WP8, bug 13).
 /// </summary>
-public sealed class HalfAddedRowTests : AsyncBunitContext
+public sealed class HalfAddedRowTests : LiveLibraryTestContext
 {
     private readonly RecordingLoggerProvider _logs = new();
 
     public HalfAddedRowTests()
     {
-        Services.AddLogging(logging => logging.AddProvider(_logs));
         Services.AddNativeUiServices();
-        Services.AddSingleton(EngineApiClientStub.Create(_ => { }));
-        JSInterop.Mode = JSRuntimeMode.Loose;
-        Render<AppPopoverHost>();
+        Services.GetRequiredService<ILoggerFactory>().AddProvider(_logs);
     }
 
     public static TheoryData<string> HalfAddedShapes() => new()
@@ -44,42 +41,34 @@ public sealed class HalfAddedRowTests : AsyncBunitContext
 
     [Theory]
     [MemberData(nameof(HalfAddedShapes))]
-    public void ARowMissingItsTitleCoverOrType_StillShowsAllFiveCells(string shape)
+    public void ARowMissingItsTitleCoverOrType_StillShowsItsFiveCellsAndFacets(string shape)
     {
-        var cut = Render<IngestionNowPanel>(parameters => parameters
-            .Add(panel => panel.Active, true)
-            .Add(panel => panel.Total, 1)
-            .Add(panel => panel.Items, new[] { HalfAdded(shape) }));
+        var cut = RenderList(HalfAdded(shape));
 
-        var row = Assert.Single(cut.FindAll(".ingestion-media-list-row"));
-        Assert.Equal(5, row.QuerySelectorAll("[role='cell']").Length);
+        var row = Assert.Single(cut.FindAll(".history-row"));
+        Assert.Equal("adding", row.GetAttribute("data-activity-state"));
         Assert.Equal(5, row.QuerySelectorAll(".ingestion-facets__slot").Length);
-        Assert.NotEmpty(cut.Find("#ingestion-now-title").TextContent);
+        Assert.NotEmpty(cut.Find("#recent-history-title").TextContent);
         Assert.Empty(cut.FindAll("[data-testid='row-error']"));
     }
 
     [Fact]
     public void ARowWithNoTitle_SaysItIsIdentifyingMediaInsteadOfShowingABlankName()
     {
-        var cut = Render<IngestionNowPanel>(parameters => parameters
-            .Add(panel => panel.Active, true)
-            .Add(panel => panel.Items, new[] { HalfAdded("no-title") }));
+        var cut = RenderList(HalfAdded("no-title"));
 
-        Assert.Equal("Identifying media", cut.Find(".ingestion-media-list-row__open strong").TextContent);
-        Assert.Contains("Identifying media", cut.Find(".ingestion-media-list-row__open").GetAttribute("aria-label"), StringComparison.Ordinal);
+        Assert.Equal("Identifying media", cut.Find(".history-row__open strong").TextContent);
+        Assert.Contains("Identifying media", cut.Find(".history-row__open").GetAttribute("aria-label"), StringComparison.Ordinal);
     }
 
     [Fact]
     public void ARowWithNoType_ShowsAGenericTypeAndTheFallbackArtworkIcon()
     {
-        var cut = Render<IngestionNowPanel>(parameters => parameters
-            .Add(panel => panel.Active, true)
-            .Add(panel => panel.Items, new[] { HalfAdded("no-type") }));
+        var cut = RenderList(HalfAdded("no-type"));
 
-        var type = cut.Find(".ingestion-media-list-row__format strong").TextContent.Trim();
-        Assert.Equal("Unknown", type);
-        Assert.Single(cut.FindAll(".ingestion-media-list-row__art .app-media-artwork__fallback"));
-        Assert.Empty(cut.FindAll(".ingestion-media-list-row__art img"));
+        Assert.StartsWith("Unknown", cut.Find(".history-row__identity small").TextContent.Trim(), StringComparison.Ordinal);
+        Assert.Single(cut.FindAll(".history-row__art .app-media-artwork__fallback"));
+        Assert.Empty(cut.FindAll(".history-row__art img"));
     }
 
     [Theory]
@@ -117,20 +106,15 @@ public sealed class HalfAddedRowTests : AsyncBunitContext
     {
         var broken = HalfAdded("no-title");
         broken.Artwork = null!;
-        var cut = Render<IngestionNowPanel>(parameters => parameters
-            .Add(panel => panel.Active, true)
-            .Add(panel => panel.Total, 3)
-            .Add(panel => panel.Items, new[] { Named("First book"), broken, Named("Third book") }));
+        var cut = RenderList(Named("First book"), broken, Named("Third book"));
 
-        Assert.Equal("Now", cut.Find("#ingestion-now-title").TextContent);
-        var rows = cut.FindAll(".ingestion-media-list-row");
+        Assert.Equal("Library activity", cut.Find("#recent-history-title").TextContent);
+        var rows = cut.FindAll(".history-row");
         Assert.Equal(2, rows.Count);
         Assert.Contains(rows, row => row.TextContent.Contains("First book", StringComparison.Ordinal));
         Assert.Contains(rows, row => row.TextContent.Contains("Third book", StringComparison.Ordinal));
 
         var fallback = Assert.Single(cut.FindAll("[data-testid='row-error']"));
-        Assert.Equal("row", fallback.GetAttribute("role"));
-        Assert.Single(fallback.QuerySelectorAll("[role='cell']"));
         Assert.Contains(AppRowErrorBoundary.Headline, fallback.TextContent, StringComparison.Ordinal);
         Assert.Contains("Identifying media", fallback.TextContent, StringComparison.Ordinal);
         Assert.Contains(_logs.Errors, error => error is NullReferenceException);
@@ -141,20 +125,20 @@ public sealed class HalfAddedRowTests : AsyncBunitContext
     {
         var broken = Named("Cibola Burn");
         broken.Artwork = null!;
-        var cut = Render<IngestionNowPanel>(parameters => parameters
-            .Add(panel => panel.Active, true)
-            .Add(panel => panel.Items, new[] { broken }));
+        var cut = RenderList(broken);
         Assert.Single(cut.FindAll("[data-testid='row-error']"));
 
         var repaired = Named("Cibola Burn");
         repaired.GroupId = broken.GroupId;
         repaired.UpdatedAt = broken.UpdatedAt.AddSeconds(5);
-        cut.Render(parameters => parameters
-            .Add(panel => panel.Active, true)
-            .Add(panel => panel.Items, new[] { repaired }));
+        Presentation = () => Task.FromResult<IngestionPresentationSnapshotDto?>(new IngestionPresentationSnapshotDto { IsRunning = true, CurrentMedia = [repaired], CurrentMediaTotal = 1 });
+        _ = Services.GetRequiredService<IngestionLiveDashboardState>().LoadAsync();
 
-        Assert.Empty(cut.FindAll("[data-testid='row-error']"));
-        Assert.Single(cut.FindAll(".ingestion-media-list-row"));
+        cut.WaitForAssertion(() =>
+        {
+            Assert.Empty(cut.FindAll("[data-testid='row-error']"));
+            Assert.Single(cut.FindAll(".history-row"));
+        });
     }
 
     [Fact]
@@ -203,8 +187,6 @@ public sealed class HalfAddedRowTests : AsyncBunitContext
     }
 
     [Theory]
-    [InlineData("src/MediaEngine.Web/Components/Settings/IngestionNowPanel.razor")]
-    [InlineData("src/MediaEngine.Web/Components/Settings/IngestionAddedSummary.razor")]
     [InlineData("src/MediaEngine.Web/Components/Settings/IngestionMediaDrawer.razor")]
     [InlineData("src/MediaEngine.Web/Components/Settings/NeedsReviewPageContent.razor")]
     [InlineData("src/MediaEngine.Web/Components/Pages/RecentlyAddedPageContent.razor")]
@@ -215,6 +197,20 @@ public sealed class HalfAddedRowTests : AsyncBunitContext
 
         Assert.Contains("<AppRowErrorBoundary", source, StringComparison.Ordinal);
         Assert.Contains("</AppRowErrorBoundary>", source, StringComparison.Ordinal);
+    }
+
+    // The Activity list with these items being added right now, as the Engine's live snapshot reports them.
+    private IRenderedComponent<MediaEngine.Web.Components.Pages.RecentlyAddedPageContent> RenderList(params IngestionMediaGroupDto[] adding)
+    {
+        Presentation = () => Task.FromResult<IngestionPresentationSnapshotDto?>(new IngestionPresentationSnapshotDto
+        {
+            IsRunning = true,
+            CurrentMedia = [.. adding],
+            CurrentMediaTotal = adding.Length,
+        });
+        var cut = Render<MediaEngine.Web.Components.Pages.RecentlyAddedPageContent>();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".history-row, [data-testid='row-error']")));
+        return cut;
     }
 
     private static IngestionMediaGroupDto Named(string title) => new()

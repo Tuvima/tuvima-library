@@ -168,6 +168,51 @@ public static class IngestionQueueProgressText
             : Headline(snapshot);
     }
 
+    /// <summary>
+    /// The one status line on the Libraries page: "Up to date · last checked 10 min ago", "Adding 38 files · about 4 min left", or, while
+    /// every unfinished file waits for a missing tool, the partly-ready headline ("Waiting for media tools · 3 files are waiting").
+    /// </summary>
+    public static string LibraryStatus(IngestionQueueProgressDto snapshot, DateTimeOffset now)
+    {
+        if (IsWaiting(snapshot))
+        {
+            return $"{WaitingHeadline(snapshot)} · {WaitingLine(snapshot)}";
+        }
+
+        if (IsWorking(snapshot))
+        {
+            var remaining = Math.Max(snapshot.FilesFound - snapshot.FilesDone, 0);
+            var count = remaining > 0 ? remaining : snapshot.FilesFound;
+            var adding = count <= 0
+                ? "Looking for files"
+                : count == 1 ? "Adding 1 file" : $"Adding {DisplayFormat.FormatCount(count)} files";
+            return count > 0 && TimeLine(snapshot, now) is { Length: > 0 } time
+                ? $"{adding} · {char.ToLowerInvariant(time[0])}{time[1..]}"
+                : adding;
+        }
+
+        return snapshot.LastActivityAt is { } at
+            ? $"Up to date · last checked {FormatAgo(at, now)}"
+            : "Up to date";
+    }
+
+    // "just now", "10 min ago", "3 hr ago", or the date once it is more than a day old.
+    private static string FormatAgo(DateTimeOffset value, DateTimeOffset now)
+    {
+        var elapsed = now - value.ToUniversalTime();
+        if (elapsed.TotalMinutes < 1)
+        {
+            return "just now";
+        }
+
+        if (elapsed.TotalDays < 1)
+        {
+            return $"{FormatElapsed(elapsed)} ago";
+        }
+
+        return value.ToLocalTime().ToString("MMM d, yyyy", CultureInfo.CurrentCulture);
+    }
+
     /// <summary>The noun for a count of one media type, for example "movie" or "audiobook files".</summary>
     public static string TypeNoun(string mediaType, int count)
     {

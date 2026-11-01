@@ -95,7 +95,6 @@ src/MediaEngine.Web/Components/Rules/SharedRuleBuilder.razor.css:620px
 src/MediaEngine.Web/Components/Rules/SharedRuleBuilder.razor.css:900px
 src/MediaEngine.Web/Components/Search/UniversalSearchOverlay.razor.css:720px
 src/MediaEngine.Web/Components/Search/UniversalSearchResults.razor.css:1120px
-src/MediaEngine.Web/Components/Settings/EnrichmentRefreshSchedulePanel.razor.css:800px
 src/MediaEngine.Web/Components/Settings/LibrariesTab.razor.css:1000px
 src/MediaEngine.Web/Components/Settings/LibrariesTab.razor.css:1499px
 src/MediaEngine.Web/Components/Settings/LibrariesTab.razor.css:1500px
