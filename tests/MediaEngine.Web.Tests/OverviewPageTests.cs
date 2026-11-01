@@ -102,7 +102,7 @@ public sealed class OverviewPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Header_ShowsTheAvatarNameAndWhenTheyJoined_WithEditProfileAndTheAppsLink()
+    public void Header_ShowsTheAvatarNameAndWhenTheyJoined_WithEditProfileAndNoAppsLink()
     {
         var cut = RenderPage();
 
@@ -111,11 +111,10 @@ public sealed class OverviewPageTests : AsyncBunitContext
         Assert.NotEmpty(cut.FindAll(".overview-header__avatar svg, .overview-header__avatar img"));
         Assert.Contains(cut.FindAll("a, button"), link => link.TextContent.Contains("Edit profile", StringComparison.Ordinal));
 
-        // Apps is a small centred link at the bottom of the page, not an icon in the header.
-        var apps = cut.Find("[data-overview-apps-link]");
-        Assert.Equal("a", apps.TagName.ToLowerInvariant());
-        Assert.Equal("/settings/overview/apps", apps.GetAttribute("href"));
-        Assert.Equal("Get the Library app for your phone or TV", apps.TextContent);
+        // The app links and QR code live on General now; Profile points nowhere near them.
+        Assert.Empty(cut.FindAll("[data-overview-apps-link]"));
+        Assert.Empty(cut.FindAll("a[href*='/apps']"));
+        Assert.DoesNotContain("Get the Library app", cut.Markup, StringComparison.Ordinal);
         Assert.Empty(cut.FindAll("[aria-label='Apps']"));
     }
 

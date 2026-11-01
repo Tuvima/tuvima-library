@@ -2,6 +2,7 @@ using System.Security.Claims;
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
+using MediaEngine.Api.Services.Networking;
 using MediaEngine.Api.Services.Security;
 using MediaEngine.Api.Services.Settings;
 using MediaEngine.Api.Services.Tools;
@@ -81,9 +82,7 @@ public static class SetupEndpoints
             {
                 return Results.Unauthorized();
             }
-            var serverName = configuration.LoadCore().ServerName;
-            var hostName = configuration.LoadNetwork().Local.PreferredServerName;
-            return Results.Ok(new SetupServerIdentityDto(serverName, hostName, NetworkNameRules.IsDerived(serverName, hostName)));
+            return Results.Ok(ServerIdentityService.Read(configuration));
         }).Produces<SetupServerIdentityDto>();
 
         group.MapPut("/server-identity", async (SetupServerIdentityDto request, HttpContext context, ClaimsPrincipal user,
@@ -94,30 +93,13 @@ public static class SetupEndpoints
             {
                 return Results.Unauthorized();
             }
-            var serverName = (request.ServerName ?? string.Empty).Trim();
-            if (serverName.Length is 0 or > 64)
+            var (saved, error) = ServerIdentityService.Save(configuration, request);
+            if (saved is null)
             {
-                return ApiErrors.BadRequest("Give the server a name of 1 to 64 characters.");
+                return ApiErrors.BadRequest(error!);
             }
-            // While the network name just follows the friendly name the Engine derives it; a hand-set one is kept as typed.
-            var hostName = request.HostNameDerived ? string.Empty : ToDnsLabel(request.HostName);
-            if (hostName.Length == 0)
-            {
-                hostName = ToDnsLabel(serverName);
-            }
-            if (hostName.Length == 0)
-            {
-                return ApiErrors.BadRequest("The network name needs at least one letter or number.");
-            }
-
-            var core = configuration.LoadCore();
-            core.ServerName = serverName;
-            configuration.SaveCore(core);
-            var network = configuration.LoadNetwork();
-            network.Local.PreferredServerName = hostName;
-            configuration.SaveNetwork(network);
-            await onboarding.SetStepAsync("welcome", "passed", $"This server is called \"{serverName}\" and shows up on your home network as {hostName}.local.", null, null, ct).ConfigureAwait(false);
-            return Results.Ok(new SetupServerIdentityDto(serverName, hostName, NetworkNameRules.IsDerived(serverName, hostName)));
+            await onboarding.SetStepAsync("welcome", "passed", $"This server is called \"{saved.ServerName}\" and shows up on your home network as {saved.HostName}.local.", null, null, ct).ConfigureAwait(false);
+            return Results.Ok(saved);
         }).Produces<SetupServerIdentityDto>();
 
         group.MapPost("/begin", async (SetupBeginRequest? request, SetupSessionService sessions, CancellationToken ct) =>

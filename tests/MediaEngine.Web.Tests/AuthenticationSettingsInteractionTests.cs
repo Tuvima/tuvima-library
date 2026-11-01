@@ -55,17 +55,37 @@ public sealed class AuthenticationSettingsInteractionTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AuthenticationPage_RendersCanonicalOriginAndCurrentAccountTestAction()
+    public void AuthenticationPage_RendersCanonicalOrigin_AndTheTestEmailHasMovedToGeneral()
     {
         var cut = Render<SecurityTab>();
         cut.WaitForElement(".security-settings__facts");
 
         Assert.Contains("https://library.example.test", cut.Markup, StringComparison.Ordinal);
-        var button = cut.FindAll("button").Single(element =>
-            element.TextContent.Contains("Send test email to my account", StringComparison.Ordinal));
-        Assert.False(button.HasAttribute("disabled"));
-        Assert.Contains("current signed-in account", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("Send test email", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain("SMTP", cut.Markup, StringComparison.Ordinal);
         Assert.Empty(cut.FindAll("input[type='email']"));
+    }
+
+    [Fact]
+    public void GeneralNotifications_OffersTheTestEmailOnceOutgoingEmailIsSetUp()
+    {
+        var cut = Render<NotificationsEmailTest>();
+        cut.WaitForElement("[data-testid='notifications-email-test']");
+
+        var button = cut.Find("[data-testid='notifications-email-test-send']");
+        Assert.False(button.HasAttribute("disabled"));
+        Assert.Contains("Send test email to my account", button.TextContent, StringComparison.Ordinal);
+        Assert.Contains("current signed-in account", cut.Markup, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void GeneralNotifications_ShowsNoTestEmailWhileOutgoingEmailIsNotConfigured()
+    {
+        _settings = new AuthSettingsDto();
+
+        var cut = Render<NotificationsEmailTest>();
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-testid='notifications-email-test']")));
+        Assert.DoesNotContain("Send test email", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]

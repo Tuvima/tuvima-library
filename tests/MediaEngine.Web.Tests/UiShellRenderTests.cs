@@ -884,7 +884,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Empty(cut.FindAll(".settings-shell-content"));
         Assert.Empty(cut.FindAll(".profiles-tab__card"));
         Assert.Empty(cut.FindAll("[data-settings-overview]"));
-        Assert.Empty(cut.FindAll("[data-settings-overview-apps]"));
+        Assert.Empty(cut.FindAll("[data-testid='general-name-address']"));
         Assert.Empty(cut.FindAll(".settings-playback-page"));
     }
 

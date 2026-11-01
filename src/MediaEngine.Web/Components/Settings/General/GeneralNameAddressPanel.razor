@@ -1,0 +1,244 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Contracts.Setup
+@using MediaEngine.Web.Services.Configuration
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient Api
+@inject AppStoreLinks StoreLinks
+@inject IJSRuntime JS
+@inject IAppToastService Toast
+@inject ILogger<GeneralNameAddressPanel> Logger
+@inject IStringLocalizer<SharedStrings> L
+@* Server > General > Name and address: the Library's friendly name, the .local address that follows it (until someone sets it by hand),
+   the numeric address with Copy, and the QR code and app links that used to sit behind Profile's footer link. The QR code carries only
+   the address, never a key or a sign-in. *@
+<SettingsSectionPanel Title="@L["GeneralNameAddress_NameAndAddress"].Value"
+                      Icon="@AppMaterialIcons.Outlined.Dns"
+                      Description="@L["GeneralNameAddress_NameAndAddressNote"].Value">
+    @if (_loading)
+    {
+        <AppSkeleton Width="100%" Height="96px" />
+    }
+    else if (_identity is null)
+    {
+        <AppErrorState Title="@L["GeneralNameAddress_TheNameIsUnavailable"].Value"
+                       Message="@L["Common_StartTheEngineOrTry"].Value"
+                       Compact="true"
+                       Retry="@(() => LoadAsync())" />
+    }
+    else
+    {
+        <div class="general-address" data-testid="general-name-address">
+            <div class="general-address__name">
+                <AppTextField Label="@L["GeneralNameAddress_LibraryName"].Value" Value="@_name" ValueChanged="OnNameChanged"
+                              Placeholder="@L["SetupWelcomeStage_ShayaSLibrary"].Value" data-testid="general-library-name" />
+                <AppButton Label="@L["GeneralNameAddress_SaveName"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                           Loading="@_saving" Disabled="@(!CanSave)" OnClick="SaveAsync" data-testid="general-save-name" />
+            </div>
+            <p class="general-address__note" data-testid="general-network-name-line">
+                @L["SetupWelcomeStage_PhonesAndTVsOnYourHome"] <strong>@(string.IsNullOrWhiteSpace(_host) ? NetworkNameRules.DefaultLabel : _host).local</strong>
+                @if (!_showHostField)
+                {
+                    <text> &middot; </text>
+                    <AppButton Label="@L["SetupWelcomeStage_Change"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="RevealHostField" data-testid="general-network-name-change" />
+                }
+            </p>
+            @if (_showHostField)
+            {
+                <AppTextField Label="@L["SetupWelcomeStage_NetworkName"].Value" Value="@_host" ValueChanged="OnHostChanged"
+                              Placeholder="@NetworkNameRules.DefaultLabel" data-testid="general-network-name-field" />
+            }
+
+            @if (_addresses is not null)
+            {
+                <dl class="general-address__facts">
+                    <div class="general-address__fact" data-apps-address="at-home">
+                        <dt>@L["GeneralNameAddress_AtHome"]</dt>
+                        <dd class="general-address__value">@(AtHome ?? L["GeneralNameAddress_NotDetectedYet"].Value)</dd>
+                        @if (AtHome is not null)
+                        {
+                            <AppButton Label="@L["Common_Copy"].Value"
+                                       Size="AppControlSize.Compact"
+                                       StartIcon="@AppMaterialIcons.Outlined.ContentCopy"
+                                       OnClick="@(() => CopyAsync(AtHome))" />
+                        }
+                    </div>
+                    @if (AwayFromHome is not null)
+                    {
+                        <div class="general-address__fact" data-apps-address="away-from-home">
+                            <dt>@L["GeneralNameAddress_AwayFromHome"]</dt>
+                            <dd class="general-address__value">@AwayFromHome</dd>
+                            <AppButton Label="@L["Common_Copy"].Value"
+                                       Size="AppControlSize.Compact"
+                                       StartIcon="@AppMaterialIcons.Outlined.ContentCopy"
+                                       OnClick="@(() => CopyAsync(AwayFromHome))" />
+                        </div>
+                    }
+                </dl>
+
+                @if (AwayFromHome is null)
+                {
+                    <p class="general-address__note" data-apps-no-outside-address>
+                        @L["GeneralNameAddress_WantTheAppsToWork"] <a href="/settings/network/remote">@L["GeneralNameAddress_SetASecureOutsideAddress"]</a>.
+                    </p>
+                }
+            }
+
+            <div class="general-address__apps">
+                <div class="general-address__apps-copy">
+                    <strong>@L["GeneralNameAddress_GetTheApp"]</strong>
+                    <p class="general-address__note">@L["GeneralNameAddress_InstallLibraryOnYourPhone"]</p>
+                    @if (Stores.Count > 0)
+                    {
+                        <ul class="general-address__stores" role="list" data-apps-stores>
+                            @foreach (var store in Stores)
+                            {
+                                <li>
+                                    <AppButton Label="@store.Label"
+                                               Href="@store.Url"
+                                               Target="_blank"
+                                               EndIcon="@AppMaterialIcons.Outlined.OpenInNew"
+                                               data-apps-store="@store.Key" />
+                                </li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <p class="general-address__note" data-apps-stores-empty>@L["GeneralNameAddress_TheLibraryAppsWillBe"]</p>
+                    }
+                    <MediaEngine.Web.Components.Navigation.PwaInstallAction />
+                </div>
+                @if (QrPayload is not null)
+                {
+                    <div class="general-address__qr-block">
+                        <div class="general-address__qr" data-qr-payload="@QrPayload">@((MarkupString)QrCodeSvg.Render(QrPayload))</div>
+                        <div class="general-address__apps-copy">
+                            <strong>@QrLabel</strong>
+                            <p class="general-address__note">@L["GeneralNameAddress_ScanWithTheLibraryApp"]</p>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</SettingsSectionPanel>
+
+@code {
+    private SetupServerIdentityDto? _identity;
+    private NetworkAppAddressesDto? _addresses;
+    private bool _loading = true;
+    private bool _saving;
+    private bool _showHostField;
+    private string _name = string.Empty;
+    private string _host = string.Empty;
+    // True while the network name just follows the friendly name; typing one in by hand sets this to false.
+    private bool _derived = true;
+
+    private sealed record StoreSlot(string Key, string Label, string Url);
+
+    // A store shows only once it has a real web link; a blank or odd value in the configuration is left out.
+    private IReadOnlyList<StoreSlot> Stores
+    {
+        get
+        {
+            var slots = new List<StoreSlot>();
+            Add(slots, "app-store", "App Store", StoreLinks.AppStore);
+            Add(slots, "google-play", "Google Play", StoreLinks.GooglePlay);
+            Add(slots, "roku", "Roku Channel Store", StoreLinks.Roku);
+            return slots;
+        }
+    }
+
+    private static void Add(List<StoreSlot> slots, string key, string label, string? url)
+    {
+        if (Uri.TryCreate(url?.Trim(), UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https")
+        {
+            slots.Add(new StoreSlot(key, label, uri.AbsoluteUri));
+        }
+    }
+
+    private string? AtHome => string.IsNullOrWhiteSpace(_addresses?.AtHome) ? null : _addresses!.AtHome;
+
+    private string? AwayFromHome => string.IsNullOrWhiteSpace(_addresses?.AwayFromHome) ? null : _addresses!.AwayFromHome;
+
+    // The QR code holds one address and nothing else: the outside address once it is set up, otherwise the one at home.
+    private string? QrPayload => AwayFromHome ?? AtHome;
+
+    private string QrLabel => L[AwayFromHome is not null ? "GeneralNameAddress_ScanOutside" : "GeneralNameAddress_ScanHome"].Value;
+
+    private bool CanSave => !_saving && !string.IsNullOrWhiteSpace(_name)
+        && (!string.Equals(_name.Trim(), _identity?.ServerName, StringComparison.Ordinal)
+            || !string.Equals(_host, _identity?.HostName, StringComparison.Ordinal));
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _identity = await Api.GetServerIdentityAsync();
+        _addresses = await Api.GetNetworkAppAddressesAsync();
+        if (_identity is not null)
+        {
+            Apply(_identity);
+        }
+        _loading = false;
+    }
+
+    private void Apply(SetupServerIdentityDto identity)
+    {
+        _identity = identity;
+        _name = identity.ServerName;
+        _host = identity.HostName;
+        _derived = identity.HostNameDerived;
+    }
+
+    private void RevealHostField() => _showHostField = true;
+
+    // The network name follows the friendly name until the person types one in themselves.
+    private void OnNameChanged(string? value)
+    {
+        _name = value ?? string.Empty;
+        if (_derived)
+        {
+            _host = NetworkNameRules.ToLabel(_name);
+        }
+    }
+
+    private void OnHostChanged(string? value)
+    {
+        var label = NetworkNameRules.ToLabel(value);
+        // Emptying the field hands the network name back to the friendly name.
+        _derived = label.Length == 0;
+        _host = _derived ? NetworkNameRules.ToLabel(_name) : label;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (!CanSave) return;
+        _saving = true;
+        var saved = await Api.UpdateServerIdentityAsync(new SetupServerIdentityDto(_name.Trim(), _host, _derived));
+        _saving = false;
+        if (saved is null)
+        {
+            Toast.Add(L["GeneralNameAddress_NameNotSaved"].Value, AppSeverity.Error);
+            return;
+        }
+
+        Apply(saved);
+        Toast.Add(L["GeneralNameAddress_NameSaved"].Value, AppSeverity.Success);
+    }
+
+    private async Task CopyAsync(string? address)
+    {
+        switch (await JS.TryCopyAsync(address ?? string.Empty, Logger))
+        {
+            case ClipboardCopyResult.Copied:
+                Toast.Add(L["GeneralNameAddress_AddressCopied"].Value, AppSeverity.Success);
+                break;
+            case ClipboardCopyResult.Failed:
+                Toast.Add(ClipboardInterop.FailedMessage("the address"), AppSeverity.Warning);
+                break;
+        }
+    }
+}

@@ -31,7 +31,9 @@
         if (_settings is null) return;
         var resolved = AppCultures.Resolve(tag);
         _saveFailed = false;
-        var updated = _settings with { DisplayLanguage = resolved };
+        // Save on top of what the server holds now, so a Library name saved a moment ago on this page is not written back with its old value.
+        var current = await ApiClient.GetServerGeneralAsync() ?? _settings;
+        var updated = current with { DisplayLanguage = resolved };
         if (!await ApiClient.UpdateServerGeneralAsync(updated))
         {
             _saveFailed = true;

@@ -111,10 +111,6 @@ else
                 }
             </div>
         </div>
-
-        <p class="overview-page__apps">
-            <a class="overview-page__apps-link" href="@AppsRoute" data-overview-apps-link>@L["OverviewPage_GetTheLibraryAppFor"]</a>
-        </p>
     </div>
 
     <ProfileEditorSheet Open="@_editorOpen"
@@ -137,8 +133,6 @@ else
     private bool _editorOpen;
     private bool _saving;
     private string? _editorError;
-
-    private const string AppsRoute = "/settings/overview/apps";
 
     private string RootClass => DeviceContext.IsPhone ? "overview-page overview-page--phone" : "overview-page";
 

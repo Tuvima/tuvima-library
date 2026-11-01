@@ -106,12 +106,11 @@ public sealed class SettingsNavTests
         Assert.True(SettingsNav.ResolveRoute("overview", administrationAllowed: false).RequestedSectionAllowed);
         Assert.True(SettingsNav.ResolveRoute("overview", administrationAllowed: false).IsCanonicalRoute);
         Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Overview));
-        Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Overview, SettingsNav.AppsSubsection));
         Assert.Equal(SettingsSection.Overview, SettingsNav.GetDefaultSection("personal"));
     }
 
     [Fact]
-    public void Profile_HasOverviewActivityTasteLinkedAccountsAndImportAsTabs_AndItsAppsPageIsOffMenuUnderIt()
+    public void Profile_HasOverviewActivityTasteLinkedAccountsAndImportAsTabs_AndNoAppsPage()
     {
         var profile = SettingsNav.MenuGroups[0].Nodes[0];
         Assert.Equal("Profile", profile.Label);
@@ -127,15 +126,9 @@ public sealed class SettingsNavTests
         Assert.True(SettingsNav.IsMobileRouteAvailable(SettingsSection.Overview, SettingsNav.ActivitySubsection));
         Assert.True(SettingsNav.ResolveRoute("overview", administrationAllowed: false).RequestedSectionAllowed);
 
-        // Apps opens from a small link on Profile, so it is not a tab but keeps its place in the breadcrumb.
+        // The app links and QR code moved to General, so Profile has no Apps tab, page or address.
         Assert.DoesNotContain(SettingsNav.MenuGroups.SelectMany(group => group.Nodes).SelectMany(node => node.Tabs), tab => tab.Label == "Apps");
-        Assert.Equal("/settings/overview/apps", SettingsNav.RouteFor(SettingsSection.Overview, SettingsNav.AppsSubsection));
-        var apps = SettingsNav.FindMenuLocation(SettingsSection.Overview, SettingsNav.AppsSubsection);
-        Assert.NotNull(apps);
-        Assert.Equal("personal", apps!.Group.Key);
-        Assert.Equal("Profile", apps.Page.Label);
-        Assert.Null(apps.Tab);
-        Assert.Equal("Apps", apps.Leaf);
+        Assert.Null(SettingsNav.ResolveSubsection(SettingsSection.Overview, "apps"));
         Assert.Equal("Overview", SettingsNav.FindMenuLocation(SettingsSection.Overview)!.Tab!.Label);
     }
 
