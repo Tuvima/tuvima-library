@@ -12,7 +12,7 @@ internal static class ManagedCollectionMapper
         Collection collection,
         int itemCount,
         Profile? activeProfile,
-        bool hasCollectionsWrite = false,
+        bool isAdministrator = false,
         DateOnly? today = null) => new()
         {
             Id = collection.Id,
@@ -60,8 +60,8 @@ internal static class ManagedCollectionMapper
             Status = !collection.IsEnabled ? "Disabled" : itemCount == 0 ? "Empty" : "Active",
             CreatedAt = collection.CreatedAt,
             ModifiedAt = collection.ModifiedAt,
-            CanEdit = CollectionAccessPolicy.CanEdit(collection, activeProfile, hasCollectionsWrite),
-            CanShare = CollectionAccessPolicy.CanManageSharedCollections(hasCollectionsWrite),
+            CanEdit = CollectionAccessPolicy.CanEdit(collection, activeProfile, isAdministrator),
+            CanShare = CollectionAccessPolicy.CanManageSharedCollections(isAdministrator),
         };
 
     public static CollectionManagementCatalogDto ToCatalog(
@@ -74,14 +74,14 @@ internal static class ManagedCollectionMapper
         ArtworkPalette? artworkPalette = null,
         string? displayNameOverride = null,
         CollectionCatalogPersonDto? person = null,
-        bool hasCollectionsWrite = false,
+        bool isAdministrator = false,
         string groupType = CollectionGroupTypes.Collection,
         string? universeQid = null)
     {
-        var baseDto = FromDomain(collection, itemCount, activeProfile, hasCollectionsWrite);
+        var baseDto = FromDomain(collection, itemCount, activeProfile, isAdministrator);
         var isGlobal = string.Equals(baseDto.Visibility, CollectionAccessPolicy.SharedVisibility, StringComparison.OrdinalIgnoreCase);
-        var canEdit = CollectionAccessPolicy.CanEdit(collection, activeProfile, hasCollectionsWrite);
-        var canManageGlobal = CollectionAccessPolicy.CanManageSharedCollections(hasCollectionsWrite);
+        var canEdit = CollectionAccessPolicy.CanEdit(collection, activeProfile, isAdministrator);
+        var canManageGlobal = CollectionAccessPolicy.CanManageSharedCollections(isAdministrator);
 
         return new CollectionManagementCatalogDto
         {

@@ -37,6 +37,17 @@ public static class DetailMenuGrouping
     };
 
     /// <summary>
+    /// The "Add to collection" entry (Collections and lists spec 4a): the page adds it to a single title's "..." menu for a profile that
+    /// may make collections; the Engine never sends it. It opens the list of collections the person may edit.
+    /// </summary>
+    public static DetailAction AddToCollectionAction { get; } = new()
+    {
+        Key = DetailActionKeys.AddToCollection,
+        Label = "Add to collection…",
+        Icon = "playlist_add",
+    };
+
+    /// <summary>
     /// The Delete entry for a whole show, season, album or Series ("Delete show…", "Delete Season 2…", "Delete album…", "Delete Series…"):
     /// the last red entry of the page's "..." menu, as for a single title (Delete a show, season, album or Series D2).
     /// </summary>

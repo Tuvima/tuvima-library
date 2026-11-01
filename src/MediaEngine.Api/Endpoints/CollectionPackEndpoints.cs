@@ -1,5 +1,6 @@
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
+using MediaEngine.Api.Services.Collections;
 using MediaEngine.Api.Services.Collections.Packs;
 using MediaEngine.Contracts.Collections;
 using MediaEngine.Domain.Authorization;
@@ -33,7 +34,7 @@ internal static class CollectionPackEndpoints
         .WithName("ListCollectionPacks")
         .WithSummary("List the starter packs and what each would create from the library.")
         .Produces<CollectionPackListResponse>(StatusCodes.Status200OK)
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.CollectionsWrite);
+        .RequireAdministratorOrAdultProfile(ApplicationPermissionIds.CollectionsWrite);
 
         // POST /collections/packs/preview-file — what a pack file would create here.
         group.MapPost("/packs/preview-file", async (
@@ -55,7 +56,7 @@ internal static class CollectionPackEndpoints
         .WithName("PreviewCollectionPackFile")
         .WithSummary("Read a pack file and show the collections it would create.")
         .Produces<CollectionPackSummaryDto>(StatusCodes.Status200OK)
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.CollectionsWrite);
+        .RequireAdministratorOrAdultProfile(ApplicationPermissionIds.CollectionsWrite);
 
         // POST /collections/packs — create the ticked packs (and the pack file, if one is sent).
         group.MapPost("/packs", async (
@@ -68,9 +69,9 @@ internal static class CollectionPackEndpoints
         {
             try
             {
-                var activeProfile = await CollectionEndpoints.ResolveActiveProfileAsync(profileId, profileRepo, httpContext, ct);
+                var caller = await CollectionCaller.ResolveAsync(httpContext, profileId, profileRepo, ct);
                 var viewer = await CollectionEndpoints.ResolveViewerProfileIdAsync(httpContext, ct);
-                return Results.Ok(await packs.CreateAsync(body, activeProfile, viewer, ct));
+                return Results.Ok(await packs.CreateAsync(body, caller.Profile, viewer, ct, caller.IsAdministrator));
             }
             catch (CollectionPackException ex)
             {
@@ -80,7 +81,7 @@ internal static class CollectionPackEndpoints
         .WithName("CreateCollectionPacks")
         .WithSummary("Create the collections of the chosen packs, under a set where a pack makes several.")
         .Produces<CollectionPackCreateResponse>(StatusCodes.Status200OK)
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.CollectionsWrite);
+        .RequireAdministratorOrAdultProfile(ApplicationPermissionIds.CollectionsWrite);
 
         // GET /collections/{id}/pack-file — a set written out as a pack file.
         group.MapGet("/{id:guid}/pack-file", async (
@@ -93,8 +94,8 @@ internal static class CollectionPackEndpoints
         {
             try
             {
-                var activeProfile = await CollectionEndpoints.ResolveActiveProfileAsync(profileId, profileRepo, httpContext, ct);
-                return Results.Ok(await packs.ExportSetAsync(id, activeProfile, ct));
+                var caller = await CollectionCaller.ResolveAsync(httpContext, profileId, profileRepo, ct);
+                return Results.Ok(await packs.ExportSetAsync(id, caller.Profile, ct, caller.IsAdministrator));
             }
             catch (CollectionPackException ex)
             {
@@ -104,7 +105,7 @@ internal static class CollectionPackEndpoints
         .WithName("ExportCollectionSetAsPackFile")
         .WithSummary("Write a set out as a pack file that can be imported on another Library.")
         .Produces<CollectionPackExportResponse>(StatusCodes.Status200OK)
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.CollectionsWrite);
+        .RequireAdministratorOrAdultProfile(ApplicationPermissionIds.CollectionsWrite);
 
         // DELETE /collections/{id}/set — remove a set with its collections and where they were shown.
         group.MapDelete("/{id:guid}/set", async (
@@ -117,8 +118,8 @@ internal static class CollectionPackEndpoints
         {
             try
             {
-                var activeProfile = await CollectionEndpoints.ResolveActiveProfileAsync(profileId, profileRepo, httpContext, ct);
-                return Results.Ok(await packs.RemoveSetAsync(id, activeProfile, ct));
+                var caller = await CollectionCaller.ResolveAsync(httpContext, profileId, profileRepo, ct);
+                return Results.Ok(await packs.RemoveSetAsync(id, caller.Profile, ct, caller.IsAdministrator));
             }
             catch (CollectionPackException ex)
             {
@@ -128,7 +129,7 @@ internal static class CollectionPackEndpoints
         .WithName("RemoveCollectionSet")
         .WithSummary("Remove a set: its collections and their lane placements go with it.")
         .Produces<CollectionSetRemovedResponse>(StatusCodes.Status200OK)
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.CollectionsWrite);
+        .RequireAdministratorOrAdultProfile(ApplicationPermissionIds.CollectionsWrite);
 
         return group;
     }

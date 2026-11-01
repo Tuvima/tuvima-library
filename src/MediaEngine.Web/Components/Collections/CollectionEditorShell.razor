@@ -14,6 +14,7 @@
 @using MediaEngine.Web.Components.Rules
 
 @inject IEngineApiClient ApiClient
+@inject IServiceProvider ServiceProvider
 @inject UIOrchestratorService Orchestrator
 @inject IAppToastService Snackbar
 @inject IAppDialogService Dialogs
@@ -388,6 +389,31 @@
             _primaryArea = IsPlaylistDialog ? "Listen" : Request.InitialPrimaryArea;
             _ownerKind = Request.InitialOwnerKind;
             _audience = Request.InitialAudience;
+            if (!CanShare)
+            {
+                // Everyone makes their own: a collection a non-administrator creates is theirs alone.
+                _ownerKind = "Profile";
+                _audience = "Private";
+            }
+
+            if (Request.InitialItems.Count > 0)
+            {
+                // "New collection with this title": the flow opens on Pick titles with these already chosen.
+                _way = FillWay.PickTitles;
+                _manualItems = Request.InitialItems
+                    .Where(item => item.WorkId != Guid.Empty)
+                    .DistinctBy(item => item.WorkId)
+                    .Select((item, index) => new ManualCollectionItem
+                    {
+                        WorkId = item.WorkId,
+                        Title = item.Title,
+                        MediaType = item.MediaType ?? string.Empty,
+                        SortOrder = index + 1,
+                    })
+                    .ToList();
+                _step = 2;
+            }
+
             _iconName = DefaultIconForCollectionType(_collectionType);
             return;
         }
@@ -758,8 +784,8 @@
         {
             if (EditingCollection is null || _storedRuleDriven)
             {
-                // Nothing is stored to load. A new collection starts empty; a rule-driven one keeps what is staged.
-                if (EditingCollection is null)
+                // Nothing is stored to load. A new collection starts empty (or with the titles it was opened with); a rule-driven one keeps what is staged.
+                if (EditingCollection is null && Request.InitialItems.Count == 0)
                     _manualItems = [];
                 return;
             }
@@ -1980,7 +2006,17 @@
         </MediaEditorPanel>
     </text>;
 
-    private RenderFragment RenderOwnershipPanel() => @<text>
+    // Library ownership ("Share with everyone") and Selected profiles are administrator choices (Collections and lists D19). Anyone else
+    // gets no choice to make: what they create is theirs alone. The Engine refuses the sharing choices from a non-administrator anyway.
+    private bool CanShare => ServiceProvider.GetService<DashboardSessionAccessor>() is { } session && CollectionAuthoringRule.CanShare(session);
+
+    private bool OwnerOnlyPanel => !CanShare && _ownerKind == "Profile" && _audience == "Private";
+
+    private RenderFragment RenderOwnershipPanel() => OwnerOnlyPanel ? @<text>
+        <MediaEditorPanel Title="Who can see this" Description="What you make stays yours.">
+            <p class="collection-editor-owner-note"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" /> Only you can see this collection.</p>
+        </MediaEditorPanel>
+    </text> : @<text>
         <MediaEditorPanel Title="Ownership and visibility" Description="Keep this personal or publish it for the library.">
             <AppSelect T="string" @bind-Value="_ownerKind" Label="Owner" Variant="AppVariant.Outlined">
                 <AppSelectItem T="string" Value="@("Profile")">My profile</AppSelectItem>

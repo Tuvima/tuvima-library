@@ -45,7 +45,7 @@ internal sealed class EditSessionAccessService(
                 profileLoaded = true;
             }
 
-            if (!CollectionAccessPolicy.CanEdit(collection, activeProfile, hasCollectionsWrite: true))
+            if (!CollectionAccessPolicy.CanEdit(collection, activeProfile, isAdministrator: true))
             {
                 refusals[id] = EditSessionReasons.NotAllowedToEdit;
             }

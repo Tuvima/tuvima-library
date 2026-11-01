@@ -60,6 +60,12 @@ public static class BulkEditRules
     public static bool AreDeletable(IReadOnlyList<BulkEditRow> rows) =>
         rows.Count > 0 && rows.All(row => IsSelectableKind(row.Kind));
 
+    /// <summary>"Add to collection" is offered when every ticked row is a single title (the rows a collection can hold).</summary>
+    public static bool CanAddToCollection(IReadOnlyList<BulkEditRow> rows) => AreDeletable(rows);
+
+    /// <summary>"Add 3 to collection": the ticked-rows bar's button (Collections and lists spec 4a).</summary>
+    public static string AddToCollectionLabel(int count) => $"Add {count} to collection";
+
     /// <summary>The bar's "..." menu: Delete from library, last and red, only for the person who may delete, and off with its reason above the Engine's cap.</summary>
     public static IReadOnlyList<DetailAction> BarMenuActions(IReadOnlyList<BulkEditRow> rows, bool canDelete, bool busy)
     {

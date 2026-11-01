@@ -81,7 +81,7 @@ public sealed class CollectionsHubTests
         Assert.Contains("browse-shell__control-label\">Filter by", source, StringComparison.Ordinal);
         Assert.Contains("browse-shell__display-label\">Display", source, StringComparison.Ordinal);
         Assert.DoesNotContain("collections-overview__intro", source, StringComparison.Ordinal);
-        Assert.Contains("@if (CanManageCuratedCollections)", source, StringComparison.Ordinal);
+        Assert.Contains("@if (CanCreateCollections)", source, StringComparison.Ordinal);
         Assert.DoesNotContain("<CinematicHeroCarousel", source, StringComparison.Ordinal);
         Assert.Contains("<MediaTileGrid", source, StringComparison.Ordinal);
         Assert.Contains("MediaTileArtworkResolver.Resolve(", composerSource, StringComparison.Ordinal);
