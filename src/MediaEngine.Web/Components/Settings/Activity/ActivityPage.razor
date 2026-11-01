@@ -21,19 +21,6 @@
 <div class="@RootClass" data-activity-page data-activity-standalone="@(Standalone ? "true" : null)">
     <div class="activity-page__main">
         <div class="activity-toolbar" data-activity-toolbar>
-            @if (CanChooseScope)
-            {
-                <label class="activity-toolbar__scope">
-                    <span class="activity-field__label">@L["Common_Scope"]</span>
-                    <AppNativeSelect Value="@_scope" OnChange="OnScopeChanged" aria-label="@L["Common_Scope"].Value" data-activity-scope="true">
-                        @foreach (var option in _scopeOptions)
-                        {
-                            <option value="@option.Value">@option.Label</option>
-                        }
-                    </AppNativeSelect>
-                </label>
-            }
-
             <div class="activity-toolbar__search">
                 <AppTextField Value="@_search"
                               ValueChanged="OnSearchChanged"
@@ -43,6 +30,11 @@
                               Adornment="AppAdornment.Start"
                               AdornmentIcon="@AppMaterialIcons.Outlined.Search"
                               data-activity-search="true" />
+            </div>
+
+            <div class="activity-toolbar__dates">
+                <AppTextField Label="@L["Common_From"].Value" InputType="AppInputType.Date" Value="@_fromDate" ValueChanged="OnFromChanged" data-activity-from="true" />
+                <AppTextField Label="@L["Common_To"].Value" InputType="AppInputType.Date" Value="@_toDate" ValueChanged="OnToChanged" data-activity-to="true" />
             </div>
 
             <BrowseFilterSheet ActiveCount="@FilterCount" OnClear="ClearFiltersAsync">
@@ -95,28 +87,7 @@
                 </ChildContent>
             </BrowseFilterSheet>
 
-            <AppTimelineGroupingControl Inline="true"
-                                        Options="GroupingOptions"
-                                        SelectedKey="@GroupingKey"
-                                        SelectedKeyChanged="OnGroupingChanged"
-                                        AriaLabel="@L["ActivityPage_GroupTheList"].Value" />
-
-            <div class="activity-toolbar__switch">
-                <AppSwitchRow Label="@L["ActivityPage_ShowEverySession"].Value"
-                              Value="@_showEverySession"
-                              ValueChanged="OnShowEverySessionChanged"
-                              Disabled="@(_grouping != ActivityGrouping.Title)" />
-            </div>
-
             <div class="activity-toolbar__actions">
-                @if (CanExport)
-                {
-                    <AppButton Label="@L["Common_Export"].Value"
-                               StartIcon="@AppMaterialIcons.Outlined.Download"
-                               Href="@ExportHref"
-                               UserAttributes="@ExportAttributes"
-                               data-activity-export="true" />
-                }
                 <AppOverflowMenu AriaLabel="@L["ActivityPage_ActivityActions"].Value" Class="activity-toolbar__more">
                     <AppMenuItem Label="@L["Ingestion_Refresh"].Value"
                                  Icon="@AppMaterialIcons.Outlined.Refresh"
@@ -478,7 +449,7 @@
     private Dictionary<string, object> ExportAttributes { get; } = new() { ["download"] = "tuvima-activity.csv" };
 
     // The Filters button counts what the popover (or phone sheet) holds; the search box and a date-rail jump are not in it.
-    private int FilterCount => Chips.Count(chip => chip.Key is not ("q" or "jump"));
+    private int FilterCount => Chips.Count(chip => chip.Key is not ("q" or "jump" or "from" or "to"));
 
     private readonly string FiltersPopoverId = $"activity-filters-{Guid.NewGuid():N}";
     private ElementReference _filtersAnchor;
@@ -507,6 +478,19 @@
 
     /// <summary>The filter controls: a popover on desktop, the same controls in the phone sheet.</summary>
     private RenderFragment FilterFields(bool inSheet) => @<div class="@("activity-filters" + (inSheet ? " activity-filters--sheet" : string.Empty))" data-activity-filters>
+        @if (CanChooseScope)
+        {
+            <label class="activity-field">
+                <span class="activity-field__label">@L["Common_Scope"]</span>
+                <AppNativeSelect Value="@_scope" OnChange="OnScopeChanged" aria-label="@L["Common_Scope"].Value" data-activity-scope="true">
+                    @foreach (var option in _scopeOptions)
+                    {
+                        <option value="@option.Value">@option.Label</option>
+                    }
+                </AppNativeSelect>
+            </label>
+        }
+
         <fieldset class="activity-filters__types">
             <legend class="activity-field__label">Type</legend>
             @foreach (var (key, label) in ActivityListPresentation.KindOptions)
@@ -515,11 +499,6 @@
                 <AppCheckbox Label="@label" Value="@_kinds.Contains(kind)" ValueChanged="@(on => OnKindChanged(kind, on))" data-activity-kind-filter="@kind" />
             }
         </fieldset>
-
-        <div class="activity-filters__dates">
-            <AppTextField Label="From" InputType="AppInputType.Date" Value="@_fromDate" ValueChanged="OnFromChanged" data-activity-from="true" />
-            <AppTextField Label="To" InputType="AppInputType.Date" Value="@_toDate" ValueChanged="OnToChanged" data-activity-to="true" />
-        </div>
 
         <label class="activity-field">
             <span class="activity-field__label">Outcome</span>
@@ -531,6 +510,26 @@
         </label>
 
         <AppTextField Label="Device" Value="@_device" ValueChanged="OnDeviceChanged" DebounceInterval="350" Placeholder="Any device" data-activity-device-filter="true" />
+
+        <AppTimelineGroupingControl Inline="true"
+                                    Options="GroupingOptions"
+                                    SelectedKey="@GroupingKey"
+                                    SelectedKeyChanged="OnGroupingChanged"
+                                    AriaLabel="@L["ActivityPage_GroupTheList"].Value" />
+
+        <AppSwitchRow Label="@L["ActivityPage_ShowEverySession"].Value"
+                      Value="@_showEverySession"
+                      ValueChanged="OnShowEverySessionChanged"
+                      Disabled="@(_grouping != ActivityGrouping.Title)" />
+
+        @if (CanExport)
+        {
+            <AppButton Label="@L["Common_Export"].Value"
+                       StartIcon="@AppMaterialIcons.Outlined.Download"
+                       Href="@ExportHref"
+                       UserAttributes="@ExportAttributes"
+                       data-activity-export="true" />
+        }
     </div>;
 
     private string ExportHref => FilterRequest.ExportHref();

@@ -129,27 +129,39 @@
             }
             else
             {
-                @* Each part is the page it used to be, now a section of this tab. An old link such as Playback#subtitles lands on its part. *@
-                <section id="playback" class="profile-detail__preferences" aria-labelledby="profile-prefs-watching">
-                    <h2 id="profile-prefs-watching" class="profile-detail__section-heading">@L["ProfileDetailPage_Watching"]</h2>
-                    <PlaybackSettingsPage ProfileId="@ProfileId" Embedded="true" />
-                </section>
-                <section id="listening" class="profile-detail__preferences" aria-labelledby="profile-prefs-listening">
-                    <h2 id="profile-prefs-listening" class="profile-detail__section-heading">@L["ProfileDetailPage_Listening"]</h2>
-                    <ListeningSettingsPage ProfileId="@ProfileId" Embedded="true" />
-                </section>
-                <section id="reading" class="profile-detail__preferences" aria-labelledby="profile-prefs-reading">
-                    <h2 id="profile-prefs-reading" class="profile-detail__section-heading">@L["ProfileDetailPage_Reading"]</h2>
-                    <ReadingSettingsPage ProfileId="@ProfileId" Embedded="true" />
-                </section>
-                @if (IsSelf)
+                @* Each part is the page it used to be, shown one at a time behind a section switch (D18). *@
+                <AppSegmentedControl Options="PreferenceSections"
+                                     Value="@PreferenceSection"
+                                     ValueChanged="OnPreferenceSectionChanged"
+                                     AriaLabel="@L["ProfileDetailPage_PreferenceSections"].Value"
+                                     Class="profile-detail__section-switch" />
+                @switch (PreferenceSection)
                 {
-                    @* Home shows what the signed-in person's own top banner may show, so it is offered on your own profile only. *@
-                    <section id="home" class="profile-detail__preferences" aria-labelledby="profile-prefs-home">
-                        <h2 id="profile-prefs-home" class="profile-detail__section-heading">@L["Nav_Home"]</h2>
-                        <HomeSettingsPage />
-                        <HomeLanesSettings />
-                    </section>
+                    case "listening":
+                        <section id="listening" class="profile-detail__preferences" aria-labelledby="profile-prefs-listening">
+                            <h2 id="profile-prefs-listening" class="profile-detail__section-heading">@L["ProfileDetailPage_Listening"]</h2>
+                            <ListeningSettingsPage ProfileId="@ProfileId" Embedded="true" />
+                        </section>
+                        break;
+                    case "reading":
+                        <section id="reading" class="profile-detail__preferences" aria-labelledby="profile-prefs-reading">
+                            <h2 id="profile-prefs-reading" class="profile-detail__section-heading">@L["ProfileDetailPage_Reading"]</h2>
+                            <ReadingSettingsPage ProfileId="@ProfileId" Embedded="true" />
+                        </section>
+                        break;
+                    case "home":
+                        <section id="home" class="profile-detail__preferences" aria-labelledby="profile-prefs-home">
+                            <h2 id="profile-prefs-home" class="profile-detail__section-heading">@L["Nav_Home"]</h2>
+                            <HomeSettingsPage />
+                            <HomeLanesSettings />
+                        </section>
+                        break;
+                    default:
+                        <section id="playback" class="profile-detail__preferences" aria-labelledby="profile-prefs-watching">
+                            <h2 id="profile-prefs-watching" class="profile-detail__section-heading">@L["ProfileDetailPage_Watching"]</h2>
+                            <PlaybackSettingsPage ProfileId="@ProfileId" Embedded="true" />
+                        </section>
+                        break;
                 }
             }
         }
@@ -340,6 +352,18 @@
     [Parameter] public string Tab { get; set; } = string.Empty;
 
     private bool OnPreferencesTab => Tab == "preferences";
+
+    private string _preferenceSection = "watching";
+
+    /// <summary>The one open Preferences section. Home is offered on your own profile only (it shows what your own top banner may show).</summary>
+    private string PreferenceSection => _preferenceSection == "home" && !IsSelf ? "watching" : _preferenceSection;
+
+    private IReadOnlyList<AppSelectOption> PreferenceSections =>
+        IsSelf
+            ? [new("watching", L["ProfileDetailPage_Watching"].Value), new("listening", L["ProfileDetailPage_Listening"].Value), new("reading", L["ProfileDetailPage_Reading"].Value), new("home", L["Nav_Home"].Value)]
+            : [new("watching", L["ProfileDetailPage_Watching"].Value), new("listening", L["ProfileDetailPage_Listening"].Value), new("reading", L["ProfileDetailPage_Reading"].Value)];
+
+    private void OnPreferenceSectionChanged(string section) => _preferenceSection = section;
 
     private bool OnAccessTab => Tab == "access";
 

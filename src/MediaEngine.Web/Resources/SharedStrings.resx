@@ -6738,6 +6738,9 @@
   <data name="ProfileDetailPage_AskForAPINTo" xml:space="preserve">
     <value>Ask for a PIN to open administrator settings</value>
   </data>
+  <data name="ProfileDetailPage_PreferenceSections" xml:space="preserve">
+    <value>Preference sections</value>
+  </data>
   <data name="ProfileTabs_ProfileSections" xml:space="preserve">
     <value>Profile sections</value>
   </data>
@@ -6899,9 +6902,6 @@
   </data>
   <data name="SecuritySettingsPage_SignOutEverywhereElse" xml:space="preserve">
     <value>Sign out everywhere else</value>
-  </data>
-  <data name="SecuritySettingsPage_YourPhotos" xml:space="preserve">
-    <value>Your photos</value>
   </data>
   <data name="SecuritySettingsPage_WhoViewedYourPhotos" xml:space="preserve">
     <value>Who viewed your photos</value>

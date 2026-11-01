@@ -69,12 +69,7 @@
                         <SettingsNavRow Key="sign-out-others" Icon="@AppMaterialIcons.Outlined.Logout" Title="@L["SecuritySettingsPage_SignOutEverywhereElse"].Value" Status="@OtherSessionsStatus"
                                         Disabled="@(!_sessionsLoading && _sessionsError is null && !OtherSessions.Any())" ShowChevron="false" OnClick="RevokeOtherSessionsAsync" />
                     </li>
-                </ul>
-            </SettingsSectionPanel>
-
-            @* Read-only: who (a server administrator) has opened this person's photos. The Engine answers only about the signed-in person's own photos. *@
-            <SettingsSectionPanel Title="@L["SecuritySettingsPage_YourPhotos"].Value">
-                <ul class="security-settings__list" role="list">
+                    @* Read-only: who (a server administrator) has opened this person's photos. The Engine answers only about the signed-in person's own photos. *@
                     <li class="security-settings__item">
                         <SettingsNavRow Key="photo-views" Icon="@AppMaterialIcons.Outlined.Visibility" Title="@L["SecuritySettingsPage_WhoViewedYourPhotos"].Value" Status="Server administrators who opened them, newest first" OnClick="@(() => OpenSheet(SecuritySheet.PhotoViews))" />
                     </li>
@@ -298,7 +293,7 @@
         @if (ShowLinkedAccounts)
         {
             <section class="security-sheet__section">
-                <h3 class="security-sheet__section-title">Linked sign-ins</h3>
+                <h3 class="security-sheet__section-title">Sign in with another account</h3>
                 <p class="security-sheet__hint">Use another account to sign in to Library.</p>
                 @if (_loginsLoading)
                 {
