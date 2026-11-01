@@ -1,4 +1,5 @@
 using Bunit;
+using MediaEngine.Contracts.Import;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Components.Watch;
@@ -53,6 +54,15 @@ public sealed class BookmarkPackUiTests : AsyncBunitContext
         IEngineApiClient api, IReadOnlyList<AudiobookBookmarkDto>? saved = null, IReadOnlyList<BookmarkPackDto>? packs = null,
         Action? changed = null, Func<double, bool, Task>? jump = null)
     {
+        // The shared Import reads the file first and says it is a bookmark pack; the title's own check then decides if it fits.
+        ((EngineApiClientStub)(object)api).SetHandler(nameof(IEngineApiClient.RecogniseImportAsync), _ =>
+            Task.FromResult<ImportPreviewDto?>(new ImportPreviewDto
+            {
+                Kind = ImportKinds.BookmarkPack,
+                KindLabel = "Bookmark pack",
+                Recognised = true,
+                Heading = "A pack",
+            }));
         Services.AddSingleton(api);
         return Render<BookmarkPackSection>(parameters => parameters
             .Add(component => component.ProfileId, Me)
@@ -64,6 +74,12 @@ public sealed class BookmarkPackUiTests : AsyncBunitContext
             .Add(component => component.Packs, packs ?? [])
             .Add(component => component.PacksChanged, Microsoft.AspNetCore.Components.EventCallback.Factory.Create(this, () => changed?.Invoke()))
             .Add(component => component.JumpTo, jump));
+    }
+
+    private static void ChoosePack(IRenderedComponent<BookmarkPackSection> cut, string content)
+    {
+        cut.FindAll("button").First(button => button.TextContent.Trim() == "Import").Click();
+        cut.FindComponent<InputFile>().UploadFiles(InputFileContent.CreateFromText(content, "pack.zip"));
     }
 
     [Fact]
@@ -142,7 +158,7 @@ public sealed class BookmarkPackUiTests : AsyncBunitContext
         var changes = 0;
         var cut = RenderSection(api, changed: () => changes++);
 
-        cut.FindComponent<InputFile>().UploadFiles(InputFileContent.CreateFromText("pack bytes", "pack.zip"));
+        ChoosePack(cut, "pack bytes");
         cut.WaitForAssertion(() => Assert.Contains("Gondor by A fan", cut.Markup));
         Assert.Contains("3 bookmarks", cut.Markup);
         await cut.FindAll("button").First(button => button.TextContent.Trim() == "Add pack").ClickAsync();
@@ -166,7 +182,7 @@ public sealed class BookmarkPackUiTests : AsyncBunitContext
             })));
         var cut = RenderSection(api);
 
-        cut.FindComponent<InputFile>().UploadFiles(InputFileContent.CreateFromText("x", "pack.zip"));
+        ChoosePack(cut, "x");
 
         cut.WaitForAssertion(() => Assert.Contains("This pack is for a different title.", cut.Markup));
         var buttons = cut.FindAll(".bookmark-packs__panel button").Select(button => button.TextContent.Trim()).ToArray();
@@ -195,7 +211,7 @@ public sealed class BookmarkPackUiTests : AsyncBunitContext
         });
         var cut = RenderSection(api);
 
-        cut.FindComponent<InputFile>().UploadFiles(InputFileContent.CreateFromText("x", "pack.zip"));
+        ChoosePack(cut, "x");
         cut.WaitForAssertion(() => Assert.Contains("runs 3:00:00", cut.Markup));
         var buttons = cut.FindAll(".bookmark-packs__panel button").Select(button => button.TextContent.Trim()).ToArray();
         Assert.Equal(["Align by chapter", "Skip"], buttons);
@@ -217,7 +233,7 @@ public sealed class BookmarkPackUiTests : AsyncBunitContext
                 Reason = "Different cut.",
             })));
         var cut = RenderSection(api);
-        cut.FindComponent<InputFile>().UploadFiles(InputFileContent.CreateFromText("x", "pack.zip"));
+        ChoosePack(cut, "x");
         cut.WaitForAssertion(() => Assert.Contains("Different cut.", cut.Markup));
 
         await cut.FindAll("button").First(button => button.TextContent.Trim() == "Skip").ClickAsync();

@@ -72,6 +72,8 @@ public static partial class BackupTableClassification
         Config("collection_placements", "Where a person-built collection appears.", keepWhere: InPersonBuiltCollection),
         Config("collection_profile_audience", "Which profiles can see a person-built collection.", keepWhere: InPersonBuiltCollection),
         Config("collection_view_sources", "The gallery or rule feeding a person-built collection.", keepWhere: InPersonBuiltCollection),
+        Config("collection_list_sources", "Where an imported list collection came from (file name, refresh choice, sync mode) and how many titles it matched.", keepWhere: InPersonBuiltCollection),
+        Config("collection_list_entries", "Every entry of an imported list and which title in the library it matched.", refs: [Work("matched_work_id")], keepWhere: InPersonBuiltCollection),
         Config("fictional_entity_user_overrides", "A person's name and description corrections for a fictional thing, found again by its Wikidata id.", refs: [Fictional("entity_id")]),
         Config("narrative_root_user_overrides", "A person's name and description corrections for a universe (already keyed by its Wikidata id)."),
         Config("folder_first_checks", "The first check of each newly added folder: a pause waiting for an administrator's choice, and which folders have already passed, so a restore neither releases a paused folder nor starts the check again."),

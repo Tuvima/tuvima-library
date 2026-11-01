@@ -9171,9 +9171,6 @@
   <data name="VaultProfileSettings_ThisProfileHasNoPIN" xml:space="preserve">
     <value>This profile has no PIN, so Vault mode would open without one. Set a PIN in Profile details to ask for it.</value>
   </data>
-  <data name="BookmarkPackSection_ThatFileIsTooLarge" xml:space="preserve">
-    <value>That file is too large to be a bookmark pack.</value>
-  </data>
   <data name="VideoPlaybackHost_PlaybackPausedRestoreToContinue" xml:space="preserve">
     <value>Playback paused. Restore to continue.</value>
   </data>
@@ -9410,5 +9407,149 @@
   </data>
   <data name="PeopleCatalogList_LabelListenOne" xml:space="preserve">
     <value>title to listen to</value>
+  </data>
+  <data name="ListStep_DropPrompt" xml:space="preserve">
+    <value>Drop your list here, or click to choose a file</value>
+  </data>
+  <data name="ListStep_YouOwn" xml:space="preserve">
+    <value>You own {0} of {1}</value>
+  </data>
+  <data name="ListStep_NoneOwned" xml:space="preserve">
+    <value>None of these are in your library yet, so there is nothing to put in a collection.</value>
+  </data>
+  <data name="ListStep_OwnedCovers" xml:space="preserve">
+    <value>Some of the titles you own from this list</value>
+  </data>
+  <data name="ListStep_Shelves" xml:space="preserve">
+    <value>Shelves</value>
+  </data>
+  <data name="ListStep_ShelvesHelp" xml:space="preserve">
+    <value>Tick the shelves you want. Each one becomes its own collection. Leave them all unticked for one collection of the whole list.</value>
+  </data>
+  <data name="ListStep_HowFollowed" xml:space="preserve">
+    <value>How the list is followed</value>
+  </data>
+  <data name="ListStep_HowFollowedHeading" xml:space="preserve">
+    <value>How it is followed</value>
+  </data>
+  <data name="ListStep_UnmatchedLabel" xml:space="preserve">
+    <value>Titles that could not be matched</value>
+  </data>
+  <data name="ListStep_CouldntMatch" xml:space="preserve">
+    <value>Couldn't match ({0})</value>
+  </data>
+  <data name="ListStep_FixHelp" xml:space="preserve">
+    <value>Search your library and pick the right title, or ignore the ones you do not own.</value>
+  </data>
+  <data name="ListStep_AndMore" xml:space="preserve">
+    <value>and {0} more. They stay off the collection until Library owns them.</value>
+  </data>
+  <data name="ListSection_Title" xml:space="preserve">
+    <value>From a list</value>
+  </data>
+  <data name="ListSection_MatchAgain" xml:space="preserve">
+    <value>Match again</value>
+  </data>
+  <data name="ListSection_Update" xml:space="preserve">
+    <value>Update from a newer file</value>
+  </data>
+  <data name="ListSection_UpdatePrompt" xml:space="preserve">
+    <value>Drop the newer export here</value>
+  </data>
+  <data name="ListSection_AndMore" xml:space="preserve">
+    <value>and {0} more.</value>
+  </data>
+  <data name="ImportPanel_Import" xml:space="preserve">
+    <value>Import</value>
+  </data>
+  <data name="ImportPanel_ChooseAFile" xml:space="preserve">
+    <value>Choose a file to import</value>
+  </data>
+  <data name="ImportPanel_PasteLabel" xml:space="preserve">
+    <value>Or paste a list</value>
+  </data>
+  <data name="ImportPanel_PastePlaceholder" xml:space="preserve">
+    <value>One title per line, with the year in brackets if you like: Heat (1995)</value>
+  </data>
+  <data name="ImportPanel_ReadText" xml:space="preserve">
+    <value>Read this text</value>
+  </data>
+  <data name="ImportPanel_Reading" xml:space="preserve">
+    <value>Reading the file…</value>
+  </data>
+  <data name="ImportPanel_NotForThisStep" xml:space="preserve">
+    <value>This is {0}, not something this step can use. {1}</value>
+  </data>
+  <data name="ImportPanel_ReadFailed" xml:space="preserve">
+    <value>That file could not be read. Choose it again.</value>
+  </data>
+  <data name="ImportPanel_Add" xml:space="preserve">
+    <value>Add</value>
+  </data>
+  <data name="ImportPreviewFrame_Owned" xml:space="preserve">
+    <value>Titles you own from this list</value>
+  </data>
+  <data name="ImportPreviewFrame_More" xml:space="preserve">
+    <value>and {0} more</value>
+  </data>
+  <data name="ListChoices_Order" xml:space="preserve">
+    <value>Order</value>
+  </data>
+  <data name="ListChoices_Refresh" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="ListChoices_RefreshHelp" xml:space="preserve">
+    <value>Library looks at the list again on this schedule and adds new titles you own.</value>
+  </data>
+  <data name="ListChoices_WhenLeaves" xml:space="preserve">
+    <value>When a title leaves the list</value>
+  </data>
+  <data name="ListChoices_Follow" xml:space="preserve">
+    <value>Follow the list</value>
+  </data>
+  <data name="ListChoices_FollowHelp" xml:space="preserve">
+    <value>The title leaves this collection too. Titles you added by hand always stay.</value>
+  </data>
+  <data name="ListChoices_Keep" xml:space="preserve">
+    <value>Keep everything ever added</value>
+  </data>
+  <data name="ListChoices_KeepHelp" xml:space="preserve">
+    <value>Nothing is taken out. The collection only grows.</value>
+  </data>
+  <data name="ListFixRow_Ignored" xml:space="preserve">
+    <value>Ignored</value>
+  </data>
+  <data name="ListFixRow_PutBack" xml:space="preserve">
+    <value>Put it back</value>
+  </data>
+  <data name="ListFixRow_MatchedTo" xml:space="preserve">
+    <value>Matched to {0}</value>
+  </data>
+  <data name="ListFixRow_Undo" xml:space="preserve">
+    <value>Undo</value>
+  </data>
+  <data name="ListFixRow_Ignore" xml:space="preserve">
+    <value>Ignore</value>
+  </data>
+  <data name="ListFixRow_Find" xml:space="preserve">
+    <value>Find it in your library</value>
+  </data>
+  <data name="ListFixRow_Search" xml:space="preserve">
+    <value>Search by title</value>
+  </data>
+  <data name="ListFixRow_YourPick" xml:space="preserve">
+    <value>your pick</value>
+  </data>
+  <data name="ImportPage_MakeACollection" xml:space="preserve">
+    <value>Make a collection</value>
+  </data>
+  <data name="CollectionEditor_ListNeedsOwned" xml:space="preserve">
+    <value>Drop a list with at least one title you own before creating the collection.</value>
+  </data>
+  <data name="BookmarkPackSection_ChooseAPack" xml:space="preserve">
+    <value>Choose a pack to import</value>
+  </data>
+  <data name="BookmarkPackSection_DropPrompt" xml:space="preserve">
+    <value>Drop a bookmark pack here, or click to choose one</value>
   </data>
 </root>

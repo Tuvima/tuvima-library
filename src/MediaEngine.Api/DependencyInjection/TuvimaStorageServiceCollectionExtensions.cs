@@ -117,6 +117,8 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<ITextTrackExportService, TextTrackExportService>();
         services.AddSingleton<ICollectionRepository, CollectionRepository>();
         services.AddSingleton<ICollectionPlacementRepository, CollectionPlacementRepository>();
+        services.AddSingleton<ICollectionListRepository, CollectionListRepository>();
+        services.AddSingleton<IListImportCandidateRepository, ListImportCandidateRepository>();
         services.AddSingleton<IAudioFingerprintRepository, AudioFingerprintRepository>();
         services.AddSingleton<IProviderConfigurationRepository, ProviderConfigurationRepository>();
         services.AddSingleton<IProfileRepository, ProfileRepository>();

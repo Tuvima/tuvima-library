@@ -1,0 +1,242 @@
+@namespace MediaEngine.Web.Components.Import
+@using MediaEngine.Contracts.Import
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Integration
+@using Microsoft.AspNetCore.Components.Forms
+@inject IEngineApiClient Api
+@inject ILogger<ImportPanel> Logger
+@inject IStringLocalizer<SharedStrings> L
+
+@* The shared Import (Collections and lists spec D17): one place to drop a file or paste text. The Engine recognises what it is and
+   the preview answers in that kind's own words. It is used by New collection > From a list, the player's bookmark pack import and
+   Settings > Profile > Import, each with the kinds that place can use (AllowedKinds); a file of another kind still gets its own
+   preview and a line on where it goes. Files stay on this machine: nothing here opens a connection other than to the Engine. *@
+<section class="import-panel" data-import-panel aria-label="@L["ImportPanel_Import"].Value">
+    <div class="import-panel__drop @(_busy ? "is-busy" : null)" data-import-drop>
+        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.UploadFile" />
+        <strong>@DropTitle</strong>
+        <span class="import-panel__accepts">@AcceptText</span>
+        <InputFile class="tl-file-drop__input" OnChange="OnFileChosenAsync" accept="@AcceptAttribute" disabled="@_busy" aria-label="@L["ImportPanel_ChooseAFile"].Value" />
+    </div>
+
+    @if (ShowPaste)
+    {
+        <div class="import-panel__paste">
+            <AppTextarea Label="@L["ImportPanel_PasteLabel"].Value"
+                         Value="@_pasted"
+                         ValueChanged="@(value => _pasted = value ?? string.Empty)"
+                         Placeholder="@L["ImportPanel_PastePlaceholder"].Value"
+                         Lines="3" />
+            <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" Disabled="@(_busy || string.IsNullOrWhiteSpace(_pasted))"
+                       OnClick="ReadPastedAsync">@L["ImportPanel_ReadText"]</AppButton>
+        </div>
+    }
+
+    <p class="import-panel__privacy" data-import-privacy>@ImportPrivacy.FilesStayOnThisMachine</p>
+
+    @if (_busy)
+    {
+        <div class="import-panel__busy" role="status"><AppSpinner Indeterminate="true" Size="AppSize.Small" /><span>@L["ImportPanel_Reading"]</span></div>
+    }
+
+    @if (_error is not null)
+    {
+        <AppAlert Tone="AppUiTone.Warning" Dense="true" data-import-error>@_error</AppAlert>
+    }
+
+    @if (_shown is { } shown && ShowPreview)
+    {
+        <ImportPreviewFrame Preview="shown.Preview">
+            @if (!IsAllowed(shown.Preview))
+            {
+                <AppAlert Tone="AppUiTone.Info" Dense="true" data-import-elsewhere>
+                    @L["ImportPanel_NotForThisStep", ImportKindGuidance.KindNoun(shown.Preview.Kind), ImportKindGuidance.WhereItGoes(shown.Preview.Kind)]
+                </AppAlert>
+            }
+            else if (shown.Preview.CanApply && AllowApply)
+            {
+                <div class="import-panel__actions">
+                    <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_busy" OnClick="@(() => ApplyAsync(shown))">
+                        @(shown.Preview.ApplyLabel ?? L["ImportPanel_Add"].Value)
+                    </AppButton>
+                </div>
+            }
+
+            @if (Actions is not null && IsAllowed(shown.Preview))
+            {
+                <div class="import-panel__actions">@Actions(shown)</div>
+            }
+
+            @if (_applied is not null)
+            {
+                <AppAlert Tone="@(_appliedOk ? AppUiTone.Success : AppUiTone.Warning)" Dense="true" data-import-applied>@_applied</AppAlert>
+            }
+        </ImportPreviewFrame>
+    }
+</section>
+
+@code {
+    private string _pasted = string.Empty;
+    private bool _busy;
+    private string? _error;
+    private string? _applied;
+    private bool _appliedOk;
+    private ImportRecognition? _shown;
+
+    /// <summary>The kinds this place can use. Null accepts every kind (Settings > Import).</summary>
+    [Parameter] public IReadOnlyList<string>? AllowedKinds { get; set; }
+
+    /// <summary>Offers the paste box (a list pasted as text). Off where only a file makes sense, such as a bookmark pack.</summary>
+    [Parameter] public bool ShowPaste { get; set; }
+
+    /// <summary>Shows the preview frame under the drop zone. A host that draws its own richer summary turns this off.</summary>
+    [Parameter] public bool ShowPreview { get; set; } = true;
+
+    /// <summary>Shows the Apply button for kinds that can be applied from the dialog on its own (plugin settings).</summary>
+    [Parameter] public bool AllowApply { get; set; } = true;
+
+    /// <summary>Text above the drop zone's hint. Defaults to a generic prompt.</summary>
+    [Parameter] public string? Prompt { get; set; }
+
+    /// <summary>Raised when a file of an allowed kind has been recognised.</summary>
+    [Parameter] public EventCallback<ImportRecognition> OnRecognised { get; set; }
+
+    /// <summary>Raised when the person clears the file or a new file replaces it.</summary>
+    [Parameter] public EventCallback OnCleared { get; set; }
+
+    /// <summary>Raised after a kind was applied from the dialog.</summary>
+    [Parameter] public EventCallback<ImportApplyResultDto> OnApplied { get; set; }
+
+    /// <summary>Buttons the host adds under the preview of an allowed kind (for example "Make a collection").</summary>
+    [Parameter] public RenderFragment<ImportRecognition>? Actions { get; set; }
+
+    private string DropTitle => Prompt ?? "Drop a file here, or click to choose one";
+
+    private bool Accepts(string kind) => AllowedKinds is null || AllowedKinds.Contains(kind, StringComparer.Ordinal);
+
+    private bool IsAllowed(ImportPreviewDto preview) => !preview.Recognised || Accepts(preview.Kind);
+
+    // One hint that names what this place takes, so the person never has to guess which exports work.
+    private string AcceptText
+    {
+        get
+        {
+            var parts = new List<string>();
+            if (Accepts(ImportKinds.CollectionList))
+                parts.Add("a list from IMDb, Letterboxd, Trakt, Goodreads or StoryGraph, or a text file with one title per line");
+            if (Accepts(ImportKinds.PackFile))
+                parts.Add("a collection pack");
+            if (Accepts(ImportKinds.BookmarkPack))
+                parts.Add("a bookmark pack");
+            if (Accepts(ImportKinds.PluginSettings))
+                parts.Add("a plugin settings file");
+            return parts.Count == 0 ? string.Empty : "Takes " + string.Join("; ", parts) + ".";
+        }
+    }
+
+    private string? AcceptAttribute => AllowedKinds is { Count: > 0 } && AllowedKinds.All(kind => kind == ImportKinds.BookmarkPack)
+        ? ".zip,application/zip"
+        : ".csv,.txt,.zip,.json,text/csv,text/plain,application/zip,application/json";
+
+    private async Task OnFileChosenAsync(InputFileChangeEventArgs args)
+    {
+        var file = args.File;
+        await ResetAsync();
+        if (file.Size > ImportLimits.MaximumFileBytes)
+        {
+            _error = $"That file is larger than {ImportLimits.MaximumFileBytes / (1024 * 1024)} MB, so it cannot be a list or a pack.";
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            await using var stream = file.OpenReadStream(ImportLimits.MaximumFileBytes);
+            using var buffer = new MemoryStream();
+            await stream.CopyToAsync(buffer);
+            await RecogniseAsync(file.Name, Convert.ToBase64String(buffer.ToArray()), null);
+        }
+        catch (IOException ex)
+        {
+            Logger.LogDebug(ex, "The chosen import file could not be read");
+            _error = L["ImportPanel_ReadFailed"].Value;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task ReadPastedAsync()
+    {
+        await ResetAsync();
+        _busy = true;
+        try
+        {
+            await RecogniseAsync("pasted-list.txt", null, _pasted);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task RecogniseAsync(string fileName, string? contentBase64, string? text)
+    {
+        var preview = await Api.RecogniseImportAsync(new ImportRecogniseRequest
+        {
+            FileName = fileName,
+            ContentBase64 = contentBase64,
+            Text = text,
+        });
+        if (preview is null)
+        {
+            _error = Api.LastError ?? "Library could not read this file. Check the Engine is running and try again.";
+            return;
+        }
+
+        if (!preview.Recognised)
+        {
+            _error = preview.Message ?? "Library did not recognise this file.";
+            return;
+        }
+
+        _shown = new ImportRecognition(fileName, contentBase64, text, preview);
+        if (IsAllowed(preview))
+            await OnRecognised.InvokeAsync(_shown);
+    }
+
+    private async Task ApplyAsync(ImportRecognition recognition)
+    {
+        _busy = true;
+        try
+        {
+            var result = await Api.ApplyImportAsync(new ImportApplyRequest
+            {
+                Kind = recognition.Preview.Kind,
+                FileName = recognition.FileName,
+                ContentBase64 = recognition.ContentBase64,
+                Text = recognition.Text,
+            });
+            _appliedOk = result?.Applied == true;
+            _applied = result?.Message ?? Api.LastError ?? "That could not be added.";
+            if (result is not null)
+                await OnApplied.InvokeAsync(result);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task ResetAsync()
+    {
+        var hadFile = _shown is not null;
+        _error = null;
+        _applied = null;
+        _shown = null;
+        if (hadFile)
+            await OnCleared.InvokeAsync();
+    }
+}

@@ -145,6 +145,10 @@ else
                                 {
                                     <OverviewTastePage />
                                 }
+                                else if (_activeSubsection == SettingsNav.ImportSubsection)
+                                {
+                                    <OverviewImportPage />
+                                }
                                 else
                                 {
                                     <OverviewPage />
@@ -973,6 +977,8 @@ else
                 ? "Everything you have watched, listened to and read, and what you added to My list."
             : _activeSubsection == SettingsNav.TasteSubsection
                 ? "What the Library has learned you enjoy. Remove what is not you, or add what is."
+            : _activeSubsection == SettingsNav.ImportSubsection
+                ? "Drop a list, a collection pack, a bookmark pack or a plugin settings file. Library says what it is and where it goes."
                 : "You, what you have been watching, reading and listening to, and your taste.",
         SettingsSection.Profiles => IsProfileDetailRoute
             ? "Details, preferences, and access and safety for this profile."

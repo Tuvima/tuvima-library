@@ -517,6 +517,7 @@ builder.Services.AddTuvimaIntelligence();
 builder.Services.AddTuvimaProviders(configLoader);
 builder.Services.AddTuvimaAi(configLoader);
 builder.Services.AddTuvimaPlugins();
+builder.Services.AddTuvimaImport();
 builder.Services.AddTuvimaScheduledTasks();
 builder.Services.AddPluginApplicationServices();
 builder.Services.AddApplicationEvents();

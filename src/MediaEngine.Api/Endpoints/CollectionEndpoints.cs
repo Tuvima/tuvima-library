@@ -54,6 +54,7 @@ public static class CollectionEndpoints
                        .WithTags("Collections");
 
         group.MapCollectionPersonalMediaEndpoints();
+        group.MapCollectionListEndpoints();
 
         group.MapPut("/{id:guid}/display-overrides", async (
             Guid id,

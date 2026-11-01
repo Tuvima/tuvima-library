@@ -20,6 +20,12 @@ public sealed class CollectionEditorLaunchRequest
     public string InitialAudience { get; init; } = "Private";
     public string? InitialTitle { get; init; }
 
+    /// <summary>The way in the flow opens on instead of the default: "FromList" opens New collection on From a list. Empty uses the default.</summary>
+    public string? InitialWay { get; init; }
+
+    /// <summary>A file the shared Import already read (Settings, Profile, Import hands a list over). The flow opens on From a list with it loaded.</summary>
+    public ImportRecognition? InitialImport { get; init; }
+
     /// <summary>
     /// Titles the new collection starts with ("New collection with this title" from an item's "..." menu or from ticked rows). Empty
     /// for an ordinary New collection. When present the flow opens on Pick titles with these already chosen.
