@@ -283,6 +283,7 @@ public static class CollectionSurfaceTileComposer
             UseLandscapeGroupTile = true,
             GroupKind = GroupKindFor(collection),
             HasCustomArtwork = !string.IsNullOrWhiteSpace(collection.CoverArtworkUrl),
+            GroupSource = GroupSourceFor(collection),
         };
     }
 
@@ -295,6 +296,12 @@ public static class CollectionSurfaceTileComposer
             return MediaTileGroupKind.Universe;
         }
 
+        // An imported list is a curated collection whose source is a list; its corner word says so.
+        if (string.Equals(collection.FillKind, CollectionFillKinds.List, StringComparison.Ordinal))
+        {
+            return MediaTileGroupKind.List;
+        }
+
         return collection.CollectionType?.Trim() switch
         {
             "Series" or "ContentGroup" or "Franchise" => MediaTileGroupKind.Series,
@@ -303,6 +310,24 @@ public static class CollectionSurfaceTileComposer
             _ => MediaTileGroupKind.Collection,
         };
     }
+
+    // The source line under a curated tile. Series, Universes and system collections fill themselves and draw none.
+    private static MediaTileGroupSourceViewModel? GroupSourceFor(CollectionManagementCatalogViewModel collection) =>
+        collection.FillKind switch
+        {
+            CollectionFillKinds.HandPicked or CollectionFillKinds.Rules
+                => new MediaTileGroupSourceViewModel(collection.FillKind),
+            CollectionFillKinds.Pack
+                => new MediaTileGroupSourceViewModel(collection.FillKind, SetName: collection.SetName),
+            CollectionFillKinds.Set
+                => new MediaTileGroupSourceViewModel(collection.FillKind, ChildCount: collection.ChildCollectionCount),
+            CollectionFillKinds.List
+                => new MediaTileGroupSourceViewModel(
+                    collection.FillKind,
+                    LastRefreshedAt: collection.ListSource?.LastRefreshedAt,
+                    UnmatchedCount: collection.ListSource?.UnmatchedCount ?? 0),
+            _ => null,
+        };
 
     private static IReadOnlyList<string> BuildContextLines(CollectionManagementCatalogViewModel collection)
     {

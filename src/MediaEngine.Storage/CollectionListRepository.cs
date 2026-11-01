@@ -42,6 +42,13 @@ public sealed class CollectionListRepository : ICollectionListRepository
         return Task.FromResult(source);
     }
 
+    public Task<IReadOnlyList<CollectionListSource>> GetAllSourcesAsync(CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = _db.CreateConnection();
+        return Task.FromResult<IReadOnlyList<CollectionListSource>>(conn.Query<CollectionListSource>(SelectSource).ToList());
+    }
+
     public Task<IReadOnlyList<CollectionListEntry>> GetEntriesAsync(Guid collectionId, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();

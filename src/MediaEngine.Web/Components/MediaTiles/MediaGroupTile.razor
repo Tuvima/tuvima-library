@@ -1,4 +1,6 @@
 @namespace MediaEngine.Web.Components.MediaTiles
+@using System.Globalization
+@using MediaEngine.Contracts.Collections
 @using MediaEngine.Web.Components.Shared
 @inject NavigationManager Nav
 @inject IStringLocalizer<SharedStrings> L
@@ -49,6 +51,14 @@
             </span>
             <span class="media-group-tile__name">@Item.Title</span>
             <MediaCountLine Counts="@Counts" />
+            @if (SourceLine is { Length: > 0 } sourceLine)
+            {
+                <span class="media-group-tile__source" data-group-source>@sourceLine</span>
+            }
+            @if (UnmatchedBadge is { Length: > 0 } unmatchedBadge)
+            {
+                <span class="media-group-tile__badge" data-unmatched-badge>@unmatchedBadge</span>
+            }
         </a>
     </article>
 </AppCssElement>
@@ -105,6 +115,28 @@
         MediaTileGroupKind.Set => L["MediaGroupTile_KindSet"],
         _ => L["MediaGroupTile_KindCollection"],
     };
+
+    // The one-line source under the counts: how a curated collection fills up (Collections and lists spec 4g).
+    private string? SourceLine => Item.GroupSource is not { } source
+        ? null
+        : source.FillKind switch
+        {
+            CollectionFillKinds.HandPicked => L["MediaGroupTile_SourceHandPicked"].Value,
+            CollectionFillKinds.Rules => L["MediaGroupTile_SourceRules"].Value,
+            CollectionFillKinds.Pack => string.IsNullOrWhiteSpace(source.SetName) ? null : L["MediaGroupTile_SourcePack", source.SetName].Value,
+            CollectionFillKinds.Set => source.ChildCount == 1
+                ? L["MediaGroupTile_SourceSetOne"].Value
+                : L["MediaGroupTile_SourceSetMany", source.ChildCount].Value,
+            CollectionFillKinds.List => source.LastRefreshedAt is { } refreshed
+                ? L["MediaGroupTile_SourceListRefreshed", refreshed.ToLocalTime().ToString("d MMM", CultureInfo.CurrentCulture)].Value
+                : L["MediaGroupTile_SourceList"].Value,
+            _ => null,
+        };
+
+    // An imported list that left titles unmatched shows a small amber badge.
+    private string? UnmatchedBadge => Item.GroupSource is { FillKind: CollectionFillKinds.List, UnmatchedCount: > 0 } source
+        ? L["MediaGroupTile_UnmatchedBadge", source.UnmatchedCount].Value
+        : null;
 
     private string GroupNavigationUrl =>
         StringHelpers.FirstNonBlank(Item.DetailsNavigationUrl, Item.NavigationUrl, Item.PrimaryNavigationUrl) ?? "/";

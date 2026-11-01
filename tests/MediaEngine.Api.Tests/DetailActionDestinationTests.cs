@@ -27,7 +27,7 @@ public sealed class DetailActionDestinationTests : IDisposable
         "play-next", "add-queue", "add-playlist",
         "status-complete", "status-reset", "status-hide", "status-show", "status-history",
         "edit", "edit-media", "my-list",
-        "reaction-dislike", "reaction-like", "reaction-love", "details", "identify", "change-thumbnail", "delete-from-library", "delete-season", "add-collection",
+        "reaction-dislike", "reaction-like", "reaction-love", "details", "identify", "change-thumbnail", "delete-from-library", "delete-season", "add-collection", "remove-set", "export-set-pack",
         "unmatched-retry", "unmatched-keep", "unmatched-look-up-again",
     ];
 

@@ -76,7 +76,8 @@ internal static class ManagedCollectionMapper
         CollectionCatalogPersonDto? person = null,
         bool isAdministrator = false,
         string groupType = CollectionGroupTypes.Collection,
-        string? universeQid = null)
+        string? universeQid = null,
+        CollectionCatalogSourceInfo? sourceInfo = null)
     {
         var baseDto = FromDomain(collection, itemCount, activeProfile, isAdministrator);
         var isGlobal = string.Equals(baseDto.Visibility, CollectionAccessPolicy.SharedVisibility, StringComparison.OrdinalIgnoreCase);
@@ -128,6 +129,11 @@ internal static class ManagedCollectionMapper
             SystemKey = classification.SystemKey,
             GroupType = groupType,
             UniverseQid = universeQid,
+            FillKind = sourceInfo?.FillKind ?? CollectionFillKinds.Automatic,
+            ListSource = sourceInfo?.ListSource,
+            SetId = sourceInfo?.SetId,
+            SetName = sourceInfo?.SetName,
+            ChildCollectionCount = sourceInfo?.ChildCollectionCount ?? 0,
             PrimaryLane = classification.PrimaryLaneOverride ?? mediaCounts.PrimaryLane,
             IsGlobal = isGlobal,
             IsSystem = classification.IsSystem,
@@ -231,5 +237,23 @@ internal static class ManagedCollectionMapper
             ArtworkItems = source.ArtworkItems,
             ArtworkPalette = source.ArtworkPalette,
             Person = source.Person,
+            FillKind = source.FillKind,
+            ListSource = source.ListSource,
+            SetId = source.SetId,
+            SetName = source.SetName,
+            ChildCollectionCount = source.ChildCollectionCount,
         };
 }
+
+/// <summary>How a collection fills up and where it came from, worked out once per catalog read for the Collections page.</summary>
+/// <param name="FillKind">See <see cref="CollectionFillKinds"/>.</param>
+/// <param name="ListSource">The imported list behind a list collection; null for other kinds and for a Kids profile.</param>
+/// <param name="SetId">The set a pack's collection sits in.</param>
+/// <param name="SetName">That set's name.</param>
+/// <param name="ChildCollectionCount">For a set, how many collections it holds.</param>
+public sealed record CollectionCatalogSourceInfo(
+    string FillKind,
+    CollectionCatalogListSourceDto? ListSource = null,
+    Guid? SetId = null,
+    string? SetName = null,
+    int ChildCollectionCount = 0);

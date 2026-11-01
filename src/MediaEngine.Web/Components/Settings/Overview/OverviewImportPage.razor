@@ -1,16 +1,23 @@
 @namespace MediaEngine.Web.Components.Settings
+@using System.Text
+@using MediaEngine.Contracts.Collections
 @using MediaEngine.Contracts.Import
 @using MediaEngine.Web.Components.Import
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Theming
 @inject CollectionEditorLauncherService CollectionEditorLauncher
+@inject IEngineApiClient Api
+@inject DeviceContextService Device
+@inject DashboardSessionAccessor Session
 @inject UIOrchestratorService Orchestrator
 @inject NavigationManager Navigation
 @inject IStringLocalizer<SharedStrings> L
 @* Profile > Import (Collections and lists spec D17): the one place to drop any file Library understands. It says what the file is in
    that kind's own words and where it goes. A list opens New collection on From a list with the file already read; a plugin settings
-   file is added here (an administrator's action, which the Engine checks); a bookmark pack or a collection pack says where to add it.
-   Files stay on this machine. *@
+   file is added here (an administrator's action, which the Engine checks); a collection pack is added here too, through the same
+   Engine action as Start from a pack; a bookmark pack says where to add it. Files stay on this machine. *@
 <div class="import-page" data-settings-import>
     <ImportPanel ShowPaste="true">
         <Actions Context="recognition">
@@ -19,11 +26,68 @@
                 <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.PlaylistAdd"
                            OnClick="@(() => MakeCollectionAsync(recognition))">@L["ImportPage_MakeACollection"]</AppButton>
             }
+            @if (recognition.Preview.Kind == ImportKinds.PackFile && CanAddPack)
+            {
+                <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.PlaylistAdd"
+                           Disabled="@_addingPack" OnClick="@(() => AddPackAsync(recognition))" data-import-add-pack>@L["ImportPage_AddThisPack"]</AppButton>
+            }
         </Actions>
     </ImportPanel>
+    @if (_packMessage is not null)
+    {
+        <AppAlert Tone="@(_packAdded ? AppUiTone.Success : AppUiTone.Warning)" Dense="true" data-import-pack-result>@_packMessage</AppAlert>
+    }
 </div>
 
 @code {
+    private bool _addingPack;
+    private bool _packAdded;
+    private string? _packMessage;
+
+    // A pack makes collections the person owns (audience Only me), so any adult profile on a desktop may add one; the Engine checks again.
+    private bool CanAddPack => EditorDeviceRule.CanEdit(Device) && CollectionAuthoringRule.CanCreate(Session);
+
+    private async Task AddPackAsync(ImportRecognition recognition)
+    {
+        if (_addingPack || EditorDeviceRule.TryRefuse(Device, null) || !CollectionAuthoringRule.CanCreate(Session))
+        {
+            return;
+        }
+
+        _addingPack = true;
+        _packMessage = null;
+        try
+        {
+            var profile = await Orchestrator.GetActiveProfileAsync();
+            var response = await Api.CreateCollectionPacksAsync(
+                new CollectionPackCreateRequest { FileContent = PackText(recognition), OwnerKind = "Profile", Audience = "Private" },
+                profile?.Id);
+            _packAdded = response is not null && (response.Collections.Count > 0 || response.Sets.Count > 0);
+            _packMessage = response is null
+                ? Api.LastError ?? L["ImportPage_PackFailed"].Value
+                : _packAdded
+                    ? L["ImportPage_PackAdded", response.Collections.Count].Value
+                    : L["ImportPage_PackAddedNone"].Value;
+        }
+        finally
+        {
+            _addingPack = false;
+        }
+    }
+
+    // The file as text: a dropped file arrives as base64 (a byte order mark is dropped), pasted text as itself.
+    private static string PackText(ImportRecognition recognition)
+    {
+        if (recognition.ContentBase64 is not { Length: > 0 } encoded)
+        {
+            return recognition.Text ?? string.Empty;
+        }
+
+        var bytes = Convert.FromBase64String(encoded);
+        var offset = bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF ? 3 : 0;
+        return Encoding.UTF8.GetString(bytes, offset, bytes.Length - offset);
+    }
+
     private async Task MakeCollectionAsync(ImportRecognition recognition)
     {
         var profile = await Orchestrator.GetActiveProfileAsync();

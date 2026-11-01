@@ -34,7 +34,8 @@ public sealed class DetailComposerService
         CollectionCatalogReadService? collectionCatalog = null,
         IProfileRepository? profiles = null,
         IConfigurationLoader? configurationLoader = null,
-        IBridgeIdRepository? bridgeIds = null)
+        IBridgeIdRepository? bridgeIds = null,
+        ICollectionListRepository? collectionLists = null)
     {
         _composer = new DetailCompositionOrchestrator(
             db,
@@ -50,7 +51,8 @@ public sealed class DetailComposerService
             collectionCatalog,
             profiles,
             configurationLoader,
-            bridgeIds);
+            bridgeIds,
+            collectionLists);
     }
 
     public Task<DetailPageViewModel?> BuildAsync(

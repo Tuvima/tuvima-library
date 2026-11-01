@@ -417,10 +417,24 @@
             .Where(IsAutomaticCollection)
             .ToList();
 
+    // Curated: hand-picked, rule, list and pack collections, plus the sets packs make. A set is one tile that opens a page listing its
+    // collections, so a collection sitting inside a set the person can see is left to that page (Collections and lists spec 4g).
     private IReadOnlyList<CollectionManagementCatalogViewModel> CuratedCollections =>
-        _collections
-            .Where(collection => string.Equals(collection.CollectionType, "Custom", StringComparison.OrdinalIgnoreCase))
+        CuratedWithoutSetMembers(_collections);
+
+    internal static IReadOnlyList<CollectionManagementCatalogViewModel> CuratedWithoutSetMembers(
+        IEnumerable<CollectionManagementCatalogViewModel> collections)
+    {
+        var all = collections.ToList();
+        var visibleSets = all
+            .Where(collection => string.Equals(collection.CollectionType, "Set", StringComparison.OrdinalIgnoreCase))
+            .Select(collection => collection.Id)
+            .ToHashSet();
+        return all
+            .Where(collection => collection.CollectionType is "Custom" or "Set")
+            .Where(collection => !(collection.SetId is { } setId && visibleSets.Contains(setId)))
             .ToList();
+    }
 
     private IReadOnlyList<MediaTileViewModel> AutomaticTiles =>
         AutomaticCollections.Select(CollectionSurfaceTileComposer.FromCollection).ToList();

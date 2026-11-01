@@ -112,6 +112,25 @@
     font-weight: 600;
 }
 
+.media-group-tile__source {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--tl-text-muted);
+    font-size: 0.75rem;
+}
+
+.media-group-tile__badge {
+    align-self: flex-start;
+    padding: 1px 8px;
+    border: 1px solid var(--tl-status-warning-border);
+    border-radius: 999px;
+    background: var(--tl-status-warning-soft);
+    color: var(--tl-status-warning);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
 :root[data-form-factor="phone"] .media-group-tile {
     --media-group-tile-width: min(72vw, 300px);
 }

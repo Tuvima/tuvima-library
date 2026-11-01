@@ -84,6 +84,11 @@
         "contrast_score": 17.5
       },
       "person": null,
+      "fill_kind": "automatic",
+      "list_source": null,
+      "set_id": null,
+      "set_name": null,
+      "child_collection_count": 0,
       "id": "6f0c2a3e-0000-0000-0000-000000000005",
       "name": "Adult Universe",
       "description": null,
@@ -236,6 +241,11 @@
         "contrast_score": 17.5
       },
       "person": null,
+      "fill_kind": "automatic",
+      "list_source": null,
+      "set_id": null,
+      "set_name": null,
+      "child_collection_count": 0,
       "id": "6f0c2a3e-0000-0000-0000-000000000014",
       "name": "Test Universe",
       "description": null,

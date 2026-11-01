@@ -186,7 +186,7 @@
         var kind = item.Kind?.ToLowerInvariant();
         return kind is "certification" or "content_rating" or "rating" or "type" or "duration" or "year"
             or "page_count" or "track_count" or "season_count" or "episode_count" or "genre" or "quality"
-            or "item_count" or "read_count" or "watch_count" or "listen_count";
+            or "item_count" or "read_count" or "watch_count" or "listen_count" or "list_owned";
     }
 
     private bool IsWatchHeroStat(MetadataPill item)
@@ -197,7 +197,7 @@
             return kind is "certification" or "content_rating" or "year" or "episode_count" or "duration" or "genre" or "quality" or "subtitles" or "rating";
         }
 
-        return kind is "certification" or "content_rating" or "rating" or "duration" or "year" or "genre" or "quality" or "subtitles";
+        return kind is "certification" or "content_rating" or "rating" or "duration" or "year" or "genre" or "quality" or "subtitles" or "list_owned";
     }
 
     private static bool IsPrimaryChromeHeroStat(MetadataPill item)
@@ -205,7 +205,7 @@
         var kind = item.Kind?.ToLowerInvariant();
         return kind is "certification" or "content_rating" or "rating" or "duration" or "year"
             or "page_count" or "track_count" or "season_count" or "episode_count" or "genre" or "quality" or "subtitles"
-            or "item_count" or "read_count" or "watch_count" or "listen_count";
+            or "item_count" or "read_count" or "watch_count" or "listen_count" or "list_owned";
     }
 
     private static int StatSort(MetadataPill item) => item.Kind?.ToLowerInvariant() switch
@@ -215,6 +215,7 @@
         "type" => 2,
         "duration" => 4,
         "page_count" or "track_count" or "season_count" or "episode_count" or "item_count" => 5,
+        "list_owned" => 5,
         "read_count" => 6,
         "watch_count" => 7,
         "listen_count" => 8,
@@ -240,7 +241,7 @@
     {
         "certification" or "content_rating" => 0,
         "year" => 1,
-        "page_count" or "track_count" or "season_count" or "episode_count" or "item_count" => 2,
+        "page_count" or "track_count" or "season_count" or "episode_count" or "item_count" or "list_owned" => 2,
         "duration" => 3,
         "rating" => 4,
         "read_count" => 5,
@@ -276,6 +277,7 @@
         "episode_count" => AppMaterialIcons.Outlined.VideoLibrary,
         "duration" => AppMaterialIcons.Outlined.Schedule,
         "item_count" => AppMaterialIcons.Outlined.CollectionsBookmark,
+        "list_owned" => AppMaterialIcons.Outlined.TaskAlt,
         "read_count" => AppMaterialIcons.Outlined.MenuBook,
         "watch_count" => AppMaterialIcons.Outlined.Tv,
         "listen_count" => AppMaterialIcons.Outlined.Headphones,
@@ -337,6 +339,7 @@
         "season_count" => AppMaterialIcons.Outlined.LiveTv,
         "episode_count" => AppMaterialIcons.Outlined.VideoLibrary,
         "item_count" => AppMaterialIcons.Outlined.CollectionsBookmark,
+        "list_owned" => AppMaterialIcons.Outlined.TaskAlt,
         "read_count" => AppMaterialIcons.Outlined.MenuBook,
         "watch_count" => AppMaterialIcons.Outlined.Tv,
         "listen_count" => AppMaterialIcons.Outlined.Headphones,

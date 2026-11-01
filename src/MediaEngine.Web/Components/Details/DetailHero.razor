@@ -194,6 +194,7 @@
                                CanDelete="CanDelete"
                                CanAddToCollection="CanAddToCollection"
                                DeleteActions="DeleteActions"
+                               ExtraActions="ExtraActions"
                                ActionAttributes="ActionAttributes"
                                OnActionSelected="OnActionSelected" />
             </ActionContent>
@@ -223,6 +224,9 @@
 
     /// <summary>The Delete entries for a show, season, album or Series page; null for a single title.</summary>
     [Parameter] public IReadOnlyList<DetailAction>? DeleteActions { get; set; }
+
+    /// <summary>Entries the page adds to the "..." menu for what it is, such as a set's Export and Remove.</summary>
+    [Parameter] public IReadOnlyList<DetailAction>? ExtraActions { get; set; }
 
     [CascadingParameter] private EditingModeContext? Editing { get; set; }
 

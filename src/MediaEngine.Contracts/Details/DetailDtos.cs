@@ -68,6 +68,53 @@ public sealed class DetailPageViewModel
     /// and when there are none, in which case the page shows no Extras section. Only a title the viewer may see carries them.
     /// </summary>
     public IReadOnlyList<DetailExtraCardViewModel> Extras { get; set; } = [];
+
+    /// <summary>
+    /// What a curated collection's page adds to the standard one (Collections and lists spec 4g): how it fills up, the set it is, and
+    /// for an imported list the "You own X of Y" counts and the titles it holds that the library does not. Null on every other page.
+    /// </summary>
+    public DetailCollectionInfoViewModel? CollectionInfo { get; init; }
+}
+
+/// <summary>A curated collection's source on its own page.</summary>
+public sealed class DetailCollectionInfoViewModel
+{
+    /// <summary>See <c>CollectionFillKinds</c>: hand_picked, rules, list, pack, set or automatic.</summary>
+    public string FillKind { get; init; } = "automatic";
+
+    /// <summary>True for a set, the parent a pack makes: its page lists the collections it holds.</summary>
+    public bool IsSet { get; init; }
+
+    /// <summary>The imported list behind the collection. Null for any other collection, and for a Kids profile.</summary>
+    public DetailCollectionListViewModel? List { get; init; }
+}
+
+/// <summary>An imported list on its collection's page: where it came from, the owned count, and the titles that are not in the library.</summary>
+public sealed class DetailCollectionListViewModel
+{
+    public string SourceKind { get; init; } = "csv";
+
+    /// <summary>The source in words, for example "Letterboxd export".</summary>
+    public string SourceLabel { get; init; } = string.Empty;
+
+    public DateTimeOffset? LastRefreshedAt { get; init; }
+    public int EntryCount { get; init; }
+    public int OwnedCount { get; init; }
+
+    /// <summary>Entries the list could not match to a title the library may or may not own (the "Couldn't match" count).</summary>
+    public int UnmatchedCount { get; init; }
+
+    /// <summary>The "Not in your library" section: every entry that matched nothing and was not ignored, in list order.</summary>
+    public IReadOnlyList<DetailMissingTitleViewModel> Missing { get; init; } = [];
+}
+
+/// <summary>One title of a list that the library does not hold. The action slot beside it is filled by an integration later; nothing acts on it today.</summary>
+public sealed class DetailMissingTitleViewModel
+{
+    public int Position { get; init; }
+    public string Title { get; init; } = string.Empty;
+    public int? Year { get; init; }
+    public string? Creator { get; init; }
 }
 
 /// <summary>One of a page's files that is Unmatched: its asset id (the id the Unmatched item routes take) and whether it is kept as it is.</summary>

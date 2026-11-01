@@ -11,9 +11,9 @@ namespace MediaEngine.Api.Services.Import;
 /// place. Importers are scoped services, so each call opens its own scope.
 ///
 /// <para>
-/// The dialog does not create the collections itself: creating them is a collections action (<c>Collections write</c>) and the
-/// shared apply route is not, so the preview says to add the pack from New collection, Start from a pack, which owns the
-/// ownership, audience and Show on choices.
+/// The shared apply route does not create the collections: creating them is a collections action (<c>Collections write</c>) and
+/// the apply route is not. The Dashboard adds a pack from Settings, Import through the packs action itself (the file's text goes
+/// to <c>POST /collections/packs</c>), and New collection, Start from a pack owns the ownership, audience and Show on choices.
 /// </para>
 /// </summary>
 public sealed class PackFileImportKindHandler(IServiceScopeFactory scopes) : IImportKindHandler
@@ -57,7 +57,7 @@ public sealed class PackFileImportKindHandler(IServiceScopeFactory scopes) : IIm
                 Subheading = summary.CreatesSet ? "A set of collections" : "A ready-made collection",
                 Facts = facts,
                 Notes = ["A pack holds names, rules and windows. It holds no user data."],
-                Message = "Add it from New collection, Start from a pack.",
+                Message = "Add it here in Settings, Import, or from New collection, Start from a pack.",
                 CanApply = false,
             };
         }
