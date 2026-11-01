@@ -6810,21 +6810,6 @@
   <data name="PluginUploadDialog_Upload" xml:space="preserve">
     <value>Upload</value>
   </data>
-  <data name="ProviderCompareCard_BothSupply" xml:space="preserve">
-    <value>Both supply: {0}</value>
-  </data>
-  <data name="ProviderCompareCard_OnlySupplies" xml:space="preserve">
-    <value>Only {0} supplies: {1}</value>
-  </data>
-  <data name="ProviderCompareCard_CompareWithAnotherSource" xml:space="preserve">
-    <value>Compare with another source</value>
-  </data>
-  <data name="ProviderCompareCard_CompareWith" xml:space="preserve">
-    <value>Compare with</value>
-  </data>
-  <data name="ProviderCompareCard_Compare" xml:space="preserve">
-    <value>Compare</value>
-  </data>
   <data name="ProviderDetail_ThisSourceIsUnavailable" xml:space="preserve">
     <value>This source is unavailable</value>
   </data>
@@ -9797,5 +9782,35 @@
   </data>
   <data name="PluginProvides_RunsOnLocalAi" xml:space="preserve">
     <value>runs on Local AI</value>
+  </data>
+  <data name="ProviderAccess_Title" xml:space="preserve">
+    <value>Access</value>
+  </data>
+  <data name="ProviderAccess_NoKeyNeeded" xml:space="preserve">
+    <value>No key needed</value>
+  </data>
+  <data name="ProviderAccess_NoKey" xml:space="preserve">
+    <value>No key yet</value>
+  </data>
+  <data name="ProviderAccess_KeySaved" xml:space="preserve">
+    <value>Key saved</value>
+  </data>
+  <data name="ProviderAccess_Connect" xml:space="preserve">
+    <value>Connect</value>
+  </data>
+  <data name="ProviderAccess_Replace" xml:space="preserve">
+    <value>Replace key</value>
+  </data>
+  <data name="ProviderAccess_Test" xml:space="preserve">
+    <value>Test connection</value>
+  </data>
+  <data name="ProviderAccess_Testing" xml:space="preserve">
+    <value>Testing…</value>
+  </data>
+  <data name="ProviderAccess_Remove" xml:space="preserve">
+    <value>Remove key</value>
+  </data>
+  <data name="ProviderAccess_GetKey" xml:space="preserve">
+    <value>Get a key at {0}</value>
   </data>
 </root>

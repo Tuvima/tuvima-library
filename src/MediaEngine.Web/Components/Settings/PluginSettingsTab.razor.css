@@ -87,3 +87,12 @@
 .settings-plugin-rows__actions { justify-content: flex-end; }
 
 .settings-plugin-rows__private { color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
+
+/* The plugin's own page (Plugins and Integrations screens v4 D33): one short column. */
+.plugin-page { display: grid; gap: 16px; }
+.plugin-page__header { display: flex; align-items: center; gap: 14px; }
+.plugin-page__title { flex: 1; min-width: 0; }
+.plugin-page__title h2 { margin: 0; font-size: var(--tl-font-size-lg); }
+.plugin-page__title p { margin: 2px 0 0; color: var(--tl-text-muted); }
+.plugin-page__actions { display: flex; align-items: center; }
+.plugin-page__setup { display: grid; gap: 16px; }

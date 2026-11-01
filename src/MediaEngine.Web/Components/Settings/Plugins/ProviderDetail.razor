@@ -10,8 +10,9 @@
 @inject IAppDialogService DialogService
 @inject IStringLocalizer<SharedStrings> L
 
-@* One metadata provider's content on its plugin page (Plugins and Integrations screens v3 D18): Overview says what it is and
-   supplies; Settings holds the key card, Lookup and the collapsed advanced connection, saved with Review changes first. *@
+@* One metadata provider's content on its plugin page's Set up tab (Plugins and Integrations screens v4 D33): the Access card, then
+   what it provides (supplied by the page), then Settings (Lookup, the collapsed advanced connection and the page's own rows, saved
+   with Review changes first), Privacy and About (supplied by the page). *@
 <NavigationLock ConfirmExternalNavigation="@HasUnsavedChanges" />
 
 @if (_loading)
@@ -29,15 +30,18 @@ else if (_snapshot.ProviderFor(ProviderKey) is not { } provider)
 {
     <AppPageState Kind="AppPageStateKind.Error" Title="@L["ProviderDetail_UnknownSource"].Value" Message="@L["ProviderDetail_ThisSourceIsNotIn"].Value" />
 }
-else if (string.Equals(Section, "settings", StringComparison.OrdinalIgnoreCase))
-{
-    <div class="metadata-experience">
-        @ProviderConfiguration(provider)
-    </div>
-}
 else
 {
-    @OverviewContent(provider)
+    <div class="metadata-experience provider-setup">
+        @AccessContent(provider)
+        @ProvidesContent(provider)
+        @if (Plugin?.Provider is not { AlwaysOn: true })
+        {
+            @SettingsContent(provider)
+        }
+        @PrivacyContent(provider)
+        @About
+    </div>
 }
 
 @code {
@@ -46,8 +50,11 @@ else
     /// <summary>The provider's entry in the Plugins list: its explanation, whether it needs a key and where to get one.</summary>
     [Parameter] public PluginSummaryResponse? Plugin { get; set; }
 
-    /// <summary><c>overview</c> or <c>settings</c>.</summary>
-    [Parameter] public string Section { get; set; } = "overview";
+    /// <summary>Rows the page adds inside the Settings card (Who can use it, Libraries).</summary>
+    [Parameter] public RenderFragment? ExtraSettings { get; set; }
+
+    /// <summary>The About card, drawn last.</summary>
+    [Parameter] public RenderFragment? About { get; set; }
 
     /// <summary>Raised after a change that the tiles should show (switched on or off, key added).</summary>
     [Parameter] public EventCallback Changed { get; set; }
@@ -66,8 +73,6 @@ else
         _providerBaselines.TryGetValue(pair.Key, out var baseline) && pair.Value.Fingerprint() != baseline);
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
-
-    private string? KeyWord => Plugin?.Provider is { RequiresKey: true } ? "key" : null;
 
     private async Task LoadAsync()
     {
@@ -117,91 +122,80 @@ else
     }
 
 
-    private RenderFragment OverviewContent(MetadataProviderInventoryItem provider) => @<div class="metadata-experience provider-overview">
-        @if (Plugin?.Provider is { RequiresKey: true, KeyPresent: false } && !(Plugin.Provider.AlwaysOn))
+    // Access first (v4 D34): the shared card, with the same words first-run setup uses.
+    private RenderFragment AccessContent(MetadataProviderInventoryItem provider)
+    {
+        var needsKey = Plugin?.Provider is { RequiresKey: true } || provider.Catalogue.Onboarding?.Credentials.Count > 0;
+        var state = !needsKey ? ProviderAccessState.NoKeyNeeded : KeySaved(provider) ? ProviderAccessState.KeySaved : ProviderAccessState.NoKey;
+        return @<ProviderAccessCard State="@state"
+                                    Message="@(_testMessages.GetValueOrDefault(provider.Key) ?? (state == ProviderAccessState.KeySaved ? LastCheckCopy(provider) : null))"
+                                    SignupUrl="@Plugin?.Provider?.SignupUrl"
+                                    Testing="@_testing.Contains(provider.Key)"
+                                    TestDisabled="@HasUnsavedChanges"
+                                    CanRemove="@(IsCredentialConfigured(provider) && HasStoredUserCredential(provider))"
+                                    OnConnect="@(() => OpenProviderDialogAsync(provider, ProviderOnboardingOperation.Connect))"
+                                    OnReplace="@(() => OpenProviderDialogAsync(provider, ProviderOnboardingOperation.Replace))"
+                                    OnTest="@(() => TestProviderAsync(provider.Key))"
+                                    OnRemove="@(() => RemoveProviderCredentialAsync(provider))" />;
+    }
+
+    // What it provides: the standard icon list, then the one line that says where it is used (the only place targeting appears).
+    private RenderFragment ProvidesContent(MetadataProviderInventoryItem provider) => @<AppCard Title="What it provides" Class="metadata-summary-card" data-testid="provider-provides">
+        @if (Plugin is not null)
         {
-            <AppAlert Tone="AppUiTone.Warning" data-testid="provider-needs-key">
-                <strong>Needs a key.</strong> @provider.DisplayName works only with your own key. Add it on the Settings tab to switch it on.
-                @if (!string.IsNullOrWhiteSpace(Plugin.Provider.SignupUrl))
-                {
-                    <a href="@Plugin.Provider.SignupUrl" target="_blank" rel="noopener noreferrer">Get a key</a>
-                }
-            </AppAlert>
+            <PluginProvidesLine Plugin="@Plugin" />
         }
-        <AppCard Title="About" Class="metadata-summary-card">
-            <p class="provider-about">@(string.IsNullOrWhiteSpace(Plugin?.Provider?.About) ? provider.Description : Plugin!.Provider!.About)</p>
-            @if (Plugin?.Provider is { VaultOnly: true })
-            {
-                <p class="provider-about">Library asks it only about videos in your Vault.</p>
-            }
-        </AppCard>
-        <AppCard Title="What it supplies" Class="metadata-summary-card">
-            <div class="metadata-capability-grid">
-                @foreach (var output in ProviderOutputs(provider))
+        <p class="provider-about" data-testid="provider-used-in">
+            @UsedInWords(provider)
+            <AppButton Label="Open Ingestion Flow" Href="/settings/metadata/ingestion-flow" ButtonStyle="AppButtonStyle.Text" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" />
+        </p>
+    </AppCard>;
+
+    private static string UsedInWords(MetadataProviderInventoryItem provider)
+    {
+        var kinds = provider.Participations
+            .Select(participation => MetadataSettingsStateService.MediaTypeLabel(participation.MediaType))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        return kinds.Count == 0 ? "Not used in any flow yet." : "Used in: " + string.Join(", ", kinds) + ".";
+    }
+
+    // Privacy: what leaves this machine in a sentence or two, whether Vault items use it, and the service's own terms and privacy pages.
+    private RenderFragment PrivacyContent(MetadataProviderInventoryItem provider) => @<AppCard Title="Privacy" Class="metadata-summary-card" data-testid="provider-privacy">
+        <p class="provider-about" data-testid="provider-leaves">@LeavesWords()</p>
+        @if (Plugin?.Provider is { VaultOnly: true })
+        {
+            <p class="provider-about">Library asks it only about videos in your Vault, and only when the Vault's online-lookup setting allows it.</p>
+        }
+        @if (!string.IsNullOrWhiteSpace(provider.Catalogue.Onboarding?.TermsUrl) || !string.IsNullOrWhiteSpace(provider.Catalogue.Onboarding?.PrivacyUrl))
+        {
+            <div class="provider-links">
+                @if (!string.IsNullOrWhiteSpace(provider.Catalogue.Onboarding?.TermsUrl))
                 {
-                    <div><AppMaterialIcon Icon="@CapabilityIcon(output)" /><span>@output</span></div>
+                    <AppButton Label="Terms of use" Href="@provider.Catalogue.Onboarding!.TermsUrl" Target="_blank" ButtonStyle="AppButtonStyle.Text" EndIcon="@AppMaterialIcons.Outlined.OpenInNew" />
+                }
+                @if (!string.IsNullOrWhiteSpace(provider.Catalogue.Onboarding?.PrivacyUrl))
+                {
+                    <AppButton Label="Privacy policy" Href="@provider.Catalogue.Onboarding!.PrivacyUrl" Target="_blank" ButtonStyle="AppButtonStyle.Text" EndIcon="@AppMaterialIcons.Outlined.OpenInNew" />
                 }
             </div>
-        </AppCard>
-        <AppCard Title="Where it is used" Class="metadata-summary-card">
-            @if (provider.Participations.Count == 0)
-            {
-                <p class="provider-about">Not used in any flow yet.</p>
-            }
-            else
-            {
-                <div class="metadata-provider-stage-list">
-                    @foreach (var participation in provider.Participations)
-                    {
-                        <div>
-                            <span class="metadata-stage-number">@participation.Stage</span>
-                            <span><strong>@MetadataSettingsStateService.MediaTypeLabel(participation.MediaType)</strong><small>@participation.StageLabel</small></span>
-                            <AppStatusBadge Text="@participation.RoleLabel" Tone="@RoleTone(participation.RoleLabel)" />
-                        </div>
-                    }
-                </div>
-            }
-            <p class="provider-about">@NextStepCopy(provider)</p>
-            <AppButton Label="Open Ingestion Flow" Href="/settings/metadata/ingestion-flow" ButtonStyle="AppButtonStyle.Text" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" />
-        </AppCard>
-        <AppCard Title="What leaves this machine" Class="metadata-summary-card">
-            <p class="provider-about" data-testid="provider-leaves">@LeavesWords()</p>
-        </AppCard>
-        <ProviderCompareCard Current="@provider.Key" />
-    </div>;
+        }
+    </AppCard>;
 
     private string LeavesWords() => Plugin?.Provider is { SendsDataTo.Count: > 0 } provider
         ? $"Searches go to {string.Join(", ", provider.SendsDataTo)}." + (provider.RequiresKey ? " Your key is sent only to that address." : string.Empty)
         : "Nothing leaves this machine.";
 
-    private RenderFragment ProviderConfiguration(MetadataProviderInventoryItem provider) => @<text>
+    private RenderFragment SettingsContent(MetadataProviderInventoryItem provider) => @<text>
         @{ var draft = DraftFor(provider.Key); }
-        @if (Plugin?.Provider is { RequiresKey: true } || provider.Catalogue.Onboarding?.Credentials.Count > 0)
-        {
-            <AppCard Title="Your key" Description="@KeyExplanation(provider)" Class="metadata-provider-configuration">
-                <div class="metadata-provider-connection__heading">
-                    <p>@(_testMessages.GetValueOrDefault(provider.Key) ?? LastCheckCopy(provider))</p>
-                    <AppStatusBadge Text="@KeyPillWords(provider)" Tone="@(KeySaved(provider) ? AppUiTone.Success : AppUiTone.Warning)" />
-                </div>
-                @ProviderConnection(provider)
-                @if (!string.IsNullOrWhiteSpace(Plugin?.Provider?.SignupUrl))
-                {
-                    <AppButton Label="@($"Get a key at {SignupHost}")" Href="@Plugin!.Provider!.SignupUrl" Target="_blank" ButtonStyle="AppButtonStyle.Text" EndIcon="@AppMaterialIcons.Outlined.OpenInNew" />
-                }
-            </AppCard>
-        }
-        <AppCard Title="Lookup" Description="How this source is used when the Library looks things up." Class="metadata-provider-configuration">
+        <AppCard Title="Settings" Class="metadata-provider-configuration" data-testid="provider-settings">
             <div class="metadata-provider-fields">
-                <AppSwitchRow Label="Switched on"
-                              Description="@(provider.RequiredSystemProvider ? "A core source: it cannot be switched off." : "A source that is off is skipped during metadata work.")"
-                              Value="@draft.Enabled"
-                              Disabled="@(provider.RequiredSystemProvider || (Plugin?.Provider is { RequiresKey: true, KeyPresent: false }))"
-                              ValueChanged="@(value => draft.Enabled = value)" />
                 <AppSelect Value="@draft.LanguageStrategy"
                            ValueChanged="@(value => draft.LanguageStrategy = value ?? "source")"
                            Label="@L["Settings_Language"].Value"
                            Options="@LanguageOptions" />
             </div>
+            @ExtraSettings
         </AppCard>
         @if (string.Equals(provider.Key, "stashbox", StringComparison.OrdinalIgnoreCase))
         {
@@ -224,41 +218,7 @@ else
         @SaveBar()
     </text>;
 
-    private string KeyExplanation(MetadataProviderInventoryItem provider) =>
-        $"{provider.DisplayName} works with your own key. It is kept on this machine, never shown again, and sent only to {SignupHost}.";
-
-    private string SignupHost => Uri.TryCreate(Plugin?.Provider?.SignupUrl, UriKind.Absolute, out var uri) ? uri.Host : "the source";
-
     private bool KeySaved(MetadataProviderInventoryItem provider) => IsCredentialConfigured(provider) || Plugin?.Provider is { KeyPresent: true };
-
-    private string KeyPillWords(MetadataProviderInventoryItem provider) => KeySaved(provider) ? "Key saved" : "No key yet";
-
-    private RenderFragment ProviderConnection(MetadataProviderInventoryItem provider) => @<section class="metadata-provider-connection">
-        <div class="metadata-provider-connection__actions">
-            @if (UserCredentials(provider).Count == 0)
-            {
-                <AppButton Label="@(_testing.Contains(provider.Key) ? "Testing…" : "Test connection")"
-                           StartIcon="@AppMaterialIcons.Outlined.NetworkCheck"
-                           Disabled="@(_testing.Contains(provider.Key) || !DraftFor(provider.Key).Enabled || HasUnsavedChanges)"
-                           OnClick="@(() => TestProviderAsync(provider.Key))" />
-            }
-            else if (IsCredentialConfigured(provider) && HasStoredUserCredential(provider))
-            {
-                <AppButton Label="Replace key" StartIcon="@AppMaterialIcons.Outlined.Key" OnClick="@(() => OpenProviderDialogAsync(provider, ProviderOnboardingOperation.Replace))" />
-                <AppButton Label="Test connection" StartIcon="@AppMaterialIcons.Outlined.NetworkCheck" Disabled="@(_testing.Contains(provider.Key) || HasUnsavedChanges)" OnClick="@(() => TestProviderAsync(provider.Key))" />
-                <AppButton Label="Remove key" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" StartIcon="@AppMaterialIcons.Outlined.DeleteOutline" OnClick="@(() => RemoveProviderCredentialAsync(provider))" />
-            }
-            else if (IsCredentialConfigured(provider))
-            {
-                <AppButton Label="Add a key" StartIcon="@AppMaterialIcons.Outlined.Key" OnClick="@(() => OpenProviderDialogAsync(provider, ProviderOnboardingOperation.Replace))" />
-                <AppButton Label="Test connection" StartIcon="@AppMaterialIcons.Outlined.NetworkCheck" Disabled="@(_testing.Contains(provider.Key) || HasUnsavedChanges)" OnClick="@(() => TestProviderAsync(provider.Key))" />
-            }
-            else
-            {
-                <AppButton Label="Add your key" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Link" OnClick="@(() => OpenProviderDialogAsync(provider, ProviderOnboardingOperation.Connect))" />
-            }
-        </div>
-    </section>;
 
     private RenderFragment SaveBar() => @<footer class="metadata-savebar">
         <AppButton Label="Cancel" Disabled="@(!HasUnsavedChanges || _saving)" OnClick="ResetDrafts" />
@@ -493,7 +453,6 @@ else
         new("both", "Source + localized"),
     ];
 
-    private static IReadOnlyList<string> ProviderOutputs(MetadataProviderInventoryItem provider) => provider.Participations.SelectMany(item => item.Outputs).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
     private static string ConnectionCopy(MetadataProviderInventoryItem provider) => provider.NeedsSetup
         ? "Configuration is incomplete. Add the required credential and test again."
         : (ConnectionMessageIsCurrent(provider.Status) ? provider.Status?.ConnectionMessage : null)
@@ -534,8 +493,5 @@ else
         provider.Catalogue.HydrationStages.Contains(1)
         && provider.MediaTypes.Count > 0
         && !provider.Participations.Any(item => item.Stage == 1);
-    private static string NextStepCopy(MetadataProviderInventoryItem provider) => provider.Participations.Any(item => item.Stage == 1) ? "After a successful match, canonical identity is established before optional post-match enrichment adds any remaining details." : provider.Participations.Any(item => item.Stage == 2) ? "Canonical identity makes the item available for relationship, people, artwork, lyric, or subtitle enrichment." : "These optional outputs are added only after the item has been identified.";
-    private static AppUiTone RoleTone(string role) => role switch { "Primary" or "Required" => AppUiTone.Primary, "Secondary" or "Fallback" => AppUiTone.Info, "Optional" => AppUiTone.Neutral, _ => AppUiTone.Neutral };
-    private static string CapabilityIcon(string value) => value.ToLowerInvariant() switch { var text when text.Contains("identity") => AppMaterialIcons.Outlined.Fingerprint, var text when text.Contains("rating") => AppMaterialIcons.Outlined.StarOutline, var text when text.Contains("people") || text.Contains("portrait") => AppMaterialIcons.Outlined.People, var text when text.Contains("cover") || text.Contains("poster") || text.Contains("background") || text.Contains("logo") => AppMaterialIcons.Outlined.Image, var text when text.Contains("lyric") => AppMaterialIcons.Outlined.Lyrics, var text when text.Contains("subtitle") || text.Contains("text track") => AppMaterialIcons.Outlined.Subtitles, var text when text.Contains("relationship") => AppMaterialIcons.Outlined.AccountTree, _ => AppMaterialIcons.Outlined.Description };
 
 }
