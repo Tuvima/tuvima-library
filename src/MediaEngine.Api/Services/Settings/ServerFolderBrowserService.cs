@@ -22,6 +22,49 @@ public sealed class ServerFolderBrowserService(
 
     private static readonly string[] ProtectedSegments = [".data", "config", "logs", "bin", "obj"];
 
+    /// <summary>
+    /// The longest one folder action (listing a folder, checking one) may take. A network drive that has gone away can leave the
+    /// operating system waiting for half a minute; the person is told plainly after this instead of watching a spinner.
+    /// </summary>
+    public TimeSpan IoTimeLimit { get; set; } = TimeSpan.FromSeconds(8);
+
+    /// <summary>How long one configured storage location may take to answer before the drive list leaves it out.</summary>
+    private static readonly TimeSpan LocationProbeLimit = TimeSpan.FromSeconds(3);
+
+    private const string SlowFolderMessage =
+        "This folder isn't responding. If it is on a network drive, check that the drive is connected and awake, then try again.";
+
+    /// <summary>Same as <see cref="Browse(BrowseServerFoldersRequest, IReadOnlyCollection{string})"/> but gives up after <see cref="IoTimeLimit"/> with a plain message.</summary>
+    public Task<BrowseServerFoldersResultDto> BrowseAsync(
+        BrowseServerFoldersRequest request, IReadOnlyCollection<string> hiddenRoots, CancellationToken cancellationToken = default) =>
+        RunWithTimeLimitAsync(() => Browse(request, hiddenRoots), cancellationToken);
+
+    /// <summary>Same as <c>Validate</c> but gives up after <see cref="IoTimeLimit"/> with a plain message.</summary>
+    public Task<ServerFolderValidationResultDto> ValidateAsync(
+        ValidateServerFolderRequest request, IReadOnlyCollection<string> hiddenRoots, CancellationToken cancellationToken = default) =>
+        RunWithTimeLimitAsync(() => Validate(request, hiddenRoots, cancellationToken), cancellationToken);
+
+    // The disk work runs on its own thread so a drive that never answers cannot hold the request (or the picker) for its own
+    // operating-system timeout. The abandoned call finishes on its own; its outcome is never read.
+    internal async Task<T> RunWithTimeLimitAsync<T>(Func<T> work, CancellationToken cancellationToken)
+    {
+        var task = Task.Run(work, CancellationToken.None);
+        var finished = await Task.WhenAny(task, Task.Delay(IoTimeLimit, cancellationToken)).ConfigureAwait(false);
+        if (finished == task)
+        {
+            return await task.ConfigureAwait(false);
+        }
+
+        _ = task.ContinueWith(
+            static abandoned => _ = abandoned.Exception,
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+        cancellationToken.ThrowIfCancellationRequested();
+        logger.LogWarning("A server folder action took longer than {Seconds} s and was stopped waiting for", IoTimeLimit.TotalSeconds);
+        throw new ServerFolderAccessException(SlowFolderMessage);
+    }
+
     public IReadOnlyList<ServerStorageLocationDto> GetStorageLocations()
     {
         var timer = System.Diagnostics.Stopwatch.StartNew();
@@ -32,31 +75,57 @@ public sealed class ServerFolderBrowserService(
 
     private IReadOnlyList<ServerStorageLocationDto> GetStorageLocationsCore()
     {
-        var result = new List<ServerStorageLocationDto>();
         var snapshot = configuration.LoadLibraries();
-        foreach (var location in EffectiveLocations(snapshot))
+        // Tuvima's own library and import folders are created or chosen elsewhere and are never offered in a picker.
+        // They stay resolvable by id so a typed or remembered path (such as the View root) still validates.
+        var offered = EffectiveLocations(snapshot).Where(location => !TuvimaOwnFolders.IsOwnLocation(snapshot, location.Id)).ToList();
+
+        // Drives are listed by name alone: asking a network drive anything (is it ready, how much room) can leave Windows waiting
+        // half a minute, which is what made the picker feel frozen. They are only touched when the person opens one. A configured
+        // folder is checked, all at once, and one that does not answer quickly is left out rather than holding up the rest.
+        var probes = offered
+            .Select(location => IsImplicit(location)
+                ? Task.FromResult<ServerStorageLocationDto?>(ToDto(location, null, null))
+                : Task.Run<ServerStorageLocationDto?>(() => ProbeConfiguredLocation(location)))
+            .ToList();
+        try
         {
-            // Tuvima's own library and import folders are created or chosen elsewhere and are never offered in a picker.
-            // They stay resolvable by id so a typed or remembered path (such as the View root) still validates.
-            if (TuvimaOwnFolders.IsOwnLocation(snapshot, location.Id))
-            {
-                continue;
-            }
+            Task.WaitAll([.. probes], LocationProbeLimit);
+        }
+        catch (AggregateException)
+        {
+            // A probe that threw is skipped below; the others still count.
+        }
 
-            if (!TryResolveLocationRoot(location, out var root, out var error))
+        var result = new List<ServerStorageLocationDto>();
+        for (var index = 0; index < offered.Count; index++)
+        {
+            if (probes[index].IsCompletedSuccessfully && probes[index].Result is { } dto)
             {
-                logger.LogWarning(
-                    "Configured server storage location {StorageLocationId} is unavailable: {Reason}",
-                    location.Id,
-                    error);
-                continue;
+                result.Add(dto);
             }
-
-            var (availableBytes, fileSystem) = GetDriveDetails(root);
-            result.Add(ToDto(location, availableBytes, fileSystem));
+            else if (!probes[index].IsCompleted)
+            {
+                logger.LogWarning("Configured server storage location {StorageLocationId} did not answer in time and is left out", offered[index].Id);
+            }
         }
 
         return result;
+    }
+
+    private ServerStorageLocationDto? ProbeConfiguredLocation(ServerStorageLocationConfig location)
+    {
+        if (!TryResolveLocationRoot(location, out var root, out var error))
+        {
+            logger.LogWarning(
+                "Configured server storage location {StorageLocationId} is unavailable: {Reason}",
+                location.Id,
+                error);
+            return null;
+        }
+
+        var (availableBytes, fileSystem) = GetDriveDetails(root);
+        return ToDto(location, availableBytes, fileSystem);
     }
 
     public BrowseServerFoldersResultDto Browse(BrowseServerFoldersRequest request) => Browse(request, NoHiddenRoots);
@@ -403,6 +472,11 @@ public sealed class ServerFolderBrowserService(
 
         // The count is only worth making for a folder that can be used: a refused folder shows its refusal, not a number.
         var canSelect = issues.All(issue => !string.Equals(issue.Severity, "error", StringComparison.OrdinalIgnoreCase));
+        if (canSelect && exists && hasRead)
+        {
+            AddOtherKindWarning(request.KindKey, resolved.Path, issues);
+        }
+
         var count = canSelect && exists && hasRead ? CountSupportedFiles(request.KindKey, resolved.Path, cancellationToken) : null;
         return new ServerFolderValidationResultDto
         {
@@ -424,6 +498,70 @@ public sealed class ServerFolderBrowserService(
             Issues = issues,
         };
     }
+
+    // A gentle heads-up, never a block: the folder's name or contents say it belongs to another kind of library (a TV folder chosen for Movies).
+    private void AddOtherKindWarning(string? kindKey, string path, List<ServerFolderValidationIssueDto> issues)
+    {
+        if (string.IsNullOrWhiteSpace(kindKey))
+        {
+            return;
+        }
+
+        var kind = (kindSource?.GetKinds() ?? configuration.LoadLibraryKinds().Kinds)
+            .FirstOrDefault(candidate => string.Equals(candidate.Key, kindKey.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (kind is null)
+        {
+            return;
+        }
+
+        AddNoMetadataProviderWarning(kind, issues);
+        if (kind.Format is null || kind.Format == "Videos")
+        {
+            return;
+        }
+
+        if (FolderKindHint.LooksLikeOtherFormat(path, kind.Format) is { } other)
+        {
+            issues.Add(new ServerFolderValidationIssueDto
+            {
+                Code = "looks_like_other_kind",
+                Message = $"This looks like a {other} folder, but you're adding it to {kind.Label}. Check it's the right folder before you add it.",
+                Severity = "warning",
+            });
+        }
+    }
+
+    // Movies and TV (and any kind that looks things up) are named from a metadata plugin. With none connected, the files would be added under
+    // whatever their file names say, so say so before the folder is added instead of after the library fills with wrong titles.
+    private void AddNoMetadataProviderWarning(LibraryKindDefinition kind, List<ServerFolderValidationIssueDto> issues)
+    {
+        var lookups = kind.Lookup.Providers
+            .Select(name => configuration.LoadProvider(name))
+            .Where(provider => provider is not null
+                && provider.ProviderCapabilities.Contains("identity", StringComparer.OrdinalIgnoreCase))
+            .ToList();
+        if (lookups.Count == 0 || lookups.Any(provider => ProviderIsReady(provider!)))
+        {
+            return;
+        }
+
+        var first = lookups[0]!.Name;
+        var friendly = first.ToLowerInvariant() switch { "tmdb" => "TMDB", "tvdb" => "TheTVDB", _ => first };
+        issues.Add(new ServerFolderValidationIssueDto
+        {
+            Code = "no_metadata_provider",
+            Message = $"No metadata plugin is set up for {kind.Label} yet, so Library can't tell what these files are and may add them under their file names. "
+                + $"Connect {friendly} in Settings, Plugins first, then add this folder.",
+            Severity = "warning",
+        });
+    }
+
+    private static bool ProviderIsReady(ProviderConfiguration provider) =>
+        provider.Enabled
+        && (!provider.RequiresApiKey
+            || !string.IsNullOrWhiteSpace(provider.HttpClient?.ApiKeyOverride)
+            || !string.IsNullOrWhiteSpace(provider.HttpClient?.ApiKey)
+            || (!string.IsNullOrWhiteSpace(provider.HttpClient?.Username) && !string.IsNullOrWhiteSpace(provider.HttpClient?.Password)));
 
     // The supported-file count for the kind the folder is for, using the extensions ingestion uses for that kind's format. A kind with
     // no format (View) or an unknown kind has nothing to count, so the answer is simply left out.
@@ -509,7 +647,28 @@ public sealed class ServerFolderBrowserService(
         location.Id.StartsWith(ImplicitIdPrefix, StringComparison.Ordinal)
         || string.Equals(location.Id, ImplicitRootId, StringComparison.Ordinal);
 
+    private static readonly TimeSpan MachineRootsLifetime = TimeSpan.FromSeconds(20);
+    private static readonly object MachineRootsLock = new();
+    private static (DateTime At, IReadOnlyList<ServerStorageLocationConfig> Roots)? _machineRoots;
+
+    // The drive list is remembered briefly: every browse and every check needs it, and building it is what used to ask each drive
+    // (a sleeping network drive included) whether it was ready, over and over, on several requests at once.
     private static IEnumerable<ServerStorageLocationConfig> MachineRoots()
+    {
+        lock (MachineRootsLock)
+        {
+            if (_machineRoots is { } cached && DateTime.UtcNow - cached.At < MachineRootsLifetime)
+            {
+                return cached.Roots;
+            }
+
+            var roots = ListMachineRoots().ToList();
+            _machineRoots = (DateTime.UtcNow, roots);
+            return roots;
+        }
+    }
+
+    private static IEnumerable<ServerStorageLocationConfig> ListMachineRoots()
     {
         if (!OperatingSystem.IsWindows())
         {
@@ -529,17 +688,24 @@ public sealed class ServerFolderBrowserService(
 
         foreach (var drive in drives)
         {
-            bool ready;
+            bool offered;
             try
             {
-                ready = drive.IsReady && drive.DriveType is DriveType.Fixed or DriveType.Network or DriveType.Removable;
+                // The drive type comes from the drive list without touching the drive. A network drive is offered by name and never
+                // asked if it is ready; an empty card reader is the one case worth asking about, and that answer is immediate.
+                offered = drive.DriveType switch
+                {
+                    DriveType.Network or DriveType.Fixed => true,
+                    DriveType.Removable => drive.IsReady,
+                    _ => false,
+                };
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
                 continue;
             }
 
-            if (ready)
+            if (offered)
             {
                 var letter = drive.Name.TrimEnd('\\', ':').ToLowerInvariant();
                 yield return new ServerStorageLocationConfig
@@ -682,6 +848,13 @@ public sealed class ServerFolderBrowserService(
         try
         {
             var configuredRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(location.Path));
+            if (IsImplicit(location))
+            {
+                // A drive or the server root is known by name; checking it here would wake (or wait on) a network drive every time.
+                root = configuredRoot;
+                return true;
+            }
+
             if (!Directory.Exists(configuredRoot))
             {
                 error = "The configured storage root does not exist on the server.";
@@ -1014,6 +1187,12 @@ public sealed class ServerFolderBrowserService(
             }
 
             var drive = new DriveInfo(root);
+            // Free space is a nicety; a network drive is never asked for it, since that call is what can hang for half a minute.
+            if (drive.DriveType == DriveType.Network)
+            {
+                return (null, null);
+            }
+
             return drive.IsReady ? (drive.AvailableFreeSpace, drive.DriveFormat) : (null, null);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)

@@ -61,10 +61,21 @@
             else
             {
                 <div class="create-library__picker" data-folder-step>
+                    <div class="create-library__name" data-library-name>
+                        <AppTextField Label="@L["Common_LibraryName"].Value"
+                                      Value="@_name"
+                                      ValueChanged="NameChanged"
+                                      MaxLength="@MaxNameLength"
+                                      ReadOnly="@_saving"
+                                      Error="@(NameProblem is not null)"
+                                      ErrorText="@NameProblem" />
+                        <span class="create-library__hint">@L["CreateLibraryDialog_YouCanRenameItLater"]</span>
+                    </div>
                     <ServerFolderPicker @key="@_pickerKey"
                                         Inline="true"
                                         HideConfirm="true"
                                         MediaType="@Kind?.MediaTypes.FirstOrDefault()"
+                                        KindLabel="@(Kind is null ? null : LabelOf(Kind))"
                                         SelectionMode="@PickerMode"
                                         KindKey="@_kindKey"
                                         SetupSession="@SetupSession"
@@ -89,16 +100,6 @@
             }
             else
             {
-                <div class="create-library__name" data-library-name>
-                    <AppTextField Label="@L["Common_LibraryName"].Value"
-                                  Value="@_name"
-                                  ValueChanged="NameChanged"
-                                  MaxLength="@MaxNameLength"
-                                  ReadOnly="@_saving"
-                                  Error="@(NameProblem is not null)"
-                                  ErrorText="@NameProblem" />
-                    <span class="create-library__hint">@L["CreateLibraryDialog_YouCanRenameItLater"]</span>
-                </div>
                 <AppButton Label="@L["Common_Back"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@_saving" OnClick="BackAsync" />
                 <AppButton Label="@L["Common_AddLibrary"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_saving" Disabled="@(!CanCreate)" OnClick="CreateAsync" />
             }

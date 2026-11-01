@@ -276,8 +276,13 @@ public sealed class LibraryMoveRunner(
                 var targetHash = (await hasher.ComputeAsync(target, ct)).Hex;
                 if (string.Equals(targetHash, expected, StringComparison.OrdinalIgnoreCase))
                 {
-                    if (!string.Equals(sourceHash, expected, StringComparison.OrdinalIgnoreCase))
+                    if (!string.Equals(sourceHash, expected, StringComparison.OrdinalIgnoreCase)
+                        || !string.Equals(
+                            (await hasher.ComputeFullAsync(source, ct)).Hex,
+                            (await hasher.ComputeFullAsync(target, ct)).Hex,
+                            StringComparison.OrdinalIgnoreCase))
                     {
+                        // The recorded fingerprint is a quick sample of a big file; the old copy goes only when every byte matches.
                         throw new IOException("The old copy changed after the move was planned, so neither copy was removed.");
                     }
 

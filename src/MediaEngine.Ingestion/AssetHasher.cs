@@ -40,8 +40,75 @@ public sealed class AssetHasher : IAssetHasher
     // small enough to fit comfortably in L2 cache on modern hardware.
     private const int ReadBufferSize = 81_920;
 
-    /// <inheritdoc/>
+    /// <summary>Files up to this size are read whole by the quick fingerprint, so only large media files are sampled.</summary>
+    public const long FullReadLimitBytes = 8L * 1024 * 1024;
+
+    private const int HeadBytes = 2 * 1024 * 1024;
+    private const int TailBytes = 2 * 1024 * 1024;
+    private const int SampleBytes = 256 * 1024;
+    private const int SampleCount = 8;
+
+    /// <summary>
+    /// The quick identity fingerprint. A small file (up to <see cref="FullReadLimitBytes"/>) gets its plain SHA-256. A larger one gets
+    /// a SHA-256 over its size, its first and last 2 MB and eight 256 KB samples spread through the middle, about 6 MB however big
+    /// the file is, so a 1.2 GB episode on a slow network drive is identified in seconds instead of minutes. It is an identity only:
+    /// anything that must prove two files hold the same bytes (copy checks, duplicate removal, Vault moves) uses
+    /// <see cref="ComputeFullAsync"/>.
+    /// </summary>
     public async Task<HashResult> ComputeAsync(string filePath, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+
+        var length = new FileInfo(filePath).Length;
+        if (length <= FullReadLimitBytes)
+        {
+            return await ComputeFullAsync(filePath, ct).ConfigureAwait(false);
+        }
+
+        var sw = Stopwatch.StartNew();
+        await using var stream = new FileStream(
+            filePath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 1, FileOptions.Asynchronous);
+        var size = stream.Length;
+        byte[] buffer = ArrayPool<byte>.Shared.Rent(HeadBytes);
+        try
+        {
+            using var hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+            hasher.AppendData("tuvima-fp2:"u8);
+            hasher.AppendData(BitConverter.GetBytes(size));
+
+            async Task AppendAsync(long offset, int count)
+            {
+                stream.Seek(offset, SeekOrigin.Begin);
+                await stream.ReadExactlyAsync(buffer.AsMemory(0, count), ct).ConfigureAwait(false);
+                hasher.AppendData(buffer.AsSpan(0, count));
+            }
+
+            await AppendAsync(0, HeadBytes).ConfigureAwait(false);
+            var middleStart = (long)HeadBytes;
+            var span = size - HeadBytes - TailBytes;
+            for (var index = 0; index < SampleCount; index++)
+            {
+                await AppendAsync(middleStart + span * index / SampleCount, SampleBytes).ConfigureAwait(false);
+            }
+
+            await AppendAsync(size - TailBytes, TailBytes).ConfigureAwait(false);
+            sw.Stop();
+            return new HashResult
+            {
+                FilePath = filePath,
+                Hex = Convert.ToHexString(hasher.GetHashAndReset()).ToLowerInvariant(),
+                FileSize = size,
+                Elapsed = sw.Elapsed,
+            };
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer, clearArray: false);
+        }
+    }
+
+    /// <summary>The SHA-256 of every byte of the file: the proof two files are identical.</summary>
+    public async Task<HashResult> ComputeFullAsync(string filePath, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
 

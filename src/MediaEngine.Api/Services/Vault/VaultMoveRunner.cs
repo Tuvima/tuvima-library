@@ -174,7 +174,7 @@ public sealed class VaultMoveRunner(
         var name = FreeName(job.DestinationFolder, item.FinalName);
         var staging = Path.Combine(job.DestinationFolder, name) + VaultMoveService.StagingSuffix;
         await CopyFileAsync(item.SourcePath, staging, ct).ConfigureAwait(false);
-        if (!string.Equals((await hasher.ComputeAsync(staging, ct).ConfigureAwait(false)).Hex, hash, StringComparison.Ordinal))
+        if (!string.Equals((await hasher.ComputeFullAsync(staging, ct).ConfigureAwait(false)).Hex, (await hasher.ComputeFullAsync(item.SourcePath, ct).ConfigureAwait(false)).Hex, StringComparison.Ordinal))
         {
             DeleteQuietly(staging);
             return await SaveAsync(item with { State = VaultMoveItemStates.Failed, Reason = "The copy didn't match the original, so nothing was changed." }, ct).ConfigureAwait(false);
@@ -190,8 +190,8 @@ public sealed class VaultMoveRunner(
 
             await CopyFileAsync(sidecar.Source, sidecar.Staging, ct).ConfigureAwait(false);
             var same = string.Equals(
-                (await hasher.ComputeAsync(sidecar.Source, ct).ConfigureAwait(false)).Hex,
-                (await hasher.ComputeAsync(sidecar.Staging, ct).ConfigureAwait(false)).Hex,
+                (await hasher.ComputeFullAsync(sidecar.Source, ct).ConfigureAwait(false)).Hex,
+                (await hasher.ComputeFullAsync(sidecar.Staging, ct).ConfigureAwait(false)).Hex,
                 StringComparison.Ordinal);
             if (!same)
             {
@@ -285,8 +285,16 @@ public sealed class VaultMoveRunner(
     {
         try
         {
+            var published = Path.Combine(job.DestinationFolder, item.FinalName);
+            var copy = File.Exists(published + VaultMoveService.StagingSuffix) ? published + VaultMoveService.StagingSuffix : published;
             if (!InsideFolder(job.SourceFolder, item.SourcePath)
-                || !string.Equals((await hasher.ComputeAsync(item.SourcePath, ct).ConfigureAwait(false)).Hex, item.ContentHash, StringComparison.Ordinal))
+                || !File.Exists(copy)
+                || !string.Equals((await hasher.ComputeAsync(item.SourcePath, ct).ConfigureAwait(false)).Hex, item.ContentHash, StringComparison.Ordinal)
+                // The original is deleted only when the copy still holds every byte of it, not just the same quick fingerprint.
+                || !string.Equals(
+                    (await hasher.ComputeFullAsync(item.SourcePath, ct).ConfigureAwait(false)).Hex,
+                    (await hasher.ComputeFullAsync(copy, ct).ConfigureAwait(false)).Hex,
+                    StringComparison.Ordinal))
             {
                 return false;
             }

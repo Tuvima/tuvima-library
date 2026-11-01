@@ -20,7 +20,7 @@ else
     <AppHostedDialog Title="@Title"
                      Subtitle="@HelpText"
                      Icon="@AppMediaPresentation.IconFor(MediaType, outlined: true)"
-                     Size="FullscreenEditor"
+                     Size="Large"
                      Class="server-folder-picker-host"
                      OnClose="Cancel">
         <ChildContent>@BodyContent</ChildContent>
@@ -32,6 +32,11 @@ else
     // The picker body and footer are shared by the dialog and the inline (embedded) form.
     private RenderFragment BodyContent => @<text>
         <div class="@RootClass">
+            @if (!string.IsNullOrWhiteSpace(TargetLabel))
+            {
+                @* Says what this pick is for, so a folder meant for one library is not chosen for another by accident. *@
+                <p class="server-folder-picker__target" data-picker-target>Choose the folder that holds your <strong>@TargetLabel</strong></p>
+            }
             @if (ShowBrowser)
             {
                 <div class="server-folder-picker__pathbar">
@@ -302,6 +307,9 @@ else
     [Parameter] public IReadOnlyCollection<string>? AllowedStorageLocationIds { get; set; }
     /// <summary>The media type being added to (for example Movies); the title-bar icon follows it. Empty means the generic folder icon.</summary>
     [Parameter] public string? MediaType { get; set; }
+    /// <summary>What the folder is for in the person's words (for example Movies); shown at the top of the picker. Falls back to <see cref="MediaType"/>.</summary>
+    [Parameter] public string? KindLabel { get; set; }
+    private string? TargetLabel => string.IsNullOrWhiteSpace(KindLabel) ? MediaType : KindLabel;
     /// <summary>Render only the body (address bar, locations, folder list and the selected-path footer) with no dialog title or Cancel, so a host dialog can embed the picker.</summary>
     [Parameter] public bool Inline { get; set; }
     /// <summary>Called with the validated folder when the person confirms while <see cref="Inline"/> is true; the dialog form closes with the same result instead.</summary>
