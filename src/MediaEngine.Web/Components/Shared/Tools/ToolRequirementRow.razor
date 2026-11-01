@@ -1,25 +1,26 @@
 @namespace MediaEngine.Web.Components.Shared.Tools
 @inject IStringLocalizer<SharedStrings> L
 
-@* One tool or download from the Engine's tools list, worded the same on the setup screen and in Settings.
-   Buttons appear only when the row allows the action and the host handles it, so setup (which handles none) is read-only. *@
+@* One tool or download from the Engine's tools list, drawn the same on the setup Tools step and in Settings > Tools.
+   Name and version on the first line, a one-line description under it, then a fixed Status column and a fixed Action column.
+   A button appears only when the row allows the action and the host handles it; otherwise the Action column holds a dash. *@
 <article class="tool-row" data-tool-id="@Tool.Id" data-state="@Tool.State">
     <div class="tool-row__main">
         <div class="tool-row__title">
             <strong>@Tool.Name</strong>
-            <AppStatusBadge Text="@StatusLabel" Tone="@StatusTone" />
-        </div>
-
-        @if (IsReady)
-        {
             @if (!string.IsNullOrWhiteSpace(Tool.Version))
             {
-                <small class="tool-row__detail">@L["ToolRequirementRow_Version", Tool.Version]</small>
+                <span class="tool-row__version">@VersionText</span>
             }
-        }
-        else
+        </div>
+        <span class="tool-row__description">@Description</span>
+
+        @if (!IsReady)
         {
-            <span class="tool-row__effect">@Tool.Effect</span>
+            @if (KnownDescription is not null)
+            {
+                <small class="tool-row__detail">@Tool.Effect</small>
+            }
             @if (!string.IsNullOrWhiteSpace(Tool.StateReason))
             {
                 <small class="tool-row__detail">@Tool.StateReason</small>
@@ -40,24 +41,40 @@
         }
     </div>
 
-    @if (HasActions)
-    {
-        <div class="tool-row__actions">
+    <div class="tool-row__status" data-column="status">
+        <AppStatusBadge Text="@StatusLabel" Tone="@StatusTone" />
+    </div>
+
+    <div class="tool-row__actions" data-column="action">
+        @if (HasActions)
+        {
+            @if (Tool.State == ToolRequirementStates.Downloading && OnCancel.HasDelegate)
+            {
+                <AppButton Label="@L["Search_Cancel"].Value" Size="AppControlSize.Compact" Disabled="Busy" OnClick="@(() => OnCancel.InvokeAsync(Tool))" />
+            }
+            @if (Tool.State == ToolRequirementStates.InstallerReady && OnRunInstaller.HasDelegate)
+            {
+                <AppButton Label="@L["Common_RunInstaller"].Value" Size="AppControlSize.Compact" Disabled="Busy" OnClick="@(() => OnRunInstaller.InvokeAsync(Tool))" />
+            }
             @if (Tool.CanLocate && OnLocate.HasDelegate)
             {
-                <AppButton Label="@L["ToolRequirementRow_LocateIt"].Value" Size="AppControlSize.Compact" Disabled="Busy" OnClick="@(() => OnLocate.InvokeAsync(Tool))" />
+                <AppButton Label="@L["ToolRequirementRow_Locate"].Value" Size="AppControlSize.Compact" Disabled="Busy" OnClick="@(() => OnLocate.InvokeAsync(Tool))" />
             }
-            @if (Tool.CanInstall && OnInstall.HasDelegate)
+            @if (ShowInstall)
             {
-                <AppButton Label="@L["ToolRequirementRow_InstallForMe"].Value" Size="AppControlSize.Compact" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="Busy" OnClick="@(() => OnInstall.InvokeAsync(Tool))" />
+                <AppButton Label="@L["ToolRequirementRow_Install"].Value" Size="AppControlSize.Compact" Disabled="Busy" OnClick="@(() => OnInstall.InvokeAsync(Tool))" />
             }
-            @if (Tool.CanDownloadAgain && OnDownloadAgain.HasDelegate)
+            @if (ShowDownloadAgain)
             {
-                <AppButton Label="@(Tool.State == ToolRequirementStates.Problem ? "Download again" : "Download")" Size="AppControlSize.Compact" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="Busy" OnClick="@(() => OnDownloadAgain.InvokeAsync(Tool))" />
+                <AppButton Label="@(Tool.State == ToolRequirementStates.Problem ? "Download again" : "Download")" Size="AppControlSize.Compact" Disabled="Busy" OnClick="@(() => OnDownloadAgain.InvokeAsync(Tool))" />
             }
             @Actions
-        </div>
-    }
+        }
+        else
+        {
+            <span class="tool-row__dash" aria-label="@L["ToolRequirementRow_NoAction"].Value">&mdash;</span>
+        }
+    </div>
 </article>
 
 @code {
@@ -67,36 +84,61 @@
     [Parameter] public bool Busy { get; set; }
 
     [Parameter] public EventCallback<ToolRequirementDto> OnLocate { get; set; }
+
+    /// <summary>Install a tool that is not installed. Also the action for a broken tool the Library can fetch again.</summary>
     [Parameter] public EventCallback<ToolRequirementDto> OnInstall { get; set; }
     [Parameter] public EventCallback<ToolRequirementDto> OnDownloadAgain { get; set; }
+    [Parameter] public EventCallback<ToolRequirementDto> OnCancel { get; set; }
+    [Parameter] public EventCallback<ToolRequirementDto> OnRunInstaller { get; set; }
 
-    /// <summary>Extra buttons the host owns, such as Cancel, Load and Unload for a model.</summary>
+    /// <summary>Extra buttons the host owns, such as Load and Unload for a model.</summary>
     [Parameter] public RenderFragment? Actions { get; set; }
 
     private bool IsReady => Tool.State == ToolRequirementStates.Ready;
-    private bool IsOptional => Tool.Requirement == ToolRequirementLevels.Optional;
+
+    private bool ShowInstall => OnInstall.HasDelegate
+        && (Tool.CanInstall || Tool.CanDownloadAgain)
+        && Tool.State is ToolRequirementStates.Missing or ToolRequirementStates.Problem;
+
+    private bool ShowDownloadAgain => Tool.CanDownloadAgain && OnDownloadAgain.HasDelegate;
 
     private bool HasActions => Actions is not null
+        || (Tool.State == ToolRequirementStates.Downloading && OnCancel.HasDelegate)
+        || (Tool.State == ToolRequirementStates.InstallerReady && OnRunInstaller.HasDelegate)
         || (Tool.CanLocate && OnLocate.HasDelegate)
-        || (Tool.CanInstall && OnInstall.HasDelegate)
-        || (Tool.CanDownloadAgain && OnDownloadAgain.HasDelegate);
+        || ShowInstall
+        || ShowDownloadAgain;
+
+    private string VersionText => Tool.Version!.StartsWith('v') ? Tool.Version : $"v{Tool.Version}";
+
+    // The one-line description lives in the wording file by tool id; a row without one (an AI model) falls back to what the Engine says it affects.
+    private string? KnownDescription => Tool.Id switch
+    {
+        ToolRequirementIds.Ffmpeg => L["ToolRequirementRow_Describes_ffmpeg"].Value,
+        ToolRequirementIds.AdaptiveStreaming => L["ToolRequirementRow_Describes_adaptive_streaming"].Value,
+        ToolRequirementIds.Tesseract => L["ToolRequirementRow_Describes_tesseract"].Value,
+        ToolRequirementIds.ExifTool => L["ToolRequirementRow_Describes_exiftool"].Value,
+        ToolRequirementIds.ImageEngine => L["ToolRequirementRow_Describes_image_engine"].Value,
+        ToolRequirementIds.AiRuntime => L["ToolRequirementRow_Describes_ai_runtime"].Value,
+        _ => null,
+    };
+
+    private string Description => KnownDescription ?? Tool.Effect;
 
     private string StatusLabel => Tool.State switch
     {
-        ToolRequirementStates.Ready => "Ready",
-        ToolRequirementStates.Missing when IsOptional => "Optional",
-        ToolRequirementStates.Missing => "Missing",
-        ToolRequirementStates.Downloading => Tool.DownloadPercent is { } percent ? $"Downloading {percent}%" : "Downloading",
-        ToolRequirementStates.InstallerReady => "Installer ready",
-        _ => "Problem",
+        ToolRequirementStates.Ready => L["ToolRequirementRow_StatusReady"].Value,
+        ToolRequirementStates.Downloading => Tool.DownloadPercent is { } percent
+            ? $"{L["ToolRequirementRow_StatusDownloading"].Value} {percent}%"
+            : L["ToolRequirementRow_StatusDownloading"].Value,
+        ToolRequirementStates.Problem => L["ToolRequirementRow_StatusBroken"].Value,
+        _ => L["ToolRequirementRow_StatusNotInstalled"].Value,
     };
 
     private AppUiTone StatusTone => Tool.State switch
     {
         ToolRequirementStates.Ready => AppUiTone.Success,
-        ToolRequirementStates.Missing when IsOptional => AppUiTone.Neutral,
-        ToolRequirementStates.Missing => AppUiTone.Warning,
-        ToolRequirementStates.Downloading or ToolRequirementStates.InstallerReady => AppUiTone.Info,
+        ToolRequirementStates.Downloading => AppUiTone.Info,
         _ => AppUiTone.Warning,
     };
 

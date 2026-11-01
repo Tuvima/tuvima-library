@@ -34,22 +34,12 @@
         }
 
         <AppCard Title="@L["Common_Tools"].Value" Description="@L["ToolsRequirementsTab_OutsideProgramsTheLibraryUses"].Value" Class="tl-sp-mb-3">
+            <ToolsSummaryLine Tools="@Tools" />
             <div class="tools-requirements__list" data-testid="tools-list">
                 @foreach (var tool in Tools)
                 {
                     <ToolRequirementRow Tool="@tool" Busy="@(_busyId is not null)" OnLocate="LocateAsync"
-                                        OnInstall="InstallAsync" OnDownloadAgain="InstallAsync">
-                        <Actions>
-                            @if (tool.State == ToolRequirementStates.Downloading)
-                            {
-                                <AppButton Label="@L["Search_Cancel"].Value" Size="AppControlSize.Compact" Tone="AppUiTone.Warning" Disabled="@(_busyId is not null)" OnClick="@(() => CancelInstallAsync(tool))" />
-                            }
-                            @if (tool.State == ToolRequirementStates.InstallerReady)
-                            {
-                                <AppButton Label="@L["Common_RunInstaller"].Value" Size="AppControlSize.Compact" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@(_busyId is not null)" OnClick="@(() => RunInstallerAsync(tool))" />
-                            }
-                        </Actions>
-                    </ToolRequirementRow>
+                                        OnInstall="InstallAsync" OnCancel="CancelInstallAsync" OnRunInstaller="RunInstallerAsync" />
                 }
             </div>
         </AppCard>

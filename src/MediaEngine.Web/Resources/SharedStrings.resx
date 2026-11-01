@@ -7551,9 +7551,6 @@
   <data name="SetupToolsStage_CheckingYourTools2" xml:space="preserve">
     <value>Checking your tools…</value>
   </data>
-  <data name="SetupToolsStage_DownloadNow" xml:space="preserve">
-    <value>Download now</value>
-  </data>
   <data name="SetupVaultOffer_TurnOnTheVault" xml:space="preserve">
     <value>Turn on the Vault?</value>
   </data>
@@ -7896,14 +7893,59 @@
   <data name="ServerFolderSegmentMenu_LoadingFolders" xml:space="preserve">
     <value>Loading folders...</value>
   </data>
-  <data name="ToolRequirementRow_Version" xml:space="preserve">
-    <value>Version {0}</value>
+  <data name="ToolRequirementRow_Install" xml:space="preserve">
+    <value>Install</value>
   </data>
-  <data name="ToolRequirementRow_LocateIt" xml:space="preserve">
-    <value>Locate it</value>
+  <data name="ToolRequirementRow_Locate" xml:space="preserve">
+    <value>Locate</value>
   </data>
-  <data name="ToolRequirementRow_InstallForMe" xml:space="preserve">
-    <value>Install for me</value>
+  <data name="ToolRequirementRow_StatusReady" xml:space="preserve">
+    <value>Ready</value>
+  </data>
+  <data name="ToolRequirementRow_StatusNotInstalled" xml:space="preserve">
+    <value>Not installed</value>
+  </data>
+  <data name="ToolRequirementRow_StatusDownloading" xml:space="preserve">
+    <value>Downloading</value>
+  </data>
+  <data name="ToolRequirementRow_StatusBroken" xml:space="preserve">
+    <value>Broken</value>
+  </data>
+  <data name="ToolRequirementRow_NoAction" xml:space="preserve">
+    <value>Nothing to do</value>
+  </data>
+  <data name="ToolRequirementRow_Describes_ffmpeg" xml:space="preserve">
+    <value>Video and audio processing</value>
+  </data>
+  <data name="ToolRequirementRow_Describes_adaptive_streaming" xml:space="preserve">
+    <value>Smooth streaming to phones and TVs</value>
+  </data>
+  <data name="ToolRequirementRow_Describes_tesseract" xml:space="preserve">
+    <value>Reads text in scanned documents</value>
+  </data>
+  <data name="ToolRequirementRow_Describes_exiftool" xml:space="preserve">
+    <value>Reads photo and file details</value>
+  </data>
+  <data name="ToolRequirementRow_Describes_image_engine" xml:space="preserve">
+    <value>Resizes artwork and thumbnails</value>
+  </data>
+  <data name="ToolRequirementRow_Describes_ai_runtime" xml:space="preserve">
+    <value>Runs the optional local AI features</value>
+  </data>
+  <data name="ToolsSummaryLine_DetectedOne" xml:space="preserve">
+    <value>1 tool detected</value>
+  </data>
+  <data name="ToolsSummaryLine_DetectedMany" xml:space="preserve">
+    <value>{0} tools detected</value>
+  </data>
+  <data name="ToolsSummaryLine_Ready" xml:space="preserve">
+    <value>{0} ready</value>
+  </data>
+  <data name="ToolsSummaryLine_NeedsSetupOne" xml:space="preserve">
+    <value>1 needs setup</value>
+  </data>
+  <data name="ToolsSummaryLine_NeedsSetupMany" xml:space="preserve">
+    <value>{0} need setup</value>
   </data>
   <data name="AdaptationTree_AdaptationTree" xml:space="preserve">
     <value>Adaptation Tree</value>
