@@ -23,6 +23,10 @@ public sealed class ListImportService
     private readonly IConfigurationLoader _configuration;
     private readonly ICollectionMediaLookupReadService _lookup;
     private readonly TimeProvider _time;
+    private readonly IReadOnlyList<IListSourceFetcher> _fetchers;
+
+    /// <summary>When a web list could not be reached on import, the next look is this soon.</summary>
+    private static readonly TimeSpan TryAgainAfter = TimeSpan.FromHours(1);
 
     public ListImportService(
         ICollectionListRepository lists,
@@ -30,7 +34,8 @@ public sealed class ListImportService
         IFuzzyMatchingService fuzzy,
         IConfigurationLoader configuration,
         ICollectionMediaLookupReadService lookup,
-        TimeProvider? time = null)
+        TimeProvider? time = null,
+        IEnumerable<IListSourceFetcher>? fetchers = null)
     {
         _lists = lists;
         _candidates = candidates;
@@ -38,6 +43,7 @@ public sealed class ListImportService
         _configuration = configuration;
         _lookup = lookup;
         _time = time ?? TimeProvider.System;
+        _fetchers = fetchers?.ToList() ?? [];
     }
 
     // ── Preview ──────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -81,7 +87,10 @@ public sealed class ListImportService
         {
             SourceKind = parsed.SourceKind,
             SourceLabel = parsed.SourceLabel,
-            SourceName = SafeFileName(fileName),
+            SourceName = parsed.SourceAddress ?? SafeFileName(fileName),
+            SourceAddress = parsed.SourceAddress,
+            IsWebSource = ListSourceKinds.IsWeb(parsed.SourceKind),
+            WillTryAgain = parsed.WillTryAgain,
             SuggestedName = SuggestName(parsed, shelf),
             EntryCount = counted.Count,
             OwnedCount = owned.Count,
@@ -128,6 +137,11 @@ public sealed class ListImportService
         var orderBy = NormalizeOrder(order);
         var refreshChoice = NormalizeRefresh(refresh);
         var sync = NormalizeSync(syncMode);
+        if (parsed.WillTryAgain && refreshChoice == ListImportChoices.RefreshNever)
+        {
+            // The site did not answer, so the list is saved empty and Library has to come back for it: "never" cannot hold.
+            refreshChoice = ListImportChoices.RefreshWeekly;
+        }
 
         var stored = resolved.Select((entry, index) => ToStoredEntry(collectionId, index + 1, entry, onList: true, existingId: null)).ToList();
         var existingItems = await _lists.GetItemsAsync(collectionId, ct).ConfigureAwait(false);
@@ -138,13 +152,14 @@ public sealed class ListImportService
             CollectionId = collectionId,
             SourceKind = parsed.SourceKind,
             SourceLabel = parsed.SourceLabel,
-            SourceName = SafeFileName(fileName),
+            SourceName = parsed.SourceAddress ?? SafeFileName(fileName),
+            SourceAddress = parsed.SourceAddress,
             Shelf = string.IsNullOrWhiteSpace(shelf) ? null : shelf.Trim(),
             OrderBy = orderBy,
             Refresh = refreshChoice,
             SyncMode = sync,
-            LastRefreshedAt = now,
-            NextRefreshAt = NextRefresh(refreshChoice, now),
+            LastRefreshedAt = parsed.WillTryAgain ? null : now,
+            NextRefreshAt = parsed.WillTryAgain ? now + TryAgainAfter : NextRefresh(refreshChoice, now),
             CreatedAt = now,
             UpdatedAt = now,
         };
@@ -174,6 +189,8 @@ public sealed class ListImportService
             SourceKind = source.SourceKind,
             SourceLabel = source.SourceLabel,
             SourceName = source.SourceName,
+            SourceAddress = source.SourceAddress,
+            IsWebSource = ListSourceKinds.IsWeb(source.SourceKind),
             Shelf = source.Shelf,
             Order = source.OrderBy,
             Refresh = source.Refresh,
@@ -368,6 +385,33 @@ public sealed class ListImportService
             removed,
             onList.Count(entry => entry.MatchedWorkId is not null && entry.Status != ListImportChoices.StatusUnmatched),
             onList.Count(entry => entry.Status == ListImportChoices.StatusUnmatched));
+    }
+
+    /// <summary>
+    /// A refresh a person asked for. A web list is looked at again where it came from; when its site does not answer the
+    /// collection keeps what it has (the stored entries are matched against the library again) and the result says it will try
+    /// again. A file list, or a newer file the person brought, is handled as <see cref="RefreshAsync"/> does.
+    /// </summary>
+    public async Task<ListRefreshResultDto?> RefreshNowAsync(
+        Guid collectionId, ParsedList? fresh, IReadOnlySet<Guid>? allowedWorkIds, CancellationToken ct)
+    {
+        var tryAgain = fresh?.WillTryAgain == true;
+        if (tryAgain)
+        {
+            fresh = null;
+        }
+        else if (fresh is null)
+        {
+            var source = await _lists.GetSourceAsync(collectionId, ct).ConfigureAwait(false);
+            if (source is not null && _fetchers.FirstOrDefault(candidate => candidate.CanFetch(source)) is { } fetcher)
+            {
+                fresh = await fetcher.FetchAsync(source, ct).ConfigureAwait(false);
+                tryAgain = fresh is null;
+            }
+        }
+
+        var result = await RefreshAsync(collectionId, fresh, allowedWorkIds, ct).ConfigureAwait(false);
+        return result is not null && tryAgain ? result with { WillTryAgain = true } : result;
     }
 
     // ── Shared steps ─────────────────────────────────────────────────────────────────────────────────────────────────

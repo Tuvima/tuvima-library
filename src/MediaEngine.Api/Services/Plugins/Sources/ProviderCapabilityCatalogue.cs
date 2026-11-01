@@ -109,7 +109,9 @@ public sealed class ProviderCapabilityCatalogue(IConfigurationLoader loader, Pro
             source.Config.RequiresApiKey,
             source.Pairs.Select(pair => ProviderCapabilityPhrases.MediaLabel(pair.Media)).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
             source.Pairs.Select(pair => pair.Media),
-            "metadata"),
+            "metadata",
+            listsOnly: source.Config.ProviderCapabilities.Count > 0
+                && source.Config.ProviderCapabilities.All(capability => string.Equals(capability, ProviderCapabilityId.Lists, StringComparison.OrdinalIgnoreCase))),
     };
 
     private List<Source> Load() => loader.LoadAllProviders()

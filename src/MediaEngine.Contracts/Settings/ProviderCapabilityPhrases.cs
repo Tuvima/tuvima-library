@@ -30,6 +30,7 @@ public static class ProviderCapabilityPhrases
         ["relationships"] = "related titles",
         ["lyrics"] = "lyrics",
         ["subtitles"] = "subtitles",
+        ["lists"] = "lists",
     };
 
     /// <summary>One media type in the singular, as a person would say it ("Movies" becomes "Movie").</summary>

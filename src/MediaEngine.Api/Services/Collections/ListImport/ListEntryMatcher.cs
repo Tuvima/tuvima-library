@@ -86,7 +86,11 @@ public sealed class ListEntryMatcher
     {
         ArgumentNullException.ThrowIfNull(input);
 
-        foreach (var key in ListIdentifierKeys.All)
+        // The strongest identifiers first, then any other MusicBrainz or ComicVine identifier the entry carries (a MusicBrainz
+        // collection gives a release's id and its release group's id, and Library may hold either).
+        var keys = ListIdentifierKeys.All.Concat(
+            input.Ids.Keys.Where(key => !ListIdentifierKeys.All.Contains(key) && CanonicalId(key, input.Ids[key]) is not null));
+        foreach (var key in keys)
         {
             if (!input.Ids.TryGetValue(key, out var raw) || CanonicalId(key, raw) is not { } id)
             {

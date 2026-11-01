@@ -33,7 +33,7 @@
         </div>
     }
 
-    <p class="import-panel__privacy" data-import-privacy>@ImportPrivacy.FilesStayOnThisMachine</p>
+    <p class="import-panel__privacy" data-import-privacy>@(_shown?.Preview.PrivacyNote ?? ImportPrivacy.FilesStayOnThisMachine)</p>
 
     @if (_busy)
     {
@@ -42,7 +42,13 @@
 
     @if (_error is not null)
     {
-        <AppAlert Tone="AppUiTone.Warning" Dense="true" data-import-error>@_error</AppAlert>
+        <AppAlert Tone="AppUiTone.Warning" Dense="true" data-import-error>
+            @_error
+            @if (_errorLinkHref is not null)
+            {
+                <a class="import-panel__link" href="@_errorLinkHref" data-import-error-link>@(_errorLinkLabel ?? L["ImportPanel_OpenSettings"].Value)</a>
+            }
+        </AppAlert>
     }
 
     @if (_shown is { } shown && ShowPreview)
@@ -80,6 +86,8 @@
     private string _pasted = string.Empty;
     private bool _busy;
     private string? _error;
+    private string? _errorLinkHref;
+    private string? _errorLinkLabel;
     private string? _applied;
     private bool _appliedOk;
     private ImportRecognition? _shown;
@@ -124,7 +132,7 @@
         {
             var parts = new List<string>();
             if (Accepts(ImportKinds.CollectionList))
-                parts.Add("a list from IMDb, Letterboxd, Trakt, Goodreads or StoryGraph, or a text file with one title per line");
+                parts.Add("a list from IMDb, Letterboxd, Trakt, Goodreads or StoryGraph, a text file with one title per line, or a list address from TMDb, MDBList, Open Library or MusicBrainz");
             if (Accepts(ImportKinds.PackFile))
                 parts.Add("a collection pack");
             if (Accepts(ImportKinds.BookmarkPack))
@@ -199,6 +207,13 @@
         if (!preview.Recognised)
         {
             _error = preview.Message ?? "Library did not recognise this file.";
+            // Only an address inside this app is followed (the Plugins page for a source that is off).
+            if (preview.MessageLinkHref is { } href && href.StartsWith('/') && !href.StartsWith("//", StringComparison.Ordinal))
+            {
+                _errorLinkHref = href;
+                _errorLinkLabel = preview.MessageLinkLabel;
+            }
+
             return;
         }
 
@@ -234,6 +249,8 @@
     {
         var hadFile = _shown is not null;
         _error = null;
+        _errorLinkHref = null;
+        _errorLinkLabel = null;
         _applied = null;
         _shown = null;
         if (hadFile)

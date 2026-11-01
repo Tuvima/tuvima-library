@@ -1666,6 +1666,8 @@ MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionLi
   SourceKind: System.String | nullability=not-null | accessors=get,init
   SourceLabel: System.String | nullability=not-null | accessors=get,init
   SourceName: System.String | nullability=not-null | accessors=get,init
+  SourceAddress: System.String | nullability=nullable | accessors=get,init
+  IsWebSource: System.Boolean | nullability=not-null | accessors=get,init
   Shelf: System.String | nullability=nullable | accessors=get,init
   Order: System.String | nullability=not-null | accessors=get,init
   Refresh: System.String | nullability=not-null | accessors=get,init
@@ -2103,6 +2105,9 @@ MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.ListImportPr
   SourceKind: System.String | nullability=not-null | accessors=get,init
   SourceLabel: System.String | nullability=not-null | accessors=get,init
   SourceName: System.String | nullability=not-null | accessors=get,init
+  SourceAddress: System.String | nullability=nullable | accessors=get,init
+  IsWebSource: System.Boolean | nullability=not-null | accessors=get,init
+  WillTryAgain: System.Boolean | nullability=not-null | accessors=get,init
   SuggestedName: System.String | nullability=not-null | accessors=get,init
   EntryCount: System.Int32 | nullability=not-null | accessors=get,init
   OwnedCount: System.Int32 | nullability=not-null | accessors=get,init
@@ -2155,6 +2160,7 @@ MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.ListRefreshR
   Removed: System.Int32 | nullability=not-null | accessors=get,init
   Matched: System.Int32 | nullability=not-null | accessors=get,init
   Unmatched: System.Int32 | nullability=not-null | accessors=get,init
+  WillTryAgain: System.Boolean | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.ListSourceSettingsRequest
   Order: System.String | nullability=not-null | accessors=get,init
@@ -3361,6 +3367,8 @@ MediaEngine.Contracts.Import.MediaEngine.Contracts.Import.ImportPreviewDto
   Facts: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Import.ImportFactDto> | nullability=not-null | accessors=get,init
   Notes: System.Collections.Generic.IReadOnlyList<System.String> | nullability=not-null | accessors=get,init
   Message: System.String | nullability=nullable | accessors=get,init
+  MessageLinkHref: System.String | nullability=nullable | accessors=get,init
+  MessageLinkLabel: System.String | nullability=nullable | accessors=get,init
   CanApply: System.Boolean | nullability=not-null | accessors=get,init
   ApplyLabel: System.String | nullability=nullable | accessors=get,init
   PrivacyNote: System.String | nullability=not-null | accessors=get,init

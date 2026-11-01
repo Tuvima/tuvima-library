@@ -1,0 +1,119 @@
+{
+  "name": "mdblist",
+  "version": "1.0",
+  "enabled": true,
+  "weight": 0.1,
+  "domain": "Video",
+  "icon": "images/providers/mdblist.svg",
+  "capability_tags": [],
+  "provider_capabilities": ["lists"],
+  "available_fields": [],
+  "field_weights": {},
+  "endpoints": {
+    "api": "https://api.mdblist.com"
+  },
+  "rate_limit": {
+    "requests_per_second": 2,
+    "burst": 2,
+    "max_concurrency": 1
+  },
+  "hydration_stages": [],
+  "cache_ttl_hours": 0,
+
+  "adapter_type": "coded",
+  "provider_id": "c0000013-0000-4000-8000-000000000021",
+  "display_name": "MDBList",
+  "requires_api_key": true,
+  "language_strategy": "source",
+
+  "http_client": {
+    "timeout_seconds": 20,
+    "user_agent": "Tuvima Library/1.0 (https://github.com/Tuvima/tuvima-library)",
+    "api_key": "",
+    "api_key_delivery": "query",
+    "api_key_param_name": "apikey"
+  },
+
+  "can_handle": {
+    "media_types": ["Movies", "TV"],
+    "entity_types": ["Work"]
+  },
+
+  "ui_metadata": {
+    "accent_color": "#4C8BF5",
+    "material_icon": "Checklist",
+    "category": "Open",
+    "requires_key": true,
+    "auth_type": "api_key",
+    "external_links": {
+      "mdblist_list": {
+        "label": "MDBList",
+        "url_template": "https://mdblist.com/lists/{value}",
+        "tooltip": "Open the list on MDBList."
+      }
+    }
+  },
+
+  "onboarding": {
+    "classification": "optional",
+    "signup_url": "https://mdblist.com/preferences/",
+    "help_url": "https://mdblist.com/api/",
+    "terms_url": "https://mdblist.com/terms/",
+    "privacy_url": "https://mdblist.com/privacy/",
+    "supported_lanes": ["watch"],
+    "required_scopes": ["Read-only access to public MDBList lists"],
+    "intro": {
+      "title": "Connect MDBList",
+      "summary": "Lets you turn a public MDBList list into a collection. Only the list's address and your key go to MDBList."
+    },
+    "steps": [
+      {
+        "id": "account",
+        "title": "Account",
+        "description": "Sign in to MDBList or create a free account.",
+        "instructions": ["Open your MDBList preferences and find the API section."],
+        "action": { "kind": "external_link", "label": "Open MDBList preferences", "url": "https://mdblist.com/preferences/", "url_role": "signup" }
+      },
+      {
+        "id": "credential",
+        "title": "Get credential",
+        "description": "Copy the free API key shown in your MDBList preferences.",
+        "instructions": ["Locate your API key.", "Copy the complete value."],
+        "action": { "kind": "credential_entry", "label": "Enter API key" },
+        "credential_keys": ["api_key"]
+      },
+      {
+        "id": "connect",
+        "title": "Connect",
+        "description": "Library will perform a read-only connection check.",
+        "action": { "kind": "credential_probe", "label": "Verify & connect" },
+        "credential_keys": ["api_key"]
+      }
+    ],
+    "troubleshooting": [
+      { "status": "invalid_credential", "title": "MDBList did not accept this key", "message": "Copy the API key again from your MDBList preferences.", "instructions": ["Make sure you are signed in to the account that owns the key."], "help_url": "https://mdblist.com/api/" },
+      { "status": "rate_limited", "title": "MDBList rate limit reached", "message": "MDBList limits how often a free key can ask. Wait before trying again.", "instructions": [] },
+      { "status": "provider_outage", "title": "MDBList is temporarily unavailable", "message": "Your key may be valid. Try again later.", "instructions": [] },
+      { "status": "connectivity_failure", "title": "Library could not reach MDBList", "message": "Check this server's internet, DNS, proxy, and firewall settings.", "instructions": [] }
+    ],
+    "skip_consequences": [
+      { "lane": "watch", "summary": "MDBList list addresses cannot be turned into collections. Other list sources and list files still work.", "unavailable_capabilities": ["lists"] }
+    ],
+    "credentials": [
+      { "key": "api_key", "label": "MDBList API Key", "input_type": "password", "required": true, "ownership": "user_supplied", "purpose": "api_key", "format_hint": "The API key shown in your MDBList preferences.", "minimum_length": 8, "maximum_length": 128, "validation_pattern": "^[A-Za-z0-9_-]+$" }
+    ],
+    "authentication_probe": { "path": "/user", "method": "GET", "success_status_codes": [200] }
+  },
+
+  "declaration": {
+    "audience": "administrators",
+    "weight_class": "light",
+    "on_failure": "skip_and_retry",
+    "notify": "quiet",
+    "changelog": "First built-in version: public MDBList lists as collections.",
+    "stores": {
+      "saved_output": "list entries",
+      "on_removal": "keep"
+    }
+  }
+}
