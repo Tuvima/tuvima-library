@@ -1,0 +1,96 @@
+.media-square-tile {
+    flex: 0 0 auto;
+    width: min(calc(100vw - 22px), clamp(150px, 10vw, 210px));
+    min-width: 0;
+    scroll-snap-align: start;
+    font-family: var(--font-ui);
+}
+
+.media-square-tile__link {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-2, 0.5rem);
+    color: inherit;
+    text-decoration: none;
+    outline: 0;
+}
+
+.media-square-tile__picture {
+    display: block;
+    aspect-ratio: 1;
+    overflow: hidden;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: var(--tl-radius-md);
+    background: linear-gradient(145deg, rgba(30, 41, 59, 0.9), rgba(10, 16, 32, 0.95));
+    color: var(--tl-text-secondary);
+    transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+/* One hover for every tile: lift and glow, no popover. */
+.media-square-tile__link:hover .media-square-tile__picture,
+.media-square-tile__link:focus-visible .media-square-tile__picture {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 32px color-mix(in srgb, var(--tl-accent-primary) 38%, transparent);
+}
+
+.media-square-tile__link:focus-visible .media-square-tile__picture {
+    outline: var(--tl-focus-ring-width) solid var(--tl-focus-ring);
+    outline-offset: var(--tl-focus-ring-offset);
+}
+
+.media-square-tile__cover,
+.media-square-tile__mosaic {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.media-square-tile__mosaic {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+}
+
+.media-square-tile__mosaic img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.media-square-tile__fallback {
+    display: grid;
+    height: 100%;
+    place-items: center;
+    font-size: 2.5rem;
+}
+
+.media-square-tile__name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--tl-text-primary);
+    font-weight: 600;
+}
+
+.media-square-tile__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-3, 0.75rem);
+}
+
+.media-square-tile__kind {
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm, 0.8125rem);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .media-square-tile__picture {
+        transition: none;
+    }
+
+    .media-square-tile__link:hover .media-square-tile__picture,
+    .media-square-tile__link:focus-visible .media-square-tile__picture {
+        transform: none;
+    }
+}

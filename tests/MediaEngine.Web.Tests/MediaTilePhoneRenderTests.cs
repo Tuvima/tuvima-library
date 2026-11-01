@@ -76,6 +76,7 @@ public sealed class MediaTilePhoneRenderTests : AsyncBunitContext
         SortYear = 2024,
         MediaKind = "TV",
         IsCollection = true,
+        Presentation = MediaTilePresentation.TvSeries,
         IsKept = true,
         Shape = MediaTileShape.Portrait,
         SurfaceKind = MediaTileSurfaceKind.CoverPortrait,
@@ -138,9 +139,8 @@ public sealed class MediaTilePhoneRenderTests : AsyncBunitContext
 
         Assert.Contains("calc((100vw - 32px) / 2.6 * 1.5)", tile);
         Assert.Contains("calc((100vw - 32px) / 2.4)", tile);
-        Assert.Contains("width: min(86vw, 340px);", tile);
         Assert.Contains("calc(min(86vw, 320px) * 9 / 16)", tile);
-        Assert.Contains("--media-group-tile-width: min(86vw, 340px);", group);
+        Assert.Contains("--media-group-tile-width: min(72vw, 300px);", group);
         Assert.Contains(":root[data-form-factor=\"phone\"] .media-tile-shelf-track", scroller);
         Assert.Contains("margin-inline: calc(-1 * var(--media-shelf-gutter, 16px));", scroller);
         Assert.Contains("scroll-padding-inline: var(--media-shelf-gutter, 16px);", scroller);

@@ -1,53 +1,12 @@
 @namespace MediaEngine.Web.Components.Collections
 @using MediaEngine.Contracts.Persons
+@using MediaEngine.Web.Components.MediaTiles
+@using MediaEngine.Web.Models.ViewDTOs
 @inject IStringLocalizer<SharedStrings> L
 
+@* The people list is a grid of the one shared round person tile: photo, name, and an icon-plus-count line per lane. *@
 <div class="people-catalog-list" role="list" aria-label="@L["PeopleCatalogList_PeopleInYourLibrary"].Value">
-    @foreach (var person in Items)
-    {
-        var counts = Presence.TryGetValue(person.id.ToString(), out var presence)
-            ? presence
-            : EmptyPresence;
-        <a class="people-catalog-row"
-           role="listitem"
-           href="@($"/details/person/{person.id:D}")"
-           @key="person.id">
-            <span class="people-catalog-row__portrait">
-                @if (!string.IsNullOrWhiteSpace(person.headshot_url))
-                {
-                    @* Drawn 48px (PeopleCatalogList.razor.css): the tiny copy, a sharper one on 2x and 3x screens. *@
-                    <img src="@MediaTileArtworkUrl.ForDrawnSize(person.headshot_url, 48)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(person.headshot_url, 48)" alt="" loading="lazy" decoding="async" />
-                }
-                else
-                {
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Person" />
-                }
-            </span>
-
-            <span class="people-catalog-row__identity">
-                <strong>@person.name</strong>
-                <span>@RoleLabel(person.roles)</span>
-            </span>
-
-            <span class="people-catalog-row__presence">
-                @if (LaneCount(counts, "read") is var readCount && readCount > 0)
-                {
-                    <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MenuBook" />@L["PeopleCatalogList_Read", readCount]</span>
-                }
-                @if (LaneCount(counts, "watch") is var watchCount && watchCount > 0)
-                {
-                    <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Movie" />@L["PeopleCatalogList_Watch", watchCount]</span>
-                }
-                @if (LaneCount(counts, "listen") is var listenCount && listenCount > 0)
-                {
-                    <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Headphones" />@L["PeopleCatalogList_Listen", listenCount]</span>
-                }
-            </span>
-
-            <span class="people-catalog-row__total">@Total(counts) owned</span>
-            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" Class="people-catalog-row__open" />
-        </a>
-    }
+    <PersonTileGrid Items="@Tiles" />
 </div>
 
 @code {
@@ -57,18 +16,39 @@
     [Parameter] public IReadOnlyDictionary<string, Dictionary<string, int>> Presence { get; set; } =
         new Dictionary<string, Dictionary<string, int>>();
 
-    private static string RoleLabel(IEnumerable<string> roles)
+    private IReadOnlyList<MediaTileViewModel> Tiles => Items.Select(ToTile).ToList();
+
+    private MediaTileViewModel ToTile(PersonListItemResponse person)
     {
-        var values = roles
-            .Where(role => !string.IsNullOrWhiteSpace(role))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Take(3)
-            .ToList();
-        return values.Count == 0 ? "Contributor" : string.Join(", ", values);
+        var counts = Presence.TryGetValue(person.id.ToString(), out var presence) ? presence : EmptyPresence;
+        var route = $"/details/person/{person.id:D}";
+        var mediaCounts = new List<MediaTileMediaCountViewModel>();
+        AddLane(mediaCounts, counts, "read", AppMaterialIcons.Outlined.MenuBook, L["PeopleCatalogList_LabelReadOne"].Value, L["PeopleCatalogList_LabelRead"].Value);
+        AddLane(mediaCounts, counts, "watch", AppMaterialIcons.Outlined.Movie, L["PeopleCatalogList_LabelWatchOne"].Value, L["PeopleCatalogList_LabelWatch"].Value);
+        AddLane(mediaCounts, counts, "listen", AppMaterialIcons.Outlined.Headphones, L["PeopleCatalogList_LabelListenOne"].Value, L["PeopleCatalogList_LabelListen"].Value);
+        return new MediaTileViewModel
+        {
+            Id = person.id,
+            Title = person.name,
+            NavigationUrl = route,
+            MediaCounts = mediaCounts,
+            Person = new MediaTilePersonViewModel
+            {
+                Id = person.id,
+                Name = person.name,
+                ImageUrl = person.headshot_url,
+                Roles = person.roles.ToList(),
+            },
+        };
     }
 
-    private static int Total(IReadOnlyDictionary<string, int> counts) =>
-        counts.Values.Sum();
+    private static void AddLane(List<MediaTileMediaCountViewModel> target, IReadOnlyDictionary<string, int> counts, string lane, string icon, string singular, string plural)
+    {
+        if (LaneCount(counts, lane) is var count and > 0)
+        {
+            target.Add(new MediaTileMediaCountViewModel(icon, count == 1 ? singular : plural, count));
+        }
+    }
 
     private static int LaneCount(IReadOnlyDictionary<string, int> counts, string lane) =>
         counts

@@ -40,12 +40,6 @@
                                                              HideSourceBadge="@HideSourceBadges"
                                                              @key="item.RenderKey" />
                         }
-                        else if (item.RenderAsLandscapeGroupTile)
-                        {
-                            <MediaGroupTile Item="@item"
-                                            HoverMode="@(HoverMode ?? MediaTileHoverPolicy.ForShelf(item))"
-                                            @key="item.RenderKey" />
-                        }
                         else
                         {
                             <MediaTile Item="@item" IsHomeSurface="@IsHomeSurface"

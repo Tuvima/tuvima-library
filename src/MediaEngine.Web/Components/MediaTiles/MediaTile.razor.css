@@ -9,8 +9,6 @@
     .media-tile.is-media-tv, .media-tile.is-tv-series { --media-tile-accent:var(--tl-media-video); }
     .media-tile.is-portrait { --media-tile-media-height:clamp(252px,23vw,342px);   --media-tile-hover-panel-width:clamp(276px,20vw,318px); --media-tile-hover-clearance:clamp(132px,14vw,188px); }
     .media-tile.is-landscape { width:calc(var(--media-tile-media-height) * 16 / 9); --media-tile-media-aspect:16 / 9; --media-tile-hover-panel-width:clamp(420px,36vw,560px); }
-    .media-tile.is-collection-card.is-landscape { width:clamp(380px, 25.8vw, 500px); --media-tile-media-aspect:16 / 7.25; --media-tile-media-height:clamp(170px, 11vw, 218px); --media-tile-hover-panel-width:clamp(420px,34vw,540px); }
-    .media-tile.is-ordered-series-card.is-landscape { width:clamp(340px, 21vw, 430px); --media-tile-media-aspect:16 / 9.2; --media-tile-media-height:clamp(170px, 10.8vw, 206px); }
     @media (min-width:600px) {
         :root:not([data-form-factor="phone"]) .media-tile.is-shelf-sized.is-portrait, :root:not([data-form-factor="phone"]) .media-tile.is-shelf-sized.is-square { --media-tile-media-height:clamp(176px,16.1vw,240px); }
         :root:not([data-form-factor="phone"]) .media-tile.is-shelf-sized.is-landscape { --media-tile-media-height:clamp(134px,12.9vw,162px); }
@@ -53,23 +51,12 @@
     .media-tile-fallback { flex-direction:column; gap:12px; padding:18px; text-align:center; font-family: var(--font-ui); font-size:.92rem; font-weight:700; color:rgba(248,250,252,.72); }
     .media-tile-hover-fallback { color:rgba(255,255,255,.2); }
     .media-tile-hover-fallback .tl-icon-root { font-size:68px; }
-
-    .media-tile.is-collection-card .media-tile-media { background:var(--art-bg-base-dark, transparent); border:1px solid var(--art-bg-border, rgba(255,255,255,.12)); border-radius:10px; box-shadow:0 22px 54px var(--art-bg-shadow, rgba(0,0,0,.28)), inset 0 0 0 1px rgba(255,255,255,.025); }
     .media-tile-collection-backdrop { position:absolute; inset:0; width:100%; height:100%; display:block; object-position:center center; filter:saturate(1.05) contrast(1.02); z-index:0; }
     .media-tile-collection-backdrop.is-fill { object-fit:cover; }
     .media-tile-collection-backdrop.is-contained { object-fit:contain; background:rgba(2,6,16,.84); }
     .media-tile-collection-wash { position:absolute; inset:0; background:var(--art-bg-gradient, linear-gradient(90deg,var(--art-bg-base-dark, rgba(3,7,13,.88)) 0%,var(--art-bg-base, rgba(3,7,13,.7)) 34%,color-mix(in srgb,var(--art-bg-accent-muted, rgba(3,7,13,.08)) 36%, transparent) 64%,var(--art-bg-overlay, rgba(3,7,13,.28)) 100%)); z-index:1; }
     .media-tile-artwork-stack { position:absolute; inset:0; z-index:2; border-radius:inherit; }
     .media-tile .artwork-stack.media-tile-artwork-stack { position:absolute; width:auto; height:auto; min-height:0; }
-    .media-tile.is-collection-card .artwork-stack.media-tile-artwork-stack { inset:0 10px 0 38%; overflow:visible; }
-    .media-tile.is-ordered-series-card .artwork-stack.media-tile-artwork-stack { inset:12px 18px 58px; overflow:visible; }
-    .media-tile.is-collection-card .media-tile-artwork-stack--collection-tile .artwork-stack__stage { background:transparent; overflow:visible; }
-    .media-tile.is-collection-card .media-tile-artwork-stack--collection-tile .artwork-stack__stage::before,
-    .media-tile.is-collection-card .media-tile-artwork-stack--collection-tile .artwork-stack__stage::after { display:none; }
-    .media-tile.is-collection-card .media-tile-artwork-stack--collection-tile.artwork-stack--card .artwork-stack__item { left:min(90%, calc(var(--left) + 10%)); }
-    .media-tile.is-ordered-series-card .media-tile-artwork-stack--series-tile.artwork-stack--seriesstrip .artwork-stack__item { left:var(--left); }
-
-    .media-tile.is-ordered-series-card .media-tile-collection-wash { background:linear-gradient(180deg,rgba(2,6,16,.18) 0%,rgba(2,6,16,.42) 48%,rgba(2,6,16,.92) 100%),radial-gradient(circle at 20% 18%,color-mix(in srgb,var(--media-tile-accent) 20%,transparent) 0%,transparent 54%); }
 
     .media-tile-group-indicators { position:absolute; inset:10px 10px auto; z-index:6; display:flex; align-items:flex-start; justify-content:space-between; gap:8px; pointer-events:none; }
     .media-tile-group-kind,
@@ -89,8 +76,6 @@
     .media-tile-hover-image { width:100%; height:100%; display:block; object-position:center center; }
     .media-tile-hover-image.is-fill { object-fit:cover; }
     .media-tile-hover-image.is-contained { object-fit:contain; }
-    .media-tile-hover-series-stack,
-    ::deep .media-tile-hover-series-stack { position:absolute; inset:14px 14px 16px; z-index:2; border-radius:12px; box-shadow:inset 0 0 0 1px rgba(255,255,255,.08); }
     .media-tile-hover-body { position:relative; z-index:2; padding:14px 16px 16px; display:flex; flex-direction:column; gap:8px; background:radial-gradient(circle at 12% 0%, rgba(136, 82, 252,.18), transparent 34%),linear-gradient(180deg,#171a22 0%,#11141b 100%); }
 
     .media-tile-hover-heading,
@@ -172,13 +157,6 @@
     --media-tile-media-aspect: 2 / 3;
     --media-tile-hover-panel-width: clamp(320px,28vw,440px);
     width: calc(var(--media-tile-media-height) * 2 / 3);
-}
-
-.media-tile.is-collection-card.is-landscape,
-.media-tile.is-ordered-series-card.is-landscape {
-    --media-tile-media-height: clamp(210px, 14vw, 270px);
-    --media-tile-media-aspect: 16 / 9;
-    width: calc(var(--media-tile-media-height) * 16 / 9);
 }
 
 .media-tile-contained-backdrop { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(24px) brightness(.45); transform: scale(1.1); pointer-events: none; }
@@ -308,7 +286,7 @@
 }
 
 /* In-row previews replace the resting cover at the same vertical position. */
-.media-tile.is-portrait:not(.is-collection-card) .media-tile-image {
+.media-tile.is-portrait .media-tile-image {
     object-fit: contain;
     background: color-mix(in srgb, var(--media-tile-secondary-accent) 82%, #080b12);
 }
@@ -318,7 +296,7 @@
     width: var(--media-tile-media-height);
 }
 
-.media-tile.is-square:not(.is-collection-card) .media-tile-image:not(.is-contained) {
+.media-tile.is-square .media-tile-image:not(.is-contained) {
     object-fit: cover;
     background: transparent;
 }
@@ -336,26 +314,16 @@
     .media-tile.is-square {
         --media-tile-media-height: clamp(240px, 64vw, 320px);
     }
-
-    .media-tile.is-collection-card.is-landscape,
-    .media-tile.is-ordered-series-card.is-landscape {
-        --media-tile-media-height: clamp(160px, 45vw, 220px);
-    }
 }
 
 /* Desktop previews expand the flex item itself, so the shelf reflows instead of
    drawing a fixed panel over neighboring cards. */
 @media (min-width: 841px) and (hover: hover) and (pointer: fine) {
-    .media-tile.is-portrait:not(.is-collection-card) .media-tile-image,
-    .media-tile.is-portrait:not(.is-collection-card) .media-tile-image.is-contained {
+    .media-tile.is-portrait .media-tile-image,
+    .media-tile.is-portrait .media-tile-image.is-contained {
         padding: 0;
         background: transparent;
         object-fit: contain;
-    }
-
-    .media-tile.is-collection-card.is-hover-active:not(.is-hover-none),
-    .media-tile.is-collection-card.is-expanded:not(.is-hover-none) {
-        width: var(--media-tile-expanded-width, min(calc(100vw - 152px), 680px));
     }
 }
 
@@ -601,9 +569,4 @@
 
 :root[data-form-factor="phone"] .media-tile-shelf-scroll .media-tile.is-continue-card.is-landscape {
     --media-tile-media-height: calc(min(86vw, 320px) * 9 / 16);
-}
-
-:root[data-form-factor="phone"] .media-tile-shelf-scroll .media-tile.is-collection-card.is-landscape,
-:root[data-form-factor="phone"] .media-tile-shelf-scroll .media-tile.is-ordered-series-card.is-landscape {
-    width: min(86vw, 340px);
 }

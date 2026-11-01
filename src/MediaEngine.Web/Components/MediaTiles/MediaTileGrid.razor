@@ -3,24 +3,15 @@
 <div class="@GridClass">
     @foreach (var item in Items)
     {
-        @if (item.RenderAsLandscapeGroupTile)
-        {
-            <MediaGroupTile Item="@item"
-                            HoverMode="@HoverMode"
-                            @key="item.RenderKey" />
-        }
-        else
-        {
-            <MediaTile Item="@item"
-                       HoverMode="@HoverMode"
-                       HideMediaKindBadge="@HideMediaKindBadges"
-                       HideSourceBadge="@HideSourceBadges"
-                       HideGroupIndicators="@HideGroupIndicators"
-                       HideGroupKind="@HideGroupKind"
-                       HideGroupCount="@HideGroupCount"
-                       ShowCompactCaption="@ShowCompactCaptions"
-                       @key="item.RenderKey" />
-        }
+        <MediaTile Item="@item"
+                   HoverMode="@HoverMode"
+                   HideMediaKindBadge="@HideMediaKindBadges"
+                   HideSourceBadge="@HideSourceBadges"
+                   HideGroupIndicators="@HideGroupIndicators"
+                   HideGroupKind="@HideGroupKind"
+                   HideGroupCount="@HideGroupCount"
+                   ShowCompactCaption="@ShowCompactCaptions"
+                   @key="item.RenderKey" />
     }
 </div>
 

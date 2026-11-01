@@ -77,6 +77,11 @@ public sealed class MediaTileComposerService
             PrimaryActionLabel = "Open",
             SortTimestamp = playlist.ModifiedAt ?? playlist.CreatedAt,
             IsCollection = true,
+            IsPlaylist = true,
+            MediaCounts = playlist.ItemCount > 0
+                ? [new MediaTileMediaCountViewModel(MediaEngine.Web.Components.Shared.AppMaterialIcons.Outlined.MusicNote, playlist.ItemCount == 1 ? "song" : "songs", playlist.ItemCount)]
+                : [],
+            HasCustomArtwork = !string.IsNullOrWhiteSpace(playlist.CoverArtworkUrl),
         };
     }
 
@@ -383,6 +388,11 @@ public sealed class MediaTileComposerService
             SortTimestamp = card.SortTimestamp,
             IsCollection = card.Flags.IsCollection,
             UseLandscapeGroupTile = useLandscapeGroupTile,
+            IsPlaylist = string.Equals(card.GroupingType, "playlist", StringComparison.OrdinalIgnoreCase),
+            GroupKind = presentation is MediaTilePresentation.MovieSeries or MediaTilePresentation.BookSeries
+                or MediaTilePresentation.ComicSeries or MediaTilePresentation.AudiobookSeries
+                ? MediaTileGroupKind.Series
+                : MediaTileGroupKind.Collection,
         };
     }
 

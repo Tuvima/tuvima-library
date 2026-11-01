@@ -840,14 +840,9 @@
 }
 
 .browse-shell__grid.is-size-controlled ::deep .media-tile.is-landscape,
-.browse-shell__grid.is-size-controlled ::deep .media-tile.is-collection-card.is-landscape,
 .browse-shell__grid.is-size-controlled ::deep .media-tile.is-square,
 .browse-shell__grid.is-size-controlled ::deep .media-tile.is-portrait {
     width: min(calc(100vw - 22px), var(--media-grid-tile-size));
-}
-
-.browse-shell__grid ::deep .media-tile.is-collection-card.is-landscape {
-    width: clamp(360px, 23.5vw, 620px);
 }
 
 .browse-shell__grid ::deep .media-tile.is-square {

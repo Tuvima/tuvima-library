@@ -165,10 +165,6 @@
 
 .design-system-preview__group-card-scenario.is-narrow ::deep .media-group-tile {
     --media-group-tile-width: 298px;
-    --media-group-tile-height: 216px;
-    width: 298px;
-    height: 216px;
-    flex-basis: 298px;
 }
 
 @media (max-width: 980px) {

@@ -1,0 +1,63 @@
+@namespace MediaEngine.Web.Components.MediaTiles
+@using MediaEngine.Web.Components.Shared
+@inject NavigationManager Nav
+@inject IStringLocalizer<SharedStrings> L
+
+@* The square tile for a playlist, so playlists sit beside albums in Listen. A playlist's own cover (chosen
+   artwork, or the Engine's 2x2 mosaic of album covers) fills the square; without one, the member covers are
+   laid out as a 2x2 mosaic. Name and the shared count line sit below, with the small word naming the kind. *@
+<article class="media-square-tile" aria-label="@Item.Title">
+    <a class="media-square-tile__link"
+       href="@Url"
+       aria-label="@L["MediaGroupTile_Label", Item.Title, L["MediaSquareTile_Playlist"]]"
+       @onclick="OpenAsync"
+       @onclick:preventDefault="true">
+        <span class="media-square-tile__picture">
+            @if (!string.IsNullOrWhiteSpace(Item.CoverUrl))
+            {
+                <img class="media-square-tile__cover"
+                     src="@MediaTileArtworkUrl.ForDrawnSize(Item.CoverUrl, 320)"
+                     srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(Item.CoverUrl, 320)"
+                     alt="" loading="lazy" decoding="async" />
+            }
+            else if (Mosaic.Count > 0)
+            {
+                <span class="media-square-tile__mosaic" aria-hidden="true">
+                    @foreach (var cover in Mosaic)
+                    {
+                        <img src="@MediaTileArtworkUrl.ForDrawnSize(cover, 160)" alt="" loading="lazy" decoding="async" />
+                    }
+                </span>
+            }
+            else
+            {
+                <span class="media-square-tile__fallback" aria-hidden="true">
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.QueueMusic" />
+                </span>
+            }
+        </span>
+        <span class="media-square-tile__name">@Item.Title</span>
+        <span class="media-square-tile__meta">
+            <MediaCountLine Counts="@Item.MediaCounts" />
+            <span class="media-square-tile__kind">@L["MediaSquareTile_Playlist"]</span>
+        </span>
+    </a>
+</article>
+
+@code {
+    [Parameter, EditorRequired] public MediaTileViewModel Item { get; set; } = default!;
+
+    private string Url => StringHelpers.FirstNonBlank(Item.DetailsNavigationUrl, Item.NavigationUrl, Item.PrimaryNavigationUrl) ?? "/";
+
+    private IReadOnlyList<string> Mosaic => Item.PreviewImages
+        .Where(url => !string.IsNullOrWhiteSpace(url))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .Take(4)
+        .ToList();
+
+    private Task OpenAsync(MouseEventArgs _)
+    {
+        Nav.NavigateTo(Url);
+        return Task.CompletedTask;
+    }
+}

@@ -1288,10 +1288,9 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         cut.WaitForAssertion(() =>
         {
             Assert.Single(cut.FindAll(".people-catalog-list"));
-            Assert.Single(cut.FindAll(".people-catalog-row"));
+            Assert.Single(cut.FindAll("a.person-tile"));
             Assert.Contains("Octavia Butler", cut.Markup);
-            Assert.Contains("3 Read", cut.Markup);
-            Assert.Contains("3 owned", cut.Markup);
+            Assert.Contains("3 titles to read", cut.Markup);
             Assert.Contains("Search people or roles", cut.Markup);
             Assert.Contains(">Role<", cut.Markup);
             Assert.Contains(">Lane<", cut.Markup);

@@ -3,134 +3,108 @@
 @inject NavigationManager Nav
 @inject IStringLocalizer<SharedStrings> L
 
+@* The one tile for every group of titles (curated collection, Series, Universe, imported list, pack set):
+   a landscape picture with a fanned stack of covers and a small corner word naming the kind, then the name
+   and the shared icon-plus-count line below, like every other tile's text. Custom artwork replaces the
+   stack. One hover for all: lift and glow, no popover. People groups use PersonTile instead. *@
 <AppCssElement Tag="div" Css="@($"display: contents; {TileStyle}")">
-    <article class="media-group-tile @(AllowsHoverPresentation ? "is-interactive" : "is-static") @(HasPerson ? "has-person" : HasBrandLogo ? "has-brand" : null)" aria-label="@Item.Title">
-        <a class="media-group-tile__surface"
+    <article class="media-group-tile" aria-label="@Item.Title">
+        <a class="media-group-tile__link"
            href="@GroupNavigationUrl"
            aria-label="@AccessibleLabel"
            @onclick="OpenGroupAsync"
            @onclick:preventDefault="true">
-            <div class="media-group-tile__atmosphere" aria-hidden="true"></div>
-
-            @if (RepresentativeItems.Count > 0)
-            {
-                <div class="media-group-tile__artwork">
-                    <MediaArtworkGroupPreview Items="@RepresentativeItems"
-                                              TotalCount="@ResolvedTotalCount"
-                                              Layout="MediaArtworkGroupPreviewLayout.Cluster"
-                                              ShowOverflowCount="false"
-                                              AriaLabel="@($"Representative artwork from {Item.Title}")" />
-                </div>
-            }
-            else
-            {
-                <div class="media-group-tile__fallback" role="img" aria-label="@($"No artwork available for {Item.Title}")">
-                    <AppMaterialIcon Icon="@GroupKindIcon" />
-                </div>
-            }
-
-            @if (HasPerson)
-            {
-                <div class="media-group-tile__person" aria-hidden="true">
-                    @if (!string.IsNullOrWhiteSpace(Item.Person!.ImageUrl))
-                    {
-                        <img src="@MediaTileArtworkUrl.ForDrawnSize(Item.Person.ImageUrl, 148)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(Item.Person.ImageUrl, 148)" alt="" loading="lazy" decoding="async" />
-                    }
-                    else
-                    {
-                        <span class="media-group-tile__person-fallback">
-                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Person" />
-                        </span>
-                    }
-                </div>
-            }
-            else if (HasBrandLogo)
-            {
-                <div class="media-group-tile__brand" aria-hidden="true">
-                    <img src="@Item.LogoUrl" alt="" loading="lazy" decoding="async" />
-                </div>
-            }
-
-            <section class="media-group-tile__identity" aria-hidden="true">
-                <div class="media-group-tile__copy">
-                    <div class="media-group-tile__headline">
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AutoAwesome" Class="media-group-tile__mark" />
-                        <h3>@Item.Title</h3>
-                    </div>
-
-                    @if (!string.IsNullOrWhiteSpace(Item.Person?.FactsLine))
-                    {
-                        <div class="media-group-tile__person-context" data-person-facts="true">@Item.Person!.FactsLine</div>
-                    }
-                    else if (!string.IsNullOrWhiteSpace(PersonContextLabel))
-                    {
-                        <div class="media-group-tile__person-context">@PersonContextLabel</div>
-                    }
-
-                    @if (string.IsNullOrWhiteSpace(Item.Person?.FactsLine))
-                    {
-                    <div class="media-group-tile__metadata">
-                        @if (!string.IsNullOrWhiteSpace(YearLabel))
+            <span class="media-group-tile__picture">
+                @if (ShowCustomArtwork)
+                {
+                    <img class="media-group-tile__custom"
+                         src="@MediaTileArtworkUrl.ForDrawnSize(Item.CoverUrl, 480)"
+                         srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(Item.CoverUrl, 480)"
+                         alt="" loading="lazy" decoding="async" />
+                }
+                else if (ShowBrandLogo)
+                {
+                    <img class="media-group-tile__brand" src="@Item.LogoUrl" alt="" loading="lazy" decoding="async" />
+                }
+                else if (Covers.Count > 0)
+                {
+                    <span class="media-group-tile__stack" data-cover-count="@Covers.Count" aria-hidden="true">
+                        @for (var index = 0; index < Covers.Count; index++)
                         {
-                            <span class="media-group-tile__year">@YearLabel</span>
+                            <img class="media-group-tile__cover media-group-tile__cover--@index"
+                                 src="@MediaTileArtworkUrl.ForDrawnSize(Covers[index], 200)"
+                                 srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(Covers[index], 200)"
+                                 alt="" loading="lazy" decoding="async" />
                         }
+                    </span>
+                }
+                else
+                {
+                    <span class="media-group-tile__fallback" role="img" aria-label="@L["MediaGroupTile_NoArtwork", Item.Title]">
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CollectionsBookmark" />
+                    </span>
+                }
 
-                        @if (VisibleMediaCounts.Count > 0)
-                        {
-                            @foreach (var count in VisibleMediaCounts)
-                            {
-                                <span class="media-group-tile__media-count"
-                                      title="@MediaCountAccessibleLabel(count)">
-                                    <AppMaterialIcon Icon="@count.Icon" />
-                                    <span aria-hidden="true">@count.Count</span>
-                                    <span class="media-group-tile__visually-hidden">@MediaCountAccessibleLabel(count)</span>
-                                </span>
-                            }
-                        }
-                        else
-                        {
-                            <span class="media-group-tile__media-count"
-                                  title="@($"{ResolvedTotalCount} {GroupCountNoun}")">
-                                <AppMaterialIcon Icon="@GroupKindIcon" />
-                                <span aria-hidden="true">@ResolvedTotalCount</span>
-                                <span class="media-group-tile__visually-hidden">@($"{ResolvedTotalCount} {GroupCountNoun}")</span>
-                            </span>
-                        }
-                    </div>
-                    }
-                </div>
-
-                <span class="media-group-tile__open-cue">
-                    <span>@L["MediaGroupTile_Open", GroupActionNoun]</span>
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowForward" />
-                </span>
-            </section>
+                <span class="media-group-tile__kind">@KindWord</span>
+            </span>
+            <span class="media-group-tile__name">@Item.Title</span>
+            <MediaCountLine Counts="@Counts" />
         </a>
     </article>
 </AppCssElement>
 
 @code {
+    private const int MaxCovers = 3;
+
     [Parameter, EditorRequired] public MediaTileViewModel Item { get; set; } = default!;
-    [Parameter] public MediaTileHoverMode? HoverMode { get; set; }
 
-    private MediaTileHoverMode EffectiveHoverMode => HoverMode ?? Item.HoverMode;
-    private bool AllowsHoverPresentation => EffectiveHoverMode != MediaTileHoverMode.None;
-    private bool HasPerson => Item.Person is not null;
-    private bool HasBrandLogo => Item.ShowLogoAsBrand && !string.IsNullOrWhiteSpace(Item.LogoUrl);
-    private int ResolvedTotalCount => Math.Max(Item.GroupSummary?.OwnedCount ?? Item.PreviewTotalCount ?? RepresentativeItems.Count, RepresentativeItems.Count);
+    // A network group (HBO, Netflix) shows its logo in place of the stack.
+    private bool ShowBrandLogo => Item.ShowLogoAsBrand && !string.IsNullOrWhiteSpace(Item.LogoUrl);
 
-    // The API orders series previews by progress and canonical position and already caps
-    // the result at four. Preserve that order here instead of applying a second selection pass.
-    private IReadOnlyList<ArtworkStackItem> RepresentativeItems => BuildRepresentativeItems();
+    private bool ShowCustomArtwork => Item.HasCustomArtwork && !string.IsNullOrWhiteSpace(Item.CoverUrl);
 
-    private IReadOnlyList<MediaTileMediaCountViewModel> VisibleMediaCounts => Item.MediaCounts
-        .Where(count => count.Count > 0)
+    // The API orders previews by progress and canonical position; keep that order and fan the first few.
+    private IReadOnlyList<string> Covers => Item.ArtworkStackItems
+        .Select(item => item.ImageUrl)
+        .Concat(Item.PreviewImages)
+        .Where(url => !string.IsNullOrWhiteSpace(url))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .Take(MaxCovers)
         .ToList();
 
-    private bool IsSeries => Item.Presentation is MediaTilePresentation.MovieSeries
-        or MediaTilePresentation.BookSeries
-        or MediaTilePresentation.ComicSeries
-        or MediaTilePresentation.AudiobookSeries;
+    private IReadOnlyList<MediaTileMediaCountViewModel> Counts
+    {
+        get
+        {
+            var counts = Item.MediaCounts.Where(count => count.Count > 0).ToList();
+            if (counts.Count == 0)
+            {
+                var total = Item.GroupSummary?.OwnedCount ?? Item.PreviewTotalCount ?? 0;
+                if (total > 0)
+                {
+                    counts.Add(new MediaTileMediaCountViewModel(AppMaterialIcons.Outlined.CollectionsBookmark, total == 1 ? "title" : "titles", total));
+                }
+            }
+
+            return counts;
+        }
+    }
+
+    // A series presentation reads as a Series whichever composer built the tile.
+    private MediaTileGroupKind Kind => Item.GroupKind == MediaTileGroupKind.Collection
+        && Item.Presentation is MediaTilePresentation.MovieSeries or MediaTilePresentation.BookSeries
+            or MediaTilePresentation.ComicSeries or MediaTilePresentation.AudiobookSeries
+        ? MediaTileGroupKind.Series
+        : Item.GroupKind;
+
+    private string KindWord => Kind switch
+    {
+        MediaTileGroupKind.Series => L["MediaGroupTile_KindSeries"],
+        MediaTileGroupKind.Universe => L["MediaGroupTile_KindUniverse"],
+        MediaTileGroupKind.List => L["MediaGroupTile_KindList"],
+        MediaTileGroupKind.Set => L["MediaGroupTile_KindSet"],
+        _ => L["MediaGroupTile_KindCollection"],
+    };
 
     private string GroupNavigationUrl =>
         StringHelpers.FirstNonBlank(Item.DetailsNavigationUrl, Item.NavigationUrl, Item.PrimaryNavigationUrl) ?? "/";
@@ -139,179 +113,18 @@
     {
         get
         {
-            var details = new List<string> { $"Open {Item.Title}" };
-            if (Item.Person is not null)
-            {
-                details.Add($"person: {Item.Person.Name}");
-                if (Item.Person.Roles.Count > 0)
-                {
-                    details.Add(string.Join(", ", Item.Person.Roles));
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(YearLabel))
-            {
-                details.Add(YearLabel);
-            }
-
-            if (VisibleMediaCounts.Count > 0)
-            {
-                details.AddRange(VisibleMediaCounts.Select(MediaCountAccessibleLabel));
-            }
-            else
-            {
-                details.Add($"{ResolvedTotalCount} {GroupCountNoun}");
-            }
-
-            return string.Join(", ", details);
+            var counts = string.Join(", ", Counts.Select(count => $"{count.Count} {count.Label.ToLowerInvariant()}"));
+            var label = L["MediaGroupTile_Label", Item.Title, KindWord].Value;
+            return counts.Length == 0 ? label : $"{label}, {counts}";
         }
     }
 
-    private string TileStyle
-    {
-        get
-        {
-            var atmosphere = StringHelpers.FirstNonBlank(
-                RepresentativeItems.FirstOrDefault(item => !string.IsNullOrWhiteSpace(item.ImageUrl))?.ImageUrl,
-                Item.HeroBackgroundImageUrl,
-                Item.BackgroundUrl,
-                Item.HoverImageUrl,
-                Item.TileImageUrl);
-            // A blurred (13px), 28% opacity wash: the small copy is plenty, whatever the tile width.
-            var imageVariable = string.IsNullOrWhiteSpace(atmosphere)
-                ? string.Empty
-                : $"--media-group-image: url(\"{EscapeCssString(MediaTileArtworkUrl.ForDrawnSize(atmosphere, 320) ?? atmosphere)}\");";
-            return $"{Item.ArtworkPalette?.CssVariableStyle} --media-group-accent: {Item.AccentColor}; --media-group-secondary: {Item.SecondaryAccentColor}; {imageVariable}";
-        }
-    }
-
-    private string GroupKindIcon => Item.Presentation switch
-    {
-        MediaTilePresentation.BookSeries or MediaTilePresentation.ComicSeries => AppMaterialIcons.Outlined.AutoStories,
-        MediaTilePresentation.MovieSeries => AppMaterialIcons.Outlined.VideoLibrary,
-        MediaTilePresentation.AudiobookSeries => AppMaterialIcons.Outlined.Headphones,
-        _ when HasPerson => AppMaterialIcons.Outlined.Person,
-        _ => AppMaterialIcons.Outlined.CollectionsBookmark,
-    };
-
-    private string? PersonContextLabel
-    {
-        get
-        {
-            if (Item.Person is null)
-            {
-                return null;
-            }
-
-            var roles = Item.Person.Roles
-                .Where(role => !string.IsNullOrWhiteSpace(role))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Take(2)
-                .ToList();
-            var roleLabel = roles.Count == 0 ? null : string.Join(" • ", roles);
-            return Item.Title.Contains(Item.Person.Name, StringComparison.OrdinalIgnoreCase)
-                ? roleLabel
-                : string.IsNullOrWhiteSpace(roleLabel)
-                    ? Item.Person.Name
-                    : $"{Item.Person.Name} • {roleLabel}";
-        }
-    }
-
-    private string? YearLabel
-    {
-        get
-        {
-            var earliest = ValidYear(Item.GroupSummary?.EarliestYear);
-            var latest = ValidYear(Item.GroupSummary?.LatestYear);
-            if (earliest.HasValue && latest.HasValue)
-            {
-                return earliest == latest ? earliest.Value.ToString() : $"{earliest}–{latest}";
-            }
-
-            return (earliest ?? latest ?? ValidYear(Item.SortYear))?.ToString();
-        }
-    }
-
-    private string GroupCountNoun => Item.Presentation switch
-    {
-        MediaTilePresentation.BookSeries => ResolvedTotalCount == 1 ? "book" : "books",
-        MediaTilePresentation.ComicSeries => ResolvedTotalCount == 1 ? "owned issue" : "owned issues",
-        MediaTilePresentation.MovieSeries => ResolvedTotalCount == 1 ? "movie" : "movies",
-        MediaTilePresentation.AudiobookSeries => ResolvedTotalCount == 1 ? "audiobook" : "audiobooks",
-        _ => ResolvedTotalCount == 1 ? "item" : "items",
-    };
-
-    private string GroupActionNoun => HasPerson ? "Person" : IsSeries ? "Series" : "Collection";
-
-    private IReadOnlyList<ArtworkStackItem> BuildRepresentativeItems()
-    {
-        var available = new List<ArtworkStackItem>();
-        var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var imageUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var item in Item.ArtworkStackItems)
-        {
-            if (string.IsNullOrWhiteSpace(item.Id)
-                || string.IsNullOrWhiteSpace(item.ImageUrl)
-                || !ids.Add(item.Id))
-            {
-                continue;
-            }
-
-            if (!imageUrls.Add(item.ImageUrl))
-            {
-                continue;
-            }
-
-            available.Add(item);
-        }
-
-        if (available.Count <= 4 || IsSeries || Item.GroupSummary?.RelationshipLabel?.Contains("Ordered", StringComparison.OrdinalIgnoreCase) == true)
-        {
-            return available.Take(4).ToList();
-        }
-
-        if (Item.MediaCounts.Count > 1)
-        {
-            return available
-                .GroupBy(item => item.MediaType, StringComparer.OrdinalIgnoreCase)
-                .Select(group => group.First())
-                .Concat(available)
-                .DistinctBy(item => item.Id)
-                .Take(4)
-                .ToList();
-        }
-
-        return available.Take(4).ToList();
-    }
+    private string TileStyle =>
+        $"{Item.ArtworkPalette?.CssVariableStyle} --media-group-accent: {Item.AccentColor}; --media-group-secondary: {Item.SecondaryAccentColor};";
 
     private Task OpenGroupAsync(MouseEventArgs _)
     {
         Nav.NavigateTo(GroupNavigationUrl);
         return Task.CompletedTask;
     }
-
-    private static string MediaCountAccessibleLabel(MediaTileMediaCountViewModel count)
-    {
-        var label = count.Count == 1
-            ? count.Label switch
-            {
-                "Movies" => "movie",
-                "Books" => "book",
-                "Comics" => "comic",
-                "Audiobooks" => "audiobook",
-                "Issues" => "issue",
-                "Episodes" => "episode",
-                "Tracks" => "track",
-                "Titles" => "title",
-                _ => count.Label.ToLowerInvariant(),
-            }
-            : count.Label.ToLowerInvariant();
-        return $"{count.Count} {label}";
-    }
-
-    private static int? ValidYear(int? year) => year is >= 1000 and <= 9999 ? year : null;
-
-    private static string EscapeCssString(string value) =>
-        value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal);
-
 }
