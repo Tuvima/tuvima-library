@@ -27,7 +27,7 @@ public static class ServerFolderEndpoints
         {
             try
             {
-                return Results.Ok(service.Browse(request, await http.HiddenVaultFolderRootsAsync(http.RequestAborted)));
+                return Results.Ok(await service.BrowseAsync(request, await http.HiddenVaultFolderRootsAsync(http.RequestAborted), http.RequestAborted));
             }
             catch (ServerFolderAccessException exception)
             {
@@ -46,7 +46,7 @@ public static class ServerFolderEndpoints
         {
             try
             {
-                return Results.Ok(service.Validate(request, await http.HiddenVaultFolderRootsAsync(http.RequestAborted), http.RequestAborted));
+                return Results.Ok(await service.ValidateAsync(request, await http.HiddenVaultFolderRootsAsync(http.RequestAborted), http.RequestAborted));
             }
             catch (ServerFolderAccessException exception)
             {

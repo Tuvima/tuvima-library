@@ -67,7 +67,7 @@
 
 .create-library__folder-text--empty { color: var(--tl-text-secondary); }
 
-/* Step 2 holds the folder pop-up itself; the name sits in the footer beside Add library. */
+/* Step 2 holds the folder pop-up itself; the library name sits above it, where the question starts. */
 .create-library__picker { display: grid; gap: var(--tl-space-3); }
 
 .create-library__name {
@@ -75,8 +75,7 @@
     flex: 1 1 auto;
     gap: var(--tl-space-1);
     min-width: 0;
-    max-width: 320px;
-    margin-inline-end: auto;
+    max-width: 360px;
 }
 
 .create-library__hint {

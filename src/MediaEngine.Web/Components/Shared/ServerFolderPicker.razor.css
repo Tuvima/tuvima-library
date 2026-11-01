@@ -2,9 +2,15 @@
 .server-folder-picker {
     display: flex;
     flex-direction: column;
+    box-sizing: border-box;
+    /* One width wherever the picker opens (Add library, Vault, Settings), so it never changes shape between screens. */
+    width: min(calc(100vw - 64px), 760px);
+    max-width: 100%;
     min-height: min(680px, 72vh);
     font-family: var(--app-font-sans);
 }
+
+.server-folder-picker__target { margin: 0; padding: 14px 28px 0; color: var(--tl-text-secondary); }
 
 /* The address bar spans the whole dialog above the location list and the browser. */
 .server-folder-picker__pathbar {

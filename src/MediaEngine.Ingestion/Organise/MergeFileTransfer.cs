@@ -82,7 +82,7 @@ public sealed class MergeFileTransfer
             }
 
             if (new FileInfo(part).Length != before.Length
-                || !string.Equals((await _hasher.ComputeAsync(part, ct).ConfigureAwait(false)).Hex, readHash, StringComparison.OrdinalIgnoreCase))
+                || !string.Equals((await _hasher.ComputeFullAsync(part, ct).ConfigureAwait(false)).Hex, readHash, StringComparison.OrdinalIgnoreCase))
             {
                 _logger.LogWarning("The copy of {Source} did not match the original; the copy was discarded", sourcePath);
                 TryDelete(part);
@@ -129,8 +129,8 @@ public sealed class MergeFileTransfer
                 return false;
             }
 
-            var a = (await _hasher.ComputeAsync(first, ct).ConfigureAwait(false)).Hex;
-            var b = (await _hasher.ComputeAsync(second, ct).ConfigureAwait(false)).Hex;
+            var a = (await _hasher.ComputeFullAsync(first, ct).ConfigureAwait(false)).Hex;
+            var b = (await _hasher.ComputeFullAsync(second, ct).ConfigureAwait(false)).Hex;
             return string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
