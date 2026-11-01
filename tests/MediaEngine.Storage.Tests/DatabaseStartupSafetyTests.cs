@@ -384,6 +384,7 @@ public sealed class DatabaseStartupSafetyTests
             ("collection_list_entries", "collection_id"),
             ("collection_list_entries", "matched_work_id"),
             ("collection_list_sources", "collection_id"),
+            ("collection_list_sources", "connection_profile_id"),
             ("collection_placements", "id"),
             ("collection_placements", "collection_id"),
             ("collection_placements", "profile_id"),

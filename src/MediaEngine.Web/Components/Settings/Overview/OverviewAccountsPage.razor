@@ -1,0 +1,260 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Plugins
+@using MediaEngine.Web.Services.Integration
+@implements IDisposable
+@inject IEngineApiClient Api
+@inject IAppToastService Toast
+@inject IStringLocalizer<SharedStrings> L
+@* Profile > Accounts (Plugin architecture spec C13): the accounts on other sites that this profile has linked for plugins that ask
+   for one. A site that offers it is signed in to by approving a short code on another device; anything else is a token the person
+   pastes. Only this profile can use what it links, and signing out deletes it. Nothing is ever shown back after it is linked. *@
+<div class="accounts-page" data-settings-accounts>
+    @if (_loading)
+    {
+        <AppPageState Kind="AppPageStateKind.Loading" Title="@L["Common_Loading"].Value" />
+    }
+    else if (_plugins is null)
+    {
+        <AppAlert Tone="AppUiTone.Warning" Dense="true" data-accounts-load-failed>@L["Accounts_LoadFailed"]</AppAlert>
+    }
+    else if (_plugins.Count == 0)
+    {
+        <AppEmptyState Title="@L["Accounts_EmptyTitle"].Value" Message="@L["Accounts_EmptyMessage"].Value" />
+    }
+    else
+    {
+        <AppText Typo="AppTypo.body2">@L["Accounts_Intro"]</AppText>
+        @foreach (var plugin in _plugins)
+        {
+            @foreach (var connection in plugin.Connections)
+            {
+                var key = KeyOf(plugin.PluginId, connection.Name);
+                <section class="accounts-page__item" data-account-item="@key" aria-label="@connection.Label">
+                    <div class="accounts-page__heading">
+                        <AppText Typo="AppTypo.subtitle1">@connection.Label</AppText>
+                        <AppStatusBadge Text="@(connection.Linked ? L["Accounts_Linked"].Value : L["Accounts_NotLinked"].Value)"
+                                        Tone="@(connection.Linked ? AppUiTone.Success : AppUiTone.Neutral)" />
+                    </div>
+                    <AppText Typo="AppTypo.body2">@connection.Description</AppText>
+
+                    @if (connection.Linked)
+                    {
+                        <div class="accounts-page__actions">
+                            <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Disabled="@(_busy.Contains(key))"
+                                       OnClick="@(() => SignOutAsync(plugin, connection))" data-account-sign-out>@L["Accounts_SignOut"]</AppButton>
+                        </div>
+                    }
+                    else if (_codes.TryGetValue(key, out var pending))
+                    {
+                        <div class="accounts-page__code" data-account-code>
+                            <AppText Typo="AppTypo.body2">@L["Accounts_CodeIntro", pending.VerificationUrl]</AppText>
+                            <strong class="accounts-page__user-code" data-account-user-code>@pending.UserCode</strong>
+                            <AppText Typo="AppTypo.caption">@L["Accounts_CodeWaiting"]</AppText>
+                            <AppText Typo="AppTypo.caption">@L["Accounts_CodeExpires", Math.Max(1, pending.ExpiresInSeconds / 60)]</AppText>
+                        </div>
+                        <div class="accounts-page__actions">
+                            <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" OnClick="@(() => CancelSignIn(key))">@L["Accounts_Cancel"]</AppButton>
+                        </div>
+                    }
+                    else if (connection.CanSignIn && connection.SignInNeedsSetup)
+                    {
+                        <AppAlert Tone="AppUiTone.Warning" Dense="true" data-account-needs-setup>@L["Accounts_NeedsSetup"]</AppAlert>
+                    }
+                    else
+                    {
+                        <AppCheckboxRow Label="@L["Accounts_Agree"].Value" Description="@plugin.Consent"
+                                        Value="@_agreed.Contains(key)" ValueChanged="@(value => SetAgreed(key, value))" />
+                        @if (!connection.CanSignIn)
+                        {
+                            <AppTextField Label="@L["Accounts_TokenLabel"].Value" InputType="AppInputType.Password"
+                                          Value="@_typed.GetValueOrDefault(key)" ValueChanged="@(value => _typed[key] = value ?? string.Empty)" />
+                        }
+                        <div class="accounts-page__actions">
+                            <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                                       Disabled="@(!_agreed.Contains(key) || _busy.Contains(key) || (!connection.CanSignIn && string.IsNullOrWhiteSpace(_typed.GetValueOrDefault(key))))"
+                                       OnClick="@(() => LinkAsync(plugin, connection))" data-account-sign-in>@(connection.CanSignIn ? L["Accounts_SignIn"] : L["Accounts_Link"])</AppButton>
+                        </div>
+                    }
+
+                    @if (_messages.TryGetValue(key, out var message))
+                    {
+                        <AppAlert Tone="AppUiTone.Warning" Dense="true" data-account-message>@message</AppAlert>
+                    }
+                </section>
+            }
+        }
+    }
+</div>
+
+@code {
+    private readonly Dictionary<string, PluginDeviceSignInStartResponse> _codes = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _messages = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _typed = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _agreed = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _busy = new(StringComparer.Ordinal);
+    private readonly CancellationTokenSource _disposed = new();
+    private readonly Dictionary<string, CancellationTokenSource> _polls = new(StringComparer.Ordinal);
+    private List<PluginConnectionsResponse>? _plugins;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    public void Dispose()
+    {
+        _disposed.Cancel();
+        _disposed.Dispose();
+    }
+
+    private static string KeyOf(string pluginId, string name) => pluginId + "/" + name;
+
+    private async Task LoadAsync()
+    {
+        var response = await Api.GetPluginConnectionsAsync(_disposed.Token);
+        _plugins = response?.Plugins;
+        _loading = false;
+    }
+
+    private void SetAgreed(string key, bool value)
+    {
+        if (value)
+        {
+            _agreed.Add(key);
+        }
+        else
+        {
+            _agreed.Remove(key);
+        }
+    }
+
+    private async Task LinkAsync(PluginConnectionsResponse plugin, PluginConnectionDto connection)
+    {
+        var key = KeyOf(plugin.PluginId, connection.Name);
+        if (!_agreed.Contains(key) || !_busy.Add(key))
+        {
+            return;
+        }
+
+        _messages.Remove(key);
+        try
+        {
+            if (connection.CanSignIn)
+            {
+                var code = await Api.StartPluginSignInAsync(plugin.PluginId, connection.Name, _disposed.Token);
+                if (code is null)
+                {
+                    _messages[key] = Api.LastError ?? L["Accounts_StartFailed"].Value;
+                    return;
+                }
+
+                _codes[key] = code;
+                _ = PollAsync(plugin, connection, code);
+                return;
+            }
+
+            if (await Api.LinkPluginConnectionAsync(plugin.PluginId, connection.Name, _typed.GetValueOrDefault(key) ?? string.Empty, _disposed.Token))
+            {
+                _typed.Remove(key);
+                _agreed.Remove(key);
+                Toast.Add(L["Accounts_SignedInToast", plugin.PluginName].Value, AppSeverity.Success);
+                await LoadAsync();
+            }
+            else
+            {
+                _messages[key] = Api.LastError ?? L["Accounts_LinkFailed"].Value;
+            }
+        }
+        finally
+        {
+            _busy.Remove(key);
+        }
+    }
+
+    // Looks at the sign-in once every interval the site asked for, until it is approved, turned down, runs out or the page closes.
+    private async Task PollAsync(PluginConnectionsResponse plugin, PluginConnectionDto connection, PluginDeviceSignInStartResponse code)
+    {
+        var key = KeyOf(plugin.PluginId, connection.Name);
+        _polls[key]?.Cancel();
+        using var poll = CancellationTokenSource.CreateLinkedTokenSource(_disposed.Token);
+        _polls[key] = poll;
+        var interval = Math.Max(1, code.IntervalSeconds);
+        try
+        {
+            while (!poll.IsCancellationRequested)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(interval), poll.Token);
+                var check = await Api.CheckPluginSignInAsync(plugin.PluginId, connection.Name, poll.Token);
+                if (check is null)
+                {
+                    continue;
+                }
+
+                if (check.Status == PluginDeviceSignInStatuses.Waiting)
+                {
+                    interval = Math.Max(interval, check.IntervalSeconds);
+                    continue;
+                }
+
+                await InvokeAsync(async () =>
+                {
+                    _codes.Remove(key);
+                    if (check.Status == PluginDeviceSignInStatuses.SignedIn)
+                    {
+                        _agreed.Remove(key);
+                        Toast.Add(L["Accounts_SignedInToast", plugin.PluginName].Value, AppSeverity.Success);
+                        await LoadAsync();
+                    }
+                    else
+                    {
+                        _messages[key] = string.IsNullOrWhiteSpace(check.Message) ? L["Accounts_Failed"].Value : check.Message;
+                    }
+
+                    StateHasChanged();
+                });
+                return;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // The person cancelled or left the page.
+        }
+        finally
+        {
+            if (_polls.TryGetValue(key, out var current) && ReferenceEquals(current, poll))
+            {
+                _polls.Remove(key);
+            }
+        }
+    }
+
+    private void CancelSignIn(string key)
+    {
+        _polls.GetValueOrDefault(key)?.Cancel();
+        _codes.Remove(key);
+    }
+
+    private async Task SignOutAsync(PluginConnectionsResponse plugin, PluginConnectionDto connection)
+    {
+        var key = KeyOf(plugin.PluginId, connection.Name);
+        if (!_busy.Add(key))
+        {
+            return;
+        }
+
+        try
+        {
+            if (await Api.UnlinkPluginConnectionAsync(plugin.PluginId, connection.Name, _disposed.Token))
+            {
+                Toast.Add(L["Accounts_SignedOutToast", plugin.PluginName].Value, AppSeverity.Success);
+                await LoadAsync();
+            }
+            else
+            {
+                _messages[key] = Api.LastError ?? L["Accounts_SignOutFailed"].Value;
+            }
+        }
+        finally
+        {
+            _busy.Remove(key);
+        }
+    }
+}

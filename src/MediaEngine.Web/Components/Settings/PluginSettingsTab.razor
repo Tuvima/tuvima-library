@@ -426,7 +426,7 @@ else
 
     private bool HasSettingsTab(PluginSummaryResponse plugin) => IsProvider(plugin)
         ? plugin.Provider is { AlwaysOn: false }
-        : GetSettingEntries(plugin).Any();
+        : GetSettingEntries(plugin).Any() || plugin.DeclaredSecrets > 0;
 
     private RenderFragment PluginOverview(PluginSummaryResponse plugin, StateCardHealthResult state)
     {
@@ -734,7 +734,11 @@ else
 
     private RenderFragment PluginSettingsPanel(PluginSummaryResponse plugin) => @<div class="settings-plugin-tab-body">
         @{ var settingEntries = GetSettingEntries(plugin).ToList(); var primarySettings = settingEntries.Where(setting => !setting.Advanced).ToList(); var advancedSettings = settingEntries.Where(setting => setting.Advanced).ToList(); }
-        @if (settingEntries.Count == 0)
+        @if (plugin.DeclaredSecrets > 0)
+        {
+            <PluginAppDetails PluginId="@plugin.Id" />
+        }
+        @if (settingEntries.Count == 0 && plugin.DeclaredSecrets == 0)
         {
             <AppEmptyState Title="No plugin settings" Message="This plugin does not expose user-configurable settings." />
         }

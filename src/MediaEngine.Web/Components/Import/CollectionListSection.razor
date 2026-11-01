@@ -21,6 +21,17 @@
                 <span>@(source.LastRefreshedAt is { } at ? $"Last checked {at.LocalDateTime:d MMM yyyy}." : "Not checked yet.")</span>
             </div>
 
+            @if (source.NeedsSignIn)
+            {
+                <AppAlert Tone="AppUiTone.Warning" Dense="true" data-list-section-sign-in>
+                    @L["ListSection_SignInAgain", source.SourceLabel]
+                    @if (source.SignInHref is { } href && href.StartsWith('/') && !href.StartsWith("//", StringComparison.Ordinal))
+                    {
+                        <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" Href="@href">@L["ListSection_SignInAgainAction"]</AppButton>
+                    }
+                </AppAlert>
+            }
+
             <ListChoicesPanel Order="@source.Order"
                               OrderChanged="@(value => SaveSettingsAsync(order: value))"
                               SyncMode="@source.SyncMode"

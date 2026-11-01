@@ -212,6 +212,9 @@ public static class SettingsNav
     /// <summary>The Import sub-page of Overview: drop a file and Library says what it is (a list, a collection pack, a bookmark pack, plugin settings) and where it goes.</summary>
     public const string ImportSubsection = "import";
 
+    /// <summary>The Accounts sub-page of Overview: the accounts on other sites this profile has linked for plugins (Trakt), signed in to by approving a code on another device.</summary>
+    public const string AccountsSubsection = "accounts";
+
     /// <summary>The Activity page's address under Settings: everything watched, listened to, read and added to My list, with search, filters and a date rail.</summary>
     public const string ActivityRoute = "/settings/overview/activity";
 
@@ -338,6 +341,7 @@ public static class SettingsNav
                 Tab("Activity", AppMaterialIcons.Outlined.History, SettingsSection.Overview, ActivitySubsection),
                 Tab("Taste", AppMaterialIcons.Outlined.Category, SettingsSection.Overview, TasteSubsection),
                 Tab("Import", AppMaterialIcons.Outlined.UploadFile, SettingsSection.Overview, ImportSubsection),
+                Tab("Accounts", AppMaterialIcons.Outlined.Link, SettingsSection.Overview, AccountsSubsection),
             ]),
             Page("Manage Profiles", AppMaterialIcons.Outlined.Group, SettingsSection.Profiles),
             Page("Security & Devices", AppMaterialIcons.Outlined.Lock, SettingsSection.Security,
@@ -429,6 +433,7 @@ public static class SettingsNav
                 new(ActivitySubsection, "Activity", AppMaterialIcons.Outlined.History),
                 new(TasteSubsection, "Taste", AppMaterialIcons.Outlined.Category),
                 new(ImportSubsection, "Import", AppMaterialIcons.Outlined.UploadFile),
+                new(AccountsSubsection, "Accounts", AppMaterialIcons.Outlined.Link),
             ],
             [SettingsSection.Profiles] = [],
             [SettingsSection.Security] =

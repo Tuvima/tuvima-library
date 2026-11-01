@@ -1,0 +1,15 @@
+.plugin-app-details,
+.plugin-app-details__row {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: var(--tl-space-2, 8px);
+}
+
+.plugin-app-details__heading,
+.plugin-app-details__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-2, 8px);
+}

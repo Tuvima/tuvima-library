@@ -51,6 +51,7 @@ public sealed partial class AppNameGuardrailTests
         new("src/MediaEngine.Web/Services/Integration/ExternalAuthenticationRegistration.cs", "\"Tuvima-Library/1.0\"", "User-Agent sent to sign-in providers."),
         new("src/MediaEngine.Api/Services/Webhooks/WebhookTransport.cs", "request.Headers.Add(\"Tuvima-", "Webhook header names that receivers verify."),
         new("clients/tv-web/platforms/webos/appinfo.json", "\"vendor\": \"Tuvima\"", "The company that publishes the TV app."),
+        new("src/MediaEngine.Api/Services/Collections/ListImport/Sources/TraktListSource.cs", "\"Tuvima Library/1.0", "User-Agent sent to Trakt, which asks for a stable product name."),
         new("config/providers/", "\"user_agent\": \"Tuvima Library/1.0", "User-Agent sent to metadata providers, who ask for a stable product name."),
         new("src/MediaEngine.Api/Services/Approvals/ApprovalStatementBuilder.cs", "\"Official plugin from Tuvima\"", "The company that publishes Official plugins (developer-tools spec D-H trust levels)."),
         new("src/MediaEngine.Api/Services/Approvals/ApprovalStatementBuilder.cs", "\"Community, not checked by Tuvima\"", "The company that verifies plugins (developer-tools spec D-H trust levels)."),

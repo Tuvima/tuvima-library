@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MediaEngine.Api.Services.Collections.ListImport.Sources;
 using MediaEngine.Application.Services;
 using MediaEngine.Contracts.Collections;
 using MediaEngine.Domain.Contracts;
@@ -160,6 +161,7 @@ public sealed class ListImportService
             SyncMode = sync,
             LastRefreshedAt = parsed.WillTryAgain ? null : now,
             NextRefreshAt = parsed.WillTryAgain ? now + TryAgainAfter : NextRefresh(refreshChoice, now),
+            ConnectionProfileId = parsed.ConnectionProfileId,
             CreatedAt = now,
             UpdatedAt = now,
         };
@@ -183,6 +185,10 @@ public sealed class ListImportService
             .Where(entry => entry.OnList && entry.Status is ListImportChoices.StatusUnmatched or ListImportChoices.StatusIgnored)
             .Select(entry => ToEntryDto(entry))
             .ToList();
+
+        // A list that was read with a profile's own account cannot refresh once that account is no longer signed in.
+        var fetcher = _fetchers.FirstOrDefault(candidate => candidate.CanFetch(source));
+        var needsSignIn = fetcher is not null && await fetcher.NeedsSignInAsync(source, ct).ConfigureAwait(false);
         return new CollectionListSourceDto
         {
             CollectionId = collectionId,
@@ -200,6 +206,8 @@ public sealed class ListImportService
             OwnedCount = source.MatchedCount,
             UnmatchedCount = source.UnmatchedCount,
             Unmatched = unmatched,
+            NeedsSignIn = needsSignIn,
+            SignInHref = needsSignIn ? (fetcher as IWebListSource)?.SignInPath : null,
         };
     }
 

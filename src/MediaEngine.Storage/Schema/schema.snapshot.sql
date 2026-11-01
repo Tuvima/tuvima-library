@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0075 collection_list_sources).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0076 collection_list_source_connection_profile).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -589,7 +589,7 @@ CREATE TABLE collection_list_sources (
     unmatched_count   INTEGER NOT NULL DEFAULT 0,
     created_at        TEXT NOT NULL,
     updated_at        TEXT NOT NULL
-);
+, connection_profile_id BLOB REFERENCES profiles(id) ON DELETE SET NULL);
 
 CREATE TABLE collection_placements (
     id            BLOB PRIMARY KEY,

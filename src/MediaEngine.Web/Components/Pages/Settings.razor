@@ -149,6 +149,10 @@ else
                                 {
                                     <OverviewImportPage />
                                 }
+                                else if (_activeSubsection == SettingsNav.AccountsSubsection)
+                                {
+                                    <OverviewAccountsPage />
+                                }
                                 else
                                 {
                                     <OverviewPage />
@@ -979,6 +983,8 @@ else
                 ? "What the Library has learned you enjoy. Remove what is not you, or add what is."
             : _activeSubsection == SettingsNav.ImportSubsection
                 ? "Drop a list, a collection pack, a bookmark pack or a plugin settings file. Library says what it is and where it goes."
+            : _activeSubsection == SettingsNav.AccountsSubsection
+                ? "Sign in to your own accounts on other sites, such as Trakt, so plugins can read your private lists."
                 : "You, what you have been watching, reading and listening to, and your taste.",
         SettingsSection.Profiles => IsProfileDetailRoute
             ? "Details, preferences, and access and safety for this profile."

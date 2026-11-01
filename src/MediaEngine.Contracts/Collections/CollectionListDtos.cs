@@ -159,6 +159,15 @@ public sealed record CollectionListSourceDto
     public int OwnedCount { get; init; }
     public int UnmatchedCount { get; init; }
     public IReadOnlyList<CollectionListEntryDto> Unmatched { get; init; } = [];
+
+    /// <summary>
+    /// True when the list was read with a profile's own account on its site (a private or own Trakt list) and that account is no
+    /// longer signed in, so the list cannot refresh until the person signs in again. The collection keeps what it has.
+    /// </summary>
+    public bool NeedsSignIn { get; init; }
+
+    /// <summary>Where the person signs in again (a path in the Dashboard). Null unless <see cref="NeedsSignIn"/>.</summary>
+    public string? SignInHref { get; init; }
 }
 
 /// <summary>Changes the choices on a list collection.</summary>

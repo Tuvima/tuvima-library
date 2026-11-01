@@ -57,8 +57,8 @@ public sealed class PluginEndpointAuthorizationTests
             ("/universe/{qid}/lore/enrich", "POST", ApplicationPermissionIds.PluginsJobsRun),
         };
 
-        // +1 for the legacy lore discovery route, +3 for the plugin secrets routes (administrator-only; see PluginSecretsTests) and +5 for the plugin directory actions (administrator-only, install included; see PluginDirectoryEndpointTests) and +1 for Upload plugin (in-person administrator only; see MappedEndpointInventoryTests) and +2 for a plugin's Activity list and the People-action log (see PluginActivityEndpointTests) and +2 for a plugin's library limit (see PluginLibraryLimitTests) and +1 for a plugin's dependencies (see PluginDependencyTests) and +1 for a plugin's removal preview (see PluginRemovalTests) and +1 for Check now (see PluginCheckNowTests) and +3 for a profile's own connections (human self-service; see PluginProfileConnectionTests).
-        Assert.Equal(expected.Length + 1 + 3 + 5 + 1 + 2 + 2 + 1 + 1 + 1 + 3, endpoints.Length);
+        // +1 for the legacy lore discovery route, +3 for the plugin secrets routes (administrator-only; see PluginSecretsTests) and +5 for the plugin directory actions (administrator-only, install included; see PluginDirectoryEndpointTests) and +1 for Upload plugin (in-person administrator only; see MappedEndpointInventoryTests) and +2 for a plugin's Activity list and the People-action log (see PluginActivityEndpointTests) and +2 for a plugin's library limit (see PluginLibraryLimitTests) and +1 for a plugin's dependencies (see PluginDependencyTests) and +1 for a plugin's removal preview (see PluginRemovalTests) and +1 for Check now (see PluginCheckNowTests) and +3 for a profile's own connections (human self-service; see PluginProfileConnectionTests) and +3 for the connections list and the device sign-in start and check (human self-service; see PluginDeviceSignInTests).
+        Assert.Equal(expected.Length + 1 + 3 + 5 + 1 + 2 + 2 + 1 + 1 + 1 + 3 + 3, endpoints.Length);
         foreach (var route in expected)
         {
             AssertPolicy(endpoints, route.Route, route.Method, route.Permission);

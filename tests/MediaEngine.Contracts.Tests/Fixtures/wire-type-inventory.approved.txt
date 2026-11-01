@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1370; api=0; web-client=54
+# scopes: contracts=1374; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1988,7 +1988,9 @@
   OwnedCount: System.Int32 | json=ownedCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   UnmatchedCount: System.Int32 | json=unmatchedCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Unmatched: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Collections.CollectionListEntryDto> | json=unmatched | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"collectionId":"11111111-2222-3333-4444-555555555555","sourceKind":"sample","sourceLabel":"sample","sourceName":"sample","sourceAddress":"sample","isWebSource":true,"shelf":"sample","order":"sample","refresh":"sample","syncMode":"sample","lastRefreshedAt":"2025-01-02T03:04:05+00:00","entryCount":7,"ownedCount":7,"unmatchedCount":7,"unmatched":[]}
+  NeedsSignIn: System.Boolean | json=needsSignIn | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SignInHref: System.String | json=signInHref | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"collectionId":"11111111-2222-3333-4444-555555555555","sourceKind":"sample","sourceLabel":"sample","sourceName":"sample","sourceAddress":"sample","isWebSource":true,"shelf":"sample","order":"sample","refresh":"sample","syncMode":"sample","lastRefreshedAt":"2025-01-02T03:04:05+00:00","entryCount":7,"ownedCount":7,"unmatchedCount":7,"unmatched":[],"needsSignIn":true,"signInHref":"sample"}
 
 [contracts] MediaEngine.Contracts.Collections.CollectionLocationPlacementSummary
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -8981,13 +8983,20 @@
   Description: System.String | json=description | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Linked: System.Boolean | json=linked | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   LinkedAt: System.DateTimeOffset? | json=linked_at | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"name":"sample","label":"sample","description":"sample","linked":true,"linked_at":"2025-01-02T03:04:05+00:00"}
+  CanSignIn: System.Boolean | json=can_sign_in | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SignInNeedsSetup: System.Boolean | json=sign_in_needs_setup | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"name":"sample","label":"sample","description":"sample","linked":true,"linked_at":"2025-01-02T03:04:05+00:00","can_sign_in":true,"sign_in_needs_setup":true}
 
 [contracts] MediaEngine.Contracts.Plugins.PluginConnectionLinkRequest
   kind=class | converter=default | number-handling=default | unmapped=default
   Value: System.String | json=value | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Agreed: System.Boolean | json=agreed | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"value":"sample","agreed":true}
+
+[contracts] MediaEngine.Contracts.Plugins.PluginConnectionsListResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Plugins: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginConnectionsResponse> | json=plugins | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"plugins":[]}
 
 [contracts] MediaEngine.Contracts.Plugins.PluginConnectionsResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -9010,6 +9019,26 @@
   Needs: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginNeedDto> | json=needs | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   NeededBy: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginNeededByDto> | json=needed_by | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"plugin_id":"sample","waiting_for":"sample","needs":[],"needed_by":[]}
+
+[contracts] MediaEngine.Contracts.Plugins.PluginDeviceSignInCheckResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Status: System.String | json=status | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Message: System.String | json=message | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IntervalSeconds: System.Int32 | json=interval_seconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"status":"sample","message":"sample","interval_seconds":7}
+
+[contracts] MediaEngine.Contracts.Plugins.PluginDeviceSignInStartRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Agreed: System.Boolean | json=agreed | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"agreed":true}
+
+[contracts] MediaEngine.Contracts.Plugins.PluginDeviceSignInStartResponse
+  kind=class | converter=default | number-handling=default | unmapped=default
+  UserCode: System.String | json=user_code | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  VerificationUrl: System.String | json=verification_url | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ExpiresInSeconds: System.Int32 | json=expires_in_seconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IntervalSeconds: System.Int32 | json=interval_seconds | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"user_code":"sample","verification_url":"sample","expires_in_seconds":7,"interval_seconds":7}
 
 [contracts] MediaEngine.Contracts.Plugins.PluginDirectoryEntryDto
   kind=class | converter=default | number-handling=default | unmapped=default
