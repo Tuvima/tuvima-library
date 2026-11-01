@@ -1,12 +1,13 @@
 @namespace MediaEngine.Web.Components.Artwork
+@inject IStringLocalizer<SharedStrings> L
 
-<AppDialog Title="Import artwork from URL" Options="@(new AppDialogOptions { MaxWidth = AppMaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true, NoHeader = true })">
+<AppDialog Title="@L["ArtworkUrlDialog_ImportArtworkFromURL"].Value" Options="@(new AppDialogOptions { MaxWidth = AppMaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true, NoHeader = true })">
     <DialogContent>
-        <AppTextField Label="Image URL" Value="@_url" ValueChanged="@((string? value) => _url = value ?? string.Empty)" />
+        <AppTextField Label="@L["ArtworkUrlDialog_ImageURL"].Value" Value="@_url" ValueChanged="@((string? value) => _url = value ?? string.Empty)" />
     </DialogContent>
     <DialogActions>
-        <AppButton ButtonStyle="AppButtonStyle.Outlined" OnClick="Cancel">Cancel</AppButton>
-        <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!ValidUrl)" OnClick="Import">Import image</AppButton>
+        <AppButton ButtonStyle="AppButtonStyle.Outlined" OnClick="Cancel">@L["Search_Cancel"]</AppButton>
+        <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!ValidUrl)" OnClick="Import">@L["ArtworkUrlDialog_ImportImage"]</AppButton>
     </DialogActions>
 </AppDialog>
 

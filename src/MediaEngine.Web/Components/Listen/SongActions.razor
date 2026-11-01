@@ -7,23 +7,24 @@
 @inject IServiceProvider Services
 @inject NavigationManager Nav
 @implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
 @if (Item?.WorkId is Guid id)
 {
     @if (ShowRating) { <MediaRateControl Bare="@(!PlaybackAppearance && Surface == "dock")" PlaybackAppearance="PlaybackAppearance" Positive="@(_reaction is MediaReaction.Like or MediaReaction.Love)" Negative="@(_reaction == MediaReaction.Dislike)" Selected="RateAsync" /> }
-    <PlaybackPopover Kind="menu" Title="More song actions" ToolId="@_toolId" ItemKey="@($"{id}:{Profile}")" Surface="@Surface" ShowHeading="false" TriggerClass="@(PlaybackAppearance ? "playback-song-action" : null)">
+    <PlaybackPopover Kind="menu" Title="@L["SongActions_MoreSongActions"].Value" ToolId="@_toolId" ItemKey="@($"{id}:{Profile}")" Surface="@Surface" ShowHeading="false" TriggerClass="@(PlaybackAppearance ? "playback-song-action" : null)">
         <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.More" /></TriggerContent>
         <ChildContent>
-            <div role="menu" aria-label="Song actions">
+            <div role="menu" aria-label="@L["Common_SongActions"].Value">
                 @if (!ShowRating)
                 {
-                <AppMenuItem Label="I like this song" Icon="@AppMaterialIcons.Outlined.ThumbUp" Checked="@(_reaction is MediaReaction.Like or MediaReaction.Love)" OnClick="@(() => RateAsync(true))" />
-                <AppMenuItem Label="I don't like this song" Icon="@AppMaterialIcons.Outlined.ThumbDown" Checked="@(_reaction == MediaReaction.Dislike)" OnClick="@(() => RateAsync(false))" />
+                <AppMenuItem Label="@L["SongActions_ILikeThisSong"].Value" Icon="@AppMaterialIcons.Outlined.ThumbUp" Checked="@(_reaction is MediaReaction.Like or MediaReaction.Love)" OnClick="@(() => RateAsync(true))" />
+                <AppMenuItem Label="@L["SongActions_IDonTLikeThis"].Value" Icon="@AppMaterialIcons.Outlined.ThumbDown" Checked="@(_reaction == MediaReaction.Dislike)" OnClick="@(() => RateAsync(false))" />
                 }
-                <AppMenuItem Label="Add to playlist" Icon="@AppMaterialIcons.Outlined.PlaylistAdd" DividerBefore="@(!ShowRating)" OnClick="PlaylistAsync" />
+                <AppMenuItem Label="@L["Common_AddToPlaylist"].Value" Icon="@AppMaterialIcons.Outlined.PlaylistAdd" DividerBefore="@(!ShowRating)" OnClick="PlaylistAsync" />
                 <AppMenuItem Label="@(_reaction == MediaReaction.Love ? "Remove from Favorites" : "Add to Favorites")" Icon="@AppMaterialIcons.Outlined.FavoriteBorder" OnClick="FavoriteAsync" />
                 <PersonalStatusMenuItems WorkId="@id" ProfileId="@Profile" IsCurrent="Current" IncludePlaylist="false" />
-                @if (ListenPlaybackIdentityRoutes.Album(Item) is { } album) { <AppMenuItem Label="Go to album" Icon="@AppMaterialIcons.Outlined.Album" DividerBefore="true" OnClick="@(() => NavigateAsync(album))" /> }
-                @if (ListenPlaybackIdentityRoutes.Artist(Item) is { } artist) { <AppMenuItem Label="Go to artist" Icon="@AppMaterialIcons.Outlined.PersonOutline" OnClick="@(() => NavigateAsync(artist))" /> }
+                @if (ListenPlaybackIdentityRoutes.Album(Item) is { } album) { <AppMenuItem Label="@L["SongActions_GoToAlbum"].Value" Icon="@AppMaterialIcons.Outlined.Album" DividerBefore="true" OnClick="@(() => NavigateAsync(album))" /> }
+                @if (ListenPlaybackIdentityRoutes.Artist(Item) is { } artist) { <AppMenuItem Label="@L["SongActions_GoToArtist"].Value" Icon="@AppMaterialIcons.Outlined.PersonOutline" OnClick="@(() => NavigateAsync(artist))" /> }
             </div>
         </ChildContent>
     </PlaybackPopover>
@@ -77,7 +78,7 @@
             if (id is not Guid identity) return;
             string? error;
             try { var reply = await navigation.NavigateIdentityAsync(displayed, kind, identity); error = reply?.BooleanResult == true ? null : "That identity is no longer available in the main player."; }
-            catch (Exception) { error = "The main player connection was interrupted. Try again when it reconnects."; }
+            catch (Exception) { error = L["Common_TheMainPlayerConnectionWas"].Value; }
             if (Current() && Snapshot.ProfileId == displayed.ProfileId && Snapshot.PlaybackRequestVersion == displayed.PlaybackRequestVersion && Item?.AssetId == item.AssetId)
                 await NavigationCompleted.InvokeAsync(error);
             return;

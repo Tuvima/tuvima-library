@@ -1,18 +1,19 @@
 @namespace MediaEngine.Web.Components.Settings
+@inject IStringLocalizer<SharedStrings> L
 
 @* A library's status in words (Libraries redesign D3): Healthy, Empty, Scanning, Folder offline (the warning's words open as a tooltip), or an amber
    count that names its kind and goes exactly there: "12 files not identified" opens the library's Unidentified tab, "3 need review" opens Needs
    Review for the library. A library can have both; each is its own link, never mixed. Nothing is claimed while the status is not known. *@
 @if (Row.Status is not { } status)
 {
-    <span class="lib-status lib-status--muted" data-status="unknown" aria-label="No status to show">—</span>
+    <span class="lib-status lib-status--muted" data-status="unknown" aria-label="@L["LibraryStatusCell_NoStatusToShow"].Value">—</span>
 }
 else
 {
     switch (status)
     {
         case LibraryStatusKind.Healthy:
-            <span class="lib-status" data-status="healthy"><LibraryHealthIcon Health="@LibraryHealth.Ok" />Healthy</span>
+            <span class="lib-status" data-status="healthy"><LibraryHealthIcon Health="@LibraryHealth.Ok" />@L["Ingestion_HealthHealthy"]</span>
             break;
         case LibraryStatusKind.NotIdentified:
         case LibraryStatusKind.NeedsReview:
@@ -35,14 +36,14 @@ else
             break;
         case LibraryStatusKind.FolderOffline:
             <AppTooltip Text="@Row.StatusDetail">
-                <span class="lib-status lib-status--warning" data-status="folder-offline" tabindex="0"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" />Folder offline</span>
+                <span class="lib-status lib-status--warning" data-status="folder-offline" tabindex="0"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" />@L["Common_FolderOffline"]</span>
             </AppTooltip>
             break;
         case LibraryStatusKind.Scanning:
-            <span class="lib-status" data-status="scanning"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Sync" />Scanning</span>
+            <span class="lib-status" data-status="scanning"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Sync" />@L["Ingestion_StageScanning"]</span>
             break;
         default:
-            <span class="lib-status lib-status--muted" data-status="empty">Empty</span>
+            <span class="lib-status lib-status--muted" data-status="empty">@L["LibraryStatusCell_Empty"]</span>
             break;
     }
 }

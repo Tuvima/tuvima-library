@@ -12,7 +12,7 @@
 @inject IAppToastService Snackbar
 @implements IDisposable
 
-<PageTitle>Library</PageTitle>
+<PageTitle>@L["Nav_Library"]</PageTitle>
 
 <div class="home-vault-reminder"><MediaEngine.Web.Components.Vault.VaultHiddenReminder /></div>
 
@@ -26,10 +26,10 @@
     @if (_librariesConfigured)
     {
         <div class="home-discovery-empty">
-            <img src="/images/tuvima-icon.svg" alt="Library" class="home-discovery-empty-icon" />
-            <h2 class="home-discovery-empty-title">Your library is being prepared</h2>
+            <img src="/images/tuvima-icon.svg" alt="@L["Nav_Library"].Value" class="home-discovery-empty-icon" />
+            <h2 class="home-discovery-empty-title">@L["LibraryBrowsePage_YourLibraryIsBeingPrepared"]</h2>
             <p class="home-discovery-empty-subtitle">
-                Library is finding and matching your media. Items appear here as they're ready.
+                @L["LibraryBrowsePage_LibraryIsFindingAndMatching"]
             </p>
             <div class="home-discovery-empty-actions">
                 <AppButton ButtonStyle="AppButtonStyle.Outlined"
@@ -37,7 +37,7 @@
                            Size="AppControlSize.Large"
                            StartIcon="@AppMaterialIcons.Outlined.PendingActions"
                            Href="/settings/ingestion">
-                    View progress
+                    @L["LibraryBrowsePage_ViewProgress"]
                 </AppButton>
             </div>
         </div>
@@ -45,10 +45,10 @@
     else
     {
     <div class="home-discovery-empty">
-        <img src="/images/tuvima-icon.svg" alt="Library" class="home-discovery-empty-icon" />
-        <h2 class="home-discovery-empty-title">Your library is empty</h2>
+        <img src="/images/tuvima-icon.svg" alt="@L["Nav_Library"].Value" class="home-discovery-empty-icon" />
+        <h2 class="home-discovery-empty-title">@L["Home_EmptyTitle"]</h2>
         <p class="home-discovery-empty-subtitle">
-            Point Library at the folders where your books, films, shows and music live. It will find them, identify them and lay them out here.
+            @L["LibraryBrowsePage_PointLibraryAtTheFolders"]
         </p>
 
         <div class="home-discovery-empty-actions">
@@ -57,14 +57,14 @@
                        Size="AppControlSize.Large"
                        StartIcon="@AppMaterialIcons.Outlined.CreateNewFolder"
                        Href="/settings/libraries">
-                Add a library
+                @L["Common_AddALibrary"]
             </AppButton>
         </div>
 
         @if (Env.IsDevelopment())
         {
             <div class="home-discovery-dev-tools">
-                <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Development tools</AppText>
+                <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">@L["LibraryBrowsePage_DevelopmentTools"]</AppText>
                 <AppButton ButtonStyle="AppButtonStyle.Outlined"
                            Tone="AppUiTone.Warning"
                            StartIcon="@AppMaterialIcons.Filled.AutoStories"
@@ -96,7 +96,7 @@
             <CinematicHeroCarousel Items="@HomeHeroCandidates"
                                   SectionTitle="Home"
                                   SectionSubtitle="A cross-media view of your local library"
-                                  AriaLabel="Home featured media" />
+                                  AriaLabel="@L["LibraryBrowsePage_HomeFeaturedMedia"].Value" />
         }
 
         <div class="home-discovery-content-shell">

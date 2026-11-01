@@ -5,6 +5,7 @@
 @inject IEngineApiClient Api
 @inject ILogger<IngestionMediaDrawer> Logger
 @implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 @if (Item is not null)
 {
@@ -12,7 +13,7 @@
             <aside class="ingestion-drawer__surface">
                 <header>
                     <span><AppMaterialIcon Icon="@IngestionMediaCard.MediaIcon(Item.MediaType)" />@IngestionMediaCard.FriendlyType(Item.MediaType)</span>
-                    <AppNativeButton Type="button" Class="ingestion-drawer__close" AriaLabel="Close ingestion details" OnClick="@(_ => Close.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" /></AppNativeButton>
+                    <AppNativeButton Type="button" Class="ingestion-drawer__close" AriaLabel="@L["IngestionMediaDrawer_CloseIngestionDetails"].Value" OnClick="@(_ => Close.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" /></AppNativeButton>
                 </header>
 
                 <AppRowErrorBoundary ItemTitle="@IngestionMediaCard.DisplayTitleFor(Item.Title)" ResetKey="@Item">
@@ -22,7 +23,7 @@
                         <div><h2 id="ingestion-drawer-title">@IngestionMediaCard.DisplayTitleFor(Item.Title)</h2><p>@Item.Subtitle</p><small>@IngestionMediaCard.FriendlyType(Item.MediaType)</small></div>
                     </section>
 
-                    <section class="ingestion-drawer__progress" aria-label="Addition progress">
+                    <section class="ingestion-drawer__progress" aria-label="@L["IngestionMediaDrawer_AdditionProgress"].Value">
                         <strong>@ProgressLabel</strong>
                         @if (!Item.Availability.Equals("ready", StringComparison.OrdinalIgnoreCase))
                         {
@@ -36,7 +37,7 @@
                         }
                     </section>
 
-                    <section class="ingestion-drawer__states" aria-label="Media processing status">
+                    <section class="ingestion-drawer__states" aria-label="@L["IngestionMediaDrawer_MediaProcessingStatus"].Value">
                         @foreach (var state in States)
                         {
                             @if (!state.Value.State.Equals("notApplicable", StringComparison.OrdinalIgnoreCase))
@@ -58,7 +59,7 @@
                             {
                                 <div class="ingestion-drawer__children-error" role="alert">
                                     <p>@_childrenError</p>
-                                    <AppButton Label="Try again" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="ReloadChildrenAsync" />
+                                    <AppButton Label="@L["Common_TryAgain"].Value" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="ReloadChildrenAsync" />
                                 </div>
                             }
                             else if (_children.Count > 0)
@@ -72,7 +73,7 @@
                             }
                             else
                             {
-                                <p>Child details will appear as files are identified.</p>
+                                <p>@L["IngestionMediaDrawer_ChildDetailsWillAppearAs"]</p>
                             }
                         </section>
                     }
@@ -82,7 +83,7 @@
                 <footer>
                     @if (!string.IsNullOrWhiteSpace(Item.DetailRoute))
                     {
-                        <AppButton Href="@Item.DetailRoute" Label="Open item" StartIcon="@AppMaterialIcons.Outlined.OpenInNew" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" />
+                        <AppButton Href="@Item.DetailRoute" Label="@L["IngestionMediaDrawer_OpenItem"].Value" StartIcon="@AppMaterialIcons.Outlined.OpenInNew" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" />
                     }
                 </footer>
             </aside>
@@ -167,7 +168,7 @@
             {
                 Logger.LogWarning(ex, "Could not load ingestion child details for group {GroupId}.", item.GroupId);
                 _children = [];
-                _childrenError = "Child details could not be loaded. Try again.";
+                _childrenError = L["IngestionMediaDrawer_ChildDetailsCouldNotBe"].Value;
             }
         }
         finally

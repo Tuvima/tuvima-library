@@ -20,7 +20,7 @@ public sealed class VideoPresentationTests
     [Fact]
     public void EpisodeRowsKeepTheNumberSeparateAndReserveTheActivityMarker()
     {
-        using var ctx = new BunitContext();
+        using var ctx = new LocalizedBunitContext();
         ctx.JSInterop.Mode = JSRuntimeMode.Loose;
         var episode = new VideoOwnedEpisode(Guid.NewGuid(), "A Message Across the Water", null, null,
             "3:00", "2", "Season 2", 2, 5);

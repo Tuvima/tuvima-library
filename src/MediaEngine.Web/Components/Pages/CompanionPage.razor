@@ -11,8 +11,9 @@
 @inject IAppDialogService Dialogs
 @inject IAppToastService Snackbar
 @inject ILogger<CompanionPage> Logger
+@inject IStringLocalizer<SharedStrings> L
 
-<PageTitle>Companion - Library</PageTitle>
+<PageTitle>@L["CompanionPage_CompanionLibrary"]</PageTitle>
 
 @* The phone companion (U-WP13). /companion follows the device this browser chose (or the place it holds by hand);
    /companion/{workId} is the "Companion" item in a title's "..." menu: it holds that title and lets the person pick the
@@ -21,10 +22,10 @@
 <div class="companion-page">
     @if (!CompanionDeviceRule.IsAvailable(DeviceContext))
     {
-        <AppEmptyState Title="Companion is for phones and tablets"
-                       Message="Open the Library on your phone or tablet, next to the TV or computer you are watching or listening on, to use the Companion.">
+        <AppEmptyState Title="@L["CompanionPage_CompanionIsForPhonesAnd"].Value"
+                       Message="@L["CompanionPage_OpenTheLibraryOnYour"].Value">
             <Action>
-                <AppButton Label="Back to Home" Href="/" ButtonStyle="AppButtonStyle.Outlined" />
+                <AppButton Label="@L["CompanionPage_BackToHome"].Value" Href="/" ButtonStyle="AppButtonStyle.Outlined" />
             </Action>
         </AppEmptyState>
     }
@@ -40,7 +41,7 @@
     @switch (_status)
     {
         case CompanionPageStatus.Loading:
-            <div class="companion-page__loading" aria-busy="true" aria-label="Loading the companion">
+            <div class="companion-page__loading" aria-busy="true" aria-label="@L["CompanionPage_LoadingTheCompanion"].Value">
                 <AppSkeleton Height="6rem" Width="100%" />
                 <AppSkeleton Height="2.75rem" Width="100%" />
                 <AppSkeleton Height="10rem" Width="100%" />
@@ -48,8 +49,8 @@
             break;
 
         case CompanionPageStatus.Unavailable:
-            <AppErrorState Title="Can't reach the Engine"
-                           Message="The companion could not be loaded. Check that the Engine is running, then try again."
+            <AppErrorState Title="@L["Common_CanTReachTheEngine"].Value"
+                           Message="@L["CompanionPage_TheCompanionCouldNotBe"].Value"
                            Retry="RetryAsync" />
             break;
 
@@ -60,20 +61,20 @@
             }
             else
             {
-                <AppEmptyState Title="Nothing is playing"
-                               Message="Companion follows what you are watching or listening to. Start something on a TV or computer and it shows up here, or open any title on your phone, choose Companion from its ... menu, and pick where you are.">
+                <AppEmptyState Title="@L["CompanionPage_NothingIsPlaying"].Value"
+                               Message="@L["CompanionPage_CompanionFollowsWhatYouAre"].Value">
                     <Action>
-                        <AppButton Label="Back to Home" Href="/" ButtonStyle="AppButtonStyle.Outlined" />
+                        <AppButton Label="@L["CompanionPage_BackToHome"].Value" Href="/" ButtonStyle="AppButtonStyle.Outlined" />
                     </Action>
                 </AppEmptyState>
             }
             break;
 
         case CompanionPageStatus.NotAvailable:
-            <AppEmptyState Title="This title isn't available."
-                           Message="It may have been removed, it may not be part of what this profile can see, or the Engine could not be reached.">
+            <AppEmptyState Title="@L["CompanionPage_ThisTitleIsnTAvailable"].Value"
+                           Message="@L["CompanionPage_ItMayHaveBeenRemoved"].Value">
                 <Action>
-                    <AppButton Label="Back to Home" Href="/" ButtonStyle="AppButtonStyle.Outlined" />
+                    <AppButton Label="@L["CompanionPage_BackToHome"].Value" Href="/" ButtonStyle="AppButtonStyle.Outlined" />
                 </Action>
             </AppEmptyState>
             break;
@@ -83,7 +84,7 @@
             {
                 @if (_place is { Mode: CompanionModes.Follow } && _followedStopped)
                 {
-                    <p class="companion-page__notice" data-note="stopped">Playback stopped. This is where you were.</p>
+                    <p class="companion-page__notice" data-note="stopped">@L["CompanionPage_PlaybackStoppedThisIsWhere"]</p>
                 }
 
                 <CompanionScreen Context="context"
@@ -101,11 +102,11 @@
                                Disabled="_holding" />
                     @if (_place is { Mode: CompanionModes.Manual } && _devices.Count > 0)
                     {
-                        <AppButton Label="Follow what is playing" ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.Devices" OnClick="@(() => FollowAsync(_devices[0]))" />
+                        <AppButton Label="@L["CompanionPage_FollowWhatIsPlaying"].Value" ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.Devices" OnClick="@(() => FollowAsync(_devices[0]))" />
                     }
                     @if (_place is { Mode: CompanionModes.Follow })
                     {
-                        <AppButton Label="Stop following" ButtonStyle="AppButtonStyle.Text" OnClick="StopAsync" />
+                        <AppButton Label="@L["CompanionPage_StopFollowing"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="StopAsync" />
                     }
                 </div>
 
@@ -352,7 +353,7 @@
         var session = await Companion.FollowAsync(device.DeviceId, _lifetime.Token);
         if (session is null)
         {
-            Snackbar.Add("Couldn't follow that device. Try again.", AppSeverity.Error);
+            Snackbar.Add(L["CompanionPage_CouldnTFollowThatDevice"].Value, AppSeverity.Error);
             return;
         }
 
@@ -388,7 +389,7 @@
             var session = await Companion.HoldAsync(choice.WorkId, choice.ChapterIndex, _lifetime.Token);
             if (session is null)
             {
-                Snackbar.Add("Couldn't set your place. Try again.", AppSeverity.Error);
+                Snackbar.Add(L["CompanionPage_CouldnTSetYourPlace"].Value, AppSeverity.Error);
                 return;
             }
 
@@ -417,7 +418,7 @@
             var saved = await Companion.SaveSpoilerLevelAsync(level, _lifetime.Token);
             if (saved is null)
             {
-                Snackbar.Add("The spoiler setting could not be saved.", AppSeverity.Error);
+                Snackbar.Add(L["Common_TheSpoilerSettingCouldNot"].Value, AppSeverity.Error);
                 return;
             }
 

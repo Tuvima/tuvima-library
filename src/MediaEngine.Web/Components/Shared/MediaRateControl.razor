@@ -1,15 +1,16 @@
 @namespace MediaEngine.Web.Components.Shared
 @inject IJSRuntime JS
+@inject IStringLocalizer<SharedStrings> L
 <span class="media-rate-control @(_open ? "is-open" : "") @(Bare ? "media-rate-control--bare" : "")" @ref="_root" @onpointerenter="PointerEnterAsync" @onpointerleave="BlurAsync" @onfocusin="Show" @onfocusout="BlurAsync" @onkeydown="KeyAsync">
-    <AppTooltip Text="Rate"><AppNativeButton Type="button" Class="@(PlaybackAppearance ? "playback-song-action" : "hero-icon-circle")" AriaLabel="Rate" data-rated="@(Positive || Negative ? "true" : null)" aria-haspopup="menu" aria-expanded="@(_open ? "true" : "false")" OnClick="Show">
+    <AppTooltip Text="@L["MediaRateControl_Rate"].Value"><AppNativeButton Type="button" Class="@(PlaybackAppearance ? "playback-song-action" : "hero-icon-circle")" AriaLabel="@L["MediaRateControl_Rate"].Value" data-rated="@(Positive || Negative ? "true" : null)" aria-haspopup="menu" aria-expanded="@(_open ? "true" : "false")" OnClick="Show">
         @if (PlaybackAppearance || UseUtilityGlyph) { <PlaybackUtilityGlyph Glyph="@(Negative ? PlaybackUtilityGlyphKind.Dislike : PlaybackUtilityGlyphKind.Like)" /> }
         else { <AppMaterialIcon Icon="@(Positive ? AppMaterialIcons.Filled.ThumbUp : Negative ? AppMaterialIcons.Filled.ThumbDown : AppMaterialIcons.Outlined.ThumbUp)" /> }
     </AppNativeButton></AppTooltip>
-    <span class="media-rate-control__choices" role="menu" aria-label="Rate this item" inert="@(!_open)">
-        <AppTooltip Text="Not for me"><AppNativeButton Type="button" role="menuitemcheckbox" aria-checked="@(Negative ? "true" : "false")" AriaLabel="Not for me" OnClick="@(() => SelectAsync(false))">
+    <span class="media-rate-control__choices" role="menu" aria-label="@L["MediaRateControl_RateThisItem"].Value" inert="@(!_open)">
+        <AppTooltip Text="@L["MediaRateControl_NotForMe"].Value"><AppNativeButton Type="button" role="menuitemcheckbox" aria-checked="@(Negative ? "true" : "false")" AriaLabel="@L["MediaRateControl_NotForMe"].Value" OnClick="@(() => SelectAsync(false))">
             @if (PlaybackAppearance || UseUtilityGlyph) { <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Dislike" /> } else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ThumbDown" /> }
         </AppNativeButton></AppTooltip>
-        <AppTooltip Text="I like this"><AppNativeButton Type="button" role="menuitemcheckbox" aria-checked="@(Positive ? "true" : "false")" AriaLabel="I like this" OnClick="@(() => SelectAsync(true))">
+        <AppTooltip Text="@L["MediaRateControl_ILikeThis"].Value"><AppNativeButton Type="button" role="menuitemcheckbox" aria-checked="@(Positive ? "true" : "false")" AriaLabel="@L["MediaRateControl_ILikeThis"].Value" OnClick="@(() => SelectAsync(true))">
             @if (PlaybackAppearance || UseUtilityGlyph) { <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Like" /> } else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ThumbUp" /> }
         </AppNativeButton></AppTooltip>
     </span>

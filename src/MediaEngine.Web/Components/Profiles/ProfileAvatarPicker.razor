@@ -1,14 +1,15 @@
 @namespace MediaEngine.Web.Components.Profiles
 @using MediaEngine.Domain.Aggregates
 @using MediaEngine.Web.Components.Shared
+@inject IStringLocalizer<SharedStrings> L
 @* Avatar choices for the profile editor: a colour swatch, a built-in icon (or the person's initial), or an uploaded photo.
    The picker only reports choices; the editor owns the state and the preview. *@
 <div class="avatar-picker">
-    <AppSegmentedControl Class="avatar-picker__tabs" AriaLabel="Avatar type" Options="@TabChoices" Value="@_tab" ValueChanged="OnTabChanged" />
+    <AppSegmentedControl Class="avatar-picker__tabs" AriaLabel="@L["ProfileAvatarPicker_AvatarType"].Value" Options="@TabChoices" Value="@_tab" ValueChanged="OnTabChanged" />
 
     @if (_tab == ColourTab)
     {
-    <div class="avatar-picker__group" role="radiogroup" aria-label="Avatar colour">
+    <div class="avatar-picker__group" role="radiogroup" aria-label="@L["ProfileAvatarPicker_AvatarColour"].Value">
         <div class="avatar-picker__grid avatar-picker__grid--swatches">
             @foreach (var swatch in ProfileAvatarPalette.Swatches)
             {
@@ -28,13 +29,13 @@
     }
     else if (_tab == IconTab)
     {
-    <div class="avatar-picker__group" role="radiogroup" aria-label="Avatar icon">
+    <div class="avatar-picker__group" role="radiogroup" aria-label="@L["ProfileAvatarPicker_AvatarIcon"].Value">
         <div class="avatar-picker__grid">
             <AppNativeButton Type="button"
                     Class="@("avatar-picker__option" + (Icon is null && !HasPhoto ? " is-selected" : ""))"
                     role="radio"
                     aria-checked="@(Icon is null && !HasPhoto ? "true" : "false")"
-                    AriaLabel="Initial letter"
+                    AriaLabel="@L["ProfileAvatarPicker_InitialLetter"].Value"
                     Disabled="@Disabled"
                     OnClick="@(() => IconChanged.InvokeAsync(null))">
                 <ProfileAvatar DisplayName="@DisplayName" Color="@Color" />
@@ -61,17 +62,17 @@
         <div class="avatar-picker__photo">
             <label class="who-button avatar-picker__upload @(Disabled ? "is-disabled" : null)">
                 <span>@(HasPhoto ? "Change photo" : "Upload a photo")</span>
-                <InputFile class="avatar-picker__file" accept="image/jpeg,image/png,image/webp" disabled="@Disabled" OnChange="OnFileChosen" aria-label="Upload a profile photo" />
+                <InputFile class="avatar-picker__file" accept="image/jpeg,image/png,image/webp" disabled="@Disabled" OnChange="OnFileChosen" aria-label="@L["ProfileAvatarPicker_UploadAProfilePhoto"].Value" />
             </label>
             @if (HasPhoto)
             {
-                <AppNativeButton Type="button" Class="who-button" Disabled="@Disabled" OnClick="@(() => PhotoRemoved.InvokeAsync())">Remove photo</AppNativeButton>
+                <AppNativeButton Type="button" Class="who-button" Disabled="@Disabled" OnClick="@(() => PhotoRemoved.InvokeAsync())">@L["ProfileAvatarPicker_RemovePhoto"]</AppNativeButton>
             }
         </div>
-        <p class="avatar-picker__hint">JPEG, PNG or WebP, up to 5 MB.</p>
+        <p class="avatar-picker__hint">@L["ProfileAvatarPicker_JPEGPNGOrWebPUp"]</p>
         @if (PhotoReplacedByChoices)
         {
-            <p class="avatar-picker__hint">Choosing a colour or icon replaces the current photo.</p>
+            <p class="avatar-picker__hint">@L["ProfileAvatarPicker_ChoosingAColourOrIcon"]</p>
         }
     </div>
     }

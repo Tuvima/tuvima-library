@@ -5,17 +5,18 @@
 @inject IJSRuntime JS
 @inject IAppToastService Snackbar
 @inject DeviceContextService DeviceContext
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="backup-page">
     <div class="backup-page__toolbar">
-        <AppButton Label="Refresh" StartIcon="@AppMaterialIcons.Outlined.Refresh" Disabled="@(_busy || _loading)" OnClick="LoadAsync" />
+        <AppButton Label="@L["Ingestion_Refresh"].Value" StartIcon="@AppMaterialIcons.Outlined.Refresh" Disabled="@(_busy || _loading)" OnClick="LoadAsync" />
     </div>
 
     @if (_loading)
     {
         <AppPageState Kind="AppPageStateKind.Loading"
-                      Title="Loading recovery points"
-                      Message="Checking backup storage and recent recovery points." />
+                      Title="@L["BackupRecoveryPanel_LoadingRecoveryPoints"].Value"
+                      Message="@L["BackupRecoveryPanel_CheckingBackupStorageAndRecent"].Value" />
     }
     else
     {
@@ -24,21 +25,21 @@
             <AppText Class="tl-u-color-tl-text-muted" data-testid="data-store-version">@versionLine</AppText>
         }
 
-        <AppCard Title="Backup status" Class="backup-status">
+        <AppCard Title="@L["BackupRecoveryPanel_BackupStatus"].Value" Class="backup-status">
             @if (LatestBackup is null)
             {
                 @if (RestoreSummaryLine is { } emptyRestoreSummary)
                 {
                     <p class="backup-status__mobile-note" data-testid="restore-summary">@emptyRestoreSummary</p>
                 }
-                <div class="backup-status__empty"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Inventory2" /><span><strong>No recovery points yet</strong><small>Create a backup before significant library or configuration changes.</small></span></div>
+                <div class="backup-status__empty"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Inventory2" /><span><strong>@L["BackupRecoveryPanel_NoRecoveryPointsYet"]</strong><small>@L["BackupRecoveryPanel_CreateABackupBeforeSignificant"]</small></span></div>
             }
             else
             {
                 <div class="backup-status__facts">
-                    <div><small>Latest backup</small><strong>@LatestBackup.CreatedAt.ToLocalTime().ToString("MMM d, yyyy · h:mm tt")</strong></div>
-                    <div><small>Backup size</small><strong>@FormatBytes(LatestBackup.SizeBytes)</strong></div>
-                    <div><small>Recovery points</small><strong>@_backups.Count</strong></div>
+                    <div><small>@L["BackupRecoveryPanel_LatestBackup"]</small><strong>@LatestBackup.CreatedAt.ToLocalTime().ToString("MMM d, yyyy · h:mm tt")</strong></div>
+                    <div><small>@L["BackupRecoveryPanel_BackupSize"]</small><strong>@FormatBytes(LatestBackup.SizeBytes)</strong></div>
+                    <div><small>@L["BackupRecoveryPanel_RecoveryPoints"]</small><strong>@_backups.Count</strong></div>
                 </div>
                 @if (RestoreSummaryLine is { } restoreSummary)
                 {
@@ -46,7 +47,7 @@
                 }
                 @if (DeviceContext.IsMobile)
                 {
-                    <p class="backup-status__mobile-note">Creating, downloading, testing, and restoring recovery points is available on desktop and tablet.</p>
+                    <p class="backup-status__mobile-note">@L["BackupRecoveryPanel_CreatingDownloadingTestingAndRestoring"]</p>
                 }
             }
         </AppCard>
@@ -54,7 +55,7 @@
         @if (_lastValidation is { Valid: false })
         {
             <AppAlert Tone="AppUiTone.Error" Class="backup-validation-result">
-                <div><strong>Restore test failed</strong></div>
+                <div><strong>@L["BackupRecoveryPanel_RestoreTestFailed"]</strong></div>
                 <div data-testid="restore-error">@_lastValidation.Message</div>
                 <div><small>Tested @_lastValidation.ValidatedAt.ToLocalTime().ToString("MMM d, yyyy · h:mm tt").</small></div>
             </AppAlert>
@@ -62,7 +63,7 @@
         else if (_lastValidation is { Valid: true, Contents: { } firstLook })
         {
             <AppAlert Tone="AppUiTone.Success" Class="backup-validation-result" data-testid="restore-first-look">
-                <div><strong>Restore test passed</strong></div>
+                <div><strong>@L["BackupRecoveryPanel_RestoreTestPassed"]</strong></div>
                 <BackupContentsSummary Contents="firstLook" />
             </AppAlert>
         }
@@ -70,37 +71,37 @@
         @if (!DeviceContext.IsMobile)
         {
         <div class="backup-actions-grid">
-            <AppCard Title="Create backup" Class="backup-action-card">
-                <AppButton Label="Create backup" StartIcon="@AppMaterialIcons.Outlined.Backup" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_busy" Loading="@_busy" OnClick="CreateAsync" />
+            <AppCard Title="@L["BackupRecoveryPanel_CreateBackup"].Value" Class="backup-action-card">
+                <AppButton Label="@L["BackupRecoveryPanel_CreateBackup"].Value" StartIcon="@AppMaterialIcons.Outlined.Backup" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_busy" Loading="@_busy" OnClick="CreateAsync" />
                 @if (_lastCreated is { } created)
                 {
-                    <p data-testid="backup-created">Backup created: <strong>@created.FileName</strong>, @FormatBytes(created.SizeBytes).</p>
+                    <p data-testid="backup-created">@L["BackupRecoveryPanel_BackupCreated"] <strong>@created.FileName</strong>, @FormatBytes(created.SizeBytes).</p>
                 }
-                <p data-testid="backup-note">Backups hold your settings and your own progress, bookmarks and favourites. They do not include your media files or folders. Back those up with your computer's own backup tool.</p>
-                <p data-testid="backup-keep-safe">Anyone with this file can see your settings and sign in as you. Keep it somewhere safe.</p>
+                <p data-testid="backup-note">@L["BackupRecoveryPanel_BackupsHoldYourSettingsAnd"]</p>
+                <p data-testid="backup-keep-safe">@L["BackupRecoveryPanel_AnyoneWithThisFileCan"]</p>
                 @if (_state is { FileOnlyTitles: > 0 } fileOnly)
                 {
                     <AppAlert Tone="AppUiTone.Warning" data-testid="file-only-warning">@FileOnlyLine(fileOnly.FileOnlyTitles)</AppAlert>
                 }
             </AppCard>
 
-            <AppCard Title="Restore" Class="backup-action-card">
+            <AppCard Title="@L["Common_Restore"].Value" Class="backup-action-card">
                 <p>The Engine validates and stages your chosen recovery point. Restart the Engine to apply it; the current database remains available as a recovery copy.</p>
                 @if (_backups.Count == 0)
                 {
-                    <AppButton Label="No backups available" Disabled="true" />
+                    <AppButton Label="@L["BackupRecoveryPanel_NoBackupsAvailable"].Value" Disabled="true" />
                 }
                 else
                 {
-                    <div class="backup-list" aria-label="Available recovery points">
+                    <div class="backup-list" aria-label="@L["BackupRecoveryPanel_AvailableRecoveryPoints"].Value">
                         @foreach (var backup in _backups)
                         {
                             <div class="backup-list__row">
                                 <div class="backup-list__identity"><strong>@backup.CreatedAt.ToLocalTime().ToString("MMM d, yyyy · h:mm tt")</strong><small>@FormatBytes(backup.SizeBytes)</small></div>
                                 <div class="backup-list__actions">
-                                    <AppButton Label="Download" ButtonStyle="AppButtonStyle.Text" StartIcon="@AppMaterialIcons.Outlined.Download" Disabled="@_busy" OnClick="@(() => DownloadAsync(backup))" />
-                                    <AppButton Label="Test restore" ButtonStyle="AppButtonStyle.Text" StartIcon="@AppMaterialIcons.Outlined.FactCheck" Disabled="@_busy" OnClick="@(() => ValidateAsync(backup))" />
-                                    <AppButton Label="Restore" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Warning" StartIcon="@AppMaterialIcons.Outlined.Restore" Disabled="@_busy" OnClick="@(() => OpenRestoreDialog(backup))" />
+                                    <AppButton Label="@L["Models_Download"].Value" ButtonStyle="AppButtonStyle.Text" StartIcon="@AppMaterialIcons.Outlined.Download" Disabled="@_busy" OnClick="@(() => DownloadAsync(backup))" />
+                                    <AppButton Label="@L["BackupRecoveryPanel_TestRestore"].Value" ButtonStyle="AppButtonStyle.Text" StartIcon="@AppMaterialIcons.Outlined.FactCheck" Disabled="@_busy" OnClick="@(() => ValidateAsync(backup))" />
+                                    <AppButton Label="@L["Common_Restore"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Warning" StartIcon="@AppMaterialIcons.Outlined.Restore" Disabled="@_busy" OnClick="@(() => OpenRestoreDialog(backup))" />
                                 </div>
                             </div>
                         }
@@ -111,8 +112,8 @@
 
         @if (_state is { } state)
         {
-            <AppCard Title="Restored progress" Class="backup-action-card">
-                <AppSelect @key="_waitingPeriodRenderKey" Native="true" Label="Keep restored progress waiting for" Value="@state.WaitingPeriodDays.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+            <AppCard Title="@L["BackupRecoveryPanel_RestoredProgress"].Value" Class="backup-action-card">
+                <AppSelect @key="_waitingPeriodRenderKey" Native="true" Label="@L["BackupRecoveryPanel_KeepRestoredProgressWaitingFor"].Value" Value="@state.WaitingPeriodDays.ToString(System.Globalization.CultureInfo.InvariantCulture)"
                            Options="@WaitingPeriodOptions(state.WaitingPeriodDays)" Disabled="@_busy" ValueChanged="SetWaitingPeriodAsync" data-testid="waiting-period" />
             </AppCard>
         }
@@ -121,11 +122,11 @@
 
         <AppCard>
         <details class="backup-advanced">
-            <summary>Advanced</summary>
+            <summary>@L["BackupRecoveryPanel_Advanced"]</summary>
             <div class="backup-advanced__content">
-                <div><span>Stored content</span><strong>Settings and your own progress, bookmarks and favourites</strong></div>
-                <div><span>Total archive size</span><strong>@FormatBytes(_backups.Sum(item => item.SizeBytes))</strong></div>
-                <p>Backup location and retention are controlled by the Engine's server configuration.</p>
+                <div><span>@L["BackupRecoveryPanel_StoredContent"]</span><strong>@L["BackupRecoveryPanel_SettingsAndYourOwnProgress"]</strong></div>
+                <div><span>@L["BackupRecoveryPanel_TotalArchiveSize"]</span><strong>@FormatBytes(_backups.Sum(item => item.SizeBytes))</strong></div>
+                <p>@L["BackupRecoveryPanel_BackupLocationAndRetentionAre"]</p>
             </div>
         </details>
         </AppCard>
@@ -143,7 +144,7 @@
 </div>
 
 <AppDialog @bind-Visible="_restoreDialogOpen"
-           Title="Schedule restore"
+           Title="@L["BackupRecoveryPanel_ScheduleRestore"].Value"
            Icon="@AppMaterialIcons.Outlined.Restore"
            Size="Small"
            OnClose="CloseRestoreDialog">
@@ -154,15 +155,15 @@
         @if (_selectedRestore is not null)
         {
             <dl class="backup-restore-confirmation">
-                <div><dt>Recovery point</dt><dd>@_selectedRestore.CreatedAt.ToLocalTime().ToString("MMM d, yyyy · h:mm tt")</dd></div>
-                <div><dt>Archive size</dt><dd>@FormatBytes(_selectedRestore.SizeBytes)</dd></div>
+                <div><dt>@L["BackupRecoveryPanel_RecoveryPoint"]</dt><dd>@_selectedRestore.CreatedAt.ToLocalTime().ToString("MMM d, yyyy · h:mm tt")</dd></div>
+                <div><dt>@L["BackupRecoveryPanel_ArchiveSize"]</dt><dd>@FormatBytes(_selectedRestore.SizeBytes)</dd></div>
             </dl>
         }
     </ChildContent>
     <FooterContent>
         <AppActionBar Align="AppHorizontalAlignment.End">
-            <AppButton Label="Cancel" Disabled="@_busy" OnClick="CloseRestoreDialog" />
-            <AppButton Label="Validate and schedule"
+            <AppButton Label="@L["Search_Cancel"].Value" Disabled="@_busy" OnClick="CloseRestoreDialog" />
+            <AppButton Label="@L["BackupRecoveryPanel_ValidateAndSchedule"].Value"
                        ButtonStyle="AppButtonStyle.Filled"
                        Tone="AppUiTone.Warning"
                        Loading="@_busy"
@@ -220,12 +221,12 @@
         var backup = await ApiClient.CreateBackupAsync();
         if (backup is null)
         {
-            Snackbar.Add("The backup could not be created.", AppSeverity.Error);
+            Snackbar.Add(L["BackupRecoveryPanel_TheBackupCouldNotBe"].Value, AppSeverity.Error);
         }
         else
         {
             _lastCreated = backup;
-            Snackbar.Add("Recovery point created.", AppSeverity.Success);
+            Snackbar.Add(L["BackupRecoveryPanel_RecoveryPointCreated"].Value, AppSeverity.Success);
             await LoadAsync();
         }
         _busy = false;
@@ -237,7 +238,7 @@
         var bytes = await ApiClient.DownloadBackupAsync(backup.FileName);
         if (bytes is null)
         {
-            Snackbar.Add("The backup could not be downloaded.", AppSeverity.Error);
+            Snackbar.Add(L["BackupRecoveryPanel_TheBackupCouldNotBe2"].Value, AppSeverity.Error);
         }
         else
         {
@@ -256,11 +257,11 @@
 
         if (_lastValidation?.Valid == true)
         {
-            Snackbar.Add("Restore test passed. No restore was scheduled.", AppSeverity.Success);
+            Snackbar.Add(L["BackupRecoveryPanel_RestoreTestPassedNoRestore"].Value, AppSeverity.Success);
         }
         else
         {
-            Snackbar.Add("The restore test failed. Do not rely on this recovery point.", AppSeverity.Error);
+            Snackbar.Add(L["BackupRecoveryPanel_TheRestoreTestFailedDo"].Value, AppSeverity.Error);
         }
     }
 
@@ -297,7 +298,7 @@
         }
         else
         {
-            Snackbar.Add("The restore could not be scheduled.", AppSeverity.Error);
+            Snackbar.Add(L["Common_TheRestoreCouldNotBe"].Value, AppSeverity.Error);
         }
         _busy = false;
     }
@@ -365,7 +366,7 @@
         var updated = await ApiClient.SetBackupWaitingPeriodAsync(days);
         if (updated is null)
         {
-            Snackbar.Add("The waiting period could not be saved.", AppSeverity.Error);
+            Snackbar.Add(L["BackupRecoveryPanel_TheWaitingPeriodCouldNot"].Value, AppSeverity.Error);
             // The browser kept the choice that was not saved; a new key redraws the field with the stored value.
             _waitingPeriodRenderKey++;
         }

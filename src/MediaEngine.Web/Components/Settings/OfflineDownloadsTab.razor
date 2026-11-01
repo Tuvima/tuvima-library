@@ -1,16 +1,17 @@
-﻿@namespace MediaEngine.Web.Components.Settings
+@namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Playback
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
 @inject IAppToastService Snackbar
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="tl-page">
     <AppActionBar Align="AppHorizontalAlignment.End" Class="tl-sp-mb-4">
-        <AppButton Label="Refresh" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="@LoadJobsAsync" />
+        <AppButton Label="@L["Ingestion_Refresh"].Value" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="@LoadJobsAsync" />
     </AppActionBar>
 
-    <SettingsSectionPanel Title="Encode jobs"
-                          Description="Current and queued work for optimized copies."
+    <SettingsSectionPanel Title="@L["OfflineDownloadsTab_EncodeJobs"].Value"
+                          Description="@L["OfflineDownloadsTab_CurrentAndQueuedWorkFor"].Value"
                           Icon="@AppMaterialIcons.Outlined.PendingActions">
         @if (_loading)
         {
@@ -18,8 +19,8 @@
         }
         else if (_jobs.Count == 0)
         {
-            <AppEmptyState Title="No encode jobs"
-                           Message="Optimized copies will appear here when an encode is queued from a supported media item." />
+            <AppEmptyState Title="@L["OfflineDownloadsTab_NoEncodeJobs"].Value"
+                           Message="@L["OfflineDownloadsTab_OptimizedCopiesWillAppearHere"].Value" />
         }
         else
         {
@@ -27,13 +28,13 @@
                 <AppTable Class="offline-downloads-table" CardsOn="AppTableCardsMode.Phone">
                     <thead>
                         <tr>
-                            <th data-card-role="title">Asset</th>
-                            <th data-card-role="subtitle">Profile</th>
-                            <th data-card-role="value">Status</th>
-                            <th>Progress</th>
-                            <th>Scheduled</th>
-                            <th>Expires</th>
-                            <th data-card-role="actions"><span class="sr-only">Actions</span></th>
+                            <th data-card-role="title">@L["OfflineDownloadsTab_Asset"]</th>
+                            <th data-card-role="subtitle">@L["Common_Profile"]</th>
+                            <th data-card-role="value">@L["Models_Status"]</th>
+                            <th>@L["Common_Progress"]</th>
+                            <th>@L["AiFeatures_Scheduled"]</th>
+                            <th>@L["OfflineDownloadsTab_Expires"]</th>
+                            <th data-card-role="actions"><span class="sr-only">@L["ApiKeys_Actions"]</span></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -47,7 +48,7 @@
                                 <td data-label="Scheduled">@(job.ScheduledFor?.LocalDateTime.ToString("g") ?? "Immediate")</td>
                                 <td data-label="Expires">@(job.ExpiresAt?.LocalDateTime.ToString("g") ?? "None")</td>
                                 <td data-card-role="actions">
-                                    <AppButton Label="Cancel"
+                                    <AppButton Label="@L["Search_Cancel"].Value"
                                                ButtonStyle="AppButtonStyle.Text"
                                                Tone="AppUiTone.Warning"
                                                Size="AppControlSize.Compact"

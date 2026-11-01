@@ -6,12 +6,13 @@
 @using MediaEngine.Web.Services.Integration
 @implements IDisposable
 @inject IEngineApiClient Api
+@inject IStringLocalizer<SharedStrings> L
 
 @* Add files (Libraries spec D8): pick files on the Library server and COPY them into this library's import destination. The originals are never
    moved or changed. Files the library's content type cannot take are greyed with an (i). The selection line reads "2 videos selected, 7.8 GB".
    The Engine checks free space before any copy and refuses with "Not enough space: N needed, M free" without starting; afterwards the
    dialog shows what was copied, what was already in the library and what could not be read. *@
-<AppDialogShell Title="Add files" Subtitle="@Subtitle" Size="Large" OnClose="@(() => Dialog.Cancel())">
+<AppDialogShell Title="@L["Common_AddFiles"].Value" Subtitle="@Subtitle" Size="Large" OnClose="@(() => Dialog.Cancel())">
     <ChildContent>
         @if (_result is { } result)
         {
@@ -23,15 +24,15 @@
         }
         else if (_locations.Count == 0)
         {
-            <AppPageState Kind="AppPageStateKind.Empty" Icon="@AppMaterialIcons.Outlined.FolderOff" Title="No folders to browse" Message="This server has no drives or folders available for Library to browse." />
+            <AppPageState Kind="AppPageStateKind.Empty" Icon="@AppMaterialIcons.Outlined.FolderOff" Title="@L["AddFilesDialog_NoFoldersToBrowse"].Value" Message="@L["AddFilesDialog_ThisServerHasNoDrives"].Value" />
         }
         else
         {
-            <AppSelect Label="Location" Value="@_locationId" ValueChanged="ChooseLocationAsync" Options="LocationOptions" Disabled="@_copying" />
+            <AppSelect Label="@L["Common_Location"].Value" Value="@_locationId" ValueChanged="ChooseLocationAsync" Options="LocationOptions" Disabled="@_copying" />
             <div class="add-files__bar">
                 <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowUpward"
-                               Tooltip="Up one level"
-                               AriaLabel="Up one level"
+                               Tooltip="@L["AddFilesDialog_UpOneLevel"].Value"
+                               AriaLabel="@L["AddFilesDialog_UpOneLevel"].Value"
                                Disabled="@(_browse?.ParentRelativePath is null || _loading || _copying)"
                                OnClick="UpAsync" />
                 <span class="add-files__path" title="@_browse?.DisplayPath">@_browse?.DisplayPath</span>
@@ -47,7 +48,7 @@
             }
             else if (_browse is { } browse)
             {
-                <ul class="add-files__list" aria-label="Folders and files">
+                <ul class="add-files__list" aria-label="@L["AddFilesDialog_FoldersAndFiles"].Value">
                     @foreach (var folder in browse.Directories)
                     {
                         <li class="add-files__row">
@@ -77,7 +78,7 @@
                     }
                     @if (browse.Directories.Count == 0 && browse.Files.Count == 0)
                     {
-                        <li class="add-files__empty">Nothing here.</li>
+                        <li class="add-files__empty">@L["AddFilesDialog_NothingHere"]</li>
                     }
                 </ul>
             }
@@ -86,13 +87,13 @@
     <FooterContent>
         @if (_result is not null)
         {
-            <AppButton Label="Done" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="@(() => Dialog.Close(AppDialogResult.Ok(_result)))" />
+            <AppButton Label="@L["Common_Done"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="@(() => Dialog.Close(AppDialogResult.Ok(_result)))" />
         }
         else
         {
             <span class="add-files__selection" data-add-files="selection" aria-live="polite">@SelectionLine</span>
-            <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" Disabled="@_copying" OnClick="@(() => Dialog.Cancel())" />
-            <AppButton Label="Copy files" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_copying" Disabled="@(_selected.Count == 0 || _copying)" OnClick="CopyAsync" />
+            <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@_copying" OnClick="@(() => Dialog.Cancel())" />
+            <AppButton Label="@L["AddFilesDialog_CopyFiles"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_copying" Disabled="@(_selected.Count == 0 || _copying)" OnClick="CopyAsync" />
         }
     </FooterContent>
 </AppDialogShell>

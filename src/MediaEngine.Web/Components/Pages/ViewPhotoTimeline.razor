@@ -4,7 +4,8 @@
 @namespace MediaEngine.Web.Components.Pages
 @implements IDisposable
 @inject DeviceContextService DeviceContext
-<main class="view-timeline view-density--@Density.ToString().ToLowerInvariant()" aria-label="Photos timeline">
+@inject IStringLocalizer<SharedStrings> L
+<main class="view-timeline view-density--@Density.ToString().ToLowerInvariant()" aria-label="@L["ViewPhotoTimeline_PhotosTimeline"].Value">
 @foreach (var month in Months)
 {
     <section class="view-month" data-year="@month.Key.Year" data-month="@month.Key.Month" aria-labelledby="@MonthId(month.Key)"><h2 id="@MonthId(month.Key)" tabindex="-1">@month.Key.ToString("MMMM yyyy", CultureInfo.CurrentCulture)</h2>

@@ -6,9 +6,10 @@
 @inject MediaEngine.Web.Services.Playback.IUserPlaybackPreferencesAccessor PlaybackPreferences
 @implements IAsyncDisposable
 @namespace MediaEngine.Web.Components.Shared
+@inject IStringLocalizer<SharedStrings> L
 
 <AppFocusTrap DefaultFocus="true">
-<div class="media-viewer@(Item.Kind == MediaViewerKind.Video ? " media-viewer--video" : "")" role="dialog" aria-modal="true" aria-label="Media viewer" tabindex="-1" @ref="_root" @onkeydown="HandleKeyAsync"
+<div class="media-viewer@(Item.Kind == MediaViewerKind.Video ? " media-viewer--video" : "")" role="dialog" aria-modal="true" aria-label="@L["MediaViewerShell_MediaViewer"].Value" tabindex="-1" @ref="_root" @onkeydown="HandleKeyAsync"
      data-view-playback-asset="@ViewPlaybackAssetLabel" data-view-playback-surface="@ViewPlaybackSurfaceLabel" data-view-playback-playing="@ViewPlaybackPlayingLabel">
     <header class="media-viewer__bar" data-playback-chrome="@(Item.Kind == MediaViewerKind.Video ? "header" : null)" data-chrome-hold="@(Item.Kind == MediaViewerKind.Video ? "header" : null)">
         <div class="media-viewer__identity">
@@ -20,7 +21,7 @@
     </header>
     <div class="media-viewer__body@(ShowInfo ? " has-info" : string.Empty)">
         <main class="media-viewer__canvas" @onclick:stopPropagation="true">
-            @if (HasPrevious) { <AppIconButton Class="media-viewer__navigate media-viewer__navigate--previous" Icon="@AppMaterialIcons.Outlined.ChevronLeft" Tooltip="Previous" AriaLabel="Previous item" OnClick="PreviousAsync" /> }
+            @if (HasPrevious) { <AppIconButton Class="media-viewer__navigate media-viewer__navigate--previous" Icon="@AppMaterialIcons.Outlined.ChevronLeft" Tooltip="@L["Home_CarouselPrevious"].Value" AriaLabel="@L["MediaViewerShell_PreviousItem"].Value" OnClick="PreviousAsync" /> }
             <div class="media-viewer__stage" @ref="_stage">
                 @if (Item.Kind == MediaViewerKind.Video)
                 {
@@ -37,15 +38,15 @@
                             <PlaybackRelativeSkipButton Seconds="@_videoSkipForwardSeconds" Direction="forward" Size="compact" Class="media-viewer__video-skip" OnClick="@(() => SkipVideoAsync(_videoSkipForwardSeconds))" />
 
                             <span class="playback-video-controls__volume"><AppNativeButton Type="button" OnClick="ToggleVideoMuteAsync" AriaLabel="@(_videoIsMuted ? "Unmute" : "Mute")"><PlaybackUtilityGlyph Glyph="@(_videoIsMuted ? PlaybackUtilityGlyphKind.Mute : PlaybackUtilityGlyphKind.Volume)" /></AppNativeButton>
-                            <AppRangeSlider Value="@_videoVolume" Min="0" Max="1" Step="0.05" ShowTicks="false" AriaLabel="Volume" ValueChanged="SetVideoVolumeAsync" /></span></div>
+                            <AppRangeSlider Value="@_videoVolume" Min="0" Max="1" Step="0.05" ShowTicks="false" AriaLabel="@L["Common_Volume"].Value" ValueChanged="SetVideoVolumeAsync" /></span></div>
                             <div class="playback-video-controls__identity">@Item.Title</div>
                             <div class="playback-video-controls__right">
                             @if (_videoTextTracks.Count > 0)
                             {
-                                <PlaybackPopover Title="Subtitles" ToolId="view-subtitles" Kind="video" Surface="video" ItemKey="@Item.PreviewUrl">
+                                <PlaybackPopover Title="@L["Common_Subtitles"].Value" ToolId="view-subtitles" Kind="video" Surface="video" ItemKey="@Item.PreviewUrl">
                                     <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Captions" /></TriggerContent>
                                     <ChildContent><PlaybackSheetList>
-                                        <PlaybackSheetRow IsActive="@(!_videoTextTracks.Any(track => track.Selected))" OnClick="@(() => SelectVideoTextTrackAsync(new ChangeEventArgs { Value = "-1" }))" AriaLabel="Subtitles off"><strong>Off</strong></PlaybackSheetRow>
+                                        <PlaybackSheetRow IsActive="@(!_videoTextTracks.Any(track => track.Selected))" OnClick="@(() => SelectVideoTextTrackAsync(new ChangeEventArgs { Value = "-1" }))" AriaLabel="@L["MediaViewerShell_SubtitlesOff"].Value"><strong>@L["Common_Off"]</strong></PlaybackSheetRow>
                                         @foreach (var track in _videoTextTracks)
                                         {
                                             <PlaybackSheetRow IsActive="@track.Selected" OnClick="@(() => SelectVideoTextTrackAsync(new ChangeEventArgs { Value = track.Index.ToString() }))" AriaLabel="@($"Select {track.Label} subtitles")"><strong>@track.Label</strong></PlaybackSheetRow>
@@ -56,7 +57,7 @@
                             <PlaybackSpeedControl Value="@_videoSpeed" ValueChanged="SetVideoSpeedAsync" Surface="video" />
                             @if (_videoAudioTracks.Count > 1)
                             {
-                                <AppNativeSelect Value="@(_videoAudioTracks.FirstOrDefault(track => track.Selected)?.Index.ToString() ?? "0")" OnChange="SelectVideoAudioTrackAsync" aria-label="Audio track">
+                                <AppNativeSelect Value="@(_videoAudioTracks.FirstOrDefault(track => track.Selected)?.Index.ToString() ?? "0")" OnChange="SelectVideoAudioTrackAsync" aria-label="@L["MediaViewerShell_AudioTrack"].Value">
                                     @foreach (var track in _videoAudioTracks)
                                     {
                                         <option value="@track.Index">@track.Label</option>
@@ -65,36 +66,36 @@
                             }
                             @if (_videoCanPiP)
                             {
-                                <AppNativeButton Type="button" OnClick="ToggleVideoPiPAsync" AriaLabel="Picture in picture"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.PictureInPicture" /></AppNativeButton>
+                                <AppNativeButton Type="button" OnClick="ToggleVideoPiPAsync" AriaLabel="@L["MediaViewerShell_PictureInPicture"].Value"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.PictureInPicture" /></AppNativeButton>
                             }
                             @if (_videoCanFullscreen)
                             {
-                                <AppNativeButton Type="button" OnClick="FullscreenAsync" AriaLabel="Fullscreen"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Fullscreen" /></AppNativeButton>
+                                <AppNativeButton Type="button" OnClick="FullscreenAsync" AriaLabel="@L["MediaViewerShell_Fullscreen"].Value"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Fullscreen" /></AppNativeButton>
                             }
                             </div></div>
 </BottomContent>
                     </PlaybackVideoChrome>
                 }
                 else if (Item.Kind == MediaViewerKind.Audio) { <div class="media-viewer__fallback"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AudioFile" /><audio @key="Item.PreviewUrl" @ref="_audio" autoplay src="@Item.PreviewUrl" controls preload="metadata" @onloadedmetadata="UpdateAudioStateAsync" @ontimeupdate="UpdateAudioStateAsync" @onplay="UpdateAudioStateAsync" @onpause="UpdateAudioStateAsync" @onended="UpdateAudioStateAsync" @onvolumechange="UpdateAudioStateAsync" @onratechange="UpdateAudioStateAsync"></audio></div> }
-                else if (Item.Kind == MediaViewerKind.Document) { <div class="media-viewer__fallback"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Description" /><p>Download the original document to view it.</p></div> }
+                else if (Item.Kind == MediaViewerKind.Document) { <div class="media-viewer__fallback"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Description" /><p>@L["MediaViewerShell_DownloadTheOriginalDocumentTo"]</p></div> }
                 else { <img src="@Item.PreviewUrl" alt="@(Item.AltText ?? Item.Title)" draggable="false" /> }
             </div>
-            @if (HasNext) { <AppIconButton Class="media-viewer__navigate media-viewer__navigate--next" Icon="@AppMaterialIcons.Outlined.ChevronRight" Tooltip="Next" AriaLabel="Next item" OnClick="NextAsync" /> }
+            @if (HasNext) { <AppIconButton Class="media-viewer__navigate media-viewer__navigate--next" Icon="@AppMaterialIcons.Outlined.ChevronRight" Tooltip="@L["Home_CarouselNext"].Value" AriaLabel="@L["MediaViewerShell_NextItem"].Value" OnClick="NextAsync" /> }
             @if (Item.Kind == MediaViewerKind.Image && Capabilities.CanZoom)
             {
-                <div class="media-viewer__zoom" role="toolbar" aria-label="Image zoom controls">
-                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Remove" Tooltip="Zoom out" AriaLabel="Zoom out" OnClick="ZoomOutAsync" />
+                <div class="media-viewer__zoom" role="toolbar" aria-label="@L["MediaViewerShell_ImageZoomControls"].Value">
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Remove" Tooltip="@L["Common_ZoomOut"].Value" AriaLabel="@L["Common_ZoomOut"].Value" OnClick="ZoomOutAsync" />
                     <span aria-live="polite">@ZoomLabel</span>
-                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Add" Tooltip="Zoom in" AriaLabel="Zoom in" OnClick="ZoomInAsync" />
-                    <AppIconButton Icon="@AppMaterialIcons.Outlined.FitScreen" Tooltip="Fit to window" AriaLabel="Fit image to window" OnClick="FitAsync" />
-                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Fullscreen" Tooltip="Fullscreen" AriaLabel="Enter fullscreen" OnClick="FullscreenAsync" />
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Add" Tooltip="@L["Common_ZoomIn"].Value" AriaLabel="@L["Common_ZoomIn"].Value" OnClick="ZoomInAsync" />
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.FitScreen" Tooltip="@L["MediaViewerShell_FitToWindow"].Value" AriaLabel="@L["MediaViewerShell_FitImageToWindow"].Value" OnClick="FitAsync" />
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Fullscreen" Tooltip="@L["MediaViewerShell_Fullscreen"].Value" AriaLabel="@L["MediaViewerShell_EnterFullscreen"].Value" OnClick="FullscreenAsync" />
                 </div>
             }
         </main>
         @if (ShowInfo)
         {
-            <aside class="media-viewer__info" aria-label="Media information">
-                <header><h2>Info</h2></header>
+            <aside class="media-viewer__info" aria-label="@L["MediaViewerShell_MediaInformation"].Value">
+                <header><h2>@L["MediaViewerShell_Info"]</h2></header>
                 @InfoContent
             </aside>
         }

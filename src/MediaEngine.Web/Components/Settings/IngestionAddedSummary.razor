@@ -3,16 +3,17 @@
 @using MediaEngine.Contracts.Ingestion
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Formatting
+@inject IStringLocalizer<SharedStrings> L
 
 @* A short summary of what was fully added, by type, one line a day. Each count opens the Activity log on its Added filter. *@
 <section class="ingestion-added" aria-labelledby="ingestion-added-title">
     <header>
-        <h2 id="ingestion-added-title">Added</h2>
-        <AppButton Href="@LogRoute" Label="View all" ButtonStyle="AppButtonStyle.Text" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" />
+        <h2 id="ingestion-added-title">@L["Common_Added"]</h2>
+        <AppButton Href="@LogRoute" Label="@L["Common_ViewAll"].Value" ButtonStyle="AppButtonStyle.Text" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" />
     </header>
     @if (Days.Count == 0)
     {
-        <p class="ingestion-added__empty">Nothing added in the last @WindowDays days</p>
+        <p class="ingestion-added__empty">@L["IngestionAddedSummary_NothingAddedInTheLast", WindowDays]</p>
     }
     else
     {

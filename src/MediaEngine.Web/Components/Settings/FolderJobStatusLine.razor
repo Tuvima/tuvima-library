@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Web.Services.Formatting
+@inject IStringLocalizer<SharedStrings> L
 
 @* What a folder job is doing, on the folder's row: a progress bar, one plain sentence, and Pause / Resume / Cancel while it is
    open. The table owns the one live region that announces job changes, so this line is not a live region itself. After it ends the sentence says how it went and links the log of every move. The host owns every action. *@
@@ -15,22 +16,22 @@
         <span class="folder-job__actions">
             @if (Job.State == "paused")
             {
-                <AppButton Label="Resume" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary"
+                <AppButton Label="@L["Common_Resume"].Value" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary"
                            aria-label="@($"Resume {FolderJobFormat.Verb(Job)} {Name}")" OnClick="@(() => Control("resume"))" />
             }
             else
             {
-                <AppButton Label="Pause" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text"
+                <AppButton Label="@L["FolderJobStatusLine_Pause"].Value" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text"
                            Disabled="@(Job.State == "queued")"
                            aria-label="@($"Pause {FolderJobFormat.Verb(Job)} {Name}")" OnClick="@(() => Control("pause"))" />
             }
-            <AppButton Label="Cancel" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error"
+            <AppButton Label="@L["Search_Cancel"].Value" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error"
                        aria-label="@($"Cancel {FolderJobFormat.Verb(Job)} {Name}")" OnClick="@(() => Control("cancel"))" />
         </span>
     }
     @if (!Open && Job.HasLog)
     {
-        <a class="folder-job__log" href="@LogUrl" download="@LogFileName">Download log</a>
+        <a class="folder-job__log" href="@LogUrl" download="@LogFileName">@L["FolderJobStatusLine_DownloadLog"]</a>
     }
 </div>
 

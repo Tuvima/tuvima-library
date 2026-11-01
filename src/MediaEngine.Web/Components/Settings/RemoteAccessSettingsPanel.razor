@@ -2,48 +2,49 @@
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="network-panel">
     <header class="network-panel__heading">
-        <div><h3>Remote Access</h3><p>Optional. Add a secure outside address so apps and other devices can reach Library away from home. Library sign-in is always required.</p></div>
+        <div><h3>@L["Common_RemoteAccess"]</h3><p>@L["RemoteAccessSettingsPanel_OptionalAddASecureOutside"]</p></div>
     </header>
 
     <div id="remote-connection-mode">
-    <SettingsSectionPanel Title="How the internet reaches Library" Icon="@AppMaterialIcons.Outlined.Public"
-                          Description="Local access works without router, DNS, or certificate setup. Pick a secure path only if you want to reach Library from outside your home.">
-        <div class="network-mode-list" role="radiogroup" aria-label="How the internet reaches Library">
+    <SettingsSectionPanel Title="@L["RemoteAccessSettingsPanel_HowTheInternetReachesLibrary"].Value" Icon="@AppMaterialIcons.Outlined.Public"
+                          Description="@L["RemoteAccessSettingsPanel_LocalAccessWorksWithoutRouter"].Value">
+        <div class="network-mode-list" role="radiogroup" aria-label="@L["RemoteAccessSettingsPanel_HowTheInternetReachesLibrary"].Value">
             @Mode("local-only", "Not set up — Default", "No public router mapping or remote tunnel is attempted.")
             @Mode("tailscale", "Tailscale", "Private HTTPS access through an independently installed Tailscale client and Tailscale Serve.")
             @Mode("custom", "HTTPS reverse proxy", "Use a trusted HTTPS hostname served by Caddy, nginx, Traefik, or another reverse proxy.")
         </div>
         <div class="network-card-actions">
-            <AppButton Label="Test remote access" StartIcon="@AppMaterialIcons.Outlined.Science" OnClick="TestRemoteAsync" />
+            <AppButton Label="@L["RemoteAccessSettingsPanel_TestRemoteAccess"].Value" StartIcon="@AppMaterialIcons.Outlined.Science" OnClick="TestRemoteAsync" />
         </div>
     </SettingsSectionPanel>
     </div>
 
     @if (Settings.Remote.ConnectionMode == "tailscale")
     {
-        <SettingsSectionPanel Title="Tailscale Serve" Icon="@AppMaterialIcons.Outlined.VpnLock">
+        <SettingsSectionPanel Title="@L["RemoteAccessSettingsPanel_TailscaleServe"].Value" Icon="@AppMaterialIcons.Outlined.VpnLock">
             <dl class="network-facts">
                 @Fact("Status", Display(Status?.TailscaleState))
                 @Fact("Private HTTPS address", Status?.TailnetAddress ?? "Not detected")
                 @Fact("Serve HTTPS", Status?.TailscaleServeHttps == true ? "Active" : "Not verified")
                 @Fact("Router mapping", "Not used")
             </dl>
-            <AppAlert Tone="AppUiTone.Info">Tailscale is a supported deployment preset, not an embedded VPN. Install it on the host or use the official sidecar preset.</AppAlert>
+            <AppAlert Tone="AppUiTone.Info">@L["RemoteAccessSettingsPanel_TailscaleIsASupportedDeployment"]</AppAlert>
         </SettingsSectionPanel>
     }
 
     @if (Settings.Remote.ConnectionMode is "custom" or "direct-only")
     {
         <div id="remote-public-address">
-        <SettingsSectionPanel Title="HTTPS Reverse Proxy" Icon="@AppMaterialIcons.Outlined.Language"
-                              Description="The address must have a trusted certificate and route to this Dashboard.">
+        <SettingsSectionPanel Title="@L["RemoteAccessSettingsPanel_HTTPSReverseProxy"].Value" Icon="@AppMaterialIcons.Outlined.Language"
+                              Description="@L["RemoteAccessSettingsPanel_TheAddressMustHaveA"].Value">
             <AppTextField T="string" @bind-Value="Settings.Remote.PublicHostname"
-                          Label="Public HTTPS address" Placeholder="https://tuvima.example.com"
+                          Label="@L["RemoteAccessSettingsPanel_PublicHTTPSAddress"].Value" Placeholder="https://tuvima.example.com"
                           HelpText="Used for passkeys, linked sign-in and reset links" />
-            <div class="network-card-actions"><AppButton Label="Save and verify" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="SaveAddressAsync" /></div>
+            <div class="network-card-actions"><AppButton Label="@L["RemoteAccessSettingsPanel_SaveAndVerify"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="SaveAddressAsync" /></div>
         </SettingsSectionPanel>
         </div>
     }

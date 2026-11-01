@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.MediaHub
 @using MediaEngine.Web.Models.ViewDTOs
 @inject NavigationManager Nav
+@inject IStringLocalizer<SharedStrings> L
 
 <GlobalBackground Color="#05070C" />
 
@@ -18,7 +19,7 @@
     else if (!SupportsHero && SupportsHeader)
     {
         <header class="media-hub__header">
-            <span>Your library</span>
+            <span>@L["MediaHubPage_YourLibrary"]</span>
             <h1>@Title</h1>
             @if (!string.IsNullOrWhiteSpace(Subtitle))
             {
@@ -38,7 +39,7 @@
     <div class="media-hub__shelves">
         @if (VisibleShelves.Count == 0)
         {
-            <EmptyShelfState Title="@EmptyTitle" Message="@EmptyMessage" ActionLabel="Add a library" ActionHref="@AddLibraryHref" />
+            <EmptyShelfState Title="@EmptyTitle" Message="@EmptyMessage" ActionLabel="@L["Common_AddALibrary"].Value" ActionHref="@AddLibraryHref" />
         }
         else
         {

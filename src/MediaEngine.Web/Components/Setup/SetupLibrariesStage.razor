@@ -5,17 +5,18 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @inject IEngineApiClient ApiClient
 @inject DeviceContextService DeviceContext
+@inject IStringLocalizer<SharedStrings> L
 
 @* "What do you have?": the same Libraries table Settings shows (LibrariesOverview), with Simple on (Library pages D13). Add library opens the
    one Create library dialog, which saves through setup's own session; View's rows take folders through the View folder dialog (add-folder v2 D14, D15).
    The footer, the step key and the deferral belong to this step. The optional private step that may follow is the page's to offer. *@
 <div class="setup-stage-content">
-    <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" /><div><h2 id="setup-stage-title">What do you have?</h2><p>Add a library for what you'd like Library to show. You can add more later in Settings.</p></div></div>
+    <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" /><div><h2 id="setup-stage-title">@L["SetupLibrariesStage_WhatDoYouHave"]</h2><p>@L["SetupLibrariesStage_AddALibraryForWhat"]</p></div></div>
 
     @if (!string.IsNullOrWhiteSpace(_loadError))
     {
         <AppAlert Tone="AppUiTone.Error"><span>@_loadError</span></AppAlert>
-        <div><AppButton Label="Try again" ButtonStyle="AppButtonStyle.Outlined" OnClick="RetryAsync" /></div>
+        <div><AppButton Label="@L["Common_TryAgain"].Value" ButtonStyle="AppButtonStyle.Outlined" OnClick="RetryAsync" /></div>
     }
     else if (_configuration is not null)
     {
@@ -35,11 +36,11 @@
     <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
         @if (!HasLibraries)
         {
-            <AppButton Label="Skip for now" ButtonStyle="AppButtonStyle.Text" Disabled="@Busy" OnClick="DeferMedia" />
+            <AppButton Label="@L["SetupLibrariesStage_SkipForNow"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@Busy" OnClick="DeferMedia" />
         }
         else
         {
-            <AppButton Label="Continue" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" OnClick="ContinueAsync" />
+            <AppButton Label="@L["Common_Continue"].Value" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" OnClick="ContinueAsync" />
         }
     </SetupStageFooter>
 </div>

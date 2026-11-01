@@ -1,12 +1,13 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Ingestion
 @implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 @if (Active || _window.Rows.Count > 0 || PersonalLine is not null)
 {
     <section class="ingestion-now" aria-labelledby="ingestion-now-title">
         <header>
-            <h2 id="ingestion-now-title">Now</h2>
+            <h2 id="ingestion-now-title">@L["Common_Now"]</h2>
             @if (HeaderLine is { } line)
             {
                 <p><i class="ingestion-now__live-dot" aria-hidden="true"></i>@line</p>
@@ -20,13 +21,13 @@
 
         @if (_window.Rows.Count > 0)
         {
-            <div class="ingestion-now__table" role="table" aria-label="Items being added now">
+            <div class="ingestion-now__table" role="table" aria-label="@L["IngestionNowPanel_ItemsBeingAddedNow"].Value">
                 <div class="ingestion-now__head" role="row">
-                    <span role="columnheader">Title</span>
-                    <span role="columnheader">Type</span>
-                    <span role="columnheader">Step</span>
-                    <span role="columnheader">Status</span>
-                    <span role="columnheader">Details</span>
+                    <span role="columnheader">@L["Common_Title"]</span>
+                    <span role="columnheader">@L["Common_Type"]</span>
+                    <span role="columnheader">@L["IngestionNowPanel_Step"]</span>
+                    <span role="columnheader">@L["Models_Status"]</span>
+                    <span role="columnheader">@L["Common_Details"]</span>
                 </div>
                 <div role="rowgroup">
                     @foreach (var item in _window.Rows)
@@ -51,7 +52,7 @@
         }
         else if (Active && PersonalLine is null)
         {
-            <div class="ingestion-grouping-state"><span class="ingestion-grouping-state__spin"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Sync" /></span><span><strong>Identifying media</strong><small>Recognizable albums, shows, books, and movies appear here once their identity and primary cover art are ready.</small></span></div>
+            <div class="ingestion-grouping-state"><span class="ingestion-grouping-state__spin"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Sync" /></span><span><strong>@L["IngestionNowPanel_IdentifyingMedia"]</strong><small>@L["IngestionNowPanel_RecognizableAlbumsShowsBooksAnd"]</small></span></div>
         }
     </section>
 }

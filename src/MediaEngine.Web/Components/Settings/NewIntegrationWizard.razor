@@ -9,12 +9,13 @@
 @inject IJSRuntime JS
 @inject IAppToastService Toast
 @inject ILogger<NewIntegrationWizard> Logger
+@inject IStringLocalizer<SharedStrings> L
 
 @* The three-step page for connecting something new (spec WP5). Nothing is saved until Create on step 3; Cancel and Back keep or
    drop the choices, and Cancel asks first when anything was entered. *@
 <div class="integration-wizard">
-    <AppListPageHeader Title="New integration" Subtitle="Connect another application securely to the Library" />
-    <ol class="integration-wizard__steps" aria-label="Steps">
+    <AppListPageHeader Title="@L["Common_NewIntegration"].Value" Subtitle="@L["NewIntegrationWizard_ConnectAnotherApplicationSecurelyTo"].Value" />
+    <ol class="integration-wizard__steps" aria-label="@L["Universe_PathSteps"].Value">
         @foreach (var (number, label) in Steps)
         {
             <li aria-current="@(number == _step ? "step" : null)" class="@(number == _step ? "is-current" : number < _step ? "is-done" : null)">
@@ -23,7 +24,7 @@
             </li>
         }
     </ol>
-    <p class="sr-only" role="status" aria-live="polite">Step @_step of 3, @Steps[_step - 1].Label</p>
+    <p class="sr-only" role="status" aria-live="polite">@L["NewIntegrationWizard_StepOf3", _step, Steps[_step - 1].Label]</p>
 
     @if (!string.IsNullOrWhiteSpace(_error)) { <AppAlert Severity="AppSeverity.Error">@_error</AppAlert> }
 
@@ -33,76 +34,76 @@
             <strong>@_name was created. Copy @(_issuedKey is not null ? "this key" : "this secret") now. It cannot be shown again.</strong>
             @if (_issuedKey is not null)
             {
-                <span>Key</span>
+                <span>@L["ApiKeys_Key"]</span>
                 <code>@_issuedKey</code>
-                <AppButton Label="Copy key" Size="AppControlSize.Compact" OnClick="@(() => CopyAsync(_issuedKey, "the key"))" />
+                <AppButton Label="@L["NewIntegrationWizard_CopyKey"].Value" Size="AppControlSize.Compact" OnClick="@(() => CopyAsync(_issuedKey, "the key"))" />
             }
             @if (_signingSecret is not null)
             {
-                <span>Signing secret for the webhook</span>
+                <span>@L["NewIntegrationWizard_SigningSecretForTheWebhook"]</span>
                 <code>@_signingSecret</code>
-                <AppButton Label="Copy secret" Size="AppControlSize.Compact" OnClick="@(() => CopyAsync(_signingSecret, "the secret"))" />
+                <AppButton Label="@L["NewIntegrationWizard_CopySecret"].Value" Size="AppControlSize.Compact" OnClick="@(() => CopyAsync(_signingSecret, "the secret"))" />
             }
         </AppAlert>
-        <div class="integration-wizard__footer"><AppButton Label="Done" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="@(() => OnFinished.InvokeAsync(_created))" /></div>
+        <div class="integration-wizard__footer"><AppButton Label="@L["Common_Done"].Value" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="@(() => OnFinished.InvokeAsync(_created))" /></div>
     }
     else
     {
         @switch (_step)
         {
             case 1:
-                <section class="integration-wizard__section" aria-label="Application">
-                    <label for="wizard-kind">What are you connecting?</label>
-                    <AppNativeSelect id="wizard-kind" Value="@_kind" OnChange="@(args => _kind = args.Value?.ToString() ?? KindApplication)" aria-label="What are you connecting?">
-                        <option value="@KindApplication">Application</option>
-                        <option value="@KindWebhook">Webhook</option>
+                <section class="integration-wizard__section" aria-label="@L["NewIntegrationWizard_Application"].Value">
+                    <label for="wizard-kind">@L["NewIntegrationWizard_WhatAreYouConnecting"]</label>
+                    <AppNativeSelect id="wizard-kind" Value="@_kind" OnChange="@(args => _kind = args.Value?.ToString() ?? KindApplication)" aria-label="@L["NewIntegrationWizard_WhatAreYouConnecting"].Value">
+                        <option value="@KindApplication">@L["NewIntegrationWizard_Application"]</option>
+                        <option value="@KindWebhook">@L["NewIntegrationWizard_Webhook"]</option>
                     </AppNativeSelect>
-                    <AppTextField @bind-Value="_name" Label="Name" FullWidth="true" />
-                    <AppTextField @bind-Value="_description" Label="Description (optional)" FullWidth="true" />
+                    <AppTextField @bind-Value="_name" Label="@L["Users_ColName"].Value" FullWidth="true" />
+                    <AppTextField @bind-Value="_description" Label="@L["Common_DescriptionOptional"].Value" FullWidth="true" />
                     @if (_kind == KindWebhook)
                     {
-                        <AppTextField @bind-Value="_webhookUrl" Label="Address to send events to" HelpText="For example https://receiver.example/events" FullWidth="true" />
+                        <AppTextField @bind-Value="_webhookUrl" Label="@L["NewIntegrationWizard_AddressToSendEventsTo"].Value" HelpText="For example https://receiver.example/events" FullWidth="true" />
                     }
                     else
                     {
-                        <label for="wizard-type">Application type</label>
-                        <AppNativeSelect id="wizard-type" Value="@_type.ToString()" OnChange="SetType" aria-label="Application type">
+                        <label for="wizard-type">@L["NewIntegrationWizard_ApplicationType"]</label>
+                        <AppNativeSelect id="wizard-type" Value="@_type.ToString()" OnChange="SetType" aria-label="@L["NewIntegrationWizard_ApplicationType"].Value">
                             @foreach (var type in Enum.GetValues<ApplicationTypeDto>()) { <option value="@type">@TypeLabel(type)</option> }
                         </AppNativeSelect>
                         @if (_type == ApplicationTypeDto.UserClient)
                         {
-                            <AppTextField @bind-Value="_clientIds" Label="Native client IDs" HelpText="Comma-separated registered client IDs allowed to use this application." FullWidth="true" />
+                            <AppTextField @bind-Value="_clientIds" Label="@L["NewIntegrationWizard_NativeClientIDs"].Value" HelpText="Comma-separated registered client IDs allowed to use this application." FullWidth="true" />
                         }
                     }
                 </section>
                 break;
             case 2 when _kind == KindWebhook:
-                <section class="integration-wizard__section" aria-label="Events">
-                    <strong>Events</strong>
+                <section class="integration-wizard__section" aria-label="@L["Common_Events"].Value">
+                    <strong>@L["Common_Events"]</strong>
                     <small>Choose which events are sent to @(string.IsNullOrWhiteSpace(_webhookUrl) ? "the address" : _webhookUrl.Trim()).</small>
-                    @if (_eventTypes.Count == 0) { <AppAlert Severity="AppSeverity.Warning">The list of events could not be loaded. Go back and try again.</AppAlert> }
+                    @if (_eventTypes.Count == 0) { <AppAlert Severity="AppSeverity.Warning">@L["NewIntegrationWizard_TheListOfEventsCould"]</AppAlert> }
                     @foreach (var eventType in _eventTypes)
                     {
                         <AppCheckbox Value="@_events.Contains(eventType)" ValueChanged="@((bool on) => ToggleEvent(eventType, on))" Label="@eventType" />
                     }
-                    <AppSwitchRow @bind-Value="_allowLan" Label="Allow private LAN receiver" Description="Allows HTTP only for private network destinations. Host, loopback, link-local, and metadata addresses remain blocked." />
+                    <AppSwitchRow @bind-Value="_allowLan" Label="@L["Common_AllowPrivateLANReceiver"].Value" Description="@L["Common_AllowsHTTPOnlyForPrivate"].Value" />
                 </section>
                 break;
             case 2:
                 <div class="integration-wizard__access">
-                    <section class="integration-wizard__section" aria-label="Access">
-                        <strong>Choose access</strong>
-                        <div class="integration-wizard__presets" role="radiogroup" aria-label="Access preset">
+                    <section class="integration-wizard__section" aria-label="@L["Common_Access"].Value">
+                        <strong>@L["NewIntegrationWizard_ChooseAccess"]</strong>
+                        <div class="integration-wizard__presets" role="radiogroup" aria-label="@L["NewIntegrationWizard_AccessPreset"].Value">
                             @foreach (var preset in _presets.Where(value => !value.Id.Equals("custom", StringComparison.OrdinalIgnoreCase)))
                             {
                                 <AppButton Label="@preset.DisplayName" Size="AppControlSize.Compact" role="radio" aria-checked="@(_presetId == preset.Id ? "true" : "false")"
                                            ButtonStyle="@(_presetId == preset.Id ? AppButtonStyle.Filled : AppButtonStyle.Outlined)" OnClick="@(() => Choose(preset))" />
                             }
-                            <AppButton Label="Custom" Size="AppControlSize.Compact" role="radio" aria-checked="@(_presetId == CustomId ? "true" : "false")"
+                            <AppButton Label="@L["NewIntegrationWizard_Custom"].Value" Size="AppControlSize.Compact" role="radio" aria-checked="@(_presetId == CustomId ? "true" : "false")"
                                        ButtonStyle="@(_presetId == CustomId ? AppButtonStyle.Filled : AppButtonStyle.Outlined)" OnClick="ChooseCustom" />
                         </div>
-                        @if (_administrator) { <AppAlert Severity="AppSeverity.Warning">Administrator applications receive every currently available permission and automatically include newly available ones.</AppAlert> }
-                        <strong>Included access</strong>
+                        @if (_administrator) { <AppAlert Severity="AppSeverity.Warning">@L["NewIntegrationWizard_AdministratorApplicationsReceiveEveryCur"]</AppAlert> }
+                        <strong>@L["NewIntegrationWizard_IncludedAccess"]</strong>
                         @foreach (var group in Compatible.GroupBy(permission => permission.Category))
                         {
                             var open = _openGroups.Contains(group.Key);
@@ -123,35 +124,35 @@
                             </div>
                         }
                     </section>
-                    <aside class="integration-wizard__summary" aria-label="Access summary">
-                        <strong>Access summary</strong>
+                    <aside class="integration-wizard__summary" aria-label="@L["NewIntegrationWizard_AccessSummary"].Value">
+                        <strong>@L["NewIntegrationWizard_AccessSummary"]</strong>
                         @foreach (var line in SummaryLines()) { <span>@line</span> }
                     </aside>
                 </div>
                 break;
             default:
-                <section class="integration-wizard__section" aria-label="Review and create">
+                <section class="integration-wizard__section" aria-label="@L["NewIntegrationWizard_ReviewAndCreate"].Value">
                     <dl class="integration-wizard__review">
-                        <dt>Name</dt><dd>@_name</dd>
-                        <dt>Kind</dt><dd>@(_kind == KindWebhook ? "Webhook" : TypeLabel(_type))</dd>
+                        <dt>@L["Users_ColName"]</dt><dd>@_name</dd>
+                        <dt>@L["NewIntegrationWizard_Kind"]</dt><dd>@(_kind == KindWebhook ? "Webhook" : TypeLabel(_type))</dd>
                         @if (_kind == KindWebhook)
                         {
-                            <dt>Sends to</dt><dd>@_webhookUrl</dd>
-                            <dt>Events</dt><dd>@string.Join(", ", _events.Order())</dd>
+                            <dt>@L["NewIntegrationWizard_SendsTo"]</dt><dd>@_webhookUrl</dd>
+                            <dt>@L["Common_Events"]</dt><dd>@string.Join(", ", _events.Order())</dd>
                         }
                         else
                         {
-                            <dt>Access</dt><dd>@AccessLabel</dd>
+                            <dt>@L["Common_Access"]</dt><dd>@AccessLabel</dd>
                         }
                     </dl>
-                    <AppSelect Native="true" Label="Key expires" Value="@_expiry" Options="@ExpiryOptions" ValueChanged="@(value => _expiry = value ?? "year")" />
+                    <AppSelect Native="true" Label="@L["NewIntegrationWizard_KeyExpires"].Value" Value="@_expiry" Options="@ExpiryOptions" ValueChanged="@(value => _expiry = value ?? "year")" />
                 </section>
                 break;
         }
         <div class="integration-wizard__footer">
-            <AppButton Label="Cancel" OnClick="CancelAsync" Disabled="@_busy" />
-            @if (_step > 1) { <AppButton Label="Back" OnClick="@(() => _step--)" Disabled="@_busy" /> }
-            @if (_step < 3) { <AppButton Label="Continue" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@(!CanContinue)" OnClick="ContinueAsync" /> }
+            <AppButton Label="@L["Search_Cancel"].Value" OnClick="CancelAsync" Disabled="@_busy" />
+            @if (_step > 1) { <AppButton Label="@L["Common_Back"].Value" OnClick="@(() => _step--)" Disabled="@_busy" /> }
+            @if (_step < 3) { <AppButton Label="@L["Common_Continue"].Value" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@(!CanContinue)" OnClick="ContinueAsync" /> }
             else { <AppButton Label="@(_failed ? "Try again" : "Create")" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@_busy" OnClick="CreateAsync" /> }
         </div>
     }

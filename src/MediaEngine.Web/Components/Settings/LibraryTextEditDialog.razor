@@ -1,9 +1,10 @@
 @namespace MediaEngine.Web.Components.Settings
+@inject IStringLocalizer<SharedStrings> L
 <AppDialogShell Title="@Label" Size="Medium" OnClose="@(() => Dialog.Cancel())">
     <ChildContent><AppTextField Label="@Label" Value="@_draft" ValueChanged="@((string? value) => _draft = value ?? string.Empty)" /></ChildContent>
     <FooterContent>
-        <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
-        <AppButton Label="Apply" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@string.IsNullOrWhiteSpace(_draft)" OnClick="@(() => Dialog.Close(AppDialogResult.Ok(_draft.Trim())))" />
+        <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
+        <AppButton Label="@L["Common_Apply"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@string.IsNullOrWhiteSpace(_draft)" OnClick="@(() => Dialog.Close(AppDialogResult.Ok(_draft.Trim())))" />
     </FooterContent>
 </AppDialogShell>
 @code {

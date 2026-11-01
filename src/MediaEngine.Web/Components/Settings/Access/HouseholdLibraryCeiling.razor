@@ -1,17 +1,18 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Authentication
+@inject IStringLocalizer<SharedStrings> L
 @* "Libraries this household can use" for one household on Settings > Users and Sign-in > Households (library access D2, server administrator
    only). Every library is ticked unless it is in the household's hidden list, so a new library is ticked straight away. Libraries sit under
    their area (Watch, Listen, Read, View); the Vault is never listed. Ticks are kept here until Save changes; Discard puts them back. A saved
    change is confirmed in the section itself (no toast). The page that hosts it does the save, so its administrator-PIN prompt applies. *@
 <div class="household-ceiling" data-household-ceiling="@Household.Id">
     <span class="household-ceiling__head">
-        <AppButton Class="household-ceiling__toggle" ButtonStyle="AppButtonStyle.Text" Label="Libraries this household can use"
+        <AppButton Class="household-ceiling__toggle" ButtonStyle="AppButtonStyle.Text" Label="@L["HouseholdLibraryCeiling_LibrariesThisHouseholdCanUse"].Value"
                    StartIcon="@AppMaterialIcons.Outlined.LibraryBooks"
                    EndIcon="@(_open ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.ExpandMore)"
                    OnClick="Toggle" aria-expanded="@_open.ToString().ToLowerInvariant()" aria-controls="@_bodyId" />
-        <AppInfoTip Label="Libraries this household can use"
-                    Text="Untick a library to hide it from everyone in this household. A household administrator can hide more for their people, but can't show what you hide here. New libraries are ticked. The Vault is set per person." />
+        <AppInfoTip Label="@L["HouseholdLibraryCeiling_LibrariesThisHouseholdCanUse"].Value"
+                    Text="@L["HouseholdLibraryCeiling_UntickALibraryToHide"].Value" />
     </span>
     @if (!string.IsNullOrWhiteSpace(_confirmation) && !HasChanges)
     {
@@ -24,16 +25,16 @@
         <div id="@_bodyId" class="household-ceiling__body">
             @if (LibrariesUnavailable)
             {
-                <AppAlert Severity="AppSeverity.Warning" Variant="AppVariant.Outlined">The libraries couldn't be loaded. Reload the page to try again.</AppAlert>
+                <AppAlert Severity="AppSeverity.Warning" Variant="AppVariant.Outlined">@L["HouseholdLibraryCeiling_TheLibrariesCouldnTBe"]</AppAlert>
             }
             else if (_groups.Count == 0)
             {
-                <p class="household-ceiling__empty">There are no libraries yet.</p>
+                <p class="household-ceiling__empty">@L["HouseholdLibraryCeiling_ThereAreNoLibrariesYet"]</p>
             }
             else
             {
                 <div class="household-ceiling__all" data-ceiling-all>
-                    <AppCheckbox Value="@AllTicked" ValueChanged="SetAll" Disabled="@Disabled" Label="All libraries" />
+                    <AppCheckbox Value="@AllTicked" ValueChanged="SetAll" Disabled="@Disabled" Label="@L["Common_AllLibraries"].Value" />
                 </div>
                 @foreach (var group in _groups)
                 {

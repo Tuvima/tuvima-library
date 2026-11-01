@@ -4,27 +4,28 @@
 @inject DashboardIdentityClient Identity
 @inject IJSRuntime JS
 @implements IAsyncDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 <AppDialog>
     <DialogContent>
-        <p>For your security, confirm it's you before making this change.</p>
+        <p>@L["ConfirmItsYouDialog_ForYourSecurityConfirmIt"]</p>
         @if (_loading)
         {
-            <AppSkeleton Height="56px" aria-label="Checking your sign-in methods" />
+            <AppSkeleton Height="56px" aria-label="@L["ConfirmItsYouDialog_CheckingYourSignInMethods"].Value" />
         }
         else if (!_hasPassword && !_hasPasskey)
         {
-            <AppAlert Tone="AppUiTone.Warning">Sign out and sign in again, then try this change once more.</AppAlert>
+            <AppAlert Tone="AppUiTone.Warning">@L["ConfirmItsYouDialog_SignOutAndSignIn"]</AppAlert>
         }
         else
         {
             @if (_hasPassword)
             {
-                <AppTextField T="string" @bind-Value="_password" Label="Password" InputType="AppInputType.Password"
+                <AppTextField T="string" @bind-Value="_password" Label="@L["Common_Password"].Value" InputType="AppInputType.Password"
                               autocomplete="current-password" AutoFocus="true" OnKeyDown="OnKeyDownAsync" />
                 @if (_hasTwoStep)
                 {
-                    <AppTextField T="string" @bind-Value="_twoStepCode" Label="6-digit code from your app, or a recovery code"
+                    <AppTextField T="string" @bind-Value="_twoStepCode" Label="@L["ConfirmItsYouDialog_6DigitCodeFromYour"].Value"
                                   autocomplete="one-time-code" OnKeyDown="OnKeyDownAsync" />
                 }
             }
@@ -35,14 +36,14 @@
         }
     </DialogContent>
     <DialogActions>
-        <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Outlined" OnClick="Cancel" />
+        <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Outlined" OnClick="Cancel" />
         @if (_hasPasskey)
         {
-            <AppButton Label="Use a passkey" ButtonStyle="AppButtonStyle.Outlined" Loading="@_working" Disabled="@_working" OnClick="ConfirmWithPasskeyAsync" />
+            <AppButton Label="@L["ConfirmItsYouDialog_UseAPasskey"].Value" ButtonStyle="AppButtonStyle.Outlined" Loading="@_working" Disabled="@_working" OnClick="ConfirmWithPasskeyAsync" />
         }
         @if (_hasPassword)
         {
-            <AppButton Label="Confirm" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+            <AppButton Label="@L["ConfirmItsYouDialog_Confirm"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
                        Loading="@_working" Disabled="@(_working || !CanConfirmWithPassword)" OnClick="ConfirmWithPasswordAsync" />
         }
     </DialogActions>
@@ -100,12 +101,12 @@
         try
         {
             var options = await Identity.GetConfirmPasskeyOptionsAsync(_lifetime.Token);
-            if (!options.Succeeded || options.Value is null) { _error = "A passkey isn't available here. Use your password instead."; return; }
+            if (!options.Succeeded || options.Value is null) { _error = L["ConfirmItsYouDialog_APasskeyIsnTAvailable"].Value; return; }
             var credentialJson = await JS.InvokeAsync<string>("tuvimaPasskeys.getCredential", _lifetime.Token, options.Value.OptionsJson);
             _working = false;
             await ConfirmAsync(new ConfirmItsYouRequest { CredentialJson = credentialJson, State = options.Value.State });
         }
-        catch (JSException) { _error = "The passkey wasn't used. Try again or use your password."; }
+        catch (JSException) { _error = L["ConfirmItsYouDialog_ThePasskeyWasnTUsed"].Value; }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
         finally { _working = false; }
     }

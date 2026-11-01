@@ -1,30 +1,31 @@
 @namespace MediaEngine.Web.Components.Setup
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="setup-stage-content">
     @if (Remote)
     {
-        <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" /><div><h2 id="setup-stage-title">Finish setup at home</h2><p>Setup has to be finished from your home network.</p></div></div>
-        <AppAlert Tone="AppUiTone.Info">Open this page from a device on the same network as your Library server. Setup is never done over the internet.</AppAlert>
+        <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" /><div><h2 id="setup-stage-title">@L["SetupCodeStage_FinishSetupAtHome"]</h2><p>@L["SetupCodeStage_SetupHasToBeFinished"]</p></div></div>
+        <AppAlert Tone="AppUiTone.Info">@L["SetupCodeStage_OpenThisPageFromA"]</AppAlert>
     }
     else
     {
-        <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Key" /><div><h2 id="setup-stage-title">Enter the setup code from your server</h2><p>This proves you can reach the server itself before anyone can claim it.</p></div></div>
+        <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Key" /><div><h2 id="setup-stage-title">@L["SetupCodeStage_EnterTheSetupCodeFrom"]</h2><p>@L["SetupCodeStage_ThisProvesYouCanReach"]</p></div></div>
         @if (!string.IsNullOrWhiteSpace(Message))
         {
             <AppAlert Tone="AppUiTone.Warning">@Message</AppAlert>
         }
         <div class="setup-form-grid">
-            <AppTextField Label="Setup code" Value="@Code" ValueChanged="CodeChanged" MaxLength="9" HelpText="Eight characters, like ABCD-EFGH. It works once and expires after 30 minutes." />
+            <AppTextField Label="@L["SetupCodeStage_SetupCode"].Value" Value="@Code" ValueChanged="CodeChanged" MaxLength="9" HelpText="Eight characters, like ABCD-EFGH. It works once and expires after 30 minutes." />
         </div>
         <div class="setup-code-help">
-            <p><strong>Running in Docker, Unraid, Synology, QNAP or TrueNAS?</strong> Open a terminal on the server and run:</p>
+            <p><strong>@L["SetupCodeStage_RunningInDockerUnraidSynology"]</strong> @L["SetupCodeStage_OpenATerminalOnThe"]</p>
             <pre><code>docker exec -it &lt;container&gt; tuvima-admin setup code</code></pre>
-            <p><strong>On Windows?</strong> Open the install folder in a terminal as administrator and run:</p>
-            <pre><code>tuvima-admin setup code</code></pre>
+            <p><strong>@L["SetupCodeStage_OnWindows"]</strong> @L["SetupCodeStage_OpenTheInstallFolderIn"]</p>
+            <pre><code>@L["SetupCodeStage_TuvimaAdminSetupCode"]</code></pre>
         </div>
         <footer class="setup-stage__footer">
             <div class="setup-stage__footer-actions">
-                <AppButton Label="Continue" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" Disabled="@(Busy || string.IsNullOrWhiteSpace(Code))" OnClick="Submit" />
+                <AppButton Label="@L["Common_Continue"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" Disabled="@(Busy || string.IsNullOrWhiteSpace(Code))" OnClick="Submit" />
             </div>
         </footer>
     }

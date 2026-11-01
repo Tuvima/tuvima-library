@@ -3,8 +3,9 @@
 @namespace MediaEngine.Web.Components.Pages
 @using MediaEngine.Web.Services.Navigation
 @inject NavigationManager Nav
+@inject IStringLocalizer<SharedStrings> L
 
-<PageTitle>Collections  -  Library</PageTitle>
+<PageTitle>@L["Collections_CollectionsLibrary"]</PageTitle>
 <CollectionsPage Section="@Section"
                  SearchQuery="@SearchQuery"
                  LaneQuery="@LaneQuery"

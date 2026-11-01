@@ -1,4 +1,5 @@
 @namespace MediaEngine.Web.Components.Shared
+@inject IStringLocalizer<SharedStrings> L
 <div class="@RootClass" style="@(InlineStyle ?? Style)" role="@(ResolvedSeverity == AppSeverity.Error ? "alert" : "status")" @attributes="AdditionalAttributes">
     @if (!NoIcon)
     {
@@ -7,7 +8,7 @@
     <div class="tl-alert-message">@ChildContent</div>
     @if (ShowCloseIcon)
     {
-        <button type="button" class="tl-alert-close" aria-label="Dismiss notification" @onclick="() => CloseIconClicked.InvokeAsync()">
+        <button type="button" class="tl-alert-close" aria-label="@L["Common_DismissNotification"].Value" @onclick="() => CloseIconClicked.InvokeAsync()">
             <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Close" Size="AppSize.Small" />
         </button>
     }

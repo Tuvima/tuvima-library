@@ -1,6 +1,7 @@
 @using MediaEngine.Contracts.LocalAssets
 @inject IEngineApiClient ApiClient
 @namespace MediaEngine.Web.Components.Pages
+@inject IStringLocalizer<SharedStrings> L
 
 @* The one question a bulk edit asks before it runs: which tags, which correspondent, which type or which date. *@
 <AppDialogShell Title="@Title" Subtitle="@Subtitle" Size="Medium" OnClose="@(() => Dialog.Cancel())">
@@ -14,11 +15,11 @@
             @switch (Operation)
             {
                 case ViewDocumentBulkOperations.AddTags:
-                    <section class="view-document-details__group" aria-label="Tags to add">
+                    <section class="view-document-details__group" aria-label="@L["ViewDocumentBulkDialog_TagsToAdd"].Value">
                         <AppTagInput Commit="CommitTagAsync" Search="SearchTagsAsync" />
                         @if (_tags.Count > 0)
                         {
-                            <ul class="view-document-details__chips" aria-label="Tags to add">
+                            <ul class="view-document-details__chips" aria-label="@L["ViewDocumentBulkDialog_TagsToAdd"].Value">
                                 @foreach (var tag in _tags)
                                 {
                                     <li @key="tag"><AppChip Text="@tag" OnClose="@(() => _tags.Remove(tag))" /></li>
@@ -29,10 +30,10 @@
                     break;
                 case ViewDocumentBulkOperations.RemoveTags:
                     <fieldset class="view-documents-filters__group">
-                        <legend>Tags to take off</legend>
+                        <legend>@L["ViewDocumentBulkDialog_TagsToTakeOff"]</legend>
                         @if (UsedTags.Count == 0)
                         {
-                            <p class="view-documents-filters__hint">None of your documents have tags yet.</p>
+                            <p class="view-documents-filters__hint">@L["ViewDocumentBulkDialog_NoneOfYourDocumentsHave"]</p>
                         }
                         else
                         {
@@ -48,24 +49,24 @@
                     </fieldset>
                     break;
                 case ViewDocumentBulkOperations.SetCorrespondent:
-                    <AppAutocomplete TItem="string" Label="Correspondent" Value="@_name" ValueChanged="@(value => _name = value ?? string.Empty)"
-                                     SearchFunc="SearchCorrespondentsAsync" CoerceValue="true" ResetValueOnEmptyText="true" Placeholder="Who sent or issued these" Disabled="@_clear" />
-                    <AppCheckboxRow Label="Clear the correspondent instead" Value="@_clear" ValueChanged="@(value => _clear = value)" />
+                    <AppAutocomplete TItem="string" Label="@L["Common_Correspondent"].Value" Value="@_name" ValueChanged="@(value => _name = value ?? string.Empty)"
+                                     SearchFunc="SearchCorrespondentsAsync" CoerceValue="true" ResetValueOnEmptyText="true" Placeholder="@L["ViewDocumentBulkDialog_WhoSentOrIssuedThese"].Value" Disabled="@_clear" />
+                    <AppCheckboxRow Label="@L["ViewDocumentBulkDialog_ClearTheCorrespondentInstead"].Value" Value="@_clear" ValueChanged="@(value => _clear = value)" />
                     break;
                 case ViewDocumentBulkOperations.SetDocumentType:
-                    <AppAutocomplete TItem="string" Label="Document type" Value="@_name" ValueChanged="@(value => _name = value ?? string.Empty)"
-                                     SearchFunc="SearchTypesAsync" CoerceValue="true" ResetValueOnEmptyText="true" Placeholder="Invoice, letter, contract…" Disabled="@_clear" />
-                    <AppCheckboxRow Label="Clear the type instead" Value="@_clear" ValueChanged="@(value => _clear = value)" />
+                    <AppAutocomplete TItem="string" Label="@L["Common_DocumentType"].Value" Value="@_name" ValueChanged="@(value => _name = value ?? string.Empty)"
+                                     SearchFunc="SearchTypesAsync" CoerceValue="true" ResetValueOnEmptyText="true" Placeholder="@L["Common_InvoiceLetterContract"].Value" Disabled="@_clear" />
+                    <AppCheckboxRow Label="@L["ViewDocumentBulkDialog_ClearTheTypeInstead"].Value" Value="@_clear" ValueChanged="@(value => _clear = value)" />
                     break;
                 case ViewDocumentBulkOperations.SetDocumentDate:
-                    <label class="view-document-details__field"><span>Date</span><AppNativeInput Type="date" Class="view-document-details__input" AriaLabel="Document date" Value="@_date" ValueChanged="@(value => _date = value?.ToString() ?? string.Empty)" Disabled="@_clear" /></label>
-                    <AppCheckboxRow Label="Clear the date instead" Value="@_clear" ValueChanged="@(value => _clear = value)" />
+                    <label class="view-document-details__field"><span>@L["Common_Date"]</span><AppNativeInput Type="date" Class="view-document-details__input" AriaLabel="@L["Common_DocumentDate"].Value" Value="@_date" ValueChanged="@(value => _date = value?.ToString() ?? string.Empty)" Disabled="@_clear" /></label>
+                    <AppCheckboxRow Label="@L["ViewDocumentBulkDialog_ClearTheDateInstead"].Value" Value="@_clear" ValueChanged="@(value => _clear = value)" />
                     break;
             }
         </div>
     </ChildContent>
     <FooterContent>
-        <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
+        <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
         <AppButton Label="@($"Apply to {Count} {(Count == 1 ? "document" : "documents")}")" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Apply" />
     </FooterContent>
 </AppDialogShell>

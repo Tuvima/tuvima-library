@@ -1,17 +1,18 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Web.Components.Shared
+@inject IStringLocalizer<SharedStrings> L
 
 @* Override file handling for one folder (Libraries spec D7): the duplicate rule and whether tags are written into this folder's files.
    Each starts on "Use library setting"; leaving both there removes the override. The dialog only answers; the host saves it. *@
-<AppDialogShell Title="Override file handling" Subtitle="@Subtitle" Size="Medium" OnClose="@(() => Dialog.Cancel())">
+<AppDialogShell Title="@L["FolderFileHandlingDialog_OverrideFileHandling"].Value" Subtitle="@Subtitle" Size="Medium" OnClose="@(() => Dialog.Cancel())">
     <ChildContent>
-        <AppSelect Label="Duplicates" Value="@_duplicates" ValueChanged="@((string? value) => _duplicates = value ?? UseLibrary)" Options="DuplicateOptions" />
-        <AppSelect Label="Write tags into files" Value="@_writeTags" ValueChanged="@((string? value) => _writeTags = value ?? UseLibrary)" Options="WriteTagOptions" />
+        <AppSelect Label="@L["Common_Duplicates"].Value" Value="@_duplicates" ValueChanged="@((string? value) => _duplicates = value ?? UseLibrary)" Options="DuplicateOptions" />
+        <AppSelect Label="@L["FolderFileHandlingDialog_WriteTagsIntoFiles"].Value" Value="@_writeTags" ValueChanged="@((string? value) => _writeTags = value ?? UseLibrary)" Options="WriteTagOptions" />
     </ChildContent>
     <FooterContent>
-        <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
-        <AppButton Label="Save" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Save" />
+        <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
+        <AppButton Label="@L["Common_Save"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Save" />
     </FooterContent>
 </AppDialogShell>
 

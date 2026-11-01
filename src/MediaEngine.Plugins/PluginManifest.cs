@@ -128,6 +128,14 @@ public sealed record PluginManifest
     public PluginDeclaration? Declaration { get; init; }
 
     /// <summary>
+    /// Languages the plugin's own screens and messages are written in (tags such as <c>en</c>, <c>fr</c>, <c>pt-BR</c>).
+    /// Empty means English only. The plugin's words come from <c>strings/&lt;tag&gt;.json</c> inside its folder and follow the
+    /// server display language through <see cref="PluginStringTable"/>; English is the fallback.
+    /// </summary>
+    [JsonPropertyName("supported_languages")]
+    public IReadOnlyList<string> SupportedLanguages { get; init; } = [];
+
+    /// <summary>
     /// True for a built-in that exists so its settings and switch are ready but has nothing to do yet (its hook is not built).
     /// It is left off the Plugins page until it does.
     /// </summary>

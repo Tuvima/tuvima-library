@@ -6,13 +6,14 @@
 @inject IAppDialogService DialogService
 @inject IAppToastService Toasts
 @inject ViewWorkspaceService Workspace
+@inject IStringLocalizer<SharedStrings> L
 
 @* The header over the Trash in Photos and in Documents. Both show the whole Trash (one Trash per Personal Space), so the size is the
    Engine's summary, not the length of the list below. Only the owner, on a desktop with a mouse, empties it; the Engine checks again. *@
 @* When the Engine can't answer (or refuses), nothing is shown rather than a guess at the size. *@
 @if (IsMine && _loaded && _summary is not null)
 {
-    <section class="view-trash-header" aria-label="Trash">
+    <section class="view-trash-header" aria-label="@L["Common_Trash"].Value">
         @if (_summary.ItemCount == 0)
         {
             <p class="view-trash-header__empty">@EmptyTrashText.TrashIsEmpty</p>

@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Approvals
 @using MediaEngine.Web.Services.Ui
+@inject IStringLocalizer<SharedStrings> L
 
 @* The one confirmation every "switch this on" action shows (Developer tools spec D-C): what it can do, whether anything
    leaves this machine, then the choice. The words come from the Engine; this only lays them out. *@
@@ -8,10 +9,10 @@
 <DialogContent>
 <div class="approval-dialog" data-testid="approval-dialog" data-approval-kind="@Preview.Kind">
     <strong class="approval-dialog__title" data-testid="approval-title">@Preview.Title</strong>
-    <p class="approval-dialog__heading">It can:</p>
+    <p class="approval-dialog__heading">@L["ApprovalDialog_ItCan"]</p>
     @if (Preview.CanDo.Count == 0)
     {
-        <p class="approval-dialog__nothing">Nothing special</p>
+        <p class="approval-dialog__nothing">@L["Common_NothingSpecial"]</p>
     }
     else
     {
@@ -22,7 +23,7 @@
             }
         </ul>
     }
-    <p class="approval-dialog__sends" data-testid="approval-sends-data"><strong>Sends data out:</strong> @SendsDataText</p>
+    <p class="approval-dialog__sends" data-testid="approval-sends-data"><strong>@L["ApprovalDialog_SendsDataOut"]</strong> @SendsDataText</p>
     @if (Preview.Notes.Count > 0)
     {
         <ul class="approval-dialog__notes" data-testid="approval-notes">
@@ -35,7 +36,7 @@
 </div>
 </DialogContent>
 <DialogActions>
-    <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Outlined" OnClick="CancelAsync" />
+    <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Outlined" OnClick="CancelAsync" />
     <AppButton Label="@ConfirmLabel" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="ConfirmAsync" />
 </DialogActions>
 </AppDialog>

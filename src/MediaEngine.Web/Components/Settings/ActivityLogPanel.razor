@@ -2,37 +2,38 @@
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
 @implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 @* The Events part of System > Logs (ingestion WP12): one flat, time-stamped, paged, searchable log of what was added, what needs
    review, what failed and what the system did. Server administrators only; the Engine enforces that, and the Settings shell only
    offers the page to administrators. The Engine writes every word shown here (title, detail, media type); this panel only lays
    them out. *@
-<AppCard Title="Events" Description="What was added, what needs review, what failed and what the system did, newest first.">
+<AppCard Title="@L["Common_Events"].Value" Description="@L["ActivityLogPanel_WhatWasAddedWhatNeeds"].Value">
     <div class="activity-log__toolbar">
         <div class="activity-log__filters">
             <AppSegmentedControl Options="FilterOptions"
                                  Value="@_filter"
                                  ValueChanged="OnFilterChanged"
-                                 AriaLabel="Filter the activity log" />
+                                 AriaLabel="@L["ActivityLogPanel_FilterTheActivityLog"].Value" />
         </div>
         <div class="activity-log__sort">
-            <AppSelect Label="Media type"
+            <AppSelect Label="@L["Common_MediaType"].Value"
                        Value="@_mediaType"
                        ValueChanged="OnMediaTypeChanged"
                        Options="MediaTypeOptions"
                        Size="AppControlSize.Compact" />
         </div>
         <div class="activity-log__sort">
-            <AppSelect Label="Sort by"
+            <AppSelect Label="@L["Common_SortBy"].Value"
                        Value="@_sort"
                        ValueChanged="OnSortChanged"
                        Options="SortOptions"
                        Size="AppControlSize.Compact" />
         </div>
         <div class="activity-log__search">
-            <AppSearchField Label="Search the activity log"
+            <AppSearchField Label="@L["ActivityLogPanel_SearchTheActivityLog"].Value"
                             HideLabel="true"
-                            Placeholder="Search titles and details"
+                            Placeholder="@L["ActivityLogPanel_SearchTitlesAndDetails"].Value"
                             Value="@_search"
                             ValueChanged="OnSearchChanged"
                             DebounceInterval="300" />
@@ -54,8 +55,8 @@
     else if (_failed)
     {
         <div data-testid="activity-log-error">
-            <AppErrorState Title="The Library's engine isn't responding"
-                           Message="Check that the Engine is running, then try again."
+            <AppErrorState Title="@L["Common_TheLibrarySEngineIsn"].Value"
+                           Message="@L["ActivityLogPanel_CheckThatTheEngineIs"].Value"
                            Retry="ReloadAsync"
                            Compact="true" />
         </div>
@@ -68,7 +69,7 @@
     }
     else
     {
-        <ol class="activity-log__list" aria-label="Events, newest first" data-testid="activity-log-rows">
+        <ol class="activity-log__list" aria-label="@L["ActivityLogPanel_EventsNewestFirst"].Value" data-testid="activity-log-rows">
             @foreach (var row in Rows)
             {
                 if (row.Children is null)
@@ -113,12 +114,12 @@
         <div class="activity-log__pager" data-testid="activity-log-pager">
             <span class="activity-log__pager-summary" aria-live="polite">@PagerSummary</span>
             <div class="activity-log__pager-actions">
-                <AppButton Label="Previous"
+                <AppButton Label="@L["Home_CarouselPrevious"].Value"
                            Size="AppControlSize.Compact"
                            StartIcon="@AppMaterialIcons.Outlined.ChevronLeft"
                            Disabled="@(_offset <= 0)"
                            OnClick="PreviousAsync" />
-                <AppButton Label="Next"
+                <AppButton Label="@L["Home_CarouselNext"].Value"
                            Size="AppControlSize.Compact"
                            EndIcon="@AppMaterialIcons.Outlined.ChevronRight"
                            Disabled="@(!_hasMore)"

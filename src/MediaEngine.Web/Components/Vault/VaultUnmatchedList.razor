@@ -4,11 +4,12 @@
 @using MediaEngine.Web.Services.Vault
 @namespace MediaEngine.Web.Components.Vault
 @inject DeviceContextService Device
+@inject IStringLocalizer<SharedStrings> L
 
 @* The Unmatched list (Videos spec D40): a plain sortable list of title, file name, length, size and date added. Each row opens the
    video's own page, and an administrator on a computer also gets an Identify link that opens the Identify panel under the row. Nothing
    is hidden or queued just for being unmatched. *@
-<div class="vault-unmatched" role="table" aria-label="Unmatched videos">
+<div class="vault-unmatched" role="table" aria-label="@L["VaultUnmatchedList_UnmatchedVideos"].Value">
     <div class="vault-unmatched__head" role="row">
         @foreach (var column in Columns)
         {
@@ -16,7 +17,7 @@
                 <AppButton ButtonStyle="AppButtonStyle.Text" Class="vault-unmatched__sort" OnClick="() => SortBy(column.Key)">@column.Label@SortMark(column.Key)</AppButton>
             </span>
         }
-        <span role="columnheader" class="vault-unmatched__actions-head">Actions</span>
+        <span role="columnheader" class="vault-unmatched__actions-head">@L["ApiKeys_Actions"]</span>
     </div>
     @foreach (var item in Sorted)
     {
@@ -30,7 +31,7 @@
             <span role="cell" class="vault-unmatched__actions">
                 @if (CanIdentify && item.AssetId is not null)
                 {
-                    <AppButton Label="Identify" ButtonStyle="AppButtonStyle.Outlined" Class="vault-unmatched__identify" aria-expanded="@((_open == item.AssetId).ToString().ToLowerInvariant())" OnClick="() => Toggle(item.AssetId.Value)" />
+                    <AppButton Label="@L["Common_Identify"].Value" ButtonStyle="AppButtonStyle.Outlined" Class="vault-unmatched__identify" aria-expanded="@((_open == item.AssetId).ToString().ToLowerInvariant())" OnClick="() => Toggle(item.AssetId.Value)" />
                 }
             </span>
             @if (CanIdentify && item.AssetId is { } assetId && _open == assetId)

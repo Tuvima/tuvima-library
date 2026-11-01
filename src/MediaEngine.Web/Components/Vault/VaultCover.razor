@@ -1,6 +1,7 @@
 @using MediaEngine.Contracts.Vault
 @using MediaEngine.Web.Models.ViewDTOs
 @namespace MediaEngine.Web.Components.Vault
+@inject IStringLocalizer<SharedStrings> L
 
 @* One Vault card (Videos spec D24, D41). Shapes: a scene is landscape 16:9, a performer portrait 2:3 (cropped from the top centre),
    a studio a logo shown whole on a neutral tile. Show draws the picture, Blur draws it blurred until it is pointed at or focused
@@ -31,7 +32,7 @@
         }
         @if (Unmatched)
         {
-            <span class="vault-cover__mark">Unmatched</span>
+            <span class="vault-cover__mark">@L["Common_Unmatched"]</span>
         }
     </span>
     <span class="vault-cover__title">@Title</span>

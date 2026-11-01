@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Contracts.Details
+@inject IStringLocalizer<SharedStrings> L
 
 @if (Model.MusicAlbumCompanion is { MoreByAlbums.Count: > 0 } companion)
 {
@@ -10,7 +11,7 @@
             <Actions>
                 @if (!string.IsNullOrWhiteSpace(companion.PrimaryArtistRoute))
                 {
-                    <a class="tl-music-album-series-rail__profile" href="@companion.PrimaryArtistRoute">View profile</a>
+                    <a class="tl-music-album-series-rail__profile" href="@companion.PrimaryArtistRoute">@L["MusicAlbumSeriesRail_ViewProfile"]</a>
                 }
             </Actions>
             <ChildContent>

@@ -119,7 +119,7 @@ public sealed class ProfileQuickSwitchTests : AsyncBunitContext
     {
         var me = Person("Maya");
         var dad = Person("Dad");
-        var switcher = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Navigation", "TopNavProfileSwitcher.razor"));
+        var switcher = LocalizedSource.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Navigation", "TopNavProfileSwitcher.razor"));
 
         var cut = RenderSwitcher(me.Id, me, dad);
 
@@ -131,8 +131,8 @@ public sealed class ProfileQuickSwitchTests : AsyncBunitContext
     [Fact]
     public void AccountMenu_OffersTheSwitcherOnlyWithSeveralProfiles_AndKeepsTheFullPickerLink()
     {
-        var menu = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Navigation", "TopNavAccountMenu.razor"));
-        var switcher = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Navigation", "TopNavProfileSwitcher.razor"));
+        var menu = LocalizedSource.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Navigation", "TopNavAccountMenu.razor"));
+        var switcher = LocalizedSource.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Navigation", "TopNavProfileSwitcher.razor"));
 
         Assert.Contains("@if (Profiles.Count > 1)", menu, StringComparison.Ordinal);
         Assert.Contains("<TopNavProfileSwitcher", menu, StringComparison.Ordinal);

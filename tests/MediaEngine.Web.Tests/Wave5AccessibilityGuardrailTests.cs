@@ -93,5 +93,5 @@ public sealed class Wave5AccessibilityGuardrailTests
     }
 
     private static string Read(string relativePath) =>
-        File.ReadAllText(Path.Combine(RepoRoot, relativePath));
+        LocalizedSource.ReadAllText(Path.Combine(RepoRoot, relativePath));
 }

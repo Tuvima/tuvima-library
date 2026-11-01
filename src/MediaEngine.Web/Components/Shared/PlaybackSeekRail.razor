@@ -2,13 +2,14 @@
 @using Microsoft.JSInterop
 @inject IJSRuntime JS
 @implements IAsyncDisposable
+@inject IStringLocalizer<SharedStrings> L
 <div class="playback-seek-rail playback-seek-rail--@Surface" @ref="_root" data-playback-seek-rail data-duration="@Duration.ToString(System.Globalization.CultureInfo.InvariantCulture)" data-chapters="@ChapterJson">
     <output class="playback-seek-rail__start" aria-label="@($"Elapsed time {Time(Position)}")">@Time(Position)</output>
     <div class="playback-seek-rail__track">
         @if (!string.IsNullOrWhiteSpace(Notice)) { <output class="playback-seek-rail__notice" role="status">@Notice</output> }
         <AppRangeSlider Value="@Position" Min="0" Max="@Math.Max(1, Duration)" Step="1" SnapValueToStep="false" CommitOnChange="true"
                              ShowTicks="@(ChapterTicks is { Count: > 0 })" TickValues="@ChapterTicks" ShowTickText="false" Surface="@Surface"
-                             AriaLabel="Playback position" ValueFormatter="@(value => $"{Time(value)} of {Time(Duration)}")" ValueChanged="ValueChanged" disabled="@(Duration <= 0)" />
+                             AriaLabel="@L["PlaybackSeekRail_PlaybackPosition"].Value" ValueFormatter="@(value => $"{Time(value)} of {Time(Duration)}")" ValueChanged="ValueChanged" disabled="@(Duration <= 0)" />
         <output class="playback-seek-rail__bubble" data-seek-time aria-hidden="true"></output>
         @if (Bookmarks is { Count: > 0 } && Duration > 0)
         {
@@ -23,22 +24,22 @@
                                 @onclick="@(() => ToggleBookmark(bookmark.Id))" @onfocus="@(() => HoverBookmark(bookmark.Id))"></button>
                         @if (open)
                         {
-                            <div class="playback-seek-rail__quicklook" role="dialog" aria-label="Bookmark" style="@CardStyle(bookmark.Seconds)">
-                                <strong>@Time(bookmark.Seconds)@if (bookmark.IsGlobal) { <span> · Everyone</span> }@if (bookmark.IsPack) { <span> · @bookmark.PackLabel</span> }</strong>
+                            <div class="playback-seek-rail__quicklook" role="dialog" aria-label="@L["PlaybackSeekRail_Bookmark"].Value" style="@CardStyle(bookmark.Seconds)">
+                                <strong>@Time(bookmark.Seconds)@if (bookmark.IsGlobal) { <span> @L["Common_Everyone"]</span> }@if (bookmark.IsPack) { <span> · @bookmark.PackLabel</span> }</strong>
                                 @if (!string.IsNullOrWhiteSpace(bookmark.Note)) { <p>@bookmark.Note</p> }
                                 @if (!string.IsNullOrWhiteSpace(bookmark.Description))
                                 {
                                     @if (_moreId == bookmark.Id) { <p>@bookmark.Description</p> }
-                                    else { <button type="button" class="playback-seek-rail__more" @onclick="@(() => _moreId = bookmark.Id)">More</button> }
+                                    else { <button type="button" class="playback-seek-rail__more" @onclick="@(() => _moreId = bookmark.Id)">@L["Common_More"]</button> }
                                 }
                                 <span>
-                                    <button type="button" class="playback-seek-rail__more" @onclick="@(() => JumpAsync(bookmark))">Play</button>
+                                    <button type="button" class="playback-seek-rail__more" @onclick="@(() => JumpAsync(bookmark))">@L["Common_Play"]</button>
                                     @if (BookmarkDelete.HasDelegate && !bookmark.IsPack && !bookmark.IsGlobal)
                                     {
-                                        @if (_deleteId == bookmark.Id) { <button type="button" class="playback-seek-rail__more" @onclick="@(() => DeleteAsync(bookmark))">Delete?</button> }
-                                        else { <button type="button" class="playback-seek-rail__more" @onclick="@(() => _deleteId = bookmark.Id)">Delete</button> }
+                                        @if (_deleteId == bookmark.Id) { <button type="button" class="playback-seek-rail__more" @onclick="@(() => DeleteAsync(bookmark))">@L["Common_Delete3"]</button> }
+                                        else { <button type="button" class="playback-seek-rail__more" @onclick="@(() => _deleteId = bookmark.Id)">@L["Common_Delete"]</button> }
                                     }
-                                    @if (_pinnedId == bookmark.Id) { <button type="button" class="playback-seek-rail__more" @onclick="CloseQuickLook">Close</button> }
+                                    @if (_pinnedId == bookmark.Id) { <button type="button" class="playback-seek-rail__more" @onclick="CloseQuickLook">@L["Common_Close"]</button> }
                                 </span>
                             </div>
                         }

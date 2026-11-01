@@ -4,10 +4,11 @@
 @using Microsoft.JSInterop
 @inject IJSRuntime JS
 @implements IAsyncDisposable
+@inject IStringLocalizer<SharedStrings> L
 <div class="tl-file-upload @Class">
     <InputFile @ref="_input" id="@_inputId" class="tl-file-upload__input" OnChange="ChangedAsync" accept="@Accept" disabled="@Disabled" multiple="@(MaximumFileCount > 1)" @attributes="AdditionalAttributes" />
     @if (CustomContent is not null) { @CustomContent(this) }
-    else { <label for="@_inputId" class="app-button app-button--outlined">Choose file</label> }
+    else { <label for="@_inputId" class="app-button app-button--outlined">@L["AppFileUpload_ChooseFile"]</label> }
     @if (SelectedTemplate is not null) { @SelectedTemplate(_files) }
 </div>
 @code {

@@ -1,7 +1,8 @@
 @namespace MediaEngine.Web.Components.Shared
-<nav class="view-timeline-scrubber" aria-label="Jump to date">
+@inject IStringLocalizer<SharedStrings> L
+<nav class="view-timeline-scrubber" aria-label="@L["AppTimelineNavigator_JumpToDate"].Value">
     <div class="view-timeline-scrubber__mobile-picker">
-        <AppNativeSelect Value="@ActiveKey" OnChange="MobileJump" aria-label="Jump to period">
+        <AppNativeSelect Value="@ActiveKey" OnChange="MobileJump" aria-label="@L["AppTimelineNavigator_JumpToPeriod"].Value">
             @foreach (var period in Periods.Where(p => p.Count > 0))
             {
                 <option value="@period.Key">@period.Label</option>

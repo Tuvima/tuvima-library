@@ -7,6 +7,7 @@
 @inject IEngineApiClient Api
 @inject IAppDialogService Dialogs
 @inject MediaEngine.Web.Services.Vault.NsfwModeState Nsfw
+@inject IStringLocalizer<SharedStrings> L
 
 @* Move to Vault and Move out, from the "..." menu of a folder on the Folders tab (Library pages D11; Vault sections D31, D33, D38). Before anything is
    touched it checks where the items would go and shows counts only, never a title. With no Vault-protected library of this content type it says so
@@ -19,7 +20,7 @@
         <div class="move-to-vault" data-testid="move-to-vault">
             @if (_loading)
             {
-                <AppPageState Kind="AppPageStateKind.Loading" Title="Checking where it would go" />
+                <AppPageState Kind="AppPageStateKind.Loading" Title="@L["MoveToVaultDialog_CheckingWhereItWouldGo"].Value" />
             }
             else if (_job is not null)
             {
@@ -30,38 +31,38 @@
             {
                 <AppPageState Kind="AppPageStateKind.Error"
                               Icon="@AppMaterialIcons.Outlined.CloudOff"
-                              Title="Library couldn't check"
+                              Title="@L["MoveToVaultDialog_LibraryCouldnTCheck"].Value"
                               Message="@(Api.LastError ?? "Check that the Library server is running, then try again.")">
                     <Actions>
-                        <AppButton Label="Try again" OnClick="LoadAsync" />
+                        <AppButton Label="@L["Common_TryAgain"].Value" OnClick="LoadAsync" />
                     </Actions>
                 </AppPageState>
             }
             else if (!_isOut && _destination!.State == VaultMoveDestinationStates.None)
             {
-                <p class="move-to-vault__lead" data-testid="move-to-vault-none">There is no Vault-protected @PluralLabel library yet.</p>
-                <p class="move-to-vault__note">Nothing has been moved. Add one, and the move continues from here.</p>
+                <p class="move-to-vault__lead" data-testid="move-to-vault-none">@L["MoveToVaultDialog_ThereIsNoVaultProtected", PluralLabel]</p>
+                <p class="move-to-vault__note">@L["MoveToVaultDialog_NothingHasBeenMovedAdd"]</p>
             }
             else if (!_isOut && _destination!.State == VaultMoveDestinationStates.NeedsManagedFolder)
             {
                 <p class="move-to-vault__lead" data-testid="move-to-vault-managed">Move to Vault needs a folder that Library manages, and @(_destination.LibraryName ?? "the Vault library") has none yet.</p>
-                <p class="move-to-vault__note">Nothing has been moved.</p>
+                <p class="move-to-vault__note">@L["MoveToVaultDialog_NothingHasBeenMoved"]</p>
             }
             else if (_preview is null)
             {
                 <AppPageState Kind="AppPageStateKind.Error"
                               Icon="@AppMaterialIcons.Outlined.CloudOff"
-                              Title="Library couldn't check"
+                              Title="@L["MoveToVaultDialog_LibraryCouldnTCheck"].Value"
                               Message="@(_error ?? "Check that the Library server is running, then try again.")">
                     <Actions>
-                        <AppButton Label="Try again" OnClick="LoadAsync" />
+                        <AppButton Label="@L["Common_TryAgain"].Value" OnClick="LoadAsync" />
                     </Actions>
                 </AppPageState>
             }
             else if (_preview.State != VaultMovePreviewStates.Ready)
             {
                 <p class="move-to-vault__lead" data-testid="move-to-vault-blocked">@(string.IsNullOrWhiteSpace(_preview.Message) ? "This folder can't be moved right now." : _preview.Message)</p>
-                <p class="move-to-vault__note">Nothing has been moved.</p>
+                <p class="move-to-vault__note">@L["MoveToVaultDialog_NothingHasBeenMoved"]</p>
             }
             else
             {
@@ -72,9 +73,9 @@
                 }
                 @if (_preview.OriginalsStay)
                 {
-                    <p class="move-to-vault__note" data-testid="move-to-vault-originals">@FolderName is Read-only, so Library makes the copies and leaves your originals where they are.</p>
-                    <AppSwitchRow Label="Also remove the originals from this folder"
-                                  Description="Each original is deleted only after its copy is checked. This cannot be undone. Left off, your files are never changed."
+                    <p class="move-to-vault__note" data-testid="move-to-vault-originals">@L["MoveToVaultDialog_IsReadOnlySoLibrary", FolderName]</p>
+                    <AppSwitchRow Label="@L["MoveToVaultDialog_AlsoRemoveTheOriginalsFrom"].Value"
+                                  Description="@L["MoveToVaultDialog_EachOriginalIsDeletedOnly"].Value"
                                   Value="@_removeOriginals"
                                   ValueChanged="@(value => _removeOriginals = value)" />
                 }
@@ -90,7 +91,7 @@
             <AppButton Label="@(CloseLabel)" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
             @if (_job is null && !_isOut && _destination is { State: VaultMoveDestinationStates.None })
             {
-                <AppButton Label="Add a Vault library" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="@(() => Dialog.Close(AppDialogResult.Ok(AddVaultLibrary)))" />
+                <AppButton Label="@L["MoveToVaultDialog_AddAVaultLibrary"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="@(() => Dialog.Close(AppDialogResult.Ok(AddVaultLibrary)))" />
             }
             @if (_job is null && _preview is { State: VaultMovePreviewStates.Ready })
             {

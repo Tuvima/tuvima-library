@@ -7,15 +7,16 @@
 @inject IEngineApiClient ApiClient
 @inject DeviceContextService DeviceContext
 @inject ILogger<DetailsTab> Logger
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="tl-detail-tab-panel">
     @if (ShowFileFacts)
     {
-        <section class="tl-detail-panel tl-file-facts" aria-label="File facts">
+        <section class="tl-detail-panel tl-file-facts" aria-label="@L["DetailsTab_FileFacts"].Value">
             <div class="tl-section-heading"><h2>@(_blocks.Count > 1 ? "Files" : "File")</h2></div>
             @if (_loading)
             {
-                <p class="tl-file-facts__note" role="status">Loading file details...</p>
+                <p class="tl-file-facts__note" role="status">@L["DetailsTab_LoadingFileDetails"]</p>
             }
             else if (!string.IsNullOrWhiteSpace(_fileFactsError))
             {
@@ -23,7 +24,7 @@
             }
             else if (_blocks.Count == 0)
             {
-                <p class="tl-file-facts__note">No file details are stored for this item yet.</p>
+                <p class="tl-file-facts__note">@L["DetailsTab_NoFileDetailsAreStored"]</p>
             }
             else
             {
@@ -37,7 +38,7 @@
                         <dl class="tl-file-facts__list">
                             @if (_blocks.Count == 1)
                             {
-                                <dt>File name</dt>
+                                <dt>@L["DetailsTab_FileName"]</dt>
                                 <dd>@block.Title</dd>
                             }
                             @foreach (var row in block.Rows)
@@ -53,19 +54,19 @@
     }
     else if (DetailFileFacts.IsGrouping(Model.EntityType))
     {
-        <section class="tl-detail-panel tl-file-facts" aria-label="File facts">
-            <div class="tl-section-heading"><h2>Files</h2></div>
-            <p class="tl-file-facts__note">This is a grouping. Open an item inside it to see its file details.</p>
+        <section class="tl-detail-panel tl-file-facts" aria-label="@L["DetailsTab_FileFacts"].Value">
+            <div class="tl-section-heading"><h2>@L["Common_Files"]</h2></div>
+            <p class="tl-file-facts__note">@L["DetailsTab_ThisIsAGroupingOpen"]</p>
         </section>
     }
 
     @if (ShowHistory)
     {
-        <section class="tl-detail-panel tl-item-history" aria-label="History">
-            <div class="tl-section-heading"><h2>History</h2></div>
+        <section class="tl-detail-panel tl-item-history" aria-label="@L["Listen_History"].Value">
+            <div class="tl-section-heading"><h2>@L["Listen_History"]</h2></div>
             @if (_historyLoading)
             {
-                <p class="tl-file-facts__note" role="status">Loading history...</p>
+                <p class="tl-file-facts__note" role="status">@L["DetailsTab_LoadingHistory"]</p>
             }
             else if (!string.IsNullOrWhiteSpace(_historyError))
             {
@@ -73,7 +74,7 @@
             }
             else if (_history.Count == 0)
             {
-                <p class="tl-file-facts__note">Nothing has been recorded for this item yet.</p>
+                <p class="tl-file-facts__note">@L["DetailsTab_NothingHasBeenRecordedFor"]</p>
             }
             else
             {
@@ -96,27 +97,27 @@
     }
 
     <section class="tl-detail-panel">
-        <div class="tl-section-heading"><h2>Details</h2></div>
+        <div class="tl-section-heading"><h2>@L["Common_Details"]</h2></div>
         <dl class="tl-detail-dl">
-            <dt>Type</dt>
+            <dt>@L["Common_Type"]</dt>
             <dd>@Model.EntityType</dd>
-            <dt>Library Status</dt>
+            <dt>@L["DetailsTab_LibraryStatus"]</dt>
             <dd>@Model.LibraryStatus</dd>
             @if (Model.PersonDetails is not null)
             {
                 @if (!string.IsNullOrWhiteSpace(Model.PersonDetails.Occupation))
                 {
-                    <dt>Occupation</dt>
+                    <dt>@L["DetailsTab_Occupation"]</dt>
                     <dd>@Model.PersonDetails.Occupation</dd>
                 }
                 @if (!string.IsNullOrWhiteSpace(Model.PersonDetails.Nationality))
                 {
-                    <dt>Nationality</dt>
+                    <dt>@L["DetailsTab_Nationality"]</dt>
                     <dd>@Model.PersonDetails.Nationality</dd>
                 }
                 @if (!string.IsNullOrWhiteSpace(Model.PersonDetails.WikidataQid))
                 {
-                    <dt>Canonical identity</dt>
+                    <dt>@L["DetailsTab_CanonicalIdentity"]</dt>
                     <dd>@Model.PersonDetails.WikidataQid</dd>
                 }
             }
@@ -128,7 +129,7 @@
     @if (Model.SourceLinks.Count > 0)
     {
         <section class="tl-detail-panel tl-source-links-panel">
-            <div class="tl-section-heading"><h2>Sources</h2></div>
+            <div class="tl-section-heading"><h2>@L["Common_Sources"]</h2></div>
             <div class="tl-source-links">
                 @foreach (var link in Model.SourceLinks)
                 {
@@ -218,7 +219,7 @@
             // unexpected throw: log it and show a degraded panel rather than failing the whole tab.
             Logger.LogWarning(ex, "Details tab could not load file facts for {EntityId}", id);
             _blocks = [];
-            _fileFactsError = "File details could not be loaded.";
+            _fileFactsError = L["DetailsTab_FileDetailsCouldNotBe"].Value;
         }
         finally
         {

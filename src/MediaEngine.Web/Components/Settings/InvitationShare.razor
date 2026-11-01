@@ -4,16 +4,17 @@
 @inject IAppToastService Toast
 @inject NavigationManager Navigation
 @inject ILogger<InvitationShare> Logger
+@inject IStringLocalizer<SharedStrings> L
 
 <AppAlert Severity="AppSeverity.Success" Class="access-invitation">
-    <strong>Invitation created.</strong>
-    <span>Share the code, the link or the QR code. It won't be shown again.</span>
-    <span>Invitation code</span>
+    <strong>@L["InvitationShare_InvitationCreated"]</strong>
+    <span>@L["InvitationShare_ShareTheCodeTheLink"]</span>
+    <span>@L["InvitationShare_InvitationCode"]</span>
     <code>@FormattedCode</code>
-    <AppButton Label="Copy code" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.ContentCopy" OnClick="@(() => CopyAsync(FormattedCode, "Code copied.", "the code"))" />
-    <span>Link</span>
+    <AppButton Label="@L["InvitationShare_CopyCode"].Value" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.ContentCopy" OnClick="@(() => CopyAsync(FormattedCode, "Code copied.", "the code"))" />
+    <span>@L["InvitationShare_Link"]</span>
     <code>@_link</code>
-    <AppButton Label="Copy link" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.ContentCopy" OnClick="@(() => CopyAsync(_link, "Link copied.", "the link"))" />
+    <AppButton Label="@L["InvitationShare_CopyLink"].Value" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.ContentCopy" OnClick="@(() => CopyAsync(_link, "Link copied.", "the link"))" />
     <div class="invitation-qr">@((MarkupString)_qr)</div>
     <small>Expires @ExpiresAt.ToLocalTime().ToString("g")</small>
 </AppAlert>

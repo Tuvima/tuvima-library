@@ -8,6 +8,7 @@
 @inject IAppToastService Snackbar
 @inject ILogger<ProviderDetail> Logger
 @inject IAppDialogService DialogService
+@inject IStringLocalizer<SharedStrings> L
 
 @* One metadata provider's content on its plugin page (Plugins and Integrations screens v3 D18): Overview says what it is and
    supplies; Settings holds the key card, Lookup and the collapsed advanced connection, saved with Review changes first. *@
@@ -15,18 +16,18 @@
 
 @if (_loading)
 {
-    <AppPageState Kind="AppPageStateKind.Loading" Title="Loading" Class="tl-sp-py-8" />
+    <AppPageState Kind="AppPageStateKind.Loading" Title="@L["Common_Loading"].Value" Class="tl-sp-py-8" />
 }
 else if (!string.IsNullOrWhiteSpace(_loadError) || _snapshot is null)
 {
     <AppPageState Kind="AppPageStateKind.Error"
                   Icon="@AppMaterialIcons.Outlined.CloudOff"
-                  Title="This source is unavailable"
+                  Title="@L["ProviderDetail_ThisSourceIsUnavailable"].Value"
                   Message="@(_loadError ?? "The Engine did not return the source's settings.")" />
 }
 else if (_snapshot.ProviderFor(ProviderKey) is not { } provider)
 {
-    <AppPageState Kind="AppPageStateKind.Error" Title="Unknown source" Message="This source is not in the configured provider catalogue." />
+    <AppPageState Kind="AppPageStateKind.Error" Title="@L["ProviderDetail_UnknownSource"].Value" Message="@L["ProviderDetail_ThisSourceIsNotIn"].Value" />
 }
 else if (string.Equals(Section, "settings", StringComparison.OrdinalIgnoreCase))
 {
@@ -80,7 +81,7 @@ else
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Could not load the source settings.");
-            _loadError = "Start the Engine and retry. Nothing shown here is sample data.";
+            _loadError = L["ProviderDetail_StartTheEngineAndRetry"].Value;
         }
         finally
         {
@@ -198,7 +199,7 @@ else
                               ValueChanged="@(value => draft.Enabled = value)" />
                 <AppSelect Value="@draft.LanguageStrategy"
                            ValueChanged="@(value => draft.LanguageStrategy = value ?? "source")"
-                           Label="Language"
+                           Label="@L["Settings_Language"].Value"
                            Options="@LanguageOptions" />
             </div>
         </AppCard>
@@ -294,12 +295,12 @@ else
             _snapshot = await StateService.LoadAsync();
             ResetDrafts();
             await NotifyChangedAsync();
-            Snackbar.Add("Saved.", AppSeverity.Success);
+            Snackbar.Add(L["PluginPage_Saved"].Value, AppSeverity.Success);
         }
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Could not save provider settings.");
-            Snackbar.Add("Provider settings could not be saved.", AppSeverity.Error);
+            Snackbar.Add(L["Common_ProviderSettingsCouldNotBe"].Value, AppSeverity.Error);
         }
         finally { _saving = false; }
     }

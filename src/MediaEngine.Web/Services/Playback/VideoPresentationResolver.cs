@@ -63,7 +63,9 @@ public sealed class VideoPresentationResolver(IEngineApiClient api, UIOrchestrat
     /// Picks the audio track and subtitle a title starts with from the profile's defaults. A per-title preferred subtitle
     /// ("Set preferred version") always wins. Show subtitles: Never = off; Always = the subtitle language when present;
     /// Auto = the subtitle language, but only when the audio that actually plays is not already in it (otherwise the
-    /// player's own default stays, so forced or default tracks still show).
+    /// player's own default stays, so forced or default tracks still show). Only when the audio is in another language = the
+    /// same, but spoken in one of the profile's languages turns subtitles off. The profile's languages are tried in order,
+    /// so a title with no subtitle in the first choice uses the second.
     /// <paramref name="canSwitchAudio"/> is true only when the player can really change the audio track (it reports every
     /// track); when it cannot, the profile's audio language is never assumed to play and the judgement uses the track that does.
     /// A track with no known language (und, blank) is taken to be in the profile's audio language.
@@ -89,9 +91,11 @@ public sealed class VideoPresentationResolver(IEngineApiClient api, UIOrchestrat
         var playing = audioIndex is int chosen ? audioTracks[chosen]
             : audioTracks.Count == 0 ? null : audioTracks.FirstOrDefault(track => track.IsDefault) ?? audioTracks[0];
         var heardCode = playing is null ? null : LanguageCode(playing.Language) ?? LanguageCode(playing.DisplayName);
-        var heardInSubtitleLanguage = heardCode is null
-            ? LanguageMatches(settings.DefaultSubtitleLanguage, settings.AudioLanguage, null)
-            : LanguageMatches(settings.DefaultSubtitleLanguage, heardCode, null);
+        // The profile's subtitle languages in order of preference: the first choice, then up to two more.
+        var wantedLanguages = SubtitleLanguagesInOrder(settings);
+        var heardInSubtitleLanguage = wantedLanguages.Any(language => heardCode is null
+            ? LanguageMatches(language, settings.AudioLanguage, null)
+            : LanguageMatches(language, heardCode, null));
         if (subtitles.FirstOrDefault(candidate => candidate.IsPreferred) is { } preferred)
         {
             return new(audioIndex, VideoCaptionDecision.Show, preferred.Key);
@@ -101,12 +105,33 @@ public sealed class VideoPresentationResolver(IEngineApiClient api, UIOrchestrat
             return new(audioIndex, VideoCaptionDecision.Off, null);
         }
         var always = string.Equals(settings.ForcedSubtitlesMode, PlaybackPreferenceValues.Always, StringComparison.OrdinalIgnoreCase);
-        var wanted = subtitles.Where(candidate => LanguageMatches(settings.DefaultSubtitleLanguage, candidate.Language, candidate.Label))
-            .OrderBy(candidate => candidate.IsForced).FirstOrDefault();
+        // The first language, in the profile's order, that this title has a subtitle for.
+        var wanted = wantedLanguages
+            .Select(language => subtitles.Where(candidate => LanguageMatches(language, candidate.Language, candidate.Label))
+                .OrderBy(candidate => candidate.IsForced).FirstOrDefault())
+            .FirstOrDefault(candidate => candidate is not null);
+        if (string.Equals(settings.ForcedSubtitlesMode, PlaybackPreferenceValues.ForeignAudioOnly, StringComparison.OrdinalIgnoreCase))
+        {
+            // Only when the audio is in another language: spoken in one of the profile's languages means no subtitles at all.
+            if (heardInSubtitleLanguage)
+            {
+                return new(audioIndex, VideoCaptionDecision.Off, null);
+            }
+            return wanted is null
+                ? new(audioIndex, VideoCaptionDecision.Unchanged, null)
+                : new(audioIndex, VideoCaptionDecision.Show, wanted.Key);
+        }
         return wanted is null || (!always && heardInSubtitleLanguage)
             ? new(audioIndex, VideoCaptionDecision.Unchanged, null)
             : new(audioIndex, VideoCaptionDecision.Show, wanted.Key);
     }
+
+    /// <summary>The subtitle languages a profile asked for, first choice first, with no repeats.</summary>
+    public static IReadOnlyList<string> SubtitleLanguagesInOrder(SubtitleLanguageSettingsDto settings) =>
+        new[] { settings.DefaultSubtitleLanguage }.Concat(settings.AlternateSubtitleLanguages ?? [])
+            .Where(language => !string.IsNullOrWhiteSpace(language))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
     /// <summary>True when a track's language (code, name or label such as "English 5.1") is the language the profile named.</summary>
     public static bool LanguageMatches(string? wanted, string? trackLanguage, string? trackLabel)

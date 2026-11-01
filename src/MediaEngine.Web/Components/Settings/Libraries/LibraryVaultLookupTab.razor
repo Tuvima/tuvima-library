@@ -3,14 +3,15 @@
 @using MediaEngine.Web.Components.Shared
 @inject IEngineApiClient Api
 @inject IAppToastService Toast
+@inject IStringLocalizer<SharedStrings> L
 
 @* The Lookup tab of a Vault-protected library of an ordinary content type (Library pages D15; Vault sections D34): one switch, "Look up details
    online", off by default, with the plain privacy note. Off, nothing about the library leaves the machine; on, titles from it are sent to online services and
    the Engine fetches covers, descriptions and cast like any other library. The switch is the library's own, so Movies and Music in the Vault are set apart. Drawn only for a Vault library, which only someone
    who may see the Vault ever reaches. A phone shows the state and changes nothing. *@
-<section class="vault-lookup" aria-label="Lookup">
-    <h3 class="vault-lookup__heading">Look up details online <AppInfoTip Text="Library can fetch covers, descriptions and cast for this library from online services. To do that it has to send titles to them. Left off, nothing about this library leaves this machine." Label="About online lookup" /></h3>
-    <AppSwitchRow Label="Look up details online"
+<section class="vault-lookup" aria-label="@L["Common_Lookup"].Value">
+    <h3 class="vault-lookup__heading">@L["LibraryVaultLookupTab_LookUpDetailsOnline"] <AppInfoTip Text="@L["LibraryVaultLookupTab_LibraryCanFetchCoversDescriptions"].Value" Label="@L["LibraryVaultLookupTab_AboutOnlineLookup"].Value" /></h3>
+    <AppSwitchRow Label="@L["LibraryVaultLookupTab_LookUpDetailsOnline"].Value"
                   Description="@(_on ? LibraryLookupRules.VaultPrivacyNote : LibraryLookupRules.VaultOffNote)"
                   Value="@_on"
                   Disabled="@(ReadOnly || _saving)"
@@ -18,7 +19,7 @@
     <AppQuietNote data-testid="vault-lookup-privacy">@LibraryLookupRules.VaultPrivacyNote</AppQuietNote>
     @if (ReadOnly)
     {
-        <p class="vault-lookup__note">Use a desktop or tablet to change this.</p>
+        <p class="vault-lookup__note">@L["LibraryVaultLookupTab_UseADesktopOrTablet"]</p>
     }
 </section>
 

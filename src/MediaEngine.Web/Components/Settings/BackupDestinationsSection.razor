@@ -3,31 +3,32 @@
 @using MediaEngine.Web.Services.Settings
 @inject IEngineApiClient ApiClient
 @inject IAppToastService Snackbar
+@inject IStringLocalizer<SharedStrings> L
 
 @if (_settings is not null)
 {
     <div class="backup-destinations" data-testid="backup-destinations">
-        <AppCard Title="Automatic backups">
-            <AppSwitchRow Label="Back up automatically" Value="_settings.Schedule.Enabled" Disabled="@_busy" ValueChanged="SetScheduleEnabledAsync" />
+        <AppCard Title="@L["BackupDestinationsSection_AutomaticBackups"].Value">
+            <AppSwitchRow Label="@L["BackupDestinationsSection_BackUpAutomatically"].Value" Value="_settings.Schedule.Enabled" Disabled="@_busy" ValueChanged="SetScheduleEnabledAsync" />
             @if (_settings.Schedule.Enabled)
             {
                 <div class="backup-destinations__row">
-                    <AppSelect Native="true" Label="How often" Value="@_settings.Schedule.Frequency" Options="@FrequencyOptions" Disabled="@_busy" ValueChanged="SetFrequencyAsync" />
-                    <AppTextField Label="At" InputType="AppInputType.Time" Value="@_settings.Schedule.Time" Immediate="false" Disabled="@_busy" ValueChanged="SetTimeAsync" />
+                    <AppSelect Native="true" Label="@L["BackupDestinationsSection_HowOften"].Value" Value="@_settings.Schedule.Frequency" Options="@FrequencyOptions" Disabled="@_busy" ValueChanged="SetFrequencyAsync" />
+                    <AppTextField Label="@L["BackupDestinationsSection_At"].Value" InputType="AppInputType.Time" Value="@_settings.Schedule.Time" Immediate="false" Disabled="@_busy" ValueChanged="SetTimeAsync" />
                 </div>
                 @if (_settings.NextRunAt is { } next)
                 {
                     <small class="backup-destinations__hint">Next backup: @next.ToLocalTime().ToString("MMM d · h:mm tt")</small>
                 }
             }
-            <small class="backup-destinations__hint">The newest @_settings.KeepLast backups are kept at each destination.</small>
+            <small class="backup-destinations__hint">@L["BackupDestinationsSection_TheNewestBackupsAreKept", _settings.KeepLast]</small>
             @if (_settings.LastRestoreCheckResult is { } check)
             {
-                <small class="backup-destinations__hint" data-testid="restore-check">Monthly restore check: @check</small>
+                <small class="backup-destinations__hint" data-testid="restore-check">@L["BackupDestinationsSection_MonthlyRestoreCheck", check]</small>
             }
         </AppCard>
 
-        <AppCard Title="Where backups go">
+        <AppCard Title="@L["BackupDestinationsSection_WhereBackupsGo"].Value">
             @foreach (var destination in _settings.Destinations)
             {
                 <div class="backup-destinations__destination" data-testid="@($"destination-{destination.Id}")">
@@ -42,12 +43,12 @@
                     <div class="backup-destinations__actions">
                         @if (destination.Id != BackupDestinationIds.Local)
                         {
-                            <AppSwitchRow Label="On" Value="destination.Enabled" Disabled="@_busy" ValueChanged="@(on => SetDestinationAsync(destination.Id, on))" />
+                            <AppSwitchRow Label="@L["BackupDestinationsSection_On"].Value" Value="destination.Enabled" Disabled="@_busy" ValueChanged="@(on => SetDestinationAsync(destination.Id, on))" />
                         }
-                        <AppButton Label="Test" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="@(() => TestAsync(destination.Id))" />
+                        <AppButton Label="@L["Common_Test"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="@(() => TestAsync(destination.Id))" />
                         @if (destination.Removable)
                         {
-                            <AppButton Label="Remove" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Warning" Disabled="@_busy" OnClick="@(() => RemoveAsync(destination.Id))" />
+                            <AppButton Label="@L["Common_Remove"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Warning" Disabled="@_busy" OnClick="@(() => RemoveAsync(destination.Id))" />
                         }
                     </div>
                 </div>
@@ -55,16 +56,16 @@
             @if (_adding)
             {
                 <div class="backup-destinations__add" data-testid="add-destination">
-                    <AppSelect Native="true" Label="Kind of destination" Value="@_new.Kind" Options="@KindOptions" Disabled="@_busy" ValueChanged="@(value => _new.Kind = value ?? BackupDestinationKinds.Folder)" />
-                    <AppTextField Label="Name" Value="@_new.Name" ValueChanged="@(value => _new.Name = value ?? "")" />
+                    <AppSelect Native="true" Label="@L["BackupDestinationsSection_KindOfDestination"].Value" Value="@_new.Kind" Options="@KindOptions" Disabled="@_busy" ValueChanged="@(value => _new.Kind = value ?? BackupDestinationKinds.Folder)" />
+                    <AppTextField Label="@L["Users_ColName"].Value" Value="@_new.Name" ValueChanged="@(value => _new.Name = value ?? "")" />
                     <AppTextField Label="@LocationLabel" Value="@_new.Location" ValueChanged="@(value => _new.Location = value ?? "")" />
                     @if (_new.Kind == BackupDestinationKinds.S3)
                     {
                         <div class="backup-destinations__row">
-                            <AppTextField Label="Bucket" Value="@_new.Bucket" ValueChanged="@(value => _new.Bucket = value)" />
-                            <AppTextField Label="Region (optional)" Value="@_new.Region" ValueChanged="@(value => _new.Region = value)" />
+                            <AppTextField Label="@L["BackupDestinationsSection_Bucket"].Value" Value="@_new.Bucket" ValueChanged="@(value => _new.Bucket = value)" />
+                            <AppTextField Label="@L["BackupDestinationsSection_RegionOptional"].Value" Value="@_new.Region" ValueChanged="@(value => _new.Region = value)" />
                         </div>
-                        <AppTextField Label="Folder inside the bucket (optional)" Value="@_new.Prefix" ValueChanged="@(value => _new.Prefix = value)" />
+                        <AppTextField Label="@L["BackupDestinationsSection_FolderInsideTheBucketOptional"].Value" Value="@_new.Prefix" ValueChanged="@(value => _new.Prefix = value)" />
                     }
                     @if (BackupDestinationKinds.IsWeb(_new.Kind))
                     {
@@ -76,19 +77,19 @@
                         {
                             <AppSwitchRow Label="@($"Send backups to {host}")" Value="_confirmed" ValueChanged="@(on => _confirmed = on)" />
                         }
-                        <small class="backup-destinations__hint">Backups are sent as ordinary files, not encrypted, so keep the destination safe. The login is kept encrypted on this computer and is never shown again.</small>
+                        <small class="backup-destinations__hint">@L["BackupDestinationsSection_BackupsAreSentAsOrdinary"]</small>
                     }
                     <div class="backup-destinations__actions">
-                        <AppButton Label="Add destination" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_busy || !CanAdd)" OnClick="AddAsync" />
-                        <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="@(() => _adding = false)" />
+                        <AppButton Label="@L["BackupDestinationsSection_AddDestination"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_busy || !CanAdd)" OnClick="AddAsync" />
+                        <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="@(() => _adding = false)" />
                     </div>
                 </div>
             }
             else
             {
-                <AppButton Label="Add a destination" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_busy" OnClick="StartAdding" />
+                <AppButton Label="@L["BackupDestinationsSection_AddADestination"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_busy" OnClick="StartAdding" />
             }
-            <AppButton Label="Back up now" StartIcon="@AppMaterialIcons.Outlined.Backup" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_busy" Loading="@_busy" OnClick="RunNowAsync" />
+            <AppButton Label="@L["BackupDestinationsSection_BackUpNow"].Value" StartIcon="@AppMaterialIcons.Outlined.Backup" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_busy" Loading="@_busy" OnClick="RunNowAsync" />
             @if (_lastRun is not null)
             {
                 <ul class="backup-destinations__outcomes" data-testid="run-outcomes">
@@ -100,16 +101,16 @@
             }
         </AppCard>
 
-        <AppCard Title="Restore from a destination">
-            <AppSelect Native="true" Label="Destination" Value="@_restoreDestination" Options="@DestinationOptions" Disabled="@_busy" ValueChanged="LoadDestinationBackupsAsync" />
+        <AppCard Title="@L["BackupDestinationsSection_RestoreFromADestination"].Value">
+            <AppSelect Native="true" Label="@L["Common_Destination"].Value" Value="@_restoreDestination" Options="@DestinationOptions" Disabled="@_busy" ValueChanged="LoadDestinationBackupsAsync" />
             @if (_held.Count > 0)
             {
-                <AppSelect Native="true" Label="Backup" Value="@_restoreName" Options="@HeldOptions" Disabled="@_busy" ValueChanged="@(value => _restoreName = value)" />
-                <AppButton Label="Restore this backup" StartIcon="@AppMaterialIcons.Outlined.Restore" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Warning" Disabled="@(_busy || string.IsNullOrEmpty(_restoreName))" OnClick="RestoreAsync" />
+                <AppSelect Native="true" Label="@L["BackupDestinationsSection_Backup"].Value" Value="@_restoreName" Options="@HeldOptions" Disabled="@_busy" ValueChanged="@(value => _restoreName = value)" />
+                <AppButton Label="@L["BackupDestinationsSection_RestoreThisBackup"].Value" StartIcon="@AppMaterialIcons.Outlined.Restore" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Warning" Disabled="@(_busy || string.IsNullOrEmpty(_restoreName))" OnClick="RestoreAsync" />
             }
             else if (_restoreLoaded)
             {
-                <small class="backup-destinations__hint">Nothing found at this destination.</small>
+                <small class="backup-destinations__hint">@L["BackupDestinationsSection_NothingFoundAtThisDestination"]</small>
             }
         </AppCard>
     </div>
@@ -166,7 +167,7 @@
     {
         _busy = true;
         var saved = await ApiClient.UpdateBackupSettingsAsync(request);
-        if (saved is null) Snackbar.Add("The backup settings could not be saved.", AppSeverity.Error);
+        if (saved is null) Snackbar.Add(L["BackupDestinationsSection_TheBackupSettingsCouldNot"].Value, AppSeverity.Error);
         else _settings = saved;
         _busy = false;
     }
@@ -204,13 +205,13 @@
         var saved = await ApiClient.SaveBackupDestinationAsync(_new);
         if (saved is null)
         {
-            Snackbar.Add("The destination was not added. Check the details, then try again.", AppSeverity.Error);
+            Snackbar.Add(L["BackupDestinationsSection_TheDestinationWasNotAdded"].Value, AppSeverity.Error);
         }
         else
         {
             _settings = saved;
             _adding = false;
-            Snackbar.Add("Destination added. Use Test to check it.", AppSeverity.Success);
+            Snackbar.Add(L["BackupDestinationsSection_DestinationAddedUseTestTo"].Value, AppSeverity.Success);
         }
         _busy = false;
     }
@@ -219,7 +220,7 @@
     {
         _busy = true;
         if (await ApiClient.RemoveBackupDestinationAsync(id)) _settings = await ApiClient.GetBackupSettingsAsync() ?? _settings;
-        else Snackbar.Add("The destination could not be removed.", AppSeverity.Error);
+        else Snackbar.Add(L["BackupDestinationsSection_TheDestinationCouldNotBe"].Value, AppSeverity.Error);
         _busy = false;
     }
 
@@ -235,7 +236,7 @@
     {
         _busy = true;
         _lastRun = await ApiClient.RunBackupNowAsync();
-        if (_lastRun is null) Snackbar.Add("The backup could not be made.", AppSeverity.Error);
+        if (_lastRun is null) Snackbar.Add(L["BackupDestinationsSection_TheBackupCouldNotBe"].Value, AppSeverity.Error);
         else
         {
             Snackbar.Add(_lastRun.AllOk ? "Backup copied everywhere it should go." : "Backup finished, but some copies need attention.", _lastRun.AllOk ? AppSeverity.Success : AppSeverity.Warning);
@@ -260,7 +261,7 @@
         _busy = true;
         var result = await ApiClient.RestoreFromDestinationAsync(new() { DestinationId = _restoreDestination ?? "", Name = _restoreName ?? "" });
         if (result?.Scheduled == true) Snackbar.Add(result.Message, AppSeverity.Warning);
-        else Snackbar.Add("The restore could not be staged. The backup may be damaged or not a Library backup.", AppSeverity.Error);
+        else Snackbar.Add(L["BackupDestinationsSection_TheRestoreCouldNotBe"].Value, AppSeverity.Error);
         _busy = false;
     }
 }

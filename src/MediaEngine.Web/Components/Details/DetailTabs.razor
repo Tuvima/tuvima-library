@@ -1,10 +1,11 @@
-﻿@namespace MediaEngine.Web.Components.Details
+@namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Contracts.Details
+@inject IStringLocalizer<SharedStrings> L
 
 <SurfaceNavigationBar Items="@SurfaceTabs"
                       ActiveKey="@ActiveTab"
                       ActiveKeyChanged="@ActiveTabChanged"
-                      AriaLabel="Detail sections"
+                      AriaLabel="@L["DetailTabs_DetailSections"].Value"
                       Class="detail-surface-navigation" />
 
 @code {

@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Watch
 @using Microsoft.AspNetCore.Components.Forms
 @using MediaEngine.Web.Components.Shared
+@inject IStringLocalizer<SharedStrings> L
 
 @* The video player's Bookmarks panel (video-player-controls-and-bookmarks D6, D7): one click adds a bookmark at the time the panel
    opened, and the title's bookmarks sit below in time order with Play and Delete. "More…" opens the full panel. *@
@@ -11,12 +12,12 @@
         <span>@(_failed ? "Couldn’t save · Try again" : $"Add bookmark here · {PlaybackSeekRail.Time(Position)}")</span>
     </AppNativeButton>
     <div @onkeydown="NoteKeyDown" @onkeydown:stopPropagation="true">
-        <InputText @bind-Value="_note" class="video-bookmark-quick__note" maxlength="200" placeholder="Add a note (optional)" aria-label="Bookmark note" />
+        <InputText @bind-Value="_note" class="video-bookmark-quick__note" maxlength="200" placeholder="@L["VideoBookmarkQuickList_AddANoteOptional"].Value" aria-label="@L["VideoBookmarkQuickList_BookmarkNote"].Value" />
     </div>
-    <ul class="video-bookmark-quick__list" aria-label="Bookmarks">
+    <ul class="video-bookmark-quick__list" aria-label="@L["Glossary_Bookmarks"].Value">
         @if (Bookmarks.Count == 0)
         {
-            <li class="video-bookmark-quick__empty">No bookmarks yet. Click above, or press B while watching.</li>
+            <li class="video-bookmark-quick__empty">@L["VideoBookmarkQuickList_NoBookmarksYetClickAbove"]</li>
         }
         @{ var nearest = NearestId(); }
         @foreach (var bookmark in Bookmarks)
@@ -29,21 +30,21 @@
                 </span>
                 @if (_confirmId == bookmark.Id)
                 {
-                    <AppNativeButton Type="button" Class="video-bookmark-quick__action is-danger" OnClick="@(() => DeleteAsync(bookmark))" AriaLabel="Confirm delete">Delete?</AppNativeButton>
-                    <AppNativeButton Type="button" Class="video-bookmark-quick__action" OnClick="@(() => _confirmId = null)" AriaLabel="Keep bookmark">Keep</AppNativeButton>
+                    <AppNativeButton Type="button" Class="video-bookmark-quick__action is-danger" OnClick="@(() => DeleteAsync(bookmark))" AriaLabel="@L["Common_ConfirmDelete"].Value">@L["Common_Delete3"]</AppNativeButton>
+                    <AppNativeButton Type="button" Class="video-bookmark-quick__action" OnClick="@(() => _confirmId = null)" AriaLabel="@L["VideoBookmarkQuickList_KeepBookmark"].Value">@L["VideoBookmarkQuickList_Keep"]</AppNativeButton>
                 }
                 else
                 {
-                    <AppNativeButton Type="button" Class="video-bookmark-quick__action" OnClick="@(() => Play.InvokeAsync(bookmark.Seconds))" AriaLabel="@($"Play from {PlaybackSeekRail.Time(bookmark.Seconds)}")">Play</AppNativeButton>
+                    <AppNativeButton Type="button" Class="video-bookmark-quick__action" OnClick="@(() => Play.InvokeAsync(bookmark.Seconds))" AriaLabel="@($"Play from {PlaybackSeekRail.Time(bookmark.Seconds)}")">@L["Common_Play"]</AppNativeButton>
                     @if (CanDelete(bookmark))
                     {
-                        <AppNativeButton Type="button" Class="video-bookmark-quick__action" OnClick="@(() => _confirmId = bookmark.Id)" AriaLabel="@($"Delete bookmark at {PlaybackSeekRail.Time(bookmark.Seconds)}")">Delete</AppNativeButton>
+                        <AppNativeButton Type="button" Class="video-bookmark-quick__action" OnClick="@(() => _confirmId = bookmark.Id)" AriaLabel="@($"Delete bookmark at {PlaybackSeekRail.Time(bookmark.Seconds)}")">@L["Common_Delete"]</AppNativeButton>
                     }
                 }
             </li>
         }
     </ul>
-    <AppNativeButton Type="button" Class="video-bookmark-quick__more" OnClick="More">More…</AppNativeButton>
+    <AppNativeButton Type="button" Class="video-bookmark-quick__more" OnClick="More">@L["VideoBookmarkQuickList_More"]</AppNativeButton>
 </div>
 
 @code {

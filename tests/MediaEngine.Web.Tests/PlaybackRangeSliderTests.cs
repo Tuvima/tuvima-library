@@ -3,7 +3,7 @@ using MediaEngine.Web.Components.Shared;
 
 namespace MediaEngine.Web.Tests;
 
-public sealed class AppRangeSliderTests : BunitContext
+public sealed class AppRangeSliderTests : LocalizedBunitContext
 {
     [Fact]
     public void BareAppearancePropagatesThroughControlStripWithoutChangingSurfaceRecipe()

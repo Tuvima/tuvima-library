@@ -181,7 +181,7 @@ public sealed class DashboardFirstRunExperienceTests
     }
 
     private static string Read(string relativePath) =>
-        File.ReadAllText(Path.Combine(
+        LocalizedSource.ReadAllText(Path.Combine(
             FindRepoRoot(),
             relativePath.Replace('/', Path.DirectorySeparatorChar)));
 

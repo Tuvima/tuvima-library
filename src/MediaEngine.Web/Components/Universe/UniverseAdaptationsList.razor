@@ -1,9 +1,10 @@
 @namespace MediaEngine.Web.Components.Universe
 @using MediaEngine.Contracts.Universe
+@inject IStringLocalizer<SharedStrings> L
 
 @* "Title — Based on Source": one row per adaptation relationship the Library records between things in this Universe, with
    the source it was learned from under the line. *@
-<ul class="universe-adaptations" aria-label="Adaptations">
+<ul class="universe-adaptations" aria-label="@L["Universe_ModeAdaptations"].Value">
     @foreach (var row in Adaptations)
     {
         var adaptation = row.Adaptation;

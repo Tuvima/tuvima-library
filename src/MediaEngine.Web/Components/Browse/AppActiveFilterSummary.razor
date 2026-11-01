@@ -1,8 +1,9 @@
 @namespace MediaEngine.Web.Components.Browse
+@inject IStringLocalizer<SharedStrings> L
 
 @if (Items.Count > 0)
 {
-    <div class="app-active-filter-summary" aria-label="Active filters">
+    <div class="app-active-filter-summary" aria-label="@L["AppActiveFilterSummary_ActiveFilters"].Value">
         @foreach (var item in Items)
         {
             <AppNativeButton Type="button"
@@ -17,7 +18,7 @@
         <AppNativeButton Type="button"
                          Class="app-active-filter-summary__clear"
                          OnClick="@(() => ClearAll.InvokeAsync())">
-            Clear all
+            @L["Common_ClearAll"]
         </AppNativeButton>
     </div>
 }

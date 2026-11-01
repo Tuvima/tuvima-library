@@ -6,22 +6,23 @@
 @using MediaEngine.Web.Services.Ui
 @inject IEngineApiClient Client
 @inject IAppToastService Snackbar
+@inject IStringLocalizer<SharedStrings> L
 
 @* The files that stayed on disk when their title was deleted from this library. Scans skip them until they are added back, so
    the section is not drawn at all while there are none. Under 600px each row becomes a card (AppTable cards mode). *@
 @if (_files.Count > 0)
 {
     <section class="excluded-files" aria-labelledby="@_headingId">
-        <h4 id="@_headingId" class="excluded-files__title">Excluded files</h4>
-        <p class="excluded-files__hint">These files stayed on disk when their title was deleted. Scans skip them until you add them back.</p>
+        <h4 id="@_headingId" class="excluded-files__title">@L["ExcludedFilesSection_ExcludedFiles"]</h4>
+        <p class="excluded-files__hint">@L["ExcludedFilesSection_TheseFilesStayedOnDisk"]</p>
         <AppTable CardsOn="AppTableCardsMode.Phone" Class="excluded-files__table">
             <thead>
                 <tr>
-                    <th data-card-role="title">File</th>
-                    <th data-card-role="subtitle">Folder</th>
-                    <th data-card-role="value">When</th>
-                    <th>By</th>
-                    <th data-card-role="actions"><span class="sr-only">Actions</span></th>
+                    <th data-card-role="title">@L["Common_File"]</th>
+                    <th data-card-role="subtitle">@L["Common_Folder"]</th>
+                    <th data-card-role="value">@L["Common_When"]</th>
+                    <th>@L["ExcludedFilesSection_By"]</th>
+                    <th data-card-role="actions"><span class="sr-only">@L["ApiKeys_Actions"]</span></th>
                 </tr>
             </thead>
             <tbody>
@@ -35,7 +36,7 @@
                         <td data-card-role="actions">
                             @if (!ReadOnly)
                             {
-                                <AppButton Label="Add back"
+                                <AppButton Label="@L["ExcludedFilesSection_AddBack"].Value"
                                            ButtonStyle="AppButtonStyle.Outlined"
                                            Disabled="@(_busyId is not null)"
                                            Loading="@(_busyId == file.Id)"

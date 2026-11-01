@@ -1,4 +1,5 @@
 @namespace MediaEngine.Web.Components.Shared
+@inject IStringLocalizer<SharedStrings> L
 
 @* The search box and filter menus that sit above a list of cards. Filters are passed in as content so each page chooses its
    own; "Clear filters" appears only while something is narrowing the list. The Library area page reuses this row. *@
@@ -13,7 +14,7 @@
     @ChildContent
     @if (Narrowed)
     {
-        <AppButton Label="Clear filters" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.Close" OnClick="@OnClear" />
+        <AppButton Label="@L["Common_ClearFilters"].Value" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.Close" OnClick="@OnClear" />
     }
 </div>
 

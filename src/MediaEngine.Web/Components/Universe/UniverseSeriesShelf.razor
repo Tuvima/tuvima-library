@@ -5,6 +5,7 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.MediaTiles
 @using MediaEngine.Web.Services.Navigation
+@inject IStringLocalizer<SharedStrings> L
 
 @* One Series (or TV show) of a Universe: its numbered run as a shelf, in the order the Engine gave it, with the entries the
    Library does not hold marked in their place when the person chose to see them, and "Also in this world" underneath. *@
@@ -16,7 +17,7 @@
         </div>
         @if (_seeAllRoute is not null)
         {
-            <a class="universe-series__link" href="@_seeAllRoute">See all @Shelf.ItemCount</a>
+            <a class="universe-series__link" href="@_seeAllRoute">@L["UniverseSeriesShelf_SeeAll", Shelf.ItemCount]</a>
         }
     </header>
 
@@ -32,7 +33,7 @@
                 <div class="@_placeholderClass" role="group" aria-label="@MissingAriaLabel(entry.Missing)" @key="entry.Key">
                     <div class="universe-missing__art" aria-hidden="true">
                         <AppMaterialIcon Icon="@_missingIcon" Size="AppSize.Large" />
-                        <span>Not in library</span>
+                        <span>@L["Common_NotInLibrary"]</span>
                     </div>
                     <div class="universe-missing__caption">
                         <span class="universe-missing__title">@entry.Missing.Label</span>

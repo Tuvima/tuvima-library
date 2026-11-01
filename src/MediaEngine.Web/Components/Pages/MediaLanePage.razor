@@ -2,8 +2,9 @@
 @using MediaEngine.Web.Components.Browse
 @using MediaEngine.Web.Components.MediaHub
 @using MediaEngine.Web.Models.ViewDTOs
+@inject IStringLocalizer<SharedStrings> L
 
-<PageTitle>@Title - Library</PageTitle>
+<PageTitle>@L["Common_Library", Title]</PageTitle>
 
 <MediaSectionShell Title="@Title"
                    NavigationGroups="@ShownNavigationGroups"

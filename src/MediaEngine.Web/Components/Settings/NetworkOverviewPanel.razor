@@ -2,15 +2,16 @@
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="network-panel network-overview">
     <div class="network-panel__actions">
-        <AppButton Label="Test Connection" StartIcon="@AppMaterialIcons.Outlined.NetworkCheck"
+        <AppButton Label="@L["NetworkOverviewPanel_TestConnection"].Value" StartIcon="@AppMaterialIcons.Outlined.NetworkCheck"
                    Tone="AppUiTone.Primary" OnClick="TestAsync" />
     </div>
 
-    <SettingsSectionPanel Title="Connection Status"
-                          Description="A live summary of how devices can reach Library."
+    <SettingsSectionPanel Title="@L["NetworkOverviewPanel_ConnectionStatus"].Value"
+                          Description="@L["NetworkOverviewPanel_ALiveSummaryOfHow"].Value"
                           Icon="@AppMaterialIcons.Outlined.WifiTethering">
         <div class="network-status-grid">
             @StatusCard("Local Access", Status?.LocalAccess ?? "Unavailable", "Devices on your network can reach Library.", AppMaterialIcons.Outlined.Home)

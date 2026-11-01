@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Settings
 @inject UIOrchestratorService Orchestrator
+@inject IStringLocalizer<SharedStrings> L
 
 @* The Usage page of Local AI: which callers used which ability over the last week, and each AI plugin's standing against its
    hourly allowance. AI features are plugins, so every plugin row links to its card on the Plugins page. *@
@@ -10,14 +11,14 @@
     }
     else if (_usage is null)
     {
-        <AppEmptyState Title="Usage unavailable" Message="The Engine could not be asked for Local AI usage." />
+        <AppEmptyState Title="@L["LocalAiUsagePanel_UsageUnavailable"].Value" Message="@L["LocalAiUsagePanel_TheEngineCouldNotBe"].Value" />
     }
     else
     {
-        <AppCard Title="Plugins" Description="Each AI feature is a plugin. Open one to switch it on or off or change when it runs." Density="AppSurfaceDensity.Compact">
+        <AppCard Title="@L["LocalAiUsagePanel_Plugins"].Value" Description="@L["LocalAiUsagePanel_EachAIFeatureIsA"].Value" Density="AppSurfaceDensity.Compact">
             @if (_usage.Plugins.Count == 0)
             {
-                <AppEmptyState Title="No plugin uses Local AI" Message="Plugins that ask for Local AI appear here." />
+                <AppEmptyState Title="@L["LocalAiUsagePanel_NoPluginUsesLocalAI"].Value" Message="@L["LocalAiUsagePanel_PluginsThatAskForLocal"].Value" />
             }
             else
             {
@@ -26,12 +27,12 @@
                     {
                         <li class="local-ai-usage__plugin" @key="plugin.PluginId">
                             <span class="local-ai-usage__plugin-name">@plugin.PluginName</span>
-                            <span class="local-ai-usage__plugin-hour">@plugin.RequestsThisHour of @plugin.RequestsPerHour requests this hour</span>
+                            <span class="local-ai-usage__plugin-hour">@L["LocalAiUsagePanel_OfRequestsThisHour", plugin.RequestsThisHour, plugin.RequestsPerHour]</span>
                             @if (plugin.OverBudget)
                             {
-                                <AppStatusBadge Text="Needs attention" Tone="AppUiTone.Warning" />
+                                <AppStatusBadge Text="@L["Common_NeedsAttention"].Value" Tone="AppUiTone.Warning" />
                             }
-                            <AppButton Label="Open" Href="@($"/settings/plugins?plugin={Uri.EscapeDataString(plugin.PluginId)}")" Size="AppControlSize.Compact" />
+                            <AppButton Label="@L["Common_Open"].Value" Href="@($"/settings/plugins?plugin={Uri.EscapeDataString(plugin.PluginId)}")" Size="AppControlSize.Compact" />
                         </li>
                     }
                 </ul>
@@ -41,18 +42,18 @@
         <AppCard Title="@($"Use in the last {_usage.Days} days")" Density="AppSurfaceDensity.Compact">
             @if (_usage.Rows.Count == 0)
             {
-                <AppEmptyState Title="Nothing yet" Message="Nothing has asked Local AI for anything in this period." />
+                <AppEmptyState Title="@L["Common_NothingYet"].Value" Message="@L["LocalAiUsagePanel_NothingHasAskedLocalAI"].Value" />
             }
             else
             {
                 <AppTable Dense="true" Striped="true" Hover="true">
                     <thead>
                         <tr>
-                            <th>Used by</th>
-                            <th>Ability</th>
-                            <th>Requests</th>
-                            <th>Busy time</th>
-                            <th>Last used</th>
+                            <th>@L["Common_UsedBy"]</th>
+                            <th>@L["LocalAiUsagePanel_Ability"]</th>
+                            <th>@L["LocalAiUsagePanel_Requests"]</th>
+                            <th>@L["LocalAiUsagePanel_BusyTime"]</th>
+                            <th>@L["LocalAiUsagePanel_LastUsed"]</th>
                         </tr>
                     </thead>
                     <tbody>

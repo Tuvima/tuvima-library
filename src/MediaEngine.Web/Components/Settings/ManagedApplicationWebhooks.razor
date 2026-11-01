@@ -6,14 +6,15 @@
 @inject DashboardIdentityClient Identity
 @inject ApprovalFlow Approvals
 @inject ILogger<ManagedApplicationWebhooks> Logger
+@inject IStringLocalizer<SharedStrings> L
 
 <section class="access-form-section application-webhooks">
     <div class="application-webhooks__heading">
         <div>
-            <AppText Typo="AppTypo.subtitle1">Webhooks</AppText>
-            <small>Send signed application events to a receiver you control.</small>
+            <AppText Typo="AppTypo.subtitle1">@L["ManagedApplicationWebhooks_Webhooks"]</AppText>
+            <small>@L["ManagedApplicationWebhooks_SendSignedApplicationEventsTo"]</small>
         </div>
-        <AppButton Label="Add webhook" Size="AppControlSize.Compact" Disabled="@(_loading || _busy || _editing)" OnClick="NewWebhook" />
+        <AppButton Label="@L["ManagedApplicationWebhooks_AddWebhook"].Value" Size="AppControlSize.Compact" Disabled="@(_loading || _busy || _editing)" OnClick="NewWebhook" />
     </div>
 
     @if (!string.IsNullOrWhiteSpace(_error))
@@ -26,11 +27,11 @@
     }
     @if (_loading)
     {
-        <AppProgressBar Indeterminate="true" aria-label="Loading webhooks" />
+        <AppProgressBar Indeterminate="true" aria-label="@L["ManagedApplicationWebhooks_LoadingWebhooks"].Value" />
     }
     else if (_webhooks.Count == 0 && !_editing)
     {
-        <small>No webhooks configured.</small>
+        <small>@L["ManagedApplicationWebhooks_NoWebhooksConfigured"]</small>
     }
 
     @foreach (var webhook in _webhooks)
@@ -45,19 +46,19 @@
                 <AppChip Text="@(webhook.IsEnabled ? StateCardHealth.Text(health.Word) : "Disabled")" Tone="@StateCardHealth.Tone(health.Word)" title="@health.LastProblem" />
             </div>
             <div class="application-webhook__status">
-                <strong>Delivery status</strong>
+                <strong>@L["ManagedApplicationWebhooks_DeliveryStatus"]</strong>
                 <span>@webhook.LastStatus</span>
                 <small>Last attempt @(webhook.LastAttemptAt?.ToLocalTime().ToString("g") ?? "never") · Last success @(webhook.LastSuccessAt?.ToLocalTime().ToString("g") ?? "never")</small>
             </div>
             <div class="application-webhook__deliveries">
-                <strong>Recent deliveries</strong>
+                <strong>@L["ManagedApplicationWebhooks_RecentDeliveries"]</strong>
                 @if (_attemptsUnavailable.Contains(webhook.Id))
                 {
-                    <small>Delivery history could not be loaded.</small>
+                    <small>@L["ManagedApplicationWebhooks_DeliveryHistoryCouldNotBe"]</small>
                 }
                 else if (!_attempts.TryGetValue(webhook.Id, out var attempts) || attempts.Count == 0)
                 {
-                    <small>No deliveries yet</small>
+                    <small>@L["ManagedApplicationWebhooks_NoDeliveriesYet"]</small>
                 }
                 else
                 {
@@ -68,10 +69,10 @@
                                 <span class="application-webhook__attempt-time">@attempt.AttemptedAt.ToLocalTime().ToString("g")</span>
                                 <AppChip Text="@AttemptOutcome(attempt)" Tone="@AttemptTone(attempt)" />
                                 <span>@attempt.Result</span>
-                                <small>Attempt @attempt.AttemptNumber</small>
+                                <small>@L["ManagedApplicationWebhooks_Attempt", attempt.AttemptNumber]</small>
                                 @if (attempt.IsTest)
                                 {
-                                    <AppChip Text="Test" Tone="AppUiTone.Neutral" />
+                                    <AppChip Text="@L["Common_Test"].Value" Tone="AppUiTone.Neutral" />
                                 }
                             </li>
                         }
@@ -83,10 +84,10 @@
                 {
                     <small class="application-webhook__hint">@TurnOnToTest</small>
                 }
-                <AppButton Label="Send test" Size="AppControlSize.Compact" Loading="@(_testingId == webhook.Id)" Disabled="@(_loading || _busy || _editing || !webhook.IsEnabled)" OnClick="@(() => SendTest(webhook))" />
-                <AppButton Label="Edit" Size="AppControlSize.Compact" Disabled="@(_loading || _busy || _editing)" OnClick="@(() => EditWebhook(webhook))" />
-                <AppButton Label="Rotate signing secret" Size="AppControlSize.Compact" Disabled="@(_loading || _busy || _editing)" OnClick="@(() => RotateSecret(webhook))" />
-                <AppButton Label="Delete" Size="AppControlSize.Compact" Tone="AppUiTone.Error" Disabled="@(_loading || _busy || _editing)" OnClick="@(() => DeleteWebhook(webhook))" />
+                <AppButton Label="@L["Common_SendTest"].Value" Size="AppControlSize.Compact" Loading="@(_testingId == webhook.Id)" Disabled="@(_loading || _busy || _editing || !webhook.IsEnabled)" OnClick="@(() => SendTest(webhook))" />
+                <AppButton Label="@L["Common_Edit"].Value" Size="AppControlSize.Compact" Disabled="@(_loading || _busy || _editing)" OnClick="@(() => EditWebhook(webhook))" />
+                <AppButton Label="@L["ManagedApplicationWebhooks_RotateSigningSecret"].Value" Size="AppControlSize.Compact" Disabled="@(_loading || _busy || _editing)" OnClick="@(() => RotateSecret(webhook))" />
+                <AppButton Label="@L["Common_Delete"].Value" Size="AppControlSize.Compact" Tone="AppUiTone.Error" Disabled="@(_loading || _busy || _editing)" OnClick="@(() => DeleteWebhook(webhook))" />
             </div>
         </article>
     }
@@ -95,19 +96,19 @@
     {
         <div class="application-webhook-editor">
             <AppText Typo="AppTypo.subtitle2">@(_editingId.HasValue ? "Edit webhook" : "New webhook")</AppText>
-            <AppTextField @bind-Value="_url" Label="Destination URL" HelpText="Use HTTPS. Credentials, query parameters, fragments, loopback addresses, host-local metadata addresses, and link-local addresses are blocked." FullWidth="true" Disabled="@(_loading || _busy)" />
-            <div class="application-webhook-events" role="group" aria-label="Webhook event types">
-                <strong>Event types</strong>
+            <AppTextField @bind-Value="_url" Label="@L["ManagedApplicationWebhooks_DestinationURL"].Value" HelpText="Use HTTPS. Credentials, query parameters, fragments, loopback addresses, host-local metadata addresses, and link-local addresses are blocked." FullWidth="true" Disabled="@(_loading || _busy)" />
+            <div class="application-webhook-events" role="group" aria-label="@L["ManagedApplicationWebhooks_WebhookEventTypes"].Value">
+                <strong>@L["ManagedApplicationWebhooks_EventTypes"]</strong>
                 @foreach (var eventType in _eventTypes)
                 {
                     <AppCheckbox Value="@_selectedEventTypes.Contains(eventType)" ValueChanged="@((bool value) => ToggleEventType(eventType, value))" Label="@eventType" Disabled="@(_busy || (_selectedEventTypes.Count >= MaxEventTypes && !_selectedEventTypes.Contains(eventType)))" />
                 }
             </div>
-            <AppSwitchRow @bind-Value="_allowLocalNetwork" Disabled="@_busy" Label="Allow private LAN receiver" Description="Allows HTTP only for private network destinations. Host, loopback, link-local, and metadata addresses remain blocked." />
-            <AppSwitchRow @bind-Value="_enabled" Disabled="@_busy" Label="Webhook enabled" Description="Disabled webhooks keep their configuration but do not receive events." />
+            <AppSwitchRow @bind-Value="_allowLocalNetwork" Disabled="@_busy" Label="@L["Common_AllowPrivateLANReceiver"].Value" Description="@L["Common_AllowsHTTPOnlyForPrivate"].Value" />
+            <AppSwitchRow @bind-Value="_enabled" Disabled="@_busy" Label="@L["ManagedApplicationWebhooks_WebhookEnabled"].Value" Description="@L["ManagedApplicationWebhooks_DisabledWebhooksKeepTheirConfiguration"].Value" />
             <div class="application-webhook__actions">
-                <AppButton Label="Cancel" Disabled="@_busy" OnClick="@(() => CancelEdit())" />
-                <AppButton Label="Save webhook" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_loading || _busy || string.IsNullOrWhiteSpace(_url) || _selectedEventTypes.Count == 0)" OnClick="SaveWebhook" />
+                <AppButton Label="@L["Search_Cancel"].Value" Disabled="@_busy" OnClick="@(() => CancelEdit())" />
+                <AppButton Label="@L["ManagedApplicationWebhooks_SaveWebhook"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_loading || _busy || string.IsNullOrWhiteSpace(_url) || _selectedEventTypes.Count == 0)" OnClick="SaveWebhook" />
             </div>
         </div>
     }
@@ -115,7 +116,7 @@
     @if (!string.IsNullOrWhiteSpace(_signingSecret))
     {
         <AppAlert Severity="AppSeverity.Success" Class="application-webhook-secret">
-            <strong>Copy this signing secret now. It will not be shown again.</strong>
+            <strong>@L["ManagedApplicationWebhooks_CopyThisSigningSecretNow"]</strong>
             <code>@_signingSecret</code>
         </AppAlert>
     }
@@ -186,7 +187,7 @@
         catch
         {
             if (IsCurrent(generation, applicationId))
-                _error = "Webhooks could not be loaded. Try reopening the application.";
+                _error = L["ManagedApplicationWebhooks_WebhooksCouldNotBeLoaded"].Value;
         }
         finally
         {
@@ -262,7 +263,7 @@
         {
             Logger.LogWarning(ex, "The test delivery for webhook {WebhookId} could not be sent", webhook.Id);
             if (IsCurrent(generation, applicationId))
-                _error = "The test could not be sent. Try again.";
+                _error = L["ManagedApplicationWebhooks_TheTestCouldNotBe"].Value;
         }
         finally
         {
@@ -342,7 +343,7 @@
         catch
         {
             if (IsCurrent(generation, applicationId))
-                _error = "The webhook could not be saved. Try again.";
+                _error = L["ManagedApplicationWebhooks_TheWebhookCouldNotBe"].Value;
         }
         finally
         {
@@ -379,7 +380,7 @@
         catch
         {
             if (IsCurrent(generation, applicationId))
-                _error = "The signing secret could not be rotated. Try again.";
+                _error = L["ManagedApplicationWebhooks_TheSigningSecretCouldNot"].Value;
         }
         finally
         {
@@ -412,7 +413,7 @@
         catch
         {
             if (IsCurrent(generation, applicationId))
-                _error = "The webhook could not be deleted. Try again.";
+                _error = L["ManagedApplicationWebhooks_TheWebhookCouldNotBe2"].Value;
         }
         finally
         {

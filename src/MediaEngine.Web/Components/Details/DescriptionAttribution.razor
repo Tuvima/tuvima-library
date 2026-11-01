@@ -1,5 +1,6 @@
-﻿@namespace MediaEngine.Web.Components.Details
+@namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Contracts.Details
+@inject IStringLocalizer<SharedStrings> L
 
 @if (Attribution is not null)
 {
@@ -12,7 +13,7 @@
         {
             <span>@SourceLabel</span>
         }
-        <span>text is available under</span>
+        <span>@L["DescriptionAttribution_TextIsAvailableUnder"]</span>
         @if (!string.IsNullOrWhiteSpace(Attribution.LicenseUrl))
         {
             <a href="@Attribution.LicenseUrl" target="_blank" rel="noopener noreferrer">@Attribution.LicenseName</a>
@@ -22,14 +23,14 @@
             <span>@Attribution.LicenseName</span>
         }
         <span>;</span>
-        <span>additional terms may apply.</span>
+        <span>@L["DescriptionAttribution_AdditionalTermsMayApply"]</span>
         @if (Attribution.RetrievedAt is not null)
         {
             <span>Retrieved @Attribution.RetrievedAt.Value.ToString("MMM d, yyyy").</span>
         }
         @if (Attribution.IsModifiedOrSummarized)
         {
-            <span>Modified or summarized for display.</span>
+            <span>@L["DescriptionAttribution_ModifiedOrSummarizedForDisplay"]</span>
         }
     </p>
 }

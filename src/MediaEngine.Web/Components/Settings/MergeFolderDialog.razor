@@ -3,6 +3,7 @@
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Web.Services.Formatting
 @inject IEngineApiClient ApiClient
+@inject IStringLocalizer<SharedStrings> L
 
 @* Merge one existing folder, once, into a managed folder. The honest question first: where the files go, whether the original
    folder is touched, what happens to duplicates and to files Tuvima cannot name yet. "Preview first" shows what would happen,
@@ -17,7 +18,7 @@
 
             @if (Targets.Count == 0)
             {
-                <AppAlert Tone="AppUiTone.Warning">There is no managed folder to merge into yet. Add a managed folder to this library first.</AppAlert>
+                <AppAlert Tone="AppUiTone.Warning">@L["MergeFolderDialog_ThereIsNoManagedFolder"]</AppAlert>
             }
             else if (_showingPreview && _preview is not null)
             {
@@ -30,10 +31,10 @@
                     </p>
                     <ul class="merge-folder__counts">
                         <li><strong>@Count(_preview.ToTransfer)</strong> to @(_mode == "move" ? "move" : "copy") to their standard names</li>
-                        <li><strong>@Count(_preview.AlreadyInTarget)</strong> already in your library (exact copies)</li>
-                        <li><strong>@Count(_preview.NeedsReview)</strong> to the From merge folder, waiting in Review</li>
-                        <li><strong>@Count(_preview.NameCollisions)</strong> will get a numbered name and need Review</li>
-                        <li><strong>@Count(_preview.Skipped)</strong> left where they are</li>
+                        <li><strong>@Count(_preview.AlreadyInTarget)</strong> @L["MergeFolderDialog_AlreadyInYourLibraryExact"]</li>
+                        <li><strong>@Count(_preview.NeedsReview)</strong> @L["MergeFolderDialog_ToTheFromMergeFolder"]</li>
+                        <li><strong>@Count(_preview.NameCollisions)</strong> @L["MergeFolderDialog_WillGetANumberedName"]</li>
+                        <li><strong>@Count(_preview.Skipped)</strong> @L["MergeFolderDialog_LeftWhereTheyAre"]</li>
                     </ul>
                     @if (_preview.SkipReasons.Count > 0)
                     {
@@ -46,7 +47,7 @@
                     }
                     @if (_preview.Samples.Count > 0)
                     {
-                        <h4>Examples</h4>
+                        <h4>@L["Common_Examples"]</h4>
                         <ul class="merge-folder__samples">
                             @foreach (var sample in _preview.Samples)
                             {
@@ -54,7 +55,7 @@
                             }
                         </ul>
                     }
-                    <p class="merge-folder__time">Estimated time: <strong>@FolderJobFormat.Duration(_preview.EstimatedSeconds)</strong>.</p>
+                    <p class="merge-folder__time">@L["Common_EstimatedTime"] <strong>@FolderJobFormat.Duration(_preview.EstimatedSeconds)</strong>.</p>
                     @if (!_preview.Complete)
                     {
                         <AppButton Label="@(_scanning ? "Scanning everything..." : "Scan everything")" ButtonStyle="AppButtonStyle.Outlined"
@@ -65,13 +66,12 @@
             else
             {
                 <p>
-                    Library will bring every media file in <strong>@Path</strong> into the folder you choose, once, with the same naming,
-                    duplicate and tag rules as the rest of your library. To keep feeding a folder over time, use the Import folder instead.
+                    @L["MergeFolderDialog_LibraryWillBringEveryMedia"] <strong>@Path</strong> @L["MergeFolderDialog_IntoTheFolderYouChoose"]
                 </p>
 
                 <fieldset class="merge-folder__group">
-                    <legend>Merge into</legend>
-                    <div role="radiogroup" aria-label="Merge into">
+                    <legend>@L["MergeFolderDialog_MergeInto"]</legend>
+                    <div role="radiogroup" aria-label="@L["MergeFolderDialog_MergeInto"].Value">
                         @foreach (var option in Targets)
                         {
                             var selected = _targetId == option.Id;
@@ -84,7 +84,7 @@
                                     <strong>@option.Name</strong>
                                     @if (option.IsNewMediaFolder)
                                     {
-                                        <em class="merge-folder__tag">New media folder</em>
+                                        <em class="merge-folder__tag">@L["MergeFolderDialog_NewMediaFolder"]</em>
                                     }
                                     <small>@option.Path</small>
                                 </span>
@@ -94,16 +94,16 @@
                 </fieldset>
 
                 <fieldset class="merge-folder__group">
-                    <legend>What happens to the originals</legend>
-                    <div role="radiogroup" aria-label="Copy or move">
+                    <legend>@L["MergeFolderDialog_WhatHappensToTheOriginals"]</legend>
+                    <div role="radiogroup" aria-label="@L["MergeFolderDialog_CopyOrMove"].Value">
                         <AppNativeButton Type="button" role="radio" Class="merge-folder__option"
                                          aria-checked="@(_mode == "copy" ? "true" : "false")"
                                          Disabled="@_starting"
                                          OnClick="@(_ => SelectModeAsync("copy"))">
                             <AppMaterialIcon Icon="@(_mode == "copy" ? AppMaterialIcons.Filled.RadioButtonChecked : AppMaterialIcons.Outlined.RadioButtonUnchecked)" />
                             <span>
-                                <strong>Copy</strong>
-                                <small>Your folder is never changed. The files stay here as well, so they use room on the target's drive too.</small>
+                                <strong>@L["Common_Copy"]</strong>
+                                <small>@L["MergeFolderDialog_YourFolderIsNeverChanged"]</small>
                             </span>
                         </AppNativeButton>
                         @if (CanMove)
@@ -114,21 +114,21 @@
                                              OnClick="@(_ => SelectModeAsync("move"))">
                                 <AppMaterialIcon Icon="@(_mode == "move" ? AppMaterialIcons.Filled.RadioButtonChecked : AppMaterialIcons.Outlined.RadioButtonUnchecked)" />
                                 <span>
-                                    <strong>Move instead of copy</strong>
-                                    <small>Each file is removed from here only after its copy has been checked byte for byte. This frees space on @FolderJobFormat.DriveLabel(Path).</small>
+                                    <strong>@L["MergeFolderDialog_MoveInsteadOfCopy"]</strong>
+                                    <small>@L["MergeFolderDialog_EachFileIsRemovedFrom", FolderJobFormat.DriveLabel(Path)]</small>
                                 </span>
                             </AppNativeButton>
                         }
                     </div>
                     @if (!CanMove)
                     {
-                        <p class="merge-folder__note">Move is not offered because this folder is read-only and Library never changes it.</p>
+                        <p class="merge-folder__note">@L["MergeFolderDialog_MoveIsNotOfferedBecause"]</p>
                     }
                 </fieldset>
 
                 @if (_loading)
                 {
-                    <AppPageState Kind="AppPageStateKind.Loading" Title="Counting files" />
+                    <AppPageState Kind="AppPageStateKind.Loading" Title="@L["Common_CountingFiles"].Value" />
                 }
                 else if (_error is null && _quick is not null)
                 {
@@ -136,7 +136,7 @@
                         <strong>@Count(_quick.TotalFiles) @(_quick.TotalFiles == 1 ? "file" : "files")</strong>, @FolderJobFormat.Bytes(_quick.SourceBytes).
                         @if (_quick.TargetFreeBytes is { } free)
                         {
-                            <text>The target's drive has @FolderJobFormat.Bytes(free) free.</text>
+                            <text>@L["MergeFolderDialog_TheTargetSDriveHas", FolderJobFormat.Bytes(free)]</text>
                         }
                     </p>
                     @if (!string.IsNullOrWhiteSpace(_quick.BlockedReason))
@@ -145,7 +145,7 @@
                     }
                     else if (_quick.TotalFiles == 0)
                     {
-                        <AppAlert Tone="AppUiTone.Warning">There are no media files in this folder to merge.</AppAlert>
+                        <AppAlert Tone="AppUiTone.Warning">@L["MergeFolderDialog_ThereAreNoMediaFiles"]</AppAlert>
                     }
                 }
 
@@ -154,14 +154,13 @@
                         Exact duplicates follow your &ldquo;same file twice&rdquo; setting, which is
                         <em>@(_keepOne ? "Keep one copy" : "Keep both")</em>@(_keepOne ? "." : ", so both copies are kept under different names.")
                     </li>
-                    <li>Files Library cannot name yet (including any it has not finished scanning) go to a folder called <em>From merge</em> inside the target and wait in Review.</li>
+                    <li>@L["MergeFolderDialog_FilesLibraryCannotNameYet"] <em>@L["Common_FromMerge"]</em> @L["MergeFolderDialog_InsideTheTargetAndWait"]</li>
                     <li>
                         Afterwards this folder shows &ldquo;Merged into&rdquo; the target and is no longer scanned, so nothing appears twice.
                         Library never removes the folder itself; you do that when you are ready.
                     </li>
                     <li>
-                        <strong>This cannot be undone automatically.</strong> You can pause or stop at any time: what was copied stays,
-                        and the log lists what remains. Library keeps a full log you can download.
+                        <strong>@L["Common_ThisCannotBeUndoneAutomatically"]</strong> @L["MergeFolderDialog_YouCanPauseOrStop"]
                     </li>
                 </ul>
             }
@@ -170,15 +169,15 @@
     <FooterContent>
         @if (_showingPreview)
         {
-            <AppButton Label="Back" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => _showingPreview = false)" />
+            <AppButton Label="@L["Common_Back"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => _showingPreview = false)" />
         }
-        <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
+        <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
         @if (!_showingPreview)
         {
-            <AppButton Label="Preview first" ButtonStyle="AppButtonStyle.Outlined" Loading="@_previewing"
+            <AppButton Label="@L["Common_PreviewFirst"].Value" ButtonStyle="AppButtonStyle.Outlined" Loading="@_previewing"
                        Disabled="@(!CanContinue)" OnClick="PreviewAsync" />
         }
-        <AppButton Label="Merge" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+        <AppButton Label="@L["MergeFolderDialog_Merge"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
                    Disabled="@(!CanContinue || _quick is null || !string.IsNullOrWhiteSpace(_quick.BlockedReason) || _quick.TotalFiles == 0)"
                    OnClick="Merge" />
     </FooterContent>

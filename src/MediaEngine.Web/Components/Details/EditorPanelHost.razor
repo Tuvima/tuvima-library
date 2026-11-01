@@ -3,6 +3,7 @@
 @implements IDisposable
 @inject IJSRuntime JS
 @inject IAppDialogService Dialogs
+@inject IStringLocalizer<SharedStrings> L
 
 @* The universal editor's window (v2 spec D1, D2): a large modal window over the dimmed page, with one header (title and close), a rail of
    tools on the left (Details, Artwork, Match, only where the item has them), one scroll area for the tool, and a footer whose Cancel and
@@ -31,7 +32,7 @@
         <div class="tl-editor-window__main">
             @if (TitleOverride is null && !_reviewing)
             {
-                <nav class="tl-editor-window__rail" aria-label="Editing tools">
+                <nav class="tl-editor-window__rail" aria-label="@L["Common_EditingTools"].Value">
                     @foreach (var (railTool, label, icon) in RailTools(mode, ShowHistory))
                     {
                         var isOpen = railTool == tool;
@@ -73,7 +74,7 @@
                            Class="tl-editor-window__cancel"
                            Disabled="@flow.Saving"
                            OnClick="@(() => flow.LeaveAsync())">
-                    Cancel
+                    @L["Search_Cancel"]
                 </AppButton>
                 <AppButton ButtonStyle="AppButtonStyle.Filled"
                            Tone="AppUiTone.Primary"

@@ -5,8 +5,9 @@
 @inject IJSRuntime JS
 @implements IAsyncDisposable
 @using MediaEngine.Contracts.Display
+@inject IStringLocalizer<SharedStrings> L
 
-<section class="@RootClass" aria-label="Timeline results" @ref="_root">
+<section class="@RootClass" aria-label="@L["AppTimelineResults_TimelineResults"].Value" @ref="_root">
     <AppTimelineNavigator Periods="@Periods" ActiveKey="@ActiveKey" ActiveChildKey="@_selectedYear" OnJump="JumpPeriodAsync" />
 
     <div class="app-timeline__content">

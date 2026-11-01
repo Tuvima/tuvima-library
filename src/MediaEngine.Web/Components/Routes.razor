@@ -1,5 +1,6 @@
-﻿@using MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Components.Details
 @using MediaEngine.Web.Services.Navigation
+@inject IStringLocalizer<SharedStrings> L
 @* Injected here so the overlay state exists, and watches location changes, before the Router does: its answer for a new
    address is then ready when the Router renders. *@
 @inject DetailsOverlayState Overlay
@@ -19,8 +20,8 @@
             </ChildContent>
             <ErrorContent>
                 <LayoutView Layout="typeof(MediaEngine.Web.Shared.MainLayout)">
-                    <AppErrorState Title="Screen failed to load"
-                                   Message="Something went wrong while rendering this screen."
+                    <AppErrorState Title="@L["Routes_ScreenFailedToLoad"].Value"
+                                   Message="@L["Routes_SomethingWentWrongWhileRendering"].Value"
                                    Details="@context.Message"
                                    Icon="@AppMaterialIcons.Outlined.ReportProblem" />
                 </LayoutView>

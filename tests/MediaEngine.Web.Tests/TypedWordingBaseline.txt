@@ -1,0 +1,31 @@
+# Typed-in wording that still has to move into SharedStrings.resx (file|count). Counts may only go down; delete a line when it reaches 0.
+# What is left: sentences built around a plural or date format (need plural keys), a few lists that are static fields, and one script tag the scanner mistakes for words.
+src/MediaEngine.Web/Components/App.razor|1
+src/MediaEngine.Web/Components/Companion/CompanionScreen.razor|1
+src/MediaEngine.Web/Components/Details/BulkEditPanel.razor|1
+src/MediaEngine.Web/Components/Details/DescriptionAttribution.razor|1
+src/MediaEngine.Web/Components/Details/MediaMembershipDialog.razor|1
+src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor|1
+src/MediaEngine.Web/Components/Listen/PlaybackLyrics.razor|1
+src/MediaEngine.Web/Components/MediaHub/MediaHubPage.razor|1
+src/MediaEngine.Web/Components/Pages/LibraryBrowsePage.razor|2
+src/MediaEngine.Web/Components/Pages/ListenPage.razor|2
+src/MediaEngine.Web/Components/Pages/ReadPage.razor|2
+src/MediaEngine.Web/Components/Pages/ViewContributionsPage.razor|1
+src/MediaEngine.Web/Components/Pages/WatchPage.razor|3
+src/MediaEngine.Web/Components/Profiles/ProfileEditorSheet.razor|1
+src/MediaEngine.Web/Components/Settings/BackupDestinationsSection.razor|1
+src/MediaEngine.Web/Components/Settings/BackupRecoveryPanel.razor|1
+src/MediaEngine.Web/Components/Settings/DocumentRuleEditorDialog.razor|1
+src/MediaEngine.Web/Components/Settings/DocumentTextSettings.razor|1
+src/MediaEngine.Web/Components/Settings/InvitationShare.razor|1
+src/MediaEngine.Web/Components/Settings/Libraries/LibraryFileHandlingTab.razor|1
+src/MediaEngine.Web/Components/Settings/Libraries/MoveToVaultDialog.razor|1
+src/MediaEngine.Web/Components/Settings/Libraries/ViewDuplicatesPanel.razor|2
+src/MediaEngine.Web/Components/Settings/LibraryFoldersPanel.razor|1
+src/MediaEngine.Web/Components/Settings/ManagedApplicationWebhooks.razor|1
+src/MediaEngine.Web/Components/Settings/MergeFolderDialog.razor|1
+src/MediaEngine.Web/Components/Settings/NewIntegrationWizard.razor|2
+src/MediaEngine.Web/Components/Settings/SignedInSessionsSection.razor|1
+src/MediaEngine.Web/Components/Settings/TemporaryPasswordShare.razor|1
+src/MediaEngine.Web/Components/Shared/DeleteFromLibraryDialog.razor|2

@@ -1,14 +1,15 @@
 @namespace MediaEngine.Web.Components.Universe
 @inject IEngineApiClient ApiClient
 @inject IJSRuntime JS
+@inject IStringLocalizer<SharedStrings> L
 <div class="cast-panel">
     <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2" Class="tl-sp-mb-4">
         <AppText Typo="AppTypo.subtitle1" Class="tl-u-color-tl-accent-primary tl-u-font-weight-600 tl-u-flex-1">
-            Cast Comparison
+            @L["CastComparison_CastComparison"]
         </AppText>
-        <AppSwitchRow T="bool" @bind-Value="_multiActorOnly" Label="Multi-actor only"
+        <AppSwitchRow T="bool" @bind-Value="_multiActorOnly" Label="@L["Universe_CastMultiActorOnly"].Value"
                    Color="AppColor.Warning" />
-        <AppTextField T="string" @bind-Value="_search" Placeholder="Search characters..."
+        <AppTextField T="string" @bind-Value="_search" Placeholder="@L["CastComparison_SearchCharacters"].Value"
                       Variant="AppVariant.Outlined" Margin="AppMargin.Dense" Class="tl-u-max-width-200px"
                       Adornment="AppAdornment.Start"
                       AdornmentIcon="@AppMaterialIcons.Filled.Search"
@@ -59,7 +60,7 @@
                     {
                         var performers = character.performers.ToList();
                         <AppText Typo="AppTypo.caption" Class="tl-u-color-tl-accent-primary tl-u-margin-top-8px tl-u-margin-bottom-4px tl-u-font-size-xs tl-u-font-weight-600">
-                            PERFORMERS (@performers.Count)
+                            @L["CastComparison_PERFORMERS", performers.Count]
                         </AppText>
                         <div class="performer-row">
                             @foreach (var performer in performers)
@@ -87,7 +88,7 @@
                     else
                     {
                         <AppText Typo="AppTypo.caption" Class="tl-u-color-hex-444 tl-u-margin-top-8px tl-u-font-size-xs">
-                            No performers linked
+                            @L["CastComparison_NoPerformersLinked"]
                         </AppText>
                     }
                 </div>
@@ -97,13 +98,13 @@
         @if (!FilteredCharacters.Any())
         {
             <AppText Typo="AppTypo.body2" Class="tl-u-color-hex-555 tl-u-text-align-center tl-u-padding-32px-0">
-                No characters match the current filters.
+                @L["CastComparison_NoCharactersMatchTheCurrent"]
             </AppText>
         }
     }
     else if (!_loading)
     {
-        <AppAlert Severity="AppSeverity.Info">No cast data found for this universe.</AppAlert>
+        <AppAlert Severity="AppSeverity.Info">@L["CastComparison_NoCastDataFoundFor"]</AppAlert>
     }
 </div>
 @code {

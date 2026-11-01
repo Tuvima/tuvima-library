@@ -7261,6 +7261,8 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.SetBookmarkPackEna
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.SubtitleLanguageSettingsDto
   DefaultSubtitleLanguage: System.String | nullability=not-null | accessors=get,set
+  AlternateSubtitleLanguages: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  LyricsLanguage: System.String | nullability=not-null | accessors=get,set
   ForcedSubtitlesMode: System.String | nullability=not-null | accessors=get,set
   AudioLanguage: System.String | nullability=not-null | accessors=get,set
   SubtitleSize: System.String | nullability=not-null | accessors=get,set

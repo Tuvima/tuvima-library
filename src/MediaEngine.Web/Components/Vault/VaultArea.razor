@@ -6,6 +6,7 @@
 @inject NavigationManager Nav
 @inject IVaultCatalogue Catalogue
 @inject DashboardSessionAccessor Session
+@inject IStringLocalizer<SharedStrings> L
 
 @* The Vault area (Videos spec D16, D39, D45): the fourth top-level area. The shell is the Blur toggle, Search, the viewing options of
    D24 and the views of D39; Library settings sit inside it for administrators. The main page shows videos only: Recently added with
@@ -16,19 +17,19 @@
 {
     <div class="vault-area" data-vault-area>
         <header class="vault-area__header">
-            <h1 class="vault-area__title">Vault</h1>
+            <h1 class="vault-area__title">@L["Nav_Vault"]</h1>
             <div class="vault-area__tools">
                 <VaultBlurToggle />
-                <AppButton Label="Lock now" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="LockAsync" />
+                <AppButton Label="@L["VaultArea_LockNow"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="LockAsync" />
             </div>
         </header>
 
-        <AppSearchField Label="Search the Vault" HideLabel="true" Placeholder="Search the Vault"
+        <AppSearchField Label="@L["VaultArea_SearchTheVault"].Value" HideLabel="true" Placeholder="@L["VaultArea_SearchTheVault"].Value"
                         Value="@_query" ValueChanged="@(value => { _query = value ?? string.Empty; })" DebounceInterval="250" />
         <VaultSearchGroup Query="@_query" />
 
-        <nav class="vault-area__views" aria-label="Vault views">
-            <AppSegmentedControl Options="@ViewOptions" Value="@_view.Key" ValueChanged="OpenViewAsync" AriaLabel="Vault views" />
+        <nav class="vault-area__views" aria-label="@L["VaultArea_VaultViews"].Value">
+            <AppSegmentedControl Options="@ViewOptions" Value="@_view.Key" ValueChanged="OpenViewAsync" AriaLabel="@L["VaultArea_VaultViews"].Value" />
         </nav>
 
         @if (_view.Key == VaultViews.LibrarySettings)
@@ -40,9 +41,9 @@
             <VaultViewOptions />
             @if (_view.Key == VaultViews.RecentlyAdded && !HasTile)
             {
-                <div class="vault-area__chips" role="group" aria-label="Filter">
-                    <AppSegmentedControl Options="@MatchFilters" Value="@_match" ValueChanged="ChangeMatchAsync" AriaLabel="Matched or unmatched" Size="AppControlSize.Compact" />
-                    <AppSegmentedControl Options="@KindFilters" Value="@_kind" ValueChanged="ChangeKindAsync" AriaLabel="Videos or images" Size="AppControlSize.Compact" />
+                <div class="vault-area__chips" role="group" aria-label="@L["Activity_Filter"].Value">
+                    <AppSegmentedControl Options="@MatchFilters" Value="@_match" ValueChanged="ChangeMatchAsync" AriaLabel="@L["VaultArea_MatchedOrUnmatched"].Value" Size="AppControlSize.Compact" />
+                    <AppSegmentedControl Options="@KindFilters" Value="@_kind" ValueChanged="ChangeKindAsync" AriaLabel="@L["VaultArea_VideosOrImages"].Value" Size="AppControlSize.Compact" />
                 </div>
             }
 
@@ -70,7 +71,7 @@
             }
             else if (!_supported)
             {
-                <AppEmptyState Title="The Vault could not be read" Message="Try again in a moment. If this keeps happening, lock the Vault and unlock it again." />
+                <AppEmptyState Title="@L["VaultArea_TheVaultCouldNotBe"].Value" Message="@L["VaultArea_TryAgainInAMoment"].Value" />
             }
             else if (_items.Count == 0)
             {
@@ -92,7 +93,7 @@
             @if (_items is not null && (_items.Count < _total || _cursor is not null))
             {
                 <div class="vault-area__more">
-                    <AppButton Label="Show more" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" OnClick="ShowMoreAsync" />
+                    <AppButton Label="@L["Common_ShowMore"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" OnClick="ShowMoreAsync" />
                 </div>
             }
         }

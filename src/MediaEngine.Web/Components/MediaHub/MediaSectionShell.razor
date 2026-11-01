@@ -5,6 +5,7 @@
 @implements IDisposable
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="@ShellCssClass">
     @if (ShowMobileNavigation)
@@ -177,18 +178,18 @@
                                                 <div class="media-section-shell__swipe-actions" aria-hidden="@(_swipedRoute == child.Route ? "false" : "true")">
                                                     @if (management.CanRename)
                                                     {
-                                                        <AppNativeButton Type="button" Class="is-rename" AriaLabel="@($"Rename {child.Label}")" OnClick="@(_ => BeginRename(child))">Rename</AppNativeButton>
+                                                        <AppNativeButton Type="button" Class="is-rename" AriaLabel="@($"Rename {child.Label}")" OnClick="@(_ => BeginRename(child))">@L["Common_Rename"]</AppNativeButton>
                                                     }
                                                     @if (management.CanDelete)
                                                     {
-                                                        <AppNativeButton Type="button" Class="is-delete" AriaLabel="@($"Delete {child.Label}")" OnClick="@(_ => BeginDelete(child))">Delete</AppNativeButton>
+                                                        <AppNativeButton Type="button" Class="is-delete" AriaLabel="@($"Delete {child.Label}")" OnClick="@(_ => BeginDelete(child))">@L["Common_Delete"]</AppNativeButton>
                                                     }
                                                 </div>
                                                 <div class="media-section-shell__managed-main">
                                                     @if (_deleteRoute == child.Route)
                                                     {
                                                         <div class="media-section-shell__delete-confirm" role="group" aria-label="@($"Confirm deletion of {child.Label}")">
-                                                            <span>Delete “@child.Label”?</span>
+                                                            <span>@L["Common_Delete2", child.Label]</span>
                                                             <AppNativeButton Type="button" Class="is-confirm" Disabled="@_managing" AriaLabel="@($"Confirm deletion of {child.Label}")" OnClick="@(_ => ConfirmDeleteAsync(child))"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" /></AppNativeButton>
                                                             <AppNativeButton Type="button" Class="is-cancel" Disabled="@_managing" AriaLabel="@($"Cancel deletion of {child.Label}")" OnClick="@(_ => CancelDelete())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" /></AppNativeButton>
                                                         </div>
@@ -225,7 +226,7 @@
                                                             <span>@child.Label</span>
                                                             @if (management.IsSmart)
                                                             {
-                                                                <span class="media-section-shell__smart-badge" title="Smart — membership is controlled by rules">Smart</span>
+                                                                <span class="media-section-shell__smart-badge" title="@L["MediaSectionShell_SmartMembershipIsControlledBy"].Value">@L["Common_Smart"]</span>
                                                             }
                                                             else if (!string.IsNullOrWhiteSpace(child.Meta))
                                                             {
@@ -236,16 +237,16 @@
                                                         <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.MoreVert" AriaLabel="@($"Manage {child.Label}")" Size="AppControlSize.Compact" Class="media-section-shell__manage-menu">
                                                             @if (management.CanRename)
                                                             {
-                                                                <AppMenuItem Label="Rename" Icon="@AppMaterialIcons.Outlined.DriveFileRenameOutline" OnClick="@(() => BeginRename(child))" />
+                                                                <AppMenuItem Label="@L["Common_Rename"].Value" Icon="@AppMaterialIcons.Outlined.DriveFileRenameOutline" OnClick="@(() => BeginRename(child))" />
                                                             }
                                                             @if (management.CanReorder)
                                                             {
-                                                                <AppMenuItem Label="Move up" Icon="@AppMaterialIcons.Outlined.KeyboardArrowUp" OnClick="@(() => MoveManagedItemAsync(child, -1))" />
-                                                                <AppMenuItem Label="Move down" Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" OnClick="@(() => MoveManagedItemAsync(child, 1))" />
+                                                                <AppMenuItem Label="@L["Common_MoveUp"].Value" Icon="@AppMaterialIcons.Outlined.KeyboardArrowUp" OnClick="@(() => MoveManagedItemAsync(child, -1))" />
+                                                                <AppMenuItem Label="@L["Common_MoveDown"].Value" Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" OnClick="@(() => MoveManagedItemAsync(child, 1))" />
                                                             }
                                                             @if (management.CanDelete)
                                                             {
-                                                                <AppMenuItem Label="Delete" Icon="@AppMaterialIcons.Outlined.DeleteOutline" Tone="AppUiTone.Error" DividerBefore="true" OnClick="@(() => BeginDelete(child))" />
+                                                                <AppMenuItem Label="@L["Common_Delete"].Value" Icon="@AppMaterialIcons.Outlined.DeleteOutline" Tone="AppUiTone.Error" DividerBefore="true" OnClick="@(() => BeginDelete(child))" />
                                                             }
                                                         </AppOverflowMenu>
                                                     }
@@ -291,18 +292,18 @@
                             <div class="media-section-shell__swipe-actions" aria-hidden="@(_swipedRoute == item.Route ? "false" : "true")">
                                 @if (management.CanRename)
                                 {
-                                    <AppNativeButton Type="button" Class="is-rename" AriaLabel="@($"Rename {item.Label}")" OnClick="@(_ => BeginRename(item))">Rename</AppNativeButton>
+                                    <AppNativeButton Type="button" Class="is-rename" AriaLabel="@($"Rename {item.Label}")" OnClick="@(_ => BeginRename(item))">@L["Common_Rename"]</AppNativeButton>
                                 }
                                 @if (management.CanDelete)
                                 {
-                                    <AppNativeButton Type="button" Class="is-delete" AriaLabel="@($"Delete {item.Label}")" OnClick="@(_ => BeginDelete(item))">Delete</AppNativeButton>
+                                    <AppNativeButton Type="button" Class="is-delete" AriaLabel="@($"Delete {item.Label}")" OnClick="@(_ => BeginDelete(item))">@L["Common_Delete"]</AppNativeButton>
                                 }
                             </div>
                             <div class="media-section-shell__managed-main">
                                 @if (_deleteRoute == item.Route)
                                 {
                                     <div class="media-section-shell__delete-confirm" role="group" aria-label="@($"Confirm deletion of {item.Label}")">
-                                        <span>Delete “@item.Label”?</span>
+                                        <span>@L["Common_Delete2", item.Label]</span>
                                         <AppNativeButton Type="button" Class="is-confirm" Disabled="@_managing" AriaLabel="@($"Confirm deletion of {item.Label}")" OnClick="@(_ => ConfirmDeleteAsync(item))"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" /></AppNativeButton>
                                         <AppNativeButton Type="button" Class="is-cancel" Disabled="@_managing" AriaLabel="@($"Cancel deletion of {item.Label}")" OnClick="@(_ => CancelDelete())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" /></AppNativeButton>
                                     </div>
@@ -339,7 +340,7 @@
                                         <span>@item.Label</span>
                                         @if (management.IsSmart)
                                         {
-                                            <span class="media-section-shell__smart-badge" title="Smart — membership is controlled by rules">Smart</span>
+                                            <span class="media-section-shell__smart-badge" title="@L["MediaSectionShell_SmartMembershipIsControlledBy"].Value">@L["Common_Smart"]</span>
                                         }
                                         else if (!string.IsNullOrWhiteSpace(item.Meta))
                                         {
@@ -350,16 +351,16 @@
                                     <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.MoreVert" AriaLabel="@($"Manage {item.Label}")" Size="AppControlSize.Compact" Class="media-section-shell__manage-menu">
                                         @if (management.CanRename)
                                         {
-                                            <AppMenuItem Label="Rename" Icon="@AppMaterialIcons.Outlined.DriveFileRenameOutline" OnClick="@(() => BeginRename(item))" />
+                                            <AppMenuItem Label="@L["Common_Rename"].Value" Icon="@AppMaterialIcons.Outlined.DriveFileRenameOutline" OnClick="@(() => BeginRename(item))" />
                                         }
                                         @if (management.CanReorder)
                                         {
-                                            <AppMenuItem Label="Move up" Icon="@AppMaterialIcons.Outlined.KeyboardArrowUp" OnClick="@(() => MoveManagedItemAsync(item, -1))" />
-                                            <AppMenuItem Label="Move down" Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" OnClick="@(() => MoveManagedItemAsync(item, 1))" />
+                                            <AppMenuItem Label="@L["Common_MoveUp"].Value" Icon="@AppMaterialIcons.Outlined.KeyboardArrowUp" OnClick="@(() => MoveManagedItemAsync(item, -1))" />
+                                            <AppMenuItem Label="@L["Common_MoveDown"].Value" Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" OnClick="@(() => MoveManagedItemAsync(item, 1))" />
                                         }
                                         @if (management.CanDelete)
                                         {
-                                            <AppMenuItem Label="Delete" Icon="@AppMaterialIcons.Outlined.DeleteOutline" Tone="AppUiTone.Error" DividerBefore="true" OnClick="@(() => BeginDelete(item))" />
+                                            <AppMenuItem Label="@L["Common_Delete"].Value" Icon="@AppMaterialIcons.Outlined.DeleteOutline" Tone="AppUiTone.Error" DividerBefore="true" OnClick="@(() => BeginDelete(item))" />
                                         }
                                     </AppOverflowMenu>
                                 }

@@ -29,7 +29,7 @@ public sealed partial class UiConsistencyGuardrailTests
     public void AppButtons_UseOnlyTheSharedSemanticApi()
     {
         var violations = RazorFiles()
-            .SelectMany(path => AppButtonTag().Matches(File.ReadAllText(path)).Select(match => (path, match.Value)))
+            .SelectMany(path => AppButtonTag().Matches(LocalizedSource.ReadAllText(path)).Select(match => (path, match.Value)))
             .Where(item => LegacyButtonAttribute().IsMatch(item.Value))
             .Select(item => Relative(item.path))
             .Distinct()
@@ -55,7 +55,7 @@ public sealed partial class UiConsistencyGuardrailTests
         };
 
         var violations = RazorFiles()
-            .Where(path => RawMudButton().IsMatch(File.ReadAllText(path)))
+            .Where(path => RawMudButton().IsMatch(LocalizedSource.ReadAllText(path)))
             .Select(Relative)
             .Where(path => !allowed.Contains(path))
             .ToArray();
@@ -79,7 +79,7 @@ public sealed partial class UiConsistencyGuardrailTests
             .Where(path => path.EndsWith(".css", StringComparison.OrdinalIgnoreCase)
                 || path.EndsWith(".razor", StringComparison.OrdinalIgnoreCase))
             .Where(path => !path.Contains($"wwwroot{Path.DirectorySeparatorChar}vendor{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
-            .Where(path => NumericFontSize().Matches(File.ReadAllText(path)).Any(match => ToPixels(match) < 12d))
+            .Where(path => NumericFontSize().Matches(LocalizedSource.ReadAllText(path)).Any(match => ToPixels(match) < 12d))
             .Select(Relative)
             .ToArray();
 
@@ -209,7 +209,7 @@ public sealed partial class UiConsistencyGuardrailTests
     }
 
     private static string Read(string relativePath) =>
-        File.ReadAllText(Path.Combine(RepoRoot, relativePath));
+        LocalizedSource.ReadAllText(Path.Combine(RepoRoot, relativePath));
 
     private static string Relative(string path) =>
         Path.GetRelativePath(RepoRoot, path).Replace('\\', '/');

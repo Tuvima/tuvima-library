@@ -14,6 +14,7 @@
 @inject IAppToastService Toasts
 @inject ILogger<ProfileDetailPage> Logger
 @inject DeviceContextService DeviceContext
+@inject IStringLocalizer<SharedStrings> L
 
 @* Settings > Manage Profiles > one person, in three tabs: Profile (details, sign-in, roles), Preferences (watching, listening, reading,
    subtitles, Home) and Access & safety (Kid's profile, Vault, administrator PIN, delete). The same for your own profile and, for
@@ -23,13 +24,13 @@
     {
         <a class="profile-detail__back" href="/settings/profiles">
             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowBack" aria-hidden="true" />
-            <span>Manage Profiles</span>
+            <span>@L["ProfileDetailPage_ManageProfiles"]</span>
         </a>
     }
 
     @if (_loading)
     {
-        <div class="profile-detail__loading" role="status" aria-label="Loading profile">
+        <div class="profile-detail__loading" role="status" aria-label="@L["ProfileDetailPage_LoadingProfile"].Value">
             <AppSkeleton Height="96px" />
             <AppSkeleton Height="168px" />
             <AppSkeleton Height="224px" />
@@ -38,7 +39,7 @@
     else if (_person is null)
     {
         <AppAlert Severity="AppSeverity.Warning" Variant="AppVariant.Outlined">
-            This profile couldn't be loaded. Reload the page to try again.
+            @L["ProfileDetailPage_ThisProfileCouldnTBe"]
         </AppAlert>
     }
     else
@@ -48,26 +49,26 @@
             <div class="profile-detail__who">
                 <h2 class="profile-detail__name">@_person.DisplayName</h2>
                 <p class="profile-detail__role">@RoleLabel</p>
-                <ul class="profile-detail__badges" aria-label="Profile badges">
+                <ul class="profile-detail__badges" aria-label="@L["ProfileDetailPage_ProfileBadges"].Value">
                     @if (IsSelf)
                     {
-                        <li class="profile-detail__badge profile-detail__badge--you">You</li>
+                        <li class="profile-detail__badge profile-detail__badge--you">@L["Common_You"]</li>
                     }
                     @if (_managedPerson?.IsHouseholdAdmin == true)
                     {
-                        <li class="profile-detail__badge" data-role="household-administrator">Household administrator</li>
+                        <li class="profile-detail__badge" data-role="household-administrator">@L["Common_HouseholdAdministrator"]</li>
                     }
                     @if (_managedPerson?.IsServerAdmin == true)
                     {
-                        <li class="profile-detail__badge" data-role="server-administrator">Server administrator</li>
+                        <li class="profile-detail__badge" data-role="server-administrator">@L["Common_ServerAdministrator"]</li>
                     }
                     @if (_person.IsRestricted)
                     {
-                        <li class="profile-detail__badge">Kids</li>
+                        <li class="profile-detail__badge">@L["Common_Kids"]</li>
                     }
                     @if (_person.HasPin)
                     {
-                        <li class="profile-detail__badge">PIN</li>
+                        <li class="profile-detail__badge">@L["Common_PIN"]</li>
                     }
                 </ul>
             </div>
@@ -81,38 +82,38 @@
         @if (OnProfileTab)
         {
         <div class="profile-detail__group">
-        <SettingsSectionPanel Title="Profile">
+        <SettingsSectionPanel Title="@L["Common_Profile"].Value">
             <ul class="profile-detail__list" role="list">
                 @if (CanEditDetails)
                 {
                     @* The editor saves through administrator-only Engine actions, so a member does not see a row that could not save. *@
                     <li class="profile-detail__item">
-                        <SettingsNavRow Key="details" Icon="@AppMaterialIcons.Outlined.Person" Title="Profile details" Status="@DetailsStatus" OnClick="OpenEditor" />
+                        <SettingsNavRow Key="details" Icon="@AppMaterialIcons.Outlined.Person" Title="@L["ProfileDetailPage_ProfileDetails"].Value" Status="@DetailsStatus" OnClick="OpenEditor" />
                     </li>
                 }
                 <li class="profile-detail__item">
                     @if (IsSelf)
                     {
                         @* Your own sign-in is looked after in Security (password, two-step codes). *@
-                        <SettingsNavRow Key="sign-in" Icon="@AppMaterialIcons.Outlined.Key" Title="Sign-in" Status="@SignInStatus" Href="/settings/security" />
+                        <SettingsNavRow Key="sign-in" Icon="@AppMaterialIcons.Outlined.Key" Title="@L["Common_SignIn"].Value" Status="@SignInStatus" Href="/settings/security" />
                     }
                     else
                     {
                         @* Read-only: a sign-in is attached, changed and removed by the server administrator in Users & Households. *@
-                        <SettingsNavRow Key="sign-in" Icon="@AppMaterialIcons.Outlined.Key" Title="Sign-in" Status="@SignInStatus"
+                        <SettingsNavRow Key="sign-in" Icon="@AppMaterialIcons.Outlined.Key" Title="@L["Common_SignIn"].Value" Status="@SignInStatus"
                                         Note="Managed by the server administrator in Users & Households."
                                         Href="@(CanOpenUsers ? UsersRoute : null)" Disabled="@(!CanOpenUsers)" ShowChevron="@CanOpenUsers" />
                     }
                 </li>
                 <li class="profile-detail__item">
                     @* Opens the Devices page already narrowed to this person. *@
-                    <SettingsNavRow Key="devices" Icon="@AppMaterialIcons.Outlined.Devices" Title="Devices" Status="Phones, TVs and browsers" Href="@DevicesLink" />
+                    <SettingsNavRow Key="devices" Icon="@AppMaterialIcons.Outlined.Devices" Title="@L["ProfileDetailPage_Devices"].Value" Status="Phones, TVs and browsers" Href="@DevicesLink" />
                 </li>
                 @if (IsAdministrator)
                 {
                     <li class="profile-detail__item">
                         @* Opens the Activity page already narrowed to this person; the Engine logs an administrator looking at someone else's activity. *@
-                        <SettingsNavRow Key="activity" Icon="@AppMaterialIcons.Outlined.History" Title="View activity" Status="What they watched, listened to and read" Href="@ActivityLink" />
+                        <SettingsNavRow Key="activity" Icon="@AppMaterialIcons.Outlined.History" Title="@L["ProfileDetailPage_ViewActivity"].Value" Status="What they watched, listened to and read" Href="@ActivityLink" />
                     </li>
                 }
             </ul>
@@ -124,28 +125,28 @@
         {
             @if (_forbidden)
             {
-                <AppAlert Severity="AppSeverity.Warning" Variant="AppVariant.Outlined">You can't change this person's settings.</AppAlert>
+                <AppAlert Severity="AppSeverity.Warning" Variant="AppVariant.Outlined">@L["Common_YouCanTChangeThis"]</AppAlert>
             }
             else
             {
                 @* Each part is the page it used to be, now a section of this tab. An old link such as Playback#subtitles lands on its part. *@
                 <section id="playback" class="profile-detail__preferences" aria-labelledby="profile-prefs-watching">
-                    <h2 id="profile-prefs-watching" class="profile-detail__section-heading">Watching</h2>
+                    <h2 id="profile-prefs-watching" class="profile-detail__section-heading">@L["ProfileDetailPage_Watching"]</h2>
                     <PlaybackSettingsPage ProfileId="@ProfileId" Embedded="true" />
                 </section>
                 <section id="listening" class="profile-detail__preferences" aria-labelledby="profile-prefs-listening">
-                    <h2 id="profile-prefs-listening" class="profile-detail__section-heading">Listening</h2>
+                    <h2 id="profile-prefs-listening" class="profile-detail__section-heading">@L["ProfileDetailPage_Listening"]</h2>
                     <ListeningSettingsPage ProfileId="@ProfileId" Embedded="true" />
                 </section>
                 <section id="reading" class="profile-detail__preferences" aria-labelledby="profile-prefs-reading">
-                    <h2 id="profile-prefs-reading" class="profile-detail__section-heading">Reading</h2>
+                    <h2 id="profile-prefs-reading" class="profile-detail__section-heading">@L["ProfileDetailPage_Reading"]</h2>
                     <ReadingSettingsPage ProfileId="@ProfileId" Embedded="true" />
                 </section>
                 @if (IsSelf)
                 {
                     @* Home shows what the signed-in person's own top banner may show, so it is offered on your own profile only. *@
                     <section id="home" class="profile-detail__preferences" aria-labelledby="profile-prefs-home">
-                        <h2 id="profile-prefs-home" class="profile-detail__section-heading">Home</h2>
+                        <h2 id="profile-prefs-home" class="profile-detail__section-heading">@L["Nav_Home"]</h2>
                         <HomeSettingsPage />
                         <HomeLanesSettings />
                     </section>
@@ -164,20 +165,20 @@
         @if (!OnPreferencesTab && CanManage && _managedPerson is not null && DeviceContext.IsPhone)
         {
             @* A phone shows who is who; roles, access and Delete profile are changed on a computer or tablet. *@
-            <p class="access-phone-note" role="note">Manage on a computer or tablet.</p>
+            <p class="access-phone-note" role="note">@L["Common_ManageOnAComputerOr"]</p>
         }
 
         @if (OnProfileTab && ShowRoles)
         {
             <div class="profile-detail__group" data-profile-section="roles">
-            <SettingsSectionPanel Title="Roles">
+            <SettingsSectionPanel Title="@L["ProfileDetailPage_Roles"].Value">
                 @if (!string.IsNullOrWhiteSpace(_roleError))
                 {
                     <p class="who-page__error" role="alert">@_roleError</p>
                 }
                 <ul class="profile-detail__list" role="list">
                     <li class="profile-detail__item" data-role-switch="household-administrator">
-                        <AppSwitchRow Label="Household administrator"
+                        <AppSwitchRow Label="@L["Common_HouseholdAdministrator"].Value"
                                       Description="@(_householdRole.Reason ?? "Looks after this household's people and what they can open.")"
                                       Value="@_householdRole.On"
                                       ValueChanged="@(on => SetRolesAsync(on, ServerRoleValue))"
@@ -186,7 +187,7 @@
                     @if (_serverRole.Visible)
                     {
                         <li class="profile-detail__item" data-role-switch="server-administrator">
-                            <AppSwitchRow Label="Server administrator"
+                            <AppSwitchRow Label="@L["Common_ServerAdministrator"].Value"
                                           Description="@(_serverRole.Reason ?? "Looks after the whole Library: settings, users and every household.")"
                                           Value="@_serverRole.On"
                                           ValueChanged="@(on => SetRolesAsync(_householdRole.On, on))"
@@ -201,12 +202,12 @@
         @if (OnAccessTab && ShowAccess)
         {
             <div class="profile-detail__group" data-profile-section="access">
-            <SettingsSectionPanel Title="Access">
+            <SettingsSectionPanel Title="@L["Common_Access"].Value">
                 @if (_managedPerson is { IsServerAdmin: true })
                 {
                     <ul class="profile-detail__list" role="list">
                         <li class="profile-detail__item">
-                            <SettingsNavRow Key="access" Icon="@AppMaterialIcons.Outlined.LibraryBooks" Title="Media access"
+                            <SettingsNavRow Key="access" Icon="@AppMaterialIcons.Outlined.LibraryBooks" Title="@L["ProfileDetailPage_MediaAccess"].Value"
                                             Status="Everything" Note="A server administrator can open everything." Disabled="true" ShowChevron="false" />
                         </li>
                     </ul>
@@ -214,11 +215,11 @@
                 else
                 {
                     <div class="profile-detail__kid" data-kid-switch>
-                        <AppSwitchRow Label="Kid's profile"
+                        <AppSwitchRow Label="@L["Common_KidSProfile"].Value"
                                       Value="@(_managedPerson?.IsKids == true)"
                                       ValueChanged="SetKidAsync"
                                       Disabled="@(_kidBusy || KidLocked)" />
-                        <AppInfoTip Label="Kid's profile"
+                        <AppInfoTip Label="@L["Common_KidSProfile"].Value"
                                     Text="@(KidLocked ? "An administrator can't be a Kid's profile." : "A Kid's profile sees only what the household's Kid settings allow, and can't change any access. Set them in Settings > Profiles.")" />
                     </div>
                     @if (!string.IsNullOrWhiteSpace(_kidError))
@@ -236,7 +237,7 @@
                opens administrator settings. Off unless switched on, and only possible once the profile has a PIN. Only on your own
                profile, or by the server administrator. *@
             <div class="profile-detail__group" data-profile-section="pin-protection">
-            <SettingsSectionPanel Title="Administrator PIN">
+            <SettingsSectionPanel Title="@L["Common_AdministratorPIN"].Value">
                 @if (!string.IsNullOrWhiteSpace(_protectionMessage))
                 {
                     <AppAlert Severity="AppSeverity.Success" Variant="AppVariant.Outlined" Dense="true">@_protectionMessage</AppAlert>
@@ -246,7 +247,7 @@
                     <p class="who-page__error" role="alert">@_protectionError</p>
                 }
                 <div class="profile-detail__protection" data-admin-protection="@ProfileId">
-                    <AppSwitchRow Label="Ask for a PIN to open administrator settings"
+                    <AppSwitchRow Label="@L["ProfileDetailPage_AskForAPINTo"].Value"
                                   Description="@ProtectionDescription()"
                                   Value="@(_protection?.Enabled == true)"
                                   ValueChanged="@(on => ToggleProtectionAsync(on))"
@@ -255,11 +256,11 @@
                     {
                         <AppNativeSelect Value="@ProtectionOption()" OnChange="@(value => ProtectionDurationChangedAsync(value.Value?.ToString() ?? "FixedDuration:30"))"
                                          Disabled="@_protectionBusy" aria-label="@($"How long the PIN unlocks administrator settings for {PersonName}")">
-                            <option value="FixedDuration:15">For 15 minutes</option>
-                            <option value="FixedDuration:30">For 30 minutes</option>
-                            <option value="FixedDuration:60">For 1 hour</option>
-                            <option value="UntilProfileSwitch">Until profile switch</option>
-                            <option value="LockOnLeave">Lock when leaving settings</option>
+                            <option value="FixedDuration:15">@L["ProfileDetailPage_For15Minutes"]</option>
+                            <option value="FixedDuration:30">@L["ProfileDetailPage_For30Minutes"]</option>
+                            <option value="FixedDuration:60">@L["ProfileDetailPage_For1Hour"]</option>
+                            <option value="UntilProfileSwitch">@L["ProfileDetailPage_UntilProfileSwitch"]</option>
+                            <option value="LockOnLeave">@L["ProfileDetailPage_LockWhenLeavingSettings"]</option>
                         </AppNativeSelect>
                     }
                 </div>
@@ -274,7 +275,7 @@
                 <ul class="profile-detail__list" role="list">
                     <li class="profile-detail__item">
                         @* The sheet asks what to do with their photos and then deletes; the Delete button in it is the confirmation. *@
-                        <SettingsNavRow Key="delete" Icon="@AppMaterialIcons.Outlined.Delete" Title="Delete profile" Destructive="true" ShowChevron="false" OnClick="OpenDelete" />
+                        <SettingsNavRow Key="delete" Icon="@AppMaterialIcons.Outlined.Delete" Title="@L["Users_DeleteProfileTooltip"].Value" Destructive="true" ShowChevron="false" OnClick="OpenDelete" />
                     </li>
                 </ul>
                 </AppCard>
@@ -409,7 +410,7 @@
         if (on && _person?.HasPin != true)
         {
             _protectionMessage = null;
-            _protectionError = "Set a PIN for this profile first (Profile details), then turn this on.";
+            _protectionError = L["Common_SetAPINForThis"].Value;
             return;
         }
 
@@ -566,7 +567,7 @@
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
             Logger.LogWarning(exception, "Could not refresh the profile list.");
-            _notice = "The change was saved, but the page couldn't be refreshed. Reload the page to see the latest.";
+            _notice = L["ProfileDetailPage_TheChangeWasSavedBut"].Value;
         }
     }
 
@@ -636,7 +637,7 @@
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
             Logger.LogWarning(exception, "Could not refresh the profile after changing the Kid's profile switch.");
-            _kidError = "The change was saved, but the page couldn't be refreshed. Reload the page to see the latest.";
+            _kidError = L["ProfileDetailPage_TheChangeWasSavedBut"].Value;
         }
         finally
         {
@@ -757,7 +758,7 @@
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
             Logger.LogWarning(exception, "Could not refresh the profile details.");
-            _notice = "The change was saved, but the page couldn't be refreshed. Reload the page to see the latest.";
+            _notice = L["ProfileDetailPage_TheChangeWasSavedBut"].Value;
         }
     }
 
@@ -870,14 +871,14 @@
             var unlocked = await Identity.UnlockAdministratorAsync(new GrantAdminUnlockRequest(pin));
             if (unlocked?.Unlocked != true)
             {
-                _unlockError = "That PIN didn't work. Try again.";
+                _unlockError = L["Common_ThatPINDidnTWork"].Value;
                 return;
             }
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
             Logger.LogWarning(exception, "Could not unlock administrator access from a profile page.");
-            _unlockError = "The Engine is unavailable. Try again.";
+            _unlockError = L["Common_TheEngineIsUnavailableTry"].Value;
             return;
         }
         finally

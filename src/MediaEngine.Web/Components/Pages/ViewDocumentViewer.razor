@@ -5,10 +5,11 @@
 @implements IAsyncDisposable
 @inject IEngineApiClient ApiClient
 @inject IJSRuntime JS
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="view-document-viewer" role="dialog" aria-modal="true" aria-label="@Title" tabindex="-1" @ref="_root" @onkeydown="HandleKeyDown">
     <header class="view-document-viewer__bar">
-        <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowBack" Tooltip="Back to Documents" AriaLabel="Close document" OnClick="Close" />
+        <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowBack" Tooltip="@L["Common_BackToDocuments"].Value" AriaLabel="@L["ViewDocumentViewer_CloseDocument"].Value" OnClick="Close" />
         <div class="view-document-viewer__title">
             <h2>@Title</h2>
             <p>@ChipSummary</p>
@@ -16,24 +17,24 @@
         <div class="view-document-viewer__bar-actions">
             @if (HasPrevious)
             {
-                <AppIconButton Icon="@AppMaterialIcons.Outlined.ChevronLeft" Tooltip="Previous document" AriaLabel="Previous document" OnClick="OnPrevious" />
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.ChevronLeft" Tooltip="@L["ViewDocumentViewer_PreviousDocument"].Value" AriaLabel="@L["ViewDocumentViewer_PreviousDocument"].Value" OnClick="OnPrevious" />
             }
             @if (HasNext)
             {
-                <AppIconButton Icon="@AppMaterialIcons.Outlined.ChevronRight" Tooltip="Next document" AriaLabel="Next document" OnClick="OnNext" />
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.ChevronRight" Tooltip="@L["ViewDocumentViewer_NextDocument"].Value" AriaLabel="@L["ViewDocumentViewer_NextDocument"].Value" OnClick="OnNext" />
             }
             @if (CanEditDetails)
             {
-                <AppButton Label="Edit details" StartIcon="@AppMaterialIcons.Outlined.Edit" ButtonStyle="AppButtonStyle.Outlined" OnClick="OnEditDetails" Class="view-document-viewer__edit" />
+                <AppButton Label="@L["Common_EditDetails"].Value" StartIcon="@AppMaterialIcons.Outlined.Edit" ButtonStyle="AppButtonStyle.Outlined" OnClick="OnEditDetails" Class="view-document-viewer__edit" />
             }
-            <AppButton Label="Download original" StartIcon="@AppMaterialIcons.Outlined.Download" ButtonStyle="AppButtonStyle.Outlined"
+            <AppButton Label="@L["ViewDocumentViewer_DownloadOriginal"].Value" StartIcon="@AppMaterialIcons.Outlined.Download" ButtonStyle="AppButtonStyle.Outlined"
                        Href="@OriginalUrl" download="@Item.FileName" Class="view-document-viewer__download" />
         </div>
     </header>
 
     @if (TextNotes.Count > 0)
     {
-        <ul class="view-document-viewer__notes" aria-label="About this document's text">
+        <ul class="view-document-viewer__notes" aria-label="@L["ViewDocumentViewer_AboutThisDocumentSText"].Value">
             @foreach (var note in TextNotes)
             {
                 <li><AppMaterialIcon Icon="@(Item.DocumentInfo?.Encrypted == true ? AppMaterialIcons.Outlined.Lock : AppMaterialIcons.Outlined.Description)" />@note</li>
@@ -43,22 +44,22 @@
 
     @if (_mode == ViewerMode.Pdf)
     {
-        <div class="view-document-viewer__tools" role="toolbar" aria-label="PDF controls">
+        <div class="view-document-viewer__tools" role="toolbar" aria-label="@L["ViewDocumentViewer_PDFControls"].Value">
             <div class="view-document-viewer__tool-group">
-                <AppIconButton Icon="@AppMaterialIcons.Outlined.KeyboardArrowUp" Tooltip="Previous page" AriaLabel="Previous page" Disabled="@(_page <= 1)" OnClick="@(() => GoToAsync(_page - 1))" />
-                <span class="view-document-viewer__page" aria-live="polite">Page @_page of @(_pageCount == 0 ? "…" : _pageCount.ToString())</span>
-                <AppIconButton Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" Tooltip="Next page" AriaLabel="Next page" Disabled="@(_pageCount == 0 || _page >= _pageCount)" OnClick="@(() => GoToAsync(_page + 1))" />
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.KeyboardArrowUp" Tooltip="@L["ViewDocumentViewer_PreviousPage"].Value" AriaLabel="@L["ViewDocumentViewer_PreviousPage"].Value" Disabled="@(_page <= 1)" OnClick="@(() => GoToAsync(_page - 1))" />
+                <span class="view-document-viewer__page" aria-live="polite">@L["Common_PageOf", _page, _pageCount == 0 ? "…" : _pageCount.ToString()]</span>
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" Tooltip="@L["ViewDocumentViewer_NextPage"].Value" AriaLabel="@L["ViewDocumentViewer_NextPage"].Value" Disabled="@(_pageCount == 0 || _page >= _pageCount)" OnClick="@(() => GoToAsync(_page + 1))" />
             </div>
             <div class="view-document-viewer__tool-group">
-                <AppIconButton Icon="@AppMaterialIcons.Outlined.Remove" Tooltip="Zoom out" AriaLabel="Zoom out" OnClick="ZoomOutAsync" />
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.Remove" Tooltip="@L["Common_ZoomOut"].Value" AriaLabel="@L["Common_ZoomOut"].Value" OnClick="ZoomOutAsync" />
                 <span class="view-document-viewer__zoom" aria-live="polite">@_zoom%</span>
-                <AppIconButton Icon="@AppMaterialIcons.Outlined.Add" Tooltip="Zoom in" AriaLabel="Zoom in" OnClick="ZoomInAsync" />
-                <AppIconButton Icon="@AppMaterialIcons.Outlined.FitScreen" Tooltip="Fit to width" AriaLabel="Fit to width" OnClick="FitAsync" />
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.Add" Tooltip="@L["Common_ZoomIn"].Value" AriaLabel="@L["Common_ZoomIn"].Value" OnClick="ZoomInAsync" />
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.FitScreen" Tooltip="@L["ViewDocumentViewer_FitToWidth"].Value" AriaLabel="@L["ViewDocumentViewer_FitToWidth"].Value" OnClick="FitAsync" />
             </div>
             <form class="view-document-viewer__find" role="search" @onsubmit="FindSubmitAsync" @onsubmit:preventDefault="true">
-                <AppNativeInput Type="search" Value="@_find" ValueChanged="@(value => _find = value?.ToString() ?? string.Empty)" Placeholder="Find in this document" AriaLabel="Find in this document" />
-                <AppIconButton Icon="@AppMaterialIcons.Outlined.KeyboardArrowUp" Tooltip="Previous match" AriaLabel="Previous match" Disabled="@(_findTotal == 0)" OnClick="@(() => FindAgainAsync(true))" />
-                <AppIconButton Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" Tooltip="Next match" AriaLabel="Next match" Disabled="@(_findTotal == 0)" OnClick="@(() => FindAgainAsync(false))" />
+                <AppNativeInput Type="search" Value="@_find" ValueChanged="@(value => _find = value?.ToString() ?? string.Empty)" Placeholder="@L["ViewDocumentViewer_FindInThisDocument"].Value" AriaLabel="@L["ViewDocumentViewer_FindInThisDocument"].Value" />
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.KeyboardArrowUp" Tooltip="@L["ViewDocumentViewer_PreviousMatch"].Value" AriaLabel="@L["ViewDocumentViewer_PreviousMatch"].Value" Disabled="@(_findTotal == 0)" OnClick="@(() => FindAgainAsync(true))" />
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown" Tooltip="@L["ViewDocumentViewer_NextMatch"].Value" AriaLabel="@L["ViewDocumentViewer_NextMatch"].Value" Disabled="@(_findTotal == 0)" OnClick="@(() => FindAgainAsync(false))" />
                 <span class="view-document-viewer__find-count" role="status">@FindSummary</span>
             </form>
         </div>
@@ -77,22 +78,22 @@
         <div class="view-document-viewer__text-panel">
             @if (_textLoading)
             {
-                <AppPageState Kind="AppPageStateKind.Loading" Title="Loading the text" Class="view-document-viewer__state" />
+                <AppPageState Kind="AppPageStateKind.Loading" Title="@L["ViewDocumentViewer_LoadingTheText"].Value" Class="view-document-viewer__state" />
             }
             else if (_text is null)
             {
-                <AppPageState Kind="AppPageStateKind.Unavailable" Title="The text could not be shown" Message="Download the original to read it." Class="view-document-viewer__state" />
+                <AppPageState Kind="AppPageStateKind.Unavailable" Title="@L["ViewDocumentViewer_TheTextCouldNotBe"].Value" Message="@L["ViewDocumentViewer_DownloadTheOriginalToRead"].Value" Class="view-document-viewer__state" />
             }
             else if (string.IsNullOrEmpty(_text.Text))
             {
-                <AppPageState Kind="AppPageStateKind.Empty" Title="No readable text to show here" Message="Download the original to open it in another app." Class="view-document-viewer__state" />
+                <AppPageState Kind="AppPageStateKind.Empty" Title="@L["ViewDocumentViewer_NoReadableTextToShow"].Value" Message="@L["ViewDocumentViewer_DownloadTheOriginalToOpen"].Value" Class="view-document-viewer__state" />
             }
             else
             {
-                <article class="view-document-viewer__text" tabindex="0" aria-label="Text of this document">@_text.Text</article>
+                <article class="view-document-viewer__text" tabindex="0" aria-label="@L["ViewDocumentViewer_TextOfThisDocument"].Value">@_text.Text</article>
                 @if (_text.ShownTruncated)
                 {
-                    <p class="view-document-viewer__text-more">Only the first part is shown. Download the original for the rest.</p>
+                    <p class="view-document-viewer__text-more">@L["ViewDocumentViewer_OnlyTheFirstPartIs"]</p>
                 }
             }
         </div>

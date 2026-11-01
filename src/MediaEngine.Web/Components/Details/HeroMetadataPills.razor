@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Contracts.Details
+@inject IStringLocalizer<SharedStrings> L
 
 @{
     var inlineStatItems = InlineStatItems;
@@ -13,7 +14,7 @@
     {
         @if (inlinePrimaryItems.Count > 0)
         {
-        <div class="tl-detail-watch-metadata-row tl-detail-watch-metadata-row--facts" aria-label="Media details">
+        <div class="tl-detail-watch-metadata-row tl-detail-watch-metadata-row--facts" aria-label="@L["HeroMetadataPills_MediaDetails"].Value">
             @foreach (var entry in inlinePrimaryItems.Select((item, index) => new { item, index }))
             {
                 @if (!string.IsNullOrWhiteSpace(entry.item.Route))
@@ -51,7 +52,7 @@
         }
         @if (statItems.Count > 0 || ShouldRenderHeroBrand)
         {
-            <div class="tl-detail-metadata-row" aria-label="Media details">
+            <div class="tl-detail-metadata-row" aria-label="@L["HeroMetadataPills_MediaDetails"].Value">
                 @if (ShouldRenderHeroBrand)
                 {
                     <span class="@HeroBrandBadgeClass"

@@ -88,7 +88,7 @@ public sealed class AuthenticationSettingsUiTests
     private static int CountOccurrences(string source, string value) =>
         source.Split(value, StringSplitOptions.None).Length - 1;
 
-    private static string Read(string relativePath) => File.ReadAllText(Path.Combine(
+    private static string Read(string relativePath) => LocalizedSource.ReadAllText(Path.Combine(
         FindRepoRoot(), relativePath.Replace('/', Path.DirectorySeparatorChar)));
 
     private static string FindRepoRoot()

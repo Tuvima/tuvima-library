@@ -1,12 +1,13 @@
 @namespace MediaEngine.Web.Components.Details
 @implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 @* Edit Background / Edit Logo / Edit Cover over the hero art while Editing Mode is on. Each opens the Artwork section
    below the hero on that slot and reuses the editor's own choose, upload and remove behaviour. Only the slots this item
    can actually hold are offered. *@
 @if (Mode is { ShowsPencils: true } mode && mode.Fields.Loaded && mode.Fields.CanEditArtwork && Slots.Count > 0)
 {
-    <div class="tl-editing-art" role="group" aria-label="Edit hero artwork">
+    <div class="tl-editing-art" role="group" aria-label="@L["EditingHeroArtworkButtons_EditHeroArtwork"].Value">
         @foreach (var slot in Slots)
         {
             var assetType = slot.AssetType;

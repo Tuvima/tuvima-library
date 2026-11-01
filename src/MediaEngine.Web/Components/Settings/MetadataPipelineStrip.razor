@@ -1,52 +1,53 @@
 @namespace MediaEngine.Web.Components.Settings
 @inject MetadataSettingsStateService StateService
+@inject IStringLocalizer<SharedStrings> L
 
 @if (_loading)
 {
     <AppPanel Density="AppSurfaceDensity.Compact" Class="metadata-library-loading">
-        <AppSpinner Indeterminate="true" Size="AppSize.Small" /><span>Loading metadata pipeline…</span>
+        <AppSpinner Indeterminate="true" Size="AppSize.Small" /><span>@L["MetadataPipelineStrip_LoadingMetadataPipeline"]</span>
     </AppPanel>
 }
 else if (LocalOnly)
 {
     <AppPanel Density="AppSurfaceDensity.Compact" Class="metadata-library-local">
         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" />
-        <div><strong>Local metadata only</strong><p>This Personal Space does not send files to catalogue, canonical identity, or enrichment providers.</p></div>
+        <div><strong>@L["MetadataPipelineStrip_LocalMetadataOnly"]</strong><p>@L["MetadataPipelineStrip_ThisPersonalSpaceDoesNot"]</p></div>
     </AppPanel>
 }
 else if (_pipeline is not null)
 {
-    <section class="metadata-library" aria-label="Metadata pipeline summary">
+    <section class="metadata-library" aria-label="@L["MetadataPipelineStrip_MetadataPipelineSummary"].Value">
         <div class="metadata-library__pipeline">
             <div class="metadata-library__stage">
                 <span class="metadata-library__stage-number">1</span>
                 <AppMaterialIcon Icon="@_pipeline.Icon" />
-                <span><strong>@PrimaryProviderSummary</strong><small>Metadata Provider</small></span>
+                <span><strong>@PrimaryProviderSummary</strong><small>@L["MetadataPipelineStrip_MetadataProvider"]</small></span>
             </div>
             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowForward" Class="metadata-library__arrow" />
             <div class="metadata-library__stage">
                 <span class="metadata-library__stage-number">2</span>
                 <span class="metadata-library__wikidata">W</span>
-                <span><strong>Wikidata</strong><small>Canonical Identity</small></span>
+                <span><strong>@L["MetadataPipelineStrip_Wikidata"]</strong><small>@L["MetadataPipelineStrip_CanonicalIdentity"]</small></span>
             </div>
             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowForward" Class="metadata-library__arrow" />
             <div class="metadata-library__stage">
                 <span class="metadata-library__stage-number">3</span>
                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AutoAwesome" />
-                <span><strong>Enrichment</strong><small>@EnrichmentSummary</small></span>
+                <span><strong>@L["AiFeatures_Enrichment"]</strong><small>@EnrichmentSummary</small></span>
             </div>
         </div>
         <AppCard Class="metadata-library__summary">
-            <SettingsSectionHeader Title="Metadata Summary" Icon="@AppMaterialIcons.Outlined.Storage" />
+            <SettingsSectionHeader Title="@L["MetadataPipelineStrip_MetadataSummary"].Value" Icon="@AppMaterialIcons.Outlined.Storage" />
             <ol>
-                <li><span>1</span><div><small>Stage 1 — Metadata Provider</small><strong>@PrimaryProviderSummary</strong></div></li>
-                <li><span>2</span><div><small>Stage 2 — Canonical Identity</small><strong>Wikidata</strong></div></li>
-                <li><span>3</span><div><small>Stage 3 — Enrichment</small><strong>@EnrichmentSummary</strong></div></li>
+                <li><span>1</span><div><small>@L["MetadataPipelineStrip_Stage1MetadataProvider"]</small><strong>@PrimaryProviderSummary</strong></div></li>
+                <li><span>2</span><div><small>@L["MetadataPipelineStrip_Stage2CanonicalIdentity"]</small><strong>@L["MetadataPipelineStrip_Wikidata"]</strong></div></li>
+                <li><span>3</span><div><small>@L["MetadataPipelineStrip_Stage3Enrichment"]</small><strong>@EnrichmentSummary</strong></div></li>
             </ol>
-            <AppButton Label="Manage Metadata Settings" Href="@ManageHref" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" />
+            <AppButton Label="@L["MetadataPipelineStrip_ManageMetadataSettings"].Value" Href="@ManageHref" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" />
         </AppCard>
         <AppPanel Density="AppSurfaceDensity.Compact" Class="metadata-library__inheritance">
-            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" /><span>This library uses the global @MetadataSettingsStateService.MediaTypeLabel(_pipeline.MediaType).ToLowerInvariant() metadata settings.</span>
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" /><span>@L["MetadataPipelineStrip_ThisLibraryUsesTheGlobal", MetadataSettingsStateService.MediaTypeLabel(_pipeline.MediaType).ToLowerInvariant()]</span>
         </AppPanel>
     </section>
 }

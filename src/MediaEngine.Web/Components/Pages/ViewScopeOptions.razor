@@ -1,6 +1,7 @@
 @using MediaEngine.Contracts.LocalAssets
 @using MediaEngine.Domain.PersonalMedia
 @namespace MediaEngine.Web.Components.Pages
+@inject IStringLocalizer<SharedStrings> L
 @* The options of a View scope picker: your own space first, then a "Household" group naming each member, then the Shared Library. *@
 @foreach (var scope in Scopes.Where(value => value.Kind == ViewScopeKind.Mine))
 {
@@ -31,7 +32,7 @@
             }
             @if (household.People.Count > 0)
             {
-                <option value="@($"{ViewScopeKind.OtherShared}:{household.People[0].ProfileId:D}")">Shared Library</option>
+                <option value="@($"{ViewScopeKind.OtherShared}:{household.People[0].ProfileId:D}")">@L["Common_SharedLibrary"]</option>
             }
         </optgroup>
     }

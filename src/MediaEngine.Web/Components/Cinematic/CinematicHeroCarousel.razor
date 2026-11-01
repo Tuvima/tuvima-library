@@ -19,6 +19,7 @@
 @inject PlaybackSessionController Playback
 @inject DeviceContextService DeviceContext
 @implements IAsyncDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 @if (Slides.Count > 0 && DeviceContext.IsPhone)
 {
@@ -89,9 +90,9 @@ else if (Slides.Count > 0)
                     <SupplementalContent>
                         @if (Density == CinematicHeroDensity.CompactAudio && ActiveHero.PreviewItems.Count > 0)
                         {
-                            <div class="cinematic-hero__track-preview" aria-label="Featured album tracks">
+                            <div class="cinematic-hero__track-preview" aria-label="@L["CinematicHeroCarousel_FeaturedAlbumTracks"].Value">
                                 <div class="cinematic-hero__track-preview-heading">
-                                    <span>Tracks</span>
+                                    <span>@L["Common_Tracks"]</span>
                                     @if (ActiveHero.PreviewTotalCount is > 0)
                                     {
                                         <small>@ActiveHero.PreviewTotalCount total</small>
@@ -125,7 +126,7 @@ else if (Slides.Count > 0)
             <div class="cinematic-hero-carousel__controls">
                 <div class="cinematic-hero-carousel__timeline"
                      role="group"
-                     aria-label="Choose featured item">
+                     aria-label="@L["Common_ChooseFeaturedItem"].Value">
                     @for (var index = 0; index < Slides.Count; index++)
                     {
                         var slideIndex = index;
@@ -153,16 +154,16 @@ else if (Slides.Count > 0)
                 <div class="cinematic-hero-carousel__navigation">
                     <AppNativeButton Type="button"
                                      Class="cinematic-hero-carousel__control cinematic-hero-carousel__control--previous"
-                                     AriaLabel="Previous featured item"
-                                     Title="Previous featured item"
+                                     AriaLabel="@L["CinematicHeroCarousel_PreviousFeaturedItem"].Value"
+                                     Title="@L["CinematicHeroCarousel_PreviousFeaturedItem"].Value"
                                      OnClick="PreviousAsync">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronLeft" />
                     </AppNativeButton>
 
                     <AppNativeButton Type="button"
                                      Class="cinematic-hero-carousel__control cinematic-hero-carousel__control--next"
-                                     AriaLabel="Next featured item"
-                                     Title="Next featured item"
+                                     AriaLabel="@L["CinematicHeroCarousel_NextFeaturedItem"].Value"
+                                     Title="@L["CinematicHeroCarousel_NextFeaturedItem"].Value"
                                      OnClick="NextAsync">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" />
                     </AppNativeButton>
@@ -737,14 +738,14 @@ else if (Slides.Count > 0)
     private (bool Saved, MediaReaction Reaction, IReadOnlyList<DetailAction> Menu) Personal => _personal.GetValueOrDefault((Playback.ActiveProfileId, LandingIdentity.Id), (false, MediaReaction.Neutral, []));
     private IReadOnlyList<DetailAction> LandingSecondaryActions => LandingIdentity.Id == Guid.Empty ? [] : [
         new() { Key="my-list", Label=Personal.Saved ? "Remove from My List" : "Add to My List", Icon="favorite", IsSelected=Personal.Saved },
-        new() { Key="reaction-menu", Label="Rate", Icon="thumb_up", IsSelected=Personal.Reaction is MediaReaction.Like or MediaReaction.Love, Children=[new() { Key="reaction-dislike",Label="Not for me",Icon="thumb_down",IsSelected=Personal.Reaction==MediaReaction.Dislike },new() { Key="reaction-like",Label="I like this",Icon="thumb_up",IsSelected=Personal.Reaction is MediaReaction.Like or MediaReaction.Love }] } ];
+        new() { Key="reaction-menu", Label="Rate", Icon="thumb_up", IsSelected=Personal.Reaction is MediaReaction.Like or MediaReaction.Love, Children=[new() { Key="reaction-dislike",Label=L["MediaRateControl_NotForMe"].Value,Icon="thumb_down",IsSelected=Personal.Reaction==MediaReaction.Dislike },new() { Key="reaction-like",Label=L["MediaRateControl_ILikeThis"].Value,Icon="thumb_up",IsSelected=Personal.Reaction is MediaReaction.Like or MediaReaction.Love }] } ];
     // On a phone Rate and the thumbs live in More instead of taking room under the primary button.
     private IReadOnlyList<DetailAction> PhoneMoreActions => LandingSecondaryActions
         .Where(action => action.Key == "reaction-menu")
         .SelectMany(action => action.Children)
         .Concat(LandingOverflowActions)
         .ToList();
-    private IReadOnlyList<DetailAction> LandingOverflowActions => (IsContinuation ? new[] { new DetailAction { Key="play-from-beginning",Label="Restart from beginning",Icon="restart_alt",Route=RestartRoute(ActiveHero.PrimaryNavigationUrl) } } : []).Concat(Personal.Menu.Where(action => action.Key != "edit" && action.Key != "play-from-beginning")).Concat([new DetailAction { Key="go-details",Label="Go to details",Icon="info",Route=ActiveDetailsUrl }]).ToList();
+    private IReadOnlyList<DetailAction> LandingOverflowActions => (IsContinuation ? new[] { new DetailAction { Key="play-from-beginning",Label=L["CinematicHeroCarousel_RestartFromBeginning"].Value,Icon="restart_alt",Route=RestartRoute(ActiveHero.PrimaryNavigationUrl) } } : []).Concat(Personal.Menu.Where(action => action.Key != "edit" && action.Key != "play-from-beginning")).Concat([new DetailAction { Key="go-details",Label=L["CinematicHeroCarousel_GoToDetails"].Value,Icon="info",Route=ActiveDetailsUrl }]).ToList();
     private async Task LoadPersonalAsync() {
         if (Slides.Count == 0) return;
         var identity=LandingIdentity; var profile=Playback.ActiveProfileId; var landingType=LandingEntityType;

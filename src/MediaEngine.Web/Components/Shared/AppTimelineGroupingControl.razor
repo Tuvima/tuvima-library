@@ -1,4 +1,5 @@
 @namespace MediaEngine.Web.Components.Shared
+@inject IStringLocalizer<SharedStrings> L
 <label class="@("app-timeline-grouping" + (Inline ? " app-timeline-grouping--inline" : string.Empty))"><span>@Heading</span>
     @if (Options is { Count: > 0 })
     {
@@ -11,7 +12,7 @@
     }
     else
     {
-        <AppNativeSelect Value="@Value.ToString()" OnChange="Changed" aria-label="@AriaLabel"><option value="Year">Year</option><option value="Decade">Decade</option></AppNativeSelect>
+        <AppNativeSelect Value="@Value.ToString()" OnChange="Changed" aria-label="@AriaLabel"><option value="Year">@L["Common_Year"]</option><option value="Decade">@L["AppTimelineGroupingControl_Decade"]</option></AppNativeSelect>
     }
 </label>
 @code {

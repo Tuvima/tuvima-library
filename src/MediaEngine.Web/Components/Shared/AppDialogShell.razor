@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Services.Ui
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="app-dialog-shell app-dialog-shell--@SizeClass"
      role="@(Modal && Context is null ? "dialog" : "region")"
@@ -12,7 +13,7 @@
                            Size="AppControlSize.Compact"
                            Tone="AppUiTone.Neutral"
                            Class="app-dialog-shell__back"
-                           aria-label="Go back"
+                           aria-label="@L["Common_GoBack"].Value"
                            OnClick="OnBack" />
         }
         @if (HeaderArt is not null)
@@ -44,7 +45,7 @@
                            Size="AppControlSize.Compact"
                            Tone="AppUiTone.Neutral"
                            Class="app-dialog-shell__close"
-                           aria-label="Close dialog"
+                           aria-label="@L["Common_CloseDialog"].Value"
                            OnClick="OnClose" />
         }
     </header>

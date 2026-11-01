@@ -5,6 +5,7 @@
 @inject IEngineApiClient ApiClient
 @inject IAppDialogService Dialogs
 @inject IAppToastService Toasts
+@inject IStringLocalizer<SharedStrings> L
 
 @* The Vault's own library settings, inside the area and not in the normal Libraries list (Videos spec D45). Administrators only:
    the Engine answers "not found" to anyone else, and this component draws nothing unless Vault mode is on. *@
@@ -18,7 +19,7 @@
         }
         else if (_libraries.Count == 0)
         {
-            <AppEmptyState Title="No Vault library yet"
+            <AppEmptyState Title="@L["VaultLibrarySettings_NoVaultLibraryYet"].Value"
                            Message="Add a folder from Settings > Server > Library & Ingestion > Videos, then choose the Vault." />
         }
         else
@@ -28,23 +29,23 @@
                 <AppCard Class="vault-library-settings__card" @key="library.Id">
                     <div class="vault-library-settings__row">
                         <label>
-                            <span>Where details come from</span>
+                            <span>@L["VaultLibrarySettings_WhereDetailsComeFrom"]</span>
                             <AppNativeSelect Value="@SourceFor(library)"
                                              OnChange="@(e => _sources[library.Id] = e.Value?.ToString() ?? "none")"
                                              Disabled="@_busy"
-                                             aria-label="Where details for this library come from">
-                                <option value="none">Nowhere: file names only</option>
-                                <option value="stash_box">A Stash-box server</option>
+                                             aria-label="@L["VaultLibrarySettings_WhereDetailsForThisLibrary"].Value">
+                                <option value="none">@L["VaultLibrarySettings_NowhereFileNamesOnly"]</option>
+                                <option value="stash_box">@L["VaultLibrarySettings_AStashBoxServer"]</option>
                             </AppNativeSelect>
                         </label>
                         <div class="vault-library-settings__actions">
-                            <AppButton Label="Save" Size="AppControlSize.Compact" Disabled="@_busy" OnClick="@(() => SaveAsync(library))" />
-                            <AppButton Label="Remove library" Size="AppControlSize.Compact" Tone="AppUiTone.Error" Disabled="@_busy" OnClick="@(() => RemoveAsync(library))" />
+                            <AppButton Label="@L["Common_Save"].Value" Size="AppControlSize.Compact" Disabled="@_busy" OnClick="@(() => SaveAsync(library))" />
+                            <AppButton Label="@L["VaultLibrarySettings_RemoveLibrary"].Value" Size="AppControlSize.Compact" Tone="AppUiTone.Error" Disabled="@_busy" OnClick="@(() => RemoveAsync(library))" />
                         </div>
                     </div>
                     @if (SourceFor(library) == "stash_box")
                     {
-                        <small>Choosing a server and entering its key arrives with the Vault lookup update. Until then details stay file-name based.</small>
+                        <small>@L["VaultLibrarySettings_ChoosingAServerAndEntering"]</small>
                     }
                 </AppCard>
             }

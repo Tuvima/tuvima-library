@@ -5,6 +5,7 @@
 @inject NavigationManager Navigation
 @inject IAppDialogService DialogService
 @inject LibraryFolderAddService AddService
+@inject IStringLocalizer<SharedStrings> L
 
 @* The Libraries overview (Libraries redesign D2, D13, D15): one table of every library grouped under Watch, Listen, Read, View and (for someone who may open it) the
    Vault, one row per library. The whole row opens the library and ends in a chevron; the name is the real link for the keyboard. A Vault library is listed only inside the Vault area. A library that was just
@@ -15,7 +16,7 @@
 <div class="libs">
     @if (ReadOnly)
     {
-        <p class="libs__note">Use a desktop or tablet to change folders.</p>
+        <p class="libs__note">@L["Common_UseADesktopOrTablet"]</p>
     }
 
     @if (_addError is not null)
@@ -28,25 +29,25 @@
     {
         <div class="libs__toolbar">
             <div class="libs__search">
-                <AppSearchField Label="Search libraries"
+                <AppSearchField Label="@L["LibrariesOverview_SearchLibraries"].Value"
                                 HideLabel="true"
-                                Placeholder="Search libraries"
+                                Placeholder="@L["LibrariesOverview_SearchLibraries"].Value"
                                 Value="@_search"
                                 ValueChanged="@((string? value) => _search = value ?? string.Empty)" />
             </div>
             <div class="libs__filter">
-                <AppSelect Label="Status"
+                <AppSelect Label="@L["Models_Status"].Value"
                            HideLabel="true"
-                           AriaLabel="Filter by status"
+                           AriaLabel="@L["LibrariesOverview_FilterByStatus"].Value"
                            Value="@_status"
                            ValueChanged="@((string? value) => _status = value ?? string.Empty)"
                            Options="StatusOptions"
                            Size="AppControlSize.Compact" />
             </div>
-            <AppLayoutSwitch StorageKey="tuvima.libraries.layout" Value="@_layout" ValueChanged="@(value => _layout = value)" AriaLabel="Libraries layout" />
+            <AppLayoutSwitch StorageKey="tuvima.libraries.layout" Value="@_layout" ValueChanged="@(value => _layout = value)" AriaLabel="@L["LibrariesOverview_LibrariesLayout"].Value" />
             @if (CanAddLibrary)
             {
-                <AppButton Label="Add library"
+                <AppButton Label="@L["Common_AddLibrary"].Value"
                            StartIcon="@AppMaterialIcons.Outlined.Add"
                            ButtonStyle="AppButtonStyle.Filled"
                            Tone="AppUiTone.Primary"
@@ -70,7 +71,7 @@
                 }
                 else
                 {
-                    <span class="libs__group-count">nothing yet</span>
+                    <span class="libs__group-count">@L["LibrariesOverview_NothingYet"]</span>
                     @if (CanAddLibraryIn(area))
                     {
                         <AppButton Label="@($"Add a {area.Label} library")" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" OnClick="@(() => OpenAddLibraryAsync(area.Key))" />
@@ -88,7 +89,7 @@
                                 <Footer>
                                     @if (CanAddFolder && row.Access != LibraryListing.Vault)
                                     {
-                                        <AppButton Label="Add folder" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Text"
+                                        <AppButton Label="@L["Common_AddFolder"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Text"
                                                    aria-label="@($"Add a folder to {row.Name}")" OnClick="@(() => AddFolderAsync(row))" />
                                     }
                                 </Footer>
@@ -103,17 +104,17 @@
                     <caption class="sr-only">@area.Label libraries</caption>
                     <thead>
                         <tr>
-                            <th data-card-role="title">Name</th>
-                            <th data-card-role="subtitle">Content type</th>
-                            <th>Folders and titles</th>
-                            <th data-card-role="value">Status</th>
+                            <th data-card-role="title">@L["Users_ColName"]</th>
+                            <th data-card-role="subtitle">@L["Common_ContentType"]</th>
+                            <th>@L["LibrariesOverview_FoldersAndTitles"]</th>
+                            <th data-card-role="value">@L["Models_Status"]</th>
                             @if (!Simple)
                             {
-                                <th data-card-role="hidden"><span class="sr-only">Open</span></th>
+                                <th data-card-role="hidden"><span class="sr-only">@L["Common_Open"]</span></th>
                             }
                             else if (CanAddFolder)
                             {
-                                <th data-card-role="hidden"><span class="sr-only">Add folder</span></th>
+                                <th data-card-role="hidden"><span class="sr-only">@L["Common_AddFolder"]</span></th>
                             }
                         </tr>
                     </thead>
@@ -154,7 +155,7 @@
                                     <td data-card-role="hidden" class="libs__add-folder">
                                         @if (row.Access != LibraryListing.Vault)
                                         {
-                                            <AppButton Label="Add folder"
+                                            <AppButton Label="@L["Common_AddFolder"].Value"
                                                        StartIcon="@AppMaterialIcons.Outlined.Add"
                                                        ButtonStyle="AppButtonStyle.Text"
                                                        aria-label="@($"Add a folder to {row.Name}")"
@@ -169,7 +170,7 @@
             }
             else if (group.All.Count > 0)
             {
-                <p class="libs__note">No @area.Label libraries match.</p>
+                <p class="libs__note">@L["LibrariesOverview_NoLibrariesMatch", area.Label]</p>
             }
         </section>
     }
@@ -181,7 +182,7 @@
     else
     {
         <p class="libs__note">
-            <a href="/settings/libraries/import">Import folder</a>: @(Configuration.ImportFolderStatus?.Configured == true ? "set" : "not set")
+            <a href="/settings/libraries/import">@L["Common_ImportFolder"]</a>: @(Configuration.ImportFolderStatus?.Configured == true ? "set" : "not set")
         </p>
     }
 </div>

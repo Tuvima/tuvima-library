@@ -1,11 +1,12 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Ingestion
+@inject IStringLocalizer<SharedStrings> L
 
 @* One notice for any list of library additions: shown only while some visible item is waiting for a media tool. *@
 @if (Items.Any(item => IsWaiting(item)))
 {
     <AppAlert Tone="AppUiTone.Info" Class="media-tools-waiting-notice">
-        Some files are waiting for media tools. See <AppLink Href="/settings/tools">Tools and requirements</AppLink>.
+        @L["MediaToolsWaitingNotice_SomeFilesAreWaitingFor"] <AppLink Href="/settings/tools">@L["Common_ToolsAndRequirements"]</AppLink>.
     </AppAlert>
 }
 

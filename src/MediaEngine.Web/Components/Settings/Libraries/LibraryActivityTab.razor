@@ -2,23 +2,24 @@
 @using MediaEngine.Contracts.Library
 @using MediaEngine.Web.Components.Shared
 @inject IEngineApiClient Api
+@inject IStringLocalizer<SharedStrings> L
 
 @* A library's Activity tab (Library pages D16): a filtered view of events the Engine already records for this library only: what was
    added, what needs review, what failed, folder checks, renames, merges and moves. The Engine writes the sentences; this tab lays them out
    with a time, an icon whose colour says the kind, and the sentence. A line that needs review links to Needs Review. *@
-<section class="library-activity" aria-label="Activity">
+<section class="library-activity" aria-label="@L["Common_Activity"].Value">
     @if (_loading)
     {
-        <AppPageState Kind="AppPageStateKind.Loading" Title="Loading activity" />
+        <AppPageState Kind="AppPageStateKind.Loading" Title="@L["Common_LoadingActivity"].Value" />
     }
     else if (_failed)
     {
         <AppPageState Kind="AppPageStateKind.Error"
                       Icon="@AppMaterialIcons.Outlined.CloudOff"
-                      Title="Activity could not be loaded"
-                      Message="Check that the Library server is running, then try again.">
+                      Title="@L["Common_ActivityCouldNotBeLoaded"].Value"
+                      Message="@L["Common_CheckThatTheLibraryServer"].Value">
             <Actions>
-                <AppButton Label="Try again" OnClick="LoadAsync" />
+                <AppButton Label="@L["Common_TryAgain"].Value" OnClick="LoadAsync" />
             </Actions>
         </AppPageState>
     }
@@ -26,12 +27,12 @@
     {
         <AppPageState Kind="AppPageStateKind.Empty"
                       Icon="@AppMaterialIcons.Outlined.History"
-                      Title="Nothing has happened in this library yet"
-                      Message="Scans, imports, renames and anything that needs review will show up here." />
+                      Title="@L["LibraryActivityTab_NothingHasHappenedInThis"].Value"
+                      Message="@L["LibraryActivityTab_ScansImportsRenamesAndAnything"].Value" />
     }
     else
     {
-        <AppList T="LibraryActivityEntryDto" Class="library-activity__list" aria-label="Activity, newest first" data-testid="library-activity-rows">
+        <AppList T="LibraryActivityEntryDto" Class="library-activity__list" aria-label="@L["Common_ActivityNewestFirst"].Value" data-testid="library-activity-rows">
             @foreach (var entry in _entries)
             {
                 <AppListItem T="LibraryActivityEntryDto" Class="library-activity__item">
@@ -42,7 +43,7 @@
                             @entry.Text
                             @if (entry.NeedsReview && !string.IsNullOrWhiteSpace(entry.Route))
                             {
-                                <AppLink Href="@entry.Route" Class="library-activity__link">Needs review</AppLink>
+                                <AppLink Href="@entry.Route" Class="library-activity__link">@L["Ingestion_ActivityReview"]</AppLink>
                             }
                         </span>
                     </div>

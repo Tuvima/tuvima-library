@@ -196,6 +196,6 @@ public sealed class NetworkSettingsUiTests
         Assert.DoesNotContain("private network until the first administrator", stage, StringComparison.Ordinal);
     }
 
-    private static string Read(string relativePath) => File.ReadAllText(
+    private static string Read(string relativePath) => LocalizedSource.ReadAllText(
         Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", relativePath)));
 }

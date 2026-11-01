@@ -3,30 +3,31 @@
 @inject IEngineApiClient ApiClient
 @inject IAppToastService Snackbar
 @inject IAppDialogService DialogService
+@inject IStringLocalizer<SharedStrings> L
 
-<AppCard Title="Auto-filing rules" Description="@RulesDescription">
+<AppCard Title="@L["Common_AutoFilingRules"].Value" Description="@RulesDescription">
     @if (ReadOnly)
     {
-        <p class="view-rules__note" role="note">Edit on a computer. Your rules still run on every new document.</p>
+        <p class="view-rules__note" role="note">@L["DocumentRulesSettings_EditOnAComputerYour"]</p>
     }
 
     @if (_loading)
     {
-        <p role="status">Loading your rules…</p>
+        <p role="status">@L["DocumentRulesSettings_LoadingYourRules"]</p>
     }
     else if (_rules is null)
     {
-        <AppAlert Tone="AppUiTone.Error">The rules could not be loaded. Documents may be turned off for your profile.</AppAlert>
+        <AppAlert Tone="AppUiTone.Error">@L["DocumentRulesSettings_TheRulesCouldNotBe"]</AppAlert>
     }
     else
     {
         @if (_rules.Rules.Count == 0)
         {
-            <p class="view-documents-filters__hint">No rules yet. Documents stay in your Inbox until you file them.</p>
+            <p class="view-documents-filters__hint">@L["DocumentRulesSettings_NoRulesYetDocumentsStay"]</p>
         }
         else
         {
-            <ol class="view-rules__list" aria-label="Auto-filing rules in running order">
+            <ol class="view-rules__list" aria-label="@L["DocumentRulesSettings_AutoFilingRulesInRunning"].Value">
                 @for (var index = 0; index < _rules.Rules.Count; index++)
                 {
                     var rule = _rules.Rules[index];
@@ -36,7 +37,7 @@
                             <strong>@rule.Name</strong>
                             @if (rule.Scope == ViewDocumentRuleScopes.Shared)
                             {
-                                <AppChip Text="Shared Library" />
+                                <AppChip Text="@L["Common_SharedLibrary"].Value" />
                             }
                             <small>@Summary(rule)</small>
                         </div>
@@ -47,10 +48,10 @@
                         else
                         {
                             <AppSwitchRow AriaLabel="@($"{rule.Name} enabled")" Value="@rule.Enabled" ValueChanged="@((bool value) => SetEnabledAsync(rule, value))" Disabled="@_busy" Class="view-rules__switch" />
-                            <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowUpward" Tooltip="Move up" AriaLabel="@($"Move {rule.Name} up")" Disabled="@(_busy || !CanMove(position, -1))" OnClick="@(() => MoveAsync(position, -1))" />
-                            <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowDownward" Tooltip="Move down" AriaLabel="@($"Move {rule.Name} down")" Disabled="@(_busy || !CanMove(position, 1))" OnClick="@(() => MoveAsync(position, 1))" />
-                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Edit" Tooltip="Edit" AriaLabel="@($"Edit {rule.Name}")" Disabled="@_busy" OnClick="@(() => EditAsync(rule))" />
-                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Delete" Tooltip="Delete" AriaLabel="@($"Delete {rule.Name}")" Disabled="@_busy" OnClick="@(() => DeleteAsync(rule))" />
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowUpward" Tooltip="@L["Common_MoveUp"].Value" AriaLabel="@($"Move {rule.Name} up")" Disabled="@(_busy || !CanMove(position, -1))" OnClick="@(() => MoveAsync(position, -1))" />
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowDownward" Tooltip="@L["Common_MoveDown"].Value" AriaLabel="@($"Move {rule.Name} down")" Disabled="@(_busy || !CanMove(position, 1))" OnClick="@(() => MoveAsync(position, 1))" />
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Edit" Tooltip="@L["Common_Edit"].Value" AriaLabel="@($"Edit {rule.Name}")" Disabled="@_busy" OnClick="@(() => EditAsync(rule))" />
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Delete" Tooltip="@L["Common_Delete"].Value" AriaLabel="@($"Delete {rule.Name}")" Disabled="@_busy" OnClick="@(() => DeleteAsync(rule))" />
                         }
                     </li>
                 }
@@ -60,8 +61,8 @@
         @if (!ReadOnly)
         {
             <div class="view-rules__actions">
-                <AppButton Label="Add rule" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_busy" OnClick="@(() => EditAsync(null))" />
-                <AppButton Label="Apply rules to existing documents" ButtonStyle="AppButtonStyle.Text" Disabled="@(_busy || _rules.Rules.Count == 0)" OnClick="ApplyAsync" />
+                <AppButton Label="@L["DocumentRulesSettings_AddRule"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_busy" OnClick="@(() => EditAsync(null))" />
+                <AppButton Label="@L["DocumentRulesSettings_ApplyRulesToExistingDocuments"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@(_busy || _rules.Rules.Count == 0)" OnClick="ApplyAsync" />
             </div>
         }
     }
@@ -133,7 +134,7 @@
             new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Medium });
         if (await dialog.Result is { Canceled: false })
         {
-            Snackbar.Add("Rule saved.", AppSeverity.Success);
+            Snackbar.Add(L["DocumentRulesSettings_RuleSaved"].Value, AppSeverity.Success);
             await LoadAsync();
         }
     }

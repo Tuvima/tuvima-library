@@ -5,7 +5,7 @@ using Xunit;
 
 namespace MediaEngine.Web.Tests;
 
-public sealed class CompactContinueStripTests : BunitContext
+public sealed class CompactContinueStripTests : LocalizedBunitContext
 {
     private static MediaTileViewModel Item(int n, double? progress = 40) => new()
     {

@@ -2,7 +2,8 @@
 @namespace MediaEngine.Web.Components.Pages
 @using MediaEngine.Web.Services.Navigation
 @inject NavigationManager Navigation
-<PageTitle>Recently Added · Library</PageTitle>
+@inject IStringLocalizer<SharedStrings> L
+<PageTitle>@L["RecentlyAddedPage_RecentlyAddedLibrary"]</PageTitle>
 <div class="recent-browser"><RecentMediaFeed Type="@SelectedType" TypeChanged="TypeChanged" Browse="true" /></div>
 @code {
     // The address this page was routed with (see RoutedPageQuery).

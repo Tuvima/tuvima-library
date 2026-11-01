@@ -11,6 +11,7 @@
 @inject IJSRuntime Js
 @inject IAppToastService Snackbar
 @implements IAsyncDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 @if (DetailSurface)
 {
@@ -32,7 +33,7 @@
                     <AppCssElement Tag="div"
                                    Class="tl-series-detail__control tl-series-detail__control--container"
                                    >
-                        <span class="sr-only">Choose series</span>
+                        <span class="sr-only">@L["SequencePlacementPanel_ChooseSeries"]</span>
                         <div class="tl-series-detail__select-with-action">
                             <AppSelect Value="@SelectedContainerValue"
                                        ValueChanged="SelectContainerValueAsync"
@@ -40,13 +41,13 @@
                                        LeadingIcon="@ContainerIcon"
                                        Class="tl-series-detail__select" Sizing="intrinsic" FullWidth="false"
                                        PopoverClass="app-select__popover tl-series-select-popover"
-                                       aria-label="Choose series" />
+                                       aria-label="@L["SequencePlacementPanel_ChooseSeries"].Value" />
                             @if (ShowSetDefault)
                             {
                                 <AppIconButton Icon="@AppMaterialIcons.Outlined.Check"
                                                Size="AppControlSize.Compact"
-                                               AriaLabel="Make this the default series"
-                                               Tooltip="Make default"
+                                               AriaLabel="@L["SequencePlacementPanel_MakeThisTheDefaultSeries"].Value"
+                                               Tooltip="@L["SequencePlacementPanel_MakeDefault"].Value"
                                                Disabled="@_settingDefault"
                                                OnClick="SetDefaultSequenceAsync" />
                             }
@@ -134,12 +135,12 @@
         <AppIconButton Class="tl-series-carousel__arrow tl-series-carousel__arrow--left"
                        Icon="@AppMaterialIcons.Outlined.ChevronLeft"
                        Size="AppControlSize.Large"
-                       AriaLabel="Previous seasons"
+                       AriaLabel="@L["SequencePlacementPanel_PreviousSeasons"].Value"
                        OnClick="@(() => PageSeasonRailAsync(-1))" />
         <div id="@_seasonStripId"
              class="tl-season-browser__strip"
              role="listbox"
-             aria-label="Choose season">
+             aria-label="@L["SequencePlacementPanel_ChooseSeason"].Value">
             @for (var index = 0; index < VisibleGroups.Count; index++)
             {
                 var season = VisibleGroups[index];
@@ -175,7 +176,7 @@
         <AppIconButton Class="tl-series-carousel__arrow tl-series-carousel__arrow--right"
                        Icon="@AppMaterialIcons.Outlined.ChevronRight"
                        Size="AppControlSize.Large"
-                       AriaLabel="Next seasons"
+                       AriaLabel="@L["SequencePlacementPanel_NextSeasons"].Value"
                        OnClick="@(() => PageSeasonRailAsync(1))" />
     </div>
     }
@@ -250,14 +251,14 @@
     @if (AlsoItems.Count > 0)
     {
     <div class="tl-series-detail__also">
-    <AppCollapsibleRow Title="Also in this world" Summary="@AlsoSummary" RowKind="also-in-this-world" HeadingLevel="3">
+    <AppCollapsibleRow Title="@L["SequencePlacementPanel_AlsoInThisWorld"].Value" Summary="@AlsoSummary" RowKind="also-in-this-world" HeadingLevel="3">
         @foreach (var row in AlsoRows)
         {
         <div class="tl-series-detail__carousel">
             <AppCssElement Tag="div"
                            Class="tl-series-detail__strip"
                            Css="@AlsoGridStyle(row)"
-                           aria-label="Also in this world">
+                           aria-label="@L["SequencePlacementPanel_AlsoInThisWorld"].Value">
                 @foreach (var item in row)
                 {
                     @AlsoItemFragment(item)
@@ -293,7 +294,7 @@
         <AppNativeButton Type="button"
                          Class="tl-series-load-missing"
                          OnClick="LoadMoreMissingItems">
-            Load more missing @Placement.ItemPluralLabel.ToLowerInvariant()
+            @L["SequencePlacementPanel_LoadMoreMissing", Placement.ItemPluralLabel.ToLowerInvariant()]
         </AppNativeButton>
     }
 
@@ -327,13 +328,13 @@
                                      Color="AppColor.Primary"
                                      Dense="true"
                                      Disabled="@_savingMissingPreference"
-                                     Label="Show missing" />
+                                     Label="@L["SequencePlacementPanel_ShowMissing"].Value" />
                         @if (_hasMissingPreferenceOverride)
                         {
                             <AppIconButton Icon="@AppMaterialIcons.Outlined.Restore"
                                            Size="AppControlSize.Compact"
-                                           AriaLabel="Use the configured media default"
-                                           Tooltip="Use media default"
+                                           AriaLabel="@L["SequencePlacementPanel_UseTheConfiguredMediaDefault"].Value"
+                                           Tooltip="@L["SequencePlacementPanel_UseMediaDefault"].Value"
                                            Disabled="@_savingMissingPreference"
                                            OnClick="ResetMissingPreferenceAsync" />
                         }
@@ -381,15 +382,15 @@ else
                                Size="AppControlSize.Large"
                                Class="tl-series-control tl-series-control--set"
                                PopoverClass="app-select__popover tl-series-select-popover"
-                               aria-label="Choose series" />
+                               aria-label="@L["SequencePlacementPanel_ChooseSeries"].Value" />
                     @if (ShowSetDefault)
                     {
                         <div class="tl-series-default-control">
                             <AppNativeButton Type="button" Class="tl-series-default-action" Disabled="@_settingDefault" OnClick="SetDefaultSequenceAsync">
                                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.StarOutline" Size="AppSize.Small" />
-                                <span>Make default</span>
+                                <span>@L["SequencePlacementPanel_MakeDefault"]</span>
                             </AppNativeButton>
-                            <small>Use as your default series</small>
+                            <small>@L["SequencePlacementPanel_UseAsYourDefaultSeries"]</small>
                         </div>
                     }
                 </div>
@@ -414,14 +415,14 @@ else
                                  Color="AppColor.Primary"
                                  Dense="true"
                                  Disabled="@_savingMissingPreference"
-                                 Label="Show missing" />
+                                 Label="@L["SequencePlacementPanel_ShowMissing"].Value" />
                     @if (_hasMissingPreferenceOverride)
                     {
                         <AppIconButton Icon="@AppMaterialIcons.Outlined.Restore"
                                        Size="AppControlSize.Compact"
                                        Class="tl-series-missing-preference__reset"
-                                       AriaLabel="Use the configured media default"
-                                       Tooltip="Use media default"
+                                       AriaLabel="@L["SequencePlacementPanel_UseTheConfiguredMediaDefault"].Value"
+                                       Tooltip="@L["SequencePlacementPanel_UseMediaDefault"].Value"
                                        Disabled="@_savingMissingPreference"
                                        OnClick="ResetMissingPreferenceAsync" />
                     }
@@ -473,7 +474,7 @@ else
         @if (!Compact && IsSeasonContainer && !string.IsNullOrWhiteSpace(Placement.ContainerDescription))
         {
             <section class="tl-series-information" aria-labelledby="series-description-heading">
-                <h2 id="series-description-heading"><span>Series Description</span></h2>
+                <h2 id="series-description-heading"><span>@L["SequencePlacementPanel_SeriesDescription"]</span></h2>
                 <p id="series-description-copy" class="@SeriesDescriptionClass" @ref="_seriesDescriptionElement">@Placement.ContainerDescription</p>
                 @if (HasExpandableSeriesDescription)
                 {
@@ -503,7 +504,7 @@ else
                    rel="noopener noreferrer"
                     aria-label="Open @SeriesWikidataQid on Wikidata in a new tab">
                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppSize.Small" />
-                    <span>@SourceKindLabel: Wikidata (@SeriesWikidataQid)</span>
+                    <span>@L["SequencePlacementPanel_Wikidata", SourceKindLabel ?? string.Empty, SeriesWikidataQid ?? string.Empty]</span>
                 </a>
             }
             @if (ComicVineSeriesUrl is not null)
@@ -512,9 +513,9 @@ else
                    href="@ComicVineSeriesUrl"
                    target="_blank"
                    rel="noopener noreferrer"
-                   aria-label="Open this comic series on Comic Vine in a new tab">
+                   aria-label="@L["SequencePlacementPanel_OpenThisComicSeriesOn"].Value">
                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppSize.Small" />
-                    <span>@SourceKindLabel: Comic Vine</span>
+                    <span>@L["SequencePlacementPanel_ComicVine", SourceKindLabel ?? string.Empty]</span>
                 </a>
             }
             @if (!string.IsNullOrWhiteSpace(Placement.ContainerWikipediaUrl))
@@ -523,9 +524,9 @@ else
                    href="@Placement.ContainerWikipediaUrl"
                    target="_blank"
                    rel="noopener noreferrer"
-                   aria-label="Open the series article on Wikipedia in a new tab">
+                   aria-label="@L["SequencePlacementPanel_OpenTheSeriesArticleOn"].Value">
                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppSize.Small" />
-                    <span>@SourceKindLabel: Wikipedia</span>
+                    <span>@L["SequencePlacementPanel_Wikipedia", SourceKindLabel ?? string.Empty]</span>
                 </a>
             }
         </div>
@@ -537,7 +538,7 @@ else
         {
             <div class="tl-series-content__toolbar">
                 <div class="tl-series-jump">
-                    <AppSelect Label="Jump to"
+                    <AppSelect Label="@L["SequencePlacementPanel_JumpTo"].Value"
                                Value="@JumpSelectionValue"
                                ValueChanged="SelectJump"
                                Options="@JumpSelectOptions"
@@ -610,7 +611,7 @@ else
         @if (AlsoItems.Count > 0)
         {
             <div class="tl-series-eyebrow">
-                <span>Also in this world</span>
+                <span>@L["SequencePlacementPanel_AlsoInThisWorld"]</span>
                 <small>@AlsoSummary</small>
             </div>
             @foreach (var row in AlsoRows)
@@ -619,7 +620,7 @@ else
                     <AppCssElement Tag="div"
                                    Class="tl-series-strip"
                                    Css="@AlsoGridStyle(row)"
-                                   aria-label="Also in this world">
+                                   aria-label="@L["SequencePlacementPanel_AlsoInThisWorld"].Value">
                         @foreach (var item in row)
                         {
                             @AlsoItemFragment(item)
@@ -634,7 +635,7 @@ else
             <AppNativeButton Type="button"
                              Class="tl-series-load-missing"
                              OnClick="LoadMoreMissingItems">
-                Load more missing @Placement.ItemPluralLabel.ToLowerInvariant()
+                @L["SequencePlacementPanel_LoadMoreMissing", Placement.ItemPluralLabel.ToLowerInvariant()]
             </AppNativeButton>
         }
 
@@ -1325,7 +1326,7 @@ else
         {
             _showMissing = previous;
             ResetWindowToCurrentItem();
-            Snackbar.Add("An active profile and stable series identity are required to remember this setting.", AppSeverity.Warning);
+            Snackbar.Add(L["SequencePlacementPanel_AnActiveProfileAndStable"].Value, AppSeverity.Warning);
             return;
         }
 
@@ -1341,7 +1342,7 @@ else
             {
                 _showMissing = previous;
                 ResetWindowToCurrentItem();
-                Snackbar.Add("The series preference could not be saved.", AppSeverity.Error);
+                Snackbar.Add(L["SequencePlacementPanel_TheSeriesPreferenceCouldNot"].Value, AppSeverity.Error);
                 return;
             }
 
@@ -1380,7 +1381,7 @@ else
                 containerKey);
             if (reset is null)
             {
-                Snackbar.Add("The series preference could not be reset.", AppSeverity.Error);
+                Snackbar.Add(L["SequencePlacementPanel_TheSeriesPreferenceCouldNot2"].Value, AppSeverity.Error);
                 return;
             }
 

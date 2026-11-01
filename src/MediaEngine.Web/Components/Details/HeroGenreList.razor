@@ -1,9 +1,10 @@
 @namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Contracts.Details
+@inject IStringLocalizer<SharedStrings> L
 
 @if (Genres.Count > 0)
 {
-    <div class="tl-detail-hero-genres" aria-label="Genres">
+    <div class="tl-detail-hero-genres" aria-label="@L["Common_Genres"].Value">
         @foreach (var genre in VisibleGenres)
         {
             <a class="tl-detail-hero-genre" href="@genre.Route" title="@genre.Tooltip">@genre.Label</a>

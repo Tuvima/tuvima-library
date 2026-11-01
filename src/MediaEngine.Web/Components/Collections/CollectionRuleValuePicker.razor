@@ -3,9 +3,10 @@
 @implements IDisposable
 
 @inject IEngineApiClient ApiClient
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="collection-rule-value-picker" @onkeydown="HandleKeyDown">
-    <span class="collection-rule-value-picker__label">Value</span>
+    <span class="collection-rule-value-picker__label">@L["Common_Value"]</span>
     <AppNativeButton Type="button"
                      Class="@TriggerClass"
                      AriaLabel="@TriggerLabel"
@@ -29,11 +30,11 @@
 
             @if (_loading)
             {
-                <div class="collection-rule-value-picker__status">Searching…</div>
+                <div class="collection-rule-value-picker__status">@L["Common_Searching"]</div>
             }
             else if (_options.Count == 0)
             {
-                <div class="collection-rule-value-picker__status">No matching values</div>
+                <div class="collection-rule-value-picker__status">@L["CollectionRuleValuePicker_NoMatchingValues"]</div>
             }
             else
             {
@@ -73,7 +74,7 @@
 
             <footer>
                 <span>@SelectionSummary</span>
-                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" OnClick="CloseAsync">Done</AppButton>
+                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" OnClick="CloseAsync">@L["Common_Done"]</AppButton>
             </footer>
         </div>
     }

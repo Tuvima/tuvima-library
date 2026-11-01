@@ -3,6 +3,7 @@
 @inject IEngineApiClient ApiClient
 @inject UIOrchestratorService Orchestrator
 @inject ILogger<LocalAiModelFilesPanel> Logger
+@inject IStringLocalizer<SharedStrings> L
 
 @* Settings > Platform > Local AI > Models & Hardware: the model files for the optional local AI features, the one place they are
    listed. Tools & requirements (System > Configuration) links here instead of repeating the list. *@
@@ -13,7 +14,7 @@
 
 @if (Models.Count > 0)
 {
-    <AppCard Title="Model files" Description="Model files for the optional local AI features. They are downloaded only when you ask." Class="tl-sp-mb-3">
+    <AppCard Title="@L["LocalAiModelFilesPanel_ModelFiles"].Value" Description="@L["LocalAiModelFilesPanel_ModelFilesForTheOptional"].Value" Class="tl-sp-mb-3">
         <div class="tools-requirements__list" data-testid="models-list">
             @foreach (var model in Models)
             {
@@ -23,15 +24,15 @@
                     <Actions>
                         @if (model.State == ToolRequirementStates.Downloading)
                         {
-                            <AppButton Label="Cancel" Size="AppControlSize.Compact" Tone="AppUiTone.Warning" Disabled="@(_busyId is not null)" OnClick="@(() => RunModelActionAsync(model, ModelAction.Cancel))" />
+                            <AppButton Label="@L["Search_Cancel"].Value" Size="AppControlSize.Compact" Tone="AppUiTone.Warning" Disabled="@(_busyId is not null)" OnClick="@(() => RunModelActionAsync(model, ModelAction.Cancel))" />
                         }
                         @if (CanLoad(model))
                         {
-                            <AppButton Label="Load" Size="AppControlSize.Compact" Tone="AppUiTone.Success" Disabled="@(_busyId is not null)" OnClick="@(() => RunModelActionAsync(model, ModelAction.Load))" />
+                            <AppButton Label="@L["Models_Load"].Value" Size="AppControlSize.Compact" Tone="AppUiTone.Success" Disabled="@(_busyId is not null)" OnClick="@(() => RunModelActionAsync(model, ModelAction.Load))" />
                         }
                         @if (CanUnload(model))
                         {
-                            <AppButton Label="Unload" Size="AppControlSize.Compact" Disabled="@(_busyId is not null)" OnClick="@(() => RunModelActionAsync(model, ModelAction.Unload))" />
+                            <AppButton Label="@L["Models_Unload"].Value" Size="AppControlSize.Compact" Disabled="@(_busyId is not null)" OnClick="@(() => RunModelActionAsync(model, ModelAction.Unload))" />
                         }
                     </Actions>
                 </ToolRequirementRow>

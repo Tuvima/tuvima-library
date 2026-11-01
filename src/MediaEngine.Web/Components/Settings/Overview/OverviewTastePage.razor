@@ -9,6 +9,7 @@
 @inject DashboardSessionAccessor Session
 @inject UIOrchestratorService Orchestrator
 @inject ILogger<OverviewTastePage> Logger
+@inject IStringLocalizer<SharedStrings> L
 @* Personal > Overview > Taste (D34): what the Library has learned about a person's taste, in plain groups. A person removes or adds
    values on their own taste; everyone else's is read-only. Administrators get a Scope filter (Me, a household, a person or Everyone);
    the Engine decides what each person may see, so the filter only offers choices and never grants anything. A Kids profile sees
@@ -19,12 +20,12 @@
     {
         <div class="taste-page__filter" data-taste-scope>
             <label class="taste-page__scope">
-                <span class="taste-page__scope-label">Scope</span>
+                <span class="taste-page__scope-label">@L["Common_Scope"]</span>
                 <AppNativeSelect Value="@_scope"
                                  ValueChanged="@OnScopeChangedAsync"
                                  Disabled="@_loading"
                                  data-taste-scope-select
-                                 aria-label="Scope">
+                                 aria-label="@L["Common_Scope"].Value">
                     @foreach (var option in ScopeOptions)
                     {
                         <option value="@option.Value">@option.Label</option>
@@ -36,20 +37,20 @@
 
     @if (_loading && _view is null)
     {
-        <div class="taste-page__loading" aria-busy="true" aria-label="Loading taste">
+        <div class="taste-page__loading" aria-busy="true" aria-label="@L["OverviewTastePage_LoadingTaste"].Value">
             <AppSkeleton Width="100%" Height="140px" />
             <AppSkeleton Width="100%" Height="140px" />
         </div>
     }
     else if (_view is null)
     {
-        <AppErrorState Title="Taste couldn't be loaded"
+        <AppErrorState Title="@L["OverviewTastePage_TasteCouldnTBeLoaded"].Value"
                        Message="@(_scope == MeScope ? "Start the Engine or try again." : "That view isn't available. Pick another scope, or unlock administrator access and try again.")"
                        Retry="@(() => LoadAsync())" />
     }
     else if (_view.People.Count == 0)
     {
-        <AppEmptyState Title="No one to show" Message="Nobody is in this scope yet." />
+        <AppEmptyState Title="@L["OverviewTastePage_NoOneToShow"].Value" Message="@L["OverviewTastePage_NobodyIsInThisScope"].Value" />
     }
     else
     {
@@ -80,23 +81,23 @@
                         <div class="taste-page__cards">
                             @if (slices.Count > 0)
                             {
-                                <section class="taste-block" aria-label="Genres" data-taste-genres-card>
-                                    <h3 class="taste-block__title">Genres</h3>
+                                <section class="taste-block" aria-label="@L["Common_Genres"].Value" data-taste-genres-card>
+                                    <h3 class="taste-block__title">@L["Common_Genres"]</h3>
                                     <TasteDonut Slices="@slices" />
                                 </section>
                             }
                             @if (formats.Count > 0)
                             {
-                                <section class="taste-block" aria-label="Formats" data-taste-formats-card>
-                                    <h3 class="taste-block__title">Formats</h3>
+                                <section class="taste-block" aria-label="@L["Common_Formats"].Value" data-taste-formats-card>
+                                    <h3 class="taste-block__title">@L["Common_Formats"]</h3>
                                     <TasteFormatMix Shares="@formats" />
                                 </section>
                             }
                         </div>
                     }
 
-                    <section class="taste-block taste-block--tastes" aria-label="Key tastes" data-taste-key-tastes>
-                        <h3 class="taste-block__title">Key tastes</h3>
+                    <section class="taste-block taste-block--tastes" aria-label="@L["OverviewTastePage_KeyTastes"].Value" data-taste-key-tastes>
+                        <h3 class="taste-block__title">@L["OverviewTastePage_KeyTastes"]</h3>
                         @foreach (var group in Groups)
                         {
                             var items = ItemsFor(person, group.Key);
@@ -119,7 +120,7 @@
                                                         <span class="taste-chip__text">@item.Value</span>
                                                         @if (item.Source == TasteValues.SourceAdded)
                                                         {
-                                                            <span class="taste-chip__note">Added by you</span>
+                                                            <span class="taste-chip__note">@L["OverviewTastePage_AddedByYou"]</span>
                                                         }
                                                     </AppChip>
                                                 }
@@ -151,7 +152,7 @@
                                                       OnKeyDown="@(args => OnAddKeyDownAsync(group.Key, args))"
                                                       Disabled="@_busy"
                                                       aria-label="@($"Add {group.Article}")" />
-                                        <AppButton Label="Add"
+                                        <AppButton Label="@L["Vibes_Add"].Value"
                                                    StartIcon="@AppMaterialIcons.Outlined.Add"
                                                    Disabled="@(_busy || string.IsNullOrWhiteSpace(TextFor(group.Key)))"
                                                    OnClick="@(() => AddAsync(group.Key, TextFor(group.Key)))"
@@ -176,7 +177,7 @@
 
                     @if (shifts.Bars.Count > 0)
                     {
-                        <section class="taste-block" aria-label="How your taste shifts" data-taste-shifts-card>
+                        <section class="taste-block" aria-label="@L["OverviewTastePage_HowYourTasteShifts"].Value" data-taste-shifts-card>
                             <h3 class="taste-block__title">@(person.IsYou ? "How your taste shifts" : "How their taste shifts")</h3>
                             <TasteShifts Bars="@shifts.Bars" Legend="@shifts.Legend" />
                         </section>

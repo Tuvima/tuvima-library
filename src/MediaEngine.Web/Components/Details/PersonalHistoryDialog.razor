@@ -1,15 +1,16 @@
 @namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Contracts.Progress
+@inject IStringLocalizer<SharedStrings> L
 <AppDialog>
     <DialogContent>
-        <p>Playback, reading, and manual status changes for this profile.</p>
-        @if (Items.Count == 0) { <p>No history recorded.</p> }
+        <p>@L["PersonalHistoryDialog_PlaybackReadingAndManualStatus"]</p>
+        @if (Items.Count == 0) { <p>@L["PersonalHistoryDialog_NoHistoryRecorded"]</p> }
         @foreach (var item in Items)
         {
             <p>@Label(item.Command) &#183; @item.ChangedAt.ToLocalTime().ToString("g") @(item.Undone ? "(Undone)" : "")</p>
         }
     </DialogContent>
-    <DialogActions><AppButton ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => Dialog.Close())">Close</AppButton></DialogActions>
+    <DialogActions><AppButton ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => Dialog.Close())">@L["Common_Close"]</AppButton></DialogActions>
 </AppDialog>
 @code {
     [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;

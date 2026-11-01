@@ -1,15 +1,16 @@
 @page "/not-found"
 @layout MediaEngine.Web.Shared.MainLayout
+@inject IStringLocalizer<SharedStrings> L
 
-<PageTitle>Not Found  -  Library</PageTitle>
+<PageTitle>@L["NotFound_NotFoundLibrary"]</PageTitle>
 
 <AppContainer MaxWidth="AppMaxWidth.Small" Class="tl-sp-mt-16 tl-text-center">
     <AppMaterialIcon Icon="@AppMaterialIcons.Filled.SearchOff" Size="AppSize.Large" Color="AppColor.Secondary" Class="tl-sp-mb-4" />
-    <AppText Typo="AppTypo.h4" Class="tl-sp-mb-2">Page Not Found</AppText>
+    <AppText Typo="AppTypo.h4" Class="tl-sp-mb-2">@L["NotFound_PageNotFound"]</AppText>
     <AppText Typo="AppTypo.body1" Color="AppColor.Secondary" Class="tl-sp-mb-6">
-        The content you are looking for doesn't exist.
+        @L["NotFound_TheContentYouAreLooking"]
     </AppText>
     <AppButton Href="/" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Filled.Home">
-        Back to Library
+        @L["NotFound_BackToLibrary"]
     </AppButton>
 </AppContainer>

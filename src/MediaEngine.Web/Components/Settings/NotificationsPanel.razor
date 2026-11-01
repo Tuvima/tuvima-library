@@ -3,28 +3,29 @@
 @using MediaEngine.Web.Services.Settings
 @inject IEngineApiClient ApiClient
 @inject IAppToastService Snackbar
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="tl-page notifications-page" data-testid="notifications-page">
     @if (_loading)
     {
-        <AppPageState Kind="AppPageStateKind.Loading" Title="Loading notifications" Message="Getting your messages and settings." />
+        <AppPageState Kind="AppPageStateKind.Loading" Title="@L["NotificationsPanel_LoadingNotifications"].Value" Message="@L["NotificationsPanel_GettingYourMessagesAndSettings"].Value" />
     }
     else if (_settings is null)
     {
-        <AppErrorState Title="Could not load notifications"
-                       Message="The Library could not get your notification settings from the server. Check that the server is online, then try again."
+        <AppErrorState Title="@L["NotificationsPanel_CouldNotLoadNotifications"].Value"
+                       Message="@L["NotificationsPanel_TheLibraryCouldNotGet"].Value"
                        Retry="LoadAsync" />
     }
     else
     {
-        <AppCard Title="Inbox" Description="What the Library has told you recently. Repeats are folded into one message." Class="tl-sp-mb-3">
+        <AppCard Title="@L["NotificationsPanel_Inbox"].Value" Description="@L["NotificationsPanel_WhatTheLibraryHasTold"].Value" Class="tl-sp-mb-3">
             <div class="notifications-page__toolbar">
                 <span class="notifications-page__count" data-testid="notifications-unread">@UnreadLine</span>
-                <AppButton Label="Mark all read" Size="AppControlSize.Compact" Disabled="@(_unread == 0)" OnClick="MarkAllReadAsync" />
+                <AppButton Label="@L["NotificationsPanel_MarkAllRead"].Value" Size="AppControlSize.Compact" Disabled="@(_unread == 0)" OnClick="MarkAllReadAsync" />
             </div>
             @if (_items.Count == 0)
             {
-                <p class="notifications-page__empty">Nothing yet. When a backup fails, a tool goes missing or a plugin stops working, it shows up here.</p>
+                <p class="notifications-page__empty">@L["NotificationsPanel_NothingYetWhenABackup"]</p>
             }
             else
             {
@@ -47,7 +48,7 @@
             }
         </AppCard>
 
-        <AppCard Title="Channels" Description="Ways a message can reach you. Only the inbox stays on this computer." Class="tl-sp-mb-3">
+        <AppCard Title="@L["NotificationsPanel_Channels"].Value" Description="@L["NotificationsPanel_WaysAMessageCanReach"].Value" Class="tl-sp-mb-3">
             <div class="notifications-page__channels" data-testid="notifications-channels">
                 @foreach (var channel in _settings.Channels)
                 {
@@ -59,19 +60,19 @@
                         <div class="notifications-page__channel-actions">
                             @if (channel.State == NotificationChannelStates.Off)
                             {
-                                <AppButton Label="Turn back on" Size="AppControlSize.Compact" Disabled="@_busy" OnClick="@(() => EnableAsync(channel))" />
+                                <AppButton Label="@L["NotificationsPanel_TurnBackOn"].Value" Size="AppControlSize.Compact" Disabled="@_busy" OnClick="@(() => EnableAsync(channel))" />
                             }
-                            <AppButton Label="Send test" Size="AppControlSize.Compact" Disabled="@(_busy || !channel.IsConfigured)" OnClick="@(() => TestAsync(channel))" />
+                            <AppButton Label="@L["Common_SendTest"].Value" Size="AppControlSize.Compact" Disabled="@(_busy || !channel.IsConfigured)" OnClick="@(() => TestAsync(channel))" />
                         </div>
                     </div>
                 }
             </div>
         </AppCard>
 
-        <AppCard Title="What goes where" Description="Choose which channels hear about each kind of event." Class="tl-sp-mb-3">
-            <div class="notifications-page__matrix" role="table" aria-label="Where each kind of event goes" data-testid="notifications-matrix">
+        <AppCard Title="@L["NotificationsPanel_WhatGoesWhere"].Value" Description="@L["NotificationsPanel_ChooseWhichChannelsHearAbout"].Value" Class="tl-sp-mb-3">
+            <div class="notifications-page__matrix" role="table" aria-label="@L["NotificationsPanel_WhereEachKindOfEvent"].Value" data-testid="notifications-matrix">
                 <div class="notifications-page__matrix-head" role="row">
-                    <span role="columnheader">Event</span>
+                    <span role="columnheader">@L["NotificationsPanel_Event"]</span>
                     @foreach (var channel in _settings.Channels)
                     {
                         <span role="columnheader">@channel.Name</span>
@@ -98,20 +99,20 @@
             </div>
         </AppCard>
 
-        <AppCard Title="Quiet hours" Description="Emails and other outside messages wait until quiet hours end. The inbox always fills." Class="tl-sp-mb-3">
-            <AppSwitchRow Label="Use quiet hours" Value="_settings.QuietHours.Enabled" Disabled="@_busy" ValueChanged="SetQuietEnabledAsync" />
+        <AppCard Title="@L["NotificationsPanel_QuietHours"].Value" Description="@L["NotificationsPanel_EmailsAndOtherOutsideMessages"].Value" Class="tl-sp-mb-3">
+            <AppSwitchRow Label="@L["NotificationsPanel_UseQuietHours"].Value" Value="_settings.QuietHours.Enabled" Disabled="@_busy" ValueChanged="SetQuietEnabledAsync" />
             @if (_settings.QuietHours.Enabled)
             {
                 <div class="notifications-page__times">
-                    <AppTextField Label="From" InputType="AppInputType.Time" Value="@_settings.QuietHours.Start" Immediate="false" ValueChanged="@(value => SetQuietTimeAsync(value, null))" />
-                    <AppTextField Label="Until" InputType="AppInputType.Time" Value="@_settings.QuietHours.End" Immediate="false" ValueChanged="@(value => SetQuietTimeAsync(null, value))" />
+                    <AppTextField Label="@L["Common_From"].Value" InputType="AppInputType.Time" Value="@_settings.QuietHours.Start" Immediate="false" ValueChanged="@(value => SetQuietTimeAsync(value, null))" />
+                    <AppTextField Label="@L["NotificationsPanel_Until"].Value" InputType="AppInputType.Time" Value="@_settings.QuietHours.End" Immediate="false" ValueChanged="@(value => SetQuietTimeAsync(null, value))" />
                 </div>
             }
         </AppCard>
 
-        <AppCard Title="Privacy" Description="By default only a short title like “A backup did not finish” leaves this computer." Class="tl-sp-mb-3">
-            <AppSwitchRow Label="Include details in messages that leave this computer"
-                          Description="Adds what happened, such as the plugin or tool involved. Leave this off if your email is not private to you."
+        <AppCard Title="@L["NotificationsPanel_Privacy"].Value" Description="@L["NotificationsPanel_ByDefaultOnlyAShort"].Value" Class="tl-sp-mb-3">
+            <AppSwitchRow Label="@L["NotificationsPanel_IncludeDetailsInMessagesThat"].Value"
+                          Description="@L["NotificationsPanel_AddsWhatHappenedSuchAs"].Value"
                           Value="_settings.IncludeDetails" Disabled="@_busy" ValueChanged="SetIncludeDetailsAsync" />
         </AppCard>
     }
@@ -150,7 +151,7 @@
         }
         else
         {
-            Snackbar.Add("The messages could not be marked read.", AppSeverity.Error);
+            Snackbar.Add(L["NotificationsPanel_TheMessagesCouldNotBe"].Value, AppSeverity.Error);
         }
     }
 
@@ -168,7 +169,7 @@
         _busy = true;
         if (!await ApiClient.EnableNotificationChannelAsync(channel.Id))
         {
-            Snackbar.Add("The channel could not be turned back on.", AppSeverity.Error);
+            Snackbar.Add(L["NotificationsPanel_TheChannelCouldNotBe"].Value, AppSeverity.Error);
         }
 
         _settings = await ApiClient.GetNotificationSettingsAsync() ?? _settings;
@@ -208,7 +209,7 @@
         var saved = await ApiClient.UpdateNotificationSettingsAsync(request);
         if (saved is null)
         {
-            Snackbar.Add("That change could not be saved.", AppSeverity.Error);
+            Snackbar.Add(L["NotificationsPanel_ThatChangeCouldNotBe"].Value, AppSeverity.Error);
         }
         else
         {

@@ -1,13 +1,14 @@
 @using MediaEngine.Contracts.LocalAssets
 @using MediaEngine.Web.Models.ViewDTOs
 @namespace MediaEngine.Web.Components.Pages
+@inject IStringLocalizer<SharedStrings> L
 
 @* Saved views: the filters a person keeps coming back to, kept as shelves at the top of the Documents filter rail. *@
-<section class="view-documents-saved" aria-label="Saved views">
-    <h3 class="view-documents-saved__title">Saved views</h3>
+<section class="view-documents-saved" aria-label="@L["ViewDocumentSavedViewsPanel_SavedViews"].Value">
+    <h3 class="view-documents-saved__title">@L["ViewDocumentSavedViewsPanel_SavedViews"]</h3>
     @if (Views.Count == 0)
     {
-        <p class="view-documents-filters__hint">Filter the list, then save it here to come back to it in one tap.</p>
+        <p class="view-documents-filters__hint">@L["ViewDocumentSavedViewsPanel_FilterTheListThenSave"]</p>
     }
     else
     {
@@ -19,8 +20,8 @@
                     {
                         <form class="view-documents-saved__form" @onsubmit="RenameAsync" @onsubmit:preventDefault>
                             <AppNativeInput Type="text" Class="view-documents-saved__input" AriaLabel="@($"New name for {view.Name}")" maxlength="@ViewDocumentSavedViews.MaximumNameLength" Value="@_text" ValueChanged="@(value => _text = value?.ToString() ?? string.Empty)" />
-                            <AppNativeButton Type="submit" Class="view-documents-saved__action" Disabled="@(Busy || string.IsNullOrWhiteSpace(_text))">Save</AppNativeButton>
-                            <AppNativeButton Type="button" Class="view-documents-saved__action" OnClick="@(_ => CancelEdit())">Cancel</AppNativeButton>
+                            <AppNativeButton Type="submit" Class="view-documents-saved__action" Disabled="@(Busy || string.IsNullOrWhiteSpace(_text))">@L["Common_Save"]</AppNativeButton>
+                            <AppNativeButton Type="button" Class="view-documents-saved__action" OnClick="@(_ => CancelEdit())">@L["Search_Cancel"]</AppNativeButton>
                         </form>
                     }
                     else
@@ -31,8 +32,8 @@
                             <small class="view-documents-saved__count">@view.ItemCount</small>
                         </AppNativeButton>
                         <AppOverflowMenu AriaLabel="@($"Actions for {view.Name}")" Class="view-documents-saved__menu" AnchorOrigin="AppOrigin.BottomRight" TransformOrigin="AppOrigin.TopRight">
-                            <AppMenuItem Label="Rename" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="@(() => BeginRename(view))" />
-                            <AppMenuItem Label="Delete" Icon="@AppMaterialIcons.Outlined.DeleteOutline" Tone="AppUiTone.Error" OnClick="@(() => OnDelete.InvokeAsync(view))" />
+                            <AppMenuItem Label="@L["Common_Rename"].Value" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="@(() => BeginRename(view))" />
+                            <AppMenuItem Label="@L["Common_Delete"].Value" Icon="@AppMaterialIcons.Outlined.DeleteOutline" Tone="AppUiTone.Error" OnClick="@(() => OnDelete.InvokeAsync(view))" />
                         </AppOverflowMenu>
                     }
                 </li>
@@ -45,15 +46,15 @@
         @if (_saving)
         {
             <form class="view-documents-saved__form" @onsubmit="SaveAsync" @onsubmit:preventDefault>
-                <AppNativeInput Type="text" Class="view-documents-saved__input" AriaLabel="Name for this view" Placeholder="Name this view" maxlength="@ViewDocumentSavedViews.MaximumNameLength" Value="@_text" ValueChanged="@(value => _text = value?.ToString() ?? string.Empty)" />
-                <AppNativeButton Type="submit" Class="view-documents-saved__action" Disabled="@(Busy || string.IsNullOrWhiteSpace(_text))">Save</AppNativeButton>
-                <AppNativeButton Type="button" Class="view-documents-saved__action" OnClick="@(_ => CancelEdit())">Cancel</AppNativeButton>
+                <AppNativeInput Type="text" Class="view-documents-saved__input" AriaLabel="@L["ViewDocumentSavedViewsPanel_NameForThisView"].Value" Placeholder="@L["ViewDocumentSavedViewsPanel_NameThisView"].Value" maxlength="@ViewDocumentSavedViews.MaximumNameLength" Value="@_text" ValueChanged="@(value => _text = value?.ToString() ?? string.Empty)" />
+                <AppNativeButton Type="submit" Class="view-documents-saved__action" Disabled="@(Busy || string.IsNullOrWhiteSpace(_text))">@L["Common_Save"]</AppNativeButton>
+                <AppNativeButton Type="button" Class="view-documents-saved__action" OnClick="@(_ => CancelEdit())">@L["Search_Cancel"]</AppNativeButton>
             </form>
         }
         else
         {
-            <p class="view-documents-filters__hint">Words in the search box are saved as "words in the document contain".</p>
-            <AppButton Label="Save this view" StartIcon="@AppMaterialIcons.Outlined.BookmarkBorder" ButtonStyle="AppButtonStyle.Outlined" OnClick="BeginSave" Class="view-documents-saved__save" />
+            <p class="view-documents-filters__hint">@L["ViewDocumentSavedViewsPanel_WordsInTheSearchBox"]</p>
+            <AppButton Label="@L["ViewDocumentSavedViewsPanel_SaveThisView"].Value" StartIcon="@AppMaterialIcons.Outlined.BookmarkBorder" ButtonStyle="AppButtonStyle.Outlined" OnClick="BeginSave" Class="view-documents-saved__save" />
         }
     }
 </section>

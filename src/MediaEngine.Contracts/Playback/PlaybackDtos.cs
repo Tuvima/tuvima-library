@@ -662,7 +662,21 @@ public static class ReadingPreferenceValues
 
 public sealed class SubtitleLanguageSettingsDto
 {
+    /// <summary>The subtitle language the player looks for first.</summary>
     public string DefaultSubtitleLanguage { get; set; } = "English";
+
+    /// <summary>
+    /// Second and third choices, in order, used when a title has no subtitle in <see cref="DefaultSubtitleLanguage"/>.
+    /// At most two; empty by default.
+    /// </summary>
+    public List<string> AlternateSubtitleLanguages { get; set; } = [];
+
+    /// <summary>
+    /// The language synced lyrics should be shown in when a song has lyrics in more than one. Empty means no preference
+    /// (the track chosen for the song, or the first one, plays).
+    /// </summary>
+    public string LyricsLanguage { get; set; } = string.Empty;
+
     public string ForcedSubtitlesMode { get; set; } = PlaybackPreferenceValues.Auto;
     public string AudioLanguage { get; set; } = "English";
     public string SubtitleSize { get; set; } = PlaybackPreferenceValues.Medium;
@@ -698,6 +712,9 @@ public static class PlaybackPreferenceValues
     public const string FitWidth = "FitWidth";
     public const string Always = "Always";
     public const string Never = "Never";
+
+    /// <summary>"Show subtitles": only when the audio that plays is not in one of the profile's subtitle languages.</summary>
+    public const string ForeignAudioOnly = "ForeignAudioOnly";
     public const string Small = "Small";
     public const string Large = "Large";
     public const string ExtraLarge = "ExtraLarge";

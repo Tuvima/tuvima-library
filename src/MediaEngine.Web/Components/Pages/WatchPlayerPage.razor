@@ -14,20 +14,21 @@
 @inject NavigationManager Nav
 @inject UIOrchestratorService Orchestrator
 @inject PlaybackSessionController Playback
+@inject IStringLocalizer<SharedStrings> L
 
-<PageTitle>@PageTitleText - Library</PageTitle>
+<PageTitle>@L["Common_Library", PageTitleText]</PageTitle>
 
 @if (_loading)
 {
     <AppPageState Kind="AppPageStateKind.Loading"
-                  Title="Preparing playback"
+                  Title="@L["WatchPlayerPage_PreparingPlayback"].Value"
                   Class="watch-player-state" />
 }
 else if (!string.IsNullOrWhiteSpace(_loadError))
 {
     <div class="watch-player-state">
-        <AppErrorState Title="Playable video not found"
-                       Message="Library could not prepare this title for playback."
+        <AppErrorState Title="@L["WatchPlayerPage_PlayableVideoNotFound"].Value"
+                       Message="@L["WatchPlayerPage_LibraryCouldNotPrepareThis"].Value"
                        Details="@_loadError"
                        Retry="LoadPlayerAsync"
                        Icon="@AppMaterialIcons.Outlined.Movie" />

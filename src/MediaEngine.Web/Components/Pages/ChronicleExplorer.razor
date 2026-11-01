@@ -17,8 +17,9 @@
 @inject ILogger<ChronicleExplorer> Logger
 @inject DeviceContextService DeviceContext
 @implements IAsyncDisposable
+@inject IStringLocalizer<SharedStrings> L
 
-<PageTitle>Chronicle Explorer - @(_graph?.universe.label ?? Qid)</PageTitle>
+<PageTitle>@L["ChronicleExplorer_ChronicleExplorer", _graph?.universe.label ?? Qid]</PageTitle>
 
 <AppContainer MaxWidth="AppMaxWidth.False" Class="tl-sp-pa-4">
 @* Editing the Universe, or one character, place or organisation in it, uses the same bar, side panel and floating artwork picker as every
@@ -29,16 +30,16 @@
 {
     <AppPanel Class="chronicle-explorer-empty tl-sp-pa-6">
         <AppSpinner Indeterminate="true" Color="AppColor.Primary" />
-        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">Loading Universe Graph data...</AppText>
+        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@L["ChronicleExplorer_LoadingUniverseGraphData"]</AppText>
     </AppPanel>
 }
 else if (_graph is null)
 {
     <AppPanel Class="chronicle-explorer-empty tl-sp-pa-6">
         <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Hub" Size="AppSize.Large" Color="AppColor.Default" />
-        <AppText Typo="AppTypo.h5">Universe Graph unavailable</AppText>
+        <AppText Typo="AppTypo.h5">@L["ChronicleExplorer_UniverseGraphUnavailable"]</AppText>
         <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">
-            Library has not found enough real character, location, organization, event, or relationship data for this Universe yet.
+            @L["ChronicleExplorer_LibraryHasNotFoundEnough"]
         </AppText>
     </AppPanel>
 }
@@ -50,7 +51,7 @@ else
     </AppText>
     @if (_canEditUniverse && DeviceContext.CanEdit)
     {
-        <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.Edit" Disabled="@(_openingEditor || _editing.IsOn)" OnClick="@(() => EditUniverseAsync(null))">Edit Universe</AppButton>
+        <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.Edit" Disabled="@(_openingEditor || _editing.IsOn)" OnClick="@(() => EditUniverseAsync(null))">@L["ChronicleExplorer_EditUniverse"]</AppButton>
     }
 </div>
 
@@ -92,24 +93,24 @@ else
     {
         <AppAlert Severity="AppSeverity.Warning" Class="tl-sp-mb-3"
                   CloseIconClicked="@(() => _loreDeltaChanges = 0)">
-            New Lore Discovered: @_loreDeltaChanges entities have been updated on Wikidata since last enrichment.
+            @L["ChronicleExplorer_NewLoreDiscoveredEntitiesHave", _loreDeltaChanges]
         </AppAlert>
     }
 <AppTabs @bind-ActivePanelIndex="_activeMode" Class="chronicle-explorer-tabs tl-sp-mb-3"
              ApplyEffectsToContainer="false"
              SliderColor="AppColor.Warning"
              Rounded="false">
-        <AppTabPanel Text="Web" Icon="@AppMaterialIcons.Filled.Collections"
+        <AppTabPanel Text="@L["Universe_ModeWeb"].Value" Icon="@AppMaterialIcons.Filled.Collections"
                      ToolTip="Full relationship graph" />
-        <AppTabPanel Text="Paths" Icon="@AppMaterialIcons.Filled.Route"
+        <AppTabPanel Text="@L["Universe_ModePaths"].Value" Icon="@AppMaterialIcons.Filled.Route"
                      ToolTip="Six Degrees pathfinder" />
-        <AppTabPanel Text="Family" Icon="@AppMaterialIcons.Filled.AccountTree"
+        <AppTabPanel Text="@L["Universe_ModeFamily"].Value" Icon="@AppMaterialIcons.Filled.AccountTree"
                      ToolTip="Family tree view" />
-        <AppTabPanel Text="Cast" Icon="@AppMaterialIcons.Filled.People"
+        <AppTabPanel Text="@L["Universe_ModeCast"].Value" Icon="@AppMaterialIcons.Filled.People"
                      ToolTip="Character to performer mapping" />
-        <AppTabPanel Text="Adaptations" Icon="@AppMaterialIcons.Filled.Merge"
+        <AppTabPanel Text="@L["Universe_ModeAdaptations"].Value" Icon="@AppMaterialIcons.Filled.Merge"
                      ToolTip="Adaptation chain" />
-        <AppTabPanel Text="Sources" Icon="@AppMaterialIcons.Filled.FactCheck"
+        <AppTabPanel Text="@L["Common_Sources"].Value" Icon="@AppMaterialIcons.Filled.FactCheck"
                      ToolTip="Supplemental lore sources" />
     </AppTabs>
 @if (_activeMode == 0 || _activeMode == 1 || _activeMode == 2)
@@ -118,9 +119,9 @@ else
         {
             <AppPanel Class="chronicle-explorer-empty tl-sp-pa-6">
                 <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Hub" Size="AppSize.Large" Color="AppColor.Default" />
-                <AppText Typo="AppTypo.h5">Universe Graph unavailable</AppText>
+                <AppText Typo="AppTypo.h5">@L["ChronicleExplorer_UniverseGraphUnavailable"]</AppText>
                 <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">
-                    Library has not found enough real character, location, organization, event, or relationship data for this Universe yet.
+                    @L["ChronicleExplorer_LibraryHasNotFoundEnough"]
                 </AppText>
             </AppPanel>
         }
@@ -132,14 +133,14 @@ else
                 @if (_hasTemporalData && !DeviceContext.IsTelevision)
                 {
                     <div class="chronicle-explorer-timeline">
-                        <AppRangeSlider AriaLabel="Timeline year" ShowTicks="false" Value="@_timelineYear" ValueChanged="@(value => OnTimelineYearChanged((int)value))" Min="@_minYear" Max="@_maxYear" />
-                        <span>Timeline: @_timelineYear</span>
+                        <AppRangeSlider AriaLabel="@L["ChronicleExplorer_TimelineYear"].Value" ShowTicks="false" Value="@_timelineYear" ValueChanged="@(value => OnTimelineYearChanged((int)value))" Min="@_minYear" Max="@_maxYear" />
+                        <span>@L["ChronicleExplorer_Timeline", _timelineYear]</span>
                     </div>
                 }
                 else if (_hasTemporalData && DeviceContext.IsTelevision)
                 {
                     <AppChip T="string" Size="AppSize.Small" Variant="AppVariant.Outlined">
-                        Timeline available on desktop
+                        @L["ChronicleExplorer_TimelineAvailableOnDesktop"]
                     </AppChip>
                 }
 
@@ -147,40 +148,40 @@ else
                     <AppChip T="string" Color="@(_showCharacters ? AppColor.Primary : AppColor.Default)"
                              Variant="@(_showCharacters ? AppVariant.Filled : AppVariant.Outlined)"
                              OnClick="@(() => ToggleTypeFilter("Character"))">
-                        Characters
+                        @L["Universe_GuideFilterCharacters"]
                     </AppChip>
                     <AppChip T="string" Color="@(_showLocations ? AppColor.Success : AppColor.Default)"
                              Variant="@(_showLocations ? AppVariant.Filled : AppVariant.Outlined)"
                              OnClick="@(() => ToggleTypeFilter("Location"))">
-                        Locations
+                        @L["Universe_GuideFilterLocations"]
                     </AppChip>
                     <AppChip T="string" Color="@(_showOrganizations ? AppColor.Warning : AppColor.Default)"
                              Variant="@(_showOrganizations ? AppVariant.Filled : AppVariant.Outlined)"
                              OnClick="@(() => ToggleTypeFilter("Organization"))">
-                        Organizations
+                        @L["Universe_GuideFilterOrgs"]
                     </AppChip>
                 </AppStack>
 
                 <AppSelect T="string" Value="@_layout" ValueChanged="OnLayoutChanged"
-                           Label="Layout" Variant="AppVariant.Outlined" Margin="AppMargin.Dense"
+                           Label="@L["Common_Layout"].Value" Variant="AppVariant.Outlined" Margin="AppMargin.Dense"
                            Class="chronicle-explorer-layout">
-                    <AppSelectItem T="string" Value="@("cose")">Force-directed</AppSelectItem>
-                    <AppSelectItem T="string" Value="@("concentric")">Concentric</AppSelectItem>
-                    <AppSelectItem T="string" Value="@("grid")">Grid</AppSelectItem>
-                    <AppSelectItem T="string" Value="@("dagre")">Hierarchical</AppSelectItem>
+                    <AppSelectItem T="string" Value="@("cose")">@L["ChronicleExplorer_ForceDirected"]</AppSelectItem>
+                    <AppSelectItem T="string" Value="@("concentric")">@L["ChronicleExplorer_Concentric"]</AppSelectItem>
+                    <AppSelectItem T="string" Value="@("grid")">@L["ChronicleExplorer_Grid"]</AppSelectItem>
+                    <AppSelectItem T="string" Value="@("dagre")">@L["ChronicleExplorer_Hierarchical"]</AppSelectItem>
                 </AppSelect>
             </AppStack>
         }
 <AppGrid>
             <AppItem xs="12" md="@(_activeMode == 0 ? 7 : 8)">
-                <div class="chronicle-explorer-zoom" role="group" aria-label="Graph view controls">
-                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Add" Tooltip="Zoom in" AriaLabel="Zoom in"
+                <div class="chronicle-explorer-zoom" role="group" aria-label="@L["ChronicleExplorer_GraphViewControls"].Value">
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Add" Tooltip="@L["Common_ZoomIn"].Value" AriaLabel="@L["Common_ZoomIn"].Value"
                                    OnClick="@(() => InvokeGraphViewAsync("CytoscapeInterop.zoomIn"))" />
-                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Remove" Tooltip="Zoom out" AriaLabel="Zoom out"
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Remove" Tooltip="@L["Common_ZoomOut"].Value" AriaLabel="@L["Common_ZoomOut"].Value"
                                    OnClick="@(() => InvokeGraphViewAsync("CytoscapeInterop.zoomOut"))" />
-                    <AppIconButton Icon="@AppMaterialIcons.Outlined.FitScreen" Tooltip="Fit graph to view" AriaLabel="Fit graph to view"
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.FitScreen" Tooltip="@L["ChronicleExplorer_FitGraphToView"].Value" AriaLabel="@L["ChronicleExplorer_FitGraphToView"].Value"
                                    OnClick="@(() => InvokeGraphViewAsync("CytoscapeInterop.fit"))" />
-                    <AppIconButton Icon="@AppMaterialIcons.Outlined.RestartAlt" Tooltip="Reset view" AriaLabel="Reset view"
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.RestartAlt" Tooltip="@L["ChronicleExplorer_ResetView"].Value" AriaLabel="@L["ChronicleExplorer_ResetView"].Value"
                                    OnClick="@(() => InvokeGraphViewAsync("CytoscapeInterop.resetView"))" />
                 </div>
                 <div id="cytoscape-container"
@@ -192,13 +193,13 @@ else
                     @if (_activeMode == 0)
                     {
                         @* Mode 1: entity list *@
-                        <AppTextField T="string" @bind-Value="_entitySearch" Placeholder="Search entities..."
+                        <AppTextField T="string" @bind-Value="_entitySearch" Placeholder="@L["ChronicleExplorer_SearchEntities"].Value"
                                       Variant="AppVariant.Outlined"
                                       Adornment="AppAdornment.Start"
                                       AdornmentIcon="@AppMaterialIcons.Filled.Search"
                                       Immediate="true" Class="chronicle-explorer-search tl-sp-mb-3" />
                         @* Keyboard, remote and screen-reader path to every node: each row is a real button. *@
-                        <AppList T="UniverseGraphNodeDto" Dense="true" Class="chronicle-node-list" aria-label="Entities in this Universe">
+                        <AppList T="UniverseGraphNodeDto" Dense="true" Class="chronicle-node-list" aria-label="@L["ChronicleExplorer_EntitiesInThisUniverse"].Value">
                             @foreach (var entry in NodeListEntries)
                             {
                                 var entity = entry.Node;
@@ -251,15 +252,15 @@ else
 <AppPanel Class="chronicle-explorer-full-panel tl-sp-pa-4">
             <AppStack Spacing="3">
                 <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2">
-                    <AppText Typo="AppTypo.h6">Supplemental lore sources</AppText>
+                    <AppText Typo="AppTypo.h6">@L["ChronicleExplorer_SupplementalLoreSources"]</AppText>
                     <AppSpacer />
-                    <AppButton Label="Discover"
+                    <AppButton Label="@L["ChronicleExplorer_Discover"].Value"
                                ButtonStyle="AppButtonStyle.Outlined"
                                Tone="AppUiTone.Primary"
                                StartIcon="@AppMaterialIcons.Filled.TravelExplore"
                                Disabled="@_loreActionBusy"
                                OnClick="@DiscoverLoreSourcesAsync" />
-                    <AppButton Label="Enrich"
+                    <AppButton Label="@L["ChronicleExplorer_Enrich"].Value"
                                ButtonStyle="AppButtonStyle.Filled"
                                Tone="AppUiTone.Primary"
                                StartIcon="@AppMaterialIcons.Filled.AutoFixHigh"
@@ -278,18 +279,18 @@ else
                 <AppGrid>
                     <AppItem xs="12" md="5">
                         <AppTextField T="string" @bind-Value="_manualSourceName"
-                                      Label="Source name"
+                                      Label="@L["ChronicleExplorer_SourceName"].Value"
                                       Variant="AppVariant.Outlined"
                                       Margin="AppMargin.Dense" />
                     </AppItem>
                     <AppItem xs="12" md="5">
                         <AppTextField T="string" @bind-Value="_manualSourceUrl"
-                                      Label="Fandom URL"
+                                      Label="@L["ChronicleExplorer_FandomURL"].Value"
                                       Variant="AppVariant.Outlined"
                                       Margin="AppMargin.Dense" />
                     </AppItem>
                     <AppItem xs="12" md="2" Class="tl-flex tl-items-center">
-                        <AppButton Label="Add"
+                        <AppButton Label="@L["Vibes_Add"].Value"
                                    ButtonStyle="AppButtonStyle.Outlined"
                                    Tone="AppUiTone.Primary"
                                    StartIcon="@AppMaterialIcons.Filled.Add"
@@ -305,7 +306,7 @@ else
                 else if (_loreSources.Count == 0)
                 {
                     <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">
-                        No supplemental lore sources have been found or added for this Universe.
+                        @L["ChronicleExplorer_NoSupplementalLoreSourcesHave"]
                     </AppText>
                 }
                 else
@@ -313,10 +314,10 @@ else
                     <AppTable Class="chronicle-source-table">
                         <thead>
                         <tr>
-                            <th>Source</th>
-                            <th>Status</th>
-                            <th>Confidence</th>
-                            <th>Last enriched</th>
+                            <th>@L["Common_Source"]</th>
+                            <th>@L["Models_Status"]</th>
+                            <th>@L["ChronicleExplorer_Confidence"]</th>
+                            <th>@L["ChronicleExplorer_LastEnriched"]</th>
                             <th></th>
                         </tr>
                         </thead>
@@ -344,8 +345,8 @@ else
                                         @if (!source.status.Equals("Approved", StringComparison.OrdinalIgnoreCase))
                                         {
                                             <AppIconButton Icon="@AppMaterialIcons.Filled.Check"
-                                                           Tooltip="Approve"
-                                                           AriaLabel="Approve source"
+                                                           Tooltip="@L["ChronicleExplorer_Approve"].Value"
+                                                           AriaLabel="@L["ChronicleExplorer_ApproveSource"].Value"
                                                            Tone="AppUiTone.Success"
                                                            Size="AppControlSize.Compact"
                                                            Disabled="@_loreActionBusy"
@@ -354,8 +355,8 @@ else
                                         @if (!source.status.Equals("Rejected", StringComparison.OrdinalIgnoreCase))
                                         {
                                             <AppIconButton Icon="@AppMaterialIcons.Filled.Close"
-                                                           Tooltip="Reject"
-                                                           AriaLabel="Reject source"
+                                                           Tooltip="@L["ChronicleExplorer_Reject"].Value"
+                                                           AriaLabel="@L["ChronicleExplorer_RejectSource"].Value"
                                                            Tone="AppUiTone.Error"
                                                            Size="AppControlSize.Compact"
                                                            Disabled="@_loreActionBusy"
@@ -389,17 +390,17 @@ else
                 @(_selectedEntity.description ?? "No description available.")
             </AppText>
             <AppText Typo="AppTypo.caption" Class="chronicle-explorer-qid">
-                QID: @_selectedEntity.id
+                @L["ChronicleExplorer_QID", _selectedEntity.id]
             </AppText>
 
             @if (_canEditUniverse && !_selectedEntity.supplemental && DeviceContext.CanEdit)
             {
-                <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.Edit" Disabled="@(_openingEditor || _editing.IsOn)" OnClick="@(() => EditUniverseAsync(_selectedEntity))">Edit @_selectedEntity.label</AppButton>
+                <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.Edit" Disabled="@(_openingEditor || _editing.IsOn)" OnClick="@(() => EditUniverseAsync(_selectedEntity))">@L["ChronicleExplorer_Edit", _selectedEntity.label]</AppButton>
             }
 
             @if (_selectedEntity.works.Any())
             {
-                <AppText Typo="AppTypo.subtitle2" Class="tl-sp-mt-4 tl-sp-mb-2">Appears in</AppText>
+                <AppText Typo="AppTypo.subtitle2" Class="tl-sp-mt-4 tl-sp-mb-2">@L["ChronicleExplorer_AppearsIn"]</AppText>
                 @foreach (var work in _selectedEntity.works)
                 {
                     <AppChip T="string" Size="AppSize.Small" Variant="AppVariant.Outlined">
@@ -410,7 +411,7 @@ else
 
             @if (_selectedEntityEdges.Count > 0)
             {
-                <AppText Typo="AppTypo.subtitle2" Class="tl-sp-mt-4 tl-sp-mb-2">Relationships</AppText>
+                <AppText Typo="AppTypo.subtitle2" Class="tl-sp-mt-4 tl-sp-mb-2">@L["ChronicleExplorer_Relationships"]</AppText>
                 @foreach (var edge in _selectedEntityEdges)
                 {
                     <AppText Typo="AppTypo.body2" Class="tl-sp-mb-1">
@@ -490,7 +491,7 @@ else
                     selected = page?.items.FirstOrDefault(item => item.qid == entity.id);
                     offset += 100;
                 } while (selected is null && page?.has_more == true);
-                if (selected is null) { Snackbar.Add("This entity is not available for editing.", AppSeverity.Warning); return; }
+                if (selected is null) { Snackbar.Add(L["ChronicleExplorer_ThisEntityIsNotAvailable"].Value, AppSeverity.Warning); return; }
                 entityId = selected.id;
             }
             if (!await AdministratorAccess.EnsureUnlockedAsync(_lifetime.Token)) return;
@@ -502,7 +503,7 @@ else
                 await _flow.SelectToolAsync(EditTool.Details);
         }
         catch (OperationCanceledException) { /* the page was left while the unlock prompt was open */ }
-        catch (Exception ex) { Logger.LogWarning(ex, "Could not open Universe editor for {UniverseQid}", Qid); Snackbar.Add("Universe editing is unavailable. Please try again.", AppSeverity.Error); }
+        catch (Exception ex) { Logger.LogWarning(ex, "Could not open Universe editor for {UniverseQid}", Qid); Snackbar.Add(L["Common_UniverseEditingIsUnavailablePlease"].Value, AppSeverity.Error); }
         finally { _openingEditor = false; }
     }
 
@@ -522,7 +523,7 @@ else
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "The Universe graph could not refresh after an edit for {UniverseQid}", Qid);
-            Snackbar.Add("Saved, but the graph could not refresh. Reload to see the change.", AppSeverity.Warning);
+            Snackbar.Add(L["ChronicleExplorer_SavedButTheGraphCould"].Value, AppSeverity.Warning);
         }
     }
 

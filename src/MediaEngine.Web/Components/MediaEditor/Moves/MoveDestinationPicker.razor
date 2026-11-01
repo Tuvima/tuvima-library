@@ -2,13 +2,14 @@
 @using MediaEngine.Contracts.Library
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Services.Editing
+@inject IStringLocalizer<SharedStrings> L
 
 @* The destination picker for a move (details overlay spec D15): a searchable list of the places the Engine says accept this kind of
    item. Wrong kinds are never offered, because the Engine filters them. Choosing one asks the Engine for the Match step. *@
 <section class="tl-move-picker" aria-labelledby="tl-move-picker-title">
     <header class="tl-move-picker__header">
         <h3 id="tl-move-picker-title" class="tl-move-picker__title">@Heading</h3>
-        <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" OnClick="CancelAsync" />
+        <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="CancelAsync" />
     </header>
 
     <AppSearchField Value="@Query"
@@ -25,7 +26,7 @@
 
     @if (Loading)
     {
-        <AppPageState Kind="AppPageStateKind.Loading" Title="Looking for places" />
+        <AppPageState Kind="AppPageStateKind.Loading" Title="@L["MoveDestinationPicker_LookingForPlaces"].Value" />
     }
     else if (Destinations.Count == 0 && string.IsNullOrWhiteSpace(Error))
     {
@@ -34,7 +35,7 @@
     else
     {
         <div class="tl-move-picker__list">
-            <AppList T="LibraryMoveDestination" aria-label="Places to move to">
+            <AppList T="LibraryMoveDestination" aria-label="@L["MoveDestinationPicker_PlacesToMoveTo"].Value">
                 @foreach (var destination in Destinations)
                 {
                     <AppListItem T="LibraryMoveDestination" Disabled="@Busy" OnClick="@(() => PickAsync(destination))">
@@ -46,7 +47,7 @@
                             }
                             @if (!destination.HasList)
                             {
-                                <span class="tl-move-picker__parent">Your own order</span>
+                                <span class="tl-move-picker__parent">@L["MoveDestinationPicker_YourOwnOrder"]</span>
                             }
                         </span>
                     </AppListItem>

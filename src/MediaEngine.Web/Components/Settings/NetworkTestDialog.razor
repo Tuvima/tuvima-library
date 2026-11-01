@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Settings
+@inject IStringLocalizer<SharedStrings> L
 
 <AppDialog Visible="@Visible"
            VisibleChanged="@VisibleChanged"
@@ -13,7 +14,7 @@
             {
                 <div class="network-test-dialog__busy">
                     <AppSpinner Indeterminate="true" Color="AppColor.Primary" />
-                    <span>Running connection checks…</span>
+                    <span>@L["NetworkTestDialog_RunningConnectionChecks"]</span>
                 </div>
             }
             else if (Result is not null)
@@ -35,7 +36,7 @@
     </ChildContent>
     <FooterContent>
         <div class="network-test-dialog__actions">
-            <AppButton Label="Close" OnClick="CloseAsync" />
+            <AppButton Label="@L["Common_Close"].Value" OnClick="CloseAsync" />
         </div>
     </FooterContent>
 </AppDialog>

@@ -8,28 +8,29 @@
 @inject IJSRuntime JS
 @inject IAppToastService Toasts
 @implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 @* Export for a bug report (settings revamp D23). The filters are sent in a body, never in the address. Keys, tokens,
    sign-in details and file and folder names are hidden by the Engine unless the file-name switch is turned on. *@
 <div class="log-export">
-    <AppCard Title="Export logs for a bug report"
-             Description="Choose what to include, check how big the file will be, then download one text file. Keys, tokens, sign-in details and the names of files and folders are hidden.">
+    <AppCard Title="@L["LogExportPanel_ExportLogsForABug"].Value"
+             Description="@L["LogExportPanel_ChooseWhatToIncludeCheck"].Value">
         <div class="log-export__filters">
-            <AppSelect Label="Time" Value="@_range" ValueChanged="OnRangeChanged" Options="RangeOptions" />
-            <AppSelect Label="Level" Value="@_level" ValueChanged="OnLevelChanged" Options="LevelOptions" />
-            <AppTextField Label="One item (optional)"
+            <AppSelect Label="@L["Common_Time"].Value" Value="@_range" ValueChanged="OnRangeChanged" Options="RangeOptions" />
+            <AppSelect Label="@L["Common_Level"].Value" Value="@_level" ValueChanged="OnLevelChanged" Options="LevelOptions" />
+            <AppTextField Label="@L["LogExportPanel_OneItemOptional"].Value"
                           Value="@_itemOrRun"
                           ValueChanged="OnItemOrRunChanged"
                           OnDebounceIntervalElapsed="OnItemOrRunDebounced"
                           DebounceInterval="500"
-                          Placeholder="Paste an item id"
+                          Placeholder="@L["LogExportPanel_PasteAnItemId"].Value"
                           HelpText="Only lines that mention it are included."
                           data-testid="export-item-or-run" />
         </div>
 
         <fieldset class="log-export__areas">
-            <legend>Areas</legend>
-            <p class="log-export__hint">Leave all unticked to include every area.</p>
+            <legend>@L["LogExportPanel_Areas"]</legend>
+            <p class="log-export__hint">@L["LogExportPanel_LeaveAllUntickedToInclude"]</p>
             <div class="log-export__area-list">
                 @foreach (var area in Areas)
                 {
@@ -39,11 +40,11 @@
             </div>
         </fieldset>
 
-        <AppSwitchRow Label="Include events"
-                      Description="Add what the Library did in the same time range (everything level only)."
+        <AppSwitchRow Label="@L["LogExportPanel_IncludeEvents"].Value"
+                      Description="@L["LogExportPanel_AddWhatTheLibraryDid"].Value"
                       Value="@_includeEvents"
                       ValueChanged="OnIncludeEventsChanged" />
-        <AppSwitchRow Label="Show file names"
+        <AppSwitchRow Label="@L["LogExportPanel_ShowFileNames"].Value"
                       Description="Off by default. When on, the last part of each file name is shown; folders are always hidden."
                       Value="@_showFileNames"
                       ValueChanged="OnShowFileNamesChanged" />
@@ -55,7 +56,7 @@
             }
             else if (_previewFailed)
             {
-                <span class="log-export__failed">The size of the export could not be worked out. Check that the server is online, then try again.</span>
+                <span class="log-export__failed">@L["LogExportPanel_TheSizeOfTheExport"]</span>
             }
             else if (_preview is not null)
             {
@@ -68,7 +69,7 @@
         </div>
 
         <div class="log-export__actions">
-            <AppButton Label="Download"
+            <AppButton Label="@L["Models_Download"].Value"
                        StartIcon="@AppMaterialIcons.Outlined.Download"
                        ButtonStyle="AppButtonStyle.Filled"
                        Tone="AppUiTone.Primary"
