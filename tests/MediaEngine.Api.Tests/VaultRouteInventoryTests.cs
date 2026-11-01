@@ -57,6 +57,8 @@ public sealed class VaultRouteInventoryTests
         ("/api/v1/display/lanes/{place}/hidden/{collectionId:guid}", "Only stores the profile's own hide for a lane it already has; no item or file is read"),
         ("/api/v1/collections/{id:guid}", "Items are limited by the authorized projection"),
         ("/api/v1/collections/{id:guid}/items", "Items are limited by the authorized projection"),
+        ("/collections/{id:guid}/set", "The id is a Set, a parent collection with no items or files of its own; the service answers not found for anything that is not a Set the caller may edit, and the route needs collections-write"),
+        ("/collections/{id:guid}/pack-file", "The id is a Set, which holds no items or files; the export carries only names and rules, never a title, path or item id, and the service answers not found for anything that is not a Set the caller may edit"),
         ("/metadata/{entityId:guid}/tvdb-match/previews/{token}", "The handler authorizes the owning work (EvaluateEntityAsync) before answering"),
         ("/works/{workId:guid}", "The handler restricts the work to the files the catalogue authorization allows, and answers not found for none"),
         ("/works/{workId:guid}/editions", "The handler restricts the work to the files the catalogue authorization allows, and answers not found for none"),

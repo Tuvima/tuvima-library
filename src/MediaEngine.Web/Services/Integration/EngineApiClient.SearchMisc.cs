@@ -883,6 +883,130 @@ public sealed partial class EngineApiClient
         }).ToList(),
     };
 
+    // -- Packs (Collections and lists D14, 4e) ---------------------------------------
+
+    public async Task<IReadOnlyList<CollectionPackSummaryDto>> GetCollectionPacksAsync(
+        IReadOnlyList<string>? mediaTypes = null,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var url = "/collections/packs";
+            if (mediaTypes is { Count: > 0 })
+            {
+                url += "?media_types=" + Uri.EscapeDataString(string.Join(',', mediaTypes));
+            }
+
+            var response = await _http.GetAsync(url, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                LastError = await ReadCollectionFailureAsync(response, ct);
+                return [];
+            }
+
+            LastError = null;
+            var result = await response.Content.ReadFromJsonAsync<CollectionPackListResponse>(cancellationToken: ct);
+            return result?.Packs ?? [];
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "GET /collections/packs failed");
+            LastError = ex.Message;
+            return [];
+        }
+    }
+
+    public async Task<CollectionPackCreateResponse?> CreateCollectionPacksAsync(
+        CollectionPackCreateRequest request,
+        Guid? profileId = null,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync(AppendCollectionProfileQuery("/collections/packs", profileId), request, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                LastError = await ReadCollectionFailureAsync(response, ct);
+                return null;
+            }
+
+            LastError = null;
+            return await response.Content.ReadFromJsonAsync<CollectionPackCreateResponse>(cancellationToken: ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "POST /collections/packs failed");
+            LastError = ex.Message;
+            return null;
+        }
+    }
+
+    public async Task<CollectionPackSummaryDto?> PreviewCollectionPackFileAsync(string content, CancellationToken ct = default)
+    {
+        try
+        {
+            var response = await _http.PostAsJsonAsync("/collections/packs/preview-file", new CollectionPackFilePreviewRequest { Content = content }, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                LastError = await ReadCollectionFailureAsync(response, ct);
+                return null;
+            }
+
+            LastError = null;
+            return await response.Content.ReadFromJsonAsync<CollectionPackSummaryDto>(cancellationToken: ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "POST /collections/packs/preview-file failed");
+            LastError = ex.Message;
+            return null;
+        }
+    }
+
+    public async Task<CollectionPackExportResponse?> ExportCollectionSetAsync(Guid setId, Guid? profileId = null, CancellationToken ct = default)
+    {
+        try
+        {
+            var response = await _http.GetAsync(AppendCollectionProfileQuery($"/collections/{setId}/pack-file", profileId), ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                LastError = await ReadCollectionFailureAsync(response, ct);
+                return null;
+            }
+
+            LastError = null;
+            return await response.Content.ReadFromJsonAsync<CollectionPackExportResponse>(cancellationToken: ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "GET /collections/{SetId}/pack-file failed", setId);
+            LastError = ex.Message;
+            return null;
+        }
+    }
+
+    public async Task<CollectionSetRemovedResponse?> RemoveCollectionSetAsync(Guid setId, Guid? profileId = null, CancellationToken ct = default)
+    {
+        try
+        {
+            var response = await _http.DeleteAsync(AppendCollectionProfileQuery($"/collections/{setId}/set", profileId), ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                LastError = await ReadCollectionFailureAsync(response, ct);
+                return null;
+            }
+
+            LastError = null;
+            return await response.Content.ReadFromJsonAsync<CollectionSetRemovedResponse>(cancellationToken: ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "DELETE /collections/{SetId}/set failed", setId);
+            LastError = ex.Message;
+            return null;
+        }
+    }
+
     public async Task<bool> DeleteCollectionAsync(Guid collectionId, Guid? profileId = null, CancellationToken ct = default)
     {
         return await DeleteAsync(

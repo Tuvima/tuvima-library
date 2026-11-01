@@ -602,3 +602,5 @@
     .collection-flow__cols { grid-template-columns: minmax(0, 1fr); }
     .collection-flow__preview { position: static; }
 }
+.collection-flow__pack-summary { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: .88rem; }
+.collection-flow__pack-summary li { display: flex; justify-content: space-between; gap: 10px; }

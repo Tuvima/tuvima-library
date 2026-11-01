@@ -98,6 +98,7 @@ public static class AggregateStateSerializer
         CollectionType.Author => "Author",
         CollectionType.Collection => "Collection",
         CollectionType.Custom => "Custom",
+        CollectionType.Set => "Set",
         _ => throw new ArgumentOutOfRangeException(nameof(value), value, null),
     };
 
@@ -116,6 +117,7 @@ public static class AggregateStateSerializer
             "author" => CollectionType.Author,
             "collection" => CollectionType.Collection,
             "custom" => CollectionType.Custom,
+            "set" => CollectionType.Set,
             _ => throw Unknown(nameof(CollectionType), value),
         };
 

@@ -64,6 +64,40 @@ public sealed class LegacyCollectionContractTests
             "membership_scope", "order_source", "ownership_state", "linked_work_id");
     }
 
+    [Fact]
+    public void Pack_contracts_keep_the_wire_names_the_pack_file_and_the_pack_step_share()
+    {
+        AssertJsonFields<CollectionPackFileDto>("format", "version", "name", "description", "creates_set", "collections");
+        AssertJsonFields<CollectionPackFileEntryDto>(
+            "name", "description", "icon_name", "primary_area", "rule_definition", "sort_field", "sort_direction",
+            "secondary_sort_field", "secondary_sort_direction", "min_items", "max_items", "season_from", "season_to", "artwork_hint");
+        AssertJsonFields<CollectionPackSummaryDto>(
+            "id", "name", "description", "icon_name", "creates_set", "would_create_count", "uses_per_profile_fields", "collections");
+        AssertJsonFields<CollectionPackEntryDto>("name", "description", "item_count", "media_type_counts", "season_text");
+        AssertJsonFields<CollectionPackCreateRequest>(
+            "pack_ids", "file_content", "media_types", "owner_kind", "audience", "selected_profile_ids", "show_on");
+        AssertJsonFields<CollectionPackCreateResponse>("sets", "collections", "skipped");
+        AssertJsonFields<CollectionPackExportResponse>("file", "omitted");
+    }
+
+    [Fact]
+    public void Pack_file_round_trips_and_names_itself()
+    {
+        var file = new CollectionPackFileDto
+        {
+            Name = "Decades",
+            Collections = [new CollectionPackFileEntryDto { Name = "1990s", SeasonFrom = "10-01", SeasonTo = "11-01" }],
+        };
+
+        var json = global::System.Text.Json.JsonSerializer.Serialize(file);
+        var back = global::System.Text.Json.JsonSerializer.Deserialize<CollectionPackFileDto>(json)!;
+
+        Assert.Contains("\"format\":\"tuvima-collection-pack\"", json, StringComparison.Ordinal);
+        Assert.Equal("1990s", back.Collections.Single().Name);
+        Assert.Equal("10-01", back.Collections.Single().SeasonFrom);
+        Assert.Equal("stack", back.Collections.Single().ArtworkHint);
+    }
+
     private static void AssertJsonFields<T>(params string[] expected)
     {
         var actual = typeof(T)

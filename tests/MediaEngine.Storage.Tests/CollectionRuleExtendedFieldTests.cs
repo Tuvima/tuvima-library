@@ -336,6 +336,18 @@ public sealed class CollectionRuleExtendedFieldTests : IDisposable
     }
 
     [Fact]
+    public void AddedWithinDays_IsNot_FindsTitlesAddedLongerAgoThanThat()
+    {
+        var shelved = Movie("Shelved");
+        var fresh = Movie("Fresh");
+        Claim(AssetOf(shelved), DateTime.UtcNow.AddDays(-500).ToString("O"));
+        Claim(AssetOf(fresh), DateTime.UtcNow.AddDays(-10).ToString("O"));
+
+        Assert.Equal([fresh], Match(null, Rule("added_within_days", "eq", "365")));
+        Assert.Equal([shelved], Match(null, Rule("added_within_days", "neq", "365")));
+    }
+
+    [Fact]
     public void UsesPerProfileFields_FlagsOnlyActivityConditions()
     {
         Assert.True(CollectionRuleEvaluator.UsesPerProfileFields(
