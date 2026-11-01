@@ -610,7 +610,8 @@ public sealed class ApplicationPermissionHandler(
 
 public sealed class AdministratorOrApplicationRequirement(
     ApplicationPermissionId permission,
-    bool allowHouseholdAdministrator = false) : IAuthorizationRequirement
+    bool allowHouseholdAdministrator = false,
+    bool allowAdultProfile = false) : IAuthorizationRequirement
 {
     public ApplicationPermissionId Permission { get; } = permission;
 
@@ -619,6 +620,12 @@ public sealed class AdministratorOrApplicationRequirement(
     /// still check that the target is in that administrator's own household.
     /// </summary>
     public bool AllowHouseholdAdministrator { get; } = allowHouseholdAdministrator;
+
+    /// <summary>
+    /// When true, any adult profile signed in at the Dashboard (not a Kid's profile, not an app) also passes. The action itself
+    /// must then limit that caller to what the profile owns (collections: everyone makes their own, administrators push to everyone).
+    /// </summary>
+    public bool AllowAdultProfile { get; } = allowAdultProfile;
 }
 
 public sealed class HumanOrApplicationPermissionRequirement(ApplicationPermissionId permission)
@@ -687,6 +694,13 @@ public sealed class AdministratorOrApplicationHandler(
 
         if (authority.PrincipalKind == PrincipalKind.Human)
         {
+            if (requirement.AllowAdultProfile && AuthorityValidity.ValidateHuman(authority) is null &&
+                !authority.ActiveProfileIsRestricted)
+            {
+                context.Succeed(requirement);
+                return;
+            }
+
             if ((await administrators.EvaluateAdministratorAsync(
                     authority, true, http.RequestAborted).ConfigureAwait(false)).IsAllowed ||
                 requirement.AllowHouseholdAdministrator && !authority.IsEffectiveAdministrator &&
@@ -782,6 +796,18 @@ public static class AuthorityEndpointExtensions
         builder.RequireAuthorization(new AuthorizationPolicyBuilder()
             .RequireAuthenticatedUser()
             .AddRequirements(new AdministratorOrApplicationRequirement(permission))
+            .Build());
+
+    /// <summary>
+    /// Like <see cref="RequireAdministratorOrApplication(RouteHandlerBuilder, ApplicationPermissionId)"/> but any adult profile on
+    /// the Dashboard also passes. The action must then limit that caller to what the profile owns.
+    /// </summary>
+    public static RouteHandlerBuilder RequireAdministratorOrAdultProfile(
+        this RouteHandlerBuilder builder,
+        ApplicationPermissionId permission) =>
+        builder.RequireAuthorization(new AuthorizationPolicyBuilder()
+            .RequireAuthenticatedUser()
+            .AddRequirements(new AdministratorOrApplicationRequirement(permission, allowAdultProfile: true))
             .Build());
 
     /// <summary>

@@ -1368,9 +1368,10 @@ public static class CollectionEndpoints
             IDisplayProjectionReadService display,
             CancellationToken ct) =>
         {
-            var activeProfile = await ResolveActiveProfileAsync(profileId, profileRepo, httpContext, ct);
+            var caller = await CollectionCaller.ResolveAsync(httpContext, profileId, profileRepo, ct);
             var allowedWorkIds = await display.LoadVisibleWorkIdsAsync(ct);
-            return Results.Ok(await catalogReadService.GetManagedAsync(activeProfile, ct, allowedWorkIds));
+            return Results.Ok(await catalogReadService.GetManagedAsync(
+                caller.Profile, ct, allowedWorkIds, caller.IsAdministrator));
         })
         .WithName("GetManagedCollections")
         .WithSummary("List authored collections accessible to the active profile.")
@@ -1554,16 +1555,18 @@ public static class CollectionEndpoints
             Guid? profileId,
             CollectionCatalogReadService catalogReadService,
             IDisplayProjectionReadService display,
+            IVaultLibraryRepository vaultLibraries,
             CancellationToken ct) =>
         {
-            var activeProfile = await ResolveActiveProfileAsync(profileId, profileRepo, httpContext, ct);
+            var caller = await CollectionCaller.ResolveAsync(httpContext, profileId, profileRepo, ct);
+            var activeProfile = caller.Profile;
             var collection = await collectionRepo.GetByIdAsync(id, ct);
             if (collection is null)
             {
                 return ApiErrors.NotFound($"Collection '{id}' not found.");
             }
 
-            if (!CollectionAccessPolicy.CanEdit(collection, activeProfile, hasCollectionsWrite: true))
+            if (!CollectionAccessPolicy.CanEdit(collection, activeProfile, caller.IsAdministrator))
             {
                 return ApiErrors.Forbidden("The active profile cannot edit this collection.");
             }
@@ -1583,6 +1586,11 @@ public static class CollectionEndpoints
             if (!allowedWorkIds.Contains(collectionWorkId))
             {
                 return ApiErrors.Forbidden("The requested work is outside the caller's available libraries.");
+            }
+            if (await CollectionVaultGuard.RefusesAsync(
+                    collection.OwnerKind, collection.Audience, [collectionWorkId], vaultLibraries, ct))
+            {
+                return ApiErrors.Forbidden(CollectionVaultGuard.Message);
             }
             var existingItems = await collectionRepo.GetCollectionItemsAsync(id, 1000, ct);
             var existingDisplayWorkIds = await catalogReadService.GetDisplayWorkIdsAsync(existingItems.Select(item => item.WorkId), ct);
@@ -1609,7 +1617,7 @@ public static class CollectionEndpoints
         .WithName("AddCollectionItem")
         .WithSummary("Adds a work to a saved/manual collection.")
         .Produces(StatusCodes.Status200OK)
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.CollectionsWrite)
+        .RequireAdministratorOrAdultProfile(ApplicationPermissionIds.CollectionsWrite)
         .RequireCatalogueEntityAccess(ApplicationPermissionIds.CollectionsWrite, "Collection", "id");
 
         group.MapDelete("/{id:guid}/items/{itemId:guid}", async (
@@ -1621,14 +1629,15 @@ public static class CollectionEndpoints
             Guid? profileId,
             CancellationToken ct) =>
         {
-            var activeProfile = await ResolveActiveProfileAsync(profileId, profileRepo, httpContext, ct);
+            var caller = await CollectionCaller.ResolveAsync(httpContext, profileId, profileRepo, ct);
+            var activeProfile = caller.Profile;
             var collection = await collectionRepo.GetByIdAsync(id, ct);
             if (collection is null)
             {
                 return ApiErrors.NotFound($"Collection '{id}' not found.");
             }
 
-            if (!CollectionAccessPolicy.CanEdit(collection, activeProfile, hasCollectionsWrite: true))
+            if (!CollectionAccessPolicy.CanEdit(collection, activeProfile, caller.IsAdministrator))
             {
                 return Results.Forbid();
             }
@@ -1660,7 +1669,7 @@ public static class CollectionEndpoints
         .WithName("RemoveCollectionItem")
         .WithSummary("Removes a work from a saved/manual collection.")
         .Produces(StatusCodes.Status200OK)
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.CollectionsWrite)
+        .RequireAdministratorOrAdultProfile(ApplicationPermissionIds.CollectionsWrite)
         .RequireCatalogueEntityAccess(ApplicationPermissionIds.CollectionsWrite, "Collection", "id");
 
         group.MapPut("/{id:guid}/items/reorder", async (
@@ -1672,14 +1681,15 @@ public static class CollectionEndpoints
             Guid? profileId,
             CancellationToken ct) =>
         {
-            var activeProfile = await ResolveActiveProfileAsync(profileId, profileRepo, httpContext, ct);
+            var caller = await CollectionCaller.ResolveAsync(httpContext, profileId, profileRepo, ct);
+            var activeProfile = caller.Profile;
             var collection = await collectionRepo.GetByIdAsync(id, ct);
             if (collection is null)
             {
                 return ApiErrors.NotFound($"Collection '{id}' not found.");
             }
 
-            if (!CollectionAccessPolicy.CanEdit(collection, activeProfile, hasCollectionsWrite: true))
+            if (!CollectionAccessPolicy.CanEdit(collection, activeProfile, caller.IsAdministrator))
             {
                 return Results.Forbid();
             }
@@ -1704,7 +1714,7 @@ public static class CollectionEndpoints
         .WithName("ReorderCollectionItems")
         .WithSummary("Reorders saved/manual collection items.")
         .Produces(StatusCodes.Status200OK)
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.CollectionsWrite)
+        .RequireAdministratorOrAdultProfile(ApplicationPermissionIds.CollectionsWrite)
         .RequireCatalogueEntityAccess(ApplicationPermissionIds.CollectionsWrite, "Collection", "id");
 
         // Collection artwork slots mirror the shared editor: poster, background, and transparent logo.
@@ -1764,14 +1774,15 @@ public static class CollectionEndpoints
             Guid? profileId,
             CancellationToken ct) =>
         {
-            var activeProfile = await ResolveActiveProfileAsync(profileId, profileRepo, httpContext, ct);
+            var caller = await CollectionCaller.ResolveAsync(httpContext, profileId, profileRepo, ct);
+            var activeProfile = caller.Profile;
             var collection = await collectionRepo.GetByIdAsync(id, ct);
             if (collection is null)
             {
                 return ApiErrors.NotFound($"Collection '{id}' not found.");
             }
 
-            if (!CollectionAccessPolicy.CanEdit(collection, activeProfile, hasCollectionsWrite: true))
+            if (!CollectionAccessPolicy.CanEdit(collection, activeProfile, caller.IsAdministrator))
             {
                 return Results.Forbid();
             }
@@ -1837,7 +1848,7 @@ public static class CollectionEndpoints
         .WithSummary("Uploads one explicit artwork slot for a managed or structural collection.")
         .Produces<CollectionArtworkUploadResponse>(StatusCodes.Status200OK)
         .DisableAntiforgery()
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.CollectionsWrite)
+        .RequireAdministratorOrAdultProfile(ApplicationPermissionIds.CollectionsWrite)
         .RequireCatalogueEntityAccess(ApplicationPermissionIds.CollectionsWrite, "Collection", "id");
 
         group.MapDelete("/{id:guid}/artwork/{slot}", async (
@@ -1850,14 +1861,15 @@ public static class CollectionEndpoints
             Guid? profileId,
             CancellationToken ct) =>
         {
-            var activeProfile = await ResolveActiveProfileAsync(profileId, profileRepo, httpContext, ct);
+            var caller = await CollectionCaller.ResolveAsync(httpContext, profileId, profileRepo, ct);
+            var activeProfile = caller.Profile;
             var collection = await collectionRepo.GetByIdAsync(id, ct);
             if (collection is null)
             {
                 return ApiErrors.NotFound($"Collection '{id}' not found.");
             }
 
-            if (!CollectionAccessPolicy.CanEdit(collection, activeProfile, hasCollectionsWrite: true))
+            if (!CollectionAccessPolicy.CanEdit(collection, activeProfile, caller.IsAdministrator))
             {
                 return Results.Forbid();
             }
@@ -1887,7 +1899,7 @@ public static class CollectionEndpoints
         .WithName("DeleteCollectionArtwork")
         .WithSummary("Clears one explicit collection artwork slot and restores any derived fallback.")
         .Produces(StatusCodes.Status200OK)
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.CollectionsWrite)
+        .RequireAdministratorOrAdultProfile(ApplicationPermissionIds.CollectionsWrite)
         .RequireCatalogueEntityAccess(ApplicationPermissionIds.CollectionsWrite, "Collection", "id");
 
         // PUT /collections/{id}/enabled — toggle collection visibility.
@@ -1900,14 +1912,15 @@ public static class CollectionEndpoints
             Guid? profileId,
             CancellationToken ct) =>
         {
-            var activeProfile = await ResolveActiveProfileAsync(profileId, profileRepo, httpContext, ct);
+            var caller = await CollectionCaller.ResolveAsync(httpContext, profileId, profileRepo, ct);
+            var activeProfile = caller.Profile;
             var collection = await collectionRepo.GetByIdAsync(id, ct);
             if (collection is null)
             {
                 return ApiErrors.NotFound($"Collection '{id}' not found.");
             }
 
-            if (!CollectionAccessPolicy.CanEdit(collection, activeProfile, hasCollectionsWrite: true))
+            if (!CollectionAccessPolicy.CanEdit(collection, activeProfile, caller.IsAdministrator))
             {
                 return Results.Forbid();
             }
@@ -1918,7 +1931,7 @@ public static class CollectionEndpoints
         .WithName("UpdateCollectionEnabled")
         .WithSummary("Toggle a collection's enabled state.")
         .Produces(StatusCodes.Status200OK)
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.CollectionsWrite)
+        .RequireAdministratorOrAdultProfile(ApplicationPermissionIds.CollectionsWrite)
         .RequireCatalogueEntityAccess(ApplicationPermissionIds.CollectionsWrite, "Collection", "id");
 
         // PUT /collections/{id}/featured — toggle collection featured state.
@@ -1931,14 +1944,15 @@ public static class CollectionEndpoints
             Guid? profileId,
             CancellationToken ct) =>
         {
-            var activeProfile = await ResolveActiveProfileAsync(profileId, profileRepo, httpContext, ct);
+            var caller = await CollectionCaller.ResolveAsync(httpContext, profileId, profileRepo, ct);
+            var activeProfile = caller.Profile;
             var collection = await collectionRepo.GetByIdAsync(id, ct);
             if (collection is null)
             {
                 return ApiErrors.NotFound($"Collection '{id}' not found.");
             }
 
-            if (!CollectionAccessPolicy.CanEdit(collection, activeProfile, hasCollectionsWrite: true))
+            if (!CollectionAccessPolicy.CanEdit(collection, activeProfile, caller.IsAdministrator))
             {
                 return Results.Forbid();
             }
@@ -1949,7 +1963,7 @@ public static class CollectionEndpoints
         .WithName("UpdateCollectionFeatured")
         .WithSummary("Toggle a collection's featured state.")
         .Produces(StatusCodes.Status200OK)
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.CollectionsWrite)
+        .RequireAdministratorOrAdultProfile(ApplicationPermissionIds.CollectionsWrite)
         .RequireCatalogueEntityAccess(ApplicationPermissionIds.CollectionsWrite, "Collection", "id");
 
         // ── Parameterized Collection endpoints ─────────────────────────────────────────
@@ -2192,7 +2206,7 @@ public static class CollectionEndpoints
         .WithName("PreviewCollection")
         .WithSummary("Evaluate collection rules and return matching items without saving.")
         .Produces<CollectionPreviewResponse>(StatusCodes.Status200OK)
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.CollectionsWrite);
+        .RequireAdministratorOrAdultProfile(ApplicationPermissionIds.CollectionsWrite);
 
         // POST /collections — create a new collection
         group.MapPost("/", async (
@@ -2204,6 +2218,7 @@ public static class CollectionEndpoints
             HttpContext httpContext,
             CollectionCatalogReadService catalogReadService,
             IDisplayProjectionReadService display,
+            IVaultLibraryRepository vaultLibraries,
             CancellationToken ct) =>
         {
             if (string.IsNullOrWhiteSpace(body.Name))
@@ -2228,25 +2243,24 @@ public static class CollectionEndpoints
                 normalizedCollectionType,
                 CollectionTypeNames.Custom,
                 StringComparison.OrdinalIgnoreCase);
-            var activeProfile = await ResolveActiveProfileAsync(profileId, profileRepo, httpContext, ct);
+            var caller = await CollectionCaller.ResolveAsync(httpContext, profileId, profileRepo, ct);
+            var activeProfile = caller.Profile;
             var requestedOwnerKind = AggregateStateSerializer.ParseContainerOwnerKind(body.OwnerKind);
             var requestedAudience = AggregateStateSerializer.ParseContainerAudience(body.Audience);
             if (activeProfile is null && requestedOwnerKind == ContainerOwnerKind.Profile)
             {
                 return ApiErrors.BadRequest("An active profile is required to create a profile-owned collection.");
             }
-            if (isCuratedCollection && !CollectionAccessPolicy.CanManageCuratedCollections(hasCollectionsWrite: true))
+            if (activeProfile is null && !caller.IsAdministrator)
             {
-                return Results.Forbid();
+                return ApiErrors.Forbidden("An active profile is required to create a collection.");
             }
 
-            var normalizedVisibility = isCuratedCollection
-                ? CollectionAccessPolicy.SharedVisibility
-                : CollectionAccessPolicy.NormalizeVisibility(body.Visibility);
-            if (string.Equals(normalizedVisibility, CollectionAccessPolicy.SharedVisibility, StringComparison.OrdinalIgnoreCase)
-                && !CollectionAccessPolicy.CanManageSharedCollections(hasCollectionsWrite: true))
+            // Everyone makes their own (audience Only me); only an administrator makes a Library collection or shares one.
+            if (!caller.IsAdministrator
+                && CollectionAccessPolicy.RequestsSharing(requestedOwnerKind, requestedAudience, body.Visibility))
             {
-                return Results.Forbid();
+                return ApiErrors.Forbidden(CollectionAccessPolicy.SharingNeedsAdministratorMessage);
             }
 
             var definition = body.RuleDefinition.ToDomain();
@@ -2295,6 +2309,12 @@ public static class CollectionEndpoints
                 if (resolvedWorkIds.Any(workId => !allowedWorkIds.Contains(workId)))
                 {
                     return ApiErrors.Forbidden("One or more requested works are outside the caller's available libraries.");
+                }
+
+                if (await CollectionVaultGuard.RefusesAsync(
+                        requestedOwnerKind, requestedAudience, resolvedWorkIds, vaultLibraries, ct))
+                {
+                    return ApiErrors.Forbidden(CollectionVaultGuard.Message);
                 }
             }
 
@@ -2398,7 +2418,7 @@ public static class CollectionEndpoints
         .WithName("CreateCollection")
         .WithSummary("Create a new collection with rules and optional placements.")
         .Produces<CollectionCreatedResponse>(StatusCodes.Status201Created)
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.CollectionsWrite);
+        .RequireAdministratorOrAdultProfile(ApplicationPermissionIds.CollectionsWrite);
 
         // PUT /collections/{id} — update collection
         group.MapPut("/{id:guid}", async (
@@ -2411,6 +2431,7 @@ public static class CollectionEndpoints
             Guid? profileId,
             CollectionCatalogReadService catalogReadService,
             IDisplayProjectionReadService display,
+            IVaultLibraryRepository vaultLibraries,
             CancellationToken ct) =>
         {
             if (!CollectionLanePolicy.TryParseShowOn(body.ShowOn, out var showOnLocations))
@@ -2418,7 +2439,8 @@ public static class CollectionEndpoints
                 return ApiErrors.BadRequest(ShowOnMessage);
             }
 
-            var activeProfile = await ResolveActiveProfileAsync(profileId, profileRepo, httpContext, ct);
+            var caller = await CollectionCaller.ResolveAsync(httpContext, profileId, profileRepo, ct);
+            var activeProfile = caller.Profile;
             var collection = await collectionRepo.GetByIdAsync(id, ct);
             if (collection is null)
             {
@@ -2430,9 +2452,23 @@ public static class CollectionEndpoints
                 return ApiErrors.BadRequest($"Collection type '{collection.CollectionType}' is browse-only and cannot be edited here.");
             }
 
-            if (!CollectionAccessPolicy.CanEdit(collection, activeProfile, hasCollectionsWrite: true))
+            if (!CollectionAccessPolicy.CanEdit(collection, activeProfile, caller.IsAdministrator))
             {
                 return ApiErrors.Forbidden("The active profile cannot edit this collection.");
+            }
+
+            // A non-administrator keeps what they own to themselves: no Library ownership, no Selected profiles, no sharing.
+            if (!caller.IsAdministrator
+                && CollectionAccessPolicy.RequestsSharing(
+                    string.IsNullOrWhiteSpace(body.OwnerKind)
+                        ? collection.OwnerKind
+                        : AggregateStateSerializer.ParseContainerOwnerKind(body.OwnerKind),
+                    string.IsNullOrWhiteSpace(body.Audience)
+                        ? collection.Audience
+                        : AggregateStateSerializer.ParseContainerAudience(body.Audience),
+                    body.Visibility))
+            {
+                return ApiErrors.Forbidden(CollectionAccessPolicy.SharingNeedsAdministratorMessage);
             }
 
             if (body.Name is not null)
@@ -2519,7 +2555,7 @@ public static class CollectionEndpoints
             {
                 var normalizedVisibility = CollectionAccessPolicy.NormalizeVisibility(body.Visibility);
                 if (string.Equals(normalizedVisibility, CollectionAccessPolicy.SharedVisibility, StringComparison.OrdinalIgnoreCase)
-                    && !CollectionAccessPolicy.CanManageSharedCollections(hasCollectionsWrite: true))
+                    && !CollectionAccessPolicy.CanManageSharedCollections(caller.IsAdministrator))
                 {
                     return ApiErrors.Forbidden("The active profile cannot publish shared collections.");
                 }
@@ -2591,6 +2627,12 @@ public static class CollectionEndpoints
                 {
                     return ApiErrors.Forbidden("One or more requested works are outside the caller's available libraries.");
                 }
+
+                if (await CollectionVaultGuard.RefusesAsync(
+                        collection.OwnerKind, collection.Audience, resolvedWorkIds, vaultLibraries, ct))
+                {
+                    return ApiErrors.Forbidden(CollectionVaultGuard.Message);
+                }
             }
 
             var addedItems = resolvedWorkIds
@@ -2629,7 +2671,7 @@ public static class CollectionEndpoints
         .WithName("UpdateCollection")
         .WithSummary("Update a collection's rules, settings, or metadata.")
         .Produces(StatusCodes.Status200OK)
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.CollectionsWrite)
+        .RequireAdministratorOrAdultProfile(ApplicationPermissionIds.CollectionsWrite)
         .RequireCatalogueEntityAccess(ApplicationPermissionIds.CollectionsWrite, "Collection", "id");
 
         // DELETE /collections/{id} — soft delete (disable)
@@ -2641,7 +2683,8 @@ public static class CollectionEndpoints
             Guid? profileId,
             CancellationToken ct) =>
         {
-            var activeProfile = await ResolveActiveProfileAsync(profileId, profileRepo, httpContext, ct);
+            var caller = await CollectionCaller.ResolveAsync(httpContext, profileId, profileRepo, ct);
+            var activeProfile = caller.Profile;
             var collection = await collectionRepo.GetByIdAsync(id, ct);
             if (collection is null)
             {
@@ -2658,7 +2701,7 @@ public static class CollectionEndpoints
                 return ApiErrors.BadRequest("System collections cannot be deleted.");
             }
 
-            if (!CollectionAccessPolicy.CanEdit(collection, activeProfile, hasCollectionsWrite: true))
+            if (!CollectionAccessPolicy.CanEdit(collection, activeProfile, caller.IsAdministrator))
             {
                 return Results.Forbid();
             }
@@ -2669,7 +2712,7 @@ public static class CollectionEndpoints
         .WithName("DeleteCollection")
         .WithSummary("Soft-delete a collection by disabling it.")
         .Produces(StatusCodes.Status200OK)
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.CollectionsWrite)
+        .RequireAdministratorOrAdultProfile(ApplicationPermissionIds.CollectionsWrite)
         .RequireCatalogueEntityAccess(ApplicationPermissionIds.CollectionsWrite, "Collection", "id");
 
         // GET /collections/field-values/{field} — distinct values for autocomplete
@@ -2687,7 +2730,7 @@ public static class CollectionEndpoints
         .WithName("GetFieldValues")
         .WithSummary("Returns distinct values for a metadata field (used for collection builder autocomplete).")
         .Produces<IReadOnlyList<string>>(StatusCodes.Status200OK)
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.CollectionsWrite);
+        .RequireAdministratorOrAdultProfile(ApplicationPermissionIds.CollectionsWrite);
 
         group.MapGet("/entity-field-values/{field}", async (
             string field,
@@ -2722,7 +2765,7 @@ public static class CollectionEndpoints
         .WithName("GetEntityFieldValues")
         .WithSummary("Returns local QID-backed values and labels for the collection rule editor.")
         .Produces<IReadOnlyList<CollectionRuleValueDto>>(StatusCodes.Status200OK)
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.CollectionsWrite);
+        .RequireAdministratorOrAdultProfile(ApplicationPermissionIds.CollectionsWrite);
 
         // GET /collections/{id}/placements
         group.MapGet("/{id:guid}/placements", async (
@@ -2750,8 +2793,25 @@ public static class CollectionEndpoints
             Guid id,
             List<PlacementRequest> body,
             ICollectionPlacementRepository placementRepo,
+            ICollectionRepository collectionRepo,
+            IProfileRepository profileRepo,
+            HttpContext httpContext,
+            Guid? profileId,
             CancellationToken ct) =>
         {
+            var caller = await CollectionCaller.ResolveAsync(httpContext, profileId, profileRepo, ct);
+            var collection = await collectionRepo.GetByIdAsync(id, ct);
+            if (collection is null)
+            {
+                return ApiErrors.NotFound($"Collection '{id}' not found.");
+            }
+
+            // A profile places only its own collection, and a non-administrator's is always private, so its lane shows to them alone.
+            if (!CollectionAccessPolicy.CanEdit(collection, caller.Profile, caller.IsAdministrator))
+            {
+                return ApiErrors.Forbidden("The active profile cannot edit this collection.");
+            }
+
             await placementRepo.DeleteByCollectionIdAsync(id, ct);
             foreach (var p in body)
             {
@@ -2774,7 +2834,7 @@ public static class CollectionEndpoints
         .WithName("UpdateCollectionPlacements")
         .WithSummary("Replace all placements for a collection.")
         .Produces(StatusCodes.Status200OK)
-        .RequireAdministratorOrApplication(ApplicationPermissionIds.CollectionsWrite)
+        .RequireAdministratorOrAdultProfile(ApplicationPermissionIds.CollectionsWrite)
         .RequireCatalogueEntityAccess(ApplicationPermissionIds.CollectionsWrite, "Collection", "id");
 
         group.MapCollectionPackEndpoints();

@@ -20,7 +20,10 @@ internal sealed class FixedVaultLibraries(params string[] ids) : IVaultLibraryRe
 
     public Task<bool> HoldsOrdinaryFilesAsync(string folderPath, CancellationToken ct = default) => Task.FromResult(false);
 
-    public Task<bool> IsInVaultAsync(Guid id, CancellationToken ct = default) => Task.FromResult(false);
+    /// <summary>Entities (works, assets) that count as Vault titles; empty unless a test names some.</summary>
+    public HashSet<Guid> VaultEntities { get; } = [];
+
+    public Task<bool> IsInVaultAsync(Guid id, CancellationToken ct = default) => Task.FromResult(VaultEntities.Contains(id));
 
     public Task<bool> MayPersonBeVaultOnlyAsync(Guid personId, CancellationToken ct = default) => Task.FromResult(false);
 

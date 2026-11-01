@@ -67,8 +67,9 @@ public static class CollectionListEndpoints
                 return ApiErrors.NotFound($"Collection '{id}' not found.");
             }
 
-            var profile = await ResolveActiveProfileAsync(body.ProfileId, profiles, http, ct);
-            if (!CollectionAccessPolicy.CanEdit(collection, profile, hasCollectionsWrite: true))
+            var caller = await CollectionCaller.ResolveAsync(http, body.ProfileId, profiles, ct);
+            var profile = caller.Profile;
+            if (!CollectionAccessPolicy.CanEdit(collection, profile, caller.IsAdministrator))
             {
                 return ApiErrors.Forbidden("The active profile cannot edit this collection.");
             }
@@ -115,8 +116,9 @@ public static class CollectionListEndpoints
                 return ApiErrors.NotFound($"Collection '{id}' not found.");
             }
 
-            var profile = await ResolveActiveProfileAsync(profileId, profiles, http, ct);
-            if (!CollectionAccessPolicy.CanEdit(collection, profile, hasCollectionsWrite: true))
+            var caller = await CollectionCaller.ResolveAsync(http, profileId, profiles, ct);
+            var profile = caller.Profile;
+            if (!CollectionAccessPolicy.CanEdit(collection, profile, caller.IsAdministrator))
             {
                 return ApiErrors.Forbidden("The active profile cannot edit this collection.");
             }
@@ -149,8 +151,9 @@ public static class CollectionListEndpoints
                 return ApiErrors.NotFound($"Collection '{id}' not found.");
             }
 
-            var profile = await ResolveActiveProfileAsync(body.ProfileId, profiles, http, ct);
-            if (!CollectionAccessPolicy.CanEdit(collection, profile, hasCollectionsWrite: true))
+            var caller = await CollectionCaller.ResolveAsync(http, body.ProfileId, profiles, ct);
+            var profile = caller.Profile;
+            if (!CollectionAccessPolicy.CanEdit(collection, profile, caller.IsAdministrator))
             {
                 return ApiErrors.Forbidden("The active profile cannot edit this collection.");
             }
@@ -187,8 +190,9 @@ public static class CollectionListEndpoints
                 return ApiErrors.NotFound($"Collection '{id}' not found.");
             }
 
-            var profile = await ResolveActiveProfileAsync(body.ProfileId, profiles, http, ct);
-            if (!CollectionAccessPolicy.CanEdit(collection, profile, hasCollectionsWrite: true))
+            var caller = await CollectionCaller.ResolveAsync(http, body.ProfileId, profiles, ct);
+            var profile = caller.Profile;
+            if (!CollectionAccessPolicy.CanEdit(collection, profile, caller.IsAdministrator))
             {
                 return ApiErrors.Forbidden("The active profile cannot edit this collection.");
             }
@@ -245,8 +249,9 @@ public static class CollectionListEndpoints
                 return ApiErrors.NotFound($"Collection '{id}' not found.");
             }
 
-            var profile = await ResolveActiveProfileAsync(body.ProfileId, profiles, http, ct);
-            if (!CollectionAccessPolicy.CanEdit(collection, profile, hasCollectionsWrite: true))
+            var caller = await CollectionCaller.ResolveAsync(http, body.ProfileId, profiles, ct);
+            var profile = caller.Profile;
+            if (!CollectionAccessPolicy.CanEdit(collection, profile, caller.IsAdministrator))
             {
                 return ApiErrors.Forbidden("The active profile cannot edit this collection.");
             }
@@ -279,21 +284,6 @@ public static class CollectionListEndpoints
         .RequireCatalogueEntityAccess(ApplicationPermissionIds.CollectionsWrite, "Collection", "id");
 
         return group;
-    }
-
-    private static async Task<Profile?> ResolveActiveProfileAsync(
-        Guid? profileId, IProfileRepository profileRepo, HttpContext httpContext, CancellationToken ct)
-    {
-        var authority = await httpContext.RequestServices
-            .GetRequiredService<IRequestAuthorityResolver>()
-            .ResolveAsync(httpContext, ct);
-        if (authority.ActiveProfileId is not { } activeProfileId
-            || (profileId.HasValue && profileId.Value != activeProfileId))
-        {
-            return null;
-        }
-
-        return await profileRepo.GetByIdAsync(activeProfileId, ct);
     }
 }
 

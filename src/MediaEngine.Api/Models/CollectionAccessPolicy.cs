@@ -31,11 +31,28 @@ public static class CollectionAccessPolicy
             ? SharedVisibility
             : PrivateVisibility;
 
-    public static bool CanManageSharedCollections(bool hasCollectionsWrite) =>
-        hasCollectionsWrite;
+    /// <summary>
+    /// Only an administrator makes or edits Library collections (everyone sees them) and shares one with selected profiles
+    /// ("push"). Every adult profile owns what it makes (Collections and lists spec D19).
+    /// </summary>
+    public static bool CanManageSharedCollections(bool isAdministrator) =>
+        isAdministrator;
 
-    public static bool CanManageCuratedCollections(bool hasCollectionsWrite) =>
-        hasCollectionsWrite;
+    public static bool CanManageCuratedCollections(bool isAdministrator) =>
+        isAdministrator;
+
+    /// <summary>
+    /// What the person asked for when it goes beyond a collection of their own that only they see: Library ownership, a
+    /// shared visibility, or an audience of Selected profiles or Everyone. A non-administrator is refused all of these.
+    /// </summary>
+    public static bool RequestsSharing(ContainerOwnerKind ownerKind, ContainerAudience audience, string? visibility = null) =>
+        ownerKind == ContainerOwnerKind.Library
+        || audience != ContainerAudience.Private
+        || string.Equals(visibility, SharedVisibility, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>The refusal a non-administrator gets for sharing choices.</summary>
+    public const string SharingNeedsAdministratorMessage =
+        "Only an administrator can share a collection with other profiles or make it a Library collection.";
 
     public static bool CanAccess(Collection collection, Profile? activeProfile)
     {
@@ -54,30 +71,39 @@ public static class CollectionAccessPolicy
                && collection.AudienceProfileIds.Contains(activeProfile.Id);
     }
 
+    /// <summary>
+    /// Whether the caller may change the collection. An administrator manages Library collections and their own profile's;
+    /// anyone else, an adult profile, manages only the collections they own (their own profile, kept to themselves).
+    /// </summary>
     public static bool CanEdit(
         Collection collection,
         Profile? activeProfile,
-        bool hasCollectionsWrite)
+        bool isAdministrator)
     {
-        if (!hasCollectionsWrite)
-        {
-            return false;
-        }
-
         if (collection.OwnerKind == ContainerOwnerKind.Library)
         {
-            return CanManageCuratedCollections(hasCollectionsWrite);
+            return CanManageCuratedCollections(isAdministrator);
         }
 
         if (collection.Scope == CollectionScope.Library)
         {
-            return CanManageSharedCollections(hasCollectionsWrite);
+            return CanManageSharedCollections(isAdministrator);
         }
 
         return activeProfile is not null
             && collection.Scope == CollectionScope.User
             && collection.ProfileId == activeProfile.Id;
     }
+
+    /// <summary>
+    /// A hand-picked collection or playlist the caller may put titles into: the "Add to collection" list. Rule-driven
+    /// collections, imports, packs and system groupings fill themselves and are never offered.
+    /// </summary>
+    public static bool CanFill(Collection collection, Profile? activeProfile, bool isAdministrator) =>
+        collection.IsEnabled
+        && IsManagedCollectionType(collection.CollectionType)
+        && collection.Resolution == CollectionResolution.Materialized
+        && CanEdit(collection, activeProfile, isAdministrator);
 
     public static bool IsManagedCollectionType(CollectionType collectionType) =>
         collectionType is CollectionType.Custom

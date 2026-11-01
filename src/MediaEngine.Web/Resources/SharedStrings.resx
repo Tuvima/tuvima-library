@@ -8511,8 +8511,8 @@
   <data name="CollectionPersonalMediaSection_AddAtLeastOneComplete" xml:space="preserve">
     <value>Add at least one complete condition to the personal-media smart View rule.</value>
   </data>
-  <data name="CollectionsPage_OnlyAnAdministratorCanCreate" xml:space="preserve">
-    <value>Only an administrator can create a curated collection.</value>
+  <data name="CollectionsPage_KidsCannotCreate" xml:space="preserve">
+    <value>Kids profiles can't create collections.</value>
   </data>
   <data name="CollectionsPage_AutomaticCollections" xml:space="preserve">
     <value>Automatic Collections</value>

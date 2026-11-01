@@ -38,10 +38,16 @@ public sealed class CollectionCatalogReadService(
     /// <summary>Today's date on this machine: the day the seasonal windows and the daily random sample are read against.</summary>
     private DateOnly Today => DateOnly.FromDateTime(_clock.GetLocalNow().DateTime);
 
+    /// <summary>
+    /// The authored collections and playlists the profile can see. <paramref name="isAdministrator"/> decides what each one says the
+    /// caller may do with it (<c>CanEdit</c>, <c>CanShare</c>): an administrator manages everything they manage, anyone else only
+    /// what they own (Collections and lists D19).
+    /// </summary>
     public async Task<List<ManagedCollectionDto>> GetManagedAsync(
         Profile? activeProfile,
         CancellationToken ct = default,
-        IReadOnlySet<Guid>? allowedWorkIds = null)
+        IReadOnlySet<Guid>? allowedWorkIds = null,
+        bool isAdministrator = false)
     {
         var collections = (await collectionRepo.GetManagedCollectionsAsync(ct).ConfigureAwait(false))
             .Where(collection => collection.IsEnabled
@@ -80,6 +86,7 @@ public sealed class CollectionCatalogReadService(
                 collection,
                 CollectionOptionsPolicy.CapCount(collection, count),
                 activeProfile,
+                isAdministrator,
                 today: Today));
         }
 

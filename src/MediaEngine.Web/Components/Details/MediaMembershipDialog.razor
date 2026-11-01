@@ -1,15 +1,27 @@
 @namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Models.ViewDTOs
 @inject IEngineApiClient Api
 @inject UIOrchestratorService Orchestrator
-@inject DashboardSessionAccessor Session
 @inject IStringLocalizer<SharedStrings> L
+@* "Add to collection" / "Add to playlist" (Collections and lists spec 4a, D19). The list holds exactly the hand-picked collections or
+   playlists the Engine says the signed-in person may edit: their own, and for an administrator everything they manage. The Engine
+   checks every add again. "New collection with this title" hands back to the caller, which opens the New collection flow. *@
 <AppDialog>
     <DialogContent>
         @if (_loading) { <p>@L["MediaMembershipDialog_LoadingAvailableDestinations"]</p> }
         else if (_options.Count == 0) { <p>No editable manual @(Playlist ? "playlists" : "collections") are available.</p> }
         else { <AppSelect Value="@_selected" ValueChanged="@((string? value) => _selected = value)" Options="@_options" aria-label="@L["Common_Destination"].Value" /> }
+        @if (OfferNewCollection && !Playlist)
+        {
+            <AppButton ButtonStyle="AppButtonStyle.Text"
+                       StartIcon="@AppMaterialIcons.Filled.Add"
+                       Class="media-membership__new"
+                       OnClick="@(() => Dialog.Close(AppDialogResult.Ok(CollectionMembershipFlow.NewCollectionChoice)))">
+                @NewCollectionLabel
+            </AppButton>
+        }
         @if (_error is not null) { <p role="alert">@_error</p> }
     </DialogContent>
     <DialogActions>
@@ -21,15 +33,19 @@
     [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
     [Parameter] public bool Playlist { get; set; }
     [Parameter] public IReadOnlyList<Guid> WorkIds { get; set; } = [];
+
+    /// <summary>True when the list also offers "New collection with this title"; the dialog then closes with <see cref="CollectionMembershipFlow.NewCollectionChoice"/>.</summary>
+    [Parameter] public bool OfferNewCollection { get; set; }
+
     private IReadOnlyList<AppSelectOption> _options = [];
     private string? _selected;
     private string? _error;
     private bool _loading = true, _saving;
+    private string NewCollectionLabel => WorkIds.Count == 1 ? "New collection with this title" : "New collection with these titles";
     protected override async Task OnInitializedAsync() {
         var profile = await Orchestrator.GetActiveProfileAsync();
-        var collections = await Api.GetManagedCollectionsAsync();
-        _options = collections.Where(c => c.CanEdit && c.Resolution.Equals("materialized", StringComparison.OrdinalIgnoreCase)
-            && (Playlist ? c.CollectionType == "Playlist" : Session.HasAction("access.manage") && c.CollectionType == "Custom"))
+        var collections = await Api.GetManagedCollectionsAsync(profile?.Id);
+        _options = collections.Where(c => CollectionAuthoringRule.IsAddTarget(c, Playlist))
             .Select(c => new AppSelectOption(c.Id.ToString("D"), c.Name)).ToList();
         _loading = false;
     }

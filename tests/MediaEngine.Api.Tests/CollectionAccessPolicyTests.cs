@@ -54,9 +54,9 @@ public sealed class CollectionAccessPolicyTests
 
         var activeProfile = new Profile { Id = OwnerProfileId };
 
-        Assert.False(CollectionAccessPolicy.CanEdit(sharedCollection, activeProfile, hasCollectionsWrite: false));
-        Assert.True(CollectionAccessPolicy.CanEdit(sharedCollection, activeProfile, hasCollectionsWrite: true));
-        Assert.True(CollectionAccessPolicy.CanEdit(sharedCollection, activeProfile: null, hasCollectionsWrite: true));
+        Assert.False(CollectionAccessPolicy.CanEdit(sharedCollection, activeProfile, isAdministrator: false));
+        Assert.True(CollectionAccessPolicy.CanEdit(sharedCollection, activeProfile, isAdministrator: true));
+        Assert.True(CollectionAccessPolicy.CanEdit(sharedCollection, activeProfile: null, isAdministrator: true));
     }
 
     [Fact]
@@ -67,12 +67,67 @@ public sealed class CollectionAccessPolicyTests
             collectionType: CollectionType.Custom);
         var activeProfile = new Profile { Id = OwnerProfileId };
 
-        Assert.False(CollectionAccessPolicy.CanManageCuratedCollections(hasCollectionsWrite: false));
-        Assert.False(CollectionAccessPolicy.CanEdit(curatedCollection, activeProfile, hasCollectionsWrite: false));
-        Assert.True(CollectionAccessPolicy.CanManageCuratedCollections(hasCollectionsWrite: true));
-        Assert.True(CollectionAccessPolicy.CanEdit(curatedCollection, activeProfile, hasCollectionsWrite: true));
-        Assert.True(CollectionAccessPolicy.CanEdit(curatedCollection, activeProfile: null, hasCollectionsWrite: true));
+        Assert.False(CollectionAccessPolicy.CanManageCuratedCollections(isAdministrator: false));
+        Assert.False(CollectionAccessPolicy.CanEdit(curatedCollection, activeProfile, isAdministrator: false));
+        Assert.True(CollectionAccessPolicy.CanManageCuratedCollections(isAdministrator: true));
+        Assert.True(CollectionAccessPolicy.CanEdit(curatedCollection, activeProfile, isAdministrator: true));
+        Assert.True(CollectionAccessPolicy.CanEdit(curatedCollection, activeProfile: null, isAdministrator: true));
     }
+
+    [Fact]
+    public void CanEdit_ANonAdministratorEditsOnlyTheCollectionsTheirProfileOwns()
+    {
+        var me = new Profile { Id = OwnerProfileId };
+        var mine = CreateCollection(CollectionScope.User, OwnerProfileId);
+        var someoneElses = CreateCollection(CollectionScope.User, OtherProfileId);
+        var library = CreateCollection(CollectionScope.Library);
+
+        Assert.True(CollectionAccessPolicy.CanEdit(mine, me, isAdministrator: false));
+        Assert.False(CollectionAccessPolicy.CanEdit(someoneElses, me, isAdministrator: false));
+        Assert.False(CollectionAccessPolicy.CanEdit(library, me, isAdministrator: false));
+        Assert.False(CollectionAccessPolicy.CanEdit(mine, activeProfile: null, isAdministrator: false));
+    }
+
+    [Fact]
+    public void CanEdit_AnAdministratorEditsLibraryCollectionsAndTheirOwnButNotAnotherProfilesPrivateOnes()
+    {
+        var admin = new Profile { Id = OwnerProfileId };
+
+        Assert.True(CollectionAccessPolicy.CanEdit(CreateCollection(CollectionScope.Library), admin, isAdministrator: true));
+        Assert.True(CollectionAccessPolicy.CanEdit(CreateCollection(CollectionScope.User, OwnerProfileId), admin, isAdministrator: true));
+        Assert.False(CollectionAccessPolicy.CanEdit(CreateCollection(CollectionScope.User, OtherProfileId), admin, isAdministrator: true));
+    }
+
+    [Fact]
+    public void CanFill_ListsOnlyEnabledHandPickedCollectionsAndPlaylistsTheCallerMayEdit()
+    {
+        var me = new Profile { Id = OwnerProfileId };
+        var myPlaylist = HandPicked(CreateCollection(CollectionScope.User, OwnerProfileId, CollectionType.Playlist));
+        var library = HandPicked(CreateCollection(CollectionScope.Library, collectionType: CollectionType.Custom));
+        var mine = HandPicked(CreateCollection(CollectionScope.User, OwnerProfileId, CollectionType.Custom));
+        var disabled = HandPicked(CreateCollection(CollectionScope.User, OwnerProfileId, CollectionType.Custom));
+        disabled.IsEnabled = false;
+        var ruleDriven = HandPicked(CreateCollection(CollectionScope.User, OwnerProfileId, CollectionType.Custom));
+        ruleDriven.ChangeResolution(CollectionResolution.Query);
+
+        Assert.True(CollectionAccessPolicy.CanFill(mine, me, isAdministrator: false));
+        Assert.True(CollectionAccessPolicy.CanFill(myPlaylist, me, isAdministrator: false));
+        Assert.False(CollectionAccessPolicy.CanFill(library, me, isAdministrator: false));
+        Assert.True(CollectionAccessPolicy.CanFill(library, me, isAdministrator: true));
+        Assert.False(CollectionAccessPolicy.CanFill(disabled, me, isAdministrator: true));
+        Assert.False(CollectionAccessPolicy.CanFill(ruleDriven, me, isAdministrator: true));
+    }
+
+    [Theory]
+    [InlineData(ContainerOwnerKind.Profile, ContainerAudience.Private, null, false)]
+    [InlineData(ContainerOwnerKind.Library, ContainerAudience.Private, null, true)]
+    [InlineData(ContainerOwnerKind.Profile, ContainerAudience.SelectedProfiles, null, true)]
+    [InlineData(ContainerOwnerKind.Profile, ContainerAudience.Everyone, null, true)]
+    [InlineData(ContainerOwnerKind.Profile, ContainerAudience.Private, "shared", true)]
+    [InlineData(ContainerOwnerKind.Profile, ContainerAudience.Private, "private", false)]
+    public void RequestsSharing_IsTrueForAnythingBeyondACollectionOnlyTheOwnerSees(
+        ContainerOwnerKind owner, ContainerAudience audience, string? visibility, bool expected) =>
+        Assert.Equal(expected, CollectionAccessPolicy.RequestsSharing(owner, audience, visibility));
 
     [Fact]
     public void ApplyVisibility_MapsPrivateAndSharedToExistingStorageFields()
@@ -88,6 +143,13 @@ public sealed class CollectionAccessPolicyTests
 
         Assert.Equal(CollectionScope.Library, collection.Scope);
         Assert.Null(collection.ProfileId);
+    }
+
+    private static Collection HandPicked(Collection collection)
+    {
+        collection.IsEnabled = true;
+        collection.ChangeResolution(CollectionResolution.Materialized);
+        return collection;
     }
 
     private static Collection CreateCollection(
