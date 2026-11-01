@@ -101,6 +101,12 @@ public sealed record ParsedList
     /// try again (Collections and lists spec 4h, "Will try again").
     /// </summary>
     public bool WillTryAgain { get; init; }
+
+    /// <summary>
+    /// The profile whose own account on the site was used to read this list (a private or own Trakt list). The list is saved with it
+    /// so a scheduled refresh, which has no signed-in person, reads the list as that profile again. Null when no account was used.
+    /// </summary>
+    public Guid? ConnectionProfileId { get; init; }
 }
 
 /// <summary>A list file that could not be read. The message is safe to show to the person.</summary>

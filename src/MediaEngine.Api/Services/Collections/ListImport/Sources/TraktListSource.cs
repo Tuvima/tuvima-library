@@ -2,47 +2,71 @@ using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using MediaEngine.Api.Services.Plugins.Trakt;
+using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Entities;
 using MediaEngine.Providers.Services;
 
 namespace MediaEngine.Api.Services.Collections.ListImport.Sources;
 
 /// <summary>
 /// Where a signed-in Trakt account's access token comes from (Collections and lists spec D7, WP6e; plugin architecture spec C13).
-/// A person's own Trakt lists and watchlist can be read only with a token that person approved on another device. Library does
-/// not hold such a token yet, so the shipped answer is <see cref="UnlinkedTraktAccessTokens"/>; the per-profile connection that
-/// links the account plugs in here, and nothing else in the source changes.
+/// A person's own Trakt lists and watchlist can be read only with a token that person approved on another device. The token is
+/// that profile's own credential in the Trakt plugin; a profile can only ever reach its own.
 /// </summary>
 public interface ITraktAccessTokens
 {
-    /// <summary>The token of the person whose collection is being read, or null when no Trakt account is linked.</summary>
-    Task<string?> TokenAsync(CancellationToken ct);
+    /// <summary>
+    /// The token of the profile whose collection is being read, renewed first if it ran out. Null when no profile is given, the
+    /// profile has not signed in to Trakt, or Trakt no longer accepts its sign-in.
+    /// </summary>
+    Task<string?> TokenAsync(Guid? profileId, CancellationToken ct);
+
+    /// <summary>True when the profile has a Trakt sign-in kept. Never the token.</summary>
+    Task<bool> HasAccountAsync(Guid profileId, CancellationToken ct);
 }
 
-/// <summary>No Trakt account can be linked yet, so there is never a token.</summary>
+/// <summary>No Trakt account is linked to anyone: there is never a token. Used where the Trakt plugin is not part of the app.</summary>
 public sealed class UnlinkedTraktAccessTokens : ITraktAccessTokens
 {
-    public Task<string?> TokenAsync(CancellationToken ct) => Task.FromResult<string?>(null);
+    public Task<string?> TokenAsync(Guid? profileId, CancellationToken ct) => Task.FromResult<string?>(null);
+
+    public Task<bool> HasAccountAsync(Guid profileId, CancellationToken ct) => Task.FromResult(false);
 }
+
+/// <summary>Whether the Trakt plugin is switched on, and the Trakt app's client ID the household entered. Read fresh each time.</summary>
+public interface ITraktSettings
+{
+    Task<TraktSetup> LoadAsync(CancellationToken ct);
+}
+
+/// <param name="PluginOn">True when the Trakt plugin is switched on.</param>
+/// <param name="ClientId">The Trakt app's client ID, or null when none is set.</param>
+public sealed record TraktSetup(bool PluginOn, string? ClientId);
 
 /// <summary>
 /// Trakt lists (Collections and lists spec D7, 4d): a public list (<c>trakt.tv/users/{user}/lists/{list}</c>, an official list
-/// <c>trakt.tv/lists/official/{list}</c> or <c>trakt.tv/lists/{id}</c>) or a public watchlist (<c>trakt.tv/users/{user}/watchlist</c>),
-/// read through Trakt's documented API with the person's own Trakt client id. Entries carry IMDb, TMDB and TVDB ids. Only the
-/// list's address and the client id go to Trakt. A private list, or one's own (<c>users/me</c>), needs a signed-in account; with
-/// no account linked it is refused in plain words.
+/// <c>trakt.tv/lists/official/{list}</c> or <c>trakt.tv/lists/{id}</c>) or a watchlist (<c>trakt.tv/users/{user}/watchlist</c>),
+/// read through Trakt's documented API with the household's own Trakt client id. Entries carry IMDb, TMDB and TVDB ids. A public
+/// list sends Trakt only the list's address and the client id. A private list, or one's own (<c>users/me</c>), is read with the
+/// token of the profile that signed in to Trakt (the Trakt plugin's per-profile connection), sent to Trakt only; with no sign-in
+/// it is refused in plain words.
 /// </summary>
 public sealed class TraktListSource(
-    IConfigurationLoader configuration,
+    ITraktSettings settings,
     IHttpClientFactory http,
     IProviderRateLimiterCoordinator limiter,
     ILogger<TraktListSource> logger,
     ITraktAccessTokens? tokens = null,
     IProviderHealthMonitor? health = null)
-    : WebListSourceBase(configuration, http, limiter, health, logger)
+    : WebListSourceBase(null, http, limiter, health, logger)
 {
     private const int PageSize = 100;
     private const string OwnerAlias = "me";
+    private const string UserAgent = "Tuvima Library/1.0 (https://github.com/Tuvima/tuvima-library)";
+
+    private static readonly ProviderRateLimitConfiguration RateLimit = new() { RequestsPerSecond = 2, Burst = 2, MaxConcurrency = 1 };
 
     private readonly ITraktAccessTokens _tokens = tokens ?? new UnlinkedTraktAccessTokens();
 
@@ -52,7 +76,24 @@ public sealed class TraktListSource(
 
     public override bool NeedsKey => true;
 
+    public override bool CanSignIn => true;
+
+    public override string SettingsPath => $"/settings/plugins/{TraktPlugin.PluginId}/settings";
+
+    public override string SignInPath => TraktPlugin.SignInPagePath;
+
     protected override string DefaultApiBase => "https://api.trakt.tv";
+
+    protected override async Task<WebSourceSetup?> LoadSetupAsync(CancellationToken ct)
+    {
+        var current = await settings.LoadAsync(ct).ConfigureAwait(false);
+        return new WebSourceSetup(current.PluginOn, DefaultApiBase, current.ClientId, RateLimit, UserAgent);
+    }
+
+    public override async Task<bool> NeedsSignInAsync(CollectionListSource source, CancellationToken ct) =>
+        source.ConnectionProfileId is { } profile
+        && CanFetch(source)
+        && !await _tokens.HasAccountAsync(profile, ct).ConfigureAwait(false);
 
     public override WebListAddress? Recognise(Uri address)
     {
@@ -130,16 +171,49 @@ public sealed class TraktListSource(
         };
     }
 
-    protected override async Task<ParsedList> ReadAsync(WebListAddress address, string apiBase, string? key, CancellationToken ct)
+    protected override Task<ParsedList> ReadAsync(WebListAddress address, string apiBase, string? key, CancellationToken ct) =>
+        ReadAsync(address, apiBase, key, profileId: null, accountFirst: false, ct);
+
+    protected override async Task<ParsedList> ReadAsync(
+        WebListAddress address, string apiBase, string? key, Guid? profileId, bool accountFirst, CancellationToken ct)
     {
-        var user = address.Part("user");
-        var token = await _tokens.TokenAsync(ct).ConfigureAwait(false);
-        if (user.Equals(OwnerAlias, StringComparison.Ordinal) && string.IsNullOrWhiteSpace(token))
+        var isOwn = address.Part("user").Equals(OwnerAlias, StringComparison.Ordinal);
+
+        // A public list needs no account, so none is sent. "me" is the signed-in account, and a list that was read with an account
+        // before is read with it again. Anything else is tried plainly first and signed in for only if Trakt says it must be.
+        string? token = null;
+        if (profileId is { } profile && (isOwn || accountFirst))
+        {
+            token = await _tokens.TokenAsync(profile, ct).ConfigureAwait(false);
+        }
+
+        if (isOwn && string.IsNullOrWhiteSpace(token))
         {
             // "me" is the signed-in account; there is nobody it could mean without one.
             throw new WebListFailureException(WebListFailure.SignInNeeded, "A Trakt list of your own needs you to be signed in to Trakt");
         }
 
+        try
+        {
+            var list = await ReadWithAsync(address, apiBase, key, token, ct).ConfigureAwait(false);
+            return string.IsNullOrWhiteSpace(token) ? list : list with { ConnectionProfileId = profileId };
+        }
+        catch (WebListFailureException ex) when (ex.Failure == WebListFailure.SignInNeeded && string.IsNullOrWhiteSpace(token) && profileId is not null)
+        {
+            // Trakt said this list is private. If this profile signed in, it is read as that person.
+            token = await _tokens.TokenAsync(profileId, ct).ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(token))
+            {
+                throw;
+            }
+
+            return (await ReadWithAsync(address, apiBase, key, token, ct).ConfigureAwait(false)) with { ConnectionProfileId = profileId };
+        }
+    }
+
+    private async Task<ParsedList> ReadWithAsync(WebListAddress address, string apiBase, string? key, string? token, CancellationToken ct)
+    {
+        var user = address.Part("user");
         void Decorate(HttpRequestMessage request)
         {
             request.Headers.Add("trakt-api-version", "2");

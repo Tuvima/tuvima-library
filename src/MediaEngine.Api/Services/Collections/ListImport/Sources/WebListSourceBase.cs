@@ -22,13 +22,14 @@ public abstract class WebListSourceBase : IWebListSource
     /// <summary>The most pages one list is read over, so a site that never ends cannot hold the refresh forever.</summary>
     protected const int MaximumPages = 60;
 
-    private readonly IConfigurationLoader _configuration;
+    private readonly IConfigurationLoader? _configuration;
     private readonly IHttpClientFactory _http;
     private readonly IProviderRateLimiterCoordinator _limiter;
     private readonly IProviderHealthMonitor? _health;
 
+    /// <param name="configuration">The provider files. Null for a source that is a plugin and supplies its own <see cref="LoadSetupAsync"/>.</param>
     protected WebListSourceBase(
-        IConfigurationLoader configuration,
+        IConfigurationLoader? configuration,
         IHttpClientFactory http,
         IProviderRateLimiterCoordinator limiter,
         IProviderHealthMonitor? health,
@@ -57,20 +58,42 @@ public abstract class WebListSourceBase : IWebListSource
     /// <summary>Reads the list. Throws <see cref="WebListFailureException"/> for the failures a person can be told about.</summary>
     protected abstract Task<ParsedList> ReadAsync(WebListAddress address, string apiBase, string? key, CancellationToken ct);
 
-    public async Task<WebListFetch> FetchAsync(WebListAddress address, CancellationToken ct)
+    /// <summary>
+    /// Reads the list for a profile. A source without sign-in ignores the profile; one with sign-in overrides this to read a private
+    /// or the person's own list with that profile's account. <paramref name="accountFirst"/> is true for a refresh of a list that was
+    /// read with the profile's account before, so the account is used straight away.
+    /// </summary>
+    protected virtual Task<ParsedList> ReadAsync(WebListAddress address, string apiBase, string? key, Guid? profileId, bool accountFirst, CancellationToken ct) =>
+        ReadAsync(address, apiBase, key, ct);
+
+    public virtual bool CanSignIn => false;
+
+    public virtual string SettingsPath => "/settings/plugins";
+
+    public virtual string SignInPath => SettingsPath;
+
+    public virtual async Task<bool> IsSwitchedOnAsync(CancellationToken ct) =>
+        await LoadSetupAsync(ct).ConfigureAwait(false) is { Enabled: true };
+
+    public Task<WebListFetch> FetchAsync(WebListAddress address, CancellationToken ct) => FetchAsync(address, null, ct);
+
+    public Task<WebListFetch> FetchAsync(WebListAddress address, Guid? profileId, CancellationToken ct) =>
+        FetchCoreAsync(address, profileId, accountFirst: false, ct);
+
+    private async Task<WebListFetch> FetchCoreAsync(WebListAddress address, Guid? profileId, bool accountFirst, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(address);
-        var provider = _configuration.LoadProvider(ProviderName);
-        if (provider is null)
+        var setup = await LoadSetupAsync(ct).ConfigureAwait(false);
+        if (setup is null)
         {
-            Logger.LogWarning("The {Provider} provider file is missing, so its lists cannot be read", ProviderName);
+            Logger.LogWarning("The {Provider} source is not set up, so its lists cannot be read", ProviderName);
             return WebListFetch.Failed(WebListFailure.Down);
         }
 
         string? key = null;
         if (NeedsKey)
         {
-            key = KeyOf(provider);
+            key = setup.Key;
             if (string.IsNullOrWhiteSpace(key))
             {
                 return WebListFetch.Failed(WebListFailure.KeyMissing);
@@ -79,7 +102,7 @@ public abstract class WebListSourceBase : IWebListSource
 
         try
         {
-            var list = await ReadAsync(address, ApiBaseOf(provider), key, ct).ConfigureAwait(false);
+            var list = await ReadAsync(address, setup.ApiBase, key, profileId, accountFirst, ct).ConfigureAwait(false);
             await ReportAsync(success: true, null, ct).ConfigureAwait(false);
             return WebListFetch.Found(list with { SourceKind = address.Kind, SourceAddress = address.Address });
         }
@@ -110,16 +133,37 @@ public abstract class WebListSourceBase : IWebListSource
         }
 
         // A source that was switched off keeps what it brought in; the refresh waits until it is switched on again.
-        if (_configuration.LoadProvider(ProviderName) is not { Enabled: true })
+        if (!await IsSwitchedOnAsync(ct).ConfigureAwait(false))
         {
             return null;
         }
 
-        var fetch = await FetchAsync(address, ct).ConfigureAwait(false);
+        // A list that was read with a profile's account is read with that profile's account again, and with no one else's.
+        var fetch = await FetchCoreAsync(address, source.ConnectionProfileId, accountFirst: source.ConnectionProfileId is not null, ct).ConfigureAwait(false);
         return fetch.List;
     }
 
-    // ── Provider file ────────────────────────────────────────────────────────────────────────────────────────────────
+    public virtual Task<bool> NeedsSignInAsync(CollectionListSource source, CancellationToken ct) => Task.FromResult(false);
+
+    // ── Setup ────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// What the source needs to read a list: whether it is switched on, where its API is, the key, its rate limit and User-Agent.
+    /// Read fresh on every use. By default it comes from the source's provider file; a source that is a plugin supplies its own.
+    /// Null when the source has nothing to read from.
+    /// </summary>
+    protected virtual Task<WebSourceSetup?> LoadSetupAsync(CancellationToken ct)
+    {
+        var provider = _configuration?.LoadProvider(ProviderName);
+        return Task.FromResult<WebSourceSetup?>(provider is null
+            ? null
+            : new WebSourceSetup(
+                provider.Enabled,
+                ApiBaseOf(provider),
+                KeyOf(provider),
+                provider.RateLimit,
+                provider.HttpClient?.UserAgent));
+    }
 
     /// <summary>The key the person set for this source, preferring an administrator override. Null when none is set.</summary>
     protected virtual string? KeyOf(ProviderConfiguration provider) =>
@@ -133,14 +177,14 @@ public abstract class WebListSourceBase : IWebListSource
     /// <summary>Gets one JSON document within the source's rate limit. <paramref name="decorate"/> adds headers a site wants. The caller disposes it.</summary>
     protected async Task<JsonDocument> GetJsonAsync(string url, CancellationToken ct, Action<HttpRequestMessage>? decorate = null)
     {
-        var provider = _configuration.LoadProvider(ProviderName);
+        var setup = await LoadSetupAsync(ct).ConfigureAwait(false);
         var client = _http.CreateClient(HttpClientName);
-        var userAgent = provider?.HttpClient?.UserAgent;
+        var userAgent = setup?.UserAgent;
         try
         {
             return await _limiter.ExecuteAsync(
                 ProviderName,
-                provider?.RateLimit,
+                setup?.RateLimit,
                 async token =>
                 {
                     using var request = new HttpRequestMessage(HttpMethod.Get, url);
@@ -248,6 +292,14 @@ public abstract class WebListSourceBase : IWebListSource
         address.Host.Equals(host, StringComparison.OrdinalIgnoreCase)
         || address.Host.Equals("www." + host, StringComparison.OrdinalIgnoreCase);
 }
+
+/// <summary>What a web source needs to read a list (see <see cref="WebListSourceBase"/>).</summary>
+/// <param name="Enabled">True when the source is switched on.</param>
+/// <param name="ApiBase">The site's API address, without a trailing slash.</param>
+/// <param name="Key">The person's own key or client ID, or null when none is set.</param>
+/// <param name="RateLimit">How fast the source may ask, or null for the default.</param>
+/// <param name="UserAgent">The User-Agent to send, or null for none.</param>
+public sealed record WebSourceSetup(bool Enabled, string ApiBase, string? Key, ProviderRateLimitConfiguration? RateLimit, string? UserAgent);
 
 /// <summary>A web list could not be read for a reason the person can be told about. Raised and caught inside the sources.</summary>
 public sealed class WebListFailureException(WebListFailure failure, string message) : Exception(message)

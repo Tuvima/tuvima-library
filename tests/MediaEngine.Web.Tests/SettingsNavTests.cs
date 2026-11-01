@@ -112,7 +112,7 @@ public sealed class SettingsNavTests
     {
         var profile = SettingsNav.MenuGroups[0].Nodes[0];
         Assert.Equal("Profile", profile.Label);
-        Assert.Equal(["Overview", "Activity", "Taste", "Import"], profile.Tabs.Select(tab => tab.Label));
+        Assert.Equal(["Overview", "Activity", "Taste", "Import", "Accounts"], profile.Tabs.Select(tab => tab.Label));
         var activity = profile.Tabs[1];
         Assert.Equal(SettingsSection.Overview, activity.Section);
         Assert.Equal(SettingsNav.ActivitySubsection, activity.Subsection);
@@ -356,7 +356,7 @@ public sealed class SettingsNavTests
         Assert.Equal(["System"], Labels(groups, "system"));
         Assert.Equal(["Developer Tools"], Labels(groups, "developer"));
 
-        Assert.Equal(["Overview", "Activity", "Taste", "Import"], TabLabels(groups, "Profile"));
+        Assert.Equal(["Overview", "Activity", "Taste", "Import", "Accounts"], TabLabels(groups, "Profile"));
         Assert.Empty(TabLabels(groups, "Manage Profiles"));
         Assert.Equal(["Sign-in", "Devices & Sessions"], TabLabels(groups, "Security & Devices"));
         Assert.Equal(["Overview", "Libraries", "Ingestion Flow"], TabLabels(groups, "Library & Ingestion"));

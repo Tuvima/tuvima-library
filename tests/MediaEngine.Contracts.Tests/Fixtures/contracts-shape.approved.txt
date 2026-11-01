@@ -1688,6 +1688,8 @@ MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionLi
   OwnedCount: System.Int32 | nullability=not-null | accessors=get,init
   UnmatchedCount: System.Int32 | nullability=not-null | accessors=get,init
   Unmatched: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Collections.CollectionListEntryDto> | nullability=not-null | accessors=get,init
+  NeedsSignIn: System.Boolean | nullability=not-null | accessors=get,init
+  SignInHref: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionLocationPlacementSummary
   collection_id: System.Guid | nullability=not-null | accessors=get,init
@@ -7664,10 +7666,15 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginConnectionDto
   Description: System.String | nullability=not-null | accessors=get,set
   Linked: System.Boolean | nullability=not-null | accessors=get,set
   LinkedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,set
+  CanSignIn: System.Boolean | nullability=not-null | accessors=get,set
+  SignInNeedsSetup: System.Boolean | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginConnectionLinkRequest
   Value: System.String | nullability=not-null | accessors=get,set
   Agreed: System.Boolean | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginConnectionsListResponse
+  Plugins: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginConnectionsResponse> | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginConnectionsResponse
   PluginId: System.String | nullability=not-null | accessors=get,set
@@ -7684,6 +7691,22 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDependenciesRe
   WaitingFor: System.String | nullability=nullable | accessors=get,set
   Needs: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginNeedDto> | nullability=not-null | accessors=get,set
   NeededBy: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginNeededByDto> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDeviceSignInCheckResponse
+  Status: System.String | nullability=not-null | accessors=get,set
+  Message: System.String | nullability=not-null | accessors=get,set
+  IntervalSeconds: System.Int32 | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDeviceSignInStartRequest
+  Agreed: System.Boolean | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDeviceSignInStartResponse
+  UserCode: System.String | nullability=not-null | accessors=get,set
+  VerificationUrl: System.String | nullability=not-null | accessors=get,set
+  ExpiresInSeconds: System.Int32 | nullability=not-null | accessors=get,set
+  IntervalSeconds: System.Int32 | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDeviceSignInStatuses
 
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDirectoryEntryDto
   Id: System.String | nullability=not-null | accessors=get,set

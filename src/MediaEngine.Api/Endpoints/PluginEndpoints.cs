@@ -524,6 +524,13 @@ internal static class PluginEndpoints
         .Produces<PluginDeletedResponse>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
 
+        group.MapGet("/connections", ListPluginConnectionsAsync)
+        .WithName("ListPluginConnections")
+        .WithSummary("Every switched-on plugin that asks the signed-in profile to link an account, and what the profile has linked. Never a value.")
+        .Produces<PluginConnectionsListResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .RequireHumanSelfService();
+
         group.MapGet("/{pluginId}/connection", GetPluginConnectionAsync)
         .WithName("GetPluginConnection")
         .WithSummary("What the signed-in profile has linked for this plugin: its own credentials, never a value.")
@@ -537,6 +544,22 @@ internal static class PluginEndpoints
         .Produces(StatusCodes.Status204NoContent)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireHumanSelfService();
+
+        group.MapPost("/{pluginId}/connection/{name}/sign-in", StartPluginSignInAsync)
+        .WithName("StartPluginConnectionSignIn")
+        .WithSummary("Starts signing the profile in on another device: returns a short code and the address to approve it at.")
+        .Produces<PluginDeviceSignInStartResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .ProducesProblem(StatusCodes.Status502BadGateway)
+        .RequireHumanSelfService();
+
+        group.MapPost("/{pluginId}/connection/{name}/sign-in/check", CheckPluginSignInAsync)
+        .WithName("CheckPluginConnectionSignIn")
+        .WithSummary("Looks once at whether the code was approved on the other device. Links the profile's account when it was.")
+        .Produces<PluginDeviceSignInCheckResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
         .RequireHumanSelfService();
 
         group.MapDelete("/{pluginId}/connection/{name}", UnlinkPluginConnectionAsync)
@@ -654,6 +677,7 @@ internal static class PluginEndpoints
         string pluginId,
         HttpContext http,
         [FromServices] PluginProfileConnectionService connections,
+        [FromServices] PluginDeviceSignInService signIn,
         [FromServices] IRequestAuthorityResolver authorityResolver,
         CancellationToken ct)
     {
@@ -664,7 +688,100 @@ internal static class PluginEndpoints
         }
 
         var status = await connections.StatusAsync(pluginId, profileId, ct).ConfigureAwait(false);
-        return status is null ? ApiErrors.NotFound($"Plugin '{pluginId}' not found.") : Results.Ok(status);
+        if (status is null)
+        {
+            return ApiErrors.NotFound($"Plugin '{pluginId}' not found.");
+        }
+
+        foreach (var connection in status.Connections)
+        {
+            connection.CanSignIn = signIn.SignInFor(pluginId, connection.Name) is not null;
+            connection.SignInNeedsSetup = connection.CanSignIn && await signIn.NeedsSetupAsync(pluginId, connection.Name, ct).ConfigureAwait(false);
+        }
+
+        return Results.Ok(status);
+    }
+
+    internal static async Task<IResult> ListPluginConnectionsAsync(
+        HttpContext http,
+        [FromServices] PluginCatalog catalog,
+        [FromServices] PluginProfileConnectionService connections,
+        [FromServices] PluginDeviceSignInService signIn,
+        [FromServices] IRequestAuthorityResolver authorityResolver,
+        CancellationToken ct)
+    {
+        var authority = await authorityResolver.ResolveAsync(http, ct).ConfigureAwait(false);
+        if (authority.ActiveProfileId is not { } profileId)
+        {
+            return ApiErrors.BadRequest(NoProfileMessage);
+        }
+
+        var result = new PluginConnectionsListResponse();
+        foreach (var registration in catalog.List().Where(plugin => plugin.Enabled))
+        {
+            if (connections.PersonalCredentials(registration.Manifest.Id).Count == 0
+                || await connections.StatusAsync(registration.Manifest.Id, profileId, ct).ConfigureAwait(false) is not { } status)
+            {
+                continue;
+            }
+
+            foreach (var connection in status.Connections)
+            {
+                connection.CanSignIn = signIn.SignInFor(registration.Manifest.Id, connection.Name) is not null;
+                connection.SignInNeedsSetup = connection.CanSignIn && await signIn.NeedsSetupAsync(registration.Manifest.Id, connection.Name, ct).ConfigureAwait(false);
+            }
+
+            result.Plugins.Add(status);
+        }
+
+        return Results.Ok(result);
+    }
+
+    internal static async Task<IResult> StartPluginSignInAsync(
+        string pluginId,
+        string name,
+        PluginDeviceSignInStartRequest request,
+        HttpContext http,
+        [FromServices] PluginDeviceSignInService signIn,
+        [FromServices] IRequestAuthorityResolver authorityResolver,
+        CancellationToken ct)
+    {
+        if (request?.Agreed != true)
+        {
+            return ApiErrors.BadRequest("Tick the box to agree before signing in.");
+        }
+
+        var authority = await authorityResolver.ResolveAsync(http, ct).ConfigureAwait(false);
+        if (authority.ActiveProfileId is not { } profileId)
+        {
+            return ApiErrors.BadRequest(NoProfileMessage);
+        }
+
+        var started = await signIn.StartAsync(pluginId, profileId, name, ct).ConfigureAwait(false);
+        return started.Outcome switch
+        {
+            DeviceSignInOutcome.Started => Results.Ok(started.Code),
+            DeviceSignInOutcome.NeedsSetup => ApiErrors.BadRequest("An administrator needs to enter this plugin's app details in its settings before anyone can sign in."),
+            DeviceSignInOutcome.Unavailable => ApiErrors.Problem(StatusCodes.Status502BadGateway, "Sign-in unavailable", "The site did not give a sign-in code. Try again in a moment."),
+            _ => ApiErrors.NotFound("This plugin does not sign in that way."),
+        };
+    }
+
+    internal static async Task<IResult> CheckPluginSignInAsync(
+        string pluginId,
+        string name,
+        HttpContext http,
+        [FromServices] PluginDeviceSignInService signIn,
+        [FromServices] IRequestAuthorityResolver authorityResolver,
+        CancellationToken ct)
+    {
+        var authority = await authorityResolver.ResolveAsync(http, ct).ConfigureAwait(false);
+        if (authority.ActiveProfileId is not { } profileId)
+        {
+            return ApiErrors.BadRequest(NoProfileMessage);
+        }
+
+        return Results.Ok(await signIn.CheckAsync(pluginId, profileId, name, ct).ConfigureAwait(false));
     }
 
     internal static async Task<IResult> LinkPluginConnectionAsync(

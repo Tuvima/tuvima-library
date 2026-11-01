@@ -4,6 +4,7 @@ using MediaEngine.Api.Services.Plugins.Declarative;
 using MediaEngine.Api.Services.Plugins.Pages;
 using MediaEngine.Api.Services.Plugins.Service;
 using MediaEngine.Api.Services.Plugins.Sources;
+using MediaEngine.Api.Services.Plugins.Trakt;
 using MediaEngine.Api.Services.ScheduledTasks;
 using MediaEngine.Api.Services.Vault;
 using MediaEngine.Domain.Contracts;
@@ -27,6 +28,7 @@ public static class TuvimaPluginServiceCollectionExtensions
         services.AddSingleton<ITuvimaPlugin, SeriesOrderPlugin>();
         services.AddSingleton<ITuvimaPlugin, SmartFilingPlugin>();
         services.AddSingleton<ITuvimaPlugin, TasteSummaryPlugin>();
+        services.AddSingleton<ITuvimaPlugin, TraktPlugin>();
         services.AddSingletonImplementations<ITuvimaPlugin>(
             expectedCount: 4,
             typeof(CommercialSkipPlugin).Assembly,
@@ -76,6 +78,8 @@ public static class TuvimaPluginServiceCollectionExtensions
         services.AddSingleton<PluginRemovalService>();
         services.AddSingleton<PluginCheckNowService>();
         services.AddSingleton<PluginProfileConnectionService>();
+        services.AddTuvimaHttpClient(PluginDeviceSignInService.HttpClientName, TimeSpan.FromSeconds(20), addStandardResilience: false);
+        services.AddSingleton<PluginDeviceSignInService>();
         services.AddSingleton<PluginOutboxService>();
         services.AddSingleton<PluginDisplayService>();
         services.AddSingleton<PluginPlayDetailsService>();

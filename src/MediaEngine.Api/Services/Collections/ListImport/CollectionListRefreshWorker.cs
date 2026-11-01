@@ -17,6 +17,12 @@ public interface IListSourceFetcher
 
     /// <summary>The list as it is now, or null when the source could not be reached (the refresh then tries again later).</summary>
     Task<ParsedList?> FetchAsync(CollectionListSource source, CancellationToken ct);
+
+    /// <summary>
+    /// True when the list was read with a profile's own account on its site and that account is no longer signed in (the person
+    /// signed out, or the site stopped accepting it), so the list cannot refresh until they sign in again.
+    /// </summary>
+    Task<bool> NeedsSignInAsync(CollectionListSource source, CancellationToken ct) => Task.FromResult(false);
 }
 
 /// <summary>

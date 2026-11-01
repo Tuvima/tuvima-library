@@ -75,7 +75,7 @@ public sealed class PluginDeclarationGuardrailTests : IDisposable
     }
 
     [Fact]
-    public void TheShippedPlugins_AreTheEightAgreed()
+    public void TheShippedPlugins_AreTheNineAgreed()
     {
         Assert.Equal(
             [
@@ -87,6 +87,7 @@ public sealed class PluginDeclarationGuardrailTests : IDisposable
                 "tuvima.fandom-lore",
                 "tuvima.listenbrainz",
                 "tuvima.skip-markers",
+                "tuvima.trakt",
             ],
             BuiltInPlugins().Select(plugin => plugin.Manifest.Id).Order(StringComparer.Ordinal));
     }

@@ -1,0 +1,109 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Plugins
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient Api
+@inject IAppToastService Toast
+@inject IStringLocalizer<SharedStrings> L
+@* The keys a plugin asks an administrator for (Plugin architecture spec C13): the household's own app details, such as a Trakt app's
+   client ID and secret. A saved value is never shown again; the card only says whether it is set. Each person's own account is
+   linked on their own Profile > Accounts page. *@
+@if (_secrets is { Count: > 0 })
+{
+    <section class="plugin-app-details" data-plugin-app-details aria-label="@L["PluginKeys_Title"]">
+        <AppText Typo="AppTypo.subtitle1">@L["PluginKeys_Title"]</AppText>
+        <AppText Typo="AppTypo.body2">@L["PluginKeys_Intro"]</AppText>
+        @foreach (var secret in _secrets)
+        {
+            var name = secret.Name;
+            <div class="plugin-app-details__row" data-plugin-secret="@name">
+                <div class="plugin-app-details__heading">
+                    <AppText Typo="AppTypo.body1">@secret.Label</AppText>
+                    <AppStatusBadge Text="@(secret.Configured ? L["PluginKeys_Set"].Value : L["PluginKeys_NotSet"].Value)"
+                                    Tone="@(secret.Configured ? AppUiTone.Success : AppUiTone.Neutral)" />
+                </div>
+                <AppText Typo="AppTypo.caption">@secret.Description</AppText>
+                <AppTextField Label="@secret.Label" HideLabel="true" InputType="AppInputType.Password"
+                              Placeholder="@(secret.Configured ? L["PluginKeys_ReplacePlaceholder"].Value : L["PluginKeys_EnterPlaceholder"].Value)"
+                              Value="@_typed.GetValueOrDefault(name)" ValueChanged="@(value => _typed[name] = value ?? string.Empty)" />
+                <div class="plugin-app-details__actions">
+                    <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
+                               Disabled="@(_busy || string.IsNullOrWhiteSpace(_typed.GetValueOrDefault(name)))"
+                               OnClick="@(() => SaveAsync(secret))">@L["PluginKeys_Save"]</AppButton>
+                    @if (secret.Configured)
+                    {
+                        <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                                   Disabled="@_busy" OnClick="@(() => RemoveAsync(secret))">@L["PluginKeys_Remove"]</AppButton>
+                    }
+                </div>
+            </div>
+        }
+        <AppText Typo="AppTypo.body2">@L["PluginKeys_AccountsNote"]</AppText>
+        <div class="plugin-app-details__actions">
+            <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                       Href="/settings/overview/accounts">@L["PluginKeys_OpenAccounts"]</AppButton>
+        </div>
+    </section>
+}
+
+@code {
+    private readonly Dictionary<string, string> _typed = new(StringComparer.Ordinal);
+    private IReadOnlyList<PluginSecretStatusResponse>? _secrets;
+    private bool _busy;
+
+    [Parameter, EditorRequired] public string PluginId { get; set; } = string.Empty;
+
+    protected override async Task OnParametersSetAsync() => _secrets = await Api.GetPluginSecretsAsync(PluginId);
+
+    private async Task SaveAsync(PluginSecretStatusResponse secret)
+    {
+        if (_busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            if (await Api.SetPluginSecretAsync(PluginId, secret.Name, _typed.GetValueOrDefault(secret.Name) ?? string.Empty))
+            {
+                _typed.Remove(secret.Name);
+                Toast.Add(L["PluginKeys_Saved", secret.Label].Value, AppSeverity.Success);
+                _secrets = await Api.GetPluginSecretsAsync(PluginId);
+            }
+            else
+            {
+                Toast.Add(Api.LastError ?? L["PluginKeys_SaveFailed"].Value, AppSeverity.Error);
+            }
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task RemoveAsync(PluginSecretStatusResponse secret)
+    {
+        if (_busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            if (await Api.RemovePluginSecretAsync(PluginId, secret.Name))
+            {
+                Toast.Add(L["PluginKeys_Removed", secret.Label].Value, AppSeverity.Success);
+                _secrets = await Api.GetPluginSecretsAsync(PluginId);
+            }
+            else
+            {
+                Toast.Add(Api.LastError ?? L["PluginKeys_SaveFailed"].Value, AppSeverity.Error);
+            }
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}
