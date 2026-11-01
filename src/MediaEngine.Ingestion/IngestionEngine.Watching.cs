@@ -26,6 +26,11 @@ namespace MediaEngine.Ingestion;
 
 public sealed partial class IngestionEngine
 {
+    // What the folder scans and the watcher leave alone: deleted-and-excluded files, files held for a source, and the source folders' write rules.
+    private readonly IExcludedSourceFileFilter? _excludedFileFilter;
+    private readonly IIdentificationSourceGate? _identificationGate;
+    private readonly ISourceMutationPolicyGate? _sourceMutationPolicyGate;
+
     private async Task ScanExistingFilesAsync(IReadOnlyList<IngestionScanTarget> targets, CancellationToken ct = default)
     {
         var scanTargets = targets
