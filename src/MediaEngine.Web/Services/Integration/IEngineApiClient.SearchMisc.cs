@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MediaEngine.Contracts.Collections;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Paging;
@@ -128,6 +129,21 @@ public partial interface IEngineApiClient
     Task<IReadOnlyList<string>?> GetCollectionShowOnAsync(Guid collectionId, CancellationToken ct = default);
 
     Task<bool> DeleteCollectionAsync(Guid collectionId, Guid? profileId = null, CancellationToken ct = default);
+
+    /// <summary>GET /collections/packs - the starter packs and what each would create from this library.</summary>
+    Task<IReadOnlyList<CollectionPackSummaryDto>> GetCollectionPacksAsync(IReadOnlyList<string>? mediaTypes = null, CancellationToken ct = default);
+
+    /// <summary>POST /collections/packs - create the collections of the chosen packs.</summary>
+    Task<CollectionPackCreateResponse?> CreateCollectionPacksAsync(CollectionPackCreateRequest request, Guid? profileId = null, CancellationToken ct = default);
+
+    /// <summary>POST /collections/packs/preview-file - what a pack file would create here.</summary>
+    Task<CollectionPackSummaryDto?> PreviewCollectionPackFileAsync(string content, CancellationToken ct = default);
+
+    /// <summary>GET /collections/{id}/pack-file - a set written out as a pack file.</summary>
+    Task<CollectionPackExportResponse?> ExportCollectionSetAsync(Guid setId, Guid? profileId = null, CancellationToken ct = default);
+
+    /// <summary>DELETE /collections/{id}/set - remove a set with its collections and where they were shown.</summary>
+    Task<CollectionSetRemovedResponse?> RemoveCollectionSetAsync(Guid setId, Guid? profileId = null, CancellationToken ct = default);
 
     Task<bool> UploadCollectionArtworkAsync(Guid collectionId, string slot, Stream fileStream, string fileName, Guid? profileId = null, CancellationToken ct = default);
     Task<bool> DeleteCollectionArtworkAsync(Guid collectionId, string slot, Guid? profileId = null, CancellationToken ct = default);

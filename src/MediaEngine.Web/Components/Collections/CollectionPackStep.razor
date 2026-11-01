@@ -1,0 +1,79 @@
+@namespace MediaEngine.Web.Components.Collections
+@using MediaEngine.Contracts.Collections
+
+@* Start from a pack (Collections and lists spec D14, 4b): a grid of pack cards. Each says how many collections it would
+   create from this library, previews them with their counts, and can be ticked together with others. *@
+<div class="collection-packs">
+    @if (Loading)
+    {
+        <div class="collection-packs__state" role="status"><AppSpinner Indeterminate="true" Size="AppSize.Small" /> Reading your library…</div>
+    }
+    else if (!string.IsNullOrWhiteSpace(Error))
+    {
+        <p class="collection-packs__state" role="alert">@Error</p>
+    }
+    else if (Packs.Count == 0)
+    {
+        <p class="collection-packs__state">There are no packs to offer yet.</p>
+    }
+    else
+    {
+        <div class="collection-packs__grid">
+            @foreach (var pack in Packs)
+            {
+                var id = pack.Id;
+                var available = pack.WouldCreateCount > 0;
+                var open = _expanded.Contains(id);
+                <section class="collection-pack @(Selected.Contains(id) ? "is-selected" : null) @(available ? null : "is-unavailable")"
+                         aria-label="@pack.Name" data-pack="@id">
+                    <div class="collection-pack__head">
+                        <AppCheckbox Value="@Selected.Contains(id)"
+                                     ValueChanged="@(on => SelectionChanged.InvokeAsync((id, on)))"
+                                     Disabled="@(!available)"
+                                     Label="@pack.Name" />
+                    </div>
+                    <p class="collection-pack__text">@pack.Description</p>
+                    @if (available)
+                    {
+                        <p class="collection-pack__count">Would create @pack.WouldCreateCount @(pack.WouldCreateCount == 1 ? "collection" : "collections") from your library@(pack.UsesPerProfileFields ? ", counted for you" : null)</p>
+                        <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary"
+                                   EndIcon="@(open ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.ExpandMore)"
+                                   OnClick="@(() => TogglePreview(id))">@(open ? "Hide preview" : "Preview")</AppButton>
+                        @if (open)
+                        {
+                            <ul class="collection-pack__list">
+                                @foreach (var entry in pack.Collections)
+                                {
+                                    <li>
+                                        <span class="collection-pack__entry">@entry.Name@(string.IsNullOrWhiteSpace(entry.SeasonText) ? null : $" ({entry.SeasonText})")</span>
+                                        <span class="collection-pack__items">@entry.ItemCount</span>
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    }
+                    else
+                    {
+                        <p class="collection-pack__count">Your library doesn't have enough for this pack yet.</p>
+                    }
+                </section>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private readonly HashSet<string> _expanded = new(StringComparer.Ordinal);
+
+    [Parameter] public IReadOnlyList<CollectionPackSummaryDto> Packs { get; set; } = [];
+    [Parameter] public IReadOnlyCollection<string> Selected { get; set; } = [];
+    [Parameter] public bool Loading { get; set; }
+    [Parameter] public string? Error { get; set; }
+    [Parameter] public EventCallback<(string Id, bool Selected)> SelectionChanged { get; set; }
+
+    private void TogglePreview(string id)
+    {
+        if (!_expanded.Add(id))
+            _expanded.Remove(id);
+    }
+}

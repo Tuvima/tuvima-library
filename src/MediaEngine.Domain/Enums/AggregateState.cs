@@ -39,6 +39,9 @@ public enum CollectionType
     Author,
     Collection,
     Custom,
+
+    /// <summary>A parent collection created by a pack (Collections and lists spec D14): it holds no titles itself, its children are ordinary rule collections.</summary>
+    Set,
 }
 
 /// <summary>Ownership boundary for a Collection.</summary>

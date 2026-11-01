@@ -30,15 +30,16 @@ public sealed class EngineApiClientEnvelopeGuardrailTests
         // LastError; EngineApiClientUniverseAppearancesTests cover each outcome.
         // The move destinations read is one more manual GET: it tells not allowed (403), item gone (404), not accepted (400) and Engine
         // unreachable apart so the Match step can word each; EngineApiClientLibraryMoveTests cover every outcome.
-        AssertAtOrBelow(source, "_http.GetAsync", 30);
+        // The pack reads (the starter packs, and a set written out as a pack file) are manual GETs: a failure carries the Engine's plain-English reason into LastError, which the pack step shows; EngineApiClientCollectionPackTests cover the outcomes.
+        AssertAtOrBelow(source, "_http.GetAsync", 31);
         // One additional raw POST is the typed bookmark-create outcome path. Its focused tests
         // cover success classification, definite 4xx vs unknown 5xx/malformed results, and one
         // send per attempt with no automatic retry.
         // One more raw POST: creating a reader highlight returns the saved row, and a failed save sets LastError and returns null (no retry).
-        AssertAtOrBelow(source, "_http.PostAsJsonAsync", 64);
+        AssertAtOrBelow(source, "_http.PostAsJsonAsync", 65);
         // One more raw PUT: updating a reader highlight (colour or note); a failure sets LastError and returns null.
         AssertAtOrBelow(source, "_http.PutAsJsonAsync", 29);
-        AssertAtOrBelow(source, "_http.DeleteAsync", 14);
+        AssertAtOrBelow(source, "_http.DeleteAsync", 15);
     }
 
     [Fact]

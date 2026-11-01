@@ -296,6 +296,7 @@
     // to create or save one, and takes the collection away when its last item leaves the library. An attached
     // Gallery or smart-rule source counts as a member, so it keeps the collection from being empty.
     private bool IsEmptyCuratedCollection => !IsPlaylistDialog
+        && !(IsCreateFlow && _way == FillWay.Pack)
         && string.Equals(_collectionType, "Custom", StringComparison.OrdinalIgnoreCase)
         && SupportsManualItems
         && _manualItems.Count == 0
@@ -357,9 +358,11 @@
                     : FormatMatchSummary(_previewResult);
     private string SaveButtonText => EditingCollection is not null
         ? "Save"
-        : IsPlaylistDialog
-                ? "Create Playlist"
-                : "Create Collection";
+        : _way == FillWay.Pack
+                ? "Create collections"
+                : IsPlaylistDialog
+                    ? "Create Playlist"
+                    : "Create Collection";
 
     private List<CollectionMediaLookupDto> FilteredLibraryItems =>
         _lookupItems
@@ -962,6 +965,12 @@
 
     private async Task SaveCollection()
     {
+        if (IsCreateFlow && _way == FillWay.Pack)
+        {
+            await CreatePacksAsync();
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(_name))
         {
             Snackbar.Add("Please enter a name for the collection.", AppSeverity.Warning);
@@ -1361,6 +1370,116 @@
 
     private enum FillWay { PickTitles, SetRules, FromList, Pack }
 
+    // Start from a pack (Collections and lists D14): the packs the library supports, and which are ticked.
+    private IReadOnlyList<CollectionPackSummaryDto> _packs = [];
+    private readonly HashSet<string> _selectedPacks = new(StringComparer.Ordinal);
+    private bool _packsLoading;
+    private string? _packsError;
+
+    private string PackSelectionSummary
+    {
+        get
+        {
+            var total = _packs.Where(pack => _selectedPacks.Contains(pack.Id)).Sum(pack => pack.WouldCreateCount);
+            return $"{_selectedPacks.Count} {(_selectedPacks.Count == 1 ? "pack" : "packs")} ticked, up to {total} {(total == 1 ? "collection" : "collections")}.";
+        }
+    }
+
+    private IReadOnlyList<string> PackMediaTypes =>
+        IsPlaylistDialog ? new List<string> { "Music" } : CollectionRuleSentence.MediaTypes(_ruleDefinition).ToList();
+
+    private async Task LoadPacksAsync()
+    {
+        _packsLoading = true;
+        _packsError = null;
+        StateHasChanged();
+        try
+        {
+            _packs = await ApiClient.GetCollectionPacksAsync(PackMediaTypes);
+            if (_packs.Count == 0 && !string.IsNullOrWhiteSpace(ApiClient.LastError))
+                _packsError = ApiClient.LastError;
+            _selectedPacks.RemoveWhere(id => !_packs.Any(pack => pack.Id == id && pack.WouldCreateCount > 0));
+        }
+        finally
+        {
+            _packsLoading = false;
+        }
+    }
+
+    private Task OnPackToggledAsync((string Id, bool Selected) change)
+    {
+        if (change.Selected)
+            _selectedPacks.Add(change.Id);
+        else
+            _selectedPacks.Remove(change.Id);
+        MarkDirty();
+        return Task.CompletedTask;
+    }
+
+    private async Task CreatePacksAsync()
+    {
+        if (_selectedPacks.Count == 0)
+        {
+            Snackbar.Add("Tick at least one pack first.", AppSeverity.Warning);
+            _step = 2;
+            return;
+        }
+
+        if (_ownerKind == "Profile" && _audience == "SelectedProfiles" && _selectedProfileIds.Count == 0)
+        {
+            Snackbar.Add("Choose at least one other profile to share these collections with.", AppSeverity.Warning);
+            return;
+        }
+
+        if (string.Equals(PersistenceVisibility, "private", StringComparison.OrdinalIgnoreCase) && !Request.ActiveProfileId.HasValue)
+        {
+            Snackbar.Add("An active profile is required to save a private collection.", AppSeverity.Warning);
+            return;
+        }
+
+        _saving = true;
+        StateHasChanged();
+        try
+        {
+            var response = await ApiClient.CreateCollectionPacksAsync(
+                new CollectionPackCreateRequest
+                {
+                    PackIds = _selectedPacks.ToList(),
+                    MediaTypes = PackMediaTypes.ToList(),
+                    OwnerKind = _ownerKind,
+                    Audience = _ownerKind == "Library" ? "Everyone" : _audience,
+                    SelectedProfileIds = _selectedProfileIds.ToList(),
+                    ShowOn = _showOn.ToList(),
+                },
+                Request.ActiveProfileId);
+
+            if (response is null)
+            {
+                Snackbar.Add(
+                    string.IsNullOrWhiteSpace(ApiClient.LastError) ? "The packs could not be created." : ApiClient.LastError,
+                    AppSeverity.Error);
+                return;
+            }
+
+            var made = response.Collections.Count;
+            Snackbar.Add(
+                made == 0
+                    ? "Nothing new was created."
+                    : $"Created {made} {(made == 1 ? "collection" : "collections")}.",
+                made == 0 ? AppSeverity.Warning : AppSeverity.Success);
+            foreach (var skipped in response.Skipped.Take(3))
+                Snackbar.Add($"{skipped.Name}: {skipped.Reason}", AppSeverity.Info);
+
+            _hasUnsavedChanges = false;
+            await CloseEditorAsync(applied: made > 0);
+        }
+        finally
+        {
+            _saving = false;
+            StateHasChanged();
+        }
+    }
+
     private record WayCard(FillWay Way, string Title, string Text, string Icon, bool Available);
 
     private static readonly WayCard[] WayCards =
@@ -1368,7 +1487,7 @@
         new(FillWay.PickTitles, "Pick titles", "Search your library and add titles yourself.", AppMaterialIcons.Outlined.PlaylistAdd, true),
         new(FillWay.SetRules, "Set rules", "Library keeps it up to date from rules you set, like “directed by” or “unwatched”.", AppMaterialIcons.Outlined.Tune, true),
         new(FillWay.FromList, "From a list", "Paste a link or upload a file from IMDb, Letterboxd, Goodreads, Trakt or MDBList. Keep it in sync.", AppMaterialIcons.Outlined.UploadFile, false),
-        new(FillWay.Pack, "Start from a pack", "Ready-made sets built from your own library: Decades, Award winners, Based on a book you own.", AppMaterialIcons.Outlined.AutoAwesome, false),
+        new(FillWay.Pack, "Start from a pack", "Ready-made collections built from your own library: Decades, Award winners, Based on a book you own.", AppMaterialIcons.Outlined.AutoAwesome, true),
     ];
 
     private FillWay _way = FillWay.SetRules;
@@ -1391,11 +1510,19 @@
         _ => "Name and show it",
     };
 
-    private bool NextBlocked => _step == 2 && (_way == FillWay.SetRules ? !HasUsableRules : IsEmptyCuratedCollection);
+    private bool NextBlocked => _step == 2 && (_way switch
+    {
+        FillWay.SetRules => !HasUsableRules,
+        FillWay.Pack => _selectedPacks.Count == 0 || _packsLoading,
+        _ => IsEmptyCuratedCollection,
+    });
 
     private string FlowFooterSummary => _step switch
     {
         1 => "Choose how this fills up. You can go Back and change your mind.",
+        2 when _way == FillWay.Pack && _selectedPacks.Count == 0 => "Tick a pack to continue.",
+        2 when _way == FillWay.Pack => PackSelectionSummary,
+        3 when _way == FillWay.Pack => "Nothing is created until you press Create.",
         2 when _way == FillWay.SetRules && !HasUsableRules => "Add a rule or tick a media type to continue.",
         2 when _way == FillWay.SetRules => _previewResult is null ? "Working out what matches…" : FormatMatchSummary(_previewResult),
         2 when IsEmptyCuratedCollection => EmptyCuratedCollectionMessage,
@@ -1429,6 +1556,10 @@
             {
                 _showItemPicker = true;
                 await EnsureLibraryItemsLoadedAsync();
+            }
+            else if (_way == FillWay.Pack)
+            {
+                await LoadPacksAsync();
             }
 
             return;
@@ -1569,7 +1700,7 @@
                            Description="@card.Text"
                            Icon="@card.Icon"
                            Selected="@(card.Way == _way)"
-                           Disabled="@(!card.Available)"
+                           Disabled="@(!card.Available || (!IsCreateFlow && card.Way == FillWay.Pack))"
                            Badge="@(card.Available ? null : "Coming soon")"
                            OnClick="@(() => IsCreateFlow ? ChooseWayAsync(card.Way) : ChangeWayAsync(card.Way))" />
         }
@@ -1589,7 +1720,12 @@
     </div>;
 
     private RenderFragment RenderBuildStep() => @<div class="collection-flow__build">
-        @if (_way == FillWay.SetRules)
+        @if (_way == FillWay.Pack)
+        {
+            <CollectionPackStep Packs="@_packs" Selected="@_selectedPacks" Loading="@_packsLoading" Error="@_packsError"
+                                SelectionChanged="OnPackToggledAsync" />
+        }
+        else if (_way == FillWay.SetRules)
         {
             @RenderRulesWithPreview()
         }
@@ -1726,6 +1862,12 @@
     }
 
     private RenderFragment RenderNameStep() => @<div class="collection-flow__name">
+        @if (_way == FillWay.Pack)
+        {
+            @RenderPackCreateStep()
+        }
+        else
+        {
         <div class="collection-editor-details-grid">
             <div class="collection-editor-panel-stack">
                 @RenderBasicInformationPanel()
@@ -1739,6 +1881,35 @@
                 @RenderDisplayOptionsPanel(includeOrderAndLimit: _way != FillWay.SetRules)
                 @* Show on (Home, Watch, Read, Listen) joins this column when the lanes packet lands. *@
             </div>
+        </div>
+        }
+    </div>;
+
+    private RenderFragment RenderPackCreateStep() => @<div class="collection-editor-details-grid">
+        <div class="collection-editor-panel-stack">
+            <MediaEditorPanel Title="What will be created" Description="Each pack keeps its own names. A pack with several collections is created as a set you can remove in one go.">
+                <ul class="collection-flow__pack-summary">
+                    @foreach (var pack in _packs.Where(pack => _selectedPacks.Contains(pack.Id)))
+                    {
+                        <li><strong>@pack.Name</strong> <span>@pack.WouldCreateCount @(pack.WouldCreateCount == 1 ? "collection" : "collections")</span></li>
+                    }
+                </ul>
+            </MediaEditorPanel>
+            <MediaEditorPanel Title="Show on" Description="Show these collections as rows on these pages. They are always on the Collections page.">
+                @foreach (var (placeKey, placeLabel) in ShowOnPlaces)
+                {
+                    var key = placeKey;
+                    <AppCheckbox Value="@_showOn.Contains(key)"
+                                 ValueChanged="@(selected => OnShowOnChanged(key, selected))"
+                                 Label="@placeLabel" />
+                }
+            </MediaEditorPanel>
+        </div>
+        <div class="collection-editor-panel-stack">
+            @if (!IsPlaylistDialog)
+            {
+                @RenderOwnershipPanel()
+            }
         </div>
     </div>;
 
@@ -2144,7 +2315,7 @@
     private async Task ChangeWayAsync(FillWay way)
     {
         var card = WayCards.First(candidate => candidate.Way == way);
-        if (!card.Available || (way == FillWay.SetRules) == _rulesEnabled)
+        if (!card.Available || way == FillWay.Pack || (way == FillWay.SetRules) == _rulesEnabled)
         {
             _changingWay = false;
             return;

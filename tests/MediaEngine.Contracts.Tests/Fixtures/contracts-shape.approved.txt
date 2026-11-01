@@ -1754,6 +1754,81 @@ MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionMe
   Route: System.String | nullability=nullable | accessors=get,set
   AlreadyInCollection: System.Boolean | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionPackCreateRequest
+  PackIds: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,init
+  FileContent: System.String | nullability=nullable | accessors=get,init
+  MediaTypes: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,init
+  OwnerKind: System.String | nullability=not-null | accessors=get,init
+  Audience: System.String | nullability=not-null | accessors=get,init
+  SelectedProfileIds: System.Collections.Generic.List<System.Guid> | nullability=not-null | accessors=get,init
+  ShowOn: System.Collections.Generic.List<System.String> | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionPackCreateResponse
+  Sets: System.Collections.Generic.List<MediaEngine.Contracts.Collections.CollectionPackCreatedDto> | nullability=not-null | accessors=get,init
+  Collections: System.Collections.Generic.List<MediaEngine.Contracts.Collections.CollectionPackCreatedDto> | nullability=not-null | accessors=get,init
+  Skipped: System.Collections.Generic.List<MediaEngine.Contracts.Collections.CollectionPackSkippedDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionPackCreatedDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  SetId: System.Guid? | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionPackEntryDto
+  Name: System.String | nullability=not-null | accessors=get,init
+  Description: System.String | nullability=nullable | accessors=get,init
+  ItemCount: System.Int32 | nullability=not-null | accessors=get,init
+  MediaTypeCounts: System.Collections.Generic.Dictionary<System.String, System.Int32> | nullability=not-null | accessors=get,init
+  SeasonText: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionPackExportResponse
+  File: MediaEngine.Contracts.Collections.CollectionPackFileDto | nullability=not-null | accessors=get,init
+  Omitted: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionPackFileDto
+  Format: System.String | nullability=not-null | accessors=get,init
+  Version: System.Int32 | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  Description: System.String | nullability=nullable | accessors=get,init
+  CreatesSet: System.Boolean | nullability=not-null | accessors=get,init
+  Collections: System.Collections.Generic.List<MediaEngine.Contracts.Collections.CollectionPackFileEntryDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionPackFileEntryDto
+  Name: System.String | nullability=not-null | accessors=get,init
+  Description: System.String | nullability=nullable | accessors=get,init
+  IconName: System.String | nullability=nullable | accessors=get,init
+  PrimaryArea: System.String | nullability=not-null | accessors=get,init
+  RuleDefinition: MediaEngine.Contracts.Collections.CollectionRuleDefinitionDto | nullability=not-null | accessors=get,init
+  SortField: System.String | nullability=nullable | accessors=get,init
+  SortDirection: System.String | nullability=not-null | accessors=get,init
+  SecondarySortField: System.String | nullability=nullable | accessors=get,init
+  SecondarySortDirection: System.String | nullability=nullable | accessors=get,init
+  MinItems: System.Int32 | nullability=not-null | accessors=get,init
+  MaxItems: System.Int32 | nullability=not-null | accessors=get,init
+  SeasonFrom: System.String | nullability=nullable | accessors=get,init
+  SeasonTo: System.String | nullability=nullable | accessors=get,init
+  ArtworkHint: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionPackFilePreviewRequest
+  Content: System.String | nullability=not-null | accessors=get,init
+  MediaTypes: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionPackListResponse
+  Packs: System.Collections.Generic.List<MediaEngine.Contracts.Collections.CollectionPackSummaryDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionPackSkippedDto
+  Name: System.String | nullability=not-null | accessors=get,init
+  Reason: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionPackSummaryDto
+  Id: System.String | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  Description: System.String | nullability=not-null | accessors=get,init
+  IconName: System.String | nullability=nullable | accessors=get,init
+  CreatesSet: System.Boolean | nullability=not-null | accessors=get,init
+  WouldCreateCount: System.Int32 | nullability=not-null | accessors=get,init
+  UsesPerProfileFields: System.Boolean | nullability=not-null | accessors=get,init
+  Collections: System.Collections.Generic.List<MediaEngine.Contracts.Collections.CollectionPackEntryDto> | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionParentResponse
   parentCollection: MediaEngine.Contracts.Collections.ParentCollectionSummary | nullability=nullable | accessors=get,init
 
@@ -1838,6 +1913,9 @@ MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionRu
   Label: System.String | nullability=not-null | accessors=get,init
   LocalCount: System.Int32 | nullability=not-null | accessors=get,init
   Group: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionSetRemovedResponse
+  RemovedCollections: System.Int32 | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionUpdateRequest
   Name: System.String | nullability=nullable | accessors=get,init

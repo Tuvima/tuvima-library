@@ -2,6 +2,7 @@ using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.Artwork;
 using MediaEngine.Api.Services.BatchEdit;
 using MediaEngine.Api.Services.Collections;
+using MediaEngine.Api.Services.Collections.Packs;
 using MediaEngine.Api.Services.EditSession;
 using MediaEngine.Api.Services.Matching;
 using MediaEngine.Api.Services.ReadServices;
@@ -66,6 +67,9 @@ public static class ApiReadServiceCollectionExtensions
         services.AddSingleton<ICompanionChapterSource, CompanionChapterSource>();
         services.AddScoped<CompanionContextReadService>();
         services.AddScoped<CollectionPersonalMediaService>();
+        services.AddScoped<CollectionPackPlanner>();
+        services.AddScoped<CollectionPackService>();
+        services.AddScoped<IPackFileImporter>(sp => sp.GetRequiredService<CollectionPackService>());
         services.AddSingleton<IReviewQueueReadService, ReviewQueueReadService>();
         services.AddSingleton<EditorSuggestionReadService>();
         services.AddSingleton<PersonEditorReadService>();

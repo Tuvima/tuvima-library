@@ -434,7 +434,9 @@ public sealed class CollectionRuleEvaluator
         {
             var pName = $"@p{paramIdx++}";
             parameters.Add((pName, effectiveValues[0]));
-            return ($"w.id IN (SELECT e_t.work_id FROM editions e_t INNER JOIN media_assets ma_t ON ma_t.edition_id = e_t.id INNER JOIN metadata_claims mc ON mc.entity_id = ma_t.id GROUP BY e_t.work_id HAVING MIN(mc.claimed_at) >= datetime('now', '-' || {pName} || ' days'))", parameters);
+            // "is not" reads as "added longer ago than that" (the pack "Unread on the shelf" uses it as an exception).
+            var addedWithin = $"w.id IN (SELECT e_t.work_id FROM editions e_t INNER JOIN media_assets ma_t ON ma_t.edition_id = e_t.id INNER JOIN metadata_claims mc ON mc.entity_id = ma_t.id GROUP BY e_t.work_id HAVING MIN(mc.claimed_at) >= datetime('now', '-' || {pName} || ' days'))";
+            return (op == "neq" ? $"NOT ({addedWithin})" : addedWithin, parameters);
         }
 
         // Temporal: decade
