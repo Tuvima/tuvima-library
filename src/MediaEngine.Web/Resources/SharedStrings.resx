@@ -7642,7 +7642,7 @@
     <value>Restore and restart</value>
   </data>
   <data name="SetupWelcomeStage_RestoreABackupInstead" xml:space="preserve">
-    <value>Restore a backup instead</value>
+    <value>Restore a backup</value>
   </data>
   <data name="Common_DismissNotification" xml:space="preserve">
     <value>Dismiss notification</value>

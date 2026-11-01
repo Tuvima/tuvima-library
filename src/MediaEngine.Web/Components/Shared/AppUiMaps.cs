@@ -52,7 +52,7 @@ internal static class AppUiMaps
     public static AppVariant ToAppVariant(AppButtonStyle style) => style switch
     {
         AppButtonStyle.Filled => AppVariant.Filled,
-        AppButtonStyle.Text or AppButtonStyle.Ghost => AppVariant.Text,
+        AppButtonStyle.Text => AppVariant.Text,
         _ => AppVariant.Outlined,
     };
 

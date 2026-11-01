@@ -2,6 +2,7 @@ using Bunit;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Contracts.Setup;
 using MediaEngine.Web.Components.Setup;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Tests.Support;
 
 namespace MediaEngine.Web.Tests;
@@ -140,11 +141,27 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
     }
 
     [Fact]
-    public void FirstScreen_OffersRestoreAsATextLink()
+    public void FirstScreen_OffersRestoreAsASecondaryButtonBesideContinue()
     {
         var cut = Render<SetupWelcomeStage>(parameters => parameters.Add(p => p.ServerName, "Home"));
 
-        Assert.Contains("Restore a backup instead", cut.Markup, StringComparison.Ordinal);
+        var footer = cut.Find("footer.setup-stage__footer");
+        var restore = footer.QuerySelector("[data-testid='setup-restore-open']");
+        Assert.NotNull(restore);
+        Assert.Contains("app-button--outlined", restore!.ClassName, StringComparison.Ordinal);
+        Assert.Contains("Restore a backup", restore.TextContent, StringComparison.Ordinal);
+        Assert.Contains("app-button--filled", footer.QuerySelector(".setup-stage__footer-actions .app-button")!.ClassName, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AppButton_DrawsThreeLevels_FilledOutlinedText()
+    {
+        foreach (var (style, cls) in new[] { (AppButtonStyle.Filled, "app-button--filled"), (AppButtonStyle.Outlined, "app-button--outlined"), (AppButtonStyle.Text, "app-button--text") })
+        {
+            var cut = Render<AppButton>(parameters => parameters.Add(p => p.Label, "x").Add(p => p.ButtonStyle, style));
+            Assert.Contains(cls, cut.Find("button").ClassName, StringComparison.Ordinal);
+        }
+        Assert.DoesNotContain("Ghost", Enum.GetNames<AppButtonStyle>());
     }
 
     [Fact]

@@ -113,7 +113,7 @@
 
     --tl-border-subtle: rgba(148, 163, 184, 0.10);
     --tl-border-default: rgba(148, 163, 184, 0.16);
-    --tl-border-strong: rgba(182, 194, 214, 0.24);
+    --tl-border-strong: rgba(182, 194, 214, 0.46);
     --tl-divider: rgba(148, 163, 184, 0.10);
 
     /* Shared dropdown and secondary-action chrome. */

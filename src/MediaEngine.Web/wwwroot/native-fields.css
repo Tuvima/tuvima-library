@@ -55,10 +55,10 @@ textarea.tl-input:focus-visible { outline: 1px solid var(--tl-accent-primary); o
 .tl-switch input:disabled + .tl-switch-track { background: color-mix(in srgb,var(--tl-text-muted) 12%,transparent); }
 .tl-switch input:disabled + .tl-switch-track .tl-switch-thumb { background: var(--tl-text-muted); }
 .tl-button { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-width: 64px; min-height: var(--app-control-height,var(--tl-control-height-md)); margin: 0; padding: 6px var(--tl-control-padding-x); border: 0; border-radius: var(--tl-control-radius); background: transparent; color: var(--app-tone-color,var(--tl-text-primary)); font-family: var(--font-ui); font-size: var(--tl-control-font-size-md); font-weight: var(--tl-control-font-weight); line-height: var(--tl-control-line-height); letter-spacing: var(--tl-control-letter-spacing); text-transform: none; text-decoration: none; cursor: pointer; position: relative; vertical-align: middle; appearance: none; user-select: none; }
-.tl-button.app-button--outlined { border: 1px solid var(--tl-border-default); padding-block: 5px; }
+.tl-button.app-button--outlined { border: 1px solid var(--tl-border-strong); padding-block: 5px; }
 .tl-button.app-button--filled { border-color: transparent; background: var(--app-tone-color,var(--tl-accent-primary)); color: var(--tl-text-on-accent); }
 .tl-button.app-button--filled.app-tone--neutral { background: color-mix(in srgb,var(--tl-text-secondary) 6%,transparent); color: var(--tl-text-primary); }
-.tl-button.app-button--text, .tl-button.app-button--ghost { border-color: transparent; }
+.tl-button.app-button--text { border-color: transparent; }
 .tl-button:hover:not(:disabled):not([aria-disabled="true"]) { background: color-mix(in srgb,var(--app-tone-color,var(--tl-text-primary)) 10%,transparent); }
 .tl-button.app-button--filled:hover:not(:disabled):not([aria-disabled="true"]) { filter: brightness(1.1); background: var(--app-tone-color,var(--tl-accent-primary)); }
 .tl-button.app-button--filled.app-tone--primary:hover:not(:disabled):not([aria-disabled="true"]) { filter: none; }

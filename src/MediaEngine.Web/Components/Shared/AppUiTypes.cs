@@ -63,7 +63,6 @@ public enum AppButtonStyle
     Filled,
     Outlined,
     Text,
-    Ghost,
 }
 
 public enum AppEmphasis
