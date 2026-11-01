@@ -22,7 +22,7 @@ public sealed class DevicesNavTests
         var security = personal.Nodes.Single(node => node.Section == SettingsSection.Security);
 
         Assert.Equal("Security & Devices", security.Label);
-        Assert.Equal(["Sign-in", "Devices & Sessions"], security.Tabs.Select(tab => tab.Label));
+        Assert.Equal(["Sign-in", "Devices"], security.Tabs.Select(tab => tab.Label));
         var devices = security.Tabs[1];
         Assert.Equal(SettingsSection.Security, devices.Section);
         Assert.Equal("devices", devices.Subsection);
@@ -65,12 +65,12 @@ public sealed class DevicesNavTests
 
         var groups = SettingsNav.FilteredMenuGroups(server);
         var security = groups.Single(group => group.Key == "personal").Nodes.Single(node => node.Section == SettingsSection.Security);
-        Assert.Equal(["Sign-in", "Devices & Sessions"], security.Tabs.Select(tab => tab.Label));
+        Assert.Equal(["Sign-in", "Devices"], security.Tabs.Select(tab => tab.Label));
 
         var location = SettingsNav.FindMenuLocation(SettingsSection.Security, "devices");
         Assert.NotNull(location);
         Assert.Equal("Security & Devices", location.Page.Label);
-        Assert.Equal("Devices & Sessions", location.Tab?.Label);
+        Assert.Equal("Devices", location.Tab?.Label);
         Assert.Equal("personal", location.Group.Key);
     }
 
@@ -86,7 +86,7 @@ public sealed class DevicesNavTests
         var lines = selector.Single().Options;
         var security = lines.Single(line => line.Label == "Security & Devices");
         Assert.Equal("/settings/security", security.Route);
-        Assert.DoesNotContain(lines, line => line.Label is "Devices" or "Devices & Sessions");
+        Assert.DoesNotContain(lines, line => line.Label == "Devices");
     }
 
     [Fact]

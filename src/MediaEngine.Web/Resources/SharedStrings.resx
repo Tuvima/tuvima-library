@@ -4131,9 +4131,6 @@
   <data name="BackupDestinationsSection_BackupsAreSentAsOrdinary" xml:space="preserve">
     <value>Backups are sent as ordinary files, not encrypted, so keep the destination safe. The login is kept encrypted on this computer and is never shown again.</value>
   </data>
-  <data name="BackupDestinationsSection_NothingFoundAtThisDestination" xml:space="preserve">
-    <value>Nothing found at this destination.</value>
-  </data>
   <data name="BackupDestinationsSection_AutomaticBackups" xml:space="preserve">
     <value>Automatic backups</value>
   </data>
@@ -4176,15 +4173,6 @@
   <data name="BackupDestinationsSection_BackUpNow" xml:space="preserve">
     <value>Back up now</value>
   </data>
-  <data name="BackupDestinationsSection_RestoreFromADestination" xml:space="preserve">
-    <value>Restore from a destination</value>
-  </data>
-  <data name="BackupDestinationsSection_Backup" xml:space="preserve">
-    <value>Backup</value>
-  </data>
-  <data name="BackupDestinationsSection_RestoreThisBackup" xml:space="preserve">
-    <value>Restore this backup</value>
-  </data>
   <data name="BackupRecoveryPanel_NoRecoveryPointsYet" xml:space="preserve">
     <value>No recovery points yet</value>
   </data>
@@ -4217,9 +4205,6 @@
   </data>
   <data name="BackupRecoveryPanel_AnyoneWithThisFileCan" xml:space="preserve">
     <value>Anyone with this file can see your settings and sign in as you. Keep it somewhere safe.</value>
-  </data>
-  <data name="BackupRecoveryPanel_Advanced" xml:space="preserve">
-    <value>Advanced</value>
   </data>
   <data name="BackupRecoveryPanel_StoredContent" xml:space="preserve">
     <value>Stored content</value>
@@ -6753,6 +6738,9 @@
   <data name="ProfileDetailPage_AskForAPINTo" xml:space="preserve">
     <value>Ask for a PIN to open administrator settings</value>
   </data>
+  <data name="ProfileDetailPage_PreferenceSections" xml:space="preserve">
+    <value>Preference sections</value>
+  </data>
   <data name="ProfileTabs_ProfileSections" xml:space="preserve">
     <value>Profile sections</value>
   </data>
@@ -6914,9 +6902,6 @@
   </data>
   <data name="SecuritySettingsPage_SignOutEverywhereElse" xml:space="preserve">
     <value>Sign out everywhere else</value>
-  </data>
-  <data name="SecuritySettingsPage_YourPhotos" xml:space="preserve">
-    <value>Your photos</value>
   </data>
   <data name="SecuritySettingsPage_WhoViewedYourPhotos" xml:space="preserve">
     <value>Who viewed your photos</value>
@@ -8736,9 +8721,6 @@
   <data name="BackupDestinationsSection_TheBackupCouldNotBe" xml:space="preserve">
     <value>The backup could not be made.</value>
   </data>
-  <data name="BackupDestinationsSection_TheRestoreCouldNotBe" xml:space="preserve">
-    <value>The restore could not be staged. The backup may be damaged or not a Library backup.</value>
-  </data>
   <data name="BackupRecoveryPanel_TheBackupCouldNotBe" xml:space="preserve">
     <value>The backup could not be created.</value>
   </data>
@@ -9633,9 +9615,6 @@
   <data name="SettingsPageFrame_AdvancedWarning" xml:space="preserve">
     <value>These settings are for experienced administrators. Everyday use never needs them.</value>
   </data>
-  <data name="Settings_BackupsAdvancedPending" xml:space="preserve">
-    <value>The restored-progress wait and the archive facts are still on the Backups tab. They move here soon.</value>
-  </data>
   <data name="PluginProvides_RunsOnLocalAi" xml:space="preserve">
     <value>runs on Local AI</value>
   </data>
@@ -9767,5 +9746,29 @@
   </data>
   <data name="SettingsLibrariesTabs_Rules" xml:space="preserve">
     <value>Rules</value>
+  </data>
+  <data name="Backups_NextBackup" xml:space="preserve">
+    <value>Next backup: {0}</value>
+  </data>
+  <data name="Backups_EveryDay" xml:space="preserve">
+    <value>Every day</value>
+  </data>
+  <data name="Backups_EveryWeek" xml:space="preserve">
+    <value>Every week</value>
+  </data>
+  <data name="Backups_MonthlyRestoreCheckTitle" xml:space="preserve">
+    <value>Monthly restore check</value>
+  </data>
+  <data name="Backups_NoRestoreCheckYet" xml:space="preserve">
+    <value>No restore check has run yet.</value>
+  </data>
+  <data name="Backups_ArchiveTitle" xml:space="preserve">
+    <value>Archive</value>
+  </data>
+  <data name="Backups_DestinationUnreachable" xml:space="preserve">
+    <value>Could not read the backups held at {0}.</value>
+  </data>
+  <data name="Backups_ThisComputer" xml:space="preserve">
+    <value>This computer</value>
   </data>
 </root>

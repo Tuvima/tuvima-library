@@ -122,6 +122,21 @@ public sealed class SecuritySettingsPageTests : AsyncBunitContext
     }
 
     [Fact]
+    public void WhoViewedYourPhotos_SitsInTheAccessPanel_AndThereIsNoSeparateYourPhotosPanel()
+    {
+        _handler.HasPassword = true;
+        _session.Set("session", _handler.Account, _handler.Profile, _handler.CurrentSession, _handler.MemberAuthority());
+        var cut = Render<SecuritySettingsPage>();
+
+        cut.WaitForElement("[data-nav-row='photo-views']");
+        var panels = cut.FindAll(".settings-section-card");
+        var access = panels.Single(panel => panel.QuerySelector("[data-nav-row='photo-views']") is not null);
+        Assert.NotNull(access.QuerySelector("[data-nav-row='sign-out-others']"));
+        Assert.Contains("Access", access.TextContent, StringComparison.Ordinal);
+        Assert.DoesNotContain(panels, panel => panel.TextContent.Contains("Your photos", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void WithoutAPassword_PasswordEmailAndSignOutEverywhereElseRowsRender()
     {
         _handler.HasPassword = false;

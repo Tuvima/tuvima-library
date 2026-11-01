@@ -380,7 +380,7 @@ public sealed class SettingsNavTests
 
         Assert.Equal(["Overview", "Activity", "Taste", "Linked accounts", "Import"], TabLabels(groups, "Profile"));
         Assert.Empty(TabLabels(groups, "Manage Profiles"));
-        Assert.Equal(["Sign-in", "Devices & Sessions"], TabLabels(groups, "Security & Devices"));
+        Assert.Equal(["Sign-in", "Devices"], TabLabels(groups, "Security & Devices"));
         Assert.Equal(["Libraries", "Activity", "Needs Review", "Matching", "Rules"], TabLabels(groups, "Libraries"));
         Assert.Equal(["Quality", "Advanced"], TabLabels(groups, "Playback"));
         Assert.Empty(TabLabels(groups, "General"));

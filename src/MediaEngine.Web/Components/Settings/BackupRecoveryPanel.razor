@@ -1,4 +1,5 @@
 @namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Backups
 @using MediaEngine.Contracts.System
 @using Microsoft.JSInterop
 @inject IEngineApiClient ApiClient
@@ -39,7 +40,7 @@
                 <div class="backup-status__facts">
                     <div><small>@L["BackupRecoveryPanel_LatestBackup"]</small><strong>@LatestBackup.CreatedAt.ToLocalTime().ToString("MMM d, yyyy · h:mm tt")</strong></div>
                     <div><small>@L["BackupRecoveryPanel_BackupSize"]</small><strong>@FormatBytes(LatestBackup.SizeBytes)</strong></div>
-                    <div><small>@L["BackupRecoveryPanel_RecoveryPoints"]</small><strong>@_backups.Count</strong></div>
+                    <div><small>@L["BackupRecoveryPanel_RecoveryPoints"]</small><strong>@_rows.Count</strong></div>
                 </div>
                 @if (RestoreSummaryLine is { } restoreSummary)
                 {
@@ -85,51 +86,39 @@
                 }
             </AppCard>
 
-            <AppCard Title="@L["Common_Restore"].Value" Class="backup-action-card">
+            <AppCard Title="@L["Common_Restore"].Value" Class="backup-action-card" data-testid="restore-list">
                 <p>The Engine validates and stages your chosen recovery point. Restart the Engine to apply it; the current database remains available as a recovery copy.</p>
-                @if (_backups.Count == 0)
+                @if (_rows.Count == 0)
                 {
                     <AppButton Label="@L["BackupRecoveryPanel_NoBackupsAvailable"].Value" Disabled="true" />
                 }
                 else
                 {
                     <div class="backup-list" aria-label="@L["BackupRecoveryPanel_AvailableRecoveryPoints"].Value">
-                        @foreach (var backup in _backups)
+                        @foreach (var row in _rows)
                         {
-                            <div class="backup-list__row">
-                                <div class="backup-list__identity"><strong>@backup.CreatedAt.ToLocalTime().ToString("MMM d, yyyy · h:mm tt")</strong><small>@FormatBytes(backup.SizeBytes)</small></div>
+                            <div class="backup-list__row" data-testid="@($"restore-row-{row.DestinationId}")">
+                                <div class="backup-list__identity"><strong>@row.CreatedAt.ToLocalTime().ToString("MMM d, yyyy · h:mm tt")</strong><small>@FormatBytes(row.SizeBytes) · @row.DestinationName</small></div>
                                 <div class="backup-list__actions">
-                                    <AppButton Label="@L["Models_Download"].Value" ButtonStyle="AppButtonStyle.Text" StartIcon="@AppMaterialIcons.Outlined.Download" Disabled="@_busy" OnClick="@(() => DownloadAsync(backup))" />
-                                    <AppButton Label="@L["BackupRecoveryPanel_TestRestore"].Value" ButtonStyle="AppButtonStyle.Text" StartIcon="@AppMaterialIcons.Outlined.FactCheck" Disabled="@_busy" OnClick="@(() => ValidateAsync(backup))" />
-                                    <AppButton Label="@L["Common_Restore"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Warning" StartIcon="@AppMaterialIcons.Outlined.Restore" Disabled="@_busy" OnClick="@(() => OpenRestoreDialog(backup))" />
+                                    @if (row.IsLocal)
+                                    {
+                                        <AppButton Label="@L["Models_Download"].Value" ButtonStyle="AppButtonStyle.Text" StartIcon="@AppMaterialIcons.Outlined.Download" Disabled="@_busy" OnClick="@(() => DownloadAsync(row))" />
+                                        <AppButton Label="@L["BackupRecoveryPanel_TestRestore"].Value" ButtonStyle="AppButtonStyle.Text" StartIcon="@AppMaterialIcons.Outlined.FactCheck" Disabled="@_busy" OnClick="@(() => ValidateAsync(row))" />
+                                    }
+                                    <AppButton Label="@L["Common_Restore"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Warning" StartIcon="@AppMaterialIcons.Outlined.Restore" Disabled="@_busy" OnClick="@(() => OpenRestoreDialog(row))" />
                                 </div>
                             </div>
                         }
                     </div>
                 }
+                @foreach (var name in _unreachable)
+                {
+                    <small class="backup-destinations__hint" data-testid="destination-unreachable">@L["Backups_DestinationUnreachable", name]</small>
+                }
             </AppCard>
         </div>
 
-        @if (_state is { } state)
-        {
-            <AppCard Title="@L["BackupRecoveryPanel_RestoredProgress"].Value" Class="backup-action-card">
-                <AppSelect @key="_waitingPeriodRenderKey" Native="true" Label="@L["BackupRecoveryPanel_KeepRestoredProgressWaitingFor"].Value" Value="@state.WaitingPeriodDays.ToString(System.Globalization.CultureInfo.InvariantCulture)"
-                           Options="@WaitingPeriodOptions(state.WaitingPeriodDays)" Disabled="@_busy" ValueChanged="SetWaitingPeriodAsync" data-testid="waiting-period" />
-            </AppCard>
-        }
-
-        <BackupDestinationsSection />
-
-        <AppCard>
-        <details class="backup-advanced">
-            <summary>@L["BackupRecoveryPanel_Advanced"]</summary>
-            <div class="backup-advanced__content">
-                <div><span>@L["BackupRecoveryPanel_StoredContent"]</span><strong>@L["BackupRecoveryPanel_SettingsAndYourOwnProgress"]</strong></div>
-                <div><span>@L["BackupRecoveryPanel_TotalArchiveSize"]</span><strong>@FormatBytes(_backups.Sum(item => item.SizeBytes))</strong></div>
-                <p>@L["BackupRecoveryPanel_BackupLocationAndRetentionAre"]</p>
-            </div>
-        </details>
-        </AppCard>
+        <BackupSchedulePanel />
         }
     }
 
@@ -157,6 +146,7 @@
             <dl class="backup-restore-confirmation">
                 <div><dt>@L["BackupRecoveryPanel_RecoveryPoint"]</dt><dd>@_selectedRestore.CreatedAt.ToLocalTime().ToString("MMM d, yyyy · h:mm tt")</dd></div>
                 <div><dt>@L["BackupRecoveryPanel_ArchiveSize"]</dt><dd>@FormatBytes(_selectedRestore.SizeBytes)</dd></div>
+                <div><dt>@L["Common_Destination"]</dt><dd>@_selectedRestore.DestinationName</dd></div>
             </dl>
         }
     </ChildContent>
@@ -181,12 +171,20 @@
     private string? _notice;
     private RestoreValidationResultDto? _lastValidation;
     private bool _restoreDialogOpen;
-    private BackupArchiveDto? _selectedRestore;
+    private RestoreRow? _selectedRestore;
+    private List<RestoreRow> _rows = [];
+    private List<string> _unreachable = [];
     private BackupArchiveDto? _lastCreated;
 
     // Null when the Engine could not be asked; everything that depends on it is then hidden.
     private BackupStateDto? _state;
-    private BackupArchiveDto? LatestBackup => _backups.OrderByDescending(item => item.CreatedAt).FirstOrDefault();
+    private RestoreRow? LatestBackup => _rows.OrderByDescending(item => item.CreatedAt).FirstOrDefault();
+
+    /// <summary>One backup in the single restore list: held on this computer or at one of the destinations.</summary>
+    private sealed record RestoreRow(string DestinationId, string DestinationName, string FileName, DateTimeOffset CreatedAt, long SizeBytes)
+    {
+        public bool IsLocal => DestinationId == BackupDestinationIds.Local;
+    }
 
     // Null when the Engine could not be asked; the line is then hidden (the usual unreachable messaging applies).
     private DataStoreVersionDto? _dataStoreVersion;
@@ -207,10 +205,36 @@
         var backups = ApiClient.GetBackupsAsync();
         var version = ApiClient.GetDataStoreVersionAsync();
         var state = ApiClient.GetBackupStateAsync();
+        var settings = ApiClient.GetBackupSettingsAsync();
         _backups = await backups;
         _dataStoreVersion = await version;
         _state = await state;
+        await BuildRestoreListAsync(await settings);
         _loading = false;
+    }
+
+    // Every destination's backups in one list, newest first. This computer's own archives come from the backup list itself.
+    private async Task BuildRestoreListAsync(BackupSettingsResponse? settings)
+    {
+        var rows = _backups
+            .Select(item => new RestoreRow(BackupDestinationIds.Local, L["Backups_ThisComputer"].Value, item.FileName, item.CreatedAt, item.SizeBytes))
+            .ToList();
+        var unreachable = new List<string>();
+        var others = (settings?.Destinations ?? []).Where(item => item.Id != BackupDestinationIds.Local && item.IsConfigured).ToList();
+        var held = await Task.WhenAll(others.Select(item => ApiClient.GetDestinationBackupsAsync(item.Id)));
+        for (var index = 0; index < others.Count; index++)
+        {
+            if (held[index] is not { } response)
+            {
+                unreachable.Add(others[index].Name);
+                continue;
+            }
+
+            rows.AddRange(response.Items.Select(item => new RestoreRow(others[index].Id, others[index].Name, item.Name, item.ModifiedAt, item.SizeBytes)));
+        }
+
+        _rows = [.. rows.OrderByDescending(item => item.CreatedAt)];
+        _unreachable = unreachable;
     }
 
     private async Task CreateAsync()
@@ -232,7 +256,7 @@
         _busy = false;
     }
 
-    private async Task DownloadAsync(BackupArchiveDto backup)
+    private async Task DownloadAsync(RestoreRow backup)
     {
         _busy = true;
         var bytes = await ApiClient.DownloadBackupAsync(backup.FileName);
@@ -249,7 +273,7 @@
         _busy = false;
     }
 
-    private async Task ValidateAsync(BackupArchiveDto backup)
+    private async Task ValidateAsync(RestoreRow backup)
     {
         _busy = true;
         _lastValidation = await ApiClient.ValidateRestoreAsync(backup.FileName);
@@ -265,7 +289,7 @@
         }
     }
 
-    private void OpenRestoreDialog(BackupArchiveDto backup)
+    private void OpenRestoreDialog(RestoreRow backup)
     {
         _selectedRestore = backup;
         _restoreDialogOpen = true;
@@ -283,7 +307,9 @@
         if (_selectedRestore is null) return;
 
         _busy = true;
-        var result = await ApiClient.ScheduleRestoreAsync(_selectedRestore.FileName);
+        var result = _selectedRestore.IsLocal
+            ? await ApiClient.ScheduleRestoreAsync(_selectedRestore.FileName)
+            : await ApiClient.RestoreFromDestinationAsync(new() { DestinationId = _selectedRestore.DestinationId, Name = _selectedRestore.FileName });
         if (result?.Scheduled == true)
         {
             _notice = result.Message;
@@ -302,8 +328,6 @@
         }
         _busy = false;
     }
-
-    private static readonly int[] StandardWaitingDays = [30, 60, 90, 180, 365];
 
     private static string FileOnlyLine(int count) => count == 1
         ? "1 item is matched by exact file only and may lose progress if the file changes."
@@ -343,38 +367,6 @@
                 ? $"{attached} 1 is waiting for its file; it'll return if the file does, and is cleared after {days} days."
                 : $"{attached} {waiting} are waiting for their files; they'll return if the files do, and are cleared after {days} days.";
         }
-    }
-
-    // The five standard choices; a stored value that is not one of them is shown as one more choice so the page never lies about it.
-    private static IReadOnlyList<AppSelectOption> WaitingPeriodOptions(int stored)
-    {
-        var days = StandardWaitingDays.Contains(stored) ? StandardWaitingDays : [.. StandardWaitingDays, stored];
-        return [.. days.Order().Select(count => new AppSelectOption(
-            count.ToString(System.Globalization.CultureInfo.InvariantCulture), $"{count} days"))];
-    }
-
-    private int _waitingPeriodRenderKey;
-
-    private async Task SetWaitingPeriodAsync(string? value)
-    {
-        if (_state is null || !int.TryParse(value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var days))
-        {
-            return;
-        }
-
-        _busy = true;
-        var updated = await ApiClient.SetBackupWaitingPeriodAsync(days);
-        if (updated is null)
-        {
-            Snackbar.Add(L["BackupRecoveryPanel_TheWaitingPeriodCouldNot"].Value, AppSeverity.Error);
-            // The browser kept the choice that was not saved; a new key redraws the field with the stored value.
-            _waitingPeriodRenderKey++;
-        }
-        else
-        {
-            _state = updated;
-        }
-        _busy = false;
     }
 
     private static string FormatBytes(long bytes) => bytes switch

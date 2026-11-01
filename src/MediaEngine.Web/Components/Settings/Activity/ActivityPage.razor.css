@@ -23,22 +23,12 @@
     align-self: start;
 }
 
-/* One compact row: scope (administrators), search, Filters, Group by, the every-session switch, then Export and the more menu. */
+/* One compact row: search, From and To dates, Filters (Scope, Type, Outcome, Device, Group by, every-session switch, Export) and the more menu. */
 .activity-toolbar {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: var(--tl-space-3, 12px);
-}
-
-.activity-toolbar__scope {
-    display: flex;
-    align-items: center;
-    gap: var(--tl-space-2, 8px);
-}
-
-.activity-toolbar__scope .activity-field__label {
-    white-space: nowrap;
 }
 
 .activity-toolbar__search {
@@ -69,10 +59,6 @@
     font-size: 0.75rem;
     font-weight: 700;
     line-height: 1;
-}
-
-.activity-toolbar__switch {
-    flex: 0 0 auto;
 }
 
 .activity-toolbar__actions {
@@ -118,10 +104,10 @@
     margin-bottom: 6px;
 }
 
-.activity-filters__dates {
-    display: grid;
-    gap: var(--tl-space-3, 12px);
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+.activity-toolbar__dates {
+    display: flex;
+    flex: 0 0 auto;
+    gap: var(--tl-space-2, 8px);
 }
 
 .activity-filters-popover__body {

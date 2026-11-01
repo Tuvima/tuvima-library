@@ -225,7 +225,7 @@ public static class SettingsNav
     /// <summary>The Scheduled Tasks sub-page of System: every task with its status, schedule, last and next run and recent runs (server administrators only).</summary>
     public const string ScheduledTasksSubsection = "scheduled-tasks";
 
-    /// <summary>The Devices &amp; Sessions sub-page of Security &amp; Devices.</summary>
+    /// <summary>The Devices sub-page of Security &amp; Devices.</summary>
     public const string DevicesSubsection = "devices";
 
     /// <summary>The Taste sub-page of Overview: your taste in plain groups (Genres, Moods, Eras), editable for your own and read-only for others.</summary>
@@ -369,7 +369,7 @@ public static class SettingsNav
             Page("Security & Devices", AppMaterialIcons.Outlined.Lock, SettingsSection.Security,
             [
                 Tab("Sign-in", AppMaterialIcons.Outlined.Key, SettingsSection.Security),
-                Tab("Devices & Sessions", AppMaterialIcons.Outlined.Devices, SettingsSection.Security, DevicesSubsection),
+                Tab("Devices", AppMaterialIcons.Outlined.Devices, SettingsSection.Security, DevicesSubsection),
             ]),
         ]),
         new("library", "Library", AppMaterialIcons.Outlined.VideoLibrary,
@@ -465,7 +465,7 @@ public static class SettingsNav
             [SettingsSection.Profiles] = [],
             [SettingsSection.Security] =
             [
-                new(DevicesSubsection, "Devices & Sessions", AppMaterialIcons.Outlined.Devices),
+                new(DevicesSubsection, "Devices", AppMaterialIcons.Outlined.Devices),
             ],
             [SettingsSection.AdminOverview] =
             [
