@@ -196,7 +196,7 @@ public sealed class PluginsListPageTests : AsyncBunitContext
         _plugins = [plugin];
         var text = RenderDetail("a", null).WaitForElement("[data-testid=plugin-setup]").TextContent;
         Assert.Contains("Everyone who can use this Library", text);
-                Assert.Contains("The song title goes to LRCLIB", text);
+        Assert.Contains("The song title goes to LRCLIB", text);
         Assert.Contains("Heavy: works when the machine is idle", text);
         Assert.Contains("Reads chapter names first.", text);
     }
