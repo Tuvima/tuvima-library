@@ -1,0 +1,44 @@
+@namespace MediaEngine.Web.Components.Shared
+
+@* A filter menu with tick boxes (Plugins and Integrations screens v4 D41): several words can be ticked at once and the button reads
+   the ticked words ("Status: Needs a key, Missing tools"). Clicking a tick keeps the menu open. *@
+<AppOverflowMenu Label="@ButtonLabel" EndIcon="@AppMaterialIcons.Outlined.ExpandMore" ShowIcon="false" AriaLabel="@Label"
+                 AnchorOrigin="AppOrigin.BottomLeft" TransformOrigin="AppOrigin.TopLeft" Class="app-tick-menu">
+    <div class="app-tick-menu__list" @onclick:stopPropagation="true">
+        @foreach (var option in Options)
+        {
+            var value = option.Value;
+            <AppCheckboxRow Label="@option.Label" Value="@Selected.Contains(value)" ValueChanged="@(on => ToggleAsync(value, on))" />
+        }
+    </div>
+</AppOverflowMenu>
+
+@code {
+    /// <summary>The menu's name ("Status", "Show").</summary>
+    [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired] public IReadOnlyList<AppSelectOption> Options { get; set; } = [];
+
+    /// <summary>The ticked option values.</summary>
+    [Parameter] public IReadOnlyCollection<string> Selected { get; set; } = [];
+
+    [Parameter] public EventCallback<IReadOnlyCollection<string>> SelectedChanged { get; set; }
+
+    private string ButtonLabel
+    {
+        get
+        {
+            var words = Options.Where(option => Selected.Contains(option.Value)).Select(option => option.Label).ToList();
+            return words.Count == 0 ? Label : $"{Label}: {string.Join(", ", words)}";
+        }
+    }
+
+    private Task ToggleAsync(string value, bool on)
+    {
+        var next = Selected.Where(item => item != value).ToList();
+        if (on)
+            next.Add(value);
+
+        return SelectedChanged.InvokeAsync(next);
+    }
+}

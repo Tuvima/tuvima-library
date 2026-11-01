@@ -16,6 +16,9 @@
   "cache_ttl_hours": 168,
   "language_strategy": "both",
   "ui_metadata": {
+    "plugin_category": "intake",
+    "provides": ["Identification", "Details", "People", "Series order"],
+    "short_description": "Links your items to Wikidata so works, people and series line up.",
     "accent_color": "#339966",
     "material_icon": "Collections",
     "category": "Open",

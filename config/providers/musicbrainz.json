@@ -348,6 +348,12 @@
   ],
 
   "ui_metadata": {
+
+    "plugin_category": "intake",
+
+    "provides": ["Identification", "Details", "People"],
+
+    "short_description": "Finds albums, songs and artists and fills in their details.",
     "accent_color": "#BA478F",
     "material_icon": "MusicNote",
     "category": "Open",

@@ -47,11 +47,19 @@ public sealed class ProviderListings(IConfigurationLoader loader, ProviderCapabi
             Name = config.DisplayName ?? config.Name,
             Version = config.Version,
             Description = FirstSentence(config.Onboarding?.Intro?.Summary),
+            ShortDescription = PluginDescriptions.Short(config.UiMetadata?.ShortDescription, config.Onboarding?.Intro?.Summary),
+            LongDescription = config.Onboarding?.Intro?.Summary ?? "",
+            Provides = PluginProvides.Resolve(config.UiMetadata?.Provides).ToList(),
+            // The bundled brand icon, unless an administrator uploaded their own (the Engine serves that at the provider icon action).
+            IconPath = !string.IsNullOrWhiteSpace(config.CustomIconName)
+                ? $"settings/providers/{config.Name}/icon"
+                : string.IsNullOrWhiteSpace(config.Icon) ? null : config.Icon,
+            Removable = false,
             Enabled = core || config.Enabled,
             IsBuiltIn = true,
             Kind = "official",
             TrustLevel = "official",
-            Category = "metadata",
+            Category = PluginCategories.Resolve(config.UiMetadata?.PluginCategory ?? PluginCategories.Intake),
             MediaTypes = [.. media.Select(MediaKey).Where(key => key is not null).Select(key => key!).Distinct(StringComparer.OrdinalIgnoreCase)],
             ListingKind = "provider",
             Access = sheet?.Access ?? new PluginAccessDto(),

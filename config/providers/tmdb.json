@@ -792,6 +792,9 @@
   "custom_icon_name": null,
   "language_strategy": "localized",
   "ui_metadata": {
+    "plugin_category": "intake",
+    "provides": ["Identification", "Details", "Artwork", "People"],
+    "short_description": "Finds films and shows and fills in their details and posters.",
     "accent_color": "#01B4E4",
     "material_icon": "Movie",
     "category": "Open",

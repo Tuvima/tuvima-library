@@ -324,54 +324,63 @@ public sealed class PluginsListPageTests : AsyncBunitContext
         Assert.Contains("MusicBrainz", cut.Find("[data-state-card=plugin]").TextContent);
     }
 
+    // The Status and Show menus are tick-box menus (Plugins and Integrations screens v4 D41): open one, tick words, several at once.
+    private static void Tick(IRenderedComponent<PluginSettingsTab> cut, string menu, string word)
+    {
+        if (cut.FindAll(".app-tick-menu__list label").Count == 0)
+        {
+            cut.FindAll(".app-tick-menu button.app-overflow-menu__trigger").First(button => button.TextContent.Trim().StartsWith(menu)).Click();
+        }
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".app-tick-menu__list label")));
+        cut.FindAll(".app-tick-menu__list label").First(label => label.TextContent.Trim() == word).QuerySelector("input")!.Change(true);
+    }
+
     [Fact]
-    public void StatusFilter_Enabled_ListsOnlySwitchedOnPlugins()
+    public void StatusFilter_On_ListsOnlySwitchedOnPlugins()
     {
         _plugins = [Plugin("a", "Alpha", enabled: true), Plugin("b", "Beta", enabled: false)];
         var cut = Render<PluginSettingsTab>();
         cut.WaitForAssertion(() => Assert.Equal(2, CardCount(cut)));
 
-        cut.FindAll(".app-search-filter-row select")[0].Change("enabled");
+        Tick(cut, "Status", "On");
 
         cut.WaitForAssertion(() => Assert.Equal(1, CardCount(cut)));
         Assert.Contains("Alpha", cut.Find("[data-state-card=plugin]").TextContent);
+        Assert.Contains("Status: On", cut.Markup);
     }
 
     [Fact]
-    public void MediaFilter_KeepsPluginsForThatTypeAndPluginsForEveryType()
+    public void StatusFilter_AllowsSeveralTicksAtOnce()
     {
-        var tv = Plugin("tv", "TvOnly", enabled: true);
-        tv.MediaTypes = ["tv"];
-        var books = Plugin("bk", "BooksOnly", enabled: true);
-        books.MediaTypes = ["books"];
-        _plugins = [tv, books, Plugin("all", "Everything", enabled: true)];
+        _plugins = [Plugin("a", "Alpha", enabled: true), Plugin("b", "Beta", enabled: false), Plugin("c", "Gamma", enabled: true)];
         var cut = Render<PluginSettingsTab>();
         cut.WaitForAssertion(() => Assert.Equal(3, CardCount(cut)));
 
-        cut.FindAll(".app-search-filter-row select")[1].Change("tv");
+        Tick(cut, "Status", "On");
+        Tick(cut, "Status", "Off");
 
-        cut.WaitForAssertion(() => Assert.Equal(2, CardCount(cut)));
-        Assert.DoesNotContain("BooksOnly", string.Concat(cut.FindAll("[data-state-card=plugin]").Select(card => card.TextContent)));
+        cut.WaitForAssertion(() => Assert.Equal(3, CardCount(cut)));
+        Assert.Contains("Status: On, Off", cut.Markup);
     }
 
     [Fact]
     public void CategoryTabs_ShowHonestCounts_AndNarrowTheList()
     {
-        var meta = Plugin("m", "Meta", enabled: true);
-        meta.Category = "metadata";
-        var media = Plugin("p", "Processor", enabled: true);
-        media.Category = "media-processing";
-        _plugins = [meta, media, Plugin("u", "Util", enabled: true)];
+        var intake = Plugin("m", "Meta", enabled: true);
+        intake.Category = "intake";
+        var after = Plugin("p", "Processor", enabled: true);
+        after.Category = "enrichment";
+        _plugins = [intake, after, Plugin("u", "Util", enabled: true)];
         var cut = Render<PluginSettingsTab>();
         cut.WaitForAssertion(() => Assert.Equal(3, CardCount(cut)));
 
         var tabs = cut.FindAll("[role=tab]");
-        Assert.Equal(5, tabs.Count);
+        Assert.Equal(4, tabs.Count);
         Assert.Contains("All3", Squash(tabs[0]));
-        Assert.Contains("Metadata1", Squash(tabs[1]));
-        Assert.Contains("Mediaprocessing1", Squash(tabs[2]));
-        Assert.Contains("Services0", Squash(tabs[3]));
-        Assert.Contains("Utilities1", Squash(tabs[4]));
+        Assert.Contains("Gettingitemsin1", Squash(tabs[1]));
+        Assert.Contains("Afterimport2", Squash(tabs[2]));
+        Assert.Contains("Accounts&lists0", Squash(tabs[3]));
 
         tabs[1].Click();
 
@@ -380,17 +389,70 @@ public sealed class PluginsListPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void OfficialSwitch_ListsOnlyOfficialPlugins()
+    public void ShowFilter_Official_ListsOnlyOfficialPlugins_AndNothingIsMarkedOfficial()
     {
         _plugins = [Plugin("a", "Alpha", enabled: true, trust: "official"), Plugin("b", "Beta", enabled: true, trust: "private")];
         var cut = Render<PluginSettingsTab>();
         cut.WaitForAssertion(() => Assert.Equal(2, CardCount(cut)));
-        Assert.Contains("Official Tuvima", cut.Markup);
+        Assert.DoesNotContain("Official Tuvima", cut.Markup);
+        Assert.Empty(cut.FindAll(".app-official-pill"));
 
-        cut.Find(".app-search-filter-row input[role=switch]").Change(true);
+        Tick(cut, "Show", "Official");
 
         cut.WaitForAssertion(() => Assert.Equal(1, CardCount(cut)));
         Assert.Contains("Alpha", cut.Find("[data-state-card=plugin]").TextContent);
+    }
+
+    [Fact]
+    public void APrivateUpload_HasADashedCard_AndNothingElseDoes()
+    {
+        _plugins = [Plugin("a", "Alpha", enabled: true, trust: "official"), Plugin("b", "Beta", enabled: true, trust: "private")];
+        var cut = Render<PluginSettingsTab>();
+        cut.WaitForAssertion(() => Assert.Equal(2, CardCount(cut)));
+
+        Assert.Single(cut.FindAll(".app-list-card--private"));
+    }
+
+    [Fact]
+    public void ATile_HasADotAndOneButton_AndNoPills()
+    {
+        var plugin = Plugin("a", "Alpha", enabled: true, trust: "official");
+        plugin.Provides = ["Details", "Artwork"];
+        plugin.ShortDescription = "Finds things.";
+        plugin.LongDescription = "Finds things and then some, in a much longer paragraph.";
+        _plugins = [plugin];
+        var cut = Render<PluginSettingsTab>();
+        cut.WaitForAssertion(() => Assert.Equal(1, CardCount(cut)));
+
+        var card = cut.Find("[data-state-card=plugin]");
+        Assert.NotNull(card.QuerySelector(".app-status-dot"));
+        Assert.Empty(card.QuerySelectorAll(".app-status-badge, .tl-status-badge"));
+        Assert.Single(card.QuerySelectorAll(".app-list-card__footer button"));
+        Assert.Contains("Details", card.QuerySelector("[data-testid=plugin-provides]")!.TextContent);
+        Assert.Equal("Finds things and then some, in a much longer paragraph.", card.QuerySelector(".app-list-card__description")!.GetAttribute("title"));
+    }
+
+    [Fact]
+    public async Task APluginThatRunsOnLocalAi_ShowsTheSparkle_WaitsForLocalAi_AndLocksTheSwitch()
+    {
+        var plugin = Plugin("ai", "Insights", enabled: false, trust: "official");
+        plugin.RequiresLocalAi = true;
+        _plugins = [plugin];
+        _onTools = () => new ToolRequirementsDto(
+            ToolInstallKinds.Source,
+            DateTimeOffset.UnixEpoch,
+            true,
+            [new ToolRequirementDto(ToolRequirementIds.AiRuntime, "Local AI engine", "tool", ToolRequirementLevels.Required, ToolRequirementStates.Missing,
+                "Local AI waits.", null, "Download it.", null, 0, false, false, false, null)]);
+        SignInAdministrator();
+        await Services.GetRequiredService<SettingsAttentionState>().StartAsync();
+        var cut = Render<PluginSettingsTab>();
+        cut.WaitForAssertion(() => Assert.Equal(1, CardCount(cut)));
+
+        var card = cut.Find("[data-state-card=plugin]");
+        cut.WaitForAssertion(() => Assert.Contains("Set up Local AI", card.QuerySelector(".app-list-card__footer")!.TextContent));
+        Assert.Contains("runs on Local AI", card.TextContent);
+        Assert.NotNull(card.QuerySelector("input[role=switch][disabled]"));
     }
 
     [Fact]
@@ -513,6 +575,8 @@ public sealed class PluginsListPageTests : AsyncBunitContext
             Id = id,
             Name = name,
             Description = name + " does something useful.",
+            ShortDescription = name + " does something useful.",
+            LongDescription = name + " does something useful.",
             Enabled = enabled,
             TrustLevel = trust,
             LoadError = loadError,

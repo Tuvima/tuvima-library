@@ -1300,6 +1300,13 @@ internal static class PluginEndpoints
         MinimumLibraryVersion = registration.Manifest.MinimumLibraryVersion,
         MaximumLibraryVersion = registration.Manifest.MaximumLibraryVersion,
         Category = PluginCategories.Resolve(registration.Manifest.Category),
+        Provides = PluginProvides.Resolve(registration.Manifest.Provides).ToList(),
+        RequiresLocalAi = registration.Manifest.Declaration?.Requires.Any(requirement =>
+            string.Equals(requirement.Kind, "local_ai", StringComparison.OrdinalIgnoreCase)) == true,
+        ShortDescription = PluginDescriptions.Short(registration.Manifest.ShortDescription, registration.Manifest.Description),
+        LongDescription = registration.Manifest.Description,
+        IconPath = null,
+        Removable = !registration.IsBuiltIn && registration.Trust != PluginTrustLevel.Official,
         MediaTypes = PluginCategories.ResolveMediaTypes(registration.Manifest.MediaTypes).ToList(),
         SupportedPlatforms = registration.Manifest.SupportedPlatforms.ToList(),
         IsCompatible = registration.Compatibility.IsCompatible,

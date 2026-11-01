@@ -163,9 +163,33 @@ public sealed record PluginSummaryResponse
     [JsonPropertyName("maximum_library_version")]
     public string? MaximumLibraryVersion { get; set; }
 
-    /// <summary>The tab the plugin is listed under: <c>metadata</c>, <c>media-processing</c>, <c>services</c> or <c>utilities</c>.</summary>
+    /// <summary>The tab the plugin is listed under, named for when Library uses it: <c>intake</c>, <c>enrichment</c> or <c>accounts</c>.</summary>
     [JsonPropertyName("category")]
-    public string Category { get; set; } = "utilities";
+    public string Category { get; set; } = "enrichment";
+
+    /// <summary>What the plugin provides, from the fixed list in <see cref="PluginProvides"/> (Plugins and Integrations screens v4 D34).</summary>
+    [JsonPropertyName("provides")]
+    public List<string> Provides { get; set; } = [];
+
+    /// <summary>True when the plugin needs Local AI to work (its requirements list a Local AI ability).</summary>
+    [JsonPropertyName("requires_local_ai")]
+    public bool RequiresLocalAi { get; set; }
+
+    /// <summary>One sentence of at most 90 characters for the tile and the row.</summary>
+    [JsonPropertyName("short_description")]
+    public string ShortDescription { get; set; } = "";
+
+    /// <summary>The longer paragraph shown as the tile's tooltip and on the plugin page's About card.</summary>
+    [JsonPropertyName("long_description")]
+    public string LongDescription { get; set; } = "";
+
+    /// <summary>The bundled brand icon path (for example <c>images/providers/tmdb.svg</c>), or null when the plugin has no brand logo. An uploaded icon overrides it.</summary>
+    [JsonPropertyName("icon_path")]
+    public string? IconPath { get; set; }
+
+    /// <summary>False for official (compiled-in) plugins and sources: they can be switched off but never removed.</summary>
+    [JsonPropertyName("removable")]
+    public bool Removable { get; set; }
 
     /// <summary>The media types the plugin applies to (<c>books</c>, <c>comics</c>, <c>audiobooks</c>, <c>movies</c>, <c>tv</c>, <c>music</c>, <c>photos</c>); empty means every type.</summary>
     [JsonPropertyName("media_types")]

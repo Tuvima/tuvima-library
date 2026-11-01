@@ -310,6 +310,9 @@
     }
   },
   "ui_metadata": {
+    "plugin_category": "enrichment",
+    "provides": ["Subtitles"],
+    "short_description": "Finds subtitles for your films and episodes.",
     "accent_color": "#7454DB",
     "material_icon": "Subtitles",
     "category": "Enrichment",

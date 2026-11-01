@@ -1,0 +1,9 @@
+.app-status-dot-host { position: relative; display: inline-flex; flex: 0 0 auto; }
+.app-status-dot { position: absolute; top: -4px; left: -4px; z-index: 1; display: grid; width: 14px; height: 14px; place-items: center; border: 2px solid var(--tl-bg-surface); border-radius: 50%; cursor: default; }
+.app-status-dot svg { width: 8px; height: 8px; fill: none; stroke: #fff; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.app-status-dot--working { background: var(--tl-status-success); }
+.app-status-dot--attention { background: var(--tl-status-warning); }
+.app-status-dot--broken { background: var(--tl-status-danger); }
+.app-status-dot--off { background: var(--tl-text-disabled); }
+.app-status-dot::after { content: attr(data-tip); position: absolute; top: 18px; left: 0; z-index: 5; display: none; width: max-content; max-width: 16rem; padding: 6px 8px; border-radius: var(--tl-radius-md); background: var(--tl-text-primary); color: var(--tl-bg-surface); font-size: var(--tl-font-size-sm); line-height: 1.35; pointer-events: none; }
+.app-status-dot:hover::after, .app-status-dot:focus-visible::after { display: block; }

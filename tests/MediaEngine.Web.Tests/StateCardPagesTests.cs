@@ -88,47 +88,12 @@ public sealed class StateCardPagesTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[data-state-card=plugin]").Count));
         var alpha = cut.FindAll("[data-state-card=plugin]")[0];
+        // A tile says five things and no more (Plugins and Integrations screens v4 D30): no trust mark, no permission facts.
         Assert.Contains("Alpha", alpha.TextContent, StringComparison.Ordinal);
-        Assert.Contains("Official", alpha.TextContent, StringComparison.Ordinal);
-        Assert.Contains("Reads your media files", alpha.TextContent, StringComparison.Ordinal);
-        Assert.Contains("Connects to the internet", alpha.TextContent, StringComparison.Ordinal);
-        Assert.Contains("Yes, to the internet", alpha.TextContent, StringComparison.Ordinal);
-        Assert.Contains("Community", cut.FindAll("[data-state-card=plugin]")[1].TextContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("Official", alpha.TextContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("Reads your media files", alpha.TextContent, StringComparison.Ordinal);
+        Assert.DoesNotContain("Community", cut.FindAll("[data-state-card=plugin]")[1].TextContent, StringComparison.Ordinal);
         Assert.Empty(cut.FindAll("table.settings-plugin-installed-table"));
-    }
-
-    [Fact]
-    public void PluginsPage_ACardForAPluginWithDestinations_ListsEveryHostAndWhatItSendsThere()
-    {
-        _plugins =
-        [
-            Plugin("a.lore", "Lore", enabled: true, trust: "official", permissions: ["network.http"],
-                allowedTo:
-                [
-                    "Contacts www.wikidata.org: Item IDs of Universes already in your Library",
-                    "Contacts *.fandom.com: Requests for the page list of a wiki you approved",
-                ],
-                sendsDataTo: "www.wikidata.org, *.fandom.com"),
-        ];
-
-        var cut = Render<PluginSettingsTab>();
-
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-state-card=plugin]")));
-        var card = cut.Find("[data-state-card=plugin]");
-        Assert.Equal("Yes, to www.wikidata.org, *.fandom.com", card.QuerySelector("[data-testid=sends-data]")!.TextContent.Trim());
-        Assert.Contains("Contacts www.wikidata.org: Item IDs of Universes already in your Library", card.TextContent, StringComparison.Ordinal);
-        Assert.Contains("Contacts *.fandom.com: Requests for the page list of a wiki you approved", card.TextContent, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void PluginsPage_ACardForAPluginThatSendsNothingOut_SaysNo()
-    {
-        _plugins = [Plugin("a.local", "Local", enabled: true, permissions: ["media.read"], allowedTo: ["Reads your media files"])];
-
-        var cut = Render<PluginSettingsTab>();
-
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-state-card=plugin]")));
-        Assert.Equal("No", cut.Find("[data-state-card=plugin] [data-testid=sends-data]").TextContent.Trim());
     }
 
     [Fact]
@@ -184,8 +149,8 @@ public sealed class StateCardPagesTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-state-card=plugin]")));
         var card = cut.Find("[data-state-card=plugin]");
         Assert.Equal("broken", card.GetAttribute("data-health"));
-        Assert.Contains("Broken", card.TextContent, StringComparison.Ordinal);
-        Assert.Contains("The manifest is missing.", card.TextContent, StringComparison.Ordinal);
+        Assert.Equal("broken", card.QuerySelector(".app-status-dot")!.GetAttribute("data-status"));
+        Assert.Contains("The manifest is missing.", card.InnerHtml, StringComparison.Ordinal);
         Assert.Contains(card.QuerySelectorAll("button"), button => button.TextContent.Trim() == "Retry");
         Assert.DoesNotContain(card.QuerySelectorAll("button"), button => button.TextContent.Trim() == "Configure");
 
@@ -269,7 +234,7 @@ public sealed class StateCardPagesTests : AsyncBunitContext
         {
             var card = cut.Find("[data-state-card=plugin]");
             Assert.Equal("needsattention", card.GetAttribute("data-health"));
-            Assert.Contains("FFmpeg is missing.", card.TextContent, StringComparison.Ordinal);
+            Assert.Contains("FFmpeg is missing.", card.InnerHtml, StringComparison.Ordinal);
             Assert.Contains(card.QuerySelectorAll("button"), button => button.TextContent.Trim() == "Configure");
         });
     }
@@ -300,8 +265,7 @@ public sealed class StateCardPagesTests : AsyncBunitContext
         {
             var card = cut.Find("[data-state-card=plugin]");
             Assert.Equal("needsattention", card.GetAttribute("data-health"));
-            Assert.Contains("The data store was busy.", card.TextContent, StringComparison.Ordinal);
-            Assert.Contains("2 hours ago", card.TextContent, StringComparison.Ordinal);
+            Assert.Contains("The data store was busy.", card.InnerHtml, StringComparison.Ordinal);
         });
         Assert.Equal(1, Volatile.Read(ref _taskListReads));
     }

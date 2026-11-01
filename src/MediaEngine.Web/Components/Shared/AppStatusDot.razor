@@ -1,0 +1,34 @@
+@namespace MediaEngine.Web.Components.Shared
+
+@* The one status signal on a Plugins or Integrations tile, row or page header (Plugins and Integrations screens v4 D29): a small
+   dot at the top left of the logo. Green is working, amber needs something from you, red is broken, grey is off or always on.
+   The dot is never the only signal: a glyph sits inside it, the sentence opens on hover and on focus, and the label is read aloud. *@
+<span class="app-status-dot-host">
+    @ChildContent
+    <span class="@DotClass" role="img" tabindex="0" aria-label="@AriaText" data-tip="@Sentence" data-status="@Tone.ToString().ToLowerInvariant()">
+        <svg viewBox="0 0 10 10" aria-hidden="true" focusable="false"><path d="@GlyphPath" /></svg>
+    </span>
+</span>
+
+@code {
+    [Parameter] public AppStatusDotTone Tone { get; set; } = AppStatusDotTone.Off;
+
+    /// <summary>The sentence the dot says ("Working · checked 4 minutes ago", "Needs a key").</summary>
+    [Parameter] public string Sentence { get; set; } = string.Empty;
+
+    /// <summary>The logo (or icon) the dot sits on.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private string AriaText => $"Status: {Sentence}";
+
+    private string DotClass => $"app-status-dot app-status-dot--{Tone.ToString().ToLowerInvariant()}";
+
+    // Tick, exclamation, cross and dash drawn as strokes, so the glyph needs no font size (the colour is never the only signal).
+    private string GlyphPath => Tone switch
+    {
+        AppStatusDotTone.Working => "M2.2 5.2 4.2 7.2 7.9 3",
+        AppStatusDotTone.Attention => "M5 2.2V5.6M5 7.6V7.7",
+        AppStatusDotTone.Broken => "M3 3 7 7M7 3 3 7",
+        _ => "M2.8 5H7.2",
+    };
+}
