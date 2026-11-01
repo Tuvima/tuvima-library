@@ -13,7 +13,7 @@ public sealed class DetailActionKeysTests
         "play-next", "add-queue", "add-playlist",
         "status-complete", "status-reset", "status-hide", "status-show", "status-history",
         "edit", "edit-media", "my-list",
-        "reaction-dislike", "reaction-like", "reaction-love", "details", "identify", "change-thumbnail", "delete-from-library", "delete-season",
+        "reaction-dislike", "reaction-like", "reaction-love", "details", "identify", "change-thumbnail", "delete-from-library", "delete-season", "add-collection",
         "unmatched-retry", "unmatched-keep", "unmatched-look-up-again",
     ];
 

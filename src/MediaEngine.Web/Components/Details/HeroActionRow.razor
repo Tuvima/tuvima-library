@@ -54,6 +54,9 @@
     /// </summary>
     [Parameter] public bool CanDelete { get; set; }
 
+    /// <summary>True when the person may put this title in a collection (the page decides): "Add to collection…" joins the "..." menu.</summary>
+    [Parameter] public bool CanAddToCollection { get; set; }
+
     /// <summary>The Delete entries to list for a show, season, album or Series; empty for a single title, which gets "Delete from library…".</summary>
     [Parameter] public IReadOnlyList<DetailAction>? DeleteActions { get; set; }
     [Parameter] public EventCallback<DetailAction> OnActionSelected { get; set; }
@@ -75,6 +78,11 @@
                 actions = actions
                     .Where(action => action.Key is not (DetailActionKeys.StatusComplete or DetailActionKeys.StatusReset))
                     .ToList();
+            }
+
+            if (CanAddToCollection && !actions.Any(action => action.Key == DetailActionKeys.AddToCollection))
+            {
+                actions = [.. actions, DetailMenuGrouping.AddToCollectionAction];
             }
 
             return CanDelete && !actions.Any(action => action.Key == DetailActionKeys.DeleteFromLibrary)

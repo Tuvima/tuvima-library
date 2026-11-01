@@ -66,6 +66,7 @@ else if (Model is not null)
 
             <DetailHero Model="Model"
                         CanDelete="@CanDeleteFromLibrary"
+                        CanAddToCollection="@CanAddToCollection"
                         DeleteActions="GroupDeleteMenuActions"
                         OnActionSelected="HandleDetailActionAsync"
                         OnTabRequested="SetActiveTabAsync"
@@ -568,6 +569,33 @@ else if (Model is not null)
     /// for an effective administrator, and for a page that is one title (details overlay spec D18, D19). The Engine and
     /// <see cref="DeleteFromLibraryAsync"/> check again.
     /// </summary>
+    /// <summary>
+    /// "Add to collection…" in a single title's "..." menu: any adult profile on a desktop (Collections and lists spec 4a, D19). The list
+    /// it opens holds only the collections the Engine says this person may edit, and the Engine checks every add again.
+    /// </summary>
+    private bool CanAddToCollection =>
+        Model is not null
+        && !_removed
+        && Guid.TryParse(Model.Id, out _)
+        && LibraryItemDeletionFlow.IsSingleTitle(Model.EntityType)
+        && EditorDeviceRule.CanEdit(DeviceContext)
+        && Services.GetService<DashboardSessionAccessor>() is { } session
+        && CollectionAuthoringRule.CanCreate(session);
+
+    private async Task AddToCollectionAsync()
+    {
+        if (Model is null || !CanAddToCollection || !Guid.TryParse(Model.Id, out var workId))
+        {
+            return;
+        }
+
+        await CollectionMembershipFlow.RunAsync(
+            Services,
+            [new CollectionEditorSeedItem(workId, Model.Title, ResolveEditorMediaType(Model.EntityType, Model.PresentationContext))],
+            DetailMenuGrouping.AddToCollectionAction.Label,
+            Model.Title);
+    }
+
     private bool CanDeleteFromLibrary =>
         Model is not null
         && !_removed
@@ -1060,6 +1088,11 @@ else if (Model is not null)
             if (action.Key == DetailActionKeys.PlayNext) tracks.Reverse();
             foreach (var track in tracks) await Playback.AddQueueItemAsync(track, next: action.Key == DetailActionKeys.PlayNext);
             Snackbar.Add($"Added {tracks.Count} tracks to the queue.", AppSeverity.Success);
+            return;
+        }
+        if (action.Key == DetailActionKeys.AddToCollection)
+        {
+            await AddToCollectionAsync();
             return;
         }
         if (action.Key == DetailActionKeys.AddPlaylist)

@@ -20,6 +20,7 @@ public sealed class NewCollectionFlowTests : AsyncBunitContext
 {
     public NewCollectionFlowTests()
     {
+        Services.AddSingleton(TestSessions.For(kids: false, administrator: true));
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLogging();
         Services.AddLocalization();

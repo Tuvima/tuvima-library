@@ -12,17 +12,20 @@ public sealed class CollectionEditorLauncherService
     private readonly AdministratorSurfaceAccessService? _administratorAccess;
     private readonly DeviceContextService? _device;
     private readonly IAppToastService? _toasts;
+    private readonly DashboardSessionAccessor? _session;
 
     public CollectionEditorLauncherService(
         IAppDialogService dialogService,
         AdministratorSurfaceAccessService? administratorAccess = null,
         DeviceContextService? device = null,
-        IAppToastService? toasts = null)
+        IAppToastService? toasts = null,
+        DashboardSessionAccessor? session = null)
     {
         _dialogService = dialogService;
         _administratorAccess = administratorAccess;
         _device = device;
         _toasts = toasts;
+        _session = session;
     }
 
     public CollectionEditorInlineSession BeginInline(CollectionEditorLaunchRequest request)
@@ -52,7 +55,10 @@ public sealed class CollectionEditorLauncherService
 
         var isPlaylist = request.Kind == ContainerEditorKind.Playlist;
 
-        if (!isPlaylist && _administratorAccess is not null && !await _administratorAccess.EnsureUnlockedAsync())
+        // Every adult profile makes its own collections (Collections and lists D19), so only an administrator is asked to unlock first:
+        // the unlock is what opens Library ownership and Selected profiles. The Engine decides again on every request.
+        var isAdministrator = _session?.Authority?.EffectiveAdministrator == true;
+        if (!isPlaylist && isAdministrator && _administratorAccess is not null && !await _administratorAccess.EnsureUnlockedAsync())
         {
             return EditorLaunchResult.NotAvailable;
         }

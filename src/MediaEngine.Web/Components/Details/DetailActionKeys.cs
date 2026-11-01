@@ -43,6 +43,12 @@ public static class DetailActionKeys
     /// <summary>Added by the Dashboard itself to Editing Mode's More list, never sent by the Engine; <c>DetailPage</c> opens the delete confirmation.</summary>
     public const string DeleteFromLibrary = "delete-from-library";
 
+    /// <summary>
+    /// Added by the Dashboard itself to a single title's "..." menu for a profile that may make collections (every adult profile,
+    /// on a desktop); never sent by the Engine. <c>DetailPage</c> opens the "Add to collection" list.
+    /// </summary>
+    public const string AddToCollection = "add-collection";
+
     /// <summary>Added by the Dashboard itself to a show page's "..." menu while a season is selected ("Delete Season 2…"); never sent by the Engine.</summary>
     public const string DeleteSeason = "delete-season";
 
@@ -74,6 +80,7 @@ public static class DetailActionKeys
         ChangeThumbnail,
         DeleteFromLibrary,
         DeleteSeason,
+        AddToCollection,
         UnmatchedRetry,
         UnmatchedKeep,
         UnmatchedLookUpAgain,

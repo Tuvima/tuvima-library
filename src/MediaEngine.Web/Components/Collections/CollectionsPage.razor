@@ -28,7 +28,7 @@
                           Modes="@CollectionsSectionConfiguration.Modes"
                           ActiveMode="@_activeSection">
         <Actions>
-            @if (CanManageCuratedCollections)
+            @if (CanCreateCollections)
             {
                 @if (DeviceContext.CanEdit)
                 {
@@ -398,8 +398,10 @@
     private string? _loadError;
     private string? _loadedPeopleQueryKey;
 
-    private bool CanManageCuratedCollections =>
-        Session.HasAction("access.manage");
+    // Every adult profile makes its own collections (Collections and lists D19); a Kids profile does not. Library ownership and
+    // Selected profiles stay administrator choices inside the editor, and the Engine decides again on every request.
+    private bool CanCreateCollections =>
+        CollectionAuthoringRule.CanCreate(Session);
 
     private IReadOnlyList<MediaSectionNavigationGroup> NavigationGroups =>
         CollectionsSectionConfiguration.BuildNavigation(
@@ -611,9 +613,9 @@
         ? _activeSection switch
         {
             CollectionsSectionConfiguration.Automatic => "Automatic collections appear when trusted relationships connect multiple shelves.",
-            CollectionsSectionConfiguration.Curated => CanManageCuratedCollections
-                ? "Create a collection to make it available to every profile."
-                : "An administrator has not created any curated collections yet.",
+            CollectionsSectionConfiguration.Curated => CanCreateCollections
+                ? "Create a collection to see it here."
+                : "No curated collections have been shared with this profile yet.",
             CollectionsSectionConfiguration.Shelves => "Shelves appear when at least two owned works belong to the same series, volume, album, or audiobook sequence.",
             _ => "Try another section.",
         }
@@ -1137,9 +1139,9 @@
 
     private async Task OpenCollectionBuilder()
     {
-        if (_activeProfile is null || !CanManageCuratedCollections)
+        if (_activeProfile is null || !CanCreateCollections)
         {
-            Snackbar.Add(L["CollectionsPage_OnlyAnAdministratorCanCreate"].Value, AppSeverity.Warning);
+            Snackbar.Add(L["CollectionsPage_KidsCannotCreate"].Value, AppSeverity.Warning);
             return;
         }
 

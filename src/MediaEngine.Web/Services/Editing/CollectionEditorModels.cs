@@ -20,9 +20,18 @@ public sealed class CollectionEditorLaunchRequest
     public string InitialAudience { get; init; } = "Private";
     public string? InitialTitle { get; init; }
 
+    /// <summary>
+    /// Titles the new collection starts with ("New collection with this title" from an item's "..." menu or from ticked rows). Empty
+    /// for an ordinary New collection. When present the flow opens on Pick titles with these already chosen.
+    /// </summary>
+    public IReadOnlyList<CollectionEditorSeedItem> InitialItems { get; init; } = [];
+
     /// <summary>The media type chips ticked when the flow opens (for example Movies and TV from Watch). Empty means Everything.</summary>
     public IReadOnlyList<string> InitialMediaTypes { get; init; } = [];
 }
+
+/// <summary>A title a New collection starts with: its work id, the name shown in the staged list and its media type.</summary>
+public sealed record CollectionEditorSeedItem(Guid WorkId, string Title, string? MediaType = null);
 
 public enum ContainerEditorKind
 {

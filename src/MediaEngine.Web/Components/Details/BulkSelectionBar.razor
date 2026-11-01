@@ -29,6 +29,17 @@
                            Disabled="@busy"
                            aria-pressed="@Pressed(selection, BulkPanelKind.Edit)"
                            OnClick="@(() => TogglePanel(BulkPanelKind.Edit))" />
+                @if (CanAddToCollection(selection))
+                {
+                    <AppButton Label="@BulkEditRules.AddToCollectionLabel(selection.Count)"
+                               StartIcon="@AppMaterialIcons.Outlined.PlaylistAdd"
+                               Class="tl-batch__collection"
+                               Disabled="@busy"
+                               ButtonStyle="AppButtonStyle.Outlined"
+                               Tone="AppUiTone.Neutral"
+                               OnClick="AddToCollectionAsync" />
+                }
+
                 @if (BulkEditRules.CanMatch(rows, selection.MediaType))
                 {
                     <AppButton Label="@L["Common_Match"].Value"
@@ -112,6 +123,26 @@
 
     private IReadOnlyList<DetailAction> MenuActions(BulkEditSelection selection) =>
         BulkEditRules.BarMenuActions(selection.Rows, CanDelete(selection), IsBusy);
+
+    // Any adult profile may put ticked titles in collections it may edit; the list only holds those, and the Engine checks each add.
+    private bool CanAddToCollection(BulkEditSelection selection) =>
+        BulkEditRules.CanAddToCollection(selection.Rows)
+        && Services.GetService<DashboardSessionAccessor>() is { } session
+        && CollectionAuthoringRule.CanCreate(session);
+
+    private async Task AddToCollectionAsync()
+    {
+        if (Active is null || IsBusy || EditorDeviceRule.TryRefuse(Device, Toasts) || !CanAddToCollection(Active))
+        {
+            return;
+        }
+
+        await CollectionMembershipFlow.RunAsync(
+            Services,
+            [.. Active.Rows.Select(row => new CollectionEditorSeedItem(row.Id, row.Title, row.MediaType))],
+            BulkEditRules.AddToCollectionLabel(Active.Count),
+            title: null);
+    }
 
     private bool CanDelete(BulkEditSelection selection) =>
         BulkEditRules.AreDeletable(selection.Rows)

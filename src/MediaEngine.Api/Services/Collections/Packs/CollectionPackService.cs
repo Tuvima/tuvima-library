@@ -69,12 +69,17 @@ public sealed class CollectionPackService(
 
     // ── Creating ─────────────────────────────────────────────────────────────────────────────────
 
-    /// <summary>Creates the built-in packs named in the request and the pack file in it, if any.</summary>
+    /// <summary>
+    /// Creates the built-in packs named in the request and the pack file in it, if any. A non-administrator
+    /// (<paramref name="isAdministrator"/> false) can make packs only for their own profile and only for themselves; Library
+    /// ownership and Selected profiles are refused (Collections and lists D19).
+    /// </summary>
     public async Task<CollectionPackCreateResponse> CreateAsync(
         CollectionPackCreateRequest request,
         Profile? activeProfile,
         Guid? viewerProfileId,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool isAdministrator = true)
     {
         var packIds = request.PackIds.Where(id => !string.IsNullOrWhiteSpace(id)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         var hasFile = !string.IsNullOrWhiteSpace(request.FileContent);
@@ -88,7 +93,7 @@ public sealed class CollectionPackService(
             throw new CollectionPackException(CollectionPackFailure.BadRequest, "Show on can be: home, watch, read, listen.");
         }
 
-        var ownership = Ownership.From(request, activeProfile);
+        var ownership = Ownership.From(request, activeProfile, isAdministrator);
         var scope = PackScope.From(request.MediaTypes);
         var plans = new List<PackPlan>();
         foreach (var packId in packIds)
@@ -209,7 +214,7 @@ public sealed class CollectionPackService(
     {
         var existing = await collections.FindByDisplayNameAsync(name, ct).ConfigureAwait(false);
         return existing is { CollectionType: CollectionType.Set, IsEnabled: true }
-            && CollectionAccessPolicy.CanEdit(existing, ownership.ActiveProfile, hasCollectionsWrite: true)
+            && CollectionAccessPolicy.CanEdit(existing, ownership.ActiveProfile, ownership.IsAdministrator)
                 ? existing
                 : null;
     }
@@ -278,9 +283,10 @@ public sealed class CollectionPackService(
         Profile? ActiveProfile,
         ContainerOwnerKind OwnerKind,
         ContainerAudience Audience,
-        IReadOnlyList<Guid> SelectedProfileIds)
+        IReadOnlyList<Guid> SelectedProfileIds,
+        bool IsAdministrator)
     {
-        public static Ownership From(CollectionPackCreateRequest request, Profile? activeProfile)
+        public static Ownership From(CollectionPackCreateRequest request, Profile? activeProfile, bool isAdministrator)
         {
             var ownerKind = AggregateStateSerializer.ParseContainerOwnerKind(request.OwnerKind);
             var audience = AggregateStateSerializer.ParseContainerAudience(request.Audience);
@@ -289,8 +295,12 @@ public sealed class CollectionPackService(
                 throw new CollectionPackException(CollectionPackFailure.BadRequest, "An active profile is required to create a profile-owned collection.");
             }
 
-            if (!CollectionAccessPolicy.CanManageCuratedCollections(hasCollectionsWrite: true)
-                || !CollectionAccessPolicy.CanManageSharedCollections(hasCollectionsWrite: true))
+            if (!isAdministrator && CollectionAccessPolicy.RequestsSharing(ownerKind, audience))
+            {
+                throw new CollectionPackException(CollectionPackFailure.Forbidden, CollectionAccessPolicy.SharingNeedsAdministratorMessage);
+            }
+
+            if (!isAdministrator && activeProfile is null)
             {
                 throw new CollectionPackException(CollectionPackFailure.Forbidden, "You can't create collections.");
             }
@@ -306,16 +316,17 @@ public sealed class CollectionPackService(
                 throw new CollectionPackException(CollectionPackFailure.BadRequest, "Choose at least one other profile for the selected-profile audience.");
             }
 
-            return new Ownership(activeProfile, ownerKind, audience, selected);
+            return new Ownership(activeProfile, ownerKind, audience, selected, isAdministrator);
         }
     }
 
     // ── Exporting and removing a set ─────────────────────────────────────────────────────────────
 
     /// <summary>The set written out as a pack file, so it can be imported on another Library.</summary>
-    public async Task<CollectionPackExportResponse> ExportSetAsync(Guid setId, Profile? activeProfile, CancellationToken ct)
+    public async Task<CollectionPackExportResponse> ExportSetAsync(
+        Guid setId, Profile? activeProfile, CancellationToken ct, bool isAdministrator = true)
     {
-        var set = await LoadEditableSetAsync(setId, activeProfile, ct).ConfigureAwait(false);
+        var set = await LoadEditableSetAsync(setId, activeProfile, isAdministrator, ct).ConfigureAwait(false);
         var children = (await collections.GetChildCollectionsAsync(set.Id, ct).ConfigureAwait(false)).Where(child => child.IsEnabled);
         var omitted = new List<string>();
         var file = CollectionPackFile.ToFile(set, children, omitted);
@@ -328,9 +339,10 @@ public sealed class CollectionPackService(
     }
 
     /// <summary>Removes a set: its collections go with it, and so does everywhere they were shown as a lane.</summary>
-    public async Task<CollectionSetRemovedResponse> RemoveSetAsync(Guid setId, Profile? activeProfile, CancellationToken ct)
+    public async Task<CollectionSetRemovedResponse> RemoveSetAsync(
+        Guid setId, Profile? activeProfile, CancellationToken ct, bool isAdministrator = true)
     {
-        var set = await LoadEditableSetAsync(setId, activeProfile, ct).ConfigureAwait(false);
+        var set = await LoadEditableSetAsync(setId, activeProfile, isAdministrator, ct).ConfigureAwait(false);
         var children = (await collections.GetChildCollectionsAsync(set.Id, ct).ConfigureAwait(false)).Where(child => child.IsEnabled).ToList();
         foreach (var child in children)
         {
@@ -345,7 +357,7 @@ public sealed class CollectionPackService(
         return new CollectionSetRemovedResponse { RemovedCollections = children.Count };
     }
 
-    private async Task<Collection> LoadEditableSetAsync(Guid setId, Profile? activeProfile, CancellationToken ct)
+    private async Task<Collection> LoadEditableSetAsync(Guid setId, Profile? activeProfile, bool isAdministrator, CancellationToken ct)
     {
         var set = await collections.GetByIdAsync(setId, ct).ConfigureAwait(false);
         if (set is null)
@@ -358,7 +370,7 @@ public sealed class CollectionPackService(
             throw new CollectionPackException(CollectionPackFailure.BadRequest, "This collection is not a set.");
         }
 
-        if (!CollectionAccessPolicy.CanEdit(set, activeProfile, hasCollectionsWrite: true))
+        if (!CollectionAccessPolicy.CanEdit(set, activeProfile, isAdministrator))
         {
             throw new CollectionPackException(CollectionPackFailure.Forbidden, "You can't change this set.");
         }

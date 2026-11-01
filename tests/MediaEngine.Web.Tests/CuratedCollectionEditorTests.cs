@@ -30,6 +30,7 @@ public sealed class CuratedCollectionEditorTests : AsyncBunitContext
 
     public CuratedCollectionEditorTests()
     {
+        Services.AddSingleton(TestSessions.For(kids: false, administrator: true));
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLogging();
         Services.AddLocalization();
