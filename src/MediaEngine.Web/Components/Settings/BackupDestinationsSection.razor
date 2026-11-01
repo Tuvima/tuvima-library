@@ -8,26 +8,6 @@
 @if (_settings is not null)
 {
     <div class="backup-destinations" data-testid="backup-destinations">
-        <AppCard Title="@L["BackupDestinationsSection_AutomaticBackups"].Value">
-            <AppSwitchRow Label="@L["BackupDestinationsSection_BackUpAutomatically"].Value" Value="_settings.Schedule.Enabled" Disabled="@_busy" ValueChanged="SetScheduleEnabledAsync" />
-            @if (_settings.Schedule.Enabled)
-            {
-                <div class="backup-destinations__row">
-                    <AppSelect Native="true" Label="@L["BackupDestinationsSection_HowOften"].Value" Value="@_settings.Schedule.Frequency" Options="@FrequencyOptions" Disabled="@_busy" ValueChanged="SetFrequencyAsync" />
-                    <AppTextField Label="@L["BackupDestinationsSection_At"].Value" InputType="AppInputType.Time" Value="@_settings.Schedule.Time" Immediate="false" Disabled="@_busy" ValueChanged="SetTimeAsync" />
-                </div>
-                @if (_settings.NextRunAt is { } next)
-                {
-                    <small class="backup-destinations__hint">Next backup: @next.ToLocalTime().ToString("MMM d · h:mm tt")</small>
-                }
-            }
-            <small class="backup-destinations__hint">@L["BackupDestinationsSection_TheNewestBackupsAreKept", _settings.KeepLast]</small>
-            @if (_settings.LastRestoreCheckResult is { } check)
-            {
-                <small class="backup-destinations__hint" data-testid="restore-check">@L["BackupDestinationsSection_MonthlyRestoreCheck", check]</small>
-            }
-        </AppCard>
-
         <AppCard Title="@L["BackupDestinationsSection_WhereBackupsGo"].Value">
             @foreach (var destination in _settings.Destinations)
             {
@@ -100,29 +80,10 @@
                 </ul>
             }
         </AppCard>
-
-        <AppCard Title="@L["BackupDestinationsSection_RestoreFromADestination"].Value">
-            <AppSelect Native="true" Label="@L["Common_Destination"].Value" Value="@_restoreDestination" Options="@DestinationOptions" Disabled="@_busy" ValueChanged="LoadDestinationBackupsAsync" />
-            @if (_held.Count > 0)
-            {
-                <AppSelect Native="true" Label="@L["BackupDestinationsSection_Backup"].Value" Value="@_restoreName" Options="@HeldOptions" Disabled="@_busy" ValueChanged="@(value => _restoreName = value)" />
-                <AppButton Label="@L["BackupDestinationsSection_RestoreThisBackup"].Value" StartIcon="@AppMaterialIcons.Outlined.Restore" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Warning" Disabled="@(_busy || string.IsNullOrEmpty(_restoreName))" OnClick="RestoreAsync" />
-            }
-            else if (_restoreLoaded)
-            {
-                <small class="backup-destinations__hint">@L["BackupDestinationsSection_NothingFoundAtThisDestination"]</small>
-            }
-        </AppCard>
     </div>
 }
 
 @code {
-    private static readonly IReadOnlyList<AppSelectOption> FrequencyOptions =
-    [
-        new(BackupFrequencies.Daily, "Every day"),
-        new(BackupFrequencies.Weekly, "Every week"),
-    ];
-
     private static readonly IReadOnlyList<AppSelectOption> KindOptions =
     [
         new(BackupDestinationKinds.Folder, "Another folder"),
@@ -136,14 +97,8 @@
     private bool _confirmed;
     private BackupSettingsResponse? _settings;
     private BackupRunResponse? _lastRun;
-    private List<DestinationBackupDto> _held = [];
-    private string? _restoreDestination = BackupDestinationIds.Local;
-    private string? _restoreName;
-    private bool _restoreLoaded;
     private bool _busy;
 
-    private IReadOnlyList<AppSelectOption> DestinationOptions => [.. _settings!.Destinations.Select(item => new AppSelectOption(item.Id, item.Name))];
-    private IReadOnlyList<AppSelectOption> HeldOptions => [.. _held.Select(item => new AppSelectOption(item.Name, $"{item.ModifiedAt.ToLocalTime():MMM d, yyyy · h:mm tt}"))];
 
     private static string KindLabel(string kind) => KindOptions.FirstOrDefault(option => option.Value == kind)?.Label ?? "This computer";
 
@@ -170,18 +125,6 @@
         if (saved is null) Snackbar.Add(L["BackupDestinationsSection_TheBackupSettingsCouldNot"].Value, AppSeverity.Error);
         else _settings = saved;
         _busy = false;
-    }
-
-    private Task SetScheduleEnabledAsync(bool on) => SaveAsync(new() { Schedule = With(s => s.Enabled = on) });
-    private Task SetFrequencyAsync(string? value) => SaveAsync(new() { Schedule = With(s => s.Frequency = value ?? BackupFrequencies.Daily) });
-    private Task SetTimeAsync(string? value) => SaveAsync(new() { Schedule = With(s => s.Time = value ?? s.Time) });
-
-    private BackupScheduleDto With(Action<BackupScheduleDto> change)
-    {
-        var current = _settings!.Schedule;
-        var copy = new BackupScheduleDto { Enabled = current.Enabled, Frequency = current.Frequency, Time = current.Time, Weekday = current.Weekday };
-        change(copy);
-        return copy;
     }
 
     private Task SetDestinationAsync(string id, bool on)
@@ -242,26 +185,6 @@
             Snackbar.Add(_lastRun.AllOk ? "Backup copied everywhere it should go." : "Backup finished, but some copies need attention.", _lastRun.AllOk ? AppSeverity.Success : AppSeverity.Warning);
             _settings = await ApiClient.GetBackupSettingsAsync() ?? _settings;
         }
-        _busy = false;
-    }
-
-    private async Task LoadDestinationBackupsAsync(string? id)
-    {
-        _restoreDestination = id;
-        _busy = true;
-        var held = id is null ? null : await ApiClient.GetDestinationBackupsAsync(id);
-        _held = held?.Items ?? [];
-        _restoreName = _held.FirstOrDefault()?.Name;
-        _restoreLoaded = true;
-        _busy = false;
-    }
-
-    private async Task RestoreAsync()
-    {
-        _busy = true;
-        var result = await ApiClient.RestoreFromDestinationAsync(new() { DestinationId = _restoreDestination ?? "", Name = _restoreName ?? "" });
-        if (result?.Scheduled == true) Snackbar.Add(result.Message, AppSeverity.Warning);
-        else Snackbar.Add(L["BackupDestinationsSection_TheRestoreCouldNotBe"].Value, AppSeverity.Error);
         _busy = false;
     }
 }

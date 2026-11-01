@@ -119,12 +119,12 @@ public sealed class LogsPageTests : AsyncBunitContext
     // ── Logs page ────────────────────────────────────────────────────────────
 
     [Fact]
-    public void LogsPage_WithNoTabRequested_OpensOnEvents_WithTheOtherSectionsAfterIt()
+    public void LogsPage_WithNoTabRequested_OpensOnEvents_WithTheTechnicalLogAsItsOnlyOtherView()
     {
         var cut = Render<LogsPage>();
 
         var tabs = cut.Find(".logs-page__views").QuerySelectorAll(".app-segmented-control__item").Select(tab => tab.TextContent.Trim()).ToArray();
-        Assert.Equal(["Events", "Technical log", "Retention", "Export"], tabs);
+        Assert.Equal(["Events", "Technical log"], tabs);
         Assert.Contains("Events", cut.Find(".app-segmented-control__item.is-selected").TextContent, StringComparison.Ordinal);
         Assert.Equal("all", Assert.Single(_activityRequests).Category);
         Assert.Empty(_logRequests);
@@ -150,23 +150,15 @@ public sealed class LogsPageTests : AsyncBunitContext
         Assert.Equal("added", Assert.Single(_activityRequests).Category);
     }
 
-    [Fact]
-    public void LogsPage_WithTheRetentionTabRequested_OpensOnRetention()
+    [Theory]
+    [InlineData("retention")]
+    [InlineData("export")]
+    public void LogsPage_AskedForRetentionOrExport_OpensOnEvents_BecauseThoseLiveOnTheAdvancedTab(string tab)
     {
-        var cut = Render<LogsPage>(parameters => parameters.Add(p => p.Tab, "retention"));
+        var cut = Render<LogsPage>(parameters => parameters.Add(p => p.Tab, tab));
 
-        Assert.Contains("Retention", cut.Find(".app-segmented-control__item.is-selected").TextContent, StringComparison.Ordinal);
-        cut.WaitForAssertion(() => Assert.NotNull(cut.Find("[data-testid=retention-note]")));
-    }
-
-    [Fact]
-    public void LogsPage_PickingTheRetentionTab_ShowsTheLimits()
-    {
-        var cut = Render<LogsPage>();
-
-        cut.FindAll(".app-segmented-control__item").Single(tab => tab.TextContent.Contains("Retention", StringComparison.Ordinal)).Click();
-
-        cut.WaitForAssertion(() => Assert.Equal("90", cut.Find("[data-testid=retention-activity-days]").GetAttribute("value")));
+        Assert.Contains("Events", cut.Find(".app-segmented-control__item.is-selected").TextContent, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll("[data-testid=retention-note]"));
     }
 
     // ── Technical log ────────────────────────────────────────────────────────
@@ -385,15 +377,6 @@ public sealed class LogsPageTests : AsyncBunitContext
     }
 
     // ── Export ───────────────────────────────────────────────────────────────
-
-    [Fact]
-    public void LogsPage_WithTheExportTabRequested_OpensOnExport()
-    {
-        var cut = Render<LogsPage>(parameters => parameters.Add(p => p.Tab, "export"));
-
-        Assert.Contains("Export", cut.Find(".app-segmented-control__item.is-selected").TextContent, StringComparison.Ordinal);
-        cut.WaitForAssertion(() => Assert.NotNull(cut.Find("[data-testid=export-preview]")));
-    }
 
     [Fact]
     public void Export_ShowsALivePreviewOfTheLinesAndSize()

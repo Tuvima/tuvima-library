@@ -1,0 +1,101 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Backups
+@using MediaEngine.Contracts.System
+@inject IEngineApiClient ApiClient
+@inject IAppToastService Snackbar
+@inject IStringLocalizer<SharedStrings> L
+
+@* Backups > Advanced: how long restored progress waits for its files, the monthly restore check and facts about the archive.
+   The page frame draws the Advanced warning line above this. *@
+<div class="backup-page" data-testid="backup-advanced">
+    @if (_loading)
+    {
+        <AppPageState Kind="AppPageStateKind.Loading"
+                      Title="@L["BackupRecoveryPanel_LoadingRecoveryPoints"].Value"
+                      Message="@L["BackupRecoveryPanel_CheckingBackupStorageAndRecent"].Value" />
+    }
+    else
+    {
+        @if (_state is { } state)
+        {
+            <AppCard Title="@L["BackupRecoveryPanel_RestoredProgress"].Value" Class="backup-action-card">
+                <AppSelect @key="_waitingPeriodRenderKey" Native="true" Label="@L["BackupRecoveryPanel_KeepRestoredProgressWaitingFor"].Value" Value="@state.WaitingPeriodDays.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                           Options="@WaitingPeriodOptions(state.WaitingPeriodDays)" Disabled="@_busy" ValueChanged="SetWaitingPeriodAsync" data-testid="waiting-period" />
+            </AppCard>
+        }
+
+        <AppCard Title="@L["Backups_MonthlyRestoreCheckTitle"].Value" Class="backup-action-card">
+            <small class="backup-destinations__hint" data-testid="restore-check">
+                @(_settings?.LastRestoreCheckResult is { } check ? L["BackupDestinationsSection_MonthlyRestoreCheck", check].Value : L["Backups_NoRestoreCheckYet"].Value)
+            </small>
+        </AppCard>
+
+        <AppCard Title="@L["Backups_ArchiveTitle"].Value" Class="backup-action-card">
+            <div class="backup-advanced__content" data-testid="archive-facts">
+                <div><span>@L["BackupRecoveryPanel_StoredContent"]</span><strong>@L["BackupRecoveryPanel_SettingsAndYourOwnProgress"]</strong></div>
+                <div><span>@L["BackupRecoveryPanel_TotalArchiveSize"]</span><strong>@FormatBytes(_backups.Sum(item => item.SizeBytes))</strong></div>
+                <p>@L["BackupRecoveryPanel_BackupLocationAndRetentionAre"]</p>
+            </div>
+        </AppCard>
+    }
+</div>
+
+@code {
+    private IReadOnlyList<BackupArchiveDto> _backups = [];
+    private BackupStateDto? _state;
+    private BackupSettingsResponse? _settings;
+    private bool _loading = true;
+    private bool _busy;
+    private int _waitingPeriodRenderKey;
+
+    private static readonly int[] StandardWaitingDays = [30, 60, 90, 180, 365];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var backups = ApiClient.GetBackupsAsync();
+        var state = ApiClient.GetBackupStateAsync();
+        var settings = ApiClient.GetBackupSettingsAsync();
+        _backups = await backups;
+        _state = await state;
+        _settings = await settings;
+        _loading = false;
+    }
+
+    // The five standard choices; a stored value that is not one of them is shown as one more choice so the page never lies about it.
+    private static IReadOnlyList<AppSelectOption> WaitingPeriodOptions(int stored)
+    {
+        var days = StandardWaitingDays.Contains(stored) ? StandardWaitingDays : [.. StandardWaitingDays, stored];
+        return [.. days.Order().Select(count => new AppSelectOption(
+            count.ToString(System.Globalization.CultureInfo.InvariantCulture), $"{count} days"))];
+    }
+
+    private async Task SetWaitingPeriodAsync(string? value)
+    {
+        if (_state is null || !int.TryParse(value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var days))
+        {
+            return;
+        }
+
+        _busy = true;
+        var updated = await ApiClient.SetBackupWaitingPeriodAsync(days);
+        if (updated is null)
+        {
+            Snackbar.Add(L["BackupRecoveryPanel_TheWaitingPeriodCouldNot"].Value, AppSeverity.Error);
+            // The browser kept the choice that was not saved; a new key redraws the field with the stored value.
+            _waitingPeriodRenderKey++;
+        }
+        else
+        {
+            _state = updated;
+        }
+        _busy = false;
+    }
+
+    private static string FormatBytes(long bytes) => bytes switch
+    {
+        >= 1_073_741_824 => $"{bytes / 1_073_741_824d:0.0} GB",
+        >= 1_048_576 => $"{bytes / 1_048_576d:0.0} MB",
+        >= 1024 => $"{bytes / 1024d:0.0} KB",
+        _ => $"{bytes} B",
+    };
+}

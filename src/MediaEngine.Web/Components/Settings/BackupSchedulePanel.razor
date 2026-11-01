@@ -1,0 +1,59 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Backups
+@inject IEngineApiClient ApiClient
+@inject IAppToastService Snackbar
+@inject IStringLocalizer<SharedStrings> L
+
+@* Backups > Backups: when Library backs itself up. Where the copies go is on the Destinations tab. *@
+@if (_settings is not null)
+{
+    <AppCard Title="@L["BackupDestinationsSection_AutomaticBackups"].Value" data-testid="backup-schedule">
+        <AppSwitchRow Label="@L["BackupDestinationsSection_BackUpAutomatically"].Value" Value="_settings.Schedule.Enabled" Disabled="@_busy" ValueChanged="SetScheduleEnabledAsync" />
+        @if (_settings.Schedule.Enabled)
+        {
+            <div class="backup-destinations__row">
+                <AppSelect Native="true" Label="@L["BackupDestinationsSection_HowOften"].Value" Value="@_settings.Schedule.Frequency" Options="@FrequencyOptions" Disabled="@_busy" ValueChanged="SetFrequencyAsync" />
+                <AppTextField Label="@L["BackupDestinationsSection_At"].Value" InputType="AppInputType.Time" Value="@_settings.Schedule.Time" Immediate="false" Disabled="@_busy" ValueChanged="SetTimeAsync" />
+            </div>
+            @if (_settings.NextRunAt is { } next)
+            {
+                <small class="backup-destinations__hint">@L["Backups_NextBackup", next.ToLocalTime().ToString("MMM d · h:mm tt")]</small>
+            }
+        }
+        <small class="backup-destinations__hint">@L["BackupDestinationsSection_TheNewestBackupsAreKept", _settings.KeepLast]</small>
+    </AppCard>
+}
+
+@code {
+    private BackupSettingsResponse? _settings;
+    private bool _busy;
+
+    private IReadOnlyList<AppSelectOption> FrequencyOptions =>
+    [
+        new(BackupFrequencies.Daily, L["Backups_EveryDay"].Value),
+        new(BackupFrequencies.Weekly, L["Backups_EveryWeek"].Value),
+    ];
+
+    protected override async Task OnInitializedAsync() => _settings = await ApiClient.GetBackupSettingsAsync();
+
+    private async Task SaveAsync(UpdateBackupSettingsRequest request)
+    {
+        _busy = true;
+        var saved = await ApiClient.UpdateBackupSettingsAsync(request);
+        if (saved is null) Snackbar.Add(L["BackupDestinationsSection_TheBackupSettingsCouldNot"].Value, AppSeverity.Error);
+        else _settings = saved;
+        _busy = false;
+    }
+
+    private Task SetScheduleEnabledAsync(bool on) => SaveAsync(new() { Schedule = With(s => s.Enabled = on) });
+    private Task SetFrequencyAsync(string? value) => SaveAsync(new() { Schedule = With(s => s.Frequency = value ?? BackupFrequencies.Daily) });
+    private Task SetTimeAsync(string? value) => SaveAsync(new() { Schedule = With(s => s.Time = value ?? s.Time) });
+
+    private BackupScheduleDto With(Action<BackupScheduleDto> change)
+    {
+        var current = _settings!.Schedule;
+        var copy = new BackupScheduleDto { Enabled = current.Enabled, Frequency = current.Frequency, Time = current.Time, Weekday = current.Weekday };
+        change(copy);
+        return copy;
+    }
+}

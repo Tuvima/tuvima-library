@@ -186,7 +186,6 @@ else
                                 }
                                 else if (_activeSubsection == SettingsNav.AdvancedSubsection)
                                 {
-                                    @* Retention and export until the System packet regroups them. *@
                                     <LogRetentionPanel />
                                     <LogExportPanel />
                                 }
@@ -254,8 +253,7 @@ else
                                 }
                                 else if (_activeSubsection == SettingsNav.AdvancedSubsection)
                                 {
-                                    @* The restored-progress wait and archive facts still sit on the Backups tab until the Backups packet splits them out. *@
-                                    <AppAlert Severity="AppSeverity.Info" Variant="AppVariant.Outlined" Dense="true">@L["Settings_BackupsAdvancedPending"]</AppAlert>
+                                    <BackupAdvancedPanel />
                                 }
                                 else
                                 {
