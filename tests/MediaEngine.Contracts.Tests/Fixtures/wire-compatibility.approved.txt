@@ -1488,6 +1488,9 @@
 [method] GetServerGeneralAsync
   response | shape=dab22d31b0b7e6b7d81a901366453d340403ce5fae3730b98559b55221e0b62f
 
+[method] GetServerIdentityAsync
+  response | shape=9478b772dd76ba471bead68cf5ff615813c3e68a34a80020602ec0588ff1c8b1
+
 [method] GetSettingsNoticesAsync
   response | shape=949c3764ffb9c4aee4f398d53d1fceaa9ad234fa6672229bff2e70411821b113
 
@@ -3120,6 +3123,10 @@
 [method] UpdateServerGeneralAsync
   input settings | default=required | shape=0e4f54856707ff93ac31df54efed69a4bebff9ff578575ac6cce58bf009b9eb1
   response | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
+
+[method] UpdateServerIdentityAsync
+  input identity | default=required | shape=22dc0c92e58e5b7071bdfefd422f1c55addddfcb8f17830abfe7a2e73a1b0a4e
+  response | shape=9478b772dd76ba471bead68cf5ff615813c3e68a34a80020602ec0588ff1c8b1
 
 [method] UpdateSetupLibrariesAsync
   input request | default=required | shape=34423b9cdcaec120823e698e1adc146ca7aa408f63d1b95bfa4029587abd849c

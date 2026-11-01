@@ -1,0 +1,73 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Services.Integration
+@implements IAsyncDisposable
+@inject IEngineApiClient ApiClient
+@inject DashboardIdentityClient IdentityClient
+@inject PasswordResetEmailSender PasswordResetEmails
+@inject IAppToastService Snackbar
+@inject ILogger<NotificationsEmailTest> Logger
+@inject IStringLocalizer<SharedStrings> L
+@* Server > General > Notifications: send one test email to the signed-in administrator's own address through the outgoing email
+   (SMTP) the server is set up with. It shows only once outgoing email is configured. It moved here from Sign-in Methods. *@
+@if (_email is { Configured: true })
+{
+    <AppCard Title="@L["NotificationsEmailTest_Email"].Value" Description="@L["NotificationsEmailTest_SendsOnlyToTheEmail"].Value" Class="tl-sp-mb-3">
+        <div data-testid="notifications-email-test">
+            <AppDefinitionList>
+                <div><dt>@L["NotificationsEmailTest_SMTPServer"]</dt><dd>@_email.SmtpHost:@_email.SmtpPort</dd></div>
+                <div><dt>@L["Common_From"]</dt><dd>@_email.FromAddress</dd></div>
+                <div><dt>@L["NotificationsEmailTest_SMTPState"]</dt><dd>@(_email.Ready ? L["NotificationsEmailTest_Ready"] : L["NotificationsEmailTest_ConfiguredNotReady"])</dd></div>
+            </AppDefinitionList>
+            <AppButton Label="@L["NotificationsEmailTest_SendTestEmailToMy"].Value"
+                       StartIcon="@AppMaterialIcons.Outlined.MarkEmailRead"
+                       Disabled="@(_sending || !_email.Ready)"
+                       OnClick="SendTestEmailAsync" Class="tl-sp-mt-3" data-testid="notifications-email-test-send" />
+        </div>
+    </AppCard>
+}
+
+@code {
+    private readonly CancellationTokenSource _lifetime = new();
+    private PasswordResetDeliveryDto? _email;
+    private bool _sending;
+    private bool _disposed;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var settings = await ApiClient.GetAuthSettingsAsync(_lifetime.Token);
+        _email = settings?.PasswordReset;
+    }
+
+    private async Task SendTestEmailAsync()
+    {
+        if (_sending || _disposed || _email?.Ready != true) return;
+        _sending = true;
+        try
+        {
+            var sent = await DashboardAuthenticationEndpoints.SendCurrentAccountTestEmailAsync(
+                IdentityClient, PasswordResetEmails, _lifetime.Token);
+            Snackbar.Add(sent ? L["NotificationsEmailTest_TestEmailSent"].Value : L["NotificationsEmailTest_TestEmailCouldNotBe"].Value,
+                sent ? AppSeverity.Success : AppSeverity.Error);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Notifications test email failed");
+            Snackbar.Add(L["NotificationsEmailTest_TestEmailCouldNotBe"].Value, AppSeverity.Error);
+        }
+        finally
+        {
+            _sending = false;
+        }
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        if (_disposed) return ValueTask.CompletedTask;
+        _disposed = true;
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+        return ValueTask.CompletedTask;
+    }
+}

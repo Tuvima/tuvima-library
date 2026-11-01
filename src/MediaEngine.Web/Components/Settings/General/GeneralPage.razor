@@ -1,13 +1,15 @@
 @namespace MediaEngine.Web.Components.Settings
 @inject IStringLocalizer<SharedStrings> L
 
-@* Server > General. For now it holds the two panels that moved here from System > Configuration (Language and region, Notifications);
-   the Library's name and address join them with the General page packet (settings-and-setup-simplified WP7). *@
+@* Server > General: one page, no tabs. Name and address, Language and region, Notifications (with its email test). *@
 <div class="general-page" data-testid="general-page">
+    <GeneralNameAddressPanel />
+
     <LanguageRegionPanel />
 
-    <section class="general-page__group" aria-labelledby="general-notifications-heading">
+    <section class="general-page__group" aria-labelledby="general-notifications-heading" data-testid="general-notifications">
         <h2 id="general-notifications-heading" class="general-page__heading">@L["Common_Notifications"]</h2>
         <NotificationsPanel />
+        <NotificationsEmailTest />
     </section>
 </div>

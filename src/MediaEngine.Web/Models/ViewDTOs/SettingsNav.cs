@@ -226,9 +226,6 @@ public static class SettingsNav
     /// <summary>The Devices &amp; Sessions sub-page of Security &amp; Devices.</summary>
     public const string DevicesSubsection = "devices";
 
-    /// <summary>The Apps sub-page of Overview: store links, the server address and its QR code. It has no menu row; an icon on the Overview opens it.</summary>
-    public const string AppsSubsection = "apps";
-
     /// <summary>The Taste sub-page of Overview: your taste in plain groups (Genres, Moods, Eras), editable for your own and read-only for others.</summary>
     public const string TasteSubsection = "taste";
 
@@ -458,7 +455,6 @@ public static class SettingsNav
         {
             [SettingsSection.Overview] =
             [
-                new(AppsSubsection, "Apps", AppMaterialIcons.Outlined.Smartphone),
                 new(ActivitySubsection, "Activity", AppMaterialIcons.Outlined.History),
                 new(TasteSubsection, "Taste", AppMaterialIcons.Outlined.Category),
                 new(ImportSubsection, "Import", AppMaterialIcons.Outlined.UploadFile),
@@ -650,13 +646,10 @@ public static class SettingsNav
 
     /// <summary>
     /// Sub-pages that have their own route but no tab, because a link on their page's main tab opens them. They sit beneath
-    /// that tab in the breadcrumb (Personal, Profile, Apps). Slugs are in their normalised form.
+    /// that tab in the breadcrumb. None today. Slugs are in their normalised form.
     /// </summary>
     public static readonly IReadOnlySet<(SettingsSection Section, string Subsection)> OffMenuSubsections =
-        new HashSet<(SettingsSection, string)>
-        {
-            (SettingsSection.Overview, AppsSubsection),
-        };
+        new HashSet<(SettingsSection, string)>();
 
     public static IReadOnlyList<SettingsItemDef> FilteredItems(SettingsGroupDef group, bool administrationAllowed)
     {

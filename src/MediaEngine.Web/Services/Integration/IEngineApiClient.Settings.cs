@@ -213,6 +213,12 @@ public partial interface IEngineApiClient
     /// <summary>PUT /settings/server-general — save server name and regional settings.</summary>
     Task<bool> UpdateServerGeneralAsync(ServerGeneralSettingsDto settings, CancellationToken ct = default);
 
+    /// <summary>GET /settings/server-identity — the Library's friendly name and its network name (server administrators).</summary>
+    Task<MediaEngine.Contracts.Setup.SetupServerIdentityDto?> GetServerIdentityAsync(CancellationToken ct = default);
+
+    /// <summary>PUT /settings/server-identity — save the friendly name; the Engine derives the network name unless it was set by hand. Null when it was refused.</summary>
+    Task<MediaEngine.Contracts.Setup.SetupServerIdentityDto?> UpdateServerIdentityAsync(MediaEngine.Contracts.Setup.SetupServerIdentityDto identity, CancellationToken ct = default);
+
     /// <summary>GET /settings/libraries — complete schema 4 library, storage-root, and incoming-source configuration.</summary>
     Task<LibrariesConfigurationDto?> GetLibrariesAsync(CancellationToken ct = default);
     Task<ViewStorageSummaryDto?> GetViewStorageSummaryAsync(CancellationToken ct = default);

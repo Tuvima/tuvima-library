@@ -108,23 +108,6 @@ public sealed partial class UiShellRenderTests
     }
 
     [Fact]
-    public void SettingsPage_OverviewApps_SitsUnderPersonalAndProfileInTheBreadcrumb()
-    {
-        Services.AddSingleton(new AppStoreLinks());
-        Services.GetRequiredService<NavigationManager>().NavigateTo("/settings/overview/apps");
-
-        var cut = Render<Settings>(parameters => parameters
-            .Add(page => page.Section, "overview")
-            .Add(page => page.Subsection, "apps"));
-
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-settings-overview-apps]")));
-        var crumbs = cut.FindAll(".settings-breadcrumbs a, .settings-breadcrumbs span").Select(item => item.TextContent.Trim()).ToArray();
-        Assert.Equal(["Settings", "Personal", "Profile", "Apps"], crumbs);
-        Assert.Equal("/settings/overview", cut.Find(".settings-breadcrumbs a[href='/settings/overview']").GetAttribute("href"));
-        Assert.Equal("Apps", cut.Find(".settings-breadcrumbs [aria-current=page]").TextContent.Trim());
-    }
-
-    [Fact]
     public void ProfileMenu_KeepsTheSecureAccountCardAboveTheName()
     {
         var cut = OpenProfileMenu(canManageProfiles: false, secureAccount: true);

@@ -6546,41 +6546,29 @@
   <data name="OfflineDownloadsTab_OptimizedCopiesWillAppearHere" xml:space="preserve">
     <value>Optimized copies will appear here when an encode is queued from a supported media item.</value>
   </data>
-  <data name="OverviewAppsPage_TheLibraryAppsWillBe" xml:space="preserve">
+  <data name="GeneralNameAddress_TheLibraryAppsWillBe" xml:space="preserve">
     <value>The Library apps will be linked here once they are published.</value>
   </data>
-  <data name="OverviewAppsPage_AtHome" xml:space="preserve">
-    <value>At home</value>
+  <data name="GeneralNameAddress_AtHome" xml:space="preserve">
+    <value>Numeric address</value>
   </data>
-  <data name="OverviewAppsPage_AwayFromHome" xml:space="preserve">
+  <data name="GeneralNameAddress_AwayFromHome" xml:space="preserve">
     <value>Away from home</value>
   </data>
-  <data name="OverviewAppsPage_WantTheAppsToWork" xml:space="preserve">
+  <data name="GeneralNameAddress_WantTheAppsToWork" xml:space="preserve">
     <value>Want the apps to work away from home too?</value>
   </data>
-  <data name="OverviewAppsPage_SetASecureOutsideAddress" xml:space="preserve">
+  <data name="GeneralNameAddress_SetASecureOutsideAddress" xml:space="preserve">
     <value>Set a secure outside address in Remote Access</value>
   </data>
-  <data name="OverviewAppsPage_TheAppsWorkAtHome" xml:space="preserve">
-    <value>The apps work at home. To use them away from home, ask the server administrator to set up a secure outside address.</value>
-  </data>
-  <data name="OverviewAppsPage_ScanWithTheLibraryApp" xml:space="preserve">
+  <data name="GeneralNameAddress_ScanWithTheLibraryApp" xml:space="preserve">
     <value>Scan with the Library app on your phone to fill in the server, then sign in as usual.</value>
   </data>
-  <data name="OverviewAppsPage_GetTheApp" xml:space="preserve">
+  <data name="GeneralNameAddress_GetTheApp" xml:space="preserve">
     <value>Get the app</value>
   </data>
-  <data name="OverviewAppsPage_InstallLibraryOnYourPhone" xml:space="preserve">
+  <data name="GeneralNameAddress_InstallLibraryOnYourPhone" xml:space="preserve">
     <value>Install Library on your phone or TV.</value>
-  </data>
-  <data name="OverviewAppsPage_ServerAddress" xml:space="preserve">
-    <value>Server address</value>
-  </data>
-  <data name="OverviewAppsPage_EnterThisInTheApp" xml:space="preserve">
-    <value>Enter this in the app when it asks for your server.</value>
-  </data>
-  <data name="OverviewAppsPage_TheServerAddressIsUnavailable" xml:space="preserve">
-    <value>The server address is unavailable</value>
   </data>
   <data name="Common_StartTheEngineOrTry" xml:space="preserve">
     <value>Start the Engine or try again.</value>
@@ -6611,9 +6599,6 @@
   </data>
   <data name="OverviewPage_SeeYourTaste" xml:space="preserve">
     <value>See your taste</value>
-  </data>
-  <data name="OverviewPage_GetTheLibraryAppFor" xml:space="preserve">
-    <value>Get the Library app for your phone or TV</value>
   </data>
   <data name="OverviewPage_LoadingYourOverview" xml:space="preserve">
     <value>Loading your overview</value>
@@ -7119,13 +7104,13 @@
   <data name="SecurityTab_RecoveryDelivery" xml:space="preserve">
     <value>Recovery delivery</value>
   </data>
-  <data name="SecurityTab_SMTPServer" xml:space="preserve">
+  <data name="NotificationsEmailTest_SMTPServer" xml:space="preserve">
     <value>SMTP server</value>
   </data>
-  <data name="SecurityTab_SMTPState" xml:space="preserve">
+  <data name="NotificationsEmailTest_SMTPState" xml:space="preserve">
     <value>SMTP state</value>
   </data>
-  <data name="SecurityTab_SendsOnlyToTheEmail" xml:space="preserve">
+  <data name="NotificationsEmailTest_SendsOnlyToTheEmail" xml:space="preserve">
     <value>Sends only to the email address on your current signed-in account.</value>
   </data>
   <data name="SecurityTab_ExternalProviders" xml:space="preserve">
@@ -7176,7 +7161,7 @@
   <data name="SecurityTab_MaximumActiveSessionsPerAccount" xml:space="preserve">
     <value>Maximum active sessions per account</value>
   </data>
-  <data name="SecurityTab_SendTestEmailToMy" xml:space="preserve">
+  <data name="NotificationsEmailTest_SendTestEmailToMy" xml:space="preserve">
     <value>Send test email to my account</value>
   </data>
   <data name="SecurityTab_ProviderId" xml:space="preserve">
@@ -9165,7 +9150,7 @@
   <data name="SecurityTab_ProviderDeletedRestartTheEngine" xml:space="preserve">
     <value>Provider deleted. Restart the Engine and Dashboard to apply the change.</value>
   </data>
-  <data name="SecurityTab_TestEmailCouldNotBe" xml:space="preserve">
+  <data name="NotificationsEmailTest_TestEmailCouldNotBe" xml:space="preserve">
     <value>Test email could not be sent.</value>
   </data>
   <data name="StreamingLimitsPanel_BandwidthTestingNeedsATrusted" xml:space="preserve">
@@ -9812,5 +9797,50 @@
   </data>
   <data name="SetupAreaCards_ChangeFolder" xml:space="preserve">
     <value>Change folder</value>
+  </data>
+  <data name="GeneralNameAddress_NameAndAddress" xml:space="preserve">
+    <value>Name and address</value>
+  </data>
+  <data name="GeneralNameAddress_NameAndAddressNote" xml:space="preserve">
+    <value>What this Library is called, and how phones, TVs and apps find it.</value>
+  </data>
+  <data name="GeneralNameAddress_TheNameIsUnavailable" xml:space="preserve">
+    <value>The Library name is unavailable</value>
+  </data>
+  <data name="GeneralNameAddress_LibraryName" xml:space="preserve">
+    <value>Library name</value>
+  </data>
+  <data name="GeneralNameAddress_SaveName" xml:space="preserve">
+    <value>Save name</value>
+  </data>
+  <data name="GeneralNameAddress_NameSaved" xml:space="preserve">
+    <value>The Library name was saved.</value>
+  </data>
+  <data name="GeneralNameAddress_NameNotSaved" xml:space="preserve">
+    <value>The Library name could not be saved.</value>
+  </data>
+  <data name="GeneralNameAddress_NotDetectedYet" xml:space="preserve">
+    <value>Not detected yet</value>
+  </data>
+  <data name="GeneralNameAddress_AddressCopied" xml:space="preserve">
+    <value>Address copied.</value>
+  </data>
+  <data name="GeneralNameAddress_ScanOutside" xml:space="preserve">
+    <value>Scan to use the outside address</value>
+  </data>
+  <data name="GeneralNameAddress_ScanHome" xml:space="preserve">
+    <value>Scan to use the address at home</value>
+  </data>
+  <data name="NotificationsEmailTest_Email" xml:space="preserve">
+    <value>Email (SMTP)</value>
+  </data>
+  <data name="NotificationsEmailTest_Ready" xml:space="preserve">
+    <value>Ready</value>
+  </data>
+  <data name="NotificationsEmailTest_ConfiguredNotReady" xml:space="preserve">
+    <value>Configured, not ready</value>
+  </data>
+  <data name="NotificationsEmailTest_TestEmailSent" xml:space="preserve">
+    <value>Test email sent to your account address.</value>
   </data>
 </root>

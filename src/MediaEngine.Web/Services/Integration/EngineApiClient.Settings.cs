@@ -446,6 +446,12 @@ public sealed partial class EngineApiClient
         }
     }
 
+    public Task<MediaEngine.Contracts.Setup.SetupServerIdentityDto?> GetServerIdentityAsync(CancellationToken ct = default) =>
+        GetAsync<MediaEngine.Contracts.Setup.SetupServerIdentityDto>("GET /settings/server-identity", "/settings/server-identity", ct: ct);
+
+    public Task<MediaEngine.Contracts.Setup.SetupServerIdentityDto?> UpdateServerIdentityAsync(MediaEngine.Contracts.Setup.SetupServerIdentityDto identity, CancellationToken ct = default) =>
+        PutAsync<MediaEngine.Contracts.Setup.SetupServerIdentityDto, MediaEngine.Contracts.Setup.SetupServerIdentityDto>("PUT /settings/server-identity", "/settings/server-identity", identity, ct: ct);
+
     public Task<LibrariesConfigurationDto?> MutateLibraryAsync(LibraryMutationRequest request, CancellationToken ct = default) =>
         PostAsync<LibraryMutationRequest, LibrariesConfigurationDto>("POST /settings/libraries/mutations", "/settings/libraries/mutations", request, ct: ct);
 

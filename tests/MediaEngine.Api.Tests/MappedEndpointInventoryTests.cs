@@ -160,6 +160,10 @@ public sealed class MappedEndpointInventoryTests
         await using var app = BuildEndpointOnlyApplication();
         var inventory = EndpointInventory.From(app);
 
+        // The Library's name and network name (Settings > General) are for server administrators only; no paired app or member reads or renames the Library.
+        inventory.Require("/settings/server-identity", HttpMethods.Get).RequiresNamedPolicy(AuthPolicies.Administrator);
+        inventory.Require("/settings/server-identity", HttpMethods.Put).RequiresNamedPolicy(AuthPolicies.Administrator);
+
         inventory.Require("/access/users", HttpMethods.Get)
             .RequiresAdministratorOrApplication(ApplicationPermissionIds.IdentityUsersRead);
         inventory.Require("/access/users/{userId:guid}", HttpMethods.Delete)

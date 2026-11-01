@@ -1,6 +1,6 @@
 using Bunit;
-using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Settings;
+using MediaEngine.Contracts.Setup;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Services.Configuration;
 using MediaEngine.Web.Services.Integration;
@@ -10,17 +10,18 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Web.Tests;
 
-/// <summary>Personal &gt; Overview &gt; Apps (D24): store links once published, the server address for everyone, and a QR code of that address only.</summary>
-public sealed class OverviewAppsPageTests : AsyncBunitContext
+/// <summary>Server &gt; General &gt; Name and address (settings-and-setup-simplified D10): the Library's name and the address that follows it, the numeric address with Copy, store links once published, and a QR code of that address only.</summary>
+public sealed class GeneralNameAddressPanelTests : AsyncBunitContext
 {
     private const string Home = "http://192.168.1.20:5016";
     private const string Away = "https://tuvima.example.com";
 
     private NetworkAppAddressesDto? _addresses = new() { AtHome = Home };
     private AppStoreLinks _links = new();
-    private bool _serverAdministrator;
+    private SetupServerIdentityDto? _identity = new("Shaya's Library", "shayas-library", true);
+    private readonly List<SetupServerIdentityDto> _saved = [];
 
-    public OverviewAppsPageTests()
+    public GeneralNameAddressPanelTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLogging();
@@ -28,27 +29,32 @@ public sealed class OverviewAppsPageTests : AsyncBunitContext
         Services.AddNativeUiServices();
     }
 
-    private IRenderedComponent<OverviewAppsPage> RenderPage()
+    private IRenderedComponent<GeneralNameAddressPanel> RenderPage()
     {
         Services.AddSingleton(EngineApiClientStub.Create(stub =>
-            stub.SetHandler(nameof(IEngineApiClient.GetNetworkAppAddressesAsync), _ => Task.FromResult(_addresses))));
+        {
+            stub.SetHandler(nameof(IEngineApiClient.GetNetworkAppAddressesAsync), _ => Task.FromResult(_addresses));
+            stub.SetHandler(nameof(IEngineApiClient.GetServerIdentityAsync), _ => Task.FromResult(_identity));
+            stub.SetHandler(nameof(IEngineApiClient.UpdateServerIdentityAsync), args =>
+            {
+                var requested = (SetupServerIdentityDto)args![0]!;
+                // What the Engine does: derive the network name while it follows the friendly name.
+                var host = requested.HostNameDerived ? NetworkNameRules.ToLabel(requested.ServerName) : NetworkNameRules.ToLabel(requested.HostName);
+                var saved = new SetupServerIdentityDto(requested.ServerName.Trim(), host, NetworkNameRules.IsDerived(requested.ServerName, host));
+                _saved.Add(saved);
+                return Task.FromResult<SetupServerIdentityDto?>(saved);
+            });
+        }));
         Services.AddSingleton(_links);
-        var id = Guid.NewGuid();
-        string[] navigation = _serverAdministrator ? ["settings.administration"] : [];
-        var session = new DashboardSessionAccessor();
-        session.Set("test-session-token", id, id, Guid.NewGuid(),
-            new DashboardAuthorityResponse(id, id, true, true, 1, 1, _serverAdministrator, _serverAdministrator, null, 1, [], navigation, []));
-        Services.AddScoped(_ => session);
 
-        var cut = Render<OverviewAppsPage>();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-settings-overview-apps]")));
+        var cut = Render<GeneralNameAddressPanel>();
         cut.WaitForAssertion(() => Assert.True(
-            cut.FindAll("[data-apps-address]").Count > 0 || cut.Markup.Contains("The server address is unavailable", StringComparison.Ordinal)));
+            cut.FindAll("[data-testid='general-name-address']").Count > 0 || cut.Markup.Contains("The Library name is unavailable", StringComparison.Ordinal)));
         return cut;
     }
 
     [Fact]
-    public void AMember_SeesTheAddressAtHome_WithCopy()
+    public void TheNumericAddress_ShowsWithCopy()
     {
         var cut = RenderPage();
 
@@ -63,7 +69,7 @@ public sealed class OverviewAppsPageTests : AsyncBunitContext
     {
         var cut = RenderPage();
 
-        Assert.Contains("Install on this device", cut.Find("[data-settings-overview-apps]").TextContent, StringComparison.Ordinal);
+        Assert.Contains("Install on this device", cut.Find("[data-testid='general-name-address']").TextContent, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -98,7 +104,7 @@ public sealed class OverviewAppsPageTests : AsyncBunitContext
     {
         var cut = RenderPage();
 
-        var qr = cut.Find(".overview-apps__qr");
+        var qr = cut.Find(".general-address__qr");
         Assert.Equal(Home, qr.GetAttribute("data-qr-payload"));
         Assert.Single(cut.FindAll("[data-qr-payload]"));
         var svg = Assert.Single(qr.QuerySelectorAll("svg"));
@@ -160,32 +166,77 @@ public sealed class OverviewAppsPageTests : AsyncBunitContext
     public void WhenTheEngineCannotBeAsked_ShowsAnErrorInsteadOfAnAddress()
     {
         _addresses = null;
+        _identity = null;
 
         var cut = RenderPage();
 
         Assert.Empty(cut.FindAll("[data-apps-address]"));
         Assert.Empty(cut.FindAll("[data-qr-payload]"));
-        Assert.Contains("The server address is unavailable", cut.Markup, StringComparison.Ordinal);
+        Assert.Contains("The Library name is unavailable", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void WithoutAnOutsideAddress_AMemberIsToldToAskTheAdministrator_WithNoLinkTheyCannotOpen()
+    public void WithoutAnOutsideAddress_GeneralPointsToRemoteAccess_BecauseOnlyAnAdministratorSeesThisPage()
     {
-        var cut = RenderPage();
-
-        var note = cut.Find("[data-apps-no-outside-address]");
-        Assert.Empty(note.QuerySelectorAll("a"));
-        Assert.Contains("ask the server administrator", note.TextContent, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void WithoutAnOutsideAddress_AServerAdministratorGetsTheRemoteAccessLink()
-    {
-        _serverAdministrator = true;
-
         var cut = RenderPage();
 
         Assert.Equal("/settings/network/remote", cut.Find("[data-apps-no-outside-address] a").GetAttribute("href"));
+    }
+
+    [Fact]
+    public void TheLibraryName_ShowsWithTheAddressItGives_AndNothingIsOfferedToSaveUntilItChanges()
+    {
+        var cut = RenderPage();
+
+        Assert.Equal("Shaya's Library", cut.Find("[data-testid='general-library-name'] input, input[data-testid='general-library-name']").GetAttribute("value"));
+        Assert.Contains("Phones and TVs on your home network will find it at shayas-library.local", cut.Find("[data-testid='general-network-name-line']").TextContent, StringComparison.Ordinal);
+        Assert.True(cut.Find("[data-testid='general-save-name']").HasAttribute("disabled"));
+        Assert.Empty(cut.FindAll("[data-testid='general-network-name-field']"));
+    }
+
+    [Fact]
+    public void ChangingTheName_UpdatesTheDerivedAddressAtOnce_AndSavingSendsItToTheEngine()
+    {
+        var cut = RenderPage();
+
+        cut.Find("input[data-testid='general-library-name'], [data-testid='general-library-name'] input").Input("The Den Library");
+
+        Assert.Contains("the-den-library.local", cut.Find("[data-testid='general-network-name-line']").TextContent, StringComparison.Ordinal);
+        cut.Find("[data-testid='general-save-name']").Click();
+
+        var saved = Assert.Single(_saved);
+        Assert.Equal("The Den Library", saved.ServerName);
+        Assert.Equal("the-den-library", saved.HostName);
+        Assert.Contains("the-den-library.local", cut.Find("[data-testid='general-network-name-line']").TextContent, StringComparison.Ordinal);
+        Assert.Contains(Services.GetRequiredService<AppToastService>().Toasts, toast => toast.Message == "The Library name was saved.");
+    }
+
+    [Fact]
+    public void Change_RevealsTheNetworkNameField_AndAHandSetNameStopsFollowingTheLibraryName()
+    {
+        var cut = RenderPage();
+
+        cut.Find("[data-testid='general-network-name-change']").Click();
+        Assert.Empty(cut.FindAll("[data-testid='general-network-name-change']"));
+        cut.Find("input[data-testid='general-network-name-field'], [data-testid='general-network-name-field'] input").Input("Den TV");
+        cut.Find("input[data-testid='general-library-name'], [data-testid='general-library-name'] input").Input("Another Name");
+
+        Assert.Contains("den-tv.local", cut.Find("[data-testid='general-network-name-line']").TextContent, StringComparison.Ordinal);
+        cut.Find("[data-testid='general-save-name']").Click();
+        var saved = Assert.Single(_saved);
+        Assert.Equal("Another Name", saved.ServerName);
+        Assert.Equal("den-tv", saved.HostName);
+        Assert.False(saved.HostNameDerived);
+    }
+
+    [Fact]
+    public void ABlankName_CannotBeSaved()
+    {
+        var cut = RenderPage();
+
+        cut.Find("input[data-testid='general-library-name'], [data-testid='general-library-name'] input").Input("   ");
+
+        Assert.True(cut.Find("[data-testid='general-save-name']").HasAttribute("disabled"));
     }
 
     [Fact]

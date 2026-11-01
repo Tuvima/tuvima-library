@@ -4,6 +4,7 @@ using MediaEngine.Api.Models;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.FileWrites;
+using MediaEngine.Api.Services.Networking;
 using MediaEngine.Api.Services.Security;
 using MediaEngine.Contracts.Artwork;
 using MediaEngine.Contracts.WriteBack;
@@ -1533,6 +1534,29 @@ public static class SettingsEndpoints
         .WithName("UpdateServerGeneral")
         .WithSummary("Saves server identity and regional settings.")
         .Produces(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .RequireEffectiveAdministrator();
+
+        // ── GET / PUT /settings/server-identity ───────────────────────────────
+        // The Library's friendly name and its network name (Settings > General). Setup writes the same two values through ServerIdentityService.
+
+        grp.MapGet("/server-identity", (IConfigurationLoader configLoader) =>
+            Results.Ok(ServerIdentityService.Read(configLoader)))
+        .WithName("GetServerIdentity")
+        .WithSummary("Returns the Library's friendly name and its network name.")
+        .Produces<MediaEngine.Contracts.Setup.SetupServerIdentityDto>(StatusCodes.Status200OK)
+        .RequireEffectiveAdministrator();
+
+        grp.MapPut("/server-identity", (
+            MediaEngine.Contracts.Setup.SetupServerIdentityDto request,
+            IConfigurationLoader configLoader) =>
+        {
+            var (saved, error) = ServerIdentityService.Save(configLoader, request);
+            return saved is null ? ApiErrors.BadRequest(error!) : Results.Ok(saved);
+        })
+        .WithName("UpdateServerIdentity")
+        .WithSummary("Saves the Library's friendly name; the network name follows it unless it was set by hand.")
+        .Produces<MediaEngine.Contracts.Setup.SetupServerIdentityDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .RequireEffectiveAdministrator();
 

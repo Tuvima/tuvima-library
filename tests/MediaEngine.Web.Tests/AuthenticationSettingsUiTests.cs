@@ -22,9 +22,12 @@ public sealed class AuthenticationSettingsUiTests
         Assert.Contains("Disabled=\"@(!ExternalCapableMode)\"", component, StringComparison.Ordinal);
         Assert.DoesNotContain("session-policy", component, StringComparison.Ordinal);
         Assert.Contains("Configured, not ready", component, StringComparison.Ordinal);
-        Assert.Contains("Send test email to my account", component, StringComparison.Ordinal);
-        Assert.Contains("DashboardAuthenticationEndpoints.SendCurrentAccountTestEmailAsync", component, StringComparison.Ordinal);
-        Assert.DoesNotContain("@bind-Value=\"_testEmail", component, StringComparison.Ordinal);
+        // The test email moved to Server > General > Notifications (settings-and-setup-simplified D10).
+        Assert.DoesNotContain("Send test email to my account", component, StringComparison.Ordinal);
+        Assert.DoesNotContain("SendCurrentAccountTestEmailAsync", component, StringComparison.Ordinal);
+        var emailTest = Read("src/MediaEngine.Web/Components/Settings/General/NotificationsEmailTest.razor");
+        Assert.Contains("DashboardAuthenticationEndpoints.SendCurrentAccountTestEmailAsync", emailTest, StringComparison.Ordinal);
+        Assert.DoesNotContain("@bind-Value=\"_testEmail", emailTest, StringComparison.Ordinal);
         Assert.Contains("if (_saving || _disposed) return;", component, StringComparison.Ordinal);
         Assert.Contains("OperationCanceledException", component, StringComparison.Ordinal);
         Assert.Contains("Use an https address with no path (http is allowed only for localhost).", component, StringComparison.Ordinal);
