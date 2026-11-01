@@ -8,6 +8,7 @@
 @inject NavigationManager Navigation
 @inject DeviceContextService DeviceContext
 @inject ILogger<CompanionNowPlayingCard> Logger
+@inject IStringLocalizer<SharedStrings> L
 
 @* "Now playing" on Home (spec 4A.3): shown only while this profile is playing or has paused something on one of its devices,
    for example "The Fellowship of the Ring, on Living Room TV", with a Companion button. The Engine lists only the active
@@ -16,7 +17,7 @@
 @if (_devices.Count > 0 && CompanionDeviceRule.IsAvailable(DeviceContext))
 {
     var device = _devices[0];
-    <section class="companion-now" aria-label="Now playing" data-section="now-playing">
+    <section class="companion-now" aria-label="@L["Common_NowPlaying"].Value" data-section="now-playing">
         <span class="companion-now__cover" aria-hidden="true">
             @if (!string.IsNullOrWhiteSpace(device.Item?.CoverUrl))
             {
@@ -35,7 +36,7 @@
             <p class="companion-now__where">on @CompanionPlace.DeviceLabelOf(device)@MoreText</p>
         </div>
         <div class="companion-now__action">
-        <AppButton Label="Companion"
+        <AppButton Label="@L["CompanionNowPlayingCard_Companion"].Value"
                    StartIcon="@AppMaterialIcons.Outlined.Groups"
                    ButtonStyle="AppButtonStyle.Filled"
                    Tone="AppUiTone.Primary"

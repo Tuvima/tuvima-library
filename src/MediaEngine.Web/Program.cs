@@ -65,18 +65,13 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 // ── Localization ──────────────────────────────────────────────────────────────
-// Supported cultures match the curated list in ServerGeneralTab.
-var supportedCultures = new[]
-{
-    "ar", "zh", "zh-TW", "cs", "da", "nl", "en", "fi", "fr", "de",
-    "el", "he", "hi", "hu", "id", "it", "ja", "ko", "ms", "no",
-    "pl", "pt", "pt-BR", "ro", "ru", "es", "sv", "th", "tr", "uk", "vi",
-}.Select(c => new CultureInfo(c)).ToList();
+// Supported cultures (languages plus regional spellings such as en-GB) come from AppCultures.
+var supportedCultures = MediaEngine.Web.Services.Localization.AppCultures.Supported.ToList();
 
 builder.Services.AddLocalization();
 builder.Services.Configure<RequestLocalizationOptions>(opts =>
 {
-    opts.DefaultRequestCulture = new RequestCulture("en");
+    opts.DefaultRequestCulture = new RequestCulture(MediaEngine.Web.Services.Localization.AppCultures.Default);
     opts.SupportedCultures = supportedCultures;
     opts.SupportedUICultures = supportedCultures;
     // Cookie provider first so the Dashboard language selection takes effect.
@@ -509,7 +504,7 @@ app.MapGet("/_tuvima/remote-probe", (HttpContext context, string? nonce) => Resu
 
 // ── Culture cookie setter ─────────────────────────────────────────────────────
 // Sets the ASP.NET Core culture cookie and redirects back to the requested page.
-// Called by ServerGeneralTab via forceLoad navigation after saving a new language.
+// Called by the Dashboard layout via forceLoad navigation after saving a new language.
 app.MapGet("/culture/set", (string culture, string redirectUri, HttpContext ctx) =>
 {
     if (supportedCultures.Any(c => string.Equals(c.Name, culture, StringComparison.OrdinalIgnoreCase)))

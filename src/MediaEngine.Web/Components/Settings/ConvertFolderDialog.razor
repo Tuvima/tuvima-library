@@ -3,6 +3,7 @@
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Web.Services.Formatting
 @inject IEngineApiClient ApiClient
+@inject IStringLocalizer<SharedStrings> L
 
 @* The honest question before Tuvima manages a folder that already has files: what will happen, how long it can take, and that it
    cannot be undone automatically. "Preview first" shows what would change, without changing anything. The result is "convert"
@@ -11,7 +12,7 @@
     <ChildContent>
         @if (_loading)
         {
-            <AppPageState Kind="AppPageStateKind.Loading" Title="Counting files" />
+            <AppPageState Kind="AppPageStateKind.Loading" Title="@L["Common_CountingFiles"].Value" />
         }
         else if (_error is not null)
         {
@@ -27,11 +28,11 @@
                     Nothing has changed yet.
                 </p>
                 <ul class="convert-folder__counts">
-                    <li><strong>@Count(_preview.ToRename)</strong> to rename or move</li>
-                    <li><strong>@Count(_preview.AlreadyCorrect)</strong> already correct</li>
-                    <li><strong>@Count(_preview.DuplicatesToRemove)</strong> exact duplicate copies to remove</li>
-                    <li><strong>@Count(_preview.NeedsReview + _preview.NameCollisions)</strong> will need Review</li>
-                    <li><strong>@Count(_preview.Skipped)</strong> not renamed yet</li>
+                    <li><strong>@Count(_preview.ToRename)</strong> @L["ConvertFolderDialog_ToRenameOrMove"]</li>
+                    <li><strong>@Count(_preview.AlreadyCorrect)</strong> @L["ConvertFolderDialog_AlreadyCorrect"]</li>
+                    <li><strong>@Count(_preview.DuplicatesToRemove)</strong> @L["ConvertFolderDialog_ExactDuplicateCopiesToRemove"]</li>
+                    <li><strong>@Count(_preview.NeedsReview + _preview.NameCollisions)</strong> @L["ConvertFolderDialog_WillNeedReview"]</li>
+                    <li><strong>@Count(_preview.Skipped)</strong> @L["ConvertFolderDialog_NotRenamedYet"]</li>
                 </ul>
                 @if (_preview.SkipReasons.Count > 0)
                 {
@@ -44,11 +45,11 @@
                 }
                 @if (_preview.SkippedLinks > 0)
                 {
-                    <p class="convert-folder__links">Shortcuts inside this folder were skipped.</p>
+                    <p class="convert-folder__links">@L["ConvertFolderDialog_ShortcutsInsideThisFolderWere"]</p>
                 }
                 @if (_preview.Samples.Count > 0)
                 {
-                    <h4>Examples</h4>
+                    <h4>@L["Common_Examples"]</h4>
                     <ul class="convert-folder__samples">
                         @foreach (var sample in _preview.Samples)
                         {
@@ -56,7 +57,7 @@
                         }
                     </ul>
                 }
-                <p class="convert-folder__time">Estimated time: <strong>@FolderJobFormat.Duration(_preview.EstimatedSeconds)</strong>.</p>
+                <p class="convert-folder__time">@L["Common_EstimatedTime"] <strong>@FolderJobFormat.Duration(_preview.EstimatedSeconds)</strong>.</p>
                 @if (!_preview.Complete)
                 {
                     <AppButton Label="@(_scanning ? "Scanning everything..." : "Scan everything")" ButtonStyle="AppButtonStyle.Outlined"
@@ -68,18 +69,17 @@
         {
             <div class="convert-folder">
                 <p>
-                    Library will rename and reorganise the <strong>@Count(_total) @(_total == 1 ? "file" : "files")</strong> in this folder
+                    @L["ConvertFolderDialog_LibraryWillRenameAndReorganise"] <strong>@Count(_total) @(_total == 1 ? "file" : "files")</strong> in this folder
                     to its standard naming, and write tags where the file type allows it. It will also remove exact duplicate copies
                     (your &ldquo;same file twice&rdquo; setting is <em>@(_keepOne ? "Keep one copy" : "Keep both")</em>@(_keepOne ? "" : ", so both copies are kept under different names")).
                 </p>
                 <p>
-                    <strong>This can take hours for a large folder</strong> (@FolderJobFormat.Duration(_estimateSeconds) here, based on @Count(_total) @(_total == 1 ? "file" : "files")).
+                    <strong>@L["ConvertFolderDialog_ThisCanTakeHoursFor"]</strong> (@FolderJobFormat.Duration(_estimateSeconds) here, based on @Count(_total) @(_total == 1 ? "file" : "files")).
                     You can keep using Library while it runs; a film that is being moved may be unavailable for a few seconds.
                     Other programs that use this folder (Plex, Jellyfin) will need to rescan afterwards.
                 </p>
                 <p>
-                    <strong>This cannot be undone automatically.</strong> Library keeps a full log of every move.
-                    Nothing is ever deleted except exact duplicate copies.
+                    <strong>@L["Common_ThisCannotBeUndoneAutomatically"]</strong> @L["ConvertFolderDialog_LibraryKeepsAFullLog"]
                 </p>
             </div>
         }
@@ -87,12 +87,12 @@
     <FooterContent>
         @if (_showingPreview)
         {
-            <AppButton Label="Back" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => _showingPreview = false)" />
+            <AppButton Label="@L["Common_Back"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => _showingPreview = false)" />
         }
         <AppButton Label="@KeepText" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
         @if (!_showingPreview)
         {
-            <AppButton Label="Preview first" ButtonStyle="AppButtonStyle.Outlined" Loading="@_previewing"
+            <AppButton Label="@L["Common_PreviewFirst"].Value" ButtonStyle="AppButtonStyle.Outlined" Loading="@_previewing"
                        Disabled="@(_loading || _error is not null)" OnClick="PreviewAsync" />
         }
         <AppButton Label="@ConvertText" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"

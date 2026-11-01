@@ -13,6 +13,7 @@ public static class CollectionTypeNames
     public const string Playlist = "Playlist";
     public const string PlaylistFolder = "PlaylistFolder";
     public const string Custom = "Custom";
+    public const string Set = "Set";
 }
 
 public static class CollectionResolutionNames

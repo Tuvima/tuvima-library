@@ -4,6 +4,7 @@
 @using MediaEngine.Web.Services.Formatting
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
+@inject IStringLocalizer<SharedStrings> L
 
 @* How long and how much of each system log is kept (settings revamp D22). Personal activity is not part of this:
    it is kept until someone clears it by hand. *@
@@ -13,8 +14,8 @@
 }
 else if (_status is null)
 {
-    <AppErrorState Title="Could not load the retention settings"
-                   Message="The Library could not get the settings from the server. Check that the server is online, then try again."
+    <AppErrorState Title="@L["LogRetentionPanel_CouldNotLoadTheRetention"].Value"
+                   Message="@L["LogRetentionPanel_TheLibraryCouldNotGet"].Value"
                    Retry="LoadAsync" />
 }
 else
@@ -22,33 +23,32 @@ else
     <div class="log-retention">
         <AppAlert Tone="AppUiTone.Info" data-testid="retention-note">
             Old events and log files are removed quietly every night. Nothing is shown when that happens, and the Scheduled
-            tasks list under System > Scheduled Tasks says when it last ran. What people watched, listened to and read is not
-            affected: it is kept until it is cleared by hand.
+            tasks list under System > @L["LogRetentionPanel_ScheduledTasksSaysWhenIt"]
         </AppAlert>
 
-        <AppCard Title="Events" Description="The readable log of what the Library did. The oldest events go first once a limit is passed.">
+        <AppCard Title="@L["Common_Events"].Value" Description="@L["LogRetentionPanel_TheReadableLogOfWhat"].Value">
             <div class="log-retention__fields">
-                <AppTextField Label="Keep events for (days)" InputType="AppInputType.Number" InputMode="AppInputMode.numeric"
+                <AppTextField Label="@L["LogRetentionPanel_KeepEventsForDays"].Value" InputType="AppInputType.Number" InputMode="AppInputMode.numeric"
                               Value="@_activityDays" ValueChanged="@(v => Edit(ref _activityDays, v))"
                               HelpText="@($"Between {LogRetentionLimits.MinDays} and {LogRetentionLimits.MaxDays:N0} days.")"
                               data-testid="retention-activity-days" />
-                <AppTextField Label="Keep at most (events)" InputType="AppInputType.Number" InputMode="AppInputMode.numeric"
+                <AppTextField Label="@L["LogRetentionPanel_KeepAtMostEvents"].Value" InputType="AppInputType.Number" InputMode="AppInputMode.numeric"
                               Value="@_activityMax" ValueChanged="@(v => Edit(ref _activityMax, v))"
                               HelpText="@($"Between {LogRetentionLimits.MinActivityEvents:N0} and {LogRetentionLimits.MaxActivityEvents:N0} events.")"
                               data-testid="retention-activity-max" />
             </div>
             <p class="log-retention__usage" data-testid="retention-activity-usage">
-                @DisplayFormat.FormatCount(_status.ActivityEventCount) events stored now.
+                @L["LogRetentionPanel_EventsStoredNow", DisplayFormat.FormatCount(_status.ActivityEventCount)]
             </p>
         </AppCard>
 
-        <AppCard Title="Technical log files" Description="The Engine's own log files, used for bug reports. The oldest files go first once a limit is passed; the file being written is never removed.">
+        <AppCard Title="@L["LogRetentionPanel_TechnicalLogFiles"].Value" Description="The Engine's own log files, used for bug reports. The oldest files go first once a limit is passed; the file being written is never removed.">
             <div class="log-retention__fields">
-                <AppTextField Label="Keep files for (days)" InputType="AppInputType.Number" InputMode="AppInputMode.numeric"
+                <AppTextField Label="@L["LogRetentionPanel_KeepFilesForDays"].Value" InputType="AppInputType.Number" InputMode="AppInputMode.numeric"
                               Value="@_logDays" ValueChanged="@(v => Edit(ref _logDays, v))"
                               HelpText="@($"Between {LogRetentionLimits.MinDays} and {LogRetentionLimits.MaxDays:N0} days.")"
                               data-testid="retention-log-days" />
-                <AppTextField Label="Keep at most (MB, all files together)" InputType="AppInputType.Number" InputMode="AppInputMode.numeric"
+                <AppTextField Label="@L["LogRetentionPanel_KeepAtMostMBAll"].Value" InputType="AppInputType.Number" InputMode="AppInputMode.numeric"
                               Value="@_logMegabytes" ValueChanged="@(v => Edit(ref _logMegabytes, v))"
                               HelpText="@($"Between {LogRetentionLimits.MinLogTotalMegabytes:N0} and {LogRetentionLimits.MaxLogTotalMegabytes:N0} MB.")"
                               data-testid="retention-log-mb" />
@@ -68,7 +68,7 @@ else
         }
 
         <div class="log-retention__actions">
-            <AppButton Label="Save limits" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+            <AppButton Label="@L["LogRetentionPanel_SaveLimits"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
                        Loading="_saving" Disabled="_saving" OnClick="SaveAsync" data-testid="retention-save" />
         </div>
     </div>
@@ -120,7 +120,7 @@ else
         if (!TryParse(_activityDays, out var activityDays) || !TryParse(_activityMax, out var activityMax)
             || !TryParse(_logDays, out var logDays) || !TryParse(_logMegabytes, out var logMegabytes))
         {
-            _error = "Enter a whole number in every field.";
+            _error = L["LogRetentionPanel_EnterAWholeNumberIn"].Value;
             return;
         }
 
@@ -144,7 +144,7 @@ else
 
             if (updated is null)
             {
-                _error = "The limits could not be saved. Check that the server is online, then try again.";
+                _error = L["LogRetentionPanel_TheLimitsCouldNotBe"].Value;
                 return;
             }
 

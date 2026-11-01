@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Collections
+@inject IStringLocalizer<SharedStrings> L
 
-<div class="collection-media-chips" role="group" aria-label="What goes in">
+<div class="collection-media-chips" role="group" aria-label="@L["CollectionMediaChips_WhatGoesIn"].Value">
     @foreach (var type in Types)
     {
         <AppToggleChip Pressed="@Selected.Contains(type.Key, StringComparer.OrdinalIgnoreCase)"
@@ -8,7 +9,7 @@
             <span class="collection-media-chip__dot" data-media="@type.Key" aria-hidden="true"></span>@type.Label
         </AppToggleChip>
     }
-    <AppToggleChip Pressed="@(Selected.Count == 0)" OnClick="ClearAsync">Everything</AppToggleChip>
+    <AppToggleChip Pressed="@(Selected.Count == 0)" OnClick="ClearAsync">@L["CollectionMediaChips_Everything"]</AppToggleChip>
 </div>
 
 @code {

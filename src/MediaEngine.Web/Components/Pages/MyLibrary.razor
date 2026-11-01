@@ -15,8 +15,9 @@
 @inject UIOrchestratorService Orchestrator
 @inject ViewWorkspaceService Workspace
 @inject ILogger<MyLibrary> Logger
+@inject IStringLocalizer<SharedStrings> L
 
-<PageTitle>My Library - Library</PageTitle>
+<PageTitle>@L["MyLibrary_MyLibraryLibrary"]</PageTitle>
 
 @* My Library: the personal page. One column, phones first. Profile header, Downloads (the Tuvima app only), Continue, My List,
    Recent activity (a short preview of the Activity page) and Liked. The header loads first, then every section loads in parallel from reads the Engine has already filtered for
@@ -31,7 +32,7 @@
                     <ProfileAvatar DisplayName="@profile.DisplayName" ImageUrl="@profile.AvatarImageUrl" Color="@profile.AvatarColor" Icon="@profile.AvatarIcon" />
                 </span>
                 <div class="my-library-header__copy">
-                    <h1 class="my-library-header__title">My Library</h1>
+                    <h1 class="my-library-header__title">@L["Nav_MyLibrary"]</h1>
                     <p class="my-library-header__name">@ProfileName</p>
                 </div>
             }
@@ -39,7 +40,7 @@
             {
                 <AppSkeleton Class="my-library-header__avatar" Shape="AppSkeletonShape.Circle" />
                 <div class="my-library-header__copy">
-                    <h1 class="my-library-header__title">My Library</h1>
+                    <h1 class="my-library-header__title">@L["Nav_MyLibrary"]</h1>
                     <AppSkeleton Class="my-library-header__name-skeleton" />
                 </div>
             }
@@ -47,8 +48,8 @@
 
         @if (_headerFailed)
         {
-            <AppErrorState Title="My Library could not load"
-                           Message="The Dashboard could not read this profile."
+            <AppErrorState Title="@L["MyLibrary_MyLibraryCouldNotLoad"].Value"
+                           Message="@L["MyLibrary_TheDashboardCouldNotRead"].Value"
                            Compact="true"
                            Retry="LoadAsync" />
         }
@@ -61,19 +62,19 @@
         }
         else if (ShowsSwitchProfile || ShowsSettings)
         {
-            <nav class="my-library-header__actions" aria-label="Profile">
+            <nav class="my-library-header__actions" aria-label="@L["Common_Profile"].Value">
                 @if (ShowsSwitchProfile)
                 {
                     <a class="my-library-action" href="@ProfilePickerRoute.Path">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.People" />
-                        <span>Switch profile</span>
+                        <span>@L["TopBar_SwitchProfile"]</span>
                     </a>
                 }
                 @if (ShowsSettings)
                 {
                     <a class="my-library-action" href="@ShellDock.SettingsPath">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Settings" />
-                        <span>Settings</span>
+                        <span>@L["Nav_Settings"]</span>
                     </a>
                 }
             </nav>
@@ -87,8 +88,8 @@
             <a class="my-library-downloads" href="@ShellDock.DownloadsPath">
                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Download" />
                 <span class="my-library-downloads__copy">
-                    <strong>Downloads</strong>
-                    <span>Watch and listen offline</span>
+                    <strong>@L["Nav_Downloads"]</strong>
+                    <span>@L["MyLibrary_WatchAndListenOffline"]</span>
                 </span>
                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" />
             </a>
@@ -101,7 +102,7 @@
         else if (_continueShelf.Items.Count > 0)
         {
             <div class="my-library-slot my-library-slot--continue">
-                <ContinueAcrossMediaSection Shelf="@_continueShelf" Heading="Continue" />
+                <ContinueAcrossMediaSection Shelf="@_continueShelf" Heading="@L["Common_Continue"].Value" />
             </div>
         }
 
@@ -118,7 +119,7 @@
         else if (!_failed.Contains(MyLibrarySection.MyList))
         {
             <div class="my-library-slot my-library-slot--empty">
-                <MediaTileShelf Shelf="@_myListShelf" EmptyMessage="Add titles with the My List heart" />
+                <MediaTileShelf Shelf="@_myListShelf" EmptyMessage="@L["MyLibrary_AddTitlesWithTheMy"].Value" />
             </div>
         }
 
@@ -131,8 +132,8 @@
             @* One list: the latest few entries here, everything on the Activity page (D16). *@
             <section class="my-library-slot my-library-slot--activity" aria-labelledby="my-library-activity-title" data-my-library-recent-activity>
                 <div class="my-library-activity__header">
-                    <h2 id="my-library-activity-title" class="my-library-activity__title">Recent activity</h2>
-                    <a class="my-library-activity__see-all" href="@ActivityHref" data-my-library-see-all-activity>See all</a>
+                    <h2 id="my-library-activity-title" class="my-library-activity__title">@L["Common_RecentActivity"]</h2>
+                    <a class="my-library-activity__see-all" href="@ActivityHref" data-my-library-see-all-activity>@L["Common_SeeAll"]</a>
                 </div>
                 <RecentActivityStrip Tiles="@_recentActivity" />
             </section>
@@ -151,8 +152,8 @@
 
         @if (_committed == SectionCount && _failed.Count > 0)
         {
-            <AppErrorState Title="Some of My Library could not load"
-                           Message="The rest is shown. Try again to fill in the missing rows."
+            <AppErrorState Title="@L["MyLibrary_SomeOfMyLibraryCould"].Value"
+                           Message="@L["MyLibrary_TheRestIsShownTry"].Value"
                            Compact="true"
                            Retry="LoadAsync" />
         }

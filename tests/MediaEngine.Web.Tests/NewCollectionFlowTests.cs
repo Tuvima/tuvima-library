@@ -44,19 +44,14 @@ public sealed class NewCollectionFlowTests : AsyncBunitContext
     }
 
     [Fact]
-    public void TheFlowOpensOnTheFourWays_AndStartFromAPackIsComingSoon()
+    public void TheFlowOpensOnTheFourWays_AllOfThemAvailable()
     {
         var editor = RenderFlow(CollectionEditorEntryPoints.Collections);
 
         var ways = editor.FindAll(".app-choice-card");
         Assert.Equal(4, ways.Count);
         Assert.Equal(["Pick titles", "Set rules", "From a list", "Start from a pack"], ways.Select(way => way.QuerySelector("strong")!.TextContent));
-        Assert.Single(editor.FindAll(".app-choice-card.is-disabled"));
-        Assert.All(editor.FindAll(".app-choice-card.is-disabled"), way =>
-        {
-            Assert.True(way.HasAttribute("disabled"));
-            Assert.Contains("Coming soon", way.TextContent);
-        });
+        Assert.Empty(editor.FindAll(".app-choice-card.is-disabled"));
     }
 
     [Fact]
@@ -168,6 +163,105 @@ public sealed class NewCollectionFlowTests : AsyncBunitContext
         Assert.True(group.CreateOptions!.OpensCollectionFlow);
         Assert.Equal(new CollectionFlowCreateTarget("Watch"), group.CreateOptions.SmartTarget);
     }
+
+    [Fact]
+    public async Task StartFromAPack_ShowsEachPackWithItsCountAndPreview_AndNextWaitsForATick()
+    {
+        var editor = RenderFlow(CollectionEditorEntryPoints.Collections, stub => stub.SetHandler(
+            nameof(IEngineApiClient.GetCollectionPacksAsync),
+            _ => Task.FromResult<IReadOnlyList<CollectionPackSummaryDto>>(SamplePacks())));
+
+        await ChoosePackWayAsync(editor);
+
+        editor.WaitForAssertion(() => Assert.Equal(2, editor.FindAll(".collection-pack").Count));
+        Assert.Contains("Would create 2 collections from your library", editor.Markup);
+        Assert.Contains("Your library doesn't have enough for this pack yet.", editor.Markup);
+        Assert.Empty(editor.FindAll(".collection-pack__list"));
+        Assert.True(editor.FindAll(".collection-editor-footer-actions button").Last().HasAttribute("disabled"));
+
+        await editor.InvokeAsync(() => editor.Find("[data-pack='decades'] .app-button").Click());
+        var entries = editor.FindAll(".collection-pack__list li");
+        Assert.Equal(2, entries.Count);
+        Assert.Contains("1990s", entries[0].TextContent);
+        Assert.Contains("5", entries[0].TextContent);
+    }
+
+    [Fact]
+    public async Task StartFromAPack_AnEmptyPackCannotBeTicked_AndTickingOneEnablesNext()
+    {
+        var editor = RenderFlow(CollectionEditorEntryPoints.Collections, stub => stub.SetHandler(
+            nameof(IEngineApiClient.GetCollectionPacksAsync),
+            _ => Task.FromResult<IReadOnlyList<CollectionPackSummaryDto>>(SamplePacks())));
+        await ChoosePackWayAsync(editor);
+        editor.WaitForAssertion(() => Assert.Equal(2, editor.FindAll(".collection-pack").Count));
+
+        Assert.True(editor.Find("[data-pack='award-winners'] input").HasAttribute("disabled"));
+
+        await editor.InvokeAsync(() => editor.Find("[data-pack='decades'] input").Change(true));
+
+        editor.WaitForAssertion(() => Assert.False(editor.FindAll(".collection-editor-footer-actions button").Last().HasAttribute("disabled")));
+        Assert.Contains("1 pack ticked, up to 2 collections.", editor.Markup);
+    }
+
+    [Fact]
+    public async Task StartFromAPack_CreatesTheTickedPacksWithTheChosenPlaces()
+    {
+        CollectionPackCreateRequest? sent = null;
+        var editor = RenderFlow(CollectionEditorEntryPoints.Collections, stub =>
+        {
+            stub.SetHandler(
+                nameof(IEngineApiClient.GetCollectionPacksAsync),
+                _ => Task.FromResult<IReadOnlyList<CollectionPackSummaryDto>>(SamplePacks()));
+            stub.SetHandler(
+                nameof(IEngineApiClient.CreateCollectionPacksAsync),
+                args =>
+                {
+                    sent = (CollectionPackCreateRequest)args![0]!;
+                    return Task.FromResult<CollectionPackCreateResponse?>(new CollectionPackCreateResponse
+                    {
+                        Collections = [new CollectionPackCreatedDto { Id = Guid.NewGuid(), Name = "1990s" }],
+                    });
+                });
+        });
+        await ChoosePackWayAsync(editor);
+        editor.WaitForAssertion(() => Assert.Equal(2, editor.FindAll(".collection-pack").Count));
+        await editor.InvokeAsync(() => editor.Find("[data-pack='decades'] input").Change(true));
+        await editor.InvokeAsync(() => editor.FindAll(".collection-editor-footer-actions button").Last().Click());
+
+        editor.WaitForAssertion(() => Assert.Equal("3", editor.Find(".collection-flow").GetAttribute("data-flow-step")));
+        Assert.Contains("What will be created", editor.Markup);
+        Assert.Empty(editor.FindAll("input[placeholder='Name this collection']"));
+
+        await editor.InvokeAsync(() => editor.FindAll(".collection-editor-footer-actions button").Last().Click());
+
+        editor.WaitForAssertion(() => Assert.NotNull(sent));
+        Assert.Equal(["decades"], sent!.PackIds);
+        Assert.Equal("Everyone", sent.Audience);
+    }
+
+    private static async Task ChoosePackWayAsync(IRenderedComponent<CollectionEditorShell> editor)
+    {
+        await editor.InvokeAsync(() => editor.FindAll(".app-choice-card").First(card => card.TextContent.Contains("Start from a pack", StringComparison.Ordinal)).Click());
+        await editor.InvokeAsync(() => editor.FindAll(".collection-editor-footer-actions button").Last().Click());
+    }
+
+    private static List<CollectionPackSummaryDto> SamplePacks() =>
+    [
+        new()
+        {
+            Id = "decades",
+            Name = "Decades",
+            Description = "One collection for each decade you own.",
+            CreatesSet = true,
+            WouldCreateCount = 2,
+            Collections =
+            [
+                new CollectionPackEntryDto { Name = "1990s", ItemCount = 5 },
+                new CollectionPackEntryDto { Name = "2000s", ItemCount = 4 },
+            ],
+        },
+        new() { Id = "award-winners", Name = "Award winners", Description = "Best Picture and friends.", CreatesSet = true, WouldCreateCount = 0 },
+    ];
 
     private IRenderedComponent<CollectionEditorShell> RenderStored(string ruleJson)
     {

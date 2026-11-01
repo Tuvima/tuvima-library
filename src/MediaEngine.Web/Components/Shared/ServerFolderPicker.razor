@@ -5,6 +5,7 @@
 @using Microsoft.JSInterop
 @using MediaEngine.Web.Services.Formatting
 @implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 
 @if (Inline)
@@ -524,7 +525,7 @@ else
         if (generation != _browseGeneration) return;
         if (browse is null)
         {
-            _error = "Library could not reach this server folder. Check that the location is online and try again.";
+            _error = L["ServerFolderPicker_LibraryCouldNotReachThis"].Value;
             return;
         }
 
@@ -672,7 +673,7 @@ else
         }
         if (generation != _validationGeneration) return;
         _validation = validation;
-        if (_validation is null) _error = "Library could not validate this server folder. Check that the location is online and try again.";
+        if (_validation is null) _error = L["ServerFolderPicker_LibraryCouldNotValidateThis"].Value;
         else if (!string.IsNullOrWhiteSpace(_validation.Path)) _selectedPathText = _validation.Path;
     }
 
@@ -844,11 +845,11 @@ else
         try
         {
             await JS.InvokeVoidAsync("navigator.clipboard.writeText", token, _selectedPathText);
-            _copyMessage = "Copied";
+            _copyMessage = L["ServerFolderPicker_Copied"].Value;
         }
         catch (JSException)
         {
-            _copyMessage = "Couldn't copy. Select the path and copy it.";
+            _copyMessage = L["ServerFolderPicker_CouldnTCopySelectThe"].Value;
         }
         catch (JSDisconnectedException)
         {

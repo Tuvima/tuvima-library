@@ -270,5 +270,5 @@ public sealed class DashboardReliabilityGuardrailTests
     }
 
     private static string Read(string relativePath) =>
-        File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", relativePath)));
+        LocalizedSource.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", relativePath)));
 }

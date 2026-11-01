@@ -2,13 +2,14 @@
 @using MediaEngine.Contracts.LocalAssets
 @inject IEngineApiClient ApiClient
 @inject IAppToastService Snackbar
+@inject IStringLocalizer<SharedStrings> L
 
 @* The duplicates report (Photo and video filing spec D16): exact copies already inside the Shared Library or this administrator's own library.
    Keep one sends the rest to Trash (never straight to deletion); Leave them dismisses the group until more copies turn up. Nothing here
    removes anything by itself. *@
-<SettingsSectionPanel Title="Duplicates" Description="Exact copies that are already in the Shared Library or in your own library. Nothing is removed unless you choose to.">
+<SettingsSectionPanel Title="@L["Common_Duplicates"].Value" Description="@L["ViewDuplicatesPanel_ExactCopiesThatAreAlready"].Value">
     <Actions>
-        <AppButton Label="Look for duplicates" StartIcon="@AppMaterialIcons.Outlined.Search" ButtonStyle="AppButtonStyle.Outlined" Loading="@_busy" Disabled="@(ReadOnly || _busy)" OnClick="ScanAsync" />
+        <AppButton Label="@L["ViewDuplicatesPanel_LookForDuplicates"].Value" StartIcon="@AppMaterialIcons.Outlined.Search" ButtonStyle="AppButtonStyle.Outlined" Loading="@_busy" Disabled="@(ReadOnly || _busy)" OnClick="ScanAsync" />
     </Actions>
     <ChildContent>
         @if (_report is null)
@@ -20,11 +21,11 @@
             <p class="view-duplicates__when">
                 @if (!_report.Enabled)
                 {
-                    <span>The nightly look is switched off.</span>
+                    <span>@L["ViewDuplicatesPanel_TheNightlyLookIsSwitched"]</span>
                 }
                 else
                 {
-                    <span>Looked for every night at @HourText(_report.ScanHour).</span>
+                    <span>@L["ViewDuplicatesPanel_LookedForEveryNightAt", HourText(_report.ScanHour)]</span>
                 }
                 @if (_report.LastScanAt is { } last)
                 {
@@ -33,11 +34,11 @@
             </p>
             @if (_report.Groups.Count == 0)
             {
-                <AppAlert Tone="AppUiTone.Success">No exact copies found.</AppAlert>
+                <AppAlert Tone="AppUiTone.Success">@L["ViewDuplicatesPanel_NoExactCopiesFound"]</AppAlert>
             }
             else
             {
-                <ul class="view-duplicates__groups" aria-label="Groups of exact copies">
+                <ul class="view-duplicates__groups" aria-label="@L["ViewDuplicatesPanel_GroupsOfExactCopies"].Value">
                     @foreach (var group in _report.Groups)
                     {
                         <li @key="group.Id" data-testid="view-duplicates-group">
@@ -47,11 +48,11 @@
                                 {
                                     <li @key="copy.ItemId">
                                         <span class="view-duplicates__name">@copy.FileName<small>@Describe(copy)</small></span>
-                                        <AppButton Label="Keep this one" ButtonStyle="AppButtonStyle.Outlined" Disabled="@(ReadOnly || _busy)" OnClick="@(() => KeepAsync(group, copy))" />
+                                        <AppButton Label="@L["ViewDuplicatesPanel_KeepThisOne"].Value" ButtonStyle="AppButtonStyle.Outlined" Disabled="@(ReadOnly || _busy)" OnClick="@(() => KeepAsync(group, copy))" />
                                     </li>
                                 }
                             </ul>
-                            <AppButton Label="Leave them" ButtonStyle="AppButtonStyle.Text" Disabled="@(ReadOnly || _busy)" OnClick="@(() => DismissAsync(group))" />
+                            <AppButton Label="@L["ViewDuplicatesPanel_LeaveThem"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@(ReadOnly || _busy)" OnClick="@(() => DismissAsync(group))" />
                         </li>
                     }
                 </ul>

@@ -9,25 +9,26 @@
 @inject DeviceContextService DeviceContext
 @inject NavigationManager Nav
 @implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="recently-added-page">
-    <section class="recently-added-filters" aria-label="Library activity filters">
+    <section class="recently-added-filters" aria-label="@L["RecentlyAddedPageContent_LibraryActivityFilters"].Value">
         <AppTextField Value="@_search"
                       ValueChanged="OnSearchChanged"
                       OnDebounceIntervalElapsed="OnSearchDebounced"
                       DebounceInterval="350"
-                      Placeholder="Search titles, files, or metadata..."
+                      Placeholder="@L["RecentlyAddedPageContent_SearchTitlesFilesOrMetadata"].Value"
                       Adornment="AppAdornment.Start"
                       AdornmentIcon="@AppMaterialIcons.Outlined.Search"
                       Class="recently-added-filters__search" />
-        <AppSelect Label="Media type" Value="@_mediaType" ValueChanged="OnMediaTypeChanged" Options="MediaTypeOptions" />
-        <AppSelect Label="Status" Value="@_status" ValueChanged="OnStatusChanged" Options="StatusFilterOptions" />
-        <AppSelect Label="Date range" Value="@_dateRange" ValueChanged="OnDateRangeChanged" Options="DateRangeOptions" />
-        <AppSelect Label="Sort by" Value="@_sort" ValueChanged="OnSortChanged" Options="SortOptions" />
+        <AppSelect Label="@L["Common_MediaType"].Value" Value="@_mediaType" ValueChanged="OnMediaTypeChanged" Options="MediaTypeOptions" />
+        <AppSelect Label="@L["Models_Status"].Value" Value="@_status" ValueChanged="OnStatusChanged" Options="StatusFilterOptions" />
+        <AppSelect Label="@L["RecentlyAddedPageContent_DateRange"].Value" Value="@_dateRange" ValueChanged="OnDateRangeChanged" Options="DateRangeOptions" />
+        <AppSelect Label="@L["Common_SortBy"].Value" Value="@_sort" ValueChanged="OnSortChanged" Options="SortOptions" />
     </section>
 
     <section class="recent-history" aria-labelledby="recent-history-title">
-        <header><div><h2 id="recent-history-title">Library activity</h2><p>Items being added and completed additions. <a href="/settings/ingestion">View processing queue</a></p></div><span>@(_history?.TotalCount ?? 0) items</span></header>
+        <header><div><h2 id="recent-history-title">@L["RecentlyAddedPageContent_LibraryActivity"]</h2><p>@L["RecentlyAddedPageContent_ItemsBeingAddedAndCompleted"] <a href="/settings/ingestion">@L["RecentlyAddedPageContent_ViewProcessingQueue"]</a></p></div><span>@(_history?.TotalCount ?? 0) items</span></header>
 
         @if (_historyLoading && _history is null)
         {
@@ -39,7 +40,7 @@
         }
         else if (_history?.Items.Count == 0)
         {
-            <AppEmptyState Title="No recent additions found" Message="No historical items match these filters." />
+            <AppEmptyState Title="@L["RecentlyAddedPageContent_NoRecentAdditionsFound"].Value" Message="@L["RecentlyAddedPageContent_NoHistoricalItemsMatchThese"].Value" />
         }
         else if (_history is not null)
         {
@@ -54,16 +55,16 @@
                             <span class="history-row__art"><AppMediaArtwork ImageUrl="@item.CoverUrl" Alt="" FallbackIcon="@IngestionMediaCard.MediaIcon(item.MediaType)" /></span>
                             <span><strong>@IngestionMediaCard.DisplayTitleFor(item.Title)</strong><small>@IngestionMediaCard.FriendlyType(item.MediaType)@ContextSuffix(item)</small></span>
                         </span>
-                        <span class="history-row__result"><strong>Added to library</strong><small>@ResultSummary(item)</small></span>
+                        <span class="history-row__result"><strong>@L["RecentlyAddedPageContent_AddedToLibrary"]</strong><small>@ResultSummary(item)</small></span>
                         <span class="history-row__status"><AppMaterialIcon Icon="@(MediaToolsWaitingNotice.IsWaiting(item) ? AppMaterialIcons.Outlined.HourglassTop : AppMaterialIcons.Outlined.CheckCircle)" /><span><strong>@item.StatusLabel</strong><small>@RelativeAge(item.UpdatedAt) ago</small></span></span>
                         <AppOverflowMenu AriaLabel="@($"More actions for {IngestionMediaCard.DisplayTitleFor(item.Title)}")" Size="AppControlSize.Compact">
                             @if (DeviceContext.CanEdit)
                             {
-                                <AppMenuItem Label="Edit" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="@(() => OpenMediaEditorAsync(item))" />
+                                <AppMenuItem Label="@L["Common_Edit"].Value" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="@(() => OpenMediaEditorAsync(item))" />
                             }
                             @if (!string.IsNullOrWhiteSpace(item.DetailRoute))
                             {
-                                <AppMenuItem Label="Open details" Icon="@AppMaterialIcons.Outlined.OpenInNew" OnClick="@(() => Nav.NavigateTo(item.DetailRoute!))" />
+                                <AppMenuItem Label="@L["Common_OpenDetails"].Value" Icon="@AppMaterialIcons.Outlined.OpenInNew" OnClick="@(() => Nav.NavigateTo(item.DetailRoute!))" />
                             }
                         </AppOverflowMenu>
                     </article>

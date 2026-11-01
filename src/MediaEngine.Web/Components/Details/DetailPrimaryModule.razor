@@ -3,6 +3,7 @@
 @using Microsoft.JSInterop
 @inject IJSRuntime JS
 @inject ILogger<DetailPrimaryModule> Logger
+@inject IStringLocalizer<SharedStrings> L
 
 @if (Model.PrimaryModule.Kind != DetailPrimaryModuleKind.None)
 {
@@ -27,7 +28,7 @@
                     }
                     else if (FilteredItems.Count == 0)
                     {
-                        <p class="tl-detail-primary-module__empty">No owned library items are available for this section.</p>
+                        <p class="tl-detail-primary-module__empty">@L["DetailPrimaryModule_NoOwnedLibraryItemsAre"]</p>
                     }
                     else
                     {

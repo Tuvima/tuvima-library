@@ -9,17 +9,18 @@
 @inject IAppDialogService Dialogs
 @inject DeviceContextService DeviceContext
 @implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
 
-<SettingsSectionPanel Title="Users and Sign-in" Description="The sign-ins people use to get into the Library. Each one opens a profile; what a person may see and do is set on their profile, under Profiles." Icon="@AppMaterialIcons.Outlined.Group">
+<SettingsSectionPanel Title="@L["ManagedAccessUsers_UsersAndSignIn"].Value" Description="The sign-ins people use to get into the Library. Each one opens a profile; what a person may see and do is set on their profile, under Profiles." Icon="@AppMaterialIcons.Outlined.Group">
     @if (!CanManage)
     {
-        <AppAlert Severity="AppSeverity.Warning">Administrator access is required to manage users.</AppAlert>
+        <AppAlert Severity="AppSeverity.Warning">@L["ManagedAccessUsers_AdministratorAccessIsRequiredTo"]</AppAlert>
     }
     else
     {
         @if (DeviceContext.IsPhone)
         {
-            <p class="access-phone-note" role="note">Manage on a computer or tablet.</p>
+            <p class="access-phone-note" role="note">@L["Common_ManageOnAComputerOr"]</p>
         }
         @if (!string.IsNullOrWhiteSpace(_notice))
         {
@@ -32,26 +33,26 @@
         <div class="access-toolbar" @ref="_returnFocus" tabindex="-1">
             @if (!DeviceContext.IsPhone)
             {
-                <AppButton Label="Add a sign-in" StartIcon="@AppMaterialIcons.Outlined.PersonAdd" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="OpenInvite" data-testid="access-add-sign-in" />
+                <AppButton Label="@L["ManagedAccessUsers_AddASignIn"].Value" StartIcon="@AppMaterialIcons.Outlined.PersonAdd" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="OpenInvite" data-testid="access-add-sign-in" />
             }
         </div>
         @if (_loading)
         {
-            <AppProgressBar Indeterminate="true" aria-label="Loading users" />
+            <AppProgressBar Indeterminate="true" aria-label="@L["ManagedAccessUsers_LoadingUsers"].Value" />
         }
         else if (_users.Count == 0)
         {
-            <AppEmptyState Title="No sign-ins" Message="Add a sign-in for a profile, or for someone new." />
+            <AppEmptyState Title="@L["ManagedAccessUsers_NoSignIns"].Value" Message="@L["ManagedAccessUsers_AddASignInFor"].Value" />
         }
         else if (DeviceContext.IsPhone)
         {
             <AppTable CardsOn="AppTableCardsMode.Phone" Class="access-users">
-                <caption class="sr-only">Sign-ins</caption>
+                <caption class="sr-only">@L["ManagedAccessUsers_SignIns"]</caption>
                 <thead>
                     <tr>
-                        <th data-card-role="title">Sign-in</th>
-                        <th data-card-role="subtitle">Opens profile and household</th>
-                        <th data-card-role="value">Status</th>
+                        <th data-card-role="title">@L["Common_SignIn"]</th>
+                        <th data-card-role="subtitle">@L["ManagedAccessUsers_OpensProfileAndHousehold"]</th>
+                        <th data-card-role="value">@L["Models_Status"]</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -68,9 +69,9 @@
         }
         else
         {
-            <div class="access-users" role="table" aria-label="Sign-ins">
+            <div class="access-users" role="table" aria-label="@L["ManagedAccessUsers_SignIns"].Value">
                 <div class="access-users__header" role="row">
-                    <span role="columnheader">Sign-in</span><span role="columnheader">Opens profile</span><span role="columnheader">Household</span><span role="columnheader">Actions</span>
+                    <span role="columnheader">@L["Common_SignIn"]</span><span role="columnheader">@L["ManagedAccessUsers_OpensProfile"]</span><span role="columnheader">@L["Common_Household"]</span><span role="columnheader">@L["ApiKeys_Actions"]</span>
                 </div>
                 @foreach (var user in _users)
                 {
@@ -101,8 +102,8 @@
     <AppFocusTrap DefaultFocus="true">
     <div class="access-drawer__shell" @onkeydown="HandleDrawerKeyDown">
         <header class="access-drawer__header">
-            <div><AppText Typo="AppTypo.overline">Users and Sign-in</AppText><AppText Typo="AppTypo.h6">@DrawerTitle</AppText></div>
-            <AppIconButton Icon="@AppMaterialIcons.Filled.Close" AriaLabel="Close user drawer" OnClick="Close" />
+            <div><AppText Typo="AppTypo.overline">@L["ManagedAccessUsers_UsersAndSignIn"]</AppText><AppText Typo="AppTypo.h6">@DrawerTitle</AppText></div>
+            <AppIconButton Icon="@AppMaterialIcons.Filled.Close" AriaLabel="@L["ManagedAccessUsers_CloseUserDrawer"].Value" OnClick="Close" />
         </header>
         <div class="access-drawer__body">
             @if (!string.IsNullOrWhiteSpace(_error))
@@ -123,18 +124,18 @@
                 {
                     <TemporaryPasswordShare Password="@_issuedTemporaryPassword" ExpiresAt="@_issuedTemporaryPasswordExpiresAt" />
                 }
-                <div class="access-form-actions"><AppButton Label="Done" OnClick="Close" /></div>
+                <div class="access-form-actions"><AppButton Label="@L["Common_Done"].Value" OnClick="Close" /></div>
             }
             else if (_mode == UserDrawerMode.Email && _editing is not null)
             {
                 <section class="access-form-section">
-                    <AppText Typo="AppTypo.subtitle1">Change email</AppText>
-                    <small>This is the email @UserLabel(_editing) signs in with. Their profile and everything in it stay exactly as they are.</small>
-                    <AppTextField @bind-Value="_email" Label="Email" FullWidth="true" />
+                    <AppText Typo="AppTypo.subtitle1">@L["ManagedAccessUsers_ChangeEmail"]</AppText>
+                    <small>@L["ManagedAccessUsers_ThisIsTheEmailSigns", UserLabel(_editing)]</small>
+                    <AppTextField @bind-Value="_email" Label="@L["Common_Email"].Value" FullWidth="true" />
                 </section>
                 <div class="access-form-actions">
-                    <AppButton Label="Cancel" OnClick="Close" />
-                    <AppButton Label="Save email" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@(_saving || !CanSaveEmail)" OnClick="SaveEmail" />
+                    <AppButton Label="@L["Search_Cancel"].Value" OnClick="Close" />
+                    <AppButton Label="@L["ManagedAccessUsers_SaveEmail"].Value" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@(_saving || !CanSaveEmail)" OnClick="SaveEmail" />
                 </div>
             }
             else if (_mode == UserDrawerMode.TemporaryPassword && _editing is not null)
@@ -142,19 +143,19 @@
                 @if (!string.IsNullOrEmpty(_issuedTemporaryPassword))
                 {
                     <TemporaryPasswordShare Password="@_issuedTemporaryPassword" ExpiresAt="@_issuedTemporaryPasswordExpiresAt" />
-                    <div class="access-form-actions"><AppButton Label="Done" OnClick="Close" /></div>
+                    <div class="access-form-actions"><AppButton Label="@L["Common_Done"].Value" OnClick="Close" /></div>
                 }
                 else
                 {
                     <section class="access-form-section">
-                        <AppText Typo="AppTypo.subtitle1">Set a temporary password</AppText>
-                        <small>This signs @UserLabel(_editing) out everywhere. They will have to use the temporary password, then choose their own.</small>
-                        <AppTextField @bind-Value="_temporaryPassword" Label="Temporary password" HelpText="At least 12 characters, not a common password." FullWidth="true" />
-                        <AppButton Label="Generate" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.AutoAwesome" OnClick="GeneratePassword" />
+                        <AppText Typo="AppTypo.subtitle1">@L["ManagedAccessUsers_SetATemporaryPassword"]</AppText>
+                        <small>@L["ManagedAccessUsers_ThisSignsOutEverywhereThey", UserLabel(_editing)]</small>
+                        <AppTextField @bind-Value="_temporaryPassword" Label="@L["Common_TemporaryPassword"].Value" HelpText="At least 12 characters, not a common password." FullWidth="true" />
+                        <AppButton Label="@L["ApiKeys_Generate"].Value" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.AutoAwesome" OnClick="GeneratePassword" />
                     </section>
                     <div class="access-form-actions">
-                        <AppButton Label="Cancel" OnClick="Close" />
-                        <AppButton Label="Set temporary password" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@(_saving || string.IsNullOrWhiteSpace(_temporaryPassword))" OnClick="SetTemporaryPassword" />
+                        <AppButton Label="@L["Search_Cancel"].Value" OnClick="Close" />
+                        <AppButton Label="@L["ManagedAccessUsers_SetTemporaryPassword"].Value" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@(_saving || string.IsNullOrWhiteSpace(_temporaryPassword))" OnClick="SetTemporaryPassword" />
                     </div>
                 }
             }
@@ -166,10 +167,10 @@
                                               Busy="@_saving" Error="@_deleteError" />
                 }
                 <div class="access-form-actions">
-                    <AppButton Label="Keep sign-in" Disabled="@_saving" OnClick="Close" />
+                    <AppButton Label="@L["ManagedAccessUsers_KeepSignIn"].Value" Disabled="@_saving" OnClick="Close" />
                     @if (CanDelete)
                     {
-                        <AppButton Label="Delete sign-in" Tone="AppUiTone.Error" ButtonStyle="AppButtonStyle.Filled" Disabled="@_saving" OnClick="DeleteUser" />
+                        <AppButton Label="@L["ManagedAccessUsers_DeleteSignIn"].Value" Tone="AppUiTone.Error" ButtonStyle="AppButtonStyle.Filled" Disabled="@_saving" OnClick="DeleteUser" />
                     }
                 </div>
             }
@@ -190,12 +191,12 @@
     {
         var items = new List<AppRowMenuItem>
         {
-            new() { Label = "Change email", Icon = AppMaterialIcons.Outlined.Mail, OnClick = EventCallback.Factory.Create(this, () => OpenEmail(user)) },
-            new() { Label = "Set temporary password", Icon = AppMaterialIcons.Outlined.Key, OnClick = EventCallback.Factory.Create(this, () => OpenTemporaryPassword(user)) },
+            new() { Label = L["ManagedAccessUsers_ChangeEmail"].Value, Icon = AppMaterialIcons.Outlined.Mail, OnClick = EventCallback.Factory.Create(this, () => OpenEmail(user)) },
+            new() { Label = L["ManagedAccessUsers_SetTemporaryPassword"].Value, Icon = AppMaterialIcons.Outlined.Key, OnClick = EventCallback.Factory.Create(this, () => OpenTemporaryPassword(user)) },
         };
         if (user.HasTwoStep)
-            items.Add(new() { Label = "Turn off two-step codes", Icon = AppMaterialIcons.Outlined.Lock, OnClick = EventCallback.Factory.Create(this, () => ResetTwoStep(user)) });
-        items.Add(new() { Label = "Delete sign-in", Icon = AppMaterialIcons.Outlined.Delete, Destructive = true, OnClick = EventCallback.Factory.Create(this, () => ConfirmDelete(user)) });
+            items.Add(new() { Label = L["ManagedAccessUsers_TurnOffTwoStepCodes"].Value, Icon = AppMaterialIcons.Outlined.Lock, OnClick = EventCallback.Factory.Create(this, () => ResetTwoStep(user)) });
+        items.Add(new() { Label = L["ManagedAccessUsers_DeleteSignIn"].Value, Icon = AppMaterialIcons.Outlined.Delete, Destructive = true, OnClick = EventCallback.Factory.Create(this, () => ConfirmDelete(user)) });
         return items;
     }
     private long _drawerGeneration;

@@ -61,7 +61,7 @@ public sealed class ImportPanelTests : AsyncBunitContext
         Recognised = true,
         Heading = "Film classics",
         Subheading = "A ready-made set of collections",
-        Message = "Library recognises this as a collection pack. Adding packs arrives with Start from a pack.",
+        Message = "Add it from New collection, Start from a pack.",
     };
 
     private static ListImportPreviewDto GoodreadsList(string? shelf = null) => new()
@@ -107,7 +107,7 @@ public sealed class ImportPanelTests : AsyncBunitContext
 
         Choose(cut, "classics.json");
         cut.WaitForAssertion(() => Assert.Equal(ImportKinds.PackFile, cut.Find("[data-import-frame]").GetAttribute("data-import-kind")));
-        Assert.Contains("Adding packs arrives with Start from a pack.", cut.Markup);
+        Assert.Contains("Add it from New collection, Start from a pack.", cut.Markup);
 
         Choose(cut, "goodreads.csv");
         cut.WaitForAssertion(() => Assert.Equal(ImportKinds.CollectionList, cut.Find("[data-import-frame]").GetAttribute("data-import-kind")));

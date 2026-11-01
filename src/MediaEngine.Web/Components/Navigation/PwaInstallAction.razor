@@ -1,11 +1,12 @@
 @namespace MediaEngine.Web.Components.Navigation
 @inject IJSRuntime JS
 @implements IAsyncDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 @if (_state != "installed")
 {
     <div class="admin-install-option">
-        <AppButton Label="Install on this device" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact"
+        <AppButton Label="@L["PwaInstallAction_InstallOnThisDevice"].Value" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact"
                    StartIcon="@AppMaterialIcons.Outlined.InstallDesktop" OnClick="InstallAsync" />
         @if (_showInstructions || _state == "ios")
         {

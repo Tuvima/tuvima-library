@@ -17,7 +17,7 @@ public static class TuvimaImportServiceCollectionExtensions
 
         // One handler per kind of file. The recogniser asks them in Priority order and a later registration of the same kind
         // replaces an earlier one, so a packet that owns a kind registers its handler after the placeholder here:
-        //   - the collection packs packet (WP7) fills in the pack file kind (PackFileImportKindHandler is its placeholder);
+        //   - the pack file kind (PackFileImportKindHandler) reads through the packs packet's IPackFileImporter;
         //   - a Goodreads library import that also sets reading status would add its own kind.
         services.AddSingleton<IImportKindHandler, BookmarkPackImportKindHandler>();
         services.AddSingleton<IImportKindHandler, PackFileImportKindHandler>();

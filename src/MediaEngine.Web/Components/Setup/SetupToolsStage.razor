@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Setup
 @using MediaEngine.Contracts.Setup
 @using MediaEngine.Web.Components.Shared.Tools
+@inject IStringLocalizer<SharedStrings> L
 
 @* "Here is what Library needs": every tool is listed with the same row Settings > Tools and requirements draws, ready or not. A missing optional tool
    has a "Download now" tick, on by default, that starts its download when Continue is pressed. Nothing here blocks: Continue is always offered once the
@@ -10,19 +11,19 @@
     {
         <div class="setup-stage__heading">
             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FactCheck" />
-            <div><h2 id="setup-stage-title">The Library needs a hand</h2><p>Something on this server stopped setup from getting ready.</p></div>
+            <div><h2 id="setup-stage-title">@L["SetupToolsStage_TheLibraryNeedsAHand"]</h2><p>@L["SetupToolsStage_SomethingOnThisServerStopped"]</p></div>
         </div>
         @* One plain message however many checks failed; the technical detail is only in the Engine log. *@
         <AppAlert Tone="AppUiTone.Error">
             <p>@CouldNotCheckMessage</p>
         </AppAlert>
-        <div class="setup-actions"><AppButton Label="Retry" StartIcon="@AppMaterialIcons.Outlined.Refresh" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" OnClick="Retry" /></div>
+        <div class="setup-actions"><AppButton Label="@L["Common_Retry"].Value" StartIcon="@AppMaterialIcons.Outlined.Refresh" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" OnClick="Retry" /></div>
     }
     else if (!Busy && Preflight is { Passed: true })
     {
         <div class="setup-stage__heading">
             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FactCheck" />
-            <div><h2 id="setup-stage-title">Tools</h2><p>Library uses a few outside programs to read and prepare your media. Optional ones can be downloaded now or later.</p></div>
+            <div><h2 id="setup-stage-title">@L["Common_Tools"]</h2><p>@L["SetupToolsStage_LibraryUsesAFewOutside"]</p></div>
         </div>
         <div class="setup-tools" data-testid="setup-tools">
             @foreach (var tool in Listed)
@@ -31,31 +32,31 @@
                     <Actions>
                         @if (SetupToolRules.Action(tool) == SetupToolAction.Download)
                         {
-                            <AppCheckbox Label="Download now" Value="@(!Skipped.Contains(tool.Id))" ValueChanged="@(value => DownloadChanged.InvokeAsync((tool.Id, value)))" />
+                            <AppCheckbox Label="@L["SetupToolsStage_DownloadNow"].Value" Value="@(!Skipped.Contains(tool.Id))" ValueChanged="@(value => DownloadChanged.InvokeAsync((tool.Id, value)))" />
                         }
                         else if (SetupToolRules.Action(tool) == SetupToolAction.RunInstaller)
                         {
-                            <AppButton Label="Run installer" Size="AppControlSize.Compact" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="@(() => RunInstaller.InvokeAsync(tool))" />
+                            <AppButton Label="@L["Common_RunInstaller"].Value" Size="AppControlSize.Compact" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" OnClick="@(() => RunInstaller.InvokeAsync(tool))" />
                         }
                     </Actions>
                 </ToolRequirementRow>
             }
         </div>
-        <small>The local AI engine is set up in Settings, Local AI, after setup.</small>
+        <small>@L["SetupToolsStage_TheLocalAIEngineIs"]</small>
         <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
-            <AppButton Label="Check again" StartIcon="@AppMaterialIcons.Outlined.Refresh" ButtonStyle="AppButtonStyle.Outlined" OnClick="Retry" />
-            <AppButton Label="Continue" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Continue" />
+            <AppButton Label="@L["Common_CheckAgain"].Value" StartIcon="@AppMaterialIcons.Outlined.Refresh" ButtonStyle="AppButtonStyle.Outlined" OnClick="Retry" />
+            <AppButton Label="@L["Common_Continue"].Value" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Continue" />
         </SetupStageFooter>
     }
     else
     {
         <div class="setup-stage__heading">
             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FactCheck" />
-            <div><h2 id="setup-stage-title">Checking your tools</h2><p>This usually takes only a moment.</p></div>
+            <div><h2 id="setup-stage-title">@L["SetupToolsStage_CheckingYourTools"]</h2><p>@L["SetupToolsStage_ThisUsuallyTakesOnlyA"]</p></div>
         </div>
         <div class="setup-preparing" role="status" aria-live="polite">
             <AppSpinner Indeterminate="true" Color="AppColor.Primary" />
-            <span>Checking your tools…</span>
+            <span>@L["SetupToolsStage_CheckingYourTools2"]</span>
         </div>
     }
 </div>

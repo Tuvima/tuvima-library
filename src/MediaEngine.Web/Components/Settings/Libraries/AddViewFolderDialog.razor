@@ -6,13 +6,14 @@
 @using MediaEngine.Web.Services.Ui
 @inject IEngineApiClient Api
 @inject IAppDialogService DialogService
+@inject IStringLocalizer<SharedStrings> L
 
 @* Add a View folder in first-run setup (library setup and add-folder v2, D15, D16): the same look as the second screen of Add library. The
    content type is the row the person clicked (Photos, Personal videos or Documents), so the dialog asks one thing: the folder. Browse opens
    the shared "Choose your ... folder" pop-up. In setup a View folder is always shared with everyone and read where it already is, so nothing is
    copied or changed; choosing who sees what is a Settings job. If View has nowhere to keep its files yet, the dialog asks for that location too,
    pre-filled, and Add folder stays off until both are valid, so a View folder can never be saved with no storage behind it. *@
-<AppDialogShell Eyebrow="View"
+<AppDialogShell Eyebrow="@L["Nav_View"].Value"
                 Title="@Heading"
                 Subtitle="@($"Pick the folder on the Library server that holds your {Noun}.")"
                 Size="Large"
@@ -20,7 +21,7 @@
     <ChildContent>
         <div class="add-view-folder">
             <section class="add-view-folder__section">
-                <span class="add-view-folder__caption" id="add-view-folder-caption">Folder</span>
+                <span class="add-view-folder__caption" id="add-view-folder-caption">@L["Common_Folder"]</span>
                 <div class="add-view-folder__folder">
                     <div class="add-view-folder__path" data-folder-path aria-labelledby="add-view-folder-caption">
                         @if (_folder is { } chosen)
@@ -30,10 +31,10 @@
                         }
                         else
                         {
-                            <span class="add-view-folder__text add-view-folder__text--empty">Browse for a folder</span>
+                            <span class="add-view-folder__text add-view-folder__text--empty">@L["AddViewFolderDialog_BrowseForAFolder"]</span>
                         }
                     </div>
-                    <AppButton Label="Browse" StartIcon="@AppMaterialIcons.Outlined.FolderOpen" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_saving" OnClick="BrowseFolderAsync" />
+                    <AppButton Label="@L["AddViewFolderDialog_Browse"].Value" StartIcon="@AppMaterialIcons.Outlined.FolderOpen" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_saving" OnClick="BrowseFolderAsync" />
                 </div>
                 @if (_folder is { } problem && !FolderUsable)
                 {
@@ -43,22 +44,22 @@
                 {
                     <p class="add-view-folder__check" data-folder-result="accessible"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" />@accessible</p>
                 }
-                <p class="add-view-folder__line">Library scans this folder and its subfolders. Your files are never changed.</p>
+                <p class="add-view-folder__line">@L["AddViewFolderDialog_LibraryScansThisFolderAnd"]</p>
             </section>
 
             <section class="add-view-folder__section">
-                <span class="add-view-folder__caption">Folder name</span>
-                <AppTextField Label="Folder name" HideLabel="true" Value="@_name" ValueChanged="NameChanged" MaxLength="80" ReadOnly="@_saving" />
-                <p class="add-view-folder__line">This is how it appears in your list. You can rename it later.</p>
+                <span class="add-view-folder__caption">@L["Common_FolderName"]</span>
+                <AppTextField Label="@L["Common_FolderName"].Value" HideLabel="true" Value="@_name" ValueChanged="NameChanged" MaxLength="80" ReadOnly="@_saving" />
+                <p class="add-view-folder__line">@L["AddViewFolderDialog_ThisIsHowItAppears"]</p>
             </section>
 
             @if (!StorageReady)
             {
                 <section class="add-view-folder__section" data-view-storage>
-                    <span class="add-view-folder__caption">Where View keeps its files</span>
+                    <span class="add-view-folder__caption">@L["AddViewFolderDialog_WhereViewKeepsItsFiles"]</span>
                     @if (_storageWritable.Count == 0)
                     {
-                        <AppAlert Tone="AppUiTone.Warning" Dense="true">Library has no place to keep View files yet. You can add one in Settings after setup, then add this folder.</AppAlert>
+                        <AppAlert Tone="AppUiTone.Warning" Dense="true">@L["AddViewFolderDialog_LibraryHasNoPlaceTo"]</AppAlert>
                     }
                     else
                     {
@@ -67,16 +68,16 @@
                                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Storage" />
                                 <span class="add-view-folder__text">@StoragePath</span>
                             </div>
-                            <AppButton Label="Browse" StartIcon="@AppMaterialIcons.Outlined.FolderOpen" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_saving" OnClick="BrowseStorageAsync" />
+                            <AppButton Label="@L["AddViewFolderDialog_Browse"].Value" StartIcon="@AppMaterialIcons.Outlined.FolderOpen" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_saving" OnClick="BrowseStorageAsync" />
                         </div>
-                        <p class="add-view-folder__line">View keeps thumbnails and anything Library creates here. Your own files stay where they are.</p>
+                        <p class="add-view-folder__line">@L["AddViewFolderDialog_ViewKeepsThumbnailsAndAnything"]</p>
                     }
                 </section>
             }
 
             @if (_folder is null)
             {
-                <p class="add-view-folder__line" data-choose-folder>Choose a folder to continue.</p>
+                <p class="add-view-folder__line" data-choose-folder>@L["AddViewFolderDialog_ChooseAFolderToContinue"]</p>
             }
 
             @if (!string.IsNullOrWhiteSpace(_error))
@@ -87,8 +88,8 @@
     </ChildContent>
     <FooterContent>
         <AppActionBar Align="AppHorizontalAlignment.End">
-            <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" Disabled="@_saving" OnClick="@(() => Dialog.Cancel())" />
-            <AppButton Label="Add folder" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_saving" Disabled="@(!CanAdd)" OnClick="AddAsync" />
+            <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@_saving" OnClick="@(() => Dialog.Cancel())" />
+            <AppButton Label="@L["Common_AddFolder"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_saving" Disabled="@(!CanAdd)" OnClick="AddAsync" />
         </AppActionBar>
     </FooterContent>
 </AppDialogShell>

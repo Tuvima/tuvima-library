@@ -1,7 +1,8 @@
 @namespace MediaEngine.Web.Components.Shared
+@inject IStringLocalizer<SharedStrings> L
 
 @* "Official Tuvima" with the real Tuvima icon, not a generic shield (spec: plugins-and-integrations-screens-v3 D28). *@
-<AppStatusBadge Text="@Text" Tone="AppUiTone.Primary" Title="Made by Tuvima" Class="app-official-pill">
+<AppStatusBadge Text="@Text" Tone="AppUiTone.Primary" Title="@L["AppOfficialPill_MadeByTuvima"].Value" Class="app-official-pill">
     <img class="app-official-pill__icon" src="images/tuvima-icon.svg" alt="" width="@IconSize" height="@IconSize" />
     <span>@Text</span>
 </AppStatusBadge>

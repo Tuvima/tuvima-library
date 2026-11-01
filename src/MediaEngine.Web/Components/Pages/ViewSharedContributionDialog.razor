@@ -2,30 +2,31 @@
 @inject IEngineApiClient ApiClient
 @namespace MediaEngine.Web.Components.Pages
 @implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
 
-<AppDialogShell Title="Submit to Shared Library" Subtitle="Send selected photos to the household Shared Library for a household administrator to review." Size="Medium" OnClose="@(() => Dialog.Cancel())">
+<AppDialogShell Title="@L["Common_SubmitToSharedLibrary"].Value" Subtitle="@L["ViewSharedContributionDialog_SendSelectedPhotosToThe"].Value" Size="Medium" OnClose="@(() => Dialog.Cancel())">
     <ChildContent>
         @if (_loading) { <AppProgressBar Indeterminate="true" /> }
         else if (!string.IsNullOrWhiteSpace(_error)) { <AppAlert Tone="AppUiTone.Error">@_error</AppAlert> }
         else
         {
             <AppAlert Tone="AppUiTone.Info">@Summary</AppAlert>
-            <div role="radiogroup" aria-label="Shared Library destination">
-                <AppNativeButton Type="button" role="radio" aria-checked="@(_kind == "timeline")" Class="@(_kind == "timeline" ? "is-selected" : null)" OnClick="@(_ => SelectKindAsync("timeline"))"><strong>Shared Timeline</strong><span>Organize by capture year and month.</span></AppNativeButton>
-                <AppNativeButton Type="button" role="radio" aria-checked="@(_kind == "folder")" Class="@(_kind == "folder" ? "is-selected" : null)" OnClick="@(_ => SelectKindAsync("folder"))"><strong>Named Shared folder</strong><span>Keep these files together under Shared/Folders.</span></AppNativeButton>
+            <div role="radiogroup" aria-label="@L["ViewSharedContributionDialog_SharedLibraryDestination"].Value">
+                <AppNativeButton Type="button" role="radio" aria-checked="@(_kind == "timeline")" Class="@(_kind == "timeline" ? "is-selected" : null)" OnClick="@(_ => SelectKindAsync("timeline"))"><strong>@L["ViewSharedContributionDialog_SharedTimeline"]</strong><span>@L["ViewSharedContributionDialog_OrganizeByCaptureYearAnd"]</span></AppNativeButton>
+                <AppNativeButton Type="button" role="radio" aria-checked="@(_kind == "folder")" Class="@(_kind == "folder" ? "is-selected" : null)" OnClick="@(_ => SelectKindAsync("folder"))"><strong>@L["ViewSharedContributionDialog_NamedSharedFolder"]</strong><span>@L["ViewSharedContributionDialog_KeepTheseFilesTogetherUnder"]</span></AppNativeButton>
             </div>
-            @if (_kind == "folder") { <AppTextField Label="Shared folder name" Value="@_folderName" ValueChanged="FolderNameChangedAsync" /> }
-            <AppTextField Label="Note for the reviewer (optional)" Value="@_note" ValueChanged="@(value => _note = value ?? string.Empty)" />
+            @if (_kind == "folder") { <AppTextField Label="@L["ViewSharedContributionDialog_SharedFolderName"].Value" Value="@_folderName" ValueChanged="FolderNameChangedAsync" /> }
+            <AppTextField Label="@L["ViewSharedContributionDialog_NoteForTheReviewerOptional"].Value" Value="@_note" ValueChanged="@(value => _note = value ?? string.Empty)" />
             @if (_preview is not null)
             {
-                <div><strong>Destination preview</strong>@foreach (var path in _preview.Items.Select(value => value.DestinationRoot).Distinct(StringComparer.OrdinalIgnoreCase)) { <code>@path</code> }</div>
+                <div><strong>@L["ViewSharedContributionDialog_DestinationPreview"]</strong>@foreach (var path in _preview.Items.Select(value => value.DestinationRoot).Distinct(StringComparer.OrdinalIgnoreCase)) { <code>@path</code> }</div>
             }
             <p>Nothing moves while the contribution is pending. If accepted, managed originals move after verification; linked originals are copied and remain at their source.</p>
         }
     </ChildContent>
     <FooterContent>
-        <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
-        <AppButton Label="Submit for review" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_loading || _error is not null || _preview is null || (_kind == "folder" && string.IsNullOrWhiteSpace(_folderName)))" OnClick="Complete" />
+        <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
+        <AppButton Label="@L["ViewSharedContributionDialog_SubmitForReview"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_loading || _error is not null || _preview is null || (_kind == "folder" && string.IsNullOrWhiteSpace(_folderName)))" OnClick="Complete" />
     </FooterContent>
 </AppDialogShell>
 

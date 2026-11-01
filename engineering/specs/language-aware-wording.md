@@ -1,6 +1,6 @@
 # Language-aware app wording
 
-- **Status:** Locked
+- **Status:** Built, awaiting Local checks
 - **Version:** 1
 - **Last updated:** 2026-10-31
 - **Related docs:** engineering/specs/plugin-architecture.md (C11 Languages), engineering/specs/users-profiles-households.md, engineering/specs/settings-and-top-navigation.md, docs/product/presentation-rules.md

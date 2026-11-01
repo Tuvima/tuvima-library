@@ -9,39 +9,40 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject ILogger<AudiobookBookmarkDialog> Logger
+@inject IStringLocalizer<SharedStrings> L
 
 @if (!Embedded) { <div class="audiobook-bookmark-dialog-backdrop @(IsMobile ? null : "is-light")" @onclick="CloseAsync" aria-hidden="true"></div> }
 <div class="audiobook-bookmark-dialog-layer @(Embedded ? "is-embedded" : IsMobile ? "is-mobile" : null)" @ref="_gestureRoot" @onclick="StopPropagation" @onclick:stopPropagation="true">
-    <PlaybackToolSheet Title="Bookmarks"
+    <PlaybackToolSheet Title="@L["Glossary_Bookmarks"].Value"
                        Subtitle="@WorkTitle"
                        Icon="@AppMaterialIcons.Outlined.Bookmarks"
                        Surface="@Surface"
                        Modal="@(!Embedded)"
                        Class="audiobook-bookmark-dialog-sheet"
                        OnClose="CloseAsync">
-        <div class="audiobook-bookmark-dialog__tabs" role="tablist" aria-label="Bookmark sections">
+        <div class="audiobook-bookmark-dialog__tabs" role="tablist" aria-label="@L["AudiobookBookmarkDialog_BookmarkSections"].Value">
             <AppNativeButton Type="button" Class="@($"audiobook-bookmark-dialog__tab {(SelectedTab == BookmarkTab.Add ? "is-selected" : null)}")"
                              role="tab" aria-selected="@(SelectedTab == BookmarkTab.Add ? "true" : "false")"
-                             OnClick="@(() => SelectTabAsync(BookmarkTab.Add))">Add</AppNativeButton>
+                             OnClick="@(() => SelectTabAsync(BookmarkTab.Add))">@L["Vibes_Add"]</AppNativeButton>
             <AppNativeButton Type="button" Class="@($"audiobook-bookmark-dialog__tab {(SelectedTab == BookmarkTab.Saved ? "is-selected" : null)}")"
                              role="tab" aria-selected="@(SelectedTab == BookmarkTab.Saved ? "true" : "false")"
-                             OnClick="@(() => SelectTabAsync(BookmarkTab.Saved))">Saved</AppNativeButton>
+                             OnClick="@(() => SelectTabAsync(BookmarkTab.Saved))">@L["Common_Saved"]</AppNativeButton>
         </div>
 
         <div class="audiobook-bookmark-dialog__content" role="tabpanel">
             @if (Snapshot is null)
             {
-                <div class="audiobook-bookmark-dialog__state" role="status">Loading bookmark details…</div>
+                <div class="audiobook-bookmark-dialog__state" role="status">@L["AudiobookBookmarkDialog_LoadingBookmarkDetails"]</div>
             }
             else if (SelectedTab == BookmarkTab.Add)
             {
                 <EditForm Model="_form" OnValidSubmit="SaveAsync" class="audiobook-bookmark-dialog__add-form">
                     @if (Snapshot.Draft is { } draft)
                     {
-                        <div class="audiobook-bookmark-dialog__capture" aria-label="Captured bookmark position">
+                        <div class="audiobook-bookmark-dialog__capture" aria-label="@L["AudiobookBookmarkDialog_CapturedBookmarkPosition"].Value">
                             <AppNativeButton Type="button" Class="audiobook-bookmark-dialog__preview" Disabled="@(_previewing || Snapshot.IsSaving)"
                                              AriaLabel="@(_previewing ? "Previewing captured bookmark position" : "Preview captured bookmark position")"
-                                             title="Preview captured position" OnClick="PreviewAsync">
+                                             title="@L["AudiobookBookmarkDialog_PreviewCapturedPosition"].Value" OnClick="PreviewAsync">
                                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlayArrow" />
                             </AppNativeButton>
                             <div class="audiobook-bookmark-dialog__capture-copy">
@@ -49,22 +50,22 @@
                                 <span>@(string.IsNullOrWhiteSpace(draft.ChapterTitle) ? PositionLabel : draft.ChapterTitle)</span>
                             </div>
                         </div>
-                        <label class="audiobook-bookmark-dialog__note-label" for="@_noteId">Note <span>optional</span></label>
+                        <label class="audiobook-bookmark-dialog__note-label" for="@_noteId">@L["Common_Note"] <span>optional</span></label>
                         <textarea id="@_noteId" class="audiobook-bookmark-dialog__note" maxlength="200" rows="3"
-                                  aria-label="Optional bookmark note" aria-describedby="@_counterId"
+                                  aria-label="@L["AudiobookBookmarkDialog_OptionalBookmarkNote"].Value" aria-describedby="@_counterId"
                                   @bind="_note" @bind:event="oninput" data-bookmark-swipe-exclude="true"></textarea>
                         <div id="@_counterId" class="audiobook-bookmark-dialog__counter">@_note.Length / @AudiobookBookmarkNotePolicy.MaximumLength</div>
                         @if (AllowDescription)
                         {
-                            <label class="audiobook-bookmark-dialog__note-label" for="@_descriptionId">Longer description <span>optional</span></label>
+                            <label class="audiobook-bookmark-dialog__note-label" for="@_descriptionId">@L["AudiobookBookmarkDialog_LongerDescription"] <span>optional</span></label>
                             <textarea id="@_descriptionId" class="audiobook-bookmark-dialog__note" maxlength="4000" rows="4"
-                                      aria-label="Optional longer description" aria-describedby="@_descriptionCounterId"
+                                      aria-label="@L["AudiobookBookmarkDialog_OptionalLongerDescription"].Value" aria-describedby="@_descriptionCounterId"
                                       @bind="_description" @bind:event="oninput" data-bookmark-swipe-exclude="true"></textarea>
                             <div id="@_descriptionCounterId" class="audiobook-bookmark-dialog__counter">@_description.Length / @AudiobookBookmarkNotePolicy.MaximumDescriptionLength</div>
                         }
                         @if (CanShare)
                         {
-                            <AppSwitchRow Label="Share with everyone" Description="Everyone who can see this title will see it. Only administrators can change it."
+                            <AppSwitchRow Label="@L["AudiobookBookmarkDialog_ShareWithEveryone"].Value" Description="@L["AudiobookBookmarkDialog_EveryoneWhoCanSeeThis"].Value"
                                           Value="_share" ValueChanged="@(value => _share = value)" Size="AppSize.Small" />
                         }
                     }
@@ -82,8 +83,8 @@
                     @if (Snapshot.SaveOutcomeUnknown)
                     {
                         <div class="audiobook-bookmark-dialog__unknown" role="alert">
-                            <span>The save outcome is unknown. Reload Saved before deciding whether to try again.</span>
-                            <AppNativeButton Type="button" Class="audiobook-bookmark-dialog__secondary" Disabled="@Snapshot.IsLoading" OnClick="ReloadSavedAsync">Reload Saved</AppNativeButton>
+                            <span>@L["AudiobookBookmarkDialog_TheSaveOutcomeIsUnknown"]</span>
+                            <AppNativeButton Type="button" Class="audiobook-bookmark-dialog__secondary" Disabled="@Snapshot.IsLoading" OnClick="ReloadSavedAsync">@L["AudiobookBookmarkDialog_ReloadSaved"]</AppNativeButton>
                         </div>
                     }
                     <div class="audiobook-bookmark-dialog__footer">
@@ -97,22 +98,22 @@
             else
             {
                 <div class="audiobook-bookmark-dialog__saved-toolbar">
-                    <span>Saved positions</span>
+                    <span>@L["AudiobookBookmarkDialog_SavedPositions"]</span>
                     <AppNativeButton Type="button" Class="audiobook-bookmark-dialog__reload" Disabled="@Snapshot.IsLoading" OnClick="ReloadSavedAsync">
                         @(Snapshot.IsLoading ? "Loading…" : "Reload Saved")
                     </AppNativeButton>
                 </div>
                 @if (Snapshot.IsLoading && Snapshot.Saved.Count == 0)
                 {
-                    <div class="audiobook-bookmark-dialog__state" role="status">Loading saved bookmarks…</div>
+                    <div class="audiobook-bookmark-dialog__state" role="status">@L["AudiobookBookmarkDialog_LoadingSavedBookmarks"]</div>
                 }
                 else if (Snapshot.Saved.Count == 0)
                 {
-                    <div class="audiobook-bookmark-dialog__state">No saved bookmarks yet.</div>
+                    <div class="audiobook-bookmark-dialog__state">@L["AudiobookBookmarkDialog_NoSavedBookmarksYet"]</div>
                 }
                 else
                 {
-                    <div class="audiobook-bookmark-dialog__saved-list" aria-label="Saved bookmarks">
+                    <div class="audiobook-bookmark-dialog__saved-list" aria-label="@L["AudiobookBookmarkDialog_SavedBookmarks"].Value">
                         @foreach (var bookmark in Snapshot.Saved.OrderByDescending(item => item.CreatedAt))
                         {
                             <article class="audiobook-bookmark-dialog__saved-row" data-bookmark-swipe-row="@bookmark.Id" data-swipe-revealed="false">
@@ -121,20 +122,20 @@
                                     {
                                         <AppNativeButton Type="button" Class="audiobook-bookmark-dialog__swipe-delete"
                                                          data-bookmark-swipe-action="true" data-bookmark-swipe-exclude="true"
-                                                         AriaLabel="Request deletion of bookmark" title="Request deletion of bookmark"
+                                                         AriaLabel="@L["AudiobookBookmarkDialog_RequestDeletionOfBookmark"].Value" title="@L["AudiobookBookmarkDialog_RequestDeletionOfBookmark"].Value"
                                                          OnClick="@(() => RequestDeleteAsync(bookmark.Id))">
                                             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DeleteOutline" />
                                         </AppNativeButton>
                                     }
                                 </div>
                                 <div class="audiobook-bookmark-dialog__saved-main">
-                                    <AppNativeButton Type="button" Class="audiobook-bookmark-dialog__replay" AriaLabel="Replay bookmark" title="Replay bookmark"
+                                    <AppNativeButton Type="button" Class="audiobook-bookmark-dialog__replay" AriaLabel="@L["AudiobookBookmarkDialog_ReplayBookmark"].Value" title="@L["AudiobookBookmarkDialog_ReplayBookmark"].Value"
                                                      OnClick="@(() => ReplayAsync(bookmark.Id))">
                                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlayArrow" />
                                     </AppNativeButton>
                                     <div class="audiobook-bookmark-dialog__saved-copy">
                                         <strong>@FormatPosition(bookmark.PositionSeconds)</strong>
-                                        <span>@(string.IsNullOrWhiteSpace(bookmark.ChapterTitle) ? PositionLabel : bookmark.ChapterTitle)@if (bookmark.IsGlobal) { <em class="audiobook-bookmark-dialog__everyone"> · Everyone</em> }</span>
+                                        <span>@(string.IsNullOrWhiteSpace(bookmark.ChapterTitle) ? PositionLabel : bookmark.ChapterTitle)@if (bookmark.IsGlobal) { <em class="audiobook-bookmark-dialog__everyone"> @L["Common_Everyone"]</em> }</span>
                                     </div>
                                     <div class="audiobook-bookmark-dialog__saved-actions">
                                         @if (!string.IsNullOrWhiteSpace(bookmark.Note) || !string.IsNullOrWhiteSpace(bookmark.Description))
@@ -142,12 +143,12 @@
                                             <AppNativeButton Type="button" Class="audiobook-bookmark-dialog__note-toggle"
                                                              aria-expanded="@(_expandedNoteId == bookmark.Id ? "true" : "false")"
                                                              AriaLabel="@(_expandedNoteId == bookmark.Id ? "Hide bookmark note" : "Read bookmark note")"
-                                                             title="Read bookmark note" OnClick="@(() => ToggleNote(bookmark.Id))"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.EditNote" /></AppNativeButton>
+                                                             title="@L["AudiobookBookmarkDialog_ReadBookmarkNote"].Value" OnClick="@(() => ToggleNote(bookmark.Id))"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.EditNote" /></AppNativeButton>
                                         }
                                         @if (CanChange(bookmark))
                                         {
                                             <AppNativeButton Type="button" Class="audiobook-bookmark-dialog__delete-request"
-                                                             AriaLabel="Request deletion of bookmark" title="Delete bookmark"
+                                                             AriaLabel="@L["AudiobookBookmarkDialog_RequestDeletionOfBookmark"].Value" title="@L["Common_DeleteBookmark"].Value"
                                                              data-bookmark-swipe-exclude="true"
                                                              OnClick="@(() => RequestDeleteAsync(bookmark.Id))">
                                                 <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Close" />
@@ -165,10 +166,10 @@
                                 }
                                 @if (Snapshot.DeleteConfirmationBookmarkId == bookmark.Id)
                                 {
-                                    <div class="audiobook-bookmark-dialog__confirm" role="group" aria-label="Confirm bookmark deletion">
-                                        <span>Delete this bookmark?</span>
-                                        <AppNativeButton Type="button" Class="audiobook-bookmark-dialog__confirm-delete" Disabled="@_deleteBusy" OnClick="ConfirmDeleteAsync">Delete</AppNativeButton>
-                                        <AppNativeButton Type="button" Class="audiobook-bookmark-dialog__cancel-delete" Disabled="@_deleteBusy" OnClick="CancelDeleteAsync">Cancel</AppNativeButton>
+                                    <div class="audiobook-bookmark-dialog__confirm" role="group" aria-label="@L["AudiobookBookmarkDialog_ConfirmBookmarkDeletion"].Value">
+                                        <span>@L["AudiobookBookmarkDialog_DeleteThisBookmark"]</span>
+                                        <AppNativeButton Type="button" Class="audiobook-bookmark-dialog__confirm-delete" Disabled="@_deleteBusy" OnClick="ConfirmDeleteAsync">@L["Common_Delete"]</AppNativeButton>
+                                        <AppNativeButton Type="button" Class="audiobook-bookmark-dialog__cancel-delete" Disabled="@_deleteBusy" OnClick="CancelDeleteAsync">@L["Search_Cancel"]</AppNativeButton>
                                     </div>
                                 }
                             </article>
@@ -347,7 +348,7 @@
             await InvokeAsync(() =>
             {
                 if (!IsCurrent(context, generation)) return;
-                _localMessage = "Bookmark details could not be refreshed. Try reloading Saved.";
+                _localMessage = L["AudiobookBookmarkDialog_BookmarkDetailsCouldNotBe"].Value;
                 StateHasChanged();
             });
         }
@@ -426,7 +427,7 @@
             _share = false;
             _savedLoaded = true;
             SelectedTab = BookmarkTab.Saved;
-            _localMessage = "Bookmark saved.";
+            _localMessage = L["AudiobookBookmarkDialog_BookmarkSaved"].Value;
         }
         else if (result.Outcome == AudiobookBookmarkOperationOutcome.Unknown)
         {
@@ -463,7 +464,7 @@
         var authorizedAssetIds = AuthorizedAssetIds;
         var requested = await Actions.RequestDeleteAsync(context, bookmarkId, authorizedAssetIds);
         if (!IsCurrent(context, generation)) return;
-        if (!requested) _localMessage = "That bookmark is no longer available to delete.";
+        if (!requested) _localMessage = L["AudiobookBookmarkDialog_ThatBookmarkIsNoLonger"].Value;
         if (_gestureModule is not null)
         {
             try { await _gestureModule.InvokeVoidAsync("hideBookmarkSwipe", _gestureRoot); }

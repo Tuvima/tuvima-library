@@ -19,19 +19,19 @@
          @onkeydown="HandleOverlayKeyDown">
         <AppNativeButton Type="button"
                          Class="universal-search-overlay__backdrop"
-                         AriaLabel="Close search"
+                         AriaLabel="@L["UniversalSearchOverlay_CloseSearch"].Value"
                          OnClick="CloseAsync" />
         <AppFocusTrap DefaultFocus="false">
         <div class="universal-search-overlay__surface">
             <header class="universal-search-overlay__header">
                 <div class="universal-search-overlay__title-row">
                     <div>
-                        <h1 id="universal-search-title">Search</h1>
-                        <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Bolt" /> Results update instantly as you type</span>
+                        <h1 id="universal-search-title">@L["Nav_Search"]</h1>
+                        <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Bolt" /> @L["Common_ResultsUpdateInstantlyAsYou"]</span>
                     </div>
                     <AppNativeButton Type="button"
                                      Class="universal-search-overlay__close"
-                                     AriaLabel="Close search"
+                                     AriaLabel="@L["UniversalSearchOverlay_CloseSearch"].Value"
                                      OnClick="CloseAsync">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" />
                     </AppNativeButton>
@@ -43,8 +43,8 @@
                                     Value="@_query"
                                     OnInput="OnInput"
                                     OnKeyDown="HandleInputKeyDown"
-                                    Placeholder="Search titles, people, series, playlists, or collections…"
-                                    AriaLabel="Search the entire library"
+                                    Placeholder="@L["Common_SearchTitlesPeopleSeriesPlaylists"].Value"
+                                    AriaLabel="@L["UniversalSearchOverlay_SearchTheEntireLibrary"].Value"
                                     autocomplete="off"
                                     enterkeyhint="search" />
                     @if (_loading)
@@ -55,7 +55,7 @@
                     {
                         <AppNativeButton Type="button"
                                          Class="universal-search-overlay__clear"
-                                         AriaLabel="Clear search"
+                                         AriaLabel="@L["UniversalSearchOverlay_ClearSearch"].Value"
                                          OnClick="ClearAsync">
                             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" />
                         </AppNativeButton>
@@ -74,12 +74,12 @@
                 {
                     <div class="universal-search-overlay__empty">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" />
-                        <h2>Search your library</h2>
-                        <p>Find books, movies, shows, albums, audiobooks, people, series, collections, and playlists.</p>
+                        <h2>@L["Search_Title"]</h2>
+                        <p>@L["UniversalSearchOverlay_FindBooksMoviesShowsAlbums"]</p>
                         @if (_recentSearches.Count > 0)
                         {
                             <section>
-                                <span>Recent searches</span>
+                                <span>@L["UniversalSearchOverlay_RecentSearches"]</span>
                                 <div>
                                     @foreach (var recent in _recentSearches)
                                     {
@@ -89,8 +89,8 @@
                             </section>
                         }
                         <div class="universal-search-overlay__shortcuts">
-                            <span><kbd>Enter</kbd> view all results</span>
-                            <span><kbd>Esc</kbd> close</span>
+                            <span><kbd>@L["UniversalSearchOverlay_Enter"]</kbd> @L["UniversalSearchOverlay_ViewAllResults"]</span>
+                            <span><kbd>@L["UniversalSearchOverlay_Esc"]</kbd> close</span>
                         </div>
                     </div>
                 }
@@ -98,24 +98,24 @@
                 {
                     <div class="universal-search-overlay__empty universal-search-overlay__empty--small">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ManageSearch" />
-                        <h2>Keep typing</h2>
-                        <p>Use at least two characters to search across your library.</p>
+                        <h2>@L["Common_KeepTyping"]</h2>
+                        <p>@L["UniversalSearchOverlay_UseAtLeastTwoCharacters"]</p>
                     </div>
                 }
                 else if (!string.IsNullOrWhiteSpace(_error))
                 {
                     <div class="universal-search-overlay__empty universal-search-overlay__empty--small">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CloudOff" />
-                        <h2>Search could not be completed</h2>
-                        <p>Try again. Your query has been preserved.</p>
+                        <h2>@L["Common_SearchCouldNotBeCompleted"]</h2>
+                        <p>@L["UniversalSearchOverlay_TryAgainYourQueryHas"]</p>
                     </div>
                 }
                 else if (_response is not null && _response.TotalCount == 0 && _response.Sections.Count == 0 && !_loading)
                 {
                     <div class="universal-search-overlay__empty universal-search-overlay__empty--small">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SearchOff" />
-                        <h2>No results for “@_query”</h2>
-                        <p>Check the spelling or try a title, creator, person, series, or collection.</p>
+                        <h2>@L["UniversalSearchOverlay_NoResultsFor", _query]</h2>
+                        <p>@L["UniversalSearchOverlay_CheckTheSpellingOrTry"]</p>
                     </div>
                 }
                 else if (_response is not null)
@@ -129,7 +129,7 @@
                                    Tone="AppUiTone.Neutral"
                                    EndIcon="@AppMaterialIcons.Outlined.ArrowForward"
                                    OnClick="ViewAllAsync">
-                            View all results for “@_query”
+                            @L["UniversalSearchOverlay_ViewAllResultsFor", _query]
                         </AppButton>
                     </div>
                 }

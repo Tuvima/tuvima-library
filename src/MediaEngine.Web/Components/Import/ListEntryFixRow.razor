@@ -3,6 +3,7 @@
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient Api
+@inject IStringLocalizer<SharedStrings> L
 
 @* One list entry Library could not match on its own (Collections and lists spec 4d, 4h). The person searches their library and picks
    the right title, or ignores the entry so it stops counting as missing. A picked or ignored entry can be put back. The row only
@@ -18,26 +19,26 @@
 
     @if (Entry.Status == ListImportChoices.StatusIgnored)
     {
-        <span class="list-fix-row__state">Ignored</span>
-        <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@Disabled" OnClick="@(() => OnRestore.InvokeAsync(Entry))">Put it back</AppButton>
+        <span class="list-fix-row__state">@L["ListFixRow_Ignored"]</span>
+        <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@Disabled" OnClick="@(() => OnRestore.InvokeAsync(Entry))">@L["ListFixRow_PutBack"]</AppButton>
     }
     else if (Entry.Status == ListImportChoices.StatusHandFixed)
     {
-        <span class="list-fix-row__state">Matched to @(Entry.MatchedTitle ?? "your pick")</span>
-        <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@Disabled" OnClick="@(() => OnRestore.InvokeAsync(Entry))">Undo</AppButton>
+        <span class="list-fix-row__state">@L["ListFixRow_MatchedTo", Entry.MatchedTitle ?? L["ListFixRow_YourPick"].Value]</span>
+        <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@Disabled" OnClick="@(() => OnRestore.InvokeAsync(Entry))">@L["ListFixRow_Undo"]</AppButton>
     }
     else
     {
         <div class="list-fix-row__search">
             <AppAutocomplete TItem="CollectionMediaLookupDto"
-                             Label="Find it in your library"
-                             Placeholder="Search by title"
+                             Label="@L["ListFixRow_Find"].Value"
+                             Placeholder="@L["ListFixRow_Search"].Value"
                              SearchFunc="SearchLibraryAsync"
                              ToStringFunc="@(item => item is null ? string.Empty : DescribeLookup(item))"
                              ValueChanged="PickedAsync"
                              Disabled="@Disabled" />
         </div>
-        <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@Disabled" OnClick="@(() => OnIgnore.InvokeAsync(Entry))">Ignore</AppButton>
+        <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@Disabled" OnClick="@(() => OnIgnore.InvokeAsync(Entry))">@L["ListFixRow_Ignore"]</AppButton>
     }
 </div>
 

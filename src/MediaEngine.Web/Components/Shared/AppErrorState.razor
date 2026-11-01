@@ -32,14 +32,14 @@
     [Parameter] public string? Icon { get; set; }
 
     private string ResolvedTitle => string.IsNullOrWhiteSpace(Title)
-        ? L["Error"].Value
+        ? L["AppErrorState_Title"].Value
         : Title;
 
     private string ResolvedMessage => string.IsNullOrWhiteSpace(Message)
-        ? L["Try again"].Value
+        ? L["Common_TryAgain"].Value
         : Message;
 
-    private string RetryLabel => L["Retry"].Value;
+    private string RetryLabel => L["AppErrorState_Retry"].Value;
 
     private string ResolvedIcon => string.IsNullOrWhiteSpace(Icon)
         ? AppMaterialIcons.Outlined.ErrorOutline

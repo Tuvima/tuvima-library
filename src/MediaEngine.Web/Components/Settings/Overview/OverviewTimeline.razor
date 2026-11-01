@@ -4,16 +4,17 @@
 @using MediaEngine.Contracts.Display
 @using MediaEngine.Web.Services.Formatting
 @inject NavigationManager Navigation
+@inject IStringLocalizer<SharedStrings> L
 @* The Overview's Recent activity timeline (D2): the latest things watched, read and listened to, under Today / Yesterday / date
    headings. Each row has its cover (or a music session's collage), the title, a caption that starts with a verb, a thin progress
    bar or a check, and a "..." menu. Titles are always printed. *@
 @if (Tiles is null)
 {
-    <p class="overview-timeline__message" data-activity-unavailable>Recent activity isn't available right now.</p>
+    <p class="overview-timeline__message" data-activity-unavailable>@L["Common_RecentActivityIsnTAvailable"]</p>
 }
 else if (Tiles.Count == 0)
 {
-    <p class="overview-timeline__message" data-activity-empty>Nothing yet — what you watch, read and listen to shows up here.</p>
+    <p class="overview-timeline__message" data-activity-empty>@L["Common_NothingYetWhatYouWatch"]</p>
 }
 else
 {
@@ -57,7 +58,7 @@ else
                             <span class="overview-timeline__status">
                                 @if (mark == ActivityProgressMark.Finished)
                                 {
-                                    <span class="overview-timeline__done" data-activity-finished><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" /><span>Finished</span></span>
+                                    <span class="overview-timeline__done" data-activity-finished><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" /><span>@L["Common_Finished"]</span></span>
                                 }
                                 else if (mark == ActivityProgressMark.Bar)
                                 {
@@ -72,9 +73,9 @@ else
                                     @if (PersonalActivityPresentation.OpensItem(tile))
                                     {
                                         var href = PersonalActivityPresentation.Href(tile);
-                                        <AppMenuItem Label="Open" Icon="@AppMaterialIcons.Outlined.OpenInNew" OnClick="@(() => Navigation.NavigateTo(href))" />
+                                        <AppMenuItem Label="@L["Common_Open"].Value" Icon="@AppMaterialIcons.Outlined.OpenInNew" OnClick="@(() => Navigation.NavigateTo(href))" />
                                     }
-                                    <AppMenuItem Label="See all activity" Icon="@AppMaterialIcons.Outlined.History" OnClick="@(() => Navigation.NavigateTo(SeeAllHref))" />
+                                    <AppMenuItem Label="@L["OverviewTimeline_SeeAllActivity"].Value" Icon="@AppMaterialIcons.Outlined.History" OnClick="@(() => Navigation.NavigateTo(SeeAllHref))" />
                                 </AppOverflowMenu>
                             </span>
                         </li>

@@ -10,6 +10,7 @@
 @inject IAppDialogService Dialogs
 @inject IAppToastService Toasts
 @inject NavigationManager Navigation
+@inject IStringLocalizer<SharedStrings> L
 
 @* Vault mode on a profile page (Videos spec D23, D51, D52). The Vault holds anything an administrator wants kept private, so the
    copy says "Vault mode" everywhere. Two parts, each drawn only when it applies:
@@ -21,27 +22,27 @@
 @if (ShowOwn)
 {
     <div data-profile-section="nsfw-mode">
-        <SettingsSectionPanel Title="Vault mode">
+        <SettingsSectionPanel Title="@L["Common_VaultMode"].Value">
             <div class="vault-settings">
-                <AppSwitchRow Label="Vault mode"
+                <AppSwitchRow Label="@L["Common_VaultMode"].Value"
                               Description="@ModeDescription"
                               Value="@Nsfw.Unlocked"
                               ValueChanged="SwitchAsync" />
-                <AppSwitchRow Label="Show Vault in the menu"
+                <AppSwitchRow Label="@L["VaultProfileSettings_ShowVaultInTheMenu"].Value"
                               Description="Adds the Vault to the top bar and the phone menu. Off until you turn it on; you can always open it from here."
                               Value="@Nsfw.ShowInNavigation"
                               ValueChanged="NavigationAsync" />
                 <div class="vault-settings__actions">
-                    <AppButton Label="Open the Vault" Size="AppControlSize.Compact" OnClick="OpenVaultAsync" data-vault-open />
+                    <AppButton Label="@L["Common_OpenTheVault"].Value" Size="AppControlSize.Compact" OnClick="OpenVaultAsync" data-vault-open />
                 </div>
-                <AppSwitchRow Label="Show a Vault mode check in the top menu"
-                              Description="Adds a quick switch to the profile menu. Off until you turn it on."
+                <AppSwitchRow Label="@L["VaultProfileSettings_ShowAVaultModeCheck"].Value"
+                              Description="@L["VaultProfileSettings_AddsAQuickSwitchTo"].Value"
                               Value="@Nsfw.Preferences.ShowQuickCheck"
                               ValueChanged="QuickCheckAsync" />
                 <div data-vault-idle>
-                    <span>Turn Vault mode off after being idle for</span>
+                    <span>@L["VaultProfileSettings_TurnVaultModeOffAfter"]</span>
                     <AppNativeSelect Value="@IdleValue" OnChange="IdleChangedAsync" Disabled="@_busy"
-                                     aria-label="Turn Vault mode off after being idle for">
+                                     aria-label="@L["VaultProfileSettings_TurnVaultModeOffAfter"].Value">
                         @foreach (var minutes in IdleChoices.Where(minutes => minutes != 0 || !Nsfw.NeedsPin))
                         {
                             <option value="@minutes">@IdleLabel(minutes)</option>
@@ -50,7 +51,7 @@
                 </div>
                 @if (Nsfw.NeedsPin)
                 {
-                    <small data-vault-pin-note>Vault mode asks for your profile PIN. It is the same PIN that protects your profile. Change it in Profile details.</small>
+                    <small data-vault-pin-note>@L["VaultProfileSettings_VaultModeAsksForYour"]</small>
                 }
             </div>
         </SettingsSectionPanel>
@@ -60,14 +61,14 @@
 @if (ShowAccess)
 {
     <div data-profile-section="nsfw-access">
-        <SettingsSectionPanel Title="Vault access">
+        <SettingsSectionPanel Title="@L["VaultProfileSettings_VaultAccess"].Value">
             @if (!AdministratorHasPin)
             {
                 <AppAlert Severity="AppSeverity.Info" Variant="AppVariant.Outlined" Dense="true" data-pin-suggestion>@VaultMessages.PinStronglySuggested</AppAlert>
             }
             <div class="vault-settings">
                 <AppSwitchRow Label="@($"Vault mode for {Person.DisplayName}")"
-                              Description="Lets them open the Vault. Kids and limited profiles can never have it."
+                              Description="@L["VaultProfileSettings_LetsThemOpenTheVault"].Value"
                               Value="@_allow" ValueChanged="AllowChangedAsync" Disabled="@_busy" />
                 @if (_allow)
                 {
@@ -79,7 +80,7 @@
                 {
                     @if (_sections is { Sections.Count: > 0 } sections)
                     {
-                        <strong data-vault-sections-title>Vault sections @Person.DisplayName can open</strong>
+                        <strong data-vault-sections-title>@L["VaultProfileSettings_VaultSectionsCanOpen", Person.DisplayName]</strong>
                         @foreach (var section in sections.Sections)
                         {
                             <AppSwitchRow Label="@section.Name"
@@ -88,27 +89,27 @@
                                           ValueChanged="@(granted => SectionChangedAsync(section.LibraryId, granted))"
                                           Disabled="@_busy" />
                         }
-                        <small>Nothing is open until you tick it. Administrators open every section.</small>
+                        <small>@L["VaultProfileSettings_NothingIsOpenUntilYou"]</small>
                     }
                     else if (_sectionsLoaded && _sections is { Sections.Count: 0 })
                     {
-                        <small>There are no Vault sections yet. Make one from Settings, Libraries (Access: Vault-protected).</small>
+                        <small>@L["VaultProfileSettings_ThereAreNoVaultSections"]</small>
                     }
                     else if (_sectionsLoaded)
                     {
-                        <small>Turn on your own Vault mode to choose which sections @Person.DisplayName can open.</small>
+                        <small>@L["VaultProfileSettings_TurnOnYourOwnVault", Person.DisplayName]</small>
                     }
                 }
                 @if (!_modeKnown)
                 {
-                    <small>The current setting isn't shown for other people. Choose one and save to change it.</small>
+                    <small>@L["VaultProfileSettings_TheCurrentSettingIsnT"]</small>
                 }
                 @if (!string.IsNullOrEmpty(_notice))
                 {
                     <small role="alert" data-vault-access-notice>@_notice</small>
                 }
                 <div class="vault-settings__actions">
-                    <AppButton Label="Save access" Size="AppControlSize.Compact" Disabled="@(_busy || !_chosen)" OnClick="SaveAccessAsync" />
+                    <AppButton Label="@L["VaultProfileSettings_SaveAccess"].Value" Size="AppControlSize.Compact" Disabled="@(_busy || !_chosen)" OnClick="SaveAccessAsync" />
                 </div>
             </div>
         
@@ -328,7 +329,7 @@
             _askPin = Person.HasPin;
             if (!Person.HasPin)
             {
-                _notice = "This profile has no PIN, so Vault mode would open without one. Set a PIN in Profile details to ask for it.";
+                _notice = L["VaultProfileSettings_ThisProfileHasNoPIN"].Value;
             }
         }
         else
@@ -346,7 +347,7 @@
         {
             if (!Person.HasPin)
             {
-                _notice = "Set a PIN for this profile first (Profile details), then turn this on.";
+                _notice = L["Common_SetAPINForThis"].Value;
                 return;
             }
 

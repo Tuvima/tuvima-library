@@ -2777,6 +2777,8 @@ public static class CollectionEndpoints
         .RequireAdministratorOrApplication(ApplicationPermissionIds.CollectionsWrite)
         .RequireCatalogueEntityAccess(ApplicationPermissionIds.CollectionsWrite, "Collection", "id");
 
+        group.MapCollectionPackEndpoints();
+
         return app;
     }
 
@@ -2863,7 +2865,7 @@ public static class CollectionEndpoints
     /// The profile whose activity a rule collection is evaluated for: the person (or the app acting for a person) making the
     /// request. A service application acts for nobody, so it gets none and per-profile conditions match nothing.
     /// </summary>
-    private static async Task<Guid?> ResolveViewerProfileIdAsync(HttpContext httpContext, CancellationToken ct)
+    internal static async Task<Guid?> ResolveViewerProfileIdAsync(HttpContext httpContext, CancellationToken ct)
     {
         var authority = await httpContext.RequestServices
             .GetRequiredService<IRequestAuthorityResolver>()
@@ -2874,7 +2876,7 @@ public static class CollectionEndpoints
                 : null;
     }
 
-    private static async Task<Profile?> ResolveActiveProfileAsync(
+    internal static async Task<Profile?> ResolveActiveProfileAsync(
         Guid? profileId,
         IProfileRepository profileRepo,
         HttpContext httpContext,

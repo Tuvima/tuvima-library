@@ -2,46 +2,47 @@
 @namespace MediaEngine.Web.Components.Vault
 @implements IDisposable
 @inject NsfwModeState Nsfw
+@inject IStringLocalizer<SharedStrings> L
 
 @* The viewing options of Videos spec D24, remembered per profile on this device: Layout, Group by, Sort, Covers and Titles. *@
-<div class="vault-options" role="group" aria-label="Viewing options">
-    <AppNativeSelect Value="@Nsfw.Preferences.Layout.ToString()" aria-label="Layout"
+<div class="vault-options" role="group" aria-label="@L["VaultViewOptions_ViewingOptions"].Value">
+    <AppNativeSelect Value="@Nsfw.Preferences.Layout.ToString()" aria-label="@L["Common_Layout"].Value"
                      OnChange="@(e => Change(preferences => preferences with { Layout = Parse(e, preferences.Layout) }))">
         @foreach (var choice in Enum.GetValues<VaultLayout>())
         {
             <option value="@choice">@VaultViewLabels.For(choice)</option>
         }
     </AppNativeSelect>
-    <AppNativeSelect Value="@Nsfw.Preferences.GroupBy.ToString()" aria-label="Group by"
+    <AppNativeSelect Value="@Nsfw.Preferences.GroupBy.ToString()" aria-label="@L["VaultViewOptions_GroupBy2"].Value"
                      OnChange="@(e => Change(preferences => preferences with { GroupBy = Parse(e, preferences.GroupBy) }))">
         @foreach (var choice in Enum.GetValues<VaultGroupBy>())
         {
-            <option value="@choice">Group by: @VaultViewLabels.For(choice)</option>
+            <option value="@choice">@L["VaultViewOptions_GroupBy", VaultViewLabels.For(choice)]</option>
         }
     </AppNativeSelect>
-    <AppNativeSelect Value="@Nsfw.Preferences.Sort.ToString()" aria-label="Sort"
+    <AppNativeSelect Value="@Nsfw.Preferences.Sort.ToString()" aria-label="@L["Common_Sort"].Value"
                      OnChange="@(e => Change(preferences => preferences with { Sort = Parse(e, preferences.Sort) }))">
         @foreach (var choice in Enum.GetValues<VaultSort>())
         {
-            <option value="@choice">Sort: @VaultViewLabels.For(choice)</option>
+            <option value="@choice">@L["VaultViewOptions_Sort", VaultViewLabels.For(choice)]</option>
         }
     </AppNativeSelect>
-    <AppNativeSelect Value="@Nsfw.Preferences.Covers.ToString()" aria-label="Covers"
+    <AppNativeSelect Value="@Nsfw.Preferences.Covers.ToString()" aria-label="@L["VaultViewOptions_Covers2"].Value"
                      OnChange="@(e => Change(preferences => preferences with { Covers = Parse(e, preferences.Covers) }))">
         @foreach (var choice in Enum.GetValues<VaultCoverMode>())
         {
-            <option value="@choice">Covers: @VaultViewLabels.For(choice)</option>
+            <option value="@choice">@L["VaultViewOptions_Covers", VaultViewLabels.For(choice)]</option>
         }
     </AppNativeSelect>
-    <AppNativeSelect Value="@(Nsfw.Preferences.TitlesHiddenUntilPointed ? "hidden" : "shown")" aria-label="Titles"
+    <AppNativeSelect Value="@(Nsfw.Preferences.TitlesHiddenUntilPointed ? "hidden" : "shown")" aria-label="@L["Common_Titles"].Value"
                      OnChange="@(e => Change(preferences => preferences with { TitlesHiddenUntilPointed = e.Value?.ToString() == "hidden" }))">
-        <option value="shown">Titles: Shown</option>
-        <option value="hidden">Titles: Hidden until pointed at</option>
+        <option value="shown">@L["VaultViewOptions_TitlesShown"]</option>
+        <option value="hidden">@L["VaultViewOptions_TitlesHiddenUntilPointedAt"]</option>
     </AppNativeSelect>
-    <AppNativeSelect Value="@(Nsfw.Preferences.HoverStills ? "on" : "off")" aria-label="Hover previews"
+    <AppNativeSelect Value="@(Nsfw.Preferences.HoverStills ? "on" : "off")" aria-label="@L["VaultViewOptions_HoverPreviews"].Value"
                      OnChange="@(e => Change(preferences => preferences with { HoverStills = e.Value?.ToString() == "on" }))">
-        <option value="off">Hover previews: Off</option>
-        <option value="on">Hover previews: Matched scenes</option>
+        <option value="off">@L["VaultViewOptions_HoverPreviewsOff"]</option>
+        <option value="on">@L["VaultViewOptions_HoverPreviewsMatchedScenes"]</option>
     </AppNativeSelect>
 </div>
 

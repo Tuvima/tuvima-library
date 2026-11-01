@@ -63,7 +63,7 @@ public sealed class PhonePrimitivesTests : AsyncBunitContext
     public void DialogWithoutADeviceContextStaysCentred()
     {
         // No DeviceContextService is registered for this context's service provider override.
-        using var plain = new BunitContext();
+        using var plain = new LocalizedBunitContext();
         plain.JSInterop.Mode = JSRuntimeMode.Loose;
         plain.Services.AddNativeUiServices();
 

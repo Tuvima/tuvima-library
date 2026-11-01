@@ -1,5 +1,6 @@
 @using MediaEngine.Web.Services.Ui
 @namespace MediaEngine.Web.Components.Pages
+@inject IStringLocalizer<SharedStrings> L
 
 @* A small panel for one Inbox chip: type a name or pick one already in use. Done returns the text (empty means none); Clear returns empty. *@
 <AppDialogShell Title="@Title" Size="Small" OnClose="@(() => Dialog.Cancel())">
@@ -22,9 +23,9 @@
     <FooterContent>
         @if (AllowClear)
         {
-            <AppButton Label="Clear" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Close(AppDialogResult.Ok(string.Empty)))" />
+            <AppButton Label="@L["Activity_Clear"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Close(AppDialogResult.Ok(string.Empty)))" />
         }
-        <AppButton Label="Done" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="DoneAsync" />
+        <AppButton Label="@L["Common_Done"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="DoneAsync" />
     </FooterContent>
 </AppDialogShell>
 

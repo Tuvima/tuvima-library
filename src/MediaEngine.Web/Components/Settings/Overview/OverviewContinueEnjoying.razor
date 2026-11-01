@@ -1,15 +1,16 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Formatting
+@inject IStringLocalizer<SharedStrings> L
 @* Continue enjoying (D2): the title most recently left part way through, for each of Reading, Watching and Listening. A kind with
    nothing in progress is not drawn. Nothing is invented: with nothing at all, one friendly line says where it will appear. *@
 @if (Cards.Count == 0)
 {
-    <p class="overview-continue__empty" data-overview-continue-empty>Nothing is part way through. Start a book, a show or an album and it waits for you here.</p>
+    <p class="overview-continue__empty" data-overview-continue-empty>@L["OverviewContinueEnjoying_NothingIsPartWayThrough"]</p>
 }
 else
 {
-    <ul class="overview-continue" role="list" aria-label="Continue enjoying" data-overview-continue>
+    <ul class="overview-continue" role="list" aria-label="@L["Common_ContinueEnjoying"].Value" data-overview-continue>
         @foreach (var card in Cards)
         {
             <li class="@("overview-continue__card overview-continue__card--" + card.Kind.ToLowerInvariant())" data-overview-continue-kind="@card.Kind">

@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Contracts.Details
 @using MediaEngine.Contracts.Display
+@inject IStringLocalizer<SharedStrings> L
 
 
         @if (!IsSeasonContainer)
@@ -25,16 +26,16 @@
                 {
                     @if (Item.IsOwned)
                     {
-                        <div class="tl-series-item__missing-art is-owned-placeholder" aria-label="Artwork unavailable">
+                        <div class="tl-series-item__missing-art is-owned-placeholder" aria-label="@L["SequenceEntryContent_ArtworkUnavailable"].Value">
                             <AppMaterialIcon Icon="@MissingIcon" Size="AppSize.Large" />
-                            <span>Artwork unavailable</span>
+                            <span>@L["SequenceEntryContent_ArtworkUnavailable"]</span>
                         </div>
                     }
                     else
                     {
-                        <div class="tl-series-item__missing-art" aria-label="Missing from library">
+                        <div class="tl-series-item__missing-art" aria-label="@L["SequenceEntryContent_MissingFromLibrary"].Value">
                             <AppMaterialIcon Icon="@MissingIcon" Size="AppSize.Large" />
-                            <span>Not in library</span>
+                            <span>@L["Common_NotInLibrary"]</span>
                         </div>
                     }
                 }
@@ -42,9 +43,9 @@
                 { <AppArtworkProgress State="DisplayContinuationState.InProgress" Percent="@Item.ProgressPercent" MediaKind="TV" RemainingSeconds="@Item.RemainingSeconds" /> }
                 @if (Item.ProgressState == LibraryProgressState.Completed)
                 {
-                    <span class="tl-series-item__completed-badge" title="Completed">
+                    <span class="tl-series-item__completed-badge" title="@L["SequenceEntryContent_Completed"].Value">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Check" Size="AppSize.Small" />
-                        <span class="sr-only">Completed</span>
+                        <span class="sr-only">@L["SequenceEntryContent_Completed"]</span>
                     </span>
                 }
 

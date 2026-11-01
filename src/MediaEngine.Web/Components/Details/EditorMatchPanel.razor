@@ -10,6 +10,7 @@
 @inject IEngineApiClient Api
 @inject ILogger<EditorMatchPanel> Logger
 @inject IJSRuntime JS
+@inject IStringLocalizer<SharedStrings> L
 
 @* The Match tool (universal editor spec D5, D6, D11): two steps in the right-hand panel. Step 1 finds a record (search box filled from the
    item, a "Search in" picker, tabs for what is being matched, results with their picture, creator, parent, year, edition and provider).
@@ -20,7 +21,7 @@
     <div class="tl-match">
         @if (!CanEdit)
         {
-            <AppAlert Severity="AppSeverity.Info" Dense="true">You can look at matches but not change them.</AppAlert>
+            <AppAlert Severity="AppSeverity.Info" Dense="true">@L["EditorMatchPanel_YouCanLookAtMatches"]</AppAlert>
         }
 
         @FindStep()

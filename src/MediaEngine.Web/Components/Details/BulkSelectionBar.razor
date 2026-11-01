@@ -6,6 +6,7 @@
 @inject IAppToastService Toasts
 @inject IAppDialogService Dialogs
 @inject IServiceProvider Services
+@inject IStringLocalizer<SharedStrings> L
 
 @* The ticked rows' bar (universal editor spec D14), in the list column directly above the rows. It reads "{n} selected", then Edit, Match
    and Move to album/season where they make sense for the ticked rows, a "..." menu holding Delete from library, and Clear. It only opens
@@ -15,11 +16,11 @@
 {
     var rows = selection.Rows;
     var busy = IsBusy;
-    <section class="tl-batch" aria-label="Selected rows">
-        <div class="tl-batch__bar" role="toolbar" aria-label="Selected rows">
+    <section class="tl-batch" aria-label="@L["BulkSelectionBar_SelectedRows"].Value">
+        <div class="tl-batch__bar" role="toolbar" aria-label="@L["BulkSelectionBar_SelectedRows"].Value">
             <span class="tl-batch__count" role="status">@BulkEditRules.SelectedLabel(selection.Count)</span>
             <span class="tl-batch__actions">
-                <AppButton Label="Edit"
+                <AppButton Label="@L["Common_Edit"].Value"
                            StartIcon="@AppMaterialIcons.Outlined.Edit"
                            Class="tl-batch__edit"
                            id="@ButtonId(BulkPanelKind.Edit)"
@@ -30,7 +31,7 @@
                            OnClick="@(() => TogglePanel(BulkPanelKind.Edit))" />
                 @if (BulkEditRules.CanMatch(rows, selection.MediaType))
                 {
-                    <AppButton Label="Match"
+                    <AppButton Label="@L["Common_Match"].Value"
                                StartIcon="@AppMaterialIcons.Outlined.TravelExplore"
                                Class="tl-batch__match"
                            id="@ButtonId(BulkPanelKind.Match)"
@@ -61,7 +62,7 @@
                                         OnActionSelected="OnMenuActionAsync" />
                 }
 
-                <AppButton Label="Clear"
+                <AppButton Label="@L["Activity_Clear"].Value"
                            ButtonStyle="AppButtonStyle.Text"
                            Disabled="@busy"
                            OnClick="ClearAsync" />

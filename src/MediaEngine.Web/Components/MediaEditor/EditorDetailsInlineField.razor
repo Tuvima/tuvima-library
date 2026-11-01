@@ -1,4 +1,5 @@
 @using Microsoft.AspNetCore.Components.Web
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="sme-details-row @RowClass" data-field-key="@Field.Key" data-app-escape-owner="@(IsEditing && !IsInherited ? "field" : null)" @onkeydown:stopPropagation="(IsEditing && !IsInherited)">
     <div class="sme-details-row__label">
@@ -23,7 +24,7 @@
                         </span>
                     }
                     <AppTextField Class="sme-details-inline-input--chips" aria-label="@($"Add {Field.Label}")"
-                                  Placeholder="Add value" Value="@_chipInput" ValueChanged="HandleChipInput"
+                                  Placeholder="@L["EditorDetailsInlineField_AddValue"].Value" Value="@_chipInput" ValueChanged="HandleChipInput"
                                   OnKeyDown="HandleKeyDown" Immediate="true" />
                 </div>
             }
@@ -86,7 +87,7 @@
                 }
                 @if ((Field.LinkedValues?.Count ?? DisplayChips.Count) == 0)
                 {
-                    <span class="sme-details-empty-value">Not set</span>
+                    <span class="sme-details-empty-value">@L["Common_NotSet"]</span>
                 }
             </span>
         }
@@ -111,17 +112,17 @@
         }
         else
         {
-            <span class="sme-details-empty-value">Not set</span>
+            <span class="sme-details-empty-value">@L["Common_NotSet"]</span>
         }
     </div>
     <div class="sme-details-row__provenance">
         @if (IsEditing && !IsInherited)
         {
             <AppIconButton Icon="@AppMaterialIcons.Outlined.Check" Size="AppControlSize.Compact"
-                           Tone="AppUiTone.Primary" Tooltip="Save this field"
+                           Tone="AppUiTone.Primary" Tooltip="@L["Common_SaveThisField"].Value"
                            AriaLabel="@($"Save {Field.Label}")" Disabled="@Busy" OnClick="OnSave" />
             <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Size="AppControlSize.Compact"
-                           Tone="AppUiTone.Neutral" Tooltip="Cancel this field"
+                           Tone="AppUiTone.Neutral" Tooltip="@L["Common_CancelThisField"].Value"
                            AriaLabel="@($"Cancel editing {Field.Label}")" Disabled="@Busy" OnClick="CancelFieldAsync" />
         }
         else
@@ -153,9 +154,9 @@
             }
             @if (!IsInherited && Field.CanRevert)
             {
-                <span class="sme-details-override-label">Local override</span>
+                <span class="sme-details-override-label">@L["EditorDetailsInlineField_LocalOverride"]</span>
                 <AppIconButton Icon="@AppMaterialIcons.Outlined.Restore" Size="AppControlSize.Compact"
-                               Tone="AppUiTone.Warning" Tooltip="Revert this override"
+                               Tone="AppUiTone.Warning" Tooltip="@L["EditorDetailsInlineField_RevertThisOverride"].Value"
                                AriaLabel="@($"Revert {Field.Label} override")" Disabled="@HasOtherDraft" OnClick="OnRevert" />
             }
         }

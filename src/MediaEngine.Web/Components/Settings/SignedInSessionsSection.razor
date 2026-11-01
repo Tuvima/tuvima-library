@@ -9,10 +9,11 @@
 @inject IAppToastService Snackbar
 @inject ILogger<SignedInSessionsSection> Logger
 @implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 @* A member sees their own signed-in browsers. An administrator sees everyone the Engine lets them look after, grouped by
    person. Either way each browser has its own Sign out. *@
-<SettingsSectionPanel Title="Signed-in browsers" Icon="@AppMaterialIcons.Outlined.Logout"
+<SettingsSectionPanel Title="@L["SignedInSessionsSection_SignedInBrowsers"].Value" Icon="@AppMaterialIcons.Outlined.Logout"
                       Description="@(ManagesOthers ? "Where people are signed in right now. Sign one out to end that sign-in at once." : "Where you are signed in right now. Sign one out to end that sign-in at once.")">
     @if (_loading)
     {
@@ -20,16 +21,16 @@
     }
     else if (_locked)
     {
-        <AppAlert Tone="AppUiTone.Warning">Enter your administrator PIN to see who is signed in.</AppAlert>
+        <AppAlert Tone="AppUiTone.Warning">@L["SignedInSessionsSection_EnterYourAdministratorPINTo"]</AppAlert>
         <div class="signed-in-sessions__actions">
-            <AppButton Label="Enter PIN" StartIcon="@AppMaterialIcons.Outlined.LockOpen" OnClick="OpenUnlock" />
+            <AppButton Label="@L["Common_EnterPIN"].Value" StartIcon="@AppMaterialIcons.Outlined.LockOpen" OnClick="OpenUnlock" />
         </div>
     }
     else if (_loadFailed)
     {
-        <AppAlert Tone="AppUiTone.Error">Signed-in sessions could not be loaded. Try again in a moment.</AppAlert>
+        <AppAlert Tone="AppUiTone.Error">@L["SignedInSessionsSection_SignedInSessionsCouldNot"]</AppAlert>
         <div class="signed-in-sessions__actions">
-            <AppButton Label="Try again" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="LoadAsync" />
+            <AppButton Label="@L["Common_TryAgain"].Value" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="LoadAsync" />
         </div>
     }
     else
@@ -42,8 +43,8 @@
         }
         else if (VisiblePeople.Count == 0)
         {
-            <AppEmptyState Class="app-page-state--compact" Title="No sign-ins match"
-                           Message="Change the household or profile above to see more." />
+            <AppEmptyState Class="app-page-state--compact" Title="@L["SignedInSessionsSection_NoSignInsMatch"].Value"
+                           Message="@L["Common_ChangeTheHouseholdOrProfile"].Value" />
         }
 
         @foreach (var person in VisiblePeople)
@@ -76,7 +77,7 @@
                                         @display.DeviceName
                                         @if (IsCurrent(session))
                                         {
-                                            <span class="signed-in-sessions__tag" data-session-tag="this-device">This device</span>
+                                            <span class="signed-in-sessions__tag" data-session-tag="this-device">@L["SignedInSessionsSection_ThisDevice"]</span>
                                         }
                                     </span>
                                     <span class="signed-in-sessions__client">@display.ClientDescription</span>
@@ -85,7 +86,7 @@
                             </span>
                             @if (!IsCurrent(session))
                             {
-                                <AppButton Label="Sign out" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error"
+                                <AppButton Label="@L["TopBar_SignOut"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error"
                                            Size="AppControlSize.Compact" OnClick="@(() => AskSignOut(person, session))" />
                             }
                         </li>
@@ -98,17 +99,17 @@
 
 <AppDialog Visible="@(_pending is not null)"
            VisibleChanged="@(_ => CancelSignOut())"
-           Title="Sign this device out?"
+           Title="@L["Common_SignThisDeviceOut"].Value"
            Subtitle="@(_pending is null ? null : $"{PendingDeviceName} will be signed out and the person has to sign in again.")"
            Icon="@AppMaterialIcons.Outlined.Logout"
            Size="Small">
     <ChildContent>
-        <p>It stops working straight away. Nothing is deleted from the library.</p>
+        <p>@L["SignedInSessionsSection_ItStopsWorkingStraightAway"]</p>
     </ChildContent>
     <FooterContent>
         <div class="signed-in-sessions__dialog-actions">
-            <AppButton Label="Cancel" OnClick="CancelSignOut" />
-            <AppButton Label="Sign out" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Error"
+            <AppButton Label="@L["Search_Cancel"].Value" OnClick="CancelSignOut" />
+            <AppButton Label="@L["TopBar_SignOut"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Error"
                        Disabled="@_signingOut" OnClick="ConfirmSignOutAsync" />
         </div>
     </FooterContent>
@@ -293,14 +294,14 @@
             var unlocked = await Identity.UnlockAdministratorAsync(new GrantAdminUnlockRequest(pin), _lifetime.Token);
             if (unlocked?.Unlocked != true)
             {
-                _unlockError = "That PIN did not work. Try again.";
+                _unlockError = L["Common_ThatPINDidNotWork"].Value;
                 return;
             }
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
             Logger.LogWarning(exception, "Could not unlock administrator access from the Devices page.");
-            _unlockError = "The Engine is unavailable. Try again.";
+            _unlockError = L["Common_TheEngineIsUnavailableTry"].Value;
             return;
         }
         finally

@@ -1,12 +1,13 @@
 @namespace MediaEngine.Web.Components.Universe
 @implements IDisposable
 @inject IEngineApiClient ApiClient
+@inject IStringLocalizer<SharedStrings> L
 
 @* "Also appears in": where else a character from a Universe (matched by its Wikidata item, never its name) or a person shows up
    in the Library, grouped by format. Opened as a panel from the Universe page through AlsoAppearsInPanel.OpenAsync: a bottom
    sheet on phones and tablets, a dialog panel on desktop and TV. Each section loads on its own, so one failure never hides
    the others. There is no character, place or organisation page. *@
-<AppDialogShell Title="Also appears in" Size="Medium" OnClose="CloseAsync">
+<AppDialogShell Title="@L["AlsoAppearsInPanel_AlsoAppearsIn"].Value" Size="Medium" OnClose="CloseAsync">
     <ChildContent>
         <div class="also-appears-in">
             @foreach (var section in _sections)
@@ -16,7 +17,7 @@
                     @if (section.State == SectionState.Loading)
                     {
                         <div class="also-appears-in__loading">
-                            <AppSkeleton Height="44px" Width="100%" aria-label="Loading where else this appears" />
+                            <AppSkeleton Height="44px" Width="100%" aria-label="@L["AlsoAppearsInPanel_LoadingWhereElseThisAppears"].Value" />
                             <AppSkeleton Height="44px" Width="100%" aria-hidden="true" />
                         </div>
                     }
@@ -24,7 +25,7 @@
                     {
                         <AppErrorState Compact="true"
                                        Title="@section.Heading"
-                                       Message="Couldn't load this right now"
+                                       Message="@L["AlsoAppearsInPanel_CouldnTLoadThisRight"].Value"
                                        Retry="@(() => LoadAsync(section))" />
                     }
                     else

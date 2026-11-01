@@ -96,6 +96,24 @@ public sealed class ProfilePlaybackSettingsAuthorizationTests : IDisposable
     }
 
     [Fact]
+    public async Task SubtitleLanguageChoices_AreCleanedUpAndForeignAudioOnlyIsKept()
+    {
+        var update = UserPlaybackSettingsDto.CreateDefaults(_householdOnePlainProfile.Id);
+        update.Subtitles.DefaultSubtitleLanguage = "English";
+        update.Subtitles.AlternateSubtitleLanguages = ["english", " French ", "french", "", "German", "Spanish"];
+        update.Subtitles.LyricsLanguage = "  Japanese ";
+        update.Subtitles.ForcedSubtitlesMode = PlaybackPreferenceValues.ForeignAudioOnly;
+        await _settings.UpdateAsync(_householdOnePlainProfile.Id, update);
+
+        var saved = await _settings.GetOrCreateDefaultsAsync(_householdOnePlainProfile.Id);
+
+        Assert.Equal(2, saved.Subtitles.AlternateSubtitleLanguages.Count);
+        Assert.DoesNotContain(saved.Subtitles.AlternateSubtitleLanguages, v => v.Equals("English", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal("Japanese", saved.Subtitles.LyricsLanguage);
+        Assert.Equal(PlaybackPreferenceValues.ForeignAudioOnly, saved.Subtitles.ForcedSubtitlesMode);
+    }
+
+    [Fact]
     public async Task HouseholdAdministrator_CannotManageAnotherHousehold()
     {
         var http = Caller(_householdOneAdmin, _householdOneAdultProfile);

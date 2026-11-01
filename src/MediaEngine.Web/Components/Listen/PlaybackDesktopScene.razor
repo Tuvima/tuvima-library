@@ -1,13 +1,14 @@
 @namespace MediaEngine.Web.Components.Listen
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Services.Playback
+@inject IStringLocalizer<SharedStrings> L
 
 @if (Current is { } item)
 {
     <div class="playback-desktop-owner">
     <AppCssElement Tag="section" Class="@($"playback-desktop {(IsBook ? "playback-desktop--book" : "playback-desktop--music")}")"
-                   Css="@Atmosphere" aria-label="Now Playing" tabindex="-1">
-        <AppNativeButton Type="button" Class="playback-desktop__collapse" AriaLabel="Collapse Now Playing" OnClick="OnCollapse"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronLeft" /></AppNativeButton>
+                   Css="@Atmosphere" aria-label="@L["PlaybackDesktopScene_NowPlaying"].Value" tabindex="-1">
+        <AppNativeButton Type="button" Class="playback-desktop__collapse" AriaLabel="@L["PlaybackDesktopScene_CollapseNowPlaying"].Value" OnClick="OnCollapse"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronLeft" /></AppNativeButton>
         <div class="playback-desktop__stage">
             <div class="playback-desktop__left">
                 <div class="playback-desktop__stack">
@@ -35,7 +36,7 @@
                             { @for (var index = 0; index < item.Narrators.Count; index++) { var narrator = item.Narrators[index]; @if (index > 0) { <text>; </text> } @if (ListenPlaybackIdentityRoutes.Contributor(narrator) is { } route) { <PlaybackIdentityLink Snapshot="Snapshot" Commands="Commands" Kind="person" Id="narrator.PersonId" Text="@narrator.Name" /> } else { @narrator.Name } } }
                             else { @item.NarratorName }</p> }
                         @if (!string.IsNullOrWhiteSpace(OverallProgress)) { <p class="playback-desktop__progress">@OverallProgress</p> }
-                        @if (ListenPlaybackIdentityRoutes.Audiobook(item) is { } bookRoute) { <PlaybackIdentityLink Snapshot="Snapshot" Commands="Commands" Kind="audiobook" Id="@(item.AudiobookWorkId ?? item.WorkId)" Text="Open audiobook" /> }
+                        @if (ListenPlaybackIdentityRoutes.Audiobook(item) is { } bookRoute) { <PlaybackIdentityLink Snapshot="Snapshot" Commands="Commands" Kind="audiobook" Id="@(item.AudiobookWorkId ?? item.WorkId)" Text="@L["PlaybackDesktopScene_OpenAudiobook"].Value" /> }
                     }
                     else
                     {
@@ -49,16 +50,16 @@
                         @if (IsBook) { @ActionsContent }
                     </div>
                     @if (ListenPlaybackIdentityRoutes.Playlist(item) is { } playlist && !string.IsNullOrWhiteSpace(Snapshot.SourceLabel))
-                    { <p class="playback-desktop__source">Playing from <PlaybackIdentityLink Snapshot="Snapshot" Commands="Commands" Kind="playlist" Id="item.PlaylistId" Text="@Snapshot.SourceLabel" /></p> }
+                    { <p class="playback-desktop__source">@L["PlaybackDesktopScene_PlayingFrom"] <PlaybackIdentityLink Snapshot="Snapshot" Commands="Commands" Kind="playlist" Id="item.PlaylistId" Text="@Snapshot.SourceLabel" /></p> }
                 </div>
                 </div>
             </div>
-            <section class="playback-desktop__panel" aria-label="Playback tools">
-                <div class="playback-desktop__tabs" role="tablist" aria-label="Now Playing panels">
+            <section class="playback-desktop__panel" aria-label="@L["PlaybackDesktopScene_PlaybackTools"].Value">
+                <div class="playback-desktop__tabs" role="tablist" aria-label="@L["PlaybackDesktopScene_NowPlayingPanels"].Value">
                     @foreach (var tab in Tabs)
                     {
                         @if (tab.Key == "lyrics")
-                        { <AppTooltip Text="Lyrics"><AppNativeButton Type="button" role="tab" AriaLabel="Lyrics" aria-selected="@(PanelKey == tab.Key ? "true" : "false")" OnClick="@(() => PanelChanged.InvokeAsync(tab.Key))"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Lyrics" /></AppNativeButton></AppTooltip> }
+                        { <AppTooltip Text="@L["Common_Lyrics"].Value"><AppNativeButton Type="button" role="tab" AriaLabel="@L["Common_Lyrics"].Value" aria-selected="@(PanelKey == tab.Key ? "true" : "false")" OnClick="@(() => PanelChanged.InvokeAsync(tab.Key))"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Lyrics" /></AppNativeButton></AppTooltip> }
                         else
                         { <AppNativeButton Type="button" role="tab" aria-selected="@(PanelKey == tab.Key ? "true" : "false")" OnClick="@(() => PanelChanged.InvokeAsync(tab.Key))">@tab.Title</AppNativeButton> }
                     }

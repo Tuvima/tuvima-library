@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Import
 @using MediaEngine.Contracts.Import
 @using MediaEngine.Web.Components.Shared
+@inject IStringLocalizer<SharedStrings> L
 
 @* The one preview frame of the shared Import (Collections and lists spec D17). Every kind fills the same frame in its own words:
    what the file is, what is in it, what it will and will not do, and where it goes. *@
@@ -32,14 +33,14 @@
 
     @if (Preview.List is { Owned.Count: > 0 } list)
     {
-        <ul class="import-frame__owned" aria-label="Titles you own from this list">
+        <ul class="import-frame__owned" aria-label="@L["ImportPreviewFrame_Owned"].Value">
             @foreach (var owned in list.Owned.Take(6))
             {
                 <li>@owned.Title</li>
             }
             @if (list.OwnedCount > 6)
             {
-                <li class="import-frame__more">and @(list.OwnedCount - 6) more</li>
+                <li class="import-frame__more">@L["ImportPreviewFrame_More", list.OwnedCount - 6]</li>
             }
         </ul>
     }

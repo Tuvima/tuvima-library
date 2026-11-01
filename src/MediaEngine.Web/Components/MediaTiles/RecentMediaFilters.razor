@@ -1,8 +1,9 @@
 @namespace MediaEngine.Web.Components.MediaTiles
+@inject IStringLocalizer<SharedStrings> L
 @if (Visible.Count > 0)
 {
-    <div class="recent-filters" role="group" aria-label="Recently added media">
-        <AppNativeButton Type="button" Class="@($"recent-filter {(RecentFilterLogic.IsAll(Selected) ? "is-active" : null)}")" aria-pressed="@(RecentFilterLogic.IsAll(Selected) ? "true" : "false")" OnClick="SelectAllAsync">All</AppNativeButton>
+    <div class="recent-filters" role="group" aria-label="@L["Common_RecentlyAddedMedia"].Value">
+        <AppNativeButton Type="button" Class="@($"recent-filter {(RecentFilterLogic.IsAll(Selected) ? "is-active" : null)}")" aria-pressed="@(RecentFilterLogic.IsAll(Selected) ? "true" : "false")" OnClick="SelectAllAsync">@L["ApiKeys_AllKeysRevoked"]</AppNativeButton>
         @foreach (var type in Visible)
         {
             var on = RecentFilterLogic.Selected(Selected).Contains(type);

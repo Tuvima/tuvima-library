@@ -2,18 +2,19 @@
 @using MediaEngine.Contracts.Vault
 @using MediaEngine.Web.Models.ViewDTOs
 @namespace MediaEngine.Web.Components.Vault
+@inject IStringLocalizer<SharedStrings> L
 
 @* The items of one Vault view in the person's chosen layout (Videos spec D24, D39): shelf rows, a grid of covers, a details list or a
    timeline by date added, grouped by series or folder, tag or date added. Every view can use every layout. Cards follow the cover mode
    (Show, Blur or Hide) and the titles setting. Tags are chips with no image. *@
 @if (Layout == VaultLayout.DetailsList)
 {
-    <div class="vault-list vault-list--details" role="table" aria-label="Vault items">
+    <div class="vault-list vault-list--details" role="table" aria-label="@L["VaultItemList_VaultItems"].Value">
         <div class="vault-list__head" role="row">
-            <span role="columnheader">Title</span>
-            <span role="columnheader">Details</span>
-            <span role="columnheader">Length</span>
-            <span role="columnheader">Added</span>
+            <span role="columnheader">@L["Common_Title"]</span>
+            <span role="columnheader">@L["Common_Details"]</span>
+            <span role="columnheader">@L["Common_Length"]</span>
+            <span role="columnheader">@L["Common_Added"]</span>
         </div>
         @foreach (var item in Items)
         {
@@ -23,7 +24,7 @@
                     @item.Title
                     @if (item.Unmatched)
                     {
-                        <span class="vault-list__mark">Unmatched</span>
+                        <span class="vault-list__mark">@L["Common_Unmatched"]</span>
                     }
                 </span>
                 <span role="cell" class="vault-list__muted">@(item.Subtitle ?? item.Folder)</span>

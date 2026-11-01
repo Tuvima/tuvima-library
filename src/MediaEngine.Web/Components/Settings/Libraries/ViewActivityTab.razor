@@ -1,23 +1,24 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.LocalAssets
 @inject IEngineApiClient Api
+@inject IStringLocalizer<SharedStrings> L
 
 @* A View kind's Activity tab (Photo and video filing spec D8): what was added, which exact copies were skipped, and which files were refused,
    newest first. The Engine writes the sentences, as counts and reasons only (never a file name), so a private library's contents are not
    named here. *@
-<section class="view-activity" aria-label="Activity">
+<section class="view-activity" aria-label="@L["Common_Activity"].Value">
     @if (_loading)
     {
-        <AppPageState Kind="AppPageStateKind.Loading" Title="Loading activity" />
+        <AppPageState Kind="AppPageStateKind.Loading" Title="@L["Common_LoadingActivity"].Value" />
     }
     else if (_failed)
     {
         <AppPageState Kind="AppPageStateKind.Error"
                       Icon="@AppMaterialIcons.Outlined.CloudOff"
-                      Title="Activity could not be loaded"
-                      Message="Check that the Library server is running, then try again.">
+                      Title="@L["Common_ActivityCouldNotBeLoaded"].Value"
+                      Message="@L["Common_CheckThatTheLibraryServer"].Value">
             <Actions>
-                <AppButton Label="Try again" OnClick="LoadAsync" />
+                <AppButton Label="@L["Common_TryAgain"].Value" OnClick="LoadAsync" />
             </Actions>
         </AppPageState>
     }
@@ -25,12 +26,12 @@
     {
         <AppPageState Kind="AppPageStateKind.Empty"
                       Icon="@AppMaterialIcons.Outlined.History"
-                      Title="Nothing has happened here yet"
-                      Message="Photos and videos that are added, skipped or refused will show up here." />
+                      Title="@L["ViewActivityTab_NothingHasHappenedHereYet"].Value"
+                      Message="@L["ViewActivityTab_PhotosAndVideosThatAre"].Value" />
     }
     else
     {
-        <AppList T="ViewActivityEntryDto" Class="view-activity__list" aria-label="Activity, newest first" data-testid="view-activity-rows">
+        <AppList T="ViewActivityEntryDto" Class="view-activity__list" aria-label="@L["Common_ActivityNewestFirst"].Value" data-testid="view-activity-rows">
             @foreach (var entry in _entries)
             {
                 <AppListItem T="ViewActivityEntryDto" Class="view-activity__item">

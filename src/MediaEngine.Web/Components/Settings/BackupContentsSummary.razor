@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.System
+@inject IStringLocalizer<SharedStrings> L
 
 @* The first look at a backup: counts only, never a title, a profile name or a kind of title. *@
 <div data-testid="backup-contents">
@@ -8,7 +9,7 @@
     {
         <div data-testid="backup-contents-items">@ItemsLine</div>
     }
-    <div data-testid="backup-contents-media">Media files and folders are not included.</div>
+    <div data-testid="backup-contents-media">@L["BackupContentsSummary_MediaFilesAndFoldersAre"]</div>
 </div>
 
 @code {

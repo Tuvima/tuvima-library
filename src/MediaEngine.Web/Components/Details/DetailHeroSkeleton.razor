@@ -1,11 +1,12 @@
 @namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Web.Services.Navigation
+@inject IStringLocalizer<SharedStrings> L
 
 @* Fixed-height stand-in for the detail hero and tab bar, shown only on the first load of a detail page
    (later navigations keep the previous page on screen instead). Sizes live in the scoped stylesheet so the
    skeleton does not shift when the real hero arrives. *@
 <div class="tl-detail-skeleton" role="status" aria-live="polite" aria-busy="true">
-    <span class="tl-detail-skeleton__label">Loading details</span>
+    <span class="tl-detail-skeleton__label">@L["Common_LoadingDetails"]</span>
 
     <div class="tl-detail-skeleton__hero" aria-hidden="true">
         @if (!string.IsNullOrWhiteSpace(Preview?.CoverUrl))

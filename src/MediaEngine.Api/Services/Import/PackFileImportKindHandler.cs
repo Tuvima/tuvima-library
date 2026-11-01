@@ -1,92 +1,78 @@
 using System.Globalization;
-using System.Text.Json;
+using MediaEngine.Api.Services.Collections.Packs;
 using MediaEngine.Contracts.Import;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Api.Services.Import;
 
 /// <summary>
-/// PLACEHOLDER for the collection pack file kind (Collections and lists spec D14), here so the shared Import already opens the
-/// right preview for a pack file. The collection packs packet (WP7) owns the pack file format, its catalogue and applying it:
-/// it replaces this class's <see cref="Detect"/>, <see cref="PreviewAsync"/> and <see cref="ApplyAsync"/> in place, or registers
-/// its own <see cref="IImportKindHandler"/> for <see cref="ImportKinds.PackFile"/> after this one in
-/// <c>AddTuvimaImport</c> (a later registration of the same kind replaces an earlier one).
+/// The collection pack file kind of the shared Import (Collections and lists spec D14, D17). Recognising a file and the
+/// preview in the pack's own words come from the packs packet's <see cref="IPackFileImporter"/>, so the format lives in one
+/// place. Importers are scoped services, so each call opens its own scope.
 ///
 /// <para>
-/// Until then a pack file is recognised by a JSON document whose <c>format</c> is <see cref="FormatMarker"/>; the preview reads
-/// only its <c>name</c> and says that adding packs arrives with Start from a pack. Nothing is created.
+/// The dialog does not create the collections itself: creating them is a collections action (<c>Collections write</c>) and the
+/// shared apply route is not, so the preview says to add the pack from New collection, Start from a pack, which owns the
+/// ownership, audience and Show on choices.
 /// </para>
 /// </summary>
-public sealed class PackFileImportKindHandler : IImportKindHandler
+public sealed class PackFileImportKindHandler(IServiceScopeFactory scopes) : IImportKindHandler
 {
-    /// <summary>The <c>format</c> value a collection pack file carries.</summary>
-    public const string FormatMarker = "tuvima-collection-pack";
-
     public string Kind => ImportKinds.PackFile;
 
     public int Priority => 20;
 
-    public bool Detect(ImportSource source) => !source.IsZip && TryReadMarker(source.Text, out _);
-
-    public Task<ImportPreviewDto> PreviewAsync(ImportSource source, ImportContext context, CancellationToken ct)
+    public bool Detect(ImportSource source)
     {
-        TryReadMarker(source.Text, out var document);
-        var name = document is { } root && root.TryGetProperty("name", out var nameValue) && nameValue.ValueKind == JsonValueKind.String
-            ? nameValue.GetString()?.Trim()
-            : null;
-        var count = document is { } body && body.TryGetProperty("collections", out var collections) && collections.ValueKind == JsonValueKind.Array
-            ? collections.GetArrayLength()
-            : (int?)null;
-
-        var facts = new List<ImportFactDto>();
-        if (count is { } collectionCount)
-        {
-            facts.Add(new ImportFactDto("Collections", collectionCount.ToString(CultureInfo.InvariantCulture)));
-        }
-
-        return Task.FromResult(new ImportPreviewDto
-        {
-            Kind = Kind,
-            KindLabel = "Collection pack",
-            Recognised = true,
-            Heading = string.IsNullOrWhiteSpace(name) ? "Collection pack" : name!,
-            Subheading = "A ready-made set of collections",
-            Facts = facts,
-            Notes = ["A pack holds names, rules and windows. It holds no user data."],
-            Message = "Library recognises this as a collection pack. Adding packs arrives with Start from a pack.",
-            CanApply = false,
-        });
-    }
-
-    public Task<ImportApplyResultDto> ApplyAsync(ImportSource source, ImportContext context, CancellationToken ct) =>
-        Task.FromResult(new ImportApplyResultDto(false, "Adding collection packs arrives with Start from a pack."));
-
-    private static bool TryReadMarker(string text, out JsonElement? document)
-    {
-        document = null;
-        var trimmed = text.TrimStart();
-        if (trimmed.Length == 0 || trimmed[0] != '{')
+        if (source.IsZip)
         {
             return false;
         }
+
+        using var scope = scopes.CreateScope();
+        return scope.ServiceProvider.GetServices<IPackFileImporter>()
+            .Any(importer => string.Equals(importer.Kind, Kind, StringComparison.Ordinal) && importer.Recognises(source.Text));
+    }
+
+    public async Task<ImportPreviewDto> PreviewAsync(ImportSource source, ImportContext context, CancellationToken ct)
+    {
+        using var scope = scopes.CreateScope();
+        var importer = scope.ServiceProvider.GetServices<IPackFileImporter>()
+            .First(candidate => string.Equals(candidate.Kind, Kind, StringComparison.Ordinal));
 
         try
         {
-            using var parsed = JsonDocument.Parse(text);
-            if (parsed.RootElement.ValueKind == JsonValueKind.Object
-                && parsed.RootElement.TryGetProperty("format", out var format)
-                && format.ValueKind == JsonValueKind.String
-                && string.Equals(format.GetString(), FormatMarker, StringComparison.Ordinal))
+            var summary = await importer.PreviewAsync(source.Text, context.ActiveProfile?.Id, ct).ConfigureAwait(false);
+            var facts = new List<ImportFactDto>
             {
-                document = parsed.RootElement.Clone();
-                return true;
-            }
+                new("Collections", summary.Collections.Count.ToString(CultureInfo.InvariantCulture)),
+                new("Would create here", summary.WouldCreateCount.ToString(CultureInfo.InvariantCulture)),
+            };
+            return new ImportPreviewDto
+            {
+                Kind = Kind,
+                KindLabel = "Collection pack",
+                Recognised = true,
+                Heading = string.IsNullOrWhiteSpace(summary.Name) ? "Collection pack" : summary.Name,
+                Subheading = summary.CreatesSet ? "A set of collections" : "A ready-made collection",
+                Facts = facts,
+                Notes = ["A pack holds names, rules and windows. It holds no user data."],
+                Message = "Add it from New collection, Start from a pack.",
+                CanApply = false,
+            };
         }
-        catch (JsonException)
+        catch (CollectionPackException ex)
         {
-            // Text that starts like JSON but is not a pack: another kind (or the list reader) takes it.
-            return false;
+            return new ImportPreviewDto
+            {
+                Kind = Kind,
+                KindLabel = "Collection pack",
+                Recognised = false,
+                Message = ex.Message,
+            };
         }
-
-        return false;
     }
+
+    public Task<ImportApplyResultDto> ApplyAsync(ImportSource source, ImportContext context, CancellationToken ct) =>
+        Task.FromResult(new ImportApplyResultDto(false, "Add collection packs from New collection, Start from a pack."));
 }

@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Rules
 @using MediaEngine.Contracts.Collections
 @implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 <section class="collection-rule-builder @($"collection-rule-builder--{Density}") @(Layout == RuleBuilderLayout.Sentence ? "collection-rule-builder--sentence" : null)" data-rule-domain="@Catalog.Domain">
     @if (ShowHeader)
@@ -29,12 +30,12 @@
 
                 @if (groupIndex > 0)
                 {
-                    <div class="collection-rule-builder__join" role="group" aria-label="Relationship to preceding group">
-                        <span>Combine groups with</span>
+                    <div class="collection-rule-builder__join" role="group" aria-label="@L["SharedRuleBuilder_RelationshipToPrecedingGroup"].Value">
+                        <span>@L["SharedRuleBuilder_CombineGroupsWith"]</span>
                         <AppNativeButton Type="button" Class="@(group.JoinWithPrevious == "and" ? "is-selected" : null)"
-                                         OnClick="@(() => SetGroupJoinAsync(group, "and"))">AND</AppNativeButton>
+                                         OnClick="@(() => SetGroupJoinAsync(group, "and"))">@L["SharedRuleBuilder_AND"]</AppNativeButton>
                         <AppNativeButton Type="button" Class="@(group.JoinWithPrevious != "and" ? "is-selected" : null)"
-                                         OnClick="@(() => SetGroupJoinAsync(group, "or"))">OR</AppNativeButton>
+                                         OnClick="@(() => SetGroupJoinAsync(group, "or"))">@L["SharedRuleBuilder_OR"]</AppNativeButton>
                     </div>
                 }
 
@@ -42,22 +43,22 @@
                          @ondragover:preventDefault @ondrop="@(() => DropGroupAsync(group.Id))">
                     <header class="collection-rule-builder__group-header">
                         <div class="collection-rule-builder__group-identity">
-                            <span class="collection-rule-builder__drag" draggable="true" title="Drag to reorder group"
+                            <span class="collection-rule-builder__drag" draggable="true" title="@L["SharedRuleBuilder_DragToReorderGroup"].Value"
                                   @ondragstart="@(() => BeginGroupDrag(group.Id))">
                                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" />
                             </span>
-                            <strong>Group @(groupIndex + 1)</strong>
+                            <strong>@L["SharedRuleBuilder_Group", groupIndex + 1]</strong>
                         </div>
-                        <div class="collection-rule-builder__group-mode" role="group" aria-label="Group match mode">
+                        <div class="collection-rule-builder__group-mode" role="group" aria-label="@L["SharedRuleBuilder_GroupMatchMode"].Value">
                             <AppNativeButton Type="button" Class="@(group.MatchMode == "all" ? "is-selected" : null)"
-                                             OnClick="@(() => SetGroupModeAsync(group, "all"))">Match ALL</AppNativeButton>
+                                             OnClick="@(() => SetGroupModeAsync(group, "all"))">@L["SharedRuleBuilder_MatchALL"]</AppNativeButton>
                             <AppNativeButton Type="button" Class="@(group.MatchMode == "any" ? "is-selected" : null)"
-                                             OnClick="@(() => SetGroupModeAsync(group, "any"))">Match ANY</AppNativeButton>
+                                             OnClick="@(() => SetGroupModeAsync(group, "any"))">@L["SharedRuleBuilder_MatchANY"]</AppNativeButton>
                         </div>
                         @if (Definition.Groups.Count > 1)
                         {
                             <AppIconButton Icon="@AppMaterialIcons.Outlined.DeleteOutline" Size="AppControlSize.Compact"
-                                           Tooltip="Remove group" AriaLabel="Remove rule group"
+                                           Tooltip="@L["SharedRuleBuilder_RemoveGroup"].Value" AriaLabel="@L["SharedRuleBuilder_RemoveRuleGroup"].Value"
                                            OnClick="@(() => RemoveGroupAsync(capturedGroupIndex))" />
                         }
                     </header>
@@ -71,14 +72,14 @@
                                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" Class="collection-rule-builder__condition-drag" />
                                 @RenderRowControls(condition, negated: false)
                                 <AppIconButton Icon="@AppMaterialIcons.Outlined.DeleteOutline" Size="AppControlSize.Compact"
-                                               Tooltip="Remove condition" AriaLabel="Remove condition"
+                                               Tooltip="@L["Common_RemoveCondition"].Value" AriaLabel="@L["Common_RemoveCondition"].Value"
                                                OnClick="@(() => RemoveConditionAsync(group, capturedConditionIndex))" />
                             </div>
                         }
                     </div>
                     <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Add"
                                Class="collection-rule-builder__add-condition"
-                               OnClick="@(() => OpenConditionPicker(group.Id))">Add condition</AppButton>
+                               OnClick="@(() => OpenConditionPicker(group.Id))">@L["Common_AddCondition"]</AppButton>
 
                     @if (string.Equals(_pickerTarget, group.Id, StringComparison.Ordinal))
                     {
@@ -88,33 +89,33 @@
             }
 
             <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Add"
-                       Class="collection-rule-builder__add-group" OnClick="AddGroupAsync">Add group</AppButton>
+                       Class="collection-rule-builder__add-group" OnClick="AddGroupAsync">@L["SharedRuleBuilder_AddGroup"]</AppButton>
 
             @if (Catalog.ShowSortControls && ShowSort)
             {
                 <div class="collection-rule-builder__ordering">
                     <div class="collection-rule-builder__ordering-header">
-                        <div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SwapVert" /><strong>Sort results</strong><span>Sorting controls the display order of matching items.</span></div>
-                        <small><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" /> Sorting affects order, not membership rules.</small>
+                        <div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SwapVert" /><strong>@L["SharedRuleBuilder_SortResults"]</strong><span>@L["SharedRuleBuilder_SortingControlsTheDisplayOrder"]</span></div>
+                        <small><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" /> @L["SharedRuleBuilder_SortingAffectsOrderNotMembership"]</small>
                     </div>
                     <div class="collection-rule-builder__sort">
-                        <span>Sort by</span>
+                        <span>@L["Common_SortBy"]</span>
                         @RenderSortFieldSelect(SortField ?? Catalog.SortFields.First().Key, OnSortFieldChangedAsync)
                         @RenderSortDirectionSelect(SortField ?? Catalog.SortFields.First().Key, SortDirection, OnSortDirectionChangedAsync)
                     </div>
                     @if (string.IsNullOrWhiteSpace(SecondarySortField))
                     {
                         <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Add"
-                                   Class="collection-rule-builder__add-secondary" OnClick="AddSecondarySortAsync">Add “Then by”</AppButton>
+                                   Class="collection-rule-builder__add-secondary" OnClick="AddSecondarySortAsync">@L["SharedRuleBuilder_AddThenBy"]</AppButton>
                     }
                     else
                     {
                         <div class="collection-rule-builder__sort">
-                            <span>Then by</span>
+                            <span>@L["SharedRuleBuilder_ThenBy"]</span>
                             @RenderSortFieldSelect(SecondarySortField, OnSecondarySortFieldChangedAsync)
                             @RenderSortDirectionSelect(SecondarySortField, SecondarySortDirection ?? "asc", OnSecondarySortDirectionChangedAsync)
                             <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Size="AppControlSize.Compact"
-                                           Tooltip="Remove secondary sort" AriaLabel="Remove secondary sort"
+                                           Tooltip="@L["SharedRuleBuilder_RemoveSecondarySort"].Value" AriaLabel="@L["SharedRuleBuilder_RemoveSecondarySort"].Value"
                                            OnClick="RemoveSecondarySortAsync" />
                         </div>
                     }
@@ -620,7 +621,7 @@
             <div data-value-provider="@field.ValueProvider.ProviderKey">
                 <AppTextField T="string" Value="@condition.Value"
                               ValueChanged="@(value => OnTextValueChangedAsync(condition, value))"
-                              Label="@(RuleOperators.TakesWholeNumber(condition.Op) ? "Number" : "Value")"
+                              Label="@(RuleOperators.TakesWholeNumber(condition.Op) ? L["Common_Number"].Value : L["Common_Value"].Value)"
                               Placeholder="@field.ValueProvider.SearchPlaceholder"
                               InputType="@InputTypeFor(field, condition.Op)"
                               Variant="AppVariant.Outlined" Immediate="true"

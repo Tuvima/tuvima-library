@@ -1,34 +1,35 @@
 @namespace MediaEngine.Web.Components.Import
 @using MediaEngine.Contracts.Collections
 @using MediaEngine.Web.Components.Shared
+@inject IStringLocalizer<SharedStrings> L
 
 @* How an imported list is followed (Collections and lists spec D6, 4d): the Order the titles show in, how often a web list is looked at
    again, and what happens when a title leaves the list. Used by the From a list step and by the editor's Contents tab. *@
 <div class="list-choices" data-list-choices>
     <div class="list-choices__field">
-        <span class="list-choices__label">Order</span>
-        <AppSegmentedControl Options="OrderOptions" Value="@Order" ValueChanged="OnOrderChanged" AriaLabel="Order" Disabled="@Disabled" />
+        <span class="list-choices__label">@L["ListChoices_Order"]</span>
+        <AppSegmentedControl Options="OrderOptions" Value="@Order" ValueChanged="OnOrderChanged" AriaLabel="@L["ListChoices_Order"].Value" Disabled="@Disabled" />
         <small class="list-choices__help">@OrderHelp</small>
     </div>
 
     @if (ShowRefresh)
     {
         <div class="list-choices__field">
-            <span class="list-choices__label">Refresh</span>
-            <AppSegmentedControl Options="RefreshOptions" Value="@Refresh" ValueChanged="OnRefreshChanged" AriaLabel="Refresh" Disabled="@Disabled" />
-            <small class="list-choices__help">Library looks at the list again on this schedule and adds new titles you own.</small>
+            <span class="list-choices__label">@L["ListChoices_Refresh"]</span>
+            <AppSegmentedControl Options="RefreshOptions" Value="@Refresh" ValueChanged="OnRefreshChanged" AriaLabel="@L["ListChoices_Refresh"].Value" Disabled="@Disabled" />
+            <small class="list-choices__help">@L["ListChoices_RefreshHelp"]</small>
         </div>
     }
 
     <div class="list-choices__field">
-        <span class="list-choices__label">When a title leaves the list</span>
-        <AppChoiceRow Title="Follow the list"
-                      Description="The title leaves this collection too. Titles you added by hand always stay."
+        <span class="list-choices__label">@L["ListChoices_WhenLeaves"]</span>
+        <AppChoiceRow Title="@L["ListChoices_Follow"].Value"
+                      Description="@L["ListChoices_FollowHelp"].Value"
                       Selected="@(SyncMode == ListImportChoices.SyncFollow)"
                       Disabled="@Disabled"
                       OnClick="@(() => OnSyncChanged(ListImportChoices.SyncFollow))" />
-        <AppChoiceRow Title="Keep everything ever added"
-                      Description="Nothing is taken out. The collection only grows."
+        <AppChoiceRow Title="@L["ListChoices_Keep"].Value"
+                      Description="@L["ListChoices_KeepHelp"].Value"
                       Selected="@(SyncMode == ListImportChoices.SyncKeep)"
                       Disabled="@Disabled"
                       OnClick="@(() => OnSyncChanged(ListImportChoices.SyncKeep))" />

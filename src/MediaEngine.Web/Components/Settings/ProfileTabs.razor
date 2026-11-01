@@ -1,11 +1,12 @@
 @namespace MediaEngine.Web.Components.Settings
 @inject NavigationManager Nav
+@inject IStringLocalizer<SharedStrings> L
 
 @* The tabs of one person's page in Manage Profiles: Profile, Preferences, and Access & safety. Same shared tab, one link per tab. *@
 <AppCountTabs Tabs="@Items"
               Selected="@ActiveRoute"
               SelectedChanged="OpenAsync"
-              AriaLabel="Profile sections"
+              AriaLabel="@L["ProfileTabs_ProfileSections"].Value"
               Class="settings-page-tabs" />
 
 @code {

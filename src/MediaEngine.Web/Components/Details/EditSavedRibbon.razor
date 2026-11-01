@@ -4,6 +4,7 @@
 @using MediaEngine.Web.Services.Integration
 @implements IDisposable
 @inject IServiceProvider Provider
+@inject IStringLocalizer<SharedStrings> L
 
 @* The page proves the save (universal editor v2, D7): once the Editor window closes after a save, a ribbon under the top bar says how many
    changes were saved and when, in plain text. It goes away on its own after a few seconds, with its close button, or when editing starts
@@ -16,8 +17,8 @@
         <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
                        Size="AppControlSize.Compact"
                        Tone="AppUiTone.Neutral"
-                       Tooltip="Dismiss"
-                       AriaLabel="Dismiss the saved message"
+                       Tooltip="@L["Common_Dismiss"].Value"
+                       AriaLabel="@L["EditSavedRibbon_DismissTheSavedMessage"].Value"
                        OnClick="@(() => Flow.ClearLastSave())" />
     </div>
 }

@@ -4,7 +4,8 @@
 @inject AppToastService Toasts
 @inject AppDialogService Dialogs
 @inject IJSRuntime JS
-<div @ref="_host" popover="manual" hidden="@(!Visible)" class="app-toast-host tl-snackbar-container" aria-label="Notifications">
+@inject IStringLocalizer<SharedStrings> L
+<div @ref="_host" popover="manual" hidden="@(!Visible)" class="app-toast-host tl-snackbar-container" aria-label="@L["Common_Notifications"].Value">
     @if (Visible)
     {
     @foreach (var toast in Toasts.Toasts.Take(AppToastService.MaximumDisplayedToasts))
@@ -14,7 +15,7 @@
             <AppMaterialIcon Icon="@SeverityIcon(toast.Severity)" Class="app-toast__icon" />
             <span class="app-toast__message">@toast.Message</span>
             @if (!string.IsNullOrWhiteSpace(toast.Options.Action)) { <button class="app-toast__action" type="button" disabled="@toast.Busy" @onclick="() => Toasts.InvokeActionAsync(toast)">@toast.Options.Action</button> }
-            @if (toast.Options.ShowCloseIcon) { <button class="app-toast__close" type="button" aria-label="Dismiss notification" @onclick="() => Toasts.Remove(toast)">×</button> }
+            @if (toast.Options.ShowCloseIcon) { <button class="app-toast__close" type="button" aria-label="@L["Common_DismissNotification"].Value" @onclick="() => Toasts.Remove(toast)">×</button> }
         </div>
     }
     }

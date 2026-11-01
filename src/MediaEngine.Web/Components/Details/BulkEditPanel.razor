@@ -7,6 +7,7 @@
 @implements IDisposable
 @inject IEngineApiClient Api
 @inject DeviceContextService Device
+@inject IStringLocalizer<SharedStrings> L
 
 @* The right-hand panel for several ticked items (universal editor spec D14): "Edit 4 songs" with the same Details fields as one item, where
    a field the items disagree on says "Mixed, leave unchanged" and only fields that are changed are staged, one entry per item and field.
@@ -15,7 +16,7 @@
 <div class="tl-editor-details tl-bulk" data-panel="@PanelName">
     @if (Selection.Count == 0)
     {
-        <p class="tl-bulk__note">Tick some rows to edit them together.</p>
+        <p class="tl-bulk__note">@L["BulkEditPanel_TickSomeRowsToEdit"]</p>
     }
     else if (Selection.Panel == BulkPanelKind.Move)
     {
@@ -31,20 +32,20 @@
     }
     else if (Selection.Panel == BulkPanelKind.Match)
     {
-        <section class="tl-bulk__group" aria-label="Match">
+        <section class="tl-bulk__group" aria-label="@L["Common_Match"].Value">
             <p class="tl-bulk__note">
                 Match each of the @Selection.Count @Noun with the entry of its own @(IsEpisodes ? "season" : "album") that it fits best by title.
                 Nothing changes until you save, and the review lists every one.
             </p>
             <div class="tl-bulk__actions">
-                <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!CanChange)" OnClick="StageMatch">Stage matching</AppButton>
-                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="BackToEdit">Cancel</AppButton>
+                <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!CanChange)" OnClick="StageMatch">@L["BulkEditPanel_StageMatching"]</AppButton>
+                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="BackToEdit">@L["Search_Cancel"]</AppButton>
             </div>
         </section>
     }
     else
     {
-        <div class="tl-bulk__items" role="list" aria-label="Items being edited together">
+        <div class="tl-bulk__items" role="list" aria-label="@L["BulkEditPanel_ItemsBeingEditedTogether"].Value">
             @foreach (var row in Selection.OrderedRows())
             {
                 <span role="listitem">
@@ -55,16 +56,16 @@
 
         @if (!CanChange)
         {
-            <AppAlert Severity="AppSeverity.Info" Dense="true">You can look at these details but not change them.</AppAlert>
+            <AppAlert Severity="AppSeverity.Info" Dense="true">@L["Common_YouCanLookAtThese"]</AppAlert>
         }
 
         @if (_fields.Loading && _fields.Fields.Count == 0)
         {
-            <AppPageState Kind="AppPageStateKind.Loading" Title="Loading the fields" />
+            <AppPageState Kind="AppPageStateKind.Loading" Title="@L["BulkEditPanel_LoadingTheFields"].Value" />
         }
         else if (_fields.Forbidden)
         {
-            <AppAlert Severity="AppSeverity.Info" Dense="true">You can't edit these items together.</AppAlert>
+            <AppAlert Severity="AppSeverity.Info" Dense="true">@L["BulkEditPanel_YouCanTEditThese"]</AppAlert>
         }
         else if (!string.IsNullOrWhiteSpace(_fields.Error))
         {
@@ -87,7 +88,7 @@
             var facts = effective.Where(pair => pair.Engine.IsProviderFact).ToList();
             @if (editable.Count > 0)
             {
-                <section class="tl-editor-details__group" aria-label="Details you can change">
+                <section class="tl-editor-details__group" aria-label="@L["Common_DetailsYouCanChange"].Value">
                     @foreach (var pair in editable)
                     {
                         @EditableRow(pair.Engine, pair.Shown)
@@ -97,8 +98,8 @@
 
             @if (facts.Count > 0)
             {
-                <section class="tl-editor-details__group" aria-label="Provider facts">
-                    <h3 class="tl-editor-details__heading">From providers</h3>
+                <section class="tl-editor-details__group" aria-label="@L["Common_ProviderFacts"].Value">
+                    <h3 class="tl-editor-details__heading">@L["BulkEditPanel_FromProviders"]</h3>
                     @foreach (var pair in facts)
                     {
                         @FactRow(pair.Shown)

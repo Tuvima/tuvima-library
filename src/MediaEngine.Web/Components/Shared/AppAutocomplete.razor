@@ -3,6 +3,7 @@
 @using Microsoft.JSInterop
 @implements IAsyncDisposable
 @inject IJSRuntime JS
+@inject IStringLocalizer<SharedStrings> L
 <div @ref="_root" class="@RootClass">
     @if (!string.IsNullOrWhiteSpace(Label)) { <label class="app-field__label" for="@InputId">@Label</label> }
     <div class="tl-input-control tl-input-container">
@@ -18,7 +19,7 @@
                         @if (ItemTemplate is not null) { @ItemTemplate(item) } else { @TextOf(item) }
                     </div>
                 }
-                @if (_searching) { <div role="status" class="tl-list-item">Searching…</div> }
+                @if (_searching) { <div role="status" class="tl-list-item">@L["Common_Searching"]</div> }
             </div>
         </AppPopover>
     </div>

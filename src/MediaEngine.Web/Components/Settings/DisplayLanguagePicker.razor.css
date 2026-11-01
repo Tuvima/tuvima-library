@@ -1,0 +1,11 @@
+.display-language-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-4, 1rem);
+}
+
+.display-language-picker label {
+    display: grid;
+    flex: 1 1 14rem;
+    gap: var(--space-1, 0.25rem);
+}

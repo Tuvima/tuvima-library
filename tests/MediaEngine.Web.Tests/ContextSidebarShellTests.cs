@@ -6,7 +6,7 @@ using Microsoft.JSInterop;
 
 namespace MediaEngine.Web.Tests;
 
-public sealed class ContextSidebarShellTests : BunitContext
+public sealed class ContextSidebarShellTests : LocalizedBunitContext
 {
     public ContextSidebarShellTests() => JSInterop.Mode = JSRuntimeMode.Loose;
 

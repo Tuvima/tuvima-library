@@ -1,28 +1,29 @@
 @using System.Globalization
 @using MediaEngine.Contracts.LocalAssets
 @namespace MediaEngine.Web.Components.View
+@inject IStringLocalizer<SharedStrings> L
 
-<aside class="place-story" aria-label="Place details">
+<aside class="place-story" aria-label="@L["ViewPlaceStoryPanel_PlaceDetails"].Value">
     <header class="place-story__header">
         <div><h2>@Title</h2><p>@Summary</p></div>
-        <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="Close place details" AriaLabel="Close place details" OnClick="@(_ => OnClose.InvokeAsync())" />
+        <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="@L["ViewPlaceStoryPanel_ClosePlaceDetails"].Value" AriaLabel="@L["ViewPlaceStoryPanel_ClosePlaceDetails"].Value" OnClick="@(_ => OnClose.InvokeAsync())" />
     </header>
     @if (Hotspot is not null)
     {
-        <div class="place-story__chips" aria-label="Place summary">
+        <div class="place-story__chips" aria-label="@L["ViewPlaceStoryPanel_PlaceSummary"].Value">
             @if (Hotspot.ImageCount > 0) { <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" />@Hotspot.ImageCount.ToString("N0") photos</span> }
             @if (Hotspot.VideoCount > 0) { <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Videocam" />@Hotspot.VideoCount.ToString("N0") videos</span> }
             @if (IdentifiedPeopleCount > 0) { <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.People" />@IdentifiedPeopleCount.ToString("N0") people</span> }
         </div>
-        <section class="place-story__fact"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.LocationOn" /><div><strong>Place Story</strong><p>@FactSummary</p></div></section>
+        <section class="place-story__fact"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.LocationOn" /><div><strong>@L["ViewPlaceStoryPanel_PlaceStory"]</strong><p>@FactSummary</p></div></section>
     }
     @if (Loading)
     {
-        <AppPageState Kind="AppPageStateKind.Loading" Title="Loading photos and videos" Message="Building this place timeline." />
+        <AppPageState Kind="AppPageStateKind.Loading" Title="@L["ViewPlaceStoryPanel_LoadingPhotosAndVideos"].Value" Message="@L["ViewPlaceStoryPanel_BuildingThisPlaceTimeline"].Value" />
     }
     else if (Items.Count == 0)
     {
-        <AppPageState Kind="AppPageStateKind.Empty" Title="No matching items" Message="Adjust the Places filters or choose another hotspot." />
+        <AppPageState Kind="AppPageStateKind.Empty" Title="@L["ViewPlaceStoryPanel_NoMatchingItems"].Value" Message="@L["ViewPlaceStoryPanel_AdjustThePlacesFiltersOr"].Value" />
     }
     else
     {
@@ -45,7 +46,7 @@
             }
         </div>
     }
-    @if (HasMore) { <AppButton Label="Load more" Disabled="@Loading" OnClick="@(() => OnLoadMore.InvokeAsync())" /> }
+    @if (HasMore) { <AppButton Label="@L["Common_LoadMore"].Value" Disabled="@Loading" OnClick="@(() => OnLoadMore.InvokeAsync())" /> }
 </aside>
 
 @code {

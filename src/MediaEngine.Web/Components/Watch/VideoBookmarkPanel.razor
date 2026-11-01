@@ -6,6 +6,7 @@
 @inject IEngineApiClient ApiClient
 @inject ILogger<VideoBookmarkPanel> Logger
 @implements IAsyncDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 @* The video player's Bookmarks panel (Videos spec D43). It is the audiobook Add and Saved dialog, driven by the same bookmark owner
    service, with the video player supplying the captured position, the preview and the jump. The position is captured when the
@@ -33,7 +34,7 @@ else if (_context is not null && _service is not null)
 }
 else
 {
-    <p role="status">Bookmarks are unavailable until the video is ready.</p>
+    <p role="status">@L["VideoBookmarkPanel_BookmarksAreUnavailableUntilThe"]</p>
 }
 
 @code {

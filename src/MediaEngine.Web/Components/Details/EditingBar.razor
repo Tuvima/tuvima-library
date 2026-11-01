@@ -7,6 +7,7 @@
 @implements IDisposable
 @inject IAppDialogService Dialogs
 @inject IJSRuntime JS
+@inject IStringLocalizer<SharedStrings> L
 
 @* The universal editor's bar (spec section 4): one bar at the top of the page while editing, replacing the Editing Mode banner. Left,
    "Editing" and where the item sits (Show > Season > Episode); in the centre, the tools (Artwork and Match only where the type has them);
@@ -21,12 +22,12 @@
        (inside it the overlay's leave guard asks, so nothing asks twice). *@
     <NavigationLock ConfirmExternalNavigation="@hasChanges" OnBeforeInternalNavigation="ConfirmNavigationAsync" />
 
-    <div class="tl-editing-bar" role="region" aria-label="Editing">
+    <div class="tl-editing-bar" role="region" aria-label="@L["EditingBar_Editing"].Value">
         <div class="tl-editing-bar__row">
             <div class="tl-editing-bar__where">
                 <span class="tl-editing-bar__dot" aria-hidden="true"></span>
-                <strong class="tl-editing-bar__title">Editing</strong>
-                <ol class="tl-editing-bar__trail" aria-label="Item being edited" aria-busy="@(flow.Switching ? "true" : null)">
+                <strong class="tl-editing-bar__title">@L["EditingBar_Editing"]</strong>
+                <ol class="tl-editing-bar__trail" aria-label="@L["EditingBar_ItemBeingEdited"].Value" aria-busy="@(flow.Switching ? "true" : null)">
                     @for (var index = 0; index < session.Trail.Count; index++)
                     {
                         var step = session.Trail[index];
@@ -62,11 +63,11 @@
                 </ol>
                 @if (flow.Switching)
                 {
-                    <span class="tl-editing-bar__opening" role="status">Opening...</span>
+                    <span class="tl-editing-bar__opening" role="status">@L["EditingBar_Opening"]</span>
                 }
             </div>
 
-            <div class="tl-editing-bar__tools" role="group" aria-label="Editing tools">
+            <div class="tl-editing-bar__tools" role="group" aria-label="@L["Common_EditingTools"].Value">
                 @foreach (var tool in Tools(mode))
                 {
                     var isOpen = session.ActiveTool == tool.Tool;
@@ -91,7 +92,7 @@
                            Class="tl-editing-bar__cancel"
                            Disabled="@flow.Saving"
                            OnClick="@(() => flow.LeaveAsync())">
-                    Cancel
+                    @L["Search_Cancel"]
                 </AppButton>
                 <AppTooltip Text="@(hasChanges ? null : "No changes yet")" Placement="AppPlacement.Bottom">
                     <AppButton ButtonStyle="AppButtonStyle.Filled"
@@ -135,7 +136,7 @@
         {
             <div class="tl-editing-bar__notice" role="alert">
                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ErrorOutline" />
-                <span><strong>Editing is not ready.</strong> @mode.Fields.LoadError</span>
+                <span><strong>@L["EditingBar_EditingIsNotReady"]</strong> @mode.Fields.LoadError</span>
             </div>
         }
     </div>

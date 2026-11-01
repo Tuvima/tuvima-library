@@ -1,22 +1,23 @@
 @namespace MediaEngine.Web.Components.Settings
 @inject UIOrchestratorService Orchestrator
+@inject IStringLocalizer<SharedStrings> L
 
 @* The Budget page of Local AI: how much of the machine each plugin may use. Ingestion and a person's own requests are
    never held to a budget; they only go first in the queue. Plugins with their own allowance are listed on Usage. *@
 <div class="local-ai-budget" data-testid="local-ai-budget">
-    <AppCard Title="Plugin allowance" Description="How much Local AI a plugin may use in any hour. A plugin that goes over it shows Needs attention and waits until the hour has room again. Requests from people and from ingestion are not counted against it." Density="AppSurfaceDensity.Compact">
+    <AppCard Title="@L["LocalAiBudgetPanel_PluginAllowance"].Value" Description="@L["LocalAiBudgetPanel_HowMuchLocalAIA"].Value" Density="AppSurfaceDensity.Compact">
         @if (_config is null)
         {
-            <AppEmptyState Title="AI configuration unavailable" Message="The allowance is hidden until the Engine returns the saved configuration." />
+            <AppEmptyState Title="@L["Common_AIConfigurationUnavailable"].Value" Message="@L["LocalAiBudgetPanel_TheAllowanceIsHiddenUntil"].Value" />
         }
         else
         {
             <div class="tl-form-grid">
-                <AppNumericField T="int" @bind-Value="_config.PluginBudget.RequestsPerHour" Label="Requests per hour" Min="1" HelpText="Most requests one plugin may make in an hour." />
-                <AppNumericField T="int" @bind-Value="_config.PluginBudget.BusySecondsPerHour" Label="Busy seconds per hour" Min="1" HelpText="Most running time one plugin may use in an hour." />
-                <AppNumericField T="int" @bind-Value="_config.PluginBudget.MaxWaitSeconds" Label="Longest wait (seconds)" Min="1" HelpText="How long a plugin request may wait for its turn before giving up." />
+                <AppNumericField T="int" @bind-Value="_config.PluginBudget.RequestsPerHour" Label="@L["LocalAiBudgetPanel_RequestsPerHour"].Value" Min="1" HelpText="Most requests one plugin may make in an hour." />
+                <AppNumericField T="int" @bind-Value="_config.PluginBudget.BusySecondsPerHour" Label="@L["LocalAiBudgetPanel_BusySecondsPerHour"].Value" Min="1" HelpText="Most running time one plugin may use in an hour." />
+                <AppNumericField T="int" @bind-Value="_config.PluginBudget.MaxWaitSeconds" Label="@L["LocalAiBudgetPanel_LongestWaitSeconds"].Value" Min="1" HelpText="How long a plugin request may wait for its turn before giving up." />
             </div>
-            <AppButton Label="Save allowance" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+            <AppButton Label="@L["LocalAiBudgetPanel_SaveAllowance"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
                        Class="tl-sp-mt-3" Disabled="@(_saving || !IsValid)" OnClick="@SaveAsync" />
             @if (_overrideCount > 0)
             {

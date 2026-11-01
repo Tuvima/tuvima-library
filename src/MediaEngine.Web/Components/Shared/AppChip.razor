@@ -1,4 +1,5 @@
 @namespace MediaEngine.Web.Components.Shared
+@inject IStringLocalizer<SharedStrings> L
 
 <span class="@RootClass"
       title="@Title"
@@ -22,7 +23,7 @@
     }
     @if (OnClose.HasDelegate)
     {
-        <button type="button" class="app-chip__remove" aria-label="Remove tag" disabled="@Disabled" @onclick="HandleClose" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" Size="AppSize.Small" /></button>
+        <button type="button" class="app-chip__remove" aria-label="@L["AppChip_RemoveTag"].Value" disabled="@Disabled" @onclick="HandleClose" @onclick:stopPropagation="true" @onkeydown:stopPropagation="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" Size="AppSize.Small" /></button>
     }
 </span>
 

@@ -1,17 +1,20 @@
 using System.IO.Compression;
 using System.Text;
 using MediaEngine.Api.Services.Collections.ListImport;
+using MediaEngine.Api.Services.Collections.Packs;
 using MediaEngine.Api.Services.Import;
 using MediaEngine.Api.Services.Playback;
 using MediaEngine.Api.Services.Plugins;
 using MediaEngine.Application.Services;
 using MediaEngine.Contracts.Collections;
 using MediaEngine.Contracts.Import;
+using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Services;
 using MediaEngine.Intelligence.Services;
 using MediaEngine.Storage;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Api.Tests;
@@ -60,7 +63,7 @@ public sealed class ImportRecogniserTests : IDisposable
     }
 
     [Fact]
-    public async Task APackFile_OpensThePackPreviewWithoutCreatingAnything()
+    public async Task APackFile_OpensThePackPreviewFromThePackImporter_WithoutCreatingAnything()
     {
         var file = Encoding.UTF8.GetBytes("""{"format":"tuvima-collection-pack","name":"Film classics","collections":[{},{}]}""");
 
@@ -69,6 +72,7 @@ public sealed class ImportRecogniserTests : IDisposable
         Assert.Equal(ImportKinds.PackFile, preview.Kind);
         Assert.Equal("Film classics", preview.Heading);
         Assert.Contains(preview.Facts, fact => fact.Label == "Collections" && fact.Value == "2");
+        Assert.False(preview.CanApply);
     }
 
     [Fact]
@@ -140,6 +144,10 @@ public sealed class ImportRecogniserTests : IDisposable
 
     private static ImportContext Context() => new(null, null);
 
+    // The pack file kind reads through the collection packs packet's IPackFileImporter, a scoped service.
+    private static IServiceScopeFactory PackScopes() =>
+        new ServiceCollection().AddScoped<IPackFileImporter, StubPackImporter>().BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
+
     private ImportRecogniser Recogniser() => new(Handlers());
 
     private List<IImportKindHandler> Handlers()
@@ -151,7 +159,7 @@ public sealed class ImportRecogniserTests : IDisposable
         return
         [
             new BookmarkPackImportKindHandler(_candidates, fuzzy, _config),
-            new PackFileImportKindHandler(),
+            new PackFileImportKindHandler(PackScopes()),
             new PluginSettingsImportKindHandler(plugins),
             new CollectionListImportKindHandler(lists),
         ];
@@ -168,6 +176,25 @@ public sealed class ImportRecogniserTests : IDisposable
         {
             // A temp folder another process still holds is cleaned up by the operating system later.
         }
+    }
+
+    private sealed class StubPackImporter : IPackFileImporter
+    {
+        public string Kind => ImportKinds.PackFile;
+
+        public bool Recognises(string content) => content.Contains("tuvima-collection-pack", StringComparison.Ordinal);
+
+        public Task<CollectionPackSummaryDto> PreviewAsync(string content, Guid? viewerProfileId, CancellationToken ct) =>
+            Task.FromResult(new CollectionPackSummaryDto
+            {
+                Name = "Film classics",
+                WouldCreateCount = 2,
+                Collections = [new CollectionPackEntryDto { Name = "A" }, new CollectionPackEntryDto { Name = "B" }],
+            });
+
+        public Task<CollectionPackCreateResponse> ImportAsync(
+            string content, CollectionPackCreateRequest ownership, Profile? activeProfile, Guid? viewerProfileId, CancellationToken ct) =>
+            throw new NotSupportedException();
     }
 
     private sealed class RealPackHandler : IImportKindHandler

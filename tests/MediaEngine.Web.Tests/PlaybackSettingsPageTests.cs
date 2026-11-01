@@ -211,7 +211,7 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void SubtitlesGroup_IsTheSubtitlesAnchorWithThreeSelectsAndNoPositionOrStyle()
+    public void SubtitlesGroup_IsTheSubtitlesAnchorWithFiveSelectsAndNoPositionOrStyle()
     {
         var cut = Render<PlaybackSettingsPage>();
 
@@ -220,7 +220,7 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
             var group = cut.Find("#subtitles");
             Assert.Contains("Subtitles &amp; audio", group.InnerHtml);
             Assert.Contains("Subtitle appearance", group.InnerHtml);
-            Assert.Equal(new[] { "Audio language", "Subtitle language", "Show subtitles" },
+            Assert.Equal(new[] { "Audio language", "Subtitle language", "Second subtitle language", "Lyrics language", "Show subtitles" },
                 cut.FindComponents<AppSelect>().Select(select => (string)select.Instance.AdditionalAttributes!["aria-label"]).ToArray());
             Assert.Contains("Auto (only when audio is not my language)", group.InnerHtml);
             Assert.Contains("Text size", group.InnerHtml);
@@ -258,7 +258,7 @@ public sealed class PlaybackSettingsPageTests : AsyncBunitContext
     public async Task LanguageAndShowSubtitlesSelects_SaveTheDisplayNameAndTheEngineValues()
     {
         var cut = Render<PlaybackSettingsPage>();
-        cut.WaitForAssertion(() => Assert.Equal(3, cut.FindComponents<AppSelect>().Count));
+        cut.WaitForAssertion(() => Assert.Equal(5, cut.FindComponents<AppSelect>().Count));
 
         await cut.InvokeAsync(() => SelectNamed(cut, "Audio language").Instance.ValueChanged.InvokeAsync("Japanese"));
         await cut.InvokeAsync(() => SelectNamed(cut, "Subtitle language").Instance.ValueChanged.InvokeAsync("Spanish"));

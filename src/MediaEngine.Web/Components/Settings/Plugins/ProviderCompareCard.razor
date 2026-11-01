@@ -2,22 +2,23 @@
 @using MediaEngine.Contracts.Plugins
 @implements IDisposable
 @inject UIOrchestratorService Orchestrator
+@inject IStringLocalizer<SharedStrings> L
 
 @* Compare (moved here from the old Metadata sources box, Plugins and Integrations screens v3 D16): this source next to another,
    to see what both supply and what only one does. Read-only. *@
 @if (_options.Count > 0)
 {
-    <AppCard Title="Compare with another source" Class="metadata-summary-card">
+    <AppCard Title="@L["ProviderCompareCard_CompareWithAnotherSource"].Value" Class="metadata-summary-card">
         <div class="provider-compare__row">
-            <AppSelect Native="true" Value="@_with" ValueChanged="@(value => _with = value)" Label="Compare with" Options="@_options" />
-            <AppButton Label="Compare" Size="AppControlSize.Compact" Disabled="@(string.IsNullOrEmpty(_with))" OnClick="@CompareAsync" data-testid="metadata-sources-compare-go" />
+            <AppSelect Native="true" Value="@_with" ValueChanged="@(value => _with = value)" Label="@L["ProviderCompareCard_CompareWith"].Value" Options="@_options" />
+            <AppButton Label="@L["ProviderCompareCard_Compare"].Value" Size="AppControlSize.Compact" Disabled="@(string.IsNullOrEmpty(_with))" OnClick="@CompareAsync" data-testid="metadata-sources-compare-go" />
         </div>
         @if (_comparison is not null)
         {
             <div class="provider-compare__result" data-testid="metadata-sources-result">
-                <p>Both supply: @Join(_comparison.Both)</p>
-                <p>Only @_comparison.From supplies: @Join(_comparison.OnlyFrom)</p>
-                <p>Only @_comparison.To supplies: @Join(_comparison.OnlyTo)</p>
+                <p>@L["ProviderCompareCard_BothSupply", Join(_comparison.Both)]</p>
+                <p>@L["ProviderCompareCard_OnlySupplies", _comparison.From, Join(_comparison.OnlyFrom)]</p>
+                <p>@L["ProviderCompareCard_OnlySupplies", _comparison.To, Join(_comparison.OnlyTo)]</p>
                 <p class="provider-compare__keeps">@_comparison.Keeps</p>
             </div>
         }

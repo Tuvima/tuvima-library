@@ -2,10 +2,11 @@
 @using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Ui
 @implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 @* Review changes as a small dialog, for the paths that have no Editor window (the bar, ticked rows). The Editor window shows the same
    ReviewChangesView as a page of its own (universal editor spec D8). *@
-<AppDialogShell Title="Review changes" Subtitle="Nothing is saved until you choose Save." Size="Medium" OnClose="BackAsync">
+<AppDialogShell Title="@L["ReviewChangesDialog_ReviewChanges"].Value" Subtitle="@L["ReviewChangesDialog_NothingIsSavedUntilYou"].Value" Size="Medium" OnClose="BackAsync">
     <ChildContent>
         <ReviewChangesView @ref="_view" Source="Source" OnOutcome="OnOutcomeAsync" />
     </ChildContent>

@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Contracts.Details
+@inject IStringLocalizer<SharedStrings> L
 
 @* The Extras row on a title's page: guidebooks, picture folders and clips found beside it. Hidden when there are none. A picture
    folder is one card however many pictures it holds. Every card is a link, so it works with a remote, a keyboard and a finger. *@
@@ -7,7 +8,7 @@
 {
     <section class="tl-extras" aria-labelledby="tl-extras-heading" data-testid="extras-section">
         <div class="tl-section-heading tl-extras__heading">
-            <h2 id="tl-extras-heading">Extras</h2>
+            <h2 id="tl-extras-heading">@L["Common_Extras"]</h2>
             <span class="tl-extras__count">@Cards.Count</span>
         </div>
         <ul class="tl-extras__shelf">
@@ -22,7 +23,7 @@
                             </div>
                             <div class="tl-extras-card__text">
                                 <span class="tl-extras-card__title">@card.Title</span>
-                                <span class="tl-extras-card__subtitle">File not found</span>
+                                <span class="tl-extras-card__subtitle">@L["ExtrasSection_FileNotFound"]</span>
                             </div>
                         </div>
                     }

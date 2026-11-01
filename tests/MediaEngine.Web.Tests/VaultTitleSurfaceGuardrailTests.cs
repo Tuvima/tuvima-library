@@ -27,7 +27,7 @@ public sealed class VaultTitleSurfaceGuardrailTests
     [Fact]
     public void TheVaultVideoPage_SetsTheTitleVideo_AndNothingElse()
     {
-        var source = File.ReadAllText(Web("Components", "Pages", "VaultScenePage.razor"));
+        var source = LocalizedSource.ReadAllText(Web("Components", "Pages", "VaultScenePage.razor"));
 
         var titles = Regex.Matches(source, @"<PageTitle>(?<text>.*?)</PageTitle>", RegexOptions.Singleline).Select(match => match.Groups["text"].Value).ToList();
 
@@ -40,7 +40,7 @@ public sealed class VaultTitleSurfaceGuardrailTests
     {
         foreach (var path in VaultSources())
         {
-            var source = File.ReadAllText(path);
+            var source = LocalizedSource.ReadAllText(path);
             foreach (Match match in Regex.Matches(source, @"<PageTitle>(?<text>.*?)</PageTitle>", RegexOptions.Singleline))
             {
                 var text = match.Groups["text"].Value;
@@ -56,7 +56,7 @@ public sealed class VaultTitleSurfaceGuardrailTests
     {
         foreach (var path in VaultSources())
         {
-            var source = File.ReadAllText(path);
+            var source = LocalizedSource.ReadAllText(path);
             foreach (var forbidden in new[] { "document.title", "mediaSession", "MediaSession", "playback-media-session", "navigator.", "history.replaceState", "history.pushState" })
             {
                 Assert.False(source.Contains(forbidden, StringComparison.Ordinal), $"{Path.GetFileName(path)} uses {forbidden}.");
@@ -67,7 +67,7 @@ public sealed class VaultTitleSurfaceGuardrailTests
     [Fact]
     public void ThePlayerPage_TakesItsTitleFromTheVaultRule_AndTheMediaSessionIsGenericForAVaultVideo()
     {
-        var page = File.ReadAllText(Web("Components", "Pages", "WatchPlayerPage.razor"));
+        var page = LocalizedSource.ReadAllText(Web("Components", "Pages", "WatchPlayerPage.razor"));
         Assert.Contains("VaultPrivacy.PageTitle(", page);
         Assert.Single(Regex.Matches(page, "<PageTitle>"));
         Assert.Contains("<PageTitle>@PageTitleText - Library</PageTitle>", page);

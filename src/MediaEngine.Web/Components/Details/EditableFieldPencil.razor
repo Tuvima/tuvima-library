@@ -2,6 +2,7 @@
 @using MediaEngine.Contracts.Metadata
 @using MediaEngine.Web.Components.MediaEditor
 @implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 @* One small pencil beside an editable single-item field, only while Editing Mode is on. Provider-owned facts that
    cannot be changed here show a lock and one short reason instead. Pressing the pencil opens the editor's own inline
@@ -23,10 +24,10 @@
                                       Suggestions="@(IsTags(field) ? fields.TagSuggestions : fields.GenreSuggestions)" />
                 <div class="tl-editing-field__actions">
                     <AppIconButton Icon="@AppMaterialIcons.Outlined.Check" Size="AppControlSize.Compact"
-                                   Tone="AppUiTone.Primary" Tooltip="Save this field"
+                                   Tone="AppUiTone.Primary" Tooltip="@L["Common_SaveThisField"].Value"
                                    AriaLabel="@($"Save {field.Label}")" Disabled="@fields.Saving" OnClick="SaveAsync" />
                     <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Size="AppControlSize.Compact"
-                                   Tone="AppUiTone.Neutral" Tooltip="Cancel this field"
+                                   Tone="AppUiTone.Neutral" Tooltip="@L["Common_CancelThisField"].Value"
                                    AriaLabel="@($"Cancel editing {field.Label}")" Disabled="@fields.Saving" OnClick="CancelAsync" />
                 </div>
             </div>
@@ -62,7 +63,7 @@
                            OnClick="BeginAsync" />
             @if (string.Equals(fields.LastSavedKey, field.Key, StringComparison.OrdinalIgnoreCase))
             {
-                <span class="tl-editing-pencil__saved" role="status">Saved</span>
+                <span class="tl-editing-pencil__saved" role="status">@L["Common_Saved"]</span>
             }
         </span>
     }

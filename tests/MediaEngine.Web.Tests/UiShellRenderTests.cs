@@ -296,15 +296,15 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     {
         var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Shared", "MainLayout.razor"));
         var accountSource = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Navigation", "TopNavAccountMenu.razor"));
-        var accountCss = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Navigation", "TopNavAccountMenu.razor.css"));
-        var activityIndicator = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Navigation", "SystemActivityIndicator.razor"));
-        var activityIndicatorCss = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Navigation", "SystemActivityIndicator.razor.css"));
-        var globalCss = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "wwwroot", "app.css"));
-        var css = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Shared", "MainLayout.razor.css"));
+        var accountCss = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Navigation", "TopNavAccountMenu.razor.css"));
+        var activityIndicator = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Navigation", "SystemActivityIndicator.razor"));
+        var activityIndicatorCss = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Navigation", "SystemActivityIndicator.razor.css"));
+        var globalCss = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "wwwroot", "app.css"));
+        var css = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Shared", "MainLayout.razor.css"));
 
         Assert.Contains("await Orchestrator.StartSignalRAsync();", source);
         Assert.Contains("await Activity.InitializeAsync();", source);
-        var activityState = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Services", "Integration", "ShellActivityState.cs"));
+        var activityState = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Services", "Integration", "ShellActivityState.cs"));
         Assert.Contains("RefreshSystemActivityAsync", activityState);
         Assert.Contains("LastStateChangeRequiresSnapshotRefresh", activityState);
         Assert.Contains("IngestionQueueProgress", activityState);
@@ -485,7 +485,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void Orchestrator_RetriesLiveUpdatesWhenHealthyStatusFindsDisconnectedSignalR()
     {
-        var source = File.ReadAllText(GetRepoFile(
+        var source = LocalizedSource.ReadAllText(GetRepoFile(
             "src", "MediaEngine.Web", "Services", "Integration", "UIOrchestratorService.cs"));
 
         Assert.Contains("status.IsHealthy && !IsIntercomConnected", source);
@@ -891,7 +891,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void LegacyRecentlyAddedReviewLink_RedirectsToTheNeedsReviewPageInSource()
     {
-        var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "Settings.razor"));
+        var source = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "Settings.razor"));
         Assert.Contains("SettingsNav.RouteFor(SettingsSection.Review)", source, StringComparison.Ordinal);
         Assert.Contains("string.Equals(ReviewState, \"expanded\"", source, StringComparison.Ordinal);
         Assert.DoesNotContain("\"/settings/recently-added?review=expanded\"", source, StringComparison.Ordinal);
@@ -1070,7 +1070,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void PlaybackSettingsPage_UsesSharedControlsAndRealApiSavePath()
     {
-        var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "PlaybackSettingsPage.razor"));
+        var source = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "PlaybackSettingsPage.razor"));
 
         Assert.DoesNotContain("<AppTabs", source);
         Assert.DoesNotContain("settings-playback-tabs", source);
@@ -1103,8 +1103,8 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void DeliverySettings_HidesUnpersistedControls()
     {
-        var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "PlaybackDeliverySettingsTab.razor"))
-                     + File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "EncodeSettingsTab.razor"));
+        var source = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "PlaybackDeliverySettingsTab.razor"))
+                     + LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "EncodeSettingsTab.razor"));
 
         Assert.Contains("Optimized copy storage", source);
         Assert.Contains("Diagnostics", source);
@@ -1117,7 +1117,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void ModelsTab_UsesEngineBackedProfileAndBenchmarkActions()
     {
-        var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "ModelsTab.razor"));
+        var source = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "ModelsTab.razor"));
 
         Assert.Contains("result.Problem?.ToUserMessage()", source);
         Assert.Contains("RunBenchmarkAsync", source);
@@ -1131,12 +1131,12 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void LocalAiLimits_AreMarkedNotConnectedAndModelsAreNotDuplicated()
     {
-        var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "LocalAiSettingsTab.razor"));
+        var source = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "LocalAiSettingsTab.razor"));
 
         Assert.DoesNotContain("_status?.IsReady", source);
         Assert.DoesNotContain("Local AI is partially available", source);
         // The runtime (resource profile, benchmark, limits) lives once, on Tools and requirements; Local AI keeps AI settings only.
-        var runtime = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "LocalAiRuntimePanel.razor"));
+        var runtime = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "LocalAiRuntimePanel.razor"));
         Assert.DoesNotContain("<ModelsTab />", source);
         Assert.Single(Regex.Matches(runtime, "<ModelsTab />"));
         Assert.DoesNotContain("TODO: Persist AI limits", source);
@@ -1145,8 +1145,8 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void MetadataSettings_DoesNotFallBackToHardcodedDefaultsAsConfiguredState()
     {
-        var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "MetadataSettingsPage.razor"))
-                     + File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Services", "Integration", "MetadataSettingsStateService.cs"));
+        var source = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Settings", "MetadataSettingsPage.razor"))
+                     + LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Services", "Integration", "MetadataSettingsStateService.cs"));
 
         Assert.Contains("No sample provider state is being shown", source);
         Assert.Contains("_loadError", source);
@@ -1159,9 +1159,9 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void SettingsNavigation_LabelsPartialAndPlannedAdminSections()
     {
-        var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "Settings.razor"));
+        var source = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "Settings.razor"));
 
-        var nav = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Models", "ViewDTOs", "SettingsNav.cs"));
+        var nav = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Models", "ViewDTOs", "SettingsNav.cs"));
 
         Assert.Contains("SettingsSection.LocalAi", nav);
         Assert.Contains("SettingsSection.Delivery", nav);
@@ -1577,9 +1577,9 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void ListenPage_RouteParametersReloadListenStateWithRaceGuard()
     {
-        var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ListenPage.razor.cs"));
-        var markup = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ListenPage.razor"));
-        var css = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ListenPage.razor.css"));
+        var source = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ListenPage.razor.cs"));
+        var markup = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ListenPage.razor"));
+        var css = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ListenPage.razor.css"));
 
         Assert.Contains("protected override async Task OnParametersSetAsync()", source, StringComparison.Ordinal);
         Assert.DoesNotContain("LocationChanged", source, StringComparison.Ordinal);
@@ -1710,11 +1710,11 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void PlaylistCreation_StaysInPlaceAndOverflowMenusOwnIndependentState()
     {
-        var legacySource = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ListenPage.razor.cs"));
-        var legacyMarkup = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ListenPage.razor"));
-        var browseSource = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ListenBrowsePage.razor"));
-        var menuSource = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Shared", "AppOverflowMenu.razor"));
-        var globalCss = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "wwwroot", "app.css"));
+        var legacySource = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ListenPage.razor.cs"));
+        var legacyMarkup = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ListenPage.razor"));
+        var browseSource = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ListenBrowsePage.razor"));
+        var menuSource = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Shared", "AppOverflowMenu.razor"));
+        var globalCss = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "wwwroot", "app.css"));
 
         Assert.DoesNotContain("Nav.NavigateTo($\"/listen/music/playlists/{createdId:D}\")", legacySource, StringComparison.Ordinal);
         Assert.DoesNotContain("Nav.NavigateTo($\"/listen/music/playlists/{playlistId:D}\")", browseSource, StringComparison.Ordinal);
@@ -1730,9 +1730,9 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void ListenPlayer_RemainsInPersistentBottomHostOnListenRoutes()
     {
-        var listenPageSource = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ListenPage.razor"));
-        var hostSource = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Listen", "ListenNowPlayingBar.razor"));
-        var hostCss = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Listen", "ListenNowPlayingBar.razor.css"));
+        var listenPageSource = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Pages", "ListenPage.razor"));
+        var hostSource = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Listen", "ListenNowPlayingBar.razor"));
+        var hostCss = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Listen", "ListenNowPlayingBar.razor.css"));
 
         Assert.DoesNotContain("<ListenNowPlayingPanel", listenPageSource, StringComparison.Ordinal);
         Assert.Contains("TransportCommandRequested", hostSource, StringComparison.Ordinal);
@@ -1748,7 +1748,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void CinematicHero_RendersScopedRootSoListenHomeSidebarStaysVisible()
     {
-        var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Cinematic", "CinematicHeroCarousel.razor"));
+        var source = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Cinematic", "CinematicHeroCarousel.razor"));
 
         Assert.Contains("<section class=\"@CarouselClass\"", source, StringComparison.Ordinal);
         Assert.Contains("<CinematicHeroSurface", source, StringComparison.Ordinal);
@@ -1775,7 +1775,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.Empty(cut.FindAll(".listen-now-panel"));
         });
 
-        var markup = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Browse", "MediaBrowseShell.razor"));
+        var markup = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Browse", "MediaBrowseShell.razor"));
         Assert.Contains("<MediaTileGrid Items=\"@_cards\"", markup, StringComparison.Ordinal);
         Assert.Contains("ShowCompactCaptions=\"true\"", markup, StringComparison.Ordinal);
         Assert.Contains("TileSizePx=\"@TileSizePx\"", markup, StringComparison.Ordinal);
@@ -1785,10 +1785,10 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void CollectionEditor_UsesSharedLargeEditorWorkspaceAndKeepsPlaylistArtworkPicker()
     {
-        var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Collections", "CollectionEditorShell.razor"));
-        var ruleBuilder = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Collections", "CollectionRuleBuilder.razor"));
-        var sharedRuleBuilder = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Rules", "SharedRuleBuilder.razor"));
-        var valuePicker = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Collections", "CollectionRuleValuePicker.razor"));
+        var source = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Collections", "CollectionEditorShell.razor"));
+        var ruleBuilder = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Collections", "CollectionRuleBuilder.razor"));
+        var sharedRuleBuilder = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Rules", "SharedRuleBuilder.razor"));
+        var valuePicker = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Collections", "CollectionRuleValuePicker.razor"));
 
         Assert.Contains("<MediaEditorSurface", source);
         Assert.Contains("sme-shell collection-editor-workspace", source);
@@ -1816,9 +1816,9 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void CollectionEditor_SmartPlaylistMode_RendersSimplifiedMusicRuleControls()
     {
-        var source = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Collections", "CollectionEditorShell.razor"));
-        var ruleBuilder = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Collections", "CollectionRuleBuilder.razor"));
-        var sharedRuleBuilder = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Rules", "SharedRuleBuilder.razor"));
+        var source = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Collections", "CollectionEditorShell.razor"));
+        var ruleBuilder = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Collections", "CollectionRuleBuilder.razor"));
+        var sharedRuleBuilder = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Rules", "SharedRuleBuilder.razor"));
 
         Assert.Contains("InitialMembershipMode", source);
         Assert.Contains("Create a playlist, then choose manual or smart membership.", source);
@@ -1837,7 +1837,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void SharedDialogCss_DefinesCompactFieldsDarkSelectsAndHiddenArtworkInput()
     {
-        var css = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "wwwroot", "app.css"));
+        var css = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "wwwroot", "app.css"));
 
         Assert.Contains(".app-dialog-field", css);
         Assert.Contains("var(--tl-control-height-sm)", css);
@@ -1852,7 +1852,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void AppCss_KeepsNativeDropdownRowsBorderless()
     {
-        var css = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "wwwroot", "app.css"));
+        var css = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "wwwroot", "app.css"));
 
         Assert.Contains(".tl-popover .tl-list-item", css);
         Assert.Contains("border: 0 !important;", css);
@@ -1876,7 +1876,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void DesignTokens_DefineSharedControlAndFormSizing()
     {
-        var tokens = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "wwwroot", "tuvima.tokens.css"));
+        var tokens = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "wwwroot", "tuvima.tokens.css"));
 
         Assert.Contains("--tl-control-height-sm: 36px;", tokens);
         Assert.Contains("--tl-control-height-md: 42px;", tokens);
@@ -1892,7 +1892,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void AppCss_UsesSingleAliasRootAndSharedFoundation()
     {
-        var css = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "wwwroot", "app.css"));
+        var css = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "wwwroot", "app.css"));
 
         Assert.Single(Regex.Matches(css, @"(?m)^:root\s*\{"));
         Assert.Contains(".tl-form", css);
@@ -1917,7 +1917,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
 
         foreach (var file in files)
         {
-            var source = File.ReadAllText(file);
+            var source = LocalizedSource.ReadAllText(file);
 
             Assert.DoesNotMatch(@"class=""[^""]*\bst-page\b", source);
             Assert.DoesNotMatch(@"class=""[^""]*\bst-card\b", source);
@@ -1940,7 +1940,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void UiConsistencyAudit_DocumentsMigrationPlan()
     {
-        var audit = File.ReadAllText(GetRepoFile("engineering", "design", "ui-consistency-audit.md"));
+        var audit = LocalizedSource.ReadAllText(GetRepoFile("engineering", "design", "ui-consistency-audit.md"));
 
         Assert.Contains("Inconsistent Form And Input Styling", audit);
         Assert.Contains("Inline Styles", audit);
@@ -2143,7 +2143,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Fact]
     public void PhoneDockAndAudioDockOccupyDifferentGridRows()
     {
-        var css = File.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Shared", "MainLayout.razor.css")).Replace("\r\n", "\n");
+        var css = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Shared", "MainLayout.razor.css")).Replace("\r\n", "\n");
         Assert.Contains(".playback-app-frame__audio-dock {\n    grid-row: 3;", css);
         Assert.Contains("html[data-form-factor=\"phone\"] .playback-app-frame .layout-shell__intent-dock {\n    grid-row: 4;", css);
         Assert.DoesNotContain("@media (max-width: 600px)", css);

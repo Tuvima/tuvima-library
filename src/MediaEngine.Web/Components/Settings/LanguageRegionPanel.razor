@@ -1,0 +1,44 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Resources
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Localization
+@inject IEngineApiClient ApiClient
+@inject NavigationManager Navigation
+@inject IStringLocalizer<SharedStrings> L
+
+@* System > Configuration > Language and region. One choice for the whole household; it applies at once. *@
+<SettingsSectionPanel Title="@L["Settings_LanguageAndRegion"].Value" Icon="@AppMaterialIcons.Outlined.Language"
+                     Description="@L["Settings_LanguageAndRegionNote"].Value">
+    @if (_settings is not null)
+    {
+        <DisplayLanguagePicker Value="@_settings.DisplayLanguage" ValueChanged="ChangeAsync" />
+        @if (_saveFailed)
+        {
+            <AppAlert Tone="AppUiTone.Error">@L["Settings_LanguageSaveFailed"]</AppAlert>
+        }
+    }
+</SettingsSectionPanel>
+
+@code {
+    private ServerGeneralSettingsDto? _settings;
+    private bool _saveFailed;
+
+    protected override async Task OnInitializedAsync() => _settings = await ApiClient.GetServerGeneralAsync();
+
+    private async Task ChangeAsync(string tag)
+    {
+        if (_settings is null) return;
+        var resolved = AppCultures.Resolve(tag);
+        _saveFailed = false;
+        var updated = _settings with { DisplayLanguage = resolved };
+        if (!await ApiClient.UpdateServerGeneralAsync(updated))
+        {
+            _saveFailed = true;
+            return;
+        }
+        _settings = updated;
+        // The layout re-reads the saved language on load. Reloading through the culture address applies the new words at once.
+        Navigation.NavigateTo($"/culture/set?culture={Uri.EscapeDataString(resolved)}&redirectUri={Uri.EscapeDataString(Navigation.Uri)}", forceLoad: true);
+    }
+}

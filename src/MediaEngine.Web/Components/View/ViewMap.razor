@@ -2,16 +2,17 @@
 @inject IJSRuntime JS
 @implements IAsyncDisposable
 @namespace MediaEngine.Web.Components.View
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="@RootClass" role="group" aria-label="@AriaLabel">
     <div class="view-map__canvas" @ref="_container"></div>
     @if (!_ready && string.IsNullOrWhiteSpace(_error))
     {
-        <div class="view-map__state" role="status"><AppSpinner Indeterminate="true" Size="AppSize.Small" /><span>Drawing the map…</span></div>
+        <div class="view-map__state" role="status"><AppSpinner Indeterminate="true" Size="AppSize.Small" /><span>@L["ViewMap_DrawingTheMap"]</span></div>
     }
     @if (!string.IsNullOrWhiteSpace(_error))
     {
-        <div class="view-map__state is-error" role="status"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Map" /><span>Map unavailable</span><small>@_error</small></div>
+        <div class="view-map__state is-error" role="status"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Map" /><span>@L["ViewMap_MapUnavailable"]</span><small>@_error</small></div>
     }
 </div>
 

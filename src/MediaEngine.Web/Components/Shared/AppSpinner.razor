@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Shared
-<svg viewBox="0 0 36 36" class="tl-progress-circular tl-progress-circular--@Size.ToString().ToLowerInvariant() @(Indeterminate ? "tl-progress-circular--indeterminate" : null) tl-color-@Color.ToString().ToLowerInvariant() @Class" style="@Style" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@(Indeterminate ? (double?)null : Math.Clamp(Value, 0, 100))" @attributes="AdditionalAttributes">
+@inject IStringLocalizer<SharedStrings> L
+<svg viewBox="0 0 36 36" class="tl-progress-circular tl-progress-circular--@Size.ToString().ToLowerInvariant() @(Indeterminate ? "tl-progress-circular--indeterminate" : null) tl-color-@Color.ToString().ToLowerInvariant() @Class" style="@Style" role="progressbar" aria-label="@L["Common_Loading"].Value" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@(Indeterminate ? (double?)null : Math.Clamp(Value, 0, 100))" @attributes="AdditionalAttributes">
     <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" stroke-width="@StrokeWidth" pathLength="100" stroke-dasharray="@(Indeterminate ? "65 35" : $"{Math.Clamp(Value, 0, 100).ToString(System.Globalization.CultureInfo.InvariantCulture)} 100")" />
 </svg>
 @code {

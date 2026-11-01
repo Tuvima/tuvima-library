@@ -1,16 +1,17 @@
 @using System.Globalization
 @using MediaEngine.Contracts.LocalAssets
 @namespace MediaEngine.Web.Components.View
+@inject IStringLocalizer<SharedStrings> L
 
 @if (Minimum is not null && Maximum is not null)
 {
-    <section class="places-timeline" aria-label="Places date range">
+    <section class="places-timeline" aria-label="@L["ViewPlacesTimeline_PlacesDateRange"].Value">
         <div class="places-timeline__summary">
-            <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PhotoLibrary" /><strong>@MappedAssetCount.ToString("N0")</strong> items on map</span>
+            <span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PhotoLibrary" /><strong>@MappedAssetCount.ToString("N0")</strong> @L["ViewPlacesTimeline_ItemsOnMap"]</span>
             <span>@ImageCount.ToString("N0") photos</span><span>@VideoCount.ToString("N0") videos</span>
         </div>
         <div class="places-timeline__plot">
-            <div class="places-timeline__histogram" aria-label="Media by date" @attributes="@CssAttributes(RangeStyle)">
+            <div class="places-timeline__histogram" aria-label="@L["ViewPlacesTimeline_MediaByDate"].Value" @attributes="@CssAttributes(RangeStyle)">
                 <div class="places-timeline__selection" aria-hidden="true"></div>
                 @foreach (var bucket in Buckets.Where(bucket => bucket.AssetCount > 0))
                 {
@@ -23,8 +24,8 @@
                 }
             </div>
             <div class="@($"places-timeline__range{(ToIndex - FromIndex < Scale.Days * .35 ? " is-crowded" : "")}")" @attributes="@CssAttributes(RangeStyle)">
-                <AppNativeInput Type="range" Min="0" Max="@Scale.Days" Value="@FromIndex" OnInput="DraftFrom" OnChange="FromChangedAsync" AriaLabel="Start date" aria-valuetext="@DisplayDate(Scale.DateAt(FromIndex))" />
-                <AppNativeInput Type="range" Min="0" Max="@Scale.Days" Value="@ToIndex" OnInput="DraftTo" OnChange="ToChangedAsync" AriaLabel="End date" aria-valuetext="@DisplayDate(Scale.DateAt(ToIndex))" />
+                <AppNativeInput Type="range" Min="0" Max="@Scale.Days" Value="@FromIndex" OnInput="DraftFrom" OnChange="FromChangedAsync" AriaLabel="@L["ViewPlacesTimeline_StartDate"].Value" aria-valuetext="@DisplayDate(Scale.DateAt(FromIndex))" />
+                <AppNativeInput Type="range" Min="0" Max="@Scale.Days" Value="@ToIndex" OnInput="DraftTo" OnChange="ToChangedAsync" AriaLabel="@L["ViewPlacesTimeline_EndDate"].Value" aria-valuetext="@DisplayDate(Scale.DateAt(ToIndex))" />
                 <output class="places-timeline__callout is-start" @attributes="@CssAttributes(CalloutStyle(FromIndex))">@DisplayDate(Scale.DateAt(FromIndex))</output>
                 <output class="places-timeline__callout is-end" @attributes="@CssAttributes(CalloutStyle(ToIndex))">@DisplayDate(Scale.DateAt(ToIndex))</output>
             </div>
@@ -38,15 +39,15 @@
         </div>
         <div class="places-timeline__actions">
             <div class="places-timeline__granularity">
-            <span class="places-timeline__control-label">Granularity</span>
-            <div class="places-timeline__controls" role="group" aria-label="Timeline granularity">
+            <span class="places-timeline__control-label">@L["ViewPlacesTimeline_Granularity"]</span>
+            <div class="places-timeline__controls" role="group" aria-label="@L["ViewPlacesTimeline_TimelineGranularity"].Value">
                 @foreach (var option in new[] { "year", "month", "day" })
                 {
                     <AppNativeButton Type="button" Class="@(Resolution == option ? "is-active" : null)" aria-pressed="@(Resolution == option ? "true" : "false")" OnClick="@(_ => OnResolutionChanged.InvokeAsync(option))">@CultureInfo.CurrentCulture.TextInfo.ToTitleCase(option)</AppNativeButton>
                 }
             </div>
             </div>
-            <AppNativeButton Type="button" Class="places-timeline__reset" OnClick="@(_ => OnReset.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.RestartAlt" />Reset</AppNativeButton>
+            <AppNativeButton Type="button" Class="places-timeline__reset" OnClick="@(_ => OnReset.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.RestartAlt" />@L["Libraries_Reset"]</AppNativeButton>
         </div>
     </section>
 }

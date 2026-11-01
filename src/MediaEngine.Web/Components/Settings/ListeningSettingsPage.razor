@@ -10,10 +10,11 @@
 @inject IUserPlaybackPreferencesAccessor PreferencesAccessor
 @inject IAppToastService Snackbar
 @inject ILogger<ListeningSettingsPage> Logger
+@inject IStringLocalizer<SharedStrings> L
 
 @if (_loading)
 {
-    <div class="listening-settings-skeleton" aria-label="Loading listening preferences">
+    <div class="listening-settings-skeleton" aria-label="@L["ListeningSettingsPage_LoadingListeningPreferences"].Value">
         @for (var index = 0; index < 2; index++)
         {
             <AppSkeleton Height="200px" />
@@ -22,11 +23,11 @@
 }
 else if (_forbidden)
 {
-    <AppAlert Severity="AppSeverity.Warning" Variant="AppVariant.Outlined">You can't change this person's settings.</AppAlert>
+    <AppAlert Severity="AppSeverity.Warning" Variant="AppVariant.Outlined">@L["Common_YouCanTChangeThis"]</AppAlert>
 }
 else if (!string.IsNullOrWhiteSpace(_loadError))
 {
-    <AppErrorState Title="Listening preferences are unavailable"
+    <AppErrorState Title="@L["ListeningSettingsPage_ListeningPreferencesAreUnavailable"].Value"
                    Message="@_loadError"
                    Retry="@RetryLoadAsync" />
 }
@@ -44,14 +45,14 @@ else if (_settings is not null)
                 <span class="listening-profile-heading__avatar">
                     <ProfileAvatar DisplayName="@_target.DisplayName" ImageUrl="@_target.AvatarImageUrl" Color="@_target.AvatarColor" Icon="@_target.AvatarIcon" />
                 </span>
-                <AppText Typo="AppTypo.h6">How @_target.DisplayName listens.</AppText>
-                <a class="listening-profile-heading__back" href="@($"/settings/profiles/{ProfileId}")">Back to @_target.DisplayName</a>
+                <AppText Typo="AppTypo.h6">@L["ListeningSettingsPage_HowListens", _target.DisplayName]</AppText>
+                <a class="listening-profile-heading__back" href="@($"/settings/profiles/{ProfileId}")">@L["Common_BackTo", _target.DisplayName]</a>
             </div>
         }
 
         <div class="listening-settings-grid">
-            <SettingsSectionPanel Title="Skip"
-                                  Description="How far the player jumps, and where it starts again."
+            <SettingsSectionPanel Title="@L["Common_Skip"].Value"
+                                  Description="@L["ListeningSettingsPage_HowFarThePlayerJumps"].Value"
                                   Class="tl-card settings-section-card listening-settings-card">
                 @IntSelectRow(
                     "Skip back",
@@ -73,13 +74,13 @@ else if (_settings is not null)
                     value => UpdateAndSaveAsync(s => s.Listening.ResumeRewindSeconds = value))
             </SettingsSectionPanel>
 
-            <SettingsSectionPanel Title="Sleep timer"
-                                  Description="What the sleep timer offers when you open it."
+            <SettingsSectionPanel Title="@L["ListeningSettingsPage_SleepTimer"].Value"
+                                  Description="@L["ListeningSettingsPage_WhatTheSleepTimerOffers"].Value"
                                   Class="tl-card settings-section-card listening-settings-card">
                 <div class="listening-preference-row">
                     <div class="listening-preference-row__copy">
-                        <AppText Typo="AppTypo.body1">Default length</AppText>
-                        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">The length shown first when you open the sleep timer.</AppText>
+                        <AppText Typo="AppTypo.body1">@L["ListeningSettingsPage_DefaultLength"]</AppText>
+                        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@L["ListeningSettingsPage_TheLengthShownFirstWhen"]</AppText>
                     </div>
                     <AppSelect Value="@SleepTimerValue"
                                ValueChanged="@(value => UpdateAndSaveAsync(s => s.Listening.DefaultSleepTimer = value ?? PlaybackPreferenceValues.Off))"
@@ -88,8 +89,8 @@ else if (_settings is not null)
                                Dense="true"
                                Size="AppControlSize.Compact"
                                Class="listening-preference-row__select"
-                               aria-label="Default length">
-                        <AppSelectItem T="string" Value="@PlaybackPreferenceValues.Off">Off</AppSelectItem>
+                               aria-label="@L["ListeningSettingsPage_DefaultLength"].Value">
+                        <AppSelectItem T="string" Value="@PlaybackPreferenceValues.Off">@L["Common_Off"]</AppSelectItem>
                         @foreach (var minutes in SleepTimerMinutes)
                         {
                             <AppSelectItem T="string" Value="@minutes.ToString(System.Globalization.CultureInfo.InvariantCulture)">@($"{minutes} minutes")</AppSelectItem>
@@ -98,14 +99,14 @@ else if (_settings is not null)
                 </div>
                 <div class="listening-preference-row">
                     <div class="listening-preference-row__copy">
-                        <AppText Typo="AppTypo.body1">Offer end of chapter</AppText>
-                        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">Let the sleep timer stop at the end of a chapter.</AppText>
+                        <AppText Typo="AppTypo.body1">@L["ListeningSettingsPage_OfferEndOfChapter"]</AppText>
+                        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@L["ListeningSettingsPage_LetTheSleepTimerStop"]</AppText>
                     </div>
                     <AppSwitchRow T="bool"
                                   Value="@_settings.Listening.AllowEndOfChapterSleepTimer"
                                   ValueChanged="@(value => UpdateAndSaveAsync(s => s.Listening.AllowEndOfChapterSleepTimer = value))"
                                   Color="AppColor.Primary"
-                                  AriaLabel="Offer end of chapter" />
+                                  AriaLabel="@L["ListeningSettingsPage_OfferEndOfChapter"].Value" />
                 </div>
             </SettingsSectionPanel>
         </div>
@@ -183,7 +184,7 @@ else if (_settings is not null)
                 if (loaded.ProfileId != ProfileId)
                 {
                     Logger.LogWarning("Listening settings could not be loaded: the Engine answered for a different profile.");
-                    _loadError = "Listening settings could not be loaded.";
+                    _loadError = L["ListeningSettingsPage_ListeningSettingsCouldNotBe"].Value;
                     return;
                 }
 
@@ -198,7 +199,7 @@ else if (_settings is not null)
                 if (loaded is null)
                 {
                     Logger.LogWarning("Listening settings could not be loaded: the Engine returned no settings for the active profile.");
-                    _loadError = "Listening settings could not be loaded.";
+                    _loadError = L["ListeningSettingsPage_ListeningSettingsCouldNotBe"].Value;
                     return;
                 }
 
@@ -208,7 +209,7 @@ else if (_settings is not null)
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Listening settings could not be loaded.");
-            _loadError = "Listening settings could not be loaded.";
+            _loadError = L["ListeningSettingsPage_ListeningSettingsCouldNotBe"].Value;
         }
         finally
         {
@@ -264,7 +265,7 @@ else if (_settings is not null)
             if (fresh is null)
             {
                 Logger.LogWarning("Listening settings were not saved: the profile's current settings could not be read.");
-                _saveError = "Listening settings could not be saved.";
+                _saveError = L["ListeningSettingsPage_ListeningSettingsCouldNotBe2"].Value;
                 Snackbar.Add(_saveError, AppSeverity.Error);
                 return;
             }
@@ -285,7 +286,7 @@ else if (_settings is not null)
             if (saved is null)
             {
                 Logger.LogWarning("Listening settings could not be saved: the Engine did not accept the update.");
-                _saveError = "Listening settings could not be saved.";
+                _saveError = L["ListeningSettingsPage_ListeningSettingsCouldNotBe2"].Value;
                 Snackbar.Add(_saveError, AppSeverity.Error);
                 return;
             }
@@ -297,7 +298,7 @@ else if (_settings is not null)
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Listening settings could not be saved.");
-            _saveError = "Listening settings could not be saved.";
+            _saveError = L["ListeningSettingsPage_ListeningSettingsCouldNotBe2"].Value;
             Snackbar.Add(_saveError, AppSeverity.Error);
         }
         finally

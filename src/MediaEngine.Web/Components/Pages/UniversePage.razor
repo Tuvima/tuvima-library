@@ -18,8 +18,9 @@
 @inject IAppToastService Snackbar
 @inject IAppDialogService Dialogs
 @inject ILogger<UniversePage> Logger
+@inject IStringLocalizer<SharedStrings> L
 
-<PageTitle>@PageTitleText - Library</PageTitle>
+<PageTitle>@L["Common_Library", PageTitleText]</PageTitle>
 
 @* A Universe: what the Library holds of one fictional world across every format, as a page to read, not a screen to manage.
    Hero, then each Series in order, then the Universe's own standalone works, then Connections. Editing a Universe uses the
@@ -35,7 +36,7 @@
     @switch (_state.Status)
     {
         case UniversePageStatus.Loading:
-            <div class="universe-page__loading" aria-busy="true" aria-label="Loading this Universe">
+            <div class="universe-page__loading" aria-busy="true" aria-label="@L["UniversePage_LoadingThisUniverse"].Value">
                 <AppSkeleton Height="14rem" Width="100%" />
                 <AppSkeleton Height="2rem" Width="40%" />
                 <AppSkeleton Height="18rem" Width="100%" />
@@ -43,16 +44,16 @@
             break;
 
         case UniversePageStatus.Unavailable:
-            <AppErrorState Title="Can't reach the Engine"
-                           Message="The Universe could not be loaded. Check that the Engine is running, then try again."
+            <AppErrorState Title="@L["Common_CanTReachTheEngine"].Value"
+                           Message="@L["UniversePage_TheUniverseCouldNotBe"].Value"
                            Retry="RetryAsync" />
             break;
 
         case UniversePageStatus.NotFound:
-            <AppEmptyState Title="This Universe isn't available."
-                           Message="It may have been removed, or it may not be part of what this profile can see.">
+            <AppEmptyState Title="@L["UniversePage_ThisUniverseIsnTAvailable"].Value"
+                           Message="@L["UniversePage_ItMayHaveBeenRemoved"].Value">
                 <Action>
-                    <AppButton Label="Back to Collections" Href="/collections" ButtonStyle="AppButtonStyle.Outlined" />
+                    <AppButton Label="@L["UniversePage_BackToCollections"].Value" Href="/collections" ButtonStyle="AppButtonStyle.Outlined" />
                 </Action>
             </AppEmptyState>
             break;
@@ -79,8 +80,8 @@
                         <EditorDetailsPanel Mode="_editing" Session="_flow.Session">
                             @if (overview.Detail.Shelves.Count > 0)
                             {
-                                <section class="tl-editor-details__group" aria-label="Series in this Universe">
-                                    <h3 class="tl-editor-details__heading">Series</h3>
+                                <section class="tl-editor-details__group" aria-label="@L["UniversePage_SeriesInThisUniverse"].Value">
+                                    <h3 class="tl-editor-details__heading">@L["Glossary_Series"]</h3>
                                     @foreach (var shelf in overview.Detail.Shelves)
                                     {
                                         <div class="tl-editor-field tl-editor-field--locked" @key="shelf.CollectionId">
@@ -88,7 +89,7 @@
                                             <div class="tl-editor-field__value">@(shelf.ItemCount == 1 ? "1 item" : $"{shelf.ItemCount} items")</div>
                                         </div>
                                     }
-                                    <small class="tl-editor-field__count">Series are grouped by Wikidata and are not changed here.</small>
+                                    <small class="tl-editor-field__count">@L["UniversePage_SeriesAreGroupedByWikidata"]</small>
                                 </section>
                             }
                         </EditorDetailsPanel>
@@ -285,7 +286,7 @@
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Could not open the Universe editor for {UniverseQid}", Qid);
-            Snackbar.Add("Universe editing is unavailable. Please try again.", AppSeverity.Error);
+            Snackbar.Add(L["Common_UniverseEditingIsUnavailablePlease"].Value, AppSeverity.Error);
         }
         finally
         {
@@ -323,7 +324,7 @@
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "The Universe page could not refresh after an edit for {UniverseQid}", Qid);
-            Snackbar.Add("Saved, but the page could not refresh. Reload to see the change.", AppSeverity.Warning);
+            Snackbar.Add(L["Common_SavedButThePageCould"].Value, AppSeverity.Warning);
         }
     }
 

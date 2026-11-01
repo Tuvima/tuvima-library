@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Shared
 @using Microsoft.AspNetCore.Components.Routing
 @inject IAppDialogService Dialogs
+@inject IStringLocalizer<SharedStrings> L
 
 @* The Save changes / Discard bar of a settings tab that keeps edits until they are saved (Library pages: the Access tab and the File handling
    tab). It sticks to the bottom of the screen while there is something to save and is not drawn otherwise. Leaving with unsaved edits asks
@@ -8,13 +9,13 @@
 <NavigationLock ConfirmExternalNavigation="@HasChanges" OnBeforeInternalNavigation="ConfirmLeaveAsync" />
 @if (HasChanges)
 {
-    <div class="app-save-bar" role="region" aria-label="Unsaved changes">
+    <div class="app-save-bar" role="region" aria-label="@L["Common_UnsavedChanges"].Value">
         <span class="app-save-bar__message">@Message</span>
-        <AppButton Label="Discard"
+        <AppButton Label="@L["AppSaveBar_Discard"].Value"
                    ButtonStyle="AppButtonStyle.Outlined"
                    Disabled="@Saving"
                    OnClick="OnDiscard" />
-        <AppButton Label="Save changes"
+        <AppButton Label="@L["AppSaveBar_SaveChanges"].Value"
                    ButtonStyle="AppButtonStyle.Filled"
                    Tone="AppUiTone.Primary"
                    Loading="@Saving"

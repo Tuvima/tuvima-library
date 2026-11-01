@@ -1,10 +1,11 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Ingestion
+@inject IStringLocalizer<SharedStrings> L
 
 @* Always five slots in the same order (artwork, text, people, links, lyrics or subtitles) so nothing shifts between rows.
    A symbol the Engine reports as notApplicable (it does not apply to the item's type) is a dim dash in the same slot; one that
    applies but has not started is a pending symbol. The tooltip and the accessible name are the same words. *@
-<div class="ingestion-facets" role="group" aria-label="Enrichment status">
+<div class="ingestion-facets" role="group" aria-label="@L["IngestionFacetIndicators_EnrichmentStatus"].Value">
     @foreach (var facet in Facets)
     {
         <span class="ingestion-facets__slot">

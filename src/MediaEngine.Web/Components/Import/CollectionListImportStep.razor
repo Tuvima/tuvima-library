@@ -5,6 +5,7 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient Api
+@inject IStringLocalizer<SharedStrings> L
 
 @* New collection > From a list (Collections and lists spec 4b, 4d, 4h): drop an export or paste titles, see how much of it the Library
    owns, tick the shelves to make a collection for each, fix the titles Library could not match, and choose how the list is followed.
@@ -13,7 +14,7 @@
     <ImportPanel AllowedKinds="@AllowedKinds"
                  ShowPaste="true"
                  ShowPreview="false"
-                 Prompt="Drop your list here, or click to choose a file"
+                 Prompt="@L["ListStep_DropPrompt"].Value"
                  OnRecognised="OnRecognisedAsync"
                  OnCleared="OnClearedAsync" />
 
@@ -25,15 +26,15 @@
                 <span>@current.SourceName</span>
             </div>
             <div class="list-step__owned">
-                <span class="list-step__owned-big" data-list-owned>You own @Draft.OwnedCount of @Draft.EntryCount</span>
+                <span class="list-step__owned-big" data-list-owned>@L["ListStep_YouOwn", Draft.OwnedCount, Draft.EntryCount]</span>
                 @if (Draft.OwnedCount == 0)
                 {
-                    <p class="list-step__hint">None of these are in your library yet, so there is nothing to put in a collection.</p>
+                    <p class="list-step__hint">@L["ListStep_NoneOwned"]</p>
                 }
             </div>
             @if (current.Owned.Count > 0 && Draft.CollectionCount == 1)
             {
-                <ul class="list-step__covers" aria-label="Some of the titles you own from this list">
+                <ul class="list-step__covers" aria-label="@L["ListStep_OwnedCovers"].Value">
                     @foreach (var owned in current.Owned.Take(8))
                     {
                         <li title="@owned.Title">@owned.Title</li>
@@ -44,9 +45,9 @@
 
         @if (Draft.Whole is { Shelves.Count: > 0 } whole)
         {
-            <section class="list-step__shelves" data-list-shelves aria-label="Shelves">
-                <h4 class="list-step__heading">Shelves</h4>
-                <p class="list-step__hint">Tick the shelves you want. Each one becomes its own collection. Leave them all unticked for one collection of the whole list.</p>
+            <section class="list-step__shelves" data-list-shelves aria-label="@L["ListStep_Shelves"].Value">
+                <h4 class="list-step__heading">@L["ListStep_Shelves"]</h4>
+                <p class="list-step__hint">@L["ListStep_ShelvesHelp"]</p>
                 @foreach (var shelf in whole.Shelves)
                 {
                     var name = shelf.Name;
@@ -58,8 +59,8 @@
             </section>
         }
 
-        <section class="list-step__choices" aria-label="How the list is followed">
-            <h4 class="list-step__heading">How it is followed</h4>
+        <section class="list-step__choices" aria-label="@L["ListStep_HowFollowed"].Value">
+            <h4 class="list-step__heading">@L["ListStep_HowFollowedHeading"]</h4>
             <ListChoicesPanel Order="@Draft.Order"
                               OrderChanged="@(value => ChangeAsync(() => Draft.Order = value))"
                               SyncMode="@Draft.SyncMode"
@@ -69,9 +70,9 @@
 
         @if (Unresolved.Count > 0)
         {
-            <section class="list-step__unmatched" data-list-unmatched aria-label="Titles that could not be matched">
-                <h4 class="list-step__heading">Couldn't match (@Unresolved.Count(entry => entry.Status == ListImportChoices.StatusUnmatched))</h4>
-                <p class="list-step__hint">Search your library and pick the right title, or ignore the ones you do not own.</p>
+            <section class="list-step__unmatched" data-list-unmatched aria-label="@L["ListStep_UnmatchedLabel"].Value">
+                <h4 class="list-step__heading">@L["ListStep_CouldntMatch", Unresolved.Count(entry => entry.Status == ListImportChoices.StatusUnmatched)]</h4>
+                <p class="list-step__hint">@L["ListStep_FixHelp"]</p>
                 @foreach (var entry in Unresolved.Take(MaximumShown))
                 {
                     <ListEntryFixRow @key="entry.Position"
@@ -83,7 +84,7 @@
                 }
                 @if (Unresolved.Count > MaximumShown)
                 {
-                    <p class="list-step__hint">and @(Unresolved.Count - MaximumShown) more. They stay off the collection until Library owns them.</p>
+                    <p class="list-step__hint">@L["ListStep_AndMore", Unresolved.Count - MaximumShown]</p>
                 }
             </section>
         }

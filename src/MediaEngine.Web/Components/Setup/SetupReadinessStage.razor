@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Setup
 @using MediaEngine.Contracts.Setup
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="setup-stage-content">
     <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.TaskAlt" /><div><h2 id="setup-stage-title">@(Readiness?.CanComplete == true ? "You're all set" : "Almost there…")</h2><p>@Subtitle</p></div></div>
@@ -7,23 +8,23 @@
     {
         @* A browser with no session cannot read the server's answer. One plain card, no spinner (first-run setup B20). *@
         <AppAlert Tone="AppUiTone.Warning" data-testid="setup-sign-in-card">
-            <strong>Sign in to finish setup</strong>
-            <p>This browser is not signed in yet. Sign in with the profile you just created, or try again.</p>
+            <strong>@L["SetupReadinessStage_SignInToFinishSetup"]</strong>
+            <p>@L["SetupReadinessStage_ThisBrowserIsNotSigned"]</p>
         </AppAlert>
         <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
-            <AppButton Label="Try again" StartIcon="@AppMaterialIcons.Outlined.Refresh" ButtonStyle="AppButtonStyle.Outlined" OnClick="Retry" />
-            <AppButton Label="Sign in" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Href="/auth/login?returnUrl=%2Fsetup" />
+            <AppButton Label="@L["Common_TryAgain"].Value" StartIcon="@AppMaterialIcons.Outlined.Refresh" ButtonStyle="AppButtonStyle.Outlined" OnClick="Retry" />
+            <AppButton Label="@L["SetupReadinessStage_SignIn"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Href="/auth/login?returnUrl=%2Fsetup" />
         </SetupStageFooter>
     }
     else if (Readiness is null || Busy && !Readiness.CanComplete)
     {
-        <div class="setup-preparing" role="status"><AppSpinner Indeterminate="true" Color="AppColor.Primary" /><span>Checking your profile, libraries and sources…</span></div>
+        <div class="setup-preparing" role="status"><AppSpinner Indeterminate="true" Color="AppColor.Primary" /><span>@L["SetupReadinessStage_CheckingYourProfileLibrariesAnd"]</span></div>
     }
     else
     {
         @if (!Readiness.CanComplete)
         {
-            <AppAlert Tone="AppUiTone.Warning">Needs attention</AppAlert>
+            <AppAlert Tone="AppUiTone.Warning">@L["Common_NeedsAttention"]</AppAlert>
         }
         <div class="setup-checks" data-testid="setup-summary">
             @foreach (var capability in Readiness.Capabilities.Where(item => item.Key != "done"))
@@ -43,10 +44,10 @@
         </div>
         @if (DownloadRunning)
         {
-            <AppAlert Tone="AppUiTone.Info" data-testid="setup-download-note">A download is still running. It finishes in the background, so you can open your library now.</AppAlert>
+            <AppAlert Tone="AppUiTone.Info" data-testid="setup-download-note">@L["SetupReadinessStage_ADownloadIsStillRunning"]</AppAlert>
         }
         <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
-            <AppButton Label="Open my library" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" Disabled="@(!Readiness.CanComplete)" OnClick="Complete" />
+            <AppButton Label="@L["SetupReadinessStage_OpenMyLibrary"].Value" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" Disabled="@(!Readiness.CanComplete)" OnClick="Complete" />
         </SetupStageFooter>
     }
 </div>

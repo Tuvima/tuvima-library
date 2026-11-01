@@ -6,16 +6,17 @@
 @inject UIOrchestratorService Orchestrator
 @inject IAppToastService Snackbar
 @inject ApprovalFlow Approvals
+@inject IStringLocalizer<SharedStrings> L
 
 @* Available plugins (Developer tools spec D-F, D-H): the plugins other people have shared, read from the saved copy of
    Tuvima's list on GitHub. Every word about trust, permissions and the not-verified warning comes from the Engine. The
    Install button exists only when the Engine says installing is supported; Install opens the same approval step as
    switching a plugin on. *@
-<AppCard Title="Available plugins"
-         Description="Plugins other people have shared, from a public list on GitHub."
+<AppCard Title="@L["AvailablePluginsPanel_AvailablePlugins"].Value"
+         Description="@L["AvailablePluginsPanel_PluginsOtherPeopleHaveShared"].Value"
          Class="available-plugins">
     <Actions>
-        <AppButton Label="Check now"
+        <AppButton Label="@L["AvailablePluginsPanel_CheckNow"].Value"
                    StartIcon="@AppMaterialIcons.Outlined.Refresh"
                    Size="AppControlSize.Compact"
                    Tone="AppUiTone.Primary"
@@ -28,8 +29,8 @@
         <div class="available-plugins__body" data-testid="available-plugins">
             @if (_directory is not null)
             {
-                <AppSwitchRow Label="Look for available plugins"
-                              Description="The list is checked at most once a day, and when you press Check now. Nothing about you or your Library is sent."
+                <AppSwitchRow Label="@L["AvailablePluginsPanel_LookForAvailablePlugins"].Value"
+                              Description="@L["AvailablePluginsPanel_TheListIsCheckedAt"].Value"
                               Icon="@AppMaterialIcons.Outlined.CloudDownload"
                               Value="@_directory.Enabled"
                               ValueChanged="@SetEnabledAsync"
@@ -41,7 +42,7 @@
             }
             else if (_directory is null)
             {
-                <AppAlert Tone="AppUiTone.Error">The plugin directory could not be loaded from the Engine.</AppAlert>
+                <AppAlert Tone="AppUiTone.Error">@L["AvailablePluginsPanel_ThePluginDirectoryCouldNot"]</AppAlert>
             }
             else
             {
@@ -58,7 +59,7 @@
                 {
                     @if (_directory.LastSuccessAt is not null)
                     {
-                        <AppEmptyState Title="No plugins are listed right now" Message="Plugins that ship with the Library are already installed above." />
+                        <AppEmptyState Title="@L["AvailablePluginsPanel_NoPluginsAreListedRight"].Value" Message="@L["AvailablePluginsPanel_PluginsThatShipWithThe"].Value" />
                     }
                 }
                 else
@@ -202,7 +203,7 @@
         _checking = false;
         if (directory is null)
         {
-            Snackbar.Add("The plugin directory could not be checked.", AppSeverity.Error);
+            Snackbar.Add(L["AvailablePluginsPanel_ThePluginDirectoryCouldNot2"].Value, AppSeverity.Error);
             await InvokeAsync(StateHasChanged);
             return;
         }
@@ -214,7 +215,7 @@
     {
         if (!await Orchestrator.SavePluginDirectoryEnabledAsync(enabled, _disposed.Token))
         {
-            Snackbar.Add("The plugin directory switch could not be saved.", AppSeverity.Error);
+            Snackbar.Add(L["AvailablePluginsPanel_ThePluginDirectorySwitchCould"].Value, AppSeverity.Error);
             await InvokeAsync(StateHasChanged);
             return;
         }

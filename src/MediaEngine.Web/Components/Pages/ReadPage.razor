@@ -1,4 +1,4 @@
-﻿@page "/read"
+@page "/read"
 @page "/read/{Tab}"
 @using MediaEngine.Web.Components.Browse
 @using MediaEngine.Web.Components.MediaHub
@@ -15,10 +15,11 @@
 @implements IDisposable
 
 @namespace MediaEngine.Web.Components.Pages
+@inject IStringLocalizer<SharedStrings> L
 
-<MediaLanePage Title="Read"
+<MediaLanePage Title="@L["Nav_Read"].Value"
                RouteBase="/read"
-               Subtitle="Books and comics from your local library"
+               Subtitle="@L["ReadPage_BooksAndComicsFromYour"].Value"
                SearchPlaceholder="Search books and comics..."
                SectionType="MediaHubSectionType.Read"
                Preset="@Preset"
@@ -33,8 +34,8 @@
                LoadFailed="@_loadFailed"
                LoadFailedTitle="Read failed to load"
                LoadFailedMessage="The Dashboard could not load the Read landing from the Engine."
-               EmptyTitle="No books or comics yet"
-               EmptyMessage="Add reading material to your library to populate this lane."
+               EmptyTitle="@L["ReadPage_NoBooksOrComicsYet"].Value"
+               EmptyMessage="@L["ReadPage_AddReadingMaterialToYour"].Value"
                Retry="LoadLandingAsync"
                OnNavigationSmartCreate="OpenCollectionFlowAsync" />
 
@@ -68,7 +69,7 @@
         var profile = await Orchestrator.GetActiveProfileAsync();
         if (profile is null)
         {
-            Snackbar.Add("An active profile is required to create a collection.", AppSeverity.Warning);
+            Snackbar.Add(L["Common_AnActiveProfileIsRequired"].Value, AppSeverity.Warning);
             return;
         }
 

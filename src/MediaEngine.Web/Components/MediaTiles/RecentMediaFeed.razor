@@ -11,17 +11,18 @@
 @inject UserProgressChangeNotifier ProgressChanges
 @inject UniverseStateContainer State
 @implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
 @* Nothing recent on the unfiltered Home feed means an empty library: show nothing rather than a heading over an empty shelf. *@
 @if (Browse || _loading || _error is not null || _items.Count > 0 || Type != "all")
 {
-<section class="recent-feed" aria-label="Recently Added">
-    <div class="recent-feed-heading"><h2>Recently Added</h2><RecentMediaFilters Selected="@Type" Available="@_available" SelectedChanged="ChangeTypeAsync" />@if (!Browse) { <a class="recent-view-all" href="@($"/recently-added?type={Type}")">@(DeviceContext.IsPhone ? "See All" : "View all")</a> }</div>
+<section class="recent-feed" aria-label="@L["Glossary_RecentlyAdded"].Value">
+    <div class="recent-feed-heading"><h2>@L["Glossary_RecentlyAdded"]</h2><RecentMediaFilters Selected="@Type" Available="@_available" SelectedChanged="ChangeTypeAsync" />@if (!Browse) { <a class="recent-view-all" href="@($"/recently-added?type={Type}")">@(DeviceContext.IsPhone ? "See All" : "View all")</a> }</div>
     @if (_error is not null) { <p role="status">@_error</p> }
-    else if (_items.Count == 0 && !_loading) { <p role="status">No accessible recent additions in this scope.</p> }
+    else if (_items.Count == 0 && !_loading) { <p role="status">@L["RecentMediaFeed_NoAccessibleRecentAdditionsIn"]</p> }
     @if (Browse) { <div class="recent-items recent-items--browse" aria-busy="@_loading">@RecentItems</div> }
-    else { <MediaShelfScroller ItemCount="@_items.Count" AriaLabel="Recently added media" Class="recent-items">@RecentItems</MediaShelfScroller> }
-    @if (_loading) { <p role="status">Loading recent additions…</p> }
-    @if (Browse && _cursor is not null) { <AppNativeButton Class="recent-load-more" Disabled="@_loading" OnClick="LoadMoreAsync">Show more</AppNativeButton> }
+    else { <MediaShelfScroller ItemCount="@_items.Count" AriaLabel="@L["Common_RecentlyAddedMedia"].Value" Class="recent-items">@RecentItems</MediaShelfScroller> }
+    @if (_loading) { <p role="status">@L["RecentMediaFeed_LoadingRecentAdditions"]</p> }
+    @if (Browse && _cursor is not null) { <AppNativeButton Class="recent-load-more" Disabled="@_loading" OnClick="LoadMoreAsync">@L["Common_ShowMore"]</AppNativeButton> }
 </section>
 }
 @if (_activeView is not null && _profileId is { } activeProfile)
@@ -121,7 +122,7 @@
             _loading = true;
         }
         _profileId = profileId;
-        if (profileId is null) { _loading = false; _error = "Select a profile to see recent additions."; return; }
+        if (profileId is null) { _loading = false; _error = L["RecentMediaFeed_SelectAProfileToSee"].Value; return; }
 
         _refreshVersion = version;
         try
@@ -131,7 +132,7 @@
             _loading = false;
             if (page is null)
             {
-                if (_items.Count == 0) _error = "Recent additions are unavailable. Please try again.";
+                if (_items.Count == 0) _error = L["RecentMediaFeed_RecentAdditionsAreUnavailablePlease"].Value;
                 return;
             }
             var tiles = page.Items.Where(item => item.Catalogue is not null)
@@ -160,7 +161,7 @@
         var page = await Api.GetDisplayRecentAsync(type, cursor, 48, BeginLoad());
         if (_disposed || version != _version) return;
         _loading = false;
-        if (page is null) { _error = "Recent additions are unavailable. Please try again."; return; }
+        if (page is null) { _error = L["RecentMediaFeed_RecentAdditionsAreUnavailablePlease"].Value; return; }
         foreach (var item in page.Items.Where(item => _items.All(existing => existing.Key != item.Key)))
         {
             if (item.Catalogue is { } card) _tiles[item.Key] = MediaTileComposerService.FromDisplayCard(card);
@@ -173,7 +174,7 @@
     {
         var version = _version;
         var item = await ViewAdapter.OpenAsync(asset);
-        if (!_disposed && version == _version) { _activeView = item; if (item is null) _error = "This View item is no longer available."; }
+        if (!_disposed && version == _version) { _activeView = item; if (item is null) _error = L["RecentMediaFeed_ThisViewItemIsNo"].Value; }
     }
     private void CloseView() => _activeView = null;
     public void Dispose() { _disposed = true; _version++; _loadCts?.Cancel(); _loadCts?.Dispose(); _loadCts = null; Orchestrator.OnProfileChanged -= ProfileChanged; ProgressChanges.Changed -= ProgressChanged; State.MediaAddedReceived -= MediaAdded; }

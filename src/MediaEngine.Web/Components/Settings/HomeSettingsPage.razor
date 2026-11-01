@@ -4,27 +4,28 @@
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
 @inject IAppToastService Snackbar
+@inject IStringLocalizer<SharedStrings> L
 
 @* Home preferences: what the big banner at the top of Home may show. These only narrow what the Library picks from (the order
    rules do not change), and the Engine applies them, so every phone, TV and browser agrees. Your own profile only. *@
 @if (_loading)
 {
-    <div class="listening-settings-skeleton" aria-label="Loading Home preferences">
+    <div class="listening-settings-skeleton" aria-label="@L["HomeSettingsPage_LoadingHomePreferences"].Value">
         <AppSkeleton Height="200px" />
     </div>
 }
 else if (_settings is null)
 {
-    <AppErrorState Title="Home preferences are unavailable"
-                   Message="The Library could not read your Home settings. Try again in a moment."
+    <AppErrorState Title="@L["HomeSettingsPage_HomePreferencesAreUnavailable"].Value"
+                   Message="@L["HomeSettingsPage_TheLibraryCouldNotRead"].Value"
                    Retry="@LoadAsync" />
 }
 else
 {
     <div class="settings-listening-page" data-home-section="hero">
         <div class="listening-settings-grid">
-            <SettingsSectionPanel Title="Top banner"
-                                  Description="The large picture at the top of Home. It picks up what you are in the middle of first, then new items."
+            <SettingsSectionPanel Title="@L["HomeSettingsPage_TopBanner"].Value"
+                                  Description="@L["HomeSettingsPage_TheLargePictureAtThe"].Value"
                                   Class="tl-card settings-section-card listening-settings-card">
                 @SwitchRow("Show the top banner", "Turn this off and Home starts at its first row.", _settings.Enabled,
                     value => SaveAsync(_settings with { Enabled = value }))
@@ -32,8 +33,8 @@ else
                 {
                     <div class="listening-preference-row">
                         <div class="listening-preference-row__copy">
-                            <AppText Typo="AppTypo.body1">Slides</AppText>
-                            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">The most slides the banner cycles through.</AppText>
+                            <AppText Typo="AppTypo.body1">@L["HomeSettingsPage_Slides"]</AppText>
+                            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@L["HomeSettingsPage_TheMostSlidesTheBanner"]</AppText>
                         </div>
                         <AppIntSelect Value="@_settings.SlideCount"
                                       ValueChanged="@(value => SaveAsync(_settings with { SlideCount = value }))"
@@ -42,7 +43,7 @@ else
                                       Dense="true"
                                       Size="AppControlSize.Compact"
                                       Class="listening-preference-row__select"
-                                      aria-label="Slides">
+                                      aria-label="@L["HomeSettingsPage_Slides"].Value">
                             @for (var count = 1; count <= 5; count++)
                             {
                                 <AppSelectItem T="int" Value="@count">@(count == 1 ? "1 slide" : $"{count} slides")</AppSelectItem>
@@ -56,8 +57,8 @@ else
 
             @if (_settings.Enabled)
             {
-                <SettingsSectionPanel Title="What can appear"
-                                      Description="Leave a type off and the banner never shows it."
+                <SettingsSectionPanel Title="@L["HomeSettingsPage_WhatCanAppear"].Value"
+                                      Description="@L["HomeSettingsPage_LeaveATypeOffAnd"].Value"
                                       Class="tl-card settings-section-card listening-settings-card">
                     @SwitchRow("Movies and shows", "Things to watch.", _settings.AllowWatch, value => SaveAsync(_settings with { AllowWatch = value }))
                     @SwitchRow("Books and comics", "Things to read.", _settings.AllowRead, value => SaveAsync(_settings with { AllowRead = value }))
@@ -67,8 +68,8 @@ else
 
             @if (_settings.Enabled && _settings.Plugins.Count > 0)
             {
-                <SettingsSectionPanel Title="Suggestions from plugins"
-                                      Description="Plugins can suggest items for the banner. Their slides are labelled with the plugin's name, and never come before something you are in the middle of."
+                <SettingsSectionPanel Title="@L["HomeSettingsPage_SuggestionsFromPlugins"].Value"
+                                      Description="@L["HomeSettingsPage_PluginsCanSuggestItemsFor"].Value"
                                       Class="tl-card settings-section-card listening-settings-card">
                     @foreach (var plugin in _settings.Plugins)
                     {
@@ -130,7 +131,7 @@ else
         if (!await ApiClient.SetDisplayHeroSettingsAsync(next))
         {
             _settings = previous;
-            Snackbar.Add("Your Home settings could not be saved. Nothing was changed.", AppSeverity.Error);
+            Snackbar.Add(L["HomeSettingsPage_YourHomeSettingsCouldNot"].Value, AppSeverity.Error);
         }
     }
 }

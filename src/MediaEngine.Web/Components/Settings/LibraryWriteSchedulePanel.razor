@@ -6,26 +6,27 @@
 @implements IDisposable
 @inject IEngineApiClient ApiClient
 @inject ILogger<LibraryWriteSchedulePanel> Logger
+@inject IStringLocalizer<SharedStrings> L
 
 @* When changed details are written into files. Library saves every change at once; the files catch up in one batch on this
    schedule, or straight away with Write now. Phones see the status text only. *@
-<section class="write-schedule" aria-label="Writing changes into files">
+<section class="write-schedule" aria-label="@L["LibraryWriteSchedulePanel_WritingChangesIntoFiles"].Value">
     @if (_loading)
     {
-        <p class="write-schedule__status" role="status">Checking the file write schedule…</p>
+        <p class="write-schedule__status" role="status">@L["LibraryWriteSchedulePanel_CheckingTheFileWriteSchedule"]</p>
     }
     else if (_schedule is null)
     {
-        <AppAlert Tone="AppUiTone.Error">The Engine is unavailable, so the file write schedule can't be shown.</AppAlert>
+        <AppAlert Tone="AppUiTone.Error">@L["LibraryWriteSchedulePanel_TheEngineIsUnavailableSo"]</AppAlert>
     }
     else if (_schedule.Enabled)
     {
         @if (!ReadOnly)
         {
             <div class="write-schedule__interval">
-                <span>Write changes into files every</span>
+                <span>@L["LibraryWriteSchedulePanel_WriteChangesIntoFilesEvery"]</span>
                 <div class="write-schedule__minutes">
-                    <AppTextField Label="Minutes between file writes"
+                    <AppTextField Label="@L["LibraryWriteSchedulePanel_MinutesBetweenFileWrites"].Value"
                                   HideLabel="true"
                                   Value="@_intervalText"
                                   ValueChanged="SaveIntervalAsync"
@@ -43,7 +44,7 @@
             <p class="write-schedule__status" role="status">@StatusText</p>
             @if (!ReadOnly)
             {
-                <AppButton Label="Write now"
+                <AppButton Label="@L["LibraryWriteSchedulePanel_WriteNow"].Value"
                            StartIcon="@AppMaterialIcons.Outlined.Sync"
                            ButtonStyle="AppButtonStyle.Outlined"
                            Tone="AppUiTone.Primary"
@@ -70,7 +71,7 @@
             </div>
             @if (_showFailed && !ReadOnly)
             {
-                <ul class="write-schedule__failed-list" aria-label="Files that couldn't be written">
+                <ul class="write-schedule__failed-list" aria-label="@L["LibraryWriteSchedulePanel_FilesThatCouldnTBe"].Value">
                     @foreach (var file in _failed)
                     {
                         <li>
@@ -86,8 +87,8 @@
         @if (_exifToolMissing)
         {
             <p class="write-schedule__status">
-                Photos, videos and PDFs in View are waiting for ExifTool.
-                <AppLink Href="/settings/tools">Open Tools</AppLink>
+                @L["LibraryWriteSchedulePanel_PhotosVideosAndPDFsIn"]
+                <AppLink Href="/settings/tools">@L["LibraryWriteSchedulePanel_OpenTools"]</AppLink>
             </p>
         }
     }
@@ -185,7 +186,7 @@
             var saved = await ApiClient.UpdateFileWriteScheduleAsync(minutes);
             if (saved is null)
             {
-                _intervalError = "That couldn't be saved. Try again in a moment.";
+                _intervalError = L["LibraryWriteSchedulePanel_ThatCouldnTBeSaved"].Value;
                 return;
             }
 

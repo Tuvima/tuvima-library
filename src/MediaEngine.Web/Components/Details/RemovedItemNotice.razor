@@ -1,4 +1,5 @@
 @namespace MediaEngine.Web.Components.Details
+@inject IStringLocalizer<SharedStrings> L
 
 @* Shown in place of a detail page whose title was deleted by someone else while it was open (details overlay spec section 4). The
    overlay stays open so nothing typed is lost without warning: a pencil field that held unsaved text is shown here, read-only, with
@@ -10,28 +11,28 @@
     {
         <div class="tl-removed-notice__input">
             <p class="tl-removed-notice__input-label">@(string.IsNullOrWhiteSpace(InputLabel) ? "What you were typing" : $"What you were typing in {InputLabel}")</p>
-            <pre class="tl-removed-notice__input-text" tabindex="0" aria-label="Your unsaved text">@InputText</pre>
+            <pre class="tl-removed-notice__input-text" tabindex="0" aria-label="@L["RemovedItemNotice_YourUnsavedText"].Value">@InputText</pre>
             <div class="tl-removed-notice__actions">
                 <AppButton ButtonStyle="AppButtonStyle.Outlined"
                            Tone="AppUiTone.Neutral"
                            StartIcon="@AppMaterialIcons.Outlined.ContentCopy"
                            Class="tl-removed-notice__copy"
                            OnClick="OnCopy">
-                    Copy
+                    @L["Common_Copy"]
                 </AppButton>
             </div>
         </div>
     }
     @if (LostSectionInput)
     {
-        <p class="tl-removed-notice__lost">An open section also had changes that were not saved. They could not be kept.</p>
+        <p class="tl-removed-notice__lost">@L["RemovedItemNotice_AnOpenSectionAlsoHad"]</p>
     }
     <AppButton ButtonStyle="AppButtonStyle.Filled"
                Tone="AppUiTone.Primary"
                Size="AppControlSize.Large"
                Class="tl-removed-notice__close"
                OnClick="OnClose">
-        Close
+        @L["Common_Close"]
     </AppButton>
 </section>
 

@@ -7,6 +7,7 @@
 @inject NavigationManager Nav
 @inject IServiceProvider Services
 @implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 <PageTitle>@PageTitleText</PageTitle>
 
@@ -29,7 +30,7 @@
     @if (_loading)
     {
         <div class="tl-detail-route-progress" role="status" aria-live="polite">
-            <span class="tl-detail-route-progress__label">Loading details</span>
+            <span class="tl-detail-route-progress__label">@L["Common_LoadingDetails"]</span>
             <span class="tl-detail-route-progress__bar" aria-hidden="true"></span>
         </div>
     }
@@ -47,17 +48,17 @@ else
         {
             case DetailPageLoadFailure.NotAllowed:
                 <AppPageState Kind="AppPageStateKind.Unavailable"
-                              Title="You don't have access to this"
-                              Message="Your account can't open this item. Ask a server administrator if you think this is wrong."
+                              Title="@L["DetailRouteHost_YouDonTHaveAccess"].Value"
+                              Message="@L["DetailRouteHost_YourAccountCanTOpen"].Value"
                               Class="tl-detail-route-state__content" />
                 break;
             case DetailPageLoadFailure.Unreachable:
                 <AppPageState Kind="AppPageStateKind.Error"
-                              Title="Can't reach the Engine"
-                              Message="The Engine didn't respond. Check that it's running, then try again."
+                              Title="@L["Common_CanTReachTheEngine"].Value"
+                              Message="@L["DetailRouteHost_TheEngineDidnTRespond"].Value"
                               Class="tl-detail-route-state__content">
                     <Actions>
-                        <AppButton Label="Retry" OnClick="RetryAsync" />
+                        <AppButton Label="@L["Common_Retry"].Value" OnClick="RetryAsync" />
                     </Actions>
                 </AppPageState>
                 break;

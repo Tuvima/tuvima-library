@@ -83,6 +83,6 @@ public sealed class PersonalSettingsSimplificationTests
     private static string ReadRepoFile(params string[] segments)
     {
         var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
-        return File.ReadAllText(Path.Combine([root, .. segments]));
+        return LocalizedSource.ReadAllText(Path.Combine([root, .. segments]));
     }
 }

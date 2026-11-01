@@ -3,15 +3,16 @@
 @inject IEngineApiClient ApiClient
 @inject IAppToastService Snackbar
 @inject IAppDialogService DialogService
+@inject IStringLocalizer<SharedStrings> L
 
-<AppCard Title="Organising documents" Description="Tags, correspondents, document types and your own fields are one list for the whole server. You only see the names used on items you can open, plus the ones you made yourself. Only the person who made one, or an administrator, can rename or remove it. Removing a name never removes a document.">
+<AppCard Title="@L["DocumentOrganisationSettings_OrganisingDocuments"].Value" Description="@L["DocumentOrganisationSettings_TagsCorrespondentsDocumentTypesAnd"].Value">
     @if (_loading)
     {
-        <p role="status">Loading your lists…</p>
+        <p role="status">@L["DocumentOrganisationSettings_LoadingYourLists"]</p>
     }
     else if (_catalogue is null)
     {
-        <AppAlert Tone="AppUiTone.Error">The lists could not be loaded. Documents may be turned off for your profile.</AppAlert>
+        <AppAlert Tone="AppUiTone.Error">@L["DocumentOrganisationSettings_TheListsCouldNotBe"]</AppAlert>
     }
     else
     {

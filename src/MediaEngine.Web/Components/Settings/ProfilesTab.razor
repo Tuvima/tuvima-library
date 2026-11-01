@@ -13,6 +13,7 @@
 @inject ILogger<ProfilesTab> Logger
 @inject DeviceContextService DeviceContext
 @implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 @* Settings > Personal > Profiles: the editing page for administrators. A household administrator sees the people in their own
    household; a server administrator sees every household. Each person opens on their own page. Switching profile is only done
@@ -20,26 +21,26 @@
 @if (!IsAdministrator)
 {
     @* Not an administrator: Manage Profiles opens your own profile, which is the only one you can look after. *@
-    <AppPageState Kind="AppPageStateKind.Loading" Title="Opening your profile" Class="tl-sp-py-8" />
+    <AppPageState Kind="AppPageStateKind.Loading" Title="@L["ProfilesTab_OpeningYourProfile"].Value" Class="tl-sp-py-8" />
 }
 else
 {
     <div class="profiles-tab" data-profile-section="overview">
-        <section class="profiles-tab__people" aria-label="People">
+        <section class="profiles-tab__people" aria-label="@L["Wikidata_PeopleGroupTitle"].Value">
             @if (DeviceContext.IsPhone)
             {
-                <p class="access-phone-note" role="note">Manage on a computer or tablet.</p>
+                <p class="access-phone-note" role="note">@L["Common_ManageOnAComputerOr"]</p>
             }
             @if (IsServerAdministrator && !DeviceContext.IsPhone)
             {
                 <div class="profiles-tab__toolbar">
-                    <AppButton Label="Add household" StartIcon="@AppMaterialIcons.Outlined.Home" OnClick="OpenAddHousehold" />
+                    <AppButton Label="@L["Common_AddHousehold"].Value" StartIcon="@AppMaterialIcons.Outlined.Home" OnClick="OpenAddHousehold" />
                 </div>
             }
 
             @if (_loadingPeople)
             {
-                <div class="profiles-tab__loading" role="status" aria-label="Loading the people">
+                <div class="profiles-tab__loading" role="status" aria-label="@L["ProfilesTab_LoadingThePeople"].Value">
                     <AppSkeleton Height="56px" />
                     <AppSkeleton Height="56px" />
                     <AppSkeleton Height="56px" />
@@ -48,7 +49,7 @@ else
             else if (_peopleFailed)
             {
                 <AppAlert Severity="AppSeverity.Warning" Variant="AppVariant.Outlined">
-                    The people couldn't be loaded. Reload the page to try again.
+                    @L["ProfilesTab_ThePeopleCouldnTBe"]
                 </AppAlert>
             }
             else
@@ -89,26 +90,26 @@ else
                                         <span class="profiles-tab__badges">
                                             @if (person.Id == _active?.Id)
                                             {
-                                                <span class="profiles-tab__badge profiles-tab__badge--you">You</span>
+                                                <span class="profiles-tab__badge profiles-tab__badge--you">@L["Common_You"]</span>
                                             }
                                             @if (Managed(person.Id)?.IsHouseholdAdmin == true)
                                             {
-                                                <span class="profiles-tab__badge" data-role="household-administrator">Household administrator</span>
+                                                <span class="profiles-tab__badge" data-role="household-administrator">@L["Common_HouseholdAdministrator"]</span>
                                             }
                                             @if (Managed(person.Id)?.IsServerAdmin == true)
                                             {
-                                                <span class="profiles-tab__badge" data-role="server-administrator">Server administrator</span>
+                                                <span class="profiles-tab__badge" data-role="server-administrator">@L["Common_ServerAdministrator"]</span>
                                             }
                                             @if (person.IsRestricted)
                                             {
-                                                <span class="profiles-tab__badge">Kids</span>
+                                                <span class="profiles-tab__badge">@L["Common_Kids"]</span>
                                             }
                                             @if (person.HasPin)
                                             {
-                                                <span class="profiles-tab__badge">PIN</span>
+                                                <span class="profiles-tab__badge">@L["Common_PIN"]</span>
                                             }
                                         </span>
-                                        <AppNativeButton Type="button" Class="who-button profiles-tab__edit" aria-label="@($"Edit {person.DisplayName}")" OnClick="@(() => OpenProfile(person.Id))">Edit</AppNativeButton>
+                                        <AppNativeButton Type="button" Class="who-button profiles-tab__edit" aria-label="@($"Edit {person.DisplayName}")" OnClick="@(() => OpenProfile(person.Id))">@L["Common_Edit"]</AppNativeButton>
                                     </div>
                                 </li>
                             }
@@ -117,7 +118,7 @@ else
                                 <li class="profiles-tab__item">
                                     <AppNativeButton Type="button" Class="profiles-tab__row profiles-tab__row--add" aria-label="@AddLabel(group)" OnClick="@(() => OpenAdd(group.Id))">
                                         <span class="profiles-tab__row-avatar profiles-tab__row-avatar--add" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" /></span>
-                                        <span class="profiles-tab__row-name">Add profile</span>
+                                        <span class="profiles-tab__row-name">@L["Common_AddProfile"]</span>
                                     </AppNativeButton>
                                 </li>
                             }
@@ -242,7 +243,7 @@ else
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
             Logger.LogWarning(exception, "Could not refresh the profile list.");
-            _notice = "The list couldn't be refreshed. Reload the page to see the latest.";
+            _notice = L["Common_TheListCouldnTBe"].Value;
         }
 
         await LoadPeopleAsync();
@@ -348,7 +349,7 @@ else
             var result = await Identity.ReorderHouseholdPeopleResultAsync(householdId, order, _lifetime.Token);
             if (!result.Succeeded)
             {
-                _notice = "The order couldn't be saved. Try again.";
+                _notice = L["ProfilesTab_TheOrderCouldnTBe"].Value;
                 await LoadPeopleAsync();
             }
         }
@@ -497,14 +498,14 @@ else
             var unlocked = await Identity.UnlockAdministratorAsync(new GrantAdminUnlockRequest(pin));
             if (unlocked?.Unlocked != true)
             {
-                _unlockError = "That PIN didn't work. Try again.";
+                _unlockError = L["Common_ThatPINDidnTWork"].Value;
                 return;
             }
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
             Logger.LogWarning(exception, "Could not unlock administrator access from Settings.");
-            _unlockError = "The Engine is unavailable. Try again.";
+            _unlockError = L["Common_TheEngineIsUnavailableTry"].Value;
             return;
         }
         finally

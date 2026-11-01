@@ -6,11 +6,12 @@
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
 @inject ILogger<LibrarySummary> Logger
+@inject IStringLocalizer<SharedStrings> L
 
 @* The top of the Library and Ingestion page: what the library holds (counts by type) and how healthy it is (items
    waiting in Needs Review, storage problems), read from the Engine's library overview. It reloads when RefreshToken
    changes, which the live page bumps each time the Library finishes adding media; it never polls on its own. *@
-<section class="library-summary" data-testid="library-summary" aria-label="Library summary">
+<section class="library-summary" data-testid="library-summary" aria-label="@L["LibrarySummary_LibrarySummary"].Value">
     @if (_overview is null && _error is null)
     {
         <AppSkeleton Class="library-summary__skeleton" Width="100%" Height="7rem" />
@@ -26,14 +27,14 @@
             <AppAlert Tone="AppUiTone.Warning">@_error</AppAlert>
         }
 
-        <SettingsSectionPanel Title="Library summary"
+        <SettingsSectionPanel Title="@L["LibrarySummary_LibrarySummary"].Value"
                               Icon="@AppMaterialIcons.Outlined.VideoLibrary"
                               Description="@($"{DisplayFormat.FormatCount(LibraryTotal)} items across your catalogued media.")">
             <Actions>
-                <AppButton Href="/settings/libraries" Label="Manage libraries" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" EndIcon="@AppMaterialIcons.Outlined.ChevronRight" />
+                <AppButton Href="/settings/libraries" Label="@L["LibrarySummary_ManageLibraries"].Value" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" EndIcon="@AppMaterialIcons.Outlined.ChevronRight" />
             </Actions>
             <ChildContent>
-                <div class="library-summary__breakdown" aria-label="Library media type breakdown">
+                <div class="library-summary__breakdown" aria-label="@L["LibrarySummary_LibraryMediaTypeBreakdown"].Value">
                     @foreach (var media in MediaBreakdown)
                     {
                         <AppCssElement Tag="div" Class="library-summary__media" Css="@MediaCardStyle(media)">
@@ -71,10 +72,10 @@
                     <div class="library-summary__attention" data-testid="library-summary-review">
                         <div class="library-summary__attention-copy">
                             <AppIconTile Name="@AppIcons.Warning" AccentColor="var(--tl-status-warning)" Size="AppControlSize.Compact" />
-                            <div><strong>@ReviewTitle</strong><p>Could not be identified confidently.</p></div>
+                            <div><strong>@ReviewTitle</strong><p>@L["LibrarySummary_CouldNotBeIdentifiedConfidently"]</p></div>
                         </div>
                         <AppButton Href="/settings/review"
-                                   Label="Review items"
+                                   Label="@L["LibrarySummary_ReviewItems"].Value"
                                    EndIcon="@AppMaterialIcons.Outlined.ChevronRight"
                                    ButtonStyle="AppButtonStyle.Outlined"
                                    Size="AppControlSize.Compact"
@@ -84,7 +85,7 @@
 
                 @if (StorageIssues.Count > 0)
                 {
-                    <div class="library-summary__issues" role="list" aria-label="Library storage problems" data-testid="library-summary-storage">
+                    <div class="library-summary__issues" role="list" aria-label="@L["LibrarySummary_LibraryStorageProblems"].Value" data-testid="library-summary-storage">
                         @foreach (var check in StorageIssues)
                         {
                             <a class="library-summary__issue" role="listitem" href="/settings/libraries">

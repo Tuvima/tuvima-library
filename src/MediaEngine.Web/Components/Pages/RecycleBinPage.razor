@@ -2,8 +2,9 @@
 @namespace MediaEngine.Web.Components.Pages
 @using MediaEngine.Web.Components.Settings
 @using MediaEngine.Web.Services.Navigation
+@inject IStringLocalizer<SharedStrings> L
 
-<PageTitle>Recycle bin · Library</PageTitle>
+<PageTitle>@L["RecycleBinPage_RecycleBinLibrary"]</PageTitle>
 @* Reachable from the top bar's profile menu and from a library page; the type in the address narrows it to where the person came from. *@
 <div class="recycle-bin-page">
     <RecycleBinSection MediaType="@Type" />

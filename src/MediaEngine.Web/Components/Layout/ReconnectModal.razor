@@ -1,11 +1,12 @@
-﻿<script type="module" src="@Assets["Components/Layout/ReconnectModal.razor.js"]"></script>
+@inject IStringLocalizer<SharedStrings> L
+<script type="module" src="@Assets["Components/Layout/ReconnectModal.razor.js"]"></script>
 
 <dialog id="components-reconnect-modal"
         aria-labelledby="components-reconnect-title"
         aria-describedby="components-reconnect-status"
         data-nosnippet>
     <div class="components-reconnect-container" aria-live="assertive">
-        <h2 id="components-reconnect-title">Connection to Library</h2>
+        <h2 id="components-reconnect-title">@L["ReconnectModal_ConnectionToLibrary"]</h2>
         <div class="components-rejoining-animation" aria-hidden="true">
             <div></div>
             <div></div>
@@ -14,22 +15,22 @@
             Connection lost. Reconnecting to your Library Engine&hellip;
         </p>
         <p class="components-reconnect-repeated-attempt-visible">
-            Still disconnected. Retrying in <span id="components-seconds-to-next-attempt"></span> seconds.
+            @L["ReconnectModal_StillDisconnectedRetryingIn"] <span id="components-seconds-to-next-attempt"></span> seconds.
         </p>
         <p class="components-reconnect-failed-visible">
-            The Library Engine is still unreachable. Library will keep retrying, and playback state is saved in this browser.
+            @L["ReconnectModal_TheLibraryEngineIsStill"]
         </p>
         <AppNativeButton id="components-reconnect-button" Class="components-reconnect-failed-visible">
-            Retry connection
+            @L["ReconnectModal_RetryConnection"]
         </AppNativeButton>
         <p class="components-pause-visible">
-            The session has been paused by the server.
+            @L["ReconnectModal_TheSessionHasBeenPaused"]
         </p>
         <p class="components-resume-failed-visible">
-            Failed to resume the session.<br />Please retry or reload the page.
+            @L["ReconnectModal_FailedToResumeTheSession"]<br />@L["ReconnectModal_PleaseRetryOrReloadThe"]
         </p>
         <AppNativeButton id="components-resume-button" Class="components-pause-visible components-resume-failed-visible">
-            Resume
+            @L["Common_Resume"]
         </AppNativeButton>
     </div>
 </dialog>

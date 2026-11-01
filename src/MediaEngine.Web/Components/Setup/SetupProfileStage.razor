@@ -1,67 +1,68 @@
 @namespace MediaEngine.Web.Components.Setup
 @using MediaEngine.Contracts.Setup
+@inject IStringLocalizer<SharedStrings> L
 
 @* "Who are you, and how do you want to sign in?" One screen: your name, then two single-choice rows (Just my name / Email and password) with the
    chosen row's fields under it. A profile PIN is a small link that opens its two boxes. Create profile signs the person in on this same page, so the
    recovery codes (when a password was set) and the next step appear without a sign-in page. *@
 <div class="setup-stage-content">
-    <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AdminPanelSettings" /><div><h2 id="setup-stage-title">Your profile</h2><p>Who are you, and how do you want to sign in?</p></div></div>
+    <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.AdminPanelSettings" /><div><h2 id="setup-stage-title">@L["Common_YourProfile"]</h2><p>@L["SetupProfileStage_WhoAreYouAndHow"]</p></div></div>
     @if (RecoveryCodes.Count > 0)
     {
         <RecoveryCodesDisplay Codes="@RecoveryCodes"
-                              Heading="Library administrator recovery codes"
+                              Heading="@L["SetupProfileStage_LibraryAdministratorRecoveryCodes"].Value"
                               FileName="tuvima-administrator-recovery-codes.txt" />
         <SetupStageFooter ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
-            <AppButton Label="I saved them, continue" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Continue" />
+            <AppButton Label="@L["SetupProfileStage_ISavedThemContinue"].Value" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Continue" />
         </SetupStageFooter>
     }
     else if (AdministratorConfigured)
     {
-        <AppAlert Tone="AppUiTone.Success">Your profile is ready.</AppAlert>
+        <AppAlert Tone="AppUiTone.Success">@L["SetupProfileStage_YourProfileIsReady"]</AppAlert>
         <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
             @if (Continue.HasDelegate)
             {
-                <AppButton Label="Continue" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Continue" />
+                <AppButton Label="@L["Common_Continue"].Value" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Continue" />
             }
         </SetupStageFooter>
     }
     else
     {
         <div class="setup-form-grid">
-            <AppTextField Label="Your name" Value="@DisplayName" ValueChanged="DisplayNameChanged" />
+            <AppTextField Label="@L["SetupProfileStage_YourName"].Value" Value="@DisplayName" ValueChanged="DisplayNameChanged" />
         </div>
-        <div class="setup-form-grid" role="group" aria-label="How will you sign in?">
+        <div class="setup-form-grid" role="group" aria-label="@L["SetupProfileStage_HowWillYouSignIn"].Value">
             @if (ThisComputerAvailable)
             {
-                <AppChoiceRow Title="Just my name" Description="Recommended on this computer. Everyone on your home network goes straight in. You can add a password later; you'll need one before adding another household."
+                <AppChoiceRow Title="@L["SetupProfileStage_JustMyName"].Value" Description="Recommended on this computer. Everyone on your home network goes straight in. You can add a password later; you'll need one before adding another household."
                               Selected="@ThisComputerOnly" OnClick="@(() => SignInModeChanged.InvokeAsync(SetupSignInModes.ThisComputer))" />
             }
-            <AppChoiceRow Title="Email and password" Description="Use Library on your other devices from the start."
+            <AppChoiceRow Title="@L["SetupProfileStage_EmailAndPassword"].Value" Description="@L["SetupProfileStage_UseLibraryOnYourOther"].Value"
                           Selected="@(!ThisComputerOnly)" OnClick="@(() => SignInModeChanged.InvokeAsync(SetupSignInModes.Password))" />
         </div>
         @if (!ThisComputerOnly)
         {
             <div class="setup-form-grid">
-                <AppTextField Label="Email" Value="@Email" ValueChanged="EmailChanged" />
-                <AppTextField Label="Password" InputType="@(_showPassword ? AppInputType.Text : AppInputType.Password)" Value="@Password" ValueChanged="PasswordChanged"
+                <AppTextField Label="@L["Common_Email"].Value" Value="@Email" ValueChanged="EmailChanged" />
+                <AppTextField Label="@L["Common_Password"].Value" InputType="@(_showPassword ? AppInputType.Text : AppInputType.Password)" Value="@Password" ValueChanged="PasswordChanged"
                               Adornment="AppAdornment.End" AdornmentIcon="@(_showPassword ? AppMaterialIcons.Outlined.VisibilityOff : AppMaterialIcons.Outlined.Visibility)" OnAdornmentClick="@(_ => _showPassword = !_showPassword)" AdornmentAriaLabel="@(_showPassword ? "Hide password" : "Show password")"
                               Validation="@(new Func<string?, string?>(ValidatePassword))" Error="@(Password.Length > 0 && ValidatePassword(Password) is not null)" ErrorText="@PasswordRuleText" HelpText="@(ValidatePassword(Password) is null ? PasswordRuleText : null)" />
-                <AppTextField Label="Confirm password" InputType="@(_showConfirmation ? AppInputType.Text : AppInputType.Password)" Value="@PasswordConfirmation" ValueChanged="PasswordConfirmationChanged"
+                <AppTextField Label="@L["SetupProfileStage_ConfirmPassword"].Value" InputType="@(_showConfirmation ? AppInputType.Text : AppInputType.Password)" Value="@PasswordConfirmation" ValueChanged="PasswordConfirmationChanged"
                               Adornment="AppAdornment.End" AdornmentIcon="@(_showConfirmation ? AppMaterialIcons.Outlined.VisibilityOff : AppMaterialIcons.Outlined.Visibility)" OnAdornmentClick="@(_ => _showConfirmation = !_showConfirmation)" AdornmentAriaLabel="@(_showConfirmation ? "Hide confirmed password" : "Show confirmed password")"
                               Validation="@(new Func<string?, string?>(value => !string.IsNullOrEmpty(value) && value != Password ? "Passwords do not match." : null))" Error="@(!string.IsNullOrEmpty(PasswordConfirmation) && !PasswordsMatch)" ErrorText="Passwords do not match." />
             </div>
             @if (_showPin || Pin.Length > 0)
             {
                 <div class="setup-form-grid">
-                    <AppTextField Label="Profile PIN" InputType="AppInputType.Password" Value="@Pin" ValueChanged="PinChanged" InputMode="@AppInputMode.numeric" MaxLength="12"
+                    <AppTextField Label="@L["SetupProfileStage_ProfilePIN"].Value" InputType="AppInputType.Password" Value="@Pin" ValueChanged="PinChanged" InputMode="@AppInputMode.numeric" MaxLength="12"
                                   Validation="@(new Func<string?, string?>(value => IsValidPin(value) ? null : "Use 4 to 12 digits."))" Error="@(Pin.Length > 0 && !PinValid)" ErrorText="Use 4 to 12 digits." HelpText="Unlock this profile with 4 to 12 digits. Your password is still required for account access." />
-                    <AppTextField Label="Confirm PIN" InputType="AppInputType.Password" Value="@PinConfirmation" ValueChanged="PinConfirmationChanged" InputMode="@AppInputMode.numeric" MaxLength="12"
+                    <AppTextField Label="@L["SetupProfileStage_ConfirmPIN"].Value" InputType="AppInputType.Password" Value="@PinConfirmation" ValueChanged="PinConfirmationChanged" InputMode="@AppInputMode.numeric" MaxLength="12"
                                   Validation="@(new Func<string?, string?>(value => !string.IsNullOrEmpty(value) && value != Pin ? "PINs do not match." : null))" Error="@(PinConfirmation.Length > 0 && Pin != PinConfirmation)" ErrorText="PINs do not match." />
                 </div>
             }
             else
             {
-                <div class="setup-actions setup-actions--secondary"><AppButton Label="Add a profile PIN" StartIcon="@AppMaterialIcons.Outlined.Lock" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => _showPin = true)" /></div>
+                <div class="setup-actions setup-actions--secondary"><AppButton Label="@L["SetupProfileStage_AddAProfilePIN"].Value" StartIcon="@AppMaterialIcons.Outlined.Lock" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => _showPin = true)" /></div>
             }
         }
         @if (!string.IsNullOrEmpty(Notice))
@@ -70,7 +71,7 @@
         }
         <small>@(ThisComputerOnly ? "Your details stay on your Library server." : "Your credentials remain on your Library server.")</small>
         <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
-            <AppButton Label="Create profile" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" Disabled="@(Busy || !CanCreate)" OnClick="CreateAdministrator" />
+            <AppButton Label="@L["SetupProfileStage_CreateProfile"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" Disabled="@(Busy || !CanCreate)" OnClick="CreateAdministrator" />
         </SetupStageFooter>
     }
 </div>

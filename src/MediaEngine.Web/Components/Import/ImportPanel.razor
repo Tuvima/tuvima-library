@@ -6,29 +6,30 @@
 @using Microsoft.AspNetCore.Components.Forms
 @inject IEngineApiClient Api
 @inject ILogger<ImportPanel> Logger
+@inject IStringLocalizer<SharedStrings> L
 
 @* The shared Import (Collections and lists spec D17): one place to drop a file or paste text. The Engine recognises what it is and
    the preview answers in that kind's own words. It is used by New collection > From a list, the player's bookmark pack import and
    Settings > Profile > Import, each with the kinds that place can use (AllowedKinds); a file of another kind still gets its own
    preview and a line on where it goes. Files stay on this machine: nothing here opens a connection other than to the Engine. *@
-<section class="import-panel" data-import-panel aria-label="Import">
+<section class="import-panel" data-import-panel aria-label="@L["ImportPanel_Import"].Value">
     <div class="import-panel__drop @(_busy ? "is-busy" : null)" data-import-drop>
         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.UploadFile" />
         <strong>@DropTitle</strong>
         <span class="import-panel__accepts">@AcceptText</span>
-        <InputFile class="tl-file-drop__input" OnChange="OnFileChosenAsync" accept="@AcceptAttribute" disabled="@_busy" aria-label="Choose a file to import" />
+        <InputFile class="tl-file-drop__input" OnChange="OnFileChosenAsync" accept="@AcceptAttribute" disabled="@_busy" aria-label="@L["ImportPanel_ChooseAFile"].Value" />
     </div>
 
     @if (ShowPaste)
     {
         <div class="import-panel__paste">
-            <AppTextarea Label="Or paste a list"
+            <AppTextarea Label="@L["ImportPanel_PasteLabel"].Value"
                          Value="@_pasted"
                          ValueChanged="@(value => _pasted = value ?? string.Empty)"
-                         Placeholder="One title per line, with the year in brackets if you like: Heat (1995)"
+                         Placeholder="@L["ImportPanel_PastePlaceholder"].Value"
                          Lines="3" />
             <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" Disabled="@(_busy || string.IsNullOrWhiteSpace(_pasted))"
-                       OnClick="ReadPastedAsync">Read this text</AppButton>
+                       OnClick="ReadPastedAsync">@L["ImportPanel_ReadText"]</AppButton>
         </div>
     }
 
@@ -36,7 +37,7 @@
 
     @if (_busy)
     {
-        <div class="import-panel__busy" role="status"><AppSpinner Indeterminate="true" Size="AppSize.Small" /><span>Reading the file…</span></div>
+        <div class="import-panel__busy" role="status"><AppSpinner Indeterminate="true" Size="AppSize.Small" /><span>@L["ImportPanel_Reading"]</span></div>
     }
 
     @if (_error is not null)
@@ -50,14 +51,14 @@
             @if (!IsAllowed(shown.Preview))
             {
                 <AppAlert Tone="AppUiTone.Info" Dense="true" data-import-elsewhere>
-                    This is @ImportKindGuidance.KindNoun(shown.Preview.Kind), not something this step can use. @ImportKindGuidance.WhereItGoes(shown.Preview.Kind)
+                    @L["ImportPanel_NotForThisStep", ImportKindGuidance.KindNoun(shown.Preview.Kind), ImportKindGuidance.WhereItGoes(shown.Preview.Kind)]
                 </AppAlert>
             }
             else if (shown.Preview.CanApply && AllowApply)
             {
                 <div class="import-panel__actions">
                     <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_busy" OnClick="@(() => ApplyAsync(shown))">
-                        @(shown.Preview.ApplyLabel ?? "Add")
+                        @(shown.Preview.ApplyLabel ?? L["ImportPanel_Add"].Value)
                     </AppButton>
                 </div>
             }
@@ -159,7 +160,7 @@
         catch (IOException ex)
         {
             Logger.LogDebug(ex, "The chosen import file could not be read");
-            _error = "That file could not be read. Choose it again.";
+            _error = L["ImportPanel_ReadFailed"].Value;
         }
         finally
         {

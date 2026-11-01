@@ -6,18 +6,19 @@
 @implements IDisposable
 @inject IEngineApiClient Api
 @inject ILogger<EditorTvMatchBrowser> Logger
+@inject IStringLocalizer<SharedStrings> L
 
 @* The Match tool's TV browser (universal editor v2, D4): Show, Season and Episode side by side. The Show column searches every show on
    TheTVDB, not only the item's own, and the Episode column lists real episode records, so an episode can be matched into another show
    but a show can never be chosen for an episode. A show page needs only the Show column. Choosing a row only hands the choice up; the
    "What will happen" step and the staging are the Match tool's. *@
 <div class="tl-tvm" data-scope="@(NeedsEpisode ? "episode" : "show")">
-    <section class="tl-tvm__column tl-tvm__column--shows" aria-label="Show">
-        <h3 class="tl-tvm__heading">Show</h3>
+    <section class="tl-tvm__column tl-tvm__column--shows" aria-label="@L["EditorTvMatchBrowser_Show"].Value">
+        <h3 class="tl-tvm__heading">@L["EditorTvMatchBrowser_Show"]</h3>
         <div class="tl-tvm__search">
-            <AppTextField Label="Search shows" HideLabel="true" Value="@_query" ValueChanged="@(value => _query = value ?? string.Empty)"
-                          Placeholder="Search for a show" Immediate="true" OnKeyDown="OnQueryKey" aria-label="Search for a show" />
-            <AppButton Label="Search" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Search"
+            <AppTextField Label="@L["EditorTvMatchBrowser_SearchShows"].Value" HideLabel="true" Value="@_query" ValueChanged="@(value => _query = value ?? string.Empty)"
+                          Placeholder="@L["EditorTvMatchBrowser_SearchForAShow"].Value" Immediate="true" OnKeyDown="OnQueryKey" aria-label="@L["EditorTvMatchBrowser_SearchForAShow"].Value" />
+            <AppButton Label="@L["Nav_Search"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Search"
                        Disabled="@_showsLoading" OnClick="SearchShowsAsync" />
         </div>
         @if (_showsLoading)
@@ -28,7 +29,7 @@
         {
             <AppAlert Severity="AppSeverity.Warning" Dense="true">
                 <span>@_showsProblem</span>
-                <AppButton Label="Retry" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" OnClick="SearchShowsAsync" />
+                <AppButton Label="@L["Common_Retry"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" OnClick="SearchShowsAsync" />
             </AppAlert>
         }
         else
@@ -39,7 +40,7 @@
                     <div class="tl-tvm__row @(IsActiveShow(show) ? "is-active" : null)" role="listitem">
                         @Art(show.ImageUrl)
                         <div class="tl-tvm__text">
-                            <div class="tl-tvm__title">@show.Name @if (show.IsCurrent) { <AppChip Text="This item's show" Tone="AppUiTone.Neutral" /> }</div>
+                            <div class="tl-tvm__title">@show.Name @if (show.IsCurrent) { <AppChip Text="@L["EditorTvMatchBrowser_ThisItemSShow"].Value" Tone="AppUiTone.Neutral" /> }</div>
                             @if (!string.IsNullOrWhiteSpace(show.Year))
                             {
                                 <div class="tl-tvm__meta">@show.Year</div>
@@ -47,12 +48,12 @@
                         </div>
                         @if (NeedsEpisode)
                         {
-                            <AppButton Label="Open" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                            <AppButton Label="@L["Common_Open"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
                                        aria-label="@($"Open {show.Name}")" OnClick="@(() => OpenShowAsync(show))" />
                         }
                         else
                         {
-                            <AppButton Label="Select" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                            <AppButton Label="@L["Common_Select"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
                                        aria-label="@($"Select {show.Name}")" Disabled="@(!CanEdit)" OnClick="@(() => OnShowChosen.InvokeAsync(show))" />
                         }
                     </div>
@@ -63,11 +64,11 @@
 
     @if (NeedsEpisode)
     {
-        <section class="tl-tvm__column" aria-label="Season">
-            <h3 class="tl-tvm__heading">Season</h3>
+        <section class="tl-tvm__column" aria-label="@L["Common_Season"].Value">
+            <h3 class="tl-tvm__heading">@L["Common_Season"]</h3>
             @if (_show is null)
             {
-                <p class="tl-tvm__hint">Open a show to see its seasons.</p>
+                <p class="tl-tvm__hint">@L["EditorTvMatchBrowser_OpenAShowToSee"]</p>
             }
             else if (_seasonsLoading)
             {
@@ -77,7 +78,7 @@
             {
                 <AppAlert Severity="AppSeverity.Warning" Dense="true">
                     <span>@_seasonsProblem</span>
-                    <AppButton Label="Retry" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" OnClick="@(() => OpenShowAsync(_show))" />
+                    <AppButton Label="@L["Common_Retry"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" OnClick="@(() => OpenShowAsync(_show))" />
                 </AppAlert>
             }
             else
@@ -87,9 +88,9 @@
                     {
                         <div class="tl-tvm__row @(_season?.SeasonId == season.SeasonId ? "is-active" : null)" role="listitem">
                             <div class="tl-tvm__text">
-                                <div class="tl-tvm__title">@season.Title @if (season.IsCurrent) { <AppChip Text="This item's season" Tone="AppUiTone.Neutral" /> }</div>
+                                <div class="tl-tvm__title">@season.Title @if (season.IsCurrent) { <AppChip Text="@L["EditorTvMatchBrowser_ThisItemSSeason"].Value" Tone="AppUiTone.Neutral" /> }</div>
                             </div>
-                            <AppButton Label="Open" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                            <AppButton Label="@L["Common_Open"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
                                        aria-label="@($"Open {season.Title}")" OnClick="@(() => OpenSeasonAsync(season))" />
                         </div>
                     }
@@ -97,11 +98,11 @@
             }
         </section>
 
-        <section class="tl-tvm__column" aria-label="Episode">
-            <h3 class="tl-tvm__heading">Episode</h3>
+        <section class="tl-tvm__column" aria-label="@L["Common_Episode"].Value">
+            <h3 class="tl-tvm__heading">@L["Common_Episode"]</h3>
             @if (_season is null)
             {
-                <p class="tl-tvm__hint">Open a season to see its episodes.</p>
+                <p class="tl-tvm__hint">@L["EditorTvMatchBrowser_OpenASeasonToSee"]</p>
             }
             else if (_episodesLoading)
             {
@@ -111,7 +112,7 @@
             {
                 <AppAlert Severity="AppSeverity.Warning" Dense="true">
                     <span>@_episodesProblem</span>
-                    <AppButton Label="Retry" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" OnClick="@(() => OpenSeasonAsync(_season))" />
+                    <AppButton Label="@L["Common_Retry"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" OnClick="@(() => OpenSeasonAsync(_season))" />
                 </AppAlert>
             }
             else
@@ -122,10 +123,10 @@
                         <div class="tl-tvm__row" role="listitem" data-slot="@EditorTvMatchCandidates.SlotLabel(episode.SeasonNumber, episode.EpisodeNumber)">
                             <span class="tl-tvm__slot">@EditorTvMatchCandidates.SlotLabel(episode.SeasonNumber, episode.EpisodeNumber)</span>
                             <div class="tl-tvm__text">
-                                <div class="tl-tvm__title">@episode.Title @if (episode.IsCurrent) { <AppChip Text="This episode" Tone="AppUiTone.Neutral" /> }</div>
+                                <div class="tl-tvm__title">@episode.Title @if (episode.IsCurrent) { <AppChip Text="@L["EditorTvMatchBrowser_ThisEpisode"].Value" Tone="AppUiTone.Neutral" /> }</div>
                                 <div class="tl-tvm__meta">@EpisodeLine(episode)</div>
                             </div>
-                            <AppButton Label="Select" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                            <AppButton Label="@L["Common_Select"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
                                        aria-label="@($"Select {episode.Title}")" Disabled="@(!CanEdit || episode.IsCurrent)" OnClick="@(() => OnEpisodeChosen.InvokeAsync(episode))" />
                         </div>
                     }

@@ -7,16 +7,17 @@
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient Api
 @inject IAppToastService Toast
+@inject IStringLocalizer<SharedStrings> L
 
 @* The "From a list" part of a list collection's Contents tab (Collections and lists spec D5, D6, 4h): where the list came from, how
    much of it the Library owns, how it is followed, and the titles that could not be matched, each fixable by hand. Titles a person
    added to the collection by hand are never touched by the list. A collection that was not made from a list shows nothing. *@
 @if (_source is { } source)
 {
-    <MediaEditorPanel Title="From a list" Description="@($"{source.SourceLabel}: {source.SourceName}")">
+    <MediaEditorPanel Title="@L["ListSection_Title"].Value" Description="@($"{source.SourceLabel}: {source.SourceName}")">
         <div class="list-section" data-list-section>
             <div class="list-section__owned">
-                <strong data-list-section-owned>You own @source.OwnedCount of @source.EntryCount</strong>
+                <strong data-list-section-owned>@L["ListStep_YouOwn", source.OwnedCount, source.EntryCount]</strong>
                 <span>@(source.LastRefreshedAt is { } at ? $"Last checked {at.LocalDateTime:d MMM yyyy}." : "Not checked yet.")</span>
             </div>
 
@@ -29,22 +30,22 @@
 
             <div class="list-section__actions">
                 <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Sync"
-                           Disabled="@_busy" OnClick="MatchAgainAsync">Match again</AppButton>
+                           Disabled="@_busy" OnClick="MatchAgainAsync">@L["ListSection_MatchAgain"]</AppButton>
                 <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" StartIcon="@AppMaterialIcons.Outlined.UploadFile"
-                           Disabled="@_busy" OnClick="@(() => _updating = !_updating)">Update from a newer file</AppButton>
+                           Disabled="@_busy" OnClick="@(() => _updating = !_updating)">@L["ListSection_Update"]</AppButton>
             </div>
 
             @if (_updating)
             {
                 <ImportPanel ShowPaste="true" ShowPreview="false" AllowedKinds="@AllowedKinds"
-                             Prompt="Drop the newer export here" OnRecognised="UpdateFromFileAsync" />
+                             Prompt="@L["ListSection_UpdatePrompt"].Value" OnRecognised="UpdateFromFileAsync" />
             }
 
             @if (source.Unmatched.Count > 0)
             {
                 <div class="list-section__unmatched" data-list-section-unmatched>
-                    <h4 class="list-section__heading">Couldn't match (@source.UnmatchedCount)</h4>
-                    <p class="list-section__hint">Search your library and pick the right title, or ignore the ones you do not own.</p>
+                    <h4 class="list-section__heading">@L["ListStep_CouldntMatch", source.UnmatchedCount]</h4>
+                    <p class="list-section__hint">@L["ListStep_FixHelp"]</p>
                     @foreach (var entry in source.Unmatched.Take(MaximumShown))
                     {
                         <ListEntryFixRow @key="entry.Id" Entry="entry" Disabled="@_busy"
@@ -52,7 +53,7 @@
                     }
                     @if (source.Unmatched.Count > MaximumShown)
                     {
-                        <p class="list-section__hint">and @(source.Unmatched.Count - MaximumShown) more.</p>
+                        <p class="list-section__hint">@L["ListSection_AndMore", source.Unmatched.Count - MaximumShown]</p>
                     }
                 </div>
             }

@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Web.Services.Ui
+@inject IStringLocalizer<SharedStrings> L
 
 @* One dialog for all the files that need a decision (Library setup D44): "These look like videos, not music", or "Which kind of videos
    are these?" on a group page. Each group of files has the usual kind cards (icon tile, colour or grey, Metadata icons, the (i)), and for
@@ -35,7 +36,7 @@
                                               HeadingId="@($"{headingId}-library")" />
                         @if (section.WantsNewLibrary)
                         {
-                            <p class="lib-choice__lead" data-new-library-note>A new library needs a folder first. Add it, then drop these files again.</p>
+                            <p class="lib-choice__lead" data-new-library-note>@L["UploadKindDialog_ANewLibraryNeedsA"]</p>
                         }
                     }
                 </section>
@@ -44,7 +45,7 @@
     </ChildContent>
     <FooterContent>
         <AppActionBar Align="AppHorizontalAlignment.End">
-            <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
+            <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
             <AppButton Label="@(Sections.Any(section => section.WantsNewLibrary) ? "Set up the library" : "Add files")"
                        ButtonStyle="AppButtonStyle.Filled"
                        Tone="AppUiTone.Primary"

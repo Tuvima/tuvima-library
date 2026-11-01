@@ -6,45 +6,46 @@
 @inject IAppToastService Snackbar
 @namespace MediaEngine.Web.Components.Pages
 @implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
 
-<PageTitle>Shared Library Contributions - Library</PageTitle>
+<PageTitle>@L["ViewContributionsPage_SharedLibraryContributionsLibrary"]</PageTitle>
 <ViewSectionShell>
     <main class="view-contributions-page">
         <AppBreadcrumbs Class="view-contributions-breadcrumbs">
-            <a href="/view">View</a><span aria-hidden="true">/</span>
-            <a href="/view?scope=shared">Shared Library</a><span aria-hidden="true">/</span>
+            <a href="/view">@L["Nav_View"]</a><span aria-hidden="true">/</span>
+            <a href="/view?scope=shared">@L["Common_SharedLibrary"]</a><span aria-hidden="true">/</span>
             @if (ContributionId.HasValue)
             {
-                <a href="/view/contributions">Contributions</a><span aria-hidden="true">/</span>
-                <span aria-current="page">Contribution</span>
+                <a href="/view/contributions">@L["Common_Contributions"]</a><span aria-hidden="true">/</span>
+                <span aria-current="page">@L["ViewContributionsPage_Contribution"]</span>
             }
-            else { <span aria-current="page">Contributions</span> }
+            else { <span aria-current="page">@L["Common_Contributions"]</span> }
         </AppBreadcrumbs>
 
         <header class="view-contributions-header">
-            <div><span>Shared Library</span><h1>@(ContributionId.HasValue ? "Contribution" : "Contributions")</h1>
+            <div><span>@L["Common_SharedLibrary"]</span><h1>@(ContributionId.HasValue ? "Contribution" : "Contributions")</h1>
                 <p>@(ContributionId.HasValue ? "Review the submitted items, destination, and transfer state." : "Track your submissions and review pending contributions when you are a household administrator.")</p></div>
-            @if (ContributionId.HasValue) { <AppButton Href="/view/contributions" Label="All contributions" StartIcon="@AppMaterialIcons.Outlined.ArrowBack" ButtonStyle="AppButtonStyle.Text" /> }
+            @if (ContributionId.HasValue) { <AppButton Href="/view/contributions" Label="@L["ViewContributionsPage_AllContributions"].Value" StartIcon="@AppMaterialIcons.Outlined.ArrowBack" ButtonStyle="AppButtonStyle.Text" /> }
         </header>
 
-        @if (_loading) { <AppPageState Kind="AppPageStateKind.Loading" Title="Loading contributions" Message="Reading the Shared Library queue." /> }
-        else if (!string.IsNullOrWhiteSpace(_error)) { <AppErrorState Title="Contributions could not be loaded" Message="@_error" Retry="LoadAsync" /> }
+        @if (_loading) { <AppPageState Kind="AppPageStateKind.Loading" Title="@L["ViewContributionsPage_LoadingContributions"].Value" Message="@L["ViewContributionsPage_ReadingTheSharedLibraryQueue"].Value" /> }
+        else if (!string.IsNullOrWhiteSpace(_error)) { <AppErrorState Title="@L["ViewContributionsPage_ContributionsCouldNotBeLoaded"].Value" Message="@_error" Retry="LoadAsync" /> }
         else if (_detail is not null) { @ContributionDetail(_detail) }
         else if (_page is not null)
         {
             <div class="view-contributions-controls">
-                <div role="tablist" aria-label="Contribution queue">
-                    <AppNativeButton Type="button" role="tab" aria-selected="@(_mode == "mine")" Class="@ModeClass("mine")" OnClick="@(_ => ChangeModeAsync("mine"))">My submissions</AppNativeButton>
-                    @if (_page.CanReview) { <AppNativeButton Type="button" role="tab" aria-selected="@(_mode == "review")" Class="@ModeClass("review")" OnClick="@(_ => ChangeModeAsync("review"))">Review queue</AppNativeButton> }
+                <div role="tablist" aria-label="@L["ViewContributionsPage_ContributionQueue"].Value">
+                    <AppNativeButton Type="button" role="tab" aria-selected="@(_mode == "mine")" Class="@ModeClass("mine")" OnClick="@(_ => ChangeModeAsync("mine"))">@L["ViewContributionsPage_MySubmissions"]</AppNativeButton>
+                    @if (_page.CanReview) { <AppNativeButton Type="button" role="tab" aria-selected="@(_mode == "review")" Class="@ModeClass("review")" OnClick="@(_ => ChangeModeAsync("review"))">@L["Nav_ReviewQueue"]</AppNativeButton> }
                 </div>
-                <AppNativeSelect Value="@_status" OnChange="StatusChangedAsync" aria-label="Contribution status">
-                    <option value="">All statuses</option><option value="pending">Pending</option><option value="accepted">Accepted</option><option value="declined">Declined</option><option value="cancelled">Cancelled</option>
+                <AppNativeSelect Value="@_status" OnChange="StatusChangedAsync" aria-label="@L["ViewContributionsPage_ContributionStatus"].Value">
+                    <option value="">@L["ViewContributionsPage_AllStatuses"]</option><option value="pending">@L["Ingestion_StatusPending"]</option><option value="accepted">@L["ViewContributionsPage_Accepted"]</option><option value="declined">@L["ViewContributionsPage_Declined"]</option><option value="cancelled">@L["ViewContributionsPage_Cancelled"]</option>
                 </AppNativeSelect>
             </div>
-            @if (_page.Items.Count == 0) { <AppPageState Kind="AppPageStateKind.Empty" Title="No contributions" Message="There are no contributions in this view." /> }
+            @if (_page.Items.Count == 0) { <AppPageState Kind="AppPageStateKind.Empty" Title="@L["ViewContributionsPage_NoContributions"].Value" Message="@L["ViewContributionsPage_ThereAreNoContributionsIn"].Value" /> }
             else
             {
-                <section class="view-contributions-list" aria-label="Shared Library contributions">
+                <section class="view-contributions-list" aria-label="@L["ViewContributionsPage_SharedLibraryContributions"].Value">
                     @foreach (var contribution in _page.Items)
                     {
                         <AppNativeButton Type="button" Class="view-contribution-card" OnClick="@(_ => Open(contribution.Id))">
@@ -145,7 +146,7 @@
     {
         if (decision == "accepted" && _decisionKind == "folder" && string.IsNullOrWhiteSpace(_decisionFolder))
         {
-            Snackbar.Add("Enter a Shared folder name before accepting.", AppSeverity.Error);
+            Snackbar.Add(L["ViewContributionsPage_EnterASharedFolderName"].Value, AppSeverity.Error);
             return;
         }
         var result = await ApiClient.DecideViewSharedContributionAsync(value.Id,

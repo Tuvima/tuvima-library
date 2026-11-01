@@ -1,19 +1,20 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Activity
 @inject DeviceContextService DeviceContext
+@inject IStringLocalizer<SharedStrings> L
 @* The Overview's Recent activity strip (D13): a full-width row of tiles, all the same height, scrolling sideways when they do
    not fit (always on a phone). *@
 @if (Tiles is null)
 {
-    <p class="activity-strip__message" data-activity-unavailable>Recent activity isn't available right now.</p>
+    <p class="activity-strip__message" data-activity-unavailable>@L["Common_RecentActivityIsnTAvailable"]</p>
 }
 else if (Tiles.Count == 0)
 {
-    <p class="activity-strip__message" data-activity-empty>Nothing yet — what you watch, read and listen to shows up here.</p>
+    <p class="activity-strip__message" data-activity-empty>@L["Common_NothingYetWhatYouWatch"]</p>
 }
 else
 {
-    <ul class="activity-strip" role="list" aria-label="Recent activity" data-activity-strip>
+    <ul class="activity-strip" role="list" aria-label="@L["Common_RecentActivity"].Value" data-activity-strip>
         @foreach (var tile in Tiles)
         {
             <li class="activity-strip__item">

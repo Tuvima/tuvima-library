@@ -8,14 +8,15 @@
 @inject NavigationManager Nav
 @inject IAppToastService Snackbar
 @inject DashboardSessionAccessor Session
+@inject IStringLocalizer<SharedStrings> L
 
 @* Settings, Needs Review: the whole unresolved queue on its own page (the title and breadcrumb come from the Settings
    frame). It is for server administrators only; everyone else gets no list and no review-list request. *@
 <div class="needs-review-page">
     @if (!CanViewReview)
     {
-        <AppEmptyState Title="Needs Review is for server administrators"
-                       Message="Ask a server administrator to resolve items that need review." />
+        <AppEmptyState Title="@L["NeedsReviewPageContent_NeedsReviewIsForServer"].Value"
+                       Message="@L["NeedsReviewPageContent_AskAServerAdministratorTo"].Value" />
     }
     else
     {
@@ -24,14 +25,14 @@
         {
             <div class="needs-review-page__scope" data-needs-review-scope="library">
                 <AppStatusBadge Text="@($"Showing: {_libraryName ?? "this library"}")" Tone="AppUiTone.Info" />
-                <AppButton Label="Show all" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" OnClick="ClearLibraryScope" />
+                <AppButton Label="@L["NeedsReviewPageContent_ShowAll"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" OnClick="ClearLibraryScope" />
             </div>
         }
 
-        <section class="needs-review-page__filters" aria-label="Needs Review search">
+        <section class="needs-review-page__filters" aria-label="@L["NeedsReviewPageContent_NeedsReviewSearch"].Value">
             <AppTextField Value="@_search"
                           ValueChanged="OnSearchChanged"
-                          Placeholder="Search items needing review..."
+                          Placeholder="@L["NeedsReviewPageContent_SearchItemsNeedingReview"].Value"
                           Adornment="AppAdornment.Start"
                           AdornmentIcon="@AppMaterialIcons.Outlined.Search"
                           Class="needs-review-page__search" />
@@ -45,22 +46,22 @@
         {
             <AppAlert Tone="AppUiTone.Error">
                 <span class="review-load-error">
-                    <span>Needs Review could not load. Nothing was changed.</span>
-                    <AppButton Label="Retry" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" OnClick="RetryReviewsAsync" />
+                    <span>@L["NeedsReviewPageContent_NeedsReviewCouldNotLoad"]</span>
+                    <AppButton Label="@L["Common_Retry"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" OnClick="RetryReviewsAsync" />
                 </span>
             </AppAlert>
         }
         else if (_reviews.Count == 0)
         {
-            <div class="review-pinned-empty"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" /><span>No items need review</span></div>
+            <div class="review-pinned-empty"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" /><span>@L["NeedsReviewPageContent_NoItemsNeedReview"]</span></div>
         }
         else
         {
-            <section class="review-pinned" aria-label="Items that need review">
+            <section class="review-pinned" aria-label="@L["NeedsReviewPageContent_ItemsThatNeedReview"].Value">
                 <div class="review-pinned__list">
                     @if (VisibleReviews.Count == 0)
                     {
-                        <AppEmptyState Title="No review items match the search" Message="The full unresolved queue remains available when the search is cleared." />
+                        <AppEmptyState Title="@L["NeedsReviewPageContent_NoReviewItemsMatchThe"].Value" Message="@L["NeedsReviewPageContent_TheFullUnresolvedQueueRemains"].Value" />
                     }
                     @foreach (var item in VisibleReviews)
                     {
@@ -74,22 +75,22 @@
                         <article class="review-row">
                             <span class="review-row__identity">
                                 <span class="review-row__unknown"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.QuestionMark" /></span>
-                                <span><strong>@DisplayTitle(item)</strong><small>@MediaLabel(item) · Added @RelativeAge(item.CreatedAt) ago</small>@if (item.FromImportFolder || item.FromMerge){<span class="review-row__badges">@if (item.FromImportFolder){<AppStatusBadge Text="From the Import folder" Tone="AppUiTone.Info" />}@if (item.FromMerge){<AppStatusBadge Text="From merge" Tone="AppUiTone.Info" />}</span>}</span>
+                                <span><strong>@DisplayTitle(item)</strong><small>@L["NeedsReviewPageContent_AddedAgo", MediaLabel(item), RelativeAge(item.CreatedAt)]</small>@if (item.FromImportFolder || item.FromMerge){<span class="review-row__badges">@if (item.FromImportFolder){<AppStatusBadge Text="@L["NeedsReviewPageContent_FromTheImportFolder"].Value" Tone="AppUiTone.Info" />}@if (item.FromMerge){<AppStatusBadge Text="@L["Common_FromMerge"].Value" Tone="AppUiTone.Info" />}</span>}</span>
                             </span>
                             <span class="review-row__issue"><strong>@issue.Label</strong><small>@detail.QueueExplanation.</small></span>
                             <span class="review-row__actions">
                                 @if (tvSuggestion is null)
                                 {
-                                    <AppButton Label="Review" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" Disabled="@_busyReviewIds.Contains(item.Id)" OnClick="@(() => OpenReviewEditorAsync(item))" />
+                                    <AppButton Label="@L["Common_Review"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" Disabled="@_busyReviewIds.Contains(item.Id)" OnClick="@(() => OpenReviewEditorAsync(item))" />
                                 }
                                 <AppOverflowMenu AriaLabel="@($"More actions for {DisplayTitle(item)}")" Size="AppControlSize.Compact">
-                                    <AppMenuItem Label="Review" Icon="@AppMaterialIcons.Outlined.ManageSearch" OnClick="@(() => OpenReviewEditorAsync(item))" />
-                                    <AppMenuItem Label="Find in recent history" Icon="@AppMaterialIcons.Outlined.ReceiptLong" OnClick="@(() => Nav.NavigateTo($"/settings/recently-added?q={Uri.EscapeDataString(DisplayTitle(item))}"))" />
+                                    <AppMenuItem Label="@L["Common_Review"].Value" Icon="@AppMaterialIcons.Outlined.ManageSearch" OnClick="@(() => OpenReviewEditorAsync(item))" />
+                                    <AppMenuItem Label="@L["NeedsReviewPageContent_FindInRecentHistory"].Value" Icon="@AppMaterialIcons.Outlined.ReceiptLong" OnClick="@(() => Nav.NavigateTo($"/settings/recently-added?q={Uri.EscapeDataString(DisplayTitle(item))}"))" />
                                     @if (IsWikidataReview(item.Trigger))
                                     {
-                                        <AppMenuItem Label="Keep provider match" Icon="@AppMaterialIcons.Outlined.Link" OnClick="@(() => SkipUniverseAsync(item))" />
+                                        <AppMenuItem Label="@L["NeedsReviewPageContent_KeepProviderMatch"].Value" Icon="@AppMaterialIcons.Outlined.Link" OnClick="@(() => SkipUniverseAsync(item))" />
                                     }
-                                    <AppMenuItem Label="Dismiss from review" Icon="@AppMaterialIcons.Outlined.Close" OnClick="@(() => DismissAsync(item))" />
+                                    <AppMenuItem Label="@L["NeedsReviewPageContent_DismissFromReview"].Value" Icon="@AppMaterialIcons.Outlined.Close" OnClick="@(() => DismissAsync(item))" />
                                 </AppOverflowMenu>
                             </span>
                             @if (tvSuggestion is not null)
@@ -281,9 +282,9 @@
             if (await Orchestrator.DismissReviewAsync(item.Id))
             {
                 _reviews.Remove(item);
-                Snackbar.Add("Kept as an unmatched film. Its file details are unchanged.", AppSeverity.Success);
+                Snackbar.Add(L["NeedsReviewPageContent_KeptAsAnUnmatchedFilm"].Value, AppSeverity.Success);
             }
-            else Snackbar.Add("Review item could not be dismissed.", AppSeverity.Warning);
+            else Snackbar.Add(L["NeedsReviewPageContent_ReviewItemCouldNotBe"].Value, AppSeverity.Warning);
         }
         catch (Exception ex) { Snackbar.Add($"Review item could not be dismissed: {ex.Message}", AppSeverity.Error); }
         finally { _busyReviewIds.Remove(item.Id); }
