@@ -14,7 +14,9 @@ public sealed class CommercialSkipPlugin : ITuvimaPlugin
         Kind = PluginKind.Official,
         MinimumLibraryVersion = "1.0.0",
         Description = "Detects likely commercial breaks in TV recordings using Comskip when available, with an FFmpeg-based fallback.",
-        Category = "media-processing",
+        ShortDescription = "Finds commercial breaks in TV recordings so the player can skip them.",
+        Provides = ["Skip markers"],
+        Category = "enrichment",
         MediaTypes = ["tv"],
         Capabilities =
         [

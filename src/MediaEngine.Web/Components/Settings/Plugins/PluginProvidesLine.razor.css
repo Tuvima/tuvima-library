@@ -1,0 +1,3 @@
+.plugin-provides { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; min-width: 0; color: var(--tl-text-secondary); font-size: var(--tl-font-size-sm); }
+.plugin-provides__item { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.plugin-provides__ai { color: var(--tl-text-muted); font-style: italic; }

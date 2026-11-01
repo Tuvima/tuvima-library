@@ -31,6 +31,20 @@ public sealed record PluginManifest
     public string Description { get; init; } = "";
 
     /// <summary>
+    /// One sentence of at most 90 characters, starting with what the plugin does, for the tile and the row (Plugins and
+    /// Integrations screens v4 D35). Absent means the first sentence of <see cref="Description"/> is used.
+    /// </summary>
+    [JsonPropertyName("short_description")]
+    public string? ShortDescription { get; init; }
+
+    /// <summary>
+    /// What the plugin provides to Library, from the fixed list in <c>PluginProvides</c> (Identification, Details, Artwork, People,
+    /// Series order, Lyrics, Subtitles, Skip markers, Insights, Lists &amp; ratings, Account sync). Unknown words are ignored.
+    /// </summary>
+    [JsonPropertyName("provides")]
+    public IReadOnlyList<string> Provides { get; init; } = [];
+
+    /// <summary>
     /// Which tab the plugin is listed under on the Plugins page: <c>metadata</c>, <c>media-processing</c>, <c>services</c> or
     /// <c>utilities</c>. Absent or unknown means <c>utilities</c> (see <see cref="PluginCategories"/>).
     /// </summary>

@@ -6,7 +6,7 @@
   "domain": "Video",
   "icon": "images/providers/stashbox.svg",
   "provider_id": "c0000012-0000-4000-8000-000000000020",
-  "display_name": "Stash-box",
+  "display_name": "StashDB",
   "requires_api_key": true,
   "adult_only": true,
   "file_fingerprint": true,
@@ -54,6 +54,9 @@
     "authentication_probe": null
   },
   "ui_metadata": {
+    "plugin_category": "intake",
+    "provides": ["Identification", "Details", "Artwork", "People"],
+    "short_description": "Finds Vault videos on StashDB and fills in details, covers and performers.",
     "accent_color": "#8E24AA",
     "material_icon": "Videocam",
     "category": "Open",

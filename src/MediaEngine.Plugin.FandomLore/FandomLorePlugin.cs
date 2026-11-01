@@ -16,7 +16,9 @@ public sealed class FandomLorePlugin : ITuvimaPlugin
         Kind = PluginKind.Official,
         MinimumLibraryVersion = "1.0.0",
         Description = "Supplements Wikidata universe graphs with approved structured Fandom wiki lore.",
-        Category = "metadata",
+        ShortDescription = "Adds story lore from approved Fandom wikis to Universes.",
+        Provides = ["Details"],
+        Category = "enrichment",
         Capabilities =
         [
             new PluginCapabilityDescriptor

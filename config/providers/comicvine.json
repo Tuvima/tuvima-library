@@ -829,6 +829,9 @@
   "custom_icon_name": null,
   "language_strategy": "source",
   "ui_metadata": {
+    "plugin_category": "intake",
+    "provides": ["Identification", "Details", "Artwork", "People", "Series order"],
+    "short_description": "Finds comic issues and fills in their covers, creators and publishers.",
     "accent_color": "#04C8FF",
     "material_icon": "AutoStories",
     "category": "Open",

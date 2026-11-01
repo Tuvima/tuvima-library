@@ -123,7 +123,9 @@ internal static class SegmentManifestFactory
             Kind = PluginKind.Official,
             MinimumLibraryVersion = "1.0.0",
             Description = description,
-            Category = "media-processing",
+            ShortDescription = "Finds intros, credits and recaps so the player can skip them.",
+            Provides = ["Skip markers"],
+            Category = "enrichment",
             MediaTypes = ["movies", "tv"],
             Capabilities =
         [

@@ -7692,6 +7692,8 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDependenciesRe
   Needs: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginNeedDto> | nullability=not-null | accessors=get,set
   NeededBy: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginNeededByDto> | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDescriptions
+
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginDeviceSignInCheckResponse
   Status: System.String | nullability=not-null | accessors=get,set
   Message: System.String | nullability=not-null | accessors=get,set
@@ -7934,6 +7936,8 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginProviderInfoDt
   About: System.String | nullability=not-null | accessors=get,set
   SignupUrl: System.String | nullability=nullable | accessors=get,set
 
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginProvides
+
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginRemovalImpactResponse
   PluginId: System.String | nullability=not-null | accessors=get,set
   WouldLose: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
@@ -8032,6 +8036,12 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSummaryRespons
   MinimumLibraryVersion: System.String | nullability=not-null | accessors=get,set
   MaximumLibraryVersion: System.String | nullability=nullable | accessors=get,set
   Category: System.String | nullability=not-null | accessors=get,set
+  Provides: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  RequiresLocalAi: System.Boolean | nullability=not-null | accessors=get,set
+  ShortDescription: System.String | nullability=not-null | accessors=get,set
+  LongDescription: System.String | nullability=not-null | accessors=get,set
+  IconPath: System.String | nullability=nullable | accessors=get,set
+  Removable: System.Boolean | nullability=not-null | accessors=get,set
   MediaTypes: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   SupportedPlatforms: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
   IsCompatible: System.Boolean | nullability=not-null | accessors=get,set

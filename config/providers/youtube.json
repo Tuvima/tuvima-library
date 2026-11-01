@@ -54,6 +54,9 @@
     "authentication_probe": { "path": "/videos?part=id&id=dQw4w9WgXcQ", "method": "GET", "success_status_codes": [200] }
   },
   "ui_metadata": {
+    "plugin_category": "intake",
+    "provides": ["Identification", "Details", "Artwork"],
+    "short_description": "Recognises YouTube videos by the ID in their file name.",
     "accent_color": "#E53935",
     "material_icon": "PlayCircle",
     "category": "Open",

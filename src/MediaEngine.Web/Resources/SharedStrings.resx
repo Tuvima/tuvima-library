@@ -9795,4 +9795,7 @@
   <data name="ListSection_SignInAgainAction" xml:space="preserve">
     <value>Sign in again</value>
   </data>
+  <data name="PluginProvides_RunsOnLocalAi" xml:space="preserve">
+    <value>runs on Local AI</value>
+  </data>
 </root>

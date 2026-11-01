@@ -85,3 +85,5 @@
 .settings-plugin-rows__copy small { grid-column: 1 / -1; color: var(--tl-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 44ch; }
 .settings-plugin-rows__media, .settings-plugin-rows__actions { display: flex; align-items: center; gap: 6px; }
 .settings-plugin-rows__actions { justify-content: flex-end; }
+
+.settings-plugin-rows__private { color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }

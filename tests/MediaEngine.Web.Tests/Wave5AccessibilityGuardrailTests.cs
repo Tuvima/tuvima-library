@@ -63,7 +63,7 @@ public sealed class Wave5AccessibilityGuardrailTests
         var metadata = Read("src/MediaEngine.Web/Components/Settings/MetadataSettingsPage.razor");
         var nowRow = Read("src/MediaEngine.Web/Components/Settings/IngestionMediaCard.razor");
 
-        Assert.Contains("<AppButton Label=\"Configure\"", plugins);
+        Assert.Contains("<AppButton Label=\"@status.ButtonLabel\"", plugins);
         Assert.DoesNotContain("role=\"button\"", plugins);
         Assert.DoesNotContain("role=\"button\"", metadata);
         Assert.Contains("<AppNativeButton Type=\"button\"", nowRow);

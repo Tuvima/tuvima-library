@@ -527,6 +527,9 @@
   "custom_icon_name": null,
   "language_strategy": "localized",
   "ui_metadata": {
+    "plugin_category": "intake",
+    "provides": ["Identification", "Details", "Artwork"],
+    "short_description": "Finds books and audiobooks and fills in their details and covers.",
     "accent_color": "#FA243C",
     "material_icon": "Storefront",
     "category": "Retail",
