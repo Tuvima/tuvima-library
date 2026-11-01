@@ -3,9 +3,16 @@
 @using MediaEngine.Web.Components.Browse
 @using MediaEngine.Web.Components.MediaHub
 @using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.MediaTiles
 @inject MediaTileComposerService MediaTiles
 @inject BrowseLibrariesState LibraryList
+@inject DashboardSessionAccessor Session
+@inject DeviceContextService DeviceContext
+@inject UIOrchestratorService Orchestrator
+@inject CollectionEditorLauncherService CollectionEditorLauncher
+@inject IAppToastService Snackbar
+@implements IDisposable
 @inject ILogger<WatchPage> Logger
 
 @namespace MediaEngine.Web.Components.Pages
@@ -30,7 +37,8 @@
                LoadFailedMessage="The Dashboard could not load the Watch landing from the Engine."
                EmptyTitle="@L["WatchPage_NoMoviesOrShowsYet"].Value"
                EmptyMessage="@L["WatchPage_AddVideoToYourLibrary"].Value"
-               Retry="LoadLandingAsync" />
+               Retry="LoadLandingAsync"
+               OnNavigationSmartCreate="OpenCollectionFlowAsync" />
 
 @code {
     [Parameter] public string? Tab { get; set; }
@@ -46,11 +54,38 @@
     private bool _tabsLoaded;
     private bool _landingAttempted;
 
+    // The "+" in the Collections group appears once the device is known to be a desktop with a mouse.
+    protected override void OnInitialized() => DeviceContext.OnChanged += DeviceChanged;
+
+    private void DeviceChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => DeviceContext.OnChanged -= DeviceChanged;
+
+    // Collections are created by an administrator on a desktop; the "+" opens the New collection flow with this area's chips ticked.
+    private bool CanCreateCollections => Session.HasAction("access.manage") && DeviceContext.CanEdit;
+
+    private async Task OpenCollectionFlowAsync(MediaSectionNavigationCreateTarget target)
+    {
+        if (target is not CollectionFlowCreateTarget flow)
+            return;
+        var profile = await Orchestrator.GetActiveProfileAsync();
+        if (profile is null)
+        {
+            Snackbar.Add(L["Common_AnActiveProfileIsRequired"].Value, AppSeverity.Warning);
+            return;
+        }
+
+        await CollectionEditorLauncher.OpenAsync(CollectionEditorEntryPoints.For(flow.Area, profile.Id));
+    }
+
     private string ActiveWatchMode => BrowseQueryBuilder.FindTab(Preset, Tab)?.Id ?? "all";
 
     private IReadOnlyList<MediaSectionNavigationGroup> WatchNavigationGroups =>
     [
         MediaLaneConfigurationBuilder.BuildLibraryGroup(Preset),
+        .. CanCreateCollections
+            ? new MediaSectionNavigationGroup[] { MediaLaneConfigurationBuilder.BuildCollectionsGroup(CollectionEditorEntryPoints.Watch) }
+            : [],
         new("Watch next",
         [
             .. ShortcutTab is { } tab

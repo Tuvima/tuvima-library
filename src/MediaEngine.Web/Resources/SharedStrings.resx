@@ -3747,9 +3747,6 @@
   <data name="SharedRuleBuilder_MatchANY" xml:space="preserve">
     <value>Match ANY</value>
   </data>
-  <data name="SharedRuleBuilder_NoValueNeeded" xml:space="preserve">
-    <value>No value needed</value>
-  </data>
   <data name="Common_AddCondition" xml:space="preserve">
     <value>Add condition</value>
   </data>
@@ -3794,12 +3791,6 @@
   </data>
   <data name="Common_RemoveCondition" xml:space="preserve">
     <value>Remove condition</value>
-  </data>
-  <data name="SharedRuleBuilder_SearchRuleTypes" xml:space="preserve">
-    <value>Search rule types...</value>
-  </data>
-  <data name="SharedRuleBuilder_RuleFamilies" xml:space="preserve">
-    <value>Rule families</value>
   </data>
   <data name="SharedRuleBuilder_RemoveSecondarySort" xml:space="preserve">
     <value>Remove secondary sort</value>
@@ -8508,9 +8499,6 @@
   <data name="CollectionEditorShell_AnActiveProfileIsRequired" xml:space="preserve">
     <value>An active profile is required to save a private collection.</value>
   </data>
-  <data name="CollectionEditorShell_AddAtLeastOneComplete" xml:space="preserve">
-    <value>Add at least one complete rule before saving a dynamic collection.</value>
-  </data>
   <data name="CollectionEditorShell_ChooseAtLeastOneOther" xml:space="preserve">
     <value>Choose at least one other profile to share this collection with.</value>
   </data>
@@ -9335,5 +9323,35 @@
   </data>
   <data name="HomeLanesSettings_YourLanesCouldNotBe" xml:space="preserve">
     <value>Your lanes could not be saved. Nothing was changed.</value>
+  </data>
+  <data name="CollectionEditorShell_AddAtLeastOneComplete2" xml:space="preserve">
+    <value>Add at least one complete rule before saving a collection that fills up from rules.</value>
+  </data>
+  <data name="Common_AnActiveProfileIsRequired" xml:space="preserve">
+    <value>An active profile is required to create a collection.</value>
+  </data>
+  <data name="HomeLanesSettings_CollectionsCanShowAsRows" xml:space="preserve">
+    <value>Collections can show as rows on Home, Watch, Read and Listen. Choose a page to order its lanes.</value>
+  </data>
+  <data name="CollectionMediaChips_Everything" xml:space="preserve">
+    <value>Everything</value>
+  </data>
+  <data name="CollectionMediaChips_WhatGoesIn" xml:space="preserve">
+    <value>What goes in</value>
+  </data>
+  <data name="CollectionRuleBuilder_OrderAndLimits" xml:space="preserve">
+    <value>Order and limits</value>
+  </data>
+  <data name="CollectionRuleBuilder_AtMost" xml:space="preserve">
+    <value>At most</value>
+  </data>
+  <data name="CollectionRuleBuilder_RemoveThenBy" xml:space="preserve">
+    <value>Remove “Then by”</value>
+  </data>
+  <data name="CollectionRuleBuilder_RemoveThenBy2" xml:space="preserve">
+    <value>Remove then by</value>
+  </data>
+  <data name="CollectionRuleBuilder_AdvancedRuleGroups" xml:space="preserve">
+    <value>Advanced (rule groups)</value>
   </data>
 </root>

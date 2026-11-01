@@ -41,13 +41,14 @@ public sealed class CuratedCollectionEditorTests : AsyncBunitContext
     }
 
     [Fact]
-    public void SavingANewCuratedCollectionWithNoItems_IsDisabledAndSaysWhy()
+    public async Task SavingANewCuratedCollectionWithNoItems_IsDisabledAndSaysWhy()
     {
         var editor = RenderCreateEditor();
+        await NextAsync(editor);
 
-        var save = SaveButton(editor);
+        var next = SaveButton(editor);
 
-        Assert.True(save.HasAttribute("disabled"));
+        Assert.True(next.HasAttribute("disabled"));
         Assert.Contains(EmptyMessage, editor.Find(".collection-editor-footer-copy").TextContent);
     }
 
@@ -55,6 +56,7 @@ public sealed class CuratedCollectionEditorTests : AsyncBunitContext
     public async Task SavingANewCuratedCollectionWithItems_IsEnabled()
     {
         var editor = RenderCreateEditor();
+        await NextAsync(editor);
 
         await AddItemAsync(editor, FirstWork);
 
@@ -67,8 +69,10 @@ public sealed class CuratedCollectionEditorTests : AsyncBunitContext
     {
         var closed = new List<bool>();
         var editor = RenderCreateEditor(closed.Add);
+        await NextAsync(editor);
         await AddItemAsync(editor, FirstWork);
         await AddItemAsync(editor, SecondWork);
+        await NextAsync(editor);
 
         await editor.InvokeAsync(() => SaveButton(editor).Click());
 
@@ -86,10 +90,13 @@ public sealed class CuratedCollectionEditorTests : AsyncBunitContext
         var editor = RenderEditor(new CollectionEditorLaunchRequest
         {
             Kind = ContainerEditorKind.Playlist,
+            InitialMembershipMode = "Manual",
             InitialTitle = "Road trip",
             InitialOwnerKind = "Library",
             InitialAudience = "Everyone",
         });
+        await NextAsync(editor);
+        await NextAsync(editor);
 
         Assert.False(SaveButton(editor).HasAttribute("disabled"));
         await editor.InvokeAsync(() => SaveButton(editor).Click());
@@ -219,6 +226,7 @@ public sealed class CuratedCollectionEditorTests : AsyncBunitContext
     private IRenderedComponent<CollectionEditorShell> RenderCreateEditor(Action<bool>? closed = null) =>
         RenderEditor(new CollectionEditorLaunchRequest
         {
+            InitialMembershipMode = "Manual",
             InitialTitle = "Weekend picks",
             InitialOwnerKind = "Library",
             InitialAudience = "Everyone",
@@ -246,6 +254,10 @@ public sealed class CuratedCollectionEditorTests : AsyncBunitContext
             }
         });
     }
+
+    // The primary button at the right of the footer: Next on the first two steps, Save on the last.
+    private static Task NextAsync(IRenderedComponent<CollectionEditorShell> editor) =>
+        editor.InvokeAsync(() => SaveButton(editor).Click());
 
     private static Task AddItemAsync(IRenderedComponent<CollectionEditorShell> editor, Guid workId)
     {

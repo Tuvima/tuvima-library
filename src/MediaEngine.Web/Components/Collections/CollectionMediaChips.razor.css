@@ -1,0 +1,12 @@
+.collection-media-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.collection-media-chip__dot { width: 8px; height: 8px; border-radius: 50%; }
+
+
+.collection-media-chip__dot[data-media="Movies"] { background: var(--tl-media-movies); }
+.collection-media-chip__dot[data-media="TV"] { background: var(--tl-media-tv); }
+.collection-media-chip__dot[data-media="Books"] { background: var(--tl-media-books); }
+.collection-media-chip__dot[data-media="Audiobooks"] { background: var(--tl-media-audiobooks); }
+.collection-media-chip__dot[data-media="Music"] { background: var(--tl-media-music); }
+.collection-media-chip__dot[data-media="Comics"] { background: var(--tl-media-comics); }
+.collection-media-chip__dot[data-media="Videos"] { background: var(--tl-media-video); }

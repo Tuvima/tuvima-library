@@ -368,12 +368,8 @@
     {
         if (target is not SmartPlaylistCreateTarget || _activeProfileId is null)
             return;
-        var changed = await CollectionEditorLauncher.OpenAsync(new CollectionEditorLaunchRequest
-        {
-            ActiveProfileId = _activeProfileId,
-            Kind = ContainerEditorKind.Playlist,
-            InitialMembershipMode = "Smart",
-        });
+        var changed = await CollectionEditorLauncher.OpenAsync(
+            CollectionEditorEntryPoints.For(CollectionEditorEntryPoints.Listen, _activeProfileId));
         if (changed)
             await ReloadPlaylistsAsync();
     }

@@ -10,28 +10,31 @@
    shared lanes and switches one off for everyone; each person orders their own private lanes and can show again a lane they
    hid from its "..." menu. Up and down buttons stand in for dragging. The Engine applies every change. *@
 <div class="settings-listening-page" data-home-section="lanes">
-    <AppText Typo="AppTypo.h6">@L["HomeLanesSettings_Lanes"]</AppText>
-    <AppSelect Label="@L["HomeLanesSettings_Page"].Value"
-               Value="@_place"
-               ValueChanged="SelectPlaceAsync"
-               Options="Places"
-               Size="AppControlSize.Compact" />
+    <div class="listening-settings-grid">
+        <SettingsSectionPanel Title="@L["HomeLanesSettings_Lanes"].Value"
+                              Description="@L["HomeLanesSettings_CollectionsCanShowAsRows"].Value"
+                              Class="tl-card settings-section-card listening-settings-card">
+            <AppSelect Label="@L["HomeLanesSettings_Page"].Value"
+                       Value="@_place"
+                       ValueChanged="SelectPlaceAsync"
+                       Options="Places"
+                       Size="AppControlSize.Compact" />
+        </SettingsSectionPanel>
 
-    @if (_loading)
-    {
-        <div class="listening-settings-skeleton" aria-label="@L["HomeLanesSettings_LoadingLanes"].Value">
-            <AppSkeleton Height="160px" />
-        </div>
-    }
-    else if (_settings is null)
-    {
-        <AppErrorState Title="@L["HomeLanesSettings_LanesAreUnavailable"].Value"
-                       Message="@L["HomeLanesSettings_TheLibraryCouldNotRead"].Value"
-                       Retry="@(() => LoadAsync())" />
-    }
-    else
-    {
-        <div class="listening-settings-grid">
+        @if (_loading)
+        {
+            <div class="listening-settings-skeleton" aria-label="@L["HomeLanesSettings_LoadingLanes"].Value">
+                <AppSkeleton Height="160px" />
+            </div>
+        }
+        else if (_settings is null)
+        {
+            <AppErrorState Title="@L["HomeLanesSettings_LanesAreUnavailable"].Value"
+                           Message="@L["HomeLanesSettings_TheLibraryCouldNotRead"].Value"
+                           Retry="@(() => LoadAsync())" />
+        }
+        else
+        {
             @if (_settings.CanManageShared)
             {
                 <SettingsSectionPanel Title="@L["HomeLanesSettings_SharedLanes"].Value"
@@ -125,8 +128,8 @@
                                       Description="@L["HomeLanesSettings_SharedLanesAreSetBy"].Value"
                                       Class="tl-card settings-section-card listening-settings-card" />
             }
-        </div>
-    }
+        }
+    </div>
 </div>
 
 @code {

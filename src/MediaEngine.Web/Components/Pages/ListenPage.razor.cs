@@ -926,10 +926,13 @@ public partial class ListenPage
         }
 
         var isSmart = string.Equals(kind, "Smart", StringComparison.OrdinalIgnoreCase);
+        var entry = CollectionEditorEntryPoints.For(CollectionEditorEntryPoints.Listen, _activeProfileId);
         var changed = await CollectionEditorLauncher.OpenAsync(new CollectionEditorLaunchRequest
         {
-            ActiveProfileId = _activeProfileId,
-            Kind = ContainerEditorKind.Playlist,
+            ActiveProfileId = entry.ActiveProfileId,
+            Kind = entry.Kind,
+            InitialPrimaryArea = entry.InitialPrimaryArea,
+            InitialMediaTypes = entry.InitialMediaTypes,
             InitialMembershipMode = isSmart ? "Smart" : "Manual",
             InitialTitle = string.Empty,
         });

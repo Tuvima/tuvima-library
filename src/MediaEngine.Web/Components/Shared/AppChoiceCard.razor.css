@@ -1,0 +1,46 @@
+.app-choice-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    min-height: 150px;
+    padding: 18px;
+    border: 1px solid var(--tl-divider);
+    border-radius: 12px;
+    background: var(--tl-bg-surface-raised);
+    color: var(--tl-text-primary);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.app-choice-card:hover { background: var(--tl-bg-surface-hover); }
+.app-choice-card:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
+.app-choice-card.is-on { border-color: var(--tl-accent-primary); box-shadow: inset 0 0 0 1px var(--tl-accent-primary); }
+.app-choice-card.is-disabled { cursor: not-allowed; opacity: .6; }
+.app-choice-card.is-disabled:hover { background: var(--tl-bg-surface-raised); }
+
+.app-choice-card__icon {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--tl-accent-primary) 18%, transparent);
+    color: var(--tl-accent-primary);
+}
+
+.app-choice-card__text { color: var(--tl-text-secondary); font-size: .85rem; line-height: 1.4; }
+
+.app-choice-card__badge {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    padding: 2px 8px;
+    border: 1px solid var(--tl-divider);
+    border-radius: 999px;
+    color: var(--tl-text-muted);
+    font-size: .75rem;
+    font-style: normal;
+}

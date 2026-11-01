@@ -3,24 +3,76 @@
 @using MediaEngine.Web.Components.Rules
 
 @inject IEngineApiClient ApiClient
+@inject IStringLocalizer<SharedStrings> L
 
-<SharedRuleBuilder @ref="_builder"
-                   Catalog="@CollectionRuleCatalog.Instance"
-                   Definition="@Definition"
-                   DefinitionChanged="@DefinitionChanged"
-                   SortField="@SortField"
-                   SortFieldChanged="@SortFieldChanged"
-                   SortDirection="@SortDirection"
-                   SortDirectionChanged="@SortDirectionChanged"
-                   SecondarySortField="@SecondarySortField"
-                   SecondarySortFieldChanged="@SecondarySortFieldChanged"
-                   SecondarySortDirection="@SecondarySortDirection"
-                   SecondarySortDirectionChanged="@SecondarySortDirectionChanged"
-                   Preview="@Preview"
-                   PreviewChanged="@PreviewChanged"
-                   Changed="@Changed"
-                   Density="@Density"
-                   PreviewLoader="PreviewRulesAsync" />
+<div class="collection-rule-sentence">
+    <CollectionMediaChips Types="@MediaTypeChoices"
+                          Selected="@CollectionRuleSentence.MediaTypes(Definition)"
+                          SelectedChanged="OnMediaTypesChangedAsync" />
+
+    <SharedRuleBuilder @ref="_builder"
+                       Catalog="@CollectionRuleCatalog.Instance"
+                       Layout="@(Advanced ? RuleBuilderLayout.Groups : RuleBuilderLayout.Sentence)"
+                       ShowHeader="false"
+                       ShowSort="false"
+                       Definition="@Definition"
+                       DefinitionChanged="@DefinitionChanged"
+                       SortField="@SortField"
+                       SortFieldChanged="@SortFieldChanged"
+                       SortDirection="@SortDirection"
+                       SortDirectionChanged="@SortDirectionChanged"
+                       SecondarySortField="@SecondarySortField"
+                       SecondarySortFieldChanged="@SecondarySortFieldChanged"
+                       SecondarySortDirection="@SecondarySortDirection"
+                       SecondarySortDirectionChanged="@SecondarySortDirectionChanged"
+                       Preview="@Preview"
+                       PreviewChanged="@PreviewChanged"
+                       Changed="@Changed"
+                       Density="@Density"
+                       PreviewLoader="PreviewRulesAsync" />
+
+    <section class="collection-rule-sentence__order" aria-label="@L["CollectionRuleBuilder_OrderAndLimits"].Value">
+        <span class="collection-rule-sentence__label">@L["CollectionRuleBuilder_OrderAndLimits"]</span>
+        <div class="collection-rule-sentence__order-row">
+            <div class="collection-rule-sentence__order-select">
+                <AppSelect T="string" Value="@OrderValue" ValueChanged="OnOrderChangedAsync" Options="@OrderOptions"
+                           Label="@L["EditingVideoOrder_Order"].Value" Variant="AppVariant.Outlined" Dense="true" />
+            </div>
+            <div class="collection-rule-sentence__max">
+                <AppNumericField Label="@L["CollectionRuleBuilder_AtMost"].Value" Value="@MaxItems" ValueChanged="OnMaxItemsChangedAsync" Min="0"
+                                 HelpText="0 shows them all." />
+            </div>
+        </div>
+        @if (!RandomOrder)
+        {
+            @if (string.IsNullOrWhiteSpace(SecondarySortField))
+            {
+                <div class="collection-rule-sentence__then">
+                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Add"
+                               OnClick="AddThenByAsync">@L["SharedRuleBuilder_AddThenBy"]</AppButton>
+                </div>
+            }
+            else
+            {
+                <div class="collection-rule-sentence__order-row">
+                    <div class="collection-rule-sentence__order-select">
+                        <AppSelect T="string" Value="@ThenByValue" ValueChanged="OnThenByChangedAsync" Options="@ThenByOptions"
+                                   Label="@L["SharedRuleBuilder_ThenBy"].Value" Variant="AppVariant.Outlined" Dense="true" />
+                    </div>
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Size="AppControlSize.Compact"
+                                   Tooltip="@L["CollectionRuleBuilder_RemoveThenBy"].Value" AriaLabel="@L["CollectionRuleBuilder_RemoveThenBy2"].Value" OnClick="RemoveThenByAsync" />
+                </div>
+            }
+        }
+    </section>
+
+    <div class="collection-rule-sentence__advanced">
+        <AppSwitchRow Label="@L["CollectionRuleBuilder_AdvancedRuleGroups"].Value"
+                      Description="@(CanLeaveAdvanced ? "Several rule groups, each matching all or any of its rules, combined with AND or OR." : "This collection uses several rule groups. Remove the extra groups to go back to the plain layout.")"
+                      Value="@Advanced" ValueChanged="OnAdvancedChangedAsync" Disabled="@(Advanced && !CanLeaveAdvanced)"
+                      Size="AppSize.Small" />
+    </div>
+</div>
 
 @code {
     [Parameter, EditorRequired] public CollectionRuleDefinitionViewModel Definition { get; set; } = new();
@@ -38,17 +90,179 @@
     [Parameter] public EventCallback Changed { get; set; }
     [Parameter] public string Density { get; set; } = "editor";
 
+    /// <summary>True for the Advanced layout: today's rule groups, with their own all/any and AND/OR.</summary>
+    [Parameter] public bool Advanced { get; set; }
+    [Parameter] public EventCallback<bool> AdvancedChanged { get; set; }
+
+    /// <summary>"Random, a new pick each day" in place of an ordering (the collection's own random-order choice).</summary>
+    [Parameter] public bool RandomOrder { get; set; }
+    [Parameter] public EventCallback<bool> RandomOrderChanged { get; set; }
+
+    /// <summary>"At most N"; 0 shows everything.</summary>
+    [Parameter] public int MaxItems { get; set; }
+    [Parameter] public EventCallback<int> MaxItemsChanged { get; set; }
+
+    /// <summary>The chips offered: all media types for a collection, music and audiobooks for a playlist.</summary>
+    [Parameter] public IReadOnlyList<CollectionMediaChips.MediaChipType> MediaTypeChoices { get; set; } = CollectionMediaChips.CollectionTypes;
+
+    /// <summary>When nothing matches, the rule that matches the fewest titles on its own ("Genre is Horror"), or null.</summary>
+    [Parameter] public EventCallback<string?> StrictestRuleChanged { get; set; }
+
+    /// <summary>How many titles the editor's preview asks for (the panel shows 12 covers and a Show all list).</summary>
+    [Parameter] public int PreviewLimit { get; set; } = 60;
+
+    private const string RandomKey = "random";
+
     private SharedRuleBuilder? _builder;
+
+    private bool CanLeaveAdvanced => CollectionRuleSentence.IsPlain(Definition);
 
     public Task RefreshAsync() => _builder?.RefreshAsync() ?? Task.CompletedTask;
 
-    private async Task<CollectionPreviewResult?> PreviewRulesAsync(RuleBuilderPreviewRequest request, CancellationToken token) =>
+    private IReadOnlyList<AppSelectOption> OrderOptions
+    {
+        get
+        {
+            var options = new List<AppSelectOption> { new(RandomKey, "Random, a new pick each day") };
+            options.AddRange(SortChoices());
+            return options;
+        }
+    }
+
+    private IReadOnlyList<AppSelectOption> ThenByOptions => SortChoices().Where(option => !option.Value.StartsWith(SortField + "|", StringComparison.Ordinal)).ToList();
+
+    private static IEnumerable<AppSelectOption> SortChoices() =>
+        CollectionRuleCatalog.Instance.SortFields.SelectMany(field => new[] { "asc", "desc" }.Select(direction =>
+            new AppSelectOption($"{field.Key}|{direction}", $"{field.Label}, {Lowered(SharedRuleBuilder.DirectionLabel(field.Key, direction))}")));
+
+    // "Release year, newest first" reads better than "Newest first"; the alphabetical labels keep their capitals.
+    private static string Lowered(string label) => label is "A–Z" or "Z–A" ? label : char.ToLowerInvariant(label[0]) + label[1..];
+
+    private string OrderValue => RandomOrder ? RandomKey : $"{SortField ?? "title"}|{SortDirection}";
+    private string ThenByValue => $"{SecondarySortField}|{SecondarySortDirection ?? "asc"}";
+
+    private async Task OnMediaTypesChangedAsync(IReadOnlyList<string> types)
+    {
+        CollectionRuleSentence.SetMediaTypes(Definition, types);
+        await DefinitionChanged.InvokeAsync(Definition);
+        await Changed.InvokeAsync();
+        await RefreshAsync();
+    }
+
+    private async Task OnOrderChangedAsync(string? value)
+    {
+        if (value == RandomKey)
+        {
+            RandomOrder = true;
+            await RandomOrderChanged.InvokeAsync(true);
+        }
+        else if (value is not null && value.Split('|') is [var field, var direction])
+        {
+            RandomOrder = false;
+            await RandomOrderChanged.InvokeAsync(false);
+            SortField = field;
+            SortDirection = direction;
+            await SortFieldChanged.InvokeAsync(field);
+            await SortDirectionChanged.InvokeAsync(direction);
+        }
+
+        await Changed.InvokeAsync();
+        await RefreshAsync();
+    }
+
+    private async Task OnMaxItemsChangedAsync(int value)
+    {
+        MaxItems = Math.Max(0, value);
+        await MaxItemsChanged.InvokeAsync(MaxItems);
+        await Changed.InvokeAsync();
+    }
+
+    private async Task AddThenByAsync()
+    {
+        SecondarySortField = CollectionRuleCatalog.Instance.SortFields.First(option => option.Key != SortField).Key;
+        SecondarySortDirection = "asc";
+        await SecondarySortFieldChanged.InvokeAsync(SecondarySortField);
+        await SecondarySortDirectionChanged.InvokeAsync(SecondarySortDirection);
+        await Changed.InvokeAsync();
+        await RefreshAsync();
+    }
+
+    private async Task OnThenByChangedAsync(string? value)
+    {
+        if (value is null || value.Split('|') is not [var field, var direction])
+            return;
+        SecondarySortField = field;
+        SecondarySortDirection = direction;
+        await SecondarySortFieldChanged.InvokeAsync(field);
+        await SecondarySortDirectionChanged.InvokeAsync(direction);
+        await Changed.InvokeAsync();
+        await RefreshAsync();
+    }
+
+    private async Task RemoveThenByAsync()
+    {
+        SecondarySortField = null;
+        SecondarySortDirection = null;
+        await SecondarySortFieldChanged.InvokeAsync(null);
+        await SecondarySortDirectionChanged.InvokeAsync(null);
+        await Changed.InvokeAsync();
+        await RefreshAsync();
+    }
+
+    private async Task OnAdvancedChangedAsync(bool value)
+    {
+        if (!value && !CanLeaveAdvanced)
+            return;
+        Advanced = value;
+        await AdvancedChanged.InvokeAsync(value);
+    }
+
+    private async Task<CollectionPreviewResult?> PreviewRulesAsync(RuleBuilderPreviewRequest request, CancellationToken token)
+    {
+        var result = await LoadAsync(CollectionRuleSentence.ToWire(request.Definition), request, token);
+        if (StrictestRuleChanged.HasDelegate)
+            await StrictestRuleChanged.InvokeAsync(result is { Count: 0 } ? await FindStrictestRuleAsync(request, token) : null);
+        return result;
+    }
+
+    private async Task<CollectionPreviewResult?> LoadAsync(CollectionRuleDefinitionViewModel wire, RuleBuilderPreviewRequest request, CancellationToken token) =>
         await ApiClient.PreviewCollectionRulesAsync(
-            request.Definition,
+            wire,
             request.SortField,
             request.SortDirection,
-            limit: request.Limit,
+            limit: Math.Max(request.Limit, PreviewLimit),
             ct: token,
             secondarySortField: request.SecondarySortField,
             secondarySortDirection: request.SecondarySortDirection);
+
+    /// <summary>With nothing matching, tries each rule alone and names the one that leaves the fewest titles.</summary>
+    private async Task<string?> FindStrictestRuleAsync(RuleBuilderPreviewRequest request, CancellationToken token)
+    {
+        var rules = request.Definition.Groups
+            .SelectMany(group => group.Conditions.Select(condition => (group, condition)))
+            .Where(pair => IsComplete(pair.condition))
+            .Take(8)
+            .ToList();
+        if (rules.Count < 2)
+            return null;
+
+        (string Text, int Count)? strictest = null;
+        foreach (var (group, condition) in rules)
+        {
+            var single = CollectionRuleSentence.ToWire(new CollectionRuleDefinitionViewModel
+            {
+                Groups = [new CollectionRuleGroupViewModel { Id = group.Id, Conditions = [condition] }],
+            });
+            var alone = await LoadAsync(single, request with { Limit = 1 }, token);
+            var count = alone?.Count ?? int.MaxValue;
+            if (strictest is null || count <= strictest.Value.Count)
+                strictest = (CollectionRuleSentence.Describe(condition, CollectionRuleCatalog.Instance), count);
+        }
+
+        return strictest?.Text;
+    }
+
+    private static bool IsComplete(CollectionRulePredicateViewModel condition) =>
+        condition.Op is "known" or "unknown" or "has_any_value" or "has_no_known_value"
+        || !string.IsNullOrWhiteSpace(condition.Value) || condition.Values is { Length: > 0 };
 }

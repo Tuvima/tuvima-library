@@ -19,6 +19,23 @@ public static class MediaLaneConfigurationBuilder
             $"{preset.RouteBase}/{tab.Id}")),
     ];
 
+    /// <summary>
+    /// The Collections group of the Watch and Read rails: a link to every collection, and a "+" that opens the New collection flow.
+    /// Only drawn where the person can create (an administrator on a desktop).
+    /// </summary>
+    public static MediaSectionNavigationGroup BuildCollectionsGroup(string area) =>
+        new("Collections",
+        [
+            new("All collections", "/collections", AppMaterialIcons.Outlined.Collections, Exact: true),
+        ],
+        new MediaSectionNavigationCreateOptions(
+            "New collection",
+            "New collection",
+            "Collection name",
+            new CollectionFlowCreateTarget(area),
+            new CollectionFlowCreateTarget(area),
+            OpensCollectionFlow: true));
+
     public static MediaSectionNavigationGroup BuildLibraryGroup(
         LibraryBrowsePreset preset,
         IReadOnlySet<string>? tabIds = null) =>
