@@ -65,6 +65,7 @@ public static class ScheduledTaskCatalog
             () => $"every {Math.Clamp(configLoader.LoadTranscoding().AdaptiveHls.CleanupIntervalMinutes, 1, 1440)} minutes",
             "Transcoding settings");
         Continuous(ScheduledTaskKeys.EnrichmentRefreshSchedule, "Scheduled metadata refresh", "every hour");
+        Continuous(ScheduledTaskKeys.CollectionListRefresh, "Imported list refresh", "every 15 minutes");
         ContinuousAt(
             ScheduledTaskKeys.UnmatchedRetry,
             "Unmatched file retry",

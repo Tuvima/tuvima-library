@@ -24,4 +24,5 @@ public static class ScheduledTaskKeys
     public const string EnrichmentRefreshSchedule = "enrichment_refresh_schedule";
     public const string ScheduledBackup = "scheduled_backup";
     public const string UnmatchedRetry = "unmatched_retry";
+    public const string CollectionListRefresh = "collection_list_refresh";
 }

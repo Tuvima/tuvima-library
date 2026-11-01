@@ -24,6 +24,7 @@ internal static class WorkPersonalStateMerge
         "audiobook_listen_history",
         "bookmark_packs",
         "collection_items",
+        "collection_list_entries",
         "companion_sessions",
         "media_asset_coverage",
         "music_play_active_segments",
@@ -128,6 +129,7 @@ internal static class WorkPersonalStateMerge
             DELETE FROM collection_items
             WHERE work_id = @source AND collection_id IN (SELECT collection_id FROM collection_items WHERE work_id = @target);
             UPDATE collection_items SET work_id = @target WHERE work_id = @source;
+            UPDATE collection_list_entries SET matched_work_id = @target WHERE matched_work_id = @source;
             UPDATE companion_sessions SET manual_work_id = @target WHERE manual_work_id = @source;
             UPDATE OR IGNORE media_asset_coverage SET work_id = @target WHERE work_id = @source;
             """,

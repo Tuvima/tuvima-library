@@ -1,0 +1,25 @@
+.list-choices {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: var(--tl-space-4, 16px);
+}
+
+.list-choices__field {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--tl-space-2, 8px);
+}
+
+.list-choices__label {
+    color: var(--tl-text-muted);
+    font-size: .75rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.list-choices__help {
+    color: var(--tl-text-secondary);
+    font-size: .85rem;
+}

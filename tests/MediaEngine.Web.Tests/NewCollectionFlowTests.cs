@@ -44,14 +44,14 @@ public sealed class NewCollectionFlowTests : AsyncBunitContext
     }
 
     [Fact]
-    public void TheFlowOpensOnTheFourWays_AndTheLastTwoAreComingSoon()
+    public void TheFlowOpensOnTheFourWays_AndStartFromAPackIsComingSoon()
     {
         var editor = RenderFlow(CollectionEditorEntryPoints.Collections);
 
         var ways = editor.FindAll(".app-choice-card");
         Assert.Equal(4, ways.Count);
         Assert.Equal(["Pick titles", "Set rules", "From a list", "Start from a pack"], ways.Select(way => way.QuerySelector("strong")!.TextContent));
-        Assert.Equal(2, editor.FindAll(".app-choice-card.is-disabled").Count);
+        Assert.Single(editor.FindAll(".app-choice-card.is-disabled"));
         Assert.All(editor.FindAll(".app-choice-card.is-disabled"), way =>
         {
             Assert.True(way.HasAttribute("disabled"));

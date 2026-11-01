@@ -1,0 +1,37 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Import
+@using MediaEngine.Web.Components.Import
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Editing
+@inject CollectionEditorLauncherService CollectionEditorLauncher
+@inject UIOrchestratorService Orchestrator
+@inject NavigationManager Navigation
+@* Profile > Import (Collections and lists spec D17): the one place to drop any file Library understands. It says what the file is in
+   that kind's own words and where it goes. A list opens New collection on From a list with the file already read; a plugin settings
+   file is added here (an administrator's action, which the Engine checks); a bookmark pack or a collection pack says where to add it.
+   Files stay on this machine. *@
+<div class="import-page" data-settings-import>
+    <ImportPanel ShowPaste="true">
+        <Actions Context="recognition">
+            @if (recognition.Preview.Kind == ImportKinds.CollectionList && recognition.Preview.List is { OwnedCount: > 0 })
+            {
+                <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.PlaylistAdd"
+                           OnClick="@(() => MakeCollectionAsync(recognition))">Make a collection</AppButton>
+            }
+        </Actions>
+    </ImportPanel>
+</div>
+
+@code {
+    private async Task MakeCollectionAsync(ImportRecognition recognition)
+    {
+        var profile = await Orchestrator.GetActiveProfileAsync();
+        await CollectionEditorLauncher.OpenAsync(new CollectionEditorLaunchRequest
+        {
+            ActiveProfileId = profile?.Id,
+            InitialWay = "FromList",
+            InitialImport = recognition,
+            InitialTitle = string.Empty,
+        });
+    }
+}

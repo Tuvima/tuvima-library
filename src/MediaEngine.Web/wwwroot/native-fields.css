@@ -79,6 +79,8 @@ textarea.tl-input:focus-visible { outline: 1px solid var(--tl-accent-primary); o
 .tl-color-warning { color: var(--tl-status-warning); }
 .tl-color-error { color: var(--tl-status-danger); }
 .tl-file-upload__input { position: absolute; width: 1px; height: 1px; padding: 0; opacity: 0; overflow: hidden; }
+/* A real file input laid invisibly over a drop zone, so a click opens the picker and a dropped file lands on it. */
+.tl-file-drop__input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 .tl-file-upload:focus-within { outline: 2px solid var(--tl-accent-primary); outline-offset: 3px; }
 .tl-field-label-line { display: flex; align-items: center; gap: 4px; }
 @keyframes tl-spin { to { transform: rotate(270deg); } }

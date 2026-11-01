@@ -1,0 +1,79 @@
+@namespace MediaEngine.Web.Components.Import
+@using MediaEngine.Contracts.Collections
+@using MediaEngine.Web.Components.Shared
+
+@* How an imported list is followed (Collections and lists spec D6, 4d): the Order the titles show in, how often a web list is looked at
+   again, and what happens when a title leaves the list. Used by the From a list step and by the editor's Contents tab. *@
+<div class="list-choices" data-list-choices>
+    <div class="list-choices__field">
+        <span class="list-choices__label">Order</span>
+        <AppSegmentedControl Options="OrderOptions" Value="@Order" ValueChanged="OnOrderChanged" AriaLabel="Order" Disabled="@Disabled" />
+        <small class="list-choices__help">@OrderHelp</small>
+    </div>
+
+    @if (ShowRefresh)
+    {
+        <div class="list-choices__field">
+            <span class="list-choices__label">Refresh</span>
+            <AppSegmentedControl Options="RefreshOptions" Value="@Refresh" ValueChanged="OnRefreshChanged" AriaLabel="Refresh" Disabled="@Disabled" />
+            <small class="list-choices__help">Library looks at the list again on this schedule and adds new titles you own.</small>
+        </div>
+    }
+
+    <div class="list-choices__field">
+        <span class="list-choices__label">When a title leaves the list</span>
+        <AppChoiceRow Title="Follow the list"
+                      Description="The title leaves this collection too. Titles you added by hand always stay."
+                      Selected="@(SyncMode == ListImportChoices.SyncFollow)"
+                      Disabled="@Disabled"
+                      OnClick="@(() => OnSyncChanged(ListImportChoices.SyncFollow))" />
+        <AppChoiceRow Title="Keep everything ever added"
+                      Description="Nothing is taken out. The collection only grows."
+                      Selected="@(SyncMode == ListImportChoices.SyncKeep)"
+                      Disabled="@Disabled"
+                      OnClick="@(() => OnSyncChanged(ListImportChoices.SyncKeep))" />
+    </div>
+</div>
+
+@code {
+    private static readonly IReadOnlyList<AppSelectOption> OrderOptions =
+    [
+        new(ListImportChoices.OrderList, "List order"),
+        new(ListImportChoices.OrderRelease, "Release date"),
+        new(ListImportChoices.OrderTitle, "Title"),
+    ];
+
+    private static readonly IReadOnlyList<AppSelectOption> RefreshOptions =
+    [
+        new(ListImportChoices.RefreshNever, "Never"),
+        new(ListImportChoices.RefreshDaily, "Daily"),
+        new(ListImportChoices.RefreshWeekly, "Weekly"),
+    ];
+
+    [Parameter] public string Order { get; set; } = ListImportChoices.OrderList;
+    [Parameter] public EventCallback<string> OrderChanged { get; set; }
+
+    [Parameter] public string Refresh { get; set; } = ListImportChoices.RefreshNever;
+    [Parameter] public EventCallback<string> RefreshChanged { get; set; }
+
+    [Parameter] public string SyncMode { get; set; } = ListImportChoices.SyncFollow;
+    [Parameter] public EventCallback<string> SyncModeChanged { get; set; }
+
+    /// <summary>Refresh is shown only for a list that came from the web. A file has nowhere to look again, so it is left out.</summary>
+    [Parameter] public bool ShowRefresh { get; set; }
+
+    [Parameter] public bool Disabled { get; set; }
+
+    private string OrderHelp => Order switch
+    {
+        ListImportChoices.OrderRelease => "Oldest first, by the year each title came out.",
+        ListImportChoices.OrderTitle => "A to Z.",
+        _ => "The order the list has them in.",
+    };
+
+    private Task OnOrderChanged(string value) => OrderChanged.InvokeAsync(value);
+
+    private Task OnRefreshChanged(string value) => RefreshChanged.InvokeAsync(value);
+
+    private Task OnSyncChanged(string value) => SyncModeChanged.InvokeAsync(value);
+}

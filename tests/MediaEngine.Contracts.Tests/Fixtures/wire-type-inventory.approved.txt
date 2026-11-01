@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1335; api=0; web-client=54
+# scopes: contracts=1354; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -1945,6 +1945,38 @@
   ItemIds: System.Collections.Generic.List<System.Guid> | json=item_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"item_ids":[]}
 
+[contracts] MediaEngine.Contracts.Collections.CollectionListEntryDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Id: System.Guid? | json=id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Position: System.Int32 | json=position | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Title: System.String | json=title | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Year: System.Int32? | json=year | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Creator: System.String | json=creator | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Shelf: System.String | json=shelf | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Status: System.String | json=status | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MatchedWorkId: System.Guid? | json=matchedWorkId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MatchedTitle: System.String | json=matchedTitle | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MatchBasis: System.String | json=matchBasis | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  OnList: System.Boolean | json=onList | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"11111111-2222-3333-4444-555555555555","position":7,"title":"sample","year":7,"creator":"sample","shelf":"sample","status":"sample","matchedWorkId":"11111111-2222-3333-4444-555555555555","matchedTitle":"sample","matchBasis":"sample","onList":true}
+
+[contracts] MediaEngine.Contracts.Collections.CollectionListSourceDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  CollectionId: System.Guid | json=collectionId | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SourceKind: System.String | json=sourceKind | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SourceLabel: System.String | json=sourceLabel | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SourceName: System.String | json=sourceName | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Shelf: System.String | json=shelf | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Order: System.String | json=order | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Refresh: System.String | json=refresh | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SyncMode: System.String | json=syncMode | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LastRefreshedAt: System.DateTimeOffset? | json=lastRefreshedAt | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  EntryCount: System.Int32 | json=entryCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  OwnedCount: System.Int32 | json=ownedCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  UnmatchedCount: System.Int32 | json=unmatchedCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Unmatched: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Collections.CollectionListEntryDto> | json=unmatched | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"collectionId":"11111111-2222-3333-4444-555555555555","sourceKind":"sample","sourceLabel":"sample","sourceName":"sample","shelf":"sample","order":"sample","refresh":"sample","syncMode":"sample","lastRefreshedAt":"2025-01-02T03:04:05+00:00","entryCount":7,"ownedCount":7,"unmatchedCount":7,"unmatched":[]}
+
 [contracts] MediaEngine.Contracts.Collections.CollectionLocationPlacementSummary
   kind=class | converter=default | number-handling=default | unmapped=default
   collection_id: System.Guid | json=collection_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -2311,6 +2343,103 @@
   LogoUrl: System.String | json=logoUrl | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CanonicalValues: System.Collections.Generic.Dictionary<System.String, System.String> | json=canonicalValues | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"id":"11111111-2222-3333-4444-555555555555","collectionId":"11111111-2222-3333-4444-555555555555","rootWorkId":"11111111-2222-3333-4444-555555555555","mediaType":"sample","workKind":"sample","ordinal":7,"wikidataQid":"sample","assetId":"11111111-2222-3333-4444-555555555555","createdAt":"sample","coverUrl":"sample","backgroundUrl":"sample","bannerUrl":"sample","heroUrl":"sample","logoUrl":"sample","canonicalValues":{}}
+
+[contracts] MediaEngine.Contracts.Collections.ListEntryFixRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Action: System.String | json=action | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  WorkId: System.Guid? | json=workId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProfileId: System.Guid? | json=profileId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"action":"sample","workId":"11111111-2222-3333-4444-555555555555","profileId":"11111111-2222-3333-4444-555555555555"}
+
+[contracts] MediaEngine.Contracts.Collections.ListEntryOverrideDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Position: System.Int32 | json=position | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  WorkId: System.Guid? | json=workId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Ignore: System.Boolean | json=ignore | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"position":7,"workId":"11111111-2222-3333-4444-555555555555","ignore":true}
+
+[contracts] MediaEngine.Contracts.Collections.ListImportOwnedItemDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  WorkId: System.Guid | json=workId | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Title: System.String | json=title | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MediaType: System.String | json=mediaType | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CoverUrl: System.String | json=coverUrl | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Collections.ListImportPreviewDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  SourceKind: System.String | json=sourceKind | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SourceLabel: System.String | json=sourceLabel | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SourceName: System.String | json=sourceName | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SuggestedName: System.String | json=suggestedName | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  EntryCount: System.Int32 | json=entryCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  OwnedCount: System.Int32 | json=ownedCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  UnmatchedCount: System.Int32 | json=unmatchedCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IgnoredCount: System.Int32 | json=ignoredCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Shelves: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Collections.ListImportShelfDto> | json=shelves | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Entries: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Collections.CollectionListEntryDto> | json=entries | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Owned: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Collections.ListImportOwnedItemDto> | json=owned | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MatchedWorkIds: System.Collections.Generic.IReadOnlyList<System.Guid> | json=matchedWorkIds | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MediaTypes: System.Collections.Generic.IReadOnlyList<System.String> | json=mediaTypes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"sourceKind":"sample","sourceLabel":"sample","sourceName":"sample","suggestedName":"sample","entryCount":7,"ownedCount":7,"unmatchedCount":7,"ignoredCount":7,"shelves":[],"entries":[],"owned":[],"matchedWorkIds":[],"mediaTypes":[]}
+
+[contracts] MediaEngine.Contracts.Collections.ListImportPreviewRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  FileName: System.String | json=fileName | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ContentBase64: System.String | json=contentBase64 | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Text: System.String | json=text | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Shelf: System.String | json=shelf | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Overrides: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Collections.ListEntryOverrideDto> | json=overrides | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProfileId: System.Guid? | json=profileId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"fileName":"sample","contentBase64":"sample","text":"sample","shelf":"sample","overrides":[],"profileId":"11111111-2222-3333-4444-555555555555"}
+
+[contracts] MediaEngine.Contracts.Collections.ListImportRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  FileName: System.String | json=fileName | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ContentBase64: System.String | json=contentBase64 | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Text: System.String | json=text | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Shelf: System.String | json=shelf | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Order: System.String | json=order | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Refresh: System.String | json=refresh | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SyncMode: System.String | json=syncMode | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Overrides: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Collections.ListEntryOverrideDto> | json=overrides | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProfileId: System.Guid? | json=profileId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"fileName":"sample","contentBase64":"sample","text":"sample","shelf":"sample","order":"sample","refresh":"sample","syncMode":"sample","overrides":[],"profileId":"11111111-2222-3333-4444-555555555555"}
+
+[contracts] MediaEngine.Contracts.Collections.ListImportResultDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  CollectionId: System.Guid | json=collectionId | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  EntryCount: System.Int32 | json=entryCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MatchedCount: System.Int32 | json=matchedCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  UnmatchedCount: System.Int32 | json=unmatchedCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Collections.ListImportShelfDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Name: System.String | json=name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  EntryCount: System.Int32 | json=entryCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  OwnedCount: System.Int32 | json=ownedCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Collections.ListRefreshRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  FileName: System.String | json=fileName | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ContentBase64: System.String | json=contentBase64 | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Text: System.String | json=text | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProfileId: System.Guid? | json=profileId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"fileName":"sample","contentBase64":"sample","text":"sample","profileId":"11111111-2222-3333-4444-555555555555"}
+
+[contracts] MediaEngine.Contracts.Collections.ListRefreshResultDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Added: System.Int32 | json=added | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Removed: System.Int32 | json=removed | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Matched: System.Int32 | json=matched | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Unmatched: System.Int32 | json=unmatched | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Collections.ListSourceSettingsRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Order: System.String | json=order | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Refresh: System.String | json=refresh | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SyncMode: System.String | json=syncMode | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProfileId: System.Guid? | json=profileId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"order":"sample","refresh":"sample","syncMode":"sample","profileId":"11111111-2222-3333-4444-555555555555"}
 
 [contracts] MediaEngine.Contracts.Collections.ManagedCollectionDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -3751,6 +3880,59 @@
   IsOverridden: System.Boolean | json=is_overridden | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SourceLabel: System.String | json=source_label | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"key":"sample","label":"sample","input_kind":"sample","value":"sample","canonical_value":"sample","is_overridden":true,"source_label":"sample"}
+
+[contracts] MediaEngine.Contracts.Import.ImportApplyRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Kind: System.String | json=kind | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FileName: System.String | json=fileName | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ContentBase64: System.String | json=contentBase64 | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Text: System.String | json=text | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProfileId: System.Guid? | json=profileId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"kind":"sample","fileName":"sample","contentBase64":"sample","text":"sample","profileId":"11111111-2222-3333-4444-555555555555"}
+
+[contracts] MediaEngine.Contracts.Import.ImportApplyResultDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Applied: System.Boolean | json=applied | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Message: System.String | json=message | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Import.ImportBookmarkPackSummaryDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Name: System.String | json=name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Author: System.String | json=author | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  BookmarkCount: System.Int32 | json=bookmarkCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  WorkId: System.Guid? | json=workId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  WorkTitle: System.String | json=workTitle | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"name":"sample","author":"sample","bookmarkCount":7,"workId":"11111111-2222-3333-4444-555555555555","workTitle":"sample"}
+
+[contracts] MediaEngine.Contracts.Import.ImportFactDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Label: System.String | json=label | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Value: System.String | json=value | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.Import.ImportPreviewDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Kind: System.String | json=kind | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  KindLabel: System.String | json=kindLabel | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Recognised: System.Boolean | json=recognised | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Heading: System.String | json=heading | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Subheading: System.String | json=subheading | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Facts: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Import.ImportFactDto> | json=facts | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Notes: System.Collections.Generic.IReadOnlyList<System.String> | json=notes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Message: System.String | json=message | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CanApply: System.Boolean | json=canApply | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ApplyLabel: System.String | json=applyLabel | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PrivacyNote: System.String | json=privacyNote | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  List: MediaEngine.Contracts.Collections.ListImportPreviewDto | json=list | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  BookmarkPack: MediaEngine.Contracts.Import.ImportBookmarkPackSummaryDto | json=bookmarkPack | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"kind":"sample","kindLabel":"sample","recognised":true,"heading":"sample","subheading":"sample","facts":[],"notes":[],"message":"sample","canApply":true,"applyLabel":"sample","privacyNote":"sample","list":null,"bookmarkPack":null}
+
+[contracts] MediaEngine.Contracts.Import.ImportRecogniseRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  FileName: System.String | json=fileName | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ContentBase64: System.String | json=contentBase64 | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Text: System.String | json=text | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProfileId: System.Guid? | json=profileId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"fileName":"sample","contentBase64":"sample","text":"sample","profileId":"11111111-2222-3333-4444-555555555555"}
 
 [contracts] MediaEngine.Contracts.Imports.ImportUploadCompleteResponse
   kind=class | converter=default | number-handling=default | unmapped=default

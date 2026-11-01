@@ -1,0 +1,65 @@
+@namespace MediaEngine.Web.Components.Import
+@using MediaEngine.Contracts.Import
+@using MediaEngine.Web.Components.Shared
+
+@* The one preview frame of the shared Import (Collections and lists spec D17). Every kind fills the same frame in its own words:
+   what the file is, what is in it, what it will and will not do, and where it goes. *@
+<article class="import-frame" data-import-frame data-import-kind="@Preview.Kind" aria-label="@Preview.KindLabel">
+    <header class="import-frame__header">
+        <AppChip Text="@Preview.KindLabel" Tone="AppUiTone.Primary" />
+        @if (!string.IsNullOrWhiteSpace(Preview.Heading))
+        {
+            <h3 class="import-frame__title">@Preview.Heading</h3>
+        }
+        @if (!string.IsNullOrWhiteSpace(Preview.Subheading))
+        {
+            <p class="import-frame__subtitle">@Preview.Subheading</p>
+        }
+    </header>
+
+    @if (Preview.Facts.Count > 0)
+    {
+        <AppDefinitionList Class="import-frame__facts">
+            @foreach (var fact in Preview.Facts)
+            {
+                <div class="import-frame__fact">
+                    <dt>@fact.Label</dt>
+                    <dd>@fact.Value</dd>
+                </div>
+            }
+        </AppDefinitionList>
+    }
+
+    @if (Preview.List is { Owned.Count: > 0 } list)
+    {
+        <ul class="import-frame__owned" aria-label="Titles you own from this list">
+            @foreach (var owned in list.Owned.Take(6))
+            {
+                <li>@owned.Title</li>
+            }
+            @if (list.OwnedCount > 6)
+            {
+                <li class="import-frame__more">and @(list.OwnedCount - 6) more</li>
+            }
+        </ul>
+    }
+
+    @foreach (var note in Preview.Notes)
+    {
+        <p class="import-frame__note">@note</p>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(Preview.Message))
+    {
+        <AppAlert Tone="@(Preview.Recognised ? AppUiTone.Info : AppUiTone.Warning)" Dense="true">@Preview.Message</AppAlert>
+    }
+
+    @ChildContent
+</article>
+
+@code {
+    [Parameter, EditorRequired] public ImportPreviewDto Preview { get; set; } = new();
+
+    /// <summary>Buttons or notes the place that opened the Import adds under the preview.</summary>
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

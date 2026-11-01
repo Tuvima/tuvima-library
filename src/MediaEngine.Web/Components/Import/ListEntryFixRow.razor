@@ -1,0 +1,75 @@
+@namespace MediaEngine.Web.Components.Import
+@using MediaEngine.Contracts.Collections
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient Api
+
+@* One list entry Library could not match on its own (Collections and lists spec 4d, 4h). The person searches their library and picks
+   the right title, or ignores the entry so it stops counting as missing. A picked or ignored entry can be put back. The row only
+   reports the choice; the step or the editor decides whether it is held in the draft or saved to the collection. *@
+<div class="list-fix-row" data-list-fix-row data-entry-status="@Entry.Status">
+    <div class="list-fix-row__what">
+        <strong class="list-fix-row__title">@Entry.Title@(Entry.Year is { } year ? $" ({year})" : null)</strong>
+        @if (!string.IsNullOrWhiteSpace(Entry.Creator))
+        {
+            <span class="list-fix-row__creator">@Entry.Creator</span>
+        }
+    </div>
+
+    @if (Entry.Status == ListImportChoices.StatusIgnored)
+    {
+        <span class="list-fix-row__state">Ignored</span>
+        <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@Disabled" OnClick="@(() => OnRestore.InvokeAsync(Entry))">Put it back</AppButton>
+    }
+    else if (Entry.Status == ListImportChoices.StatusHandFixed)
+    {
+        <span class="list-fix-row__state">Matched to @(Entry.MatchedTitle ?? "your pick")</span>
+        <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@Disabled" OnClick="@(() => OnRestore.InvokeAsync(Entry))">Undo</AppButton>
+    }
+    else
+    {
+        <div class="list-fix-row__search">
+            <AppAutocomplete TItem="CollectionMediaLookupDto"
+                             Label="Find it in your library"
+                             Placeholder="Search by title"
+                             SearchFunc="SearchLibraryAsync"
+                             ToStringFunc="@(item => item is null ? string.Empty : DescribeLookup(item))"
+                             ValueChanged="PickedAsync"
+                             Disabled="@Disabled" />
+        </div>
+        <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Disabled="@Disabled" OnClick="@(() => OnIgnore.InvokeAsync(Entry))">Ignore</AppButton>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public CollectionListEntryDto Entry { get; set; } = new();
+
+    [Parameter] public bool Disabled { get; set; }
+
+    /// <summary>The person picked a library title for this entry.</summary>
+    [Parameter] public EventCallback<(CollectionListEntryDto Entry, Guid WorkId)> OnPick { get; set; }
+
+    [Parameter] public EventCallback<CollectionListEntryDto> OnIgnore { get; set; }
+
+    /// <summary>The entry goes back to automatic matching.</summary>
+    [Parameter] public EventCallback<CollectionListEntryDto> OnRestore { get; set; }
+
+    private async Task<IEnumerable<CollectionMediaLookupDto>> SearchLibraryAsync(string? text, CancellationToken ct)
+    {
+        var query = string.IsNullOrWhiteSpace(text) ? Entry.Title : text;
+        return await Api.LookupCollectionMediaAsync(query, limit: 8, ct: ct);
+    }
+
+    private async Task PickedAsync(CollectionMediaLookupDto? picked)
+    {
+        if (picked is not null)
+            await OnPick.InvokeAsync((Entry, picked.WorkId));
+    }
+
+    private static string DescribeLookup(CollectionMediaLookupDto item)
+    {
+        var year = string.IsNullOrWhiteSpace(item.Year) ? null : $" ({item.Year})";
+        var by = string.IsNullOrWhiteSpace(item.Creator) ? null : $", {item.Creator}";
+        return $"{item.Title}{year}{by}";
+    }
+}

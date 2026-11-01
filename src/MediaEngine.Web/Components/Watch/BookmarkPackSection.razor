@@ -1,7 +1,10 @@
 @namespace MediaEngine.Web.Components.Watch
 @using System.Globalization
 @using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Components.Import
 @using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Contracts.Import
 @using MediaEngine.Web.Services.Integration
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.JSInterop
@@ -17,11 +20,7 @@
         <span>Bookmark packs</span>
         <div class="bookmark-packs__buttons">
             <AppButton Class="bookmark-packs__button" Disabled="@(_busy || OwnBookmarks.Count == 0)" title="@(OwnBookmarks.Count == 0 ? "Save a bookmark first" : "Export some of your bookmarks as a pack file")" StartIcon="@AppMaterialIcons.Outlined.Download" OnClick="StartExport">Export</AppButton>
-            <AppFileUpload T="IBrowserFile" Accept=".zip,application/zip" Disabled="@_busy" FilesChanged="PickPackAsync">
-                <CustomContent Context="upload">
-                    <AppButton Class="bookmark-packs__button" Disabled="@_busy" StartIcon="@AppMaterialIcons.Outlined.FileUpload" OnClick="upload.OpenFilePickerAsync">Import</AppButton>
-                </CustomContent>
-            </AppFileUpload>
+            <AppButton Class="bookmark-packs__button" Disabled="@_busy" StartIcon="@AppMaterialIcons.Outlined.FileUpload" OnClick="StartImport">Import</AppButton>
         </div>
     </div>
 
@@ -67,6 +66,16 @@
             <div class="bookmark-packs__buttons">
                 <AppButton Class="bookmark-packs__button" Disabled="@_busy" OnClick="SaveExportAsync">@(_busy ? "Saving…" : "Save pack file")</AppButton>
                 <AppButton Class="bookmark-packs__button" Disabled="@_busy" OnClick="@(() => _step = PackStep.Choose)">Back</AppButton>
+            </div>
+        </div>
+    }
+    else if (_step == PackStep.Pick)
+    {
+        <div class="bookmark-packs__panel" role="group" aria-label="Choose a pack to import">
+            <ImportPanel AllowedKinds="@PackKinds" ShowPaste="false" Prompt="Drop a bookmark pack here, or click to choose one"
+                         OnRecognised="PackRecognisedAsync" />
+            <div class="bookmark-packs__buttons">
+                <AppButton Class="bookmark-packs__button" Disabled="@_busy" OnClick="Cancel">Cancel</AppButton>
             </div>
         </div>
     }
@@ -137,7 +146,9 @@
     [Parameter] public EventCallback PacksChanged { get; set; }
     [Parameter] public Func<double, bool, Task>? JumpTo { get; set; }
 
-    private enum PackStep { None, Choose, Review, Import }
+    private enum PackStep { None, Choose, Review, Pick, Import }
+
+    private static readonly IReadOnlyList<string> PackKinds = [ImportKinds.BookmarkPack];
 
     private readonly HashSet<Guid> _chosen = [];
     private PackStep _step = PackStep.None;
@@ -213,24 +224,29 @@
         }
     }
 
-    private async Task PickPackAsync(IBrowserFile? file)
+    // The shared Import reads the file and says what it is; a bookmark pack then goes through the title's own check, which
+    // decides whether this cut matches.
+    private void StartImport()
     {
         _message = null;
         _preview = null;
-        if (file is null) return;
-        if (file.Size > BookmarkPackLimits.MaximumFileBytes)
+        _importContent = null;
+        _step = PackStep.Pick;
+    }
+
+    private async Task PackRecognisedAsync(ImportRecognition recognition)
+    {
+        _message = null;
+        _preview = null;
+        if (recognition.ContentBase64 is null)
         {
-            _message = "That file is too large to be a bookmark pack.";
             return;
         }
 
         _busy = true;
         try
         {
-            await using var upload = file.OpenReadStream(BookmarkPackLimits.MaximumFileBytes);
-            using var buffer = new MemoryStream();
-            await upload.CopyToAsync(buffer);
-            _importContent = Convert.ToBase64String(buffer.ToArray());
+            _importContent = recognition.ContentBase64;
             _preview = await ApiClient.InspectBookmarkPackAsync(WorkId, ProfileId, ImportRequest(BookmarkPackImportModes.AsIs));
             if (_preview is null)
             {

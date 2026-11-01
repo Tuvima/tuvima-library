@@ -20,6 +20,12 @@ public sealed class CollectionEditorLaunchRequest
     public string InitialAudience { get; init; } = "Private";
     public string? InitialTitle { get; init; }
 
+    /// <summary>The way in the flow opens on instead of the default: "FromList" opens New collection on From a list. Empty uses the default.</summary>
+    public string? InitialWay { get; init; }
+
+    /// <summary>A file the shared Import already read (Settings, Profile, Import hands a list over). The flow opens on From a list with it loaded.</summary>
+    public ImportRecognition? InitialImport { get; init; }
+
     /// <summary>The media type chips ticked when the flow opens (for example Movies and TV from Watch). Empty means Everything.</summary>
     public IReadOnlyList<string> InitialMediaTypes { get; init; } = [];
 }
