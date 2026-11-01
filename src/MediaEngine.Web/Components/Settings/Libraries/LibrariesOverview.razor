@@ -4,24 +4,15 @@
 @using MediaEngine.Web.Services.Ui
 @inject NavigationManager Navigation
 @inject IAppDialogService DialogService
-@inject LibraryFolderAddService AddService
 @inject IStringLocalizer<SharedStrings> L
 
 @* The Libraries overview (Libraries redesign D2, D13, D15): one table of every library grouped under Watch, Listen, Read, View and (for someone who may open it) the
    Vault, one row per library. The whole row opens the library and ends in a chevron; the name is the real link for the keyboard. A Vault library is listed only inside the Vault area. A library that was just
-   added glows for about two seconds (no toast). First-run setup draws this same table with Simple on (Library pages D13; library setup and add-folder
-   v2): Watch, Listen, Read and View, and the Vault only once the person turned it on in setup (ShowVault), rows that do not open a page (a library's page
-   belongs to Settings), no Import folder line, and Add library saves through the setup session. View's rows have no Add library, so each has its own
-   Add folder, which opens the View folder dialog. *@
+   added glows for about two seconds (no toast). First-run setup does not draw this table: it has its own area cards (SetupAreaCards). *@
 <div class="libs">
     @if (ReadOnly)
     {
         <p class="libs__note">@L["Common_UseADesktopOrTablet"]</p>
-    }
-
-    @if (_addError is not null)
-    {
-        <AppAlert Severity="AppSeverity.Warning" Variant="AppVariant.Outlined">@_addError</AppAlert>
     }
 
     @{ var groups = Groups; var anyRows = groups.Any(group => group.All.Count > 0); }
@@ -86,13 +77,6 @@
                         <div @key="row.Key" class="@(row.Key == _newLibraryId ? "libs__card-slot libs__card-slot--new" : "libs__card-slot")" data-library="@row.Key" data-new="@(row.Key == _newLibraryId ? "true" : null)" @onclick="@(() => OpenRow(row))">
                             <AppListCard Title="@row.Name" Icon="@row.Type.Icon" Kind="@row.Type.Label" Description="@CountsFor(row)">
                                 <Status><LibraryStatusCell Row="@row" /></Status>
-                                <Footer>
-                                    @if (CanAddFolder && row.Access != LibraryListing.Vault)
-                                    {
-                                        <AppButton Label="@L["Common_AddFolder"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Text"
-                                                   aria-label="@($"Add a folder to {row.Name}")" OnClick="@(() => AddFolderAsync(row))" />
-                                    }
-                                </Footer>
                             </AppListCard>
                         </div>
                     }
@@ -108,14 +92,7 @@
                             <th data-card-role="subtitle">@L["Common_ContentType"]</th>
                             <th>@L["LibrariesOverview_FoldersAndTitles"]</th>
                             <th data-card-role="value">@L["Models_Status"]</th>
-                            @if (!Simple)
-                            {
-                                <th data-card-role="hidden"><span class="sr-only">@L["Common_Open"]</span></th>
-                            }
-                            else if (CanAddFolder)
-                            {
-                                <th data-card-role="hidden"><span class="sr-only">@L["Common_AddFolder"]</span></th>
-                            }
+                            <th data-card-role="hidden"><span class="sr-only">@L["Common_Open"]</span></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -125,14 +102,7 @@
                                 <td data-card-role="title">
                                     <span class="libs__name">
                                         <span class="@LibraryKindLook.TileClass(row.Type)"><AppMaterialIcon Icon="@row.Type.Icon" /></span>
-                                        @if (Simple)
-                                        {
-                                            <span class="libs__link">@row.Name</span>
-                                        }
-                                        else
-                                        {
-                                            <a href="@row.Href" class="libs__link" aria-label="@AccessibleName(row)" @onclick:stopPropagation="true">@row.Name</a>
-                                        }
+                                        <a href="@row.Href" class="libs__link" aria-label="@AccessibleName(row)" @onclick:stopPropagation="true">@row.Name</a>
                                         @if (row.Access == LibraryListing.Vault)
                                         {
                                             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" Class="libs__lock" />
@@ -146,23 +116,7 @@
                                 <td data-card-role="value">
                                     <LibraryStatusCell Row="@row" />
                                 </td>
-                                @if (!Simple)
-                                {
-                                    <td data-card-role="hidden" class="libs__chevron"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></td>
-                                }
-                                else if (CanAddFolder)
-                                {
-                                    <td data-card-role="hidden" class="libs__add-folder">
-                                        @if (row.Access != LibraryListing.Vault)
-                                        {
-                                            <AppButton Label="@L["Common_AddFolder"].Value"
-                                                       StartIcon="@AppMaterialIcons.Outlined.Add"
-                                                       ButtonStyle="AppButtonStyle.Text"
-                                                       aria-label="@($"Add a folder to {row.Name}")"
-                                                       OnClick="@(() => AddFolderAsync(row))" />
-                                        }
-                                    </td>
-                                }
+                                <td data-card-role="hidden" class="libs__chevron"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></td>
                             </tr>
                         }
                     </tbody>
@@ -175,16 +129,9 @@
         </section>
     }
 
-    @if (Simple)
-    {
-        <p class="libs__note" data-later>The Import folder, who sees what and each library's own settings are in Settings &gt; Libraries.</p>
-    }
-    else
-    {
-        <p class="libs__note">
-            <a href="/settings/libraries/import">@L["Common_ImportFolder"]</a>: @(Configuration.ImportFolderStatus?.Configured == true ? "set" : "not set")
-        </p>
-    }
+    <p class="libs__note">
+        <a href="/settings/libraries/import">@L["Common_ImportFolder"]</a>: @(Configuration.ImportFolderStatus?.Configured == true ? "set" : "not set")
+    </p>
 </div>
 
 @code {
@@ -201,14 +148,8 @@
     [Parameter] public IReadOnlyDictionary<string, string>? PathIssues { get; set; }
     /// <summary>A Vault-protected library is listed only while the Vault may be shown; the host decides (see <see cref="LibraryVaultAccess"/>).</summary>
     [Parameter] public bool ShowVault { get; set; }
-    /// <summary>First-run setup (Library pages D13; add-folder v2): Watch, Listen, Read and View, rows that do not open a page, saves through the setup session. The Vault area joins only when <see cref="ShowVault"/> is set.</summary>
-    [Parameter] public bool Simple { get; set; }
-    /// <summary>The first-run setup session the Create library dialog saves through; used only with <see cref="Simple"/>.</summary>
-    [Parameter] public string? SetupSession { get; set; }
     /// <summary>Phones: counts and status only, no control that changes anything.</summary>
     [Parameter] public bool ReadOnly { get; set; }
-    /// <summary>Lists only this area (the setup Vault offer shows the Vault alone); every area when empty.</summary>
-    [Parameter] public string? OnlyArea { get; set; }
     /// <summary>Raised after a folder was added, so the page can refresh its counts.</summary>
     [Parameter] public EventCallback FolderAdded { get; set; }
 
@@ -216,11 +157,9 @@
     private string _status = string.Empty;
 
     private string? _newLibraryId;
-    private string? _addError;
 
     // Watch, Listen, Read, View, then the Vault for someone who may open it (library access D6); the Vault never exists for anyone else.
-    // Setup shows View too (add-folder v2 D14); it shows the Vault only after the administrator turned it on there.
-    private IReadOnlyList<LibraryGroup> Areas => [.. Kinds.Visible(ShowVault).Where(group => string.IsNullOrEmpty(OnlyArea) || string.Equals(group.Key, OnlyArea, StringComparison.OrdinalIgnoreCase))];
+    private IReadOnlyList<LibraryGroup> Areas => Kinds.Visible(ShowVault);
 
     private sealed record AreaRows(LibraryGroup Area, IReadOnlyList<LibraryListRow> All, IReadOnlyList<LibraryListRow> Visible);
 
@@ -230,7 +169,7 @@
         return new AreaRows(area, all, [.. all.Where(Matches)]);
     })];
 
-    private string RowClass(LibraryListRow row) => string.Join(' ', new[] { "libs__row", Simple ? "libs__row--static" : null, row.Key == _newLibraryId ? "libs__row--new" : null }
+    private string RowClass(LibraryListRow row) => string.Join(' ', new[] { "libs__row", row.Key == _newLibraryId ? "libs__row--new" : null }
         .Where(value => value is not null));
 
     private bool Matches(LibraryListRow row)
@@ -252,10 +191,7 @@
         .. Enum.GetValues<LibraryStatusKind>().Select(status => new AppSelectOption(LibraryListing.FilterValue(status), LibraryListing.StatusText(status))),
     ];
 
-    private void OpenRow(LibraryListRow row)
-    {
-        if (!Simple) Navigation.NavigateTo(row.Href);
-    }
+    private void OpenRow(LibraryListRow row) => Navigation.NavigateTo(row.Href);
 
     // View's three kinds always exist and keep their own add-folder form, so View has no Add library (Library pages WP11).
     private bool CanAddLibrary => !ReadOnly;
@@ -264,65 +200,8 @@
 
     // The one place the add flow is started: the two-step Add library dialog, on the area the person asked from (Watch from the toolbar).
     private Task OpenAddLibraryAsync(string? areaKey) => LibraryAddFlow.OpenAsync(
-        DialogService, Configuration, Kinds, areaKey, ShowVault, Simple, SetupSession,
+        DialogService, Configuration, Kinds, areaKey, ShowVault, setup: false, setupSession: null,
         id => { _newLibraryId = id; return FolderAdded.InvokeAsync(); });
-
-    // Setup rows do not open a page, so each one adds its own folders here: the same pop-up and the same save as a library's page, through the setup session.
-    // A Vault library takes its folders from its own page after setup, so its row has no Add folder here.
-    private bool CanAddFolder => Simple && !ReadOnly;
-
-    private async Task AddFolderAsync(LibraryListRow row)
-    {
-        if (string.Equals(row.Area, LibraryTypeCatalog.ViewArea, StringComparison.OrdinalIgnoreCase))
-        {
-            await AddViewFolderAsync(row);
-            return;
-        }
-
-        if (row.Library is not { } library) return;
-        var managed = row.Type.DefaultHandling == "managed";
-        var parameters = new AppDialogParameters<ServerFolderPicker>
-        {
-            { component => component.Title, $"Choose your {row.Type.Label} folder" },
-            { component => component.HelpText, $"Choose the folder on the Library server that holds more of {row.Name}." },
-            { component => component.ConfirmLabel, "Choose folder" },
-            { component => component.SelectionMode, managed ? ServerFolderSelectionModes.ManagedLibrary : ServerFolderSelectionModes.ExistingLibrary },
-            { component => component.KindKey, library.KindKey },
-            { component => component.MediaType, row.Type.MediaTypes.FirstOrDefault() },
-            { component => component.SetupSession, SetupSession },
-        };
-        var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, parameters, ServerFolderPicker.DialogOptions);
-        if (await dialog.Result is not { Canceled: false, Data: ServerFolderValidationResultDto selected }) return;
-
-        var plan = new AddFolderPlan(library.KindKey, selected, managed ? AddFolderHandling.Managed : AddFolderHandling.ReadOnly, MarkNewMediaHere: false, LibraryId: library.Id);
-        var result = await AddService.AddAsync(plan, Kinds, Configuration, new FolderAddScope(true, SetupSession));
-        if (!result.Saved)
-        {
-            _addError = result.Error ?? "The folder could not be added. Check it and try again.";
-            return;
-        }
-
-        _addError = null;
-        _newLibraryId = row.Key;
-        await FolderAdded.InvokeAsync();
-    }
-
-    // View has no Add library: its kinds always exist, and a folder joins one of them through the View folder dialog (shared with everyone, read where it is).
-    private async Task AddViewFolderAsync(LibraryListRow row)
-    {
-        var parameters = new AppDialogParameters<AddViewFolderDialog>
-        {
-            { component => component.Kind, row.Type },
-            { component => component.Configuration, Configuration },
-            { component => component.SetupSession, SetupSession },
-        };
-        var dialog = await DialogService.ShowAsync<AddViewFolderDialog>(string.Empty, parameters, AddViewFolderDialog.DialogOptions);
-        if (await dialog.Result is not { Canceled: false }) return;
-
-        _addError = null;
-        _newLibraryId = row.Key;
-        await FolderAdded.InvokeAsync();
-    }
 
     private string CountsFor(LibraryListRow row) => LibraryRollup.CountsText(row.Folders, row.Titles);
 

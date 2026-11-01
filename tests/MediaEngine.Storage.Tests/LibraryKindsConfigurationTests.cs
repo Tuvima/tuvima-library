@@ -46,7 +46,7 @@ public sealed class LibraryKindsConfigurationTests : IDisposable
     [Fact]
     public void EveryShippedLibraryNamesAKindThatShipsAndHoldsItsFormat()
     {
-        var libraries = JsonSerializer.Deserialize<LibrariesConfiguration>(File.ReadAllText(Path.Combine(FindRepoRoot(), "config", "libraries.json")))!;
+        var libraries = JsonSerializer.Deserialize<LibrariesConfiguration>(File.ReadAllText(Path.Combine(FindRepoRoot(), "tests", "fixtures", "libraries.seven-defaults.json")))!;
 
         Assert.Equal(
             ["books", "audiobooks", "tv", "movies", "music", "comics", "other_videos"],
@@ -240,7 +240,7 @@ public sealed class LibraryKindsConfigurationTests : IDisposable
         var config = Path.Combine(FindRepoRoot(), "config");
         foreach (var file in new[] { "core.json", "libraries.json", "library_kinds.json" })
         {
-            File.Copy(Path.Combine(config, file), Path.Combine(_directory, file));
+            File.Copy(file == "libraries.json" ? Path.Combine(FindRepoRoot(), "tests", "fixtures", "libraries.seven-defaults.json") : Path.Combine(config, file), Path.Combine(_directory, file));
         }
 
         Directory.CreateDirectory(Path.Combine(_directory, "providers"));

@@ -13,7 +13,7 @@
 @* "Turn on the Vault?" (library setup and add-folder v2, D17 to D21): its own optional step after Libraries, offered once, after the libraries,
    to the first administrator only. Not now leaves no trace: the caller carries straight on and nothing here is ever drawn. Set up the Vault asks for a PIN
    typed twice (strongly suggested, never required: Vault sections D44), turns the Vault on for this administrator only, opens it for the rest of setup
-   with the usual two-screen Add library so a first private library can be added now, and leaves it out of the main menu. It is one profile PIN, the same
+   with the same area card and Add button the Libraries step uses, so a first private library can be added now, and leaves it out of the main menu. It is one profile PIN, the same
    one that protects the profile (Videos D52). The caller locks the Vault again when setup finishes. *@
 <div class="setup-stage-content" data-setup-vault>
     @switch (_phase)
@@ -66,20 +66,20 @@
             <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" /><div><h2 id="setup-stage-title">@L["SetupVaultOffer_YourVaultIsOn"]</h2><p>@L["SetupVaultOffer_AddAFirstPrivateLibrary"]</p></div></div>
             @if (_configuration is not null)
             {
-                <LibrariesOverview Simple="true"
-                                   ShowVault="true"
-                                   OnlyArea="vault"
-                                   SetupSession="@SetupSession"
-                                   Configuration="@_configuration"
-                                   Kinds="@_kinds"
-                                   ReadOnly="@DeviceContext.IsMobile"
-                                   FolderAdded="LoadAsync" />
+                <SetupAreaCards VaultOnly="true"
+                                SetupSession="@SetupSession"
+                                Configuration="@_configuration"
+                                Kinds="@_kinds"
+                                ReadOnly="@DeviceContext.IsMobile"
+                                Changed="LoadAsync" />
             }
             else if (_loadError is not null)
             {
                 <AppAlert Tone="AppUiTone.Error"><span>@_loadError</span></AppAlert>
             }
+            @* Not now (Quiet) beside Continue, as in the design: the Vault is already on, so both carry on; Not now simply says no library for now. *@
             <SetupStageFooter>
+                <AppButton Label="@L["Common_NotNow"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Finished.InvokeAsync(true))" />
                 <AppButton Label="@L["Common_Continue"].Value" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="@(() => Finished.InvokeAsync(true))" />
             </SetupStageFooter>
             break;

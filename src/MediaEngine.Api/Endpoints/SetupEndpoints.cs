@@ -83,7 +83,7 @@ public static class SetupEndpoints
             }
             var serverName = configuration.LoadCore().ServerName;
             var hostName = configuration.LoadNetwork().Local.PreferredServerName;
-            return Results.Ok(new SetupServerIdentityDto(serverName, hostName));
+            return Results.Ok(new SetupServerIdentityDto(serverName, hostName, NetworkNameRules.IsDerived(serverName, hostName)));
         }).Produces<SetupServerIdentityDto>();
 
         group.MapPut("/server-identity", async (SetupServerIdentityDto request, HttpContext context, ClaimsPrincipal user,
@@ -99,7 +99,8 @@ public static class SetupEndpoints
             {
                 return ApiErrors.BadRequest("Give the server a name of 1 to 64 characters.");
             }
-            var hostName = ToDnsLabel(request.HostName);
+            // While the network name just follows the friendly name the Engine derives it; a hand-set one is kept as typed.
+            var hostName = request.HostNameDerived ? string.Empty : ToDnsLabel(request.HostName);
             if (hostName.Length == 0)
             {
                 hostName = ToDnsLabel(serverName);
@@ -116,7 +117,7 @@ public static class SetupEndpoints
             network.Local.PreferredServerName = hostName;
             configuration.SaveNetwork(network);
             await onboarding.SetStepAsync("welcome", "passed", $"This server is called \"{serverName}\" and shows up on your home network as {hostName}.local.", null, null, ct).ConfigureAwait(false);
-            return Results.Ok(new SetupServerIdentityDto(serverName, hostName));
+            return Results.Ok(new SetupServerIdentityDto(serverName, hostName, NetworkNameRules.IsDerived(serverName, hostName)));
         }).Produces<SetupServerIdentityDto>();
 
         group.MapPost("/begin", async (SetupBeginRequest? request, SetupSessionService sessions, CancellationToken ct) =>
@@ -555,23 +556,7 @@ public static class SetupEndpoints
     }
 
     /// <summary>Reduces free text to one DNS label: lower-case letters, digits and single hyphens, at most 63 characters.</summary>
-    internal static string ToDnsLabel(string? value)
-    {
-        var builder = new System.Text.StringBuilder();
-        foreach (var character in (value ?? string.Empty).Trim().ToLowerInvariant())
-        {
-            if (character is >= 'a' and <= 'z' or >= '0' and <= '9')
-            {
-                builder.Append(character);
-            }
-            else if (builder.Length > 0 && builder[^1] != '-')
-            {
-                builder.Append('-');
-            }
-        }
-        var label = builder.ToString().Trim('-');
-        return label.Length > 63 ? label[..63].TrimEnd('-') : label;
-    }
+    internal static string ToDnsLabel(string? value) => NetworkNameRules.ToLabel(value);
 
     private static SetupReadinessDto BuildReadiness(OnboardingWorkflowRecord workflow)
     {

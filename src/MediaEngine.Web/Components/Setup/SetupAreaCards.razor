@@ -1,0 +1,141 @@
+@namespace MediaEngine.Web.Components.Setup
+@using MediaEngine.Contracts.LocalAssets
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Components.Settings
+@using MediaEngine.Web.Services.Ui
+@inject IAppDialogService DialogService
+@inject LibraryFolderAddService Editor
+@inject IStringLocalizer<SharedStrings> L
+
+@* The area cards of first-run setup (settings and setup simplified D8): Watch, Listen, Read and View, each always drawn with its icon, one line on what fits and its own
+   Add button, which opens the Add library pop-up already on that area. Added libraries are rows under their area (icon, name, folder, rename, change folder, remove);
+   an empty area says "Nothing yet". The Vault step draws the same card for the Vault alone (VaultOnly). Every change saves through the setup session. A Vault library is
+   shown but never changed here: setup never sends one and the Engine refuses it. No search, filter, layout switch or per-row Add folder. *@
+<div class="setup-areas" data-setup-areas>
+    @if (ReadOnly)
+    {
+        <p class="setup-areas__note">@L["Common_UseADesktopOrTablet"]</p>
+    }
+    @if (_error is not null)
+    {
+        <AppAlert Tone="AppUiTone.Warning" Dense="true">@_error</AppAlert>
+    }
+    @foreach (var area in Areas)
+    {
+        var rows = RowsOf(area.Key);
+        <AppPanel Class="setup-area" data-area="@area.Key" aria-label="@area.Label">
+            <header class="setup-area__head">
+                <AppMaterialIcon Icon="@area.Icon" />
+                <div class="setup-area__copy"><strong>@area.Label</strong><span>@FitsFor(area.Key)</span></div>
+                @if (!ReadOnly)
+                {
+                    <AppButton Label="@L["SetupAreaCards_Add"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" aria-label="@($"Add a {area.Label} library")" OnClick="@(() => AddAsync(area.Key))" />
+                }
+            </header>
+            @if (rows.Count == 0)
+            {
+                <p class="setup-area__empty">@L["Common_NothingYet"]</p>
+            }
+            @foreach (var row in rows)
+            {
+                <div class="setup-area__row" data-library="@row.Key">
+                    <span class="@LibraryKindLook.TileClass(row.Type)"><AppMaterialIcon Icon="@row.Type.Icon" /></span>
+                    <strong class="setup-area__name">@row.Name</strong>
+                    <span class="setup-area__path">@row.Path</span>
+                    @if (!ReadOnly && !row.IsVault)
+                    {
+                        <AppIconButton Icon="@AppMaterialIcons.Outlined.Edit" Tooltip="@L["Common_Rename"].Value" AriaLabel="@($"Rename {row.Name}")" OnClick="@(() => RenameAsync(row))" />
+                        <AppIconButton Icon="@AppMaterialIcons.Outlined.FolderOpen" Tooltip="@L["SetupAreaCards_ChangeFolder"].Value" AriaLabel="@($"Change the folder of {row.Name}")" OnClick="@(() => ChangeFolderAsync(row))" />
+                        <AppIconButton Icon="@AppMaterialIcons.Outlined.Delete" Tooltip="@L["Common_Remove"].Value" AriaLabel="@($"Remove {row.Name}")" OnClick="@(() => RemoveAsync(row))" />
+                    }
+                </div>
+            }
+        </AppPanel>
+    }
+</div>
+
+@code {
+    private sealed record AreaRow(string Key, string Name, string Path, LibraryTypeOption Type, LibraryFolderDto? Library, ViewSourceAdminDto? ViewFolder)
+    {
+        public bool IsVault => Library?.IsVault == true;
+    }
+
+    [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
+    [Parameter, EditorRequired] public LibraryKindCatalog Kinds { get; set; } = default!;
+    /// <summary>View's shared folders; null when they could not be read (the View card then shows none).</summary>
+    [Parameter] public IReadOnlyList<ViewSourceAdminDto>? ViewFolders { get; set; }
+    [Parameter] public string? SetupSession { get; set; }
+    /// <summary>Phones read the cards but change nothing.</summary>
+    [Parameter] public bool ReadOnly { get; set; }
+    /// <summary>The Vault step: the Vault's own card and nothing else.</summary>
+    [Parameter] public bool VaultOnly { get; set; }
+    /// <summary>Raised after anything was added, renamed, moved or removed, so the host reads the list again.</summary>
+    [Parameter] public EventCallback Changed { get; set; }
+
+    private string? _error;
+
+    private FolderAddScope Scope => new(true, SetupSession);
+
+    private IEnumerable<(string Key, string Label, string Icon)> Areas =>
+        LibraryGroupCatalog.Definitions.Where(area => VaultOnly == (area.Key == LibraryGroupCatalog.VaultKey));
+
+    private static string FitsFor(string area) => area switch
+    {
+        "watch" => "Movies, TV shows, home videos",
+        "listen" => "Music, audiobooks, podcasts",
+        "read" => "Books, comics, documents",
+        "view" => "Photos and personal videos",
+        _ => "Private libraries only the people you choose can open",
+    };
+
+    private IReadOnlyList<AreaRow> RowsOf(string area)
+    {
+        if (area == LibraryTypeCatalog.ViewArea)
+        {
+            // Only folders the person linked are rows; View's built-in shared sources are not theirs to rename or remove.
+            var viewKinds = Kinds.ViewKinds;
+            var rows = new List<AreaRow>();
+            foreach (var source in (ViewFolders ?? []).Where(source => source.StorageMode == "linked" && !string.IsNullOrWhiteSpace(source.Location)))
+            {
+                var kind = viewKinds.FirstOrDefault(item => item.Key == source.ContentKind) ?? viewKinds.FirstOrDefault();
+                if (kind is not null) rows.Add(new AreaRow(source.Id.ToString("D"), source.Name, source.Location, kind, null, source));
+            }
+
+            return rows;
+        }
+
+        return [.. LibraryListing.RowsFor(Kinds, area, Configuration, null, null, null, showVault: true)
+            .Where(row => row.Library is not null)
+            .Select(row => new AreaRow(row.Key, row.Name, PathOf(row.Library!), row.Type, row.Library, null))];
+    }
+
+    private static string PathOf(LibraryFolderDto library)
+    {
+        var first = library.Sources.FirstOrDefault()?.Path ?? string.Empty;
+        return library.Sources.Count > 1 ? $"{first} and {library.Sources.Count - 1} more" : first;
+    }
+
+    // Add opens the one Add library pop-up on this area: "What is it?", then the folder picker with the name in its footer.
+    private Task AddAsync(string area) => LibraryAddFlow.OpenAsync(
+        DialogService, Configuration, Kinds, area, vaultVisible: area == LibraryGroupCatalog.VaultKey, setup: true, SetupSession,
+        _ => { _error = null; return Changed.InvokeAsync(); });
+
+    private Task RenameAsync(AreaRow row) => RunAsync(row.ViewFolder is { } folder
+        ? Editor.RenameSetupViewFolderAsync(folder)
+        : Editor.RenameSetupLibraryAsync(Scope, Configuration, row.Library!));
+
+    private Task ChangeFolderAsync(AreaRow row) => RunAsync(row.ViewFolder is { } folder
+        ? Editor.ChangeSetupViewFolderAsync(Scope, folder, row.Type)
+        : Editor.ChangeSetupLibraryFolderAsync(Scope, Configuration, row.Library!, row.Type));
+
+    private Task RemoveAsync(AreaRow row) => RunAsync(row.ViewFolder is { } folder
+        ? Editor.RemoveSetupViewFolderAsync(folder)
+        : Editor.RemoveSetupLibraryAsync(Scope, Configuration, row.Library!));
+
+    private async Task RunAsync(Task<LibraryFolderAddService.SetupRowOutcome> change)
+    {
+        var outcome = await change;
+        _error = outcome.Error;
+        if (outcome.Changed) await Changed.InvokeAsync();
+    }
+}

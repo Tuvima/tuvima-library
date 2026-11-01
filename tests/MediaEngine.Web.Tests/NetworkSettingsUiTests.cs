@@ -28,7 +28,7 @@ public sealed class NetworkSettingsUiTests
         Assert.Contains("@page \"/setup\"", setup, StringComparison.Ordinal);
         Assert.Contains("UploadBackupAsync", setup, StringComparison.Ordinal);
         Assert.Contains("SetupLibrariesStage", setup, StringComparison.Ordinal);
-        Assert.Contains("<LibrariesOverview Simple=\"true\"", media, StringComparison.Ordinal);
+        Assert.Contains("<SetupAreaCards", media, StringComparison.Ordinal);
         Assert.Contains("What do you have?", media, StringComparison.Ordinal);
         Assert.Contains("SetupWorkflow.StepKeys", setup, StringComparison.Ordinal);
     }

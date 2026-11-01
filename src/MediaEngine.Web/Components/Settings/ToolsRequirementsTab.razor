@@ -125,7 +125,7 @@
             { component => component.Title, $"Locate {tool.Name}" },
             { component => component.HelpText, $"Choose the folder that contains {tool.Name}." },
             { component => component.ConfirmLabel, "Use this folder" },
-        }, new AppDialogOptions { MaxWidth = AppMaxWidth.ExtraExtraLarge, FullWidth = false, CloseButton = false, CloseOnEscapeKey = true });
+        }, ServerFolderPicker.DialogOptions);
         if (await dialog.Result is not { Canceled: false, Data: ServerFolderValidationResultDto selected })
         {
             return;
