@@ -328,7 +328,10 @@ public sealed class PluginsListPageTests : AsyncBunitContext
     private static void Tick(IRenderedComponent<PluginSettingsTab> cut, string menu, string word)
     {
         if (cut.FindAll(".app-tick-menu__list label").Count == 0)
+        {
             cut.FindAll(".app-tick-menu button.app-overflow-menu__trigger").First(button => button.TextContent.Trim().StartsWith(menu)).Click();
+        }
+
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".app-tick-menu__list label")));
         cut.FindAll(".app-tick-menu__list label").First(label => label.TextContent.Trim() == word).QuerySelector("input")!.Change(true);
     }

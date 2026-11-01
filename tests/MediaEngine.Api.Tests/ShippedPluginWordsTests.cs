@@ -21,7 +21,10 @@ public sealed class ShippedPluginWordsTests
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !Directory.Exists(Path.Combine(directory.FullName, "config", "providers")))
+        {
             directory = directory.Parent;
+        }
+
         return directory?.FullName ?? throw new InvalidOperationException("The repository root was not found.");
     }
 
@@ -104,7 +107,9 @@ public sealed class ShippedPluginWordsTests
     public void TheLocalAiPlugins_SayTheyNeedLocalAi()
     {
         foreach (var manifest in Plugins().Where(plugin => plugin.Id.StartsWith("tuvima.ai", StringComparison.Ordinal) || AiFeaturePluginIds.All.Contains(plugin.Id)))
+        {
             Assert.Contains(manifest.Declaration!.Requires, requirement => requirement.Kind == "local_ai");
+        }
     }
 
     [Fact]

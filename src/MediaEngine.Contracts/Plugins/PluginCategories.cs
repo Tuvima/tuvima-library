@@ -1,4 +1,4 @@
-﻿namespace MediaEngine.Contracts.Plugins;
+namespace MediaEngine.Contracts.Plugins;
 
 /// <summary>
 /// The tabs and media filters of the Plugins page. A plugin names its own category and media types in its description;
