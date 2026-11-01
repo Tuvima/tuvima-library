@@ -40,6 +40,12 @@
   },
 
   "ui_metadata": {
+
+    "plugin_category": "enrichment",
+
+    "provides": ["Lists & ratings"],
+
+    "short_description": "Brings in ratings and public web lists to turn into collections.",
     "accent_color": "#4C8BF5",
     "material_icon": "Checklist",
     "category": "Open",

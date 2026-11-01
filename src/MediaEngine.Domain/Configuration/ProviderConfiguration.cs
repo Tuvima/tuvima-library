@@ -566,6 +566,21 @@ public sealed class ProviderUiMetadata
     [JsonPropertyName("category")]
     public string Category { get; set; } = "Open";
 
+    /// <summary>
+    /// The Plugins page tab the source is listed under: <c>intake</c> (used while identifying files), <c>enrichment</c> (adds to items
+    /// already imported) or <c>accounts</c>. Absent means <c>intake</c>.
+    /// </summary>
+    [JsonPropertyName("plugin_category")]
+    public string? PluginCategory { get; set; }
+
+    /// <summary>What the source provides, from the fixed list in <c>PluginProvides</c>.</summary>
+    [JsonPropertyName("provides")]
+    public List<string> Provides { get; set; } = [];
+
+    /// <summary>One sentence of at most 90 characters for the tile and the row.</summary>
+    [JsonPropertyName("short_description")]
+    public string? ShortDescription { get; set; }
+
     /// <summary>When <c>true</c>, the provider requires a user-supplied API key.</summary>
     [JsonPropertyName("requires_key")]
     public bool RequiresKey { get; set; }

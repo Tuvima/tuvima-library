@@ -38,7 +38,9 @@ public sealed class TraktPlugin : ITuvimaPlugin
         Kind = PluginKind.Official,
         MinimumLibraryVersion = "1.0.0",
         Description = "Reads Trakt lists and watchlists so they can become collections. Public lists need only your Trakt app's client ID. To read your own lists, your watchlist or a private list, each profile signs in to its own Trakt account by approving a code on another device.",
-        Category = "services",
+        ShortDescription = "Reads your Trakt lists and watchlists so they can become collections.",
+        Provides = ["Lists & ratings", "Account sync"],
+        Category = "accounts",
         MediaTypes = ["movies", "tv"],
         Capabilities =
         [

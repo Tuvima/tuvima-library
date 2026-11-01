@@ -1,0 +1,40 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Plugins
+
+@* The standard "what it provides" line (Plugins and Integrations screens v4 D34): the same icons and words on every tile, row and
+   page, built from the fixed list the Engine returns, never from field names. A plugin that runs on Local AI says so at the end. *@
+@if (Plugin.Provides.Count > 0 || Plugin.RequiresLocalAi)
+{
+    <span class="plugin-provides" data-testid="plugin-provides">
+        @foreach (var word in Plugin.Provides)
+        {
+            <span class="plugin-provides__item"><AppMaterialIcon Icon="@IconFor(word)" Size="AppSize.Small" />@word</span>
+        }
+        @if (Plugin.RequiresLocalAi)
+        {
+            <span class="plugin-provides__ai">@L["PluginProvides_RunsOnLocalAi"]</span>
+        }
+    </span>
+}
+
+@code {
+    [Inject] private IStringLocalizer<SharedStrings> L { get; set; } = default!;
+
+    [Parameter, EditorRequired] public PluginSummaryResponse Plugin { get; set; } = default!;
+
+    internal static string IconFor(string word) => word switch
+    {
+        PluginProvides.Identification => AppMaterialIcons.Outlined.Fingerprint,
+        PluginProvides.Details => AppMaterialIcons.Outlined.Description,
+        PluginProvides.Artwork => AppMaterialIcons.Outlined.Image,
+        PluginProvides.People => AppMaterialIcons.Outlined.People,
+        PluginProvides.SeriesOrder => AppMaterialIcons.Outlined.FormatListNumbered,
+        PluginProvides.Lyrics => AppMaterialIcons.Outlined.Lyrics,
+        PluginProvides.Subtitles => AppMaterialIcons.Outlined.Subtitles,
+        PluginProvides.SkipMarkers => AppMaterialIcons.Outlined.SkipNext,
+        PluginProvides.Insights => AppMaterialIcons.Outlined.Lightbulb,
+        PluginProvides.ListsAndRatings => AppMaterialIcons.Outlined.Star,
+        PluginProvides.AccountSync => AppMaterialIcons.Outlined.Sync,
+        _ => AppMaterialIcons.Outlined.Extension,
+    };
+}

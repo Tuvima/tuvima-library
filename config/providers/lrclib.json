@@ -97,6 +97,9 @@
     }
   },
   "ui_metadata": {
+    "plugin_category": "enrichment",
+    "provides": ["Lyrics"],
+    "short_description": "Finds synchronized lyrics for your songs.",
     "accent_color": "#3BA55D",
     "material_icon": "Lyrics",
     "category": "Enrichment",

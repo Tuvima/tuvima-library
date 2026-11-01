@@ -22,7 +22,9 @@ public sealed class ListenBrainzPlugin : ITuvimaPlugin
         Kind = PluginKind.Official,
         MinimumLibraryVersion = "1.0.0",
         Description = "Sends the music you finish playing to your own ListenBrainz account. Each profile links its own token; a profile that has not linked sends nothing, and nothing from the Vault is ever sent.",
-        Category = "services",
+        ShortDescription = "Sends the music you finish playing to your ListenBrainz account.",
+        Provides = ["Account sync"],
+        Category = "accounts",
         MediaTypes = ["music"],
         Capabilities =
         [

@@ -964,6 +964,9 @@
     }
   },
   "ui_metadata": {
+    "plugin_category": "intake",
+    "provides": ["Identification", "Details", "Artwork", "Series order"],
+    "short_description": "Finds TV shows, seasons and episodes and fills in their details and artwork.",
     "accent_color": "#21B6A8",
     "material_icon": "Tv",
     "category": "Enrichment",

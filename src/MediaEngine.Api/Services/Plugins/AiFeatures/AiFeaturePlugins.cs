@@ -13,6 +13,23 @@ namespace MediaEngine.Api.Services.Plugins.AiFeatures;
 /// </summary>
 internal static class AiFeaturePluginManifests
 {
+    // One sentence each (Plugins and Integrations screens v4 D35) and what each provides (D34).
+    private static string ShortFor(string id) => id switch
+    {
+        _ when id == AiFeaturePluginIds.SmartFiling => "Reads file names to guess titles and media type when they are unclear.",
+        _ when id == AiFeaturePluginIds.SeriesOrder => "Suggests the order of works within a series.",
+        _ when id == AiFeaturePluginIds.DescriptionInsights => "Adds themes, mood and tags from descriptions.",
+        _ when id == AiFeaturePluginIds.TasteSummary => "Writes a short sentence about a person's taste.",
+        _ => "",
+    };
+
+    private static string[] ProvidesFor(string id) => id switch
+    {
+        _ when id == AiFeaturePluginIds.SmartFiling => ["Identification"],
+        _ when id == AiFeaturePluginIds.SeriesOrder => ["Series order"],
+        _ => ["Insights"],
+    };
+
     public static PluginManifest Create(
         string id,
         string name,
@@ -33,7 +50,9 @@ internal static class AiFeaturePluginManifests
             Kind = PluginKind.Official,
             MinimumLibraryVersion = "1.0.0",
             Description = description,
-            Category = "utilities",
+            ShortDescription = ShortFor(id),
+            Provides = ProvidesFor(id),
+            Category = id == AiFeaturePluginIds.SmartFiling ? "intake" : "enrichment",
             Capabilities = [capability],
             Permissions = [
                 PluginPermissionIds.AiInfer,

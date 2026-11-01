@@ -37,6 +37,12 @@
   },
 
   "ui_metadata": {
+
+    "plugin_category": "intake",
+
+    "provides": ["Identification", "Details", "Artwork", "Lists & ratings"],
+
+    "short_description": "Finds books and fills in their details, and reads public lists.",
     "accent_color": "#C9471C",
     "material_icon": "MenuBook",
     "category": "Open",

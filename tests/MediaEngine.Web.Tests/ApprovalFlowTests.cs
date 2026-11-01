@@ -155,10 +155,9 @@ public sealed class ApprovalFlowTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-state-card=plugin]")));
         var card = cut.Find("[data-state-card=plugin]");
-        Assert.Contains("Needs FFmpeg", card.TextContent, StringComparison.Ordinal);
-        Assert.Contains("Engine-written line", card.TextContent, StringComparison.Ordinal);
+        // The permission lines left the tile (v4 D30); they are on the plugin's own page.
+        Assert.DoesNotContain("Needs FFmpeg", card.TextContent, StringComparison.Ordinal);
         Assert.DoesNotContain("Reads your media files", card.TextContent, StringComparison.Ordinal);
-        Assert.Equal("No", cut.Find("[data-state-card=plugin] [data-testid=sends-data]").TextContent.Trim());
     }
 
     [Fact]
@@ -250,7 +249,7 @@ public sealed class ApprovalFlowTests : AsyncBunitContext
 
         var card = cut.Find("[data-state-card=plugin]");
         Assert.Equal("needsattention", card.GetAttribute("data-health"));
-        Assert.Contains("Needs approval: its permissions changed", card.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Needs approval: its permissions changed", card.InnerHtml, StringComparison.Ordinal);
         Assert.False(cut.Find("[data-state-card=plugin] input[role=switch]").HasAttribute("checked"));
 
         cut.Find("[data-state-card=plugin] input[role=switch]").Change(true);
