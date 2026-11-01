@@ -1,0 +1,119 @@
+{
+  "name": "trakt",
+  "version": "1.0",
+  "enabled": false,
+  "weight": 0.1,
+  "domain": "Video",
+  "icon": "images/providers/trakt.svg",
+  "capability_tags": [],
+  "provider_capabilities": ["lists"],
+  "available_fields": [],
+  "field_weights": {},
+  "endpoints": {
+    "api": "https://api.trakt.tv"
+  },
+  "rate_limit": {
+    "requests_per_second": 2,
+    "burst": 2,
+    "max_concurrency": 1
+  },
+  "hydration_stages": [],
+  "cache_ttl_hours": 0,
+
+  "adapter_type": "coded",
+  "provider_id": "c0000013-0000-4000-8000-000000000023",
+  "display_name": "Trakt",
+  "requires_api_key": true,
+  "language_strategy": "source",
+
+  "http_client": {
+    "timeout_seconds": 20,
+    "user_agent": "Tuvima Library/1.0 (https://github.com/Tuvima/tuvima-library)",
+    "api_key": "",
+    "api_key_delivery": "header",
+    "api_key_param_name": "trakt-api-key"
+  },
+
+  "can_handle": {
+    "media_types": ["Movies", "TV"],
+    "entity_types": ["Work"]
+  },
+
+  "ui_metadata": {
+    "accent_color": "#ED1C24",
+    "material_icon": "Checklist",
+    "category": "Open",
+    "requires_key": true,
+    "auth_type": "api_key",
+    "external_links": {
+      "trakt_list": {
+        "label": "Trakt",
+        "url_template": "https://trakt.tv/lists/{value}",
+        "tooltip": "Open the list on Trakt."
+      }
+    }
+  },
+
+  "onboarding": {
+    "classification": "optional",
+    "signup_url": "https://trakt.tv/oauth/applications",
+    "help_url": "https://trakt.docs.apiary.io/",
+    "terms_url": "https://trakt.tv/terms",
+    "privacy_url": "https://trakt.tv/privacy",
+    "supported_lanes": ["watch"],
+    "required_scopes": ["Read-only access to public Trakt lists"],
+    "intro": {
+      "title": "Connect Trakt",
+      "summary": "Lets you turn a public Trakt list into a collection. Only the list's address and your Trakt client id go to Trakt."
+    },
+    "steps": [
+      {
+        "id": "account",
+        "title": "Account",
+        "description": "Sign in to Trakt or create a free account, then create an app of your own.",
+        "instructions": ["Open your Trakt apps page and choose New Application.", "Give it any name. For the redirect address use urn:ietf:wg:oauth:2.0:oob."],
+        "action": { "kind": "external_link", "label": "Open Trakt apps", "url": "https://trakt.tv/oauth/applications", "url_role": "signup" }
+      },
+      {
+        "id": "credential",
+        "title": "Get credential",
+        "description": "Copy the Client ID shown for your Trakt app. The client secret is not needed.",
+        "instructions": ["Locate the Client ID.", "Copy the complete value."],
+        "action": { "kind": "credential_entry", "label": "Enter client id" },
+        "credential_keys": ["api_key"]
+      },
+      {
+        "id": "connect",
+        "title": "Connect",
+        "description": "Library will perform a read-only connection check.",
+        "action": { "kind": "credential_probe", "label": "Verify & connect" },
+        "credential_keys": ["api_key"]
+      }
+    ],
+    "troubleshooting": [
+      { "status": "invalid_credential", "title": "Trakt did not accept this client id", "message": "Copy the Client ID again from your Trakt app.", "instructions": ["Make sure you copied the Client ID, not the Client Secret."], "help_url": "https://trakt.docs.apiary.io/" },
+      { "status": "rate_limited", "title": "Trakt rate limit reached", "message": "Trakt limits how often an app can ask. Wait before trying again.", "instructions": [] },
+      { "status": "provider_outage", "title": "Trakt is temporarily unavailable", "message": "Your client id may be valid. Try again later.", "instructions": [] },
+      { "status": "connectivity_failure", "title": "Library could not reach Trakt", "message": "Check this server's internet, DNS, proxy, and firewall settings.", "instructions": [] }
+    ],
+    "skip_consequences": [
+      { "lane": "watch", "summary": "Trakt list addresses cannot be turned into collections. Other list sources and list files, including a Trakt export file, still work.", "unavailable_capabilities": ["lists"] }
+    ],
+    "credentials": [
+      { "key": "api_key", "label": "Trakt Client ID", "input_type": "password", "required": true, "ownership": "user_supplied", "purpose": "api_key", "format_hint": "The Client ID shown for your Trakt app.", "minimum_length": 8, "maximum_length": 128, "validation_pattern": "^[A-Za-z0-9_-]+$" }
+    ],
+    "authentication_probe": { "path": "/movies/trending?limit=1", "method": "GET", "success_status_codes": [200] }
+  },
+
+  "declaration": {
+    "audience": "administrators",
+    "weight_class": "light",
+    "on_failure": "skip_and_retry",
+    "notify": "quiet",
+    "changelog": "First built-in version: public Trakt lists and watchlists as collections. Your own private lists need signing in to Trakt, which is not available yet.",
+    "stores": {
+      "saved_output": "list entries",
+      "on_removal": "keep"
+    }
+  }
+}

@@ -6,7 +6,7 @@ namespace MediaEngine.Api.Services.Collections.ListImport.Sources;
 /// A web address a list can be read from, once a source has recognised it (Collections and lists spec 4d). The address is kept in
 /// its plain form (no tracking parameters, no fragment) so the same list always has the same stored address.
 /// </summary>
-/// <param name="ProviderName">The provider file that serves it (<c>tmdb</c>, <c>mdblist</c>, <c>openlibrary</c>, <c>musicbrainz</c>).</param>
+/// <param name="ProviderName">The provider file that serves it (<c>tmdb</c>, <c>mdblist</c>, <c>openlibrary</c>, <c>musicbrainz</c>, <c>trakt</c>).</param>
 /// <param name="Kind">See <see cref="ListSourceKinds"/>.</param>
 /// <param name="Address">The plain address, stored with the collection and shown to the person.</param>
 /// <param name="Parts">What the source needs to ask for it: ids, user names and list names.</param>
@@ -31,6 +31,9 @@ public enum WebListFailure
 
     /// <summary>The site refused the key.</summary>
     KeyRejected,
+
+    /// <summary>The list is private (or is the person's own) and needs the person to be signed in to the site, which is not set up.</summary>
+    SignInNeeded,
 }
 
 /// <summary>What asking a site for a list returned: the list, or the reason it could not be read.</summary>

@@ -35,6 +35,8 @@ public static class TuvimaImportServiceCollectionExtensions
         AddWebListSource<MdbListSource>(services, "mdblist");
         AddWebListSource<OpenLibraryListSource>(services, "openlibrary");
         AddWebListSource<MusicBrainzCollectionSource>(services, "musicbrainz");
+        services.TryAddSingleton<ITraktAccessTokens, UnlinkedTraktAccessTokens>();
+        AddWebListSource<TraktListSource>(services, "trakt");
         services.AddSingleton<WebListResolver>();
         services.AddSingleton<ListInputReader>();
 

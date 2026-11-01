@@ -32,9 +32,11 @@ public static class ListSourceKinds
     public const string MdbList = "mdblist";
     public const string OpenLibrary = "openlibrary";
     public const string MusicBrainz = "musicbrainz";
+    public const string TraktList = "trakt_list";
+    public const string TraktWatchlist = "trakt_watchlist";
 
     /// <summary>True for a kind that is read from a web address, so it can be refreshed from where it came from.</summary>
-    public static bool IsWeb(string kind) => kind is TmdbList or TmdbCollection or MdbList or OpenLibrary or MusicBrainz;
+    public static bool IsWeb(string kind) => kind is TmdbList or TmdbCollection or MdbList or OpenLibrary or MusicBrainz or TraktList or TraktWatchlist;
 
     public static string LabelFor(string kind) => kind switch
     {
@@ -43,6 +45,8 @@ public static class ListSourceKinds
         MdbList => "MDBList list",
         OpenLibrary => "Open Library list",
         MusicBrainz => "MusicBrainz collection",
+        TraktList => "Trakt list",
+        TraktWatchlist => "Trakt watchlist",
         Imdb => "IMDb export",
         Letterboxd => "Letterboxd export",
         Trakt => "Trakt export",

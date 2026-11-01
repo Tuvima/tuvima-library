@@ -7,7 +7,7 @@ namespace MediaEngine.Contracts.Import;
 /// </summary>
 public static class ImportKinds
 {
-    /// <summary>A list of titles from IMDb, Letterboxd, Trakt, Goodreads, StoryGraph, a CSV or a text file, or a list address from TMDb, MDBList, Open Library or MusicBrainz.</summary>
+    /// <summary>A list of titles from IMDb, Letterboxd, Trakt, Goodreads, StoryGraph, a CSV or a text file, or a list address from TMDb, MDBList, Open Library, MusicBrainz or Trakt.</summary>
     public const string CollectionList = "collection-list";
 
     /// <summary>A collection pack file (Collections and lists spec D14). Filled in by the packs packet.</summary>

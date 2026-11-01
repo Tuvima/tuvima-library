@@ -8,7 +8,7 @@ namespace MediaEngine.Api.Services.Import;
 
 /// <summary>
 /// A list of titles: an IMDb, Letterboxd, Trakt, Goodreads or StoryGraph export, a CSV, a text file with one title per line, or a
-/// list address from TMDb, MDBList, Open Library or MusicBrainz (Collections and lists spec 4d). It is the catch-all kind: every file the other kinds do not claim is tried as a list, and a
+/// list address from TMDb, MDBList, Open Library, MusicBrainz or Trakt (Collections and lists spec 4d). It is the catch-all kind: every file the other kinds do not claim is tried as a list, and a
 /// file that is not a list gets the standard "Couldn't read this file" sentence.
 /// </summary>
 public sealed class CollectionListImportKindHandler : IImportKindHandler
@@ -106,6 +106,7 @@ public sealed class CollectionListImportKindHandler : IImportKindHandler
         ListSourceKinds.MdbList => "MDBList",
         ListSourceKinds.OpenLibrary => "Open Library",
         ListSourceKinds.MusicBrainz => "MusicBrainz",
+        ListSourceKinds.TraktList or ListSourceKinds.TraktWatchlist => "Trakt",
         _ => "the site",
     };
 
