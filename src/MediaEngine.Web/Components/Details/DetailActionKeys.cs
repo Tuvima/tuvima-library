@@ -52,6 +52,12 @@ public static class DetailActionKeys
     /// <summary>Added by the Dashboard itself to a show page's "..." menu while a season is selected ("Delete Season 2…"); never sent by the Engine.</summary>
     public const string DeleteSeason = "delete-season";
 
+    /// <summary>Added by the Dashboard itself to a set's "..." menu for a person who may edit it ("Remove set…"); never sent by the Engine.</summary>
+    public const string RemoveSet = "remove-set";
+
+    /// <summary>Added by the Dashboard itself to a set's "..." menu ("Export as a pack file"); never sent by the Engine.</summary>
+    public const string ExportSetPack = "export-set-pack";
+
     /// <summary>Every key <c>DetailPage</c> handles itself (in handler order); see the class summary.</summary>
     public static IReadOnlyList<string> Handled { get; } =
     [
@@ -81,6 +87,8 @@ public static class DetailActionKeys
         DeleteFromLibrary,
         DeleteSeason,
         AddToCollection,
+        RemoveSet,
+        ExportSetPack,
         UnmatchedRetry,
         UnmatchedKeep,
         UnmatchedLookUpAgain,

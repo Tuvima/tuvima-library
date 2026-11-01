@@ -446,6 +446,9 @@ internal sealed partial class DetailCompositionOrchestrator
         var mediaGroups = entityType == DetailEntityType.TvShow
             ? []
             : BuildCollectionMediaGroups(entityType, displayWorks, favoriteWorkIds, expectedTotal);
+        var collectionInfo = hasCollectionRow && entityType == DetailEntityType.Collection
+            ? await LoadCollectionInfoAsync(collectionId, row.CollectionType, profileId, ct)
+            : null;
         var isAutomaticCollection = hasCollectionRow && entityType == DetailEntityType.Collection
             && !CollectionAccessPolicy.IsManagedCollectionType(row.CollectionType ?? string.Empty);
         var canEdit = (hasCollectionRow && entityType is DetailEntityType.Collection or DetailEntityType.BookSeries or DetailEntityType.ComicSeries or DetailEntityType.MovieSeries)
@@ -502,7 +505,8 @@ internal sealed partial class DetailCompositionOrchestrator
                 StringHelpers.FirstNonBlankOr(string.Empty, row.HeroBrandLabel, GetValue(values, "network"), GetValue(values, "studio"), GetValue(values, "broadcaster")),
                 StringHelpers.FirstNonBlankOr(string.Empty, row.HeroBrandImageUrl, GetValue(values, "network_logo_url"), GetValue(values, "network_logo"), GetValue(values, "studio_logo_url"), GetValue(values, "broadcaster_logo_url"))),
             Progress = heroProgress,
-            Metadata = BuildCollectionMetadata(entityType, displayWorks, values, tvPlaybackEpisode, tvPlaybackValues),
+            Metadata = WithListOwnedPill(BuildCollectionMetadata(entityType, displayWorks, values, tvPlaybackEpisode, tvPlaybackValues), collectionInfo),
+            CollectionInfo = collectionInfo,
             PrimaryActions = BuildCollectionActions(collectionId, entityType, context, heroProgress, displayWorks),
             SecondaryActions = BuildSecondaryActions(rootWorkId ?? collectionId, entityType, favoriteWorkIds.Contains(rootWorkId ?? collectionId)),
             OverflowActions = BuildOverflowActions(collectionId, entityType, actionAuthorization),

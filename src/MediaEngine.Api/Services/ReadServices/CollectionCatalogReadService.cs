@@ -31,7 +31,8 @@ public sealed class CollectionCatalogReadService(
     ICollectionMediaLookupReadService mediaLookupReadService,
     IDatabaseConnection db,
     ILogger<CollectionCatalogReadService> logger,
-    TimeProvider? timeProvider = null)
+    TimeProvider? timeProvider = null,
+    ICollectionListRepository? listRepo = null)
 {
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
 
@@ -113,6 +114,10 @@ public sealed class CollectionCatalogReadService(
         var allowedMemberIds = await ExpandAllowedMembersAsync(allowedWorkIds, ct).ConfigureAwait(false);
         var candidates = new List<CollectionManagementCatalogCandidate>();
         var today = Today;
+        // Where each list collection came from (the source line on its tile). Read once for the whole page.
+        var listSources = listRepo is null
+            ? new Dictionary<Guid, CollectionListSource>()
+            : (await listRepo.GetAllSourcesAsync(ct).ConfigureAwait(false)).ToDictionary(source => source.CollectionId);
         foreach (var collection in collections)
         {
             // Outside its seasonal window a collection is left out of the Collections page and the lanes; the
@@ -234,7 +239,8 @@ public sealed class CollectionCatalogReadService(
                     representative.Classification,
                     mediaCounts,
                     entries.Count > 1 || IsBroadRollupKey(representative.Grouping?.Key)),
-                universeQid: ResolveUniverseQid(representative.Collection)));
+                universeQid: ResolveUniverseQid(representative.Collection),
+                sourceInfo: BuildSourceInfo(representative.Collection, collections, listSources, activeProfile)));
         }
 
         return dtos
@@ -609,6 +615,61 @@ public sealed class CollectionCatalogReadService(
         return workIds.Count;
     }
 
+    /// <summary>
+    /// How a curated collection fills up and where it came from, for the source line on its tile (Collections and lists spec 4g).
+    /// A list's counts and unmatched titles are left off for a Kids profile: what a list holds that the library does not is not theirs to see.
+    /// </summary>
+    internal static CollectionCatalogSourceInfo BuildSourceInfo(
+        Collection collection,
+        IReadOnlyList<Collection> accessibleCollections,
+        IReadOnlyDictionary<Guid, CollectionListSource> listSources,
+        Profile? activeProfile)
+    {
+        if (collection.CollectionType == CollectionType.Set)
+        {
+            return new CollectionCatalogSourceInfo(
+                CollectionFillKinds.Set,
+                ChildCollectionCount: accessibleCollections.Count(candidate => candidate.ParentCollectionId == collection.Id));
+        }
+
+        if (listSources.TryGetValue(collection.Id, out var source))
+        {
+            return new CollectionCatalogSourceInfo(
+                CollectionFillKinds.List,
+                activeProfile?.IsKidsProfile == true
+                    ? null
+                    : new CollectionCatalogListSourceDto
+                    {
+                        SourceKind = source.SourceKind,
+                        SourceLabel = source.SourceLabel,
+                        LastRefreshedAt = source.LastRefreshedAt,
+                        Refresh = source.Refresh,
+                        EntryCount = source.EntryCount,
+                        OwnedCount = source.MatchedCount,
+                        UnmatchedCount = source.UnmatchedCount,
+                    });
+        }
+
+        if (!CollectionAccessPolicy.IsManagedCollectionType(collection.CollectionType)
+            || collection.CollectionType is CollectionType.Playlist or CollectionType.PlaylistFolder)
+        {
+            return new CollectionCatalogSourceInfo(CollectionFillKinds.Automatic);
+        }
+
+        if (collection.ParentCollectionId is { } parentId
+            && accessibleCollections.FirstOrDefault(candidate => candidate.Id == parentId && candidate.CollectionType == CollectionType.Set) is { } set)
+        {
+            return new CollectionCatalogSourceInfo(CollectionFillKinds.Pack, SetId: set.Id, SetName: set.DisplayName);
+        }
+
+        // The catalog reads collections without their resolution, so a collection is "hand-picked" when it is marked manual and has no
+        // rule definition, and "rules" otherwise.
+        return new CollectionCatalogSourceInfo(
+            collection.MembershipMode == ContainerMembershipMode.Manual && string.IsNullOrWhiteSpace(collection.RuleJson)
+                ? CollectionFillKinds.HandPicked
+                : CollectionFillKinds.Rules);
+    }
+
     private static CollectionCatalogClassification ClassifyCollectionForCatalog(Collection collection)
     {
         var systemKey = GetSystemCollectionKey(collection);
@@ -669,6 +730,12 @@ public sealed class CollectionCatalogReadService(
         if (IsPlaylistCatalogCollection(collection))
         {
             return false;
+        }
+
+        // A set is one tile that opens a page listing its collections, whatever it holds in all.
+        if (collection.CollectionType == CollectionType.Set)
+        {
+            return true;
         }
 
         if (classification.IsSystem || string.Equals(classification.Family, "User", StringComparison.OrdinalIgnoreCase))

@@ -1,0 +1,59 @@
+@namespace MediaEngine.Web.Components.Collections
+@using MediaEngine.Contracts.Details
+@using MediaEngine.Web.Components.Shared
+@inject IStringLocalizer<SharedStrings> L
+
+@* "Not in your library" (Collections and lists spec 4g, D13): the titles on an imported list that Library did not find among the titles
+   the person owns. Plain greyed tiles with the title and year. Each carries an empty missing-title action slot: a later integration
+   (the first planned one is "Send to Seerr") puts its one action there through <see cref="ActionSlot"/>. Nothing here acts on a title,
+   and these titles never reach lanes, Home, search or counts. *@
+@if (Missing.Count > 0)
+{
+    <section class="collection-missing" data-not-in-library aria-labelledby="collection-missing-heading">
+        <header class="collection-missing__header">
+            <h2 id="collection-missing-heading" class="collection-missing__heading">@L["CollectionNotInLibrary_Heading", Missing.Count]</h2>
+            <p class="collection-missing__note">@L["CollectionNotInLibrary_Note"]</p>
+            <p class="collection-missing__note">@L["CollectionNotInLibrary_FixHint"]</p>
+        </header>
+        <ul class="collection-missing__grid">
+            @foreach (var entry in Shown)
+            {
+                <li class="collection-missing__tile" data-missing-title aria-label="@L["CollectionNotInLibrary_ItemLabel", entry.Title].Value">
+                    <span class="collection-missing__plain" aria-hidden="true">
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CollectionsBookmark" />
+                    </span>
+                    <span class="collection-missing__title">@entry.Title</span>
+                    @if (entry.Year is { } year)
+                    {
+                        <span class="collection-missing__year">@year</span>
+                    }
+                    <span class="collection-missing__action" data-missing-title-action>@ActionSlot?.Invoke(entry)</span>
+                </li>
+            }
+        </ul>
+        @if (Missing.Count > Shown.Count)
+        {
+            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" OnClick="ShowAll" data-missing-show-all>
+                @L["CollectionNotInLibrary_ShowAll", Missing.Count]
+            </AppButton>
+        }
+    </section>
+}
+
+@code {
+    private const int FirstPage = 48;
+    private bool _all;
+
+    /// <summary>The list's titles that are not in the library, in list order.</summary>
+    [Parameter] public IReadOnlyList<DetailMissingTitleViewModel> Missing { get; set; } = [];
+
+    /// <summary>
+    /// The one action an integration can put beside a missing title. Empty today: the Seerr integration is its own follow-up and nothing
+    /// here fills it.
+    /// </summary>
+    [Parameter] public RenderFragment<DetailMissingTitleViewModel>? ActionSlot { get; set; }
+
+    private IReadOnlyList<DetailMissingTitleViewModel> Shown => _all || Missing.Count <= FirstPage ? Missing : Missing.Take(FirstPage).ToList();
+
+    private void ShowAll() => _all = true;
+}

@@ -161,6 +161,28 @@ public class CollectionManagementCatalogDto : ManagedCollectionDto
     [JsonPropertyName("universe_qid")]
     public string? UniverseQid { get; init; }
 
+    /// <summary>
+    /// How the collection fills up: <c>hand_picked</c>, <c>rules</c>, <c>list</c>, <c>pack</c> (made by a pack, inside its set),
+    /// <c>set</c> or <c>automatic</c>. See <see cref="CollectionFillKinds"/>.
+    /// </summary>
+    [JsonPropertyName("fill_kind")]
+    public string FillKind { get; init; } = CollectionFillKinds.Automatic;
+
+    /// <summary>The imported list behind a list collection. Null for any other collection, and for a Kids profile (a list's unowned titles are not theirs to see).</summary>
+    [JsonPropertyName("list_source")]
+    public CollectionCatalogListSourceDto? ListSource { get; init; }
+
+    /// <summary>The set a pack's collection sits in. Null for every other collection.</summary>
+    [JsonPropertyName("set_id")]
+    public Guid? SetId { get; init; }
+
+    [JsonPropertyName("set_name")]
+    public string? SetName { get; init; }
+
+    /// <summary>For a set, how many collections it holds.</summary>
+    [JsonPropertyName("child_collection_count")]
+    public int ChildCollectionCount { get; init; }
+
     [JsonPropertyName("primary_lane")]
     public string PrimaryLane { get; init; } = "CrossMedia";
 

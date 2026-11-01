@@ -1,0 +1,58 @@
+@namespace MediaEngine.Web.Components.Collections
+@using MediaEngine.Web.Components.MediaTiles
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.MediaTiles
+@inject IEngineApiClient ApiClient
+@inject UIOrchestratorService Orchestrator
+@inject IStringLocalizer<SharedStrings> L
+
+@* A set's own page (Collections and lists spec 4g, D14): the collections a pack made, drawn with the same group tile as the Collections
+   page, each with its source line. The Engine lists only the collections this person may see. *@
+<section class="collection-set-children" data-set-children aria-labelledby="collection-set-children-heading">
+    <h2 id="collection-set-children-heading" class="collection-set-children__heading">@L["CollectionSetChildren_Heading"]</h2>
+    @if (_loading)
+    {
+        <div role="status"><AppSpinner Indeterminate="true" Size="AppSize.Small" /></div>
+    }
+    else if (_tiles.Count == 0)
+    {
+        <p class="collection-set-children__empty">@L["CollectionSetChildren_Empty"]</p>
+    }
+    else
+    {
+        <div class="collection-set-children__grid">
+            @foreach (var tile in _tiles)
+            {
+                <MediaGroupTile Item="tile" />
+            }
+        </div>
+    }
+</section>
+
+@code {
+    private IReadOnlyList<MediaTileViewModel> _tiles = [];
+    private bool _loading = true;
+    private Guid _loadedFor;
+
+    [Parameter, EditorRequired] public Guid SetId { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_loadedFor == SetId)
+        {
+            return;
+        }
+
+        _loadedFor = SetId;
+        _loading = true;
+        var profile = await Orchestrator.GetActiveProfileAsync();
+        var catalog = await ApiClient.GetCollectionCatalogAsync(profile?.Id);
+        _tiles = catalog
+            .Where(collection => collection.SetId == SetId)
+            .OrderBy(collection => collection.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(CollectionSurfaceTileComposer.FromCollection)
+            .ToList();
+        _loading = false;
+    }
+}

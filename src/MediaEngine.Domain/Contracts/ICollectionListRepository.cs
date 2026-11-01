@@ -11,6 +11,9 @@ public interface ICollectionListRepository
 {
     Task<CollectionListSource?> GetSourceAsync(Guid collectionId, CancellationToken ct = default);
 
+    /// <summary>Every list source, for a read that decorates many collections at once (the Collections page).</summary>
+    Task<IReadOnlyList<CollectionListSource>> GetAllSourcesAsync(CancellationToken ct = default);
+
     Task<IReadOnlyList<CollectionListEntry>> GetEntriesAsync(Guid collectionId, CancellationToken ct = default);
 
     Task<CollectionListEntry?> GetEntryAsync(Guid collectionId, Guid entryId, CancellationToken ct = default);

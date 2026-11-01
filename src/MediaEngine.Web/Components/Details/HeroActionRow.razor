@@ -59,6 +59,9 @@
 
     /// <summary>The Delete entries to list for a show, season, album or Series; empty for a single title, which gets "Delete from library…".</summary>
     [Parameter] public IReadOnlyList<DetailAction>? DeleteActions { get; set; }
+
+    /// <summary>Entries the page adds to the "..." menu for what it is (a set's Export and Remove); they sit with the other utilities, before the red ones.</summary>
+    [Parameter] public IReadOnlyList<DetailAction>? ExtraActions { get; set; }
     [Parameter] public EventCallback<DetailAction> OnActionSelected { get; set; }
     [Parameter] public Func<DetailAction, IReadOnlyDictionary<string, object>?>? ActionAttributes { get; set; }
 
@@ -83,6 +86,11 @@
             if (CanAddToCollection && !actions.Any(action => action.Key == DetailActionKeys.AddToCollection))
             {
                 actions = [.. actions, DetailMenuGrouping.AddToCollectionAction];
+            }
+
+            if (ExtraActions is { Count: > 0 })
+            {
+                actions = [.. actions, .. ExtraActions.Where(extra => actions.All(action => action.Key != extra.Key))];
             }
 
             return CanDelete && !actions.Any(action => action.Key == DetailActionKeys.DeleteFromLibrary)

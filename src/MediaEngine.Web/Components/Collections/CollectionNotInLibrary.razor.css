@@ -1,0 +1,65 @@
+.collection-missing {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-3, 0.75rem);
+    padding-block: var(--tl-space-4, 1rem);
+}
+
+.collection-missing__heading {
+    margin: 0;
+    color: var(--tl-text-primary);
+    font-size: 1.125rem;
+    font-weight: 600;
+}
+
+.collection-missing__note {
+    margin: 0;
+    color: var(--tl-text-muted);
+    font-size: 0.8125rem;
+}
+
+.collection-missing__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: var(--tl-space-3, 0.75rem);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.collection-missing__tile {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-1, 0.25rem);
+    min-width: 0;
+    opacity: 0.62;
+}
+
+.collection-missing__plain {
+    display: grid;
+    place-items: center;
+    aspect-ratio: 2 / 3;
+    border: 1px dashed rgba(148, 163, 184, 0.34);
+    border-radius: var(--tl-radius-lg);
+    background: rgba(148, 163, 184, 0.08);
+    color: var(--tl-text-muted);
+    font-size: 2rem;
+}
+
+.collection-missing__title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--tl-text-primary);
+    font-weight: 600;
+}
+
+.collection-missing__year {
+    color: var(--tl-text-muted);
+    font-size: 0.75rem;
+}
+
+/* Empty today; a later integration puts one action here. */
+.collection-missing__action:empty {
+    display: none;
+}

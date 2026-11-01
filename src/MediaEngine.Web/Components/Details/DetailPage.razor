@@ -2,6 +2,7 @@
 @using System.Globalization
 @using System.Text.RegularExpressions
 @using MediaEngine.Contracts.Details
+@using MediaEngine.Web.Components.Collections
 @using Microsoft.JSInterop
 @using MediaEngine.Contracts.Progress
 @using MediaEngine.Contracts.Playback
@@ -68,6 +69,7 @@ else if (Model is not null)
                         CanDelete="@CanDeleteFromLibrary"
                         CanAddToCollection="@CanAddToCollection"
                         DeleteActions="GroupDeleteMenuActions"
+                        ExtraActions="SetMenuActions"
                         OnActionSelected="HandleDetailActionAsync"
                         OnTabRequested="SetActiveTabAsync"
                         ActionAttributes="@(IsAudiobook ? AudiobookActionAttributes : null)" />
@@ -106,6 +108,18 @@ else if (Model is not null)
                                                                      OnContainerSelected="HandleContainerSelectedAsync" />
                 }
                 <ExtrasSection Extras="Model.Extras" />
+                @if (Model.EntityType == DetailEntityType.Collection && Model.CollectionInfo is { } collectionInfo)
+                {
+                    @* A set lists the collections inside it; an imported list lists what it holds that the library does not (Collections and lists 4g). *@
+                    @if (collectionInfo.IsSet && Guid.TryParse(Model.Id, out var setId))
+                    {
+                        <CollectionSetChildren SetId="setId" />
+                    }
+                    @if (collectionInfo.List is { Missing.Count: > 0 } list)
+                    {
+                        <CollectionNotInLibrary Missing="list.Missing" />
+                    }
+                }
             }
             else if (CurrentActiveTab is "tracks" && IsAudiobook)
             {
@@ -285,6 +299,20 @@ else if (Model is not null)
 
     // The one-shot note lives in the overlay state: this page's own cascade when it is in the overlay, else the circuit's.
     private DetailsOverlayState? EditResumeStore => Overlay ?? Services.GetService<DetailsOverlayState>();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // A set page needs the set's own catalog entry to know whether this person may export or remove it.
+        if (Model?.CollectionInfo is { IsSet: true } && Guid.TryParse(Model.Id, out var setId) && _setSummaryFor != setId)
+        {
+            _setSummaryFor = setId;
+            var profile = await Orchestrator.GetActiveProfileAsync();
+            _setSummary = await ApiClient.GetCollectionSummaryAsync(setId, profile?.Id);
+        }
+    }
+
+    private Guid? _setSummaryFor;
+    private CollectionManagementCatalogViewModel? _setSummary;
 
     protected override void OnParametersSet()
     {
@@ -594,6 +622,75 @@ else if (Model is not null)
             [new CollectionEditorSeedItem(workId, Model.Title, ResolveEditorMediaType(Model.EntityType, Model.PresentationContext))],
             DetailMenuGrouping.AddToCollectionAction.Label,
             Model.Title);
+    }
+
+    /// <summary>
+    /// "Export as a pack file" and "Remove set…" in a set's "..." menu: on a desktop, for a person the Engine says may edit this set.
+    /// The Engine checks again on every call.
+    /// </summary>
+    private IReadOnlyList<DetailAction>? SetMenuActions =>
+        Model?.CollectionInfo is { IsSet: true }
+        && !_removed
+        && _setSummary is { CanEdit: true }
+        && EditorDeviceRule.CanEdit(DeviceContext)
+            ? [DetailMenuGrouping.ExportSetPackAction, DetailMenuGrouping.RemoveSetAction]
+            : null;
+
+    private async Task ExportSetAsync()
+    {
+        if (Model is null || SetMenuActions is null || !Guid.TryParse(Model.Id, out var setId)
+            || EditorDeviceRule.TryRefuse(DeviceContext, Snackbar))
+        {
+            return;
+        }
+
+        var profile = await Orchestrator.GetActiveProfileAsync();
+        var export = await ApiClient.ExportCollectionSetAsync(setId, profile?.Id);
+        if (export is null)
+        {
+            Snackbar.Add(ApiClient.LastError ?? L["DetailPage_SetActionFailed"].Value, AppSeverity.Warning);
+            return;
+        }
+
+        await using var stream = new MemoryStream(CollectionSetPackFile.Write(export.File), writable: false);
+        using var reference = new DotNetStreamReference(stream);
+        await JS.InvokeVoidAsync("tuvimaDownloads.fromStream", CollectionSetPackFile.FileNameFor(Model.Title), reference, CollectionSetPackFile.ContentType);
+        Snackbar.Add(L["DetailPage_ExportSetSaved", Model.Title].Value, AppSeverity.Success);
+        if (export.Omitted.Count > 0)
+        {
+            Snackbar.Add(L["DetailPage_ExportSetOmitted", string.Join(", ", export.Omitted)].Value, AppSeverity.Info);
+        }
+    }
+
+    private async Task RemoveSetAsync()
+    {
+        if (Model is null || SetMenuActions is null || !Guid.TryParse(Model.Id, out var setId)
+            || EditorDeviceRule.TryRefuse(DeviceContext, Snackbar))
+        {
+            return;
+        }
+
+        if (await AppConfirmDialog.ShowAsync(
+                Dialogs,
+                L["DetailPage_RemoveSetTitle"].Value,
+                L["DetailPage_RemoveSetMessage", Model.Title].Value,
+                L["DetailPage_RemoveSetConfirm"].Value,
+                L["DetailPage_RemoveSetCancel"].Value) != AppConfirmResult.Primary)
+        {
+            return;
+        }
+
+        var profile = await Orchestrator.GetActiveProfileAsync();
+        var removed = await ApiClient.RemoveCollectionSetAsync(setId, profile?.Id);
+        if (removed is null)
+        {
+            Snackbar.Add(ApiClient.LastError ?? L["DetailPage_SetActionFailed"].Value, AppSeverity.Warning);
+            return;
+        }
+
+        Snackbar.Add(L["DetailPage_RemoveSetDone", removed.RemovedCollections].Value, AppSeverity.Success);
+        _leaving = true;
+        await LeaveAfterRemovalAsync();
     }
 
     private bool CanDeleteFromLibrary =>
@@ -1093,6 +1190,16 @@ else if (Model is not null)
         if (action.Key == DetailActionKeys.AddToCollection)
         {
             await AddToCollectionAsync();
+            return;
+        }
+        if (action.Key == DetailActionKeys.ExportSetPack)
+        {
+            await ExportSetAsync();
+            return;
+        }
+        if (action.Key == DetailActionKeys.RemoveSet)
+        {
+            await RemoveSetAsync();
             return;
         }
         if (action.Key == DetailActionKeys.AddPlaylist)

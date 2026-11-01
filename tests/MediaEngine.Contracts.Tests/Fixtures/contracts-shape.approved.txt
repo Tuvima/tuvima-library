@@ -1495,6 +1495,15 @@ MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionCa
   IsSystem: System.Boolean | nullability=not-null | accessors=get,init
   PrimaryLaneOverride: System.String | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionCatalogListSourceDto
+  SourceKind: System.String | nullability=not-null | accessors=get,init
+  SourceLabel: System.String | nullability=not-null | accessors=get,init
+  LastRefreshedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+  Refresh: System.String | nullability=not-null | accessors=get,init
+  EntryCount: System.Int32 | nullability=not-null | accessors=get,init
+  OwnedCount: System.Int32 | nullability=not-null | accessors=get,init
+  UnmatchedCount: System.Int32 | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionCatalogPersonDto
   Id: System.Guid | nullability=not-null | accessors=get,init
   Name: System.String | nullability=not-null | accessors=get,init
@@ -1551,6 +1560,8 @@ MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionEn
 
 MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionFeaturedRequest
   Featured: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionFillKinds
 
 MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionGalleryReferenceDto
   GalleryId: System.Guid | nullability=not-null | accessors=get,init
@@ -1730,6 +1741,11 @@ MediaEngine.Contracts.Collections.MediaEngine.Contracts.Collections.CollectionMa
   SystemKey: System.String | nullability=nullable | accessors=get,init
   GroupType: System.String | nullability=not-null | accessors=get,init
   UniverseQid: System.String | nullability=nullable | accessors=get,init
+  FillKind: System.String | nullability=not-null | accessors=get,init
+  ListSource: MediaEngine.Contracts.Collections.CollectionCatalogListSourceDto | nullability=nullable | accessors=get,init
+  SetId: System.Guid? | nullability=nullable | accessors=get,init
+  SetName: System.String | nullability=nullable | accessors=get,init
+  ChildCollectionCount: System.Int32 | nullability=not-null | accessors=get,init
   PrimaryLane: System.String | nullability=not-null | accessors=get,init
   IsGlobal: System.Boolean | nullability=not-null | accessors=get,init
   IsSystem: System.Boolean | nullability=not-null | accessors=get,init
@@ -2368,6 +2384,20 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailAiResultsViewM
   Summary: System.String | nullability=nullable | accessors=get,init
   IsEmpty: System.Boolean | nullability=not-null | accessors=get
 
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailCollectionInfoViewModel
+  FillKind: System.String | nullability=not-null | accessors=get,init
+  IsSet: System.Boolean | nullability=not-null | accessors=get,init
+  List: MediaEngine.Contracts.Details.DetailCollectionListViewModel | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailCollectionListViewModel
+  SourceKind: System.String | nullability=not-null | accessors=get,init
+  SourceLabel: System.String | nullability=not-null | accessors=get,init
+  LastRefreshedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+  EntryCount: System.Int32 | nullability=not-null | accessors=get,init
+  OwnedCount: System.Int32 | nullability=not-null | accessors=get,init
+  UnmatchedCount: System.Int32 | nullability=not-null | accessors=get,init
+  Missing: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.DetailMissingTitleViewModel> | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailEditorTarget
   EntityId: System.String | nullability=not-null | accessors=get,init
   EntityKind: System.String | nullability=not-null | accessors=get,init
@@ -2433,6 +2463,12 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailFactsViewModel
   Publisher: System.String | nullability=nullable | accessors=get,init
   PageCount: System.String | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailMissingTitleViewModel
+  Position: System.Int32 | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  Year: System.Int32? | nullability=nullable | accessors=get,init
+  Creator: System.String | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailPageViewModel
   Id: System.String | nullability=not-null | accessors=get,init
   EntityType: MediaEngine.Contracts.Details.DetailEntityType | nullability=not-null | accessors=get,init
@@ -2473,6 +2509,7 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailPageViewModel
   IsUnmatched: System.Boolean | nullability=not-null | accessors=get,set
   UnmatchedAssets: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.DetailUnmatchedAssetViewModel> | nullability=not-null | accessors=get,set
   Extras: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.DetailExtraCardViewModel> | nullability=not-null | accessors=get,set
+  CollectionInfo: MediaEngine.Contracts.Details.DetailCollectionInfoViewModel | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailPresentationContext
 

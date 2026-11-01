@@ -47,6 +47,23 @@ public static class DetailMenuGrouping
         Icon = "playlist_add",
     };
 
+    /// <summary>"Export as a pack file" in a set's "..." menu (Collections and lists spec D14): writes the set's rules out as a file another Library can import.</summary>
+    public static DetailAction ExportSetPackAction { get; } = new()
+    {
+        Key = DetailActionKeys.ExportSetPack,
+        Label = "Export as a pack file",
+        Icon = "download",
+    };
+
+    /// <summary>"Remove set…" in a set's "..." menu: removes the set and the collections inside it. The titles stay in the library.</summary>
+    public static DetailAction RemoveSetAction { get; } = new()
+    {
+        Key = DetailActionKeys.RemoveSet,
+        Label = "Remove set…",
+        Icon = "delete",
+        IsDestructive = true,
+    };
+
     /// <summary>
     /// The Delete entry for a whole show, season, album or Series ("Delete show…", "Delete Season 2…", "Delete album…", "Delete Series…"):
     /// the last red entry of the page's "..." menu, as for a single title (Delete a show, season, album or Series D2).

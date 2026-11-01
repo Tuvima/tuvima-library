@@ -9387,6 +9387,87 @@
   <data name="MediaGroupTile_NoArtwork" xml:space="preserve">
     <value>No artwork available for {0}</value>
   </data>
+  <data name="MediaGroupTile_SourceHandPicked" xml:space="preserve">
+    <value>Hand-picked</value>
+  </data>
+  <data name="MediaGroupTile_SourceRules" xml:space="preserve">
+    <value>Rules</value>
+  </data>
+  <data name="MediaGroupTile_SourceList" xml:space="preserve">
+    <value>From a list</value>
+  </data>
+  <data name="MediaGroupTile_SourceListRefreshed" xml:space="preserve">
+    <value>From a list, refreshed {0}</value>
+  </data>
+  <data name="MediaGroupTile_SourcePack" xml:space="preserve">
+    <value>Pack: {0}</value>
+  </data>
+  <data name="MediaGroupTile_SourceSetOne" xml:space="preserve">
+    <value>Set of 1 collection</value>
+  </data>
+  <data name="MediaGroupTile_SourceSetMany" xml:space="preserve">
+    <value>Set of {0} collections</value>
+  </data>
+  <data name="MediaGroupTile_UnmatchedBadge" xml:space="preserve">
+    <value>Couldn't match {0}</value>
+  </data>
+  <data name="CollectionNotInLibrary_Heading" xml:space="preserve">
+    <value>Not in your library ({0})</value>
+  </data>
+  <data name="CollectionNotInLibrary_Note" xml:space="preserve">
+    <value>Titles on this list that Library did not find among the titles you own.</value>
+  </data>
+  <data name="CollectionNotInLibrary_ShowAll" xml:space="preserve">
+    <value>Show all {0}</value>
+  </data>
+  <data name="CollectionNotInLibrary_ItemLabel" xml:space="preserve">
+    <value>{0}, not in your library</value>
+  </data>
+  <data name="CollectionNotInLibrary_FixHint" xml:space="preserve">
+    <value>Some of these may be titles Library could not match. Fix a match in Edit, Contents.</value>
+  </data>
+  <data name="CollectionSetChildren_Heading" xml:space="preserve">
+    <value>Collections in this set</value>
+  </data>
+  <data name="CollectionSetChildren_Empty" xml:space="preserve">
+    <value>This set has no collections you can see.</value>
+  </data>
+  <data name="DetailPage_RemoveSetTitle" xml:space="preserve">
+    <value>Remove this set?</value>
+  </data>
+  <data name="DetailPage_RemoveSetMessage" xml:space="preserve">
+    <value>"{0}" and the collections inside it will be removed, along with where they show. The titles stay in your library.</value>
+  </data>
+  <data name="DetailPage_RemoveSetConfirm" xml:space="preserve">
+    <value>Remove set</value>
+  </data>
+  <data name="DetailPage_RemoveSetCancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="DetailPage_RemoveSetDone" xml:space="preserve">
+    <value>Removed the set and {0} collections.</value>
+  </data>
+  <data name="DetailPage_ExportSetSaved" xml:space="preserve">
+    <value>Saved "{0}" as a pack file.</value>
+  </data>
+  <data name="DetailPage_ExportSetOmitted" xml:space="preserve">
+    <value>Left out of the file: {0}.</value>
+  </data>
+  <data name="DetailPage_SetActionFailed" xml:space="preserve">
+    <value>That could not be done.</value>
+  </data>
+  <data name="ImportPage_AddThisPack" xml:space="preserve">
+    <value>Add this pack</value>
+  </data>
+  <data name="ImportPage_PackAdded" xml:space="preserve">
+    <value>Added {0} collections from this pack.</value>
+  </data>
+  <data name="ImportPage_PackAddedNone" xml:space="preserve">
+    <value>Nothing new was added. Those collections are already here or do not have enough titles yet.</value>
+  </data>
+  <data name="ImportPage_PackFailed" xml:space="preserve">
+    <value>That pack could not be added.</value>
+  </data>
   <data name="MediaSquareTile_Playlist" xml:space="preserve">
     <value>Playlist</value>
   </data>

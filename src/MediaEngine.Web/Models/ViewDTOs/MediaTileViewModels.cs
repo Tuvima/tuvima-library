@@ -178,6 +178,12 @@ public sealed class MediaTileViewModel
     /// <summary>True when the group carries artwork somebody chose; it replaces the fanned cover stack.</summary>
     public bool HasCustomArtwork { get; init; }
 
+    /// <summary>
+    /// Where a curated group came from, for the one-line source under its counts (Collections and lists spec 4g). Null for tiles that
+    /// are not curated collections, which draw no source line.
+    /// </summary>
+    public MediaTileGroupSourceViewModel? GroupSource { get; init; }
+
     /// <summary>True for a playlist, which draws as the square tile beside albums.</summary>
     public bool IsPlaylist { get; init; }
 
@@ -225,6 +231,19 @@ public sealed class MediaTileShelfViewModel
 
     public MediaTileShelfKind Kind => MediaTileShelfKeys.Classify(Key);
 }
+
+/// <summary>The source line of a curated collection's tile: how it fills up, and for an imported list the last refresh and the unmatched count.</summary>
+/// <param name="FillKind">See <c>CollectionFillKinds</c>: hand_picked, rules, list, pack or set.</param>
+/// <param name="SetName">For a pack's collection, the set it sits in.</param>
+/// <param name="ChildCount">For a set, how many collections it holds.</param>
+/// <param name="LastRefreshedAt">For an imported list, when it was last refreshed.</param>
+/// <param name="UnmatchedCount">For an imported list, how many of its titles matched nothing in the library.</param>
+public sealed record MediaTileGroupSourceViewModel(
+    string FillKind,
+    string? SetName = null,
+    int ChildCount = 0,
+    DateTimeOffset? LastRefreshedAt = null,
+    int UnmatchedCount = 0);
 
 public enum MediaTileGroupKind
 {

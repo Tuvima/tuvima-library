@@ -47,6 +47,7 @@ internal sealed partial class DetailCompositionOrchestrator
     private readonly DetailProjectionReader _reader;
     private readonly ProviderSourceLinkResolver _providerSourceLinks;
     private readonly IBridgeIdRepository? _bridgeIds;
+    private readonly ICollectionListRepository? _collectionLists;
 
     public DetailCompositionOrchestrator(
         IDatabaseConnection db,
@@ -62,7 +63,8 @@ internal sealed partial class DetailCompositionOrchestrator
         CollectionCatalogReadService? collectionCatalog = null,
         IProfileRepository? profiles = null,
         IConfigurationLoader? configurationLoader = null,
-        IBridgeIdRepository? bridgeIds = null)
+        IBridgeIdRepository? bridgeIds = null,
+        ICollectionListRepository? collectionLists = null)
     {
         _db = db;
         _libraryItems = libraryItems;
@@ -80,6 +82,7 @@ internal sealed partial class DetailCompositionOrchestrator
         _providerSourceLinks = new ProviderSourceLinkResolver(
             configurationLoader?.LoadAllProviders() ?? []);
         _bridgeIds = bridgeIds;
+        _collectionLists = collectionLists;
     }
 
     public async Task<DetailPageViewModel?> BuildAsync(
