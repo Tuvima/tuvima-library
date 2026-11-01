@@ -9475,7 +9475,7 @@
     <value>Or paste a link or a list</value>
   </data>
   <data name="ImportPanel_PastePlaceholder" xml:space="preserve">
-    <value>A TMDb, MDBList, Open Library or MusicBrainz list address, or one title per line with the year in brackets: Heat (1995)</value>
+    <value>A TMDb, MDBList, Open Library, MusicBrainz or Trakt list address, or one title per line with the year in brackets: Heat (1995)</value>
   </data>
   <data name="ImportPanel_ReadText" xml:space="preserve">
     <value>Read this text</value>

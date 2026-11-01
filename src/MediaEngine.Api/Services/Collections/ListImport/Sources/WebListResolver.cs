@@ -85,7 +85,7 @@ public sealed class WebListResolver
         if (source is null)
         {
             throw new WebListRefusedException(
-                $"Library reads lists from {AcceptedSites} addresses. For IMDb, Letterboxd, Trakt or Goodreads, export the list as a file and drop it here instead.");
+                $"Library reads lists from {AcceptedSites} addresses. For IMDb, Letterboxd or Goodreads, export the list as a file and drop it here instead.");
         }
 
         var address = source.Recognise(uri)!;
@@ -114,6 +114,9 @@ public sealed class WebListResolver
             case WebListFailure.KeyRejected:
                 throw new WebListRefusedException(
                     $"{source.DisplayName} did not accept the key. Check it in Settings → Plugins.", PluginsRoute, "Open Plugins");
+            case WebListFailure.SignInNeeded:
+                throw new WebListRefusedException(
+                    $"That list is private or your own, so it can only be read when you are signed in to {SiteOf(source)}. Library cannot sign in there yet: make the list public and paste its public address, or export it as a file and drop that here.");
             case WebListFailure.NotFound:
                 throw new WebListRefusedException(
                     $"Couldn't find that list. It may be private, or the address may be wrong. Only public lists can be read.");
@@ -127,6 +130,9 @@ public sealed class WebListResolver
                 };
         }
     }
+
+    private static string SiteOf(IWebListSource source) =>
+        source.DisplayName.Replace(" lists", string.Empty, StringComparison.Ordinal).Replace(" collections", string.Empty, StringComparison.Ordinal);
 
     private void Trim(DateTimeOffset now)
     {

@@ -130,8 +130,8 @@ public abstract class WebListSourceBase : IWebListSource
 
     // ── Reading JSON ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-    /// <summary>Gets one JSON document within the source's rate limit. The caller disposes it.</summary>
-    protected async Task<JsonDocument> GetJsonAsync(string url, CancellationToken ct)
+    /// <summary>Gets one JSON document within the source's rate limit. <paramref name="decorate"/> adds headers a site wants. The caller disposes it.</summary>
+    protected async Task<JsonDocument> GetJsonAsync(string url, CancellationToken ct, Action<HttpRequestMessage>? decorate = null)
     {
         var provider = _configuration.LoadProvider(ProviderName);
         var client = _http.CreateClient(HttpClientName);
@@ -145,6 +145,7 @@ public abstract class WebListSourceBase : IWebListSource
                 {
                     using var request = new HttpRequestMessage(HttpMethod.Get, url);
                     request.Headers.Accept.ParseAdd("application/json");
+                    decorate?.Invoke(request);
                     if (!string.IsNullOrWhiteSpace(userAgent))
                     {
                         request.Headers.UserAgent.ParseAdd(userAgent);

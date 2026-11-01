@@ -83,6 +83,7 @@ public sealed class WebListSourceTests : IDisposable
     private readonly string _root = Path.Combine(Path.GetTempPath(), $"tuvima_web_lists_{Guid.NewGuid():N}");
     private readonly RoutedHandler _handler = new();
     private readonly LimiterSpy _limiter = new();
+    private readonly TraktTokenSpy _trakt = new();
 
     public WebListSourceTests() => Directory.CreateDirectory(Path.Combine(_root, "config", "providers"));
 
@@ -108,6 +109,12 @@ public sealed class WebListSourceTests : IDisposable
     [InlineData("https://mdblist.com/lists/SomeUser/Top-Sci-Fi/", ListSourceKinds.MdbList, "https://mdblist.com/lists/someuser/top-sci-fi")]
     [InlineData("https://openlibrary.org/people/george08/lists/OL1234L/Favourite_reads", ListSourceKinds.OpenLibrary, "https://openlibrary.org/people/george08/lists/OL1234L")]
     [InlineData("https://musicbrainz.org/collection/6C3F1A52-1111-4222-8333-444455556666", ListSourceKinds.MusicBrainz, "https://musicbrainz.org/collection/6c3f1a52-1111-4222-8333-444455556666")]
+    [InlineData("https://trakt.tv/users/SomeUser/lists/Top-Sci-Fi?sort=rank,asc#top", ListSourceKinds.TraktList, "https://trakt.tv/users/someuser/lists/top-sci-fi")]
+    [InlineData("https://trakt.me/users/someuser/lists/top-sci-fi", ListSourceKinds.TraktList, "https://trakt.tv/users/someuser/lists/top-sci-fi")]
+    [InlineData("https://trakt.tv/lists/official/oscars-best-picture", ListSourceKinds.TraktList, "https://trakt.tv/lists/official/oscars-best-picture")]
+    [InlineData("https://trakt.tv/lists/2144562", ListSourceKinds.TraktList, "https://trakt.tv/lists/2144562")]
+    [InlineData("https://trakt.tv/users/someuser/watchlist", ListSourceKinds.TraktWatchlist, "https://trakt.tv/users/someuser/watchlist")]
+    [InlineData("https://trakt.tv/users/me/lists/favourites", ListSourceKinds.TraktList, "https://trakt.tv/users/me/lists/favourites")]
     public void AnAddress_IsRecognisedByItsSource_AndKeptInItsPlainForm(string pasted, string kind, string plain)
     {
         var recognised = Sources(Fixture()).Select(source => source.Recognise(new Uri(pasted))).Where(address => address is not null).ToList();
@@ -124,6 +131,10 @@ public sealed class WebListSourceTests : IDisposable
     [InlineData("https://musicbrainz.org/artist/6c3f1a52-1111-4222-8333-444455556666")]
     [InlineData("https://mdblist.com/")]
     [InlineData("https://openlibrary.org/works/OL45804W")]
+    [InlineData("https://trakt.tv/movies/the-matrix-1999")]
+    [InlineData("https://trakt.tv/users/someuser")]
+    [InlineData("https://trakt.tv/lists/popular")]
+    [InlineData("https://evil.example/trakt.tv/users/someuser/lists/top")]
     [InlineData("https://evil.example/themoviedb.org/list/8136")]
     public void AnAddressThatIsNotAListOnASupportedSite_IsNotRecognised(string pasted)
     {
@@ -319,6 +330,241 @@ public sealed class WebListSourceTests : IDisposable
         Assert.Equal(WebListFailure.KeyMissing, fetch.Failure);
         Assert.Empty(_handler.Requests);
     }
+
+    // ── Trakt ────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+    private const string TraktListInfo = """{ "name": "Top sci-fi", "ids": { "trakt": 77, "slug": "top-sci-fi" } }""";
+
+    private const string TraktListItems = """
+        [ { "rank": 1, "type": "movie", "movie": { "title": "The Matrix", "year": 1999, "ids": { "trakt": 481, "imdb": "tt0133093", "tmdb": 603 } } },
+          { "rank": 2, "type": "show",  "show":  { "title": "Breaking Bad", "year": 2008, "ids": { "trakt": 1388, "imdb": "tt0903747", "tmdb": 1396, "tvdb": 81189 } } },
+          { "rank": 3, "type": "season", "season": { "number": 1, "ids": { "trakt": 3 } }, "show": { "title": "Ignored", "year": 2000, "ids": {} } },
+          { "rank": 4, "type": "person", "person": { "name": "Keanu Reeves", "ids": { "trakt": 9 } } } ]
+        """;
+
+    private static string TraktPage(int from, int count) =>
+        "[" + string.Join(
+            ",",
+            Enumerable.Range(from, count).Select(i => "{ \"rank\": " + i + ", \"type\": \"movie\", \"movie\": { \"title\": \"Film " + i + "\", \"year\": 2000, \"ids\": { \"tmdb\": " + i + " } } }")) + "]";
+
+    private TraktListSource Trakt(IConfigurationLoader loader) =>
+        new(loader, _handler.Factory, _limiter, NullLogger<TraktListSource>.Instance, _trakt);
+
+    [Fact]
+    public async Task APublicTraktList_IsReadWithTheClientIdInHeaders_AndKeepsMoviesAndShowsWithTheirIds()
+    {
+        _handler.Route("/users/someuser/lists/top-sci-fi/items", _ => TraktListItems);
+        _handler.Route("/users/someuser/lists/top-sci-fi", _ => TraktListInfo);
+        var source = Trakt(Fixture());
+
+        var fetch = await source.FetchAsync(source.Recognise(new Uri("https://trakt.tv/users/someuser/lists/top-sci-fi"))!, CancellationToken.None);
+
+        var list = fetch.List!;
+        Assert.Equal("Top sci-fi", list.Name);
+        Assert.Equal(ListSourceKinds.TraktList, list.SourceKind);
+        Assert.Equal("https://trakt.tv/users/someuser/lists/top-sci-fi", list.SourceAddress);
+        Assert.Equal(["The Matrix", "Breaking Bad"], list.Entries.Select(entry => entry.Title).ToArray());
+        Assert.Equal([1, 2], list.Entries.Select(entry => entry.Position).ToArray());
+        Assert.Equal("tt0133093", list.Entries[0].Ids[ListIdentifierKeys.Imdb]);
+        Assert.Equal("603", list.Entries[0].Ids[ListIdentifierKeys.Tmdb]);
+        Assert.Equal("81189", list.Entries[1].Ids[ListIdentifierKeys.Tvdb]);
+        Assert.Equal(["Movies"], list.Entries[0].MediaTypes);
+        Assert.Equal(["TV"], list.Entries[1].MediaTypes);
+        Assert.Equal(1999, list.Entries[0].Year);
+
+        Assert.All(_handler.Requests, request =>
+        {
+            Assert.Equal("api.trakt.tv", request.RequestUri!.Host);
+            Assert.Equal("client-id-1", request.Headers.GetValues("trakt-api-key").Single());
+            Assert.Equal("2", request.Headers.GetValues("trakt-api-version").Single());
+            Assert.Null(request.Headers.Authorization);
+            Assert.DoesNotContain("client-id-1", request.RequestUri.ToString(), StringComparison.Ordinal);
+        });
+        Assert.All(_limiter.Names, name => Assert.Equal("trakt", name));
+        Assert.All(_limiter.Rates, rate => Assert.Equal(2, rate));
+    }
+
+    [Fact]
+    public async Task ATraktListLongerThanOnePage_IsReadToTheEnd()
+    {
+        _handler.Route("/users/someuser/lists/big/items", request =>
+            request.RequestUri!.Query.Contains("page=1&", StringComparison.Ordinal) ? TraktPage(1, 100) : TraktPage(101, 5));
+        _handler.Route("/users/someuser/lists/big", _ => """{ "name": "Big" }""");
+        var source = Trakt(Fixture());
+
+        var fetch = await source.FetchAsync(source.Recognise(new Uri("https://trakt.tv/users/someuser/lists/big"))!, CancellationToken.None);
+
+        Assert.Equal(105, fetch.List!.Entries.Count);
+        Assert.Equal(105, fetch.List.Entries[^1].Position);
+        Assert.Equal(3, _handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task AnOfficialTraktList_AndAPublicWatchlist_AreReadFromTheirOwnPlaces()
+    {
+        _handler.Route("/lists/oscars/items", _ => TraktListItems);
+        _handler.Route("/lists/oscars", _ => """{ "name": "Oscars" }""");
+        _handler.Route("/users/someuser/watchlist", _ => TraktListItems);
+        var source = Trakt(Fixture());
+
+        var official = await source.FetchAsync(source.Recognise(new Uri("https://trakt.tv/lists/official/oscars"))!, CancellationToken.None);
+        var watchlist = await source.FetchAsync(source.Recognise(new Uri("https://trakt.tv/users/someuser/watchlist"))!, CancellationToken.None);
+
+        Assert.Equal("Oscars", official.List!.Name);
+        Assert.Equal(2, official.List.Entries.Count);
+        Assert.Equal("someuser's Trakt watchlist", watchlist.List!.Name);
+        Assert.Equal(ListSourceKinds.TraktWatchlist, watchlist.List.SourceKind);
+        Assert.Equal(2, watchlist.List.Entries.Count);
+    }
+
+    [Fact]
+    public async Task APrivateTraktList_NeedsASignIn_NotAGuess()
+    {
+        _handler.RouteStatus("/users/someuser/lists/secret", HttpStatusCode.Unauthorized);
+        var source = Trakt(Fixture());
+
+        var fetch = await source.FetchAsync(source.Recognise(new Uri("https://trakt.tv/users/someuser/lists/secret"))!, CancellationToken.None);
+
+        Assert.Equal(WebListFailure.SignInNeeded, fetch.Failure);
+        Assert.Null(fetch.List);
+    }
+
+    [Fact]
+    public async Task APersonsOwnTraktList_WithNoAccountLinked_IsRefusedWithoutAskingTrakt()
+    {
+        var source = Trakt(Fixture());
+
+        var fetch = await source.FetchAsync(source.Recognise(new Uri("https://trakt.tv/users/me/watchlist"))!, CancellationToken.None);
+
+        Assert.Equal(WebListFailure.SignInNeeded, fetch.Failure);
+        Assert.Empty(_handler.Requests);
+    }
+
+    [Fact]
+    public async Task APersonsOwnTraktList_WithAnAccountLinked_IsReadAsThatPerson_AndTheTokenGoesToTraktOnly()
+    {
+        _trakt.Token = "approved-token";
+        _handler.Route("/users/me/lists/favourites/items", _ => TraktListItems);
+        _handler.Route("/users/me/lists/favourites", _ => """{ "name": "Favourites" }""");
+        _handler.Route("/users/me/watchlist", _ => TraktListItems);
+        var source = Trakt(Fixture());
+
+        var list = await source.FetchAsync(source.Recognise(new Uri("https://trakt.tv/users/me/lists/favourites"))!, CancellationToken.None);
+        var watchlist = await source.FetchAsync(source.Recognise(new Uri("https://trakt.tv/users/me/watchlist"))!, CancellationToken.None);
+
+        Assert.Equal("Favourites", list.List!.Name);
+        Assert.Equal("Trakt watchlist", watchlist.List!.Name);
+        Assert.All(_handler.Requests, request =>
+        {
+            Assert.Equal("api.trakt.tv", request.RequestUri!.Host);
+            Assert.Equal("Bearer", request.Headers.Authorization!.Scheme);
+            Assert.Equal("approved-token", request.Headers.Authorization.Parameter);
+            Assert.DoesNotContain("approved-token", request.RequestUri.ToString(), StringComparison.Ordinal);
+        });
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.Forbidden, WebListFailure.KeyRejected)]
+    [InlineData(HttpStatusCode.NotFound, WebListFailure.NotFound)]
+    [InlineData(HttpStatusCode.TooManyRequests, WebListFailure.Down)]
+    [InlineData((HttpStatusCode)423, WebListFailure.Down)]
+    [InlineData(HttpStatusCode.BadGateway, WebListFailure.Down)]
+    public async Task ATraktAnswerThatIsNotAList_GivesAPlainFailure_NeverAnException(HttpStatusCode status, WebListFailure expected)
+    {
+        _handler.RouteStatus("/users/someuser/lists/top-sci-fi", status);
+        var source = Trakt(Fixture());
+
+        var fetch = await source.FetchAsync(source.Recognise(new Uri("https://trakt.tv/users/someuser/lists/top-sci-fi"))!, CancellationToken.None);
+
+        Assert.Equal(expected, fetch.Failure);
+    }
+
+    [Fact]
+    public async Task ATraktSourceWithNoClientId_AsksNothingFromTrakt()
+    {
+        var source = Trakt(Fixture(traktKey: ""));
+
+        var fetch = await source.FetchAsync(source.Recognise(new Uri("https://trakt.tv/lists/2144562"))!, CancellationToken.None);
+
+        Assert.Equal(WebListFailure.KeyMissing, fetch.Failure);
+        Assert.Empty(_handler.Requests);
+    }
+
+    [Fact]
+    public async Task TraktSwitchedOff_RefusesOnlyTraktAddresses_WithALinkToPlugins()
+    {
+        var resolver = Resolver(Fixture(traktEnabled: false));
+
+        var refused = await Assert.ThrowsAsync<WebListRefusedException>(
+            () => resolver.ResolveAsync(Bytes("https://trakt.tv/users/someuser/lists/top-sci-fi"), CancellationToken.None));
+
+        Assert.Equal("Trakt lists are switched off. Turn the source on in Settings → Plugins.", refused.Message);
+        Assert.Equal("/settings/plugins", refused.LinkHref);
+        Assert.Empty(_handler.Requests);
+    }
+
+    [Fact]
+    public async Task APrivateTraktListPasted_IsRefusedInPlainWords_AndTheSentenceNamesWhatToDoInstead()
+    {
+        _handler.RouteStatus("/users/someuser/lists/secret", HttpStatusCode.Unauthorized);
+        var resolver = Resolver(Fixture());
+
+        var refused = await Assert.ThrowsAsync<WebListRefusedException>(
+            () => resolver.ResolveAsync(Bytes("https://trakt.tv/users/someuser/lists/secret"), CancellationToken.None));
+
+        Assert.Contains("signed in to Trakt", refused.Message, StringComparison.Ordinal);
+        Assert.Contains("public address", refused.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ATraktSiteThatIsDown_GivesAnEmptyListThatWillTryAgain()
+    {
+        _handler.RouteStatus("/users/someuser/lists/top-sci-fi", HttpStatusCode.ServiceUnavailable);
+        var resolver = Resolver(Fixture());
+
+        var list = await resolver.ResolveAsync(Bytes("https://trakt.tv/users/someuser/lists/top-sci-fi"), CancellationToken.None);
+
+        Assert.True(list!.WillTryAgain);
+        Assert.Equal(ListSourceKinds.TraktList, list.SourceKind);
+        Assert.Empty(list.Entries);
+    }
+
+    [Fact]
+    public async Task ATraktExportFile_IsNotAnAddress_SoItStillImportsAsAFileWithTraktSwitchedOff()
+    {
+        var resolver = Resolver(Fixture(traktEnabled: false));
+
+        var fromFile = await resolver.ResolveAsync(Bytes("title,year,imdb\nHeat,1995,tt0113277"), CancellationToken.None);
+
+        Assert.Null(fromFile);
+    }
+
+    [Fact]
+    public async Task ARefreshOfATraktList_UsesTheSameSource_AndWaitsWhileTraktIsSwitchedOff()
+    {
+        _handler.Route("/users/someuser/lists/top-sci-fi/items", _ => TraktListItems);
+        _handler.Route("/users/someuser/lists/top-sci-fi", _ => TraktListInfo);
+        var source = Trakt(Fixture());
+        var stored = new CollectionListSource
+        {
+            SourceKind = ListSourceKinds.TraktList,
+            SourceAddress = "https://trakt.tv/users/someuser/lists/top-sci-fi",
+        };
+
+        Assert.True(source.CanFetch(stored));
+        Assert.Equal(2, (await source.FetchAsync(stored, CancellationToken.None))!.Entries.Count);
+
+        // The provider file is read fresh each time, so switching the source off on the Plugins page applies at once.
+        Fixture(traktEnabled: false);
+        Assert.Null(await source.FetchAsync(stored, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task WithNoTraktAccountLinked_TheShippedTokenSourceGivesNone()
+    {
+        Assert.Null(await new UnlinkedTraktAccessTokens().TokenAsync(CancellationToken.None));
+    }
+
 
     // ── Pasting an address ───────────────────────────────────────────────────────────────────────────────────────────
 
@@ -596,6 +842,14 @@ public sealed class WebListSourceTests : IDisposable
         Assert.Contains("Book lists", openLibrary.Supplies);
         Assert.False(openLibrary.Access.AudienceIsDefault);
 
+        var trakt = sources["trakt"];
+        Assert.Equal("Trakt", trakt.DisplayName);
+        Assert.True(trakt.RequiresKey);
+        Assert.Equal("administrators", trakt.Access.Audience);
+        Assert.False(trakt.Access.AudienceIsDefault);
+        Assert.Equal("Your key, this address and the list's identifiers go to api.trakt.tv", trakt.Access.DataLeaving);
+        Assert.Contains("Movie lists", trakt.Supplies);
+
         Assert.Contains("Movie lists", sources["tmdb"].Supplies);
         Assert.Contains("Music lists", sources["musicbrainz"].Supplies);
         // TMDb and MusicBrainz already did other work; their label is not narrowed to lists.
@@ -606,7 +860,7 @@ public sealed class WebListSourceTests : IDisposable
     public void TheShippedProviderFiles_ForTheWebSources_NameTheirSitesAndKeepTheKeyOutOfTheFile()
     {
         var providers = Path.Combine(FindRepoRoot(), "config", "providers");
-        foreach (var name in new[] { "mdblist", "openlibrary" })
+        foreach (var name in new[] { "mdblist", "openlibrary", "trakt" })
         {
             var text = File.ReadAllText(Path.Combine(providers, name + ".json"));
             Assert.Contains("\"lists\"", text, StringComparison.Ordinal);
@@ -626,16 +880,18 @@ public sealed class WebListSourceTests : IDisposable
         new MdbListSource(loader, _handler.Factory, _limiter, NullLogger<MdbListSource>.Instance),
         new OpenLibraryListSource(loader, _handler.Factory, _limiter, NullLogger<OpenLibraryListSource>.Instance),
         new MusicBrainzCollectionSource(loader, _handler.Factory, _limiter, NullLogger<MusicBrainzCollectionSource>.Instance),
+        new TraktListSource(loader, _handler.Factory, _limiter, NullLogger<TraktListSource>.Instance, _trakt),
     ];
 
     /// <summary>A config folder holding the four provider files, each on or off and with or without its key.</summary>
-    private ConfigurationDirectoryLoader Fixture(bool tmdbEnabled = true, string tmdbKey = "test-key", string mdblistKey = "test-key", bool mdblistEnabled = true)
+    private ConfigurationDirectoryLoader Fixture(bool tmdbEnabled = true, string tmdbKey = "test-key", string mdblistKey = "test-key", bool mdblistEnabled = true, bool traktEnabled = true, string traktKey = "client-id-1")
     {
         var dir = Path.Combine(_root, "config", "providers");
         Write(dir, "tmdb", tmdbEnabled, "https://api.themoviedb.org/3", tmdbKey, rate: 20);
         Write(dir, "mdblist", mdblistEnabled, "https://api.mdblist.com", mdblistKey, rate: 2);
         Write(dir, "openlibrary", true, "https://openlibrary.org", null, rate: 1);
         Write(dir, "musicbrainz", true, "https://musicbrainz.org/ws/2", null, rate: 1);
+        Write(dir, "trakt", traktEnabled, "https://api.trakt.tv", traktKey, rate: 2);
         return new ConfigurationDirectoryLoader(Path.Combine(_root, "config"));
     }
 
@@ -710,6 +966,14 @@ public sealed class WebListSourceTests : IDisposable
         {
             public HttpClient CreateClient(string name) => new(handler, disposeHandler: false);
         }
+    }
+
+    /// <summary>Hands back the Trakt token a test sets, or none: the stand-in for a linked Trakt account.</summary>
+    private sealed class TraktTokenSpy : ITraktAccessTokens
+    {
+        public string? Token { get; set; }
+
+        public Task<string?> TokenAsync(CancellationToken ct) => Task.FromResult(Token);
     }
 
     /// <summary>Runs each request straight away and remembers which source asked and at what rate limit.</summary>
