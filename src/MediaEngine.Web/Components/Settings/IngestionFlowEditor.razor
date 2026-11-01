@@ -7,6 +7,7 @@
 @inject IAppDialogService DialogService
 @inject ILogger<IngestionFlowEditor> Logger
 @implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 @* The Ingestion Flow (Provider settings spec P2): one card per media type listing the providers that run for it, in order,
    with a role. Reading is for everyone who can open Settings; editing is administrators on a computer only. Nothing applies
@@ -14,14 +15,14 @@
 <div class="ingestion-flow" data-testid="ingestion-flow">
     @if (_loading)
     {
-        <AppPageState Kind="AppPageStateKind.Loading" Title="Loading the Ingestion Flow" Class="tl-sp-py-8" />
+        <AppPageState Kind="AppPageStateKind.Loading" Title="@L["IngestionFlowEditor_LoadingTheIngestionFlow"].Value" Class="tl-sp-py-8" />
     }
     else if (_draft is null)
     {
         <AppPageState Kind="AppPageStateKind.Error"
                       Icon="@AppMaterialIcons.Outlined.CloudOff"
-                      Title="The Ingestion Flow is unavailable"
-                      Message="Start the Engine and retry. No sample flow is being shown." />
+                      Title="@L["IngestionFlowEditor_TheIngestionFlowIsUnavailable"].Value"
+                      Message="@L["IngestionFlowEditor_StartTheEngineAndRetry"].Value" />
     }
     else
     {
@@ -29,7 +30,7 @@
             <p>Which providers identify and describe your media, for each kind of media, and in what order. A change applies to new items only; what is already in your Library keeps its match.</p>
             @if (CanEdit && !_editing)
             {
-                <AppButton Label="Edit" StartIcon="@AppMaterialIcons.Outlined.Edit" OnClick="BeginEdit" data-testid="flow-edit" />
+                <AppButton Label="@L["Common_Edit"].Value" StartIcon="@AppMaterialIcons.Outlined.Edit" OnClick="BeginEdit" data-testid="flow-edit" />
             }
             else if (!CanEdit)
             {
@@ -48,7 +49,7 @@
                     <strong>@MetadataSettingsStateService.MediaTypeLabel(type)</strong>
                     @if (_draft.IsChanged(type))
                     {
-                        <AppChip Text="Changed" Tone="AppUiTone.Info" />
+                        <AppChip Text="@L["IngestionFlowEditor_Changed"].Value" Tone="AppUiTone.Info" />
                     }
                 </div>
                 <ol class="ingestion-flow__rows">
@@ -63,7 +64,7 @@
                                 <a href="@ProviderRoute(row.Name)">@row.DisplayName</a>
                                 @if (_draft.OptionFor(row.Name) is { SendsTitlesOnline: true })
                                 {
-                                    <AppInfoTip Text="This provider sends the titles it looks up to its own website." />
+                                    <AppInfoTip Text="@L["IngestionFlowEditor_ThisProviderSendsTheTitles"].Value" />
                                 }
                             </span>
                             @StatusFor(row.Name)
@@ -90,7 +91,7 @@
                 </ol>
                 @if (rows.Count == 0)
                 {
-                    <p class="ingestion-flow__empty">No provider is set for this kind of media.</p>
+                    <p class="ingestion-flow__empty">@L["IngestionFlowEditor_NoProviderIsSetFor"]</p>
                 }
                 @if (_draft.ProblemFor(type) is { } problem && _editing)
                 {
@@ -102,7 +103,7 @@
                         <AppSelect Native="true"
                                    Value="@string.Empty"
                                    ValueChanged="@(value => AddProvider(type, value))"
-                                   Label="Add provider"
+                                   Label="@L["Common_AddProvider"].Value"
                                    Options="@AddOptions(addable)" />
                     </div>
                 }
@@ -113,7 +114,7 @@
         @if (_editing)
         {
             <footer class="ingestion-flow__bar" data-testid="flow-bar">
-                <AppButton Label="Cancel" Disabled="@_saving" OnClick="CancelEdit" />
+                <AppButton Label="@L["Search_Cancel"].Value" Disabled="@_saving" OnClick="CancelEdit" />
                 <AppButton Label="@(_saving ? "Saving…" : "Save changes")" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
                            Disabled="@(!_draft.HasChanges || _draft.Problems.Count > 0 || _saving)" OnClick="ReviewAndSaveAsync" data-testid="flow-save" />
             </footer>

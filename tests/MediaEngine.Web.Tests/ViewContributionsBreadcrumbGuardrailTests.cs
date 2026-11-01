@@ -14,5 +14,5 @@ public sealed class ViewContributionsBreadcrumbGuardrailTests
     }
 
     private static string Read(string relativePath) =>
-        File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", relativePath)));
+        LocalizedSource.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", relativePath)));
 }

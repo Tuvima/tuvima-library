@@ -3,6 +3,7 @@
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
 @inject ILogger<ReviewFilesStatus> Logger
+@inject IStringLocalizer<SharedStrings> L
 
 @* The one write-back control in the editor (universal editor spec D15). The setting itself, "Save changes into the files", lives per
    library in Settings; here it is only a small read-only line with a link to Settings. When the library does update its files, one
@@ -12,14 +13,14 @@
 @if (_setting.Text is { } text)
 {
     <div class="review-changes__files-block">
-        <p class="review-changes__files" data-write-back="@(_setting.IsOn ? "on" : "off")">Files will be updated: <strong>@text</strong></p>
-        <AppLink Href="@FileWriteSetting.SettingsHref" Class="review-changes__files-link">Change in Settings</AppLink>
+        <p class="review-changes__files" data-write-back="@(_setting.IsOn ? "on" : "off")">@L["ReviewFilesStatus_FilesWillBeUpdated"] <strong>@text</strong></p>
+        <AppLink Href="@FileWriteSetting.SettingsHref" Class="review-changes__files-link">@L["ReviewFilesStatus_ChangeInSettings"]</AppLink>
     </div>
     @if (_setting.CanOverride)
     {
         <AppCheckbox Value="@(Source.WriteIntoFiles != false)"
                      ValueChanged="OnOverrideChanged"
-                     Label="Update the files when this is saved"
+                     Label="@L["ReviewFilesStatus_UpdateTheFilesWhenThis"].Value"
                      Disabled="@Disabled"
                      Class="review-changes__files-override" />
     }

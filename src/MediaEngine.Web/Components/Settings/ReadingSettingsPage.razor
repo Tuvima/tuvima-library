@@ -11,10 +11,11 @@
 @inject IUserPlaybackPreferencesAccessor PreferencesAccessor
 @inject IAppToastService Snackbar
 @inject ILogger<ReadingSettingsPage> Logger
+@inject IStringLocalizer<SharedStrings> L
 
 @if (_loading)
 {
-    <div class="reading-settings-skeleton" aria-label="Loading reading preferences">
+    <div class="reading-settings-skeleton" aria-label="@L["ReadingSettingsPage_LoadingReadingPreferences"].Value">
         @for (var index = 0; index < 2; index++)
         {
             <AppSkeleton Height="200px" />
@@ -23,11 +24,11 @@
 }
 else if (_forbidden)
 {
-    <AppAlert Severity="AppSeverity.Warning" Variant="AppVariant.Outlined">You can't change this person's settings.</AppAlert>
+    <AppAlert Severity="AppSeverity.Warning" Variant="AppVariant.Outlined">@L["Common_YouCanTChangeThis"]</AppAlert>
 }
 else if (!string.IsNullOrWhiteSpace(_loadError))
 {
-    <AppErrorState Title="Reading preferences are unavailable"
+    <AppErrorState Title="@L["ReadingSettingsPage_ReadingPreferencesAreUnavailable"].Value"
                    Message="@_loadError"
                    Retry="@RetryLoadAsync" />
 }
@@ -45,8 +46,8 @@ else if (_settings is not null)
                 <span class="reading-profile-heading__avatar">
                     <ProfileAvatar DisplayName="@_target.DisplayName" ImageUrl="@_target.AvatarImageUrl" Color="@_target.AvatarColor" Icon="@_target.AvatarIcon" />
                 </span>
-                <AppText Typo="AppTypo.h6">How @_target.DisplayName reads.</AppText>
-                <a class="reading-profile-heading__back" href="@($"/settings/profiles/{ProfileId}")">Back to @_target.DisplayName</a>
+                <AppText Typo="AppTypo.h6">@L["ReadingSettingsPage_HowReads", _target.DisplayName]</AppText>
+                <a class="reading-profile-heading__back" href="@($"/settings/profiles/{ProfileId}")">@L["Common_BackTo", _target.DisplayName]</a>
             </div>
         }
 
@@ -56,39 +57,39 @@ else if (_settings is not null)
                        data-theme="@Reading.Theme"
                        data-font="@Reading.Font"
                        role="group"
-                       aria-label="Sample of the reading style">
-            <p class="reading-sample__text">The reading room was quiet. Outside, the rain had settled into a steady rhythm against the glass, and the lamp on the desk made a small circle of gold. She turned the page and kept reading.</p>
+                       aria-label="@L["ReadingSettingsPage_SampleOfTheReadingStyle"].Value">
+            <p class="reading-sample__text">@L["ReadingSettingsPage_TheReadingRoomWasQuiet"]</p>
         </AppCssElement>
 
         <div class="reading-settings-grid">
-            <SettingsSectionPanel Title="Look"
-                                  Description="The paper, typeface and size the book reader starts with."
+            <SettingsSectionPanel Title="@L["ReadingSettingsPage_Look"].Value"
+                                  Description="@L["ReadingSettingsPage_ThePaperTypefaceAndSize"].Value"
                                   Class="tl-card settings-section-card reading-settings-card">
                 <div class="reading-preference-row">
                     <div class="reading-preference-row__copy">
-                        <AppText Typo="AppTypo.body1">Theme</AppText>
-                        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">The page colour. Match app follows your device.</AppText>
+                        <AppText Typo="AppTypo.body1">@L["Common_Theme"]</AppText>
+                        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@L["ReadingSettingsPage_ThePageColourMatchApp"]</AppText>
                     </div>
                     <AppSegmentedControl Options="ThemeOptions"
                                          Value="@Reading.Theme"
                                          ValueChanged="@(value => UpdateAndSaveAsync(s => s.Reading.Theme = value))"
-                                         AriaLabel="Theme"
+                                         AriaLabel="@L["Common_Theme"].Value"
                                          Class="reading-preference-row__control" />
                 </div>
                 <div class="reading-preference-row">
                     <div class="reading-preference-row__copy">
-                        <AppText Typo="AppTypo.body1">Typeface</AppText>
-                        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">Use the book's own typeface, or one that is easy on your eyes.</AppText>
+                        <AppText Typo="AppTypo.body1">@L["Common_Typeface"]</AppText>
+                        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@L["ReadingSettingsPage_UseTheBookSOwn"]</AppText>
                     </div>
                     <AppSegmentedControl Options="FontOptions"
                                          Value="@Reading.Font"
                                          ValueChanged="@(value => UpdateAndSaveAsync(s => s.Reading.Font = value))"
-                                         AriaLabel="Typeface"
+                                         AriaLabel="@L["Common_Typeface"].Value"
                                          Class="reading-preference-row__control" />
                 </div>
                 <div class="reading-preference-row">
                     <div class="reading-preference-row__copy">
-                        <AppText Typo="AppTypo.body1">Text size</AppText>
+                        <AppText Typo="AppTypo.body1">@L["Common_TextSize"]</AppText>
                         <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@($"{Reading.FontSizePx} px")</AppText>
                     </div>
                     <AppRangeSlider Class="reading-preference-row__control"
@@ -100,11 +101,11 @@ else if (_settings is not null)
                                     ShowTicks="false"
                                     CommitOnChange="true"
                                     ValueFormatter="@(value => $"{(int)Math.Round(value)} px")"
-                                    AriaLabel="Text size" />
+                                    AriaLabel="@L["Common_TextSize"].Value" />
                 </div>
                 <div class="reading-preference-row">
                     <div class="reading-preference-row__copy">
-                        <AppText Typo="AppTypo.body1">Line spacing</AppText>
+                        <AppText Typo="AppTypo.body1">@L["Common_LineSpacing"]</AppText>
                         <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@FormatLineHeight(Reading.LineHeight)</AppText>
                     </div>
                     <AppRangeSlider Class="reading-preference-row__control"
@@ -116,33 +117,33 @@ else if (_settings is not null)
                                     ShowTicks="false"
                                     CommitOnChange="true"
                                     ValueFormatter="@(value => FormatLineHeight((decimal)value))"
-                                    AriaLabel="Line spacing" />
+                                    AriaLabel="@L["Common_LineSpacing"].Value" />
                 </div>
             </SettingsSectionPanel>
 
-            <SettingsSectionPanel Title="Layout"
-                                  Description="How the pages are set out."
+            <SettingsSectionPanel Title="@L["Common_Layout"].Value"
+                                  Description="@L["ReadingSettingsPage_HowThePagesAreSet"].Value"
                                   Class="tl-card settings-section-card reading-settings-card">
                 <div class="reading-preference-row">
                     <div class="reading-preference-row__copy">
-                        <AppText Typo="AppTypo.body1">Page width</AppText>
-                        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">How wide a page of text may grow on a big screen.</AppText>
+                        <AppText Typo="AppTypo.body1">@L["Common_PageWidth"]</AppText>
+                        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@L["ReadingSettingsPage_HowWideAPageOf"]</AppText>
                     </div>
                     <AppSegmentedControl Options="WidthOptions"
                                          Value="@Reading.PageWidth"
                                          ValueChanged="@(value => UpdateAndSaveAsync(s => s.Reading.PageWidth = value))"
-                                         AriaLabel="Page width"
+                                         AriaLabel="@L["Common_PageWidth"].Value"
                                          Class="reading-preference-row__control" />
                 </div>
                 <div class="reading-preference-row">
                     <div class="reading-preference-row__copy">
-                        <AppText Typo="AppTypo.body1">Layout</AppText>
-                        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">Turn pages, or scroll one long page.</AppText>
+                        <AppText Typo="AppTypo.body1">@L["Common_Layout"]</AppText>
+                        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@L["ReadingSettingsPage_TurnPagesOrScrollOne"]</AppText>
                     </div>
                     <AppSegmentedControl Options="LayoutOptions"
                                          Value="@Reading.ReadingMode"
                                          ValueChanged="@(value => UpdateAndSaveAsync(s => s.Reading.ReadingMode = value))"
-                                         AriaLabel="Layout"
+                                         AriaLabel="@L["Common_Layout"].Value"
                                          Class="reading-preference-row__control" />
                 </div>
             </SettingsSectionPanel>
@@ -235,7 +236,7 @@ else if (_settings is not null)
                 if (loaded.ProfileId != ProfileId)
                 {
                     Logger.LogWarning("Reading settings could not be loaded: the Engine answered for a different profile.");
-                    _loadError = "Reading settings could not be loaded.";
+                    _loadError = L["ReadingSettingsPage_ReadingSettingsCouldNotBe"].Value;
                     return;
                 }
 
@@ -250,7 +251,7 @@ else if (_settings is not null)
                 if (loaded is null)
                 {
                     Logger.LogWarning("Reading settings could not be loaded: the Engine returned no settings for the active profile.");
-                    _loadError = "Reading settings could not be loaded.";
+                    _loadError = L["ReadingSettingsPage_ReadingSettingsCouldNotBe"].Value;
                     return;
                 }
 
@@ -260,7 +261,7 @@ else if (_settings is not null)
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Reading settings could not be loaded.");
-            _loadError = "Reading settings could not be loaded.";
+            _loadError = L["ReadingSettingsPage_ReadingSettingsCouldNotBe"].Value;
         }
         finally
         {
@@ -291,7 +292,7 @@ else if (_settings is not null)
             if (fresh is null)
             {
                 Logger.LogWarning("Reading settings were not saved: the profile's current settings could not be read.");
-                _saveError = "Reading settings could not be saved.";
+                _saveError = L["ReadingSettingsPage_ReadingSettingsCouldNotBe2"].Value;
                 Snackbar.Add(_saveError, AppSeverity.Error);
                 return;
             }
@@ -312,7 +313,7 @@ else if (_settings is not null)
             if (saved is null)
             {
                 Logger.LogWarning("Reading settings could not be saved: the Engine did not accept the update.");
-                _saveError = "Reading settings could not be saved.";
+                _saveError = L["ReadingSettingsPage_ReadingSettingsCouldNotBe2"].Value;
                 Snackbar.Add(_saveError, AppSeverity.Error);
                 return;
             }
@@ -324,7 +325,7 @@ else if (_settings is not null)
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Reading settings could not be saved.");
-            _saveError = "Reading settings could not be saved.";
+            _saveError = L["ReadingSettingsPage_ReadingSettingsCouldNotBe2"].Value;
             Snackbar.Add(_saveError, AppSeverity.Error);
         }
         finally

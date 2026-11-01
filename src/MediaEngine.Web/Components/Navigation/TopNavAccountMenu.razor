@@ -29,7 +29,7 @@
                 <span class="top-nav-account-menu__trigger-copy">@DisplayName</span>
                 @if (IsKids)
                 {
-                    <span class="kids-badge">Kids</span>
+                    <span class="kids-badge">@L["Common_Kids"]</span>
                 }
                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown"
                          Class="top-nav-account-menu__chevron" />
@@ -41,16 +41,16 @@
                 @if (ShowSecureAccount && !_secureNotNow && !IsKids)
                 {
                     <section class="top-nav-account-menu__secure-card" aria-labelledby="top-nav-secure-account-title">
-                        <h3 id="top-nav-secure-account-title" class="top-nav-account-menu__secure-title">Secure your account</h3>
-                        <p class="top-nav-account-menu__secure-body">Add a password to use the Library away from home. Phones and TVs at home keep working without one.</p>
+                        <h3 id="top-nav-secure-account-title" class="top-nav-account-menu__secure-title">@L["TopNavAccountMenu_SecureYourAccount"]</h3>
+                        <p class="top-nav-account-menu__secure-body">@L["TopNavAccountMenu_AddAPasswordToUse"]</p>
                         <div class="top-nav-account-menu__secure-actions">
-                            <AppButton Label="Secure account"
+                            <AppButton Label="@L["TopNavAccountMenu_SecureAccount"].Value"
                                        Href="@SecureAccountPrompt.SecureAccountHref"
                                        ButtonStyle="AppButtonStyle.Filled"
                                        Tone="AppUiTone.Primary"
                                        Class="top-nav-account-menu__secure-action"
                                        OnClick="CloseMenu" />
-                            <AppButton Label="Not now"
+                            <AppButton Label="@L["Common_NotNow"].Value"
                                        ButtonStyle="AppButtonStyle.Text"
                                        Class="top-nav-account-menu__secure-action"
                                        OnClick="NotNowAsync" />
@@ -68,7 +68,7 @@
                     <strong>@HeaderLabel</strong>
                     @if (IsKids)
                     {
-                        <span class="kids-badge">Kids</span>
+                        <span class="kids-badge">@L["Common_Kids"]</span>
                     }
                 </header>
 
@@ -83,7 +83,7 @@
                        @onclick="CloseMenu">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.People"
                                  Class="top-nav-account-menu__item-icon" />
-                        <span>Who's watching?</span>
+                        <span>@L["TopNavAccountMenu_WhoSWatching"]</span>
                     </a>
 
                     <AppDivider Class="top-nav-account-menu__divider" />
@@ -97,7 +97,7 @@
                        @onclick="CloseMenu">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ManageAccounts"
                                  Class="top-nav-account-menu__item-icon" />
-                        <span>Manage profiles</span>
+                        <span>@L["Common_ManageProfiles"]</span>
                     </a>
                 }
 
@@ -108,7 +108,7 @@
                    @onclick="CloseMenu">
                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Person"
                              Class="top-nav-account-menu__item-icon" />
-                    <span>Profile</span>
+                    <span>@L["Common_Profile"]</span>
                 </a>
 
                 @if (!IsKids)
@@ -131,7 +131,7 @@
                        @onclick="CloseMenu">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DeleteOutline"
                                  Class="top-nav-account-menu__item-icon" />
-                        <span>Recycle bin</span>
+                        <span>@L["Common_RecycleBin"]</span>
                     </a>
                 }
 

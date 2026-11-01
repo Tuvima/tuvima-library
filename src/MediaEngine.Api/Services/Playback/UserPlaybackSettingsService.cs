@@ -79,7 +79,8 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
     private static readonly HashSet<string> ForcedSubtitleValues = BuildSet(
         PlaybackPreferenceValues.Auto,
         PlaybackPreferenceValues.Always,
-        PlaybackPreferenceValues.Never);
+        PlaybackPreferenceValues.Never,
+        PlaybackPreferenceValues.ForeignAudioOnly);
     private static readonly HashSet<string> SubtitleSizeValues = BuildSet(
         PlaybackPreferenceValues.Small,
         PlaybackPreferenceValues.Medium,
@@ -314,6 +315,8 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         settings.Subtitles.SubtitleStyle = NormalizeToken(settings.Subtitles.SubtitleStyle);
         settings.Subtitles.DefaultSubtitleLanguage = NormalizeLanguage(settings.Subtitles.DefaultSubtitleLanguage);
         settings.Subtitles.AudioLanguage = NormalizeLanguage(settings.Subtitles.AudioLanguage);
+        settings.Subtitles.AlternateSubtitleLanguages = NormalizeAlternates(settings.Subtitles.AlternateSubtitleLanguages, settings.Subtitles.DefaultSubtitleLanguage);
+        settings.Subtitles.LyricsLanguage = settings.Subtitles.LyricsLanguage?.Trim() ?? string.Empty;
         return settings;
     }
 
@@ -418,6 +421,16 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
 
     private static string NormalizeToken(string? value) =>
         string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
+
+    // Up to two extra choices: no blanks, no repeats, and none that repeat the first choice.
+    private static List<string> NormalizeAlternates(IEnumerable<string>? values, string first) =>
+        (values ?? [])
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => value.Trim())
+            .Where(value => !string.Equals(value, first, StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(2)
+            .ToList();
 
     private static string NormalizeLanguage(string? value) =>
         string.IsNullOrWhiteSpace(value) ? "English" : value.Trim();

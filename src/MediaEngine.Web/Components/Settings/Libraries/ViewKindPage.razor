@@ -4,6 +4,7 @@
 @using MediaEngine.Domain.PersonalMedia
 @inject NavigationManager Navigation
 @inject IEngineApiClient ApiClient
+@inject IStringLocalizer<SharedStrings> L
 
 @* One View kind's page (Photos, Personal videos or Documents; Library pages WP11). It has the same shape as any library's page: the kind,
    who sees it, counts and status in the header, then the tabs Folders, Access and File handling. What differs is View's own rules: the
@@ -15,7 +16,7 @@
 <div class="libpage" data-library="@Kind" data-view-kind="@Kind">
     @if (ReadOnly)
     {
-        <p class="libpage__note">Use a desktop or tablet to change folders.</p>
+        <p class="libpage__note">@L["Common_UseADesktopOrTablet"]</p>
     }
 
     <div class="libpage__header">
@@ -28,7 +29,7 @@
         @if (!ReadOnly)
         {
             <div class="libpage__actions">
-                <AppButton Label="Add folder"
+                <AppButton Label="@L["Common_AddFolder"].Value"
                            StartIcon="@AppMaterialIcons.Outlined.Add"
                            ButtonStyle="AppButtonStyle.Outlined"
                            Disabled="@_loading"
@@ -37,7 +38,7 @@
         }
     </div>
 
-    <AppTabs ActivePanelIndex="@ActiveIndex" ActivePanelIndexChanged="SelectTab" Label="Library sections">
+    <AppTabs ActivePanelIndex="@ActiveIndex" ActivePanelIndexChanged="SelectTab" Label="@L["Common_LibrarySections"].Value">
         @foreach (var tab in Tabs)
         {
             <AppTabPanel Text="@tab.Label">

@@ -3,7 +3,7 @@ using MediaEngine.Web.Components.MediaHub;
 
 namespace MediaEngine.Web.Tests;
 
-public sealed class EmptyShelfStateTests : BunitContext
+public sealed class EmptyShelfStateTests : LocalizedBunitContext
 {
     [Fact]
     public void ShowsTheAddLibraryActionOnlyWhenOneIsProvided()

@@ -4,16 +4,17 @@
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
 @inject IAppToastService Snackbar
+@inject IStringLocalizer<SharedStrings> L
 
 @* Lanes (Collections and lists spec D10): the collection rows on Home, Watch, Read and Listen. An administrator orders the
    shared lanes and switches one off for everyone; each person orders their own private lanes and can show again a lane they
    hid from its "..." menu. Up and down buttons stand in for dragging. The Engine applies every change. *@
 <div class="settings-listening-page" data-home-section="lanes">
     <div class="listening-settings-grid">
-        <SettingsSectionPanel Title="Lanes"
-                              Description="Collections can show as rows on Home, Watch, Read and Listen. Choose a page to order its lanes."
+        <SettingsSectionPanel Title="@L["HomeLanesSettings_Lanes"].Value"
+                              Description="@L["HomeLanesSettings_CollectionsCanShowAsRows"].Value"
                               Class="tl-card settings-section-card listening-settings-card">
-            <AppSelect Label="Page"
+            <AppSelect Label="@L["HomeLanesSettings_Page"].Value"
                        Value="@_place"
                        ValueChanged="SelectPlaceAsync"
                        Options="Places"
@@ -22,26 +23,26 @@
 
         @if (_loading)
         {
-            <div class="listening-settings-skeleton" aria-label="Loading lanes">
+            <div class="listening-settings-skeleton" aria-label="@L["HomeLanesSettings_LoadingLanes"].Value">
                 <AppSkeleton Height="160px" />
             </div>
         }
         else if (_settings is null)
         {
-            <AppErrorState Title="Lanes are unavailable"
-                           Message="The Library could not read your lanes. Try again in a moment."
+            <AppErrorState Title="@L["HomeLanesSettings_LanesAreUnavailable"].Value"
+                           Message="@L["HomeLanesSettings_TheLibraryCouldNotRead"].Value"
                            Retry="@(() => LoadAsync())" />
         }
         else
         {
             @if (_settings.CanManageShared)
             {
-                <SettingsSectionPanel Title="Shared lanes"
-                                      Description="Collections shown here for everyone who can see them, in this order. A collection joins this list when you pick this page under Show on, in its editor."
+                <SettingsSectionPanel Title="@L["HomeLanesSettings_SharedLanes"].Value"
+                                      Description="@L["HomeLanesSettings_CollectionsShownHereForEveryone"].Value"
                                       Class="tl-card settings-section-card listening-settings-card">
                     @if (_settings.Shared.Count == 0)
                     {
-                        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">No shared lane is shown on this page yet.</AppText>
+                        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@L["HomeLanesSettings_NoSharedLaneIsShown"]</AppText>
                     }
                     @for (var index = 0; index < _settings.Shared.Count; index++)
                     {
@@ -53,12 +54,12 @@
                                 <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@(lane.Visible ? "Shown for everyone" : "Hidden for everyone")</AppText>
                             </div>
                             <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowUpward"
-                                           Tooltip="Move up"
+                                           Tooltip="@L["Common_MoveUp"].Value"
                                            AriaLabel="@($"Move {lane.Name} up")"
                                            Disabled="@(position == 0)"
                                            OnClick="@(() => MoveSharedAsync(position, -1))" />
                             <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowDownward"
-                                           Tooltip="Move down"
+                                           Tooltip="@L["Common_MoveDown"].Value"
                                            AriaLabel="@($"Move {lane.Name} down")"
                                            Disabled="@(position == _settings.Shared.Count - 1)"
                                            OnClick="@(() => MoveSharedAsync(position, 1))" />
@@ -74,8 +75,8 @@
 
             @if (_settings.Mine.Count > 0)
             {
-                <SettingsSectionPanel Title="Your own lanes"
-                                      Description="Your private collections shown on this page. Only you see them."
+                <SettingsSectionPanel Title="@L["HomeLanesSettings_YourOwnLanes"].Value"
+                                      Description="@L["HomeLanesSettings_YourPrivateCollectionsShownOn"].Value"
                                       Class="tl-card settings-section-card listening-settings-card">
                     @for (var index = 0; index < _settings.Mine.Count; index++)
                     {
@@ -86,12 +87,12 @@
                                 <AppText Typo="AppTypo.body1">@lane.Name</AppText>
                             </div>
                             <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowUpward"
-                                           Tooltip="Move up"
+                                           Tooltip="@L["Common_MoveUp"].Value"
                                            AriaLabel="@($"Move {lane.Name} up")"
                                            Disabled="@(position == 0)"
                                            OnClick="@(() => MoveOwnAsync(position, -1))" />
                             <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowDownward"
-                                           Tooltip="Move down"
+                                           Tooltip="@L["Common_MoveDown"].Value"
                                            AriaLabel="@($"Move {lane.Name} down")"
                                            Disabled="@(position == _settings.Mine.Count - 1)"
                                            OnClick="@(() => MoveOwnAsync(position, 1))" />
@@ -102,8 +103,8 @@
 
             @if (_settings.HiddenByMe.Count > 0)
             {
-                <SettingsSectionPanel Title="Lanes you hid"
-                                      Description="You chose Hide this lane on these. Show one again and it returns to its place."
+                <SettingsSectionPanel Title="@L["HomeLanesSettings_LanesYouHid"].Value"
+                                      Description="@L["HomeLanesSettings_YouChoseHideThisLane"].Value"
                                       Class="tl-card settings-section-card listening-settings-card">
                     @foreach (var lane in _settings.HiddenByMe)
                     {
@@ -112,7 +113,7 @@
                             <div class="listening-preference-row__copy">
                                 <AppText Typo="AppTypo.body1">@hidden.Name</AppText>
                             </div>
-                            <AppButton Label="Show again"
+                            <AppButton Label="@L["HomeLanesSettings_ShowAgain"].Value"
                                        ButtonStyle="AppButtonStyle.Text"
                                        Size="AppControlSize.Compact"
                                        OnClick="@(() => ShowAgainAsync(hidden))" />
@@ -123,8 +124,8 @@
 
             @if (!_settings.CanManageShared && _settings.Mine.Count == 0 && _settings.HiddenByMe.Count == 0)
             {
-                <SettingsSectionPanel Title="Nothing to change here"
-                                      Description="Shared lanes are set by an administrator. Choose Hide this lane in a lane's menu to remove one from your pages, and it will be listed here."
+                <SettingsSectionPanel Title="@L["HomeLanesSettings_NothingToChangeHere"].Value"
+                                      Description="@L["HomeLanesSettings_SharedLanesAreSetBy"].Value"
                                       Class="tl-card settings-section-card listening-settings-card" />
             }
         }
@@ -173,7 +174,7 @@
         if (!await ApiClient.SetDisplaySharedLanesAsync(_place, entries))
         {
             _settings = previous;
-            Snackbar.Add("The lanes could not be saved. Nothing was changed.", AppSeverity.Error);
+            Snackbar.Add(L["HomeLanesSettings_TheLanesCouldNotBe"].Value, AppSeverity.Error);
         }
     }
 
@@ -217,7 +218,7 @@
         if (!await ApiClient.SetDisplayOwnLanesAsync(_place, lanes.Select(lane => lane.CollectionId).ToList()))
         {
             _settings = previous;
-            Snackbar.Add("Your lanes could not be saved. Nothing was changed.", AppSeverity.Error);
+            Snackbar.Add(L["HomeLanesSettings_YourLanesCouldNotBe"].Value, AppSeverity.Error);
         }
     }
 

@@ -2,6 +2,7 @@
 @using System.Text.RegularExpressions
 @using Microsoft.AspNetCore.Components
 @using MediaEngine.Web.Services.Ui
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="sme-tag-editor">
     <div class="sme-tag-editor__label-row">
@@ -33,7 +34,7 @@
         {
             <AppTextField T="string"
                           @bind-Value="_draft"
-                          Placeholder="Add tag"
+                          Placeholder="@L["Common_AddTag"].Value"
                           Variant="AppVariant.Text"
                           Margin="AppMargin.Dense"
                           Immediate="true"
@@ -43,15 +44,15 @@
             <AppIconButton Icon="@AppMaterialIcons.Outlined.Check"
                            Size="AppControlSize.Compact"
                            Tone="AppUiTone.Primary"
-                           AriaLabel="Add tag"
-                           Tooltip="Add tag"
+                           AriaLabel="@L["Common_AddTag"].Value"
+                           Tooltip="@L["Common_AddTag"].Value"
                            Disabled="@Locked"
                            OnClick="AddAsync" />
             <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
                            Size="AppControlSize.Compact"
                            Tone="AppUiTone.Neutral"
-                           AriaLabel="Cancel adding tag"
-                           Tooltip="Cancel"
+                           AriaLabel="@L["MediaEditorTagEditor_CancelAddingTag"].Value"
+                           Tooltip="@L["Search_Cancel"].Value"
                            OnClick="Cancel" />
         }
         else
@@ -86,7 +87,7 @@
         <div class="sme-tag-editor__confirmation" role="alert">
             <span>@ConfirmLabel</span>
             <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="OnCancelAction">@CancelLabel</AppButton>
-            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Warning" OnClick="OnConfirmAction">Remove</AppButton>
+            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Warning" OnClick="OnConfirmAction">@L["Common_Remove"]</AppButton>
         </div>
     }
     <small>@HelpText</small>

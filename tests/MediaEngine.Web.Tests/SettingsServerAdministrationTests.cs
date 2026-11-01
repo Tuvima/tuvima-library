@@ -90,7 +90,7 @@ public sealed class SettingsServerAdministrationTests
     }
 
     private static string ReadRepoFile(string relativePath) =>
-        File.ReadAllText(Path.GetFullPath(Path.Combine(
+        LocalizedSource.ReadAllText(Path.GetFullPath(Path.Combine(
             AppContext.BaseDirectory,
             "..",
             "..",

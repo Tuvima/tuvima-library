@@ -3,6 +3,7 @@
 @using MediaEngine.Web.Components.Details
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Ui
+@inject IStringLocalizer<SharedStrings> L
 
 @* The phone Home hero: one rounded card of fixed height, identical for every slide and media type, so nothing below it
    moves when the slide changes. Fixed slots: picture, title (two lines at most), one meta line, one full-width primary
@@ -33,7 +34,7 @@
                 <div class="phone-hero__tag-slot">
                     @if (Hero.IsSettling)
                     {
-                        <span class="phone-hero__tag">Still being matched</span>
+                        <span class="phone-hero__tag">@L["Common_StillBeingMatched"]</span>
                     }
                 </div>
                 @* The logo zone is a fixed two-line box: a logo scales to fit inside it, and a title with no logo is drawn as text in it. *@
@@ -48,7 +49,7 @@
                 <div class="phone-hero__progress-slot">
                     @if (ProgressPercent is > 0 and < 99.5)
                     {
-                        <progress class="phone-hero__progress" max="100" value="@((int)Math.Round(ProgressPercent.Value))" aria-label="Progress"></progress>
+                        <progress class="phone-hero__progress" max="100" value="@((int)Math.Round(ProgressPercent.Value))" aria-label="@L["Common_Progress"].Value"></progress>
                     }
                 </div>
                 <div class="phone-hero__actions">
@@ -84,8 +85,8 @@
                     {
                         <AppNativeButton Type="button"
                                          Class="phone-hero__icon-button"
-                                         AriaLabel="More actions"
-                                         Title="More actions"
+                                         AriaLabel="@L["Common_MoreActions"].Value"
+                                         Title="@L["Common_MoreActions"].Value"
                                          aria-haspopup="dialog"
                                          aria-expanded="@(_sheetOpen ? "true" : "false")"
                                          OnClick="@(_ => OpenSheet())">
@@ -98,7 +99,7 @@
 
         @if (Slides.Count > 1)
         {
-            <div class="phone-hero__dots" role="group" aria-label="Choose featured item">
+            <div class="phone-hero__dots" role="group" aria-label="@L["Common_ChooseFeaturedItem"].Value">
                 @for (var index = 0; index < Slides.Count; index++)
                 {
                     var slideIndex = index;
@@ -117,8 +118,8 @@
 
         @if (_sheetOpen)
         {
-            <AppDialogFrame Open="true" Title="More" DialogOptions="SheetOptions" Class="tl-detail-more-sheet" OnCancel="CloseSheet">
-                <div class="tl-detail-more-sheet__items" role="menu" aria-label="More actions">
+            <AppDialogFrame Open="true" Title="@L["Common_More"].Value" DialogOptions="SheetOptions" Class="tl-detail-more-sheet" OnCancel="CloseSheet">
+                <div class="tl-detail-more-sheet__items" role="menu" aria-label="@L["Common_MoreActions"].Value">
                     <ManageActionsMenu Actions="MoreActions" OnActionSelected="SelectFromSheetAsync" />
                 </div>
             </AppDialogFrame>

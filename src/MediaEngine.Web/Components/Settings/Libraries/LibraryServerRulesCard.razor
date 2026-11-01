@@ -4,44 +4,45 @@
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Web.Components.Shared
 @inject IEngineApiClient ApiClient
+@inject IStringLocalizer<SharedStrings> L
 
 @* "Rules for every library" (Libraries redesign D5): the server-wide file handling that used to sit in the folders panel's Advanced section. The duplicate
    default, when changes are written into files, whether artwork goes inside the files, and what happens when a name is already taken. Per-library naming
    and tags are in each library's File handling tab. Each switch saves at once and says "Saved" beside itself (no toast). *@
 <AppCard Class="libs-rules">
     <div data-testid="library-server-rules">
-    <h3 class="libs-rules__title">Rules for every library</h3>
-    <p class="libs-rules__sub">Each library can override these in its own File handling tab.</p>
+    <h3 class="libs-rules__title">@L["LibraryServerRulesCard_RulesForEveryLibrary"]</h3>
+    <p class="libs-rules__sub">@L["LibraryServerRulesCard_EachLibraryCanOverrideThese"]</p>
     @if (_error is not null)
     {
         <AppAlert Tone="AppUiTone.Warning" Dense="true">@_error</AppAlert>
     }
     <div class="libs-rules__row">
         <div>
-            <strong>When the same file arrives twice</strong>
-            <small>Library compares file contents, so renamed copies count as the same file.</small>
+            <strong>@L["Common_WhenTheSameFileArrives"]</strong>
+            <small>@L["LibraryServerRulesCard_LibraryComparesFileContentsSo"]</small>
         </div>
         <AppSegmentedControl Options="DuplicateOptions"
                              Value="@Configuration.FileHandling.DuplicatePolicy"
                              ValueChanged="SetDuplicatePolicyAsync"
-                             AriaLabel="When the same file arrives twice"
+                             AriaLabel="@L["Common_WhenTheSameFileArrives"].Value"
                              Disabled="@(ReadOnly || _saving)" />
     </div>
     <LibraryWriteSchedulePanel ReadOnly="@ReadOnly" />
-    <AppSwitchRow Label="Embed artwork in files"
-                  Description="Puts cover art inside the files Library writes tags to. Available while at least one library has tags switched on."
+    <AppSwitchRow Label="@L["LibraryServerRulesCard_EmbedArtworkInFiles"].Value"
+                  Description="@L["LibraryServerRulesCard_PutsCoverArtInsideThe"].Value"
                   Value="@(_artwork?.ArtworkEnabled ?? false)"
                   ValueChanged="SetArtworkAsync"
                   Disabled="@(ReadOnly || _saving || !AnyTagsOn)" />
     <div class="libs-rules__row">
         <div>
-            <strong>When a file with the same name already exists</strong>
+            <strong>@L["LibraryServerRulesCard_WhenAFileWithThe"]</strong>
             <small>The new file gets a unique name; nothing is overwritten.</small>
         </div>
     </div>
     @if (_saved)
     {
-        <p class="libs-rules__saved" role="status">Saved</p>
+        <p class="libs-rules__saved" role="status">@L["Common_Saved"]</p>
     }
     </div>
 </AppCard>
@@ -109,7 +110,7 @@
         try
         {
             var updated = await ApiClient.UpdateArtworkWritebackSettingsAsync(new UpdateArtworkWritebackSettingsDto(enabled));
-            if (updated is null) _error = "The artwork setting could not be saved.";
+            if (updated is null) _error = L["LibraryServerRulesCard_TheArtworkSettingCouldNot"].Value;
             else { _artwork = updated; _saved = true; }
         }
         finally { _saving = false; }

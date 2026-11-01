@@ -2,35 +2,36 @@
 @using MediaEngine.Contracts.LocalAssets
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
+@inject IStringLocalizer<SharedStrings> L
 @* Settings > Security > Who viewed your photos (the sheet body). A server administrator can open another household's
    photos through "Other people"; every look is recorded and listed here for the person whose photos were opened (and
    the household's Shared Library for the household's own administrator). The Engine answers only for the signed-in
    person, newest first; this list has no delete or clear control by design. *@
 @if (_loading)
 {
-    <AppSkeleton Size="AppControlSize.Compact" aria-label="Loading who viewed your photos" />
+    <AppSkeleton Size="AppControlSize.Compact" aria-label="@L["PhotoViewsList_LoadingWhoViewedYourPhotos"].Value" />
 }
 else if (_loadFailed)
 {
-    <AppAlert Tone="AppUiTone.Error">This list could not be loaded. Try again in a moment.</AppAlert>
+    <AppAlert Tone="AppUiTone.Error">@L["PhotoViewsList_ThisListCouldNotBe"]</AppAlert>
 }
 else
 {
     <p class="security-sheet__hint">@Description</p>
     @if (_items.Count == 0)
     {
-        <AppEmptyState Class="app-page-state--compact" Title="Nobody else has looked at your photos"
-                       Message="If a server administrator ever does, it appears here with the date." />
+        <AppEmptyState Class="app-page-state--compact" Title="@L["PhotoViewsList_NobodyElseHasLookedAt"].Value"
+                       Message="@L["PhotoViewsList_IfAServerAdministratorEver"].Value" />
     }
     else
     {
         <AppTable CardsOn="AppTableCardsMode.Phone">
-            <caption class="sr-only">Who viewed your photos, newest first</caption>
+            <caption class="sr-only">@L["PhotoViewsList_WhoViewedYourPhotosNewest"]</caption>
             <thead>
                 <tr>
-                    <th data-card-role="title">Who</th>
-                    <th data-card-role="subtitle">Opened</th>
-                    <th data-card-role="value">When</th>
+                    <th data-card-role="title">@L["PhotoViewsList_Who"]</th>
+                    <th data-card-role="subtitle">@L["PhotoViewsList_Opened"]</th>
+                    <th data-card-role="value">@L["Common_When"]</th>
                 </tr>
             </thead>
             <tbody>
@@ -46,15 +47,15 @@ else
         </AppTable>
         @if (_loadMoreFailed)
         {
-            <AppAlert Tone="AppUiTone.Error">Couldn't load more. Try again in a moment.</AppAlert>
+            <AppAlert Tone="AppUiTone.Error">@L["PhotoViewsList_CouldnTLoadMoreTry"]</AppAlert>
         }
         @if (_hasMore && _items.Count < MaxItems)
         {
-            <AppButton Label="Show more" Loading="@_loadingMore" Disabled="@_loadingMore" OnClick="LoadMoreAsync" />
+            <AppButton Label="@L["Common_ShowMore"].Value" Loading="@_loadingMore" Disabled="@_loadingMore" OnClick="LoadMoreAsync" />
         }
         else if (_items.Count >= MaxItems)
         {
-            <p class="security-sheet__hint">Showing the latest @MaxItems.</p>
+            <p class="security-sheet__hint">@L["PhotoViewsList_ShowingTheLatest", MaxItems]</p>
         }
     }
 }

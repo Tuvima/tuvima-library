@@ -3,10 +3,11 @@
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
+@inject IStringLocalizer<SharedStrings> L
 
 @* The playback service's current facts (formerly the "Current status" card on Playback and Delivery), shown on Tools and requirements. *@
-<AppCard Title="Playback tools and services"
-         Description="Current facts reported by the playback service."
+<AppCard Title="@L["PlaybackToolsStatusCard_PlaybackToolsAndServices"].Value"
+         Description="@L["PlaybackToolsStatusCard_CurrentFactsReportedByThe"].Value"
          Class="playback-tools-status">
     @if (_loading)
     {
@@ -14,21 +15,21 @@
     }
     else if (_diagnostics is null)
     {
-        <AppEmptyState Title="Current status is unavailable" />
+        <AppEmptyState Title="@L["PlaybackToolsStatusCard_CurrentStatusIsUnavailable"].Value" />
     }
     else
     {
         <dl class="playback-tools-status__facts">
             <div>
-                <dt>Active encode jobs</dt>
+                <dt>@L["Common_ActiveEncodeJobs"]</dt>
                 <dd>@_diagnostics.ActiveJobs.Count</dd>
             </div>
             <div>
-                <dt>Configured profiles</dt>
+                <dt>@L["PlaybackToolsStatusCard_ConfiguredProfiles"]</dt>
                 <dd>@(_settings?.QualityProfiles.Count.ToString() ?? "Unavailable")</dd>
             </div>
             <div>
-                <dt>FFmpeg</dt>
+                <dt>@L["Common_FFmpeg"]</dt>
                 <dd>@ToolStatus(_diagnostics.FFmpegAvailable)</dd>
             </div>
         </dl>

@@ -4,13 +4,14 @@
 @using MediaEngine.Web.Components.MediaEditor
 
 @inject ICollectionPersonalMediaClient Client
+@inject IStringLocalizer<SharedStrings> L
 
 <section class="collection-personal-media" aria-labelledby="collection-personal-media-title">
     <header class="collection-personal-media__header">
         <div>
-            <span class="collection-personal-media__eyebrow">Optional companions</span>
-            <h3 id="collection-personal-media-title">Gallery companion</h3>
-            <p>Link a whole Gallery to enrich this Collection. Photos and videos stay in View and never become Collection members.</p>
+            <span class="collection-personal-media__eyebrow">@L["CollectionPersonalMediaSection_OptionalCompanions"]</span>
+            <h3 id="collection-personal-media-title">@L["CollectionPersonalMediaSection_GalleryCompanion"]</h3>
+            <p>@L["CollectionPersonalMediaSection_LinkAWholeGalleryTo"]</p>
         </div>
     </header>
 
@@ -18,7 +19,7 @@
     {
         <div class="collection-editor-empty collection-editor-empty--compact">
             <AppSpinner Indeterminate="true" Size="AppSize.Small" />
-            <span>Loading Gallery references…</span>
+            <span>@L["CollectionPersonalMediaSection_LoadingGalleryReferences"]</span>
         </div>
     }
     else
@@ -31,18 +32,18 @@
             </div>
         }
 
-        <MediaEditorPanel Title="Gallery" Description="Choose complete, live Galleries. Individual photos and videos are intentionally not offered here.">
+        <MediaEditorPanel Title="@L["CollectionPersonalMediaSection_Gallery"].Value" Description="@L["CollectionPersonalMediaSection_ChooseCompleteLiveGalleriesIndividual"].Value">
             @if (_galleries.Count == 0)
             {
                 <div class="collection-editor-empty collection-editor-empty--compact">
                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Collections" />
-                    <strong>No Galleries available</strong>
+                    <strong>@L["CollectionPersonalMediaSection_NoGalleriesAvailable"]</strong>
                     <span>Create a Gallery in View first, then return here to reference it.</span>
                 </div>
             }
             else
             {
-                <div class="collection-personal-media__gallery-list" role="list" aria-label="Gallery references">
+                <div class="collection-personal-media__gallery-list" role="list" aria-label="@L["CollectionPersonalMediaSection_GalleryReferences"].Value">
                     @foreach (var gallery in _galleries)
                     {
                         var selected = _selectedGalleryIds.Contains(gallery.GalleryId);
@@ -61,11 +62,11 @@
             }
         </MediaEditorPanel>
 
-        <MediaEditorPanel Title="Dynamic Gallery source" Description="Optionally add one rule-driven View source using the shared rule builder.">
+        <MediaEditorPanel Title="@L["CollectionPersonalMediaSection_DynamicGallerySource"].Value" Description="@L["CollectionPersonalMediaSection_OptionallyAddOneRuleDriven"].Value">
             <div class="collection-personal-media__smart-toggle">
                 <div>
-                    <strong>Rule-driven Gallery companion</strong>
-                    <span>Matches personal media at view time under each viewer’s current authorization.</span>
+                    <strong>@L["CollectionPersonalMediaSection_RuleDrivenGalleryCompanion"]</strong>
+                    <span>@L["CollectionPersonalMediaSection_MatchesPersonalMediaAtView"]</span>
                 </div>
                 <AppNativeButton Type="button" Class="@(_smartRuleEnabled ? "is-selected" : null)" OnClick="ToggleSmartRuleAsync">
                     @(_smartRuleEnabled ? "Enabled" : "Add rule")
@@ -165,7 +166,7 @@
             return true;
         if (_viewRuleDefinition.AllConditions.Any(IsCompleteRule))
             return true;
-        error = "Add at least one complete condition to the personal-media smart View rule.";
+        error = L["CollectionPersonalMediaSection_AddAtLeastOneComplete"].Value;
         return false;
     }
 

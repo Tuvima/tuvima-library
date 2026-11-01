@@ -17,12 +17,13 @@
 @inject IUserPlaybackPreferencesAccessor PreferencesAccessor
 
 @implements IAsyncDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 @* The foliate-js based book reader (packet BR2), opened by the /read/{AssetId} route (EpubReader.razor) for every EPUB.
    This component owns the chrome and the saved position;
    wwwroot/js/book-reader.js owns everything that touches the book. *@
 
-<PageTitle>@(string.IsNullOrWhiteSpace(_title) ? "Reader" : _title) - Library</PageTitle>
+<PageTitle>@L["Common_Library", string.IsNullOrWhiteSpace(_title) ? L["BookReader_Reader"].Value : _title]</PageTitle>
 
 <link href="css/book-reader.css" rel="stylesheet" />
 
@@ -32,7 +33,7 @@
     <div class="br-stage" @ref="_host"></div>
 
     <header class="br-bar br-bar--top @(_chromeVisible ? "" : "br-bar--hidden")" aria-hidden="@(_chromeVisible ? null : "true")">
-        <AppNativeButton Class="br-icon-btn" OnClick="ExitReader" Title="Back to library" AriaLabel="Back to library">
+        <AppNativeButton Class="br-icon-btn" OnClick="ExitReader" Title="@L["BookReader_BackToLibrary"].Value" AriaLabel="@L["BookReader_BackToLibrary"].Value">
             <AppMaterialIcon Icon="@AppMaterialIcons.Filled.ArrowBack" Size="AppSize.Small" />
         </AppNativeButton>
         <div class="br-title">
@@ -44,20 +45,20 @@
         </div>
         @if (_state == "ready")
         {
-            <div class="br-actions" role="toolbar" aria-label="Reader tools">
-                <AppNativeButton Class="@($"br-icon-btn {(_panel == "search" ? "br-icon-btn--on" : "")}")" OnClick="@(() => TogglePanel("search"))" Title="Search in this book" AriaLabel="Search in this book">
+            <div class="br-actions" role="toolbar" aria-label="@L["BookReader_ReaderTools"].Value">
+                <AppNativeButton Class="@($"br-icon-btn {(_panel == "search" ? "br-icon-btn--on" : "")}")" OnClick="@(() => TogglePanel("search"))" Title="@L["BookReader_SearchInThisBook"].Value" AriaLabel="@L["BookReader_SearchInThisBook"].Value">
                     <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Search" Size="AppSize.Small" />
                 </AppNativeButton>
-                <AppNativeButton Class="br-icon-btn" OnClick="@(() => TogglePanel("contents"))" Title="Contents" AriaLabel="Contents">
+                <AppNativeButton Class="br-icon-btn" OnClick="@(() => TogglePanel("contents"))" Title="@L["BookReader_Contents"].Value" AriaLabel="@L["BookReader_Contents"].Value">
                     <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Toc" Size="AppSize.Small" />
                 </AppNativeButton>
-                <AppNativeButton Class="br-icon-btn" OnClick="AddBookmarkAsync" Title="Bookmark this page" AriaLabel="Bookmark this page">
+                <AppNativeButton Class="br-icon-btn" OnClick="AddBookmarkAsync" Title="@L["BookReader_BookmarkThisPage"].Value" AriaLabel="@L["BookReader_BookmarkThisPage"].Value">
                     <AppMaterialIcon Icon="@AppMaterialIcons.Filled.BookmarkAdd" Size="AppSize.Small" />
                 </AppNativeButton>
-                <AppNativeButton Class="@($"br-icon-btn {(_panel == "saved" ? "br-icon-btn--on" : "")}")" OnClick="@(() => TogglePanel("saved"))" Title="Bookmarks and highlights" AriaLabel="Bookmarks and highlights">
+                <AppNativeButton Class="@($"br-icon-btn {(_panel == "saved" ? "br-icon-btn--on" : "")}")" OnClick="@(() => TogglePanel("saved"))" Title="@L["BookReader_BookmarksAndHighlights"].Value" AriaLabel="@L["BookReader_BookmarksAndHighlights"].Value">
                     <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Bookmark" Size="AppSize.Small" />
                 </AppNativeButton>
-                <AppNativeButton Class="@($"br-icon-btn {(_panel == "settings" ? "br-icon-btn--on" : "")}")" OnClick="@(() => TogglePanel("settings"))" Title="Reading settings" AriaLabel="Reading settings">
+                <AppNativeButton Class="@($"br-icon-btn {(_panel == "settings" ? "br-icon-btn--on" : "")}")" OnClick="@(() => TogglePanel("settings"))" Title="@L["BookReader_ReadingSettings"].Value" AriaLabel="@L["BookReader_ReadingSettings"].Value">
                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Tune" Size="AppSize.Small" />
                 </AppNativeButton>
             </div>
@@ -66,18 +67,18 @@
 
     <footer class="br-bar br-bar--bottom @(_chromeVisible ? "" : "br-bar--hidden")" aria-hidden="@(_chromeVisible ? null : "true")">
         <span class="br-section">@_sectionLabel</span>
-        <span class="br-percent" aria-label="Progress">@Percent%</span>
+        <span class="br-percent" aria-label="@L["Common_Progress"].Value">@Percent%</span>
     </footer>
 
     @if (_state == "ready" && _selection is { } selected && _editing is null && _panel is null)
     {
-        <AppCssElement Tag="div" Class="br-float br-float--bar" Css="@FloatCss(selected.Anchor)" role="toolbar" aria-label="Highlight the selected text">
+        <AppCssElement Tag="div" Class="br-float br-float--bar" Css="@FloatCss(selected.Anchor)" role="toolbar" aria-label="@L["BookReader_HighlightTheSelectedText"].Value">
             @foreach (var color in HighlightColor.All)
             {
                 <AppNativeButton Class="br-swatch" Css="@SwatchCss(color)" OnClick="@(() => CreateHighlightAsync(color, false))"
                                  Title="@($"Highlight in {ColorName(color)}")" AriaLabel="@($"Highlight in {ColorName(color)}")" />
             }
-            <AppNativeButton Class="br-icon-btn br-icon-btn--small" OnClick="@(() => CreateHighlightAsync(HighlightColor.Yellow, true))" Title="Highlight and add a note" AriaLabel="Highlight and add a note">
+            <AppNativeButton Class="br-icon-btn br-icon-btn--small" OnClick="@(() => CreateHighlightAsync(HighlightColor.Yellow, true))" Title="@L["BookReader_HighlightAndAddANote"].Value" AriaLabel="@L["BookReader_HighlightAndAddANote"].Value">
                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.EditNote" Size="AppSize.Small" />
             </AppNativeButton>
         </AppCssElement>
@@ -86,9 +87,9 @@
     @if (_state == "ready" && _editing is { } editing)
     {
         <div class="br-scrim br-scrim--clear" role="presentation" @onclick="CloseEditorAsync"></div>
-        <AppCssElement Tag="div" Class="br-float br-float--card" Css="@FloatCss(_editAnchor)" role="dialog" aria-label="Highlight">
+        <AppCssElement Tag="div" Class="br-float br-float--card" Css="@FloatCss(_editAnchor)" role="dialog" aria-label="@L["BookReader_Highlight"].Value">
             <div class="br-quote">@editing.SelectedText</div>
-            <div class="br-swatches" role="group" aria-label="Highlight colour">
+            <div class="br-swatches" role="group" aria-label="@L["BookReader_HighlightColour"].Value">
                 @foreach (var color in HighlightColor.All)
                 {
                     <AppNativeButton Class="@($"br-swatch {(string.Equals(editing.Color, color, StringComparison.OrdinalIgnoreCase) ? "br-swatch--on" : "")}")" Css="@SwatchCss(color)"
@@ -96,10 +97,10 @@
                                      aria-pressed="@(string.Equals(editing.Color, color, StringComparison.OrdinalIgnoreCase) ? "true" : "false")" />
                 }
             </div>
-            <AppTextField Label="Note" Value="@_noteDraft" ValueChanged="@(value => _noteDraft = value)" Lines="3" MaxLength="2000" Placeholder="Add a note" />
+            <AppTextField Label="@L["Common_Note"].Value" Value="@_noteDraft" ValueChanged="@(value => _noteDraft = value)" Lines="3" MaxLength="2000" Placeholder="@L["BookReader_AddANote"].Value" />
             <div class="br-card-actions">
-                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" OnClick="DeleteHighlightAsync">Delete</AppButton>
-                <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="CloseEditorAsync">Done</AppButton>
+                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" OnClick="DeleteHighlightAsync">@L["Common_Delete"]</AppButton>
+                <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="CloseEditorAsync">@L["Common_Done"]</AppButton>
             </div>
         </AppCssElement>
     }
@@ -110,7 +111,7 @@
         <aside class="br-panel" role="dialog" aria-label="@PanelTitle">
             <div class="br-panel-head">
                 <h2 class="br-panel-title">@PanelTitle</h2>
-                <AppNativeButton Class="br-icon-btn" OnClick="ClosePanelAsync" Title="Close" AriaLabel="@($"Close {PanelTitle}")">
+                <AppNativeButton Class="br-icon-btn" OnClick="ClosePanelAsync" Title="@L["Common_Close"].Value" AriaLabel="@($"Close {PanelTitle}")">
                     <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Close" Size="AppSize.Small" />
                 </AppNativeButton>
             </div>
@@ -119,7 +120,7 @@
                 {
                     @if (_toc.Count == 0)
                     {
-                        <p class="br-empty">This book has no contents list.</p>
+                        <p class="br-empty">@L["BookReader_ThisBookHasNoContents"]</p>
                     }
                     else
                     {
@@ -139,27 +140,27 @@
                 else if (_panel == "search")
                 {
                     <div class="br-search">
-                        <AppNativeInput @ref="_searchInput" Type="search" Class="br-search-input" Placeholder="Search in this book" AriaLabel="Search in this book"
+                        <AppNativeInput @ref="_searchInput" Type="search" Class="br-search-input" Placeholder="@L["BookReader_SearchInThisBook"].Value" AriaLabel="@L["BookReader_SearchInThisBook"].Value"
                                         Value="@_searchQuery" OnInput="OnSearchInputAsync" OnKeyDown="OnSearchKeyDown" />
-                        <AppNativeButton Class="br-icon-btn" OnClick="RunSearchAsync" Title="Search" AriaLabel="Search" Disabled="@(_searching || _searchQuery.Trim().Length < 2)">
+                        <AppNativeButton Class="br-icon-btn" OnClick="RunSearchAsync" Title="@L["Nav_Search"].Value" AriaLabel="@L["Nav_Search"].Value" Disabled="@(_searching || _searchQuery.Trim().Length < 2)">
                             <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Search" Size="AppSize.Small" />
                         </AppNativeButton>
                     </div>
                     @if (_searching)
                     {
-                        <p class="br-hint" role="status">Searching the book…</p>
+                        <p class="br-hint" role="status">@L["BookReader_SearchingTheBook"]</p>
                     }
                     else if (_searchResult is null)
                     {
-                        <p class="br-hint">Type at least two letters, then press Enter.</p>
+                        <p class="br-hint">@L["BookReader_TypeAtLeastTwoLetters"]</p>
                     }
                     else if (_searchResult.Failed && _searchResult.Hits.Count == 0)
                     {
-                        <p class="br-empty" role="status">The search could not finish. Try again.</p>
+                        <p class="br-empty" role="status">@L["BookReader_TheSearchCouldNotFinish"]</p>
                     }
                     else if (_searchResult.Hits.Count == 0)
                     {
-                        <p class="br-empty" role="status">Nothing in this book matches “@_searchedFor”.</p>
+                        <p class="br-empty" role="status">@L["BookReader_NothingInThisBookMatches", _searchedFor]</p>
                     }
                     else
                     {
@@ -182,15 +183,15 @@
                 }
                 else if (_panel == "saved")
                 {
-                    <AppSegmentedControl Options="SavedTabs" Value="@_savedTab" ValueChanged="@(value => { _savedTab = value; })" AriaLabel="Saved places" />
+                    <AppSegmentedControl Options="SavedTabs" Value="@_savedTab" ValueChanged="@(value => { _savedTab = value; })" AriaLabel="@L["BookReader_SavedPlaces"].Value" />
                     @if (_savedTab == "bookmarks")
                     {
                         <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" OnClick="AddBookmarkAsync" StartIcon="@AppMaterialIcons.Filled.BookmarkAdd">
-                            Bookmark this page
+                            @L["BookReader_BookmarkThisPage"]
                         </AppButton>
                         @if (_bookmarks.Count == 0)
                         {
-                            <p class="br-empty">No bookmarks yet.</p>
+                            <p class="br-empty">@L["BookReader_NoBookmarksYet"]</p>
                         }
                         else
                         {
@@ -202,7 +203,7 @@
                                             <span class="br-row-main">@(string.IsNullOrWhiteSpace(mark.Label) ? "Bookmark" : mark.Label)</span>
                                             <span class="br-row-sub">@mark.CreatedAt.ToLocalTime().ToString("d MMM yyyy")</span>
                                         </AppNativeButton>
-                                        <AppNativeButton Class="br-icon-btn br-icon-btn--small" OnClick="@(() => DeleteBookmarkAsync(mark))" Title="Delete bookmark" AriaLabel="Delete bookmark">
+                                        <AppNativeButton Class="br-icon-btn br-icon-btn--small" OnClick="@(() => DeleteBookmarkAsync(mark))" Title="@L["Common_DeleteBookmark"].Value" AriaLabel="@L["Common_DeleteBookmark"].Value">
                                             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DeleteOutline" Size="AppSize.Small" />
                                         </AppNativeButton>
                                     </li>
@@ -212,7 +213,7 @@
                     }
                     else if (_highlights.Count == 0)
                     {
-                        <p class="br-empty">No highlights yet. Select some text in the book to make one.</p>
+                        <p class="br-empty">@L["BookReader_NoHighlightsYetSelectSome"]</p>
                     }
                     else
                     {
@@ -235,33 +236,33 @@
                 else
                 {
                     <div class="br-field">
-                        <div class="br-field-label">Theme</div>
-                        <AppSegmentedControl Options="ThemeOptions" Value="@_settings.Theme" ValueChanged="SetThemeAsync" AriaLabel="Reading theme" />
+                        <div class="br-field-label">@L["Common_Theme"]</div>
+                        <AppSegmentedControl Options="ThemeOptions" Value="@_settings.Theme" ValueChanged="SetThemeAsync" AriaLabel="@L["BookReader_ReadingTheme"].Value" />
                     </div>
                     <div class="br-field">
-                        <div class="br-field-label">Text size</div>
-                        <AppSlider Value="@_settings.FontSize" ValueChanged="SetFontSizeAsync" Min="12" Max="32" Step="1" Immediate="false" Label="Text size" />
+                        <div class="br-field-label">@L["Common_TextSize"]</div>
+                        <AppSlider Value="@_settings.FontSize" ValueChanged="SetFontSizeAsync" Min="12" Max="32" Step="1" Immediate="false" Label="@L["Common_TextSize"].Value" />
                     </div>
                     <div class="br-field">
-                        <div class="br-field-label">Line spacing</div>
-                        <AppSlider Value="@((int)Math.Round(_settings.LineHeight * 10))" ValueChanged="SetLineHeightAsync" Min="12" Max="24" Step="1" Immediate="false" Label="Line spacing" />
+                        <div class="br-field-label">@L["Common_LineSpacing"]</div>
+                        <AppSlider Value="@((int)Math.Round(_settings.LineHeight * 10))" ValueChanged="SetLineHeightAsync" Min="12" Max="24" Step="1" Immediate="false" Label="@L["Common_LineSpacing"].Value" />
                     </div>
                     <div class="br-field">
-                        <div class="br-field-label">Typeface</div>
-                        <AppSegmentedControl Options="FontOptions" Value="@_settings.Font" ValueChanged="SetFontAsync" AriaLabel="Typeface" />
+                        <div class="br-field-label">@L["Common_Typeface"]</div>
+                        <AppSegmentedControl Options="FontOptions" Value="@_settings.Font" ValueChanged="SetFontAsync" AriaLabel="@L["Common_Typeface"].Value" />
                     </div>
                     <div class="br-field">
-                        <div class="br-field-label">Page width</div>
-                        <AppSegmentedControl Options="WidthOptions" Value="@_settings.PageWidth" ValueChanged="SetPageWidthAsync" AriaLabel="Page width" />
+                        <div class="br-field-label">@L["Common_PageWidth"]</div>
+                        <AppSegmentedControl Options="WidthOptions" Value="@_settings.PageWidth" ValueChanged="SetPageWidthAsync" AriaLabel="@L["Common_PageWidth"].Value" />
                     </div>
                     <div class="br-field">
-                        <div class="br-field-label">Layout</div>
-                        <AppSegmentedControl Options="FlowOptions" Value="@_settings.Flow" ValueChanged="SetFlowAsync" AriaLabel="Layout" />
+                        <div class="br-field-label">@L["Common_Layout"]</div>
+                        <AppSegmentedControl Options="FlowOptions" Value="@_settings.Flow" ValueChanged="SetFlowAsync" AriaLabel="@L["Common_Layout"].Value" />
                     </div>
                     <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" OnClick="ResetToProfileDefaultsAsync">
-                        Reset to my defaults
+                        @L["BookReader_ResetToMyDefaults"]
                     </AppButton>
-                    <p class="br-hint">These choices are remembered on this device and saved to your reading defaults.</p>
+                    <p class="br-hint">@L["BookReader_TheseChoicesAreRememberedOn"]</p>
                 }
             </div>
         </aside>
@@ -275,7 +276,7 @@
     @if (_state == "loading")
     {
         <div class="br-overlay">
-            <AppPageState Kind="AppPageStateKind.Loading" Title="Opening book" />
+            <AppPageState Kind="AppPageStateKind.Loading" Title="@L["BookReader_OpeningBook"].Value" />
         </div>
     }
     else if (_state == "error")
@@ -289,11 +290,11 @@
                     @if (_canRetry)
                     {
                         <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="RetryAsync">
-                            Try again
+                            @L["Common_TryAgain"]
                         </AppButton>
                     }
                     <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" OnClick="ExitReader">
-                        Return to Library
+                        @L["BookReader_ReturnToLibrary"]
                     </AppButton>
                 </Actions>
             </AppPageState>

@@ -85,7 +85,7 @@ public sealed class UiCompositionGuardrailTests
     {
         var filePath = Path.Combine(RepoRoot, relativePath);
         Assert.True(File.Exists(filePath), $"Guardrail target is missing: {relativePath}.");
-        var contents = Sanitize(File.ReadAllText(filePath));
+        var contents = Sanitize(LocalizedSource.ReadAllText(filePath));
 
         Assert.False(
             RetiredCustomUiRegex.IsMatch(contents),
@@ -122,7 +122,7 @@ public sealed class UiCompositionGuardrailTests
                 || path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)
                 || path.EndsWith(".css", StringComparison.OrdinalIgnoreCase))
             .Where(path => !RemovedAllInOneWorkspaceFiles.Contains(ToRelativePath(path), StringComparer.OrdinalIgnoreCase))
-            .Where(path => ContainsRemovedWorkspaceLanguage(Sanitize(File.ReadAllText(path))))
+            .Where(path => ContainsRemovedWorkspaceLanguage(Sanitize(LocalizedSource.ReadAllText(path))))
             .Select(ToRelativePath)
             .ToList();
 
@@ -147,7 +147,7 @@ public sealed class UiCompositionGuardrailTests
             .Where(root => File.Exists(root) || Directory.Exists(root))
             .SelectMany(EnumerateTextFiles)
             .Where(path => !IsGeneratedOrBuildOutput(path))
-            .Where(path => ContainsRemovedWorkspaceLanguage(File.ReadAllText(path)))
+            .Where(path => ContainsRemovedWorkspaceLanguage(LocalizedSource.ReadAllText(path)))
             .Select(ToRelativePath)
             .ToList();
 
@@ -159,7 +159,7 @@ public sealed class UiCompositionGuardrailTests
     {
         var resourceRoot = Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Resources");
         var offenders = Directory.EnumerateFiles(resourceRoot, "*.resx", SearchOption.AllDirectories)
-            .Where(path => ContainsRemovedWorkspaceLanguage(File.ReadAllText(path)))
+            .Where(path => ContainsRemovedWorkspaceLanguage(LocalizedSource.ReadAllText(path)))
             .Select(ToRelativePath)
             .ToList();
 
@@ -282,7 +282,7 @@ public sealed class UiCompositionGuardrailTests
         return RegistryScanFiles(repoRoot)
             .Where(path =>
             {
-                var contents = File.ReadAllText(path);
+                var contents = LocalizedSource.ReadAllText(path);
                 if (path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
                 {
                     return StringLiteralRegex.Matches(LineCommentRegex.Replace(contents, string.Empty))
@@ -351,8 +351,8 @@ public sealed class UiCompositionGuardrailTests
     [Fact]
     public void SharedMediaEditorLauncher_RemainsCanonicalEditingPath()
     {
-        var detailPage = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Details", "DetailPage.razor"));
-        var reviewTab = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Settings", "NeedsReviewPageContent.razor"));
+        var detailPage = LocalizedSource.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Details", "DetailPage.razor"));
+        var reviewTab = LocalizedSource.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Settings", "NeedsReviewPageContent.razor"));
 
         // A single item, person or series edits in place and Needs Review opens its page; there is no pop-up editor left.
         Assert.DoesNotContain("MediaEditorLauncher.OpenAsync", detailPage);
@@ -364,7 +364,7 @@ public sealed class UiCompositionGuardrailTests
     [Fact]
     public void InlineEditingSurfaces_RefreshOnlyAfterSuccessfulEditorResult()
     {
-        var detailPage = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Details", "DetailPage.razor"));
+        var detailPage = LocalizedSource.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Details", "DetailPage.razor"));
 
         Assert.Matches(@"RefreshAfterEditSavedAsync\(\)\s*\{[^}]*RefreshCurrentDetailAsync", detailPage);
         Assert.Contains("GetDetailPageAsync", detailPage);

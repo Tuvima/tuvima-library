@@ -2,6 +2,7 @@
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Contracts.Display
 @using MediaEngine.Web.Services.MediaTiles
+@inject IStringLocalizer<SharedStrings> L
 
 @if (Loading && Items.Count == 0)
 {
@@ -24,7 +25,7 @@ else if (Items.Count > 0)
             <span>@ItemCountLabel</span>
             @if (OnViewAll.HasDelegate)
             {
-                <AppButton Label="View all" Class="compact-continue__view-all" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" OnClick="OnViewAll" />
+                <AppButton Label="@L["Common_ViewAll"].Value" Class="compact-continue__view-all" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" OnClick="OnViewAll" />
             }
         </div>
 
@@ -58,7 +59,7 @@ else if (Items.Count > 0)
                             <AppProgressBar Value="@item.ProgressPct" Decorative="true" AccentColor="var(--tl-accent-primary, #8852FC)" />
                             <span class="compact-continue__percent" data-continue-percent="true">@PercentLabel(item)</span>
                         }
-                        <AppButton Label="Resume" Class="compact-continue__resume" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Href="@url" />
+                        <AppButton Label="@L["Common_Resume"].Value" Class="compact-continue__resume" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Href="@url" />
                     </div>
                 </div>
             }

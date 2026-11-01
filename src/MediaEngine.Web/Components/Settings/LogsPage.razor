@@ -1,4 +1,5 @@
 @namespace MediaEngine.Web.Components.Settings
+@inject IStringLocalizer<SharedStrings> L
 
 @* System > Logs (settings revamp D38, ingestion WP12): the Events log (what was added, what needs review, what failed and what
    the system did), the Engine's technical log, how long logs are kept, and the export. A page has one row of tabs, so these four
@@ -8,7 +9,7 @@
         <AppSegmentedControl Options="@Views"
                              Value="@_view"
                              ValueChanged="@(value => _view = value)"
-                             AriaLabel="Logs views" />
+                             AriaLabel="@L["LogsPage_LogsViews"].Value" />
     </div>
 
     @switch (_view)

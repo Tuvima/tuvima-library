@@ -3,6 +3,7 @@
 @implements IDisposable
 @inject NsfwModeState Nsfw
 @inject IVaultCatalogue Catalogue
+@inject IStringLocalizer<SharedStrings> L
 
 @* The separate "Vault" results group in Search (Videos spec D27). Drawn only while Vault mode is on for this device session, never
    mixed into the normal results, and with the Blur toggle at its top. For every other profile and every locked session it renders
@@ -11,7 +12,7 @@
 {
     <section class="vault-search" aria-labelledby="vault-search-title" data-vault-search-group>
         <header class="vault-search__header">
-            <h2 id="vault-search-title">Vault</h2>
+            <h2 id="vault-search-title">@L["Nav_Vault"]</h2>
             <VaultBlurToggle />
         </header>
         @if (_result is null)

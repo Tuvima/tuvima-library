@@ -5,6 +5,7 @@
 @implements IDisposable
 @inject IEngineApiClient ApiClient
 @inject ILogger<SystemSummaryPage> Logger
+@inject IStringLocalizer<SharedStrings> L
 
 @* The System main page: how the server is doing right now. Everything shown is read from this machine through
    GET /system/resources (and the network status for the two addresses); nothing leaves it. The reading is repeated
@@ -13,15 +14,15 @@
     @if (_resources is null && !_loaded)
     {
         <AppPageState Kind="AppPageStateKind.Loading"
-                      Title="Reading this server"
-                      Message="Checking the processor, memory and storage." />
+                      Title="@L["SystemSummaryPage_ReadingThisServer"].Value"
+                      Message="@L["SystemSummaryPage_CheckingTheProcessorMemoryAnd"].Value" />
     }
     else if (_resources is null)
     {
         <AppPageState Kind="AppPageStateKind.Error"
                       Icon="@AppMaterialIcons.Outlined.CloudOff"
-                      Title="This server could not be read"
-                      Message="Library could not read the server's processor, memory and storage just now. It will try again in a few seconds." />
+                      Title="@L["SystemSummaryPage_ThisServerCouldNotBe"].Value"
+                      Message="@L["SystemSummaryPage_LibraryCouldNotReadThe"].Value" />
     }
     else
     {
@@ -29,12 +30,12 @@
         {
             <div data-testid="system-summary-stale">
                 <AppAlert Tone="AppUiTone.Warning">
-                    The latest reading could not be taken, so the previous one is shown.
+                    @L["SystemSummaryPage_TheLatestReadingCouldNot"]
                 </AppAlert>
             </div>
         }
 
-        <SettingsSectionPanel Title="This server" Icon="@AppMaterialIcons.Outlined.Dns">
+        <SettingsSectionPanel Title="@L["SystemSummaryPage_ThisServer"].Value" Icon="@AppMaterialIcons.Outlined.Dns">
             <dl class="system-summary__facts" data-testid="system-summary-server">
                 @Fact("Version", _resources.EngineVersion)
                 @Fact("Running for", FormatUptime(_resources.UptimeSeconds))
@@ -43,7 +44,7 @@
             </dl>
         </SettingsSectionPanel>
 
-        <SettingsSectionPanel Title="Processor and memory" Icon="@AppMaterialIcons.Outlined.Memory">
+        <SettingsSectionPanel Title="@L["SystemSummaryPage_ProcessorAndMemory"].Value" Icon="@AppMaterialIcons.Outlined.Memory">
             <div class="system-summary__meters" data-testid="system-summary-load">
                 <AppProgressBar Value="@_resources.ProcessorPercent"
                                 Label="@ProcessorLabel"
@@ -54,11 +55,11 @@
             </div>
         </SettingsSectionPanel>
 
-        <SettingsSectionPanel Title="Storage" Icon="@AppMaterialIcons.Outlined.Storage">
+        <SettingsSectionPanel Title="@L["SystemSummaryPage_Storage"].Value" Icon="@AppMaterialIcons.Outlined.Storage">
             <div class="system-summary__drives" data-testid="system-summary-storage">
                 @if (_resources.Drives.Count == 0)
                 {
-                    <p class="system-summary__note">Disk space for the library and the data store could not be read.</p>
+                    <p class="system-summary__note">@L["SystemSummaryPage_DiskSpaceForTheLibrary"]</p>
                 }
                 @foreach (var drive in _resources.Drives)
                 {

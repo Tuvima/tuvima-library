@@ -12,19 +12,20 @@
 @inject LibraryFolderAddService AddService
 @inject NavigationManager Navigation
 @implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 @* The folders of one library or of the Import folder, for Settings > Libraries: a library's page hosts it (Folders tab), and the Import
    folder's address shows the Import entry. The host chose the type (TypeKey) or the library (LibraryId). *@
 <div class="library-folders">
     @if (_loading)
     {
-        <AppPageState Kind="AppPageStateKind.Loading" Title="Loading libraries" />
+        <AppPageState Kind="AppPageStateKind.Loading" Title="@L["Common_LoadingLibraries"].Value" />
     }
     else if (_configuration is null)
     {
         <AppPageState Kind="AppPageStateKind.Error"
                       Icon="@AppMaterialIcons.Outlined.CloudOff"
-                      Title="Libraries could not be loaded"
+                      Title="@L["Common_LibrariesCouldNotBeLoaded"].Value"
                       Message="@(_loadError ?? "The Engine did not return library configuration.")" />
     }
     else
@@ -36,8 +37,8 @@
             <AppCard Class="library-folders__detail">
                 <div class="library-folders__empty">
                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" />
-                    <strong>This library type does not exist</strong>
-                    <span><a href="/settings/libraries">Back to Libraries</a></span>
+                    <strong>@L["LibraryFoldersPanel_ThisLibraryTypeDoesNot"]</strong>
+                    <span><a href="/settings/libraries">@L["Common_BackToLibraries"]</a></span>
                 </div>
             </AppCard>
         }
@@ -48,13 +49,13 @@
                     <span class="library-folders__icon library-folders__icon--import"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoveToInbox" /></span>
                     <div>
                         @* The Settings title already says "Import folder", so the heading is kept for screen readers only. *@
-                        <h3 id="library-import-title" class="sr-only">Import folder</h3>
-                        <p>One folder where new media can be dropped. Apps like Sonarr and Radarr can save finished downloads here too, and Library files them into your libraries.</p>
+                        <h3 id="library-import-title" class="sr-only">@L["Common_ImportFolder"]</h3>
+                        <p>@L["LibraryFoldersPanel_OneFolderWhereNewMedia"]</p>
                     </div>
                     @if (!ImportStatus.Configured)
                     {
                         <div class="library-folders__detail-actions">
-                            <AppButton Label="Set import folder"
+                            <AppButton Label="@L["LibraryFoldersPanel_SetImportFolder"].Value"
                                        StartIcon="@AppMaterialIcons.Outlined.Add"
                                        ButtonStyle="AppButtonStyle.Outlined"
                                        Disabled="@(_saving || ReadOnly)"
@@ -70,29 +71,29 @@
 
                 @if (ImportStatus.Configured)
                 {
-                    <div class="library-folders__table" role="table" aria-label="Import folder">
+                    <div class="library-folders__table" role="table" aria-label="@L["Common_ImportFolder"].Value">
                         <div class="library-folders__table-head" role="row">
-                            <span role="columnheader">Folder</span>
-                            <span role="columnheader">Handling</span>
+                            <span role="columnheader">@L["Common_Folder"]</span>
+                            <span role="columnheader">@L["LibraryFoldersPanel_Handling"]</span>
                             <span role="columnheader"></span>
                         </div>
                         <div class="library-folders__table-row" role="row">
                             <div class="library-folders__name" role="cell">
                                 <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Folder" />
                                 <span class="library-folders__name-text">
-                                    <strong>Import folder</strong>
+                                    <strong>@L["Common_ImportFolder"]</strong>
                                     <span class="library-folders__path" title="@ImportStatus.Path">@ImportStatus.Path</span>
                                 </span>
                             </div>
-                            <div role="cell"><span class="library-folders__chip">Import</span></div>
+                            <div role="cell"><span class="library-folders__chip">@L["Common_Import"]</span></div>
                             <div class="library-folders__row-actions" role="cell">
-                                <AppButton Label="Change" ButtonStyle="AppButtonStyle.Outlined" Disabled="@(_saving || ReadOnly)" OnClick="ChooseImportFolderAsync" />
-                                <AppButton Label="Remove" ButtonStyle="AppButtonStyle.Text" Disabled="@(_saving || ReadOnly)" OnClick="RemoveImportFolderAsync" />
+                                <AppButton Label="@L["LibraryFoldersPanel_Change"].Value" ButtonStyle="AppButtonStyle.Outlined" Disabled="@(_saving || ReadOnly)" OnClick="ChooseImportFolderAsync" />
+                                <AppButton Label="@L["Common_Remove"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@(_saving || ReadOnly)" OnClick="RemoveImportFolderAsync" />
                             </div>
                         </div>
                     </div>
 
-                    <h4 class="library-folders__subheading" id="library-import-destinations">Where imported files go</h4>
+                    <h4 class="library-folders__subheading" id="library-import-destinations">@L["LibraryFoldersPanel_WhereImportedFilesGo"]</h4>
                     <ul class="library-folders__destinations" aria-labelledby="library-import-destinations">
                         @foreach (var destination in ImportStatus.Destinations)
                         {
@@ -103,11 +104,11 @@
                                 <strong class="library-folders__destination-type">@destination.MediaType</strong>
                                 @if (string.IsNullOrWhiteSpace(destination.DestinationSourceId))
                                 {
-                                    <span class="library-folders__destination-path">Add a managed folder to import @destination.MediaType</span>
+                                    <span class="library-folders__destination-path">@L["LibraryFoldersPanel_AddAManagedFolderTo", destination.MediaType]</span>
                                     @if (type is not null)
                                     {
                                         <span class="library-folders__choose">
-                                            <AppButton Label="Choose"
+                                            <AppButton Label="@L["Common_Choose"].Value"
                                                        ButtonStyle="AppButtonStyle.Outlined"
                                                        Disabled="@_saving"
                                                        aria-label="@($"Choose a managed folder for {destination.MediaType}")"
@@ -120,7 +121,7 @@
                                     <span class="library-folders__destination-path" title="@destination.Path">&rarr; @DestinationName(destination) &middot; @destination.Path</span>
                                     @if (unavailable)
                                     {
-                                        <span class="library-folders__status library-folders__status--warning">Folder unavailable</span>
+                                        <span class="library-folders__status library-folders__status--warning">@L["LibraryFoldersPanel_FolderUnavailable"]</span>
                                     }
                                 }
                                 @if (!string.IsNullOrWhiteSpace(message))
@@ -133,7 +134,7 @@
 
                     @if (LibraryFolderTable.HasMergeAction)
                     {
-                        <p class="library-folders__hint library-folders__hint--merge">To bring in a whole existing folder once, use Merge into on a managed folder.</p>
+                        <p class="library-folders__hint library-folders__hint--merge">@L["LibraryFoldersPanel_ToBringInAWhole"]</p>
                     }
                 }
             </AppCard>
@@ -165,7 +166,7 @@
                                 </div>
                                 <div class="library-folders__detail-actions">
                                     <AppIconButton Icon="@AppMaterialIcons.Outlined.Edit"
-                                                   Tooltip="Rename"
+                                                   Tooltip="@L["Common_Rename"].Value"
                                                    AriaLabel="@($"Rename {NameOf(library)}")"
                                                    Disabled="@(_saving || ReadOnly)"
                                                    OnClick="@(() => RenameLibraryAsync(library))" />
@@ -572,7 +573,7 @@
             .ToList();
         if (path is not null)
         {
-            locations.Add(new ServerStorageLocationDto { Id = ImportLocationId, Label = "Library import folder", Path = path, AllowWrite = true });
+            locations.Add(new ServerStorageLocationDto { Id = ImportLocationId, Label = L["LibraryFoldersPanel_LibraryImportFolder"].Value, Path = path, AllowWrite = true });
         }
 
         return new UpdateLibrariesRequest

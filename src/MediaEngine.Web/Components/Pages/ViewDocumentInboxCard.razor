@@ -3,6 +3,7 @@
 @using MediaEngine.Web.Services.Ui
 @inject IAppDialogService DialogService
 @namespace MediaEngine.Web.Components.Pages
+@inject IStringLocalizer<SharedStrings> L
 
 @* One document waiting to be filed: its picture, title and date, the details worked out for it as chips, and File. Suggestions are shown here and only applied when the person files. *@
 <article class="view-inbox-card" aria-label="@Title" aria-busy="@(Busy ? "true" : "false")">
@@ -23,7 +24,7 @@
         </span>
     </div>
 
-    <ul class="view-inbox-card__chips" aria-label="Details to file">
+    <ul class="view-inbox-card__chips" aria-label="@L["ViewDocumentInboxCard_DetailsToFile"].Value">
         @if (CorrespondentText is { } correspondent)
         {
             <li>@Chip(correspondent, $"Correspondent {correspondent}, change", () => EditNameAsync(isCorrespondent: true), "is-" + (CorrespondentIsSuggestion ? "suggested" : "set"))</li>
@@ -83,13 +84,13 @@
         <div class="view-inbox-card__actions">
             @if (CanFile)
             {
-                <AppButton Label="File" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="Busy" Loading="Busy" OnClick="FileAsync" Class="view-inbox-card__file" />
-                <AppButton Label="File without changes" ButtonStyle="AppButtonStyle.Outlined" Disabled="Busy" OnClick="FileWithoutChangesAsync" Class="view-inbox-card__file-plain" />
+                <AppButton Label="@L["Common_File"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="Busy" Loading="Busy" OnClick="FileAsync" Class="view-inbox-card__file" />
+                <AppButton Label="@L["ViewDocumentInboxCard_FileWithoutChanges"].Value" ButtonStyle="AppButtonStyle.Outlined" Disabled="Busy" OnClick="FileWithoutChangesAsync" Class="view-inbox-card__file-plain" />
             }
 
             @if (OnOpen.HasDelegate)
             {
-                <AppButton Label="Open" ButtonStyle="AppButtonStyle.Text" Disabled="Busy" OnClick="OnOpen" aria-label="@($"Open {Title}")" Class="view-inbox-card__open" />
+                <AppButton Label="@L["Common_Open"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="Busy" OnClick="OnOpen" aria-label="@($"Open {Title}")" Class="view-inbox-card__open" />
             }
         </div>
     }

@@ -11,34 +11,35 @@
 @inject PlaybackLyricsPresenter Presenter
 @inject IJSRuntime JS
 @inject PlaybackSessionController Playback
+@inject IStringLocalizer<SharedStrings> L
 
-<div class="playback-lyrics" @ref="_root" aria-label="Lyrics">
+<div class="playback-lyrics" @ref="_root" aria-label="@L["Common_Lyrics"].Value">
     @if (ShowMenu)
     {
         <div class="playback-lyrics__toolbar">
-            <AppOverflowMenu AriaLabel="Lyrics options" Class="playback-lyrics__menu">
+            <AppOverflowMenu AriaLabel="@L["PlaybackLyrics_LyricsOptions"].Value" Class="playback-lyrics__menu">
                 @if (Presenter.Offers("find_lyrics"))
                 {
-                    <AppMenuItem Label="Look for lyrics again" Icon="@AppMaterialIcons.Outlined.Refresh" Disabled="@(Presenter.Refreshing)" OnClick="Presenter.RefreshAsync" />
-                    <AppMenuItem Label="Not right? Find another" Icon="@AppMaterialIcons.Outlined.Search" OnClick="Presenter.OpenAlternativesAsync" />
+                    <AppMenuItem Label="@L["PlaybackLyrics_LookForLyricsAgain"].Value" Icon="@AppMaterialIcons.Outlined.Refresh" Disabled="@(Presenter.Refreshing)" OnClick="Presenter.RefreshAsync" />
+                    <AppMenuItem Label="@L["PlaybackLyrics_NotRightFindAnother"].Value" Icon="@AppMaterialIcons.Outlined.Search" OnClick="Presenter.OpenAlternativesAsync" />
                 }
                 @if (CanManageLyrics)
                 {
-                    <AppMenuItem Label="Edit lyrics" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="ManageLyricsAsync" />
+                    <AppMenuItem Label="@L["PlaybackLyrics_EditLyrics"].Value" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="ManageLyricsAsync" />
                 }
                 @if (Presenter.Lines.Count > 0 && Presenter.SelectedTrackId is not null)
                 {
-                    <AppMenuItem Label="This one is wrong" Icon="@AppMaterialIcons.Outlined.Close" OnClick="Presenter.MarkWrongAsync" />
+                    <AppMenuItem Label="@L["PlaybackLyrics_ThisOneIsWrong"].Value" Icon="@AppMaterialIcons.Outlined.Close" OnClick="Presenter.MarkWrongAsync" />
                 }
             </AppOverflowMenu>
         </div>
     }
     @if (!string.IsNullOrWhiteSpace(Presenter.Status)) { <p class="playback-lyrics__status" role="status">@Presenter.Status</p> }
-    <div class="playback-lyrics__lines" tabindex="0" aria-label="Lyric lines">
+    <div class="playback-lyrics__lines" tabindex="0" aria-label="@L["PlaybackLyrics_LyricLines"].Value">
         @if (Presenter.AlternativesOpen)
         {
             <div class="playback-lyrics__alternatives" data-lyrics-state="alternatives">
-                @if (Presenter.AlternativesLoading) { <p class="playback-lyrics__empty">Looking for other lyrics…</p> }
+                @if (Presenter.AlternativesLoading) { <p class="playback-lyrics__empty">@L["PlaybackLyrics_LookingForOtherLyrics"]</p> }
                 else if (Presenter.Alternatives is { items.Count: > 0 } found)
                 {
                     <ul>
@@ -56,29 +57,29 @@
                     </ul>
                 }
                 else { <p class="playback-lyrics__empty">@(Presenter.Alternatives?.message is { Length: > 0 } message ? message : "No other lyrics were found.")</p> }
-                <AppNativeButton Type="button" Class="playback-lyrics__manage" OnClick="Presenter.CloseAlternatives">Go back</AppNativeButton>
+                <AppNativeButton Type="button" Class="playback-lyrics__manage" OnClick="Presenter.CloseAlternatives">@L["Common_GoBack"]</AppNativeButton>
             </div>
         }
-        else if (Presenter.Loading || Presenter.Refreshing) { <p class="playback-lyrics__empty" data-lyrics-state="looking">Looking for lyrics…</p> }
+        else if (Presenter.Loading || Presenter.Refreshing) { <p class="playback-lyrics__empty" data-lyrics-state="looking">@L["PlaybackLyrics_LookingForLyrics"]</p> }
         else if (Presenter.Lines.Count == 0) {
             if (Presenter.NoSourceOn)
             {
                 <div class="playback-lyrics__notice" role="status" data-lyrics-state="no-source">
                     <span class="playback-lyrics__notice-icon" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" /></span>
                     <div>
-                        <strong>No lyrics source is switched on</strong>
+                        <strong>@L["PlaybackLyrics_NoLyricsSourceIsSwitched"]</strong>
                         <p>Lyrics are fetched from an online lyrics source that is part of Library's plugins. @(IsAdministrator ? "Switch one on and lyrics will appear here." : "Ask an administrator to switch one on.")</p>
                         <p>@OriginText</p>
-                        @if (IsAdministrator) { <a class="playback-lyrics__manage" href="/settings/plugins">Open Plugins</a> }
+                        @if (IsAdministrator) { <a class="playback-lyrics__manage" href="/settings/plugins">@L["PlaybackLyrics_OpenPlugins"]</a> }
                         @AddLyricsFile
                     </div>
                 </div>
             }
             else
             {
-                <p class="playback-lyrics__empty" data-lyrics-state="none-found">No lyrics found for this song.</p>
+                <p class="playback-lyrics__empty" data-lyrics-state="none-found">@L["PlaybackLyrics_NoLyricsFoundForThis"]</p>
                 <p class="playback-lyrics__empty">@OriginText</p>
-                @if (Presenter.Offers("find_lyrics")) { <AppNativeButton Type="button" Class="playback-lyrics__manage" OnClick="Presenter.RefreshAsync">Look up lyrics now</AppNativeButton> }
+                @if (Presenter.Offers("find_lyrics")) { <AppNativeButton Type="button" Class="playback-lyrics__manage" OnClick="Presenter.RefreshAsync">@L["PlaybackLyrics_LookUpLyricsNow"]</AppNativeButton> }
                 @AddLyricsFile
             }
         }
@@ -90,7 +91,7 @@
                 var renderedSnapshot = Snapshot;
                 @if (line.IsInstrumental)
                 {
-                    <div class="playback-lyrics__line playback-lyrics__gap" data-lyric-index="@index" aria-label="Instrumental">
+                    <div class="playback-lyrics__line playback-lyrics__gap" data-lyric-index="@index" aria-label="@L["PlaybackLyrics_Instrumental"].Value">
                         <span class="playback-lyrics__dots" aria-hidden="true"><i></i><i></i><i></i></span>
                     </div>
                 }
@@ -114,7 +115,7 @@
     @if (Presenter.SourceLine is { } sourceLine)
     { <small class="playback-lyrics__attribution" data-lyrics-source>@sourceLine</small> }
     @if (_needsReturn && ActiveIndex >= 0)
-    { <AppNativeButton Type="button" Class="playback-lyrics__return" OnClick="FollowAsync" AriaLabel="Back to current line">Back to current line</AppNativeButton> }
+    { <AppNativeButton Type="button" Class="playback-lyrics__return" OnClick="FollowAsync" AriaLabel="@L["PlaybackLyrics_BackToCurrentLine"].Value">@L["PlaybackLyrics_BackToCurrentLine"]</AppNativeButton> }
 </div>
 
 @code {

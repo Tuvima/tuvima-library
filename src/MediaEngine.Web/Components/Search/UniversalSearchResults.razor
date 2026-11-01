@@ -1,5 +1,6 @@
 @using MediaEngine.Contracts.Display
 @namespace MediaEngine.Web.Components.Search
+@inject IStringLocalizer<SharedStrings> L
 
 @if (Response is not null && (Response.TopResult is not null || Response.Sections.Count > 0))
 {
@@ -8,7 +9,7 @@
             @if (Response.TopResult is not null)
             {
                 <section class="universal-results__top" aria-labelledby="universal-top-result">
-                    <span id="universal-top-result" class="universal-results__eyebrow">Top result</span>
+                    <span id="universal-top-result" class="universal-results__eyebrow">@L["UniversalSearchResults_TopResult"]</span>
                     <article class="universal-results__top-card"
                              @onmouseenter="@(() => SelectAsync(Response.TopResult))">
                         <a href="@Response.TopResult.DetailRoute"
@@ -47,7 +48,7 @@
                             <AppButton Href="@Response.TopResult.DetailRoute"
                                        ButtonStyle="AppButtonStyle.Outlined"
                                        Tone="AppUiTone.Neutral">
-                                Open details
+                                @L["Common_OpenDetails"]
                             </AppButton>
                         </div>
                     </article>
@@ -87,7 +88,7 @@
                             <h2 id="@SectionId(resultSection)">@resultSection.Title</h2>
                             @if (!string.IsNullOrWhiteSpace(resultSection.SeeAllRoute))
                             {
-                                <a href="@resultSection.SeeAllRoute">See all</a>
+                                <a href="@resultSection.SeeAllRoute">@L["Common_SeeAll"]</a>
                             }
                         </header>
                         <div class="universal-results__grid">
@@ -125,10 +126,10 @@
 
         @if (!Compact && ActiveResult is not null)
         {
-            <aside class="universal-results__preview" aria-label="Search result preview">
+            <aside class="universal-results__preview" aria-label="@L["UniversalSearchResults_SearchResultPreview"].Value">
                 <AppNativeButton Type="button"
                                  Class="universal-results__preview-close"
-                                 AriaLabel="Close preview"
+                                 AriaLabel="@L["UniversalSearchResults_ClosePreview"].Value"
                                  OnClick="@(() => ClearSelectionAsync())">
                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" />
                 </AppNativeButton>
@@ -170,7 +171,7 @@
                            ButtonStyle="AppButtonStyle.Outlined"
                            Tone="AppUiTone.Neutral"
                            FullWidth="true">
-                    Open details
+                    @L["Common_OpenDetails"]
                 </AppButton>
                 @if (!string.IsNullOrWhiteSpace(ActiveResult.MatchReason))
                 {

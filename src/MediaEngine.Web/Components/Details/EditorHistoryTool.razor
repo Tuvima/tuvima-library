@@ -4,12 +4,13 @@
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient Api
 @inject ILogger<EditorHistoryTool> Logger
+@inject IStringLocalizer<SharedStrings> L
 
 @* The History tool of the universal editor window (v2 spec D3, D5): what happened to this item, newest first, grouped by day, with a
    filter by kind of activity. It is read-only; nothing here is staged or saved. It reads again whenever the item being edited changes. *@
 <div class="tl-history">
     <div class="tl-history__toolbar">
-        <small>What has happened to this item.</small>
+        <small>@L["EditorHistoryTool_WhatHasHappenedToThis"]</small>
         <AppSelect T="string"
                    Value="@_filter"
                    ValueChanged="OnFilterChanged"
@@ -19,7 +20,7 @@
 
     @if (_loading)
     {
-        <EditorPanelBusy Label="Loading this item's history" />
+        <EditorPanelBusy Label="@L["EditorHistoryTool_LoadingThisItemSHistory"].Value" />
     }
     else if (!string.IsNullOrWhiteSpace(_error))
     {

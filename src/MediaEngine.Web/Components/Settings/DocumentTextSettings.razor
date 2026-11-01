@@ -3,8 +3,9 @@
 @implements IAsyncDisposable
 @inject IEngineApiClient ApiClient
 @inject IAppToastService Snackbar
+@inject IStringLocalizer<SharedStrings> L
 
-<AppCard Title="Documents" Description="Scanned pages and photos of paper are read on this computer, so you can search them by their words.">
+<AppCard Title="@L["Common_Documents"].Value" Description="@L["DocumentTextSettings_ScannedPagesAndPhotosOf"].Value">
     <Actions>
         @if (_status is { Installed: true })
         {
@@ -15,31 +16,31 @@
 
     @if (_loading)
     {
-        <p role="status">Loading document settings…</p>
+        <p role="status">@L["DocumentTextSettings_LoadingDocumentSettings"]</p>
     }
     else if (_status is null)
     {
-        <AppAlert Tone="AppUiTone.Error">Document settings could not be loaded.</AppAlert>
+        <AppAlert Tone="AppUiTone.Error">@L["DocumentTextSettings_DocumentSettingsCouldNotBe"]</AppAlert>
     }
     else if (!_status.Installed)
     {
         <div class="documents-settings__missing" role="status">
-            <strong>Text recognition is not installed</strong>
+            <strong>@L["DocumentTextSettings_TextRecognitionIsNotInstalled"]</strong>
             <p>@(string.IsNullOrWhiteSpace(_status.Message) || _status.Message == "Text recognition is not installed." ? "Scanned pages are still kept and can be opened; they just cannot be searched by their words until it is installed." : _status.Message)</p>
         </div>
     }
     else
     {
-        <AppSwitchRow Label="Read scanned documents and photos"
-                      Description="Turn this off to stop reading new files. Words already found stay searchable."
+        <AppSwitchRow Label="@L["DocumentTextSettings_ReadScannedDocumentsAndPhotos"].Value"
+                      Description="@L["DocumentTextSettings_TurnThisOffToStop"].Value"
                       Value="@_status.Settings.Enabled" ValueChanged="@SetEnabledAsync" Disabled="@(ReadOnly || _busy)" />
         <div class="documents-settings__field">
-            <AppSelect Label="Effort" Value="@_status.Settings.Effort" ValueChanged="@SetEffortAsync" Options="@EffortOptions"
+            <AppSelect Label="@L["DocumentTextSettings_Effort"].Value" Value="@_status.Settings.Effort" ValueChanged="@SetEffortAsync" Options="@EffortOptions"
                        HelpText="Low reads more slowly and leaves more of this computer free." Disabled="@(ReadOnly || _busy)" />
         </div>
 
         <div class="documents-settings__languages">
-            <strong>Languages</strong>
+            <strong>@L["DocumentTextSettings_Languages"]</strong>
             <p>English is included. Other languages are an optional download. A download is the only time text recognition uses the internet; no document is ever sent anywhere.</p>
             <ul class="documents-settings__language-list">
                 @foreach (var language in _status.Languages)
@@ -54,7 +55,7 @@
                         else
                         {
                             <span class="documents-settings__language-name">@language.Name</span>
-                            <AppButton Label="Download" StartIcon="@AppMaterialIcons.Outlined.Download" ButtonStyle="AppButtonStyle.Outlined"
+                            <AppButton Label="@L["Models_Download"].Value" StartIcon="@AppMaterialIcons.Outlined.Download" ButtonStyle="AppButtonStyle.Outlined"
                                        Loading="@(_downloading == language.Code)"
                                        Disabled="@(ReadOnly || _busy)" OnClick="@(() => DownloadAsync(language))" />
                         }
@@ -66,24 +67,24 @@
         <div class="documents-settings__queue" role="status">
             @if (_status.QueueLength == 0)
             {
-                <span>Nothing is waiting to be read.</span>
+                <span>@L["DocumentTextSettings_NothingIsWaitingToBe"]</span>
             }
             else
             {
                 <span>@_status.QueueLength @(_status.QueueLength == 1 ? "file is" : "files are") waiting to be read.</span>
                 @if (!string.IsNullOrWhiteSpace(_status.CurrentFileName))
                 {
-                    <span>Reading now: <code>@_status.CurrentFileName</code></span>
+                    <span>@L["DocumentTextSettings_ReadingNow"] <code>@_status.CurrentFileName</code></span>
                 }
             }
         </div>
         <AppActionBar>
-            <AppButton Label="Read all documents again" StartIcon="@AppMaterialIcons.Outlined.Refresh" ButtonStyle="AppButtonStyle.Outlined"
+            <AppButton Label="@L["DocumentTextSettings_ReadAllDocumentsAgain"].Value" StartIcon="@AppMaterialIcons.Outlined.Refresh" ButtonStyle="AppButtonStyle.Outlined"
                        Disabled="@(ReadOnly || _busy || _status.Settings.Enabled == false || _status.RereadRunning)" OnClick="RereadAsync" />
         </AppActionBar>
         @if (_status.RereadRunning)
         {
-            <p role="status">Queueing documents to be read again… @_status.RereadQueued so far.</p>
+            <p role="status">@L["DocumentTextSettings_QueueingDocumentsToBeRead", _status.RereadQueued]</p>
         }
     }
     @if (_error is not null)

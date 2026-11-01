@@ -18,6 +18,7 @@
 @inject IAppToastService Snackbar
 @inject IAppDialogService Dialogs
 @inject ILogger<CollectionEditorShell> Logger
+@inject IStringLocalizer<SharedStrings> L
 
 <NavigationLock ConfirmExternalNavigation="@_hasUnsavedChanges"
                 OnBeforeInternalNavigation="ConfirmNavigationWithUnsavedChanges" />
@@ -33,7 +34,7 @@
                 <h2 class="sme-title" tabindex="-1">@EditorIdentityTitle</h2>
                 @if (IsCreateFlow)
                 {
-                    <ol class="collection-flow__steps" aria-label="Steps">
+                    <ol class="collection-flow__steps" aria-label="@L["Universe_PathSteps"].Value">
                         @for (var number = 1; number <= 3; number++)
                         {
                             <li class="@(number == _step ? "is-current" : null)" aria-current="@(number == _step ? "step" : null)">@number · @StepLabel(number)</li>
@@ -50,8 +51,8 @@
                                Size="AppControlSize.Compact"
                                Tone="AppUiTone.Neutral"
                                Class="sme-close"
-                               Tooltip="Close editor"
-                               AriaLabel="Close editor"
+                               Tooltip="@L["Common_CloseEditor"].Value"
+                               AriaLabel="@L["Common_CloseEditor"].Value"
                                OnClick="Cancel" />
             </div>
         </header>
@@ -63,7 +64,7 @@
         else
         {
         <div class="sme-workspace collection-editor-layout">
-            <nav class="sme-section-nav collection-editor-rail" aria-label="Collection editor sections">
+            <nav class="sme-section-nav collection-editor-rail" aria-label="@L["CollectionEditorShell_CollectionEditorSections"].Value">
                 @for (var index = 0; index < VisibleTabs.Length; index++)
                 {
                     var tabIndex = index;
@@ -87,8 +88,8 @@
                             <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Error"
                                        Class="collection-editor-delete-button"
                                        StartIcon="@AppMaterialIcons.Outlined.DeleteOutline"
-                                       OnClick="DeleteCollectionAsync" Disabled="@_saving">Delete collection</AppButton>
-                            <small>Media remains in your library.</small>
+                                       OnClick="DeleteCollectionAsync" Disabled="@_saving">@L["CollectionEditorShell_DeleteCollection"]</AppButton>
+                            <small>@L["CollectionEditorShell_MediaRemainsInYourLibrary"]</small>
                         }
                     </div>
                 }
@@ -135,7 +136,7 @@
                                    Tone="AppUiTone.Neutral"
                                    OnClick="Cancel"
                                    Disabled="@_saving">
-                            Cancel
+                            @L["Search_Cancel"]
                         </AppButton>
                         <AppButton ButtonStyle="AppButtonStyle.Filled"
                                    Tone="AppUiTone.Primary"
@@ -796,7 +797,7 @@
         var slot = IsPlaylistDialog ? "poster" : _activeArtworkSlot;
         if (slot == "logo" && !string.Equals(Path.GetExtension(file.Name), ".png", StringComparison.OrdinalIgnoreCase))
         {
-            Snackbar.Add("Collection logos must be transparent PNG files.", AppSeverity.Warning);
+            Snackbar.Add(L["CollectionEditorShell_CollectionLogosMustBeTransparent"].Value, AppSeverity.Warning);
             return;
         }
         _artworkFiles[slot] = file;
@@ -814,7 +815,7 @@
         {
             _artworkFiles.Remove(slot);
             _artworkPreviewUrls.Remove(slot);
-            Snackbar.Add("Artwork preview could not be loaded.", AppSeverity.Warning);
+            Snackbar.Add(L["CollectionEditorShell_ArtworkPreviewCouldNotBe"].Value, AppSeverity.Warning);
         }
     }
 
@@ -846,7 +847,7 @@
             var ok = await ApiClient.AddCollectionItemAsync(EditingCollection.Id, work.WorkId, Request.ActiveProfileId);
             if (!ok)
             {
-                Snackbar.Add("Failed to add the item to this collection.", AppSeverity.Error);
+                Snackbar.Add(L["CollectionEditorShell_FailedToAddTheItem"].Value, AppSeverity.Error);
                 return;
             }
 
@@ -920,7 +921,7 @@
             var ok = await ApiClient.ReorderCollectionItemsAsync(EditingCollection.Id, itemIds, Request.ActiveProfileId);
             if (!ok)
             {
-                Snackbar.Add("Failed to reorder the collection.", AppSeverity.Error);
+                Snackbar.Add(L["CollectionEditorShell_FailedToReorderTheCollection"].Value, AppSeverity.Error);
                 await LoadManualItemsAsync();
                 return;
             }
@@ -964,21 +965,21 @@
     {
         if (string.IsNullOrWhiteSpace(_name))
         {
-            Snackbar.Add("Please enter a name for the collection.", AppSeverity.Warning);
+            Snackbar.Add(L["CollectionEditorShell_PleaseEnterANameFor"].Value, AppSeverity.Warning);
             _activeTab = "details";
             return;
         }
 
         if (string.Equals(PersistenceVisibility, "private", StringComparison.OrdinalIgnoreCase) && !Request.ActiveProfileId.HasValue)
         {
-            Snackbar.Add("An active profile is required to save a private collection.", AppSeverity.Warning);
+            Snackbar.Add(L["CollectionEditorShell_AnActiveProfileIsRequired"].Value, AppSeverity.Warning);
             _activeTab = "details";
             return;
         }
 
         if (_rulesEnabled && !_ruleDefinition.AllConditions.Any(IsCompleteRule))
         {
-            Snackbar.Add("Add at least one complete rule before saving a collection that fills up from rules.", AppSeverity.Warning);
+            Snackbar.Add(L["CollectionEditorShell_AddAtLeastOneComplete2"].Value, AppSeverity.Warning);
             _activeTab = "membership";
             _step = 2;
             return;
@@ -994,14 +995,14 @@
 
         if (_seasonal && (!new DayMonth(_seasonFromMonth, _seasonFromDay).IsValid || !new DayMonth(_seasonToMonth, _seasonToDay).IsValid))
         {
-            Snackbar.Add("Choose real days for the seasonal window, for example 1 October to 1 November.", AppSeverity.Warning);
+            Snackbar.Add(L["CollectionEditorShell_ChooseRealDaysForThe"].Value, AppSeverity.Warning);
             _activeTab = "details";
             return;
         }
 
         if (_ownerKind == "Profile" && _audience == "SelectedProfiles" && _selectedProfileIds.Count == 0)
         {
-            Snackbar.Add("Choose at least one other profile to share this collection with.", AppSeverity.Warning);
+            Snackbar.Add(L["CollectionEditorShell_ChooseAtLeastOneOther"].Value, AppSeverity.Warning);
             _activeTab = "details";
             return;
         }
@@ -1282,7 +1283,7 @@
             return;
         if (!await ApiClient.DeleteCollectionArtworkAsync(EditingCollection.Id, _activeArtworkSlot, Request.ActiveProfileId))
         {
-            Snackbar.Add("Artwork could not be removed.", AppSeverity.Error);
+            Snackbar.Add(L["CollectionEditorShell_ArtworkCouldNotBeRemoved"].Value, AppSeverity.Error);
             return;
         }
         _artworkFiles.Remove(_activeArtworkSlot);
@@ -1319,7 +1320,7 @@
         {
             if (!await ApiClient.DeleteCollectionAsync(EditingCollection.Id, Request.ActiveProfileId))
             {
-                Snackbar.Add("The collection could not be deleted.", AppSeverity.Error);
+                Snackbar.Add(L["CollectionEditorShell_TheCollectionCouldNotBe"].Value, AppSeverity.Error);
                 return;
             }
 
@@ -1870,7 +1871,7 @@
                            Value="@(_randomOrder ? "random" : "set")"
                            ValueChanged="OnRandomOrderChanged"
                            ToStringFunc="@(value => value == "random" ? "Random (a new pick each day)" : "In the order set by this collection")"
-                           Label="Order"
+                           Label=L["EditingVideoOrder_Order"].Value
                            Variant="AppVariant.Outlined"
                            Class="collection-editor-field">
                     <AppSelectItem T="string" Value="@("set")">In the order set by this collection</AppSelectItem>
@@ -1886,7 +1887,7 @@
                            Value="@_seasonFromMonth.ToString()"
                            ValueChanged="@(value => OnSeasonEdgeChanged(() => _seasonFromMonth = int.Parse(value ?? "10")))"
                            ToStringFunc="MonthLabel"
-                           Label="From month"
+                           Label=L["CollectionEditorShell_FromMonth"].Value
                            Variant="AppVariant.Outlined"
                            Class="collection-editor-field">
                     @for (var month = 1; month <= 12; month++)
@@ -1901,7 +1902,7 @@
                            Value="@_seasonToMonth.ToString()"
                            ValueChanged="@(value => OnSeasonEdgeChanged(() => _seasonToMonth = int.Parse(value ?? "11")))"
                            ToStringFunc="MonthLabel"
-                           Label="To month"
+                           Label=L["CollectionEditorShell_ToMonth"].Value
                            Variant="AppVariant.Outlined"
                            Class="collection-editor-field">
                     @for (var month = 1; month <= 12; month++)
@@ -1911,7 +1912,7 @@
                 </AppSelect>
                 <AppNumericField Label="To day" Value="@_seasonToDay" Min="1" Max="31"
                                  ValueChanged="@(value => OnSeasonEdgeChanged(() => _seasonToDay = value))"
-                                 HelpText="Both days are included. A window that ends before it starts runs over New Year."
+                                 HelpText=L["CollectionEditorShell_BothDaysAreIncludedA"].Value
                                  Class="collection-editor-field" />
             }
         </MediaEditorPanel>

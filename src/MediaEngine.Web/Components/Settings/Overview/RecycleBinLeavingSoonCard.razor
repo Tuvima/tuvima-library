@@ -2,6 +2,7 @@
 @using MediaEngine.Contracts.Items
 @using MediaEngine.Web.Services.Formatting
 @inject IEngineApiClient Api
+@inject IStringLocalizer<SharedStrings> L
 
 @* Administrators only: items that will leave the Recycle bin for good within days (spec Delete a show, season, album or Series, D23).
    Review opens the bin; Keep them puts every one of those items back. Nothing shows when nothing is leaving soon. *@
@@ -14,9 +15,9 @@
                 will be deleted from the Recycle bin @When.
             </span>
             <span class="leaving-soon__actions">
-                <a class="leaving-soon__review" href="/recycle-bin">Review</a>
+                <a class="leaving-soon__review" href="/recycle-bin">@L["Common_Review"]</a>
                 <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
-                           Disabled="@_busy" OnClick="KeepAsync">Keep them</AppButton>
+                           Disabled="@_busy" OnClick="KeepAsync">@L["RecycleBinLeavingSoonCard_KeepThem"]</AppButton>
             </span>
         </div>
     </AppCard>

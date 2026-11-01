@@ -10,6 +10,7 @@
 @inject ContextSidebarPreferences ContextPreferences
 @inject ContextSidebarCoordinator ContextSidebar
 @implements IAsyncDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="tl-page ingestion-operations">
     <LibrarySummary RefreshToken="_summaryRefresh" />
@@ -21,8 +22,8 @@
             @if (Dashboard.IsEngineUnreachable)
             {
                 <div class="ingestion-status__header">
-                    <h2>The Library's engine isn't responding</h2>
-                    <AppButton Label="Retry" ButtonStyle="AppButtonStyle.Outlined" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="RetryAsync" />
+                    <h2>@L["Common_TheLibrarySEngineIsn"]</h2>
+                    <AppButton Label="@L["Common_Retry"].Value" ButtonStyle="AppButtonStyle.Outlined" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.Refresh" OnClick="RetryAsync" />
                 </div>
                 @if (Queue is { } lastKnown)
                 {
@@ -56,7 +57,7 @@
     {
         if (!Dashboard.IsLoading && !Dashboard.IsEngineUnreachable)
         {
-            <AppPageState Kind="AppPageStateKind.Error" Icon="@AppMaterialIcons.Outlined.CloudOff" Title="Ingestion status is unavailable" Message="The Engine did not return a media ingestion summary." />
+            <AppPageState Kind="AppPageStateKind.Error" Icon="@AppMaterialIcons.Outlined.CloudOff" Title="@L["IngestionTasksTab_IngestionStatusIsUnavailable"].Value" Message="The Engine did not return a media ingestion summary." />
         }
     }
     else
@@ -64,7 +65,7 @@
         if (Model.Attention.Count > 0)
         {
             <AppPanel Class="tl-card ingestion-attention">
-                <header><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WarningAmber" /><h3>Needs attention</h3></header>
+                <header><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WarningAmber" /><h3>@L["Common_NeedsAttention"]</h3></header>
                 @foreach (var item in Model.Attention)
                 {
                     if (string.IsNullOrWhiteSpace(item.Route))

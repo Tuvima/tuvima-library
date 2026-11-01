@@ -1,4 +1,5 @@
 @namespace MediaEngine.Web.Components.Shared.Tools
+@inject IStringLocalizer<SharedStrings> L
 
 @* One tool or download from the Engine's tools list, worded the same on the setup screen and in Settings.
    Buttons appear only when the row allows the action and the host handles it, so setup (which handles none) is read-only. *@
@@ -13,7 +14,7 @@
         {
             @if (!string.IsNullOrWhiteSpace(Tool.Version))
             {
-                <small class="tool-row__detail">Version @Tool.Version</small>
+                <small class="tool-row__detail">@L["ToolRequirementRow_Version", Tool.Version]</small>
             }
         }
         else
@@ -44,11 +45,11 @@
         <div class="tool-row__actions">
             @if (Tool.CanLocate && OnLocate.HasDelegate)
             {
-                <AppButton Label="Locate it" Size="AppControlSize.Compact" Disabled="Busy" OnClick="@(() => OnLocate.InvokeAsync(Tool))" />
+                <AppButton Label="@L["ToolRequirementRow_LocateIt"].Value" Size="AppControlSize.Compact" Disabled="Busy" OnClick="@(() => OnLocate.InvokeAsync(Tool))" />
             }
             @if (Tool.CanInstall && OnInstall.HasDelegate)
             {
-                <AppButton Label="Install for me" Size="AppControlSize.Compact" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="Busy" OnClick="@(() => OnInstall.InvokeAsync(Tool))" />
+                <AppButton Label="@L["ToolRequirementRow_InstallForMe"].Value" Size="AppControlSize.Compact" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="Busy" OnClick="@(() => OnInstall.InvokeAsync(Tool))" />
             }
             @if (Tool.CanDownloadAgain && OnDownloadAgain.HasDelegate)
             {

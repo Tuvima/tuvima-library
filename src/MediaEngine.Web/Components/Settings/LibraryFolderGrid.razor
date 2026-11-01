@@ -3,6 +3,7 @@
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Formatting
+@inject IStringLocalizer<SharedStrings> L
 
 @* A library's folders (Libraries spec D7): Folder (short name, full path under it), Titles, Access, Scan (on or off), Import destination and a
    "..." menu. Built from the shared table and row menu. On a phone it is read-only: no switch, no choice, no menu. The host owns every save;
@@ -11,15 +12,15 @@
 <AppTable CardsOn="AppTableCardsMode.Phone" Class="folder-grid" Hover="true" aria-label="@($"{PluralLabel} folders")">
     <thead>
         <tr>
-            <th data-card-role="title">Folder</th>
-            <th data-card-role="value">Titles</th>
-            <th data-label="Access">Access</th>
-            <th data-label="Scan">Scan</th>
+            <th data-card-role="title">@L["Common_Folder"]</th>
+            <th data-card-role="value">@L["Common_Titles"]</th>
+            <th data-label="Access">@L["Common_Access"]</th>
+            <th data-label="Scan">@L["LibraryFolderGrid_Scan"]</th>
             <th data-label="Import destination">
-                Import destination
-                <AppInfoTip Text="@ImportDestinationHint" Label="About the import destination" />
+                @L["LibraryFolderGrid_ImportDestination"]
+                <AppInfoTip Text="@ImportDestinationHint" Label="@L["LibraryFolderGrid_AboutTheImportDestination"].Value" />
             </th>
-            <th data-card-role="actions"><span class="sr-only">Actions</span></th>
+            <th data-card-role="actions"><span class="sr-only">@L["ApiKeys_Actions"]</span></th>
         </tr>
     </thead>
     <tbody>
@@ -45,7 +46,7 @@
                             <span class="folder-grid__path" title="@source.Path">@source.Path</span>
                             @if (IsScanning(source))
                             {
-                                <span class="folder-grid__status" data-scanning="true"><AppSpinner Indeterminate="true" Size="AppSize.Small" />Scanning</span>
+                                <span class="folder-grid__status" data-scanning="true"><AppSpinner Indeterminate="true" Size="AppSize.Small" />@L["Ingestion_StageScanning"]</span>
                             }
                             @if (job is not null)
                             {
@@ -56,11 +57,11 @@
                             }
                             else if (IsConverting(source))
                             {
-                                <span class="folder-grid__status">Organising…</span>
+                                <span class="folder-grid__status">@L["Common_Organising"]</span>
                             }
                             else if (IsMerging(source))
                             {
-                                <span class="folder-grid__status">Merging…</span>
+                                <span class="folder-grid__status">@L["Common_Merging"]</span>
                             }
                             @if (IsMerged(source))
                             {
@@ -68,7 +69,7 @@
                             }
                             @if (!source.ScanEnabled)
                             {
-                                <span class="folder-grid__status" data-paused="true">Scanning is paused</span>
+                                <span class="folder-grid__status" data-paused="true">@L["LibraryFolderGrid_ScanningIsPaused"]</span>
                             }
                             @if (OnKeepGoing.HasDelegate && source.FirstCheck is { } firstCheck)
                             {
@@ -76,7 +77,7 @@
                                 {
                                     <span class="folder-grid__status folder-grid__status--warning" data-first-check="paused">
                                         @LibraryFolderTable.PausedText(firstCheck)
-                                        <AppButton Label="Keep going" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text"
+                                        <AppButton Label="@L["Common_KeepGoing"].Value" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text"
                                                    Disabled="@Busy"
                                                    aria-label="@($"Keep going with {name}")"
                                                    OnClick="@(() => OnKeepGoing.InvokeAsync(source))" />
@@ -84,7 +85,7 @@
                                 }
                                 else if (firstCheck.State == "checking")
                                 {
-                                    <span class="folder-grid__status" data-first-check="checking">Checking the first files…</span>
+                                    <span class="folder-grid__status" data-first-check="checking">@L["Common_CheckingTheFirstFiles"]</span>
                                 }
                             }
                         </div>
@@ -118,7 +119,7 @@
                     @if (!managed)
                     {
                         <span class="folder-grid__none">
-                            <span role="img" aria-label="Not an import destination">—</span>
+                            <span role="img" aria-label="@L["LibraryFolderGrid_NotAnImportDestination"].Value">—</span>
                             <AppInfoTip Text="@AsIsHint" Label="@($"Why {name} is not an import destination")" />
                         </span>
                     }
@@ -128,7 +129,7 @@
                     }
                     else
                     {
-                        <div role="radiogroup" aria-label="Import destination">
+                        <div role="radiogroup" aria-label="@L["LibraryFolderGrid_ImportDestination"].Value">
                             <AppNativeButton Type="button"
                                              Class="folder-grid__radio"
                                              role="radio"
@@ -139,7 +140,7 @@
                                 <AppMaterialIcon Icon="@(marked ? AppMaterialIcons.Filled.RadioButtonChecked : AppMaterialIcons.Outlined.RadioButtonUnchecked)" />
                                 @if (marked)
                                 {
-                                    <span>Import destination</span>
+                                    <span>@L["LibraryFolderGrid_ImportDestination"]</span>
                                 }
                             </AppNativeButton>
                         </div>
@@ -211,7 +212,7 @@
         var jobOpen = job is not null && FolderJobFormat.IsOpen(job);
         var items = new List<AppRowMenuItem>
         {
-            new() { Label = "Override file handling for this folder…", Icon = AppMaterialIcons.Outlined.Tune, Disabled = Busy, OnClick = Raise(OnOverride, source) },
+            new() { Label = L["LibraryFolderGrid_OverrideFileHandlingForThis"].Value, Icon = AppMaterialIcons.Outlined.Tune, Disabled = Busy, OnClick = Raise(OnOverride, source) },
             new()
             {
                 Label = source.ScanEnabled ? "Pause scanning" : "Resume scanning",
@@ -222,28 +223,28 @@
         };
         if (OnChangeKind.HasDelegate && LibraryFolderTable.CanChangeKindOf(Library, source, jobOpen))
         {
-            items.Add(new() { Label = "Change what this folder is…", Icon = AppMaterialIcons.Outlined.Category, OnClick = Raise(OnChangeKind, source) });
+            items.Add(new() { Label = L["LibraryFolderTable_ChangeWhatThisFolderIs"].Value, Icon = AppMaterialIcons.Outlined.Category, OnClick = Raise(OnChangeKind, source) });
         }
 
         // What the older folder menu offered stays until the File handling tab (next step) decides where it belongs.
         if (managed && job is null)
         {
-            items.Add(new() { Label = "Organise files now", Icon = AppMaterialIcons.Outlined.DriveFileMove, OnClick = Raise(OnOrganiseNow, source) });
+            items.Add(new() { Label = L["LibraryFolderTable_OrganiseFilesNow"].Value, Icon = AppMaterialIcons.Outlined.DriveFileMove, OnClick = Raise(OnOrganiseNow, source) });
         }
 
         if (LibraryFolderTable.CanMergeInto(Library, source, jobOpen))
         {
-            items.Add(new() { Label = "Merge into…", Icon = AppMaterialIcons.Outlined.ArrowForward, OnClick = Raise(OnMerge, source) });
+            items.Add(new() { Label = L["LibraryFolderTable_MergeInto"].Value, Icon = AppMaterialIcons.Outlined.ArrowForward, OnClick = Raise(OnMerge, source) });
         }
 
         if (OnMoveToVault.HasDelegate && !IsMerged(source))
         {
-            items.Add(new() { Label = "Move to Vault…", Icon = AppMaterialIcons.Outlined.Lock, OnClick = Raise(OnMoveToVault, source) });
+            items.Add(new() { Label = L["LibraryFolderGrid_MoveToVault"].Value, Icon = AppMaterialIcons.Outlined.Lock, OnClick = Raise(OnMoveToVault, source) });
         }
 
         if (OnMoveOutOfVault.HasDelegate && !IsMerged(source))
         {
-            items.Add(new() { Label = "Move out of the Vault…", Icon = AppMaterialIcons.Outlined.LockOpen, OnClick = Raise(OnMoveOutOfVault, source) });
+            items.Add(new() { Label = L["LibraryFolderGrid_MoveOutOfTheVault"].Value, Icon = AppMaterialIcons.Outlined.LockOpen, OnClick = Raise(OnMoveOutOfVault, source) });
         }
 
         items.Add(new()
@@ -253,8 +254,8 @@
             Disabled = IsMerging(source),
             OnClick = Raise(OnChangeHandling, source),
         });
-        items.Add(new() { Label = "Label", Icon = AppMaterialIcons.Outlined.Edit, OnClick = Raise(OnLabel, source) });
-        items.Add(new() { Label = "Remove folder", Icon = AppMaterialIcons.Outlined.Delete, Destructive = true, OnClick = Raise(OnRemove, source) });
+        items.Add(new() { Label = L["ApiKeys_Label"].Value, Icon = AppMaterialIcons.Outlined.Edit, OnClick = Raise(OnLabel, source) });
+        items.Add(new() { Label = L["LibraryFolderTable_RemoveFolder"].Value, Icon = AppMaterialIcons.Outlined.Delete, Destructive = true, OnClick = Raise(OnRemove, source) });
         return items;
     }
 

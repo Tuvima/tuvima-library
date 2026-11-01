@@ -58,7 +58,7 @@ public sealed class ProfileEditorSheetTests
     [Fact]
     public void Adding_StartsEmpty_AndCannotBeSavedWithoutAName()
     {
-        using var ctx = new BunitContext();
+        using var ctx = new LocalizedBunitContext();
         var cut = Render(ctx);
 
         Assert.Contains("Add profile", cut.Find("#profile-editor-title").TextContent);
@@ -73,7 +73,7 @@ public sealed class ProfileEditorSheetTests
     [Fact]
     public void Adding_ReportsTheNameSwatchIconAndKidsChoice()
     {
-        using var ctx = new BunitContext();
+        using var ctx = new LocalizedBunitContext();
         ProfileEditorResult? result = null;
         var cut = Render(ctx, saved: r => result = r);
 
@@ -99,7 +99,7 @@ public sealed class ProfileEditorSheetTests
     [Fact]
     public void TheSheet_HasNoPerProfileRatingChoices_AndReportsOnlyTheKidsSwitch()
     {
-        using var ctx = new BunitContext();
+        using var ctx = new LocalizedBunitContext();
         ProfileEditorResult? result = null;
         var cut = Render(ctx, saved: r => result = r);
 
@@ -116,7 +116,7 @@ public sealed class ProfileEditorSheetTests
     [Fact]
     public void TheAvatarPicker_StartsCollapsed_AndClosesAfterAColourIsChosen()
     {
-        using var ctx = new BunitContext();
+        using var ctx = new LocalizedBunitContext();
         ProfileEditorResult? result = null;
         var cut = Render(ctx, saved: r => result = r);
 
@@ -135,7 +135,7 @@ public sealed class ProfileEditorSheetTests
     [Fact]
     public void PinRow_ShowsStatus_AndTheButtonsToggleTheInlinePad()
     {
-        using var ctx = new BunitContext();
+        using var ctx = new LocalizedBunitContext();
         var cut = Render(ctx, Existing(hasPin: true));
 
         Assert.Contains("PIN set", cut.Find(".profile-editor__setting-actions").ParentElement!.TextContent);
@@ -154,7 +154,7 @@ public sealed class ProfileEditorSheetTests
     [Fact]
     public void TheEditor_OffersTwelveSwatchesTwelveIconsAndTheInitial()
     {
-        using var ctx = new BunitContext();
+        using var ctx = new LocalizedBunitContext();
         var cut = Render(ctx);
 
         Assert.Empty(cut.FindAll("button.avatar-picker__option"));
@@ -169,7 +169,7 @@ public sealed class ProfileEditorSheetTests
     [Fact]
     public void Editing_FillsInTheProfile_AndMarksTheCurrentChoices()
     {
-        using var ctx = new BunitContext();
+        using var ctx = new LocalizedBunitContext();
         var cut = Render(ctx, Existing(icon: "owl"));
 
         Assert.Equal("Maya", cut.Find("input.profile-editor__name").GetAttribute("value"));
@@ -184,7 +184,7 @@ public sealed class ProfileEditorSheetTests
     [Fact]
     public void PickingAnIcon_DropsASavedPhoto()
     {
-        using var ctx = new BunitContext();
+        using var ctx = new LocalizedBunitContext();
         ProfileEditorResult? result = null;
         var cut = Render(ctx, Existing(image: "/profiles/1/avatar"), saved: r => result = r);
 
@@ -204,7 +204,7 @@ public sealed class ProfileEditorSheetTests
     [Fact]
     public void Pin_CanBeSetFromTheNumberPad_AndOnlyWhenLongEnough()
     {
-        using var ctx = new BunitContext();
+        using var ctx = new LocalizedBunitContext();
         ProfileEditorResult? result = null;
         var cut = Render(ctx, Existing(), saved: r => result = r);
 
@@ -225,7 +225,7 @@ public sealed class ProfileEditorSheetTests
     [Fact]
     public void Pin_CanBeRemoved()
     {
-        using var ctx = new BunitContext();
+        using var ctx = new LocalizedBunitContext();
         ProfileEditorResult? result = null;
         var cut = Render(ctx, Existing(hasPin: true), saved: r => result = r);
 
@@ -239,7 +239,7 @@ public sealed class ProfileEditorSheetTests
     [Fact]
     public void Delete_AsksBeforeItDeletes()
     {
-        using var ctx = new BunitContext();
+        using var ctx = new LocalizedBunitContext();
         var deletes = new List<bool>();
         var cut = Render(ctx, Existing(), deleted: deletes.Add);
 
@@ -254,7 +254,7 @@ public sealed class ProfileEditorSheetTests
     [Fact]
     public void Delete_KeepsPersonalPhotosInTheSharedLibraryUnlessToldOtherwise()
     {
-        using var ctx = new BunitContext();
+        using var ctx = new LocalizedBunitContext();
         var deletes = new List<bool>();
         var cut = Render(ctx, Existing(), deleted: deletes.Add);
 
@@ -271,7 +271,7 @@ public sealed class ProfileEditorSheetTests
     [Fact]
     public void Delete_CanDeleteThePersonalPhotosInstead()
     {
-        using var ctx = new BunitContext();
+        using var ctx = new LocalizedBunitContext();
         var deletes = new List<bool>();
         var cut = Render(ctx, Existing(), deleted: deletes.Add);
 
@@ -285,7 +285,7 @@ public sealed class ProfileEditorSheetTests
     [Fact]
     public void Delete_IsHiddenWhenThePageDoesNotAllowIt()
     {
-        using var ctx = new BunitContext();
+        using var ctx = new LocalizedBunitContext();
         var cut = Render(ctx, Existing(), canDelete: false);
 
         Assert.Empty(cut.FindAll("button.profile-editor__delete"));
@@ -294,7 +294,7 @@ public sealed class ProfileEditorSheetTests
     [Fact]
     public void WhileSaving_NothingCanBeSentTwice_AndAFailureIsShown()
     {
-        using var ctx = new BunitContext();
+        using var ctx = new LocalizedBunitContext();
         var cut = Render(ctx, Existing(), saving: true, error: "That name is taken.");
 
         Assert.True(cut.Find("button.who-button--primary").HasAttribute("disabled"));
@@ -304,7 +304,7 @@ public sealed class ProfileEditorSheetTests
     [Fact]
     public void EscapeAndTheBackdrop_CloseTheSheet()
     {
-        using var ctx = new BunitContext();
+        using var ctx = new LocalizedBunitContext();
         var closes = 0;
         var cut = Render(ctx, closed: () => closes++);
 
@@ -317,7 +317,7 @@ public sealed class ProfileEditorSheetTests
     [Fact]
     public void AvatarIcons_AreDrawnOnTheChosenColour()
     {
-        using var ctx = new BunitContext();
+        using var ctx = new LocalizedBunitContext();
         var cut = ctx.Render<ProfileAvatar>(parameters => parameters
             .Add(p => p.DisplayName, "Maya")
             .Add(p => p.Color, "#3B82F6")
@@ -331,7 +331,7 @@ public sealed class ProfileEditorSheetTests
     [Fact]
     public void AvatarWithoutAnIcon_ShowsTheInitial_AndAnUnknownIconIsIgnored()
     {
-        using var ctx = new BunitContext();
+        using var ctx = new LocalizedBunitContext();
         var cut = ctx.Render<ProfileAvatar>(parameters => parameters
             .Add(p => p.DisplayName, "Maya")
             .Add(p => p.Icon, "nope"));
@@ -342,7 +342,7 @@ public sealed class ProfileEditorSheetTests
     [Fact]
     public void TheInitialIsCentredByItsCapHeight_NotByItsTextBox()
     {
-        using var ctx = new BunitContext();
+        using var ctx = new LocalizedBunitContext();
         var cut = ctx.Render<ProfileAvatar>(parameters => parameters.Add(p => p.DisplayName, "Maya"));
 
         var letter = cut.Find("text");
@@ -356,7 +356,7 @@ public sealed class ProfileEditorSheetTests
     [Fact]
     public void SelfEdit_OffersOnlyTheNameAndThePicture_NotKidsLimitPinOrDelete()
     {
-        using var ctx = new BunitContext();
+        using var ctx = new LocalizedBunitContext();
         var cut = Render(ctx, Existing(hasPin: true), selfEdit: true, canDelete: true);
 
         Assert.Equal("Edit profile", cut.Find("#profile-editor-title").TextContent);
@@ -371,7 +371,7 @@ public sealed class ProfileEditorSheetTests
     [Fact]
     public void SelfEdit_PicksAColourOrAPhoto_ButNotAnIcon()
     {
-        using var ctx = new BunitContext();
+        using var ctx = new LocalizedBunitContext();
         var cut = Render(ctx, Existing(), selfEdit: true);
         OpenPicker(cut);
 
@@ -381,7 +381,7 @@ public sealed class ProfileEditorSheetTests
     [Fact]
     public void NormalEdit_StillOffersTheIconTab_KidsLimitAndPin()
     {
-        using var ctx = new BunitContext();
+        using var ctx = new LocalizedBunitContext();
         var cut = Render(ctx, Existing());
         OpenPicker(cut);
 

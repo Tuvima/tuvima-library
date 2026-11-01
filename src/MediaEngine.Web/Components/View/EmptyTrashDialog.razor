@@ -2,6 +2,7 @@
 @using MediaEngine.Contracts.LocalAssets
 @implements IDisposable
 @inject IEngineApiClient ApiClient
+@inject IStringLocalizer<SharedStrings> L
 
 @* The one confirmation for emptying Trash. It asks the Engine what would happen, shows the summary (counts by kind, the Galleries the
    items leave, what stays in Trash and why) and deletes exactly that summary. Cancel has the focus when it opens (the autofocus
@@ -30,8 +31,8 @@
 
                     @if (Galleries.Count > 0)
                     {
-                        <section class="empty-trash__section" aria-label="Galleries">
-                            <h3>Galleries</h3>
+                        <section class="empty-trash__section" aria-label="@L["Common_Galleries"].Value">
+                            <h3>@L["Common_Galleries"]</h3>
                             <p>
                                 @GalleriesLead@for (var i = 0; i < ShownGalleries.Count; i++)
                                 {
@@ -54,8 +55,8 @@
 
                 @if (_preview.Skipped.Count > 0)
                 {
-                    <section class="empty-trash__section" aria-label="Skipped">
-                        <h3>Skipped</h3>
+                    <section class="empty-trash__section" aria-label="@L["EmptyTrashDialog_Skipped"].Value">
+                        <h3>@L["EmptyTrashDialog_Skipped"]</h3>
                         @foreach (var skipped in _preview.Skipped)
                         {
                             <p class="empty-trash__skipped" data-reason="@skipped.ReasonCode">@EmptyTrashText.SkippedLine(skipped)</p>
@@ -99,7 +100,7 @@
         }
         else if (_state == DialogState.Failed && _canRetry)
         {
-            <AppButton Label="Try again" ButtonStyle="AppButtonStyle.Outlined" OnClick="LoadPreviewAsync" />
+            <AppButton Label="@L["Common_TryAgain"].Value" ButtonStyle="AppButtonStyle.Outlined" OnClick="LoadPreviewAsync" />
         }
     </FooterContent>
 </AppDialogShell>

@@ -1,15 +1,16 @@
 @namespace MediaEngine.Web.Components.Shared
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="@RootClass">
     <span class="app-compact-pager__summary">@Summary</span>
     <div class="app-compact-pager__actions">
-        <AppButton Label="Previous"
+        <AppButton Label="@L["Home_CarouselPrevious"].Value"
                    Size="AppControlSize.Compact"
                    StartIcon="@AppMaterialIcons.Outlined.ChevronLeft"
                    Disabled="@(Offset <= 0 || Loading)"
                    OnClick="@PreviousAsync" />
         <AppChip Text="@($"Page {CurrentPage:N0}")" Tone="AppUiTone.Primary" Class="app-compact-pager__page" />
-        <AppButton Label="Next"
+        <AppButton Label="@L["Home_CarouselNext"].Value"
                    Size="AppControlSize.Compact"
                    EndIcon="@AppMaterialIcons.Outlined.ChevronRight"
                    Disabled="@(!HasMore || Loading)"

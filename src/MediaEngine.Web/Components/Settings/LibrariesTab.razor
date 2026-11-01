@@ -11,6 +11,7 @@
 @inject MediaEngine.Web.Services.Vault.NsfwModeState Nsfw
 @inject DashboardSessionAccessor Session
 @implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 @{
     var readOnly = DeviceContext.IsMobile;
@@ -25,21 +26,21 @@
     {
         <AppPageState Kind="AppPageStateKind.Unavailable"
                       Icon="@AppMaterialIcons.Outlined.DesktopAccessDisabled"
-                      Title="Library settings are unavailable"
-                      Message="Use a desktop or tablet to manage library storage and intake." />
+                      Title="@L["LibrariesTab_LibrarySettingsAreUnavailable"].Value"
+                      Message="@L["LibrariesTab_UseADesktopOrTablet"].Value" />
     }
     else if (_loading)
     {
-        <AppPageState Kind="AppPageStateKind.Loading" Title="Loading libraries" Class="tl-sp-py-8" />
+        <AppPageState Kind="AppPageStateKind.Loading" Title="@L["Common_LoadingLibraries"].Value" Class="tl-sp-py-8" />
     }
     else if (_configuration is null)
     {
         <AppPageState Kind="AppPageStateKind.Error"
                       Icon="@AppMaterialIcons.Outlined.CloudOff"
-                      Title="Libraries could not be loaded"
+                      Title="@L["Common_LibrariesCouldNotBeLoaded"].Value"
                       Message="@(_loadError ?? "The Engine did not return library configuration.")">
             <Actions>
-                <AppButton Label="Try again" ButtonStyle="AppButtonStyle.Outlined" OnClick="RetryAsync" />
+                <AppButton Label="@L["Common_TryAgain"].Value" ButtonStyle="AppButtonStyle.Outlined" OnClick="RetryAsync" />
             </Actions>
         </AppPageState>
     }
@@ -95,9 +96,9 @@
             default:
                 <AppPageState Kind="AppPageStateKind.Unavailable"
                               Icon="@AppMaterialIcons.Outlined.FolderOpen"
-                              Title="This library page does not exist">
+                              Title="@L["LibrariesTab_ThisPageDoesNot"].Value">
                     <Actions>
-                        <AppButton Href="/settings/libraries" Label="Back to Libraries" ButtonStyle="AppButtonStyle.Outlined" />
+                        <AppButton Href="/settings/libraries" Label="@L["Common_BackToLibraries"].Value" ButtonStyle="AppButtonStyle.Outlined" />
                     </Actions>
                 </AppPageState>
                 break;
@@ -107,13 +108,13 @@
         @* The folders panel carries its own phone note; this one covers the View settings, which are read-only on a phone too. *@
         @if (readOnly && level.Kind == LevelKind.ViewKind)
         {
-            <p class="libraries__mobile-note">Library storage and intake are read-only on mobile. Use a desktop or tablet to change library configuration.</p>
+            <p class="libraries__mobile-note">@L["LibrariesTab_LibraryStorageAndIntakeAre"]</p>
         }
 
         @if (_engineUnavailable)
         {
             <AppAlert Tone="AppUiTone.Error">
-                The Engine is unavailable. Existing library values remain visible and are not replaced with sample data.
+                @L["LibrariesTab_TheEngineIsUnavailableExisting"]
             </AppAlert>
         }
         else if (!string.IsNullOrWhiteSpace(_loadError))
@@ -279,7 +280,7 @@
         _configuration = await ReadConfigurationAsync();
         _engineUnavailable = _configuration is null;
         if (_configuration is null) _loadError = ApiClient.LastError;
-        else if (!LibraryKinds.Loaded) _loadError = "The list of library kinds could not be loaded, so the kinds of library are missing from this page. Try again in a moment.";
+        else if (!LibraryKinds.Loaded) _loadError = L["LibrariesTab_TheListOfLibraryKinds"].Value;
         _loading = false;
     }
 

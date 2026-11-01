@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.MediaTiles
 @using MediaEngine.Web.Components.Shared
 @inject NavigationManager Nav
+@inject IStringLocalizer<SharedStrings> L
 
 <AppCssElement Tag="div" Css="@($"display: contents; {TileStyle}")">
     <article class="media-group-tile @(AllowsHoverPresentation ? "is-interactive" : "is-static") @(HasPerson ? "has-person" : HasBrandLogo ? "has-brand" : null)" aria-label="@Item.Title">
@@ -100,7 +101,7 @@
                 </div>
 
                 <span class="media-group-tile__open-cue">
-                    <span>Open @GroupActionNoun</span>
+                    <span>@L["MediaGroupTile_Open", GroupActionNoun]</span>
                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowForward" />
                 </span>
             </section>

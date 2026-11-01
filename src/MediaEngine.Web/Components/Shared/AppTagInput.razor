@@ -1,14 +1,15 @@
 @namespace MediaEngine.Web.Components.Shared
 @implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 <form class="app-tag-input" @onsubmit="CommitAsync" @onsubmit:preventDefault>
     <AppNativeInput Type="text" Value="@_draft" ValueChanged="DraftChangedAsync"
-                    Disabled="@_committing" Placeholder="Add tags…" AriaLabel="Tag to add"
+                    Disabled="@_committing" Placeholder="@L["AppTagInput_AddTags"].Value" AriaLabel="@L["AppTagInput_TagToAdd"].Value"
                     list="@_suggestionId" autocomplete="off" />
     <datalist id="@_suggestionId">
         @foreach (var suggestion in _suggestions) { <option value="@suggestion"></option> }
     </datalist>
-    <AppNativeButton Type="submit" Disabled="@(_committing || string.IsNullOrWhiteSpace(_draft))" AriaLabel="Add tag">Add</AppNativeButton>
+    <AppNativeButton Type="submit" Disabled="@(_committing || string.IsNullOrWhiteSpace(_draft))" AriaLabel="@L["Common_AddTag"].Value">@L["Vibes_Add"]</AppNativeButton>
 </form>
 
 @code {

@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Settings
 @using System.Globalization
 @using MediaEngine.Web.Services.Formatting
+@inject IStringLocalizer<SharedStrings> L
 @* "How your taste shifts" on the Taste page: titles finished each month, split by the genres finished most. Bars share one scale,
    so a busy month is taller than a quiet one. A table of the same numbers is there for screen readers. *@
 <figure class="taste-shifts" data-taste-shifts>
@@ -19,8 +20,8 @@
         }
     </div>
     <table class="taste-shifts__table sr-only">
-        <caption>Titles finished each month</caption>
-        <thead><tr><th scope="col">Month</th><th scope="col">Finished</th><th scope="col">Genres</th></tr></thead>
+        <caption>@L["TasteShifts_TitlesFinishedEachMonth"]</caption>
+        <thead><tr><th scope="col">@L["TasteShifts_Month"]</th><th scope="col">@L["Common_Finished"]</th><th scope="col">@L["Common_Genres"]</th></tr></thead>
         <tbody>
             @foreach (var bar in Bars)
             {

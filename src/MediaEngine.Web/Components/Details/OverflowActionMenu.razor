@@ -1,10 +1,11 @@
-﻿@namespace MediaEngine.Web.Components.Details
+@namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Contracts.Details
 @using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Theming
 @using MediaEngine.Web.Services.Ui
 @implements IDisposable
 @inject DeviceContextService DeviceContext
+@inject IStringLocalizer<SharedStrings> L
 
 @* A menu left with only the quiet "Edit on a computer" line has nothing to offer and is not drawn. *@
 @if (MenuActions.Count > 0)
@@ -15,7 +16,7 @@
         <div class="app-overflow-menu app-control--compact tl-detail-overflow tl-detail-more-action">
             <AppNativeButton Type="button"
                              Class="@($"app-overflow-menu__trigger app-overflow-menu__trigger--icon {ButtonClass}")"
-                             AriaLabel="More actions"
+                             AriaLabel="@L["Common_MoreActions"].Value"
                              aria-haspopup="dialog"
                              aria-expanded="@(_sheetOpen ? "true" : "false")"
                              OnClick="OpenSheetAsync">
@@ -26,8 +27,8 @@
         </div>
         @if (_sheetOpen)
         {
-            <AppDialogFrame Open="true" Title="More" DialogOptions="SheetOptions" Class="tl-detail-more-sheet" OnCancel="CloseSheetAsync">
-                <div class="tl-detail-more-sheet__items" role="menu" aria-label="More actions">
+            <AppDialogFrame Open="true" Title="@L["Common_More"].Value" DialogOptions="SheetOptions" Class="tl-detail-more-sheet" OnCancel="CloseSheetAsync">
+                <div class="tl-detail-more-sheet__items" role="menu" aria-label="@L["Common_MoreActions"].Value">
                     <ManageActionsMenu Actions="MenuActions" Note="@EditNote" OnActionSelected="SelectFromSheetAsync" />
                 </div>
             </AppDialogFrame>
@@ -37,7 +38,7 @@
     {
         <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.MoreHoriz"
                          Label="@Label"
-                         AriaLabel="More actions"
+                         AriaLabel="@L["Common_MoreActions"].Value"
                          Class="tl-detail-overflow tl-detail-more-action"
                          TriggerClass="@ButtonClass"
                          PopoverClass="@PopoverRootClass"

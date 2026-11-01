@@ -1,10 +1,11 @@
 @namespace MediaEngine.Web.Components.Setup
+@inject IStringLocalizer<SharedStrings> L
 
 <footer class="setup-stage__footer">
     @* The first step has nothing before it, so it passes no Back and shows none. *@
     @if (Back.HasDelegate)
     {
-        <AppButton Label="Back"
+        <AppButton Label="@L["Common_Back"].Value"
                    StartIcon="@AppMaterialIcons.Outlined.ArrowBack"
                    OnClick="Back" />
     }
@@ -12,7 +13,7 @@
         @ChildContent
         @if (ShowReturnToCurrentStep)
         {
-            <AppButton Label="Return to current step"
+            <AppButton Label="@L["SetupStageFooter_ReturnToCurrentStep"].Value"
                        EndIcon="@AppMaterialIcons.Outlined.ArrowForward"
                        ButtonStyle="AppButtonStyle.Filled"
                        Tone="AppUiTone.Primary"

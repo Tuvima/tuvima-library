@@ -2,13 +2,14 @@
 @namespace MediaEngine.Web.Components.Vault
 @implements IDisposable
 @inject NsfwModeState Nsfw
+@inject IStringLocalizer<SharedStrings> L
 
 @* The Blur toggle at the top of the Vault area and of its search results (Videos spec D24): covers can be unblurred or re-blurred in
    one tap without opening settings. Every view starts blurred after Vault mode locks and unlocks again. Drawn only while Vault mode
    is on, and not at all when the person chose to hide covers. *@
 @if (Nsfw.Unlocked && Nsfw.Preferences.Covers != VaultCoverMode.Hide)
 {
-    <AppSwitchRow Label="Blur"
+    <AppSwitchRow Label="@L["VaultBlurToggle_Blur"].Value"
                   Value="@Nsfw.CoversBlurred"
                   ValueChanged="@(blurred => Nsfw.SetCoversBlurred(blurred))"
                   Class="vault-blur-toggle" />

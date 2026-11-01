@@ -104,7 +104,7 @@ public sealed class MetadataSettingsCompositionTests
         Assert.False(File.Exists(PathFor("src/MediaEngine.Web/Components/Settings/ProviderHealthSurface.razor")));
     }
 
-    private static string Read(string relativePath) => File.ReadAllText(PathFor(relativePath));
+    private static string Read(string relativePath) => LocalizedSource.ReadAllText(PathFor(relativePath));
 
     private static string PathFor(string relativePath) =>
         Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", relativePath));

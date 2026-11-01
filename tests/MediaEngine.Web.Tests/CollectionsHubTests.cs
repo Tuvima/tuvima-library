@@ -10,7 +10,7 @@ public sealed class CollectionsHubTests
     public void MainLayout_OrdersPrimaryNavigationByMediaThenCollections()
     {
         // The top bar renders the one navigation catalogue (the phone menu and chips are generated from it too).
-        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Shared/MainLayout.razor"));
+        var source = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Shared/MainLayout.razor"));
         Assert.Contains("ShellNavigation.TopBarLinks(_isKids)", source, StringComparison.Ordinal);
 
         Assert.Equal(
@@ -21,20 +21,20 @@ public sealed class CollectionsHubTests
     [Fact]
     public void CollectionsPage_UsesSharedSectionArchitectureAndTypedCatalogs()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Collections/CollectionsPage.razor"));
-        var routeSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Pages/Collections.razor"));
-        var configurationSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Collections/CollectionsSectionConfiguration.cs"));
-        var headerSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/MediaHub/LibrarySectionHeader.razor"));
-        var composerSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Services/MediaTiles/CollectionSurfaceTileComposer.cs"));
-        var peopleClientSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Services/Integration/EngineApiClient.People.cs"));
-        var peopleListSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Collections/PeopleCatalogList.razor"));
-        var browseShellSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor"));
-        var browseShellStylesSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Browse/BrowseShellStyles.razor.css"));
-        var tileGridSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/MediaTiles/MediaTileGrid.razor"));
-        var groupTileSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/MediaTiles/MediaGroupTile.razor"));
-        var groupTileStylesSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/MediaTiles/MediaGroupTile.razor.css"));
-        var styles = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Collections/CollectionsSectionLayout.razor.css"));
-        var sectionShellStyles = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/MediaHub/MediaSectionShell.razor.css"));
+        var source = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Collections/CollectionsPage.razor"));
+        var routeSource = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Pages/Collections.razor"));
+        var configurationSource = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Collections/CollectionsSectionConfiguration.cs"));
+        var headerSource = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/MediaHub/LibrarySectionHeader.razor"));
+        var composerSource = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Services/MediaTiles/CollectionSurfaceTileComposer.cs"));
+        var peopleClientSource = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Services/Integration/EngineApiClient.People.cs"));
+        var peopleListSource = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Collections/PeopleCatalogList.razor"));
+        var browseShellSource = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor"));
+        var browseShellStylesSource = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Browse/BrowseShellStyles.razor.css"));
+        var tileGridSource = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/MediaTiles/MediaTileGrid.razor"));
+        var groupTileSource = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/MediaTiles/MediaGroupTile.razor"));
+        var groupTileStylesSource = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/MediaTiles/MediaGroupTile.razor.css"));
+        var styles = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Collections/CollectionsSectionLayout.razor.css"));
+        var sectionShellStyles = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/MediaHub/MediaSectionShell.razor.css"));
 
         Assert.Contains("@page \"/collections/{Section}\"", routeSource, StringComparison.Ordinal);
         Assert.Contains("LaneQuery => Query.String(\"lane\")", routeSource, StringComparison.Ordinal);
@@ -199,9 +199,9 @@ public sealed class CollectionsHubTests
     {
         var pagesPath = Path.GetDirectoryName(
             GetRepoFilePath(@"src/MediaEngine.Web/Components/Pages/UnifiedDetailPage.razor"))!;
-        var route = File.ReadAllText(Path.Combine(pagesPath, "UnifiedDetailPage.razor"));
-        var detail = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Details/DetailPage.razor"));
-        var composer = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Services/MediaTiles/CollectionSurfaceTileComposer.cs"));
+        var route = LocalizedSource.ReadAllText(Path.Combine(pagesPath, "UnifiedDetailPage.razor"));
+        var detail = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Details/DetailPage.razor"));
+        var composer = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Services/MediaTiles/CollectionSurfaceTileComposer.cs"));
 
         Assert.False(File.Exists(Path.Combine(pagesPath, "CollectionDetail.razor")));
         Assert.False(File.Exists(Path.Combine(pagesPath, "CollectionDetail.razor.css")));
@@ -243,8 +243,8 @@ public sealed class CollectionsHubTests
     [Fact]
     public void CollectionEditor_UsesTypedTextareaForDescription()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Collections/CollectionEditorShell.razor"));
-        var styles = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Collections/CollectionEditorShell.razor.css"));
+        var source = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Collections/CollectionEditorShell.razor"));
+        var styles = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Collections/CollectionEditorShell.razor.css"));
 
         Assert.Contains("<AppTextarea Value=\"@_description\"", source, StringComparison.Ordinal);
         Assert.Contains("Value=\"@_name\"", source, StringComparison.Ordinal);
@@ -268,9 +268,9 @@ public sealed class CollectionsHubTests
     [Fact]
     public void TuvimaArtworkStack_IsGenericSeededAndShapeAware()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Shared/TuvimaArtworkStack.razor"));
-        var styles = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Shared/TuvimaArtworkStack.razor.css"));
-        var modelSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Models/ViewDTOs/ArtworkStackModels.cs"));
+        var source = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Shared/TuvimaArtworkStack.razor"));
+        var styles = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Shared/TuvimaArtworkStack.razor.css"));
+        var modelSource = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Models/ViewDTOs/ArtworkStackModels.cs"));
 
         Assert.Contains("public sealed class ArtworkStackItem", modelSource, StringComparison.Ordinal);
         Assert.Contains("public enum ArtworkShape", modelSource, StringComparison.Ordinal);
@@ -326,7 +326,7 @@ public sealed class CollectionsHubTests
     [Fact]
     public void TheUniverseGroupInCollections_IsCalledUniverses()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Collections/CollectionsPage.razor"));
+        var source = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Collections/CollectionsPage.razor"));
 
         Assert.DoesNotContain("Shared universes", source, StringComparison.Ordinal);
         Assert.Contains(">Universes</AppSelectItem>", source, StringComparison.Ordinal);

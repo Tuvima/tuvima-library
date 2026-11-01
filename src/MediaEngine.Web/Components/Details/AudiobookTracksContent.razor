@@ -1,11 +1,12 @@
 @namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Contracts.Details
+@inject IStringLocalizer<SharedStrings> L
 
 <section class="tl-audiobook-tracks" aria-labelledby="audiobook-tracks-heading">
     <header class="tl-audiobook-tracks__heading">
         <div>
-            <span>Audiobook</span>
-            <h2 id="audiobook-tracks-heading">Tracks</h2>
+            <span>@L["AudiobookTracksContent_Audiobook"]</span>
+            <h2 id="audiobook-tracks-heading">@L["Common_Tracks"]</h2>
         </div>
         <span>@TrackSummary</span>
     </header>

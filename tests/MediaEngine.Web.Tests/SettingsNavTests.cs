@@ -16,8 +16,8 @@ public sealed class SettingsNavTests
     [Fact]
     public void SettingsPage_UsesTheMediaLaneShellInsteadOfAParallelSidebar()
     {
-        var settingsSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Pages/Settings.razor"));
-        var mediaShellSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/MediaHub/MediaSectionShell.razor"));
+        var settingsSource = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Pages/Settings.razor"));
+        var mediaShellSource = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/MediaHub/MediaSectionShell.razor"));
 
         Assert.Contains("<MediaSectionShell Title=\"Settings\"", settingsSource, StringComparison.Ordinal);
         Assert.DoesNotContain("AccordionNavigation", settingsSource, StringComparison.Ordinal);
@@ -27,7 +27,7 @@ public sealed class SettingsNavTests
         Assert.Contains("<RecentlyAddedPageContent", settingsSource, StringComparison.Ordinal);
         Assert.DoesNotContain("<SettingsSubsectionNav", settingsSource, StringComparison.Ordinal);
         Assert.Contains("<SettingsPageFrame", settingsSource, StringComparison.Ordinal);
-        Assert.Contains("<SidebarPageHeader", File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Settings/Frame/SettingsPageFrame.razor")), StringComparison.Ordinal);
+        Assert.Contains("<SidebarPageHeader", LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Settings/Frame/SettingsPageFrame.razor")), StringComparison.Ordinal);
         Assert.DoesNotContain("<SidebarPageShell", settingsSource, StringComparison.Ordinal);
         Assert.DoesNotContain("<SidebarNavGroup", settingsSource, StringComparison.Ordinal);
         Assert.Contains("media-section-shell__rail-item--child", mediaShellSource, StringComparison.Ordinal);
@@ -51,7 +51,7 @@ public sealed class SettingsNavTests
 
         Assert.False(File.Exists(legacyPath));
 
-        var settingsSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Pages/Settings.razor"));
+        var settingsSource = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Pages/Settings.razor"));
         Assert.Contains("<LibrariesTab Subsection=\"@_activeSubsection\" Detail=\"@Detail\" />", settingsSource, StringComparison.Ordinal);
         Assert.DoesNotContain("FoldersTab", settingsSource, StringComparison.Ordinal);
     }
@@ -59,9 +59,9 @@ public sealed class SettingsNavTests
     [Fact]
     public void SettingsPage_UsesServerAuthorityInsteadOfProfileRoles()
     {
-        var settingsSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Pages/Settings.razor"));
-        var orchestratorSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Services/Integration/UIOrchestratorService.cs"));
-        var sessionSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Services/Integration/ActiveProfileSessionService.cs"));
+        var settingsSource = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Pages/Settings.razor"));
+        var orchestratorSource = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Services/Integration/UIOrchestratorService.cs"));
+        var sessionSource = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Services/Integration/ActiveProfileSessionService.cs"));
 
         Assert.Contains("await LoadAuthorityAsync()", settingsSource, StringComparison.Ordinal);
         Assert.Contains("SettingsNav.ResolveRoute(Section, CanManageAdministration, _restricted)", settingsSource, StringComparison.Ordinal);
@@ -77,7 +77,7 @@ public sealed class SettingsNavTests
     [Fact]
     public void SettingsPage_GatesClientSideAdministrationNavigationOnServerAuthority()
     {
-        var settingsSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Pages/Settings.razor"));
+        var settingsSource = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Pages/Settings.razor"));
 
         Assert.Contains("CanManageAdministration => Session.HasNavigation(\"settings.administration\")", settingsSource, StringComparison.Ordinal);
         Assert.Contains("SettingsNav.ResolveRoute(Section, CanManageAdministration, _restricted)", settingsSource, StringComparison.Ordinal);
@@ -666,7 +666,7 @@ public sealed class SettingsNavTests
     [Fact]
     public void SettingsPage_ShowsThePersonPageForAProfilesIdAndNotFoundForAnythingElse()
     {
-        var settingsSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Pages/Settings.razor"));
+        var settingsSource = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Pages/Settings.razor"));
 
         Assert.Contains("<ProfileDetailPage ProfileId=\"@ProfileDetailId\" Tab=\"@ProfileTab\" NameChanged=\"OnProfileNameChanged\" />", settingsSource, StringComparison.Ordinal);
         Assert.Contains("_activeSection == SettingsSection.Profiles && Guid.TryParse(Subsection, out _)", settingsSource, StringComparison.Ordinal);

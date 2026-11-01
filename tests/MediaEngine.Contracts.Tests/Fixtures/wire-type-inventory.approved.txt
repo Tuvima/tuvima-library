@@ -8406,13 +8406,15 @@
 [contracts] MediaEngine.Contracts.Playback.SubtitleLanguageSettingsDto
   kind=class | converter=default | number-handling=default | unmapped=default
   DefaultSubtitleLanguage: System.String | json=defaultSubtitleLanguage | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AlternateSubtitleLanguages: System.Collections.Generic.List<System.String> | json=alternateSubtitleLanguages | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LyricsLanguage: System.String | json=lyricsLanguage | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ForcedSubtitlesMode: System.String | json=forcedSubtitlesMode | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AudioLanguage: System.String | json=audioLanguage | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SubtitleSize: System.String | json=subtitleSize | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SubtitleBackground: System.Boolean | json=subtitleBackground | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SubtitlePosition: System.String | json=subtitlePosition | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SubtitleStyle: System.String | json=subtitleStyle | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"defaultSubtitleLanguage":"sample","forcedSubtitlesMode":"sample","audioLanguage":"sample","subtitleSize":"sample","subtitleBackground":true,"subtitlePosition":"sample","subtitleStyle":"sample"}
+  sample={"defaultSubtitleLanguage":"sample","alternateSubtitleLanguages":[],"lyricsLanguage":"sample","forcedSubtitlesMode":"sample","audioLanguage":"sample","subtitleSize":"sample","subtitleBackground":true,"subtitlePosition":"sample","subtitleStyle":"sample"}
 
 [contracts] MediaEngine.Contracts.Playback.TextTrackAlternativeDto
   kind=class | converter=default | number-handling=default | unmapped=default

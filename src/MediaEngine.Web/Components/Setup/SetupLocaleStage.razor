@@ -1,17 +1,15 @@
 @using System.Globalization
 @using MediaEngine.Contracts.Setup
+@using MediaEngine.Web.Components.Settings
+@inject IStringLocalizer<SharedStrings> L
 
 @if (Value is not null)
 {
-    <section class="setup-locale-form" aria-label="Language and region">
+    <section class="setup-locale-form" aria-label="@L["Settings_LanguageAndRegion"].Value">
         @if (ShowDisplay)
         {
-            <label>Display language
-                <AppNativeSelect Value="@Value.DisplayLanguage" OnChange="@(args => Change(display: args.Value?.ToString()))">
-                    @foreach (var culture in Languages) { <option value="@culture.Name">@culture.NativeName</option> }
-                </AppNativeSelect>
-            </label>
-            <label>Country or region
+            <DisplayLanguagePicker Value="@Value.DisplayLanguage" ValueChanged="@(tag => Change(display: tag))" />
+            <label>@L["ServerGeneral_CountryLabel"]
                 <AppNativeSelect Value="@Value.Country" OnChange="@(args => Change(country: args.Value?.ToString()))">
                     @foreach (var region in Regions) { <option value="@region.TwoLetterISORegionName">@region.EnglishName</option> }
                 </AppNativeSelect>
@@ -19,7 +17,7 @@
         }
         @if (ShowMetadata)
         {
-            <label>Metadata language
+            <label>@L["SetupLocaleStage_MetadataLanguage"]
                 <AppNativeSelect Value="@Value.MetadataLanguage" OnChange="@(args => Change(metadata: args.Value?.ToString()))">
                     @foreach (var culture in Languages) { <option value="@culture.Name">@culture.NativeName</option> }
                 </AppNativeSelect>

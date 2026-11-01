@@ -8,13 +8,14 @@
 @inject IJSRuntime JS
 @inject IAppToastService Toast
 @inject ILogger<OverviewAppsPage> Logger
+@inject IStringLocalizer<SharedStrings> L
 @* Personal > Overview > Apps (D24): where to get the Tuvima apps, the address to type into them, and a QR code that fills that
    address in. Everyone who is signed in sees the address because it is not a secret; the QR code carries only that address,
    never a key or a sign-in, so the person still signs in as usual. *@
 <div class="overview-apps" data-settings-overview-apps>
-    <SettingsSectionPanel Title="Get the app"
+    <SettingsSectionPanel Title="@L["OverviewAppsPage_GetTheApp"].Value"
                           Icon="@AppMaterialIcons.Outlined.Smartphone"
-                          Description="Install Library on your phone or TV.">
+                          Description="@L["OverviewAppsPage_InstallLibraryOnYourPhone"].Value">
         @if (Stores.Count > 0)
         {
             <ul class="overview-apps__stores" role="list" data-apps-stores>
@@ -32,22 +33,22 @@
         }
         else
         {
-            <p class="overview-apps__note" data-apps-stores-empty>The Library apps will be linked here once they are published.</p>
+            <p class="overview-apps__note" data-apps-stores-empty>@L["OverviewAppsPage_TheLibraryAppsWillBe"]</p>
         }
         <MediaEngine.Web.Components.Navigation.PwaInstallAction />
     </SettingsSectionPanel>
 
-    <SettingsSectionPanel Title="Server address"
+    <SettingsSectionPanel Title="@L["OverviewAppsPage_ServerAddress"].Value"
                           Icon="@AppMaterialIcons.Outlined.Language"
-                          Description="Enter this in the app when it asks for your server.">
+                          Description="@L["OverviewAppsPage_EnterThisInTheApp"].Value">
         @if (_loading)
         {
             <AppSkeleton Width="100%" Height="96px" />
         }
         else if (_addresses is null)
         {
-            <AppErrorState Title="The server address is unavailable"
-                           Message="Start the Engine or try again."
+            <AppErrorState Title="@L["OverviewAppsPage_TheServerAddressIsUnavailable"].Value"
+                           Message="@L["Common_StartTheEngineOrTry"].Value"
                            Compact="true"
                            Retry="@(() => LoadAsync())" />
         }
@@ -55,11 +56,11 @@
         {
             <dl class="overview-apps__facts">
                 <div class="overview-apps__fact" data-apps-address="at-home">
-                    <dt>At home</dt>
+                    <dt>@L["OverviewAppsPage_AtHome"]</dt>
                     <dd class="overview-apps__value">@(AtHome ?? "Not detected yet")</dd>
                     @if (AtHome is not null)
                     {
-                        <AppButton Label="Copy"
+                        <AppButton Label="@L["Common_Copy"].Value"
                                    Size="AppControlSize.Compact"
                                    StartIcon="@AppMaterialIcons.Outlined.ContentCopy"
                                    OnClick="@(() => CopyAsync(AtHome))" />
@@ -68,9 +69,9 @@
                 @if (AwayFromHome is not null)
                 {
                     <div class="overview-apps__fact" data-apps-address="away-from-home">
-                        <dt>Away from home</dt>
+                        <dt>@L["OverviewAppsPage_AwayFromHome"]</dt>
                         <dd class="overview-apps__value">@AwayFromHome</dd>
-                        <AppButton Label="Copy"
+                        <AppButton Label="@L["Common_Copy"].Value"
                                    Size="AppControlSize.Compact"
                                    StartIcon="@AppMaterialIcons.Outlined.ContentCopy"
                                    OnClick="@(() => CopyAsync(AwayFromHome))" />
@@ -83,11 +84,11 @@
                 <p class="overview-apps__note" data-apps-no-outside-address>
                     @if (CanSetUpRemoteAccess)
                     {
-                        <text>Want the apps to work away from home too? <a href="/settings/network/remote">Set a secure outside address in Remote Access</a>.</text>
+                        <text>@L["OverviewAppsPage_WantTheAppsToWork"] <a href="/settings/network/remote">@L["OverviewAppsPage_SetASecureOutsideAddress"]</a>.</text>
                     }
                     else
                     {
-                        <text>The apps work at home. To use them away from home, ask the server administrator to set up a secure outside address.</text>
+                        <text>@L["OverviewAppsPage_TheAppsWorkAtHome"]</text>
                     }
                 </p>
             }
@@ -98,7 +99,7 @@
                     <div class="overview-apps__qr" data-qr-payload="@QrPayload">@((MarkupString)QrCodeSvg.Render(QrPayload))</div>
                     <div class="overview-apps__qr-copy">
                         <strong>@QrLabel</strong>
-                        <p class="overview-apps__note">Scan with the Library app on your phone to fill in the server, then sign in as usual.</p>
+                        <p class="overview-apps__note">@L["OverviewAppsPage_ScanWithTheLibraryApp"]</p>
                     </div>
                 </div>
             }

@@ -13,6 +13,7 @@
 @inject IAppDialogService DialogService
 @inject DashboardSessionAccessor Session
 @inject MediaEngine.Web.Services.Vault.NsfwModeState Nsfw
+@inject IStringLocalizer<SharedStrings> L
 
 @* One library's page (Library pages D7, D17, D18, D19): its content type, access, counts and status, the header actions, and the tab
    strip (Folders, File handling, Activity, plus Lookup for a kind with lookup settings). The Settings frame above carries the
@@ -30,7 +31,7 @@
     <div class="libpage" data-library="@row.Key">
         @if (ReadOnly)
         {
-            <p class="libpage__note">Use a desktop or tablet to change folders.</p>
+            <p class="libpage__note">@L["Common_UseADesktopOrTablet"]</p>
         }
 
         <div class="libpage__header">
@@ -38,7 +39,7 @@
                 @if (CanRename)
                 {
                     <AppIconButton Icon="@AppMaterialIcons.Outlined.Edit"
-                                   Tooltip="Rename"
+                                   Tooltip="@L["Common_Rename"].Value"
                                    AriaLabel="@($"Rename {row.Name}")"
                                    Disabled="@_renaming"
                                    OnClick="RenameAsync" />
@@ -56,14 +57,14 @@
                 <div class="libpage__actions">
                     @if (!IsVault)
                     {
-                        <AppButton Label="Scan now"
+                        <AppButton Label="@L["Common_ScanNow"].Value"
                                    StartIcon="@AppMaterialIcons.Outlined.Sync"
                                    ButtonStyle="AppButtonStyle.Outlined"
                                    Loading="@_scanning"
                                    Disabled="@(_scanning || row.Folders == 0)"
                                    OnClick="ScanNowAsync" />
                     }
-                    <AppButton Label="Add folder"
+                    <AppButton Label="@L["Common_AddFolder"].Value"
                                StartIcon="@AppMaterialIcons.Outlined.Add"
                                ButtonStyle="@(HighlightAddFolder ? AppButtonStyle.Filled : AppButtonStyle.Outlined)"
                                Tone="@(HighlightAddFolder ? AppUiTone.Primary : AppUiTone.Neutral)"
@@ -71,7 +72,7 @@
                                OnClick="AddFolderAsync" />
                     @if (!IsVault)
                     {
-                        <AppButton Label="Add files"
+                        <AppButton Label="@L["Common_AddFiles"].Value"
                                    StartIcon="@AppMaterialIcons.Outlined.UploadFile"
                                    ButtonStyle="AppButtonStyle.Outlined"
                                    Disabled="@(!HasImportDestination)"
@@ -99,10 +100,10 @@
                 {
                     <div class="libpage__strip-line" data-strip="offline">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" />
-                        <span>Folder offline: @row.StatusDetail</span>
+                        <span>@L["LibraryShell_FolderOffline", row.StatusDetail ?? string.Empty]</span>
                         @if (!ReadOnly)
                         {
-                            <AppButton Label="Check again" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Changed.InvokeAsync())" />
+                            <AppButton Label="@L["Common_CheckAgain"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Changed.InvokeAsync())" />
                         }
                     </div>
                 }
@@ -110,22 +111,22 @@
                 {
                     <div class="libpage__strip-line" data-strip="unidentified">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" />
-                        <span>@LibraryListing.UnidentifiedText(row.Unidentified) could not be identified.</span>
-                        <AppButton Label="Review them" ButtonStyle="AppButtonStyle.Text" Href="@LibraryListing.UnidentifiedAddress(row.Key)" />
+                        <span>@L["LibraryShell_CouldNotBeIdentified", LibraryListing.UnidentifiedText(row.Unidentified)]</span>
+                        <AppButton Label="@L["LibraryShell_ReviewThem"].Value" ButtonStyle="AppButtonStyle.Text" Href="@LibraryListing.UnidentifiedAddress(row.Key)" />
                     </div>
                 }
                 @if (row.NeedsReview > 0)
                 {
                     <div class="libpage__strip-line" data-strip="needs-review">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" />
-                        <span>@LibraryListing.NeedsReviewText(row.NeedsReview) a look.</span>
-                        <AppButton Label="Open Needs Review" ButtonStyle="AppButtonStyle.Text" Href="@LibraryListing.NeedsReviewAddress(row.Key)" />
+                        <span>@L["LibraryShell_ALook", LibraryListing.NeedsReviewText(row.NeedsReview)]</span>
+                        <AppButton Label="@L["LibraryShell_OpenNeedsReview"].Value" ButtonStyle="AppButtonStyle.Text" Href="@LibraryListing.NeedsReviewAddress(row.Key)" />
                     </div>
                 }
             </div>
         }
 
-        <AppTabs ActivePanelIndex="@ActiveIndex" ActivePanelIndexChanged="SelectTab" Label="Library sections">
+        <AppTabs ActivePanelIndex="@ActiveIndex" ActivePanelIndexChanged="SelectTab" Label="@L["Common_LibrarySections"].Value">
             @foreach (var tab in Tabs)
             {
                 <AppTabPanel Text="@tab.Label">
@@ -133,7 +134,7 @@
                     {
                         @if (Library.Sources.Count == 0)
                         {
-                            <AppPageState Kind="AppPageStateKind.Empty" Icon="@AppMaterialIcons.Outlined.FolderOpen" Title="No folders yet" Message="Choose Add folder to point Library at where these files live." />
+                            <AppPageState Kind="AppPageStateKind.Empty" Icon="@AppMaterialIcons.Outlined.FolderOpen" Title="@L["LibraryShell_NoFoldersYet"].Value" Message="@L["LibraryShell_ChooseAddFolderToPoint"].Value" />
                         }
                         else
                         {
@@ -143,7 +144,7 @@
                                                PathIssues="@PathIssues"
                                                PathsChecked="@(PathIssues is not null)"
                                                HighlightSourceId="@_highlightSourceId" />
-                            <AppQuietNote>These folders are watched as they are. Library never changes their files.</AppQuietNote>
+                            <AppQuietNote>@L["LibraryShell_TheseFoldersAreWatchedAs"]</AppQuietNote>
                         }
                     }
                     else if (tab.Slug == FoldersTab)
@@ -174,7 +175,7 @@
                     else if (tab.Slug == ActivityTab && IsVault)
                     {
                         @* A Vault library's activity is listed in the Vault, never here (Vault sections D40), so nothing about it is read from this page. *@
-                        <AppQuietNote>This library's activity is listed in the Vault, not here. <AppLink Href="/vault">Open the Vault</AppLink></AppQuietNote>
+                        <AppQuietNote>@L["LibraryShell_ThisLibrarySActivityIs"] <AppLink Href="/vault">@L["Common_OpenTheVault"]</AppLink></AppQuietNote>
                     }
                     else if (tab.Slug == ActivityTab)
                     {
@@ -192,7 +193,7 @@
                     {
                         <AppPageState Kind="AppPageStateKind.Empty"
                                       Icon="@AppMaterialIcons.Outlined.Info"
-                                      Title="Coming in the next step"
+                                      Title="@L["LibraryShell_ComingInTheNextStep"].Value"
                                       Message="@($"The {tab.Label} tab for this library is being built.")" />
                     }
                 </AppTabPanel>

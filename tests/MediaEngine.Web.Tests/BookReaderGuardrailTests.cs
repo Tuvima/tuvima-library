@@ -14,7 +14,7 @@ public sealed class BookReaderGuardrailTests
         Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
 
     private static string Read(string relativePath) =>
-        File.ReadAllText(Path.Combine(RepoRoot, relativePath));
+        LocalizedSource.ReadAllText(Path.Combine(RepoRoot, relativePath));
 
     private const string Web = "src/MediaEngine.Web";
 
@@ -45,7 +45,7 @@ public sealed class BookReaderGuardrailTests
                            && !path.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
                            && !path.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
                            && !string.Equals(path, adapter, StringComparison.Ordinal))
-            .Where(path => File.ReadAllText(path).Contains("lib/foliate-js", StringComparison.Ordinal))
+            .Where(path => LocalizedSource.ReadAllText(path).Contains("lib/foliate-js", StringComparison.Ordinal))
             .Select(path => Path.GetRelativePath(RepoRoot, path))
             .ToArray();
 

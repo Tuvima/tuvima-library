@@ -1,4 +1,5 @@
 @namespace MediaEngine.Web.Components.Vault
+@inject IStringLocalizer<SharedStrings> L
 
 @* Asks for one PIN on a number pad. The caller's Verify callback does the real check with the Engine and answers with a plain
    message when the PIN is not accepted (or nothing when it is), so the dialog stays open for another try and closes itself on
@@ -20,7 +21,7 @@
         </div>
     </ChildContent>
     <FooterContent>
-        <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="@(() => Dialog.Cancel())" />
+        <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="@(() => Dialog.Cancel())" />
         <AppButton Label="@(_busy ? "Checking…" : SubmitLabel)"
                    ButtonStyle="AppButtonStyle.Filled"
                    Tone="AppUiTone.Primary"

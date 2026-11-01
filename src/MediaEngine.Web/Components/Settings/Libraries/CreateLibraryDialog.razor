@@ -9,6 +9,7 @@
 @inject NavigationManager Navigation
 @inject DashboardSessionAccessor Session
 @inject MediaEngine.Web.Services.Vault.NsfwModeState Nsfw
+@inject IStringLocalizer<SharedStrings> L
 
 @* Add library: two screens, one question each. Screen 1 "What is it?" is only the content type of the area the person is standing in; screen 2 "Choose your
    Movies folder" is the folder (Browse opens the shared "Choose source folder" pop-up, the same one Add folder uses) and a name that is already filled in. Add
@@ -31,18 +32,18 @@
                         <AppSegmentedControl Options="@AreaOptions"
                                              Value="@_area"
                                              ValueChanged="ChooseAreaAsync"
-                                             AriaLabel="Area"
+                                             AriaLabel="@L["Common_Area"].Value"
                                              Disabled="@_saving" />
                     </div>
                 }
 
                 @if (KindsOfArea.Count == 0)
                 {
-                    <AppQuietNote>There are no content types in this area yet.</AppQuietNote>
+                    <AppQuietNote>@L["CreateLibraryDialog_ThereAreNoContentTypes"]</AppQuietNote>
                 }
                 else
                 {
-                    <div class="create-library__rows" role="group" aria-label="Content type">
+                    <div class="create-library__rows" role="group" aria-label="@L["Common_ContentType"].Value">
                         @foreach (var kind in KindsOfArea)
                         {
                             var availability = AvailabilityOf(kind);
@@ -83,23 +84,23 @@
         <AppActionBar Align="AppHorizontalAlignment.End">
             @if (_step == 1)
             {
-                <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
-                <AppButton Label="Next" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(Kind is null)" OnClick="NextAsync" />
+                <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
+                <AppButton Label="@L["Home_CarouselNext"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(Kind is null)" OnClick="NextAsync" />
             }
             else
             {
                 <div class="create-library__name" data-library-name>
-                    <AppTextField Label="Library name"
+                    <AppTextField Label="@L["Common_LibraryName"].Value"
                                   Value="@_name"
                                   ValueChanged="NameChanged"
                                   MaxLength="@MaxNameLength"
                                   ReadOnly="@_saving"
                                   Error="@(NameProblem is not null)"
                                   ErrorText="@NameProblem" />
-                    <span class="create-library__hint">You can rename it later.</span>
+                    <span class="create-library__hint">@L["CreateLibraryDialog_YouCanRenameItLater"]</span>
                 </div>
-                <AppButton Label="Back" ButtonStyle="AppButtonStyle.Text" Disabled="@_saving" OnClick="BackAsync" />
-                <AppButton Label="Add library" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_saving" Disabled="@(!CanCreate)" OnClick="CreateAsync" />
+                <AppButton Label="@L["Common_Back"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@_saving" OnClick="BackAsync" />
+                <AppButton Label="@L["Common_AddLibrary"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_saving" Disabled="@(!CanCreate)" OnClick="CreateAsync" />
             }
         </AppActionBar>
     </FooterContent>

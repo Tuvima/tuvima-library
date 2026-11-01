@@ -9,6 +9,7 @@
 @inject IAppDialogService Dialogs
 @inject NavigationManager Nav
 @inject ILogger<HouseholdsTab> Logger
+@inject IStringLocalizer<SharedStrings> L
 
 @* Settings > Manage > Users & Households > Households. A server administrator adds, renames and removes households here; each one has its
    own people, library access and Shared Library. The Engine refuses a removal while a household still holds people, sign-ins or
@@ -17,17 +18,17 @@
 {
     <AppPageState Kind="AppPageStateKind.Unavailable"
                   Icon="@AppMaterialIcons.Outlined.Lock"
-                  Title="Not available"
-                  Message="Households are looked after by the server administrator." />
+                  Title="@L["HouseholdsTab_NotAvailable"].Value"
+                  Message="@L["HouseholdsTab_HouseholdsAreLookedAfterBy"].Value" />
 }
 else
 {
     <div class="households-tab" data-households-tab>
-        <SettingsSectionPanel Title="Households"
-                              Description="Each household has its own people, library access and Shared Library. Look after its people from Manage Profiles."
+        <SettingsSectionPanel Title="@L["HouseholdsTab_Households"].Value"
+                              Description="@L["HouseholdsTab_EachHouseholdHasItsOwn"].Value"
                               Icon="@AppMaterialIcons.Outlined.Home">
             <Actions>
-                <AppButton Label="Add household" StartIcon="@AppMaterialIcons.Outlined.Add" Tone="AppUiTone.Primary"
+                <AppButton Label="@L["Common_AddHousehold"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" Tone="AppUiTone.Primary"
                            ButtonStyle="AppButtonStyle.Filled" Disabled="@(_adding || _busy)" OnClick="BeginAdd" />
             </Actions>
             <ChildContent>
@@ -44,7 +45,7 @@ else
             {
                 @* D10: a second household needs the server administrator's own sign-in to have an email and password first. *@
                 <div class="households-tab__set-password" data-households-set-password>
-                    <AppButton Label="Set an email and password" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled"
+                    <AppButton Label="@L["Common_SetAnEmailAndPassword"].Value" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled"
                                OnClick="OpenSecurity" />
                 </div>
             }
@@ -52,19 +53,19 @@ else
             @if (_adding)
             {
                 <div class="households-tab__form" data-households-add>
-                    <AppTextField Label="Household name" Value="@_newName" ValueChanged="@(value => _newName = value ?? string.Empty)"
+                    <AppTextField Label="@L["HouseholdsTab_HouseholdName"].Value" Value="@_newName" ValueChanged="@(value => _newName = value ?? string.Empty)"
                                   MaxLength="@MaximumNameLength" Disabled="@_busy" AutoFocus="true" />
                     <div class="households-tab__form-actions">
-                        <AppButton Label="Add" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled"
+                        <AppButton Label="@L["Vibes_Add"].Value" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled"
                                    Disabled="@(_busy || string.IsNullOrWhiteSpace(_newName))" OnClick="AddAsync" />
-                        <AppButton Label="Cancel" Disabled="@_busy" OnClick="CancelAdd" />
+                        <AppButton Label="@L["Search_Cancel"].Value" Disabled="@_busy" OnClick="CancelAdd" />
                     </div>
                 </div>
             }
 
             @if (_loading)
             {
-                <div role="status" aria-label="Loading households">
+                <div role="status" aria-label="@L["HouseholdsTab_LoadingHouseholds"].Value">
                     <AppSkeleton Height="56px" />
                     <AppSkeleton Height="56px" />
                 </div>
@@ -72,28 +73,28 @@ else
             else if (_loadFailed)
             {
                 <AppAlert Severity="AppSeverity.Warning" Variant="AppVariant.Outlined">
-                    Households couldn't be loaded. Reload the page to try again.
+                    @L["HouseholdsTab_HouseholdsCouldnTBeLoaded"]
                 </AppAlert>
             }
             else if (_households.Count == 0)
             {
-                <AppEmptyState Title="No households" Message="Add a household to give a group of people their own library space." />
+                <AppEmptyState Title="@L["HouseholdsTab_NoHouseholds"].Value" Message="@L["HouseholdsTab_AddAHouseholdToGive"].Value" />
             }
             else
             {
-                <ul class="households-tab__list" role="list" aria-label="Households">
+                <ul class="households-tab__list" role="list" aria-label="@L["HouseholdsTab_Households"].Value">
                     @foreach (var household in _households)
                     {
                         <li class="households-tab__item" data-household-id="@household.Id" @key="household.Id">
                             @if (_renamingId == household.Id)
                             {
                                 <div class="households-tab__form households-tab__form--row">
-                                    <AppTextField Label="Household name" Value="@_renameText" ValueChanged="@(value => _renameText = value ?? string.Empty)"
+                                    <AppTextField Label="@L["HouseholdsTab_HouseholdName"].Value" Value="@_renameText" ValueChanged="@(value => _renameText = value ?? string.Empty)"
                                                   MaxLength="@MaximumNameLength" Disabled="@_busy" AutoFocus="true" />
                                     <div class="households-tab__form-actions">
-                                        <AppButton Label="Save" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled"
+                                        <AppButton Label="@L["Common_Save"].Value" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled"
                                                    Disabled="@(_busy || string.IsNullOrWhiteSpace(_renameText))" OnClick="@(() => RenameAsync(household))" />
-                                        <AppButton Label="Cancel" Disabled="@_busy" OnClick="CancelRename" />
+                                        <AppButton Label="@L["Search_Cancel"].Value" Disabled="@_busy" OnClick="CancelRename" />
                                     </div>
                                 </div>
                             }
@@ -104,9 +105,9 @@ else
                                     <small class="households-tab__counts">@Counts(household)</small>
                                 </div>
                                 <div class="households-tab__actions">
-                                    <AppButton Label="Rename" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy"
+                                    <AppButton Label="@L["Common_Rename"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy"
                                                aria-label="@($"Rename {household.Name}")" OnClick="@(() => BeginRename(household))" />
-                                    <AppButton Label="Remove" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" Disabled="@_busy"
+                                    <AppButton Label="@L["Common_Remove"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" Disabled="@_busy"
                                                aria-label="@($"Remove {household.Name}")" OnClick="@(() => RemoveAsync(household))" />
                                 </div>
                                 <HouseholdLibraryCeiling Household="@household" Libraries="@_libraries"
@@ -401,14 +402,14 @@ else
             var unlocked = await Identity.UnlockAdministratorAsync(new GrantAdminUnlockRequest(pin));
             if (unlocked?.Unlocked != true)
             {
-                _unlockError = "That PIN didn't work. Try again.";
+                _unlockError = L["Common_ThatPINDidnTWork"].Value;
                 return;
             }
         }
         catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException)
         {
             Logger.LogWarning(exception, "Could not unlock administrator access from Households.");
-            _unlockError = "The Engine is unavailable. Try again.";
+            _unlockError = L["Common_TheEngineIsUnavailableTry"].Value;
             return;
         }
         finally

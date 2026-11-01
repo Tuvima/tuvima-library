@@ -3,6 +3,7 @@
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Models.ViewDTOs
+@inject IStringLocalizer<SharedStrings> L
 
 @* One media type's folders as a table: folder (its icon says whether Library manages it or only reads it), where new media goes, and what happens to its files.
    Under 840px of its own width each row becomes a stacked card. The host owns every save; this component only raises what was
@@ -10,10 +11,10 @@
 <span class="sr-only" role="status">@LiveStatusText</span>
 <div class="folder-table" role="table" aria-label="@($"{TypeLabel} folders")">
     <div class="folder-table__head" role="row">
-        <span role="columnheader">Folder</span>
-        <span role="columnheader">New media</span>
-        <span role="columnheader">Files</span>
-        <span role="columnheader"><span class="sr-only">Actions</span></span>
+        <span role="columnheader">@L["Common_Folder"]</span>
+        <span role="columnheader">@L["LibraryFolderTable_NewMedia"]</span>
+        <span role="columnheader">@L["Common_Files"]</span>
+        <span role="columnheader"><span class="sr-only">@L["ApiKeys_Actions"]</span></span>
     </div>
     @foreach (var source in Library.Sources)
     {
@@ -44,11 +45,11 @@
                     }
                     else if (converting)
                     {
-                        <span class="folder-table__status">Organising…</span>
+                        <span class="folder-table__status">@L["Common_Organising"]</span>
                     }
                     else if (IsMerging(source))
                     {
-                        <span class="folder-table__status">Merging…</span>
+                        <span class="folder-table__status">@L["Common_Merging"]</span>
                     }
                     @if (IsMerged(source))
                     {
@@ -66,17 +67,17 @@
                         {
                             <span class="folder-table__status folder-table__status--warning" data-first-check="paused">
                                 @PausedText(firstCheck)
-                                <AppButton Label="Keep going" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text"
+                                <AppButton Label="@L["Common_KeepGoing"].Value" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text"
                                            Disabled="@Busy"
                                            aria-label="@($"Keep going with {name}")"
                                            OnClick="@(() => OnKeepGoing.InvokeAsync(source))" />
-                                <AppButton Label="Remove the folder" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error"
+                                <AppButton Label="@L["LibraryFolderTable_RemoveTheFolder"].Value" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error"
                                            Disabled="@(ReadOnly || Busy)"
                                            aria-label="@($"Remove the folder {name}")"
                                            OnClick="@(() => OnRemove.InvokeAsync(source))" />
                                 @if (OnChangeKind.HasDelegate && !IsVault(Library))
                                 {
-                                    <AppButton Label="Change what this folder is" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text"
+                                    <AppButton Label="@L["Common_ChangeWhatThisFolderIs"].Value" Size="AppControlSize.Compact" ButtonStyle="AppButtonStyle.Text"
                                                Disabled="@(ReadOnly || Busy)"
                                                aria-label="@($"Change what {name} is")"
                                                OnClick="@(() => OnChangeKind.InvokeAsync(source))" />
@@ -85,7 +86,7 @@
                         }
                         else if (firstCheck.State == "checking")
                         {
-                            <span class="folder-table__status" data-first-check="checking">Checking the first files…</span>
+                            <span class="folder-table__status" data-first-check="checking">@L["Common_CheckingTheFirstFiles"]</span>
                         }
                     }
                 </div>
@@ -93,7 +94,7 @@
             <div class="@(marked ? "folder-table__marker is-marked" : "folder-table__marker")" role="cell">
                 @if (!managed)
                 {
-                    <span class="folder-table__none" role="img" aria-label="Not a place for new media">—</span>
+                    <span class="folder-table__none" role="img" aria-label="@L["LibraryFolderTable_NotAPlaceForNew"].Value">—</span>
                 }
                 else
                 {
@@ -108,7 +109,7 @@
                             <AppMaterialIcon Icon="@(marked ? AppMaterialIcons.Filled.RadioButtonChecked : AppMaterialIcons.Outlined.RadioButtonUnchecked)" />
                             @if (marked)
                             {
-                                <span class="folder-table__radio-text">New media goes here</span>
+                                <span class="folder-table__radio-text">@L["LibraryFolderTable_NewMediaGoesHere"]</span>
                             }
                         </AppNativeButton>
                     </div>
@@ -116,7 +117,7 @@
             </div>
             <div class="folder-table__files" role="cell">
                 <span class="folder-table__files-value">@FilesLabel(source)</span>
-                <small class="folder-table__files-hint">Change in File handling</small>
+                <small class="folder-table__files-hint">@L["LibraryFolderTable_ChangeInFileHandling"]</small>
             </div>
             <div class="folder-table__actions" role="cell">
                 <AppNativeButton Type="button"
@@ -135,19 +136,19 @@
                         }
                         @if (managed && job is null)
                         {
-                            <AppMenuItem Label="Organise files now" Icon="@AppMaterialIcons.Outlined.DriveFileMove" OnClick="@(() => OnOrganiseNow.InvokeAsync(source))" />
+                            <AppMenuItem Label="@L["LibraryFolderTable_OrganiseFilesNow"].Value" Icon="@AppMaterialIcons.Outlined.DriveFileMove" OnClick="@(() => OnOrganiseNow.InvokeAsync(source))" />
                         }
                         @if (CanMerge(source, job))
                         {
-                            <AppMenuItem Label="Merge into…" Icon="@AppMaterialIcons.Outlined.ArrowForward" OnClick="@(() => OnMerge.InvokeAsync(source))" />
+                            <AppMenuItem Label="@L["LibraryFolderTable_MergeInto"].Value" Icon="@AppMaterialIcons.Outlined.ArrowForward" OnClick="@(() => OnMerge.InvokeAsync(source))" />
                         }
                         @if (CanChangeKind(source, job))
                         {
-                            <AppMenuItem Label="Change what this folder is…" Icon="@AppMaterialIcons.Outlined.Category" OnClick="@(() => OnChangeKind.InvokeAsync(source))" />
+                            <AppMenuItem Label="@L["LibraryFolderTable_ChangeWhatThisFolderIs"].Value" Icon="@AppMaterialIcons.Outlined.Category" OnClick="@(() => OnChangeKind.InvokeAsync(source))" />
                         }
                         <AppMenuItem Label="@(managed ? "Switch to Read-only" : "Switch to Managed")" Icon="@(managed ? AppMaterialIcons.Outlined.Lock : AppMaterialIcons.Outlined.DriveFileMove)" Disabled="@IsMerging(source)" OnClick="@(() => OnChangeHandling.InvokeAsync(source))" />
-                        <AppMenuItem Label="Label" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="@(() => OnLabel.InvokeAsync(source))" />
-                        <AppMenuItem Label="Remove folder" Icon="@AppMaterialIcons.Outlined.Delete" Tone="AppUiTone.Error" DividerBefore="true" OnClick="@(() => OnRemove.InvokeAsync(source))" />
+                        <AppMenuItem Label="@L["ApiKeys_Label"].Value" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="@(() => OnLabel.InvokeAsync(source))" />
+                        <AppMenuItem Label="@L["LibraryFolderTable_RemoveFolder"].Value" Icon="@AppMaterialIcons.Outlined.Delete" Tone="AppUiTone.Error" DividerBefore="true" OnClick="@(() => OnRemove.InvokeAsync(source))" />
                     </AppOverflowMenu>
                 }
             </div>

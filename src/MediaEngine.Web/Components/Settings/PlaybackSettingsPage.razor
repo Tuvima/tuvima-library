@@ -14,10 +14,11 @@
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @inject ILogger<PlaybackSettingsPage> Logger
+@inject IStringLocalizer<SharedStrings> L
 
 @if (_loading)
 {
-    <div class="playback-settings-skeleton" aria-label="Loading playback preferences">
+    <div class="playback-settings-skeleton" aria-label="@L["PlaybackSettingsPage_LoadingPlaybackPreferences"].Value">
         @for (var index = 0; index < 3; index++)
         {
             <AppSkeleton Height="220px" />
@@ -26,11 +27,11 @@
 }
 else if (_forbidden)
 {
-    <AppAlert Severity="AppSeverity.Warning" Variant="AppVariant.Outlined">You can't change this person's settings.</AppAlert>
+    <AppAlert Severity="AppSeverity.Warning" Variant="AppVariant.Outlined">@L["Common_YouCanTChangeThis"]</AppAlert>
 }
 else if (!string.IsNullOrWhiteSpace(_loadError))
 {
-    <AppErrorState Title="Playback preferences are unavailable"
+    <AppErrorState Title="@L["PlaybackSettingsPage_PlaybackPreferencesAreUnavailable"].Value"
                    Message="@_loadError"
                    Retry="@RetryLoadAsync" />
 }
@@ -48,14 +49,14 @@ else if (_settings is not null)
                 <span class="playback-profile-heading__avatar">
                     <ProfileAvatar DisplayName="@_target.DisplayName" ImageUrl="@_target.AvatarImageUrl" Color="@_target.AvatarColor" Icon="@_target.AvatarIcon" />
                 </span>
-                <AppText Typo="AppTypo.h6">How @_target.DisplayName watches.</AppText>
-                <a class="playback-profile-heading__back" href="@($"/settings/profiles/{ProfileId}")">Back to @_target.DisplayName</a>
+                <AppText Typo="AppTypo.h6">@L["PlaybackSettingsPage_HowWatches", _target.DisplayName]</AppText>
+                <a class="playback-profile-heading__back" href="@($"/settings/profiles/{ProfileId}")">@L["Common_BackTo", _target.DisplayName]</a>
             </div>
         }
 
         <div class="playback-settings-grid">
-            <SettingsSectionPanel Title="Autoplay"
-                                  Description="What happens when an episode ends."
+            <SettingsSectionPanel Title="@L["PlaybackSettingsPage_Autoplay"].Value"
+                                  Description="@L["PlaybackSettingsPage_WhatHappensWhenAnEpisode"].Value"
                                   Class="tl-card settings-section-card playback-settings-card">
                 @BoolRow(
                     "Autoplay next episode",
@@ -64,8 +65,8 @@ else if (_settings is not null)
                     value => UpdateAndSaveAsync(s => s.Watching.AutoplayNextEpisode = value))
             </SettingsSectionPanel>
 
-            <SettingsSectionPanel Title="Resume"
-                                  Description="Where a movie or episode starts when you come back."
+            <SettingsSectionPanel Title="@L["Common_Resume"].Value"
+                                  Description="@L["PlaybackSettingsPage_WhereAMovieOrEpisode"].Value"
                                   Class="tl-card settings-section-card playback-settings-card">
                 @BoolRow(
                     "Resume where you left off",
@@ -74,8 +75,8 @@ else if (_settings is not null)
                     value => UpdateAndSaveAsync(s => s.General.ResumePlayback = value))
             </SettingsSectionPanel>
 
-            <SettingsSectionPanel Title="Skip"
-                                  Description="How far the player skip buttons jump."
+            <SettingsSectionPanel Title="@L["Common_Skip"].Value"
+                                  Description="@L["PlaybackSettingsPage_HowFarThePlayerSkip"].Value"
                                   Class="tl-card settings-section-card playback-settings-card">
                 @IntSelectRow(
                     "Skip back",
@@ -94,26 +95,26 @@ else if (_settings is not null)
             @if (!IsOtherProfile)
             {
                 @* Only the person themselves chooses this; an administrator editing another profile does not see it. *@
-                <SettingsSectionPanel Title="Spoilers"
-                                      Description="How much of a story the Universe page tells you."
+                <SettingsSectionPanel Title="@L["Common_Spoilers"].Value"
+                                      Description="@L["PlaybackSettingsPage_HowMuchOfAStory"].Value"
                                       Class="tl-card settings-section-card playback-settings-card">
                     <div class="playback-preference-row" data-spoiler-level>
                         <div class="playback-preference-row__copy">
-                            <AppText Typo="AppTypo.body1">Characters</AppText>
-                            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">Up to where I am keeps characters you haven't met yet out of Universe pages. Everything shows them all.</AppText>
+                            <AppText Typo="AppTypo.body1">@L["Universe_GuideFilterCharacters"]</AppText>
+                            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@L["PlaybackSettingsPage_UpToWhereIAm"]</AppText>
                         </div>
                         <AppSegmentedControl Options="SpoilerLevelOptions"
                                              Value="@SpoilerLevelValue"
                                              ValueChanged="SaveSpoilerLevelAsync"
-                                             AriaLabel="Spoilers"
+                                             AriaLabel="@L["Common_Spoilers"].Value"
                                              Class="playback-preference-row__control" />
                     </div>
                 </SettingsSectionPanel>
             }
 
             <div id="subtitles" class="playback-subtitles-group" data-playback-section="subtitles">
-                <SettingsSectionPanel Title="Subtitles & audio"
-                                      Description="Which language plays first, and when subtitles appear."
+                <SettingsSectionPanel Title="@L["PlaybackSettingsPage_SubtitlesAudio"].Value"
+                                      Description="@L["PlaybackSettingsPage_WhichLanguagePlaysFirstAnd"].Value"
                                       Class="tl-card settings-section-card playback-settings-card">
                     @StringSelectRow(
                         "Audio language",
@@ -128,6 +129,27 @@ else if (_settings is not null)
                         LanguageOptionsFor(Subtitles.DefaultSubtitleLanguage),
                         value => UpdateAndSaveAsync(s => s.Subtitles.DefaultSubtitleLanguage = value))
                     @StringSelectRow(
+                        L["PlaybackSettingsPage_SecondSubtitleLanguage"].Value,
+                        L["PlaybackSettingsPage_SecondSubtitleLanguageHint"].Value,
+                        AlternateLanguage(0),
+                        OptionalLanguageOptions(AlternateLanguage(0)),
+                        value => UpdateAndSaveAsync(s => SetAlternateLanguage(s, 0, value)))
+                    @if (!string.IsNullOrEmpty(AlternateLanguage(0)))
+                    {
+                        @StringSelectRow(
+                            L["PlaybackSettingsPage_ThirdSubtitleLanguage"].Value,
+                            L["PlaybackSettingsPage_ThirdSubtitleLanguageHint"].Value,
+                            AlternateLanguage(1),
+                            OptionalLanguageOptions(AlternateLanguage(1)),
+                            value => UpdateAndSaveAsync(s => SetAlternateLanguage(s, 1, value)))
+                    }
+                    @StringSelectRow(
+                        L["PlaybackSettingsPage_LyricsLanguage"].Value,
+                        L["PlaybackSettingsPage_LyricsLanguageHint"].Value,
+                        Subtitles.LyricsLanguage ?? string.Empty,
+                        OptionalLanguageOptions(Subtitles.LyricsLanguage),
+                        value => UpdateAndSaveAsync(s => s.Subtitles.LyricsLanguage = value))
+                    @StringSelectRow(
                         "Show subtitles",
                         "Auto shows them only when the audio is not in your subtitle language.",
                         ShowSubtitlesValue,
@@ -136,25 +158,25 @@ else if (_settings is not null)
                         wide: true)
                 </SettingsSectionPanel>
 
-                <SettingsSectionPanel Title="Subtitle appearance"
-                                      Description="How subtitles look over the picture."
+                <SettingsSectionPanel Title="@L["PlaybackSettingsPage_SubtitleAppearance"].Value"
+                                      Description="@L["PlaybackSettingsPage_HowSubtitlesLookOverThe"].Value"
                                       Class="tl-card settings-section-card playback-settings-card">
                     <div class="subtitle-preview"
                          data-subtitle-size="@NormalizedSubtitleSize"
                          data-subtitle-background="@(Subtitles.SubtitleBackground ? "true" : "false")"
                          role="img"
-                         aria-label="Sample of the subtitle style">
-                        <p class="subtitle-preview__line"><span class="subtitle-preview__text">The rain had stopped by the time we reached the station.</span></p>
+                         aria-label="@L["PlaybackSettingsPage_SampleOfTheSubtitleStyle"].Value">
+                        <p class="subtitle-preview__line"><span class="subtitle-preview__text">@L["PlaybackSettingsPage_TheRainHadStoppedBy"]</span></p>
                     </div>
                     <div class="playback-preference-row">
                         <div class="playback-preference-row__copy">
-                            <AppText Typo="AppTypo.body1">Text size</AppText>
-                            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">How large subtitles are in the player.</AppText>
+                            <AppText Typo="AppTypo.body1">@L["Common_TextSize"]</AppText>
+                            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@L["PlaybackSettingsPage_HowLargeSubtitlesAreIn"]</AppText>
                         </div>
                         <AppSegmentedControl Options="SubtitleSizeOptions"
                                              Value="@NormalizedSubtitleSize"
                                              ValueChanged="@(value => UpdateAndSaveAsync(s => s.Subtitles.SubtitleSize = value))"
-                                             AriaLabel="Text size"
+                                             AriaLabel="@L["Common_TextSize"].Value"
                                              Class="playback-preference-row__control" />
                     </div>
                     @BoolRow(
@@ -204,12 +226,30 @@ else if (_settings is not null)
         new(PlaybackPreferenceValues.Large, "Large"),
     ];
 
-    private static readonly IReadOnlyList<AppSelectOption> ShowSubtitlesOptions =
+    private IReadOnlyList<AppSelectOption> ShowSubtitlesOptions =>
     [
         new(PlaybackPreferenceValues.Auto, "Auto (only when audio is not my language)"),
+        new(PlaybackPreferenceValues.ForeignAudioOnly, L["PlaybackSettingsPage_OnlyWhenAudioIsAnotherLanguage"].Value),
         new(PlaybackPreferenceValues.Always, "Always"),
         new(PlaybackPreferenceValues.Never, "Off"),
     ];
+
+    // The second and third subtitle languages are stored as an ordered list; an empty slot means "none".
+    private string AlternateLanguage(int slot) =>
+        Subtitles.AlternateSubtitleLanguages is { } list && slot < list.Count ? list[slot] : string.Empty;
+
+    private static void SetAlternateLanguage(UserPlaybackSettingsDto settings, int slot, string value)
+    {
+        var list = (settings.Subtitles.AlternateSubtitleLanguages ?? []).ToList();
+        while (list.Count <= slot) list.Add(string.Empty);
+        list[slot] = value;
+        // Dropping the second choice drops the third as well; blanks never reach the Engine.
+        settings.Subtitles.AlternateSubtitleLanguages = (string.IsNullOrEmpty(list[0]) ? [] : list).Where(language => !string.IsNullOrWhiteSpace(language)).ToList();
+    }
+
+    // A language list with a leading "none" entry, for choices that are optional.
+    private IReadOnlyList<AppSelectOption> OptionalLanguageOptions(string? current) =>
+        [new(string.Empty, L["PlaybackSettingsPage_NoPreference"].Value), .. LanguageOptionsFor(current)];
 
     // The Engine accepts ExtraLarge; this page offers three sizes, so it shows as the largest.
     private string NormalizedSubtitleSize => Subtitles.SubtitleSize switch
@@ -268,7 +308,7 @@ else if (_settings is not null)
                 if (loaded.ProfileId != ProfileId)
                 {
                     Logger.LogWarning("Playback settings could not be loaded: the Engine answered for a different profile.");
-                    _loadError = "Playback settings could not be loaded.";
+                    _loadError = L["PlaybackSettingsPage_PlaybackSettingsCouldNotBe"].Value;
                     return;
                 }
 
@@ -283,7 +323,7 @@ else if (_settings is not null)
                 if (loaded is null)
                 {
                     Logger.LogWarning("Playback settings could not be loaded: the Engine returned no settings for the active profile.");
-                    _loadError = "Playback settings could not be loaded.";
+                    _loadError = L["PlaybackSettingsPage_PlaybackSettingsCouldNotBe"].Value;
                     return;
                 }
 
@@ -293,7 +333,7 @@ else if (_settings is not null)
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Playback settings could not be loaded.");
-            _loadError = "Playback settings could not be loaded.";
+            _loadError = L["PlaybackSettingsPage_PlaybackSettingsCouldNotBe"].Value;
         }
         finally
         {
@@ -406,7 +446,7 @@ else if (_settings is not null)
             if (fresh is null)
             {
                 Logger.LogWarning("Playback settings were not saved: the profile's current settings could not be read.");
-                _saveError = "Playback settings could not be saved.";
+                _saveError = L["PlaybackSettingsPage_PlaybackSettingsCouldNotBe2"].Value;
                 Snackbar.Add(_saveError, AppSeverity.Error);
                 return;
             }
@@ -427,7 +467,7 @@ else if (_settings is not null)
             if (saved is null)
             {
                 Logger.LogWarning("Playback settings could not be saved: the Engine did not accept the update.");
-                _saveError = "Playback settings could not be saved.";
+                _saveError = L["PlaybackSettingsPage_PlaybackSettingsCouldNotBe2"].Value;
                 Snackbar.Add(_saveError, AppSeverity.Error);
                 return;
             }
@@ -439,7 +479,7 @@ else if (_settings is not null)
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "Playback settings could not be saved.");
-            _saveError = "Playback settings could not be saved.";
+            _saveError = L["PlaybackSettingsPage_PlaybackSettingsCouldNotBe2"].Value;
             Snackbar.Add(_saveError, AppSeverity.Error);
         }
         finally
@@ -463,7 +503,7 @@ else if (_settings is not null)
             if (saved is null || saved.ProfileId != _settings.ProfileId)
             {
                 Logger.LogWarning("The spoiler setting could not be saved: the Engine did not accept the update.");
-                _saveError = "The spoiler setting could not be saved.";
+                _saveError = L["Common_TheSpoilerSettingCouldNot"].Value;
                 Snackbar.Add(_saveError, AppSeverity.Error);
                 return;
             }
@@ -474,7 +514,7 @@ else if (_settings is not null)
         catch (Exception ex)
         {
             Logger.LogWarning(ex, "The spoiler setting could not be saved.");
-            _saveError = "The spoiler setting could not be saved.";
+            _saveError = L["Common_TheSpoilerSettingCouldNot"].Value;
             Snackbar.Add(_saveError, AppSeverity.Error);
         }
         finally

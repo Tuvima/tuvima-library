@@ -2,13 +2,14 @@
 @using MediaEngine.Contracts.Items
 @implements IDisposable
 @inject IEngineApiClient Api
+@inject IStringLocalizer<SharedStrings> L
 
 @* Editing Mode on a series of videos: put its videos in the order you want. The order is saved in Library and never
    renames a file. A series with sections shows one list per section. Nothing is drawn for anything else. *@
 @if (Mode is { IsOn: true } mode && mode.Fields.Loaded && _groups.Count > 0)
 {
-    <section class="tl-editing-order" aria-label="Order of the videos">
-        <header class="tl-editing-order__heading"><span>Order</span></header>
+    <section class="tl-editing-order" aria-label="@L["EditingVideoOrder_OrderOfTheVideos"].Value">
+        <header class="tl-editing-order__heading"><span>@L["EditingVideoOrder_Order"]</span></header>
         @foreach (var group in _groups)
         {
             <div class="tl-editing-order__group">
@@ -25,10 +26,10 @@
                             <span class="tl-editing-order__position">@(i + 1)</span>
                             <span class="tl-editing-order__name">@entry.Title</span>
                             <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowUpward" Size="AppControlSize.Compact"
-                                           Tone="AppUiTone.Neutral" Tooltip="Move up" AriaLabel="@($"Move {entry.Title} up")"
+                                           Tone="AppUiTone.Neutral" Tooltip="@L["Common_MoveUp"].Value" AriaLabel="@($"Move {entry.Title} up")"
                                            Disabled="@(_saving || index == 0)" OnClick="@(() => MoveAsync(group, index, -1))" />
                             <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowDownward" Size="AppControlSize.Compact"
-                                           Tone="AppUiTone.Neutral" Tooltip="Move down" AriaLabel="@($"Move {entry.Title} down")"
+                                           Tone="AppUiTone.Neutral" Tooltip="@L["Common_MoveDown"].Value" AriaLabel="@($"Move {entry.Title} down")"
                                            Disabled="@(_saving || index == group.Entries.Count - 1)" OnClick="@(() => MoveAsync(group, index, 1))" />
                         </li>
                     }
@@ -38,21 +39,21 @@
                     <div class="tl-editing-order__rename">
                         @if (_confirmRename == group.ParentId)
                         {
-                            <p class="tl-editing-order__note">This renames the video files in your Managed folder to start with their position, like "01 - Title". It cannot be undone from here.</p>
+                            <p class="tl-editing-order__note">@L["EditingVideoOrder_ThisRenamesTheVideoFiles"]</p>
                             <div class="tl-editing-order__rename-actions">
-                                <AppButton Label="Rename files" Size="AppControlSize.Compact" Tone="AppUiTone.Primary" Disabled="@_saving" OnClick="@(() => RenameAsync(group))" />
-                                <AppButton Label="Cancel" Size="AppControlSize.Compact" Disabled="@_saving" OnClick="@(() => _confirmRename = null)" />
+                                <AppButton Label="@L["EditingVideoOrder_RenameFiles"].Value" Size="AppControlSize.Compact" Tone="AppUiTone.Primary" Disabled="@_saving" OnClick="@(() => RenameAsync(group))" />
+                                <AppButton Label="@L["Search_Cancel"].Value" Size="AppControlSize.Compact" Disabled="@_saving" OnClick="@(() => _confirmRename = null)" />
                             </div>
                         }
                         else
                         {
-                            <AppButton Label="Rename files to match this order" Size="AppControlSize.Compact" Disabled="@_saving" OnClick="@(() => _confirmRename = group.ParentId)" />
+                            <AppButton Label="@L["EditingVideoOrder_RenameFilesToMatchThis"].Value" Size="AppControlSize.Compact" Disabled="@_saving" OnClick="@(() => _confirmRename = group.ParentId)" />
                         }
                     </div>
                 }
             </div>
         }
-        <p class="tl-editing-order__note">The order is saved in Library. Your files are only renamed if you ask below.</p>
+        <p class="tl-editing-order__note">@L["EditingVideoOrder_TheOrderIsSavedIn"]</p>
         @if (_message is not null)
         {
             <p class="tl-editing-order__note" role="status">@_message</p>
@@ -145,7 +146,7 @@
         }
         else
         {
-            _error = "That could not be saved. The list may have changed; reload the page and try again.";
+            _error = L["EditingVideoOrder_ThatCouldNotBeSaved"].Value;
         }
 
         _saving = false;
@@ -164,7 +165,7 @@
         var result = await Api.RenameVideoFilesToOrderAsync(Mode.Fields.EntityId, group.ParentId);
         if (result is null)
         {
-            _error = "The files could not be renamed. Only files in a Managed folder can be; nothing was changed.";
+            _error = L["EditingVideoOrder_TheFilesCouldNotBe"].Value;
         }
         else
         {

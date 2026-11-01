@@ -3,6 +3,7 @@
 @using MediaEngine.Web.Components.Rules
 
 @inject IEngineApiClient ApiClient
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="collection-rule-sentence">
     <CollectionMediaChips Types="@MediaTypeChoices"
@@ -30,15 +31,15 @@
                        Density="@Density"
                        PreviewLoader="PreviewRulesAsync" />
 
-    <section class="collection-rule-sentence__order" aria-label="Order and limits">
-        <span class="collection-rule-sentence__label">Order and limits</span>
+    <section class="collection-rule-sentence__order" aria-label="@L["CollectionRuleBuilder_OrderAndLimits"].Value">
+        <span class="collection-rule-sentence__label">@L["CollectionRuleBuilder_OrderAndLimits"]</span>
         <div class="collection-rule-sentence__order-row">
             <div class="collection-rule-sentence__order-select">
                 <AppSelect T="string" Value="@OrderValue" ValueChanged="OnOrderChangedAsync" Options="@OrderOptions"
-                           Label="Order" Variant="AppVariant.Outlined" Dense="true" />
+                           Label="@L["EditingVideoOrder_Order"].Value" Variant="AppVariant.Outlined" Dense="true" />
             </div>
             <div class="collection-rule-sentence__max">
-                <AppNumericField Label="At most" Value="@MaxItems" ValueChanged="OnMaxItemsChangedAsync" Min="0"
+                <AppNumericField Label="@L["CollectionRuleBuilder_AtMost"].Value" Value="@MaxItems" ValueChanged="OnMaxItemsChangedAsync" Min="0"
                                  HelpText="0 shows them all." />
             </div>
         </div>
@@ -48,7 +49,7 @@
             {
                 <div class="collection-rule-sentence__then">
                     <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Add"
-                               OnClick="AddThenByAsync">Add “Then by”</AppButton>
+                               OnClick="AddThenByAsync">@L["SharedRuleBuilder_AddThenBy"]</AppButton>
                 </div>
             }
             else
@@ -56,17 +57,17 @@
                 <div class="collection-rule-sentence__order-row">
                     <div class="collection-rule-sentence__order-select">
                         <AppSelect T="string" Value="@ThenByValue" ValueChanged="OnThenByChangedAsync" Options="@ThenByOptions"
-                                   Label="Then by" Variant="AppVariant.Outlined" Dense="true" />
+                                   Label="@L["SharedRuleBuilder_ThenBy"].Value" Variant="AppVariant.Outlined" Dense="true" />
                     </div>
                     <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Size="AppControlSize.Compact"
-                                   Tooltip="Remove “Then by”" AriaLabel="Remove then by" OnClick="RemoveThenByAsync" />
+                                   Tooltip="@L["CollectionRuleBuilder_RemoveThenBy"].Value" AriaLabel="@L["CollectionRuleBuilder_RemoveThenBy2"].Value" OnClick="RemoveThenByAsync" />
                 </div>
             }
         }
     </section>
 
     <div class="collection-rule-sentence__advanced">
-        <AppSwitchRow Label="Advanced (rule groups)"
+        <AppSwitchRow Label="@L["CollectionRuleBuilder_AdvancedRuleGroups"].Value"
                       Description="@(CanLeaveAdvanced ? "Several rule groups, each matching all or any of its rules, combined with AND or OR." : "This collection uses several rule groups. Remove the extra groups to go back to the plain layout.")"
                       Value="@Advanced" ValueChanged="OnAdvancedChangedAsync" Disabled="@(Advanced && !CanLeaveAdvanced)"
                       Size="AppSize.Small" />

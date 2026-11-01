@@ -1,9 +1,10 @@
 @using MediaEngine.Contracts.LocalAssets
 @using MediaEngine.Web.Models.ViewDTOs
 @namespace MediaEngine.Web.Components.Pages
+@inject IStringLocalizer<SharedStrings> L
 
 @* The Documents filters: tags, correspondent, type, date range and custom field values. Counts are the viewer's own. *@
-<section class="view-documents-filters" aria-label="Filter documents">
+<section class="view-documents-filters" aria-label="@L["ViewDocumentFilterRail_FilterDocuments"].Value">
     @if (ShowSavedViews)
     {
         <ViewDocumentSavedViewsPanel Views="SavedViews" ActiveId="State.SavedViewId" CanSave="CanSaveView" Busy="SavedViewsBusy"
@@ -11,43 +12,43 @@
     }
 
     <header class="view-documents-filters__header">
-        <h2>Filters</h2>
+        <h2>@L["Common_Filters"]</h2>
         @if (State.IsActive)
         {
-            <AppButton Label="Clear all" ButtonStyle="AppButtonStyle.Text" OnClick="ClearAsync" Class="view-documents-filters__clear" />
+            <AppButton Label="@L["Common_ClearAll"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="ClearAsync" Class="view-documents-filters__clear" />
         }
     </header>
 
-    <div class="view-documents-mode" role="radiogroup" aria-label="Documents to show">
+    <div class="view-documents-mode" role="radiogroup" aria-label="@L["ViewDocumentFilterRail_DocumentsToShow"].Value">
         <AppNativeButton Type="button" role="radio" aria-checked="@(State.InboxOnly ? "true" : "false")" Class="@ModeClass(State.InboxOnly)" OnClick="@(_ => SetModeAsync(inbox: true, trash: false))">@InboxLabel</AppNativeButton>
-        <AppNativeButton Type="button" role="radio" aria-checked="@(!State.InboxOnly && !State.TrashOnly ? "true" : "false")" Class="@ModeClass(!State.InboxOnly && !State.TrashOnly)" OnClick="@(_ => SetModeAsync(inbox: false, trash: false))">All documents</AppNativeButton>
+        <AppNativeButton Type="button" role="radio" aria-checked="@(!State.InboxOnly && !State.TrashOnly ? "true" : "false")" Class="@ModeClass(!State.InboxOnly && !State.TrashOnly)" OnClick="@(_ => SetModeAsync(inbox: false, trash: false))">@L["ViewDocumentFilterRail_AllDocuments"]</AppNativeButton>
         @if (ShowTrash)
         {
-            <AppNativeButton Type="button" role="radio" aria-checked="@(State.TrashOnly ? "true" : "false")" Class="@ModeClass(State.TrashOnly)" OnClick="@(_ => SetModeAsync(inbox: false, trash: true))">Trash</AppNativeButton>
+            <AppNativeButton Type="button" role="radio" aria-checked="@(State.TrashOnly ? "true" : "false")" Class="@ModeClass(State.TrashOnly)" OnClick="@(_ => SetModeAsync(inbox: false, trash: true))">@L["Common_Trash"]</AppNativeButton>
         }
     </div>
 
     <div class="view-documents-filters__group">
-        <span class="view-documents-filters__label">Sort by</span>
-        <AppNativeSelect aria-label="Sort documents" Value="@(State.Sort ?? string.Empty)" OnChange="SortChangedAsync">
-            <option value="">Newest date first</option>
-            <option value="@ViewDocumentSorts.Added">Date added</option>
-            <option value="@ViewDocumentSorts.DocumentDate">Document date</option>
-            <option value="@ViewDocumentSorts.Title">Title (A to Z)</option>
-            <option value="@ViewDocumentSorts.Correspondent">Correspondent (A to Z)</option>
+        <span class="view-documents-filters__label">@L["Common_SortBy"]</span>
+        <AppNativeSelect aria-label="@L["ViewDocumentFilterRail_SortDocuments"].Value" Value="@(State.Sort ?? string.Empty)" OnChange="SortChangedAsync">
+            <option value="">@L["ViewDocumentFilterRail_NewestDateFirst"]</option>
+            <option value="@ViewDocumentSorts.Added">@L["ViewDocumentFilterRail_DateAdded"]</option>
+            <option value="@ViewDocumentSorts.DocumentDate">@L["Common_DocumentDate"]</option>
+            <option value="@ViewDocumentSorts.Title">@L["ViewDocumentFilterRail_TitleAToZ"]</option>
+            <option value="@ViewDocumentSorts.Correspondent">@L["ViewDocumentFilterRail_CorrespondentAToZ"]</option>
         </AppNativeSelect>
     </div>
 
     @if (Catalogue is null)
     {
-        <p class="view-documents-filters__hint" role="status">Filters will appear once your documents are organised with tags, correspondents or types.</p>
+        <p class="view-documents-filters__hint" role="status">@L["ViewDocumentFilterRail_FiltersWillAppearOnceYour"]</p>
     }
     else
     {
         @if (VisibleTags.Count > 0)
         {
             <fieldset class="view-documents-filters__group">
-                <legend>Tags</legend>
+                <legend>@L["Common_Tags"]</legend>
                 <ul class="view-documents-filters__list">
                     @foreach (var tag in VisibleTags)
                     {
@@ -63,9 +64,9 @@
         @if (VisibleCorrespondents.Count > 0)
         {
             <div class="view-documents-filters__group">
-                <span class="view-documents-filters__label">Correspondent</span>
-                <AppNativeSelect aria-label="Filter by correspondent" Value="@(State.CorrespondentId?.ToString("D") ?? string.Empty)" OnChange="CorrespondentChangedAsync">
-                    <option value="">Any correspondent</option>
+                <span class="view-documents-filters__label">@L["Common_Correspondent"]</span>
+                <AppNativeSelect aria-label="@L["ViewDocumentFilterRail_FilterByCorrespondent"].Value" Value="@(State.CorrespondentId?.ToString("D") ?? string.Empty)" OnChange="CorrespondentChangedAsync">
+                    <option value="">@L["ViewDocumentFilterRail_AnyCorrespondent"]</option>
                     @foreach (var correspondent in VisibleCorrespondents)
                     {
                         <option value="@correspondent.Id.ToString("D")">@($"{correspondent.Name} ({correspondent.UsageCount})")</option>
@@ -77,9 +78,9 @@
         @if (VisibleTypes.Count > 0)
         {
             <div class="view-documents-filters__group">
-                <span class="view-documents-filters__label">Type</span>
-                <AppNativeSelect aria-label="Filter by document type" Value="@(State.DocumentTypeId?.ToString("D") ?? string.Empty)" OnChange="TypeChangedAsync">
-                    <option value="">Any type</option>
+                <span class="view-documents-filters__label">@L["Common_Type"]</span>
+                <AppNativeSelect aria-label="@L["ViewDocumentFilterRail_FilterByDocumentType"].Value" Value="@(State.DocumentTypeId?.ToString("D") ?? string.Empty)" OnChange="TypeChangedAsync">
+                    <option value="">@L["ViewDocumentFilterRail_AnyType"]</option>
                     @foreach (var type in VisibleTypes)
                     {
                         <option value="@type.Id.ToString("D")">@($"{type.Name} ({type.UsageCount})")</option>
@@ -93,11 +94,11 @@
             <div class="view-documents-filters__group" @key="field.Id">
                 <span class="view-documents-filters__label">@field.Name</span>
                 <AppNativeSelect aria-label="@($"Filter by {field.Name}")" Value="@(State.Fields.GetValueOrDefault(field.Id) ?? string.Empty)" OnChange="@(args => FieldChangedAsync(field, args))">
-                    <option value="">Any</option>
+                    <option value="">@L["Common_Any"]</option>
                     @if (field.Kind == ViewDocumentFieldKinds.Bool)
                     {
-                        <option value="true">Yes</option>
-                        <option value="false">No</option>
+                        <option value="true">@L["Common_Yes"]</option>
+                        <option value="false">@L["Common_No"]</option>
                     }
                     else
                     {
@@ -112,24 +113,24 @@
     }
 
     <fieldset class="view-documents-filters__group view-documents-filters__dates">
-        <legend>Date</legend>
-        <AppNativeSelect aria-label="Document date range" Value="@(State.DatePreset ?? string.Empty)" OnChange="DatePresetChangedAsync">
-            <option value="">Any time or custom dates</option>
+        <legend>@L["Common_Date"]</legend>
+        <AppNativeSelect aria-label="@L["ViewDocumentFilterRail_DocumentDateRange"].Value" Value="@(State.DatePreset ?? string.Empty)" OnChange="DatePresetChangedAsync">
+            <option value="">@L["ViewDocumentFilterRail_AnyTimeOrCustomDates"]</option>
             @foreach (var preset in ViewDocumentSavedViews.DatePresets)
             {
                 <option value="@preset.Value">@preset.Label</option>
             }
         </AppNativeSelect>
-        <span class="view-documents-filters__label">From</span>
-        <AppNativeInput Type="date" Class="view-documents-filters__input" AriaLabel="Documents dated from" Value="@DateText(State.DateFrom)" ValueChanged="@(value => DateChangedAsync(value, true))" />
-        <span class="view-documents-filters__label">To</span>
-        <AppNativeInput Type="date" Class="view-documents-filters__input" AriaLabel="Documents dated up to" Value="@DateText(State.DateTo)" ValueChanged="@(value => DateChangedAsync(value, false))" />
+        <span class="view-documents-filters__label">@L["Common_From"]</span>
+        <AppNativeInput Type="date" Class="view-documents-filters__input" AriaLabel="@L["ViewDocumentFilterRail_DocumentsDatedFrom"].Value" Value="@DateText(State.DateFrom)" ValueChanged="@(value => DateChangedAsync(value, true))" />
+        <span class="view-documents-filters__label">@L["Common_To"]</span>
+        <AppNativeInput Type="date" Class="view-documents-filters__input" AriaLabel="@L["ViewDocumentFilterRail_DocumentsDatedUpTo"].Value" Value="@DateText(State.DateTo)" ValueChanged="@(value => DateChangedAsync(value, false))" />
     </fieldset>
 
     @if (OnExport.HasDelegate)
     {
         <div class="view-documents-filters__group">
-            <AppButton Label="Export list (CSV)" StartIcon="@AppMaterialIcons.Outlined.Download" ButtonStyle="AppButtonStyle.Outlined" Disabled="@Exporting" Loading="@Exporting" OnClick="OnExport" Class="view-documents-export" />
+            <AppButton Label="@L["ViewDocumentFilterRail_ExportListCSV"].Value" StartIcon="@AppMaterialIcons.Outlined.Download" ButtonStyle="AppButtonStyle.Outlined" Disabled="@Exporting" Loading="@Exporting" OnClick="OnExport" Class="view-documents-export" />
         </div>
     }
 </section>

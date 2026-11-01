@@ -23,7 +23,7 @@ public sealed class PinPadTests
     [Fact]
     public void Tapping_ADigit_AppendsItToThePin()
     {
-        using var ctx = new BunitContext();
+        using var ctx = new LocalizedBunitContext();
         string? latest = null;
         var cut = Render(ctx, "12", text => latest = text);
 
@@ -35,7 +35,7 @@ public sealed class PinPadTests
     [Fact]
     public void ThePad_HasTenDigitsAndADeleteKey()
     {
-        using var ctx = new BunitContext();
+        using var ctx = new LocalizedBunitContext();
         var cut = Render(ctx, "1");
 
         foreach (var digit in "0123456789")
@@ -49,7 +49,7 @@ public sealed class PinPadTests
     [Fact]
     public void Dots_FillAsDigitsGoIn_AndNeverShowTheDigits()
     {
-        using var ctx = new BunitContext();
+        using var ctx = new LocalizedBunitContext();
         var cut = Render(ctx, "482");
 
         Assert.Equal(4, cut.FindAll(".pin-pad__dot").Count);
@@ -61,7 +61,7 @@ public sealed class PinPadTests
     [Fact]
     public void Dots_GrowForLongerPins()
     {
-        using var ctx = new BunitContext();
+        using var ctx = new LocalizedBunitContext();
         var cut = Render(ctx, "123456789");
 
         Assert.Equal(9, cut.FindAll(".pin-pad__dot").Count);
@@ -70,7 +70,7 @@ public sealed class PinPadTests
     [Fact]
     public void Keyboard_DigitsBackspaceEnterAndEscapeWork()
     {
-        using var ctx = new BunitContext();
+        using var ctx = new LocalizedBunitContext();
         string? latest = null;
         var submitted = 0;
         var cancelled = 0;
@@ -92,7 +92,7 @@ public sealed class PinPadTests
     [Fact]
     public void Enter_OnAKey_PressesThatKeyInsteadOfSubmitting()
     {
-        using var ctx = new BunitContext();
+        using var ctx = new LocalizedBunitContext();
         var submitted = 0;
         var cut = Render(ctx, "12", submitted: () => submitted++);
 
@@ -104,7 +104,7 @@ public sealed class PinPadTests
     [Fact]
     public void Typing_StopsAtTheLongestPin()
     {
-        using var ctx = new BunitContext();
+        using var ctx = new LocalizedBunitContext();
         string? latest = null;
         var cut = Render(ctx, "123456789012", text => latest = text);
 
@@ -116,7 +116,7 @@ public sealed class PinPadTests
     [Fact]
     public void WhileChecking_NothingCanBeTyped()
     {
-        using var ctx = new BunitContext();
+        using var ctx = new LocalizedBunitContext();
         string? latest = null;
         var cut = Render(ctx, "12", text => latest = text, disabled: true);
 
@@ -129,7 +129,7 @@ public sealed class PinPadTests
     [Fact]
     public void AWrongPin_ShakesTheDots()
     {
-        using var ctx = new BunitContext();
+        using var ctx = new LocalizedBunitContext();
         var cut = Render(ctx, string.Empty);
         Assert.Empty(cut.FindAll(".pin-pad__dots.is-wrong"));
 

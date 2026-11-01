@@ -1,11 +1,12 @@
 @namespace MediaEngine.Web.Components.Companion
 @using MediaEngine.Contracts.Playback
 @using MediaEngine.Web.Services.Companion
+@inject IStringLocalizer<SharedStrings> L
 
 @* The profile's own devices that are playing or paused right now. Tapping one follows it. Only this profile's devices are ever
    listed (the Engine decides that from the sign-in), so nothing here shows what someone else in the house is watching. *@
 <section class="companion-devices" aria-labelledby="@_headingId" data-section="devices">
-    <h2 id="@_headingId" class="companion-devices__title">Playing now</h2>
+    <h2 id="@_headingId" class="companion-devices__title">@L["CompanionDeviceList_PlayingNow"]</h2>
     <ul class="companion-devices__list" role="list">
         @foreach (var device in Devices)
         {

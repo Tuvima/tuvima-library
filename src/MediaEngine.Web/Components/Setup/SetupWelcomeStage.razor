@@ -1,31 +1,32 @@
 @namespace MediaEngine.Web.Components.Setup
 @using MediaEngine.Contracts.Setup
 @using MediaEngine.Web.Components.Settings
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="setup-stage-content">
     <div class="setup-stage__heading">
         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Dns" />
-        <div><h2 id="setup-stage-title">Welcome to your library</h2><p>Choose your language, then give this server a friendly name. Phones, TVs and other computers on your network can then find it by name instead of by number.</p></div>
+        <div><h2 id="setup-stage-title">@L["SetupWelcomeStage_WelcomeToYourLibrary"]</h2><p>@L["SetupWelcomeStage_ChooseYourLanguageThenGive"]</p></div>
     </div>
 
     <SetupLocaleStage Value="@Locale" ValueChanged="LocaleChanged" ShowDisplay="true" ShowMetadata="false" />
 
     <div class="setup-server-form">
-        <AppTextField Label="Server name" Value="@ServerName" ValueChanged="OnNameChanged" Placeholder="Shaya's Library" />
-        <AppTextField Label="Network name" Value="@HostName" ValueChanged="OnHostChanged" Placeholder="tuvima" />
-        <p class="setup-server-form__preview">Other devices on your home network can open <strong>http://@(string.IsNullOrWhiteSpace(HostName) ? "tuvima" : HostName).local</strong>. If a device cannot find it by name, the numeric address keeps working.</p>
+        <AppTextField Label="@L["Common_ServerName"].Value" Value="@ServerName" ValueChanged="OnNameChanged" Placeholder="@L["SetupWelcomeStage_ShayaSLibrary"].Value" />
+        <AppTextField Label="@L["SetupWelcomeStage_NetworkName"].Value" Value="@HostName" ValueChanged="OnHostChanged" Placeholder="tuvima" />
+        <p class="setup-server-form__preview">@L["SetupWelcomeStage_OtherDevicesOnYourHome"] <strong>http://@(string.IsNullOrWhiteSpace(HostName) ? "tuvima" : HostName).local</strong>@L["SetupWelcomeStage_IfADeviceCannotFind"]</p>
     </div>
 
     <SetupStageFooter ShowReturnToCurrentStep="@ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
-        <AppButton Label="Continue" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+        <AppButton Label="@L["Common_Continue"].Value" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
                    Loading="@Busy" Disabled="@(string.IsNullOrWhiteSpace(ServerName))" OnClick="Save" />
     </SetupStageFooter>
 
     @if (ShowRestore)
     {
         <div class="setup-restore">
-            <h3>Restore a backup file</h3>
-            <p>Choose a Library backup ZIP. It is inspected before anything is replaced.</p>
+            <h3>@L["SetupWelcomeStage_RestoreABackupFile"]</h3>
+            <p>@L["SetupWelcomeStage_ChooseALibraryBackupZIP"]</p>
             <InputFile OnChange="UploadBackup" accept=".zip,application/zip" class="setup-file-input" />
             @if (!string.IsNullOrWhiteSpace(BackupError))
             {
@@ -33,29 +34,29 @@
             }
             @if (Backup is not null)
             {
-                <dl class="setup-facts"><div><dt>File</dt><dd>@Backup.FileName</dd></div><div><dt>Created</dt><dd>@(Backup.CreatedAt?.ToString("g") ?? "Unknown")</dd></div><div><dt>Entries</dt><dd>@Backup.EntryCount</dd></div></dl>
+                <dl class="setup-facts"><div><dt>@L["Common_File"]</dt><dd>@Backup.FileName</dd></div><div><dt>@L["ApiKeys_Created"]</dt><dd>@(Backup.CreatedAt?.ToString("g") ?? "Unknown")</dd></div><div><dt>@L["SetupWelcomeStage_Entries"]</dt><dd>@Backup.EntryCount</dd></div></dl>
                 <AppAlert Tone="AppUiTone.Warning" data-testid="setup-restore-first-look">
                     @if (Backup.Contents is { } contents)
                     {
                         <BackupContentsSummary Contents="contents" />
-                        <div>The application will restart after confirmation.</div>
+                        <div>@L["SetupWelcomeStage_TheApplicationWillRestartAfter"]</div>
                     }
                     else
                     {
-                        <div>@Backup.Warning</div><div>The application will restart after confirmation.</div>
+                        <div>@Backup.Warning</div><div>@L["SetupWelcomeStage_TheApplicationWillRestartAfter"]</div>
                     }
                 </AppAlert>
-                <div class="setup-actions"><AppButton Label="Cancel restore" OnClick="CancelRestore" /><AppButton Label="Restore and restart" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Warning" Loading="@Busy" OnClick="ConfirmRestore" /></div>
+                <div class="setup-actions"><AppButton Label="@L["SetupWelcomeStage_CancelRestore"].Value" OnClick="CancelRestore" /><AppButton Label="@L["SetupWelcomeStage_RestoreAndRestart"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Warning" Loading="@Busy" OnClick="ConfirmRestore" /></div>
             }
             else
             {
-                <div class="setup-actions"><AppButton Label="Cancel restore" OnClick="CancelRestore" /></div>
+                <div class="setup-actions"><AppButton Label="@L["SetupWelcomeStage_CancelRestore"].Value" OnClick="CancelRestore" /></div>
             }
         </div>
     }
     else
     {
-        <div class="setup-actions setup-actions--secondary"><AppButton Label="Restore a backup instead" StartIcon="@AppMaterialIcons.Outlined.Restore" ButtonStyle="AppButtonStyle.Text" OnClick="OpenRestore" /></div>
+        <div class="setup-actions setup-actions--secondary"><AppButton Label="@L["SetupWelcomeStage_RestoreABackupInstead"].Value" StartIcon="@AppMaterialIcons.Outlined.Restore" ButtonStyle="AppButtonStyle.Text" OnClick="OpenRestore" /></div>
     }
 </div>
 

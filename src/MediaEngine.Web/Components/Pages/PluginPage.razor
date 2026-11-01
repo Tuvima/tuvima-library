@@ -8,7 +8,7 @@
 
 @* A page a plugin adds (WP16). The plugin supplies data; the Library draws it in its own page types (list, grid, guide
    timeline, form, detail), so it looks like any built-in page. Phones do not get the guide timeline. *@
-<PageTitle>@(_page?.Title ?? L["PluginPage_NotFoundTitle"].Value) · Library</PageTitle>
+<PageTitle>@L["Common_Library", _page?.Title ?? L["PluginPage_NotFoundTitle"].Value]</PageTitle>
 
 <div class="plugin-page">
     @if (_loading)

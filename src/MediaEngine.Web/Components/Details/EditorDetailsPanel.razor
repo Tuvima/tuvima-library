@@ -3,6 +3,7 @@
 @using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Integration
 @implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
 
 @* The Details tool (spec D3, D4, D5, WP5): the item's fields from the editor's own per-type field list. Typing only stages a change in the
    pending list, which the page shows at once and Save changes writes later. Provider facts are read-only with a lock and the provider's
@@ -21,7 +22,7 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
     <div class="tl-editor-details">
         @if (!canEdit)
         {
-            <AppAlert Severity="AppSeverity.Info" Dense="true">You can look at these details but not change them.</AppAlert>
+            <AppAlert Severity="AppSeverity.Info" Dense="true">@L["Common_YouCanLookAtThese"]</AppAlert>
         }
 
         @if (editable.Count > 0)
@@ -30,10 +31,10 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
             {
                 <div class="tl-editor-details__toolbar">
                     <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
-                               OnClick="@(() => ResetAll(fields, session, editable))">Reset all to provider values</AppButton>
+                               OnClick="@(() => ResetAll(fields, session, editable))">@L["EditorDetailsPanel_ResetAllToProviderValues"]</AppButton>
                 </div>
             }
-            <section class="tl-editor-details__group" aria-label="Details you can change">
+            <section class="tl-editor-details__group" aria-label="@L["Common_DetailsYouCanChange"].Value">
                 @foreach (var field in editable)
                 {
                     @EditableRow(fields, session, field)
@@ -43,7 +44,7 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
 
         @if (facts.Count > 0)
         {
-            <section class="tl-editor-details__group" aria-label="Provider facts">
+            <section class="tl-editor-details__group" aria-label="@L["Common_ProviderFacts"].Value">
                 <h3 class="tl-editor-details__heading">@(fields.SubjectKind is null ? "From providers" : "Also on record")</h3>
                 @foreach (var field in facts)
                 {

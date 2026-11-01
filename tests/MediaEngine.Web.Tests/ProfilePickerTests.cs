@@ -92,7 +92,7 @@ public sealed class ProfilePickerTests
         Assert.DoesNotContain(" style=\"", page, StringComparison.Ordinal);
     }
 
-    private static string Read(string relative) => File.ReadAllText(Path.Combine(RepoRoot, relative.Replace('/', Path.DirectorySeparatorChar)));
+    private static string Read(string relative) => LocalizedSource.ReadAllText(Path.Combine(RepoRoot, relative.Replace('/', Path.DirectorySeparatorChar)));
 
     private static int CountOf(string text, string needle)
     {

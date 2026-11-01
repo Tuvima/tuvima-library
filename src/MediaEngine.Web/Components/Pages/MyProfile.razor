@@ -2,25 +2,26 @@
 @page "/my-profile/{Tab}"
 @namespace MediaEngine.Web.Components.Pages
 @inject NavigationManager Navigation
+@inject IStringLocalizer<SharedStrings> L
 
-<PageTitle>@Heading - Library</PageTitle>
+<PageTitle>@L["Common_Library", Heading]</PageTitle>
 
 @* A Kids profile's own Profile pages outside Settings (D10): a Kids profile has no Settings, so Overview and Taste live here in the
    normal app layout, next to its own Activity. Taste is read-only for a Kids profile; the Engine enforces that as well. *@
 <div class="my-profile-page">
     <header class="my-profile-page__header">
         <h1 class="my-profile-page__title">@Heading</h1>
-        <a class="my-profile-page__back" href="@ShellDock.MyLibraryPath">Back to My Library</a>
+        <a class="my-profile-page__back" href="@ShellDock.MyLibraryPath">@L["Common_BackToMyLibrary"]</a>
     </header>
     <AppTabs ActivePanelIndex="@ActiveIndex"
              ActivePanelIndexChanged="OnTabChanged"
              Rounded="false"
              Border="false"
              Elevation="0"
-             Label="Profile">
-        <AppTabPanel Text="Overview" />
-        <AppTabPanel Text="Activity" />
-        <AppTabPanel Text="Taste" />
+             Label="@L["Common_Profile"].Value">
+        <AppTabPanel Text="@L["Common_Overview"].Value" />
+        <AppTabPanel Text="@L["Common_Activity"].Value" />
+        <AppTabPanel Text="@L["MyProfile_Taste"].Value" />
     </AppTabs>
     @if (ActiveIndex == 2)
     {

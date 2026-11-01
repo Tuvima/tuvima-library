@@ -3,6 +3,7 @@
 @using MediaEngine.Web.Services.Ui
 @implements IDisposable
 @inject DeviceContextService DeviceContext
+@inject IStringLocalizer<SharedStrings> L
 
 @* One filter surface for every browse page. Tablets and desktops render the page's own inline filters untouched;
    phones swap them for a single Filters button that opens the very same controls in a bottom sheet. The page
@@ -22,7 +23,7 @@
     </div>
     @if (_open)
     {
-        <AppDialogFrame Open="true" Title="Filters" DialogOptions="SheetOptions" Class="browse-filter-sheet" OnCancel="CloseAsync">
+        <AppDialogFrame Open="true" Title="@L["Common_Filters"].Value" DialogOptions="SheetOptions" Class="browse-filter-sheet" OnCancel="CloseAsync">
             <div class="browse-filter-sheet__body">
                 @ChildContent?.Invoke(true)
             </div>
@@ -31,7 +32,7 @@
                                  Class="browse-filter-sheet__clear"
                                  Disabled="@(ActiveCount == 0)"
                                  OnClick="ClearAsync">
-                    Clear
+                    @L["Activity_Clear"]
                 </AppNativeButton>
                 <AppNativeButton Type="button"
                                  Class="browse-filter-sheet__apply"

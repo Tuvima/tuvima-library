@@ -73,7 +73,7 @@
                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Menu" />
                 </AppNativeButton>
             }
-            <AppLink Href="/" Underline="AppUnderline.None" Class="layout-shell__brand-link" aria-label="Library">
+            <AppLink Href="/" Underline="AppUnderline.None" Class="layout-shell__brand-link" aria-label="@L["Nav_Library"].Value">
                 @if (IsPhoneShell)
                 {
                     @* Phone: the icon only, no wordmark. *@
@@ -87,7 +87,7 @@
                 {
                     <span class="layout-shell__brand-lockup" aria-hidden="true">
                         <img src="/images/tuvima-icon.svg" alt="" class="layout-shell__brand-lockup-icon" />
-                        <span class="layout-shell__brand-wordmark">Library</span>
+                        <span class="layout-shell__brand-wordmark">@L["Nav_Library"]</span>
                     </span>
                     @* Tablets and narrow desktop windows (840px and under) show the icon alone instead, so the top navigation keeps its room. *@
                     <span class="layout-shell__brand-icon-shell layout-shell__brand-icon-shell--compact" aria-hidden="true">
@@ -99,7 +99,7 @@
             </AppLink>
         </AppStack>
 
-        <nav class="layout-shell__desktop-nav" aria-label="Primary">
+        <nav class="layout-shell__desktop-nav" aria-label="@L["MainLayout_Primary"].Value">
             @foreach (var link in ShellNavigation.WithVault(ShellNavigation.TopBarLinks(_isKids), ShowVaultArea))
             {
                 <a href="@link.Path"
@@ -188,9 +188,9 @@
             {
                 <AppNativeButton Type="button"
                                  Class="layout-shell__engine-banner-retry"
-                                 AriaLabel="Retry live updates"
+                                 AriaLabel="@L["MainLayout_RetryLiveUpdates"].Value"
                                  OnClick="RetryLiveUpdatesAsync">
-                    Retry
+                    @L["Common_Retry"]
                 </AppNativeButton>
             }
         </div>
@@ -224,7 +224,7 @@
 
 @if (ShowIntentDock)
 {
-    <nav class="@IntentDockClass" aria-label="Primary mobile navigation">
+    <nav class="@IntentDockClass" aria-label="@L["MainLayout_PrimaryMobileNavigation"].Value">
         @foreach (var entry in IntentDockEntries)
         {
             @switch (entry.Kind)
@@ -747,12 +747,12 @@
             if (_disposed) return;
             if (settings is not null && !string.IsNullOrEmpty(settings.DisplayLanguage))
             {
-                var currentCulture = System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
-                var desired = settings.DisplayLanguage.Split('-', '_')[0].ToLowerInvariant();
+                var currentCulture = System.Globalization.CultureInfo.CurrentUICulture.Name;
+                var desired = MediaEngine.Web.Services.Localization.AppCultures.Resolve(settings.DisplayLanguage);
                 if (!string.Equals(currentCulture, desired, StringComparison.OrdinalIgnoreCase))
                 {
                     var redirectBack = Uri.EscapeDataString(Nav.Uri);
-                    Nav.NavigateTo($"/culture/set?culture={Uri.EscapeDataString(settings.DisplayLanguage)}&redirectUri={redirectBack}", forceLoad: true);
+                    Nav.NavigateTo($"/culture/set?culture={Uri.EscapeDataString(desired)}&redirectUri={redirectBack}", forceLoad: true);
                 }
             }
         }

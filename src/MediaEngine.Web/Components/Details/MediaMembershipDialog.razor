@@ -4,16 +4,17 @@
 @inject IEngineApiClient Api
 @inject UIOrchestratorService Orchestrator
 @inject DashboardSessionAccessor Session
+@inject IStringLocalizer<SharedStrings> L
 <AppDialog>
     <DialogContent>
-        @if (_loading) { <p>Loading available destinations...</p> }
+        @if (_loading) { <p>@L["MediaMembershipDialog_LoadingAvailableDestinations"]</p> }
         else if (_options.Count == 0) { <p>No editable manual @(Playlist ? "playlists" : "collections") are available.</p> }
-        else { <AppSelect Value="@_selected" ValueChanged="@((string? value) => _selected = value)" Options="@_options" aria-label="Destination" /> }
+        else { <AppSelect Value="@_selected" ValueChanged="@((string? value) => _selected = value)" Options="@_options" aria-label="@L["Common_Destination"].Value" /> }
         @if (_error is not null) { <p role="alert">@_error</p> }
     </DialogContent>
     <DialogActions>
-        <AppButton ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => Dialog.Cancel())">Cancel</AppButton>
-        <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_saving || _selected is null)" OnClick="SaveAsync">Add</AppButton>
+        <AppButton ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => Dialog.Cancel())">@L["Search_Cancel"]</AppButton>
+        <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_saving || _selected is null)" OnClick="SaveAsync">@L["Vibes_Add"]</AppButton>
     </DialogActions>
 </AppDialog>
 @code {

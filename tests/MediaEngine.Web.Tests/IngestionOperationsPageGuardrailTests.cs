@@ -10,15 +10,15 @@ public sealed class IngestionOperationsPageGuardrailTests
     [Fact]
     public void IngestionTab_UsesCentralLiveDashboardStateAndComponents()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Settings/IngestionTasksTab.razor"));
-        var scanAction = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Settings/IngestionScanAction.razor"));
-        var styles = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Settings/IngestionTasksTab.razor.css"));
+        var source = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Settings/IngestionTasksTab.razor"));
+        var scanAction = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Settings/IngestionScanAction.razor"));
+        var styles = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Settings/IngestionTasksTab.razor.css"));
         var stateSource = ReadIngestionDashboardStateSource();
-        var orchestratorSource = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Services/Integration/UIOrchestratorService.cs"));
+        var orchestratorSource = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Services/Integration/UIOrchestratorService.cs"));
 
         Assert.Contains("IngestionLiveDashboardState", source, StringComparison.Ordinal);
         Assert.Contains("<IngestionNowPanel", source, StringComparison.Ordinal);
-        Assert.Contains("<IngestionMediaCard", File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Settings/IngestionNowPanel.razor")), StringComparison.Ordinal);
+        Assert.Contains("<IngestionMediaCard", LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Settings/IngestionNowPanel.razor")), StringComparison.Ordinal);
         Assert.Contains("<IngestionAddedSummary", source, StringComparison.Ordinal);
         Assert.DoesNotContain("<IngestionBatchHistory", source, StringComparison.Ordinal);
         Assert.Contains("<IngestionMediaDrawer", source, StringComparison.Ordinal);
@@ -35,7 +35,7 @@ public sealed class IngestionOperationsPageGuardrailTests
         Assert.Contains("ingestion-summary-breathe", styles, StringComparison.Ordinal);
         Assert.Contains("ingestion-progress-shimmer", styles, StringComparison.Ordinal);
         Assert.Contains("prefers-reduced-motion: reduce", styles, StringComparison.Ordinal);
-        Assert.Contains("<h2 id=\"ingestion-now-title\">Now</h2>", File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Settings/IngestionNowPanel.razor")), StringComparison.Ordinal);
+        Assert.Contains("<h2 id=\"ingestion-now-title\">Now</h2>", LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Settings/IngestionNowPanel.razor")), StringComparison.Ordinal);
         Assert.DoesNotContain("Processing details", source, StringComparison.Ordinal);
         Assert.DoesNotContain("BatchProgress", source, StringComparison.Ordinal);
         Assert.Contains("Dashboard.QueueProgress", source, StringComparison.Ordinal);
@@ -88,14 +88,14 @@ public sealed class IngestionOperationsPageGuardrailTests
     [Fact]
     public void IngestionSummary_UsesUnmatchedAriaAttributesWithoutConflictingWithAppPanelCapture()
     {
-        var source = File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Settings/IngestionTasksTab.razor"));
+        var source = LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Components/Settings/IngestionTasksTab.razor"));
 
         Assert.Contains("aria-live=\"polite\"", source, StringComparison.Ordinal);
         Assert.DoesNotContain("AdditionalAttributes=", source, StringComparison.Ordinal);
     }
 
     private static string ReadIngestionDashboardStateSource() =>
-        File.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Services/Integration/IngestionLiveDashboardState.cs"));
+        LocalizedSource.ReadAllText(GetRepoFilePath(@"src/MediaEngine.Web/Services/Integration/IngestionLiveDashboardState.cs"));
 
     private static string GetRepoFilePath(string relativePath, [CallerFilePath] string sourceFile = "")
     {

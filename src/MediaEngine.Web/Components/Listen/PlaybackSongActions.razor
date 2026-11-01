@@ -1,7 +1,8 @@
 @namespace MediaEngine.Web.Components.Listen
 @using MediaEngine.Web.Services.Playback
+@inject IStringLocalizer<SharedStrings> L
 
-<div class="playback-song-actions" role="group" aria-label="Song actions">
+<div class="playback-song-actions" role="group" aria-label="@L["Common_SongActions"].Value">
     @if (FavoriteChanged.HasDelegate)
     {
         <AppTooltip Text="@FavoriteLabel">

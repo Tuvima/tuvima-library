@@ -1,13 +1,14 @@
 @namespace MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Services.Playback
+@inject IStringLocalizer<SharedStrings> L
 <span class="playback-speed-control @Class">
 <PlaybackPopover Title="@(PlaybackRateOptions.IsValid(Value) ? $"Playback speed {PlaybackRateOptions.FormatLabel(Value)}" : "Playback speed unavailable")" ToolId="@_id" Kind="speed" ShowHeading="false" Surface="@Surface" Disabled="@(!PlaybackRateOptions.IsValid(Value))" OpenChanged="MenuOpenChanged" Open="Open">
     <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Speed" /></TriggerContent>
     <ChildContent>
         <div class="playback-speed-control__slider">
             <output aria-live="polite">@PlaybackRateOptions.FormatLabel(Value)</output>
-            <AppRangeSlider Value="@Value" Min="0.5" Max="3" Step="0.05" SnapValueToStep="false" InputStep="0.05" ShowTicks="false" Surface="@Surface" AriaLabel="Playback speed" ValueFormatter="PlaybackRateOptions.FormatLabel" ValueChanged="ValueChanged" />
-            <AppNativeButton Type="button" OnClick="@(() => ValueChanged.InvokeAsync(1d))" AriaLabel="Reset playback speed to 1×">Reset to 1×</AppNativeButton>
+            <AppRangeSlider Value="@Value" Min="0.5" Max="3" Step="0.05" SnapValueToStep="false" InputStep="0.05" ShowTicks="false" Surface="@Surface" AriaLabel="@L["PlaybackSpeedControl_PlaybackSpeed"].Value" ValueFormatter="PlaybackRateOptions.FormatLabel" ValueChanged="ValueChanged" />
+            <AppNativeButton Type="button" OnClick="@(() => ValueChanged.InvokeAsync(1d))" AriaLabel="@L["PlaybackSpeedControl_ResetPlaybackSpeedTo1"].Value">@L["PlaybackSpeedControl_ResetTo1"]</AppNativeButton>
         </div>
     </ChildContent>
 </PlaybackPopover>

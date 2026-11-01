@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <!-- Navigation -->
+  <data name="Universe_GuideFilterOrgs" xml:space="preserve">
+    <value>Organisations</value>
+  </data>
+  <data name="CollectionPersonalMediaSection_MatchesPersonalMediaAtView" xml:space="preserve">
+    <value>Matches personal media at view time under each viewer’s current authorisation.</value>
+  </data>
+  <data name="CollectionsPage_OrganizingAutomaticCollectionsCuratedCol" xml:space="preserve">
+    <value>Organising automatic collections, curated collections, shelves, and people.</value>
+  </data>
+  <data name="DescriptionAttribution_ModifiedOrSummarizedForDisplay" xml:space="preserve">
+    <value>Modified or summarised for display.</value>
+  </data>
+  <data name="Common_ToggleFavorite" xml:space="preserve">
+    <value>Toggle favourite</value>
+  </data>
+  <data name="ChronicleExplorer_LibraryHasNotFoundEnough" xml:space="preserve">
+    <value>Library has not found enough real character, location, organisation, event, or relationship data for this Universe yet.</value>
+  </data>
+  <data name="ForMe_YourProgressSavedItemsFavorites" xml:space="preserve">
+    <value>Your progress, saved items, favourites, and personal spaces—kept distinct and brought together here.</value>
+  </data>
+  <data name="Glossary_Favorites" xml:space="preserve">
+    <value>Favourites</value>
+  </data>
+  <data name="ForMe_SaveATitleMarkA" xml:space="preserve">
+    <value>Save a title, mark a favourite, or begin watching, reading, or listening to see it here.</value>
+  </data>
+  <data name="ForMe_OpenFavoritesPlaylist" xml:space="preserve">
+    <value>Open Favourites playlist</value>
+  </data>
+  <data name="ListenPage_NoSavedPlaylistsYetFavorites" xml:space="preserve">
+    <value>No saved Playlists yet. Favourites remain available from For Me.</value>
+  </data>
+  <data name="ViewGalleriesPage_OrganizePersonalPhotosAndVideos" xml:space="preserve">
+    <value>Organise personal photos and videos without changing their source files.</value>
+  </data>
+  <data name="ViewPage_AuthorizedPhotoScope" xml:space="preserve">
+    <value>Authorised photo scope</value>
+  </data>
+  <data name="ViewPage_TheDashboardCouldNotResolve" xml:space="preserve">
+    <value>The Dashboard could not resolve an authorised View scope.</value>
+  </data>
+  <data name="ViewPlacesPage_ShowMappedMediaMarkedAs" xml:space="preserve">
+    <value>Show mapped media marked as a favourite.</value>
+  </data>
+  <data name="ViewPlacesPage_PlottingYourAuthorizedMemoriesAround" xml:space="preserve">
+    <value>Plotting your authorised memories around the world.</value>
+  </data>
+  <data name="ViewPlacesPage_WorldMapOfAuthorizedPhoto" xml:space="preserve">
+    <value>World map of authorised photo and video locations</value>
+  </data>
+  <data name="ViewPlacesPage_AuthorizedPlacesScope" xml:space="preserve">
+    <value>Authorised Places scope</value>
+  </data>
+  <data name="ViewPlacesPage_FavoritesOnly" xml:space="preserve">
+    <value>Favourites only</value>
+  </data>
+  <data name="Glossary_Favorite" xml:space="preserve">
+    <value>Favourite</value>
+  </data>
+  <data name="ViewSharedContributionDialog_OrganizeByCaptureYearAnd" xml:space="preserve">
+    <value>Organise by capture year and month.</value>
+  </data>
+  <data name="EncodeSettingsTab_StartTheEngineOrRetry" xml:space="preserve">
+    <value>Start the Engine or retry before changing hardware acceleration and optimised copies.</value>
+  </data>
+  <data name="EncodeSettingsTab_OptimizedCopies" xml:space="preserve">
+    <value>Optimised copies</value>
+  </data>
+  <data name="EncodeSettingsTab_LimitOptimizedCopyWorkTo" xml:space="preserve">
+    <value>Limit optimised copy work to a predictable maintenance window.</value>
+  </data>
+  <data name="EncodeSettingsTab_QueueNonUrgentOptimizedCopy" xml:space="preserve">
+    <value>Queue non-urgent optimised copy work for the maintenance window.</value>
+  </data>
+  <data name="EncodeSettingsTab_OptimizedCopyStorage" xml:space="preserve">
+    <value>Optimised copy storage</value>
+  </data>
+  <data name="EncodeSettingsTab_KeepUnusedOptimizedCopiesFor" xml:space="preserve">
+    <value>Keep unused optimised copies for</value>
+  </data>
+  <data name="EncodeSettingsTab_RemoveLeastUsedOptimizedCopies" xml:space="preserve">
+    <value>Remove least-used optimised copies first</value>
+  </data>
+  <data name="IngestionNowPanel_RecognizableAlbumsShowsBooksAnd" xml:space="preserve">
+    <value>Recognisable albums, shows, books, and movies appear here once their identity and primary cover art are ready.</value>
+  </data>
+  <data name="Common_Organization" xml:space="preserve">
+    <value>Organisation</value>
+  </data>
+  <data name="ViewFileHandlingTab_ViewUsesLocalFileDetails" xml:space="preserve">
+    <value>View uses local file details, capture dates, available location metadata, and supported thumbnails. Personal media does not use external catalogue providers or the Review Queue.</value>
+  </data>
+  <data name="OfflineDownloadsTab_CurrentAndQueuedWorkFor" xml:space="preserve">
+    <value>Current and queued work for optimised copies.</value>
+  </data>
+  <data name="OfflineDownloadsTab_OptimizedCopiesWillAppearHere" xml:space="preserve">
+    <value>Optimised copies will appear here when an encode is queued from a supported media item.</value>
+  </data>
+  <data name="SecurityTab_ProtectAuthorizationCodeCallbacksWith" xml:space="preserve">
+    <value>Protect authorisation-code callbacks with a per-request verifier.</value>
+  </data>
+  <data name="SecurityTab_AuthorizationEndpoint" xml:space="preserve">
+    <value>Authorisation endpoint</value>
+  </data>
+  <data name="MediaBrowseShell_TheFavoriteCouldNotBe" xml:space="preserve">
+    <value>The favourite could not be updated.</value>
+  </data>
+  <data name="Common_FavoritesRequireAnActiveProfile" xml:space="preserve">
+    <value>Favourites require an active profile.</value>
+  </data>
+  <data name="ListenPlayerPopupPage_FavoritesCouldNotBeUpdated" xml:space="preserve">
+    <value>Favourites could not be updated. Try again when the Engine reconnects.</value>
+  </data>
+  <data name="EncodeSettingsTab_OptimizedCopySettingsCouldNot" xml:space="preserve">
+    <value>Optimised copy settings could not be saved.</value>
+  </data>
+</root>

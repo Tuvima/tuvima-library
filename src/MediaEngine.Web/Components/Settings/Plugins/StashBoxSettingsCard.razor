@@ -4,10 +4,11 @@
 @implements IDisposable
 @inject IEngineApiClient ApiClient
 @inject IAppToastService Snackbar
+@inject IStringLocalizer<SharedStrings> L
 
 @* Stash-box's own parts on its plugin page (Plugins and Integrations screens v3 D18, D25): its servers (the default StashDB and any
    the administrator added), each server's own key, and the separate "sends a fingerprint of your file" permission. *@
-<AppCard Title="Servers" Description="Stash-box videos are looked up on these servers, in this order. Each has its own account key." Class="metadata-provider-configuration">
+<AppCard Title="@L["StashBoxSettingsCard_Servers"].Value" Description="@L["StashBoxSettingsCard_StashBoxVideosAreLooked"].Value" Class="metadata-provider-configuration">
     @if (_settings is null)
     {
         <AppSkeleton Size="AppControlSize.Large" />
@@ -25,12 +26,12 @@
                     <AppStatusBadge Text="@ConnectionWords(server.Connection)" Tone="@ConnectionTone(server.Connection)" />
                     <div class="stashbox-servers__actions">
                         <AppTextField Value="@_keys.GetValueOrDefault(server.Id)" ValueChanged="@(value => _keys[server.Id] = value ?? string.Empty)"
-                                      Label="Account key" Placeholder="Paste your key" FullWidth="false" />
-                        <AppButton Label="Replace key" Size="AppControlSize.Compact" Disabled="@(string.IsNullOrWhiteSpace(_keys.GetValueOrDefault(server.Id)) || _busy)" OnClick="@(() => SaveKeyAsync(server))" />
-                        <AppButton Label="Test connection" Size="AppControlSize.Compact" Disabled="@_busy" OnClick="@(() => TestAsync(server))" />
+                                      Label="@L["StashBoxSettingsCard_AccountKey"].Value" Placeholder="@L["StashBoxSettingsCard_PasteYourKey"].Value" FullWidth="false" />
+                        <AppButton Label="@L["StashBoxSettingsCard_ReplaceKey"].Value" Size="AppControlSize.Compact" Disabled="@(string.IsNullOrWhiteSpace(_keys.GetValueOrDefault(server.Id)) || _busy)" OnClick="@(() => SaveKeyAsync(server))" />
+                        <AppButton Label="@L["StashBoxSettingsCard_TestConnection"].Value" Size="AppControlSize.Compact" Disabled="@_busy" OnClick="@(() => TestAsync(server))" />
                         @if (!server.IsDefault)
                         {
-                            <AppButton Label="Remove" Size="AppControlSize.Compact" Tone="AppUiTone.Error" Disabled="@_busy" OnClick="@(() => RemoveAsync(server))" />
+                            <AppButton Label="@L["Common_Remove"].Value" Size="AppControlSize.Compact" Tone="AppUiTone.Error" Disabled="@_busy" OnClick="@(() => RemoveAsync(server))" />
                         }
                     </div>
                     @if (_messages.TryGetValue(server.Id, out var message))
@@ -40,7 +41,7 @@
                 </li>
             }
         </ul>
-        <AppSwitchRow Label="Send a fingerprint of the file"
+        <AppSwitchRow Label="@L["StashBoxSettingsCard_SendAFingerprintOfThe"].Value"
                       Description="Off by default. A short fingerprint of the video file helps StashDB find an exact match; the file itself is never sent."
                       Value="@_settings.FingerprintPermission"
                       ValueChanged="@SetFingerprintAsync" />
@@ -90,7 +91,7 @@
     {
         if (!await ApiClient.RemoveStashBoxServerAsync(server.Id, _disposed.Token))
         {
-            Snackbar.Add("The server could not be removed.", AppSeverity.Error);
+            Snackbar.Add(L["StashBoxSettingsCard_TheServerCouldNotBe"].Value, AppSeverity.Error);
             return;
         }
 
@@ -102,7 +103,7 @@
         var updated = await ApiClient.SetStashBoxFingerprintPermissionAsync(allowed, _disposed.Token);
         if (updated is null)
         {
-            Snackbar.Add("That could not be saved.", AppSeverity.Error);
+            Snackbar.Add(L["StashBoxSettingsCard_ThatCouldNotBeSaved"].Value, AppSeverity.Error);
             return;
         }
 

@@ -1,4 +1,5 @@
 @namespace MediaEngine.Web.Components.MediaHub
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="shelf-header">
     <div class="shelf-header__copy">
@@ -16,7 +17,7 @@
 
     @if (!string.IsNullOrWhiteSpace(Route))
     {
-        <a href="@Route" class="shelf-header__link">View all</a>
+        <a href="@Route" class="shelf-header__link">@L["Common_ViewAll"]</a>
     }
 
     @if (!string.IsNullOrEmpty(LanePlace) && !string.IsNullOrEmpty(ShelfKey))

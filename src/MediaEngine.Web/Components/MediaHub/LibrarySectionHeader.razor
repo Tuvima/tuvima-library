@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.MediaHub
 @using MediaEngine.Web.Models.ViewDTOs
 @inject NavigationManager Nav
+@inject IStringLocalizer<SharedStrings> L
 
 <header class="library-section-header">
     @if (Modes.Count > 0)
@@ -13,7 +14,7 @@
     }
     else if (Loading)
     {
-        <AppSkeleton Class="library-section-header__navigation" Width="min(420px, 100%)" Height="34px" aria-label="Loading tabs" />
+        <AppSkeleton Class="library-section-header__navigation" Width="min(420px, 100%)" Height="34px" aria-label="@L["LibrarySectionHeader_LoadingTabs"].Value" />
     }
 
     @if (Actions is not null)

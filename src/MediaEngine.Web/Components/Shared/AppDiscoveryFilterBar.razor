@@ -1,6 +1,7 @@
 @namespace MediaEngine.Web.Components.Shared
 @implements IAsyncDisposable
 @inject IJSRuntime JS
+@inject IStringLocalizer<SharedStrings> L
 
 <section class="app-discovery-filter" aria-label="@AriaLabel">
     <label class="app-discovery-filter__search">
@@ -23,7 +24,7 @@
                              aria-expanded="@_expanded"
                              OnClick="@(_ => _expanded = !_expanded)">
                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Tune" />
-                Filters
+                @L["Common_Filters"]
             </AppNativeButton>
         }
     </div>

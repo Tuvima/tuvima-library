@@ -1,13 +1,14 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Web.Services.Formatting
+@inject IStringLocalizer<SharedStrings> L
 
 @* The rail of the Libraries page (Libraries redesign D1, D14, D15): every area as a heading and every library under it as a row with a status dot,
    on every Libraries page, so Watch, Listen, Read, View and the Vault are always one click away. The selected row is highlighted. Below 1180 px it
    folds into a strip of chips, still grouped by area. The Vault group is drawn only while the host says it may be shown. *@
-<nav class="librail" aria-label="Libraries" data-selected="@Selected">
+<nav class="librail" aria-label="@L["Nav_Libraries"].Value" data-selected="@Selected">
     <a class="librail__overview @(IsSelected(OverviewKey) ? "librail__on" : null)" href="/settings/libraries" aria-current="@(IsSelected(OverviewKey) ? "page" : null)">
-        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.GridView" />All libraries
+        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.GridView" />@L["Common_AllLibraries"]
     </a>
 
     @foreach (var area in Kinds.Visible(ShowVault))
@@ -18,7 +19,7 @@
                 <span>@area.Label</span>
                 @if (CanAdd(area))
                 {
-                    <AppButton Label="Add" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" Class="librail__add" aria-label="@($"Add a {area.Label} library")" OnClick="@(() => OnAddLibrary.InvokeAsync(area.Key))" />
+                    <AppButton Label="@L["Vibes_Add"].Value" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" Class="librail__add" aria-label="@($"Add a {area.Label} library")" OnClick="@(() => OnAddLibrary.InvokeAsync(area.Key))" />
                 }
             </h3>
             @foreach (var row in rows)
@@ -36,7 +37,7 @@
             }
             @if (rows.Count == 0)
             {
-                <span class="librail__quiet">Nothing yet</span>
+                <span class="librail__quiet">@L["Common_NothingYet"]</span>
             }
         </div>
     }
@@ -46,7 +47,7 @@
         <hr class="librail__rule" />
         <a class="librail__lib librail__lib--plain @(IsSelected(LibraryTypeCatalog.ImportKey) ? "librail__on" : null)" href="/settings/libraries/import">
             <span class="librail__tile lib-kind-tile"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoveToInbox" /></span>
-            <span class="librail__name">Import folder</span>
+            <span class="librail__name">@L["Common_ImportFolder"]</span>
         </a>
     }
 </nav>

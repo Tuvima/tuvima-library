@@ -1,42 +1,43 @@
 @namespace MediaEngine.Web.Components.Settings
 @inject UIOrchestratorService Orchestrator
+@inject IStringLocalizer<SharedStrings> L
 
 @* The Local AI runtime (resource profile, benchmark, runtime limits and diagnostics): the Runtime page of Local AI.
    Model files and downloads are the "Local AI models" card on Tools and requirements. The page title and its
    one-line description come from the Settings frame. *@
 <div class="local-ai-runtime" data-testid="local-ai-runtime">
     <ModelsTab />
-    <AppCard Title="Runtime settings" Density="AppSurfaceDensity.Compact">
+    <AppCard Title="@L["LocalAiRuntimePanel_RuntimeSettings"].Value" Density="AppSurfaceDensity.Compact">
         @if (_config is null)
         {
-            <AppEmptyState Title="AI configuration unavailable" Message="Runtime controls are hidden until the Engine returns saved configuration." />
+            <AppEmptyState Title="@L["Common_AIConfigurationUnavailable"].Value" Message="@L["LocalAiRuntimePanel_RuntimeControlsAreHiddenUntil"].Value" />
         }
         else
         {
             <div class="tl-form-grid local-ai-runtime__form">
-                <AppTextField @bind-Value="_config.ModelsDirectory" Label="Models directory" />
-                <AppNumericField T="int" @bind-Value="_config.IdleUnloadSeconds" Label="Idle unload seconds" Min="1" />
-                <AppNumericField T="int" @bind-Value="_config.InferenceTimeoutSeconds" Label="Inference timeout seconds" Min="1" />
-                <AppNumericField T="int" @bind-Value="_config.MinimumFreeDiskMB" Label="Minimum free disk (MB)" Min="256" />
-                <AppNumericField T="int" @bind-Value="_config.EnrichmentBatchSize" Label="Enrichment batch size" Min="1" />
+                <AppTextField @bind-Value="_config.ModelsDirectory" Label="@L["LocalAiRuntimePanel_ModelsDirectory"].Value" />
+                <AppNumericField T="int" @bind-Value="_config.IdleUnloadSeconds" Label="@L["LocalAiRuntimePanel_IdleUnloadSeconds"].Value" Min="1" />
+                <AppNumericField T="int" @bind-Value="_config.InferenceTimeoutSeconds" Label="@L["LocalAiRuntimePanel_InferenceTimeoutSeconds"].Value" Min="1" />
+                <AppNumericField T="int" @bind-Value="_config.MinimumFreeDiskMB" Label="@L["LocalAiRuntimePanel_MinimumFreeDiskMB"].Value" Min="256" />
+                <AppNumericField T="int" @bind-Value="_config.EnrichmentBatchSize" Label="@L["LocalAiRuntimePanel_EnrichmentBatchSize"].Value" Min="1" />
             </div>
-            <AppButton Label="Save runtime settings" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+            <AppButton Label="@L["LocalAiRuntimePanel_SaveRuntimeSettings"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
                        Class="tl-sp-mt-3" Disabled="@_savingConfig" OnClick="@SaveConfig" />
         }
     </AppCard>
     @if (_profile is not null || _resources is not null)
     {
-        <AppCard Title="Runtime diagnostics" Density="AppSurfaceDensity.Compact">
+        <AppCard Title="@L["LocalAiRuntimePanel_RuntimeDiagnostics"].Value" Density="AppSurfaceDensity.Compact">
             <div class="local-ai-runtime__diagnostics">
                 @if (_profile is not null)
                 {
-                    <span><strong>Backend</strong>@_profile.Backend</span>
-                    <span><strong>Benchmark</strong>@BenchmarkLabel()</span>
+                    <span><strong>@L["LocalAiRuntimePanel_Backend"]</strong>@_profile.Backend</span>
+                    <span><strong>@L["LocalAiRuntimePanel_Benchmark"]</strong>@BenchmarkLabel()</span>
                 }
                 @if (_resources is not null)
                 {
-                    <span><strong>Engine memory</strong>@FormatMb(_resources.EngineRamMb)</span>
-                    <span><strong>CPU pressure</strong>@CpuPressureLabel(_resources.CpuPressure)</span>
+                    <span><strong>@L["LocalAiRuntimePanel_EngineMemory"]</strong>@FormatMb(_resources.EngineRamMb)</span>
+                    <span><strong>@L["LocalAiRuntimePanel_CPUPressure"]</strong>@CpuPressureLabel(_resources.CpuPressure)</span>
                 }
             </div>
         </AppCard>

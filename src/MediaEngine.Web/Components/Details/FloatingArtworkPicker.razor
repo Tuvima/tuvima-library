@@ -7,6 +7,7 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject IAppDialogService Dialogs
+@inject IStringLocalizer<SharedStrings> L
 
 @* The Artwork tool of the universal editor (spec D8): a floating picker, not a panel. It is dragged by its header, shrinks to a chip so the
    page can be looked at, and closes. Tabs follow the item (Background, Poster, Logo for a movie; Season poster for a season). It offers
@@ -23,7 +24,7 @@
              aria-labelledby="tl-art-picker-title">
         <header @ref="_handle" class="tl-art-picker__header">
             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" Size="AppSize.Small" />
-            <strong id="tl-art-picker-title" class="tl-art-picker__title" tabindex="-1">Artwork</strong>
+            <strong id="tl-art-picker-title" class="tl-art-picker__title" tabindex="-1">@L["FloatingArtworkPicker_Artwork"]</strong>
             @if (_minimised)
             {
                 <span class="tl-art-picker__chip-label">@ArtworkPickerRules.LabelFor(slot)@(staged ? " · changed" : string.Empty)</span>
@@ -38,8 +39,8 @@
             <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
                            Size="AppControlSize.Compact"
                            Class="tl-art-picker__close"
-                           Tooltip="Close Artwork"
-                           AriaLabel="Close Artwork"
+                           Tooltip="@L["FloatingArtworkPicker_CloseArtwork"].Value"
+                           AriaLabel="@L["FloatingArtworkPicker_CloseArtwork"].Value"
                            OnClick="CloseAsync" />
         </header>
 
@@ -49,7 +50,7 @@
                 @if (tabs.Count > 1)
                 {
                     <AppSegmentedControl Class="tl-art-picker__tabs"
-                                         AriaLabel="Artwork to change"
+                                         AriaLabel="@L["FloatingArtworkPicker_ArtworkToChange"].Value"
                                          Options="@(tabs.Select(tab => new AppSelectOption(tab.Slot, tab.Label)).ToList())"
                                          Value="@slot"
                                          ValueChanged="SelectSlotAsync" />
@@ -78,7 +79,7 @@
                                Class="tl-art-picker__use"
                                Disabled="@(!picker.HasPick || picker.Busy)"
                                OnClick="UseAsync">
-                        Use this artwork
+                        @L["FloatingArtworkPicker_UseThisArtwork"]
                     </AppButton>
                     @if (!string.IsNullOrWhiteSpace(picker.ShownUrl))
                     {
@@ -88,7 +89,7 @@
                                        Tone="AppUiTone.Neutral"
                                        StartIcon="@AppMaterialIcons.Outlined.OpenInNew"
                                        Class="tl-art-picker__full">
-                            Open full size
+                            @L["FloatingArtworkPicker_OpenFullSize"]
                         </AppButton>
                     }
                     @if (staged)
@@ -98,7 +99,7 @@
                                    Class="tl-art-picker__undo"
                                    Disabled="@picker.Busy"
                                    OnClick="picker.UndoStaged">
-                            Undo this choice
+                            @L["FloatingArtworkPicker_UndoThisChoice"]
                         </AppButton>
                     }
                     else if (!picker.IsRemoval && !string.IsNullOrWhiteSpace(picker.ShownUrl))
@@ -109,7 +110,7 @@
                                    Class="tl-art-picker__remove"
                                    Disabled="@picker.Busy"
                                    OnClick="RemoveAsync">
-                            Remove artwork
+                            @L["Common_RemoveArtwork"]
                         </AppButton>
                     }
                 </div>
@@ -120,7 +121,7 @@
                 }
 
                 <AppSegmentedControl Class="tl-art-picker__sources"
-                                     AriaLabel="Where to find artwork"
+                                     AriaLabel="@L["FloatingArtworkPicker_WhereToFindArtwork"].Value"
                                      Options="@(Mode?.Fields.ProvidersAvailable == false ? SourcesWithoutProviders : Sources)"
                                      Value="@_source"
                                      ValueChanged="SelectSourceAsync" />
@@ -132,11 +133,11 @@
                             @ProviderSource(picker)
                             break;
                         case SourceUpload:
-                            <p class="tl-art-picker__hint">Choose a JPEG or PNG from your computer. It is kept aside until you use it.</p>
+                            <p class="tl-art-picker__hint">@L["FloatingArtworkPicker_ChooseAJPEGOrPNG"]</p>
                             <AppFileUpload T="IBrowserFile" Accept="image/jpeg,image/png" FilesChanged="UploadAsync" Disabled="@picker.Busy" />
                             break;
                         case SourceLink:
-                            <AppTextField Label="Picture web address"
+                            <AppTextField Label="@L["FloatingArtworkPicker_PictureWebAddress"].Value"
                                           Placeholder="https://"
                                           Value="@_address"
                                           ValueChanged="@((string? value) => _address = value ?? string.Empty)" />
@@ -144,7 +145,7 @@
                                        StartIcon="@AppMaterialIcons.Outlined.Link"
                                        Disabled="@(picker.Busy || string.IsNullOrWhiteSpace(_address))"
                                        OnClick="PasteLinkAsync">
-                                Fetch picture
+                                @L["FloatingArtworkPicker_FetchPicture"]
                             </AppButton>
                             break;
                         default:

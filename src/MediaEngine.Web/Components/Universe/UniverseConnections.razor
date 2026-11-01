@@ -2,6 +2,7 @@
 @using MediaEngine.Contracts.Universe
 @using MediaEngine.Web.Services.Theming
 @inject DeviceContextService DeviceContext
+@inject IStringLocalizer<SharedStrings> L
 
 @* What the Library can show about how a Universe connects, backed by evidence only: who plays whom across formats (Cast),
    what was adapted from what (Adaptations) and the Universe's characters (Characters), in that order, each row naming the
@@ -9,10 +10,10 @@
    never shows sample data. The explorer (paths, family tree) is a desktop screen and is only linked from a desktop. *@
 <section class="universe-connections" aria-labelledby="universe-connections-title">
     <header class="universe-connections__header">
-        <h2 id="universe-connections-title" class="universe-connections__title">Connections</h2>
+        <h2 id="universe-connections-title" class="universe-connections__title">@L["UniverseConnections_Connections"]</h2>
         @if (ShowExplorerLink)
         {
-            <a class="universe-connections__explorer" href="@ExplorerRoute">Open the explorer</a>
+            <a class="universe-connections__explorer" href="@ExplorerRoute">@L["UniverseConnections_OpenTheExplorer"]</a>
         }
     </header>
 
@@ -22,21 +23,21 @@
             @if (Connections.Cast.Count > 0)
             {
                 <div class="universe-connections__column">
-                    <h3 class="universe-connections__subtitle">Cast</h3>
+                    <h3 class="universe-connections__subtitle">@L["Universe_ModeCast"]</h3>
                     <UniverseCastList Cast="@Connections.Cast" OnCastMemberSelected="@OnCastMemberSelected" />
                 </div>
             }
             @if (Connections.Adaptations.Count > 0)
             {
                 <div class="universe-connections__column">
-                    <h3 class="universe-connections__subtitle">Adaptations</h3>
+                    <h3 class="universe-connections__subtitle">@L["Universe_ModeAdaptations"]</h3>
                     <UniverseAdaptationsList Adaptations="@Connections.Adaptations" />
                 </div>
             }
             @if (Connections.Characters.Count > 0 || Connections.HiddenCharacterCount > 0)
             {
                 <div class="universe-connections__column">
-                    <h3 class="universe-connections__subtitle">Characters</h3>
+                    <h3 class="universe-connections__subtitle">@L["Universe_GuideFilterCharacters"]</h3>
                     <UniverseCharacterList Characters="@Connections.Characters"
                                            CharacterCount="@Connections.CharacterCount"
                                            HiddenCount="@Connections.HiddenCharacterCount"
@@ -48,7 +49,7 @@
     else if (!IsReady)
     {
         <div class="universe-connections__state" role="status">
-            <p class="universe-connections__state-title">Still learning about this Universe</p>
+            <p class="universe-connections__state-title">@L["UniverseConnections_StillLearningAboutThisUniverse"]</p>
             @if (Page.Enrichment.WorkCount > 0)
             {
                 <p class="universe-connections__state-note">@UniversePageText.EnrichmentNote(Page.Enrichment)</p>
@@ -57,13 +58,13 @@
     }
     else
     {
-        <p class="universe-connections__state-title" role="status">No characters, cast or adaptations recorded for this Universe yet.</p>
+        <p class="universe-connections__state-title" role="status">@L["UniverseConnections_NoCharactersCastOrAdaptations"]</p>
     }
 
     @if (FandomLine)
     {
         <p class="universe-connections__fandom">
-            <a href="/settings/plugins?plugin=tuvima.fandom-lore">Add Fandom details</a>
+            <a href="/settings/plugins?plugin=tuvima.fandom-lore">@L["UniverseConnections_AddFandomDetails"]</a>
         </p>
     }
 </section>

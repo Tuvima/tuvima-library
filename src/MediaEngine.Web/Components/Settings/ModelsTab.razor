@@ -1,9 +1,10 @@
 @namespace MediaEngine.Web.Components.Settings
 @inject UIOrchestratorService Orchestrator
+@inject IStringLocalizer<SharedStrings> L
 
 <div class="tl-page">
     <AppActionBar Align="AppHorizontalAlignment.End" Class="tl-sp-mb-3">
-        <AppButton Label="Refresh" Size="AppControlSize.Compact" OnClick="RefreshAsync" Disabled="_loading" />
+        <AppButton Label="@L["Ingestion_Refresh"].Value" Size="AppControlSize.Compact" OnClick="RefreshAsync" Disabled="_loading" />
     </AppActionBar>
 
     @if (!string.IsNullOrWhiteSpace(_message))
@@ -15,39 +16,39 @@
 
     @if (_config is not null)
     {
-        <AppCard Title="Resource profile"
-                 Description="Library downloads and runs one text model. Advanced is available only after this machine passes its benchmark."
+        <AppCard Title="@L["ModelsTab_ResourceProfile"].Value"
+                 Description="@L["ModelsTab_LibraryDownloadsAndRunsOne"].Value"
                  Class="tl-sp-mb-3">
             <div class="model-card__header">
-                <AppChip Text="Essential · Qwen3 0.6B Q8" Tone="@ProfileTone("essential")" />
-                <AppChip Text="Standard · Qwen3 1.7B Q5" Tone="@ProfileTone("standard")" />
-                <AppChip Text="Advanced · Qwen3 4B Q4" Tone="@ProfileTone("advanced")" />
+                <AppChip Text="@L["ModelsTab_EssentialQwen306BQ8"].Value" Tone="@ProfileTone("essential")" />
+                <AppChip Text="@L["ModelsTab_StandardQwen317BQ5"].Value" Tone="@ProfileTone("standard")" />
+                <AppChip Text="@L["ModelsTab_AdvancedQwen34BQ4"].Value" Tone="@ProfileTone("advanced")" />
             </div>
             <div class="tl-sp-mt-3">
                 <AppChip Text="@($"Effective on this machine · {_config.EffectiveResourceProfile}")" Tone="AppUiTone.Info" />
             </div>
             <AppActionBar Align="AppHorizontalAlignment.Start" Class="tl-sp-mt-3">
-                <AppButton Label="Use Essential" Size="AppControlSize.Compact" Disabled="@ProfileSelected("essential")" OnClick="@(() => SelectProfileAsync("essential"))" />
-                <AppButton Label="Use Standard" Size="AppControlSize.Compact" Disabled="@ProfileSelected("standard")" OnClick="@(() => SelectProfileAsync("standard"))" />
-                <AppButton Label="Use Advanced" Size="AppControlSize.Compact" Disabled="@AdvancedUnavailable" OnClick="@(() => SelectProfileAsync("advanced"))" />
+                <AppButton Label="@L["ModelsTab_UseEssential"].Value" Size="AppControlSize.Compact" Disabled="@ProfileSelected("essential")" OnClick="@(() => SelectProfileAsync("essential"))" />
+                <AppButton Label="@L["ModelsTab_UseStandard"].Value" Size="AppControlSize.Compact" Disabled="@ProfileSelected("standard")" OnClick="@(() => SelectProfileAsync("standard"))" />
+                <AppButton Label="@L["ModelsTab_UseAdvanced"].Value" Size="AppControlSize.Compact" Disabled="@AdvancedUnavailable" OnClick="@(() => SelectProfileAsync("advanced"))" />
             </AppActionBar>
             <div class="tl-sp-mt-3">
                 <AppSwitchRow Value="@_config.AudioPackEnabled"
                               ValueChanged="SetAudioPackAsync"
-                              Label="Optional Whisper feature pack"
-                              Description="Whisper is not downloaded during basic setup. Enable this only when audio transcription or alignment is needed." />
+                              Label="@L["ModelsTab_OptionalWhisperFeaturePack"].Value"
+                              Description="@L["ModelsTab_WhisperIsNotDownloadedDuring"].Value" />
             </div>
         </AppCard>
 
-        <AppCard Title="Current-machine benchmark" Class="tl-sp-mb-3">
+        <AppCard Title="@L["ModelsTab_CurrentMachineBenchmark"].Value" Class="tl-sp-mb-3">
             <span class="model-card__meta">@BenchmarkSummary(_profile)</span>
             @if (!string.IsNullOrWhiteSpace(_profile?.FailureMessage))
             {
                 <AppAlert Tone="AppUiTone.Warning" Class="tl-sp-mt-2">@_profile.FailureMessage</AppAlert>
             }
             <AppActionBar Align="AppHorizontalAlignment.Start" Class="tl-sp-mt-3">
-                <AppButton Label="Run benchmark again" Size="AppControlSize.Compact" Tone="AppUiTone.Primary" Disabled="_benchmarking" OnClick="RunHardwareBenchmarkAsync" />
-                <AppButton Label="Invalidate benchmark" Size="AppControlSize.Compact" Tone="AppUiTone.Warning" Disabled="_benchmarking" OnClick="InvalidateBenchmarkAsync" />
+                <AppButton Label="@L["ModelsTab_RunBenchmarkAgain"].Value" Size="AppControlSize.Compact" Tone="AppUiTone.Primary" Disabled="_benchmarking" OnClick="RunHardwareBenchmarkAsync" />
+                <AppButton Label="@L["ModelsTab_InvalidateBenchmark"].Value" Size="AppControlSize.Compact" Tone="AppUiTone.Warning" Disabled="_benchmarking" OnClick="InvalidateBenchmarkAsync" />
             </AppActionBar>
         </AppCard>
     }

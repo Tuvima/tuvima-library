@@ -5,7 +5,7 @@ using MediaEngine.Web.Components.Details;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>Local AI results on an item's detail page are always marked AI, and nothing shows when there are none.</summary>
-public sealed class DetailAiResultsRenderTests : BunitContext
+public sealed class DetailAiResultsRenderTests : LocalizedBunitContext
 {
     [Fact]
     public void WithResults_ShowsEachGroupUnderAnAiMark()

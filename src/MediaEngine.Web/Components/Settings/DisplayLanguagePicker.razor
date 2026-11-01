@@ -1,0 +1,56 @@
+@namespace MediaEngine.Web.Components.Settings
+@using System.Globalization
+@using MediaEngine.Web.Resources
+@using MediaEngine.Web.Services.Localization
+@inject IStringLocalizer<SharedStrings> L
+
+@* Language, then Region. Region appears only when the chosen language has regional spellings (English, French). *@
+<div class="display-language-picker" data-testid="display-language-picker">
+    <label>@L["Settings_Language"]
+        <AppNativeSelect Value="@LanguagePart" OnChange="@(args => LanguageChanged(args.Value?.ToString()))">
+            @foreach (var tag in AppCultures.LanguageTags)
+            {
+                <option value="@AppCultures.LanguageOf(tag)">@AppCultures.NativeName(AppCultures.LanguageOf(tag) == "en" ? "en" : tag)</option>
+            }
+        </AppNativeSelect>
+    </label>
+    @if (Regions.Count > 0)
+    {
+        <label>@L["Settings_Region"]
+            <AppNativeSelect Value="@Resolved" OnChange="@(args => RegionChanged(args.Value?.ToString()))">
+                @foreach (var tag in Regions)
+                {
+                    <option value="@tag">@RegionName(tag)</option>
+                }
+            </AppNativeSelect>
+        </label>
+    }
+</div>
+
+@code {
+    /// <summary>The chosen display language as a full tag such as "en-GB". Plain "en" counts as US English.</summary>
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+
+    private string Resolved => AppCultures.Resolve(Value);
+    private string LanguagePart => AppCultures.LanguageOf(Resolved);
+    private IReadOnlyList<string> Regions => AppCultures.RegionsFor(LanguagePart);
+
+    private static string RegionName(string tag)
+    {
+        var culture = CultureInfo.GetCultureInfo(tag);
+        return new RegionInfo(culture.Name).NativeName;
+    }
+
+    private Task LanguageChanged(string? language)
+    {
+        if (string.IsNullOrWhiteSpace(language)) return Task.CompletedTask;
+        // Keep the region when the new language still offers it, otherwise use the language's first region (or the plain language).
+        var regions = AppCultures.RegionsFor(language);
+        var next = regions.Count > 0 ? regions[0] : AppCultures.Resolve(language);
+        return ValueChanged.InvokeAsync(next);
+    }
+
+    private Task RegionChanged(string? tag) =>
+        string.IsNullOrWhiteSpace(tag) ? Task.CompletedTask : ValueChanged.InvokeAsync(AppCultures.Resolve(tag));
+}

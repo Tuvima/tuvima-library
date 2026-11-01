@@ -29,9 +29,9 @@
     {
         <div class="listen-popup__video-return">
             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OndemandVideo" />
-            <h1>Video is playing in the main window</h1>
-            <p>Your video remains in its original player.</p>
-            <AppNativeButton Type="button" OnClick="ReturnToVideoAsync" AriaLabel="Return to video player">Return to main window</AppNativeButton>
+            <h1>@L["ListenPlayerPopupPage_VideoIsPlayingInThe"]</h1>
+            <p>@L["ListenPlayerPopupPage_YourVideoRemainsInIts"]</p>
+            <AppNativeButton Type="button" OnClick="ReturnToVideoAsync" AriaLabel="@L["ListenPlayerPopupPage_ReturnToVideoPlayer"].Value">@L["ListenPlayerPopupPage_ReturnToMainWindow"]</AppNativeButton>
         </div>
     }
     else if (CurrentItem is null || _snapshot.IsDismissed)
@@ -56,12 +56,12 @@
                                  WorkTitle="@(CurrentItem?.Title ?? "Audiobook")" Surface="popup" Trigger="@_bookmarkTrigger" OnClose="DismissBookmarkDialogAsync" />
     }
     @if (!string.IsNullOrWhiteSpace(_bookmarkDialogError)) { <div class="listen-popup__status" role="status">@_bookmarkDialogError</div> }
-    else if (_bookmarkDialogOpening) { <div class="listen-popup__status" role="status">Opening saved bookmarks…</div> }
+    else if (_bookmarkDialogOpening) { <div class="listen-popup__status" role="status">@L["ListenPlayerPopupPage_OpeningSavedBookmarks"]</div> }
     @if (!string.IsNullOrWhiteSpace(_popupCommandError)) { <div class="listen-popup__status" role="status">@_popupCommandError</div> }
     @if (!string.IsNullOrWhiteSpace(_playbackStateError))
     {
         <div class="listen-popup__status" role="status">@_playbackStateError
-            <AppNativeButton Type="button" Class="listen-popup__retry-state" OnClick="RetryPlaybackStateAsync" AriaLabel="Retry playback state sync">Retry</AppNativeButton>
+            <AppNativeButton Type="button" Class="listen-popup__retry-state" OnClick="RetryPlaybackStateAsync" AriaLabel="@L["ListenPlayerPopupPage_RetryPlaybackStateSync"].Value">@L["Common_Retry"]</AppNativeButton>
         </div>
     }
 </div>
@@ -148,7 +148,7 @@
         catch (Exception exception)
         {
             Logger.LogDebug(exception, "Favorite could not be updated in the popup.");
-            if (!_disposed && SameFavoriteSubject(snapshot, item)) _popupCommandError = "Favorites could not be updated. Try again when the Engine reconnects.";
+            if (!_disposed && SameFavoriteSubject(snapshot, item)) _popupCommandError = L["ListenPlayerPopupPage_FavoritesCouldNotBeUpdated"].Value;
         }
     }
 
@@ -173,7 +173,7 @@
         catch (Exception ex)
         {
             Logger.LogDebug(ex, "Could not restore listen popup playback state from browser storage.");
-            _playbackStateError = "Playback state could not be loaded. Retry to reconnect.";
+            _playbackStateError = L["ListenPlayerPopupPage_PlaybackStateCouldNotBe"].Value;
             await InvokeAsync(StateHasChanged);
         }
     }
@@ -205,7 +205,7 @@
             {
                 if (_disposed || receiveGeneration != Volatile.Read(ref _playbackStateReceiveGeneration)) return;
                 Logger.LogDebug(ex, "Could not read synchronized listen playback state in the popup.");
-                _playbackStateError = "Playback state could not be read. Your current player state is still shown.";
+                _playbackStateError = L["ListenPlayerPopupPage_PlaybackStateCouldNotBe2"].Value;
                 await InvokeAsync(StateHasChanged);
                 return;
             }
@@ -288,7 +288,7 @@
         {
             if (_disposed || receiveGeneration != Volatile.Read(ref _playbackStateReceiveGeneration)) return;
             Logger.LogDebug(ex, "Could not retry popup playback state synchronization.");
-            _playbackStateError = "Playback state could not be loaded. Retry to reconnect.";
+            _playbackStateError = L["ListenPlayerPopupPage_PlaybackStateCouldNotBe"].Value;
             await InvokeAsync(StateHasChanged);
         }
     }
@@ -310,7 +310,7 @@
             || _snapshot.AudiobookBookSessionLeaseId is not { } sessionLeaseId
             || !Guid.TryParse(OwnerRecipientId, out var ownerRecipientId) || ownerRecipientId == Guid.Empty)
         {
-            _bookmarkDialogError = "Bookmarks are unavailable for this playback session.";
+            _bookmarkDialogError = L["ListenPlayerPopupPage_BookmarksAreUnavailableForThis"].Value;
             return;
         }
 

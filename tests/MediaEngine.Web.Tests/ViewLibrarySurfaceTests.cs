@@ -301,7 +301,7 @@ public sealed class ViewLibrarySurfaceTests
         }
 
         Assert.NotNull(root);
-        return File.ReadAllText(Path.Combine(root.FullName, relativePath.Replace('/', Path.DirectorySeparatorChar)));
+        return LocalizedSource.ReadAllText(Path.Combine(root.FullName, relativePath.Replace('/', Path.DirectorySeparatorChar)));
     }
 
     private static void AssertViewRoute(string fileName, string route)

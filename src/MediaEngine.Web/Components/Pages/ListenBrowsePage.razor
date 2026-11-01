@@ -18,10 +18,11 @@
 @inject ILogger<ListenBrowsePage> Logger
 
 @namespace MediaEngine.Web.Components.Pages
+@inject IStringLocalizer<SharedStrings> L
 
-<MediaLanePage Title="Listen"
+<MediaLanePage Title="@L["Nav_Listen"].Value"
                RouteBase="/listen"
-               Subtitle="Music and audiobooks from your local library"
+               Subtitle="@L["Common_MusicAndAudiobooksFromYour"].Value"
                SearchPlaceholder="Search music and audiobooks..."
                SectionType="MediaHubSectionType.Listen"
                Preset="@Preset"
@@ -36,8 +37,8 @@
                LoadFailed="@_loadFailed"
                LoadFailedTitle="Listen failed to load"
                LoadFailedMessage="The Dashboard could not load the Listen landing from the Engine."
-               EmptyTitle="Nothing to listen to yet"
-               EmptyMessage="Add music or audiobooks to your library to populate this lane."
+               EmptyTitle="@L["ListenBrowsePage_NothingToListenToYet"].Value"
+               EmptyMessage="@L["ListenBrowsePage_AddMusicOrAudiobooksTo"].Value"
                IsSupportedBrowseTab="@IsSupportedBrowseTab"
                UnsupportedTitle="Listen page not found"
                UnsupportedMessage="Choose Music, Audiobooks, or Playlists to browse your library."
@@ -169,8 +170,8 @@
             var playlistShelf = new MediaHubShelfViewModel
             {
                 Key = "your-playlists",
-                Title = "Your Playlists",
-                Subtitle = "Manual and smart playlists from your library",
+                Title = L["ListenBrowsePage_YourPlaylists"].Value,
+                Subtitle = L["ListenBrowsePage_ManualAndSmartPlaylistsFrom"].Value,
                 Items = playlistTiles,
                 SeeAllRoute = "/listen/playlists",
                 ShapeOverride = MediaTileShape.Square,
@@ -307,7 +308,7 @@
         AudioDrag.Clear();
         if (added == 0)
         {
-            Snackbar.Add("Those songs are already in the playlist or could not be added.", AppSeverity.Info);
+            Snackbar.Add(L["ListenBrowsePage_ThoseSongsAreAlreadyIn"].Value, AppSeverity.Info);
             return;
         }
 
@@ -351,7 +352,7 @@
             _activeProfileId);
         if (playlistId is null)
         {
-            Snackbar.Add("The Playlist could not be created.", AppSeverity.Error);
+            Snackbar.Add(L["ListenBrowsePage_ThePlaylistCouldNotBe"].Value, AppSeverity.Error);
             return false;
         }
         var addedCount = _pendingPlaylistWorkIds.Count;
@@ -389,7 +390,7 @@
             _activeProfileId);
         if (!succeeded)
         {
-            Snackbar.Add("The Playlist could not be renamed.", AppSeverity.Error);
+            Snackbar.Add(L["ListenBrowsePage_ThePlaylistCouldNotBe2"].Value, AppSeverity.Error);
             return false;
         }
         await ReloadPlaylistsAsync();
@@ -400,7 +401,7 @@
     {
         if (!await ApiClient.DeleteCollectionAsync(manageEvent.Management.ContainerId, _activeProfileId))
         {
-            Snackbar.Add("The Playlist could not be deleted.", AppSeverity.Error);
+            Snackbar.Add(L["ListenBrowsePage_ThePlaylistCouldNotBe3"].Value, AppSeverity.Error);
             return false;
         }
         await ReloadPlaylistsAsync();
@@ -426,7 +427,7 @@
                 _activeProfile.AvatarColor,
                 updatedConfig))
         {
-            Snackbar.Add("The Playlist order could not be saved.", AppSeverity.Error);
+            Snackbar.Add(L["ListenBrowsePage_ThePlaylistOrderCouldNot"].Value, AppSeverity.Error);
             return false;
         }
         _playlistOrder = updatedOrder;

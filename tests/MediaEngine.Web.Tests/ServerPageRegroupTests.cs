@@ -123,6 +123,6 @@ public sealed class ServerPageRegroupTests
         }
     }
 
-    private static string Read(string componentFile) => File.ReadAllText(Path.GetFullPath(Path.Combine(
+    private static string Read(string componentFile) => LocalizedSource.ReadAllText(Path.GetFullPath(Path.Combine(
         AppContext.BaseDirectory, "..", "..", "..", "..", "..", Settings + componentFile)));
 }

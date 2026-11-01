@@ -3,13 +3,14 @@
 @using MediaEngine.Web.Services.Integration
 @inject IEngineApiClient ApiClient
 @inject IAppToastService Snackbar
+@inject IStringLocalizer<SharedStrings> L
 
 <section class="refresh-schedule" aria-labelledby="refresh-schedule-title">
     <header class="refresh-schedule__header">
         <div>
-            <p class="refresh-schedule__eyebrow">ENRICHMENT CALENDAR</p>
-            <h2 id="refresh-schedule-title">Upcoming refreshes</h2>
-            <p>Review scheduled provider refreshes or start the full enrichment cycle early.</p>
+            <p class="refresh-schedule__eyebrow">@L["EnrichmentRefreshSchedulePanel_ENRICHMENTCALENDAR"]</p>
+            <h2 id="refresh-schedule-title">@L["EnrichmentRefreshSchedulePanel_UpcomingRefreshes"]</h2>
+            <p>@L["EnrichmentRefreshSchedulePanel_ReviewScheduledProviderRefreshesOr"]</p>
         </div>
         <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" OnClick="LoadAsync" Disabled="@_loading">
             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Refresh" Size="AppSize.Small" />
@@ -20,19 +21,19 @@
     @if (_schedule is not null)
     {
         <div class="refresh-schedule__summary">
-            <div><span>Overdue</span><strong>@_schedule.OverdueCount</strong></div>
-            <div><span>Next seven days</span><strong>@_schedule.DueNextSevenDaysCount</strong></div>
-            <div><span>Scheduled entities</span><strong>@_schedule.TotalCount</strong></div>
+            <div><span>@L["EnrichmentRefreshSchedulePanel_Overdue"]</span><strong>@_schedule.OverdueCount</strong></div>
+            <div><span>@L["EnrichmentRefreshSchedulePanel_NextSevenDays"]</span><strong>@_schedule.DueNextSevenDaysCount</strong></div>
+            <div><span>@L["EnrichmentRefreshSchedulePanel_ScheduledEntities"]</span><strong>@_schedule.TotalCount</strong></div>
         </div>
     }
 
     @if (_loading && _schedule is null)
     {
-        <div class="refresh-schedule__empty">Loading refresh schedule...</div>
+        <div class="refresh-schedule__empty">@L["EnrichmentRefreshSchedulePanel_LoadingRefreshSchedule"]</div>
     }
     else if (_schedule is null || _schedule.Items.Count == 0)
     {
-        <div class="refresh-schedule__empty">No refreshable enriched entities are currently scheduled.</div>
+        <div class="refresh-schedule__empty">@L["EnrichmentRefreshSchedulePanel_NoRefreshableEnrichedEntitiesAre"]</div>
     }
     else
     {
@@ -40,13 +41,13 @@
             <table class="refresh-schedule__table">
                 <thead>
                     <tr>
-                        <th>Item</th>
-                        <th>Type</th>
-                        <th>Stage</th>
-                        <th>Next refresh</th>
-                        <th>Policy</th>
-                        <th>Status</th>
-                        <th><span class="sr-only">Actions</span></th>
+                        <th>@L["EnrichmentRefreshSchedulePanel_Item"]</th>
+                        <th>@L["Common_Type"]</th>
+                        <th>@L["EnrichmentRefreshSchedulePanel_Stage"]</th>
+                        <th>@L["EnrichmentRefreshSchedulePanel_NextRefresh"]</th>
+                        <th>@L["EnrichmentRefreshSchedulePanel_Policy"]</th>
+                        <th>@L["Models_Status"]</th>
+                        <th><span class="sr-only">@L["ApiKeys_Actions"]</span></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -57,7 +58,7 @@
                             <td>@ReadableType(item.EntityType)</td>
                             <td>@ReadableStage(item.Stage)</td>
                             <td><time datetime="@item.NextDueAt.ToString("O")">@FormatDue(item.NextDueAt)</time></td>
-                            <td>Every @item.IntervalDays days</td>
+                            <td>@L["EnrichmentRefreshSchedulePanel_EveryDays", item.IntervalDays]</td>
                             <td><span class="refresh-schedule__status refresh-schedule__status--@item.Status.ToLowerInvariant()">@item.Status</span></td>
                             <td>
                                 <AppButton ButtonStyle="AppButtonStyle.Text"
@@ -104,7 +105,7 @@
             var result = await ApiClient.QueueEnrichmentRefreshNowAsync(item.EntityType, item.EntityId);
             if (result is null)
             {
-                Snackbar.Add("The enrichment refresh could not be queued.", AppSeverity.Error);
+                Snackbar.Add(L["EnrichmentRefreshSchedulePanel_TheEnrichmentRefreshCouldNot"].Value, AppSeverity.Error);
                 return;
             }
 

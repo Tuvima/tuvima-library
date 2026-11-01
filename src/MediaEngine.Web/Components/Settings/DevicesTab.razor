@@ -6,6 +6,7 @@
 @inject DashboardIdentityClient Identity
 @inject NavigationManager Nav
 @inject ILogger<DevicesTab> Logger
+@inject IStringLocalizer<SharedStrings> L
 
 @* Settings > Personal > Security > Devices. A member sees their own paired phones and TVs and signed-in browsers; a
    household administrator also their household's; a server administrator everyone's. The Engine decides what comes
@@ -13,16 +14,16 @@
 <div class="devices-tab" data-devices-tab>
     @if (ManagesOthers && (ShowHouseholdFilter || _people.Count > 0))
     {
-        <div class="devices-tab__filters" role="group" aria-label="Filter devices" data-devices-filters>
+        <div class="devices-tab__filters" role="group" aria-label="@L["DevicesTab_FilterDevices"].Value" data-devices-filters>
             @if (ShowHouseholdFilter)
             {
                 <label class="devices-tab__filter">
-                    <span class="devices-tab__filter-label">Household</span>
+                    <span class="devices-tab__filter-label">@L["Common_Household"]</span>
                     <AppNativeSelect Value="@(_filter.HouseholdId?.ToString() ?? string.Empty)"
                                      ValueChanged="@OnHouseholdChanged"
                                      data-devices-filter="household"
-                                     aria-label="Household">
-                        <option value="">All</option>
+                                     aria-label="@L["Common_Household"].Value">
+                        <option value="">@L["ApiKeys_AllKeysRevoked"]</option>
                         @foreach (var household in _households)
                         {
                             <option value="@household.Id">@household.Name</option>
@@ -33,12 +34,12 @@
             @if (_people.Count > 0)
             {
                 <label class="devices-tab__filter">
-                    <span class="devices-tab__filter-label">Profile</span>
+                    <span class="devices-tab__filter-label">@L["Common_Profile"]</span>
                     <AppNativeSelect Value="@(_filter.ProfileId?.ToString() ?? string.Empty)"
                                      ValueChanged="@OnProfileChanged"
                                      data-devices-filter="profile"
-                                     aria-label="Profile">
-                        <option value="">All</option>
+                                     aria-label="@L["Common_Profile"].Value">
+                        <option value="">@L["ApiKeys_AllKeysRevoked"]</option>
                         @foreach (var person in PeopleInView)
                         {
                             <option value="@person.Id">@person.DisplayName</option>

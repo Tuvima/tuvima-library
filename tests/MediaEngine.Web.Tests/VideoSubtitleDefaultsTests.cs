@@ -39,6 +39,68 @@ public sealed class VideoTrackDefaultsResolverTests
         IReadOnlyList<VideoSubtitleCandidate> subtitles, bool canSwitchAudio = true) =>
         VideoPresentationResolver.ChooseTrackDefaults(settings, audio, subtitles, canSwitchAudio);
 
+    private static readonly IReadOnlyList<VideoSubtitleCandidate> FrenchSubtitle = [new("manifest:1", "fr", "French")];
+    private static readonly IReadOnlyList<PlaybackTrackDto> Japanese = [new() { Index = 0, Language = "jpn", IsDefault = true }];
+
+    [Fact]
+    public void SecondChoiceLanguage_IsUsedWhenTheTitleHasNoSubtitleInTheFirst()
+    {
+        var settings = Settings("English", "German", PlaybackPreferenceValues.Always);
+        settings.AlternateSubtitleLanguages = ["French", "English"];
+
+        var result = Choose(settings, English, [.. EnglishSubtitle, .. FrenchSubtitle]);
+
+        // No German; French comes before English in the profile's order.
+        Assert.Equal(VideoCaptionDecision.Show, result.Captions);
+        Assert.Equal("manifest:1", result.CaptionKey);
+    }
+
+    [Fact]
+    public void FirstChoiceLanguage_WinsOverTheLaterOnes()
+    {
+        var settings = Settings("English", "English", PlaybackPreferenceValues.Always);
+        settings.AlternateSubtitleLanguages = ["French"];
+
+        Assert.Equal("manifest:0", Choose(settings, Japanese, [.. FrenchSubtitle, .. EnglishSubtitle]).CaptionKey);
+    }
+
+    [Fact]
+    public void OnlyWhenTheAudioIsInAnotherLanguage_ShowsSubtitlesForForeignAudio()
+    {
+        var result = Choose(Settings("English", "English", PlaybackPreferenceValues.ForeignAudioOnly), Japanese, EnglishSubtitle);
+
+        Assert.Equal(VideoCaptionDecision.Show, result.Captions);
+        Assert.Equal("manifest:0", result.CaptionKey);
+    }
+
+    [Fact]
+    public void OnlyWhenTheAudioIsInAnotherLanguage_TurnsSubtitlesOffWhenTheAudioIsInTheProfilesLanguage()
+    {
+        // Unlike Auto, which leaves the player's own choice (a forced track still shows), this turns captions off.
+        var result = Choose(Settings("English", "English", PlaybackPreferenceValues.ForeignAudioOnly), English, EnglishSubtitle);
+
+        Assert.Equal(VideoCaptionDecision.Off, result.Captions);
+    }
+
+    [Fact]
+    public void OnlyWhenTheAudioIsInAnotherLanguage_CountsASecondChoiceLanguageAsFamiliar()
+    {
+        var settings = Settings("English", "German", PlaybackPreferenceValues.ForeignAudioOnly);
+        settings.AlternateSubtitleLanguages = ["English"];
+
+        Assert.Equal(VideoCaptionDecision.Off, Choose(settings, English, EnglishSubtitle).Captions);
+    }
+
+    [Fact]
+    public void LyricsInThePreferredLanguage_AreChosenWhenTheSongHasSeveral()
+    {
+        TextTrackDto[] tracks = [new() { Id = Guid.NewGuid(), Language = "en" }, new() { Id = Guid.NewGuid(), Language = "ja" }];
+
+        Assert.Equal(tracks[1].Id, PlaybackLyricsPresenter.PickByLanguage(tracks, "Japanese")?.Id);
+        Assert.Null(PlaybackLyricsPresenter.PickByLanguage(tracks, ""));
+        Assert.Null(PlaybackLyricsPresenter.PickByLanguage(tracks, "Korean"));
+    }
+
     [Fact]
     public void Auto_SingleTrackInTheSubtitleLanguage_LeavesThePlayersOwnChoice()
     {
