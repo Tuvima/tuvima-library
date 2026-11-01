@@ -9444,6 +9444,12 @@
   <data name="ListStep_AndMore" xml:space="preserve">
     <value>and {0} more. They stay off the collection until Library owns them.</value>
   </data>
+  <data name="ListStep_WillTryAgain" xml:space="preserve">
+    <value>{0} did not answer just now. You can make the collection anyway: it is saved now and Library will try again.</value>
+  </data>
+  <data name="ListSection_WillTryAgain" xml:space="preserve">
+    <value>{0} did not answer just now. The collection kept what it has and Library will try again.</value>
+  </data>
   <data name="ListSection_Title" xml:space="preserve">
     <value>From a list</value>
   </data>
@@ -9466,13 +9472,16 @@
     <value>Choose a file to import</value>
   </data>
   <data name="ImportPanel_PasteLabel" xml:space="preserve">
-    <value>Or paste a list</value>
+    <value>Or paste a link or a list</value>
   </data>
   <data name="ImportPanel_PastePlaceholder" xml:space="preserve">
-    <value>One title per line, with the year in brackets if you like: Heat (1995)</value>
+    <value>A TMDb, MDBList, Open Library or MusicBrainz list address, or one title per line with the year in brackets: Heat (1995)</value>
   </data>
   <data name="ImportPanel_ReadText" xml:space="preserve">
     <value>Read this text</value>
+  </data>
+  <data name="ImportPanel_OpenSettings" xml:space="preserve">
+    <value>Open Settings</value>
   </data>
   <data name="ImportPanel_Reading" xml:space="preserve">
     <value>Reading the file…</value>

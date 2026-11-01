@@ -1,0 +1,84 @@
+{
+  "name": "openlibrary",
+  "version": "1.0",
+  "enabled": true,
+  "weight": 0.1,
+  "domain": "Ebook",
+  "icon": "images/providers/open_library.png",
+  "capability_tags": [],
+  "provider_capabilities": ["lists"],
+  "available_fields": [],
+  "field_weights": {},
+  "endpoints": {
+    "api": "https://openlibrary.org"
+  },
+  "rate_limit": {
+    "requests_per_second": 1,
+    "burst": 1,
+    "max_concurrency": 1
+  },
+  "hydration_stages": [],
+  "cache_ttl_hours": 0,
+
+  "adapter_type": "coded",
+  "provider_id": "c0000014-0000-4000-8000-000000000022",
+  "display_name": "Open Library",
+  "requires_api_key": false,
+  "language_strategy": "source",
+
+  "http_client": {
+    "timeout_seconds": 20,
+    "user_agent": "Tuvima Library/1.0 (https://github.com/Tuvima/tuvima-library)"
+  },
+
+  "can_handle": {
+    "media_types": ["Books", "Audiobooks"],
+    "entity_types": ["Work"]
+  },
+
+  "ui_metadata": {
+    "accent_color": "#C9471C",
+    "material_icon": "MenuBook",
+    "category": "Open",
+    "requires_key": false,
+    "auth_type": "none",
+    "external_links": {
+      "openlibrary_list": {
+        "label": "Open Library",
+        "url_template": "https://openlibrary.org/{value}",
+        "tooltip": "Open the list on Open Library."
+      }
+    }
+  },
+
+  "onboarding": {
+    "classification": "optional",
+    "signup_url": null,
+    "help_url": "https://openlibrary.org/developers/api",
+    "terms_url": "https://openlibrary.org/developers/api",
+    "privacy_url": "https://archive.org/about/terms.php",
+    "supported_lanes": ["read"],
+    "required_scopes": [],
+    "intro": {
+      "title": "Open Library lists",
+      "summary": "Lets you turn a public Open Library list into a collection. No account or key is needed. Only the list's address goes to Open Library."
+    },
+    "skip_consequences": [
+      { "lane": "read", "summary": "Open Library list addresses cannot be turned into collections. Other list sources and list files still work.", "unavailable_capabilities": ["lists"] }
+    ],
+    "credentials": [],
+    "authentication_probe": { "path": "/people/openlibrary/lists.json?limit=1", "method": "GET", "success_status_codes": [200] }
+  },
+
+  "declaration": {
+    "audience": "administrators",
+    "weight_class": "light",
+    "on_failure": "skip_and_retry",
+    "notify": "quiet",
+    "changelog": "First built-in version: public Open Library lists as collections.",
+    "stores": {
+      "saved_output": "list entries",
+      "on_removal": "keep"
+    }
+  }
+}

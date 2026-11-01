@@ -27,6 +27,7 @@ internal static class PluginAccessMapper
     /// <param name="usesKey">True when the item sends the person's own key with its requests.</param>
     /// <param name="workedOnLabels">Plain labels for the media it works on (empty means every kind).</param>
     /// <param name="libraryIds">Libraries the administrator limited it to (empty means all).</param>
+    /// <param name="listsOnly">True for a source that only reads lists a person pastes as an address (Collections and lists spec D7).</param>
     public static PluginAccessDto Map(
         PluginDeclaration? declaration,
         IReadOnlyList<(string Host, string? Sends)> destinations,
@@ -34,7 +35,8 @@ internal static class PluginAccessMapper
         IReadOnlyList<string> workedOnLabels,
         IEnumerable<string>? mediaTypes,
         string? category,
-        IReadOnlyList<string>? libraryIds = null)
+        IReadOnlyList<string>? libraryIds = null,
+        bool listsOnly = false)
     {
         var resolved = PluginDeclarationRules.Resolve(declaration, destinations.Count > 0, mediaTypes, category);
         return new PluginAccessDto
@@ -45,7 +47,7 @@ internal static class PluginAccessMapper
             LimitedToLibraryIds = [.. libraryIds ?? []],
             VaultUse = PluginDeclarationRules.VaultWord(resolved.VaultUse),
             VaultWords = PluginDeclarationRules.VaultWords(resolved.VaultUse),
-            DataLeaving = DataLeavingLabel(destinations, usesKey),
+            DataLeaving = DataLeavingLabel(destinations, usesKey, listsOnly),
             WeightClass = PluginDeclarationRules.WeightWord(resolved.WeightClass),
             TellMeOnFailure = resolved.TellMeOnFailure,
             Changelog = declaration?.Changelog?.Trim(),
@@ -84,7 +86,7 @@ internal static class PluginAccessMapper
     /// this machine", "Sends titles and years to X" (the plugin's own plain sentence, when it gives one) or "Sends your key and
     /// searches to X".
     /// </summary>
-    public static string DataLeavingLabel(IReadOnlyList<(string Host, string? Sends)> destinations, bool usesKey)
+    public static string DataLeavingLabel(IReadOnlyList<(string Host, string? Sends)> destinations, bool usesKey, bool listsOnly = false)
     {
         if (destinations.Count == 0)
         {
@@ -92,6 +94,14 @@ internal static class PluginAccessMapper
         }
 
         var hosts = string.Join(", ", destinations.Select(destination => destination.Host).Distinct(StringComparer.OrdinalIgnoreCase));
+        if (listsOnly)
+        {
+            // A list source asks for one address the person pasted: nothing about their library goes with it.
+            return usesKey
+                ? $"Your key, this address and the list's identifiers go to {hosts}"
+                : $"Only this address and the list's identifiers go to {hosts}";
+        }
+
         if (usesKey)
         {
             return $"Sends your key and searches to {hosts}";

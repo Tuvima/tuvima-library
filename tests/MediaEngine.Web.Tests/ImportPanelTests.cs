@@ -254,4 +254,109 @@ public sealed class ImportPanelTests : AsyncBunitContext
         Assert.True(fix.Ignore);
         Assert.Equal(fix.Position, Assert.Single(_listPreviews[0].Overrides).Position);
     }
+
+    private static ImportPreviewDto TmdbAddress() => new()
+    {
+        Kind = ImportKinds.CollectionList,
+        KindLabel = "List address",
+        Recognised = true,
+        Heading = "Sci-fi picks",
+        Subheading = "TMDb list, 3 titles",
+        PrivacyNote = ImportPrivacy.AddressGoesTo("TMDb"),
+        List = new ListImportPreviewDto
+        {
+            SourceKind = "tmdb_list",
+            SourceLabel = "TMDb list",
+            SourceName = "https://www.themoviedb.org/list/8136",
+            SourceAddress = "https://www.themoviedb.org/list/8136",
+            IsWebSource = true,
+            SuggestedName = "Sci-fi picks",
+            EntryCount = 3,
+            OwnedCount = 2,
+            UnmatchedCount = 1,
+            Owned = [new ListImportOwnedItemDto(Guid.NewGuid(), "The Matrix", "Movies", null)],
+            MatchedWorkIds = [Guid.NewGuid(), Guid.NewGuid()],
+        },
+    };
+
+    [Fact]
+    public async Task APastedWebAddress_ShowsThePreview_OffersRefreshDefaultingToWeekly_AndNamesTheSite()
+    {
+        _answers["pasted-list.txt"] = TmdbAddress();
+        var draft = new ListImportDraft();
+        var cut = Render<CollectionListImportStep>(parameters => parameters.Add(step => step.Draft, draft));
+
+        cut.Find("textarea").Input("https://www.themoviedb.org/list/8136");
+        await cut.FindAll("button").First(button => button.TextContent.Trim() == "Read this text").ClickAsync();
+
+        cut.WaitForAssertion(() => Assert.Contains("You own 2 of 3", cut.Find("[data-list-owned]").TextContent));
+        Assert.Contains("https://www.themoviedb.org/list/8136", cut.Markup);
+        Assert.Equal(ListImportChoices.RefreshWeekly, draft.Refresh);
+        Assert.True(draft.IsWeb);
+        Assert.Contains("Weekly", cut.Find("[data-list-choices]").TextContent);
+        Assert.Contains("Never", cut.Find("[data-list-choices]").TextContent);
+        Assert.Equal("Only this address and the list's identifiers go to TMDb.", cut.Find("[data-import-privacy]").TextContent.Trim());
+    }
+
+    [Fact]
+    public void AFileList_HasNoRefreshChoice_BecauseThereIsNowhereToLookAgain()
+    {
+        _answers["goodreads.csv"] = GoodreadsPreview();
+        var draft = new ListImportDraft();
+        var cut = Render<CollectionListImportStep>(parameters => parameters.Add(step => step.Draft, draft));
+
+        cut.FindComponent<InputFile>().UploadFiles(InputFileContent.CreateFromText("content", "goodreads.csv"));
+
+        cut.WaitForAssertion(() => Assert.True(draft.HasList));
+        Assert.False(draft.IsWeb);
+        Assert.Equal(ListImportChoices.RefreshNever, draft.Refresh);
+        Assert.DoesNotContain("Weekly", cut.Find("[data-list-choices]").TextContent);
+    }
+
+    [Fact]
+    public async Task ASwitchedOffSource_ShowsTheEngineSentence_WithALinkToThePluginsPage_AndFilesStillWork()
+    {
+        _answers["pasted-list.txt"] = new ImportPreviewDto
+        {
+            Kind = ImportKinds.Unknown,
+            Recognised = false,
+            Message = "TMDb lists are switched off. Turn the source on in Settings → Plugins.",
+            MessageLinkHref = "/settings/plugins",
+            MessageLinkLabel = "Open Plugins",
+        };
+        _answers["goodreads.csv"] = GoodreadsPreview();
+        var cut = Render<ImportPanel>(parameters => parameters.Add(panel => panel.ShowPaste, true));
+
+        cut.Find("textarea").Input("https://www.themoviedb.org/list/8136");
+        await cut.FindAll("button").First(button => button.TextContent.Trim() == "Read this text").ClickAsync();
+
+        cut.WaitForAssertion(() => Assert.Contains("TMDb lists are switched off.", cut.Find("[data-import-error]").TextContent));
+        var link = cut.Find("[data-import-error-link]");
+        Assert.Equal("/settings/plugins", link.GetAttribute("href"));
+        Assert.Equal("Open Plugins", link.TextContent.Trim());
+
+        Choose(cut, "goodreads.csv");
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll("[data-import-error]")));
+        Assert.Equal(ImportKinds.CollectionList, cut.Find("[data-import-frame]").GetAttribute("data-import-kind"));
+    }
+
+    [Fact]
+    public async Task AnAddressOutsideThisApp_IsNeverMadeIntoALink()
+    {
+        _answers["pasted-list.txt"] = new ImportPreviewDto
+        {
+            Kind = ImportKinds.Unknown,
+            Recognised = false,
+            Message = "Not usable.",
+            MessageLinkHref = "https://evil.example/",
+            MessageLinkLabel = "Go",
+        };
+        var cut = Render<ImportPanel>(parameters => parameters.Add(panel => panel.ShowPaste, true));
+
+        cut.Find("textarea").Input("https://www.themoviedb.org/list/8136");
+        await cut.FindAll("button").First(button => button.TextContent.Trim() == "Read this text").ClickAsync();
+
+        cut.WaitForAssertion(() => Assert.Contains("Not usable.", cut.Find("[data-import-error]").TextContent));
+        Assert.Empty(cut.FindAll("[data-import-error-link]"));
+    }
 }

@@ -67,3 +67,9 @@
     flex-wrap: wrap;
     gap: var(--tl-space-2, 8px);
 }
+
+.import-panel__link {
+    margin-left: var(--tl-space-2, 8px);
+    color: var(--tl-accent-primary);
+    font-weight: 600;
+}

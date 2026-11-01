@@ -1238,7 +1238,7 @@
                     break;
                 }
 
-                if (preview.MatchedWorkIds.Count == 0)
+                if (preview.MatchedWorkIds.Count == 0 && !preview.WillTryAgain)
                 {
                     skipped.Add(shelf ?? "the list");
                     continue;
@@ -1715,7 +1715,8 @@
         _ => "Name and show it",
     };
 
-    private bool ListReady => _listDraft.HasList && _listDraft.OwnedCount > 0;
+    // A web list whose site did not answer has nothing to match yet; it is saved and Library tries again (spec 4h), so it can go on.
+    private bool ListReady => _listDraft.HasList && (_listDraft.OwnedCount > 0 || _listDraft.Current?.WillTryAgain == true);
 
     private bool NextBlocked => _step == 2 && (_way switch
     {

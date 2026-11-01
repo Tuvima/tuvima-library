@@ -90,6 +90,15 @@ public sealed record ListImportPreviewDto
 
     public string SourceName { get; init; } = string.Empty;
 
+    /// <summary>The web address a web list was read from. Null for a file.</summary>
+    public string? SourceAddress { get; init; }
+
+    /// <summary>True when the list comes from a web address, so it can be refreshed from where it came from.</summary>
+    public bool IsWebSource { get; init; }
+
+    /// <summary>True when the site did not answer: nothing is read yet, the collection is saved and Library will try again.</summary>
+    public bool WillTryAgain { get; init; }
+
     /// <summary>A name to offer for the collection: the list's own name when the file has one, otherwise the file's.</summary>
     public string SuggestedName { get; init; } = string.Empty;
 
@@ -134,6 +143,13 @@ public sealed record CollectionListSourceDto
     public string SourceKind { get; init; } = "csv";
     public string SourceLabel { get; init; } = string.Empty;
     public string SourceName { get; init; } = string.Empty;
+
+    /// <summary>The web address a web list was read from. Null for a file.</summary>
+    public string? SourceAddress { get; init; }
+
+    /// <summary>True when the list comes from a web address, so Refresh (never, daily, weekly) applies.</summary>
+    public bool IsWebSource { get; init; }
+
     public string? Shelf { get; init; }
     public string Order { get; init; } = ListImportChoices.OrderList;
     public string Refresh { get; init; } = ListImportChoices.RefreshNever;
@@ -174,4 +190,5 @@ public sealed record ListRefreshRequest
     public Guid? ProfileId { get; init; }
 }
 
-public sealed record ListRefreshResultDto(int Added, int Removed, int Matched, int Unmatched);
+/// <param name="WillTryAgain">True when a web list could not be reached: the collection kept what it had and Library will try again.</param>
+public sealed record ListRefreshResultDto(int Added, int Removed, int Matched, int Unmatched, bool WillTryAgain = false);
