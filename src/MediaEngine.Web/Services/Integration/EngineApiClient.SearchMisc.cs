@@ -893,7 +893,9 @@ public sealed partial class EngineApiClient
         {
             var url = "/collections/packs";
             if (mediaTypes is { Count: > 0 })
+            {
                 url += "?media_types=" + Uri.EscapeDataString(string.Join(',', mediaTypes));
+            }
 
             var response = await _http.GetAsync(url, ct);
             if (!response.IsSuccessStatusCode)
