@@ -46,7 +46,7 @@ jobs:
 
       - name: Setup .NET
         if: steps.scope.outputs.code == 'true'
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "10.0.2xx"
 
@@ -149,7 +149,7 @@ jobs:
 
       - name: Setup .NET
         if: steps.scope.outputs.code == 'true'
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "10.0.2xx"
 
