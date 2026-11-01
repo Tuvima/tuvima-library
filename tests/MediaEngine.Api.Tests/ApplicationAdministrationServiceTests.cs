@@ -81,6 +81,21 @@ public sealed class ApplicationAdministrationServiceTests
     }
 
     [Fact]
+    public async Task TheIntegrationTheTuvimaAppsUse_CannotBeDeleted()
+    {
+        var fixture = new Fixture();
+        await fixture.Repository.InsertApplicationAsync(
+            new ApplicationEntity { Id = BuiltInApplicationIds.NativeClient, Name = "Tuvima apps", ApplicationType = ApplicationType.UserClient, CreatedAt = Now, UpdatedAt = Now },
+            new HashSet<ApplicationPermissionId>());
+
+        var failure = await Assert.ThrowsAsync<ApplicationAdministrationException>(() =>
+            fixture.Service.DeleteApplicationAsync(Fixture.HumanAdministrator, BuiltInApplicationIds.NativeClient));
+
+        Assert.Contains("not deleted", failure.Message, StringComparison.Ordinal);
+        Assert.NotNull(await fixture.Repository.GetApplicationAsync(BuiltInApplicationIds.NativeClient));
+    }
+
+    [Fact]
     public async Task RegistryAndMutations_RejectUnavailableOrWrongTypePermissions()
     {
         var fixture = new Fixture();

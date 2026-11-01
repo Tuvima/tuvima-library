@@ -148,9 +148,10 @@
         _ => now.AddDays(IntegrationHealthRules.SuggestedKeyLifetimeDays),
     };
 
-    private RenderFragment IntegrationCard(ApplicationResponse app) => @<AppListCard Title="@app.Name" Icon="@AppMaterialIcons.Outlined.Apps" Kind="@KindLabel(app)" Description="@app.Description">
-        <Status><AppStatusBadge Text="@(FailingWebhook(app) is not null ? "Delivery failed" : StatusText(app))" Tone="@(FailingWebhook(app) is not null ? AppUiTone.Error : StatusTone(app))" /></Status>
-        <Badges><AppStatusBadge Text="@PresetLabel(app)" Tone="@(app.IsAdministrator ? AppUiTone.Warning : AppUiTone.Neutral)" /></Badges>
+    // Integration tiles follow the Plugins rules (v4 D39): a dot with one sentence, name, one line, keys and last used, one button.
+    private RenderFragment IntegrationCard(ApplicationResponse app) => @<AppListCard Title="@app.Name" Description="@app.Description"
+                                                                       data-integration-card="@app.Id" data-health="@DotWord(app)">
+        <Logo><AppStatusDot Tone="@DotTone(app)" Sentence="@DotSentence(app)"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Apps" /></AppStatusDot></Logo>
         <ChildContent>
             <p class="access-card__meta">
                 <span>@app.Credentials.Count(credential => credential.RevokedAt is null) active keys@(CredentialExpirySummary(app) is { } expiry ? $" · {expiry}" : null)</span>
@@ -168,8 +169,7 @@
         <Footer>
             @if (!DeviceContext.IsPhone)
             {
-                <AppButton Label="Manage" Size="AppControlSize.Compact" OnClick="@(() => OpenPage(app))" />
-                <AppRowMenu AriaLabel="@($"Actions for {app.Name}")" Items="@MenuItems(app)" />
+                <AppButton Label="@ButtonLabel(app)" Size="AppControlSize.Compact" aria-label="@($"{ButtonLabel(app)} for {app.Name}")" OnClick="@(() => OpenPage(app))" />
             }
         </Footer>
     </AppListCard>;
@@ -207,15 +207,11 @@
 
         return @<div class="integration-page" data-testid="integration-page">
             <header class="integration-page__header">
-                <span class="integration-page__logo"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Apps" /></span>
+                <AppStatusDot Tone="@DotTone(app)" Sentence="@DotSentence(app)"><span class="integration-page__logo"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Apps" /></span></AppStatusDot>
                 <div class="integration-page__title">
                     <h2>@app.Name</h2>
                     @if (!string.IsNullOrWhiteSpace(app.Description)) { <p>@app.Description</p> }
-                    <div class="integration-page__pills">
-                        <AppStatusBadge Text="@KindLabel(app)" Tone="AppUiTone.Neutral" />
-                        <AppStatusBadge Text="@PresetLabel(app)" Tone="@(app.IsAdministrator ? AppUiTone.Warning : AppUiTone.Neutral)" />
-                        <AppStatusBadge Text="@(failing is not null ? "Delivery failed" : StatusText(app))" Tone="@(failing is not null ? AppUiTone.Error : StatusTone(app))" />
-                    </div>
+                    <p data-testid="integration-status-sentence">@DotSentence(app)</p>
                 </div>
                 @if (!DeviceContext.IsPhone)
                 {
@@ -230,7 +226,7 @@
             @if (!string.IsNullOrWhiteSpace(_message)) { <AppAlert Severity="AppSeverity.Info">@_message</AppAlert> }
             <AppCountTabs Tabs="@tabs" Selected="@tab" AriaLabel="@($"{app.Name} sections")" />
             <div class="integration-page__body">
-                @if (_deleteMode)
+                @if (_deleteMode && !IsProtected(app))
                 {
                     <AppAlert Severity="AppSeverity.Warning">Delete @app.Name? Its credentials will stop authenticating immediately.</AppAlert>
                     <p>This does not delete any media or account data.</p>
@@ -297,13 +293,20 @@
                 <AppTextField @bind-Value="_clientIds" Label="Native client IDs" HelpText="Comma-separated registered client IDs allowed to use this application." FullWidth="true" />
             }
         </section>
-        <section class="access-form-section">
+        @if (_editing is { } editing && IsProtected(editing))
+        {
+            <section class="access-form-section"><small>@L["ManagedAccessApplications_ProtectedNote"].Value</small></section>
+        }
+        else
+        {
+            <section class="access-form-section">
             <AppText Typo="AppTypo.subtitle1">Delete this integration</AppText>
             <small>Its credentials stop working at once. No media or account data is deleted.</small>
             <AppActionBar Align="AppHorizontalAlignment.Start">
                 <AppButton Label="Delete integration" Tone="AppUiTone.Error" StartIcon="@AppMaterialIcons.Outlined.Delete" OnClick="@(() => _deleteMode = true)" />
             </AppActionBar>
         </section>
+        }
     </text>;
 
     private RenderFragment AccessTab() => @<text>
@@ -372,28 +375,28 @@
     // The List view (Plugins and Integrations screens v3 D27): status, kind, access, keys, last used and Manage on one 56 px row.
     private RenderFragment IntegrationRows(IReadOnlyList<ApplicationResponse> apps) => @<AppTable Class="access-rows" data-testid="integration-rows">
         <thead>
-            <tr><th scope="col">Integration</th><th scope="col">Status</th><th scope="col">Kind</th><th scope="col">Access</th><th scope="col">Keys</th><th scope="col">Last used</th><th scope="col"><span class="access-rows__sr">Actions</span></th></tr>
+            <tr><th scope="col">Integration</th><th scope="col">Status</th><th scope="col">Keys</th><th scope="col">Last used</th><th scope="col"><span class="access-rows__sr">Actions</span></th></tr>
         </thead>
         <tbody>
             @foreach (var app in apps)
             {
                 <tr @key="app.Id" data-integration-row="@app.Id">
                     <td><a href="@PageHref(app.Id, "overview")">@app.Name</a></td>
-                    <td><AppStatusBadge Text="@(FailingWebhook(app) is not null ? "Delivery failed" : StatusText(app))" Tone="@(FailingWebhook(app) is not null ? AppUiTone.Error : StatusTone(app))" /></td>
-                    <td>@KindLabel(app)</td>
-                    <td>@PresetLabel(app)</td>
+                    <td><AppStatusDot Tone="@DotTone(app)" Sentence="@DotSentence(app)" /> @DotSentence(app)</td>
                     <td>@app.Credentials.Count(credential => credential.RevokedAt is null)</td>
                     <td>@(app.LastUsedAt is null ? "Never" : app.LastUsedAt.Value.ToLocalTime().ToString("g"))</td>
                     <td>
                         <div class="access-rows__actions">
-                            <AppButton Label="Manage" Size="AppControlSize.Compact" OnClick="@(() => OpenPage(app))" />
-                            <AppRowMenu AriaLabel="@($"Actions for {app.Name}")" Items="@MenuItems(app)" />
+                            <AppButton Label="@ButtonLabel(app)" Size="AppControlSize.Compact" OnClick="@(() => OpenPage(app))" />
                         </div>
                     </td>
                 </tr>
             }
         </tbody>
     </AppTable>;
+
+    // The integration the Tuvima apps use can be switched off or have its keys revoked, never deleted (Plugins screens v4 D37).
+    private static bool IsProtected(ApplicationResponse app) => app.Id == MediaEngine.Domain.Entities.BuiltInApplicationIds.NativeClient;
 
     private IReadOnlyList<AppRowMenuItem> MenuItems(ApplicationResponse app)
     {
@@ -403,7 +406,8 @@
         };
         if (app.Credentials.Any(credential => credential.RevokedAt is null))
             items.Add(new() { Label = L["ManagedAccessApplications_RevokeKeys"].Value, Icon = AppMaterialIcons.Outlined.Key, Destructive = true, OnClick = EventCallback.Factory.Create(this, () => RevokeAllKeysAsync(app)) });
-        items.Add(new() { Label = L["Common_Delete"].Value, Icon = AppMaterialIcons.Outlined.Delete, Destructive = true, OnClick = EventCallback.Factory.Create(this, () => ConfirmDelete(app)) });
+        if (!IsProtected(app))
+            items.Add(new() { Label = L["Common_Delete"].Value, Icon = AppMaterialIcons.Outlined.Delete, Destructive = true, OnClick = EventCallback.Factory.Create(this, () => ConfirmDelete(app)) });
         return items;
     }
 
@@ -430,6 +434,10 @@
     private ApplicationWebhookResponse? FailingWebhook(ApplicationResponse app) =>
         _webhooks.TryGetValue(app.Id, out var hooks) ? hooks.FirstOrDefault(hook => StateCardHealth.ForWebhook(hook).Word is HealthWord.NeedsAttention or HealthWord.Broken) : null;
     private bool NeedsAttention(ApplicationResponse app) => FailingWebhook(app) is not null || HealthOf(app).Word is HealthWord.NeedsAttention or HealthWord.Broken;
+    private AppStatusDotTone DotTone(ApplicationResponse app) => !app.IsEnabled ? AppStatusDotTone.Off : FailingWebhook(app) is not null ? AppStatusDotTone.Broken : NeedsAttention(app) ? AppStatusDotTone.Attention : AppStatusDotTone.Working;
+    private string DotWord(ApplicationResponse app) => !app.IsEnabled ? "disabled" : FailingWebhook(app) is not null ? "delivery-failed" : NeedsAttention(app) ? "needs-attention" : "enabled";
+    private string DotSentence(ApplicationResponse app) => FailingWebhook(app) is not null ? "Delivery failed" : StatusText(app);
+    private string ButtonLabel(ApplicationResponse app) => FailingWebhook(app) is not null ? "Fix delivery" : "Manage";
     private string KindLabel(ApplicationResponse app) => IsWebhook(app) ? "Webhook" : TypeLabel(app.ApplicationType);
     private string StatusText(ApplicationResponse app) => !app.IsEnabled ? "Disabled" : NeedsAttention(app) ? "Needs attention" : "Enabled";
     private AppUiTone StatusTone(ApplicationResponse app) => !app.IsEnabled ? AppUiTone.Neutral : NeedsAttention(app) ? AppUiTone.Warning : AppUiTone.Success;

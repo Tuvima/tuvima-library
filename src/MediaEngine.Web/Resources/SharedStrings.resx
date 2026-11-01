@@ -9819,4 +9819,7 @@
   <data name="ProviderAccess_GetKey" xml:space="preserve">
     <value>Get a key at {0}</value>
   </data>
+  <data name="ManagedAccessApplications_ProtectedNote" xml:space="preserve">
+    <value>Your Library apps use this integration, so it can be switched off or have its keys revoked, but not deleted.</value>
+  </data>
 </root>
