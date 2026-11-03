@@ -742,7 +742,7 @@
     min-height: 2.4rem;
     padding: 0 0.82rem;
     border: 1px solid rgba(148, 163, 184, 0.24);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     background: rgba(8, 14, 30, 0.46);
     color: var(--tl-text-secondary);
     font-family: var(--font-ui);

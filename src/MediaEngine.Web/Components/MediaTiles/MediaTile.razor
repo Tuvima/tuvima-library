@@ -32,6 +32,10 @@ else
     <a class="media-tile-link" href="@DetailsNavigationUrl" aria-label="@DetailsActionAriaLabel" @onclick="OpenDetails" @onclick:preventDefault="true">
     <div class="media-tile-frame">
         <div class="media-tile-media @(HasArtworkSurface ? "has-artwork-surface" : null)">
+            @if (!string.IsNullOrWhiteSpace(Item.NewLabel))
+            {
+                <span class="media-tile-new-label">@Item.NewLabel</span>
+            }
             @if (ShowGroupCollage)
             {
                 <div class="media-tile-static-group-preview" aria-hidden="true">
@@ -1125,7 +1129,12 @@ else
 
     private bool ShowsCompactTitleCaption =>
         Item.Subject != DisplaySubjectKind.TvEpisode
-        && (ShowCompactCaption || (SuppressHover && CaptionContent is null && IsHoverEnabled && (UsesCinematicHover || ShowsStaticCoverIdentity)));
+        && (ShowCompactCaption || (CaptionContent is null && IsHoverEnabled && (IsFormerCinematicTile || (SuppressHover && ShowsStaticCoverIdentity))));
+
+    // Movie and TV covers used to hide their title until the hover panel opened. No tile grows on hover any more (spec D1),
+    // so their title sits under the cover at all times.
+    private bool IsFormerCinematicTile =>
+        !Item.RenderAsLandscapeGroupTile && MediaKindLabel is "Movie" or "TV" && HasLandscapeHoverArtwork;
     private bool ShowsEpisodeCaption => CaptionContent is null && Item.Subject == DisplaySubjectKind.TvEpisode && !string.IsNullOrWhiteSpace(EpisodeShowCaption);
 
     // Tiles without a title line of their own (hover-only shelves, custom caption content) carry the marker as a

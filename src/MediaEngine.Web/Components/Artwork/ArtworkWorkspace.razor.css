@@ -116,7 +116,7 @@
     height: 2rem;
     min-width: 2rem;
     border: 1px solid rgba(255, 255, 255, .3);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     background: rgba(5, 8, 14, .88) !important;
     opacity: .82;
 }

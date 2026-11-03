@@ -4,7 +4,7 @@
 .who-page__error { margin: 0; color: var(--tl-danger, #ff6b6b); }
 .who-card__name { max-width: 100%; font-size: 1.05rem; font-weight: 600; overflow-wrap: anywhere; }
 .who-card__tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; min-height: 22px; }
-.who-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; color: var(--tl-text-muted); border: 1px solid var(--tl-border-subtle); border-radius: 999px; font-size: .75rem; }
+.who-tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; color: var(--tl-text-muted); border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-pill); font-size: .75rem; }
 .who-tag__icon { width: 12px; height: 12px; }
 .who-signout { margin: 0; }
 .who-note { max-width: 520px; margin: 0; padding: 10px 14px; color: var(--tl-text-muted); border: 1px solid var(--tl-border-subtle); border-radius: 10px; font-size: .9rem; }

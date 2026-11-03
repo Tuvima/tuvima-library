@@ -64,7 +64,10 @@ else if (Slides.Count > 0)
                    href="@ActiveDetailsUrl"
                    aria-label="@($"Open details for {ActiveHero.Title}")"></a>
 
-                <div class="cinematic-hero-carousel__context" title="@ActiveHero.SuggestedReason">@CarouselContextLabel</div>
+                @if (!string.IsNullOrEmpty(CarouselContextLabel))
+                {
+                    <div class="cinematic-hero-carousel__context" title="@ActiveHero.SuggestedReason">@CarouselContextLabel</div>
+                }
 
                 <DetailHeroContent Title="@ActiveHero.Title"
                                    UseLogo="@UsesLogo"
@@ -81,8 +84,8 @@ else if (Slides.Count > 0)
                     </MetadataContent>
                     <ActionContent>
                         <HeroActionRow PrimaryActions="@LandingPrimaryActions"
-                                       SecondaryActions="@LandingSecondaryActions"
-                                       OverflowActions="@LandingOverflowActions"
+                                       SecondaryActions="@LandingMyListAction"
+                                       OverflowActions="@NoActions"
                                        Progress="@LandingProgress"
                                        UsePrimaryHeroChrome="true"
                                        OnActionSelected="OpenLandingActionAsync" />
@@ -236,7 +239,7 @@ else if (Slides.Count > 0)
             DetailEntityType.Book or DetailEntityType.ComicIssue => "Continue Reading",
             _ => "Continue Listening",
         }
-        : "Featured Content";
+        : string.Empty; // "Featured content" label removed (Home, detail and tiles spec D4).
 
     private IReadOnlyList<MetadataPill> LandingMetadata => ActiveHero.MetaPills
         .Where(value => !string.IsNullOrWhiteSpace(value))
@@ -737,8 +740,11 @@ else if (Slides.Count > 0)
     private readonly Dictionary<(Guid? Profile, Guid Id), (bool Saved, MediaReaction Reaction, IReadOnlyList<DetailAction> Menu)> _personal = [];
     private (bool Saved, MediaReaction Reaction, IReadOnlyList<DetailAction> Menu) Personal => _personal.GetValueOrDefault((Playback.ActiveProfileId, LandingIdentity.Id), (false, MediaReaction.Neutral, []));
     private IReadOnlyList<DetailAction> LandingSecondaryActions => LandingIdentity.Id == Guid.Empty ? [] : [
-        new() { Key="my-list", Label=Personal.Saved ? "Remove from My List" : "Add to My List", Icon="favorite", IsSelected=Personal.Saved },
+        new() { Key="my-list", Label=Personal.Saved ? "Remove from My List" : "Add to My List", Icon=Personal.Saved ? "check" : "add", IsSelected=Personal.Saved },
         new() { Key="reaction-menu", Label="Rate", Icon="thumb_up", IsSelected=Personal.Reaction is MediaReaction.Like or MediaReaction.Love, Children=[new() { Key="reaction-dislike",Label=L["MediaRateControl_NotForMe"].Value,Icon="thumb_down",IsSelected=Personal.Reaction==MediaReaction.Dislike },new() { Key="reaction-like",Label=L["MediaRateControl_ILikeThis"].Value,Icon="thumb_up",IsSelected=Personal.Reaction is MediaReaction.Like or MediaReaction.Love }] } ];
+    private static readonly IReadOnlyList<DetailAction> NoActions = [];
+    // Desktop hero: the main action and + only (Home, detail and tiles spec D4).
+    private IReadOnlyList<DetailAction> LandingMyListAction => LandingSecondaryActions.Where(action => action.Key == "my-list").ToList();
     // On a phone Rate and the thumbs live in More instead of taking room under the primary button.
     private IReadOnlyList<DetailAction> PhoneMoreActions => LandingSecondaryActions
         .Where(action => action.Key == "reaction-menu")

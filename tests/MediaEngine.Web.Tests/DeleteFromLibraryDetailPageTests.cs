@@ -215,7 +215,10 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
         var cut = RenderPage();
 
         // A phone lists the same actions in a bottom sheet instead of a popover; either way they render inside the page.
-        var items = OpenPageMoreMenu(cut);
+        // The menu is short now (Home, detail and tiles spec D8): with nothing left to list it may not be drawn at all.
+        var items = cut.FindAll(".tl-detail-secondary-actions button[aria-label='More actions']").Count > 0
+            ? OpenPageMoreMenu(cut)
+            : [];
 
         Assert.DoesNotContain(items, item => item.TextContent.Contains("Delete from library"));
         Assert.DoesNotContain(Label, cut.Markup, StringComparison.Ordinal);

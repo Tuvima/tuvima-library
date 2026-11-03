@@ -126,6 +126,9 @@ public sealed class MediaTileViewModel
     public string? QualityBadge { get; init; }
     /// <summary>True on a tile in the Unmatched filter whose file is kept as it is; it shows a small Kept label.</summary>
     public bool IsKept { get; init; }
+
+    /// <summary>"New" or "New Episode": the small square label at the top-left of the cover (Home, detail and tiles spec D7); null when the item is not new.</summary>
+    public string? NewLabel { get; init; }
     public string? SourceBadgeLabel { get; init; }
     public string? SourceLogoUrl { get; init; }
     public IReadOnlyList<MediaTileMediaCountViewModel> MediaCounts { get; init; } = [];

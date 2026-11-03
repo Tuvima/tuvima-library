@@ -856,7 +856,7 @@
     font-size: var(--tl-font-size-xs);
     line-height: 1.2;
     border: 1px solid var(--tl-divider);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
 }
 
 :where(.settings-admin-panel) ::deep .settings-plugin-list-item__chips .settings-plugin-list-item__chip--warning {

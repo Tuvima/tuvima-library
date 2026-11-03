@@ -7,7 +7,7 @@ namespace MediaEngine.Api.Tests;
 public sealed class HomeSpotlightStateTests
 {
     [Fact]
-    public async Task HomeSpotlights_NewItemsFillTheHeroNewestFirstWithAtMostFiveSlides()
+    public async Task HomeSpotlights_NewItemsTakeTurnsAcrossKindsWithAtMostFiveSlides()
     {
         DisplayWorkRow Work(string type, string title, int ageDays) => new()
         {
@@ -22,7 +22,9 @@ public sealed class HomeSpotlightStateTests
         var newestBook = Work("Book", "Newest book", 0);
         var home = await Composer(new Repository([.. oldMovies, newestBook], [])).BuildHomeAsync();
         Assert.Equal(5, home.Spotlights.Count);
-        Assert.Equal("Newest book", home.Spotlights[0].Title);
+        // Slides take turns across Watch, Read and Listen (spec D16): a Watch slide first, then the only Read item.
+        Assert.Equal("Movie 0", home.Spotlights[0].Title);
+        Assert.Equal("Newest book", home.Spotlights[1].Title);
         Assert.All(home.Spotlights, hero => Assert.False(hero.IsContinued));
         Assert.Equal(5, home.Spotlights.Select(h => h.Id).Distinct().Count());
     }
@@ -78,7 +80,8 @@ public sealed class HomeSpotlightStateTests
             CoverUrl = book.CoverUrl,
         };
         var home = await Composer(new Repository([show, book], [showState, bookState])).BuildHomeAsync(profileId: profile);
-        Assert.Equal(["Midway book", "The Show"], home.Spotlights.Select(hero => hero.Title));
+        // Watch takes the first turn, Read the second (spec D16).
+        Assert.Equal(["The Show", "Midway book"], home.Spotlights.Select(hero => hero.Title));
         Assert.All(home.Spotlights, hero => Assert.True(hero.IsContinued));
     }
 
