@@ -70,7 +70,7 @@
 .import-frame__owned li {
     padding: 3px 9px;
     border: 1px solid var(--tl-divider);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     color: var(--tl-text-secondary);
     font-size: .8rem;
 }

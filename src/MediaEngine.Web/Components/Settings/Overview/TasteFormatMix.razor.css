@@ -8,7 +8,7 @@
     width: 100%;
     height: 0.9rem;
     overflow: hidden;
-    border-radius: var(--tl-radius-pill, 999px);
+    border-radius: var(--tl-radius-round, 999px);
 }
 
 .taste-formats__segment {

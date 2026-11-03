@@ -47,7 +47,7 @@
     min-height: var(--tl-tap-target-min, 44px);
     padding: 0 var(--tl-space-4);
     border: 1px solid var(--tl-border-default);
-    border-radius: var(--tl-radius-pill, 999px);
+    border-radius: var(--tl-radius-pill);
     color: var(--tl-text-secondary);
     background: color-mix(in srgb, var(--tl-bg-surface) 72%, transparent);
     font-size: var(--tl-font-size-sm);

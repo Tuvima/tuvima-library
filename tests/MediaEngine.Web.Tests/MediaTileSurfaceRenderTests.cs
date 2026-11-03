@@ -772,39 +772,6 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         Assert.Equal(0, _createCollectionRequestCount);
     }
 
-    [Fact]
-    public void MediaTile_EnrichedLogoReplacesHoverTitleButNotRestingArtwork()
-    {
-        var item = new MediaTileViewModel
-        {
-            Id = Guid.NewGuid(),
-            WorkId = Guid.NewGuid(),
-            Title = "Arrival",
-            HoverFacts = ["PG-13", "2016", "1h 56m", "★ 7.9"],
-            MediaKind = "Movie",
-            Shape = MediaTileShape.Portrait,
-            SurfaceKind = MediaTileSurfaceKind.CoverPortrait,
-            HoverLayout = MediaTileHoverLayout.BannerPopover,
-            HoverMode = MediaTileHoverMode.Expanded,
-            TileImageUrl = "/art/arrival-poster.jpg",
-            HoverImageUrl = "/art/arrival-background.jpg",
-            LogoUrl = "/art/arrival-logo.png",
-            NavigationUrl = "/watch/movie/1",
-            PrimaryNavigationUrl = "/watch/player/1",
-            PrimaryActionLabel = "Play",
-        };
-
-        var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, item).Add(component => component.IsHomeSurface, true));
-
-        Assert.Empty(cut.FindAll(".media-tile-logo"));
-        Assert.NotEmpty(cut.FindAll(".media-tile-hover-logo"));
-        Assert.Empty(cut.FindAll(".media-tile-hover-title"));
-        Assert.Empty(cut.FindAll(".media-tile-hover-facts"));
-        Assert.Empty(cut.FindAll(".media-tile-hover-body"));
-        Assert.Equal("/art/arrival-background.jpg", cut.Find(".media-tile-hover-image").GetAttribute("src"));
-        Assert.Equal("/art/arrival-logo.png", cut.Find(".media-tile-hover-logo").GetAttribute("src"));
-    }
-
     private static MediaTileViewModel CreateShelfItem(string title) => new()
     {
         Id = Guid.NewGuid(),
@@ -1056,10 +1023,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         Assert.Equal("12 episodes owned", cut.Find(".media-tile-group-count").GetAttribute("aria-label"));
         Assert.Empty(cut.FindAll(".media-artwork-group-preview"));
         Assert.DoesNotContain("is-collection-card", cut.Find("article.media-tile").ClassList);
-        Assert.DoesNotContain("is-collection-hover", cut.Find(".media-tile-hover-panel").ClassList);
-        Assert.Contains("is-banner-popover", cut.Find(".media-tile-hover-panel").ClassList);
-        Assert.Equal("/shows/foundation-background.jpg", cut.Find(".media-tile-hover-image").GetAttribute("src"));
-        Assert.Empty(cut.FindAll(".media-tile-hover-body"));
+        Assert.Empty(cut.FindAll(".media-tile-hover-panel"));
     }
 
     [Fact]
@@ -1237,7 +1201,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, item).Add(component => component.IsHomeSurface, true));
 
         Assert.Empty(cut.FindAll("button"));
-        Assert.Contains("is-cinematic-hover", cut.Find("article.media-tile").ClassList);
+        Assert.DoesNotContain("is-cinematic-hover", cut.Find("article.media-tile").ClassList);
 
         cut.Find(".media-tile-media").Click();
         var nav = Services.GetRequiredService<NavigationManager>();
@@ -1397,7 +1361,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
     [Theory]
     [InlineData("Movie")]
     [InlineData("TV")]
-    public async Task OnlyHomeWatchDiscoveryRegistersExpansion(string kind)
+    public async Task NoTileRegistersExpansion(string kind)
     {
         // The hover script waits until the layout has told the circuit which device this is.
         await Services.GetRequiredService<MediaEngine.Web.Services.Theming.DeviceContextService>()
@@ -1418,9 +1382,11 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         Assert.Empty(watch.FindAll(".media-tile-hover-panel"));
         Assert.Contains("is-hover-glow-only", watch.Find("article").ClassList);
         Assert.DoesNotContain(JSInterop.Invocations, c => c.Identifier == "registerMediaTileHover");
+        // Home, detail and tiles spec D1: no tile grows on hover, Home included.
         var home = Render<MediaTile>(p => p.Add(c => c.Item, item).Add(c => c.IsHomeSurface, true));
-        Assert.Single(home.FindAll(".media-tile-hover-panel"));
-        Assert.Contains(JSInterop.Invocations, c => c.Identifier == "registerMediaTileHover");
+        Assert.Empty(home.FindAll(".media-tile-hover-panel"));
+        Assert.Contains("is-hover-glow-only", home.Find("article").ClassList);
+        Assert.DoesNotContain(JSInterop.Invocations, c => c.Identifier == "registerMediaTileHover");
     }
 
     [Fact]

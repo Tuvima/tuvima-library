@@ -104,7 +104,7 @@
 .signed-in-sessions__tag {
     padding: 2px 8px;
     border: 1px solid var(--tl-accent-primary);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     color: var(--tl-accent-primary);
     font-size: .75rem;
 }

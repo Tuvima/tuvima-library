@@ -2,11 +2,11 @@ using MediaEngine.Web.Models.ViewDTOs;
 
 namespace MediaEngine.Web.Services.MediaTiles;
 
-/// <summary>Only Home Watch discovery cards expand. Other surfaces highlight; Home Continue uses a fixed overlay.</summary>
+/// <summary>No tile grows or changes shape on hover (Home, detail and tiles spec D1). Every tile gets a thick white border with a purple ring; Home Continue may keep its fixed overlay.</summary>
 public static class MediaTileHoverPolicy
 {
     public static MediaTileHoverMode ForShelf(MediaTileViewModel item) =>
-        item.MediaKind is "Movie" or "TV" ? MediaTileHoverMode.Expanded : MediaTileHoverMode.GlowOnly;
+        MediaTileHoverMode.GlowOnly;
 
     public static MediaTileHoverMode ForContinue(MediaTileViewModel item) =>
         item.MediaKind is "Movie" or "TV" ? MediaTileHoverMode.Overlay : MediaTileHoverMode.GlowOnly;
@@ -21,10 +21,6 @@ public static class MediaTileHoverPolicy
         {
             return MediaTileHoverMode.Overlay;
         }
-        if (!isHomeSurface || requested == MediaTileHoverMode.GlowOnly || item.MediaKind is not ("Movie" or "TV"))
-        {
-            return MediaTileHoverMode.GlowOnly;
-        }
-        return requested == MediaTileHoverMode.Overlay ? MediaTileHoverMode.Overlay : MediaTileHoverMode.Expanded;
+        return MediaTileHoverMode.GlowOnly;
     }
 }
