@@ -37,6 +37,7 @@ public static class TuvimaPlaybackServiceCollectionExtensions
         services.AddSingleton<BookmarkRecognitionRepository>();
         services.AddSingleton<BookmarkClosenessProvider>();
         services.AddSingleton<BookmarkSetService>();
+        services.AddSingleton<ReaderBookmarkSetService>();
         services.AddSingleton<AudiobookChapterTitleOverrideRepository>();
         services.AddSingleton<AudiobookChapterNamingService>();
         services.AddSingleton<IPlaybackTelemetryRepository, PlaybackTelemetryRepository>();

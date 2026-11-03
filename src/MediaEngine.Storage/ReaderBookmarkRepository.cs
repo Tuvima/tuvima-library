@@ -157,6 +157,75 @@ public sealed class ReaderBookmarkRepository : IReaderBookmarkRepository
         }, ct);
     }
 
+    public Task<ReaderSetOutcome> ApplySetAsync(
+        Guid profileId, Guid assetId, IReadOnlyList<ReaderSetBookmark> adds, IReadOnlyCollection<Guid> deleteIds,
+        bool addAsGlobal, bool replaceGlobalSet, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        return _db.ExecuteWriteAsync((conn, tx, innerCt) =>
+        {
+            innerCt.ThrowIfCancellationRequested();
+            var replaced = 0;
+            if (replaceGlobalSet && addAsGlobal)
+            {
+                replaced += conn.Execute(
+                    "DELETE FROM audiobook_bookmarks WHERE is_global = 1 AND position_kind = 'text' AND asset_id = @assetId;",
+                    new { assetId }, tx);
+            }
+
+            foreach (var id in deleteIds)
+            {
+                replaced += conn.Execute(
+                    """
+                    DELETE FROM audiobook_bookmarks
+                    WHERE id = @id AND asset_id = @assetId AND position_kind = 'text'
+                      AND ((is_global = 0 AND profile_id = @profileId) OR (is_global = 1 AND @addAsGlobal = 1));
+                    """,
+                    new { id, assetId, profileId, addAsGlobal = addAsGlobal ? 1 : 0 }, tx);
+            }
+
+            var now = DateTimeOffset.UtcNow.ToString("O");
+            foreach (var add in adds)
+            {
+                if (addAsGlobal && ReaderLocation.TryParse(add.Locator) is { } spot)
+                {
+                    // A Global bookmark replaces personal ones in the same paragraph, so a place is never listed twice.
+                    var personal = conn.Query<BookmarkRow>(
+                        Select + """
+
+                        WHERE  b.position_kind = 'text' AND b.asset_id = @assetId AND b.is_global = 0;
+                        """, new { assetId }, tx).AsList();
+                    foreach (var other in personal.Where(other => ReaderLocation.TryParse(other.CfiPosition) is { } there && there == spot))
+                    {
+                        replaced += conn.Execute("DELETE FROM audiobook_bookmarks WHERE id = @id;", new { id = other.Id }, tx);
+                    }
+                }
+
+                conn.Execute(
+                    """
+                    INSERT INTO audiobook_bookmarks
+                        (id, profile_id, work_id, asset_id, chapter_index, label, is_global, created_at, position_kind, locator)
+                    SELECT @id, @profileId, e.work_id, @assetId, @chapter, @label, @isGlobal, @now, 'text', @locator
+                    FROM media_assets ma JOIN editions e ON e.id = ma.edition_id
+                    WHERE ma.id = @assetId;
+                    """,
+                    new
+                    {
+                        id = Guid.NewGuid(),
+                        profileId,
+                        assetId,
+                        chapter = add.Chapter,
+                        label = string.IsNullOrWhiteSpace(add.Label) ? null : add.Label.Trim(),
+                        isGlobal = addAsGlobal ? 1 : 0,
+                        now,
+                        locator = add.Locator,
+                    }, tx);
+            }
+
+            return new ReaderSetOutcome(adds.Count, replaced);
+        }, ct);
+    }
+
     // SQLite stores GUIDs as BLOBs and timestamps as TEXT. Dapper's registered handlers map GUID columns directly;
     // the timestamp remains a string here.
     private sealed class BookmarkRow

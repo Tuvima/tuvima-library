@@ -318,6 +318,33 @@ public sealed partial class EngineApiClient
             logAsWarning: false,
             ct: ct);
 
+    public Task<BookmarkSetCompareDto?> CompareReaderBookmarkSetAsync(
+        Guid assetId, BookmarkSetRequestDto request, CancellationToken ct = default) =>
+        PostAsync<BookmarkSetRequestDto, BookmarkSetCompareDto>(
+            "POST /reader/{assetId}/bookmark-sets/compare",
+            $"reader/{assetId:D}/bookmark-sets/compare",
+            request,
+            logAsWarning: false,
+            ct: ct);
+
+    public Task<BookmarkSetApplyResultDto?> ApplyReaderBookmarkSetAsync(
+        Guid assetId, BookmarkSetApplyRequestDto request, CancellationToken ct = default) =>
+        PostAsync<BookmarkSetApplyRequestDto, BookmarkSetApplyResultDto>(
+            "POST /reader/{assetId}/bookmark-sets/apply",
+            $"reader/{assetId:D}/bookmark-sets/apply",
+            request,
+            logAsWarning: false,
+            ct: ct);
+
+    public Task<BookmarkPackFileDto?> ExportGlobalReaderBookmarksAsync(
+        Guid assetId, ExportGlobalBookmarksRequestDto request, CancellationToken ct = default) =>
+        PostAsync<ExportGlobalBookmarksRequestDto, BookmarkPackFileDto>(
+            "POST /reader/{assetId}/bookmarks/global/export",
+            $"reader/{assetId:D}/bookmarks/global/export",
+            request,
+            logAsWarning: false,
+            ct: ct);
+
     // Migrated to the shared GetAsync<T> fallback-overload helper (stage 5B wave 2).
     public Task<IReadOnlyList<AudiobookChapterTitleOverrideDto>> GetAudiobookChapterTitleOverridesAsync(Guid workId, Guid? assetId = null, CancellationToken ct = default) =>
         GetAsync<IReadOnlyList<AudiobookChapterTitleOverrideDto>>(

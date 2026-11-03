@@ -1080,6 +1080,34 @@ export function getToc() {
     return out;
 }
 
+/**
+ * The chapter names with the position of the page each one opens (the same number the reader locations use for the page), so a
+ * bookmark file made on another edition can be placed by chapter name: [{ title, index }]. The first name for a page wins.
+ */
+export function getChapterTitles() {
+    const out = [];
+    const seen = new Set();
+    const walk = items => {
+        for (const item of items ?? []) {
+            if (out.length >= 2000) return;
+            const title = String(item.label ?? '').replace(/\s+/g, ' ').trim();
+            let index = -1;
+            try {
+                index = session?.book?.resolveHref?.(item.href ?? '')?.index ?? -1;
+            } catch (e) {
+                console.warn('A contents entry could not be placed.', e);
+            }
+            if (title && index >= 0 && !seen.has(index)) {
+                seen.add(index);
+                out.push({ title, index });
+            }
+            walk(item.subitems);
+        }
+    };
+    walk(session?.book?.toc);
+    return out;
+}
+
 export async function goToHref(href) {
     try {
         await session?.view?.goTo(href);

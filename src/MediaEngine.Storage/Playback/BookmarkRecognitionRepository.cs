@@ -5,7 +5,7 @@ using MediaEngine.Storage.Contracts;
 namespace MediaEngine.Storage.Playback;
 
 /// <summary>What the data store knows about a file that helps a bookmark set recognise its title (Videos spec D46, Global bookmarks spec D14).</summary>
-public sealed record BookmarkPackRecognition(Guid WorkId, string? EditionLabel, IReadOnlyDictionary<string, string> Ids);
+public sealed record BookmarkPackRecognition(Guid WorkId, string? EditionLabel, IReadOnlyDictionary<string, string> Ids, string? ContentHash = null);
 
 /// <summary>Reads the canonical IDs a bookmark file uses to say which title it is for. Nothing is stored: a bookmark set is applied as ordinary bookmarks.</summary>
 public sealed class BookmarkRecognitionRepository
@@ -27,7 +27,7 @@ public sealed class BookmarkRecognitionRepository
         using var conn = _db.CreateConnection();
         var asset = conn.QueryFirstOrDefault<AssetRow>(
             """
-            SELECT e.work_id AS WorkId, e.id AS EditionId, e.format_label AS EditionLabel, e.wikidata_qid AS EditionQid
+            SELECT e.work_id AS WorkId, e.id AS EditionId, e.format_label AS EditionLabel, e.wikidata_qid AS EditionQid, ma.content_hash AS ContentHash
             FROM media_assets ma
             JOIN editions e ON e.id = ma.edition_id
             WHERE ma.id = @assetId;
@@ -60,7 +60,7 @@ public sealed class BookmarkRecognitionRepository
             ids.TryAdd("wikidata_qid", asset.EditionQid.Trim());
         }
 
-        return Task.FromResult<BookmarkPackRecognition?>(new BookmarkPackRecognition(asset.WorkId, asset.EditionLabel, ids));
+        return Task.FromResult<BookmarkPackRecognition?>(new BookmarkPackRecognition(asset.WorkId, asset.EditionLabel, ids, asset.ContentHash));
     }
 
     private sealed record AssetRow
@@ -69,6 +69,7 @@ public sealed class BookmarkRecognitionRepository
         public Guid EditionId { get; init; }
         public string? EditionLabel { get; init; }
         public string? EditionQid { get; init; }
+        public string? ContentHash { get; init; }
     }
 
     private sealed record BridgeRow

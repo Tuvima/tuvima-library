@@ -65,6 +65,15 @@ public partial interface IEngineApiClient
     /// <summary>Builds a file of the title's Global bookmarks (administrators only). Null when the Engine refused; <see cref="LastError"/> says why.</summary>
     Task<BookmarkPackFileDto?> ExportGlobalBookmarksAsync(Guid workId, Guid profileId, ExportGlobalBookmarksRequestDto request, CancellationToken ct = default);
 
+    /// <summary>Find bookmarks in a book: reads a bookmark file and lists each bookmark beside the nearest one the person has. Null when the Engine refused.</summary>
+    Task<BookmarkSetCompareDto?> CompareReaderBookmarkSetAsync(Guid assetId, BookmarkSetRequestDto request, CancellationToken ct = default);
+
+    /// <summary>Applies the person's choices from a bookmark file to a book. Null when the Engine refused.</summary>
+    Task<BookmarkSetApplyResultDto?> ApplyReaderBookmarkSetAsync(Guid assetId, BookmarkSetApplyRequestDto request, CancellationToken ct = default);
+
+    /// <summary>Builds a file of the book's Global bookmarks (administrators only). Null when the Engine refused.</summary>
+    Task<BookmarkPackFileDto?> ExportGlobalReaderBookmarksAsync(Guid assetId, ExportGlobalBookmarksRequestDto request, CancellationToken ct = default);
+
     Task<IReadOnlyList<AudiobookChapterTitleOverrideDto>> GetAudiobookChapterTitleOverridesAsync(Guid workId, Guid? assetId = null, CancellationToken ct = default);
 
     Task<AudiobookChapterTitleOverrideDto?> UpsertAudiobookChapterTitleOverrideAsync(Guid workId, UpsertAudiobookChapterTitleOverrideRequestDto request, CancellationToken ct = default);

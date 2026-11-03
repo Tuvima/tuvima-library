@@ -45,6 +45,13 @@ public sealed record BookReaderTocItem
     public int Level { get; init; }
 }
 
+/// <summary>A chapter name and the position of the page it opens, for placing a bookmark file made on another edition.</summary>
+public sealed record BookReaderChapterTitle
+{
+    public string Title { get; init; } = string.Empty;
+    public int Index { get; init; }
+}
+
 /// <summary>One place the search found: where it is (an EPUB CFI), the contents entry it sits under and the words around it.</summary>
 public sealed record BookReaderSearchHit
 {

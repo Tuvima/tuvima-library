@@ -1,6 +1,6 @@
 # Global bookmarks: promote and find bookmarks (every media type)
 
-> **Status:** In progress (stage 1 video and audiobooks built; EPUB and PDF/comic next) · **Version:** 4 · **Last updated:** 2026-11-03 (locked by Shy) · **Related docs:** [Videos spec](videos.md) (D43, D46) · [Video player controls and bookmarks](video-player-controls-and-bookmarks.md) · Mockups: [`../design/mockups/global-bookmarks.html`](../design/mockups/global-bookmarks.html)
+> **Status:** In progress (stages 1 video and audiobooks, 2 EPUB books built; PDF/comic next) · **Version:** 4 · **Last updated:** 2026-11-03 (locked by Shy) · **Related docs:** [Videos spec](videos.md) (D43, D46) · [Video player controls and bookmarks](video-player-controls-and-bookmarks.md) · Mockups: [`../design/mockups/global-bookmarks.html`](../design/mockups/global-bookmarks.html)
 
 ## 1. Goal
 

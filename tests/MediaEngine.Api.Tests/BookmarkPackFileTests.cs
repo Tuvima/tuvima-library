@@ -124,6 +124,27 @@ public sealed class BookmarkPackFileTests : IDisposable
     }
 
     [Fact]
+    public void ABookBookmark_KeepsItsReaderLocation_AndABadLocationIsRefused()
+    {
+        const string cfi = "epubcfi(/6/8!/4/10/1:5)";
+        var items = new[] { new BookmarkPackBookmark(3, null, "Part Two", 3, "note", null, cfi) };
+        var content = new BookmarkPackContent("A reading", null,
+            new BookmarkPackTitle(new Dictionary<string, string> { ["isbn_13"] = "9780000000002" }, null, "file:abcd"),
+            items, BookmarkPackArchive.Fingerprint("A reading", null, items));
+
+        var read = BookmarkPackArchive.Read(BookmarkPackArchive.Write(content, DateTimeOffset.UtcNow));
+
+        Assert.Equal(cfi, Assert.Single(read.Bookmarks).Locator);
+        Assert.Equal("file:abcd", read.Title.Edition);
+
+        static string Pack(string bookmark) =>
+            "{\"format\":\"bookmark-pack\",\"version\":1,\"name\":\"x\",\"title\":{\"ids\":{\"imdb_id\":\"tt1\"}},\"bookmarks\":[" + bookmark + "]}";
+        const string manifest = "{\"schema_version\":\"1.0\",\"kind\":\"bookmark-pack\",\"includes_secrets\":false}";
+        Assert.Throws<BookmarkPackInvalidException>(() => BookmarkPackArchive.Read(Zip(("manifest.json", manifest),
+            ("pack/bookmarks.json", Pack("{\"time\":3,\"locator\":\"not a location\"}")))));
+    }
+
+    [Fact]
     public void ABookmarkWithABadTimeOrATooLongNote_IsRefused()
     {
         static string Pack(string bookmark) =>
