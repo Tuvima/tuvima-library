@@ -9,7 +9,7 @@
 4. **Small square labels.** "New" and "New Episode" are small square tags at the top-left of a cover. Every pill in the app (genres, kinds, facts) becomes square-cornered. Round stays only for avatars, switches, progress bars, the player dock and seek-rail bubbles.
 5. **One short "..." menu** on every cover and on the detail page: Restart (only if started), Edit (desktop, if allowed), Delete (if allowed). Larger text, plain wording.
 6. **Top bar bookmark.** The My List button in the top bar becomes a bookmark icon, gold when the list is open; click again to close. On covers, adding to My List is a + icon.
-7. **Detail page stack.** Title, then facts (rating, seasons, Dolby Vision), then the main button, then one row of small icons (+, thumbs up, trailer, "..."). Download (phone and native) joins that same icon row.
+7. **Detail page stack.** Title, then facts (rating, seasons, Dolby Vision), then the main button, then one row of small icons (+, thumbs up, "...", plus Download where it applies). Download (phone and native) joins that same icon row.
 8. **People.** The person page opens with a large portrait. "Works in your library" uses a small square kind label (no word "Movie") and a filter that appears only when the person has more than one kind of work. People pictures are smaller and square-cornered everywhere else. Collections > People gets search and sort.
 
 ## 1. Goal
@@ -48,6 +48,7 @@ Taken from Shy's 2 Nov review (D1 to D12) and the recommended defaults for the r
 - **D17 (Shy, 2026-11-03).** Round stays for avatars, switches, progress bars, the player dock and seek bubbles.
 - **D18 (Shy, 2026-11-03).** Music Continue uses the plain square label as in the mockup.
 - **D19 (Shy, 2026-11-03).** Download is added to the same icon row, not given its own row. The main button is separate from the row, so the row can hold whichever buttons apply to the item.
+- **D20 (Shy, 2026-11-03).** No trailer button. Trailers are not fetched, and one added by the person appears as an Extra. A trailer button can return in a later spec.
 - **D12.** Fable review of continuity requested by Shy (section 10).
 
 ## 5. UI behaviour
