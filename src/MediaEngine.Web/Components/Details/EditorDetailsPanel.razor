@@ -1,4 +1,5 @@
 @namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Items
 @using MediaEngine.Web.Components.MediaEditor
 @using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Integration
@@ -40,6 +41,11 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
                     @EditableRow(fields, session, field)
                 }
             </section>
+        }
+
+        @if (canEdit && fields.ExplicitMark is { } explicitMark)
+        {
+            @ExplicitRow(fields, session, explicitMark)
         }
 
         @if (facts.Count > 0)
@@ -120,6 +126,41 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
             }
         </div>
     };
+
+    // Only a video or a series of videos has the mark (the Engine says so). It is staged like a field and saved with Save changes.
+    private RenderFragment ExplicitRow(ItemFieldEditSession fields, EditSessionState session, ItemExplicitResponse saved) => __builder =>
+    {
+        var on = session.Pending.TryGetField(fields.EntityId, ItemFieldEditSession.ExplicitFieldKey, out var staged)
+            ? string.Equals(staged, "true", StringComparison.OrdinalIgnoreCase)
+            : saved.IsExplicit;
+        <section class="tl-editor-details__group tl-editor-explicit" aria-label="@L["EditorDetailsPanel_ExplicitMark"].Value" data-field-key="explicit">
+            <AppTooltip Text="@L["EditorDetailsPanel_ExplicitInfo"].Value">
+                <AppSwitchRow Label="@L["EditorDetailsPanel_Explicit"].Value"
+                              Description="@L["EditorDetailsPanel_ExplicitInfo"].Value"
+                              Value="@on"
+                              ValueChanged="@((bool value) => StageExplicit(fields, session, saved, value))" />
+            </AppTooltip>
+        </section>
+    };
+
+    private void StageExplicit(ItemFieldEditSession fields, EditSessionState session, ItemExplicitResponse saved, bool value)
+    {
+        if (!session.IsActive || Mode is not { CanEdit: true })
+        {
+            return;
+        }
+
+        // Back to what is saved takes the staged change out, so Save never counts a no-op.
+        if (value == saved.IsExplicit)
+        {
+            session.Pending.ClearField(fields.EntityId, ItemFieldEditSession.ExplicitFieldKey);
+        }
+        else
+        {
+            session.Pending.SetField(fields.EntityId, ItemFieldEditSession.ExplicitFieldKey, value ? "true" : "false",
+                before: EditReviewRows.ExplicitText(saved.IsExplicit));
+        }
+    }
 
     private RenderFragment FactRow(MediaEditorDetailsFieldPresentation field) => __builder =>
     {

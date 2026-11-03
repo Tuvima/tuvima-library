@@ -110,6 +110,15 @@ public sealed class ItemFieldEditSession
 
     public Guid EntityId => _scope?.FieldEntityId ?? Guid.Empty;
 
+    /// <summary>
+    /// The Explicit mark of a video or a series of videos, as saved now (null for every other kind of item). Staged like any other
+    /// field under <see cref="ExplicitFieldKey"/> and written by Save changes, never straight away.
+    /// </summary>
+    public ItemExplicitResponse? ExplicitMark { get; private set; }
+
+    /// <summary>The key the Explicit mark is staged under in the pending list.</summary>
+    public const string ExplicitFieldKey = "explicit";
+
     /// <summary>Whether the active scope lets this person change its fields at all (a read-only library or file says no).</summary>
     public bool CanEditFields => _scope?.CanEditFields == true;
 
@@ -157,6 +166,13 @@ public sealed class ItemFieldEditSession
             {
                 _preferences = await _api.GetItemEditorPreferencesAsync(_scope.FieldEntityId, profile, ct);
                 _profileOverrides = ProfileOverridesFrom(_preferences);
+            }
+
+            ExplicitMark = null;
+            if (_scope is not null && string.Equals(_context.MediaType, "Videos", StringComparison.OrdinalIgnoreCase))
+            {
+                var mark = await _api.GetItemExplicitAsync(_scope.FieldEntityId, ct);
+                ExplicitMark = mark is { Supported: true } ? mark : null;
             }
 
             Loaded = _scope is not null;
@@ -242,6 +258,7 @@ public sealed class ItemFieldEditSession
     private void ApplySubject(EditorSubjectDto subject)
     {
         _subject = subject;
+        ExplicitMark = null;
         _mediaType = subject.Kind;
         _preferences = null;
         _profileOverrides = null;

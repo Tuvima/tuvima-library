@@ -73,6 +73,17 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
                 return Task.FromResult(true);
             });
             stub.SetHandler(nameof(IEngineApiClient.GetEditorFollowUpAsync), _ => Task.FromResult(_followUp));
+            stub.SetHandler(nameof(IEngineApiClient.GetItemExplicitAsync), _ =>
+            {
+                _explicitAsks++;
+                return Task.FromResult<MediaEngine.Contracts.Items.ItemExplicitResponse?>(
+                    new MediaEngine.Contracts.Items.ItemExplicitResponse { EntityId = MovieId, IsExplicit = _explicitSaved, Supported = true });
+            });
+            stub.SetHandler(nameof(IEngineApiClient.SaveItemExplicitAsync), _ =>
+            {
+                _explicitDirectSaves++;
+                return Task.FromResult(true);
+            });
             stub.SetHandler(nameof(IEngineApiClient.RunEditSessionAsync), args =>
             {
                 var request = (EditSessionRequest)args![0]!;
@@ -84,6 +95,9 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
     }
 
     private EditorFollowUpDto? _followUp;
+    private readonly bool _explicitSaved = false;
+    private int _explicitAsks;
+    private int _explicitDirectSaves;
 
     [Fact]
     public async Task AfterAMatchSave_TheRibbonListsTheNamedSteps_AndShowsAnAmberReasonWhenOneStops()
@@ -484,6 +498,110 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
         var editor = await StartEditorAsync();
 
         Assert.False(await editor.Flow.HandleEscapeAsync());
+    }
+
+    // -- The Explicit mark (videos and series of videos only) ------------------------------------
+
+    private static MediaEditorContextDto VideoContext(string mediaType = "Videos")
+    {
+        var context = EditingModeTestData.MovieContext();
+        context.MediaType = mediaType;
+        return context;
+    }
+
+    [Fact]
+    public async Task ExplicitSwitch_ShowsForAVideo_WithAnInfoTooltip()
+    {
+        var editor = await StartEditorAsync(VideoContext());
+        var cut = RenderPanel(editor);
+        await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
+
+        var row = cut.WaitForElement(".tl-editor-explicit");
+        Assert.Contains("Explicit", row.TextContent, StringComparison.Ordinal);
+        Assert.Contains("content limit", row.TextContent, StringComparison.Ordinal);
+        Assert.Single(cut.FindAll(".tl-editor-explicit input[role='switch']"));
+    }
+
+    [Fact]
+    public async Task ExplicitSwitch_IsAbsentForABook_AndTheEngineIsNotAsked()
+    {
+        var editor = await StartEditorAsync(VideoContext("Books"));
+        var cut = RenderPanel(editor);
+        await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
+        cut.WaitForElement("input[aria-label='Title']");
+
+        Assert.Empty(cut.FindAll(".tl-editor-explicit"));
+        Assert.Equal(0, _explicitAsks);
+    }
+
+    [Fact]
+    public async Task TurningExplicitOn_OnlyStagesIt_AndTurningItBackOffTakesItOut()
+    {
+        var editor = await StartEditorAsync(VideoContext());
+        var cut = RenderPanel(editor);
+        await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
+
+        cut.WaitForElement(".tl-editor-explicit input[role='switch']").Change(true);
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.True(editor.Session.Pending.TryGetField(MovieId, ItemFieldEditSession.ExplicitFieldKey, out var staged));
+            Assert.Equal("true", staged);
+        });
+        Assert.Equal(0, _explicitDirectSaves);
+        Assert.Empty(_sessionCalls);
+
+        cut.Find(".tl-editor-explicit input[role='switch']").Change(false);
+        cut.WaitForAssertion(() => Assert.True(editor.Session.Pending.IsEmpty));
+    }
+
+    [Fact]
+    public async Task StagedExplicit_ReadsOffThenOnInReview_AndSaveSendsItAsADetailsChange()
+    {
+        var editor = await StartEditorAsync(VideoContext());
+        var cut = RenderPanel(editor);
+        await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
+        cut.WaitForElement(".tl-editor-explicit input[role='switch']").Change(true);
+        cut.WaitForAssertion(() => Assert.Equal(1, editor.Session.Pending.Count));
+
+        var row = Assert.Single(EditReviewRows.Build(editor.Session.Pending, editor.Session, editor.Mode.Fields));
+        Assert.Equal("Explicit", row.What);
+        Assert.Equal("Off", row.Before);
+        Assert.Equal("On", row.After);
+
+        EditSessionRequest? sent = null;
+        _answer = request =>
+        {
+            if (!request.PreviewOnly)
+            {
+                sent = request;
+            }
+
+            return Ok(request);
+        };
+        SaveFromReview(cut);
+
+        cut.WaitForAssertion(() => Assert.NotNull(sent));
+        var field = Assert.Single(Assert.Single(sent!.Changes).Fields);
+        Assert.Equal("explicit", field.Key);
+        Assert.Equal("true", field.Value);
+        Assert.Equal(0, _explicitDirectSaves);
+    }
+
+    [Fact]
+    public async Task CancellingTheEditor_DiscardsAStagedExplicit_WithoutSavingIt()
+    {
+        var editor = await StartEditorAsync(VideoContext(), discardWhenAsked: true);
+        var cut = RenderPanel(editor);
+        await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
+        cut.WaitForElement(".tl-editor-explicit input[role='switch']").Change(true);
+        cut.WaitForAssertion(() => Assert.Equal(1, editor.Session.Pending.Count));
+
+        await cut.InvokeAsync(() => editor.Flow.LeaveAsync());
+
+        Assert.True(editor.Session.Pending.IsEmpty);
+        Assert.Equal(0, _explicitDirectSaves);
+        Assert.Empty(_sessionCalls);
     }
 
     // -- The Details tool ------------------------------------------------------------------------

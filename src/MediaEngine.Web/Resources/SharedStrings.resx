@@ -1194,6 +1194,15 @@
   <data name="Glossary_Series" xml:space="preserve">
     <value>Series</value>
   </data>
+  <data name="EditorDetailsPanel_ExplicitMark" xml:space="preserve">
+    <value>Explicit mark</value>
+  </data>
+  <data name="EditorDetailsPanel_Explicit" xml:space="preserve">
+    <value>Explicit</value>
+  </data>
+  <data name="EditorDetailsPanel_ExplicitInfo" xml:space="preserve">
+    <value>Hides this from every profile that has a content limit, whatever the library setting says. Profiles set to Everything still see it.</value>
+  </data>
   <data name="EditorDetailsPanel_ResetAllToProviderValues" xml:space="preserve">
     <value>Reset all to provider values</value>
   </data>

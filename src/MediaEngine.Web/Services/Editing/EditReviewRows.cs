@@ -104,8 +104,16 @@ public static class EditReviewRows
                                          ? FirstText(presented.DisplayValue, presented.Value) ?? NotSet
                                          : AsItIsNow);
                         var after = string.IsNullOrWhiteSpace(field.Value) ? "Provider value" : field.Value.Trim();
+                        var isExplicit = string.Equals(field.Key.Trim(), ItemFieldEditSession.ExplicitFieldKey, StringComparison.OrdinalIgnoreCase);
+                        if (isExplicit)
+                        {
+                            after = ExplicitText(string.Equals(after, "true", StringComparison.OrdinalIgnoreCase));
+                            before = pending.Before(change.Id + ":" + field.Key.Trim())
+                                     ?? (fields is { ExplicitMark: { } mark } && fields.EntityId == change.EntityId ? ExplicitText(mark.IsExplicit) : AsItIsNow);
+                        }
+
                         rows.Add(new EditReviewRow(change.Id, field.Key, change.EntityId, change.Kind, EditReviewGroup.Metadata, item,
-                            presented?.Label ?? ReadableKey(field.Key), before, after, null));
+                            isExplicit ? "Explicit" : presented?.Label ?? ReadableKey(field.Key), before, after, null));
                     }
 
                     break;
@@ -177,6 +185,9 @@ public static class EditReviewRows
     }
 
     // "release_year" reads "Release year" when no loaded item gives the field its own label.
+    /// <summary>How the Explicit mark reads in Review changes, before and after.</summary>
+    public static string ExplicitText(bool isExplicit) => isExplicit ? "On" : "Off";
+
     private static string ReadableKey(string key)
     {
         var words = key.Replace('_', ' ').Trim();
