@@ -157,6 +157,7 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
     private static void OpenMenuAndClick(IRenderedComponent<NeedsReviewPageContent> cut, string label)
     {
         cut.Find("tr.needs-review-table__row .app-overflow-menu__trigger").Click();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("button.app-menu-item"), button => button.TextContent.Contains(label, StringComparison.Ordinal)));
         cut.FindAll("button.app-menu-item").Single(button => button.TextContent.Contains(label, StringComparison.Ordinal)).Click();
     }
 
