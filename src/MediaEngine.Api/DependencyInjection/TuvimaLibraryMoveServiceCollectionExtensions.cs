@@ -25,6 +25,7 @@ public static class TuvimaLibraryMoveServiceCollectionExtensions
 
         // The Match tool's parent change and physical-files change save through the same move service and organiser.
         services.AddSingleton<IEditSessionChangeHandler, RelationshipEditSessionChangeHandler>();
+        services.AddSingleton<IEditSessionChangeHandler, ChildRematchEditSessionChangeHandler>();
         services.AddSingleton<IEditSessionChangeHandler, FileMoveEditSessionChangeHandler>();
         return services;
     }

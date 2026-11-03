@@ -140,6 +140,7 @@ public sealed class EditSessionService(
             .Where(change => EditSessionChangeKinds.IsDataChange(change.Kind))
             .OrderBy(change => change.Kind switch
             {
+                EditSessionChangeKinds.ChildRematch => 3,
                 EditSessionChangeKinds.SiblingMatch => 2,
                 EditSessionChangeKinds.Identity or EditSessionChangeKinds.ExtraMove => 1,
                 _ => 0,

@@ -36,7 +36,14 @@ public static class EditSessionChangeKinds
     /// </summary>
     public const string SiblingMatch = "sibling_match";
 
-    public static readonly IReadOnlyList<string> All = [Details, Identity, Relationship, Artwork, FileMove, ExtraMove, SiblingMatch];
+    /// <summary>
+    /// "Re-match seasons and episodes" (universal editor v3, D8 item 3): after a show is re-matched, its seasons and episodes are matched
+    /// again against the new show by number, and what does not fit goes to Needs Review. The target is a
+    /// <see cref="ShowChildRematchTarget"/> (see <see cref="EditSessionChildRematchTarget"/>). Like an identity change it cannot be undone.
+    /// </summary>
+    public const string ChildRematch = "child_rematch";
+
+    public static readonly IReadOnlyList<string> All = [Details, Identity, Relationship, Artwork, FileMove, ExtraMove, SiblingMatch, ChildRematch];
 
     public static bool IsKnown(string? kind) => kind is not null && All.Contains(kind, StringComparer.Ordinal);
 

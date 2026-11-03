@@ -102,5 +102,52 @@ public static partial class MetadataEndpoints
           .ProducesProblem(StatusCodes.Status404NotFound)
           .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead)
           .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataRead);
+
+        group.MapGet("/{entityId:guid}/rematch-children", async (
+            Guid entityId, string seriesId, HttpContext http, IShowChildRematcher rematcher,
+            CatalogueResourceAuthorizationService resources, ProviderApiClient tvdb, CancellationToken ct) =>
+        {
+            if (seriesId.Length is < 1 or > 12 || !seriesId.All(char.IsAsciiDigit))
+            {
+                return ApiErrors.BadRequest("Choose a valid TheTVDB show.");
+            }
+            if (!tvdb.IsConfigured("tvdb"))
+            {
+                return ApiErrors.BadRequest("Connect TheTVDB in Settings before re-matching the seasons and episodes.");
+            }
+            try
+            {
+                var preview = await rematcher.PreviewAsync(entityId, seriesId, LibraryItemEndpoints.CanEdit(http, resources), ct);
+                return preview is null ? ApiErrors.NotFound("This item is not a TV show.") : Results.Ok(preview);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                return Results.Problem($"TheTVDB did not answer: {ex.Message}", statusCode: StatusCodes.Status502BadGateway);
+            }
+        }).WithName("PreviewShowChildRematch")
+          .Produces<ShowChildRematchPreviewDto>(StatusCodes.Status200OK)
+          .ProducesProblem(StatusCodes.Status400BadRequest)
+          .ProducesProblem(StatusCodes.Status404NotFound)
+          .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead)
+          .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataRead);
+
+        // The saved ribbon's named steps (universal editor v3, D7): the finishing work the Engine does after a match, read from the item's
+        // durable identity job, so it is the same whether the Dashboard watched it happen or came back later.
+        group.MapGet("/{entityId:guid}/follow-up", async (
+            Guid entityId, IItemCanonicalRepository items, IIdentityJobRepository jobs, CancellationToken ct) =>
+        {
+            var context = await items.ResolveWorkAssetContextAsync(entityId, ct);
+            if (context is null)
+            {
+                return ApiErrors.NotFound("Follow-up work was not found.");
+            }
+
+            var job = await jobs.GetByEntityAsync(context.AssetId, ct);
+            return Results.Ok(EditorFollowUpPlan.From(entityId, job));
+        }).WithName("GetEditorFollowUp")
+          .Produces<EditorFollowUpDto>(StatusCodes.Status200OK)
+          .ProducesProblem(StatusCodes.Status404NotFound)
+          .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead)
+          .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataRead);
     }
 }
