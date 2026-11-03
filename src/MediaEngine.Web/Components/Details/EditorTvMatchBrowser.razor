@@ -16,17 +16,17 @@
 <div class="tl-tvm" data-scope="@(NeedsEpisode ? "episode" : "show")">
     <section class="tl-tvm__column tl-tvm__column--shows" aria-label="@L["EditorTvMatchBrowser_Show"].Value">
         <h3 class="tl-tvm__heading">@L["EditorTvMatchBrowser_Show"]</h3>
-        @if (NeedsEpisode)
-        {
-            <AppButton Label="@L["EditorTvMatchBrowser_SearchAllShows"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
-                       aria-label="@L["EditorTvMatchBrowser_SearchAllShows"].Value" OnClick="SearchAllShows" />
-        }
         <div class="tl-tvm__search">
             <AppTextField Label="@L["EditorTvMatchBrowser_SearchShows"].Value" HideLabel="true" Value="@_query" ValueChanged="@(value => _query = value ?? string.Empty)"
                           Placeholder="@L["EditorTvMatchBrowser_SearchForAShow"].Value" Immediate="true" OnKeyDown="OnQueryKey" aria-label="@L["EditorTvMatchBrowser_SearchForAShow"].Value" />
             <AppButton Label="@L["Nav_Search"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Search"
                        Disabled="@_showsLoading" OnClick="SearchShowsAsync" />
         </div>
+        @if (NeedsEpisode)
+        {
+            <AppButton Label="@L["EditorTvMatchBrowser_SearchAllShows"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
+                       aria-label="@L["EditorTvMatchBrowser_SearchAllShows"].Value" OnClick="SearchAllShows" />
+        }
         @if (_showsLoading)
         {
             @Skeleton()

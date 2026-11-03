@@ -190,7 +190,7 @@ public sealed class EditItemSwitchTests : AsyncBunitContext
             Assert.True(editor.Flow.Switching);
             Assert.NotEmpty(panel.FindAll(".tl-editor-busy"));
             Assert.Empty(panel.FindAll(".tl-editor-details"));
-            Assert.All(panel.FindAll(".tl-editor-window__tool"), tool => Assert.True(tool.HasAttribute("disabled")));
+            Assert.All(panel.FindAll(".tl-editor-window__tabs [role='tab']"), tool => Assert.True(tool.HasAttribute("disabled")));
         });
         Assert.Equal(ShowId, editor.Session.ActiveItem!.EntityId);
 

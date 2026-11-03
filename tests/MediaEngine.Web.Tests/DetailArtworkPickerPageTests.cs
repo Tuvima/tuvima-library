@@ -116,13 +116,13 @@ public sealed class DetailArtworkPickerPageTests : AsyncBunitContext
         var cut = Render<DetailPage>(parameters => parameters.Add(page => page.Model, Model()));
         cut.Find("button[aria-label='More actions']").Click();
         cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Edit").Click();
-        _editor.WaitForAssertion(() => Assert.NotEmpty(_editor.FindAll(".tl-editor-window__tool")));
+        _editor.WaitForAssertion(() => Assert.NotEmpty(_editor.FindAll(".tl-editor-window__tabs [role='tab']")));
         return cut;
     }
 
     private void OpenArtworkTool(IRenderedComponent<DetailPage> cut)
     {
-        _editor.FindAll(".tl-editor-window__tool").Single(tool => tool.TextContent.Trim() == "Artwork").Click();
+        _editor.FindAll(".tl-editor-window__tabs [role='tab']").Single(tool => tool.TextContent.Trim() == "Artwork").Click();
         _editor.WaitForAssertion(() => Assert.NotEmpty(_editor.FindAll(".tl-art-picker__body")));
     }
 
@@ -134,7 +134,7 @@ public sealed class DetailArtworkPickerPageTests : AsyncBunitContext
         OpenArtworkTool(cut);
 
         Assert.Single(_editor.FindAll(".tl-editor-window .tl-art-picker"));
-        Assert.Equal("true", _editor.Find(".tl-editor-window__tool.is-open").GetAttribute("aria-pressed"));
+        Assert.Equal("true", _editor.Find(".tl-editor-window__tabs [role='tab'][aria-selected='true']").GetAttribute("aria-selected"));
     }
 
     [Fact]

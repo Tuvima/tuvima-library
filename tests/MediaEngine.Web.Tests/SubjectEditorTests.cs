@@ -113,7 +113,7 @@ public sealed class SubjectEditorTests : AsyncBunitContext
 
         var bar = RenderBar(editor);
 
-        Assert.Equal(["Details", "Artwork"], bar.FindAll(".tl-editor-window__tool").Select(button => button.TextContent.Trim()));
+        Assert.Equal(["Details", "Artwork"], bar.FindAll(".tl-editor-window__tabs [role='tab']").Select(button => button.TextContent.Trim()));
         Assert.False(editor.Mode.Fields.CanMatch);
         Assert.False(editor.Mode.Fields.ProvidersAvailable);
         Assert.Equal(EditorSubjectKinds.Person, editor.Mode.Fields.SubjectKind);
@@ -130,7 +130,7 @@ public sealed class SubjectEditorTests : AsyncBunitContext
 
         var bar = RenderBar(editor);
 
-        Assert.Equal(["Details", "Artwork"], bar.FindAll(".tl-editor-window__tool").Select(button => button.TextContent.Trim()));
+        Assert.Equal(["Details", "Artwork"], bar.FindAll(".tl-editor-window__tabs [role='tab']").Select(button => button.TextContent.Trim()));
         Assert.False(editor.Mode.Fields.CanMatch);
     }
 
@@ -148,7 +148,7 @@ public sealed class SubjectEditorTests : AsyncBunitContext
 
         var bar = RenderBar(editor);
 
-        Assert.Equal(["Details"], bar.FindAll(".tl-editor-window__tool").Select(button => button.TextContent.Trim()));
+        Assert.Equal(["Details"], bar.FindAll(".tl-editor-window__tabs [role='tab']").Select(button => button.TextContent.Trim()));
     }
 
     [Theory]

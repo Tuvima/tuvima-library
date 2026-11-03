@@ -128,7 +128,7 @@ public sealed class EditingDismissalTests : AsyncBunitContext
         cut.Find(".tl-detail-secondary-actions button[aria-label='More actions']").Click();
         cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Edit").Click();
         _editor.WaitForAssertion(() => Assert.Single(_editor.FindAll(".tl-editor-window")));
-        _editor.WaitForAssertion(() => Assert.NotEmpty(_editor.FindAll(".tl-editor-window__tool")));
+        _editor.WaitForAssertion(() => Assert.NotEmpty(_editor.FindAll(".tl-editor-window__tabs [role='tab']")));
     }
 
     private async Task<IRenderedComponent<DetailPage>> StartEditingAsync(DetailEntityType type = DetailEntityType.Movie)
@@ -278,7 +278,7 @@ public sealed class EditingDismissalTests : AsyncBunitContext
             .AddChildContent<DetailPage>(page => page.Add(component => component.Model, Model())));
         overlay.Find(".tl-detail-secondary-actions button[aria-label='More actions']").Click();
         overlay.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Edit").Click();
-        _editor.WaitForAssertion(() => Assert.NotEmpty(_editor.FindAll(".tl-editor-window__tool")));
+        _editor.WaitForAssertion(() => Assert.NotEmpty(_editor.FindAll(".tl-editor-window__tabs [role='tab']")));
         _editor.WaitForElement("input[aria-label='Title']").Input("Dune");
 
         // app-dialog.js reports a click on the backdrop (and Esc outside a field, and the sheet's grip) through RequestCancel. The editor is a
@@ -439,7 +439,7 @@ public sealed class EditingDismissalTests : AsyncBunitContext
     public async Task ThePencilsTheOldBannerAndTheSectionBelowTheHeroStayGoneWhileThePopOverIsOpen()
     {
         var cut = await StartEditingAsync();
-        _editor.FindAll(".tl-editor-window__tool").Single(tool => tool.TextContent.Trim() == "Match").Click();
+        _editor.FindAll(".tl-editor-window__tabs [role='tab']").Single(tool => tool.TextContent.Trim() == "Match").Click();
         _editor.WaitForAssertion(() => Assert.Single(_editor.FindAll(".tl-editor-panel")));
 
         Assert.Empty(cut.FindAll(".tl-editing-pencil"));

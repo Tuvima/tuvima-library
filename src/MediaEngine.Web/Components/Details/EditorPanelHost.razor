@@ -51,38 +51,49 @@
                 @TreeContent
             }
             <div class="tl-editor-window__content">
+                @{
+                    RenderFragment body = @<div class="tl-editor-panel__body">
+                            @if (_reviewing)
+                            {
+                                <ReviewChangesView Source="flow" OnOutcome="OnReviewOutcome" />
+                            }
+                            else if (tool == EditTool.Artwork && Picker is not null)
+                            {
+                                <EditorArtworkTool Mode="Mode" Picker="Picker" />
+                            }
+                            else
+                            {
+                                @ChildContent?.Invoke(tool)
+                            }
+                        </div>;
+                }
                 @if (TitleOverride is null && !_reviewing)
                 {
-                    <nav class="tl-editor-window__tabs" aria-label="@L["Common_EditingTools"].Value">
-                        @foreach (var (railTool, label, icon) in RailTools(mode, ShowHistory))
+                    @* The shared tab strip (the same underline, spacing and arrow keys as the profile and browse pages). The open tool's panel holds the body. *@
+                    var railTools = RailTools(mode, ShowHistory).ToList();
+                    var activeIndex = Math.Max(0, railTools.FindIndex(entry => entry.Item1 == tool));
+                    <AppTabs Class="tl-editor-window__tabs"
+                             Label="@L["Common_EditingTools"].Value"
+                             Rounded="false"
+                             Border="false"
+                             Elevation="0"
+                             ActivePanelIndex="@activeIndex"
+                             ActivePanelIndexChanged="@(index => index >= 0 && index < railTools.Count && railTools[index].Item1 != tool ? flow.SelectToolAsync(railTools[index].Item1) : Task.CompletedTask)">
+                        @foreach (var (railTool, label, icon) in railTools)
                         {
-                            var isOpen = railTool == tool;
-                            <AppButton ButtonStyle="AppButtonStyle.Text"
-                                       Tone="AppUiTone.Neutral"
-                                       Class="@($"tl-editor-window__tool{(isOpen ? " is-open" : string.Empty)}")"
-                                       StartIcon="@icon"
-                                       Disabled="@(flow.Saving || flow.Switching)"
-                                       aria-pressed="@(isOpen ? "true" : "false")"
-                                       OnClick="@(() => railTool == tool ? Task.CompletedTask : flow.SelectToolAsync(railTool))">
-                                @label
-                            </AppButton>
+                            <AppTabPanel Text="@label" Icon="@icon" Disabled="@(flow.Saving || flow.Switching)">
+                                @if (railTool == tool)
+                                {
+                                    @body
+                                }
+                            </AppTabPanel>
                         }
-                    </nav>
+                    </AppTabs>
                 }
-                <div class="tl-editor-panel__body">
-                    @if (_reviewing)
-                    {
-                        <ReviewChangesView Source="flow" OnOutcome="OnReviewOutcome" />
-                    }
-                    else if (tool == EditTool.Artwork && Picker is not null)
-                    {
-                        <EditorArtworkTool Mode="Mode" Picker="Picker" />
-                    }
-                    else
-                    {
-                        @ChildContent?.Invoke(tool)
-                    }
-                </div>
+                else
+                {
+                    @body
+                }
             </div>
         </div>
         @if (!_reviewing)

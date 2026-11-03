@@ -96,6 +96,7 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
             @if (field.IsChips)
             {
                 <MediaEditorTagEditor Label="@field.Label"
+                                      HideLabel="true"
                                       AddLabel="@(isTags ? "Add tag" : "Add genre")"
                                       HelpText="@(isTags ? "Tags are private library organization and are not replaced by provider refreshes." : "Genres you set replace the provider's genres on this item only.")"
                                       Value="@shown"

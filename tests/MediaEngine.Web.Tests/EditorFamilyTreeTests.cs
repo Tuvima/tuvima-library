@@ -33,6 +33,22 @@ public sealed class EditorFamilyTreeTests : AsyncBunitContext
         Services.AddLogging();
     }
 
+    [Fact]
+    public void Split_CombinedArtistAndAlbumLabel_ReturnsTitleWithArtistAsContext()
+    {
+        var (title, context) = EditorFamilyTree.Split("The Beatles Abbey Road", "Abbey Road");
+
+        Assert.Equal("Abbey Road", title);
+        Assert.Equal("The Beatles", context);
+    }
+
+    [Fact]
+    public void Split_PlainLabel_IsUnchanged()
+    {
+        Assert.Equal(("Abbey Road", (string?)null), EditorFamilyTree.Split("Abbey Road", "Abbey Road"));
+        Assert.Equal(("Come Together", (string?)null), EditorFamilyTree.Split("Come Together", null));
+    }
+
     private async Task<EditorHost> OpenAsync(IEngineApiClient api, Guid entityId, IReadOnlyList<EditTrailItem> trail, string mediaType = "TV")
     {
         await _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));

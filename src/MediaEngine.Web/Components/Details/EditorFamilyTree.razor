@@ -18,6 +18,7 @@
     var pending = Flow.Session.Pending.Changes.Select(change => change.EntityId).ToHashSet();
     var focusId = FocusTarget(rows, activeId);
     <aside class="@(_open ? "tl-family is-open" : "tl-family")" aria-label="@Family.Heading" aria-busy="@(Family.Loading || Flow.Switching ? "true" : null)">
+        <div class="tl-family__toggle-wrap">
         <AppButton ButtonStyle="AppButtonStyle.Outlined"
                    Tone="AppUiTone.Neutral"
                    Class="tl-family__toggle"
@@ -25,9 +26,10 @@
                    aria-controls="tl-family-list"
                    OnClick="ToggleOpen">
             <span class="tl-family__toggle-heading">@Family.Heading</span>
-            <span class="tl-family__toggle-current">@(Flow.Session.ActiveItem?.Title ?? string.Empty)</span>
+            <span class="tl-family__toggle-current">@Split(Flow.Session.ActiveItem?.Title ?? string.Empty, Flow.Session.ActiveItem?.Title).Title</span>
             <AppIcon Name="@(_open ? AppIcons.ChevronDown : AppIcons.ChevronRight)" Decorative="true" />
         </AppButton>
+        </div>
         <h3 class="tl-family__heading">@Family.Heading</h3>
         <ul id="tl-family-list" class="tl-family__list" role="tree" aria-label="@Family.Heading" aria-multiselectable="false">
             @foreach (var row in rows.Select((row, index) => (row, index)))
@@ -56,6 +58,27 @@
 
     /// <summary>Opens Match for a row that is not matched yet (the editor opens on Match when the item is not matched, D4).</summary>
     [Parameter] public bool CanMatch { get; set; }
+
+    /// <summary>
+    /// A combined label such as "The Beatles Abbey Road" reads as the title with the artist as a muted second line. The clean title is known
+    /// for the item being edited; when the row's label ends with it, the rest is the context.
+    /// </summary>
+    internal static (string Title, string? Context) Split(string label, string? cleanTitle)
+    {
+        if (!string.IsNullOrWhiteSpace(cleanTitle)
+            && label.Length > cleanTitle.Length + 1
+            && label.EndsWith(cleanTitle, StringComparison.OrdinalIgnoreCase)
+            && char.IsWhiteSpace(label[label.Length - cleanTitle.Length - 1]))
+        {
+            var context = label[..(label.Length - cleanTitle.Length)].TrimEnd(' ', '-', '\u2013', '\u2014', ':', '\u2022');
+            if (context.Length > 0)
+            {
+                return (cleanTitle, context);
+            }
+        }
+
+        return (label, null);
+    }
 
     private static string RowId(Guid id) => $"tl-family-row-{id:N}";
 
@@ -138,7 +161,8 @@
                         {
                             <span class="tl-family__number">@row.Detail</span>
                         }
-                        <span class="tl-family__title">@row.Title</span>
+                        @{ var shown = Split(row.Title, selected ? Flow?.Session.ActiveItem?.Title : null); }
+                        <span class="tl-family__title">@shown.Title@if (shown.Context is not null){<span class="tl-family__context">@shown.Context</span>}</span>
                         @if (!string.IsNullOrWhiteSpace(row.Variant))
                         {
                             <span class="tl-family__variant">@row.Variant</span>

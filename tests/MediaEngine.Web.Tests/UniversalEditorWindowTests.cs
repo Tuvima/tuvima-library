@@ -272,7 +272,7 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
 
         var cut = RenderBar(editor);
 
-        Assert.Equal(["Details", "Artwork", "Match", "History"], cut.FindAll(".tl-editor-window__tool").Select(tool => tool.TextContent.Trim()));
+        Assert.Equal(["Details", "Artwork", "Match", "History"], cut.FindAll(".tl-editor-window__tabs [role='tab']").Select(tool => tool.TextContent.Trim()));
     }
 
     [Fact]
@@ -280,12 +280,12 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
     {
         var noMatch = TvContext("group");
         var editor = await StartEditorAsync(noMatch);
-        Assert.Equal(["Details", "Artwork", "History"], RenderBar(editor).FindAll(".tl-editor-window__tool").Select(tool => tool.TextContent.Trim()));
+        Assert.Equal(["Details", "Artwork", "History"], RenderBar(editor).FindAll(".tl-editor-window__tabs [role='tab']").Select(tool => tool.TextContent.Trim()));
 
         var noArtwork = EditingModeTestData.MovieContext();
         noArtwork.Scopes[0].CanEditArtwork = false;
         var second = await StartEditorAsync(noArtwork);
-        Assert.Equal(["Details", "Match", "History"], RenderBar(second).FindAll(".tl-editor-window__tool").Select(tool => tool.TextContent.Trim()));
+        Assert.Equal(["Details", "Match", "History"], RenderBar(second).FindAll(".tl-editor-window__tabs [role='tab']").Select(tool => tool.TextContent.Trim()));
     }
 
     [Fact]
@@ -408,7 +408,7 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
         var cut = RenderPanel(editor);
 
         await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
-        cut.WaitForAssertion(() => Assert.Contains("History", cut.FindAll(".tl-editor-window__tool").Select(tool => tool.TextContent.Trim())));
+        cut.WaitForAssertion(() => Assert.Contains("History", cut.FindAll(".tl-editor-window__tabs [role='tab']").Select(tool => tool.TextContent.Trim())));
 
         await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.History));
         cut.WaitForAssertion(() => Assert.Equal("history", cut.Find(".tl-editor-window").GetAttribute("data-tool")));

@@ -259,7 +259,7 @@ public sealed class DetailRouteHostLoadingTests : AsyncBunitContext
 
         await ChooseEditEntryAsync(cut);
         _editor.WaitForAssertion(() => Assert.Single(_editor.FindAll(".tl-editor-window")));
-        Assert.NotEmpty(_editor.FindAll(".tl-editor-window__tool"));
+        Assert.NotEmpty(_editor.FindAll(".tl-editor-window__tabs [role='tab']"));
 
         cut.Render(p => p.Add(c => c.Request, Request(second)));
         cut.WaitForState(() => _pending.ContainsKey(second));
@@ -282,7 +282,7 @@ public sealed class DetailRouteHostLoadingTests : AsyncBunitContext
         await ChooseEditEntryAsync(cut);
 
         _editor.WaitForAssertion(() => Assert.Single(_editor.FindAll(".tl-editor-window")));
-        Assert.NotEmpty(_editor.FindAll(".tl-editor-window__tool"));
+        Assert.NotEmpty(_editor.FindAll(".tl-editor-window__tabs [role='tab']"));
         Assert.Empty(cut.FindAll(".sme-dialog"));
         // The page behind never changes: no bar, no pencils, no editing state.
         Assert.Empty(cut.FindAll(".tl-editing-bar"));
@@ -304,7 +304,7 @@ public sealed class DetailRouteHostLoadingTests : AsyncBunitContext
         await ChooseEditEntryAsync(cut);
 
         Assert.Single(_editor.FindAll(".tl-editor-window"));
-        Assert.NotEmpty(_editor.FindAll(".tl-editor-window__tool"));
+        Assert.NotEmpty(_editor.FindAll(".tl-editor-window__tabs [role='tab']"));
     }
 
     private static async Task ChooseEditEntryAsync(IRenderedComponent<DetailRouteHost> cut)

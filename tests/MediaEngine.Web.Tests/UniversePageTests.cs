@@ -401,7 +401,7 @@ public sealed class UniversePageTests : AsyncBunitContext
         Assert.Empty(cut.FindAll(".tl-editing-slot"));
         Assert.Empty(cut.FindAll(".tl-dialog"));
         Assert.DoesNotContain("tl-editing-drawer", cut.Markup, StringComparison.Ordinal);
-        Assert.Equal(["Details", "Artwork"], _editor.FindAll(".tl-editor-window__tool").Select(button => button.TextContent.Trim()));
+        Assert.Equal(["Details", "Artwork"], _editor.FindAll(".tl-editor-window__tabs [role='tab']").Select(button => button.TextContent.Trim()));
         // A Universe has no family tree; the header just names what is being edited.
         Assert.Empty(_editor.FindAll(".tl-family"));
         Assert.Contains("Dune", _editor.Find(".tl-editor-popover__editing").TextContent);

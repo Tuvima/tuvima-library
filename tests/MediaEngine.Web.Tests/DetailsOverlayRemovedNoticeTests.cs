@@ -127,7 +127,7 @@ public sealed class DetailsOverlayRemovedNoticeTests : AsyncBunitContext
         cut.Find(".tl-detail-secondary-actions button[aria-label='More actions']").Click();
         cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Edit").Click();
         _editor.WaitForAssertion(() => Assert.Single(_editor.FindAll(".tl-editor-window")));
-        _editor.WaitForAssertion(() => Assert.NotEmpty(_editor.FindAll(".tl-editor-window__tool")));
+        _editor.WaitForAssertion(() => Assert.NotEmpty(_editor.FindAll(".tl-editor-window__tabs [role='tab']")));
         return cut;
     }
 
