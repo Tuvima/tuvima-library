@@ -47,6 +47,10 @@ public static class ApiReadServiceCollectionExtensions
         services.AddSingleton<EditSessionCallerAccessor>();
         services.AddSingleton<IEditSessionChangeHandler, IdentityEditSessionChangeHandler>();
         services.AddSingleton<IEditSessionChangeHandler, ExtraMoveEditSessionChangeHandler>();
+        services.AddSingleton<VideoOrderWriter>();
+        services.AddSingleton<IEditSessionChangeHandler, VideoSeriesEditSessionChangeHandler>();
+        services.AddSingleton<IEditSessionChangeHandler, VideoOrderEditSessionChangeHandler>();
+        services.AddSingleton<IEditSessionChangeHandler, VideoRenameEditSessionChangeHandler>();
         services.AddScoped<IEpisodeSiblingMatcher, EpisodeSiblingMatcher>();
         services.AddScoped<IShowChildRematcher, ShowChildRematcher>();
         services.AddSingleton<IEditSessionChangeHandler, SiblingMatchEditSessionChangeHandler>();

@@ -30,6 +30,10 @@
                                OnPick="PickDestination"
                                OnCancel="BackToEdit" />
     }
+    else if (Selection.Panel == BulkPanelKind.Series)
+    {
+        <BulkVideoSeriesPicker Rows="Selection.Rows" Pending="Pending" CanChange="CanChange" OnDone="BackToEdit" />
+    }
     else if (Selection.Panel == BulkPanelKind.Match)
     {
         <section class="tl-bulk__group" aria-label="@L["Common_Match"].Value">
@@ -148,6 +152,7 @@
     {
         BulkPanelKind.Move => "move",
         BulkPanelKind.Match => "match",
+        BulkPanelKind.Series => "series",
         _ => "edit",
     };
 

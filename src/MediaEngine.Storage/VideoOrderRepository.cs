@@ -43,13 +43,15 @@ public sealed class VideoOrderRepository : IVideoOrderRepository
         var groups = new List<VideoOrderGroup>();
         foreach (var parent in parents)
         {
-            var entries = conn.Query<(Guid WorkId, Guid AssetId, string? Title)>(
+            var entries = conn.Query<(Guid WorkId, Guid AssetId, string? Title, string? Path, string? AddedAt)>(
                 """
                 SELECT w.id AS WorkId,
                        ma.id AS AssetId,
                        COALESCE(
                            (SELECT value FROM canonical_values WHERE entity_id = ma.id AND key = 'title' LIMIT 1),
-                           (SELECT value FROM canonical_values WHERE entity_id = w.id AND key = 'title' LIMIT 1)) AS Title
+                           (SELECT value FROM canonical_values WHERE entity_id = w.id AND key = 'title' LIMIT 1)) AS Title,
+                       ma.file_path_root AS Path,
+                       ma.presented_at AS AddedAt
                 FROM works w
                 JOIN editions e ON e.work_id = w.id
                 JOIN media_assets ma ON ma.edition_id = e.id
@@ -58,7 +60,12 @@ public sealed class VideoOrderRepository : IVideoOrderRepository
                 ORDER BY COALESCE(w.ordinal_sort, w.ordinal, 1e9), w.id;
                 """,
                 new { parent })
-                .Select(row => new VideoOrderEntry(row.WorkId, row.AssetId, string.IsNullOrWhiteSpace(row.Title) ? "Untitled" : row.Title))
+                .Select(row => new VideoOrderEntry(
+                    row.WorkId,
+                    row.AssetId,
+                    string.IsNullOrWhiteSpace(row.Title) ? "Untitled" : row.Title,
+                    string.IsNullOrWhiteSpace(row.Path) ? string.Empty : System.IO.Path.GetFileName(row.Path.Replace('\\', '/')),
+                    row.AddedAt))
                 .ToList();
             if (entries.Count == 0)
             {

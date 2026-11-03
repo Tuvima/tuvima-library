@@ -232,4 +232,31 @@ public static class BulkEditStager
         var reason = locked.Select(item => item.LockedReason).FirstOrDefault(text => !string.IsNullOrWhiteSpace(text))?.TrimEnd('.');
         return $"{locked.Count} of {field.Items.Count} can't take this change{(reason is null ? string.Empty : $" ({reason})")} and will be left as they are.";
     }
+
+    /// <summary>
+    /// Stages every ticked video into one series (universal editor v3.1): an existing series or section by id, or a new one by name. One entry
+    /// per video, so Review lists each one and the Engine's check flags any that cannot join. Returns how many were staged.
+    /// </summary>
+    public static int PutInSeries(PendingEditList pending, IReadOnlyList<BulkEditRow> rows, Guid? seriesId, string? newSeriesName, string label)
+    {
+        ArgumentNullException.ThrowIfNull(pending);
+        ArgumentNullException.ThrowIfNull(rows);
+        var name = newSeriesName?.Trim();
+        if (seriesId is null && string.IsNullOrWhiteSpace(name))
+        {
+            return 0;
+        }
+
+        foreach (var row in rows)
+        {
+            pending.SetTarget(
+                EditSessionChangeKinds.VideoSeries,
+                row.Id,
+                seriesId?.ToString(),
+                seriesId is null ? EditSessionVideo.NewSeriesToken(name!) : null,
+                label);
+        }
+
+        return rows.Count;
+    }
 }

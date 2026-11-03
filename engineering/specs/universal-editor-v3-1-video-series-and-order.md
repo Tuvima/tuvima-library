@@ -1,6 +1,6 @@
 # Spec: Universal editor v3.1 — video series, order and rename-to-order
 
-> **Status:** Locked (Shy, 2026-11-03: "Agree on all") · **Version:** 1 · **Last updated:** 2026-11-03 (drag and drop added) · **Related docs:** [Universal editor v3](universal-editor-v3.md) (Locked, built; its body is not rewritten) · [Videos](videos.md) · Mockups: [`video-series-and-order.html`](../design/mockups/universal-editor-v3/video-series-and-order.html)
+> **Status:** Built, awaiting Local checks (Locked by Shy 2026-11-03: "Agree on all"; built 2026-11-03) · **Version:** 1 · **Last updated:** 2026-11-03 (drag and drop added) · **Related docs:** [Universal editor v3](universal-editor-v3.md) (Locked, built; its body is not rewritten) · [Videos](videos.md) · Mockups: [`video-series-and-order.html`](../design/mockups/universal-editor-v3/video-series-and-order.html)
 
 ## 1. Goal
 

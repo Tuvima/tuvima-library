@@ -1,7 +1,10 @@
 namespace MediaEngine.Domain.Contracts;
 
-/// <summary>One video in a series (or a section of one), in the order it is shown.</summary>
-public sealed record VideoOrderEntry(Guid WorkId, Guid AssetId, string Title);
+/// <summary>
+/// One video in a series (or a section of one), in the order it is shown. <paramref name="FileName"/> and <paramref name="AddedAt"/> (when
+/// Library first showed it, as sortable text; null when unknown) feed the editor's sort button.
+/// </summary>
+public sealed record VideoOrderEntry(Guid WorkId, Guid AssetId, string Title, string FileName = "", string? AddedAt = null);
 
 /// <summary>The videos that share one parent: the series itself, or one of its sections.</summary>
 public sealed record VideoOrderGroup(Guid ParentWorkId, string Title, IReadOnlyList<VideoOrderEntry> Entries);

@@ -1,0 +1,119 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Editing
+@using MediaEngine.Contracts.Items
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient Api
+@inject ILogger<BulkVideoSeriesPicker> Logger
+@inject IStringLocalizer<SharedStrings> L
+
+@* "Put in a series" for several ticked videos (universal editor v3.1, D9): the same chooser as one video, applied to each. It only stages one
+   change per video; Review changes lists them all and flags any that cannot join. Nothing here moves a file. *@
+<section class="tl-bulk__group" aria-label="@BulkEditRules.PutInSeriesLabel" data-testid="bulk-video-series">
+    <p class="tl-bulk__note">@L["BulkVideoSeries_Intro", Rows.Count]</p>
+    @if (_loading)
+    {
+        <AppSkeleton Shape="AppSkeletonShape.Text" Width="60%" />
+    }
+    else
+    {
+        <AppSelect T="string"
+                   Label="@L["EditorVideoSeries_ChooseSeries"].Value"
+                   Value="@_choice"
+                   ValueChanged="@(value => _choice = value ?? string.Empty)"
+                   Options="@Options"
+                   Disabled="@(!CanChange)"
+                   AriaLabel="@L["EditorVideoSeries_ChooseSeries"].Value" />
+        @if (_choice == StartNew)
+        {
+            <AppTextField Label="@L["EditorVideoSeries_NewSeriesName"].Value" Value="@_name" ValueChanged="@(value => _name = value ?? string.Empty)"
+                          Immediate="true" MaxLength="@EditSessionVideo.MaxSeriesNameLength" />
+        }
+    }
+
+    <div class="tl-bulk__actions">
+        <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!CanChange || !CanStage)" OnClick="Stage">@L["BulkVideoSeries_Stage"]</AppButton>
+        <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="Cancel">@L["Search_Cancel"]</AppButton>
+    </div>
+</section>
+
+@code {
+    private const string StartNew = "new";
+
+    private IReadOnlyList<VideoSeriesTargetDto> _targets = [];
+    private bool _loading = true;
+    private string _choice = string.Empty;
+    private string _name = string.Empty;
+    private Guid[] _loadedFor = [];
+
+    [Parameter, EditorRequired] public IReadOnlyList<BulkEditRow> Rows { get; set; } = [];
+
+    [Parameter, EditorRequired] public PendingEditList Pending { get; set; } = default!;
+
+    [Parameter] public bool CanChange { get; set; } = true;
+
+    /// <summary>Raised after the series was staged or the step was cancelled, so the panel goes back to the fields.</summary>
+    [Parameter] public EventCallback OnDone { get; set; }
+
+    private bool CanStage => _choice == StartNew ? !string.IsNullOrWhiteSpace(_name) : Guid.TryParse(_choice, out _);
+
+    private IReadOnlyList<AppSelectOption> Options
+    {
+        get
+        {
+            var options = _targets
+                .Select(target => new AppSelectOption(target.Id.ToString(), $"{target.Title} · {(target.VideoCount == 1 ? L["EditorVideoSeries_VideoOne"].Value : L["EditorVideoSeries_VideoMany", target.VideoCount].Value)}"))
+                .ToList();
+            options.Add(new AppSelectOption(StartNew, L["EditorVideoSeries_StartANewSeries"].Value));
+            return options;
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var ids = Rows.Select(row => row.Id).ToArray();
+        if (ids.SequenceEqual(_loadedFor))
+        {
+            return;
+        }
+
+        _loadedFor = ids;
+        _loading = true;
+        _targets = [];
+        try
+        {
+            // The series a video can join are the ones in its own library; a video that is already in a series is offered none, so the first
+            // few ticked videos are asked until one has a list.
+            foreach (var id in ids.Take(5))
+            {
+                var state = await Api.GetVideoSeriesAsync(id);
+                if (state is { Targets.Count: > 0 })
+                {
+                    _targets = state.Targets;
+                    break;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Logger.LogWarning(ex, "The series a ticked video could join could not be read");
+        }
+
+        _loading = false;
+        _choice = _targets.Count > 0 ? _targets[0].Id.ToString() : StartNew;
+    }
+
+    private async Task Stage()
+    {
+        if (!CanChange || !CanStage)
+        {
+            return;
+        }
+
+        var target = Guid.TryParse(_choice, out var id) ? _targets.FirstOrDefault(candidate => candidate.Id == id) : null;
+        BulkEditStager.PutInSeries(Pending, Rows, target?.Id, target is null ? _name : null, target?.Title ?? _name.Trim());
+        await OnDone.InvokeAsync();
+    }
+
+    private Task Cancel() => OnDone.InvokeAsync();
+}

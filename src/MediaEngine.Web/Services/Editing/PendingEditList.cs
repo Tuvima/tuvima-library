@@ -100,9 +100,9 @@ public sealed class PendingEditList
     /// </summary>
     public void SetTarget(string kind, Guid entityId, string? targetId, string? token = null, string? label = null, string? note = null, string? before = null)
     {
-        if (kind is EditSessionChangeKinds.Details or EditSessionChangeKinds.Artwork or EditSessionChangeKinds.ExtraMove || !EditSessionChangeKinds.IsKnown(kind))
+        if (kind is EditSessionChangeKinds.Details or EditSessionChangeKinds.Artwork or EditSessionChangeKinds.ExtraMove or EditSessionChangeKinds.VideoOrder || !EditSessionChangeKinds.IsKnown(kind))
         {
-            throw new ArgumentException("Use SetField, SetArtwork or SetExtraMove for details, artwork and Extras changes.", nameof(kind));
+            throw new ArgumentException("Use SetField, SetArtwork, SetExtraMove or SetVideoOrder for details, artwork, Extras and video-order changes.", nameof(kind));
         }
 
         var existing = Find(kind, entityId);
@@ -134,6 +134,32 @@ public sealed class PendingEditList
             Token = token,
         }, label);
     }
+
+    /// <summary>
+    /// Stages the order of the videos of one series or section (universal editor v3.1), replacing an earlier order staged for it.
+    /// <paramref name="label"/> names the series for Review; <paramref name="before"/> says how it read before. Neither is sent to the Engine.
+    /// </summary>
+    public void SetVideoOrder(Guid parentId, IEnumerable<Guid> orderedIds, string? label = null, string? before = null)
+    {
+        ArgumentNullException.ThrowIfNull(orderedIds);
+        var existing = Find(EditSessionChangeKinds.VideoOrder, parentId);
+        Replace(existing, new EditSessionChange
+        {
+            Id = existing?.Id ?? NewId(),
+            Kind = EditSessionChangeKinds.VideoOrder,
+            EntityId = parentId,
+            OrderedIds = [.. orderedIds],
+        }, label, before: before);
+    }
+
+    /// <summary>The staged order of one series or section, or null.</summary>
+    public EditSessionChange? FindVideoOrder(Guid parentId) => Find(EditSessionChangeKinds.VideoOrder, parentId);
+
+    /// <summary>The staged series change of one video (join, new series or stand alone), or null.</summary>
+    public EditSessionChange? FindVideoSeries(Guid videoId) => Find(EditSessionChangeKinds.VideoSeries, videoId);
+
+    /// <summary>The staged "rename the files to match this order" of one series or section, or null.</summary>
+    public EditSessionChange? FindVideoRename(Guid parentId) => Find(EditSessionChangeKinds.VideoRename, parentId);
 
     /// <summary>The staged move of one Extra (or of the episode itself when <paramref name="extraId"/> is null), or null.</summary>
     public EditSessionChange? FindExtraMove(Guid entityId, string? extraId) =>

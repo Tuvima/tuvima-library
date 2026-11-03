@@ -111,6 +111,65 @@ public sealed class MediaEditorFamilyReadTests : IDisposable
         });
     }
 
+    // A series of two videos, one more video that stands alone (universal editor v3.1).
+    private (Guid Series, Guid InSeries, Guid Alone) SeedVideos()
+    {
+        var series = Guid.NewGuid();
+        var inSeries = Guid.NewGuid();
+        var other = Guid.NewGuid();
+        var alone = Guid.NewGuid();
+        using var connection = _database.CreateConnection();
+        connection.Execute("""
+            INSERT INTO works (id, media_type, work_kind, ownership) VALUES (@series, 'Videos', 'parent', 'Owned');
+            INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership) VALUES (@inSeries, 'Videos', 'child', @series, 1, 'Owned');
+            INSERT INTO works (id, media_type, work_kind, parent_work_id, ordinal, ownership) VALUES (@other, 'Videos', 'child', @series, 2, 'Owned');
+            INSERT INTO works (id, media_type, work_kind, ownership) VALUES (@alone, 'Videos', 'child', 'Owned');
+            INSERT INTO editions (id, work_id, format_label) VALUES (@e1, @inSeries, 'MP4'), (@e2, @other, 'MP4'), (@e3, @alone, 'MP4');
+            INSERT INTO media_assets (id, edition_id, content_hash, file_path_root)
+                VALUES (@a1, @e1, 'v1', '/clips/one.mp4'), (@a2, @e2, 'v2', '/clips/two.mp4'), (@a3, @e3, 'v3', '/clips/alone.mp4');
+            INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@series, 'title', 'Cooking with Sam', datetime('now'));
+            """, new
+        {
+            series,
+            inSeries,
+            other,
+            alone,
+            e1 = Guid.NewGuid(),
+            e2 = Guid.NewGuid(),
+            e3 = Guid.NewGuid(),
+            a1 = Guid.NewGuid(),
+            a2 = Guid.NewGuid(),
+            a3 = Guid.NewGuid(),
+        });
+        return (series, inSeries, alone);
+    }
+
+    [Fact]
+    public async Task Navigator_ForASeriesOfVideos_ShowsTheSeriesWithoutAnAmberMark()
+    {
+        var (series, inSeries, _) = SeedVideos();
+
+        var structure = await Navigator().GetNavigatorAsync(inSeries, CancellationToken.None, structureOnly: true);
+
+        Assert.True(structure!.Enabled);
+        Assert.Equal(series, structure.ContainerEntityId);
+        Assert.All(structure.Nodes, node => Assert.Equal("matched", node.MatchState));
+    }
+
+    [Fact]
+    public async Task OwnedChildren_ForVideos_MarkOnlyTheOnesInNoSeriesAsNotMatched()
+    {
+        var (series, _, alone) = SeedVideos();
+        var reader = new MediaEditorOwnedChildReadService(_database);
+
+        var inside = await reader.SearchAsync(series, null, 1, 50, null, null, null, null, null, CancellationToken.None);
+
+        Assert.All(inside!.Items, item => Assert.Equal("matched", item.MatchState));
+        var standalone = await reader.SearchAsync(alone, null, 1, 50, null, null, null, null, null, CancellationToken.None);
+        Assert.Equal("unmatched", Assert.Single(standalone!.Items).MatchState);
+        Assert.Equal("This video is not in a series.", Assert.Single(standalone.Items).MatchReason);
+    }
+
     [Fact]
     public async Task OwnedChildren_DirectOnly_ListsOnlyTheFilesStraightUnderTheParent()
     {

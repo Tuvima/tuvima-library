@@ -8,7 +8,7 @@ namespace MediaEngine.Api.Services.EditSession;
 /// <item>Every change is checked first. If any check fails nothing is written and every other change says why it was not saved.</item>
 /// <item>The data changes (details, identity, relationships, artwork) are written one after another, with identity last because it
 /// cannot be undone (a move between Extras and episodes cannot be undone either, so it goes with it), and if one fails the ones already written are undone in reverse order, so the library ends up with all of them or none of them.</item>
-/// <item>File moves run last, one at a time. A move on disk cannot be undone like a data change, so a failed move leaves the data
+/// <item>File moves and renames run last, one at a time. A move on disk cannot be undone like a data change, so a failed move leaves the data
 /// saved and is reported by name.</item>
 /// </list>
 /// Once writing starts the loop does not watch the request's cancellation token: a caller that gives up mid-save must not leave
@@ -140,13 +140,15 @@ public sealed class EditSessionService(
             .Where(change => EditSessionChangeKinds.IsDataChange(change.Kind))
             .OrderBy(change => change.Kind switch
             {
-                EditSessionChangeKinds.ChildRematch => 3,
-                EditSessionChangeKinds.SiblingMatch => 2,
-                EditSessionChangeKinds.Identity or EditSessionChangeKinds.ExtraMove => 1,
+                EditSessionChangeKinds.ChildRematch => 5,
+                EditSessionChangeKinds.SiblingMatch => 4,
+                EditSessionChangeKinds.Identity or EditSessionChangeKinds.ExtraMove => 3,
+                // A video joins its series before the series is put in order, so the order can name the newcomer.
+                EditSessionChangeKinds.VideoOrder => 1,
                 _ => 0,
             })
             .ToList();
-        var moves = changes.Where(change => change.Kind == EditSessionChangeKinds.FileMove).ToList();
+        var moves = changes.Where(change => EditSessionChangeKinds.IsFileChange(change.Kind)).ToList();
         var outcomes = new Dictionary<string, EditSessionChangeResult>(StringComparer.Ordinal);
         var undos = new Stack<(EditSessionChange Change, Func<CancellationToken, Task> Undo)>();
 
@@ -179,7 +181,7 @@ public sealed class EditSessionService(
                 outcomes[change.Id] = Result(
                     change,
                     EditSessionChangeStatuses.NotApplied,
-                    change.Kind == EditSessionChangeKinds.FileMove
+                    EditSessionChangeKinds.IsFileChange(change.Kind)
                         ? EditSessionReasons.NotRunBecauseDataNotSaved
                         : EditSessionReasons.UndoneBecauseAnotherFailed);
             }

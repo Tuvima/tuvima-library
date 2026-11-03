@@ -144,6 +144,7 @@
                          aria-current="@(selected ? "true" : null)"
                          data-kind="@row.Kind"
                          data-matched="@(row.Matched ? "true" : "false")"
+                         data-vo-drop-parent="@(row.IsParent && row.Depth > 0 ? row.EntityId.ToString() : null)"
                          @onclick="() => PickAsync(row)"
                          @onkeydown="args => KeyAsync(args, row)">
                         @if (row.IsParent && row.Depth > 0)
