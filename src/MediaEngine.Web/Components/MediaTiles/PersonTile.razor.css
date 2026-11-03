@@ -18,10 +18,10 @@
 .person-tile__photo {
     display: grid;
     place-items: center;
-    width: 100%;
+    width: 88px;
     aspect-ratio: 1;
     overflow: hidden;
-    border-radius: 50%;
+    border-radius: var(--tl-radius-md);
     background: var(--tl-bg-raised, var(--tl-bg-base));
     color: var(--tl-text-secondary);
     transition: transform 120ms ease;

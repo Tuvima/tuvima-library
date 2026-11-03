@@ -53,7 +53,7 @@
 .for-me-page__count {
     padding: .55rem .85rem;
     border: 1px solid var(--tl-border-subtle);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     color: var(--tl-text-secondary);
     white-space: nowrap;
 }

@@ -500,7 +500,7 @@
     transform: translateX(-50%);
     max-inline-size: calc(100% - 2rem);
     padding: 0.625rem 1rem;
-    border-radius: var(--tl-radius-pill, 999px);
+    border-radius: var(--tl-radius-pill);
     background: rgba(20, 22, 30, 0.94);
     color: #fff;
     font-size: var(--tl-font-size-sm, 0.875rem);

@@ -1,6 +1,6 @@
 # Player controls v3
 
-> **Status:** Locked · **Version:** 3 (revises [Video player controls and bookmarks](video-player-controls-and-bookmarks.md) v2 where stated) · **Last updated:** 2026-11-03 (locked by Shy with the bookmark model v2 details) · **Related docs:** [Video player controls and bookmarks](video-player-controls-and-bookmarks.md) · [Music player and queue](music-player-and-queue.md) · [Design system](../design/design-system.md) · Mockups: https://claude.ai/artifact/Gvyp7d2gcWM9o5wxd3JBu1 (source `plans/player-controls-redesign/mockup.html` in the planning project)
+> **Status:** Built (Local checks pending) · **Version:** 3 (revises [Video player controls and bookmarks](video-player-controls-and-bookmarks.md) v2 where stated) · **Last updated:** 2026-11-03 (locked by Shy with the bookmark model v2 details) · **Related docs:** [Global bookmarks](global-bookmarks.md) (v4; owns Find bookmarks, compare rows and Export Global) · [Video player controls and bookmarks](video-player-controls-and-bookmarks.md) · [Music player and queue](music-player-and-queue.md) · [Design system](../design/design-system.md) · Mockups: https://claude.ai/artifact/Gvyp7d2gcWM9o5wxd3JBu1 (source `plans/player-controls-redesign/mockup.html` in the planning project)
 
 ## 1. Goal
 

@@ -501,8 +501,7 @@ public sealed class WaitingPersonalStateRepository
     }
 
     /// <summary>
-    /// The kept tables whose <c>content_hash</c> is the fingerprint of the file the row's asset column points at (the other kept table
-    /// with a content_hash, <c>bookmark_packs</c>, fingerprints the pack itself and is not listed). Nothing in the Engine resets
+    /// The kept tables whose <c>content_hash</c> is the fingerprint of the file the row's asset column points at. Nothing in the Engine resets
     /// progress when it differs, but the hash is sent to clients and must describe the file the row now sits on.
     /// </summary>
     private static readonly Dictionary<string, (string AssetColumn, string HashColumn)> AssetHashColumns = new(StringComparer.OrdinalIgnoreCase)

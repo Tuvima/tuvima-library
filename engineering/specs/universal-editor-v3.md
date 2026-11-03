@@ -1,6 +1,6 @@
 # Spec: Universal editor v3 (the pop-over editor returns)
 
-> **Status:** Draft (Q1-Q3 answered by Shy 2026-11-03; waiting for "lock it") · **Version:** 3 (replaces v1's bar-and-panel and v2's "window over an edit mode"; v2 stays Built) · **Last updated:** 2026-11-03 · **Related docs:** [Universal editor v2 (archived)](archive/universal-editor-v2.md) · [Universal editor v1](universal-editor.md) · [Libraries redesign](libraries-redesign.md) · [Product overview](../product/overview.md) · Local check list `validation/local-check-2026-11-02.md` items 18b, 18c, 37, 38 · Mockups: [`engineering/design/mockups/universal-editor-v3/`](../design/mockups/universal-editor-v3/popover-and-needs-review.html) (TV episode and Needs Review) and [every item type](../design/mockups/universal-editor-v3/every-item-type.html) (film Details and Match, book in a series, album and songs, Artwork, several songs, Review, after Save)
+> **Status:** Locked (Shy, 2026-11-03; Q1-Q3 answered, Fable-reviewed; build starts after the Home, detail and tiles work merges) · **Version:** 3 (replaces v1's bar-and-panel and v2's "window over an edit mode"; v2 stays Built) · **Last updated:** 2026-11-03 · **Related docs:** [Universal editor v2 (archived)](archive/universal-editor-v2.md) · [Universal editor v1](universal-editor.md) · [Libraries redesign](libraries-redesign.md) · [Product overview](../product/overview.md) · Local check list `validation/local-check-2026-11-02.md` items 18b, 18c, 37, 38 · Mockups: [`engineering/design/mockups/universal-editor-v3/`](../design/mockups/universal-editor-v3/popover-and-needs-review.html) (TV episode and Needs Review) and [every item type](../design/mockups/universal-editor-v3/every-item-type.html) (film Details and Match, book in a series, album and songs, Artwork, several songs, Review, after Save)
 
 ## 0. Why a v3
 
@@ -53,7 +53,7 @@ Press Edit anywhere (an item page, a list row, Needs Review) and a pop-over edit
 
 ## 3. Decisions made
 
-*Nothing here is approved until Shy locks it. Items marked **Shy asked** come from Shy's 2 Nov words; the rest are recommendations.*
+*Approved by Shy on 2026-11-03 (locked). Items marked **Shy asked** come from Shy's 2 Nov words; the rest are recommendations.*
 
 - **D1. A pop-over, not an edit mode. (Shy asked.)** Edit opens the editor directly. The page behind keeps its state and is not put into any "editing" state. Reason: Ease of use (one step, nothing to learn) and Maintenance (one surface; v2 carried two).
 - **D2. Same size and anatomy as v2's window, plus a family tree.** About 1240 × 830 px at 1440 wide (94 vw by 100 vh minus 48 px below 1280). Header (thumbnail, "Editing: name", "N changes waiting", X), left tree (about 300 px), top tool tabs, one scroll area, footer with write-back status on the left and Cancel and Save on the right, always in the same place.

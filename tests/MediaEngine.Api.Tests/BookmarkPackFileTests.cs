@@ -15,7 +15,7 @@ namespace MediaEngine.Api.Tests;
 
 // The bookmark pack file and its place in the library backup (Videos spec D46). The pack follows the backup's conventions (a ZIP with
 // a manifest, the same safe-entry checks, nothing secret), and a library backup already holds every kind of bookmark (as personal state
-// kept against how to recognise the title), so one restore brings personal, shared, scene and pack bookmarks back together once the title is back.
+// kept against how to recognise the title), so one restore brings personal, shared and scene bookmarks back together once the title is back.
 public sealed class BookmarkPackFileTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), $"bookmark-pack-file-tests-{Guid.NewGuid():N}");
@@ -138,7 +138,7 @@ public sealed class BookmarkPackFileTests : IDisposable
     }
 
     [Fact]
-    public async Task ARestoredLibraryBackup_BringsBackPersonalSharedSceneAndPackBookmarksTogether_WhenTheTitleIsInTheLibraryAgain()
+    public async Task ARestoredLibraryBackup_BringsBackPersonalSharedAndSceneBookmarksTogether_WhenTheTitleIsInTheLibraryAgain()
     {
         var config = Path.Combine(_root, "config");
         var dbPath = Path.Combine(_root, "library.db");
@@ -166,7 +166,6 @@ public sealed class BookmarkPackFileTests : IDisposable
             }
 
             var bookmarks = new AudiobookBookmarkRepository(database);
-            var packs = new BookmarkPackRepository(database);
             await bookmarks.CreateAsync(profile, workId, new CreateAudiobookBookmarkRequestDto
             {
                 AssetId = assetId,
@@ -184,8 +183,6 @@ public sealed class BookmarkPackFileTests : IDisposable
                 Note = "scene",
                 IsGlobal = true,
             });
-            await packs.AddAsync(profile, workId, assetId, "Gondor", "A fan", "hash-1", 7200, null, false,
-                [new BookmarkPackBookmark(300, 360, "Opening", 0, "pack note", "pack description")]);
 
             var service = BackupTestKit.Service(database, config);
             var archivePath = await service.CreateAsync(CancellationToken.None);
@@ -194,7 +191,7 @@ public sealed class BookmarkPackFileTests : IDisposable
             // After the backup everything is lost, as if the library had been damaged.
             using (var damage = database.CreateConnection())
             {
-                damage.Execute("DELETE FROM audiobook_bookmarks; DELETE FROM bookmark_packs;");
+                damage.Execute("DELETE FROM audiobook_bookmarks;");
             }
 
             Assert.True(service.ScheduleRestore(archiveName).Scheduled);
@@ -222,10 +219,6 @@ public sealed class BookmarkPackFileTests : IDisposable
         Assert.Equal(2, rows.Count);
         Assert.Equal((100d, (double?)null, "personal", "long text", 0L), rows[0]);
         Assert.Equal((200d, (double?)260, "scene", (string?)null, 1L), rows[1]);
-        Assert.Equal("Gondor", restored.ExecuteScalar<string>("SELECT name FROM bookmark_packs;"));
-        var item = restored.QuerySingle<(double Position, double End, string Note, string Description)>(
-            "SELECT position_seconds, end_seconds, note, description FROM bookmark_pack_items;");
-        Assert.Equal((300d, 360d, "pack note", "pack description"), item);
     }
 
     private static DatabaseConnection CreateDatabase(string path)

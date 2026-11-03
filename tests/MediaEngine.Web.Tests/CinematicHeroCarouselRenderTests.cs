@@ -66,7 +66,15 @@ public sealed class CinematicHeroCarouselRenderTests : AsyncBunitContext
             StatusText = "40% watched",
         };
         var cut = Render<CinematicHeroCarousel>(p => p.Add(c => c.Items, [hero]));
-        Assert.Equal(expected ? "Continue Watching" : "Featured Content", cut.Find(".cinematic-hero-carousel__context").TextContent);
+        if (expected)
+        {
+            Assert.Equal("Continue Watching", cut.Find(".cinematic-hero-carousel__context").TextContent);
+        }
+        else
+        {
+            // The "Featured content" label is gone (Home, detail and tiles spec D4).
+            Assert.Empty(cut.FindAll(".cinematic-hero-carousel__context"));
+        }
         Assert.Equal(expected, cut.FindAll("[role='progressbar']").Count > 0);
     }
 

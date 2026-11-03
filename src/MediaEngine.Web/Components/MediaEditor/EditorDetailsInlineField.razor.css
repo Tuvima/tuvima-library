@@ -154,7 +154,7 @@
     max-width: 100%;
     padding: 3px 9px;
     border: 1px solid rgba(126, 151, 203, 0.28);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     background: rgba(65, 83, 126, 0.2);
     color: rgba(238, 242, 251, 0.92);
     font-size: 13px;

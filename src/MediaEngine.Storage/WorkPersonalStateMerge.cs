@@ -22,7 +22,6 @@ internal static class WorkPersonalStateMerge
         "audiobook_chapter_title_overrides",
         "audiobook_listen_active_segments",
         "audiobook_listen_history",
-        "bookmark_packs",
         "collection_items",
         "collection_list_entries",
         "companion_sessions",
@@ -104,7 +103,6 @@ internal static class WorkPersonalStateMerge
             """
             UPDATE audiobook_listen_history SET work_id = @target WHERE work_id = @source;
             UPDATE audiobook_bookmarks SET work_id = @target WHERE work_id = @source;
-            UPDATE OR IGNORE bookmark_packs SET work_id = @target WHERE work_id = @source;
             UPDATE audiobook_chapter_title_overrides SET work_id = @target WHERE work_id = @source;
             UPDATE OR IGNORE audiobook_listen_active_segments SET work_id = @target WHERE work_id = @source;
             """,

@@ -13,7 +13,8 @@ public sealed class VideoPlaybackSurfaceTests
         Assert.Contains("data-playback-chrome-bottom", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor")));
         Assert.Contains("Close video", razor);
         Assert.DoesNotContain("Back to details", razor);
-        Assert.Contains("<PlaybackPopover Title=\"Subtitles & Audio\"", razor);
+        Assert.Contains("<PlaybackPopover Title=\"Settings\"", razor);
+        Assert.Contains("<VideoSettingsMenu", razor);
         Assert.Contains("<VideoContextPanel", razor);
         Assert.Contains("listenPlayback.toggleFullscreen\", _hostRef, _videoRef", razor);
         Assert.DoesNotContain("video-playback-host__tool-backdrop", razor);
@@ -22,7 +23,7 @@ public sealed class VideoPlaybackSurfaceTests
         Assert.Contains("playback-video-controls", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor.css")));
         Assert.Contains("width:min(320px", css);
         Assert.Contains("<PlaybackSeekRail", razor);
-        Assert.Contains("playback-video-controls__volume", razor);
+        Assert.Contains("<PlaybackVolumeControl", razor);
         Assert.Contains("flex-wrap:wrap", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor.css")));
     }
     [Fact]

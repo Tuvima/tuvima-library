@@ -37,8 +37,8 @@
 .collection-rule-builder__join { display: flex; align-items: center; align-self: center; gap: 4px; color: var(--tl-text-muted); font-size: .75rem; }
 .collection-rule-builder__join > span { margin-right: 6px; }
 .collection-rule-builder__join ::deep button { min-height: 34px; padding-inline: 14px; border: 1px solid var(--tl-divider); font-size: .8rem; }
-.collection-rule-builder__join ::deep button:first-of-type { border-radius: 999px 0 0 999px; }
-.collection-rule-builder__join ::deep button:last-of-type { border-radius: 0 999px 999px 0; }
+.collection-rule-builder__join ::deep button:first-of-type { border-radius: var(--tl-radius-pill) 0 0 var(--tl-radius-pill); }
+.collection-rule-builder__join ::deep button:last-of-type { border-radius: 0 var(--tl-radius-pill) var(--tl-radius-pill) 0; }
 
 .collection-rule-builder__rows { display: flex; flex-direction: column; gap: 8px; }
 .collection-rule-builder__row {

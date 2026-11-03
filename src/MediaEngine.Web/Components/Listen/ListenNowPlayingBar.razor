@@ -71,7 +71,7 @@
          @ondrop:preventDefault="true"
          @ondrop="QueueDraggedItemsAsync">
         <PlaybackMiniPlayer Experience="@CurrentMiniPlayerExperience" Class="@($"listen-player {(Playback.IsAudiobookMode ? "listen-player--audiobook" : "listen-player--music")}")" AriaLabel="@L["ListenNowPlayingBar_NowPlayingMiniPlayer"].Value">
-                <PlaybackSeekRail Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds" ValueChanged="SeekOnHostAsync" Surface="dock"
+                <PlaybackSeekRail Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds" ValueChanged="SeekOnHostAsync" Surface="dock" ChapterTicks="@ChapterTicks"
                                   ShowRemaining="@_showRemainingTime" ShowRemainingChanged="@(value => _showRemainingTime = value)" />
 
             <div class="listen-player__meta">
@@ -225,12 +225,9 @@
                         </ListenDockTool>
                     }
                     @if (!IsPhonePresentation) {
-                    <span class="listen-player__volume">
-                        <AppTooltip Text="@(Playback.IsMuted ? "Unmute" : "Mute")"><AppNativeButton Type="button" Class="listen-player__icon" OnClick="ToggleMuteAsync" AriaLabel="@(Playback.IsMuted ? "Unmute" : "Mute")">
-                            <PlaybackUtilityGlyph Glyph="@(Playback.IsMuted || Playback.Volume <= 0 ? PlaybackUtilityGlyphKind.Mute : PlaybackUtilityGlyphKind.Volume)" />
-                        </AppNativeButton></AppTooltip>
-                        <AppRangeSlider Surface="dock" Min="0" Max="1" Step="@VolumeStep" Value="@Playback.Volume" ShowTicks="false" CommitOnChange="true" disabled="@(!Playback.SoftwareVolumeSupported)" title="@(Playback.SoftwareVolumeSupported ? null : "Use your device volume buttons")" Class="listen-player__volume-slider" AriaLabel="@L["Common_Volume"].Value" ValueFormatter="FormatVolumeValue" ValueChanged="SetVolumeOnHostAsync" />
-                    </span>
+                    <PlaybackVolumeControl Surface="dock" Size="standard" Appearance="bare" CommitOnChange="true" Step="@VolumeStep"
+                                           Volume="@Playback.Volume" IsMuted="@(Playback.IsMuted || Playback.Volume <= 0)" Supported="@Playback.SoftwareVolumeSupported"
+                                           OnToggleMute="ToggleMuteAsync" OnVolumeChanged="SetVolumeOnHostAsync" />
                     }
                 </div>
                 <span class="listen-player__compact-context"><AppTooltip Text="@(Playback.IsAudiobookMode ? "Chapters" : "Queue")"><AppNativeButton Type="button" Class="listen-player__icon" OnClick="@(() => OpenDockPanelAsync(Playback.IsAudiobookMode ? HasUsableChapters ? "chapters" : "history" : "queue", _artButton?.Element))" AriaLabel="@(Playback.IsAudiobookMode ? "Chapters" : "Queue")"><PlaybackUtilityGlyph Glyph="@(Playback.IsAudiobookMode ? PlaybackUtilityGlyphKind.Chapters : PlaybackUtilityGlyphKind.Queue)" /></AppNativeButton></AppTooltip></span>
@@ -258,10 +255,9 @@
                                                       OnControlActivation="HandleAudiobookDockActivationAsync" />
                             }
                             @if (!IsPhonePresentation) {
-                            <div class="listen-player__more-volume">
-                                <AppNativeButton Type="button" OnClick="ToggleMuteAsync" AriaLabel="@(Playback.IsMuted ? "Unmute" : "Mute")">@(Playback.IsMuted ? "Unmute" : "Mute")</AppNativeButton>
-                                <AppRangeSlider Surface="panel" Min="0" Max="1" Step="@VolumeStep" Value="@Playback.Volume" ShowTicks="false" CommitOnChange="true" AriaLabel="@L["Common_Volume"].Value" ValueFormatter="FormatVolumeValue" ValueChanged="SetVolumeOnHostAsync" />
-                            </div>
+                            <PlaybackVolumeControl Surface="panel" Size="standard" CommitOnChange="true" Step="@VolumeStep"
+                                                   Volume="@Playback.Volume" IsMuted="@(Playback.IsMuted || Playback.Volume <= 0)" Supported="@Playback.SoftwareVolumeSupported"
+                                                   OnToggleMute="ToggleMuteAsync" OnVolumeChanged="SetVolumeOnHostAsync" />
                             }
                         </div>
                     </ListenDockTool>
@@ -587,9 +583,27 @@
 
     private void ReactionChanged() => _ = InvokeAsync(async () => { await LoadFavoriteAsync(); StateHasChanged(); });
 
+    // Chapter ticks on an audiobook's bar follow the profile setting, which is on unless the person turned it off (player-controls-v3 D8).
+    private bool _chapterMarks = true;
+    private IReadOnlyList<double> ChapterTicks => Playback.IsAudiobookMode && _chapterMarks && Playback.DurationSeconds > 0
+        ? CurrentChapters.Select(chapter => chapter.StartSeconds).Where(time => time > 0 && time < Playback.DurationSeconds).Distinct().Order().ToList()
+        : [];
+
+    private async Task LoadChapterMarksAsync()
+    {
+        try
+        {
+            var settings = await PlaybackPreferences.GetAsync();
+            _chapterMarks = MediaEngine.Web.Services.Playback.PlayerPreferenceService.ShowChapterMarks(settings, audiobook: true);
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex) { Logger.LogDebug(ex, "The chapter marks setting could not be read; the bar keeps the default."); }
+    }
+
     protected override void OnInitialized()
     {
         Reactions.Changed += ReactionChanged;
+        _ = LoadChapterMarksAsync();
         Playback.SetTransportHostNotReady();
         Playback.Changed += HandlePlaybackChanged;
         AudioSidebar.Changed += HandleAudioPanelChanged;

@@ -289,7 +289,7 @@
     padding: 2px 5px;
     color: rgba(216, 180, 254, 0.95);
     border: 1px solid rgba(136, 82, 252, 0.3);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     background: rgba(126, 34, 206, 0.14);
     font-size: var(--tl-font-size-xs);
     font-weight: 800;
@@ -387,7 +387,7 @@
     padding: 0 6px;
     place-items: center;
     border: 1px solid color-mix(in srgb, var(--tl-accent-primary) 48%, transparent);
-    border-radius: var(--tl-radius-pill);
+    border-radius: var(--tl-radius-round, 999px);
     color: var(--tl-text-primary);
     background: color-mix(in srgb, var(--tl-accent-primary) 28%, var(--tl-bg-surface-raised));
     font-size: var(--tl-font-size-xs);

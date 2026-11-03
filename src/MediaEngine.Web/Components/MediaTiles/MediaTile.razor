@@ -32,6 +32,10 @@ else
     <a class="media-tile-link" href="@DetailsNavigationUrl" aria-label="@DetailsActionAriaLabel" @onclick="OpenDetails" @onclick:preventDefault="true">
     <div class="media-tile-frame">
         <div class="media-tile-media @(HasArtworkSurface ? "has-artwork-surface" : null)">
+            @if (!string.IsNullOrWhiteSpace(Item.NewLabel))
+            {
+                <span class="media-tile-new-label">@Item.NewLabel</span>
+            }
             @if (ShowGroupCollage)
             {
                 <div class="media-tile-static-group-preview" aria-hidden="true">
@@ -73,6 +77,25 @@ else
                              loading="lazy"
                              decoding="async" />
                     }
+                </div>
+            }
+            else if (Item.IsStandInPicture)
+            {
+                @* TheTVDB has no picture for this episode: a marked stand-in, never a real-looking still. *@
+                <div class="media-tile-standin" data-standin="true">
+                    @if (!string.IsNullOrWhiteSpace(CardImageUrl))
+                    {
+                        <img src="@MediaTileArtworkUrl.ForDrawnSize(CardImageUrl, TileDrawnPx)" srcset="@TileSrcSet" sizes="@Item.TileImageSizes"
+                             alt="" aria-hidden="true" class="media-tile-standin__image" loading="@CardImageLoading" decoding="async" />
+                    }
+                    else
+                    {
+                        <div class="media-tile-standin__library-tile" aria-hidden="true">
+                            <AppMaterialIcon Icon="@FallbackIcon" Class="tl-u-font-size-44px tl-u-color-rgba-255-255-255--18" />
+                        </div>
+                    }
+                    <span class="media-tile-standin__number">@Item.StandInLabel</span>
+                    <span class="media-tile-standin__tag" title="@StandInTooltip" aria-label="@($"{L["MediaTile_StandIn_Tag"].Value}. {StandInTooltip}")">@L["MediaTile_StandIn_Tag"]</span>
                 </div>
             }
             else if (!string.IsNullOrWhiteSpace(CardImageUrl))
@@ -713,6 +736,10 @@ else
 
     private string? TileSrcSet => Item.TileImageSrcSet ?? MediaTileArtworkUrl.SrcSetForDrawnSize(CardImageUrl, TileWidthPx);
 
+    private string StandInTooltip => string.IsNullOrWhiteSpace(Item.StandInRetryAfter)
+        ? L["MediaTile_StandIn_Tooltip"].Value
+        : $"{L["MediaTile_StandIn_Tooltip"].Value} {L["MediaTile_StandIn_NextCheck", Item.StandInRetryAfter].Value}";
+
     private string CardImageUrl => Item.TileImageUrl ?? string.Empty;
 
     private bool HasArtworkSurface => ShowCollectionBanner || !string.IsNullOrWhiteSpace(CardImageUrl) || ShowPreviewStack;
@@ -1125,7 +1152,12 @@ else
 
     private bool ShowsCompactTitleCaption =>
         Item.Subject != DisplaySubjectKind.TvEpisode
-        && (ShowCompactCaption || (SuppressHover && CaptionContent is null && IsHoverEnabled && (UsesCinematicHover || ShowsStaticCoverIdentity)));
+        && (ShowCompactCaption || (CaptionContent is null && IsHoverEnabled && (IsFormerCinematicTile || (SuppressHover && ShowsStaticCoverIdentity))));
+
+    // Movie and TV covers used to hide their title until the hover panel opened. No tile grows on hover any more (spec D1),
+    // so their title sits under the cover at all times.
+    private bool IsFormerCinematicTile =>
+        !Item.RenderAsLandscapeGroupTile && MediaKindLabel is "Movie" or "TV" && HasLandscapeHoverArtwork;
     private bool ShowsEpisodeCaption => CaptionContent is null && Item.Subject == DisplaySubjectKind.TvEpisode && !string.IsNullOrWhiteSpace(EpisodeShowCaption);
 
     // Tiles without a title line of their own (hover-only shelves, custom caption content) carry the marker as a

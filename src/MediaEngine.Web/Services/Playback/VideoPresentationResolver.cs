@@ -59,6 +59,10 @@ public sealed class VideoPresentationResolver(IEngineApiClient api, UIOrchestrat
     public async Task<SubtitleLanguageSettingsDto?> GetSubtitleSettingsAsync(CancellationToken ct) =>
         preferences is null ? null : (await preferences.GetAsync(ct))?.Subtitles;
 
+    /// <summary>The active profile's whole playback settings (the bar's chapter and bookmark marks, the remembered bookmark filter), or null.</summary>
+    public async Task<UserPlaybackSettingsDto?> GetPlaybackSettingsAsync(CancellationToken ct) =>
+        preferences is null ? null : await preferences.GetAsync(ct);
+
     /// <summary>
     /// Picks the audio track and subtitle a title starts with from the profile's defaults. A per-title preferred subtitle
     /// ("Set preferred version") always wins. Show subtitles: Never = off; Always = the subtitle language when present;
@@ -283,8 +287,12 @@ public sealed class VideoPresentationResolver(IEngineApiClient api, UIOrchestrat
         && (item.MediaType.Contains("tv", StringComparison.OrdinalIgnoreCase)
             || item.MediaType.Equals("Television", StringComparison.OrdinalIgnoreCase)
             || !string.IsNullOrWhiteSpace(item.EpisodeNumber));
-    public static string? ContextKind(bool tv, bool movie, int ownedEpisodes, int chapters, int upcoming) =>
-        tv && ownedEpisodes > 0 ? "episodes" : !tv && movie && chapters >= 2 ? "chapters" : upcoming > 0 ? "queue" : null;
+    /// <summary>
+    /// What the video context panel lists (player-controls-v3 D7): the season's episodes for a TV episode, Up next for a TV episode with
+    /// nothing owned beside it, Lessons for other video that belongs to a series, and nothing for a film. Chapters belong to audiobooks.
+    /// </summary>
+    public static string? ContextKind(bool tv, bool movie, int ownedEpisodes, int upcoming) =>
+        tv && ownedEpisodes > 0 ? "episodes" : movie ? null : upcoming > 0 ? "queue" : null;
 
     private static ListenQueueItem CreateItem(Guid work, Guid asset, MediaEngine.Web.Models.ViewDTOs.LibraryItemDetailViewModel detail) => new()
     {

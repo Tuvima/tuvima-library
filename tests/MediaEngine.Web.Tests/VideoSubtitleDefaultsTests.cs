@@ -445,7 +445,7 @@ public sealed class VideoSubtitleDefaultsHostTests : AsyncBunitContext
         var scoped = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor.css"));
         var script = File.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/wwwroot/app.js"));
 
-        Assert.Contains(".video-playback-host__media::cue { color: white; background: var(--tl-subtitle-bg); font-size: var(--tl-subtitle-size);", css, StringComparison.Ordinal);
+        Assert.Contains(".video-playback-host__media::cue { color: var(--tl-subtitle-color); background: var(--tl-subtitle-bg); font-family: var(--tl-subtitle-font); font-size: var(--tl-subtitle-size);", css, StringComparison.Ordinal);
         Assert.DoesNotContain("::cue", scoped, StringComparison.Ordinal);
         Assert.Contains(".video-playback-host[data-subtitle-size=\"Small\"] { --tl-subtitle-size: max(14px, 2.2vh); }", css, StringComparison.Ordinal);
         Assert.Contains("--tl-subtitle-size: max(14px, 2.8vh)", css, StringComparison.Ordinal);

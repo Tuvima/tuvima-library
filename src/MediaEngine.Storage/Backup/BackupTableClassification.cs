@@ -268,8 +268,6 @@ public static partial class BackupTableClassification
         Config("vault_section_grants", "Which Vault sections each profile may open."),
         Transient("vault_moves", "Move to Vault jobs; a job in flight is not worth restoring, the files are the record."),
         Transient("vault_move_items", "The items of a Move to Vault job."),
-        Personal("bookmark_packs", "profile_id", "Bookmark packs a person imported for a title.", refs: [Work("work_id"), Asset("asset_id")]),
-        Personal("bookmark_pack_items", null, "The bookmarks inside a pack (owned through the pack's profile).", refs: []),
         Transient("nsfw_session_unlocks", "Temporary Vault mode sessions."),
         Catalogue("vault_activity", "Quiet list of Vault ingestion activity."),
         Catalogue("vault_artwork", "Vault artwork."),

@@ -98,6 +98,12 @@ public sealed class MediaTileViewModel
 {
     /// <summary>True while the item is still being matched or enriched; shows the quiet caption marker.</summary>
     public bool IsSettling { get; init; }
+    /// <summary>True for an episode TheTVDB has no picture for: the tile draws a marked stand-in (the show's backdrop, dimmed, with the episode number) instead of artwork.</summary>
+    public bool IsStandInPicture { get; init; }
+    /// <summary>The episode number drawn over a stand-in, such as "E5" or the special's label.</summary>
+    public string? StandInLabel { get; init; }
+    /// <summary>The date Library checks again for the real picture (yyyy-MM-dd), shown in the stand-in's tooltip.</summary>
+    public string? StandInRetryAfter { get; init; }
     public DisplaySubjectKind Subject { get; init; }
     public DisplayContinuationState ContinuationState { get; init; }
     public DisplayEpisodeContextDto? EpisodeContext { get; init; }
@@ -126,6 +132,9 @@ public sealed class MediaTileViewModel
     public string? QualityBadge { get; init; }
     /// <summary>True on a tile in the Unmatched filter whose file is kept as it is; it shows a small Kept label.</summary>
     public bool IsKept { get; init; }
+
+    /// <summary>"New" or "New Episode": the small square label at the top-left of the cover (Home, detail and tiles spec D7); null when the item is not new.</summary>
+    public string? NewLabel { get; init; }
     public string? SourceBadgeLabel { get; init; }
     public string? SourceLogoUrl { get; init; }
     public IReadOnlyList<MediaTileMediaCountViewModel> MediaCounts { get; init; } = [];

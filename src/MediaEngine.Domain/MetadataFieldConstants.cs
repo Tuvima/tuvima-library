@@ -64,6 +64,8 @@ public static class MetadataFieldConstants
     public const string SeasonNumber = "season_number";
     public const string EpisodeNumber = "episode_number";
     public const string EpisodeEnd = "episode_end";
+    /// <summary>Set on a TV episode that has no TheTVDB still; the value is the date (yyyy-MM-dd) Library checks again. Absent once a real still is held.</summary>
+    public const string EpisodeStillStandIn = "episode_still_standin";
     public const string TrackNumber = "track_number";
     public const string DiscNumber = "disc_number";
     public const string DiscCount = "disc_count";
