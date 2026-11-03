@@ -1,0 +1,16 @@
+.plugin-file-viewer { display: grid; gap: var(--tl-space-3, 12px); min-width: 0; }
+.plugin-file-viewer__scroll { overflow: auto; max-height: 60vh; padding: var(--tl-space-2, 8px) 0; border: 1px solid var(--tl-border-default); border-radius: var(--tl-radius-sm, 8px); background: var(--tl-bg-surface-raised); font-family: var(--tl-font-mono); font-size: var(--tl-font-size-sm); line-height: 1.5; }
+.plugin-file-viewer__row { display: grid; grid-template-columns: 4ch 1fr; gap: var(--tl-space-3, 12px); min-width: max-content; padding: 0 var(--tl-space-3, 12px) 0 var(--tl-space-2, 8px); border-inline-start: 3px solid transparent; }
+.plugin-file-viewer__row--problem { border-inline-start-color: var(--tl-status-error); background: color-mix(in srgb, var(--tl-status-error) 12%, transparent); }
+.plugin-file-viewer__number { text-align: end; color: var(--tl-text-muted); user-select: none; }
+.plugin-file-viewer__code { min-height: 1.5em; white-space: pre; color: var(--tl-text-primary); }
+.plugin-json--key { color: var(--tl-status-info); }
+.plugin-json--string { color: var(--tl-status-success); }
+.plugin-json--number { color: var(--tl-status-warning); }
+.plugin-json--literal { color: var(--tl-accent-primary); }
+.plugin-json--punctuation, .plugin-json--comment { color: var(--tl-text-muted); }
+.plugin-json--comment { font-style: italic; }
+.plugin-file-viewer__problems { display: grid; gap: var(--tl-space-2, 8px); margin: 0; padding: 0; list-style: none; }
+.plugin-file-viewer__problem { display: flex; flex-wrap: wrap; gap: 4px 12px; min-width: 0; color: var(--tl-text-secondary); }
+.plugin-file-viewer__problem--error strong { color: var(--tl-status-error); }
+.plugin-file-viewer__problem--note strong { color: var(--tl-status-warning); }

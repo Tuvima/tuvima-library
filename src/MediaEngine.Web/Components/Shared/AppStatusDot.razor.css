@@ -7,3 +7,6 @@
 .app-status-dot--off { background: var(--tl-text-disabled); }
 .app-status-dot::after { content: attr(data-tip); position: absolute; top: 18px; left: 0; z-index: 5; display: none; width: max-content; max-width: 16rem; padding: 6px 8px; border-radius: var(--tl-radius-md); background: var(--tl-text-primary); color: var(--tl-bg-surface); font-size: var(--tl-font-size-sm); line-height: 1.35; pointer-events: none; }
 .app-status-dot:hover::after, .app-status-dot:focus-visible::after { display: block; }
+.app-status-dot--tick { position: relative; top: auto; left: auto; width: 22px; height: 22px; flex: 0 0 auto; border: 0; }
+.app-status-dot--tick svg { width: 13px; height: 13px; }
+.app-status-dot--tick::after { top: auto; bottom: 28px; }

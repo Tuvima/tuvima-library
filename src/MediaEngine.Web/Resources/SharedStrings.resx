@@ -6639,36 +6639,6 @@
   <data name="PluginUploadDialog_Upload" xml:space="preserve">
     <value>Upload</value>
   </data>
-  <data name="ProviderDetail_ThisSourceIsUnavailable" xml:space="preserve">
-    <value>This source is unavailable</value>
-  </data>
-  <data name="ProviderDetail_UnknownSource" xml:space="preserve">
-    <value>Unknown source</value>
-  </data>
-  <data name="ProviderDetail_ThisSourceIsNotIn" xml:space="preserve">
-    <value>This source is not in the configured provider catalogue.</value>
-  </data>
-  <data name="StashBoxSettingsCard_Servers" xml:space="preserve">
-    <value>Servers</value>
-  </data>
-  <data name="StashBoxSettingsCard_StashBoxVideosAreLooked" xml:space="preserve">
-    <value>Stash-box videos are looked up on these servers, in this order. Each has its own account key.</value>
-  </data>
-  <data name="StashBoxSettingsCard_AccountKey" xml:space="preserve">
-    <value>Account key</value>
-  </data>
-  <data name="StashBoxSettingsCard_PasteYourKey" xml:space="preserve">
-    <value>Paste your key</value>
-  </data>
-  <data name="StashBoxSettingsCard_ReplaceKey" xml:space="preserve">
-    <value>Replace key</value>
-  </data>
-  <data name="StashBoxSettingsCard_TestConnection" xml:space="preserve">
-    <value>Test connection</value>
-  </data>
-  <data name="StashBoxSettingsCard_SendAFingerprintOfThe" xml:space="preserve">
-    <value>Send a fingerprint of the file</value>
-  </data>
   <data name="ProfileDetailPage_ManageProfiles" xml:space="preserve">
     <value>Manage Profiles</value>
   </data>
@@ -8832,12 +8802,6 @@
   <data name="PluginSettingsTab_TheSourceCouldNotBe" xml:space="preserve">
     <value>The source could not be switched.</value>
   </data>
-  <data name="PluginSettingsTab_PluginSettingCouldNotBe" xml:space="preserve">
-    <value>Plugin setting could not be saved.</value>
-  </data>
-  <data name="PluginSettingsTab_SettingNumberIsInvalid" xml:space="preserve">
-    <value>Setting number is invalid.</value>
-  </data>
   <data name="PluginSettingsTab_SearchPluginsByNameOr" xml:space="preserve">
     <value>Search plugins by name or capability</value>
   </data>
@@ -8852,15 +8816,6 @@
   </data>
   <data name="Common_ProviderSettingsCouldNotBe" xml:space="preserve">
     <value>Provider settings could not be saved.</value>
-  </data>
-  <data name="ProviderDetail_StartTheEngineAndRetry" xml:space="preserve">
-    <value>Start the Engine and retry. Nothing shown here is sample data.</value>
-  </data>
-  <data name="StashBoxSettingsCard_TheServerCouldNotBe" xml:space="preserve">
-    <value>The server could not be removed.</value>
-  </data>
-  <data name="StashBoxSettingsCard_ThatCouldNotBeSaved" xml:space="preserve">
-    <value>That could not be saved.</value>
   </data>
   <data name="Common_SetAPINForThis" xml:space="preserve">
     <value>Set a PIN for this profile first (Profile details), then turn this on.</value>
@@ -9504,45 +9459,6 @@
   <data name="Accounts_SignedOutToast" xml:space="preserve">
     <value>Signed out of {0}.</value>
   </data>
-  <data name="PluginKeys_Title" xml:space="preserve">
-    <value>App details</value>
-  </data>
-  <data name="PluginKeys_Intro" xml:space="preserve">
-    <value>Keys this plugin needs from an administrator. They stay on this machine, and a saved value is never shown again.</value>
-  </data>
-  <data name="PluginKeys_Set" xml:space="preserve">
-    <value>Set</value>
-  </data>
-  <data name="PluginKeys_NotSet" xml:space="preserve">
-    <value>Not set</value>
-  </data>
-  <data name="PluginKeys_EnterPlaceholder" xml:space="preserve">
-    <value>Paste it here</value>
-  </data>
-  <data name="PluginKeys_ReplacePlaceholder" xml:space="preserve">
-    <value>Paste a new one to replace it</value>
-  </data>
-  <data name="PluginKeys_Save" xml:space="preserve">
-    <value>Save</value>
-  </data>
-  <data name="PluginKeys_Remove" xml:space="preserve">
-    <value>Remove</value>
-  </data>
-  <data name="PluginKeys_Saved" xml:space="preserve">
-    <value>{0} saved.</value>
-  </data>
-  <data name="PluginKeys_Removed" xml:space="preserve">
-    <value>{0} removed.</value>
-  </data>
-  <data name="PluginKeys_SaveFailed" xml:space="preserve">
-    <value>That could not be saved. Try again.</value>
-  </data>
-  <data name="PluginKeys_AccountsNote" xml:space="preserve">
-    <value>Each person signs in to their own account on their own Profile, under Accounts.</value>
-  </data>
-  <data name="PluginKeys_OpenAccounts" xml:space="preserve">
-    <value>Open Accounts</value>
-  </data>
   <data name="ListSection_SignInAgain" xml:space="preserve">
     <value>This list was read with your {0} sign-in, which is no longer active, so it cannot refresh until you sign in again. It keeps what it has.</value>
   </data>
@@ -9554,6 +9470,9 @@
   </data>
   <data name="PluginProvides_RunsOnLocalAi" xml:space="preserve">
     <value>runs on Local AI</value>
+  </data>
+  <data name="PluginProvides_EveryType" xml:space="preserve">
+    <value>Every type</value>
   </data>
   <data name="ProviderAccess_Title" xml:space="preserve">
     <value>Access</value>
@@ -9707,6 +9626,195 @@
   </data>
   <data name="Backups_ThisComputer" xml:space="preserve">
     <value>This computer</value>
+  </data>
+  <data name="PluginPage_Activity" xml:space="preserve">
+    <value>Activity</value>
+  </data>
+  <data name="PluginPage_Paused" xml:space="preserve">
+    <value>Paused until {0}. Library will try it again then.</value>
+  </data>
+  <data name="PluginPage_NothingWrong" xml:space="preserve">
+    <value>Nothing has gone wrong.</value>
+  </data>
+  <data name="PluginPage_OpenActivityLog" xml:space="preserve">
+    <value>Open the full Activity log</value>
+  </data>
+  <data name="PluginPage_NothingAdded" xml:space="preserve">
+    <value>Nothing added yet.</value>
+  </data>
+  <data name="PluginPage_KeyMissing" xml:space="preserve">
+    <value>Key missing</value>
+  </data>
+  <data name="PluginPage_TestConnection" xml:space="preserve">
+    <value>Test connection</value>
+  </data>
+  <data name="PluginPage_CheckNow" xml:space="preserve">
+    <value>Check now</value>
+  </data>
+  <data name="PluginPage_OpenLink" xml:space="preserve">
+    <value>Open link</value>
+  </data>
+  <data name="PluginPage_Remove" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="PluginPage_SaveKey" xml:space="preserve">
+    <value>Save key</value>
+  </data>
+  <data name="PluginPage_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="PluginPage_OpenAccounts" xml:space="preserve">
+    <value>Open Accounts</value>
+  </data>
+  <data name="PluginPage_AdvancedSettings" xml:space="preserve">
+    <value>Advanced settings</value>
+  </data>
+  <data name="PluginPage_Loading" xml:space="preserve">
+    <value>Loading</value>
+  </data>
+  <data name="PluginFile_None" xml:space="preserve">
+    <value>This plugin has no file to show.</value>
+  </data>
+  <data name="PluginFile_ComputerOnly" xml:space="preserve">
+    <value>Editing is available on a computer.</value>
+  </data>
+  <data name="PluginFile_Opening" xml:space="preserve">
+    <value>Opening the file</value>
+  </data>
+  <data name="PluginFile_Edit" xml:space="preserve">
+    <value>Edit file</value>
+  </data>
+  <data name="PluginFile_ResetToShipped" xml:space="preserve">
+    <value>Reset to Tuvima's version</value>
+  </data>
+  <data name="PluginFileEditor_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="PluginFileEditor_Save" xml:space="preserve">
+    <value>Save changes</value>
+  </data>
+  <data name="PluginFileEditor_Checking" xml:space="preserve">
+    <value>Checking...</value>
+  </data>
+  <data name="PluginFileEditor_NothingToFix" xml:space="preserve">
+    <value>Nothing to fix.</value>
+  </data>
+  <data name="PluginFileEditor_NotChecked" xml:space="preserve">
+    <value>The Engine did not answer, so this text has not been checked. Try typing again.</value>
+  </data>
+  <data name="PluginFileEditor_Problems" xml:space="preserve">
+    <value>Problems</value>
+  </data>
+  <data name="PluginFileEditor_TextOf" xml:space="preserve">
+    <value>Text of {0}</value>
+  </data>
+  <data name="PluginFileEditor_NotSaved" xml:space="preserve">
+    <value>The Engine did not answer, so nothing was saved.</value>
+  </data>
+  <data name="PluginFileEditor_NotReset" xml:space="preserve">
+    <value>The Engine did not answer, so the file was not reset.</value>
+  </data>
+  <data name="PluginFileEditor_ReviewTitle" xml:space="preserve">
+    <value>Review changes</value>
+  </data>
+  <data name="PluginFileEditor_KeepEditing" xml:space="preserve">
+    <value>Keep editing</value>
+  </data>
+  <data name="PluginFileEditor_ResetTitle" xml:space="preserve">
+    <value>Reset to Tuvima's version?</value>
+  </data>
+  <data name="PluginFileEditor_ResetMessage" xml:space="preserve">
+    <value>The file goes back to the version that ships with Library. Your edits to it are lost. Your keys and the values you saved for its settings are kept.</value>
+  </data>
+  <data name="PluginFileEditor_ResetConfirm" xml:space="preserve">
+    <value>Reset file</value>
+  </data>
+  <data name="PluginFileEditor_UnsavedTitle" xml:space="preserve">
+    <value>Unsaved changes</value>
+  </data>
+  <data name="PluginFileEditor_UnsavedMessage" xml:space="preserve">
+    <value>You changed this file and have not saved it. Leave without saving?</value>
+  </data>
+  <data name="PluginFileEditor_Discard" xml:space="preserve">
+    <value>Discard changes</value>
+  </data>
+  <data name="PluginFileDiff_Region" xml:space="preserve">
+    <value>Changes to the file</value>
+  </data>
+  <data name="PluginFileEditor_Valid" xml:space="preserve">
+    <value>Valid</value>
+  </data>
+  <data name="PluginFileEditor_StatusChecking" xml:space="preserve">
+    <value>Checking</value>
+  </data>
+  <data name="PluginFileEditor_StatusNotChecked" xml:space="preserve">
+    <value>Not checked</value>
+  </data>
+  <data name="PluginFileEditor_OneProblem" xml:space="preserve">
+    <value>1 problem</value>
+  </data>
+  <data name="PluginFileEditor_ManyProblems" xml:space="preserve">
+    <value>{0} problems</value>
+  </data>
+  <data name="PluginFileEditor_LineError" xml:space="preserve">
+    <value>Line {0}</value>
+  </data>
+  <data name="PluginFileEditor_LineNote" xml:space="preserve">
+    <value>To know, line {0}</value>
+  </data>
+  <data name="PluginPage_Unavailable" xml:space="preserve">
+    <value>This plugin's page is unavailable</value>
+  </data>
+  <data name="PluginPage_Settings" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="RestorePlugins_Title" xml:space="preserve">
+    <value>Restore official plugins</value>
+  </data>
+  <data name="RestorePlugins_Description" xml:space="preserve">
+    <value>Put the official plugin files back to the way they ship. Your keys, switches, settings and Private plugins are not touched.</value>
+  </data>
+  <data name="RestorePlugins_Open" xml:space="preserve">
+    <value>Review official plugins</value>
+  </data>
+  <data name="RestorePlugins_Checking" xml:space="preserve">
+    <value>Checking the official plugins</value>
+  </data>
+  <data name="RestorePlugins_CouldNotCheck" xml:space="preserve">
+    <value>Library could not check the official plugins. Check that the server is online, then try again.</value>
+  </data>
+  <data name="RestorePlugins_CouldNotRestore" xml:space="preserve">
+    <value>Library could not restore the official plugins. Check that the server is online, then try again.</value>
+  </data>
+  <data name="RestorePlugins_AllMatch" xml:space="preserve">
+    <value>All official plugins match.</value>
+  </data>
+  <data name="RestorePlugins_WillBeRestored" xml:space="preserve">
+    <value>will be restored</value>
+  </data>
+  <data name="RestorePlugins_WillBeReset" xml:space="preserve">
+    <value>will be reset</value>
+  </data>
+  <data name="RestorePlugins_OneMatches" xml:space="preserve">
+    <value>{0} other official plugin file already matches.</value>
+  </data>
+  <data name="RestorePlugins_ManyMatch" xml:space="preserve">
+    <value>{0} other official plugin files already match.</value>
+  </data>
+  <data name="RestorePlugins_Untouched" xml:space="preserve">
+    <value>Keys, switches, settings values and Private plugins are not touched.</value>
+  </data>
+  <data name="RestorePlugins_Confirm" xml:space="preserve">
+    <value>Restore</value>
+  </data>
+  <data name="RestorePlugins_DoneOne" xml:space="preserve">
+    <value>Done. 1 official plugin file is back to the version that ships with Library.</value>
+  </data>
+  <data name="RestorePlugins_DoneMany" xml:space="preserve">
+    <value>Done. {0} official plugin files are back to the version that ships with Library.</value>
+  </data>
+  <data name="RestorePlugins_NothingChanged" xml:space="preserve">
+    <value>Nothing could be restored.</value>
   </data>
   <data name="PlayerSettings_Title" xml:space="preserve">
     <value>Settings</value>

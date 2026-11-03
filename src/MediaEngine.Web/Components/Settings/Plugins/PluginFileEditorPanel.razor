@@ -1,0 +1,328 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Plugins
+@using Microsoft.Extensions.Localization
+@using MediaEngine.Web.Services.Ui
+@implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
+@inject IEngineApiClient ApiClient
+@inject IAppDialogService DialogService
+@inject ILogger<PluginFileEditorPanel> Logger
+
+@* The Plugin file editor (Plugins and Integrations screens v5 D55, D56), in the item editor's pattern: a sticky bar with Cancel, Reset to
+   Tuvima's version and Save changes; the text with line numbers; the Engine's checks as you type (debounced); the problems with their
+   line and a plain reason. A "thing to know" never blocks. Save changes stays off until the file is valid and different, and opens
+   Review changes (what differs, line by line) before anything is written. The Engine checks again and refuses a bad file whatever this
+   panel says. The panel is only ever drawn on a computer: the card never offers it anywhere else. It never knows which plugin it is
+   editing; it edits whatever file the Engine names. *@
+<div class="plugin-file-editor" data-testid="plugin-file-editor">
+    <div class="plugin-file-editor__bar" data-testid="plugin-file-editor-bar">
+        <strong class="plugin-file-editor__name" data-testid="plugin-file-editor-name">@Initial.State.FileName</strong>
+        <span class="plugin-file-editor__status" data-testid="plugin-file-editor-status" aria-live="polite">
+            <AppStatusBadge Text="@StatusWords" Tone="@StatusTone" />
+        </span>
+        <span class="plugin-file-editor__spacer"></span>
+        <AppButton Label="@L["PluginFileEditor_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="@CancelAsync" data-testid="plugin-file-cancel" />
+        @if (Initial.State.HasShippedCopy)
+        {
+            <AppButton Label="@L["PluginFile_ResetToShipped"].Value" StartIcon="@AppMaterialIcons.Outlined.RestartAlt" Disabled="@_busy" OnClick="@ResetAsync" data-testid="plugin-file-reset" />
+        }
+        <AppButton Label="@L["PluginFileEditor_Save"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!CanSave)" Loading="@_saving"
+                   OnClick="@SaveAsync" data-testid="plugin-file-save" />
+    </div>
+
+    @if (_message is not null)
+    {
+        <AppAlert Tone="AppUiTone.Error" data-testid="plugin-file-editor-message">@_message</AppAlert>
+    }
+
+    <div class="plugin-file-editor__body">
+        <div class="plugin-file-editor__scroll" data-testid="plugin-file-editor-text">
+            <div class="plugin-file-editor__gutter" aria-hidden="true" data-testid="plugin-file-editor-gutter">
+                @for (var number = 1; number <= LineCount; number++)
+                {
+                    <span @key="number" class="@(_errorLines.Contains(number) ? "plugin-file-editor__line plugin-file-editor__line--problem" : "plugin-file-editor__line")" data-line="@number">@number</span>
+                }
+            </div>
+            <div class="plugin-file-editor__field">
+                <AppTextarea Value="@_text" ValueChanged="@TypedAsync" Lines="@Math.Max(MinimumLines, LineCount)" InlineStyle="@TextStyle"
+                             aria-label="@L["PluginFileEditor_TextOf", Initial.State.FileName].Value" wrap="off" spellcheck="false" Disabled="@_saving" data-testid="plugin-file-editor-input" />
+            </div>
+        </div>
+        <aside class="plugin-file-editor__problems" aria-label="@L["PluginFileEditor_Problems"].Value" data-testid="plugin-file-editor-problems">
+            @if (_checkFailed)
+            {
+                <p class="plugin-file-editor__quiet" data-testid="plugin-file-editor-check-failed">@L["PluginFileEditor_NotChecked"]</p>
+            }
+            else if (_checking)
+            {
+                <p class="plugin-file-editor__quiet">@L["PluginFileEditor_Checking"]</p>
+            }
+            else if (_problems.Count == 0)
+            {
+                <p class="plugin-file-editor__quiet" data-testid="plugin-file-editor-clear">@L["PluginFileEditor_NothingToFix"]</p>
+            }
+
+            @if (_problems.Count > 0)
+            {
+                <ul class="plugin-file-editor__list">
+                    @foreach (var problem in _problems)
+                    {
+                        <li class="@("plugin-file-editor__problem plugin-file-editor__problem--" + problem.Severity)" data-line="@problem.Line" data-severity="@problem.Severity">
+                            <strong>@(problem.Severity == "error" ? L["PluginFileEditor_LineError", problem.Line].Value : L["PluginFileEditor_LineNote", problem.Line].Value)</strong>
+                            <span>@problem.Message</span>
+                        </li>
+                    }
+                </ul>
+            }
+        </aside>
+    </div>
+</div>
+
+@code {
+    private const int MinimumLines = 14;
+
+    // The text itself is drawn by the shared text field, so the few rules that make it a code view travel as its own style: the mono
+    // font and line height the gutter relies on, no wrapping, and no border or scroll bar of its own (the panel scrolls).
+    private const string TextStyle = "font-family: var(--tl-font-mono); font-size: var(--tl-font-size-sm); line-height: 1.5; white-space: pre; overflow-y: hidden; overflow-x: auto; resize: none; border: 0;";
+
+    private readonly CancellationTokenSource _disposed = new();
+    private CancellationTokenSource? _debounce;
+    private string _text = string.Empty;
+    private string _original = string.Empty;
+    private string? _checkedText;
+    private IReadOnlyList<PluginFileProblemDto> _problems = [];
+    private HashSet<int> _errorLines = [];
+    private int _errors;
+    private bool _checking;
+    private bool _checkFailed;
+    private bool _saving;
+    private bool _busy;
+    private string? _message;
+
+    /// <summary>The plugin whose file this is.</summary>
+    [Parameter, EditorRequired] public string PluginId { get; set; } = string.Empty;
+
+    /// <summary>The file as the Engine read it: its text, its state and what the check found.</summary>
+    [Parameter, EditorRequired] public PluginFileResponse Initial { get; set; } = default!;
+
+    /// <summary>How long to wait after the last keystroke before the Engine is asked to check.</summary>
+    [Parameter] public TimeSpan CheckDelay { get; set; } = TimeSpan.FromMilliseconds(450);
+
+    /// <summary>Raised when the editor is done: with the Engine's answer after a save or a reset, or null after Cancel.</summary>
+    [Parameter] public EventCallback<PluginFileSaveResponse?> Done { get; set; }
+
+    private int LineCount => PluginJsonTokenizer.LineCount(_text);
+
+    private bool Changed => PluginFileDiff.Differ(_original, _text);
+
+    private bool CanSave => !_busy && !_saving && !_checking && !_checkFailed && _checkedText == _text && _errors == 0 && Changed;
+
+    private string StatusWords => _checking ? L["PluginFileEditor_StatusChecking"].Value : _checkFailed ? L["PluginFileEditor_StatusNotChecked"].Value : _errors == 0 ? L["PluginFileEditor_Valid"].Value : _errors == 1 ? L["PluginFileEditor_OneProblem"].Value : L["PluginFileEditor_ManyProblems", _errors].Value;
+
+    private AppUiTone StatusTone => _checking || _checkFailed ? AppUiTone.Neutral : _errors == 0 ? AppUiTone.Success : AppUiTone.Error;
+
+    protected override void OnInitialized()
+    {
+        _original = Initial.Text;
+        _text = Initial.Text;
+        _checkedText = Initial.Text;
+        ShowFindings(Initial.Problems);
+    }
+
+    private Task TypedAsync(string? value)
+    {
+        _text = value ?? string.Empty;
+        _message = null;
+        _checkedText = null;
+        _checkFailed = false;
+        _checking = true;
+        _debounce?.Cancel();
+        _debounce?.Dispose();
+        _debounce = CancellationTokenSource.CreateLinkedTokenSource(_disposed.Token);
+        _ = CheckAfterDelayAsync(_text, _debounce.Token);
+        return Task.CompletedTask;
+    }
+
+    // Runs on its own after the last keystroke. Every outcome is handled here, so nothing is left to fail unseen.
+    private async Task CheckAfterDelayAsync(string text, CancellationToken token)
+    {
+        try
+        {
+            if (CheckDelay > TimeSpan.Zero)
+            {
+                await Task.Delay(CheckDelay, token);
+            }
+
+            var result = await ApiClient.CheckPluginFileAsync(PluginId, text, token);
+            await InvokeAsync(() =>
+            {
+                if (token.IsCancellationRequested || text != _text)
+                {
+                    return;
+                }
+
+                _checking = false;
+                if (result is null)
+                {
+                    _checkFailed = true;
+                }
+                else
+                {
+                    _checkedText = text;
+                    ShowFindings(result.Problems);
+                }
+
+                StateHasChanged();
+            });
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            // A newer keystroke (or leaving the editor) replaced this check; the newer one reports.
+            return;
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "Could not check the file of plugin {PluginId}.", PluginId);
+            await InvokeAsync(() =>
+            {
+                if (text == _text)
+                {
+                    _checking = false;
+                    _checkFailed = true;
+                    StateHasChanged();
+                }
+            });
+        }
+    }
+
+    private void ShowFindings(IReadOnlyList<PluginFileProblemDto> problems)
+    {
+        _problems = problems;
+        _errors = problems.Count(problem => problem.Severity == "error");
+        _errorLines = [.. problems.Where(problem => problem.Severity == "error").Select(problem => problem.Line)];
+    }
+
+    private async Task SaveAsync()
+    {
+        if (!CanSave)
+        {
+            return;
+        }
+
+        // Review changes first: nothing is written until the person has seen what differs, line by line.
+        RenderFragment preview = builder =>
+        {
+            builder.OpenComponent<PluginFileDiffView>(0);
+            builder.AddAttribute(1, nameof(PluginFileDiffView.Before), _original);
+            builder.AddAttribute(2, nameof(PluginFileDiffView.After), _text);
+            builder.CloseComponent();
+        };
+        var answer = await AppConfirmDialog.ShowAsync(DialogService, L["PluginFileEditor_ReviewTitle"].Value, null, primaryLabel: L["PluginFileEditor_Save"].Value, secondaryLabel: L["PluginFileEditor_KeepEditing"].Value, preview: preview);
+        if (answer != AppConfirmResult.Primary)
+        {
+            return;
+        }
+
+        _saving = true;
+        _busy = true;
+        _message = null;
+        try
+        {
+            var result = await ApiClient.SavePluginFileAsync(PluginId, _text, _disposed.Token);
+            if (result is null)
+            {
+                _message = L["PluginFileEditor_NotSaved"].Value;
+                return;
+            }
+
+            if (!result.Saved)
+            {
+                _message = result.Message;
+                if (result.Problems.Count > 0)
+                {
+                    ShowFindings(result.Problems);
+                    _checkedText = _text;
+                }
+
+                return;
+            }
+
+            await Done.InvokeAsync(result);
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "Could not save the file of plugin {PluginId}.", PluginId);
+            _message = L["PluginFileEditor_NotSaved"].Value;
+        }
+        finally
+        {
+            _saving = false;
+            _busy = false;
+        }
+    }
+
+    private async Task ResetAsync()
+    {
+        var answer = await AppConfirmDialog.ShowAsync(
+            DialogService,
+            L["PluginFileEditor_ResetTitle"].Value,
+            L["PluginFileEditor_ResetMessage"].Value,
+            primaryLabel: L["PluginFileEditor_ResetConfirm"].Value,
+            secondaryLabel: L["PluginFileEditor_KeepEditing"].Value,
+            primaryDestructive: true);
+        if (answer != AppConfirmResult.Primary)
+        {
+            return;
+        }
+
+        _busy = true;
+        _message = null;
+        try
+        {
+            var result = await ApiClient.ResetPluginFileAsync(PluginId, _disposed.Token);
+            if (result is null || !result.Saved)
+            {
+                _message = result?.Message ?? L["PluginFileEditor_NotReset"].Value;
+                return;
+            }
+
+            await Done.InvokeAsync(result);
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "Could not reset the file of plugin {PluginId}.", PluginId);
+            _message = L["PluginFileEditor_NotReset"].Value;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task CancelAsync()
+    {
+        if (Changed)
+        {
+            var answer = await AppConfirmDialog.ShowAsync(
+                DialogService,
+                L["PluginFileEditor_UnsavedTitle"].Value,
+                L["PluginFileEditor_UnsavedMessage"].Value,
+                primaryLabel: L["PluginFileEditor_Discard"].Value,
+                secondaryLabel: L["PluginFileEditor_KeepEditing"].Value,
+                primaryDestructive: true);
+            if (answer != AppConfirmResult.Primary)
+            {
+                return;
+            }
+        }
+
+        await Done.InvokeAsync(null);
+    }
+
+    public void Dispose()
+    {
+        _disposed.Cancel();
+        _debounce?.Dispose();
+        _disposed.Dispose();
+    }
+}

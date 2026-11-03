@@ -3,12 +3,22 @@
 @* The one status signal on a Plugins or Integrations tile, row or page header (Plugins and Integrations screens v4 D29): a small
    dot at the top left of the logo. Green is working, amber needs something from you, red is broken, grey is off or always on.
    The dot is never the only signal: a glyph sits inside it, the sentence opens on hover and on focus, and the label is read aloud. *@
-<span class="app-status-dot-host">
-    @ChildContent
+@if (Tick)
+{
+    @* Plugins and Integrations screens v5 D44: the same signal as a 22 px round tick in a fixed place (tile footer, list column, page header). *@
     <span class="@DotClass" role="img" tabindex="0" aria-label="@AriaText" data-tip="@Sentence" data-status="@Tone.ToString().ToLowerInvariant()">
         <svg viewBox="0 0 10 10" aria-hidden="true" focusable="false"><path d="@GlyphPath" /></svg>
     </span>
-</span>
+}
+else
+{
+    <span class="app-status-dot-host">
+        @ChildContent
+        <span class="@DotClass" role="img" tabindex="0" aria-label="@AriaText" data-tip="@Sentence" data-status="@Tone.ToString().ToLowerInvariant()">
+            <svg viewBox="0 0 10 10" aria-hidden="true" focusable="false"><path d="@GlyphPath" /></svg>
+        </span>
+    </span>
+}
 
 @code {
     [Parameter] public AppStatusDotTone Tone { get; set; } = AppStatusDotTone.Off;
@@ -16,12 +26,15 @@
     /// <summary>The sentence the dot says ("Working · checked 4 minutes ago", "Needs a key").</summary>
     [Parameter] public string Sentence { get; set; } = string.Empty;
 
+    /// <summary>Draws the 22 px tick on its own, with no logo to sit on (plugin tiles, rows and page headers).</summary>
+    [Parameter] public bool Tick { get; set; }
+
     /// <summary>The logo (or icon) the dot sits on.</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
     private string AriaText => $"Status: {Sentence}";
 
-    private string DotClass => $"app-status-dot app-status-dot--{Tone.ToString().ToLowerInvariant()}";
+    private string DotClass => $"app-status-dot app-status-dot--{Tone.ToString().ToLowerInvariant()}{(Tick ? " app-status-dot--tick" : string.Empty)}";
 
     // Tick, exclamation, cross and dash drawn as strokes, so the glyph needs no font size (the colour is never the only signal).
     private string GlyphPath => Tone switch

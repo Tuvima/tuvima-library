@@ -1,0 +1,12 @@
+.plugin-file-diff { display: grid; gap: var(--tl-space-3, 12px); min-width: 0; }
+.plugin-file-diff__summary { margin: 0; color: var(--tl-text-secondary); }
+.plugin-file-diff__lines { overflow: auto; max-height: 50vh; border: 1px solid var(--tl-border-default); border-radius: var(--tl-radius-sm, 8px); background: var(--tl-bg-surface-raised); font-family: var(--tl-font-mono); font-size: var(--tl-font-size-sm); line-height: 1.5; }
+.plugin-file-diff__row { display: grid; grid-template-columns: 4ch 4ch 2ch 1fr; gap: var(--tl-space-2, 8px); min-width: max-content; padding: 0 var(--tl-space-3, 12px) 0 var(--tl-space-2, 8px); }
+.plugin-file-diff__row--added { background: color-mix(in srgb, var(--tl-status-success) 14%, transparent); }
+.plugin-file-diff__row--removed { background: color-mix(in srgb, var(--tl-status-error) 14%, transparent); }
+.plugin-file-diff__row--skipped { color: var(--tl-text-muted); }
+.plugin-file-diff__number { text-align: end; color: var(--tl-text-muted); user-select: none; }
+.plugin-file-diff__mark { font-weight: 700; user-select: none; }
+.plugin-file-diff__row--added .plugin-file-diff__mark { color: var(--tl-status-success); }
+.plugin-file-diff__row--removed .plugin-file-diff__mark { color: var(--tl-status-error); }
+.plugin-file-diff__code { white-space: pre; color: var(--tl-text-primary); }

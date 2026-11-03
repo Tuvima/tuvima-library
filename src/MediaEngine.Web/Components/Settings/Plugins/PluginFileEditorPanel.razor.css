@@ -1,0 +1,16 @@
+.plugin-file-editor { display: grid; gap: var(--tl-space-3, 12px); min-width: 0; }
+.plugin-file-editor__bar { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; gap: var(--tl-space-2, 8px); padding: var(--tl-space-2, 8px) var(--tl-space-3, 12px); border: 1px solid var(--tl-border-default); border-radius: var(--tl-radius-sm, 8px); background: var(--tl-bg-surface-raised); }
+.plugin-file-editor__name { overflow-wrap: anywhere; }
+.plugin-file-editor__spacer { flex: 1 1 auto; }
+.plugin-file-editor__body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 300px); gap: var(--tl-space-3, 12px); align-items: start; min-width: 0; }
+.plugin-file-editor__scroll { display: flex; overflow: auto; max-height: 60vh; border: 1px solid var(--tl-border-default); border-radius: var(--tl-radius-sm, 8px); background: var(--tl-bg-surface-raised); font-family: var(--tl-font-mono); font-size: var(--tl-font-size-sm); line-height: 1.5; min-width: 0; }
+.plugin-file-editor__gutter { display: flex; flex: none; flex-direction: column; min-width: 5ch; padding: var(--tl-space-2, 8px) var(--tl-space-2, 8px); text-align: end; color: var(--tl-text-muted); user-select: none; border-inline-end: 1px solid var(--tl-border-default); }
+.plugin-file-editor__line--problem { color: var(--tl-status-error); font-weight: 700; }
+.plugin-file-editor__field { flex: 1 1 auto; min-width: 0; }
+.plugin-file-editor__problems { display: grid; gap: var(--tl-space-2, 8px); min-width: 0; }
+.plugin-file-editor__quiet { margin: 0; color: var(--tl-text-muted); }
+.plugin-file-editor__list { display: grid; gap: var(--tl-space-2, 8px); margin: 0; padding: 0; list-style: none; }
+.plugin-file-editor__problem { display: flex; flex-wrap: wrap; gap: 4px 12px; min-width: 0; color: var(--tl-text-secondary); }
+.plugin-file-editor__problem--error strong { color: var(--tl-status-error); }
+.plugin-file-editor__problem--note strong { color: var(--tl-status-warning); }
+@media (max-width: 840px) { .plugin-file-editor__body { grid-template-columns: minmax(0, 1fr); } }
