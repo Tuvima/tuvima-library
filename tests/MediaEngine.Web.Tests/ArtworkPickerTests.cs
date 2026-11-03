@@ -66,6 +66,33 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
         ],
     };
 
+    [Fact]
+    public async Task FetchAllStills_StagesAStillForEveryEpisode_AndWritesNothingUntilSave()
+    {
+        var context = SeasonContext();
+        context.Scopes[0].ArtworkSlots = ["SeasonPoster", "EpisodeStill"];
+        var harness = await StartAsync(context);
+        Guid[] episodes = [Guid.NewGuid(), Guid.NewGuid()];
+        harness.Picker.EpisodeSource = () => Task.FromResult<IReadOnlyList<Guid>>(episodes);
+
+        Assert.True(harness.Picker.CanFetchAllStills);
+        var staged = await harness.Picker.FetchAllStillsAsync();
+
+        Assert.Equal(2, staged);
+        Assert.Equal(2, harness.Session.Pending.Changes.Count(change => change.Kind == EditSessionChangeKinds.Artwork));
+        Assert.Contains("2 episodes", harness.Picker.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain(_writes, write => write.Name == nameof(IEngineApiClient.RunEditSessionAsync));
+    }
+
+    [Fact]
+    public async Task FetchAllStills_IsNotOfferedForAMovie()
+    {
+        var harness = await StartAsync();
+        harness.Picker.EpisodeSource = () => Task.FromResult<IReadOnlyList<Guid>>([]);
+
+        Assert.False(harness.Picker.CanFetchAllStills);
+    }
+
     private sealed record Harness(
         EditingModeContext Mode,
         EditSessionState Session,

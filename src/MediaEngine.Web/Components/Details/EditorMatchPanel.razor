@@ -64,6 +64,11 @@
     private bool _siblingsLoading;
     private bool _siblingsFailed;
     private bool _matchSiblings;
+    private ShowChildRematchTarget? _rematchTarget;
+    private ShowChildRematchPreviewDto? _rematch;
+    private bool _rematchLoading;
+    private bool _rematchFailed;
+    private bool _rematchChildren;
 
     private enum PlaceState { None, Checking, Found, Unavailable }
 
@@ -118,6 +123,8 @@
         _provider = string.Empty;
         _selected = null;
         _siblings = null;
+        _rematchTarget = null;
+        _rematch = null;
         _results = [];
         _searched = false;
         _contextReady = false;
@@ -332,6 +339,13 @@
                                   Value="@_matchSiblings" ValueChanged="@(value => { _matchSiblings = value; _staged = false; })"
                                   Disabled="@(!CanEdit || !_useRetail || SiblingCount == 0)" />
                 }
+                @if (_rematchTarget is not null)
+                {
+                    <AppSwitchRow Label="Re-match seasons and episodes"
+                                  Description="@RematchDescription"
+                                  Value="@_rematchChildren" ValueChanged="@(value => { _rematchChildren = value; _staged = false; })"
+                                  Disabled="@(!CanEdit || !_useRetail || RematchEpisodeCount == 0)" />
+                }
                 <AppSwitchRow Label="@ParentSwitchLabel"
                               Description="@ParentSwitchDescription"
                               Value="@_moveParent" ValueChanged="@(value => { _moveParent = value; _staged = false; })"
@@ -368,6 +382,16 @@
 
     // The other episodes of the folder season: only an episode chosen from the TV browser has them (a show, a film or a song has none).
     private EpisodeSiblingMatchTarget? _siblingTarget;
+
+    private int RematchEpisodeCount => _rematch?.EpisodeCount ?? 0;
+
+    private string RematchDescription =>
+        _rematchLoading ? "Checking the show's episodes..."
+        : _rematchFailed || _rematch is null ? "The show's episodes could not be checked right now."
+        : RematchEpisodeCount == 0 ? "No episode of this show has a season and episode number to match by."
+        : _rematch.NotFoundCount == 0
+            ? $"{RematchEpisodeCount.ToString(CultureInfo.InvariantCulture)} {(RematchEpisodeCount == 1 ? "episode takes" : "episodes take")} the episode of {_rematch.ShowName} with {(RematchEpisodeCount == 1 ? "its" : "their")} own season and number. Nothing moves."
+            : $"{_rematch.MatchableCount.ToString(CultureInfo.InvariantCulture)} of {RematchEpisodeCount.ToString(CultureInfo.InvariantCulture)} episodes take the episode of {_rematch.ShowName} with their own season and number; {_rematch.NotFoundCount.ToString(CultureInfo.InvariantCulture)} it does not have go to Needs Review. Nothing moves.";
 
     private int SiblingCount => _siblings?.MatchableCount ?? 0;
 
@@ -558,7 +582,57 @@
         _siblingsFailed = false;
         _matchSiblings = false;
         _siblingTarget = SiblingTargetOf(candidate);
-        await Task.WhenAll(CheckPlaceAndFilesAsync(candidate), LoadSiblingsAsync(candidate));
+        _rematch = null;
+        _rematchFailed = false;
+        _rematchChildren = false;
+        _rematchTarget = RematchTargetOf(candidate);
+        await Task.WhenAll(CheckPlaceAndFilesAsync(candidate), LoadSiblingsAsync(candidate), LoadRematchAsync(candidate));
+    }
+
+    // A chosen show carries its TheTVDB id; re-matching its seasons and episodes is offered on a show page only.
+    private ShowChildRematchTarget? RematchTargetOf(ItemCanonicalRetailCandidateDto candidate)
+    {
+        if (!UsesTvBrowser || Subject is null || EditorTvMatchCandidates.NeedsEpisode(Subject.ScopeId)
+            || candidate.BridgeIds.ContainsKey(BridgeIdKeys.TvdbEpisodeId)
+            || !candidate.BridgeIds.TryGetValue(BridgeIdKeys.TvdbId, out var series)
+            || series.Length is < 1 or > 12 || !series.All(char.IsAsciiDigit))
+        {
+            return null;
+        }
+
+        return new ShowChildRematchTarget { SeriesId = series };
+    }
+
+    private async Task LoadRematchAsync(ItemCanonicalRetailCandidateDto candidate)
+    {
+        if (Subject is null || _rematchTarget is not { } target)
+        {
+            return;
+        }
+
+        _rematchLoading = true;
+        try
+        {
+            var preview = await Api.PreviewShowChildRematchAsync(Subject.EntityId, target.SeriesId);
+            if (!ReferenceEquals(_selected, candidate))
+            {
+                return;
+            }
+
+            _rematch = preview;
+            _rematchFailed = preview is null;
+            // On by default as soon as a show is chosen and there is something to re-match (like the by-number switch for an episode).
+            _rematchChildren = preview is { EpisodeCount: > 0 };
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "The episodes of the show could not be checked for {EntityId}", Subject.EntityId);
+            _rematchFailed = true;
+        }
+        finally
+        {
+            _rematchLoading = false;
+        }
     }
 
     // A chosen episode carries the show and season it was chosen in; the by-number match covers the other episodes of the folder season.
@@ -758,6 +832,17 @@
         else
         {
             Unstage(pending, EditSessionChangeKinds.SiblingMatch, id);
+        }
+
+        if (_useRetail && _rematchChildren && _rematchTarget is { } rematchTarget && RematchEpisodeCount > 0)
+        {
+            pending.SetTarget(EditSessionChangeKinds.ChildRematch, id, EditSessionChildRematchTarget.Serialize(rematchTarget),
+                label: $"{RematchEpisodeCount.ToString(CultureInfo.InvariantCulture)} {(RematchEpisodeCount == 1 ? "episode" : "episodes")} against {_rematch!.ShowName}, by season and number",
+                before: "Matched as they are now");
+        }
+        else
+        {
+            Unstage(pending, EditSessionChangeKinds.ChildRematch, id);
         }
 
         if (_moveParent && _destination is not null)

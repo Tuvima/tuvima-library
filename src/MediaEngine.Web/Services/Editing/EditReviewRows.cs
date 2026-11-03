@@ -59,6 +59,8 @@ public static class EditReviewRows
 
     public const string NoPictureYet = "No picture chosen";
 
+    public const string ChildRematchNote = "Each of the show's episodes takes the episode with its own season and number. Any the new show does not have go to Needs Review. Matching cannot be undone from here.";
+
     public const string FileMoveWarning = "Moves the files on disk. This cannot be undone.";
 
     public static string GroupTitle(EditReviewGroup group) => group switch
@@ -114,6 +116,10 @@ public static class EditReviewRows
                 case EditSessionChangeKinds.SiblingMatch:
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Identity, item,
                         "Other episodes", "Matched as they are now", label ?? "The other episodes in this season, by number", SiblingMatchNote));
+                    break;
+                case EditSessionChangeKinds.ChildRematch:
+                    rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Identity, item,
+                        "Seasons and episodes", "Matched as they are now", label ?? "The show's episodes, by season and number", ChildRematchNote));
                     break;
                 case EditSessionChangeKinds.Artwork:
                     var removal = string.Equals(change.TargetId, EditSessionArtworkTargets.None, StringComparison.OrdinalIgnoreCase);

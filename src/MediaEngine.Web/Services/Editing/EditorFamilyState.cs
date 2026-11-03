@@ -306,6 +306,50 @@ public sealed class EditorFamilyState
         }
     }
 
+    /// <summary>
+    /// Every matched file under a parent (a show's or a season's episodes), reading each page that is not read yet. Used by "Fetch all" in the
+    /// Artwork tool; capped so a very long show cannot hold the editor up. Empty when the tree does not know the parent.
+    /// </summary>
+    public async Task<IReadOnlyList<FamilyRow>> LeavesUnderAsync(Guid parentId, int max = 300)
+    {
+        var found = new List<FamilyRow>();
+        if (!_nodes.ContainsKey(parentId))
+        {
+            return found;
+        }
+
+        var pending = new Stack<Guid>([parentId]);
+        while (pending.Count > 0 && found.Count < max)
+        {
+            var node = _nodes[pending.Pop()];
+            while ((node.PagesLoaded == 0 || node.HasMore) && !node.Loading && !node.Failed)
+            {
+                var before = node.PagesLoaded;
+                await LoadPageAsync(node);
+                if (node.PagesLoaded == before)
+                {
+                    break;
+                }
+            }
+
+            foreach (var leafId in node.Leaves)
+            {
+                var leaf = _nodes[leafId];
+                if (leaf.Matched && found.Count < max)
+                {
+                    found.Add(new FamilyRow(FamilyRowType.Item, leaf.Id, leaf.Title, leaf.Kind, 0, true, null, leaf.Detail, leaf.ImageUrl, false, false, null));
+                }
+            }
+
+            foreach (var child in node.Parents)
+            {
+                pending.Push(child);
+            }
+        }
+
+        return found;
+    }
+
     /// <summary>Reads the next page of files under a parent (the end of its list scrolled into view, or the person pressed "Show more").</summary>
     public async Task LoadMoreAsync(Guid parentId)
     {

@@ -72,6 +72,7 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
                 _overrideSaves.Add("saved");
                 return Task.FromResult(true);
             });
+            stub.SetHandler(nameof(IEngineApiClient.GetEditorFollowUpAsync), _ => Task.FromResult(_followUp));
             stub.SetHandler(nameof(IEngineApiClient.RunEditSessionAsync), args =>
             {
                 var request = (EditSessionRequest)args![0]!;
@@ -80,6 +81,31 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
             });
         });
         return api;
+    }
+
+    private EditorFollowUpDto? _followUp;
+
+    [Fact]
+    public async Task AfterAMatchSave_TheRibbonListsTheNamedSteps_AndShowsAnAmberReasonWhenOneStops()
+    {
+        _followUp = new EditorFollowUpDto
+        {
+            Steps =
+            [
+                new EditorFollowUpStepDto { Key = EditorFollowUpSteps.Matched, Label = "Matched", State = EditorFollowUpStates.Done },
+                new EditorFollowUpStepDto { Key = EditorFollowUpSteps.Details, Label = "Details from the providers", State = EditorFollowUpStates.Failed, Reason = "TMDB did not answer." },
+            ],
+        };
+        var editor = await StartEditorAsync();
+        editor.Session.Pending.SetTarget(EditSessionChangeKinds.Identity, MovieId, "provider-1");
+        var bar = RenderBar(editor);
+        var ribbon = Render<EditSavedRibbon>(parameters => parameters.Add(component => component.Flow, editor.Flow));
+
+        SaveFromReview(bar);
+
+        ribbon.WaitForAssertion(() => Assert.Equal(2, ribbon.FindAll(".tl-saved-ribbon__steps li").Count));
+        Assert.Contains("Details from the providers: TMDB did not answer.", ribbon.Find(".tl-saved-ribbon").TextContent, StringComparison.Ordinal);
+        Assert.Contains("Needs Review", ribbon.Find(".tl-saved-ribbon").TextContent, StringComparison.Ordinal);
     }
 
     private static EditSessionResult Ok(EditSessionRequest request) => new()

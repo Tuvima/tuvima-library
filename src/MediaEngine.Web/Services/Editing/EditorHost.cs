@@ -151,6 +151,9 @@ public sealed class EditorHost : IDisposable
         Picker = new ArtworkPickerSession(api, Session, Mode.Fields, Preview.Artwork, logger);
         Batch = new BulkEditSelection { RefreshAsync = () => _binding?.SectionCommitted?.Invoke() ?? Task.CompletedTask };
         Family = new EditorFamilyState(api, logger);
+        Picker.EpisodeSource = async () => Session.ActiveItem is { } active
+            ? (await Family.LeavesUnderAsync(active.EntityId)).Select(row => row.EntityId).ToList()
+            : [];
 
         Mode.Fields.Saved += OnFieldSavedAsync;
         Mode.Changed += OnModeChanged;

@@ -79,4 +79,13 @@ public sealed partial class EngineApiClient
             "Episode sibling match preview",
             $"/metadata/{entityId}/match-siblings",
             new Dictionary<string, string?> { ["seriesId"] = seriesId, ["seasonNumber"] = seasonNumber.ToString(System.Globalization.CultureInfo.InvariantCulture) }, ct: ct);
+
+    public async Task<ShowChildRematchPreviewDto?> PreviewShowChildRematchAsync(Guid entityId, string seriesId, CancellationToken ct = default) =>
+        await GetAsync<ShowChildRematchPreviewDto>(
+            "Show re-match preview",
+            $"/metadata/{entityId}/rematch-children",
+            new Dictionary<string, string?> { ["seriesId"] = seriesId }, ct: ct);
+
+    public async Task<EditorFollowUpDto?> GetEditorFollowUpAsync(Guid entityId, CancellationToken ct = default) =>
+        await GetAsync<EditorFollowUpDto>("Editor follow-up", $"/metadata/{entityId}/follow-up", ct: ct);
 }

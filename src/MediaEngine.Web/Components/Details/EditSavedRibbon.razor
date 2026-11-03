@@ -2,16 +2,20 @@
 @using MediaEngine.Web.Services.Editing
 @using MediaEngine.Contracts.Realtime
 @using MediaEngine.Web.Services.Integration
+@using MediaEngine.Contracts.Editing
 @implements IDisposable
 @inject IServiceProvider Provider
+@inject IJSRuntime JS
 @inject IStringLocalizer<SharedStrings> L
 
 @* The page proves the save (universal editor v2, D7): once the Editor window closes after a save, a ribbon under the top bar says how many
    changes were saved and when, in plain text. It goes away on its own after a few seconds, with its close button, or when editing starts
-   again. No toast, no sound. *@
+   again. No toast, no sound. When the save matched an item, the Engine's finishing work is listed by named step with a tick for each
+   (a spinner while it runs, amber with the reason if one stops, and the item then waits in Needs Review), the changed parts glow for
+   a few seconds, and "See what changed" opens the item's History. *@
 @if (Flow?.LastSave is { } saved)
 {
-    <div class="tl-saved-ribbon" role="status" aria-live="polite">
+    <div class="tl-saved-ribbon" role="status" aria-live="polite" data-steps="@(_steps.Count > 0 ? "true" : "false")">
         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" Size="AppSize.Small" />
         <span>@Message(saved)@(_arrived.Count == 0 ? string.Empty : " " + Arrived())</span>
         <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
@@ -20,6 +24,41 @@
                        Tooltip="@L["Common_Dismiss"].Value"
                        AriaLabel="@L["EditSavedRibbon_DismissTheSavedMessage"].Value"
                        OnClick="@(() => Flow.ClearLastSave())" />
+        @if (_steps.Count > 0)
+        {
+            <ul class="tl-saved-ribbon__steps" aria-label="@L["EditSavedRibbon_FinishingWork"]">
+                @foreach (var step in _steps)
+                {
+                    <li class="tl-saved-ribbon__step" data-step="@step.Key" data-state="@step.State">
+                        @switch (step.State)
+                        {
+                            case EditorFollowUpStates.Done:
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" Size="AppSize.Small" />
+                                break;
+                            case EditorFollowUpStates.Running:
+                                <AppSpinner Size="AppSize.Small" />
+                                break;
+                            case EditorFollowUpStates.Failed:
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" Size="AppSize.Small" />
+                                break;
+                            default:
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Circle" Size="AppSize.Small" />
+                                break;
+                        }
+                        <span>@step.Label</span>
+                    </li>
+                }
+            </ul>
+            @if (EditorFollowUpView.FailureLine(_steps) is { } failure)
+            {
+                <p class="tl-saved-ribbon__reason" role="alert">@failure @(FailureHint)</p>
+            }
+        }
+        @if (CanSeeHistory)
+        {
+            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                       Class="tl-saved-ribbon__history" OnClick="SeeWhatChangedAsync">@L["EditSavedRibbon_SeeWhatChanged"]</AppButton>
+        }
     </div>
 }
 
@@ -32,6 +71,25 @@
     private readonly List<string> _arrived = [];
     private bool _listening;
     private UIOrchestratorService? _orchestrator;
+    private IReadOnlyList<EditorFollowUpStepDto> _steps = [];
+    private CancellationTokenSource? _pollCts;
+    private IJSObjectReference? _glowModule;
+    private EditorHost? _editor;
+
+    private EditorHost? Editor => _editor ??= Provider.GetService(typeof(EditorHost)) as EditorHost;
+
+    // The History tool is offered where the page has one; it opens over the page the person is on.
+    private bool CanSeeHistory => Flow?.LastSave is { ItemIds.Count: > 0 } && Editor?.Binding is { ShowHistory: true, CanEdit: true };
+
+    private string FailureHint => "The item is waiting in Needs Review.";
+
+    private async Task SeeWhatChangedAsync()
+    {
+        if (Editor is { } editor && Flow?.LastSave?.ItemIds is { Count: > 0 } ids)
+        {
+            await editor.OpenAsync(ids[0], EditTool.History);
+        }
+    }
 
     [Parameter, EditorRequired] public EditSessionFlow? Flow { get; set; }
 
@@ -111,10 +169,98 @@
 
         _timed = saved;
         _arrived.Clear();
+        _steps = [];
+        _pollCts?.Cancel();
+        _pollCts?.Dispose();
+        _pollCts = null;
         _cts?.Cancel();
         _cts?.Dispose();
         var cts = _cts = new CancellationTokenSource();
-        _ = ClearAfterAsync(saved, cts.Token);
+        _ = GlowAsync(saved);
+        if (saved.MatchedItemIds is { Count: > 0 } && Provider.GetService(typeof(IEngineApiClient)) is IEngineApiClient api)
+        {
+            // The ribbon stays while the Engine works, then for the usual few seconds (a stopped step stays until it is dismissed).
+            var poll = _pollCts = new CancellationTokenSource();
+            _ = PollAsync(saved, api, cts.Token, poll.Token);
+        }
+        else
+        {
+            _ = ClearAfterAsync(saved, cts.Token);
+        }
+    }
+
+    // Asks the Engine for the named steps of each matched item every few seconds until they are all done, one stops, or it gives up.
+    private async Task PollAsync(EditSaveSummary saved, IEngineApiClient api, CancellationToken clearToken, CancellationToken ct)
+    {
+        const int MaxPolls = 90;
+        try
+        {
+            for (var poll = 0; poll < MaxPolls; poll++)
+            {
+                var answers = new List<EditorFollowUpDto>();
+                foreach (var id in saved.MatchedItemIds!)
+                {
+                    try
+                    {
+                        if (await api.GetEditorFollowUpAsync(id, ct) is { } answer)
+                        {
+                            answers.Add(answer);
+                        }
+                    }
+                    catch (HttpRequestException)
+                    {
+                        // The Engine did not answer this time; the next poll asks again.
+                    }
+                }
+
+                var steps = EditorFollowUpView.Combine(answers);
+                await InvokeAsync(() =>
+                {
+                    if (!ReferenceEquals(Flow?.LastSave, saved))
+                    {
+                        return;
+                    }
+
+                    _steps = steps;
+                    StateHasChanged();
+                });
+
+                if (answers.Count > 0 && EditorFollowUpView.IsFinished(steps))
+                {
+                    await GlowAsync(saved);
+                    break;
+                }
+
+                await Task.Delay(TimeSpan.FromSeconds(2.5), ct);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // A newer save, a dismissal or the page closing ended this watch.
+            return;
+        }
+
+        if (_steps.Any(step => step.State == EditorFollowUpStates.Failed))
+        {
+            // A step that stopped stays on screen until the person dismisses it: it is the one thing here that needs them.
+            return;
+        }
+
+        await ClearAfterAsync(saved, clearToken);
+    }
+
+    // The changed parts glow for a few seconds so the person sees where the save landed.
+    private async Task GlowAsync(EditSaveSummary saved)
+    {
+        try
+        {
+            _glowModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/editor-glow.js");
+            await _glowModule.InvokeVoidAsync("glow", (saved.ItemIds ?? []).Select(id => id.ToString("D")).ToArray());
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or TaskCanceledException or JSDisconnectedException)
+        {
+            // No script support here (a test host, a closing circuit): the glow is a courtesy, the ribbon already proved the save.
+        }
     }
 
     private async Task ClearAfterAsync(EditSaveSummary saved, CancellationToken ct)
@@ -158,6 +304,8 @@
             _subscribed.Changed -= OnChanged;
         }
 
+        _pollCts?.Cancel();
+        _pollCts?.Dispose();
         _cts?.Cancel();
         _cts?.Dispose();
     }

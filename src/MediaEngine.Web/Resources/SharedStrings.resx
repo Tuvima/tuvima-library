@@ -1143,6 +1143,12 @@
   <data name="Common_Dismiss" xml:space="preserve">
     <value>Dismiss</value>
   </data>
+  <data name="EditSavedRibbon_SeeWhatChanged" xml:space="preserve">
+    <value>See what changed</value>
+  </data>
+  <data name="EditSavedRibbon_FinishingWork" xml:space="preserve">
+    <value>Finishing work</value>
+  </data>
   <data name="EditSavedRibbon_DismissTheSavedMessage" xml:space="preserve">
     <value>Dismiss the saved message</value>
   </data>
@@ -1331,6 +1337,9 @@
   </data>
   <data name="FloatingArtworkPicker_Artwork" xml:space="preserve">
     <value>Artwork</value>
+  </data>
+  <data name="FloatingArtworkPicker_FetchAllStills" xml:space="preserve">
+    <value>Fetch all stills</value>
   </data>
   <data name="FloatingArtworkPicker_UseThisArtwork" xml:space="preserve">
     <value>Use this artwork</value>

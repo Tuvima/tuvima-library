@@ -210,6 +210,28 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
         Assert.True(cut.Find("input[role=switch][aria-label='Move to OK Computer']").HasAttribute("disabled"));
     }
 
+    [Theory]
+    [InlineData("Music", "album", "album", "OK Computer")]
+    [InlineData("TV", "season", "season", "Season 1")]
+    public void AnAlbumOrSeasonPage_SearchesFromItself_AndStagesTheChosenMatch(string mediaType, string scope, string group, string title)
+    {
+        var subject = new EditorMatchSubject(
+            SongId, mediaType, scope, group, title, null, null, "1997",
+            new Dictionary<string, string> { ["title"] = title }, []);
+        var cut = RenderPanel(subject);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-match__row")));
+
+        Assert.Equal(title, cut.Find("input[aria-label='Search for a match']").GetAttribute("value"));
+        Select(cut, 0);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("#tl-match-review")));
+        cut.FindAll("button").First(button => button.TextContent.Trim() == "Use this match").Click();
+
+        var change = Assert.Single(_session.Pending.Changes, c => c.Kind == EditSessionChangeKinds.Identity);
+        Assert.True(EditSessionIdentityTarget.TryParse(change.TargetId, out var match));
+        Assert.Equal(group, match!.TargetFieldGroup);
+        Assert.Empty(_writes);
+    }
+
     [Fact]
     public void UseThisMatch_StagesTheMatchOnly_AndWritesNothing()
     {

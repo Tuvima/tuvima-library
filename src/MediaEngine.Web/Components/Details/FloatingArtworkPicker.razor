@@ -47,7 +47,24 @@
         @if (!_minimised || Docked)
         {
             <div class="tl-art-picker__body">
-                @if (tabs.Count > 1)
+                @if (ArtworkPickerRules.GroupByLevel(tabs) is { Count: > 1 } groups)
+                {
+                    @* A show has pictures at three levels (its own, its seasons', its episodes' stills): one row of tabs per level. *@
+                    <div class="tl-art-picker__levels">
+                        @foreach (var group in groups)
+                        {
+                            <div class="tl-art-picker__level" data-level="@group.Level">
+                                <span class="tl-art-picker__level-name">@group.Level</span>
+                                <AppSegmentedControl Class="tl-art-picker__tabs"
+                                                     AriaLabel="@($"{group.Level}: {L["FloatingArtworkPicker_ArtworkToChange"].Value}")"
+                                                     Options="@(group.Tabs.Select(tab => new AppSelectOption(tab.Slot, tab.Label)).ToList())"
+                                                     Value="@(group.Tabs.Any(tab => tab.Slot == slot) ? slot : null)"
+                                                     ValueChanged="SelectSlotAsync" />
+                            </div>
+                        }
+                    </div>
+                }
+                else if (tabs.Count > 1)
                 {
                     <AppSegmentedControl Class="tl-art-picker__tabs"
                                          AriaLabel="@L["FloatingArtworkPicker_ArtworkToChange"].Value"
@@ -61,6 +78,18 @@
                 }
 
                 <div class="tl-art-picker__shown">
+                    @if (picker.CanFetchAllStills)
+                    {
+                        @* Pulls the provider's still for every episode under this item and stages them all for Review. *@
+                        <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                                   Tone="AppUiTone.Neutral"
+                                   StartIcon="@AppMaterialIcons.Outlined.Image"
+                                   Class="tl-art-picker__fetch-all"
+                                   Disabled="@picker.Busy"
+                                   OnClick="@(() => picker.FetchAllStillsAsync())">
+                            @L["FloatingArtworkPicker_FetchAllStills"]
+                        </AppButton>
+                    }
                     @if (!string.IsNullOrWhiteSpace(picker.ShownUrl))
                     {
                         <img src="@MediaTileArtworkUrl.ForDrawnSize(picker.ShownUrl, 128)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(picker.ShownUrl, 128)" alt="@($"{ArtworkPickerRules.LabelFor(slot)} preview")" />
