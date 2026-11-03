@@ -4,22 +4,19 @@
 @using MediaEngine.Web.Services.Ui
 @inject IStringLocalizer<SharedStrings> L
 
-@* Review changes (universal editor spec D8, D12): the last stop before anything is saved, as a page that can sit inside the Editor window
-   or inside the small dialog the bulk and bar paths still use. It asks the Engine to check the whole list, shows what would change grouped
+@* Review changes (universal editor spec D8, D12): the last stop before anything is saved, as a page of the pop-over window (it has no dialog of its
+   own: every way into the editor, including ticked rows, saves through the window). It asks the Engine to check the whole list, shows what would change grouped
    Metadata, Identity, Artwork, Relationships and Physical files, and saves only on "Save N changes". Each row can be sent back to its tool
    (Edit) or taken out of the list (the row's menu). A row the Engine refuses shows its plain reason and blocks Save until it is fixed or
    removed. After a save that only partly went through it stays, shows every row's result and says what was saved. How the person left it is
    raised as an outcome. *@
-<div class="review-changes @(ShowHeading ? "review-changes--page" : null)">
-    @if (ShowHeading)
-    {
-        <header class="review-changes__heading">
-            @if (Subtitle is not null)
-            {
-                <p>@Subtitle</p>
-            }
-        </header>
-    }
+<div class="review-changes review-changes--page">
+    <header class="review-changes__heading">
+        @if (Subtitle is not null)
+        {
+            <p>@Subtitle</p>
+        }
+    </header>
     @if (_notice is not null)
     {
         <AppAlert Tone="AppUiTone.Error">
@@ -93,7 +90,7 @@
 
     <p class="review-changes__note">@L["ReviewChangesView_ProviderRecordsAreNeverModified"]</p>
     <ReviewFilesStatus Source="Source" Disabled="@Busy" />
-    <div class="@(ShowHeading ? "review-changes__footer" : "review-changes__footer app-dialog-shell__footer")">
+    <div class="review-changes__footer">
     @if (_finished)
     {
         <AppButton Label="@L["Common_Close"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="BackAsync" />
@@ -126,9 +123,6 @@
 
     /// <summary>Raised when the person leaves Review: back to editing, to a tool, discarded, or saved.</summary>
     [Parameter] public EventCallback<ReviewChangesOutcome> OnOutcome { get; set; }
-
-    /// <summary>True when the page shows its own heading (inside the Editor window); the dialog has a header of its own.</summary>
-    [Parameter] public bool ShowHeading { get; set; }
 
     /// <summary>True while a save is running, so a host can refuse to close.</summary>
     public bool IsSaving => _saving;

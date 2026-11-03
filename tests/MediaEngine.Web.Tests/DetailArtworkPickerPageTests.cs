@@ -133,38 +133,29 @@ public sealed class DetailArtworkPickerPageTests : AsyncBunitContext
 
         OpenArtworkTool(cut);
 
-        Assert.Single(_editor.FindAll(".tl-editor-window .tl-art-picker.tl-art-picker--docked"));
-        Assert.Empty(cut.FindAll(".tl-editing-slot"));
+        Assert.Single(_editor.FindAll(".tl-editor-window .tl-art-picker"));
         Assert.Equal("true", _editor.Find(".tl-editor-window__tool.is-open").GetAttribute("aria-pressed"));
     }
 
     [Fact]
-    public async Task APickedBackground_ShowsOnThePageBeforeSaving_AndClosingThePickerPutsItBack()
+    public async Task APickedBackground_NeverChangesThePageBehindTheWindow_AndWritesNothing()
     {
         var cut = await StartEditingAsync();
         OpenArtworkTool(cut);
-        Assert.Contains("stored-backdrop", cut.Markup);
+        Assert.Contains("stored-backdrop", cut.Find(".tl-detail-hero").InnerHtml);
 
         _editor.FindAll(".tl-art-picker__tabs .app-segmented-control__item").Single(tab => tab.TextContent.Trim() == "Background").Click();
         _editor.WaitForAssertion(() => Assert.NotEmpty(_editor.FindAll(".tl-art-picker__tile")));
         _editor.FindAll(".tl-art-picker__tile").Last().Click();
 
-        cut.WaitForAssertion(() =>
-        {
-            Assert.Contains("preview-backdrop", cut.Find(".tl-detail-hero").InnerHtml);
-            Assert.DoesNotContain("stored-backdrop", cut.Find(".tl-detail-hero").InnerHtml);
-        });
-        Assert.Empty(_writes);
-
-        _editor.Find("button.tl-art-picker__close").Click();
-
-        cut.WaitForAssertion(() => Assert.Contains("stored-backdrop", cut.Find(".tl-detail-hero").InnerHtml));
-        Assert.Empty(_editor.FindAll(".tl-art-picker"));
+        _editor.WaitForAssertion(() => Assert.False(_editor.Find("button.tl-art-picker__use").HasAttribute("disabled")));
+        Assert.Contains("stored-backdrop", cut.Find(".tl-detail-hero").InnerHtml);
+        Assert.DoesNotContain("preview-backdrop", cut.Find(".tl-detail-hero").InnerHtml);
         Assert.Empty(_writes);
     }
 
     [Fact]
-    public async Task AUsedBackground_StaysOnThePageAfterTheToolClosesAndCountsAsAChange()
+    public async Task AUsedBackground_CountsAsAChange_WithoutTouchingThePageOrWritingAnything()
     {
         var cut = await StartEditingAsync();
         OpenArtworkTool(cut);
@@ -173,12 +164,9 @@ public sealed class DetailArtworkPickerPageTests : AsyncBunitContext
         _editor.FindAll(".tl-art-picker__tile").Last().Click();
         _editor.WaitForAssertion(() => Assert.False(_editor.Find("button.tl-art-picker__use").HasAttribute("disabled")));
         _editor.Find("button.tl-art-picker__use").Click();
+
         _editor.WaitForAssertion(() => Assert.Equal("Save 1 change", _editor.Find("button.tl-editor-window__save").TextContent.Trim()));
-
-        _editor.Find("button.tl-art-picker__close").Click();
-
-        _editor.WaitForAssertion(() => Assert.Empty(_editor.FindAll(".tl-art-picker")));
-        Assert.Contains("preview-backdrop", cut.Find(".tl-detail-hero").InnerHtml);
+        Assert.Contains("stored-backdrop", cut.Find(".tl-detail-hero").InnerHtml);
         Assert.Empty(_writes);
     }
 

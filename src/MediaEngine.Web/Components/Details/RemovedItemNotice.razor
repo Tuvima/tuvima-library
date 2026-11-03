@@ -2,7 +2,7 @@
 @inject IStringLocalizer<SharedStrings> L
 
 @* Shown in place of a detail page whose title was deleted by someone else while it was open (details overlay spec section 4). The
-   overlay stays open so nothing typed is lost without warning: a pencil field that held unsaved text is shown here, read-only, with
+   overlay stays open so nothing typed is lost without warning: changes that were only staged are shown here, read-only, with
    a Copy button. Close dismisses the overlay as usual. *@
 <section class="tl-removed-notice" role="alert" aria-labelledby="tl-removed-notice-title">
     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ErrorOutline" Size="AppSize.Large" />

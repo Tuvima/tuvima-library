@@ -43,14 +43,8 @@
     [Parameter] public bool IsMusicAlbum { get; set; }
 
     /// <summary>
-    /// True while Editing Mode is on: "Mark as watched" and its reset are viewing actions, so the "..." menu leaves them out
-    /// until editing ends (details overlay spec section 4).
-    /// </summary>
-    [Parameter] public bool HideStatusActions { get; set; }
-
-    /// <summary>
     /// True when the person may delete this title (the page decides): "Delete from library…" is then the menu's last entry, red,
-    /// after a divider, whether or not Editing Mode is on (details overlay spec D18, D19). The page's handler checks again.
+    /// after a divider (details overlay spec D18, D19). The page's handler checks again.
     /// </summary>
     [Parameter] public bool CanDelete { get; set; }
 
@@ -83,11 +77,6 @@
                 .Where(action => action.Key is not (DetailActionKeys.StatusReset or DetailActionKeys.StatusHide or DetailActionKeys.StatusShow
                     or DetailActionKeys.StatusHistory or DetailActionKeys.AddToCollection))
                 .ToList();
-            if (HideStatusActions)
-            {
-                actions = actions.Where(action => action.Key != DetailActionKeys.StatusComplete).ToList();
-            }
-
             if (ExtraActions is { Count: > 0 })
             {
                 actions = [.. actions, .. ExtraActions.Where(extra => actions.All(action => action.Key != extra.Key))];

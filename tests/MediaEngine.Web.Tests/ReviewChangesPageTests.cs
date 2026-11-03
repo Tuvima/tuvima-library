@@ -19,7 +19,7 @@ namespace MediaEngine.Web.Tests;
 /// sent back to its tool or removed, blocks Save while the Engine refuses a change, saves on its own button, and keeps showing a row-by-row
 /// result when a save only partly went through.
 /// </summary>
-public sealed class ReviewChangesDialogTests : AsyncBunitContext
+public sealed class ReviewChangesPageTests : AsyncBunitContext
 {
     private static readonly Guid MovieId = EditingModeTestData.MovieId;
     private static readonly Guid EpisodeId = Guid.Parse("11111111-aaaa-bbbb-cccc-000000000002");
@@ -27,19 +27,18 @@ public sealed class ReviewChangesDialogTests : AsyncBunitContext
     private readonly DeviceContextService _device = new(EngineApiClientStub.CreateDefault());
     private readonly List<bool> _sessionCalls = [];
     private readonly IRenderedComponent<AppPopoverHost> _popovers;
-    private readonly IRenderedComponent<AppDialogHost> _dialogs;
+    private IRenderedComponent<ReviewViewHost> _dialogs = null!;
     private Func<EditSessionRequest, EditSessionResult> _answer = request => Answer(request);
     private bool? _writeBack = true;
     private int _refreshes;
 
-    public ReviewChangesDialogTests()
+    public ReviewChangesPageTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLogging();
         Services.AddSingleton(_device);
         Services.AddSingleton(Api());
         _popovers = Render<AppPopoverHost>();
-        _dialogs = Render<AppDialogHost>();
     }
 
     private IEngineApiClient Api() => EngineApiClientStub.Create(stub =>
@@ -79,7 +78,7 @@ public sealed class ReviewChangesDialogTests : AsyncBunitContext
     {
         await _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
         var api = Services.GetRequiredService<IEngineApiClient>();
-        var fields = new ItemFieldEditSession(api, _device);
+        var fields = new ItemFieldEditSession(api);
         var mode = new EditingModeContext(_device, fields) { HasPermission = true };
         mode.Loader = () => fields.LoadAsync(MovieId, "Movies", "movie", null);
         var session = new EditSessionState(new PendingEditList());
@@ -104,9 +103,6 @@ public sealed class ReviewChangesDialogTests : AsyncBunitContext
         Assert.True(await mode.EnterAsync());
         return new Editor(mode, session, flow, asked);
     }
-
-    private IRenderedComponent<EditingBar> RenderBar(Editor editor) =>
-        Render<EditingBar>(parameters => parameters.Add(bar => bar.Mode, editor.Mode).Add(bar => bar.Flow, editor.Flow));
 
     private IRenderedComponent<CascadingValue<EditingModeContext>> RenderPanel(Editor editor) =>
         Render<CascadingValue<EditingModeContext>>(parameters => parameters
@@ -134,19 +130,18 @@ public sealed class ReviewChangesDialogTests : AsyncBunitContext
         pending.SetField(MovieId, "title", "Dune 2");
     }
 
-    private IRenderedComponent<EditingBar> OpenReview(Editor editor)
+    // Save changes settles any open input and then opens Review changes as a page of the window.
+    private void OpenReview(Editor editor)
     {
-        var bar = RenderBar(editor);
-        bar.Find("button.tl-editing-bar__save").Click();
-        _dialogs.WaitForElement(".review-changes");
+        Assert.True(editor.Flow.SettleForReviewAsync().GetAwaiter().GetResult());
+        ShowReview(editor.Flow);
         _dialogs.WaitForAssertion(() => Assert.Empty(_dialogs.FindAll(".review-changes__state")));
-        return bar;
     }
 
     private AngleSharp.Dom.IElement FooterButton(string label) =>
-        _dialogs.FindAll(".app-dialog-shell__footer button").Single(button => button.TextContent.Trim() == label);
+        _dialogs.FindAll(".review-changes__footer button").Single(button => button.TextContent.Trim() == label);
 
-    private AngleSharp.Dom.IElement SaveButton => _dialogs.Find(".app-dialog-shell__footer button:last-child");
+    private AngleSharp.Dom.IElement SaveButton => _dialogs.Find(".review-changes__footer button:last-child");
 
     private AngleSharp.Dom.IElement Row(string key) => _dialogs.Find($".review-changes__row[data-row='{key}']");
 
@@ -286,7 +281,7 @@ public sealed class ReviewChangesDialogTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task Edit_ClosesTheDialog_AndOpensTheToolThatHoldsTheChange_KeepingEverythingPending()
+    public async Task Edit_LeavesReview_AndOpensTheToolThatHoldsTheChange_KeepingEverythingPending()
     {
         var editor = await StartEditorAsync();
         var panel = RenderPanel(editor);
@@ -343,7 +338,7 @@ public sealed class ReviewChangesDialogTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task BackToEditing_ClosesTheDialog_KeepsEditModeAndThePendingList_AndSavesNothing()
+    public async Task BackToEditing_LeavesReview_KeepsTheEditorOpenAndThePendingList_AndSavesNothing()
     {
         var editor = await StartEditorAsync();
         editor.Session.Pending.SetField(MovieId, "title", "Dune 2");
@@ -361,7 +356,7 @@ public sealed class ReviewChangesDialogTests : AsyncBunitContext
     // -- Discard ----------------------------------------------------------------------------------
 
     [Fact]
-    public async Task DiscardChanges_AsksFirst_AndStayingKeepsTheDialogAndEveryChange()
+    public async Task DiscardChanges_AsksFirst_AndStayingKeepsReviewAndEveryChange()
     {
         var editor = await StartEditorAsync(discardWhenAsked: false);
         editor.Session.Pending.SetField(MovieId, "title", "Dune 2");
@@ -376,7 +371,7 @@ public sealed class ReviewChangesDialogTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task DiscardChanges_WhenConfirmed_ThrowsEverythingAway_AndClosesTheDialog()
+    public async Task DiscardChanges_WhenConfirmed_ThrowsEverythingAway_AndLeavesReview()
     {
         var editor = await StartEditorAsync(discardWhenAsked: true);
         editor.Session.Pending.SetField(MovieId, "title", "Dune 2");
@@ -424,7 +419,7 @@ public sealed class ReviewChangesDialogTests : AsyncBunitContext
             Task.FromResult(LibraryBatchEditOutcome<EditSessionResult>.Failed(LibraryBatchEditOutcomeStatus.Unavailable))));
         var flow = new EditSessionFlow(editor.Session, editor.Mode, new EditSessionSaver(unreachable), () => [new EditTrailItem(MovieId, "Dune", "Movie")], () => Task.FromResult(false));
 
-        ShowDialog(flow);
+        ShowReview(flow);
 
         _dialogs.WaitForAssertion(() => Assert.Contains("could not be reached", _dialogs.Find(".review-changes").TextContent));
         Assert.True(SaveButton.HasAttribute("disabled"));
@@ -435,7 +430,7 @@ public sealed class ReviewChangesDialogTests : AsyncBunitContext
     {
         var editor = await StartEditorAsync();
 
-        ShowDialog(editor.Flow);
+        ShowReview(editor.Flow);
 
         Assert.Contains("There are no changes to review.", _dialogs.Find(".review-changes").TextContent);
         Assert.True(SaveButton.HasAttribute("disabled"));
@@ -445,7 +440,7 @@ public sealed class ReviewChangesDialogTests : AsyncBunitContext
     // -- Saving -----------------------------------------------------------------------------------
 
     [Fact]
-    public async Task Save_WhenEverythingGoesThrough_ClosesTheDialog_RefreshesThePage_AndEndsEditMode()
+    public async Task Save_WhenEverythingGoesThrough_LeavesReview_RefreshesThePage_AndClosesTheEditor()
     {
         var editor = await StartEditorAsync();
         StageEverything(editor.Session.Pending);
@@ -462,7 +457,7 @@ public sealed class ReviewChangesDialogTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task Save_WhenAFileMoveFails_KeepsTheDialogOpen_ShowsEachRowsResult_AndSaysTheDataWasSaved()
+    public async Task Save_WhenAFileMoveFails_StaysOnReview_ShowsEachRowsResult_AndSaysTheDataWasSaved()
     {
         var editor = await StartEditorAsync();
         editor.Session.Pending.SetField(MovieId, "title", "Dune 2");
@@ -481,7 +476,7 @@ public sealed class ReviewChangesDialogTests : AsyncBunitContext
         var titleRow = _dialogs.Find(".review-changes__row[data-state='ok']");
         Assert.Contains("Saved", titleRow.TextContent);
         Assert.Contains("The file is open in another program.", Row(moveId).TextContent);
-        Assert.Equal(["Close"], _dialogs.FindAll(".app-dialog-shell__footer button").Select(button => button.TextContent.Trim()));
+        Assert.Equal(["Close"], _dialogs.FindAll(".review-changes__footer button").Select(button => button.TextContent.Trim()));
         Assert.Empty(_dialogs.FindAll(".review-changes__actions"));
         Assert.Equal(1, _refreshes);
         // What is left is the failed move; the saved title is no longer pending.
@@ -523,10 +518,9 @@ public sealed class ReviewChangesDialogTests : AsyncBunitContext
         Assert.Equal(0, _refreshes);
     }
 
-    private void ShowDialog(EditSessionFlow flow)
+    private void ShowReview(EditSessionFlow flow)
     {
-        var dialogs = Services.GetRequiredService<MediaEngine.Web.Services.Ui.IAppDialogService>();
-        _ = ReviewChangesDialog.ShowAsync(dialogs, flow);
+        _dialogs = Render<ReviewViewHost>(parameters => parameters.Add(host => host.Source, flow));
         _dialogs.WaitForElement(".review-changes");
     }
 

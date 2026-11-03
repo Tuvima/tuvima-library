@@ -126,7 +126,7 @@
     </div>
     }
 
-    @* Editing Mode: the ticked rows' bar sits directly above the rows. *@
+    @* The ticked rows' bar sits directly above the rows. *@
     <BulkSelectionBar />
 
     @if (_seasonBrowserOpen && IsSeasonContainer)
@@ -199,7 +199,7 @@
             {
                 var item = VisibleItems[index];
                 var previousItem = index > 0 ? VisibleItems[index - 1] : null;
-                // While Editing Mode is on a tickable card is not a link: the tick box is the card's one control.
+                // A tickable card is not a link: the tick box is the card's one control.
                 var tickable = IsTickable(item);
                 var route = tickable ? null : SequenceItemRoute(item);
                 if (route is not null)
@@ -218,7 +218,7 @@
                 }
                 else
                 {
-                    @* While Editing Mode is on, a tickable card ticks anywhere you click it; the box stays the keyboard control. Opening the
+                    @* A tickable card ticks anywhere you click it; the box stays the keyboard control. Opening the
                        title is for after Done (a card has no row menu of its own). *@
                     <article class="@SequenceItemClass(item)"
                              aria-current="@(item.IsCurrent ? "page" : null)"
@@ -1566,7 +1566,7 @@ else
     private string SequenceItemClass(SequenceItemViewModel item)
         => $"tl-series-item{(item.IsCurrent ? " is-current" : string.Empty)}{(item.IsOwned ? " is-owned" : " is-missing")}{(!IsTickable(item) && SequenceItemRoute(item) is not null ? " is-clickable" : string.Empty)}{(IsSeasonContainer ? " is-season-episode" : string.Empty)}{(IsTicked(item) ? " is-selected" : string.Empty)}";
 
-    // Details overlay spec D8: while Editing Mode is on, an owned single title in the detail page's own list can be ticked.
+    // Details overlay spec D8: an owned single title in the detail page's own list can be ticked.
     private bool IsTickable(SequenceItemViewModel item)
         => DetailSurface
            && PageEditor is { CanEdit: true }

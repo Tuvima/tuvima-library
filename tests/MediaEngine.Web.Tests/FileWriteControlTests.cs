@@ -18,8 +18,8 @@ namespace MediaEngine.Web.Tests;
 /// <summary>
 /// The one write-back control (universal editor spec D15, WP10): a library's "Save changes into the files" setting, shown in Review changes
 /// as a read-only "Files will be updated" line with a link to Settings, plus one checkbox for this save only when the library updates its
-/// files. Every way into the editor saves through Review changes, so the control must be identical from a detail page's editing bar and a
-/// list's selection bar.
+/// files. Every way into the editor saves through Review changes, so the control must be identical from a detail page's item and a
+/// list's ticked rows.
 /// </summary>
 public sealed class FileWriteControlTests : AsyncBunitContext
 {
@@ -28,7 +28,7 @@ public sealed class FileWriteControlTests : AsyncBunitContext
     private readonly DeviceContextService _device = new(EngineApiClientStub.CreateDefault());
     private readonly List<EditSessionRequest> _saves = [];
     private readonly IRenderedComponent<AppPopoverHost> _popovers;
-    private readonly IRenderedComponent<AppDialogHost> _dialogs;
+    private IRenderedComponent<ReviewViewHost> _dialogs = null!;
     private bool? _masterSwitch = true;
     private bool _libraryWritesTags = true;
 
@@ -39,7 +39,6 @@ public sealed class FileWriteControlTests : AsyncBunitContext
         Services.AddSingleton(_device);
         Services.AddSingleton(Api());
         _popovers = Render<AppPopoverHost>();
-        _dialogs = Render<AppDialogHost>();
     }
 
     private IEngineApiClient Api() => EngineApiClientStub.Create(stub =>
@@ -82,7 +81,7 @@ public sealed class FileWriteControlTests : AsyncBunitContext
     {
         await _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
         var api = Services.GetRequiredService<IEngineApiClient>();
-        var fields = new ItemFieldEditSession(api, _device);
+        var fields = new ItemFieldEditSession(api);
         var mode = new EditingModeContext(_device, fields) { HasPermission = true };
         mode.Loader = () => fields.LoadAsync(MovieId, "Movies", "movie", null);
         var session = new EditSessionState(new PendingEditList());
@@ -119,7 +118,7 @@ public sealed class FileWriteControlTests : AsyncBunitContext
 
     private void Show(IReviewSource source)
     {
-        _ = ReviewChangesDialog.ShowAsync(Services.GetRequiredService<IAppDialogService>(), source);
+        _dialogs = Render<ReviewViewHost>(parameters => parameters.Add(host => host.Source, source));
         _dialogs.WaitForElement(".review-changes");
         _dialogs.WaitForAssertion(() => Assert.Empty(_dialogs.FindAll(".review-changes__state")));
     }
@@ -138,7 +137,7 @@ public sealed class FileWriteControlTests : AsyncBunitContext
     {
         Show(await DetailPageSourceAsync());
         var fromDetailPage = FilesControlMarkup();
-        _dialogs.Find(".app-dialog-shell__footer button").Click();
+        _dialogs.Find(".review-changes__footer button").Click();
         _dialogs.WaitForAssertion(() => Assert.Empty(_dialogs.FindAll(".review-changes")));
 
         Show(await ListSourceAsync());
@@ -179,7 +178,7 @@ public sealed class FileWriteControlTests : AsyncBunitContext
 
         _dialogs.Find(".review-changes__files-override input").Change(false);
         Assert.False(source.WriteIntoFiles);
-        _dialogs.Find(".app-dialog-shell__footer button:last-child").Click();
+        _dialogs.Find(".review-changes__footer button:last-child").Click();
 
         _dialogs.WaitForAssertion(() => Assert.Empty(_dialogs.FindAll(".review-changes")));
         var save = Assert.Single(_saves, request => !request.PreviewOnly);
@@ -193,7 +192,7 @@ public sealed class FileWriteControlTests : AsyncBunitContext
         var source = await ListSourceAsync();
         Show(source);
 
-        _dialogs.Find(".app-dialog-shell__footer button:last-child").Click();
+        _dialogs.Find(".review-changes__footer button:last-child").Click();
 
         _dialogs.WaitForAssertion(() => Assert.Empty(_dialogs.FindAll(".review-changes")));
         Assert.Null(Assert.Single(_saves, request => !request.PreviewOnly).WriteIntoFiles);

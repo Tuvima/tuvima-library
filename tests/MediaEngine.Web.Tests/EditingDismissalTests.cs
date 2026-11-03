@@ -388,13 +388,14 @@ public sealed class EditingDismissalTests : AsyncBunitContext
     // -- Staged changes, Save changes ------------------------------------------------------------
 
     [Fact]
-    public async Task AStagedTitleShowsOnThePageAtOnce_AndNothingIsWrittenUntilSaveChanges()
+    public async Task AStagedTitle_LeavesThePageAlone_AndNothingIsWrittenUntilSaveChanges()
     {
         var cut = await StartEditingAsync();
 
         TypeIntoTheTitle(cut, "Dune Messiah");
 
-        cut.WaitForAssertion(() => Assert.Contains("Dune Messiah", cut.Find(".tl-detail-stage").TextContent));
+        _editor.WaitForAssertion(() => Assert.Contains("Save 1 change", _editor.Find("button.tl-editor-window__save").TextContent));
+        Assert.DoesNotContain("Dune Messiah", cut.Find(".tl-detail-stage").TextContent);
         Assert.Empty(_saves);
         Assert.Empty(_sessionCalls);
     }

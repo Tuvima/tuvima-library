@@ -9,7 +9,7 @@
    the item's trail and close), the family tree on the left (where the item has a family) and the tools as tabs across the top of the right side (Details, Artwork, Match, only where the item has them), one scroll area for the
    tool, and a footer whose Cancel and Save are always in the same place. Closing it with the X, Esc or Cancel asks "Unsaved changes" when
    something is staged. The native dialog around it makes the page inert and traps focus; what the tool shows is chosen by the pop-over;
-   Artwork is drawn here, docked, from the editor's picker session. *@
+   Artwork is drawn here from the editor's picker session. *@
 @if (Mode is { IsOn: true, CanEdit: true } mode && Flow?.Session is { IsActive: true, ActiveTool: { } tool } session)
 {
     var count = session.Pending.ChangeCount;
@@ -27,6 +27,24 @@
                            AriaLabel="@($"Close {TitleOverride ?? TitleFor(tool)}")"
                            OnClick="@(() => flow.LeaveAsync())" />
         </header>
+        @if (!_reviewing && (flow.Failures.Count > 0 || !string.IsNullOrWhiteSpace(flow.Message)))
+        {
+            @* A save that left changes behind, or an item that could not be opened: the reason stays above the tools until it is dealt with. *@
+            <div class="tl-editor-window__notice" role="alert">
+                <AppAlert Severity="AppSeverity.Error" Dense="true">
+                    <strong>@(flow.Failures.Count > 0 ? "Some changes could not be saved." : flow.Message)</strong>
+                    @if (flow.Failures.Count > 0)
+                    {
+                        <ul>
+                            @foreach (var failure in flow.Failures)
+                            {
+                                <li>@flow.Describe(failure)</li>
+                            }
+                        </ul>
+                    }
+                </AppAlert>
+            </div>
+        }
         <div class="tl-editor-window__main">
             @if (TitleOverride is null && !_reviewing)
             {
@@ -54,11 +72,11 @@
                 <div class="tl-editor-panel__body">
                     @if (_reviewing)
                     {
-                        <ReviewChangesView Source="flow" ShowHeading="true" OnOutcome="OnReviewOutcome" />
+                        <ReviewChangesView Source="flow" OnOutcome="OnReviewOutcome" />
                     }
                     else if (tool == EditTool.Artwork && Picker is not null)
                     {
-                        <FloatingArtworkPicker Mode="Mode" Flow="Flow" Picker="Picker" Docked="true" />
+                        <EditorArtworkTool Mode="Mode" Picker="Picker" />
                     }
                     else
                     {
@@ -175,12 +193,14 @@
         if (_subscribed is not null)
         {
             _subscribed.Session.Changed -= OnChanged;
+            _subscribed.Changed -= OnChanged;
         }
 
         _subscribed = Flow;
         if (_subscribed is not null)
         {
             _subscribed.Session.Changed += OnChanged;
+            _subscribed.Changed += OnChanged;
         }
     }
 
@@ -214,6 +234,7 @@
         if (_subscribed is not null)
         {
             _subscribed.Session.Changed -= OnChanged;
+            _subscribed.Changed -= OnChanged;
         }
     }
 

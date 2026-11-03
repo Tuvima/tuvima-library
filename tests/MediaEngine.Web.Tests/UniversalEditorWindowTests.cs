@@ -17,11 +17,11 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// The universal editor's bar and right-hand panel (spec WP4, WP5): what the bar shows before and after something is staged, which
+/// The universal editor's pop-over window (spec v3 WP1, WP5): what its footer shows before and after something is staged, which
 /// tools it offers, the "Unsaved changes" question, the panel closing without ending the edit, the Details tool staging instead of
 /// saving, provider facts staying read-only, and Save changes checking before it saves and reporting each change that failed.
 /// </summary>
-public sealed class UniversalEditorBarTests : AsyncBunitContext
+public sealed class UniversalEditorWindowTests : AsyncBunitContext
 {
     private static readonly Guid MovieId = EditingModeTestData.MovieId;
 
@@ -33,7 +33,7 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
     private MediaEditorContextDto? _context;
     private readonly IRenderedComponent<AppDialogHost> _dialogs;
 
-    public UniversalEditorBarTests()
+    public UniversalEditorWindowTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLogging();
@@ -49,13 +49,13 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
         _dialogs = Render<AppDialogHost>();
     }
 
-    // Save changes opens Review changes; saving happens from its footer.
-    private void SaveFromReview(IRenderedComponent<EditingBar> bar)
+    // Save changes opens Review changes as a page of the window; saving happens from its footer.
+    private static void SaveFromReview(IRenderedComponent<CascadingValue<EditingModeContext>> window)
     {
-        bar.Find("button.tl-editing-bar__save").Click();
-        _dialogs.WaitForElement(".review-changes");
-        _dialogs.WaitForAssertion(() => Assert.False(_dialogs.Find(".app-dialog-shell__footer button:last-child").HasAttribute("disabled")));
-        _dialogs.Find(".app-dialog-shell__footer button:last-child").Click();
+        window.Find("button.tl-editor-window__save").Click();
+        window.WaitForElement(".review-changes");
+        window.WaitForAssertion(() => Assert.False(window.Find(".review-changes__footer button:last-child").HasAttribute("disabled")));
+        window.Find(".review-changes__footer button:last-child").Click();
     }
 
     private Task UseDesktopAsync() =>
@@ -129,7 +129,7 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
         await UseDesktopAsync();
         _context = context;
         var api = Services.GetRequiredService<IEngineApiClient>();
-        var fields = new ItemFieldEditSession(api, _device);
+        var fields = new ItemFieldEditSession(api);
         var mode = new EditingModeContext(_device, fields) { HasPermission = true };
         mode.Loader = () => fields.LoadAsync(MovieId, context?.MediaType ?? "Movies", context?.InitialScope ?? "movie", null);
         var session = new EditSessionState(new PendingEditList());
@@ -159,11 +159,12 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
         return new Editor(mode, session, flow, asked);
     }
 
-    private IRenderedComponent<EditingBar> RenderBar(Editor editor, bool canDelete = false) =>
-        Render<EditingBar>(parameters => parameters
-            .Add(bar => bar.Mode, editor.Mode)
-            .Add(bar => bar.Flow, editor.Flow)
-            .Add(bar => bar.CanDelete, canDelete));
+    // The window as the pop-over draws it: the Details tool open (the host opens it first), with the History tab where the page keeps history.
+    private IRenderedComponent<CascadingValue<EditingModeContext>> RenderBar(Editor editor)
+    {
+        editor.Flow.SelectToolAsync(EditTool.Details).GetAwaiter().GetResult();
+        return RenderPanel(editor);
+    }
 
     private IRenderedComponent<CascadingValue<EditingModeContext>> RenderPanel(Editor editor) =>
         Render<CascadingValue<EditingModeContext>>(parameters => parameters
@@ -216,7 +217,7 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
         return context;
     }
 
-    // -- The bar's states ----------------------------------------------------------------------
+    // -- The window's states ----------------------------------------------------------------------
 
     [Fact]
     public async Task WithNothingPending_SaveIsOffAndSaysNoChangesYet()
@@ -225,10 +226,10 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
 
         var cut = RenderBar(editor);
 
-        var save = cut.Find("button.tl-editing-bar__save");
+        var save = cut.Find("button.tl-editor-window__save");
         Assert.True(save.HasAttribute("disabled"));
         Assert.Equal("Save changes", save.TextContent.Trim());
-        Assert.Equal("No changes yet", cut.Find(".tl-editing-bar__end [data-playback-tooltip]").GetAttribute("data-playback-tooltip"));
+        Assert.Equal("No changes yet", cut.Find(".tl-editor-window__changes").TextContent.Trim());
     }
 
     [Fact]
@@ -243,22 +244,21 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
 
         cut.WaitForAssertion(() =>
         {
-            var save = cut.Find("button.tl-editing-bar__save");
+            var save = cut.Find("button.tl-editor-window__save");
             Assert.False(save.HasAttribute("disabled"));
             Assert.Equal("Save 3 changes", save.TextContent.Trim());
-            Assert.Empty(cut.FindAll(".tl-editing-bar__end [data-playback-tooltip]:not([data-playback-tooltip=''])"));
+            Assert.Equal("3 changes waiting", cut.Find(".tl-editor-window__changes").TextContent.Trim());
         });
     }
 
     [Fact]
-    public async Task TheBarOffersDetailsArtworkAndMatchForAMovie_AndTheTrailNamesTheItem()
+    public async Task TheWindowOffersDetailsArtworkMatchAndHistoryForAMovie()
     {
         var editor = await StartEditorAsync();
 
         var cut = RenderBar(editor);
 
-        Assert.Equal(["Details", "Artwork", "Match"], cut.FindAll(".tl-editing-bar__tool").Select(tool => tool.TextContent.Trim()));
-        Assert.Contains("Dune: Part One", cut.Find(".tl-editing-bar__trail").TextContent);
+        Assert.Equal(["Details", "Artwork", "Match", "History"], cut.FindAll(".tl-editor-window__tool").Select(tool => tool.TextContent.Trim()));
     }
 
     [Fact]
@@ -266,43 +266,34 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
     {
         var noMatch = TvContext("group");
         var editor = await StartEditorAsync(noMatch);
-        Assert.Equal(["Details", "Artwork"], RenderBar(editor).FindAll(".tl-editing-bar__tool").Select(tool => tool.TextContent.Trim()));
+        Assert.Equal(["Details", "Artwork", "History"], RenderBar(editor).FindAll(".tl-editor-window__tool").Select(tool => tool.TextContent.Trim()));
 
         var noArtwork = EditingModeTestData.MovieContext();
         noArtwork.Scopes[0].CanEditArtwork = false;
         var second = await StartEditorAsync(noArtwork);
-        Assert.Equal(["Details", "Match"], RenderBar(second).FindAll(".tl-editing-bar__tool").Select(tool => tool.TextContent.Trim()));
+        Assert.Equal(["Details", "Match", "History"], RenderBar(second).FindAll(".tl-editor-window__tool").Select(tool => tool.TextContent.Trim()));
     }
 
     [Fact]
-    public async Task TheBarIsNotDrawnWhileEditingIsOff_OrOnADeviceThatCannotEdit()
+    public async Task TheWindowIsNotDrawnWhileTheEditorIsClosed_OrOnADeviceThatCannotEdit()
     {
         var off = await StartEditorAsync(turnOn: false);
-        Assert.Empty(RenderBar(off).FindAll(".tl-editing-bar"));
+        Assert.Empty(RenderBar(off).FindAll(".tl-editor-window"));
 
         var on = await StartEditorAsync();
         await _device.InitialiseAsync(new DeviceContextSnapshot("web", "tablet", true));
-        Assert.Empty(RenderBar(on).FindAll(".tl-editing-bar"));
-    }
-
-    [Fact]
-    public async Task TheDotsMenuKeepsDeleteFromLibraryOnly_WhenTheAdministratorMayDelete()
-    {
-        var editor = await StartEditorAsync();
-
-        Assert.Empty(RenderBar(editor).FindAll("button.tl-editing-bar__more"));
-        Assert.Single(RenderBar(editor, canDelete: true).FindAll("button.tl-editing-bar__more"));
+        Assert.Empty(RenderBar(on).FindAll(".tl-editor-window"));
     }
 
     // -- Cancel and "Unsaved changes" ------------------------------------------------------------
 
     [Fact]
-    public async Task CancelWithNothingPending_LeavesEditModeWithoutAsking()
+    public async Task CancelWithNothingPending_ClosesTheEditorWithoutAsking()
     {
         var editor = await StartEditorAsync();
         var cut = RenderBar(editor);
 
-        cut.Find("button.tl-editing-bar__cancel").Click();
+        cut.Find("button.tl-editor-window__cancel").Click();
 
         cut.WaitForAssertion(() => Assert.False(editor.Mode.IsOn));
         Assert.Empty(editor.Asked);
@@ -316,7 +307,7 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
         editor.Session.Pending.SetField(MovieId, "title", "Dune");
         var cut = RenderBar(editor);
 
-        cut.Find("button.tl-editing-bar__cancel").Click();
+        cut.Find("button.tl-editor-window__cancel").Click();
 
         cut.WaitForAssertion(() => Assert.Single(editor.Asked));
         Assert.True(editor.Mode.IsOn);
@@ -324,13 +315,13 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task CancelWithPendingChanges_DiscardingThemLeavesEditModeWithAnEmptyList()
+    public async Task CancelWithPendingChanges_DiscardingThemClosesTheEditorWithAnEmptyList()
     {
         var editor = await StartEditorAsync(discardWhenAsked: true);
         editor.Session.Pending.SetField(MovieId, "title", "Dune");
         var cut = RenderBar(editor);
 
-        cut.Find("button.tl-editing-bar__cancel").Click();
+        cut.Find("button.tl-editor-window__cancel").Click();
 
         cut.WaitForAssertion(() => Assert.False(editor.Mode.IsOn));
         Assert.True(editor.Session.Pending.IsEmpty);
@@ -437,16 +428,14 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
     public async Task OpeningTheWindow_MovesFocusIntoIt_AndClosingItWithNothingStaged_LeavesEditing()
     {
         var editor = await StartEditorAsync();
-        var bar = RenderBar(editor);
         var panel = RenderPanel(editor);
-        Assert.Equal("tl-editing-tool-details", bar.FindAll(".tl-editing-bar__tool")[0].Id);
 
         await panel.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
         panel.WaitForAssertion(() => Assert.Contains(FocusedIds(), id => id == "tl-editor-panel-title"));
 
         panel.Find("button.tl-editor-panel__close").Click();
 
-        bar.WaitForAssertion(() => Assert.False(editor.Mode.IsOn));
+        panel.WaitForAssertion(() => Assert.False(editor.Mode.IsOn));
     }
 
     [Fact]
@@ -588,7 +577,7 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
     // -- Save changes ----------------------------------------------------------------------------
 
     [Fact]
-    public async Task Save_ChecksFirstThenSaves_RefreshesThePage_AndLeavesEditMode()
+    public async Task Save_ChecksFirstThenSaves_RefreshesThePage_AndClosesTheEditor()
     {
         var editor = await StartEditorAsync();
         editor.Session.Pending.SetField(MovieId, "title", "Dune 2");
@@ -654,11 +643,11 @@ public sealed class UniversalEditorBarTests : AsyncBunitContext
         };
         var cut = RenderBar(editor);
 
-        // The check runs when Review changes opens and the dialog shows the reason on its row; Save stays off.
-        cut.Find("button.tl-editing-bar__save").Click();
+        // The check runs when Review changes opens and the window shows the reason on its row; Save stays off.
+        cut.Find("button.tl-editor-window__save").Click();
 
-        _dialogs.WaitForAssertion(() => Assert.Contains("This item is no longer in your library.", _dialogs.Find(".review-changes").TextContent));
-        Assert.True(_dialogs.Find(".app-dialog-shell__footer button:last-child").HasAttribute("disabled"));
+        cut.WaitForAssertion(() => Assert.Contains("This item is no longer in your library.", cut.Find(".review-changes").TextContent));
+        Assert.True(cut.Find(".review-changes__footer button:last-child").HasAttribute("disabled"));
         Assert.Equal([true], _sessionCalls);
         Assert.True(editor.Mode.IsOn);
         Assert.Equal(2, editor.Session.Pending.ChangeCount);

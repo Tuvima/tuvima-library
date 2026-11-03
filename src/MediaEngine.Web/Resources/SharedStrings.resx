@@ -426,6 +426,9 @@
   <data name="Common_ClearAll" xml:space="preserve">
     <value>Clear all</value>
   </data>
+  <data name="Common_Order" xml:space="preserve">
+    <value>Order</value>
+  </data>
   <data name="Common_SortBy" xml:space="preserve">
     <value>Sort by</value>
   </data>
@@ -1161,47 +1164,11 @@
   <data name="Common_CancelThisField" xml:space="preserve">
     <value>Cancel this field</value>
   </data>
-  <data name="EditingBar_Editing" xml:space="preserve">
-    <value>Editing</value>
-  </data>
-  <data name="EditingBar_Opening" xml:space="preserve">
-    <value>Opening...</value>
-  </data>
-  <data name="EditingBar_EditingIsNotReady" xml:space="preserve">
+  <data name="EditorPopover_EditingIsNotReady" xml:space="preserve">
     <value>Editing is not ready.</value>
-  </data>
-  <data name="EditingBar_ItemBeingEdited" xml:space="preserve">
-    <value>Item being edited</value>
   </data>
   <data name="Common_EditingTools" xml:space="preserve">
     <value>Editing tools</value>
-  </data>
-  <data name="EditingExplicitMark_ExplicitMark" xml:space="preserve">
-    <value>Explicit mark</value>
-  </data>
-  <data name="EditingExplicitMark_Explicit" xml:space="preserve">
-    <value>Explicit</value>
-  </data>
-  <data name="EditingExplicitMark_HiddenFromEveryProfileThat" xml:space="preserve">
-    <value>Hidden from every profile that has a content limit, whatever the library setting says. Profiles set to Everything still see it.</value>
-  </data>
-  <data name="EditingHeroArtworkButtons_EditHeroArtwork" xml:space="preserve">
-    <value>Edit hero artwork</value>
-  </data>
-  <data name="EditingLibraryFields_Fields" xml:space="preserve">
-    <value>Fields</value>
-  </data>
-  <data name="EditingLibraryFields_FieldsYouCanEdit" xml:space="preserve">
-    <value>Fields you can edit</value>
-  </data>
-  <data name="EditingTemporaryArtworkView_TemporaryEditingView" xml:space="preserve">
-    <value>Temporary editing view</value>
-  </data>
-  <data name="EditingTemporaryArtworkView_NoYet" xml:space="preserve">
-    <value>No {0} yet</value>
-  </data>
-  <data name="EditingTemporaryArtworkView_ReturnToSeriesView" xml:space="preserve">
-    <value>Return to series view</value>
   </data>
   <data name="EditingVideoIdentify_OnlineLookupIsSwitchedOff" xml:space="preserve">
     <value>Online lookup is switched off for this library. Turn it on in Settings to identify videos from a YouTube link.</value>
@@ -1218,50 +1185,14 @@
   <data name="Common_Identify" xml:space="preserve">
     <value>Identify</value>
   </data>
-  <data name="EditingVideoOrder_Order" xml:space="preserve">
-    <value>Order</value>
-  </data>
-  <data name="EditingVideoOrder_ThisRenamesTheVideoFiles" xml:space="preserve">
-    <value>This renames the video files in your Managed folder to start with their position, like "01 - Title". It cannot be undone from here.</value>
-  </data>
-  <data name="EditingVideoOrder_TheOrderIsSavedIn" xml:space="preserve">
-    <value>The order is saved in Library. Your files are only renamed if you ask below.</value>
-  </data>
-  <data name="EditingVideoOrder_OrderOfTheVideos" xml:space="preserve">
-    <value>Order of the videos</value>
-  </data>
   <data name="Common_MoveUp" xml:space="preserve">
     <value>Move up</value>
   </data>
   <data name="Common_MoveDown" xml:space="preserve">
     <value>Move down</value>
   </data>
-  <data name="EditingVideoOrder_RenameFiles" xml:space="preserve">
-    <value>Rename files</value>
-  </data>
-  <data name="EditingVideoOrder_RenameFilesToMatchThis" xml:space="preserve">
-    <value>Rename files to match this order</value>
-  </data>
   <data name="Glossary_Series" xml:space="preserve">
     <value>Series</value>
-  </data>
-  <data name="EditingVideoSeries_InTheSeries" xml:space="preserve">
-    <value>In the series</value>
-  </data>
-  <data name="EditingVideoSeries_ThisVideoStandsOnIts" xml:space="preserve">
-    <value>This video stands on its own. Put it in a series to show it with the others.</value>
-  </data>
-  <data name="EditingVideoSeries_YourFilesAreNotMoved" xml:space="preserve">
-    <value>Your files are not moved or renamed.</value>
-  </data>
-  <data name="EditingVideoSeries_TakeOutOfSeries" xml:space="preserve">
-    <value>Take out of series</value>
-  </data>
-  <data name="EditingVideoSeries_NameOfTheNewSeries" xml:space="preserve">
-    <value>Name of the new series</value>
-  </data>
-  <data name="EditingVideoSeries_PutInSeries" xml:space="preserve">
-    <value>Put in series</value>
   </data>
   <data name="EditorDetailsPanel_ResetAllToProviderValues" xml:space="preserve">
     <value>Reset all to provider values</value>
@@ -1335,37 +1266,34 @@
   <data name="ExtrasSection_FileNotFound" xml:space="preserve">
     <value>File not found</value>
   </data>
-  <data name="FloatingArtworkPicker_Artwork" xml:space="preserve">
+  <data name="EditorArtworkTool_Artwork" xml:space="preserve">
     <value>Artwork</value>
   </data>
-  <data name="FloatingArtworkPicker_FetchAllStills" xml:space="preserve">
+  <data name="EditorArtworkTool_FetchAllStills" xml:space="preserve">
     <value>Fetch all stills</value>
   </data>
-  <data name="FloatingArtworkPicker_UseThisArtwork" xml:space="preserve">
+  <data name="EditorArtworkTool_UseThisArtwork" xml:space="preserve">
     <value>Use this artwork</value>
   </data>
-  <data name="FloatingArtworkPicker_OpenFullSize" xml:space="preserve">
+  <data name="EditorArtworkTool_OpenFullSize" xml:space="preserve">
     <value>Open full size</value>
   </data>
-  <data name="FloatingArtworkPicker_UndoThisChoice" xml:space="preserve">
+  <data name="EditorArtworkTool_UndoThisChoice" xml:space="preserve">
     <value>Undo this choice</value>
   </data>
-  <data name="FloatingArtworkPicker_ChooseAJPEGOrPNG" xml:space="preserve">
+  <data name="EditorArtworkTool_ChooseAJPEGOrPNG" xml:space="preserve">
     <value>Choose a JPEG or PNG from your computer. It is kept aside until you use it.</value>
   </data>
-  <data name="FloatingArtworkPicker_FetchPicture" xml:space="preserve">
+  <data name="EditorArtworkTool_FetchPicture" xml:space="preserve">
     <value>Fetch picture</value>
   </data>
-  <data name="FloatingArtworkPicker_CloseArtwork" xml:space="preserve">
-    <value>Close Artwork</value>
-  </data>
-  <data name="FloatingArtworkPicker_ArtworkToChange" xml:space="preserve">
+  <data name="EditorArtworkTool_ArtworkToChange" xml:space="preserve">
     <value>Artwork to change</value>
   </data>
-  <data name="FloatingArtworkPicker_WhereToFindArtwork" xml:space="preserve">
+  <data name="EditorArtworkTool_WhereToFindArtwork" xml:space="preserve">
     <value>Where to find artwork</value>
   </data>
-  <data name="FloatingArtworkPicker_PictureWebAddress" xml:space="preserve">
+  <data name="EditorArtworkTool_PictureWebAddress" xml:space="preserve">
     <value>Picture web address</value>
   </data>
   <data name="Common_Genres" xml:space="preserve">
@@ -1457,12 +1385,6 @@
   </data>
   <data name="RemovedItemNotice_YourUnsavedText" xml:space="preserve">
     <value>Your unsaved text</value>
-  </data>
-  <data name="ReviewChangesDialog_ReviewChanges" xml:space="preserve">
-    <value>Review changes</value>
-  </data>
-  <data name="ReviewChangesDialog_NothingIsSavedUntilYou" xml:space="preserve">
-    <value>Nothing is saved until you choose Save.</value>
   </data>
   <data name="ReviewChangesView_CheckingYourChanges" xml:space="preserve">
     <value>Checking your changes...</value>
@@ -8319,20 +8241,8 @@
   <data name="DetailsTab_FileDetailsCouldNotBe" xml:space="preserve">
     <value>File details could not be loaded.</value>
   </data>
-  <data name="EditingExplicitMark_ThatCouldNotBeSaved" xml:space="preserve">
-    <value>That could not be saved. Try again.</value>
-  </data>
   <data name="EditingVideoIdentify_NoMatchWasFoundCheck" xml:space="preserve">
     <value>No match was found. Check the link, and that online lookup is on for this library.</value>
-  </data>
-  <data name="EditingVideoOrder_ThatCouldNotBeSaved" xml:space="preserve">
-    <value>That could not be saved. The list may have changed; reload the page and try again.</value>
-  </data>
-  <data name="EditingVideoOrder_TheFilesCouldNotBe" xml:space="preserve">
-    <value>The files could not be renamed. Only files in a Managed folder can be; nothing was changed.</value>
-  </data>
-  <data name="EditingVideoSeries_ThatCouldNotBeSaved" xml:space="preserve">
-    <value>That could not be saved. The series may have changed; reload the page and try again.</value>
   </data>
   <data name="PersonalStatusMenuItems_ListeningStatusUpdated" xml:space="preserve">
     <value>Listening status updated.</value>

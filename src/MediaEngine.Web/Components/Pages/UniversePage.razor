@@ -58,10 +58,10 @@
             if (_state.Page is { } overview)
             {
                 <UniverseHero Detail="@overview.Detail"
-                              Name="@_preview.Title(overview.Detail.Name)"
-                              Description="@_preview.Description(overview.Detail.Description)"
-                              CoverUrl="@(_preview.Artwork.Url("CoverArt") ?? overview.Detail.CoverUrl)"
-                              BackgroundUrl="@(_preview.Artwork.Url("Background") ?? overview.Detail.BackgroundUrl)"
+                              Name="@overview.Detail.Name"
+                              Description="@overview.Detail.Description"
+                              CoverUrl="@overview.Detail.CoverUrl"
+                              BackgroundUrl="@overview.Detail.BackgroundUrl"
                               StandaloneCards="@(overview.Standalone?.Items ?? [])"
                               CanEdit="@CanShowEdit"
                               EditBusy="@_openingEditor"
@@ -98,7 +98,6 @@
     private UniversePageState _state = default!;
     private EditingModeContext _editing = default!;
     private EditSessionFlow _flow = default!;
-    private EditPendingPreview _preview = default!;
     private EditorBinding _binding = default!;
     private string? _loadedQid;
     private bool _canEditUniverse;
@@ -146,7 +145,6 @@
         _state = new UniversePageState(ApiClient);
         _editing = Editor.Mode;
         _flow = Editor.Flow;
-        _preview = Editor.Preview;
         _binding = new EditorBinding(DeviceContext)
         {
             LoadFields = LoadEditingFieldsAsync,

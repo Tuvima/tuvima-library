@@ -143,48 +143,43 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
             });
         });
 
-        var fields = new ItemFieldEditSession(api, _device);
+        var fields = new ItemFieldEditSession(api);
         var mode = new EditingModeContext(_device, fields) { HasPermission = true };
         mode.Loader = () => fields.LoadAsync(MovieId, context.MediaType, context.InitialScope, null);
         var session = new EditSessionState(new PendingEditList());
         var flow = new EditSessionFlow(
             session, mode, new EditSessionSaver(api), () => [new EditTrailItem(MovieId, "Dune: Part One", "Movie")], () => Task.FromResult(true));
         Assert.True(await mode.EnterAsync());
-        var preview = new EditPendingPreview(session, fields).Artwork;
+        var preview = new ArtworkEditPreview(session, fields);
         return new Harness(mode, session, flow, preview, new ArtworkPickerSession(api, session, fields, preview));
     }
 
     private static ArtworkAssetDto Asset(Guid id) => new(id, $"/art/{id:N}/large", $"/art/{id:N}/small", 1000, 1500, "Portrait", "user_upload", null, []);
 
-    private async Task<(Harness Harness, IRenderedComponent<FloatingArtworkPicker> Cut)> OpenPickerAsync(MediaEditorContextDto? context = null)
+    private async Task<(Harness Harness, IRenderedComponent<EditorArtworkTool> Cut)> OpenPickerAsync(MediaEditorContextDto? context = null)
     {
         var harness = await StartAsync(context);
         await harness.Flow.SelectToolAsync(EditTool.Artwork);
-        var cut = Render<FloatingArtworkPicker>(parameters => parameters
+        var cut = Render<EditorArtworkTool>(parameters => parameters
             .Add(picker => picker.Mode, harness.Mode)
-            .Add(picker => picker.Flow, harness.Flow)
             .Add(picker => picker.Picker, harness.Picker));
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-art-picker__tile")));
         return (harness, cut);
     }
 
-    private static IReadOnlyList<string> Tabs(IRenderedComponent<FloatingArtworkPicker> cut) =>
+    private static IReadOnlyList<string> Tabs(IRenderedComponent<EditorArtworkTool> cut) =>
         cut.FindAll(".tl-art-picker__tabs .app-segmented-control__item").Select(tab => tab.TextContent.Trim()).ToList();
 
     // -- Tabs ----------------------------------------------------------------------------------
 
     [Fact]
-    public async Task ThePicker_IsANamedNonModalDialog_ThatTakesFocusWhenItOpens_AndNamesItsPictureGroups()
+    public async Task ThePicker_IsANamedRegionOfTheWindow_AndNamesItsPictureGroups()
     {
         var (_, cut) = await OpenPickerAsync();
 
         var root = cut.Find(".tl-art-picker");
-        Assert.Equal("dialog", root.GetAttribute("role"));
-        Assert.Equal("false", root.GetAttribute("aria-modal"));
-        Assert.Equal("tl-art-picker-title", root.GetAttribute("aria-labelledby"));
-        Assert.Equal("-1", cut.Find("#tl-art-picker-title").GetAttribute("tabindex"));
-        cut.WaitForAssertion(() => Assert.Contains(JSInterop.Invocations, call =>
-            call.Identifier == "tuvimaFocusById" && Equals(call.Arguments[0], "tl-art-picker-title")));
+        Assert.Equal("region", root.GetAttribute("role"));
+        Assert.False(string.IsNullOrWhiteSpace(root.GetAttribute("aria-label")));
         var grid = cut.Find(".tl-art-picker__grid");
         Assert.Equal("group", grid.GetAttribute("role"));
         Assert.False(string.IsNullOrWhiteSpace(grid.GetAttribute("aria-label")));
@@ -386,123 +381,25 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
         Assert.Null(harness.Preview.Url("CoverArt"));
     }
 
-    // -- Floating, minimised, closed --------------------------------------------------------------------
+    // -- What the tool shows ----------------------------------------------------------------------------
 
     [Fact]
-    public async Task ThePickerCanShrinkToAChipAndBack_WithoutLosingAPick()
-    {
-        var (harness, cut) = await OpenPickerAsync();
-        cut.FindAll(".tl-art-picker__tile").Last().Click();
-        cut.WaitForAssertion(() => Assert.True(harness.Picker.HasPick));
-
-        cut.Find("button.tl-art-picker__minimise").Click();
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-art-picker.is-minimised")));
-        Assert.Empty(cut.FindAll(".tl-art-picker__body"));
-        Assert.True(harness.Picker.HasPick);
-
-        cut.Find("button.tl-art-picker__minimise").Click();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-art-picker__body")));
-        Assert.True(harness.Picker.HasPick);
-    }
-
-    [Fact]
-    public async Task ClosingThePicker_KeepsStagedChangesAndDropsAPickNotUsed()
-    {
-        var (harness, cut) = await OpenPickerAsync();
-        cut.FindAll(".tl-art-picker__tile").Last().Click();
-        cut.WaitForAssertion(() => Assert.False(cut.Find("button.tl-art-picker__use").HasAttribute("disabled")));
-        cut.Find("button.tl-art-picker__use").Click();
-        cut.WaitForAssertion(() => Assert.False(harness.Session.Pending.IsEmpty));
-        cut.FindAll(".tl-art-picker__tabs .app-segmented-control__item").Single(tab => tab.TextContent.Trim() == "Logo").Click();
-
-        cut.Find("button.tl-art-picker__close").Click();
-
-        cut.WaitForAssertion(() => Assert.Null(harness.Session.ActiveTool));
-        Assert.Equal(1, harness.Session.Pending.Count);
-        Assert.True(harness.Mode.IsOn);
-    }
-
-    // -- The temporary view (D9) ----------------------------------------------------------------------
-
-    [Fact]
-    public async Task ASeasonPosterOpensTheTemporaryView_AndReturnPutsThePageBack()
-    {
-        _workspace = Workspace(("SeasonPoster", FirstPicture, true), ("SeasonPoster", SecondPicture, false));
-        var (harness, cut) = await OpenPickerAsync(SeasonContext());
-
-        Assert.Equal(EditViewContext.TemporaryArtwork, harness.Session.ViewContext);
-        Assert.Equal("SeasonPoster", harness.Preview.TemporarySlot);
-        Assert.Equal($"/art/{FirstPicture:N}/large", harness.Preview.TemporaryUrl("SeasonPoster"));
-
-        harness.Picker.ReturnToNormalView();
-
-        Assert.Equal(EditViewContext.Normal, harness.Session.ViewContext);
-        Assert.Null(harness.Preview.TemporarySlot);
-        cut.Dispose();
-    }
-
-    [Fact]
-    public async Task LeavingTheArtworkTool_RestoresTheNormalPage()
-    {
-        _workspace = Workspace(("SeasonPoster", FirstPicture, true));
-        var (harness, cut) = await OpenPickerAsync(SeasonContext());
-        Assert.Equal(EditViewContext.TemporaryArtwork, harness.Session.ViewContext);
-
-        await cut.InvokeAsync(() => harness.Flow.ClosePanelAsync());
-
-        cut.WaitForAssertion(() => Assert.Equal(EditViewContext.Normal, harness.Session.ViewContext));
-        Assert.Null(harness.Preview.TemporarySlot);
-    }
-
-    [Fact]
-    public async Task APosterTabOnAMovie_StaysOnTheNormalPage()
-    {
-        var (harness, _) = await OpenPickerAsync();
-
-        Assert.Equal(EditViewContext.Normal, harness.Session.ViewContext);
-        Assert.Null(harness.Preview.TemporarySlot);
-    }
-
-    [Fact]
-    public void TheTemporaryViewIsLabelledShowsThePosterLargeAndOffersTheWayBack()
-    {
-        var returned = 0;
-        var cut = Render<EditingTemporaryArtworkView>(parameters => parameters
-            .Add(view => view.Label, "Season poster")
-            .Add(view => view.ImageUrl, "/art/season/large")
-            .Add(view => view.OnReturn, () => returned++));
-
-        Assert.Contains("Temporary editing view", cut.Find(".tl-temporary-view__label").TextContent);
-        Assert.Equal("/art/season/large", cut.Find(".tl-temporary-view__poster img").GetAttribute("src"));
-
-        var back = cut.Find("button.tl-temporary-view__return");
-        Assert.Equal("Return to series view", back.TextContent.Trim());
-        back.Click();
-
-        Assert.Equal(1, returned);
-    }
-
-    // -- What the page shows ---------------------------------------------------------------------------
-
-    [Fact]
-    public async Task APreviewedPicture_ReplacesTheStoredOneOnThePage_UntilItsChangeIsTakenBack()
+    public async Task APreviewedPicture_ShowsInTheTool_UntilItsChangeIsTakenBack()
     {
         var harness = await StartAsync();
         await harness.Picker.OpenAsync("Background");
-        var stored = new MediaEngine.Contracts.Details.ArtworkSet { BackdropUrl = "/stored/backdrop" };
-        Assert.Same(stored, harness.Preview.Apply(stored));
+        Assert.Null(harness.Preview.Url("Background"));
 
         harness.Preview.Pick("Background", SecondPicture.ToString("D"), "/preview/backdrop");
-        Assert.Equal("/preview/backdrop", harness.Preview.Apply(stored).BackdropUrl);
-        Assert.Equal("/preview/backdrop", harness.Preview.Apply(stored).HeroArtwork.Url);
+        Assert.Equal("/preview/backdrop", harness.Preview.Url("Background"));
 
         harness.Session.Pending.SetArtwork(MovieId, "Background", SecondPicture.ToString("D"));
         harness.Preview.RememberStaged("Background", SecondPicture.ToString("D"), "/preview/backdrop");
         Assert.False(harness.Preview.HasPick("Background"));
-        Assert.Equal("/preview/backdrop", harness.Preview.Apply(stored).BackdropUrl);
+        Assert.Equal("/preview/backdrop", harness.Preview.Url("Background"));
 
         harness.Session.Pending.Remove(harness.Session.Pending.Changes.Single().Id);
-        Assert.Equal("/stored/backdrop", harness.Preview.Apply(stored).BackdropUrl);
+        Assert.Null(harness.Preview.Url("Background"));
     }
 
     private sealed class FakeFile(string name, string contentType) : IBrowserFile

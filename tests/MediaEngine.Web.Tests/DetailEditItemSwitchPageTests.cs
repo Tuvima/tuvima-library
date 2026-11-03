@@ -228,12 +228,12 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task ThePageKeepsShowingItsOwnStagedTitle_WhileAnEpisodeIsEdited()
+    public async Task ThePageBehindTheWindow_KeepsItsStoredTitle_WhileAnEpisodeIsEdited()
     {
         var cut = await StartEditingAsync(EditTrailTestData.ShowPage());
         var flow = FlowOf(cut);
+        var storedTitle = cut.Find(".tl-detail-page h1").TextContent.Trim();
         flow.Session.Pending.SetField(ShowId, "title", "Renamed show");
-        cut.WaitForAssertion(() => Assert.Equal("Renamed show", cut.Find(".tl-detail-page h1").TextContent.Trim()));
         Choose(cut, "Season 1");
         _editor.WaitForAssertion(() => Assert.Equal(SeasonOne, flow.Session.ActiveItem!.EntityId));
         Choose(cut, "Episode 1");
@@ -241,7 +241,7 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
 
         flow.Session.Pending.SetField(EpisodeOne, "title", "Pilot");
 
-        cut.WaitForAssertion(() => Assert.Equal("Renamed show", cut.Find(".tl-detail-page h1").TextContent.Trim()));
+        Assert.Equal(storedTitle, cut.Find(".tl-detail-page h1").TextContent.Trim());
     }
 
     [Fact]

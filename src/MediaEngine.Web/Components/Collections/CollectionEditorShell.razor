@@ -2278,7 +2278,7 @@
                            Value="@(_randomOrder ? "random" : "set")"
                            ValueChanged="OnRandomOrderChanged"
                            ToStringFunc="@(value => value == "random" ? "Random (a new pick each day)" : "In the order set by this collection")"
-                           Label=L["EditingVideoOrder_Order"].Value
+                           Label=L["Common_Order"].Value
                            Variant="AppVariant.Outlined"
                            Class="collection-editor-field">
                     <AppSelectItem T="string" Value="@("set")">In the order set by this collection</AppSelectItem>

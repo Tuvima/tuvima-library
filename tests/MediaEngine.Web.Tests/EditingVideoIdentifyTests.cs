@@ -42,7 +42,7 @@ public sealed class EditingVideoIdentifyTests : AsyncBunitContext
             });
         });
         Services.AddSingleton(api);
-        var session = new ItemFieldEditSession(api, _device);
+        var session = new ItemFieldEditSession(api);
         var mode = new EditingModeContext(_device, session) { HasPermission = true };
         mode.Loader = () => session.LoadAsync(VideoId, "Videos", "video", null);
         Assert.True(await mode.EnterAsync());

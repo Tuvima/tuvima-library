@@ -3,7 +3,7 @@ using MediaEngine.Contracts.Editing;
 namespace MediaEngine.Web.Services.Editing;
 
 /// <summary>
-/// What Review changes needs from whoever holds the pending list (universal editor spec D12): a detail page's editing bar
+/// What Review changes needs from whoever holds the pending list (universal editor spec D12): the pop-over editor
 /// (<see cref="EditSessionFlow"/>) or the same flow opened over a list's ticked rows (also <see cref="EditSessionFlow"/>). Every way into the editor saves through the
 /// same dialog, so the rows, the checks, the save and the one "Files will be updated" line look and behave the same everywhere.
 /// </summary>

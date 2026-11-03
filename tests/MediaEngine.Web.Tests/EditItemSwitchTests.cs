@@ -14,7 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// Switching between the items of a page while editing (universal editor spec D7): the bar's trail is a row of dropdowns, choosing an item
+/// Switching between the items of a family while editing (universal editor spec D3, D7): choosing an item (a row of the family tree)
 /// loads its fields without leaving the page, every item's staged changes stay in the one pending list, Review changes can jump to any of
 /// them, the "Unsaved changes" question covers all of them, and nothing is saved by switching. The Engine is a hand-written stub.
 /// </summary>
@@ -29,8 +29,6 @@ public sealed class EditItemSwitchTests : AsyncBunitContext
     private readonly DeviceContextService _device = new(EngineApiClientStub.CreateDefault());
     private readonly List<string> _writes = [];
     private readonly Dictionary<Guid, Func<Task<MediaEditorContextDto?>>> _contexts = [];
-    private readonly IRenderedComponent<AppDialogHost> _dialogs;
-    private readonly IRenderedComponent<AppPopoverHost> _popovers;
 
     public EditItemSwitchTests()
     {
@@ -38,8 +36,6 @@ public sealed class EditItemSwitchTests : AsyncBunitContext
         Services.AddLogging();
         Services.AddSingleton(_device);
         Services.AddSingleton(Api());
-        _popovers = Render<AppPopoverHost>();
-        _dialogs = Render<AppDialogHost>();
         Known(ShowId, "series");
         Known(SeasonOne, "season");
         Known(EpisodeOne, "episode");
@@ -85,7 +81,7 @@ public sealed class EditItemSwitchTests : AsyncBunitContext
     {
         await _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
         var api = Services.GetRequiredService<IEngineApiClient>();
-        var fields = new ItemFieldEditSession(api, _device);
+        var fields = new ItemFieldEditSession(api);
         var mode = new EditingModeContext(_device, fields) { HasPermission = true };
         mode.Loader = () => fields.LoadAsync(ShowId, "TV", "series", null);
         var session = new EditSessionState(new PendingEditList());
@@ -113,9 +109,6 @@ public sealed class EditItemSwitchTests : AsyncBunitContext
         return new Editor(mode, session, flow, asked);
     }
 
-    private IRenderedComponent<EditingBar> RenderBar(Editor editor) =>
-        Render<EditingBar>(parameters => parameters.Add(bar => bar.Mode, editor.Mode).Add(bar => bar.Flow, editor.Flow));
-
     private IRenderedComponent<CascadingValue<EditingModeContext>> RenderPanel(Editor editor) =>
         Render<CascadingValue<EditingModeContext>>(parameters => parameters
             .Add(host => host.Value, editor.Mode)
@@ -137,46 +130,6 @@ public sealed class EditItemSwitchTests : AsyncBunitContext
                 builder.CloseComponent();
             }));
 
-    // The dropdown's rows are drawn in the popover host, outside the bar.
-    private IEnumerable<AngleSharp.Dom.IElement> MenuItems(IRenderedComponent<EditingBar> bar) =>
-        bar.FindAll("[role^='menuitem']").Concat(_popovers.FindAll("[role^='menuitem']"));
-
-    private void Choose(IRenderedComponent<EditingBar> bar, int step, string name)
-    {
-        bar.FindAll(".tl-editing-bar__step-trigger")[step].Click();
-        bar.WaitForAssertion(() => Assert.Contains(MenuItems(bar), item => item.TextContent.Contains(name, StringComparison.Ordinal)));
-        MenuItems(bar).First(item => item.TextContent.Contains(name, StringComparison.Ordinal)).Click();
-    }
-
-    // -- The trail ------------------------------------------------------------------------------
-
-    [Fact]
-    public async Task AStepWithChildren_IsADropdownOfTheItemAndItsChildren()
-    {
-        var editor = await StartEditorAsync();
-        var bar = RenderBar(editor);
-
-        bar.Find(".tl-editing-bar__step-trigger").Click();
-
-        bar.WaitForAssertion(() =>
-        {
-            var names = MenuItems(bar).Select(item => item.TextContent.Trim()).ToList();
-            Assert.Equal(["Le Continental", "Season 1", "Season 2"], names);
-        });
-        Assert.Equal("true", MenuItems(bar).First().GetAttribute("aria-checked"));
-    }
-
-    [Fact]
-    public async Task WithNothingToSwitchTo_TheTrailIsJustTheName()
-    {
-        var editor = await StartEditorAsync(withCatalog: false);
-
-        var bar = RenderBar(editor);
-
-        Assert.Empty(bar.FindAll(".tl-editing-bar__step-trigger"));
-        Assert.Contains("Le Continental", bar.Find(".tl-editing-bar__trail").TextContent);
-    }
-
     // -- Switching ------------------------------------------------------------------------------
 
     [Fact]
@@ -184,11 +137,10 @@ public sealed class EditItemSwitchTests : AsyncBunitContext
     {
         var editor = await StartEditorAsync();
         editor.Session.Pending.SetField(ShowId, "title", "Continental");
-        var bar = RenderBar(editor);
 
-        Choose(bar, 0, "Season 1");
+        Assert.True(await editor.Flow.SwitchToAsync(SeasonOne));
 
-        bar.WaitForAssertion(() => Assert.Equal(SeasonOne, editor.Session.ActiveItem!.EntityId));
+        Assert.Equal(SeasonOne, editor.Session.ActiveItem!.EntityId);
         Assert.Equal([ShowId, SeasonOne], editor.Session.Trail.Select(step => step.EntityId));
         Assert.Equal(SeasonOne, editor.Mode.Fields.EntityId);
         Assert.Equal("season", editor.Mode.Fields.ScopeId);
@@ -196,21 +148,18 @@ public sealed class EditItemSwitchTests : AsyncBunitContext
         Assert.True(editor.Session.Pending.TryGetField(ShowId, "title", out var kept));
         Assert.Equal("Continental", kept);
         Assert.Empty(_writes);
-        Assert.Equal(2, bar.FindAll(".tl-editing-bar__trail li").Count);
-        Assert.Contains("Season 1", bar.Find(".tl-editing-bar__trail li.is-active").TextContent);
     }
 
     [Fact]
-    public async Task ASeasonsEpisodesAreInItsDropdown_AndChoosingOneStagesItsOwnChanges()
+    public async Task ASeasonsEpisodes_AreReachableFromTheFamily_AndChoosingOneStagesItsOwnChanges()
     {
         var editor = await StartEditorAsync();
-        var bar = RenderBar(editor);
-        Choose(bar, 0, "Season 1");
-        bar.WaitForAssertion(() => Assert.Equal(SeasonOne, editor.Session.ActiveItem!.EntityId));
+        Assert.True(await editor.Flow.SwitchToAsync(SeasonOne));
+        Assert.Equal(SeasonOne, editor.Session.ActiveItem!.EntityId);
 
-        Choose(bar, 1, "Episode 2");
+        Assert.True(await editor.Flow.SwitchToAsync(EpisodeTwo));
 
-        bar.WaitForAssertion(() => Assert.Equal(EpisodeTwo, editor.Session.ActiveItem!.EntityId));
+        Assert.Equal(EpisodeTwo, editor.Session.ActiveItem!.EntityId);
         Assert.Equal([ShowId, SeasonOne, EpisodeTwo], editor.Session.Trail.Select(step => step.EntityId));
         Assert.Equal("episode", editor.Mode.Fields.ScopeId);
         editor.Session.Pending.SetField(SeasonOne, "title", "Premiere");
@@ -225,24 +174,6 @@ public sealed class EditItemSwitchTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task APendingChangeMarksItsItemInTheDropdown()
-    {
-        var editor = await StartEditorAsync();
-        editor.Session.Pending.SetField(SeasonOne, "title", "Premiere");
-        var bar = RenderBar(editor);
-
-        bar.Find(".tl-editing-bar__step-trigger").Click();
-
-        bar.WaitForAssertion(() =>
-        {
-            var season = MenuItems(bar).First(item => item.TextContent.Contains("Season 1", StringComparison.Ordinal));
-            Assert.NotEmpty(season.QuerySelectorAll(".tl-editing-bar__option-dot"));
-            var show = MenuItems(bar).First(item => item.TextContent.Contains("Le Continental", StringComparison.Ordinal));
-            Assert.Empty(show.QuerySelectorAll(".tl-editing-bar__option-dot"));
-        });
-    }
-
-    [Fact]
     public async Task TheDetailsPanelReloadsForTheNewItem_AndShowsBusyWhileItLoads()
     {
         var gate = new TaskCompletionSource<MediaEditorContextDto?>();
@@ -250,18 +181,16 @@ public sealed class EditItemSwitchTests : AsyncBunitContext
         _contexts[SeasonOne] = () => gate.Task;
         await editor.Flow.SelectToolAsync(EditTool.Details);
         var panel = RenderPanel(editor);
-        var bar = RenderBar(editor);
         panel.WaitForAssertion(() => Assert.NotEmpty(panel.FindAll(".tl-editor-details")));
 
         var switching = editor.Flow.SwitchToAsync(SeasonOne);
 
-        bar.WaitForAssertion(() =>
+        panel.WaitForAssertion(() =>
         {
             Assert.True(editor.Flow.Switching);
             Assert.NotEmpty(panel.FindAll(".tl-editor-busy"));
             Assert.Empty(panel.FindAll(".tl-editor-details"));
-            Assert.NotEmpty(bar.FindAll(".tl-editing-bar__opening"));
-            Assert.All(bar.FindAll(".tl-editing-bar__tool"), tool => Assert.True(tool.HasAttribute("disabled")));
+            Assert.All(panel.FindAll(".tl-editor-window__tool"), tool => Assert.True(tool.HasAttribute("disabled")));
         });
         Assert.Equal(ShowId, editor.Session.ActiveItem!.EntityId);
 
@@ -278,16 +207,17 @@ public sealed class EditItemSwitchTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task AnItemThatCannotBeOpened_KeepsThePersonOnTheirItem_WithTheReasonInTheBar()
+    public async Task AnItemThatCannotBeOpened_KeepsThePersonOnTheirItem_WithTheReasonInTheWindow()
     {
         var editor = await StartEditorAsync();
         editor.Session.Pending.SetField(ShowId, "title", "Continental");
-        var bar = RenderBar(editor);
+        await editor.Flow.SelectToolAsync(EditTool.Details);
+        var panel = RenderPanel(editor);
 
-        Choose(bar, 0, "Season 2");
+        Assert.False(await editor.Flow.SwitchToAsync(SeasonTwo));
 
-        bar.WaitForAssertion(() => Assert.Contains("could not be opened", bar.Find(".tl-editing-bar__notice").TextContent, StringComparison.Ordinal));
-        Assert.Contains("Season 2", bar.Find(".tl-editing-bar__notice").TextContent, StringComparison.Ordinal);
+        panel.WaitForAssertion(() => Assert.Contains("could not be opened", panel.Find(".tl-editor-window__notice").TextContent, StringComparison.Ordinal));
+        Assert.Contains("Season 2", panel.Find(".tl-editor-window__notice").TextContent, StringComparison.Ordinal);
         Assert.Equal(ShowId, editor.Session.ActiveItem!.EntityId);
         Assert.Equal(ShowId, editor.Mode.Fields.EntityId);
         Assert.True(editor.Mode.Fields.Loaded);
@@ -331,13 +261,14 @@ public sealed class EditItemSwitchTests : AsyncBunitContext
     {
         var editor = await StartEditorAsync();
         editor.Session.Pending.SetField(EpisodeOne, "title", "Pilot");
-        var bar = RenderBar(editor);
-        bar.Find("button.tl-editing-bar__save").Click();
-        _dialogs.WaitForElement(".review-changes");
+        await editor.Flow.SelectToolAsync(EditTool.Details);
+        var panel = RenderPanel(editor);
+        panel.Find("button.tl-editor-window__save").Click();
+        panel.WaitForElement(".review-changes");
 
-        _dialogs.Find("[aria-label='Metadata'] .review-changes__actions button").Click();
+        panel.Find("[aria-label='Metadata'] .review-changes__actions button").Click();
 
-        _dialogs.WaitForAssertion(() => Assert.Empty(_dialogs.FindAll(".review-changes")));
+        panel.WaitForAssertion(() => Assert.Empty(panel.FindAll(".review-changes")));
         Assert.Equal(EpisodeOne, editor.Session.ActiveItem!.EntityId);
         Assert.Equal([ShowId, SeasonOne, EpisodeOne], editor.Session.Trail.Select(step => step.EntityId));
         Assert.Equal(EpisodeOne, editor.Mode.Fields.EntityId);
@@ -353,13 +284,14 @@ public sealed class EditItemSwitchTests : AsyncBunitContext
         var ticked = Guid.NewGuid();
         Known(ticked, "episode");
         editor.Session.Pending.SetField(ticked, "title", "Ticked");
-        var bar = RenderBar(editor);
-        bar.Find("button.tl-editing-bar__save").Click();
-        _dialogs.WaitForElement(".review-changes");
+        await editor.Flow.SelectToolAsync(EditTool.Details);
+        var panel = RenderPanel(editor);
+        panel.Find("button.tl-editor-window__save").Click();
+        panel.WaitForElement(".review-changes");
 
-        _dialogs.Find("[aria-label='Metadata'] .review-changes__actions button").Click();
+        panel.Find("[aria-label='Metadata'] .review-changes__actions button").Click();
 
-        _dialogs.WaitForAssertion(() => Assert.Empty(_dialogs.FindAll(".review-changes")));
+        panel.WaitForAssertion(() => Assert.Empty(panel.FindAll(".review-changes")));
         Assert.Equal(ticked, editor.Session.ActiveItem!.EntityId);
         Assert.Equal(ticked, editor.Mode.Fields.EntityId);
         Assert.Equal(1, editor.Session.Pending.Count);
@@ -370,12 +302,13 @@ public sealed class EditItemSwitchTests : AsyncBunitContext
     {
         var editor = await StartEditorAsync(discardWhenAsked: false);
         editor.Session.Pending.SetField(ShowId, "title", "Continental");
-        var bar = RenderBar(editor);
-        Choose(bar, 0, "Season 1");
-        bar.WaitForAssertion(() => Assert.Equal(SeasonOne, editor.Session.ActiveItem!.EntityId));
+        Assert.True(await editor.Flow.SwitchToAsync(SeasonOne));
+        Assert.Equal(SeasonOne, editor.Session.ActiveItem!.EntityId);
         editor.Session.Pending.SetField(SeasonOne, "title", "Premiere");
+        await editor.Flow.SelectToolAsync(EditTool.Details);
+        var bar = RenderPanel(editor);
 
-        bar.Find("button.tl-editing-bar__cancel").Click();
+        bar.Find("button.tl-editor-window__cancel").Click();
 
         bar.WaitForAssertion(() => Assert.Equal(["unsaved"], editor.Asked));
         Assert.True(editor.Mode.IsOn);
@@ -388,32 +321,17 @@ public sealed class EditItemSwitchTests : AsyncBunitContext
     {
         var editor = await StartEditorAsync(discardWhenAsked: true);
         editor.Session.Pending.SetField(ShowId, "title", "Continental");
-        var bar = RenderBar(editor);
-        Choose(bar, 0, "Season 1");
-        bar.WaitForAssertion(() => Assert.Equal(SeasonOne, editor.Session.ActiveItem!.EntityId));
+        Assert.True(await editor.Flow.SwitchToAsync(SeasonOne));
+        Assert.Equal(SeasonOne, editor.Session.ActiveItem!.EntityId);
         editor.Session.Pending.SetField(SeasonOne, "title", "Premiere");
+        await editor.Flow.SelectToolAsync(EditTool.Details);
+        var bar = RenderPanel(editor);
 
-        bar.Find("button.tl-editing-bar__cancel").Click();
+        bar.Find("button.tl-editor-window__cancel").Click();
 
         bar.WaitForAssertion(() => Assert.False(editor.Mode.IsOn));
         Assert.True(editor.Session.Pending.IsEmpty);
         Assert.Empty(_writes);
-    }
-
-    // -- The page's own preview -----------------------------------------------------------------
-
-    [Fact]
-    public async Task ThePageKeepsPreviewingItsOwnItem_WhileAnotherItemIsEdited()
-    {
-        var editor = await StartEditorAsync();
-        var preview = new EditPendingPreview(editor.Session, editor.Mode.Fields) { PageEntityId = ShowId };
-        editor.Session.Pending.SetField(ShowId, "title", "Continental");
-        await editor.Flow.SwitchToAsync(EpisodeOne);
-        editor.Session.Pending.SetField(EpisodeOne, "title", "Pilot");
-
-        Assert.Equal(EpisodeOne, editor.Mode.Fields.EntityId);
-        Assert.Equal("Continental", preview.Title("Le Continental"));
-        Assert.Equal("Le Continental", new EditPendingPreview(editor.Session, editor.Mode.Fields) { PageEntityId = SeasonTwo }.Title("Le Continental"));
     }
 
     [Fact]

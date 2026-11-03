@@ -420,7 +420,7 @@ public sealed class UniversePageTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task ARenamedUniverse_ShowsOnTheHeroAtOnce_AndSavesNothingUntilSaveChanges()
+    public async Task ARenamedUniverse_LeavesTheHeroAlone_AndSavesNothingUntilSaveChanges()
     {
         var cut = await StartEditingAsync();
 
@@ -428,7 +428,7 @@ public sealed class UniversePageTests : AsyncBunitContext
 
         _editor.WaitForAssertion(() =>
         {
-            Assert.Equal("Arrakis", cut.Find(".universe-hero__title").TextContent.Trim());
+            Assert.NotEqual("Arrakis", cut.Find(".universe-hero__title").TextContent.Trim());
             Assert.Contains("Save 1 change", _editor.Find("button.tl-editor-window__save").TextContent);
         });
         Assert.Empty(_sessions);

@@ -315,11 +315,3 @@
 }
 .artwork-workspace-core__preview { --preview-height:clamp(20rem,46vh,34rem); box-sizing:border-box; position:relative; display:grid; place-items:center; height:var(--preview-height); min-height:0; padding:1rem; overflow:hidden; border:1px solid var(--playback-border); border-radius:var(--tl-radius-md); background:transparent; }
 .artwork-workspace-core__preview img,.artwork-workspace-core__preview .artwork-workspace-core__image img { display:block; width:auto; height:auto; max-width:100%; max-height:calc(var(--preview-height) - 2rem); object-fit:contain; object-position:center; }
-
-/* In an Editing Mode section the artwork has the full width of the page: the saved images are cards that wrap as far as the
-   width allows, and the whole list shows (the section scrolls), rather than a two-column list scrolling inside itself. */
-.sme-shell--section .artwork-workspace-core__details .artwork-workspace-core__variants {
-    grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
-    max-height: none;
-    overflow-y: visible;
-}

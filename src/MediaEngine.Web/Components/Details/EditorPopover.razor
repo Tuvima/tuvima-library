@@ -49,7 +49,7 @@
                 else if (!mode.Fields.Loaded && !mode.Fields.Loading && !string.IsNullOrWhiteSpace(mode.Fields.LoadError))
                 {
                     <div class="tl-editor-details">
-                        <AppAlert Severity="AppSeverity.Error" Dense="true">@L["EditingBar_EditingIsNotReady"] @mode.Fields.LoadError</AppAlert>
+                        <AppAlert Severity="AppSeverity.Error" Dense="true">@L["EditorPopover_EditingIsNotReady"] @mode.Fields.LoadError</AppAlert>
                         <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" OnClick="@(() => Editor.RetryLoadAsync())">@L["Common_TryAgain"]</AppButton>
                     </div>
                 }

@@ -77,9 +77,6 @@ public sealed class EditorBinding
     /// <summary>A tool committed a change on its own (a match): the page refreshes what it shows.</summary>
     public Func<Task>? SectionCommitted { get; set; }
 
-    /// <summary>A single field was saved on its own: the page refreshes what it shows.</summary>
-    public Func<string, Task>? FieldSaved { get; set; }
-
     /// <summary>The editor media types of the page's items, which say which library's file setting applies.</summary>
     public Func<IReadOnlyList<string>>? MediaTypes { get; set; }
 
@@ -129,7 +126,7 @@ public sealed class EditorHost : IDisposable
     {
         _services = services;
         _logger = logger;
-        Mode = new EditingModeContext(device, new ItemFieldEditSession(api, device, logger))
+        Mode = new EditingModeContext(device, new ItemFieldEditSession(api, logger))
         {
             Loader = () => _binding?.LoadFields?.Invoke() ?? Task.CompletedTask,
             AskSaveOrDiscard = () => AskSaveOrDiscard?.Invoke() ?? Task.FromResult(SaveOrDiscardChoice.Cancel),
@@ -147,15 +144,13 @@ public sealed class EditorHost : IDisposable
             OpenItem = item => _binding?.OpenItem?.Invoke(item) ?? Task.FromResult(false),
             ItemSwitched = () => _binding?.ItemSwitched?.Invoke() ?? Task.CompletedTask,
         };
-        Preview = new EditPendingPreview(Session, Mode.Fields);
-        Picker = new ArtworkPickerSession(api, Session, Mode.Fields, Preview.Artwork, logger);
+        Picker = new ArtworkPickerSession(api, Session, Mode.Fields, new ArtworkEditPreview(Session, Mode.Fields), logger);
         Batch = new BulkEditSelection { RefreshAsync = () => _binding?.SectionCommitted?.Invoke() ?? Task.CompletedTask };
         Family = new EditorFamilyState(api, logger);
         Picker.EpisodeSource = async () => Session.ActiveItem is { } active
             ? (await Family.LeavesUnderAsync(active.EntityId)).Select(row => row.EntityId).ToList()
             : [];
 
-        Mode.Fields.Saved += OnFieldSavedAsync;
         Mode.Changed += OnModeChanged;
         Session.Changed += OnSessionChanged;
         Picker.Changed += RaiseChanged;
@@ -173,9 +168,6 @@ public sealed class EditorHost : IDisposable
 
     /// <summary>What the person does with the staged changes: pick a tool, switch item, leave, review and save.</summary>
     public EditSessionFlow Flow { get; }
-
-    /// <summary>What a page shows while changes are only staged.</summary>
-    public EditPendingPreview Preview { get; }
 
     /// <summary>The Artwork tool's session.</summary>
     public ArtworkPickerSession Picker { get; }
@@ -349,7 +341,7 @@ public sealed class EditorHost : IDisposable
     }
 
     /// <summary>
-    /// Esc, the backdrop or the window's X: closes an open field or section first, then the window itself, asking "Unsaved changes"
+    /// Esc, the backdrop or the window's X: closes an open tool first, then the window itself, asking "Unsaved changes"
     /// when something is staged. False means the person stayed.
     /// </summary>
     public async Task<bool> RequestCloseAsync()
@@ -376,7 +368,6 @@ public sealed class EditorHost : IDisposable
 
         _disposed = true;
         ReleaseOverlayGuard();
-        Mode.Fields.Saved -= OnFieldSavedAsync;
         Mode.Changed -= OnModeChanged;
         Session.Changed -= OnSessionChanged;
         Picker.Changed -= RaiseChanged;
@@ -447,12 +438,6 @@ public sealed class EditorHost : IDisposable
         {
             Flow.Catalog = binding.Catalog;
         }
-    }
-
-    private Task OnFieldSavedAsync(string key)
-    {
-        _changedWhileOpen = true;
-        return _binding?.FieldSaved?.Invoke(key) ?? Task.CompletedTask;
     }
 
     private Task OnSavedAsync()

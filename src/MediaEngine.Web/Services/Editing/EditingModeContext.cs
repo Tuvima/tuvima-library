@@ -4,9 +4,8 @@ using MediaEngine.Web.Services.Theming;
 namespace MediaEngine.Web.Services.Editing;
 
 /// <summary>
-/// The sections the Editing Mode banner can open below the hero, one at a time. Details is only used by the Universe
-/// editor (one workspace with its own categories); an item's own fields are edited in place with pencils. Several ticked rows are
-/// edited in the right-hand bulk panel instead (universal editor spec D14), which is not a section.
+/// The tools the pop-over editor can show, one at a time. Several ticked rows are edited in the bulk panel instead (universal editor
+/// spec D14), which is not a section.
 /// </summary>
 public enum EditingSection
 {
@@ -25,8 +24,8 @@ public enum SaveOrDiscardChoice
 }
 
 /// <summary>
-/// What the open section (the editor hosted below the hero) lets the page do with unsaved input. The section slot
-/// implements it so the page can ask "Save or discard?" without knowing anything about the editor inside.
+/// What the open section (the tool in the pop-over) lets the editor do with unsaved input. The section slot
+/// implements it so the editor can ask "Save or discard?" without knowing anything about the tool inside.
 /// </summary>
 public interface IEditingSectionHost
 {
@@ -38,20 +37,18 @@ public interface IEditingSectionHost
 }
 
 /// <summary>
-/// The state of Editing Mode on one detail page: whether it is on, which section is open below the hero (and which
-/// artwork slot it was opened for), and whether anything typed is still unsaved. It lives on the page and ends when the
-/// page is left or the user chooses Done; a deep link never starts in Editing Mode.
+/// The permission, device and open-tool state of the pop-over editor: whether it is open, which tool is showing (and which artwork slot
+/// it was opened for), and whether anything typed in a tool is still unsaved. It is owned by <see cref="EditorHost"/>, not by a page, and
+/// ends when the pop-over closes; a deep link never opens it.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Every way in (turning the mode on, opening a section, opening a field) re-checks <see cref="EditorDeviceRule"/>,
-/// so a hidden button is never the only protection, and a device that stops qualifying (for example a window resized
-/// to tablet width) leaves the mode on its own.
+/// Every way in (opening the editor, opening a tool) re-checks <see cref="EditorDeviceRule"/>, so a hidden button is never the only
+/// protection, and a device that stops qualifying (for example a window resized to tablet width) closes the editor on its own.
 /// </para>
 /// <para>
-/// Leaving is where unsaved input is asked about (details overlay spec D9): Done, Esc and Back all go through
-/// <see cref="DoneAsync"/> and its "Save or discard?" question, which the page supplies as <see cref="AskSaveOrDiscard"/>.
-/// With no question wired, unsaved input is never dropped silently: the answer is to stay.
+/// Leaving is where unsaved input is asked about: <see cref="DoneAsync"/> and its "Save or discard?" question, which the host supplies as
+/// <see cref="AskSaveOrDiscard"/>. With no question wired, unsaved input is never dropped silently: the answer is to stay.
 /// </para>
 /// </remarks>
 public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposable
@@ -74,23 +71,14 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
     /// <summary>Why Edit is unavailable right now, for the disabled button's tooltip (for example ingestion still running).</summary>
     public string? UnavailableReason { get; set; }
 
-    /// <summary>Permission and a device that is allowed to edit. The banner renders only while the mode is on and this is true.</summary>
+    /// <summary>Permission and a device that is allowed to edit. The pop-over renders only while it is open and this is true.</summary>
     public bool CanEdit => HasPermission && EditorDeviceRule.CanEdit(_device);
 
     public bool IsOn { get; private set; }
 
-    /// <summary>
-    /// True when the page edits through the universal editor (the editing bar, the right-hand panel and staged changes): the
-    /// per-field pencils and the hero artwork chips then stay hidden, because every field is edited in the panel instead.
-    /// </summary>
-    public bool UseStagedEditor { get; set; }
-
-    /// <summary>Whether the old pencils and hero artwork chips show: Editing Mode is on and the page is not using the staged editor.</summary>
-    public bool ShowsPencils => IsOn && !UseStagedEditor;
-
     public bool SectionOpen => OpenSectionKind is not null;
 
-    /// <summary>The section open below the hero, or null when none is.</summary>
+    /// <summary>The tool open in the pop-over, or null when none is.</summary>
     public EditingSection? OpenSectionKind { get; private set; }
 
     /// <summary>The artwork asset type the section was opened for (CoverArt, Background, Logo), if any.</summary>
@@ -105,10 +93,7 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
     /// <summary>Set by the section slot while the editor inside it is running its own save; Done waits for it so a second save never starts.</summary>
     public bool SectionSaving { get; private set; }
 
-    /// <summary>A field typed into on the page that has not been saved.</summary>
-    public bool HasUnsavedField => Fields.IsDirty;
-
-    public bool HasUnsavedInput => Fields.IsDirty || SectionDirty;
+    public bool HasUnsavedInput => SectionDirty;
 
     /// <summary>The open section's handle for saving and discarding, set by the section slot while it is showing.</summary>
     public IEditingSectionHost? SectionHost { get; set; }
@@ -118,10 +103,10 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
 
     public event Action? Changed;
 
-    /// <summary>Loads the item's editable fields the first time Editing Mode turns on (set by the page).</summary>
+    /// <summary>Loads the item's editable fields the first time the editor opens (set by the host).</summary>
     public Func<Task>? Loader { get; set; }
 
-    /// <summary>Turns Editing Mode on. Refused (and false) when the person or the device may not edit.</summary>
+    /// <summary>Opens the editor. Refused (and false) when the person or the device may not edit.</summary>
     public async Task<bool> EnterAsync()
     {
         if (!CanEdit)
@@ -140,7 +125,7 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
     }
 
     /// <summary>
-    /// Ends Editing Mode. The caller has already asked about unsaved input; whatever is still open is dropped.
+    /// Closes the editor. The caller has already asked about unsaved input; whatever is still open is dropped.
     /// </summary>
     public void Leave()
     {
@@ -149,7 +134,6 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
         OpenSectionArtworkSlot = null;
         SectionDirty = false;
         SectionSaving = false;
-        Fields.Discard();
         RaiseChanged();
     }
 
@@ -160,7 +144,7 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
     public bool IsSettling { get; private set; }
 
     /// <summary>
-    /// Done: ends Editing Mode. With unsaved input (a field, or the open section) it asks "Save or discard?" first. Save
+    /// Done: closes the editor. With unsaved input in the open tool it asks "Save or discard?" first. Save
     /// saves and then leaves (a failed save stays in the mode with the input and its error showing); Discard drops the input
     /// and leaves; Cancel keeps everything as it was. Returns true when the mode ended.
     /// </summary>
@@ -171,7 +155,7 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
             return true;
         }
 
-        if (Fields.Saving || SectionSaving)
+        if (SectionSaving)
         {
             return false;
         }
@@ -211,69 +195,27 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
         return true;
     }
 
-    /// <summary>The overlay is closing (close, Esc, backdrop or Back): leaving Editing Mode first goes through <see cref="DoneAsync"/>.</summary>
+    /// <summary>The overlay is closing (close, Esc, backdrop or Back): closing the editor first goes through <see cref="DoneAsync"/>.</summary>
     public async ValueTask<bool> CanDismissAsync() => await DoneAsync();
 
     /// <summary>
-    /// Esc (and a backdrop click or the sheet's grip) from outside a field, in order: an open field closes, asking
-    /// "Save or discard?" first when it holds typed input (Esc pressed inside the focused field is that field's own and cancels
-    /// it); otherwise an open section closes, asking first when it holds unsaved input. Returns true when the press was used,
-    /// false when nothing was open (the overlay then dismisses, which leaves the mode through <see cref="DoneAsync"/>).
+    /// Esc from outside a field closes the open tool, asking "Save or discard?" first when it holds unsaved input. Returns true when the
+    /// press was used, false when nothing was open (the editor then closes through <see cref="DoneAsync"/>).
     /// </summary>
     public async ValueTask<bool> HandleEscapeAsync()
     {
-        if (!IsOn)
+        if (!IsOn || !SectionOpen)
         {
             return false;
         }
 
-        if (!Fields.HasOpenDraft && !SectionOpen)
+        if (IsSettling || SectionSaving)
         {
-            return false;
-        }
-
-        if (IsSettling || Fields.Saving || SectionSaving)
-        {
-            // Something is already being settled or saved: the press is spent, and the overlay must not close under it.
+            // Something is already being settled or saved: the press is spent, and the editor must not close under it.
             return true;
         }
 
-        await SettleAsync(HandleEscapeCoreAsync, whenBusy: true);
-        return true;
-    }
-
-    private async Task<bool> HandleEscapeCoreAsync()
-    {
-        if (Fields.HasOpenDraft)
-        {
-            if (!Fields.IsDirty)
-            {
-                Fields.Cancel();
-                return true;
-            }
-
-            var choice = await AskAsync();
-            if (!IsOn)
-            {
-                // The mode ended while the question was open: nothing may save into the removed item.
-                return false;
-            }
-
-            switch (choice)
-            {
-                case SaveOrDiscardChoice.Save:
-                    // A failed save leaves the field open with its typed value and its error showing.
-                    await Fields.SaveAsync();
-                    break;
-                case SaveOrDiscardChoice.Discard:
-                    Fields.Cancel();
-                    break;
-            }
-
-            return true;
-        }
-
-        await CloseSectionCoreAsync();
+        await SettleAsync(CloseSectionCoreAsync, whenBusy: true);
         return true;
     }
 
@@ -353,7 +295,7 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
     }
 
     /// <summary>
-    /// A banner button: closes the section when it is the one already open (the button pressed again), otherwise opens it.
+    /// A tab: closes the section when it is the one already open (the button pressed again), otherwise opens it.
     /// Returns whether the section is open afterwards.
     /// </summary>
     public async Task<bool> ToggleSectionAsync(EditingSection section)
@@ -367,7 +309,7 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
     }
 
     /// <summary>
-    /// A hero art chip, or a banner button swapping sections: opens the section, first settling the unsaved input of a
+    /// A tab swapping tools: opens the tool, first settling the unsaved input of a
     /// different open section ("Save or discard?"). Asking again for the open section only re-applies the artwork slot.
     /// Refused while a field is mid-edit. Returns whether the section is open afterwards.
     /// </summary>
@@ -381,10 +323,10 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
         return OpenSection(section, artworkSlot);
     }
 
-    /// <summary>Opens a section (and artwork slot). Refused while a field on the page is mid-edit.</summary>
+    /// <summary>Opens a section (and artwork slot).</summary>
     public bool OpenSection(EditingSection section, string? artworkSlot = null)
     {
-        if (!IsOn || !CanEdit || Fields.HasOpenDraft)
+        if (!IsOn || !CanEdit)
         {
             return false;
         }
@@ -444,14 +386,9 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
     private async Task<SaveOrDiscardChoice> AskAsync() =>
         AskSaveOrDiscard is { } ask ? await ask() : SaveOrDiscardChoice.Cancel;
 
-    // Saves the field first, then the section. Either one failing stops the leave: the input and its error stay on screen.
+    // Saves the open tool's input. A failed save stops the leave: the input and its error stay on screen.
     private async Task<bool> SaveUnsavedAsync()
     {
-        if (Fields.IsDirty && !await Fields.SaveAsync())
-        {
-            return false;
-        }
-
         if (SectionDirty && (SectionHost is null || !await SectionHost.SaveAsync()))
         {
             return false;

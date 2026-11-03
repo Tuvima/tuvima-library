@@ -49,7 +49,6 @@ else if (Model is not null)
        binding, so a row's own Edit can open the pop-over for this page's item. *@
     <CascadingValue Value="_binding" IsFixed="true">
     <CascadingValue Value="_batch" IsFixed="true">
-    <CascadingValue Value="_preview" IsFixed="true">
     <article class="tl-detail-page">
         <section class="@DetailStageClass">
             <DetailHero Model="Model"
@@ -126,7 +125,6 @@ else if (Model is not null)
     </article>
     </CascadingValue>
     </CascadingValue>
-    </CascadingValue>
 }
 
 @code {
@@ -164,7 +162,6 @@ else if (Model is not null)
     // the person presses Edit. These are the editor's own objects, shared by every page: they are never disposed here.
     private EditingModeContext _editing = default!;
     private EditSessionFlow _flow = default!;
-    private EditPendingPreview _preview = default!;
     private ArtworkPickerSession _artworkPicker = default!;
     private BulkEditSelection _batch = default!;
     private EditorBinding _binding = default!;
@@ -174,7 +171,6 @@ else if (Model is not null)
     {
         _editing = Editor.Mode;
         _flow = Editor.Flow;
-        _preview = Editor.Preview;
         _artworkPicker = Editor.Picker;
         _batch = Editor.Batch;
         _binding = new EditorBinding(DeviceContext)
@@ -185,7 +181,6 @@ else if (Model is not null)
             ItemSwitched = AfterEditItemSwitchedAsync,
             Saved = RefreshAfterEditSavedAsync,
             SectionCommitted = RefreshAfterSectionCommitAsync,
-            FieldSaved = RefreshAfterFieldSavedAsync,
             MediaTypes = () => Model is null ? [] : [ResolveEditorMediaType(Model.EntityType, Model.PresentationContext)],
             Trail = EditTrail,
             EditRowAsync = row => RowEditEntry.StartAsync(Editor, _binding, row),
@@ -204,50 +199,6 @@ else if (Model is not null)
             _ = InvokeAsync(StateHasChanged);
         }
     }
-
-    // A page that replaced one which followed its item here (a move removed the title it showed) picks the editor back up: the pop-over opens
-    // again on the surviving item with Match and Identity open and the move's result line showing, so following the item does not end the edit.
-    protected override async Task OnInitializedAsync() => await ResumeEditingAsync();
-
-    private async Task ResumeEditingAsync()
-    {
-        if (Model is null || !Guid.TryParse(Model.Id, out var entityId)
-            || EditResumeStore is not { } store || !store.TryTakeEditResume(entityId, out var resume))
-        {
-            return;
-        }
-
-        // The device or the person may no longer qualify: then the page simply opens to read, as a deep link would.
-        if (resume.SelectRow is { } row)
-        {
-            // A song's Edit: the song is ticked and the Edit panel opens for it, on the page it came from.
-            await RowEditEntry.StartAsync(Editor, _binding, row);
-            return;
-        }
-
-        UpdateEditingEligibility();
-        if (!await Editor.OpenAsync(_binding, entityId, ToolFor(resume.Section)) || _disposed)
-        {
-            return;
-        }
-
-        if (resume.Section == EditingSection.Match && !_editing.Fields.CanMatch && !string.IsNullOrWhiteSpace(resume.ResultLine))
-        {
-            // The new item cannot be matched, so there is no section to hold the line: say it here instead.
-            Snackbar.Add(resume.ResultLine, AppSeverity.Success);
-        }
-    }
-
-    private static EditTool ToolFor(EditingSection section) => section switch
-    {
-        EditingSection.Artwork => EditTool.Artwork,
-        EditingSection.Match => EditTool.Match,
-        EditingSection.History => EditTool.History,
-        _ => EditTool.Details,
-    };
-
-    // The one-shot note lives in the overlay state: this page's own cascade when it is in the overlay, else the circuit's.
-    private DetailsOverlayState? EditResumeStore => Overlay ?? Services.GetService<DetailsOverlayState>();
 
     protected override async Task OnParametersSetAsync()
     {
@@ -419,8 +370,6 @@ else if (Model is not null)
         }
 
         var fields = editing.Fields;
-        _preview.PageEntityId = fields.EntityId;
-        _preview.Artwork.PageArtworkEntityId = fields.ArtworkEntityId;
         var chain = fields.ScopeChain;
         if (chain.Count > 1 && chain[^1].EntityId == fields.EntityId)
         {
@@ -430,7 +379,7 @@ else if (Model is not null)
     }
 
     /// <summary>
-    /// Delete from library, in the page's "..." menu (with or without Editing Mode) and in the editing banner's "...": on a desktop
+    /// Delete from library, in the page's "..." menu: on a desktop
     /// for an effective administrator, and for a page that is one title (details overlay spec D18, D19). The Engine and
     /// <see cref="DeleteFromLibraryAsync"/> check again.
     /// </summary>
@@ -679,30 +628,12 @@ else if (Model is not null)
         }
     }
 
-    // A field saved from a pencil: the item is already updated, so refresh what the page shows. A failed refresh
-    // never undoes the save; the page simply keeps what it had until the next load.
-    private async Task RefreshAfterFieldSavedAsync(string fieldKey)
-    {
-        try
-        {
-            await RefreshCurrentDetailAsync();
-        }
-        catch (Exception ex)
-        {
-            Logger.LogWarning(ex, "The detail page could not refresh after {Field} was saved", fieldKey);
-            Snackbar.Add(L["Common_SavedButThePageCould"].Value, AppSeverity.Warning);
-        }
-    }
-
     private async Task RefreshAfterSectionCommitAsync()
     {
         try
         {
             await RefreshCurrentDetailAsync();
-            if (_editing is { Fields.HasOpenDraft: false })
-            {
-                await LoadEditingFieldsAsync();
-            }
+            await LoadEditingFieldsAsync();
         }
         catch (Exception ex)
         {
@@ -873,22 +804,14 @@ else if (Model is not null)
         await LeaveAfterRemovalAsync();
     }
 
-    // The editor closes without asking when it was open on this page (the item is gone, so there is nothing to save or discard); unsaved text
-    // from a field is kept for the notice. An open section's unsaved input lives inside the editor and cannot be read from here.
+    // The editor closes without asking when it was open on this page (the item is gone, so there is nothing to save or discard); staged text
+    // is kept for the notice. An open section's unsaved input lives inside the editor and cannot be read from here.
     private void ShowRemovedNotice()
     {
         if (ReferenceEquals(Editor.Binding, _binding) && _editing is { IsOn: true } editing)
         {
             var fields = editing.Fields;
-            if (fields.IsDirty)
-            {
-                _removedInputText = fields.Draft;
-                _removedInputLabel = fields.ActiveKey is { } key ? fields.Find(key)?.Label : null;
-            }
-            else
-            {
-                KeepStagedTextForNotice(fields);
-            }
+            KeepStagedTextForNotice(fields);
 
             _removedLostSectionInput = editing.SectionDirty;
             editing.Leave();

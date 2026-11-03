@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Web.Services.Editing;
 
-/// <summary>One tab of the floating Artwork picker: the slot it edits and what it is called.</summary>
+/// <summary>One tab of the Artwork tool: the slot it edits and what it is called.</summary>
 public sealed record ArtworkPickerTab(string Slot, string Label, string Level = ArtworkPickerRules.ThisItemLevel);
 
 /// <summary>The tabs of one level of the Artwork tool (the item's own pictures, its seasons' pictures, its episodes' stills).</summary>
@@ -96,8 +96,8 @@ public static class ArtworkPickerRules
 }
 
 /// <summary>
-/// What the floating Artwork picker does (universal editor spec D8, D9), kept off the screen so it can be tested. Picking a picture only
-/// previews it on the page; "Use this artwork" stages it in the pending list; nothing becomes the chosen picture until Save changes.
+/// What the Artwork tool does (universal editor spec D8), kept off the screen so it can be tested. Picking a picture only
+/// previews it in the tool; "Use this artwork" stages it in the pending list; nothing becomes the chosen picture until Save changes.
 /// Pictures that have to exist before they can be shown (an upload, a pasted link, a provider picture) are stored as unchosen pictures
 /// of the item, which changes nothing on the page.
 /// </summary>
@@ -153,7 +153,7 @@ public sealed class ArtworkPickerSession
     public string? PickedTarget => ActiveSlot is null ? null : _preview.PickedTarget(ActiveSlot);
 
     /// <summary>The picture the page shows for the active slot right now: the pick, else the staged picture, else the one the item has.</summary>
-    public string? ShownUrl => ActiveSlot is null ? null : _preview.TemporaryUrl(ActiveSlot);
+    public string? ShownUrl => ActiveSlot is null ? null : _preview.ShownUrl(ActiveSlot);
 
     /// <summary>The change staged for the active slot, if any.</summary>
     public bool IsStaged => ActiveSlot is not null && _preview.IsStaged(ActiveSlot);
@@ -170,7 +170,7 @@ public sealed class ArtworkPickerSession
         await SelectSlotAsync(target);
     }
 
-    /// <summary>Moves to another tab. A pick that was not used is dropped; the page leaves or enters the temporary view as the slot needs.</summary>
+    /// <summary>Moves to another tab. A pick that was not used is dropped.</summary>
     public async Task SelectSlotAsync(string? slot)
     {
         if (ActiveSlot is not null && !string.Equals(ActiveSlot, slot, StringComparison.OrdinalIgnoreCase))
@@ -183,7 +183,6 @@ public sealed class ArtworkPickerSession
         Provider = null;
         Saved = [];
         Message = null;
-        ApplyViewContext();
         Changed?.Invoke();
         if (slot is not null)
         {
@@ -191,17 +190,12 @@ public sealed class ArtworkPickerSession
         }
     }
 
-    /// <summary>Closes the picker: unused picks go away and the page returns to its normal view.</summary>
+    /// <summary>Closes the picker: unused picks go away.</summary>
     public void Close()
     {
         _preview.ClearPicks();
         _pickedProviderId = null;
         ActiveSlot = null;
-        _preview.SetTemporarySlot(null);
-        if (_session.IsActive && _session.ViewContext != EditViewContext.Normal)
-        {
-            _session.SetViewContext(EditViewContext.Normal);
-        }
     }
 
     /// <summary>
@@ -218,16 +212,6 @@ public sealed class ArtworkPickerSession
         Saved = [];
         Message = null;
         await OpenAsync(slot);
-    }
-
-    /// <summary>Leaves the temporary view for the normal page while the tool stays open ("Return to series view").</summary>
-    public void ReturnToNormalView()
-    {
-        _preview.SetTemporarySlot(null);
-        if (_session.IsActive)
-        {
-            _session.SetViewContext(EditViewContext.Normal);
-        }
     }
 
     /// <summary>Lists the pictures already saved for the item and slot.</summary>
@@ -629,25 +613,6 @@ public sealed class ArtworkPickerSession
         Message = message;
         Changed?.Invoke();
         return false;
-    }
-
-    private void ApplyViewContext()
-    {
-        if (!_session.IsActive)
-        {
-            return;
-        }
-
-        if (ArtworkEditPreview.UsesTemporaryView(ActiveSlot))
-        {
-            _preview.SetTemporarySlot(ActiveSlot);
-            _session.SetViewContext(EditViewContext.TemporaryArtwork);
-        }
-        else
-        {
-            _preview.SetTemporarySlot(null);
-            _session.SetViewContext(EditViewContext.Normal);
-        }
     }
 
     private static string Caption(ArtworkEntityVariantDto variant)
