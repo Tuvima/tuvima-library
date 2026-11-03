@@ -168,6 +168,7 @@ public sealed class MediaTileComposerService
             Genres = hero.Genres,
             PreviewItems = hero.PreviewItems.Select(item => ToArtworkStackItem(item, hero.MediaType)).ToList(),
             PreviewTotalCount = hero.PreviewTotalCount,
+            CollageUrls = hero.CollageUrls,
             PrimaryActionLabel = primaryAction?.Label ?? "Open",
             PrimaryNavigationUrl = primaryAction?.WebUrl ?? "/",
             SecondaryActionLabel = "Details",

@@ -150,6 +150,26 @@ public sealed class HomeSpotlightStateTests
     }
 
     [Fact]
+    public async Task HomeSpotlights_NewAlbumsBecomeOneRecentlyAddedMusicCollageSlide()
+    {
+        DisplayWorkRow Track(string album, string cover) => new()
+        {
+            WorkId = Guid.NewGuid(),
+            AssetId = Guid.NewGuid(),
+            MediaType = "Music",
+            Title = album + " track",
+            Album = album,
+            Artist = "Artist",
+            CreatedAt = DateTimeOffset.UtcNow,
+            CoverUrl = cover,
+        };
+        var home = await Composer(new Repository([Track("First", "/one.jpg"), Track("Second", "/two.jpg"), Track("Third", "/three.jpg")], [])).BuildHomeAsync();
+        var slide = Assert.Single(home.Spotlights);
+        Assert.Equal("Recently added music", slide.Title);
+        Assert.Equal(3, slide.CollageUrls.Count);
+    }
+
+    [Fact]
     public async Task MostRecentlySavedStartedShowIsTvRepresentative()
     {
         var profile = Guid.NewGuid();

@@ -64,6 +64,16 @@ else if (Slides.Count > 0)
                    href="@ActiveDetailsUrl"
                    aria-label="@($"Open details for {ActiveHero.Title}")"></a>
 
+                @if (ActiveHero.CollageUrls.Count > 0)
+                {
+                    <div class="cinematic-hero-carousel__collage" aria-hidden="true">
+                        @foreach (var cover in ActiveHero.CollageUrls.Take(8))
+                        {
+                            <img src="@MediaTileArtworkUrl.ForDrawnSize(cover, 220)" alt="" decoding="async" />
+                        }
+                    </div>
+                }
+
                 @if (!string.IsNullOrEmpty(CarouselContextLabel))
                 {
                     <div class="cinematic-hero-carousel__context" title="@ActiveHero.SuggestedReason">@CarouselContextLabel</div>

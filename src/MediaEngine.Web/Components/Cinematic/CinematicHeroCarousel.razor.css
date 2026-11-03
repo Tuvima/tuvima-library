@@ -408,3 +408,7 @@
     min-height: 0;
     background: transparent;
 }
+
+/* The "Recently added music" slide: eight covers in a grid on the right of the hero (Home, detail and tiles spec D4). */
+.cinematic-hero-carousel__collage { position: absolute; top: 50%; right: clamp(1.5rem, 5vw, 4rem); z-index: 2; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: min(46%, 34rem); transform: translateY(-50%); pointer-events: none; }
+.cinematic-hero-carousel__collage img { display: block; width: 100%; aspect-ratio: 1; border-radius: var(--tl-radius-xs, 4px); box-shadow: 0 6px 18px rgba(0, 0, 0, .45); }
