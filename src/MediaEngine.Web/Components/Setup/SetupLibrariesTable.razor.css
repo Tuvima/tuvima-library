@@ -1,0 +1,7 @@
+.setup-libs { display: grid; gap: 12px; }
+.setup-libs__note { margin: 0; color: var(--tl-text-muted); font-size: 0.9rem; }
+.setup-libs__toolbar { display: flex; justify-content: flex-end; }
+.setup-libs__empty { display: grid; gap: 4px; color: var(--tl-text-muted); }
+.setup-libs__name { display: inline-flex; align-items: center; gap: 10px; }
+.setup-libs__path { color: var(--tl-text-muted); max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.setup-libs__actions { white-space: nowrap; text-align: right; }

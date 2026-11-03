@@ -1,0 +1,142 @@
+@namespace MediaEngine.Web.Components.Setup
+@using MediaEngine.Contracts.LocalAssets
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Components.Settings
+@using MediaEngine.Web.Services.Ui
+@inject IAppDialogService DialogService
+@inject LibraryFolderAddService Editor
+@inject IStringLocalizer<SharedStrings> L
+
+@* The Libraries step's one table (first-run setup rework D4): Library, Area, Folders and Status, with one Add library button. Nothing is scanned during setup,
+   so every status says Pending and the "in your collection" figure is left out. Rename, change folder and remove sit at the end of each row. Every change saves
+   through the setup session. Phones read the table but change nothing. Settings shows the same four columns once libraries are scanning. *@
+<div class="setup-libs" data-setup-libraries-table>
+    @if (ReadOnly)
+    {
+        <p class="setup-libs__note">@L["Common_UseADesktopOrTablet"]</p>
+    }
+    @if (_error is not null)
+    {
+        <AppAlert Tone="AppUiTone.Warning" Dense="true">@_error</AppAlert>
+    }
+    @if (!ReadOnly)
+    {
+        <div class="setup-libs__toolbar">
+            <AppButton Label="@L["Common_AddLibrary"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="AddAsync" />
+        </div>
+    }
+    @{ var rows = Rows; }
+    @if (rows.Count == 0)
+    {
+        <AppPanel Class="setup-libs__empty"><strong>@L["SetupLibraries_NoneYet"]</strong><span>@L["SetupLibraries_NoneYetText"]</span></AppPanel>
+    }
+    else
+    {
+        <AppTable CardsOn="AppTableCardsMode.Phone" Class="setup-libs__table">
+            <caption class="sr-only">@L["SetupLibraries_TableCaption"]</caption>
+            <thead>
+                <tr>
+                    <th data-card-role="title">@L["SetupLibraries_ColLibrary"]</th>
+                    <th data-card-role="subtitle">@L["Common_Area"]</th>
+                    <th>@L["SetupLibraries_ColFolders"]</th>
+                    <th data-card-role="value">@L["Models_Status"]</th>
+                    <th data-card-role="hidden"><span class="sr-only">@L["Common_Actions"]</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in rows)
+                {
+                    <tr @key="row.Key" data-library="@row.Key">
+                        <td data-card-role="title"><span class="setup-libs__name"><span class="@LibraryKindLook.TileClass(row.Type)"><AppMaterialIcon Icon="@row.Type.Icon" /></span><strong>@row.Name</strong></span></td>
+                        <td data-card-role="subtitle">@row.AreaLabel</td>
+                        <td class="setup-libs__path">@row.Path</td>
+                        <td data-card-role="value"><AppStatusBadge Text="@L["SetupLibraries_Pending"].Value" Tone="AppUiTone.Neutral" Icon="@AppMaterialIcons.Outlined.Schedule" /></td>
+                        <td data-card-role="hidden" class="setup-libs__actions">
+                            @if (!ReadOnly)
+                            {
+                                <AppIconButton Icon="@AppMaterialIcons.Outlined.Edit" Tooltip="@L["Common_Rename"].Value" AriaLabel="@($"Rename {row.Name}")" OnClick="@(() => RenameAsync(row))" />
+                                <AppIconButton Icon="@AppMaterialIcons.Outlined.FolderOpen" Tooltip="@L["SetupAreaCards_ChangeFolder"].Value" AriaLabel="@($"Change the folder of {row.Name}")" OnClick="@(() => ChangeFolderAsync(row))" />
+                                <AppIconButton Icon="@AppMaterialIcons.Outlined.Delete" Tooltip="@L["Common_Remove"].Value" AriaLabel="@($"Remove {row.Name}")" OnClick="@(() => RemoveAsync(row))" />
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </AppTable>
+    }
+</div>
+
+@code {
+    private sealed record Row(string Key, string Name, string AreaLabel, string Path, LibraryTypeOption Type, LibraryFolderDto? Library, ViewSourceAdminDto? ViewFolder);
+
+    [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
+    [Parameter, EditorRequired] public LibraryKindCatalog Kinds { get; set; } = default!;
+    /// <summary>View's shared folders; null when they could not be read.</summary>
+    [Parameter] public IReadOnlyList<ViewSourceAdminDto>? ViewFolders { get; set; }
+    [Parameter] public string? SetupSession { get; set; }
+    [Parameter] public bool ReadOnly { get; set; }
+    /// <summary>True once the Vault was turned on in this setup, so Add library offers it (and only then).</summary>
+    [Parameter] public bool VaultOn { get; set; }
+    [Parameter] public EventCallback Changed { get; set; }
+
+    private string? _error;
+
+    private FolderAddScope Scope => new(true, SetupSession);
+
+    private IReadOnlyList<Row> Rows
+    {
+        get
+        {
+            var rows = new List<Row>();
+            foreach (var area in LibraryGroupCatalog.Definitions.Where(area => area.Key != LibraryGroupCatalog.VaultKey))
+            {
+                if (area.Key == LibraryTypeCatalog.ViewArea)
+                {
+                    var viewKinds = Kinds.ViewKinds;
+                    foreach (var source in (ViewFolders ?? []).Where(source => source.StorageMode == "linked" && !string.IsNullOrWhiteSpace(source.Location)))
+                    {
+                        var kind = viewKinds.FirstOrDefault(item => item.Key == source.ContentKind) ?? viewKinds.FirstOrDefault();
+                        if (kind is not null) rows.Add(new Row(source.Id.ToString("D"), source.Name, area.Label, source.Location, kind, null, source));
+                    }
+
+                    continue;
+                }
+
+                rows.AddRange(LibraryListing.RowsFor(Kinds, area.Key, Configuration, null, null, null, showVault: false)
+                    .Where(row => row.Library is not null)
+                    .Select(row => new Row(row.Key, row.Name, area.Label, PathOf(row.Library!), row.Type, row.Library, null)));
+            }
+
+            return rows;
+        }
+    }
+
+    private static string PathOf(LibraryFolderDto library)
+    {
+        var first = library.Sources.FirstOrDefault()?.Path ?? string.Empty;
+        return library.Sources.Count > 1 ? $"{first} and {library.Sources.Count - 1} more" : first;
+    }
+
+    private Task AddAsync() => LibraryAddFlow.OpenAsync(
+        DialogService, Configuration, Kinds, null, vaultVisible: VaultOn, setup: true, SetupSession,
+        _ => { _error = null; return Changed.InvokeAsync(); });
+
+    private Task RenameAsync(Row row) => RunAsync(row.ViewFolder is { } folder
+        ? Editor.RenameSetupViewFolderAsync(folder)
+        : Editor.RenameSetupLibraryAsync(Scope, Configuration, row.Library!));
+
+    private Task ChangeFolderAsync(Row row) => RunAsync(row.ViewFolder is { } folder
+        ? Editor.ChangeSetupViewFolderAsync(Scope, folder, row.Type)
+        : Editor.ChangeSetupLibraryFolderAsync(Scope, Configuration, row.Library!, row.Type));
+
+    private Task RemoveAsync(Row row) => RunAsync(row.ViewFolder is { } folder
+        ? Editor.RemoveSetupViewFolderAsync(folder)
+        : Editor.RemoveSetupLibraryAsync(Scope, Configuration, row.Library!));
+
+    private async Task RunAsync(Task<LibraryFolderAddService.SetupRowOutcome> change)
+    {
+        var outcome = await change;
+        _error = outcome.Error;
+        if (outcome.Changed) await Changed.InvokeAsync();
+    }
+}

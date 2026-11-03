@@ -1,0 +1,9 @@
+.setup-intro { display: grid; gap: 20px; max-width: 880px; margin: 0 auto; }
+.setup-intro__lead { margin: 0; text-align: center; font-size: 1.05rem; color: var(--tl-text-muted); }
+.setup-intro__cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.setup-intro__cards li { display: grid; gap: 4px; justify-items: start; padding: 16px; border: 1px solid var(--tl-border-subtle, rgba(127,127,127,.25)); border-radius: 8px; }
+.setup-intro__cards span { color: var(--tl-text-muted); }
+.setup-intro__private { display: flex; gap: 12px; padding: 16px; border-radius: 8px; background: color-mix(in srgb, var(--tl-success, #2e9d5b) 10%, transparent); }
+.setup-intro__private p { margin: 2px 0 6px; }
+.setup-intro__actions { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+@media (max-width: 600px) { .setup-intro__cards { grid-template-columns: 1fr; } }

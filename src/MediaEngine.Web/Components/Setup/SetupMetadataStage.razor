@@ -58,14 +58,22 @@
         }
         else
         {
-            <div class="setup-provider-grid" data-testid="setup-sources-cards">
-                @foreach (var provider in Visible)
+            <div data-testid="setup-sources-cards">
+                @foreach (var group in TileGroups)
                 {
-                    <AppListCard Title="@provider.DisplayName" Description="@Purpose(provider)">
-                        <Logo><AppProviderLogo ImageUrl="@provider.IconPath" Icon="@provider.MaterialIcon" AccentColor="@provider.AccentColor" FallbackText="@Initials(provider.DisplayName)" AltText="" /></Logo>
-                        <Status>@StatusBadge(provider)</Status>
-                        <Footer>@ConnectButton(provider)</Footer>
-                    </AppListCard>
+                    <section class="setup-provider-group" data-group="@group.Key">
+                        <h3>@group.Title</h3>
+                        <div class="setup-provider-grid">
+                            @foreach (var provider in group.Providers)
+                            {
+                                <AppListCard Title="@provider.DisplayName" Description="@Purpose(provider)">
+                                    <Logo><AppProviderLogo ImageUrl="@provider.IconPath" Icon="@provider.MaterialIcon" AccentColor="@provider.AccentColor" FallbackText="@Initials(provider.DisplayName)" AltText="" /></Logo>
+                                    <Status>@StatusBadge(provider)</Status>
+                                    <Footer>@ConnectButton(provider)</Footer>
+                                </AppListCard>
+                            }
+                        </div>
+                    </section>
                 }
             </div>
         }
@@ -109,6 +117,18 @@
         .ToList();
 
     private bool Filtering => HasLibraryFilter && !_showAll && Catalogue.Any(provider => !Fits(provider));
+
+    // Tiles that need a key come first, then the ones that work as they are; every tile is the same size, at most three to a row, left-aligned.
+    private IEnumerable<(string Key, string Title, IReadOnlyList<ProviderCatalogueDto> Providers)> TileGroups
+    {
+        get
+        {
+            var needKey = Visible.Where(provider => SourceState(provider) != SourceStates.NoKeyNeeded).ToList();
+            var noKey = Visible.Where(provider => SourceState(provider) == SourceStates.NoKeyNeeded).ToList();
+            if (needKey.Count > 0) yield return ("key", L["SetupMetadata_NeedKeyGroup"].Value, needKey);
+            if (noKey.Count > 0) yield return ("no-key", L["SetupMetadata_NoKeyGroup"].Value, noKey);
+        }
+    }
 
     private enum SourceStates { NeedsKey, KeySaved, NoKeyNeeded }
 

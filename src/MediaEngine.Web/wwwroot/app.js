@@ -3843,3 +3843,16 @@ window.tuvimaMenu = { hasFocus: function (element) { return Promise.resolve().th
     const index = key === 'Home' ? 0 : key === 'End' ? items.length - 1 : (current + (key === 'ArrowUp' || key === 'ArrowLeft' ? -1 : 1) + items.length) % items.length;
     items[index].focus();
 } };
+
+// The launch splash (first-run setup rework D4): the short intro animation is drawn by the server page and removed as soon as the app has rendered.
+// A timer removes it anyway after 12 seconds, so a failed start never leaves it covering the page.
+(function () {
+    function remove() {
+        var splash = document.getElementById('tl-launch-splash');
+        if (!splash) return;
+        splash.classList.add('tl-launch-splash--done');
+        setTimeout(function () { if (splash.parentNode) splash.parentNode.removeChild(splash); }, 250);
+    }
+    window.tuvimaDismissLaunchSplash = remove;
+    setTimeout(remove, 12000);
+})();

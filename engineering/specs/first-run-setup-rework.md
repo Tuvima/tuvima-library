@@ -1,6 +1,6 @@
 # Spec: First-run setup rework (Welcome, step order, Libraries table, compact picker, metadata tiles)
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-11-03 (Shy locked 01:04Z) · **Related docs:** Archived `first-run-setup-flow.md` (v3, built) · `settings-and-setup-simplified.md` (built; its D8 area cards are replaced here) · local check 2026-11-02 items 1-13, 15, 39 · Mockups: [first-run-setup-rework.html](../design/mockups/first-run-setup-rework.html) (also https://claude.ai/artifact/61sfszbLBBL8dV9rZt2qa9)
+> **Status:** Built, awaiting Local checks · **Version:** 1 · **Last updated:** 2026-11-03 (Shy locked 01:04Z) · **Related docs:** Archived `first-run-setup-flow.md` (v3, built) · `settings-and-setup-simplified.md` (built; its D8 area cards are replaced here) · local check 2026-11-02 items 1-13, 15, 39 · Mockups: [first-run-setup-rework.html](../design/mockups/first-run-setup-rework.html) (also https://claude.ai/artifact/61sfszbLBBL8dV9rZt2qa9)
 
 > Source: Shy's walk of setup on 2 Nov 2026. The reference images Shy supplied exist only on SHY-DESKTOP, so this draft works from Shy's written descriptions; layouts will be matched to the images when they are committed. Small bugs (name/address mismatch, Change button, picker speed, path warnings) are in the bug build thread and are not repeated as work here, except where the new design depends on them.
 
@@ -76,3 +76,9 @@ Fresh data folder at 1440 and 1280 px: intro and Get started; Vault off then on 
 
 ## Plain English summary
 Setup gets a proper welcome with your animation, a better order (Vault first, then Libraries), a single Libraries table shared with Settings, a fast simple folder picker that checks after you add, and tidier metadata tiles with one test-then-save key dialog. Nothing is built until you approve.
+
+## Build notes (2026-11-03)
+- **Tagline override (Shy, 2 Nov):** the intro and splash say "One library. Every story." (lower case after the first word), not the capitals in D5, following Shy's later marketing decision.
+- **Picker:** the Add library folder picker already read nothing but folder lists (no kind key is sent), so it was kept; the look inside happens once, after Add, in the check step. The Heads up comes from the folder's contents only (season folders or episodes in a Movies folder, or no files of the kind); folder names are never read.
+- **Key dialog:** the existing connect dialog already tests before it saves (a bad key is refused, never stored); its button now reads "Test and save".
+- **Settings table:** Settings keeps its grouped-by-area table for now; the setup table has the four columns from this spec. Aligning Settings fully is a follow-up.

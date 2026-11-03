@@ -32,6 +32,8 @@
 </head>
 
 <body>
+    @* Launch splash: the short intro animation, shown only while the Dashboard connects. launch-splash.js removes it the moment the app is ready, so it never delays anything. *@
+    <div id="tl-launch-splash" class="tl-launch-splash" aria-hidden="true"><MediaEngine.Web.Components.Setup.IntroAnimation Compact="true" Tagline="One library. Every story." /></div>
     <Routes @rendermode="new InteractiveServerRenderMode(prerender: false)" ClientIngress="@Ingress" ClientAddress="@Address" ClientSignInRefusal="@SignInRefusal" ClientForwarded="@Forwarded" />
     <ReconnectModal />
     <script src="@Assets["vendor/hls/hls.min.js"]"></script>

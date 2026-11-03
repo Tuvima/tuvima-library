@@ -46,6 +46,12 @@
         {
             <AppAlert Tone="AppUiTone.Info" data-testid="setup-download-note">@L["SetupReadinessStage_ADownloadIsStillRunning"]</AppAlert>
         }
+        @if (HeldKinds.Count > 0)
+        {
+            @* Shown here and only here (first-run setup rework D1): libraries said Pending all through setup, so this is the one place that says some of them
+               will wait for a source that can identify them. *@
+            <AppAlert Tone="AppUiTone.Warning" data-testid="setup-no-source-warning">@L["SetupReadinessStage_NoSourceWarning", string.Join(", ", HeldKinds)]</AppAlert>
+        }
         <SetupStageFooter Back="Back" ShowReturnToCurrentStep="ShowReturnToCurrentStep" ReturnToCurrentStep="ReturnToCurrentStep">
             <AppButton Label="@L["SetupReadinessStage_OpenMyLibrary"].Value" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@Busy" Disabled="@(!Readiness.CanComplete)" OnClick="Complete" />
         </SetupStageFooter>
@@ -57,6 +63,8 @@
     /// <summary>Only used to say that a download is still running; the tools themselves are listed on the Tools step.</summary>
     [Parameter] public ToolRequirementsDto? Tools { get; set; }
     [Parameter] public bool Busy { get; set; }
+    /// <summary>The names of added kinds (films, TV shows, comics) that nothing can identify yet because no metadata source was connected; empty hides the warning.</summary>
+    [Parameter] public IReadOnlyList<string> HeldKinds { get; set; } = [];
     [Parameter] public bool Failed { get; set; }
     [Parameter] public EventCallback Retry { get; set; }
     [Parameter] public EventCallback Complete { get; set; }

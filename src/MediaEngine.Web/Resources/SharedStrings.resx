@@ -9627,6 +9627,99 @@
   <data name="Backups_ThisComputer" xml:space="preserve">
     <value>This computer</value>
   </data>
+  <data name="ToolsSummaryLine_Downloading" xml:space="preserve">
+    <value>{0} downloading</value>
+  </data>
+  <data name="SetupIntro_Tagline" xml:space="preserve">
+    <value>One library. Every story.</value>
+  </data>
+  <data name="SetupIntro_Lead" xml:space="preserve">
+    <value>Library finds the stories you already own, connects them across formats and presents them as one beautiful place.</value>
+  </data>
+  <data name="SetupIntro_FindTitle" xml:space="preserve">
+    <value>Find</value>
+  </data>
+  <data name="SetupIntro_FindText" xml:space="preserve">
+    <value>Point Library at your folders and it recognises books, shows, films, music and more.</value>
+  </data>
+  <data name="SetupIntro_ConnectTitle" xml:space="preserve">
+    <value>Connect</value>
+  </data>
+  <data name="SetupIntro_ConnectText" xml:space="preserve">
+    <value>Details, covers and cast come together, and each story links to its other formats.</value>
+  </data>
+  <data name="SetupIntro_EnjoyTitle" xml:space="preserve">
+    <value>Enjoy</value>
+  </data>
+  <data name="SetupIntro_EnjoyText" xml:space="preserve">
+    <value>Watch, listen and read from one calm, tidy place on any device.</value>
+  </data>
+  <data name="SetupIntro_PrivateTitle" xml:space="preserve">
+    <value>Private by default</value>
+  </data>
+  <data name="SetupIntro_PrivateText" xml:space="preserve">
+    <value>Library runs on your own computer. Your files and details stay on your server, and nothing is sent anywhere unless you turn on a service that needs it.</value>
+  </data>
+  <data name="SetupIntro_PrivacyLink" xml:space="preserve">
+    <value>Read how privacy works</value>
+  </data>
+  <data name="SetupIntro_RestoreInstead" xml:space="preserve">
+    <value>Restore a backup instead</value>
+  </data>
+  <data name="SetupIntro_GetStarted" xml:space="preserve">
+    <value>Get started</value>
+  </data>
+  <data name="SetupLibraries_NoneYet" xml:space="preserve">
+    <value>No libraries yet</value>
+  </data>
+  <data name="SetupLibraries_NoneYetText" xml:space="preserve">
+    <value>Add a library for each kind of media you own. You can add more later in Settings.</value>
+  </data>
+  <data name="SetupLibraries_TableCaption" xml:space="preserve">
+    <value>Libraries added during setup</value>
+  </data>
+  <data name="SetupLibraries_ColLibrary" xml:space="preserve">
+    <value>Library</value>
+  </data>
+  <data name="SetupLibraries_ColFolders" xml:space="preserve">
+    <value>Folders</value>
+  </data>
+  <data name="SetupLibraries_Pending" xml:space="preserve">
+    <value>Pending</value>
+  </data>
+  <data name="Common_Actions" xml:space="preserve">
+    <value>Actions</value>
+  </data>
+  <data name="CreateLibrary_VaultTitle" xml:space="preserve">
+    <value>Vault</value>
+  </data>
+  <data name="CreateLibrary_VaultInfo" xml:space="preserve">
+    <value>Anything you want hidden, adult content included. Locked behind its own PIN and hidden from kids profiles.</value>
+  </data>
+  <data name="CreateLibrary_ChooseAnother" xml:space="preserve">
+    <value>Choose another folder</value>
+  </data>
+  <data name="CreateLibrary_AddAnyway" xml:space="preserve">
+    <value>Add anyway</value>
+  </data>
+  <data name="CreateLibrary_HeadsUpTitle" xml:space="preserve">
+    <value>Heads up</value>
+  </data>
+  <data name="CreateLibrary_AlreadyUsedTitle" xml:space="preserve">
+    <value>Already used</value>
+  </data>
+  <data name="CreateLibrary_LooksRightTitle" xml:space="preserve">
+    <value>Looks right</value>
+  </data>
+  <data name="SetupMetadata_NeedKeyGroup" xml:space="preserve">
+    <value>Needs a key to connect</value>
+  </data>
+  <data name="SetupMetadata_NoKeyGroup" xml:space="preserve">
+    <value>Works without a key</value>
+  </data>
+  <data name="SetupReadinessStage_NoSourceWarning" xml:space="preserve">
+    <value>Your {0} will wait to be identified until you connect a metadata source. You can do that any time in Settings, Plugins.</value>
+  </data>
   <data name="PluginPage_Activity" xml:space="preserve">
     <value>Activity</value>
   </data>

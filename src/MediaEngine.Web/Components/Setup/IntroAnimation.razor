@@ -1,0 +1,19 @@
+@namespace MediaEngine.Web.Components.Setup
+
+@* The intro animation (emblem turns in, the LIBRARY word slides in, the tagline fades up), drawn in pure CSS from two small SVGs so it costs a few kilobytes
+   instead of the original page's embedded font. Used full size on the setup intro and compact as the launch splash. Reduced motion shows the final frame. *@
+<div class="intro-anim @(Compact ? "intro-anim--compact" : null)" role="img" aria-label="@Tagline">
+    <div class="intro-anim__stage">
+        <span class="intro-anim__glow"></span>
+        <img class="intro-anim__emblem" src="/images/intro/emblem.svg" alt="" />
+        <img class="intro-anim__word" src="/images/intro/word.svg" alt="" />
+        <span class="intro-anim__line"></span>
+        <span class="intro-anim__tag">@Tagline.ToUpperInvariant()</span>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Tagline { get; set; } = string.Empty;
+    /// <summary>The short launch-splash size.</summary>
+    [Parameter] public bool Compact { get; set; }
+}
