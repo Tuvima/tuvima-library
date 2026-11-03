@@ -35,3 +35,20 @@ Walked with Shy on SHY-DESKTOP against main at 74d998cbd. Fresh start: data stor
 29. Thumbs up/down buttons: the mouse-over area is not the same size as the button drawn.
 30. "..." menu: font sizes in the context menu are too small.
 Shy's overall point: many of these were reported before and never fixed. Worth checking the earlier follow-ups list (F-items) for each one against main.
+31. Video player, Bookmarks panel: shows scroll bars and Shy has to scroll to see all of it. It should fit without scrolling (size to content, scroll only for a long list of bookmarks).
+32. Video player, Subtitles overlay: has hard borders inside it that look odd. Wanted: soft separation (spacing or faint dividers) matching the rest of the player panels.
+33. Video player, playback speed picker: looks poor. Needs the same clean panel style as the other player menus (specifics to confirm with Shy).
+
+## Home and tiles walk (batch rows L1 to L9 and related)
+
+Passed (Shy): Pick up row for movies; hero start for a played show, show lengths, Recently Added filtering and View pill, Continue rows, "View all" tile size, banner settings (L8), plugin slides (L9), details opening okay.
+
+34. Continue rows: book names are cut off entirely on the tiles.
+35. Book reader: the first time a book is opened the top menu bar is not visible at all; closing and reopening the reader shows it. Bug.
+36. Book reader: bookmark import/export (built for the video and music player) should also work in the book reader.
+37. Continue tiles: hovering should show a Play or Read button overlaid on the tile (so it's obvious), plus a "..." menu with "Item Details" to open the detail page first. Default click continues the item straight away.
+38. Home hero: still too small, and books and similar items don't fill out the hero.
+39. Home hero: a show that has never been played should say "Watch S1 E1", not "Start watching".
+40. Watch (and likely Read, Listen): the Continue tile is not landscape like the Home one. Rule: portrait-only tiles in lanes, landscape for Continue, everywhere. This makes the old "tiles without a landscape background" row moot.
+41. "View all" on a lane opens a bare page with no sidebar. It should open the matching page in that section (for example Watch filtered by that genre, or new items). Every generated lane should have an equivalent filter in each main section.
+42. Details page: opens fine but a little slow. The cast picture size and shape are still wrong (a bug reported before that was never fixed).
