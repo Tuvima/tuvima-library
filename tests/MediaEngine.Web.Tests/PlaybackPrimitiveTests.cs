@@ -73,11 +73,13 @@ public sealed class PlaybackPrimitiveTests
 
         var fullscreenVideo = PlaybackControlCatalog.Build(PlaybackExperience.Video, PlaybackControlSurface.Fullscreen,
             new PlaybackControlState(HasChapters: true, HasQueue: true, IsTvEpisode: true, HasCaptions: true, HasAudioTracks: true, HasQualityOptions: true, CanFullscreen: true, CanPictureInPicture: true));
-        AssertContainsKeys(fullscreenVideo, PlaybackControlKey.Queue, PlaybackControlKey.Speed, PlaybackControlKey.Chapters, PlaybackControlKey.Captions, PlaybackControlKey.AudioTrack, PlaybackControlKey.Quality, PlaybackControlKey.Fullscreen, PlaybackControlKey.PictureInPicture);
+        AssertContainsKeys(fullscreenVideo, PlaybackControlKey.Queue, PlaybackControlKey.Speed, PlaybackControlKey.Captions, PlaybackControlKey.AudioTrack, PlaybackControlKey.Quality, PlaybackControlKey.Fullscreen, PlaybackControlKey.PictureInPicture);
         Assert.DoesNotContain(fullscreenVideo, control => control.Key == PlaybackControlKey.History);
+        // Chapters are a position tick on the bar, not a control (player-controls-v3 D7).
+        Assert.DoesNotContain(fullscreenVideo, control => control.Key == PlaybackControlKey.Chapters);
         Assert.DoesNotContain(video, control => control.Key is PlaybackControlKey.SkipIntro or PlaybackControlKey.SkipCredits);
 
-        var movie = PlaybackControlCatalog.Build(PlaybackExperience.Video, PlaybackControlSurface.PrimaryVideo, new PlaybackControlState());
+        var movie = PlaybackControlCatalog.Build(PlaybackExperience.Video, PlaybackControlSurface.PrimaryVideo, new PlaybackControlState(IsMovie: true));
         Assert.DoesNotContain(movie, control => control.Key is PlaybackControlKey.Queue or PlaybackControlKey.Captions or PlaybackControlKey.AudioTrack or PlaybackControlKey.Quality or PlaybackControlKey.PictureInPicture);
     }
 
@@ -261,7 +263,7 @@ public sealed class PlaybackPrimitiveTests
         var videoUtilities = PlaybackControlCatalog.BuildUtilityControls(PlaybackExperience.Video, PlaybackControlSurface.PrimaryVideo, videoState);
         var videoSecondary = PlaybackControlCatalog.BuildSecondaryToolStrip(PlaybackExperience.Video, PlaybackControlSurface.PrimaryVideo, videoState);
         Assert.Equal(new[] { PlaybackControlKey.Captions, PlaybackControlKey.AudioTrack, PlaybackControlKey.Speed, PlaybackControlKey.Queue }, videoPrimary.Select(control => control.Key));
-        Assert.Equal(new[] { PlaybackControlKey.Chapters, PlaybackControlKey.Quality }, videoSecondary.Select(control => control.Key));
+        Assert.Equal(new[] { PlaybackControlKey.Quality }, videoSecondary.Select(control => control.Key));
         Assert.Equal(PlaybackControlKey.Fullscreen, videoUtilities[^1].Key);
         Assert.DoesNotContain(videoPrimary, control => control.Key == PlaybackControlKey.Fullscreen);
     }

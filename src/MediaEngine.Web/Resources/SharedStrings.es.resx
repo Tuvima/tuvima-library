@@ -862,9 +862,6 @@
   <data name="Common_Subtitles" xml:space="preserve">
     <value>Subtítulos</value>
   </data>
-  <data name="Common_UpNext" xml:space="preserve">
-    <value>A continuación</value>
-  </data>
   <data name="Common_PlayNext" xml:space="preserve">
     <value>Reproducir a continuación</value>
   </data>

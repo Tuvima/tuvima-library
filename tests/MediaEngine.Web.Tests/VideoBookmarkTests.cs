@@ -215,7 +215,7 @@ public sealed class VideoBookmarkTests : AsyncBunitContext
         var ticks = cut.FindAll("button.playback-seek-rail__bookmark");
         Assert.Equal(2, ticks.Count);
         Assert.Contains("12:30", ticks[0].GetAttribute("aria-label"));
-        Assert.Contains("Shared bookmark", ticks[1].GetAttribute("aria-label"));
+        Assert.Contains("Global bookmark", ticks[1].GetAttribute("aria-label"));
         Assert.Contains("left:10.417%", cut.FindAll(".playback-seek-rail__bookmark-wrap")[0].GetAttribute("style"));
         Assert.Empty(cut.FindAll(".playback-seek-rail__quicklook"));
 
@@ -264,76 +264,6 @@ public sealed class VideoBookmarkTests : AsyncBunitContext
         ], 1000);
 
         Assert.Equal([100d, 900d], ticks.Select(tick => tick.Seconds).ToArray());
-    }
-
-    // ---------------------------------------------------------------- the video player panel
-
-    [Fact]
-    public async Task ThePanel_CapturesThePositionWhenItOpens_ShowsTheChapter_AndPreviewJumpsThere()
-    {
-        var jumps = new List<(double Seconds, bool Play)>();
-        var api = EngineApiClientStub.Create(_ => { });
-        Services.AddSingleton(api);
-        var cut = Render<VideoBookmarkPanel>(parameters => parameters
-            .Add(component => component.ProfileId, Me)
-            .Add(component => component.WorkId, WorkId)
-            .Add(component => component.AssetId, AssetId)
-            .Add(component => component.Title, "The Film")
-            .Add(component => component.Position, 750d)
-            .Add(component => component.Duration, 7200d)
-            .Add(component => component.Chapters, new[]
-            {
-                new PlaybackChapterDto { Index = 0, Title = "Opening", StartSeconds = 0 },
-                new PlaybackChapterDto { Index = 1, Title = "The Bridge", StartSeconds = 600 },
-                new PlaybackChapterDto { Index = 2, Title = "Finale", StartSeconds = 3000 },
-            })
-            .Add(component => component.JumpTo, (Func<double, bool, Task>)((seconds, play) => { jumps.Add((seconds, play)); return Task.CompletedTask; })));
-
-        await cut.Find(".video-bookmark-quick__more").ClickAsync();
-        cut.WaitForAssertion(() => Assert.Contains("00:12:30", cut.Markup));
-        Assert.Contains("The Bridge", cut.Markup);
-        Assert.Equal("Add", cut.Find("button.audiobook-bookmark-dialog__tab.is-selected").TextContent.Trim());
-        Assert.Empty(cut.FindAll("input[role=switch]"));
-
-        await cut.Find("button.audiobook-bookmark-dialog__preview").ClickAsync();
-        Assert.Equal((750d, true), Assert.Single(jumps));
-    }
-
-    [Fact]
-    public async Task ThePanel_SavesAtTheCapturedMomentEvenIfTheVideoHasMovedOn_AndReportsTheListForTheRail()
-    {
-        CreateAudiobookBookmarkRequestDto? sent = null;
-        var api = EngineApiClientStub.Create(stub => stub.SetHandler(nameof(IEngineApiClient.CreateAudiobookBookmarkWithOutcomeAsync), args =>
-        {
-            sent = (CreateAudiobookBookmarkRequestDto)args![1]!;
-            return Task.FromResult(AudiobookBookmarkOperationResult<AudiobookBookmarkDto>.Succeeded(
-                Dto(Guid.NewGuid(), Me, sent.PositionSeconds) with { Note = sent.Note, Description = sent.Description, ChapterTitle = sent.ChapterTitle }));
-        }));
-        Services.AddSingleton(api);
-        IReadOnlyList<AudiobookBookmarkDto>? reported = null;
-        var cut = Render<VideoBookmarkPanel>(parameters => parameters
-            .Add(component => component.ProfileId, Me)
-            .Add(component => component.WorkId, WorkId)
-            .Add(component => component.AssetId, AssetId)
-            .Add(component => component.Position, 750d)
-            .Add(component => component.Duration, 7200d)
-            .Add(component => component.CanShare, true)
-            .Add(component => component.SavedChanged, EventCallback.Factory.Create<IReadOnlyList<AudiobookBookmarkDto>>(this, saved => reported = saved)));
-        await cut.Find(".video-bookmark-quick__more").ClickAsync();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("textarea")));
-
-        // The video keeps playing while the person types: the new position must not replace the captured one.
-        cut.Render(parameters => parameters.Add(component => component.Position, 9000d));
-        cut.FindAll("textarea")[0].Input("The reveal");
-        cut.FindAll("textarea")[1].Input("Watch the window.");
-        await cut.Find("form").SubmitAsync();
-
-        Assert.Equal(750, sent!.PositionSeconds);
-        Assert.Equal("The reveal", sent.Note);
-        Assert.Equal("Watch the window.", sent.Description);
-        Assert.False(sent.IsGlobal);
-        cut.WaitForAssertion(() => Assert.NotNull(reported));
-        Assert.Contains(reported!, bookmark => bookmark.PositionSeconds == 750);
     }
 
     // ---------------------------------------------------------------- the control catalogue

@@ -8127,53 +8127,8 @@
   <data name="ViewPlacesTimeline_TimelineGranularity" xml:space="preserve">
     <value>Timeline granularity</value>
   </data>
-  <data name="BookmarkPackSection_BookmarkPacks" xml:space="preserve">
-    <value>Bookmark packs</value>
-  </data>
-  <data name="BookmarkPackSection_ChooseWhatToInclude" xml:space="preserve">
-    <value>Choose what to include</value>
-  </data>
-  <data name="BookmarkPackSection_ThePackHoldsHowTo" xml:space="preserve">
-    <value>The pack holds how to recognise this title and the {0} bookmarks below. It does not hold file paths, profile names or what anyone watched.</value>
-  </data>
-  <data name="BookmarkPackSection_ThisPackIsAlreadyOn" xml:space="preserve">
-    <value>This pack is already on this title.</value>
-  </data>
-  <data name="BookmarkPackSection_AddPack" xml:space="preserve">
-    <value>Add pack</value>
-  </data>
-  <data name="BookmarkPackSection_AlignByChapter" xml:space="preserve">
-    <value>Align by chapter</value>
-  </data>
-  <data name="BookmarkPackSection_RemovePack" xml:space="preserve">
-    <value>Remove pack</value>
-  </data>
-  <data name="BookmarkPackSection_ChooseBookmarksToExport" xml:space="preserve">
-    <value>Choose bookmarks to export</value>
-  </data>
-  <data name="BookmarkPackSection_PackName" xml:space="preserve">
-    <value>Pack name</value>
-  </data>
-  <data name="BookmarkPackSection_AuthorOptional" xml:space="preserve">
-    <value>Author (optional)</value>
-  </data>
-  <data name="BookmarkPackSection_ReviewThePack" xml:space="preserve">
-    <value>Review the pack</value>
-  </data>
-  <data name="BookmarkPackSection_ImportAPack" xml:space="preserve">
-    <value>Import a pack</value>
-  </data>
-  <data name="VideoBookmarkPanel_BookmarksAreUnavailableUntilThe" xml:space="preserve">
-    <value>Bookmarks are unavailable until the video is ready.</value>
-  </data>
-  <data name="VideoBookmarkQuickList_NoBookmarksYetClickAbove" xml:space="preserve">
-    <value>No bookmarks yet. Click above, or press B while watching.</value>
-  </data>
   <data name="VideoBookmarkQuickList_Keep" xml:space="preserve">
     <value>Keep</value>
-  </data>
-  <data name="VideoBookmarkQuickList_More" xml:space="preserve">
-    <value>More…</value>
   </data>
   <data name="VideoBookmarkQuickList_AddANoteOptional" xml:space="preserve">
     <value>Add a note (optional)</value>
@@ -8187,23 +8142,14 @@
   <data name="VideoContextPanel_Episodes" xml:space="preserve">
     <value>Episodes · {0}</value>
   </data>
-  <data name="VideoContextPanel_Chapters" xml:space="preserve">
-    <value>Chapters · {0}</value>
-  </data>
   <data name="VideoContextPanel_NothingUpNext" xml:space="preserve">
     <value>Nothing up next</value>
   </data>
   <data name="VideoContextPanel_VideoContext" xml:space="preserve">
     <value>Video context</value>
   </data>
-  <data name="Common_UpNext" xml:space="preserve">
-    <value>Up Next</value>
-  </data>
   <data name="VideoContextPanel_Episodes2" xml:space="preserve">
     <value>Episodes</value>
-  </data>
-  <data name="VideoContextPanel_Chapters2" xml:space="preserve">
-    <value>Chapters</value>
   </data>
   <data name="VideoPlaybackHost_SwitchingAudio" xml:space="preserve">
     <value>Switching audio…</value>
@@ -8258,12 +8204,6 @@
   </data>
   <data name="VideoPlaybackHost_StopVideoPlayback" xml:space="preserve">
     <value>Stop video playback</value>
-  </data>
-  <data name="VideoTracksPanel_Audio" xml:space="preserve">
-    <value>Audio</value>
-  </data>
-  <data name="VideoTracksPanel_SubtitleSizeAndBackgroundIn" xml:space="preserve">
-    <value>Subtitle size and background in Settings</value>
   </data>
   <data name="MainLayout_Primary" xml:space="preserve">
     <value>Primary</value>
@@ -9048,9 +8988,6 @@
   <data name="ToolsRequirementsTab_OpenModelsAndHardware" xml:space="preserve">
     <value>Open Models &amp; Hardware</value>
   </data>
-  <data name="VideoPlaybackHost_SubtitlesAndAudio" xml:space="preserve">
-    <value>Subtitles &amp; Audio</value>
-  </data>
   <data name="ExtraViewerPage_Extra" xml:space="preserve">
     <value>Extra</value>
   </data>
@@ -9489,12 +9426,6 @@
   <data name="CollectionEditor_ListNeedsOwned" xml:space="preserve">
     <value>Drop a list with at least one title you own before creating the collection.</value>
   </data>
-  <data name="BookmarkPackSection_ChooseAPack" xml:space="preserve">
-    <value>Choose a pack to import</value>
-  </data>
-  <data name="BookmarkPackSection_DropPrompt" xml:space="preserve">
-    <value>Drop a bookmark pack here, or click to choose one</value>
-  </data>
   <data name="Accounts_LoadFailed" xml:space="preserve">
     <value>Your accounts could not be loaded. Try again in a moment.</value>
   </data>
@@ -9764,5 +9695,143 @@
   </data>
   <data name="Backups_ThisComputer" xml:space="preserve">
     <value>This computer</value>
+  </data>
+  <data name="PlayerSettings_Title" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="PlayerSettings_Audio" xml:space="preserve">
+    <value>Audio</value>
+  </data>
+  <data name="PlayerSettings_Styling" xml:space="preserve">
+    <value>Styling…</value>
+  </data>
+  <data name="PlayerSettings_StylingTitle" xml:space="preserve">
+    <value>Subtitle styling</value>
+  </data>
+  <data name="PlayerSettings_NoSubtitleSource" xml:space="preserve">
+    <value>No subtitle source is switched on</value>
+  </data>
+  <data name="PlayerSettings_Plugins" xml:space="preserve">
+    <value>Plugins</value>
+  </data>
+  <data name="PlayerSettings_Size" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="PlayerSettings_Font" xml:space="preserve">
+    <value>Font</value>
+  </data>
+  <data name="PlayerSettings_Shadow" xml:space="preserve">
+    <value>Shadow</value>
+  </data>
+  <data name="PlayerSettings_Colour" xml:space="preserve">
+    <value>Colour</value>
+  </data>
+  <data name="PlayerSettings_Background" xml:space="preserve">
+    <value>Background</value>
+  </data>
+  <data name="PlayerSettings_Small" xml:space="preserve">
+    <value>Small</value>
+  </data>
+  <data name="PlayerSettings_Medium" xml:space="preserve">
+    <value>Medium</value>
+  </data>
+  <data name="PlayerSettings_Large" xml:space="preserve">
+    <value>Large</value>
+  </data>
+  <data name="PlayerSettings_Default" xml:space="preserve">
+    <value>Default</value>
+  </data>
+  <data name="PlayerSettings_Serif" xml:space="preserve">
+    <value>Serif</value>
+  </data>
+  <data name="PlayerSettings_Mono" xml:space="preserve">
+    <value>Mono</value>
+  </data>
+  <data name="PlayerSettings_On" xml:space="preserve">
+    <value>On</value>
+  </data>
+  <data name="PlayerSettings_White" xml:space="preserve">
+    <value>White</value>
+  </data>
+  <data name="PlayerSettings_Yellow" xml:space="preserve">
+    <value>Yellow</value>
+  </data>
+  <data name="PlayerSettings_Cyan" xml:space="preserve">
+    <value>Cyan</value>
+  </data>
+  <data name="PlayerSettings_Green" xml:space="preserve">
+    <value>Green</value>
+  </data>
+  <data name="PlayerSettings_Searching" xml:space="preserve">
+    <value>Searching…</value>
+  </data>
+  <data name="PlayerSettings_OnlyAudioTrack" xml:space="preserve">
+    <value>{0} (the only audio track)</value>
+  </data>
+  <data name="PlayerContext_UpNext" xml:space="preserve">
+    <value>Up Next</value>
+  </data>
+  <data name="PlayerContext_Lessons" xml:space="preserve">
+    <value>Lessons</value>
+  </data>
+  <data name="PlayerContext_Episodes" xml:space="preserve">
+    <value>Episodes</value>
+  </data>
+  <data name="PlaybackSettingsPage_BarTitle" xml:space="preserve">
+    <value>On the progress bar</value>
+  </data>
+  <data name="PlaybackSettingsPage_BarDescription" xml:space="preserve">
+    <value>What the bar under a video or an audiobook shows.</value>
+  </data>
+  <data name="PlaybackSettingsPage_ChapterMarks" xml:space="preserve">
+    <value>Show chapter marks on the progress bar</value>
+  </data>
+  <data name="PlaybackSettingsPage_ChapterMarksHint" xml:space="preserve">
+    <value>Off for video and on for audiobooks until you choose.</value>
+  </data>
+  <data name="PlaybackSettingsPage_BookmarkMarks" xml:space="preserve">
+    <value>Show bookmarks on the bar</value>
+  </data>
+  <data name="PlaybackSettingsPage_BookmarkMarksHint" xml:space="preserve">
+    <value>Little dots where bookmarks were added. The bookmark list works either way.</value>
+  </data>
+  <data name="VideoBookmarkPane_AddHere" xml:space="preserve">
+    <value>Add bookmark here · {0}</value>
+  </data>
+  <data name="VideoBookmarkPane_AddFailed" xml:space="preserve">
+    <value>Couldn’t save · Try again</value>
+  </data>
+  <data name="VideoBookmarkPane_Empty" xml:space="preserve">
+    <value>No bookmarks yet.</value>
+  </data>
+  <data name="VideoBookmarkPane_Show" xml:space="preserve">
+    <value>Show bookmarks</value>
+  </data>
+  <data name="VideoBookmarkPane_All" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="VideoBookmarkPane_Mine" xml:space="preserve">
+    <value>Mine</value>
+  </data>
+  <data name="VideoBookmarkPane_Global" xml:space="preserve">
+    <value>Global</value>
+  </data>
+  <data name="VideoBookmarkPane_Everyones" xml:space="preserve">
+    <value>Everyone’s</value>
+  </data>
+  <data name="VideoBookmarkPane_Promote" xml:space="preserve">
+    <value>Promote</value>
+  </data>
+  <data name="VideoBookmarkPane_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="VideoBookmarkPane_Description" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="VideoBookmarkPane_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="VideoBookmarkPane_ShowOnBar" xml:space="preserve">
+    <value>Show bookmarks on the bar</value>
   </data>
 </root>

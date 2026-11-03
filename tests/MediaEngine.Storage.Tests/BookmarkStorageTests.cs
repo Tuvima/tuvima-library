@@ -170,4 +170,85 @@ public sealed class BookmarkStorageTests : IDisposable
         Assert.Null(listed.Description);
         Assert.Empty(await _bookmarks.GetByWorkAsync(_admin, _workId));
     }
+
+    // ---------------------------------------------------------------- Everyone's, Promote and editing (player-controls-v3 D10)
+
+    [Fact]
+    public async Task APersonalBookmark_IsSavedForThePersonWhoMadeIt_AndTheirOwnListShowsIt_WhateverProfileIdTheDashboardHolds()
+    {
+        // Private bookmarks: the Engine scopes by the session profile, so the saved bookmark comes straight back to its owner.
+        var saved = await SaveAsync(_viewer, 125, "private");
+
+        var listed = Assert.Single(await _bookmarks.GetByWorkAsync(_viewer, _workId));
+        Assert.Equal(saved.Id, listed.Id);
+        Assert.False(listed.IsGlobal);
+        Assert.Equal(125, listed.PositionSeconds);
+        Assert.Equal(_assetId, listed.AssetId);
+    }
+
+    [Fact]
+    public async Task Everyones_ListsEveryProfilesPersonalBookmarks_WithTheOwnersName_AndLeavesGlobalOnesOut()
+    {
+        await SaveAsync(_viewer, 300, "viewer note");
+        await SaveAsync(_admin, 100, "admin note");
+        await SaveAsync(_admin, 200, "for all", global: true);
+
+        var everyones = await _bookmarks.GetEveryonesByWorkAsync(_workId);
+
+        Assert.Equal([100d, 300d], everyones.Select(item => item.PositionSeconds).ToArray());
+        Assert.Equal(new[] { "Admin", "Viewer" }, everyones.Select(item => item.OwnerName ?? string.Empty).ToArray());
+        Assert.All(everyones, item => Assert.False(item.IsGlobal));
+    }
+
+    [Fact]
+    public async Task Everyones_LeavesOutAFileTheCallerCannotSee()
+    {
+        await SaveAsync(_viewer, 300);
+
+        Assert.Empty(await _bookmarks.GetEveryonesByWorkAsync(_workId, authorizedAssetIds: new HashSet<Guid>()));
+    }
+
+    [Fact]
+    public async Task Promote_MakesItGlobalAtOnce_NamesIt_AndReplacesPersonalBookmarksWithinThreeSeconds()
+    {
+        var chosen = await SaveAsync(_viewer, 300, "viewer note");
+        await SaveAsync(_admin, 302, "admin note");        // within 3 seconds: the same moment, replaced.
+        var farther = await SaveAsync(_admin, 310, "later"); // outside the window: kept.
+
+        var promoted = await _bookmarks.PromoteAsync(chosen.Id, "The reveal", 3d);
+
+        Assert.NotNull(promoted);
+        Assert.True(promoted!.IsGlobal);
+        Assert.Equal("The reveal", promoted.Label);
+        var forAdmin = await _bookmarks.GetByWorkAsync(_admin, _workId);
+        Assert.Equal([310d, 300d], forAdmin.OrderByDescending(item => item.PositionSeconds).Select(item => item.PositionSeconds).ToArray());
+        Assert.Contains(forAdmin, item => item.Id == chosen.Id && item.IsGlobal);
+        Assert.Contains(forAdmin, item => item.Id == farther.Id && !item.IsGlobal);
+        Assert.DoesNotContain(await _bookmarks.GetEveryonesByWorkAsync(_workId), item => item.PositionSeconds is >= 299 and <= 303);
+    }
+
+    [Fact]
+    public async Task Promote_OfAGlobalOrMissingBookmark_ChangesNothing()
+    {
+        var global = await SaveAsync(_admin, 50, global: true);
+
+        Assert.Null(await _bookmarks.PromoteAsync(global.Id, "x", 3d));
+        Assert.Null(await _bookmarks.PromoteAsync(Guid.NewGuid(), "x", 3d));
+    }
+
+    [Fact]
+    public async Task UpdateGlobal_ChangesTheNameNoteAndDescription_OnlyOfAGlobalBookmark()
+    {
+        var global = await SaveAsync(_admin, 50, "old", global: true);
+        var personal = await SaveAsync(_viewer, 60, "mine");
+
+        var updated = await _bookmarks.UpdateGlobalAsync(global.Id, "New name", "New note", "Longer words.");
+
+        Assert.NotNull(updated);
+        Assert.Equal("New name", updated!.Label);
+        Assert.Equal("New note", updated.Note);
+        Assert.Equal("Longer words.", updated.Description);
+        Assert.Null(await _bookmarks.UpdateGlobalAsync(personal.Id, "Nope", null, null));
+        Assert.Equal("mine", Assert.Single(await _bookmarks.GetByWorkAsync(_viewer, _workId), item => item.Id == personal.Id).Note);
+    }
 }

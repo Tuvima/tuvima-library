@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1374; api=0; web-client=54
+# scopes: contracts=1376; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -7796,7 +7796,8 @@
   Description: System.String | json=description | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   IsGlobal: System.Boolean | json=isGlobal | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CreatedAt: System.DateTimeOffset | json=createdAt | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"id":"11111111-2222-3333-4444-555555555555","profileId":"11111111-2222-3333-4444-555555555555","workId":"11111111-2222-3333-4444-555555555555","assetId":"11111111-2222-3333-4444-555555555555","chapterIndex":7,"chapterTitle":"sample","positionSeconds":7,"durationSeconds":7,"endSeconds":7,"label":"sample","note":"sample","description":"sample","isGlobal":true,"createdAt":"2025-01-02T03:04:05+00:00"}
+  OwnerName: System.String | json=ownerName | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"11111111-2222-3333-4444-555555555555","profileId":"11111111-2222-3333-4444-555555555555","workId":"11111111-2222-3333-4444-555555555555","assetId":"11111111-2222-3333-4444-555555555555","chapterIndex":7,"chapterTitle":"sample","positionSeconds":7,"durationSeconds":7,"endSeconds":7,"label":"sample","note":"sample","description":"sample","isGlobal":true,"createdAt":"2025-01-02T03:04:05+00:00","ownerName":"sample"}
 
 [contracts] MediaEngine.Contracts.Playback.AudiobookBookmarkNativeCaptureDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -8333,12 +8334,15 @@
   MarkCompleteThresholdPercent: System.Int32 | json=markCompleteThresholdPercent | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   TrackPartiallyPlayedItems: System.Boolean | json=trackPartiallyPlayedItems | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SyncProgressBetweenBookAndAudiobook: System.Boolean | json=syncProgressBetweenBookAndAudiobook | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ShowChapterMarks: System.Boolean? | json=showChapterMarks | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ShowBookmarksOnBar: System.Boolean | json=showBookmarksOnBar | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  BookmarkFilter: System.String | json=bookmarkFilter | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SpoilerLevel: System.String | json=spoilerLevel | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ShowVaultInNavigation: System.Boolean | json=showVaultInNavigation | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SyncAcrossDevices: System.Boolean | json=syncAcrossDevices | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SyncFrequencyMinutes: System.Int32 | json=syncFrequencyMinutes | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   UseBannerArtWhenAvailable: System.Boolean | json=useBannerArtWhenAvailable | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"resumePlayback":true,"askBeforeResuming":true,"minimumProgressToTrackPercent":7,"markCompleteThresholdPercent":7,"trackPartiallyPlayedItems":true,"syncProgressBetweenBookAndAudiobook":true,"spoilerLevel":"sample","showVaultInNavigation":true,"syncAcrossDevices":true,"syncFrequencyMinutes":7,"useBannerArtWhenAvailable":true}
+  sample={"resumePlayback":true,"askBeforeResuming":true,"minimumProgressToTrackPercent":7,"markCompleteThresholdPercent":7,"trackPartiallyPlayedItems":true,"syncProgressBetweenBookAndAudiobook":true,"showChapterMarks":true,"showBookmarksOnBar":true,"bookmarkFilter":"sample","spoilerLevel":"sample","showVaultInNavigation":true,"syncAcrossDevices":true,"syncFrequencyMinutes":7,"useBannerArtWhenAvailable":true}
 
 [contracts] MediaEngine.Contracts.Playback.PlaybackManifestDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -8686,6 +8690,11 @@
   preferred: System.Boolean | json=preferred | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"asset_id":"11111111-2222-3333-4444-555555555555","track_id":"11111111-2222-3333-4444-555555555555","preferred":true}
 
+[contracts] MediaEngine.Contracts.Playback.PromoteAudiobookBookmarkRequestDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Name: System.String | json=name | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"name":"sample"}
+
 [contracts] MediaEngine.Contracts.Playback.QueueEncodeRequestDto
   kind=class | converter=default | number-handling=default | unmapped=default
   ProfileKey: System.String | json=profileKey | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -8752,7 +8761,10 @@
   SubtitleBackground: System.Boolean | json=subtitleBackground | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SubtitlePosition: System.String | json=subtitlePosition | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SubtitleStyle: System.String | json=subtitleStyle | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"defaultSubtitleLanguage":"sample","alternateSubtitleLanguages":[],"lyricsLanguage":"sample","forcedSubtitlesMode":"sample","audioLanguage":"sample","subtitleSize":"sample","subtitleBackground":true,"subtitlePosition":"sample","subtitleStyle":"sample"}
+  SubtitleFont: System.String | json=subtitleFont | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SubtitleShadow: System.Boolean | json=subtitleShadow | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SubtitleColor: System.String | json=subtitleColor | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"defaultSubtitleLanguage":"sample","alternateSubtitleLanguages":[],"lyricsLanguage":"sample","forcedSubtitlesMode":"sample","audioLanguage":"sample","subtitleSize":"sample","subtitleBackground":true,"subtitlePosition":"sample","subtitleStyle":"sample","subtitleFont":"sample","subtitleShadow":true,"subtitleColor":"sample"}
 
 [contracts] MediaEngine.Contracts.Playback.TextTrackAlternativeDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -8802,6 +8814,13 @@
   IsLocallyExported: System.Boolean | json=isLocallyExported | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Url: System.String | json=url | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"id":"11111111-2222-3333-4444-555555555555","kind":"sample","language":"sample","provider":"sample","confidence":7,"sourceFormat":"sample","normalizedFormat":"sample","timingMode":"sample","isHearingImpaired":true,"isPreferred":true,"isUserOwned":true,"isLocallyExported":true,"url":"sample"}
+
+[contracts] MediaEngine.Contracts.Playback.UpdateAudiobookBookmarkRequestDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Label: System.String | json=label | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Note: System.String | json=note | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Description: System.String | json=description | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"label":"sample","note":"sample","description":"sample"}
 
 [contracts] MediaEngine.Contracts.Playback.UpdatePlaybackSegmentRequest
   kind=class | converter=default | number-handling=default | unmapped=default

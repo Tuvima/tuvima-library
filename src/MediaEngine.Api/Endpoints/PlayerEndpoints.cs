@@ -302,6 +302,62 @@ public static class PlayerEndpoints
         .Produces<IReadOnlyList<AudiobookBookmarkDto>>(StatusCodes.Status200OK)
         .RequireClientScope(ClientApiScopes.ProgressRead);
 
+        group.MapGet("/audiobooks/{workId:guid}/bookmarks/everyones", async (
+            Guid workId,
+            Guid? profileId,
+            ClaimsPrincipal user,
+            PlayerService player,
+            CancellationToken ct) =>
+        {
+            var identity = Bind(user, profileId, null, null);
+            var bookmarks = await player.GetEveryonesBookmarksAsync(identity.ProfileId, workId, ct);
+            return Results.Ok(bookmarks);
+        })
+        .WithName("GetEveryonesAudiobookBookmarks")
+        .RequireCatalogueEntityAccess(ApplicationPermissionIds.ProgressRead, "work", "workId")
+        .WithSummary("Return every profile's personal bookmarks on a title with the owner's name. Server administrators only.")
+        .Produces<IReadOnlyList<AudiobookBookmarkDto>>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .RequireClientScope(ClientApiScopes.ProgressRead);
+
+        group.MapPost("/audiobooks/bookmarks/{bookmarkId:guid}/promote", async (
+            Guid bookmarkId,
+            Guid? profileId,
+            PromoteAudiobookBookmarkRequestDto? request,
+            ClaimsPrincipal user,
+            PlayerService player,
+            CancellationToken ct) =>
+        {
+            var identity = Bind(user, profileId, null, null);
+            var promoted = await player.PromoteAudiobookBookmarkAsync(identity.ProfileId, bookmarkId, request, ct);
+            return promoted is null ? ApiErrors.NotFound($"Bookmark '{bookmarkId}' not found.") : Results.Ok(promoted);
+        })
+        .WithName("PromoteAudiobookBookmark")
+        .WithSummary("Make a personal bookmark Global at once, replacing personal bookmarks within three seconds of it. Server administrators only.")
+        .Produces<AudiobookBookmarkDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireClientScope(ClientApiScopes.ProgressWrite);
+
+        group.MapPut("/audiobooks/bookmarks/{bookmarkId:guid}", async (
+            Guid bookmarkId,
+            Guid? profileId,
+            UpdateAudiobookBookmarkRequestDto request,
+            ClaimsPrincipal user,
+            PlayerService player,
+            CancellationToken ct) =>
+        {
+            var identity = Bind(user, profileId, null, null);
+            var updated = await player.UpdateGlobalAudiobookBookmarkAsync(identity.ProfileId, bookmarkId, request, ct);
+            return updated is null ? ApiErrors.NotFound($"Bookmark '{bookmarkId}' not found.") : Results.Ok(updated);
+        })
+        .WithName("UpdateGlobalAudiobookBookmark")
+        .WithSummary("Change a Global bookmark's name, note and description. Server administrators only.")
+        .Produces<AudiobookBookmarkDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireClientScope(ClientApiScopes.ProgressWrite);
+
         group.MapPost("/audiobooks/{workId:guid}/bookmarks", async (
             Guid workId,
             Guid? profileId,

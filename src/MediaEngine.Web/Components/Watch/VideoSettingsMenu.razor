@@ -1,0 +1,88 @@
+@namespace MediaEngine.Web.Components.Watch
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Components.Shared
+@inject IStringLocalizer<SharedStrings> L
+
+@* The video player's one Settings menu (player-controls-v3 D3, D4, D5). It replaces the old "CC" button. The main page shows Audio and
+   Subtitles side by side, each as wide as its longest line and with no descriptions. "Styling…" opens a second page (size, font,
+   shadow, colour, background) with a back arrow and a close. *@
+<div class="video-settings-menu" data-settings-page="@(_styling ? "styling" : "main")">
+    @if (_styling)
+    {
+        <header class="video-settings-menu__header">
+            <AppNativeButton Type="button" Class="video-settings-menu__nav" AriaLabel="@L["Common_Back"].Value" OnClick="@(() => _styling = false)">
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowBack" />
+            </AppNativeButton>
+            <h3>@L["PlayerSettings_StylingTitle"]</h3>
+            <AppNativeButton Type="button" Class="video-settings-menu__nav" AriaLabel="@L["Common_Close"].Value" OnClick="OnClose">
+                <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Close" />
+            </AppNativeButton>
+        </header>
+        <div class="video-settings-menu__styling">
+            <VideoSettingsChoiceGroup Title="@L["PlayerSettings_Size"].Value" Options="@SizeOptions" Current="@NormalizedSize" ValueSelected="@(value => Change(s => s.SubtitleSize = value))" />
+            <VideoSettingsChoiceGroup Title="@L["PlayerSettings_Font"].Value" Options="@FontOptions" Current="@(Look?.SubtitleFont ?? PlaybackPreferenceValues.FontDefault)" ValueSelected="@(value => Change(s => s.SubtitleFont = value))" />
+            <VideoSettingsChoiceGroup Title="@L["PlayerSettings_Shadow"].Value" Options="@OnOffOptions" Current="@(Look?.SubtitleShadow == true ? "on" : "off")" ValueSelected="@(value => Change(s => s.SubtitleShadow = value == "on"))" />
+            <VideoSettingsChoiceGroup Title="@L["PlayerSettings_Colour"].Value" Options="@ColourOptions" Current="@(Look?.SubtitleColor ?? PlaybackPreferenceValues.ColorWhite)" ValueSelected="@(value => Change(s => s.SubtitleColor = value))" />
+            <VideoSettingsChoiceGroup Title="@L["PlayerSettings_Background"].Value" Options="@OnOffOptions" Current="@(Look?.SubtitleBackground == false ? "off" : "on")" ValueSelected="@(value => Change(s => s.SubtitleBackground = value == "on"))" />
+        </div>
+    }
+    else
+    {
+        <div class="video-settings-menu__columns">
+            <section class="video-settings-menu__column" aria-label="@L["PlayerSettings_Audio"].Value">
+                <h3>@L["PlayerSettings_Audio"]</h3>
+                @Audio
+            </section>
+            <section class="video-settings-menu__column" aria-label="@L["Common_Subtitles"].Value">
+                <h3>@L["Common_Subtitles"]</h3>
+                @Subtitles
+                @if (NoSubtitleSource)
+                {
+                    <p class="video-settings-menu__notice" role="status" data-subtitles-state="no-source">
+                        <span>@L["PlayerSettings_NoSubtitleSource"]</span>
+                        @if (IsAdministrator) { <a href="/settings/plugins">@L["PlayerSettings_Plugins"]</a> }
+                    </p>
+                }
+                <AppNativeButton Type="button" Class="video-settings-menu__row" OnClick="@(() => _styling = true)" AriaLabel="@L["PlayerSettings_StylingTitle"].Value">
+                    <span>@L["PlayerSettings_Styling"]</span>
+                </AppNativeButton>
+            </section>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public RenderFragment? Audio { get; set; }
+    [Parameter] public RenderFragment? Subtitles { get; set; }
+
+    /// <summary>True when the Engine says no subtitle source is switched on. The Subtitles column then says so instead of offering a search.</summary>
+    [Parameter] public bool NoSubtitleSource { get; set; }
+
+    /// <summary>Administrators also see the Plugins link in the "no source" line.</summary>
+    [Parameter] public bool IsAdministrator { get; set; }
+
+    /// <summary>The profile's subtitle look (null until it has loaded).</summary>
+    [Parameter] public SubtitleLanguageSettingsDto? Look { get; set; }
+
+    /// <summary>Asks the host to change one styling field and save it.</summary>
+    [Parameter] public Func<Action<SubtitleLanguageSettingsDto>, Task>? StyleChanged { get; set; }
+
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private bool _styling;
+
+    private string NormalizedSize => Look?.SubtitleSize switch
+    {
+        var size when string.Equals(size, PlaybackPreferenceValues.Small, StringComparison.OrdinalIgnoreCase) => PlaybackPreferenceValues.Small,
+        var size when string.Equals(size, PlaybackPreferenceValues.Large, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(size, PlaybackPreferenceValues.ExtraLarge, StringComparison.OrdinalIgnoreCase) => PlaybackPreferenceValues.Large,
+        _ => PlaybackPreferenceValues.Medium,
+    };
+
+    private Task Change(Action<SubtitleLanguageSettingsDto> change) => StyleChanged is null ? Task.CompletedTask : StyleChanged(change);
+
+    private IReadOnlyList<(string Label, string Value)> SizeOptions => [(L["PlayerSettings_Small"].Value, PlaybackPreferenceValues.Small), (L["PlayerSettings_Medium"].Value, PlaybackPreferenceValues.Medium), (L["PlayerSettings_Large"].Value, PlaybackPreferenceValues.Large)];
+    private IReadOnlyList<(string Label, string Value)> FontOptions => [(L["PlayerSettings_Default"].Value, PlaybackPreferenceValues.FontDefault), (L["PlayerSettings_Serif"].Value, PlaybackPreferenceValues.FontSerif), (L["PlayerSettings_Mono"].Value, PlaybackPreferenceValues.FontMono)];
+    private IReadOnlyList<(string Label, string Value)> ColourOptions => [(L["PlayerSettings_White"].Value, PlaybackPreferenceValues.ColorWhite), (L["PlayerSettings_Yellow"].Value, PlaybackPreferenceValues.ColorYellow), (L["PlayerSettings_Cyan"].Value, PlaybackPreferenceValues.ColorCyan), (L["PlayerSettings_Green"].Value, PlaybackPreferenceValues.ColorGreen)];
+    private IReadOnlyList<(string Label, string Value)> OnOffOptions => [(L["Common_Off"].Value, "off"), (L["PlayerSettings_On"].Value, "on")];
+}

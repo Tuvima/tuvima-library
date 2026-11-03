@@ -234,6 +234,50 @@ public sealed partial class EngineApiClient
         }
     }
 
+    public Task<AudiobookBookmarkOperationResult<IReadOnlyList<AudiobookBookmarkDto>>> GetEveryonesBookmarksWithOutcomeAsync(
+        Guid workId, Guid profileId, CancellationToken ct = default) =>
+        SendBookmarkAsync<IReadOnlyList<AudiobookBookmarkDto>>(
+            $"/api/v1/player/audiobooks/{workId:D}/bookmarks/everyones", profileId, "load",
+            (path, token) => _http.GetAsync(path, token), ct);
+
+    public Task<AudiobookBookmarkOperationResult<AudiobookBookmarkDto>> PromoteAudiobookBookmarkWithOutcomeAsync(
+        Guid bookmarkId, string? name, Guid profileId, CancellationToken ct = default) =>
+        SendBookmarkAsync<AudiobookBookmarkDto>(
+            $"/api/v1/player/audiobooks/bookmarks/{bookmarkId:D}/promote", profileId, "save",
+            (path, token) => _http.PostAsJsonAsync(path, new PromoteAudiobookBookmarkRequestDto { Name = name }, token), ct);
+
+    public Task<AudiobookBookmarkOperationResult<AudiobookBookmarkDto>> UpdateGlobalAudiobookBookmarkWithOutcomeAsync(
+        Guid bookmarkId, UpdateAudiobookBookmarkRequestDto request, Guid profileId, CancellationToken ct = default) =>
+        SendBookmarkAsync<AudiobookBookmarkDto>(
+            $"/api/v1/player/audiobooks/bookmarks/{bookmarkId:D}", profileId, "save",
+            (path, token) => _http.PutAsJsonAsync(path, request, token), ct);
+
+    /// <summary>One bookmark call that returns a typed outcome: success with the body, a clear rejection, or "could not confirm".</summary>
+    private async Task<AudiobookBookmarkOperationResult<T>> SendBookmarkAsync<T>(
+        string endpoint, Guid profileId, string operation,
+        Func<string, CancellationToken, Task<HttpResponseMessage>> send, CancellationToken ct)
+    {
+        var path = BuildEndpointPath(endpoint, new Dictionary<string, string?> { ["profileId"] = profileId.ToString("D") });
+        try
+        {
+            using var response = await send(path, ct).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                return BookmarkFailure<T>(response.StatusCode, operation);
+            }
+
+            var value = await response.Content.ReadFromJsonAsync<T>(cancellationToken: ct).ConfigureAwait(false);
+            return value is null
+                ? AudiobookBookmarkOperationResult<T>.Unknown("The response was empty; the change may have been applied.")
+                : AudiobookBookmarkOperationResult<T>.Succeeded(value);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "A bookmark call had no reliable response");
+            return AudiobookBookmarkOperationResult<T>.Unknown("The outcome could not be confirmed. Reload the bookmarks to check.");
+        }
+    }
+
     private static AudiobookBookmarkOperationResult<T> BookmarkFailure<T>(HttpStatusCode statusCode, string operation)
     {
         var verb = operation switch { "load" => "loaded", "save" => "saved", _ => "deleted" };

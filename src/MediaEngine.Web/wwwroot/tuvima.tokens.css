@@ -157,6 +157,11 @@
     --player-track: #30364A;
     --player-text: #F7F7FA;
     --player-text-secondary: #9EA4BC;
+    /* One size set for every playback button (player-controls-v3 D1): 38 px glyph in a 56 px target, Play 44 px, bottom title 22 px. */
+    --playback-control-target: 56px;
+    --playback-control-glyph: 38px;
+    --playback-play-glyph: 44px;
+    --playback-title-size: 22px;
     --playback-bg: var(--player-bg);
     --playback-surface: var(--player-surface);
     --playback-surface-elevated: var(--player-surface);

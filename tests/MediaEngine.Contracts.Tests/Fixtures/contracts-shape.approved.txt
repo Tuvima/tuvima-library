@@ -6604,6 +6604,7 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.AudiobookBookmarkD
   Description: System.String | nullability=nullable | accessors=get,init
   IsGlobal: System.Boolean | nullability=not-null | accessors=get,init
   CreatedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+  OwnerName: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.AudiobookBookmarkNativeCaptureDto
   AssetId: System.Guid | nullability=not-null | accessors=get,init
@@ -7090,6 +7091,9 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PlaybackGeneralSet
   MarkCompleteThresholdPercent: System.Int32 | nullability=not-null | accessors=get,set
   TrackPartiallyPlayedItems: System.Boolean | nullability=not-null | accessors=get,set
   SyncProgressBetweenBookAndAudiobook: System.Boolean | nullability=not-null | accessors=get,set
+  ShowChapterMarks: System.Boolean? | nullability=nullable | accessors=get,set
+  ShowBookmarksOnBar: System.Boolean | nullability=not-null | accessors=get,set
+  BookmarkFilter: System.String | nullability=not-null | accessors=get,set
   SpoilerLevel: System.String | nullability=not-null | accessors=get,set
   ShowVaultInNavigation: System.Boolean | nullability=not-null | accessors=get,set
   SyncAcrossDevices: System.Boolean | nullability=not-null | accessors=get,set
@@ -7418,6 +7422,9 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PreferredTextTrack
   track_id: System.Guid | nullability=not-null | accessors=get,init
   preferred: System.Boolean | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.PromoteAudiobookBookmarkRequestDto
+  Name: System.String | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.QueueEncodeRequestDto
   ProfileKey: System.String | nullability=not-null | accessors=get,init
   ScheduledFor: System.DateTimeOffset? | nullability=nullable | accessors=get,init
@@ -7475,6 +7482,9 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.SubtitleLanguageSe
   SubtitleBackground: System.Boolean | nullability=not-null | accessors=get,set
   SubtitlePosition: System.String | nullability=not-null | accessors=get,set
   SubtitleStyle: System.String | nullability=not-null | accessors=get,set
+  SubtitleFont: System.String | nullability=not-null | accessors=get,set
+  SubtitleShadow: System.Boolean | nullability=not-null | accessors=get,set
+  SubtitleColor: System.String | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.TextTrackAlternativeDto
   provider: System.String | nullability=not-null | accessors=get,init
@@ -7516,6 +7526,11 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.TextTrackDto
   IsUserOwned: System.Boolean | nullability=not-null | accessors=get,set
   IsLocallyExported: System.Boolean | nullability=not-null | accessors=get,set
   Url: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.UpdateAudiobookBookmarkRequestDto
+  Label: System.String | nullability=nullable | accessors=get,init
+  Note: System.String | nullability=nullable | accessors=get,init
+  Description: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.UpdatePlaybackSegmentRequest
   Kind: System.String | nullability=nullable | accessors=get,init
