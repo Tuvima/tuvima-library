@@ -38,10 +38,18 @@ public sealed class PlayerPreferenceService
         try
         {
             var fresh = await _orchestrator.GetPlaybackSettingsAsync(ct);
-            if (fresh is null) return false;
+            if (fresh is null)
+            {
+                return false;
+            }
+
             change(fresh);
             var saved = await _orchestrator.SavePlaybackSettingsAsync(fresh, ct);
-            if (saved is null) return false;
+            if (saved is null)
+            {
+                return false;
+            }
+
             _accessor.UpdateCache(saved);
         }
         finally { _saveGate.Release(); }
