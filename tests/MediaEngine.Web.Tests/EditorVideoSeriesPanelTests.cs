@@ -155,6 +155,15 @@ public sealed class EditorVideoSeriesPanelTests : AsyncBunitContext
     }
 
     [Fact]
+    public void EveryVideoShowsAVisibleGripToDragBy()
+    {
+        _order = Order(canRename: false);
+        var cut = RenderPanel();
+
+        Assert.All(cut.FindAll(".tl-vseries__grip"), grip => Assert.NotEmpty(grip.QuerySelectorAll("svg")));
+    }
+
+    [Fact]
     public void WhenEditingIsNotAllowed_NothingCanBeChanged()
     {
         _order = Order(canRename: true);

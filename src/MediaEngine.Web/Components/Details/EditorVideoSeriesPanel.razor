@@ -82,7 +82,7 @@
                             var ri = rowIndex;
                             <li class="tl-vseries__row" data-vo-list="@li" data-vo-row="@ri" data-vo-title="@row.Title" @key="row.Id">
                                 <span class="tl-vseries__grip" data-vo-handle draggable="@(CanChange ? "true" : "false")" title="@L["EditorVideoSeries_DragToReorder", row.Title].Value" aria-hidden="true">
-                                    <AppIcon Name="@AppMaterialIcons.Outlined.DragIndicator" Decorative="true" />
+                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DragIndicator" />
                                 </span>
                                 <span class="tl-vseries__position" aria-label="@L["EditorVideoSeries_Position", ri + 1].Value">@(ri + 1)</span>
                                 <span class="tl-vseries__title">@row.Title</span>
