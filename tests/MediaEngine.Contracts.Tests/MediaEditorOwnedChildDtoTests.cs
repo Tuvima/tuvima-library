@@ -58,4 +58,23 @@ public sealed class MediaEditorOwnedChildDtoTests
         Assert.Equal(assetId, item.GetProperty("asset_id").GetGuid());
         Assert.Equal("v1:opaque", item.GetProperty("selection_revision").GetString());
     }
+
+    [Fact]
+    public void FamilyTreeFieldsUseTheirOwnWireNames_AndAnOldAnswerWithoutThemReadsAsMatched()
+    {
+        var file = new MediaEditorOwnedChildDto { MatchState = "unmatched", MatchReason = "No show on a provider matches this file yet." };
+        var node = new MediaEditorNavigatorNodeDto { MatchState = "unmatched", MatchReason = "No show matches." };
+
+        using var fileJson = JsonDocument.Parse(JsonSerializer.Serialize(file));
+        using var nodeJson = JsonDocument.Parse(JsonSerializer.Serialize(node));
+
+        Assert.Equal("unmatched", fileJson.RootElement.GetProperty("match_state").GetString());
+        Assert.Equal("No show on a provider matches this file yet.", fileJson.RootElement.GetProperty("match_reason").GetString());
+        Assert.Equal("unmatched", nodeJson.RootElement.GetProperty("match_state").GetString());
+        Assert.Equal("No show matches.", nodeJson.RootElement.GetProperty("match_reason").GetString());
+
+        var older = JsonSerializer.Deserialize<MediaEditorNavigatorNodeDto>("{\"entity_id\":\"00000000-0000-0000-0000-000000000001\"}");
+        Assert.Equal("matched", older!.MatchState);
+        Assert.Null(older.MatchReason);
+    }
 }

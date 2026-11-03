@@ -783,7 +783,7 @@ public sealed class BulkEditingTests : AsyncBunitContext
         Assert.Equal(BulkPanelKind.Edit, host.Batch.Panel);
         // The list is still there under the pop-over, with its ticks.
         Assert.Equal("4 selected", list.Find(".tl-batch__count").TextContent.Trim());
-        Assert.Empty(popover.FindAll(".tl-editor-trail"));
+        Assert.Empty(popover.FindAll(".tl-family"));
     }
 
     [Fact]

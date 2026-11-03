@@ -43,3 +43,12 @@ export function disconnect(sentinel) {
     observer.disconnect();
     observers.delete(sentinel);
 }
+
+// The same, for a sentinel the page names by id (a list whose sentinels are drawn in a loop and so have no element reference).
+export function observeById(id, dotnetRef, options) {
+    observe(id ? document.getElementById(id) : null, dotnetRef, options);
+}
+
+export function disconnectById(id) {
+    disconnect(id ? document.getElementById(id) : null);
+}

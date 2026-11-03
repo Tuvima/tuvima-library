@@ -6,7 +6,7 @@
 @inject IStringLocalizer<SharedStrings> L
 
 @* The universal editor's window (v3 spec D1, D2): the content of the pop-over the layout shows in a modal dialog, with one header (title,
-   the item's trail and close), a rail of tools on the left (Details, Artwork, Match, only where the item has them), one scroll area for the
+   the item's trail and close), the family tree on the left (where the item has a family) and the tools as tabs across the top of the right side (Details, Artwork, Match, only where the item has them), one scroll area for the
    tool, and a footer whose Cancel and Save are always in the same place. Closing it with the X, Esc or Cancel asks "Unsaved changes" when
    something is staged. The native dialog around it makes the page inert and traps focus; what the tool shows is chosen by the pop-over;
    Artwork is drawn here, docked, from the editor's picker session. *@
@@ -30,35 +30,41 @@
         <div class="tl-editor-window__main">
             @if (TitleOverride is null && !_reviewing)
             {
-                <nav class="tl-editor-window__rail" aria-label="@L["Common_EditingTools"].Value">
-                    @foreach (var (railTool, label, icon) in RailTools(mode, ShowHistory))
-                    {
-                        var isOpen = railTool == tool;
-                        <AppButton ButtonStyle="AppButtonStyle.Text"
-                                   Tone="AppUiTone.Neutral"
-                                   Class="@($"tl-editor-window__tool{(isOpen ? " is-open" : string.Empty)}")"
-                                   StartIcon="@icon"
-                                   Disabled="@(flow.Saving || flow.Switching)"
-                                   aria-pressed="@(isOpen ? "true" : "false")"
-                                   OnClick="@(() => railTool == tool ? Task.CompletedTask : flow.SelectToolAsync(railTool))">
-                            @label
-                        </AppButton>
-                    }
-                </nav>
+                @TreeContent
             }
-            <div class="tl-editor-panel__body">
-                @if (_reviewing)
+            <div class="tl-editor-window__content">
+                @if (TitleOverride is null && !_reviewing)
                 {
-                    <ReviewChangesView Source="flow" ShowHeading="true" OnOutcome="OnReviewOutcome" />
+                    <nav class="tl-editor-window__tabs" aria-label="@L["Common_EditingTools"].Value">
+                        @foreach (var (railTool, label, icon) in RailTools(mode, ShowHistory))
+                        {
+                            var isOpen = railTool == tool;
+                            <AppButton ButtonStyle="AppButtonStyle.Text"
+                                       Tone="AppUiTone.Neutral"
+                                       Class="@($"tl-editor-window__tool{(isOpen ? " is-open" : string.Empty)}")"
+                                       StartIcon="@icon"
+                                       Disabled="@(flow.Saving || flow.Switching)"
+                                       aria-pressed="@(isOpen ? "true" : "false")"
+                                       OnClick="@(() => railTool == tool ? Task.CompletedTask : flow.SelectToolAsync(railTool))">
+                                @label
+                            </AppButton>
+                        }
+                    </nav>
                 }
-                else if (tool == EditTool.Artwork && Picker is not null)
-                {
-                    <FloatingArtworkPicker Mode="Mode" Flow="Flow" Picker="Picker" Docked="true" />
-                }
-                else
-                {
-                    @ChildContent?.Invoke(tool)
-                }
+                <div class="tl-editor-panel__body">
+                    @if (_reviewing)
+                    {
+                        <ReviewChangesView Source="flow" ShowHeading="true" OnOutcome="OnReviewOutcome" />
+                    }
+                    else if (tool == EditTool.Artwork && Picker is not null)
+                    {
+                        <FloatingArtworkPicker Mode="Mode" Flow="Flow" Picker="Picker" Docked="true" />
+                    }
+                    else
+                    {
+                        @ChildContent?.Invoke(tool)
+                    }
+                </div>
             </div>
         </div>
         @if (!_reviewing)
@@ -104,8 +110,11 @@
     /// <summary>What the open tool shows; the page decides (the Details fields, or the section the tool hosts).</summary>
     [Parameter] public RenderFragment<EditTool>? ChildContent { get; set; }
 
-    /// <summary>Extra content in the header, between the title and the close button (the trail of the item being edited).</summary>
+    /// <summary>Extra content in the header, between the title and the close button.</summary>
     [Parameter] public RenderFragment? HeaderContent { get; set; }
+
+    /// <summary>The left column (the family tree), drawn before the tools and the tool's content so the Tab order is header, tree, tools, content, footer.</summary>
+    [Parameter] public RenderFragment? TreeContent { get; set; }
 
     /// <summary>The editor's artwork picker session; when set, the Artwork tool is drawn inside the window instead of by the page.</summary>
     [Parameter] public ArtworkPickerSession? Picker { get; set; }

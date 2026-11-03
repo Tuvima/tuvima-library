@@ -258,6 +258,22 @@ window.tuvimaFocusById = function (id) {
     if (target) target.focus({ preventScroll: true });
 };
 
+// The editor's family tree: a row takes focus (and scrolls into view inside the list), and the keys the tree uses never scroll the dialog.
+window.tuvimaFocusFamilyRow = function (id) {
+    const target = id && document.getElementById(id);
+    if (target) {
+        target.focus({ preventScroll: true });
+        target.scrollIntoView({ block: 'nearest' });
+    }
+};
+
+document.addEventListener('keydown', function (event) {
+    if (event.target instanceof Element && event.target.matches('.tl-family__row')
+        && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', ' '].includes(event.key)) {
+        event.preventDefault();
+    }
+}, true);
+
 window.tuvimaPositionSharedEntityPopover = function (anchorId, popoverId) {
     const anchor = anchorId && document.getElementById(anchorId);
     const popover = popoverId && document.getElementById(popoverId);

@@ -9771,4 +9771,13 @@
   <data name="Backups_ThisComputer" xml:space="preserve">
     <value>This computer</value>
   </data>
+  <data name="EditorPopover_EditingItem" xml:space="preserve">
+    <value>Editing: {0}</value>
+  </data>
+  <data name="EditorFamily_NotMatched" xml:space="preserve">
+    <value>not matched</value>
+  </data>
+  <data name="EditorFamily_Matched" xml:space="preserve">
+    <value>Matched</value>
+  </data>
 </root>

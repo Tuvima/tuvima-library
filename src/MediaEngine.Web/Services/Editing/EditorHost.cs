@@ -150,6 +150,7 @@ public sealed class EditorHost : IDisposable
         Preview = new EditPendingPreview(Session, Mode.Fields);
         Picker = new ArtworkPickerSession(api, Session, Mode.Fields, Preview.Artwork, logger);
         Batch = new BulkEditSelection { RefreshAsync = () => _binding?.SectionCommitted?.Invoke() ?? Task.CompletedTask };
+        Family = new EditorFamilyState(api, logger);
 
         Mode.Fields.Saved += OnFieldSavedAsync;
         Mode.Changed += OnModeChanged;
@@ -157,6 +158,8 @@ public sealed class EditorHost : IDisposable
         Picker.Changed += RaiseChanged;
         Flow.Changed += RaiseChanged;
         Batch.Changed += OnBatchChanged;
+        Family.Changed += RaiseChanged;
+        Mode.Fields.Changed += SyncFamily;
     }
 
     /// <summary>The permission, device and unsaved-input rules of the editor; the window is open exactly while <see cref="IsOpen"/>.</summary>
@@ -176,6 +179,9 @@ public sealed class EditorHost : IDisposable
 
     /// <summary>The rows ticked for the bulk panel; what it stages goes into the same pending list as one item's edits.</summary>
     public BulkEditSelection Batch { get; }
+
+    /// <summary>The family tree in the left column: this show, album or series and its seasons, episodes or tracks (universal editor v3 D3).</summary>
+    public EditorFamilyState Family { get; }
 
     /// <summary>How the window asks "Save or discard?" (set by the layout's pop-over, which owns the dialogs). Unset, unsaved input keeps the person where they are.</summary>
     public Func<Task<SaveOrDiscardChoice>>? AskSaveOrDiscard { get; set; }
@@ -364,6 +370,8 @@ public sealed class EditorHost : IDisposable
         Picker.Changed -= RaiseChanged;
         Flow.Changed -= RaiseChanged;
         Batch.Changed -= OnBatchChanged;
+        Family.Changed -= RaiseChanged;
+        Mode.Fields.Changed -= SyncFamily;
         if (_binding is not null)
         {
             _binding.CatalogChanged -= OnCatalogChanged;
@@ -438,6 +446,12 @@ public sealed class EditorHost : IDisposable
     private Task OnSavedAsync()
     {
         _changedWhileOpen = true;
+        if (Session.ActiveItem is { } active)
+        {
+            // Some changes may have gone through while the editor stays open (others failed): the marks follow what is now in the library.
+            _ = FamilyAsync(Family.RefreshAsync(active.EntityId));
+        }
+
         return _binding?.Saved?.Invoke() ?? Task.CompletedTask;
     }
 
@@ -458,6 +472,7 @@ public sealed class EditorHost : IDisposable
             Batch.Clear();
             _bulkWasOpen = false;
             _lastTool = null;
+            Family.Reset();
             SyncOverlayGuard();
             RaiseChanged();
             RaiseClosed(closed);
@@ -533,7 +548,49 @@ public sealed class EditorHost : IDisposable
         }
 
         _lastTool = tool;
+        SyncFamily();
         RaiseChanged();
+    }
+
+    // The left column follows the item being edited: a new family is read when the item is not in the tree, and the parents above the item
+    // (the page's trail, the Engine's scope chain) are opened so the item is in view. Films, standalone items, people and the like get none.
+    private void SyncFamily()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        var active = Session.ActiveItem?.EntityId ?? Guid.Empty;
+        var mediaTypes = _binding?.MediaTypes?.Invoke() ?? [];
+        var noFamily = !Mode.IsOn || !Session.IsActive || Batch.Panel != BulkPanelKind.None ||
+                        mediaTypes.Count > 0 && mediaTypes.All(type => type is "Movies" or "Photos");
+        if (noFamily)
+        {
+            if (Family.Visible)
+            {
+                _ = FamilyAsync(Family.EnsureAsync(Guid.Empty));
+            }
+
+            return;
+        }
+
+        var parents = Session.Trail.Take(Math.Max(0, Session.Trail.Count - 1)).Select(item => item.EntityId)
+            .Concat(Mode.Fields.ScopeChain.Select(item => item.EntityId));
+        _ = FamilyAsync(Family.EnsureAsync(active, parents));
+    }
+
+    private async Task FamilyAsync(Task work)
+    {
+        try
+        {
+            await work;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // The tree is a convenience; the right side keeps working without it.
+            _logger.LogWarning(ex, "The editor's family tree could not be updated");
+        }
     }
 
     // A bulk panel was asked for, or the ticks ended: open the Details tool for it (settling an open section first), or close the tool

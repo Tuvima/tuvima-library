@@ -5742,6 +5742,8 @@ MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorNavigat
   CanSelectAsEditorTarget: System.Boolean | nullability=not-null | accessors=get,set
   CanQuarantine: System.Boolean | nullability=not-null | accessors=get,set
   QuarantineCount: System.Int32 | nullability=not-null | accessors=get,set
+  MatchState: System.String | nullability=not-null | accessors=get,set
+  MatchReason: System.String | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorOwnedChildDto
   AssetId: System.Guid | nullability=not-null | accessors=get,set
@@ -5766,6 +5768,7 @@ MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorOwnedCh
   SourceFileName: System.String | nullability=not-null | accessors=get,set
   SourceFilePath: System.String | nullability=not-null | accessors=get,set
   MatchState: System.String | nullability=not-null | accessors=get,set
+  MatchReason: System.String | nullability=nullable | accessors=get,set
   FileState: System.String | nullability=not-null | accessors=get,set
   SeasonNumber: System.Int32? | nullability=nullable | accessors=get,set
   DiscNumber: System.Int32? | nullability=nullable | accessors=get,set

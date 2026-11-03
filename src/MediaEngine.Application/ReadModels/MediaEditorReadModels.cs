@@ -98,7 +98,9 @@ public sealed record MediaEditorNavigatorNodeEnvelope(
     [property: JsonPropertyName("can_quarantine")] bool CanQuarantine,
     [property: JsonPropertyName("quarantine_count")] int QuarantineCount,
     string? ArtworkUrl = null,
-    string ArtworkShape = "portrait");
+    string ArtworkShape = "portrait",
+    string MatchState = "matched",
+    string? MatchReason = null);
 
 public sealed record MediaEditorOwnedChildSearchEnvelope(
     Guid ParentEntityId,
@@ -149,7 +151,8 @@ public sealed record MediaEditorOwnedChildEnvelope(
     string SelectionNodeKind = "asset",
     string? EditionReleaseId = null,
     Guid? StructuralParentId = null,
-    string SelectionRevision = "");
+    string SelectionRevision = "",
+    string? MatchReason = null);
 
 public sealed record MembershipSuggestionEnvelope(
     [property: JsonPropertyName("entity_id")] Guid? EntityId,

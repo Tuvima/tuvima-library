@@ -118,7 +118,8 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
         string? matchStatus,
         string? fileStatus,
         CancellationToken ct,
-        IReadOnlyList<string>? allowedSegments = null)
+        IReadOnlyList<string>? allowedSegments = null,
+        bool directOnly = false)
     {
         ct.ThrowIfCancellationRequested();
         page = Math.Max(1, page);
@@ -156,6 +157,7 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
                 fileStatus = normalizedFileStatus,
                 applySegmentFilter = allowedSegments is not null ? 1 : 0,
                 allowedSegments = allowedSegments?.Count > 0 ? allowedSegments : ["<none>"],
+                directOnly = directOnly ? 1 : 0,
                 limit = pageSize,
                 offset = (page - 1) * pageSize,
             };
@@ -191,7 +193,8 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
                 "asset",
                 row.EditionReleaseId,
                 row.ParentWorkId,
-                selectionRevisions[row.AssetId])).ToList();
+                selectionRevisions[row.AssetId],
+                BuildMatchReason(row))).ToList();
 
             return new MediaEditorOwnedChildSearchEnvelope(
                 parentEntityId, page, pageSize, totalCount, items);
@@ -237,6 +240,7 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
                 fileStatus = string.IsNullOrWhiteSpace(fileStatus) ? null : fileStatus.Trim(),
                 applySegmentFilter = 1,
                 allowedSegments = allowedSegments.Count > 0 ? allowedSegments : ["<none>"],
+                directOnly = 0,
                 limit = 1001,
                 offset = 0,
             };
@@ -365,6 +369,31 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
         });
     }
 
+    /// <summary>
+    /// The plain-words reason an owned file is not matched (the editor's family tree shows it beside the amber "not matched" mark);
+    /// null when it is matched. Built only from what this row already holds, so it names what to look at, not a guess.
+    /// </summary>
+    internal static string? BuildMatchReason(string matchState, string mediaType, string? matchedNumber, int? seasonNumber)
+    {
+        if (string.Equals(matchState, "matched", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return mediaType switch
+        {
+            "TV" when seasonNumber is null || string.IsNullOrWhiteSpace(matchedNumber)
+                => "The file name has no season and episode number, and no show on a provider matches it yet.",
+            "TV" => "No show, season or episode on a provider matches this file yet.",
+            "Music" => "No album or song on a provider matches this file yet.",
+            "Books" or "Audiobooks" or "Comics" => "No book or issue on a provider matches this file yet.",
+            _ => "No provider matches this file yet.",
+        };
+    }
+
+    private static string? BuildMatchReason(OwnedChildRow row) =>
+        BuildMatchReason(row.MatchState, row.MediaType, row.MatchedNumber, row.SeasonNumber);
+
     private static string BuildCountSql() => $"""
         WITH RECURSIVE work_tree(id, parent_work_id, depth) AS (
             SELECT w.id, w.parent_work_id, 0 FROM works w WHERE w.id = @parentWorkId
@@ -469,6 +498,7 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
           AND ma.status = 'Normal'
           AND ma.is_orphaned = 0
           AND (@applySegmentFilter = 0 OR (ma.library_id || '|' || w.media_type) IN @allowedSegments)
+          AND (@directOnly = 0 OR w.parent_work_id = @parentWorkId)
           AND (tree.depth > 0 OR NOT EXISTS (
               SELECT 1 FROM works descendant
               INNER JOIN editions descendant_edition ON descendant_edition.work_id = descendant.id

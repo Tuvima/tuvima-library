@@ -31,11 +31,14 @@
                          TitleOverride="@BulkPanelTitle"
                          ShowHistory="@(binding?.ShowHistory == true)">
             <HeaderContent>
-                @if (Editor.Batch.Panel == BulkPanelKind.None)
+                @if (Editor.Batch.Panel == BulkPanelKind.None && Editor.Session.ActiveItem is { } editing)
                 {
-                    <EditorTrail Flow="flow" />
+                    <span class="tl-editor-popover__editing" title="@editing.Title">@L["EditorPopover_EditingItem", editing.Title]</span>
                 }
             </HeaderContent>
+            <TreeContent>
+                <EditorFamilyTree Family="Editor.Family" Flow="flow" CanMatch="@mode.Fields.CanMatch" />
+            </TreeContent>
             <ChildContent Context="tool">
                 @if (Editor.Batch.Panel != BulkPanelKind.None && tool == EditTool.Details)
                 {
