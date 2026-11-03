@@ -64,6 +64,9 @@ public sealed record DisplayHeroDto(
     public IReadOnlyList<DisplayCardPreviewItemDto> PreviewItems { get; init; } = [];
     public int? PreviewTotalCount { get; init; }
 
+    /// <summary>Cover addresses for the "Recently added music" hero slide's collage (up to eight); empty for every other slide.</summary>
+    public IReadOnlyList<string> CollageUrls { get; init; } = [];
+
     /// <summary>True when the person is in the middle of this item (Home hero "started"); false for newly added ("new").</summary>
     public bool IsContinued { get; init; }
 
