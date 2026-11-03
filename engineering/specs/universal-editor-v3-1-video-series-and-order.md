@@ -1,6 +1,6 @@
 # Spec: Universal editor v3.1 — video series, order and rename-to-order
 
-> **Status:** Draft · **Version:** 1 · **Last updated:** 2026-11-03 (drag and drop added) · **Related docs:** [Universal editor v3](universal-editor-v3.md) (Locked, built; its body is not rewritten) · [Videos](videos.md) · Mockups: [`video-series-and-order.html`](../design/mockups/universal-editor-v3/video-series-and-order.html)
+> **Status:** Locked (Shy, 2026-11-03: "Agree on all") · **Version:** 1 · **Last updated:** 2026-11-03 (drag and drop added) · **Related docs:** [Universal editor v3](universal-editor-v3.md) (Locked, built; its body is not rewritten) · [Videos](videos.md) · Mockups: [`video-series-and-order.html`](../design/mockups/universal-editor-v3/video-series-and-order.html)
 
 ## 1. Goal
 
@@ -12,10 +12,13 @@ Put back three things that disappeared when the old page editor was retired, now
 - Series chooser for a video (existing series, start a new series by name, not in a series), in the Match tool.
 - Order of a series' videos: drag and drop by a grip handle on each row, with move up and move down arrows kept for the keyboard and for screen readers, in the Match tool of the series.
 - A "Rename the files to match this order" switch, off by default, shown only when every video is in a Managed folder.
+- Sections of a series (order per section; drag a video between sections), a sort button (by file name or date added, then adjust by hand), a "not matched" mark in the tree for videos in no series, and putting several ticked videos in a series at once (multi-edit, "Put in a series").
 - All three are staged like every other change: nothing saves until Save changes and Review changes.
 - Public docs and the Local checks list.
 
 **Out of scope**
+- Auto-order from file names ("Ep 01", "Part 2"): a later add-on, because a wrong guess looks like the person's own choice.
+- Undo after saving: the editor has no undo journal by design; History shows what changed.
 - Identify by YouTube link and Change thumbnail (already built in the pop-over's Match and Artwork).
 - Photos, music, TV and books (they already have their own ordering and parent moves).
 - Any change to the Engine's rules for who may edit.
@@ -28,6 +31,8 @@ Put back three things that disappeared when the old page editor was retired, now
 - **D4.** The rename switch is shown only when every video in the list is in a Managed folder. A Read-only folder never shows it and is never touched; files stay in their folder. This keeps the existing Engine rule.
 - **D5.** The Engine already has the actions (read and save series, read and save order, rename). They gain "preview" answers so Review can check them before saving; no new product behaviour.
 - **D7.** Drag and drop is in scope (Shy, 2026-11-03). Each row has a grip handle on the left; dragging shows a line where the video will land, and dropping stages the new order exactly like the arrows do. Arrows stay because drag is not usable by keyboard or screen reader. The same handle drags a video onto another series in the tree (a drop on a series row stages "join this series"). Editing is desktop only, so touch drag is not needed.
+- **D8.** Sections: a series with sections shows one list per section; drag works inside a section and between sections (staged as a section move). The sort button is a one-shot ordering of the list, not a standing rule. Videos in no series carry the existing "not matched" mark in the tree.
+- **D9.** Several ticked videos: Edit N items opens the shared multi-edit window with "Put in a series"; Review lists each video and flags any that cannot join, as for songs.
 - **D6.** Editing is desktop only, as for the whole editor; the Engine's permission check still decides who may edit.
 
 ## 4. UI behaviour
@@ -63,10 +68,16 @@ None to the stored data: series membership, order and the files' names are alrea
 - **Depends on:** WP1 · **Size:** Standard
 - **Done when:** bUnit tests cover choosing a series, reordering by drag and by arrows, the switch showing only for Managed folders, and the Review rows; screenshots match the mockups.
 
-### WP3 — Docs
+### WP3 — Sections, sort, marks and multi-select
+- **What it does:** Per-section lists and cross-section drag, the sort button, not-matched marks, and "Put in a series" in the multi-edit window with Review flags.
+- **Files likely touched:** the series/order panel, `EditorFamilyTree.razor`, `ListEditLauncher`/multi-edit panel, `SharedStrings.resx`, bUnit tests.
+- **Depends on:** WP2 · **Size:** Standard
+- **Done when:** bUnit tests cover a drag between sections, the sort button, the mark, and a multi-select join with one video flagged.
+
+### WP4 — Docs
 - **What it does:** Brings back the "Videos: series, order, names" section of the editing guide (already worded) with the why: Library-only changes never touch files; rename is optional because it cannot be undone.
 - **Files likely touched:** tuvima-docs `content/products/library/guides/editing-items.md`.
-- **Depends on:** WP2 · **Size:** Mechanical · **Done when:** the docs build passes.
+- **Depends on:** WP3 · **Size:** Mechanical · **Done when:** the docs build passes.
 
 ## 7. Local checks
 
@@ -76,6 +87,4 @@ None to the stored data: series membership, order and the files' names are alrea
 ## 8. Risks and open questions
 
 - **Risks:** a rename cannot be undone, so it is off by default and always listed last in Review.
-- **Q1.** Where should Order live? A: in Match (recommended, matches the Locked editor); B: a new "Order" tool.
-- **Q3.** Drag and drop approved by Shy; no open question.
-- **Q2.** Should series and order changes be staged (recommended) or save at once as before?
+- None open. Shy answered: Order lives in Match; series and order are staged; drag and drop, sections, sort button, not matched marks and multi-select are in; auto-order is later.
