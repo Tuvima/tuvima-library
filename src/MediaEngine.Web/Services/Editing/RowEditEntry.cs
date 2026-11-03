@@ -7,8 +7,8 @@ namespace MediaEngine.Web.Services.Editing;
 /// </summary>
 public static class RowEditEntry
 {
-    /// <summary>True when the panel is now open for the row; false when the editor is not available here (device, permission) or the selection is full.</summary>
-    public static async Task<bool> StartAsync(EditorHost? host, EditorBinding? binding, BulkEditRow row)
+    /// <summary>True when the panel is now open for the row (with the cursor in <paramref name="focusField"/> when that field is shown); false when the editor is not available here (device, permission) or the selection is full.</summary>
+    public static async Task<bool> StartAsync(EditorHost? host, EditorBinding? binding, BulkEditRow row, string? focusField = null)
     {
         ArgumentNullException.ThrowIfNull(row);
         if (host is null || binding is null || row.Id == Guid.Empty)
@@ -34,6 +34,7 @@ public static class RowEditEntry
         }
 
         selection.OpenPanel(BulkPanelKind.Edit);
+        host.RequestFocus(focusField);
         return true;
     }
 }

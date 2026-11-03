@@ -16,7 +16,7 @@ public enum EditReviewGroup
 /// <summary>
 /// One line in Review changes: the item, what changes, and the before and after the person can compare. A details change with several
 /// fields becomes one row per field, so the count on Save matches the rows. <see cref="Before"/> is null when the Dashboard does not
-/// know the old value (only the item being edited has its values loaded).
+/// know the old value; staging records it when it can, and a row without one reads <see cref="AsItIsNow"/> so every row has a Before.
 /// </summary>
 public sealed record EditReviewRow(
     string ChangeId,
@@ -51,6 +51,13 @@ public static class EditReviewRows
     public const string ExtraToEpisodeNote = "The file stays where it is and is added to your Library as that episode.";
 
     public const string SiblingMatchNote = "Each other episode in this season takes the episode with its own number. Matching cannot be undone from here.";
+
+    /// <summary>The Before of a row whose old value was not recorded when it was staged (a list holds no loaded values); never blank, so every row can be compared.</summary>
+    public const string AsItIsNow = "As it is now";
+
+    public const string NotSet = "Not set";
+
+    public const string NoPictureYet = "No picture chosen";
 
     public const string FileMoveWarning = "Moves the files on disk. This cannot be undone.";
 
@@ -90,9 +97,10 @@ public static class EditReviewRows
                     foreach (var field in change.Fields)
                     {
                         var presented = fields?.Find(field.Key);
-                        var before = fields is not null && fields.EntityId == change.EntityId && presented is not null
-                            ? FirstText(presented.DisplayValue, presented.Value)
-                            : null;
+                        var before = pending.Before(change.Id + ":" + field.Key.Trim())
+                                     ?? (fields is not null && fields.EntityId == change.EntityId && presented is not null
+                                         ? FirstText(presented.DisplayValue, presented.Value) ?? NotSet
+                                         : AsItIsNow);
                         var after = string.IsNullOrWhiteSpace(field.Value) ? "Provider value" : field.Value.Trim();
                         rows.Add(new EditReviewRow(change.Id, field.Key, change.EntityId, change.Kind, EditReviewGroup.Metadata, item,
                             presented?.Label ?? ReadableKey(field.Key), before, after, null));
@@ -101,7 +109,7 @@ public static class EditReviewRows
                     break;
                 case EditSessionChangeKinds.Identity:
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Identity, item,
-                        "Match", CurrentMatchText(fields, change.EntityId), label ?? IdentityText(change.TargetId), null));
+                        "Match", pending.Before(change.Id) ?? CurrentMatchText(fields, change.EntityId) ?? AsItIsNow, label ?? IdentityText(change.TargetId), null));
                     break;
                 case EditSessionChangeKinds.SiblingMatch:
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Identity, item,
@@ -110,16 +118,16 @@ public static class EditReviewRows
                 case EditSessionChangeKinds.Artwork:
                     var removal = string.Equals(change.TargetId, EditSessionArtworkTargets.None, StringComparison.OrdinalIgnoreCase);
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Artwork, item,
-                        SlotText(change.Slot), null, removal ? "Removed" : label ?? "New picture", null));
+                        SlotText(change.Slot), pending.Before(change.Id) ?? AsItIsNow, removal ? "Removed" : label ?? "New picture", null));
                     break;
                 case EditSessionChangeKinds.Relationship:
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Relationships, item,
-                        "Moves to", null, label ?? "The chosen place", pending.Note(change.Id)));
+                        "Moves to", pending.Before(change.Id) ?? AsItIsNow, label ?? "The chosen place", pending.Note(change.Id)));
                     break;
                 case EditSessionChangeKinds.ExtraMove:
                     var toExtras = EditSessionExtraMove.IsToExtras(change.Token);
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Relationships, item,
-                        "Moves to", null, label ?? (toExtras ? "Extras" : "An episode"), toExtras ? ExtraToExtrasNote : ExtraToEpisodeNote));
+                        "Moves to", toExtras ? "An episode of your Library" : "Extras", label ?? (toExtras ? "Extras" : "An episode"), toExtras ? ExtraToExtrasNote : ExtraToEpisodeNote));
                     break;
                 case EditSessionChangeKinds.FileMove:
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.PhysicalFiles, item,

@@ -406,7 +406,7 @@ public sealed class ArtworkPickerSession
                 url = Saved.FirstOrDefault(picture => picture.AssetId.ToString("D") == target)?.ContentUrl;
             }
 
-            _session.Pending.SetArtwork(_fields.ArtworkEntityId, slot, assetId);
+            _session.Pending.SetArtwork(_fields.ArtworkEntityId, slot, assetId, before: BeforeText(slot));
             _preview.RememberStaged(slot, assetId, url);
             _pickedProviderId = null;
             return true;
@@ -427,7 +427,7 @@ public sealed class ArtworkPickerSession
         }
 
         _pickedProviderId = null;
-        _session.Pending.SetArtwork(_fields.ArtworkEntityId, slot, EditSessionArtworkTargets.None);
+        _session.Pending.SetArtwork(_fields.ArtworkEntityId, slot, EditSessionArtworkTargets.None, before: BeforeText(slot));
         _preview.RememberStaged(slot, EditSessionArtworkTargets.None, null);
         Changed?.Invoke();
     }
@@ -504,6 +504,10 @@ public sealed class ArtworkPickerSession
 
         return null;
     }
+
+    // Review's Before for a picture: the item has one saved for the slot, or none.
+    private string BeforeText(string slot) =>
+        _preview.HasCurrent(slot) ? "The current picture" : EditReviewRows.NoPictureYet;
 
     private bool Fail(string message)
     {

@@ -56,6 +56,9 @@ public sealed class ArtworkEditPreview
         }
     }
 
+    /// <summary>Whether the item has a picture saved for the slot now (Review's Before for a changed picture).</summary>
+    public bool HasCurrent(string slot) => _current.ContainsKey(slot);
+
     /// <summary>Shows a picture the person has picked but not yet used. Replaces an earlier pick for the slot.</summary>
     public void Pick(string slot, string targetId, string? url) => _picked[slot] = new Shown(targetId, url);
 

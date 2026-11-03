@@ -173,7 +173,7 @@
         var album = item.AlbumWorkId is { } albumId && albumId != Guid.Empty ? albumId : (Guid?)null;
         var row = new BulkEditRow(identity.WorkId, item.Title, MediaEngine.Contracts.Details.DetailEntityType.Work, album, "Music");
         if (Services.GetService<ListEditLauncher>() is { } launcher)
-            await launcher.OpenRowAsync(row, MediaEngine.Contracts.Details.DetailPresentationContext.Listen);
+            await launcher.OpenRowAsync(row, MediaEngine.Contracts.Details.DetailPresentationContext.Listen, "lyrics");
     }
     private int ActiveIndex => Timeline.Select((line, index) => (line, index))
         .Where(row => row.line.StartSeconds is double time && time <= Snapshot.CurrentTimeSeconds

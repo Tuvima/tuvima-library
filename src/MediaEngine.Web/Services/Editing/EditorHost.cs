@@ -204,6 +204,15 @@ public sealed class EditorHost : IDisposable
     /// </summary>
     public event Action<EditorClosedEventArgs>? Closed;
 
+    /// <summary>The field the pop-over should put the cursor in once it has drawn it (the player's lyrics button asks for Lyrics); null when none was asked for.</summary>
+    public string? FocusField { get; private set; }
+
+    /// <summary>Asks for the cursor to land in the field with this key when the pop-over shows it.</summary>
+    public void RequestFocus(string? fieldKey) => FocusField = string.IsNullOrWhiteSpace(fieldKey) ? null : fieldKey.Trim();
+
+    /// <summary>The pop-over found the field (or gave up): the request is spent.</summary>
+    public void ClearFocusRequest() => FocusField = null;
+
     /// <summary>A tool committed a change on its own (a match went through): the page behind refreshes and the closing event says something changed.</summary>
     public async Task NotifyCommittedAsync()
     {
@@ -472,6 +481,7 @@ public sealed class EditorHost : IDisposable
             Batch.Clear();
             _bulkWasOpen = false;
             _lastTool = null;
+            FocusField = null;
             Family.Reset();
             SyncOverlayGuard();
             RaiseChanged();

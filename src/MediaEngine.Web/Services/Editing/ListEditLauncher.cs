@@ -82,12 +82,12 @@ public sealed class ListEditLauncher
     }
 
     /// <summary>A row's own Edit (a song, an episode): opens the pop-over with that row ticked and the Edit panel open, over the list.</summary>
-    public async Task<bool> OpenRowAsync(BulkEditRow row, DetailPresentationContext context = DetailPresentationContext.Default)
+    public async Task<bool> OpenRowAsync(BulkEditRow row, DetailPresentationContext context = DetailPresentationContext.Default, string? focusField = null)
     {
         ArgumentNullException.ThrowIfNull(row);
         var target = new ListEditTarget(row.Id, row.Title, row.Kind, row.MediaType ?? "Books", context);
         var binding = await BindAsync(target);
-        return binding is not null && await RowEditEntry.StartAsync(_host, binding, row);
+        return binding is not null && await RowEditEntry.StartAsync(_host, binding, row, focusField);
     }
 
     /// <summary>

@@ -735,7 +735,7 @@
         {
             var request = EditorMatchRules.RequestFor(_selected, Subject, _group);
             var facts = EditorMatchRules.FactsOf(_selected);
-            pending.SetTarget(EditSessionChangeKinds.Identity, id, EditSessionIdentityTarget.Serialize(request), label: $"{facts.Title} ({facts.Provider})");
+            pending.SetTarget(EditSessionChangeKinds.Identity, id, EditSessionIdentityTarget.Serialize(request), label: $"{facts.Title} ({facts.Provider})", before: MatchBefore(Subject));
         }
         else
         {
@@ -768,7 +768,8 @@
                 new EditorPlacementRules.Place(_destination.Label, _destination.ParentLabel),
                 EditorPlacementRules.StagedMatchPlace(pending, id, Subject.MediaType));
             pending.SetTarget(EditSessionChangeKinds.Relationship, id, _destination.Id.ToString("D"),
-                label: string.IsNullOrWhiteSpace(_destination.ParentLabel) ? _destination.Label : $"{_destination.Label} ({_destination.ParentLabel})", note: note);
+                label: string.IsNullOrWhiteSpace(_destination.ParentLabel) ? _destination.Label : $"{_destination.Label} ({_destination.ParentLabel})", note: note,
+                before: string.IsNullOrWhiteSpace(Subject.ParentLabel) ? EditReviewRows.AsItIsNow : Subject.ParentLabel);
         }
         else
         {
@@ -785,6 +786,28 @@
         }
 
         _staged = true;
+    }
+
+    // What the item is matched as now, for Review's Before: its title and the place it sits in, or that it has no match yet.
+    private string MatchBefore(EditorMatchSubject subject)
+    {
+        if (IsUnmatched)
+        {
+            return "Not matched yet";
+        }
+
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(subject.Title))
+        {
+            parts.Add(subject.Title.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(subject.ParentLabel))
+        {
+            parts.Add(subject.ParentLabel.Trim());
+        }
+
+        return parts.Count == 0 ? EditReviewRows.AsItIsNow : string.Join(" · ", parts);
     }
 
     private static void Unstage(PendingEditList pending, string kind, Guid entityId)

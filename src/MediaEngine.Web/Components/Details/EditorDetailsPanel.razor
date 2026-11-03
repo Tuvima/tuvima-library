@@ -27,7 +27,7 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
 
         @if (editable.Count > 0)
         {
-            @if (canEdit && editable.Any(row => row.CanRevert))
+            @if (canEdit && ResettableRows(fields, session, editable).Count > 0)
             {
                 <div class="tl-editor-details__toolbar">
                     <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
@@ -183,11 +183,20 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
             return;
         }
 
-        foreach (var field in editable.Where(row => row.CanRevert))
+        foreach (var field in ResettableRows(fields, session, editable))
         {
-            session.Pending.SetField(fields.EntityId, StageKey(field), string.Empty);
+            session.Pending.SetField(fields.EntityId, StageKey(field), string.Empty, before: BeforeText(field));
         }
     }
+
+    // "Reset all" is for overrides that are saved in the library: a field with nothing saved has nothing to reset, and one already sent
+    // back to the provider's value (staged, waiting for Save) is not offered again.
+    private static IReadOnlyList<MediaEditorDetailsFieldPresentation> ResettableRows(
+        ItemFieldEditSession fields, EditSessionState session, IReadOnlyList<MediaEditorDetailsFieldPresentation> editable) =>
+        editable
+            .Where(row => row.CanRevert
+                && !(session.Pending.TryGetField(fields.EntityId, StageKey(row), out var staged) && string.IsNullOrWhiteSpace(staged)))
+            .ToList();
 
     // The box grows with the text, so a long synopsis never gets a scroll bar of its own inside the window's.
     private static int LinesFor(string value) => Math.Clamp((value.Length / 90) + 2, 4, 14);
@@ -232,7 +241,7 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
         }
         else
         {
-            session.Pending.SetField(fields.EntityId, key, value);
+            session.Pending.SetField(fields.EntityId, key, value, before: BeforeText(field));
         }
     }
 
@@ -240,9 +249,13 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
     {
         if (session.IsActive && Mode is { CanEdit: true })
         {
-            session.Pending.SetField(fields.EntityId, StageKey(field), string.Empty);
+            session.Pending.SetField(fields.EntityId, StageKey(field), string.Empty, before: BeforeText(field));
         }
     }
+
+    // What the field holds before this change, for Review's Before column.
+    private static string BeforeText(MediaEditorDetailsFieldPresentation field) =>
+        string.IsNullOrWhiteSpace(field.DisplayValue ?? field.Value) ? EditReviewRows.NotSet : (field.DisplayValue ?? field.Value)!.Trim();
 
     private static void Undo(ItemFieldEditSession fields, EditSessionState session, MediaEditorDetailsFieldPresentation field) =>
         session.Pending.ClearField(fields.EntityId, StageKey(field));

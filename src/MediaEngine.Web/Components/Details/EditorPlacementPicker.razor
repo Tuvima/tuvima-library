@@ -264,7 +264,8 @@
             Subject.MediaType,
             new EditorPlacementRules.Place(_chosen.Label, _chosen.ParentLabel),
             EditorPlacementRules.StagedMatchPlace(pending, Subject.EntityId, Subject.MediaType));
-        pending.SetTarget(EditSessionChangeKinds.Relationship, Subject.EntityId, _chosen.Id.ToString("D"), label: PlaceText(_chosen), note: note);
+        pending.SetTarget(EditSessionChangeKinds.Relationship, Subject.EntityId, _chosen.Id.ToString("D"), label: PlaceText(_chosen), note: note,
+            before: string.IsNullOrWhiteSpace(Subject.ParentLabel) ? EditReviewRows.AsItIsNow : Subject.ParentLabel);
         if (_moveFiles)
         {
             pending.SetTarget(EditSessionChangeKinds.FileMove, Subject.EntityId, null);

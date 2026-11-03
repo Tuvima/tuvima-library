@@ -7,6 +7,7 @@
 @inject EditorHost Editor
 @inject IAppDialogService Dialogs
 @inject IStringLocalizer<SharedStrings> L
+@inject IJSRuntime JS
 
 @* The universal editor's pop-over (v3 D1, D6), drawn once by the app layout so it can open over any page or list. It is a native modal
    dialog (opened with showModal by app-dialog.js), so it stacks above the details overlay, makes everything behind it inert, traps focus
@@ -126,6 +127,37 @@
     }
 
     private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private int _focusTries;
+    private IJSObjectReference? _focusModule;
+
+    // The player's lyrics button asks for the Lyrics field: once the pop-over has drawn the fields, the cursor goes there. A field the
+    // item does not show (or a page without scripts) is not an error; the request is dropped after a few tries.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Editor.FocusField is not { } key || !Editor.IsOpen)
+        {
+            _focusTries = 0;
+            return;
+        }
+
+        var found = false;
+        try
+        {
+            _focusModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/editor-focus.js");
+            found = await _focusModule.InvokeAsync<bool>("focusField", key);
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or TaskCanceledException or JSDisconnectedException)
+        {
+            // No script support here (a test host, a closing circuit): the pop-over is still fully usable without the cursor placed.
+        }
+
+        if (found || ++_focusTries >= 4)
+        {
+            _focusTries = 0;
+            Editor.ClearFocusRequest();
+        }
+    }
 
     private async Task ConfirmNavigationAsync(LocationChangingContext context)
     {
