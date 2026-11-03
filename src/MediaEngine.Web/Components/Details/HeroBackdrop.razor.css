@@ -205,7 +205,8 @@
 }
 
 :where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-media-stage--portrait .tl-detail-media-stage__cover-wrap {
-    width: clamp(15rem, 25vw, 23rem);
+    /* The person page opens with a large portrait, about 340px on a desktop (Home, detail and tiles spec D10). */
+    width: clamp(15rem, 24vw, 21.25rem);
 }
 
 :where(.tl-detail-page, .cinematic-hero-surface-scope) .tl-detail-hero-brand {
