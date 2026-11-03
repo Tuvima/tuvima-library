@@ -19,13 +19,13 @@ namespace MediaEngine.Api.Services.Matching;
 public interface IShowChildRematcher
 {
     /// <summary>How many episodes the re-match covers and how many the chosen show has a slot for. Null when the item is not a TV show.</summary>
-    Task<ShowChildRematchPreviewDto?> PreviewAsync(Guid showEntityId, string seriesId, LibraryMoveAccess? canEdit, CancellationToken ct);
+    Task<ShowChildRematchPreviewDto?> PreviewAsync(Guid showEntityId, string seriesId, LibraryMoveAccess canEdit, CancellationToken ct);
 
     /// <summary>The plain-English reason the re-match cannot be done, or null when it can.</summary>
-    Task<string?> CheckAsync(Guid showEntityId, ShowChildRematchTarget target, LibraryMoveAccess? canEdit, CancellationToken ct);
+    Task<string?> CheckAsync(Guid showEntityId, ShowChildRematchTarget target, LibraryMoveAccess canEdit, CancellationToken ct);
 
     /// <summary>Matches each episode that has a slot and sends the rest to Needs Review. Throws, naming how many were matched, when a match fails.</summary>
-    Task ApplyAsync(Guid showEntityId, ShowChildRematchTarget target, LibraryMoveAccess? canEdit, CancellationToken ct);
+    Task ApplyAsync(Guid showEntityId, ShowChildRematchTarget target, LibraryMoveAccess canEdit, CancellationToken ct);
 }
 
 /// <summary>The rules of the show re-match that need no provider, kept apart so they can be tested directly.</summary>
@@ -78,7 +78,7 @@ public sealed class ShowChildRematcher(
     IReviewQueueRepository reviews,
     ILogger<ShowChildRematcher> logger) : IShowChildRematcher
 {
-    public async Task<ShowChildRematchPreviewDto?> PreviewAsync(Guid showEntityId, string seriesId, LibraryMoveAccess? canEdit, CancellationToken ct)
+    public async Task<ShowChildRematchPreviewDto?> PreviewAsync(Guid showEntityId, string seriesId, LibraryMoveAccess canEdit, CancellationToken ct)
     {
         var plan = await PlanAsync(showEntityId, seriesId, canEdit, ct).ConfigureAwait(false);
         if (plan is null)
@@ -97,7 +97,7 @@ public sealed class ShowChildRematcher(
         };
     }
 
-    public async Task<string?> CheckAsync(Guid showEntityId, ShowChildRematchTarget target, LibraryMoveAccess? canEdit, CancellationToken ct)
+    public async Task<string?> CheckAsync(Guid showEntityId, ShowChildRematchTarget target, LibraryMoveAccess canEdit, CancellationToken ct)
     {
         if (!tvdb.IsConfigured("tvdb"))
         {
@@ -107,7 +107,7 @@ public sealed class ShowChildRematcher(
         return await PlanAsync(showEntityId, target.SeriesId, canEdit, ct).ConfigureAwait(false) is null ? "This item is not a TV show." : null;
     }
 
-    public async Task ApplyAsync(Guid showEntityId, ShowChildRematchTarget target, LibraryMoveAccess? canEdit, CancellationToken ct)
+    public async Task ApplyAsync(Guid showEntityId, ShowChildRematchTarget target, LibraryMoveAccess canEdit, CancellationToken ct)
     {
         var plan = await PlanAsync(showEntityId, target.SeriesId, canEdit, ct).ConfigureAwait(false)
             ?? throw new InvalidOperationException("This item is not a TV show.");
@@ -180,7 +180,7 @@ public sealed class ShowChildRematcher(
 
     private sealed record Plan(string ShowName, IReadOnlyList<ShowChildRematchPlan.Row> Rows);
 
-    private async Task<Plan?> PlanAsync(Guid showEntityId, string seriesId, LibraryMoveAccess? canEdit, CancellationToken ct)
+    private async Task<Plan?> PlanAsync(Guid showEntityId, string seriesId, LibraryMoveAccess canEdit, CancellationToken ct)
     {
         var children = new List<ShowChildRematchPlan.Child>();
         for (var page = 1; children.Count < ShowChildRematchPlan.MaxEpisodes; page++)
@@ -218,7 +218,7 @@ public sealed class ShowChildRematcher(
         foreach (var row in ShowChildRematchPlan.Pair(children.Take(ShowChildRematchPlan.MaxEpisodes), slots))
         {
             // A file the person may not change is left out, as the save would leave it out.
-            if (canEdit is not null && !await canEdit(row.Child.WorkId, LibraryMoveRight.Match, ct).ConfigureAwait(false))
+            if (!await canEdit(row.Child.WorkId, LibraryMoveRight.Match, ct).ConfigureAwait(false))
             {
                 continue;
             }

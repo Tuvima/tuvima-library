@@ -70,7 +70,7 @@ public sealed class EpisodeSiblingMatchTests
     public async Task Handler_ChecksAndAppliesThroughTheMatcher_WithTheStagedTarget()
     {
         var matcher = new SpyMatcher();
-        var handler = HandlerWith(matcher);
+        var handler = HandlerWith(matcher, out var callers);
         var item = Guid.NewGuid();
         var change = new EditSessionChange
         {
@@ -80,6 +80,7 @@ public sealed class EpisodeSiblingMatchTests
             TargetId = EditSessionSiblingMatchTarget.Serialize(new EpisodeSiblingMatchTarget { SeriesId = "200", SeasonNumber = 2 }),
         };
 
+        using var _ = callers.Use(Caller());
         Assert.Null(await handler.CheckAsync(change));
         var undo = await handler.ApplyAsync(change);
 
@@ -91,7 +92,8 @@ public sealed class EpisodeSiblingMatchTests
     public async Task Handler_RefusesATargetItCannotRead_AndWritesNothing()
     {
         var matcher = new SpyMatcher();
-        var handler = HandlerWith(matcher);
+        var handler = HandlerWith(matcher, out var callers);
+        using var _ = callers.Use(Caller());
         var change = new EditSessionChange { Id = "c", Kind = EditSessionChangeKinds.SiblingMatch, EntityId = Guid.NewGuid(), TargetId = "not json" };
 
         Assert.Equal(EditSessionReasons.MatchUnreadable, await handler.CheckAsync(change));
@@ -111,13 +113,36 @@ public sealed class EpisodeSiblingMatchTests
             TargetId = EditSessionSiblingMatchTarget.Serialize(new EpisodeSiblingMatchTarget { SeriesId = "1", SeasonNumber = 0 }),
         };
 
-        Assert.Equal(matcher.Reason, await HandlerWith(matcher).CheckAsync(change));
+        var handler = HandlerWith(matcher, out var callers);
+        using var _ = callers.Use(Caller());
+        Assert.Equal(matcher.Reason, await handler.CheckAsync(change));
     }
 
-    private static SiblingMatchEditSessionChangeHandler HandlerWith(SpyMatcher matcher)
+    [Fact]
+    public async Task Handler_RefusesWithoutACaller_AndMatchesNothing()
+    {
+        var matcher = new SpyMatcher();
+        var handler = HandlerWith(matcher, out _);
+        var change = new EditSessionChange
+        {
+            Id = "c",
+            Kind = EditSessionChangeKinds.SiblingMatch,
+            EntityId = Guid.NewGuid(),
+            TargetId = EditSessionSiblingMatchTarget.Serialize(new EpisodeSiblingMatchTarget { SeriesId = "200", SeasonNumber = 2 }),
+        };
+
+        Assert.Equal(EditSessionReasons.SessionUnavailable, await handler.CheckAsync(change));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => handler.ApplyAsync(change));
+        Assert.Empty(matcher.Calls);
+    }
+
+    private static EditSessionCaller Caller() => new(LibraryMoveTestWorld.Actor, LibraryMoveTestWorld.Everything);
+
+    private static SiblingMatchEditSessionChangeHandler HandlerWith(SpyMatcher matcher, out EditSessionCallerAccessor callers)
     {
         var services = new ServiceCollection().AddScoped<IEpisodeSiblingMatcher>(_ => matcher).BuildServiceProvider();
-        return new SiblingMatchEditSessionChangeHandler(services.GetRequiredService<IServiceScopeFactory>(), new EditSessionCallerAccessor());
+        callers = new EditSessionCallerAccessor();
+        return new SiblingMatchEditSessionChangeHandler(services.GetRequiredService<IServiceScopeFactory>(), callers);
     }
 
     private sealed class SpyMatcher : IEpisodeSiblingMatcher
@@ -126,16 +151,16 @@ public sealed class EpisodeSiblingMatchTests
 
         public string? Reason { get; init; }
 
-        public Task<EpisodeSiblingMatchPreviewDto?> PreviewAsync(Guid entityId, string seriesId, int seasonNumber, LibraryMoveAccess? canEdit, CancellationToken ct) =>
+        public Task<EpisodeSiblingMatchPreviewDto?> PreviewAsync(Guid entityId, string seriesId, int seasonNumber, LibraryMoveAccess canEdit, CancellationToken ct) =>
             Task.FromResult<EpisodeSiblingMatchPreviewDto?>(new EpisodeSiblingMatchPreviewDto { EntityId = entityId, SeriesId = seriesId, SeasonNumber = seasonNumber });
 
-        public Task<string?> CheckAsync(Guid entityId, EpisodeSiblingMatchTarget target, LibraryMoveAccess? canEdit, CancellationToken ct)
+        public Task<string?> CheckAsync(Guid entityId, EpisodeSiblingMatchTarget target, LibraryMoveAccess canEdit, CancellationToken ct)
         {
             Calls.Add($"check:{entityId}:{target.SeriesId}:{target.SeasonNumber}");
             return Task.FromResult(Reason);
         }
 
-        public Task ApplyAsync(Guid entityId, EpisodeSiblingMatchTarget target, LibraryMoveAccess? canEdit, CancellationToken ct)
+        public Task ApplyAsync(Guid entityId, EpisodeSiblingMatchTarget target, LibraryMoveAccess canEdit, CancellationToken ct)
         {
             Calls.Add($"apply:{entityId}:{target.SeriesId}:{target.SeasonNumber}");
             return Task.CompletedTask;

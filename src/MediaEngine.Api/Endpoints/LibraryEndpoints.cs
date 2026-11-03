@@ -234,10 +234,12 @@ public static class LibraryEndpoints
                 return ApiErrors.BadRequest($"An edit session takes at most {EditSessionRequest.MaxChanges} changes.");
             }
 
-            // Moving an item between albums and seasons runs the library move, which needs to know who is asking and what they may edit.
-            // A session with no such change never needs it.
+            // Moving an item between albums and seasons runs the library move, and matching the other episodes or re-matching a show's
+            // episodes touches items beyond the one being edited. All three need to know who is asking and what they may edit, and their
+            // handlers refuse without it. A session with no such change never needs it.
             EditSessionCaller? caller = null;
-            if (request.Changes.Any(change => change.Kind == EditSessionChangeKinds.Relationship))
+            if (request.Changes.Any(change => change.Kind is EditSessionChangeKinds.Relationship
+                    or EditSessionChangeKinds.SiblingMatch or EditSessionChangeKinds.ChildRematch))
             {
                 var actor = await LibraryItemEndpoints.ResolveMoveActorAsync(http, authorityResolver, profiles, ct);
                 if (actor is null)

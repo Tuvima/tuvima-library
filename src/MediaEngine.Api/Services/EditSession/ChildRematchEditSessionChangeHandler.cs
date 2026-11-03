@@ -17,6 +17,12 @@ public sealed class ChildRematchEditSessionChangeHandler(IServiceScopeFactory sc
 
     public async Task<string?> CheckAsync(EditSessionChange change, CancellationToken ct = default)
     {
+        // Fail closed: without the caller there is no per-episode edit check, so nothing is checked or matched.
+        if (callers.Current is not { } caller)
+        {
+            return EditSessionReasons.SessionUnavailable;
+        }
+
         if (!EditSessionChildRematchTarget.TryParse(change.TargetId, out var target) || target is null)
         {
             return EditSessionReasons.MatchUnreadable;
@@ -24,11 +30,12 @@ public sealed class ChildRematchEditSessionChangeHandler(IServiceScopeFactory sc
 
         using var scope = scopes.CreateScope();
         var matcher = scope.ServiceProvider.GetRequiredService<IShowChildRematcher>();
-        return await matcher.CheckAsync(change.EntityId, target, callers.Current?.CanEdit, ct).ConfigureAwait(false);
+        return await matcher.CheckAsync(change.EntityId, target, caller.CanEdit, ct).ConfigureAwait(false);
     }
 
     public async Task<Func<CancellationToken, Task>?> ApplyAsync(EditSessionChange change, CancellationToken ct = default)
     {
+        var caller = callers.Current ?? throw new InvalidOperationException(EditSessionReasons.SessionUnavailable);
         if (!EditSessionChildRematchTarget.TryParse(change.TargetId, out var target) || target is null)
         {
             throw new InvalidOperationException(EditSessionReasons.MatchUnreadable);
@@ -36,7 +43,7 @@ public sealed class ChildRematchEditSessionChangeHandler(IServiceScopeFactory sc
 
         using var scope = scopes.CreateScope();
         var matcher = scope.ServiceProvider.GetRequiredService<IShowChildRematcher>();
-        await matcher.ApplyAsync(change.EntityId, target, callers.Current?.CanEdit, ct).ConfigureAwait(false);
+        await matcher.ApplyAsync(change.EntityId, target, caller.CanEdit, ct).ConfigureAwait(false);
         return null;
     }
 }

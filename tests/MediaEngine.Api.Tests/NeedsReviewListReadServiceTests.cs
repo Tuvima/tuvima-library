@@ -143,6 +143,64 @@ public sealed class NeedsReviewListReadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task AVaultLibrarysReviewItems_AreNeverListedOrCounted()
+    {
+        SeedReview("movies", ReviewTrigger.MetadataConflict, created: At(1));
+        SeedReview("hidden-vault", ReviewTrigger.RetailMatchFailed, created: At(2));
+        using (var conn = _db.CreateConnection())
+        {
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "INSERT INTO vault_libraries(library_id, lookup_source, adults_confirmed_at, created_at, updated_at) VALUES('hidden-vault','none',$now,$now,$now);";
+            cmd.Parameters.AddWithValue("$now", DateTimeOffset.UtcNow.ToString("O"));
+            cmd.ExecuteNonQuery();
+        }
+
+        var list = await _service.ListAsync(null, null, includeFiles: true, 0, 100);
+        var count = await _service.CountAsync(includeFiles: true);
+
+        Assert.Single(list.Items);
+        Assert.Equal("movies", list.Items[0].LibraryId, ignoreCase: true);
+        Assert.Equal(list.Total, count.PendingCount);
+    }
+
+    [Fact]
+    public async Task AVaultItemTheSourceQueryLetThrough_IsStillDroppedFromTheListAndTheCount()
+    {
+        var ok = new ReviewItemDto { Id = Guid.NewGuid(), Trigger = ReviewTrigger.MetadataConflict, LibraryId = "movies", CreatedAt = At(1) };
+        var vaulted = new ReviewItemDto { Id = Guid.NewGuid(), Trigger = ReviewTrigger.RetailMatchFailed, LibraryId = "Hidden-Vault", CreatedAt = At(2) };
+        using (var conn = _db.CreateConnection())
+        {
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "INSERT INTO vault_libraries(library_id, lookup_source, adults_confirmed_at, created_at, updated_at) VALUES('hidden-vault','none',$now,$now,$now);";
+            cmd.Parameters.AddWithValue("$now", DateTimeOffset.UtcNow.ToString("O"));
+            cmd.ExecuteNonQuery();
+        }
+
+        var service = new NeedsReviewListReadService(
+            new FixedReviews([ok, vaulted]), _unmatched, new ListLoader(new LibraryFolderConfig { Id = "movies", Name = "Movies" }), new VaultLibraryRepository(_db));
+
+        var list = await service.ListAsync(null, null, includeFiles: false, 0, 100);
+        var count = await service.CountAsync(includeFiles: false);
+
+        Assert.Equal([$"review:{ok.Id:D}"], list.Items.Select(row => row.Key));
+        Assert.Equal(1, count.PendingCount);
+        Assert.Equal(0, count.NotMatchedCount);
+    }
+
+    private sealed class FixedReviews(IReadOnlyList<ReviewItemDto> items) : MediaEngine.Application.Services.IReviewQueueReadService
+    {
+        public Task<IReadOnlyList<ReviewItemDto>> GetPendingAsync(int limit, CancellationToken ct = default) => Task.FromResult(items);
+        public Task<IReadOnlyList<ReviewItemDto>> GetPendingForLibraryAsync(int limit, string libraryId, CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<ReviewItemDto>>(items.Where(i => string.Equals(i.LibraryId, libraryId, StringComparison.OrdinalIgnoreCase)).ToList());
+        public Task<IReadOnlyDictionary<string, int>> GetPendingCountsByLibraryAsync(CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyDictionary<string, int>>(new Dictionary<string, int>());
+        public Task<ReviewItemDto?> GetByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<ReviewItemDto?>(items.FirstOrDefault(i => i.Id == id));
+        public Task<int> GetPendingCountAsync(CancellationToken ct = default) => Task.FromResult(items.Count);
+        public Task<IReadOnlyList<MediaEngine.Application.ReadModels.ReviewReasonCount>> GetPendingReasonCountsAsync(CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<MediaEngine.Application.ReadModels.ReviewReasonCount>>([]);
+    }
+
+    [Fact]
     public async Task ALibraryThatIsNotListedHoldsNothing()
     {
         SeedFile("movies", "a.mkv", tried: At(1));

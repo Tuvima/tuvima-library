@@ -156,7 +156,9 @@ public sealed class EditorFollowUpAndRematchTests
     {
         var rematcher = new SpyRematcher();
         var services = new ServiceCollection().AddScoped<IShowChildRematcher>(_ => rematcher).BuildServiceProvider();
-        var handler = new ChildRematchEditSessionChangeHandler(services.GetRequiredService<IServiceScopeFactory>(), new EditSessionCallerAccessor());
+        var callers = new EditSessionCallerAccessor();
+        var handler = new ChildRematchEditSessionChangeHandler(services.GetRequiredService<IServiceScopeFactory>(), callers);
+        using var scope = callers.Use(new EditSessionCaller(LibraryMoveTestWorld.Actor, LibraryMoveTestWorld.Everything));
         var show = Guid.NewGuid();
         var change = new EditSessionChange
         {
@@ -175,20 +177,39 @@ public sealed class EditorFollowUpAndRematchTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => handler.ApplyAsync(bad));
     }
 
+    [Fact]
+    public async Task Handler_RefusesWithoutACaller_AndRematchesNothing()
+    {
+        var rematcher = new SpyRematcher();
+        var services = new ServiceCollection().AddScoped<IShowChildRematcher>(_ => rematcher).BuildServiceProvider();
+        var handler = new ChildRematchEditSessionChangeHandler(services.GetRequiredService<IServiceScopeFactory>(), new EditSessionCallerAccessor());
+        var change = new EditSessionChange
+        {
+            Id = "c",
+            Kind = EditSessionChangeKinds.ChildRematch,
+            EntityId = Guid.NewGuid(),
+            TargetId = EditSessionChildRematchTarget.Serialize(new ShowChildRematchTarget { SeriesId = "200" }),
+        };
+
+        Assert.Equal(EditSessionReasons.SessionUnavailable, await handler.CheckAsync(change));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => handler.ApplyAsync(change));
+        Assert.Empty(rematcher.Calls);
+    }
+
     private sealed class SpyRematcher : IShowChildRematcher
     {
         public List<string> Calls { get; } = [];
 
-        public Task<ShowChildRematchPreviewDto?> PreviewAsync(Guid showEntityId, string seriesId, LibraryMoveAccess? canEdit, CancellationToken ct) =>
+        public Task<ShowChildRematchPreviewDto?> PreviewAsync(Guid showEntityId, string seriesId, LibraryMoveAccess canEdit, CancellationToken ct) =>
             Task.FromResult<ShowChildRematchPreviewDto?>(new ShowChildRematchPreviewDto { EntityId = showEntityId, SeriesId = seriesId });
 
-        public Task<string?> CheckAsync(Guid showEntityId, ShowChildRematchTarget target, LibraryMoveAccess? canEdit, CancellationToken ct)
+        public Task<string?> CheckAsync(Guid showEntityId, ShowChildRematchTarget target, LibraryMoveAccess canEdit, CancellationToken ct)
         {
             Calls.Add($"check:{showEntityId}:{target.SeriesId}");
             return Task.FromResult<string?>(null);
         }
 
-        public Task ApplyAsync(Guid showEntityId, ShowChildRematchTarget target, LibraryMoveAccess? canEdit, CancellationToken ct)
+        public Task ApplyAsync(Guid showEntityId, ShowChildRematchTarget target, LibraryMoveAccess canEdit, CancellationToken ct)
         {
             Calls.Add($"apply:{showEntityId}:{target.SeriesId}");
             return Task.CompletedTask;

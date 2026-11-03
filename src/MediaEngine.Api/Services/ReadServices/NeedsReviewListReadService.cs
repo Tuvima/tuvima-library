@@ -42,10 +42,11 @@ public sealed class NeedsReviewListReadService(
         }
 
         var rows = new List<NeedsReviewRowDto>();
+        var vaultIds = await vault.GetIdsAsync(ct).ConfigureAwait(false);
         var pending = library is null
             ? await reviews.GetPendingAsync(int.MaxValue, ct).ConfigureAwait(false)
             : await reviews.GetPendingForLibraryAsync(int.MaxValue, library, ct).ConfigureAwait(false);
-        foreach (var item in pending)
+        foreach (var item in pending.Where(item => !IsVaultItem(item, vaultIds)))
         {
             var itemLibrary = names.Keys.FirstOrDefault(id => string.Equals(id, item.LibraryId, StringComparison.OrdinalIgnoreCase));
             rows.Add(new NeedsReviewRowDto
@@ -95,9 +96,11 @@ public sealed class NeedsReviewListReadService(
     public async Task<ReviewCountResponse> CountAsync(bool includeFiles, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        var reasons = await reviews.GetPendingReasonCountsAsync(ct).ConfigureAwait(false);
-        var reviewNotMatched = reasons.Where(reason => KindFor(reason.Trigger) == NeedsReviewKinds.NotMatched).Sum(reason => reason.Count);
-        var reviewTotal = reasons.Sum(reason => reason.Count);
+        // Counted from the very rows the list holds (after the same Vault filter), so the notifier can never say more than the list shows.
+        var vaultIds = await vault.GetIdsAsync(ct).ConfigureAwait(false);
+        var pending = (await reviews.GetPendingAsync(int.MaxValue, ct).ConfigureAwait(false)).Where(item => !IsVaultItem(item, vaultIds)).ToList();
+        var reviewNotMatched = pending.Count(item => KindFor(item.Trigger) == NeedsReviewKinds.NotMatched);
+        var reviewTotal = pending.Count;
         var files = 0;
         if (includeFiles)
         {
@@ -113,6 +116,10 @@ public sealed class NeedsReviewListReadService(
             NotSureCount = reviewTotal - reviewNotMatched,
         };
     }
+
+    // A review item whose file sits in a Vault library is never listed or counted here, whatever the source query returned.
+    private static bool IsVaultItem(ReviewItemDto item, IReadOnlySet<string> vaultIds) =>
+        !string.IsNullOrWhiteSpace(item.LibraryId) && vaultIds.Any(id => string.Equals(id, item.LibraryId.Trim(), StringComparison.OrdinalIgnoreCase));
 
     private static bool KindMatches(string? filter, string kind) =>
         string.IsNullOrWhiteSpace(filter)

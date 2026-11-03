@@ -19,13 +19,13 @@ namespace MediaEngine.Api.Services.Matching;
 public interface IEpisodeSiblingMatcher
 {
     /// <summary>The other episodes of the item's folder season and the episode of the chosen season each would take. Null when the item is not a TV episode.</summary>
-    Task<EpisodeSiblingMatchPreviewDto?> PreviewAsync(Guid entityId, string seriesId, int seasonNumber, LibraryMoveAccess? canEdit, CancellationToken ct);
+    Task<EpisodeSiblingMatchPreviewDto?> PreviewAsync(Guid entityId, string seriesId, int seasonNumber, LibraryMoveAccess canEdit, CancellationToken ct);
 
     /// <summary>The plain-English reason the match cannot be done, or null when it can.</summary>
-    Task<string?> CheckAsync(Guid entityId, EpisodeSiblingMatchTarget target, LibraryMoveAccess? canEdit, CancellationToken ct);
+    Task<string?> CheckAsync(Guid entityId, EpisodeSiblingMatchTarget target, LibraryMoveAccess canEdit, CancellationToken ct);
 
     /// <summary>Matches every other episode that has its number in the chosen season. Throws, naming how many were matched, when any fails.</summary>
-    Task ApplyAsync(Guid entityId, EpisodeSiblingMatchTarget target, LibraryMoveAccess? canEdit, CancellationToken ct);
+    Task ApplyAsync(Guid entityId, EpisodeSiblingMatchTarget target, LibraryMoveAccess canEdit, CancellationToken ct);
 }
 
 /// <summary>The rules of the by-number match that need no provider, kept apart so they can be tested directly.</summary>
@@ -107,7 +107,7 @@ public sealed class EpisodeSiblingMatcher(
     ILogger<EpisodeSiblingMatcher> logger) : IEpisodeSiblingMatcher
 {
     public async Task<EpisodeSiblingMatchPreviewDto?> PreviewAsync(
-        Guid entityId, string seriesId, int seasonNumber, LibraryMoveAccess? canEdit, CancellationToken ct)
+        Guid entityId, string seriesId, int seasonNumber, LibraryMoveAccess canEdit, CancellationToken ct)
     {
         var context = await items.ResolveWorkAssetContextAsync(entityId, ct).ConfigureAwait(false);
         if (context is null || !string.Equals(context.MediaType, "TV", StringComparison.OrdinalIgnoreCase))
@@ -151,7 +151,7 @@ public sealed class EpisodeSiblingMatcher(
         foreach (var row in EpisodeSiblingMatchPlan.Pair(entityId, candidates, byNumber))
         {
             // A file the person may not change is left out, as the save would leave it out.
-            if (canEdit is not null && !await canEdit(row.EntityId, LibraryMoveRight.Match, ct).ConfigureAwait(false))
+            if (!await canEdit(row.EntityId, LibraryMoveRight.Match, ct).ConfigureAwait(false))
             {
                 continue;
             }
@@ -163,7 +163,7 @@ public sealed class EpisodeSiblingMatcher(
         return preview;
     }
 
-    public async Task<string?> CheckAsync(Guid entityId, EpisodeSiblingMatchTarget target, LibraryMoveAccess? canEdit, CancellationToken ct)
+    public async Task<string?> CheckAsync(Guid entityId, EpisodeSiblingMatchTarget target, LibraryMoveAccess canEdit, CancellationToken ct)
     {
         if (!tvdb.IsConfigured("tvdb"))
         {
@@ -174,7 +174,7 @@ public sealed class EpisodeSiblingMatcher(
         return preview is null ? "This item is not a TV episode." : null;
     }
 
-    public async Task ApplyAsync(Guid entityId, EpisodeSiblingMatchTarget target, LibraryMoveAccess? canEdit, CancellationToken ct)
+    public async Task ApplyAsync(Guid entityId, EpisodeSiblingMatchTarget target, LibraryMoveAccess canEdit, CancellationToken ct)
     {
         var preview = await PreviewAsync(entityId, target.SeriesId, target.SeasonNumber, canEdit, ct).ConfigureAwait(false)
             ?? throw new InvalidOperationException("This item is not a TV episode.");
