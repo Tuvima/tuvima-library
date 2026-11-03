@@ -29,7 +29,14 @@ public static class EditSessionChangeKinds
     /// </summary>
     public const string ExtraMove = "extra_move";
 
-    public static readonly IReadOnlyList<string> All = [Details, Identity, Relationship, Artwork, FileMove, ExtraMove];
+    /// <summary>
+    /// "Match the other episodes in this season by number" (universal editor v3, D4): after an episode is matched into a show, the other
+    /// episodes in its folder season take the same season of that show by their own episode numbers. The target is an
+    /// <see cref="EpisodeSiblingMatchTarget"/> (see <see cref="EditSessionSiblingMatchTarget"/>). Like an identity change it cannot be undone.
+    /// </summary>
+    public const string SiblingMatch = "sibling_match";
+
+    public static readonly IReadOnlyList<string> All = [Details, Identity, Relationship, Artwork, FileMove, ExtraMove, SiblingMatch];
 
     public static bool IsKnown(string? kind) => kind is not null && All.Contains(kind, StringComparer.Ordinal);
 

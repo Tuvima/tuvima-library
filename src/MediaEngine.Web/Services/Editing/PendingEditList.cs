@@ -12,6 +12,7 @@ public sealed class PendingEditList
 {
     private readonly List<EditSessionChange> _changes = [];
     private readonly Dictionary<string, string> _labels = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _notes = new(StringComparer.Ordinal);
 
     public event Action? Changed;
 
@@ -91,8 +92,9 @@ public sealed class PendingEditList
     /// <summary>
     /// Stages an identity, relationship or file-move change; one per item and kind, a later one replacing the earlier.
     /// <paramref name="label"/> is an optional name for the chosen record or destination, shown in Review changes; it is never sent to the Engine.
+    /// <paramref name="note"/> is an optional plain warning Review shows on the row (for example "Not on this album"); also never sent.
     /// </summary>
-    public void SetTarget(string kind, Guid entityId, string? targetId, string? token = null, string? label = null)
+    public void SetTarget(string kind, Guid entityId, string? targetId, string? token = null, string? label = null, string? note = null)
     {
         if (kind is EditSessionChangeKinds.Details or EditSessionChangeKinds.Artwork or EditSessionChangeKinds.ExtraMove || !EditSessionChangeKinds.IsKnown(kind))
         {
@@ -107,7 +109,7 @@ public sealed class PendingEditList
             EntityId = entityId,
             TargetId = targetId,
             Token = token,
-        }, label);
+        }, label, note);
     }
 
     /// <summary>
@@ -138,6 +140,9 @@ public sealed class PendingEditList
     /// <summary>The name given for a staged identity, relationship or artwork choice, or null when none was given.</summary>
     public string? Label(string changeId) => _labels.GetValueOrDefault(changeId);
 
+    /// <summary>The warning given for a staged change, or null when none was given.</summary>
+    public string? Note(string changeId) => _notes.GetValueOrDefault(changeId);
+
     /// <summary>Removes one staged change by its id (the row's menu in Review changes).</summary>
     public bool Remove(string changeId)
     {
@@ -145,6 +150,7 @@ public sealed class PendingEditList
         if (removed)
         {
             _labels.Remove(changeId);
+            _notes.Remove(changeId);
             Changed?.Invoke();
         }
 
@@ -158,7 +164,11 @@ public sealed class PendingEditList
         var removed = _changes.RemoveAll(c => c.EntityId == entityId);
         if (removed > 0)
         {
-            gone.ForEach(id => _labels.Remove(id));
+            gone.ForEach(id =>
+            {
+                _labels.Remove(id);
+                _notes.Remove(id);
+            });
             Changed?.Invoke();
         }
 
@@ -175,6 +185,7 @@ public sealed class PendingEditList
 
         _changes.Clear();
         _labels.Clear();
+        _notes.Clear();
         Changed?.Invoke();
     }
 
@@ -188,7 +199,7 @@ public sealed class PendingEditList
     private EditSessionChange? Find(string kind, Guid entityId) =>
         _changes.FirstOrDefault(c => c.Kind == kind && c.EntityId == entityId);
 
-    private void Replace(EditSessionChange? existing, EditSessionChange next, string? label = null)
+    private void Replace(EditSessionChange? existing, EditSessionChange next, string? label = null, string? note = null)
     {
         if (string.IsNullOrWhiteSpace(label))
         {
@@ -197,6 +208,15 @@ public sealed class PendingEditList
         else
         {
             _labels[next.Id] = label.Trim();
+        }
+
+        if (string.IsNullOrWhiteSpace(note))
+        {
+            _notes.Remove(next.Id);
+        }
+        else
+        {
+            _notes[next.Id] = note.Trim();
         }
 
         if (existing is null)

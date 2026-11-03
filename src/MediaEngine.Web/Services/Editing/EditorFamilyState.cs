@@ -262,6 +262,9 @@ public sealed class EditorFamilyState
         return trail;
     }
 
+    /// <summary>Whether the tree says an item is matched: true or false for an item it lists, null for one it does not know.</summary>
+    public bool? IsMatched(Guid entityId) => _nodes.TryGetValue(entityId, out var node) ? node.Matched : null;
+
     /// <summary>The name of an item in the tree, or null.</summary>
     public string? NameOf(Guid entityId) => _nodes.TryGetValue(entityId, out var node) ? node.Title : null;
 

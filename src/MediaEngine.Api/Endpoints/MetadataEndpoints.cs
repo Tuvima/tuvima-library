@@ -2227,6 +2227,7 @@ public static partial class MetadataEndpoints
 
         MapTvdbScopedMatchEndpoints(group);
         MapTvMatchBrowserEndpoints(group);
+        MapMatchContextEndpoints(group);
         MapArtworkWritebackEndpoints(group);
         MapArtworkWritebackStatusesEndpoint(group);
         return app;

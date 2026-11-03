@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Details
 @using System.Net.Http
+@using MediaEngine.Contracts.Editing
 @using MediaEngine.Contracts.Metadata
 @using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Integration
@@ -15,6 +16,11 @@
 <div class="tl-tvm" data-scope="@(NeedsEpisode ? "episode" : "show")">
     <section class="tl-tvm__column tl-tvm__column--shows" aria-label="@L["EditorTvMatchBrowser_Show"].Value">
         <h3 class="tl-tvm__heading">@L["EditorTvMatchBrowser_Show"]</h3>
+        @if (NeedsEpisode)
+        {
+            <AppButton Label="@L["EditorTvMatchBrowser_SearchAllShows"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
+                       aria-label="@L["EditorTvMatchBrowser_SearchAllShows"].Value" OnClick="SearchAllShows" />
+        }
         <div class="tl-tvm__search">
             <AppTextField Label="@L["EditorTvMatchBrowser_SearchShows"].Value" HideLabel="true" Value="@_query" ValueChanged="@(value => _query = value ?? string.Empty)"
                           Placeholder="@L["EditorTvMatchBrowser_SearchForAShow"].Value" Immediate="true" OnKeyDown="OnQueryKey" aria-label="@L["EditorTvMatchBrowser_SearchForAShow"].Value" />
@@ -35,12 +41,13 @@
         else
         {
             <div class="tl-tvm__list" role="list">
-                @foreach (var show in _shows)
+                @for (var showIndex = 0; showIndex < _shows.Count; showIndex++)
                 {
+                    var show = _shows[showIndex];
                     <div class="tl-tvm__row @(IsActiveShow(show) ? "is-active" : null)" role="listitem">
                         @Art(show.ImageUrl)
                         <div class="tl-tvm__text">
-                            <div class="tl-tvm__title">@show.Name @if (show.IsCurrent) { <AppChip Text="@L["EditorTvMatchBrowser_ThisItemSShow"].Value" Tone="AppUiTone.Neutral" /> }</div>
+                            <div class="tl-tvm__title">@show.Name @if (show.IsCurrent) { <AppChip Text="@L["EditorTvMatchBrowser_ThisItemSShow"].Value" Tone="AppUiTone.Neutral" /> } @if (IsBestGuess(show, showIndex)) { <AppChip Text="@L["EditorTvMatchBrowser_BestGuess"].Value" Tone="AppUiTone.Primary" Class="tl-tvm__best" /> }</div>
                             @if (!string.IsNullOrWhiteSpace(show.Year))
                             {
                                 <div class="tl-tvm__meta">@show.Year</div>
@@ -123,7 +130,7 @@
                         <div class="tl-tvm__row" role="listitem" data-slot="@EditorTvMatchCandidates.SlotLabel(episode.SeasonNumber, episode.EpisodeNumber)">
                             <span class="tl-tvm__slot">@EditorTvMatchCandidates.SlotLabel(episode.SeasonNumber, episode.EpisodeNumber)</span>
                             <div class="tl-tvm__text">
-                                <div class="tl-tvm__title">@episode.Title @if (episode.IsCurrent) { <AppChip Text="@L["EditorTvMatchBrowser_ThisEpisode"].Value" Tone="AppUiTone.Neutral" /> }</div>
+                                <div class="tl-tvm__title">@episode.Title @if (episode.IsCurrent) { <AppChip Text="@L["EditorTvMatchBrowser_ThisEpisode"].Value" Tone="AppUiTone.Neutral" /> } @if (IsParsedEpisode(episode)) { <AppChip Text="@L["EditorTvMatchBrowser_BestGuess"].Value" Tone="AppUiTone.Primary" Class="tl-tvm__best" /> }</div>
                                 <div class="tl-tvm__meta">@EpisodeLine(episode)</div>
                             </div>
                             <AppButton Label="@L["Common_Select"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
@@ -140,6 +147,7 @@
     private CancellationTokenSource? _cts;
     private Guid _startedFor;
     private string _query = string.Empty;
+    private bool _searchedByHand;
     private bool _showsLoading;
     private string? _showsProblem;
     private IReadOnlyList<TvMatchBrowserShowDto> _shows = [];
@@ -157,6 +165,12 @@
 
     /// <summary>False when the person may look but not change.</summary>
     [Parameter] public bool CanEdit { get; set; } = true;
+
+    /// <summary>True when the item is not matched: the search starts from the file name and the top answer is tagged "Best guess".</summary>
+    [Parameter] public bool Unmatched { get; set; }
+
+    /// <summary>What the Engine read from the item's file name, and its best guess (universal editor v3, WP4); null when not read.</summary>
+    [Parameter] public EditorMatchContextDto? Context { get; set; }
 
     /// <summary>Raised when a show is chosen (a show page).</summary>
     [Parameter] public EventCallback<TvMatchBrowserShowDto> OnShowChosen { get; set; }
@@ -177,12 +191,53 @@
 
         _startedFor = Subject.EntityId;
         // An episode starts on its own show: by name when known, otherwise blank, which the Engine answers with the item's stored show.
-        _query = NeedsEpisode ? Subject.ParentLabel ?? string.Empty : Subject.Title;
+        _query = StartingQuery();
         _show = null;
         _season = null;
         _seasons = [];
         _episodes = [];
+        _searchedByHand = false;
         await SearchShowsAsync();
+    }
+
+    // A failed item starts from what its file name says; an item that is matched starts from its own show (an episode) or title (a show).
+    private string StartingQuery()
+    {
+        if (Unmatched && !string.IsNullOrWhiteSpace(Context?.ParsedShow))
+        {
+            return Context!.ParsedShow!;
+        }
+
+        if (Unmatched && !NeedsEpisode && !string.IsNullOrWhiteSpace(Context?.ParsedTitle))
+        {
+            return Context!.ParsedTitle!;
+        }
+
+        return NeedsEpisode ? Subject!.ParentLabel ?? string.Empty : Subject!.Title;
+    }
+
+    // The Engine's own guess when it made one; otherwise the top answer to a search that started from the file name.
+    private bool IsBestGuess(TvMatchBrowserShowDto show, int index) =>
+        Unmatched && (Context?.BestGuess is { } guess
+            ? string.Equals(guess.ProviderItemId, show.SeriesId, StringComparison.Ordinal)
+            : index == 0 && !_searchedByHand);
+
+    private bool IsParsedEpisode(TvMatchBrowserEpisodeDto episode) =>
+        Unmatched && Context is { ParsedEpisode: { } number } && episode.EpisodeNumber == number
+        && (Context.ParsedSeason is null || Context.ParsedSeason == episode.SeasonNumber);
+
+    private async Task SearchAllShows()
+    {
+        // The Show column already searches every show on TheTVDB; this clears the box so a name typed next is not mixed with the item's own.
+        _query = string.Empty;
+        _show = null;
+        _season = null;
+        _seasons = [];
+        _episodes = [];
+        _searchedByHand = true;
+        _shows = [];
+        _showsProblem = "Type a show name to search all shows.";
+        await Task.CompletedTask;
     }
 
     private static string EpisodeLine(TvMatchBrowserEpisodeDto episode)
@@ -243,6 +298,8 @@
         }
 
         var text = _query.Trim();
+        _searchedByHand = text != StartingQuery();
+
         var ct = NewToken();
         _showsLoading = true;
         _showsProblem = null;
@@ -274,9 +331,15 @@
         }
 
         _showsLoading = false;
-        if (NeedsEpisode && _show is null && _shows.FirstOrDefault(show => show.IsCurrent) is { } own)
+        // An episode opens on its own show; a failed one opens on the Engine's best guess, so the season and episode are already in view.
+        var start = _shows.FirstOrDefault(show => show.IsCurrent && !Unmatched)
+                    ?? (Unmatched && !_searchedByHand && Context?.BestGuess is { } guess
+                        ? _shows.FirstOrDefault(show => show.SeriesId == guess.ProviderItemId)
+                        : null)
+                    ?? _shows.FirstOrDefault(show => show.IsCurrent);
+        if (NeedsEpisode && _show is null && start is not null)
         {
-            await OpenShowAsync(own);
+            await OpenShowAsync(start);
         }
     }
 
@@ -317,7 +380,9 @@
         }
 
         _seasonsLoading = false;
-        var current = _seasons.FirstOrDefault(s => s.IsCurrent);
+        // The season the file name names comes first for a failed item; otherwise the item's own season.
+        var current = (Unmatched && Context?.ParsedSeason is { } parsedSeason ? _seasons.FirstOrDefault(s => s.SeasonNumber == parsedSeason) : null)
+                      ?? _seasons.FirstOrDefault(s => s.IsCurrent);
         if (current is not null && _seasonsProblem is null)
         {
             await OpenSeasonAsync(current);

@@ -478,6 +478,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
                 EditSessionChangeKinds.Relationship => "Relationship",
                 EditSessionChangeKinds.FileMove => "File move",
                 EditSessionChangeKinds.ExtraMove => "Extras move",
+                EditSessionChangeKinds.SiblingMatch => "Other episodes",
                 _ => "Details",
             };
         }

@@ -1,8 +1,10 @@
 @namespace MediaEngine.Web.Components.Details
 @using System.Net.Http
+@using System.Globalization
 @using MediaEngine.Contracts.Editing
 @using MediaEngine.Contracts.Library
 @using MediaEngine.Contracts.Matching
+@using MediaEngine.Domain
 @using MediaEngine.Contracts.Metadata
 @using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Integration
@@ -56,6 +58,12 @@
     private bool _staged;
     private int _selectedIndex;
     private string? _focusAfterRender;
+    private EditorMatchContextDto? _context;
+    private bool _contextReady;
+    private EpisodeSiblingMatchPreviewDto? _siblings;
+    private bool _siblingsLoading;
+    private bool _siblingsFailed;
+    private bool _matchSiblings;
 
     private enum PlaceState { None, Checking, Found, Unavailable }
 
@@ -72,6 +80,12 @@
 
     /// <summary>Editing Mode, for the video lookup that sits below the search for a video that has no match yet. Optional.</summary>
     [Parameter] public EditingModeContext? Mode { get; set; }
+
+    /// <summary>
+    /// True when the item is not matched yet (or its last match failed): the search then starts from what the file name says (the parsed show,
+    /// season and episode) and the top result is tagged "Best guess". An item that is matched starts from its own details.
+    /// </summary>
+    [Parameter] public bool IsUnmatched { get; set; }
 
     /// <summary>Raised after the video lookup matched something, so the page can refresh.</summary>
     [Parameter] public EventCallback OnMatched { get; set; }
@@ -103,17 +117,77 @@
         _query = Subject.Title;
         _provider = string.Empty;
         _selected = null;
+        _siblings = null;
         _results = [];
         _searched = false;
+        _contextReady = false;
+        _context = await LoadContextAsync(Subject.EntityId);
+        _contextReady = true;
+        if (IsUnmatched && !UsesTvBrowser && !string.IsNullOrWhiteSpace(_context?.ParsedTitle))
+        {
+            // A failed item starts from its file name, not from the title the failed match left behind.
+            _query = _context!.ParsedTitle!;
+        }
+
         await SearchAsync();
+    }
+
+    private async Task<EditorMatchContextDto?> LoadContextAsync(Guid entityId)
+    {
+        try
+        {
+            return await Api.GetEditorMatchContextAsync(entityId);
+        }
+        catch (HttpRequestException ex)
+        {
+            // The search still starts from the item's own details; only the file-name hint and the best guess are missing.
+            Logger.LogWarning(ex, "The Match context could not be read for {EntityId}", entityId);
+            return null;
+        }
+    }
+
+    private string? FileNameHint => IsUnmatched && _context is { FileName.Length: > 0 } ? FileNameHintText(_context) : null;
+
+    internal static string FileNameHintText(EditorMatchContextDto context)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(context.ParsedShow))
+        {
+            parts.Add(context.ParsedShow!);
+        }
+
+        if (context.ParsedSeason is { } season && context.ParsedEpisode is { } episode)
+        {
+            parts.Add(EditorTvMatchCandidates.SlotLabel(season, episode));
+        }
+        else if (context.ParsedEpisode is { } episodeOnly)
+        {
+            parts.Add($"episode {episodeOnly.ToString(CultureInfo.InvariantCulture)}");
+        }
+
+        if (parts.Count == 0 && !string.IsNullOrWhiteSpace(context.ParsedTitle))
+        {
+            parts.Add(context.ParsedTitle!);
+        }
+
+        return parts.Count == 0 ? $"From the file name: {context.FileName}" : $"From the file name ({context.FileName}): {string.Join(" · ", parts)}";
     }
 
     private RenderFragment FindStep() => __builder =>
     {
         <div class="tl-match__find">
-            @if (UsesTvBrowser)
+            @if (FileNameHint is { } hint)
             {
-                <EditorTvMatchBrowser Subject="Subject" CanEdit="CanEdit" OnShowChosen="OnShowChosenAsync" OnEpisodeChosen="OnEpisodeChosenAsync" />
+                <p class="tl-match__hint" data-testid="match-file-hint">@hint</p>
+            }
+            @if (UsesTvBrowser && !_contextReady)
+            {
+                <div aria-busy="true" aria-label="Reading the file name"><AppSkeleton Shape="AppSkeletonShape.Text" Width="60%" /></div>
+            }
+            else if (UsesTvBrowser)
+            {
+                <EditorTvMatchBrowser Subject="Subject" CanEdit="CanEdit" Unmatched="IsUnmatched" Context="_context"
+                                      OnShowChosen="OnShowChosenAsync" OnEpisodeChosen="OnEpisodeChosenAsync" />
             }
             else
             {
@@ -251,6 +325,13 @@
                 <AppSwitchRow Label="Use as the retail match"
                               Description="Which provider record this item is. It does not move the item."
                               Value="@_useRetail" ValueChanged="@(value => { _useRetail = value; _staged = false; })" Disabled="@(!CanEdit)" />
+                @if (_siblingTarget is not null)
+                {
+                    <AppSwitchRow Label="@SiblingsLabel"
+                                  Description="@SiblingsDescription"
+                                  Value="@_matchSiblings" ValueChanged="@(value => { _matchSiblings = value; _staged = false; })"
+                                  Disabled="@(!CanEdit || !_useRetail || SiblingCount == 0)" />
+                }
                 <AppSwitchRow Label="@ParentSwitchLabel"
                               Description="@ParentSwitchDescription"
                               Value="@_moveParent" ValueChanged="@(value => { _moveParent = value; _staged = false; })"
@@ -284,6 +365,21 @@
             <span class="tl-match__fact-value">@(string.IsNullOrWhiteSpace(value) ? "Not set" : value)</span>
         </div>
     };
+
+    // The other episodes of the folder season: only an episode chosen from the TV browser has them (a show, a film or a song has none).
+    private EpisodeSiblingMatchTarget? _siblingTarget;
+
+    private int SiblingCount => _siblings?.MatchableCount ?? 0;
+
+    private string SiblingsLabel => _siblings is null
+        ? "Match the other episodes in this season by number"
+        : $"Match the other {SiblingCount.ToString(CultureInfo.InvariantCulture)} {(SiblingCount == 1 ? "episode" : "episodes")} in this season by number";
+
+    private string SiblingsDescription =>
+        _siblingsLoading ? "Checking the season..."
+        : _siblingsFailed || _siblings is null ? "The other episodes could not be checked right now."
+        : SiblingCount == 0 ? "No other episode in this folder has a number this season of the show also has."
+        : $"Each takes the episode of {_siblings.ShowName} season {_siblings.SeasonNumber.ToString(CultureInfo.InvariantCulture)} with its own number. Nothing moves.";
 
     private IReadOnlyList<AppSelectOption> ProviderOptions =>
         [new AppSelectOption(string.Empty, "All providers"), .. _providers.Select(p => new AppSelectOption(p.Name, string.IsNullOrWhiteSpace(p.DisplayName) ? p.Name : p.DisplayName))];
@@ -458,7 +554,58 @@
         _placeReason = null;
         _files = FilesState.Checking;
         _filesReason = null;
-        await CheckPlaceAndFilesAsync(candidate);
+        _siblings = null;
+        _siblingsFailed = false;
+        _matchSiblings = false;
+        _siblingTarget = SiblingTargetOf(candidate);
+        await Task.WhenAll(CheckPlaceAndFilesAsync(candidate), LoadSiblingsAsync(candidate));
+    }
+
+    // A chosen episode carries the show and season it was chosen in; the by-number match covers the other episodes of the folder season.
+    private EpisodeSiblingMatchTarget? SiblingTargetOf(ItemCanonicalRetailCandidateDto candidate)
+    {
+        if (!UsesTvBrowser || Subject is null || !EditorTvMatchCandidates.NeedsEpisode(Subject.ScopeId)
+            || !candidate.BridgeIds.TryGetValue(BridgeIdKeys.TvdbEpisodeId, out _)
+            || !candidate.BridgeIds.TryGetValue(BridgeIdKeys.TvdbId, out var series)
+            || !candidate.RequiredFields.TryGetValue(MetadataFieldConstants.SeasonNumber, out var seasonText)
+            || !int.TryParse(seasonText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var season))
+        {
+            return null;
+        }
+
+        return new EpisodeSiblingMatchTarget { SeriesId = series, SeasonNumber = season };
+    }
+
+    private async Task LoadSiblingsAsync(ItemCanonicalRetailCandidateDto candidate)
+    {
+        if (Subject is null || _siblingTarget is not { } target)
+        {
+            return;
+        }
+
+        _siblingsLoading = true;
+        try
+        {
+            var preview = await Api.PreviewEpisodeSiblingMatchAsync(Subject.EntityId, target.SeriesId, target.SeasonNumber);
+            if (!ReferenceEquals(_selected, candidate))
+            {
+                return;
+            }
+
+            _siblings = preview;
+            _siblingsFailed = preview is null;
+            // On by default as soon as a show is chosen and there is something to match (spec D4); the person can turn it off.
+            _matchSiblings = preview is { MatchableCount: > 0 };
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "The other episodes of the season could not be checked for {EntityId}", Subject.EntityId);
+            _siblingsFailed = true;
+        }
+        finally
+        {
+            _siblingsLoading = false;
+        }
     }
 
     // Where the match would put the item, and whether its files could follow. Both are only asked about, never changed.
@@ -603,9 +750,25 @@
             }
         }
 
+        if (_useRetail && _matchSiblings && _siblingTarget is { } siblingTarget && SiblingCount > 0)
+        {
+            pending.SetTarget(EditSessionChangeKinds.SiblingMatch, id, EditSessionSiblingMatchTarget.Serialize(siblingTarget),
+                label: $"{SiblingCount.ToString(CultureInfo.InvariantCulture)} other {(SiblingCount == 1 ? "episode" : "episodes")} of {_siblings!.ShowName} season {siblingTarget.SeasonNumber.ToString(CultureInfo.InvariantCulture)}, by number");
+        }
+        else
+        {
+            Unstage(pending, EditSessionChangeKinds.SiblingMatch, id);
+        }
+
         if (_moveParent && _destination is not null)
         {
-            pending.SetTarget(EditSessionChangeKinds.Relationship, id, _destination.Id.ToString("D"), label: string.IsNullOrWhiteSpace(_destination.ParentLabel) ? _destination.Label : $"{_destination.Label} ({_destination.ParentLabel})");
+            // Moving into the place the chosen match names is the point of the switch; moving anywhere else is flagged for Review.
+            var note = EditorPlacementRules.NotThereNote(
+                Subject.MediaType,
+                new EditorPlacementRules.Place(_destination.Label, _destination.ParentLabel),
+                EditorPlacementRules.StagedMatchPlace(pending, id, Subject.MediaType));
+            pending.SetTarget(EditSessionChangeKinds.Relationship, id, _destination.Id.ToString("D"),
+                label: string.IsNullOrWhiteSpace(_destination.ParentLabel) ? _destination.Label : $"{_destination.Label} ({_destination.ParentLabel})", note: note);
         }
         else
         {

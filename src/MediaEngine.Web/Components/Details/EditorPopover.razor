@@ -67,7 +67,11 @@
                                       Session="flow.Session"
                                       CanEdit="@mode.CanEdit"
                                       Mode="mode"
+                                      IsUnmatched="@IsActiveUnmatched"
                                       OnMatched="@(() => Editor.NotifyCommittedAsync())" />
+                    <EditorPlacementPicker Subject="@(mode.Fields.Loading ? null : mode.Fields.MatchSubject())"
+                                           Session="flow.Session"
+                                           CanEdit="@mode.CanEdit" />
                     <EditorExtrasMovePanel Subject="@(mode.Fields.Loading ? null : mode.Fields.MatchSubject())"
                                            Extras="binding?.Extras"
                                            Session="flow.Session"
@@ -89,6 +93,10 @@
         BackdropClick = false,
         CloseOnEscapeKey = true,
     };
+
+    // Match is where a failed item is fixed: the tree's own mark wins for an item it lists, else the page's answer for the item it was opened on.
+    private bool IsActiveUnmatched => Editor.Session.ActiveItem is { } active
+        && (Editor.Family.IsMatched(active.EntityId) is { } matched ? !matched : Editor.Binding?.IsUnmatched == true);
 
     private string DialogLabel => Editor.Batch.Panel == BulkPanelKind.None
         ? $"Editing {Editor.Session.ActiveItem?.Title ?? "item"}"

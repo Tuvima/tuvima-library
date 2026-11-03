@@ -50,6 +50,8 @@ public static class EditReviewRows
 
     public const string ExtraToEpisodeNote = "The file stays where it is and is added to your Library as that episode.";
 
+    public const string SiblingMatchNote = "Each other episode in this season takes the episode with its own number. Matching cannot be undone from here.";
+
     public const string FileMoveWarning = "Moves the files on disk. This cannot be undone.";
 
     public static string GroupTitle(EditReviewGroup group) => group switch
@@ -99,7 +101,11 @@ public static class EditReviewRows
                     break;
                 case EditSessionChangeKinds.Identity:
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Identity, item,
-                        "Match", null, label ?? IdentityText(change.TargetId), null));
+                        "Match", CurrentMatchText(fields, change.EntityId), label ?? IdentityText(change.TargetId), null));
+                    break;
+                case EditSessionChangeKinds.SiblingMatch:
+                    rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Identity, item,
+                        "Other episodes", "Matched as they are now", label ?? "The other episodes in this season, by number", SiblingMatchNote));
                     break;
                 case EditSessionChangeKinds.Artwork:
                     var removal = string.Equals(change.TargetId, EditSessionArtworkTargets.None, StringComparison.OrdinalIgnoreCase);
@@ -108,7 +114,7 @@ public static class EditReviewRows
                     break;
                 case EditSessionChangeKinds.Relationship:
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Relationships, item,
-                        "Moves to", null, label ?? "The chosen place", null));
+                        "Moves to", null, label ?? "The chosen place", pending.Note(change.Id)));
                     break;
                 case EditSessionChangeKinds.ExtraMove:
                     var toExtras = EditSessionExtraMove.IsToExtras(change.Token);
@@ -124,6 +130,36 @@ public static class EditReviewRows
 
         // Stable: groups in the spec's order, each keeping the order the changes were staged in.
         return rows.OrderBy(row => row.Group).ToList();
+    }
+
+    // What the loaded item is matched as now (show, season and episode, title), so a re-match shows its before and after.
+    private static string? CurrentMatchText(ItemFieldEditSession? fields, Guid entityId)
+    {
+        if (fields is null || fields.EntityId != entityId)
+        {
+            return null;
+        }
+
+        string? Read(string key) => fields.Find(key) is { } field ? FirstText(field.DisplayValue, field.Value) : null;
+
+        var parts = new List<string>();
+        if (Read("show_name") is { } show)
+        {
+            parts.Add(show);
+        }
+
+        if (int.TryParse(Read("season_number"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var season)
+            && int.TryParse(Read("episode_number"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var episode))
+        {
+            parts.Add(EditorTvMatchCandidates.SlotLabel(season, episode));
+        }
+
+        if (Read("title") is { } title)
+        {
+            parts.Add(title);
+        }
+
+        return parts.Count == 0 ? null : string.Join(" · ", parts);
     }
 
     // "release_year" reads "Release year" when no loaded item gives the field its own label.

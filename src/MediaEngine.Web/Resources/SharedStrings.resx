@@ -9780,4 +9780,61 @@
   <data name="EditorFamily_Matched" xml:space="preserve">
     <value>Matched</value>
   </data>
+  <data name="EditorTvMatchBrowser_SearchAllShows" xml:space="preserve">
+    <value>Search all shows</value>
+  </data>
+  <data name="EditorTvMatchBrowser_BestGuess" xml:space="preserve">
+    <value>Best guess</value>
+  </data>
+  <data name="EditorPlacementPicker_Staged" xml:space="preserve">
+    <value>Staged: moves to {0}.</value>
+  </data>
+  <data name="EditorPlacementPicker_Undo" xml:space="preserve">
+    <value>Undo</value>
+  </data>
+  <data name="EditorPlacementPicker_SearchPlaces" xml:space="preserve">
+    <value>Search places</value>
+  </data>
+  <data name="EditorPlacementPicker_SearchFor" xml:space="preserve">
+    <value>Search for an {0}</value>
+  </data>
+  <data name="EditorPlacementPicker_Search" xml:space="preserve">
+    <value>Search</value>
+  </data>
+  <data name="EditorPlacementPicker_Searching" xml:space="preserve">
+    <value>Searching</value>
+  </data>
+  <data name="EditorPlacementPicker_Select" xml:space="preserve">
+    <value>Select</value>
+  </data>
+  <data name="EditorPlacementPicker_SelectPlace" xml:space="preserve">
+    <value>Select {0}</value>
+  </data>
+  <data name="EditorPlacementPicker_NothingMatches" xml:space="preserve">
+    <value>Nothing in your library matches that. A place has to exist before an item can move into it.</value>
+  </data>
+  <data name="EditorPlacementPicker_WhereItGoes" xml:space="preserve">
+    <value>Where it goes</value>
+  </data>
+  <data name="EditorPlacementPicker_MovesTo" xml:space="preserve">
+    <value>moves to</value>
+  </data>
+  <data name="EditorPlacementPicker_CheckingFiles" xml:space="preserve">
+    <value>Checking the files...</value>
+  </data>
+  <data name="EditorPlacementPicker_LeavesBehind" xml:space="preserve">
+    <value>Whatever it leaves behind stays in your library, even if it is left empty.</value>
+  </data>
+  <data name="EditorPlacementPicker_RenameFiles" xml:space="preserve">
+    <value>Rename and move the files</value>
+  </data>
+  <data name="EditorPlacementPicker_RenameFilesDescription" xml:space="preserve">
+    <value>Renames and moves the files to fit. Off unless you turn it on.</value>
+  </data>
+  <data name="EditorPlacementPicker_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="EditorPlacementPicker_UsePlace" xml:space="preserve">
+    <value>Use this place</value>
+  </data>
 </root>
