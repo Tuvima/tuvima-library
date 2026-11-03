@@ -4993,7 +4993,7 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewScopeRes
   AvailableScopes: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewScopeOptionDto> | nullability=not-null | accessors=get,init
   CanBrowseOtherPeople: System.Boolean | nullability=not-null | accessors=get,init
   CanViewDocuments: System.Boolean | nullability=not-null | accessors=get,init
-  CanFileSharedInbox: System.Boolean | nullability=not-null | accessors=get,init
+  CanEditSharedDocuments: System.Boolean | nullability=not-null | accessors=get,init
   CanViewPhotos: System.Boolean | nullability=not-null | accessors=get,init
   CanViewPersonalVideos: System.Boolean | nullability=not-null | accessors=get,init
 

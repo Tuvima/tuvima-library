@@ -246,31 +246,21 @@ public sealed class ViewDocumentInboxUiTests : AsyncBunitContext
     }
 
     [Fact]
-    public void AnotherScopeShowsTheSameCardsReadOnly()
+    public void TheSharedLibraryHasNoInboxAndNeverAsksForOne()
     {
         _handler.ScopeKind = 0;
-        var cut = RenderInbox();
+        _handler.CanEditSharedDocuments = true;
+        var cut = Render<ViewDocumentsPage>();
 
-        Assert.Equal(2, cut.FindAll(".view-inbox-card").Count);
-        Assert.Contains("City Water", cut.Markup, StringComparison.Ordinal);
-        Assert.Empty(cut.FindAll(".view-inbox-card__file"));
-        Assert.Empty(cut.FindAll(".view-inbox-card__file-plain"));
-        Assert.Empty(cut.FindAll("button.view-inbox-chip"));
-        Assert.Empty(cut.FindAll(".view-inbox-card__summary[tabindex]"));
-        // The Shared Inbox says who files it.
-        Assert.All(cut.FindAll(".view-inbox-card__note"), note => Assert.Equal("Filed by a household administrator", note.TextContent.Trim()));
-        Assert.Equal(2, cut.FindAll(".view-inbox-card__note").Count);
-    }
-
-    [Fact]
-    public void ASharedInboxCanBeFiledByAHouseholdAdministrator()
-    {
-        _handler.ScopeKind = 0;
-        _handler.CanFileSharedInbox = true;
-        var cut = RenderInbox();
-
-        Assert.Equal(2, cut.FindAll(".view-inbox-card__file").Count);
-        Assert.Empty(cut.FindAll(".view-inbox-card__note"));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".view-documents-rail [role=radio]")));
+        var choices = cut.FindAll(".view-documents-rail [role=radio]");
+        Assert.Single(choices);
+        Assert.Equal("All documents", choices[0].TextContent.Trim());
+        Assert.DoesNotContain("Inbox", cut.Find(".view-documents-rail").TextContent, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll(".view-inbox-card"));
+        Assert.DoesNotContain("Filed by a household administrator", cut.Markup, StringComparison.Ordinal);
+        Assert.DoesNotContain(_handler.Requests, request => request.StartsWith("/view/documents/inbox-summary?scope=shared", StringComparison.Ordinal));
+        Assert.DoesNotContain(_handler.Requests, request => request.Contains("filing=inbox", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -369,7 +359,7 @@ public sealed class ViewDocumentInboxUiTests : AsyncBunitContext
         public List<string> Requests { get; } = [];
         public int InboxCount { get; set; } = 2;
         public int ScopeKind { get; set; } = 1;
-        public bool CanFileSharedInbox { get; set; }
+        public bool CanEditSharedDocuments { get; set; }
         public HttpStatusCode FileStatus { get; set; } = HttpStatusCode.OK;
         public string FileJson { get; set; } = "{\"text_source\":\"embedded\",\"text_truncated\":false,\"encrypted\":false,\"has_text\":true,\"filing_state\":\"filed\"}";
         public string? LastFileBody { get; private set; }
@@ -405,7 +395,7 @@ public sealed class ViewDocumentInboxUiTests : AsyncBunitContext
                 {
                     "/profiles" => "[]",
                     "/view/preferences" => "{\"profile_id\":\"00000000-0000-0000-0000-000000000001\",\"scope\":" + ScopeKind + ",\"scope_profile_id\":null,\"timeline_density\":1,\"viewer_info_open\":true,\"updated_at\":null}",
-                    "/view/scopes" => "{\"scope\":{\"kind\":" + ScopeKind + ",\"profile_id\":\"00000000-0000-0000-0000-000000000001\",\"was_fallback\":false},\"available_scopes\":[{\"kind\":" + ScopeKind + ",\"profile_id\":\"00000000-0000-0000-0000-000000000001\",\"label\":\"Mine\",\"avatar_color\":null,\"avatar_url\":null}],\"can_browse_other_people\":false,\"can_view_documents\":true,\"can_file_shared_inbox\":" + (CanFileSharedInbox ? "true" : "false") + "}",
+                    "/view/scopes" => "{\"scope\":{\"kind\":" + ScopeKind + ",\"profile_id\":\"00000000-0000-0000-0000-000000000001\",\"was_fallback\":false},\"available_scopes\":[{\"kind\":" + ScopeKind + ",\"profile_id\":\"00000000-0000-0000-0000-000000000001\",\"label\":\"Mine\",\"avatar_color\":null,\"avatar_url\":null}],\"can_browse_other_people\":false,\"can_view_documents\":true,\"can_edit_shared_documents\":" + (CanEditSharedDocuments ? "true" : "false") + "}",
                     "/view/documents/inbox-summary" => "{\"count\":" + InboxCount + "}",
                     "/view/assets" => request.RequestUri.Query.Contains("filing=inbox", StringComparison.Ordinal) ? Inbox : All,
                     "/view/catalogue" => "{\"tags\":[{\"id\":\"aaaaaaaa-0000-0000-0000-000000000001\",\"name\":\"Tax\",\"colour\":null,\"usage_count\":3,\"can_manage\":true}],"

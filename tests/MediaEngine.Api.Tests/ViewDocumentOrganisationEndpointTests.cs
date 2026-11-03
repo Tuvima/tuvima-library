@@ -674,37 +674,30 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
     }
 
     [Fact]
-    public async Task ASharedLibraryDocumentIsSkippedInBulkWithAClearReasonExceptMarkFiledForAnAdministrator()
+    public async Task ASharedLibraryDocumentIsSkippedInBulkWithAClearReasonForEveryone()
     {
         var household = Guid.NewGuid();
         var admin = await CreatePerson("StandardUser", household, householdAdmin: true);
         var member = await CreatePerson("StandardUser", household);
         var shared = await new ViewSharedLibraryRepository(_database).EnsureForHouseholdAsync(household);
         var sharedDocument = await AddSharedDocument(shared.LibraryId, "Shared lease", 'f');
-        var mine = await AddDocument(admin, 'a');
 
-        // Another household member cannot file it, however they ask.
-        _actor.Current = member.Authority;
-        var memberAttempt = await BulkAsync(new ViewDocumentBulkRequest([sharedDocument], ViewDocumentBulkOperations.MarkFiled));
-        Assert.Equal(ViewDocumentBulkService.SharedFilingReason, Assert.Single(memberAttempt.Items).Reason);
-        Assert.Equal(ViewDocumentFilingStates.Inbox, _assets.Find(sharedDocument)!.DocumentInfo!.FilingState);
+        // Shared documents are tagged and edited one at a time, never in bulk, by an administrator or anyone else.
+        foreach (var person in new[] { member, admin })
+        {
+            _actor.Current = person.Authority;
+            foreach (var operation in new[] { ViewDocumentBulkOperations.MarkFiled, ViewDocumentBulkOperations.MoveToTrash })
+            {
+                var attempt = await BulkAsync(new ViewDocumentBulkRequest([sharedDocument], operation));
+                Assert.Equal((0, 1), (attempt.Done, attempt.Skipped));
+                Assert.Equal(ViewDocumentBulkService.SharedReason, Assert.Single(attempt.Items).Reason);
+            }
 
-        // An administrator still cannot edit it in bulk, but can mark it filed to empty the Shared Inbox.
-        _actor.Current = admin.Authority;
-        var tagged = await BulkAsync(new ViewDocumentBulkRequest([sharedDocument], ViewDocumentBulkOperations.AddTags, Tags: ["Mine now"]));
-        Assert.Equal((0, 1), (tagged.Done, tagged.Skipped));
-        Assert.Equal(ViewDocumentBulkService.SharedReason, Assert.Single(tagged.Items).Reason);
+            var tagged = await BulkAsync(new ViewDocumentBulkRequest([sharedDocument], ViewDocumentBulkOperations.AddTags, Tags: ["Mine now"]));
+            Assert.Equal(ViewDocumentBulkService.SharedReason, Assert.Single(tagged.Items).Reason);
+        }
+
         Assert.Empty(_assets.Find(sharedDocument)!.Tags);
-        Assert.Equal(ViewDocumentFilingStates.Inbox, _assets.Find(sharedDocument)!.DocumentInfo!.FilingState);
-
-        var result = await BulkAsync(new ViewDocumentBulkRequest([sharedDocument, mine], ViewDocumentBulkOperations.MarkFiled));
-        Assert.Equal(ViewDocumentBulkStatuses.Done, result.Items.Single(item => item.ItemId == sharedDocument).Status);
-        Assert.Equal(ViewDocumentBulkStatuses.Done, result.Items.Single(item => item.ItemId == mine).Status);
-        Assert.Equal(ViewDocumentFilingStates.Filed, _assets.Find(sharedDocument)!.DocumentInfo!.FilingState);
-
-        // The other bulk operations still skip a Shared document even once it is filed.
-        var trash = await BulkAsync(new ViewDocumentBulkRequest([sharedDocument], ViewDocumentBulkOperations.MoveToTrash));
-        Assert.Equal(ViewDocumentBulkService.SharedReason, Assert.Single(trash.Items).Reason);
         Assert.Null(_assets.Find(sharedDocument)!.TrashedAt);
     }
 
@@ -797,53 +790,61 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
     }
 
     [Fact]
-    public async Task OnlyAHouseholdOrServerAdministratorFilesADocumentInTheSharedInbox()
+    public async Task AnyAdultWhoMayUseDocumentsCanTagAndEditASharedDocument_ButOutsidersAndBlockedProfilesCannot()
     {
         var household = Guid.NewGuid();
-        var admin = await CreatePerson("StandardUser", household, householdAdmin: true);
-        var serverAdmin = await CreatePerson("StandardUser", household, serverAdmin: true);
         var member = await CreatePerson("StandardUser", household);
-        var child = await CreatePerson("RestrictedProfile", household);
         var childWithDocuments = await CreatePerson("RestrictedProfile", household);
         await _policies.SavePolicyAsync(ViewProfilePolicy.Default(childWithDocuments.ProfileId, restricted: true) with { DocumentsEnabled = true });
+        var childWithoutDocuments = await CreatePerson("RestrictedProfile", household);
         var otherHousehold = await CreatePerson("StandardUser", Guid.NewGuid(), householdAdmin: true);
         var shared = await new ViewSharedLibraryRepository(_database).EnsureForHouseholdAsync(household);
-        var first = await AddSharedDocument(shared.LibraryId, "Shared first", '5');
-        var second = await AddSharedDocument(shared.LibraryId, "Shared second", '6');
-        var third = await AddSharedDocument(shared.LibraryId, "Shared third", '7');
-        var request = new FileViewDocumentFromInboxRequest(AcceptSuggestions: false);
+        var document = await AddSharedDocument(shared.LibraryId, "Shared lease", '5');
+        var sharedPhoto = await AddSharedPhoto(shared.LibraryId, '6');
 
-        async Task<HttpStatusCode> FileAsync(Person person, Guid id)
+        async Task<HttpStatusCode> TagAsync(Person person, Guid id, string tag)
         {
             _actor.Current = person.Authority;
-            using var response = await _client.PostAsJsonAsync($"/view/items/{id:D}/inbox/file", request);
+            using var response = await _client.PutAsJsonAsync($"/view/items/{id:D}/tags", new UpdateLocalAssetTagsRequest([tag]));
             return response.StatusCode;
         }
 
-        bool IsFiled(Guid id) => _assets.Find(id)!.DocumentInfo!.FilingState == ViewDocumentFilingStates.Filed;
+        async Task<HttpStatusCode> EditAsync(Person person, string title)
+        {
+            _actor.Current = person.Authority;
+            using var response = await _client.PutAsJsonAsync($"/view/items/{document:D}/document-details",
+                new UpdateViewDocumentDetailsRequest(Title: title, Correspondent: "City Water", Tags: ["Utilities"]));
+            return response.StatusCode;
+        }
 
-        // Everyone else sees the Shared Inbox read-only; nothing changes.
-        Assert.Equal(HttpStatusCode.Forbidden, await FileAsync(member, first));
-        Assert.Equal(HttpStatusCode.Forbidden, await FileAsync(childWithDocuments, first));
-        Assert.Equal(HttpStatusCode.Forbidden, await FileAsync(child, first));
-        Assert.Equal(HttpStatusCode.NotFound, await FileAsync(otherHousehold, first));
-        Assert.False(IsFiled(first));
+        // A non-administrator adult tags a shared document straight away; nothing waits to be filed.
+        Assert.Equal(HttpStatusCode.OK, await TagAsync(member, document, "Home"));
+        Assert.Contains("Home", _assets.Find(document)!.Tags);
+        Assert.Equal(HttpStatusCode.OK, await EditAsync(member, "Lease 2026"));
+        var edited = _assets.Find(document)!;
+        Assert.Equal("Lease 2026", edited.Title);
+        Assert.Equal("City Water", edited.DocumentInfo!.Correspondent?.Name);
 
-        // The same rule tells the Dashboard whether to offer File on a Shared Inbox card.
-        Assert.False(ViewSharedInboxAccess.CanFile(member.Authority));
-        Assert.False(ViewSharedInboxAccess.CanFile(child.Authority));
-        Assert.False(ViewSharedInboxAccess.CanFile(childWithDocuments.Authority));
-        Assert.True(ViewSharedInboxAccess.CanFile(admin.Authority));
-        Assert.True(ViewSharedInboxAccess.CanFile(serverAdmin.Authority));
+        // A child follows their Documents switch.
+        Assert.Equal(HttpStatusCode.OK, await EditAsync(childWithDocuments, "Lease 2027"));
+        Assert.NotEqual(HttpStatusCode.OK, await EditAsync(childWithoutDocuments, "Not allowed"));
+        Assert.NotEqual(HttpStatusCode.OK, await EditAsync(otherHousehold, "Not allowed"));
+        Assert.Equal("Lease 2027", _assets.Find(document)!.Title);
 
-        Assert.Equal(HttpStatusCode.OK, await FileAsync(admin, first));
-        Assert.True(IsFiled(first));
-        Assert.Equal(HttpStatusCode.OK, await FileAsync(serverAdmin, second));
-        Assert.True(IsFiled(second));
-        // A second tap changes nothing and is not an error; a photo or an unknown id is not an Inbox document.
-        Assert.Equal(HttpStatusCode.OK, await FileAsync(admin, first));
-        Assert.Equal(HttpStatusCode.NotFound, await FileAsync(admin, Guid.NewGuid()));
-        Assert.False(IsFiled(third));
+        // Shared photos are not part of this: they stay read-only for a member.
+        Assert.NotEqual(HttpStatusCode.OK, await TagAsync(member, sharedPhoto, "Nope"));
+        Assert.Empty(_assets.Find(sharedPhoto)!.Tags);
+
+        // The same rule tells the Dashboard whether to offer editing in Shared (the scopes answer reads it).
+        foreach (var (person, expected) in new[] { (member, true), (childWithDocuments, true), (childWithoutDocuments, false) })
+        {
+            Assert.Equal(expected, ViewSharedDocumentAccess.CanEdit(await _policies.GetPolicyAsync(person.ProfileId)));
+        }
+
+        // The Shared Library has no Inbox: its own count is zero and filing through the Inbox is for your own documents only.
+        _actor.Current = member.Authority;
+        using var filing = await _client.PostAsJsonAsync($"/view/items/{document:D}/inbox/file", new FileViewDocumentFromInboxRequest(AcceptSuggestions: false));
+        Assert.Equal(HttpStatusCode.NotFound, filing.StatusCode);
     }
 
     [Fact]
