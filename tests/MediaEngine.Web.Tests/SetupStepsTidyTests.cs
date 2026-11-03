@@ -13,10 +13,10 @@ public sealed class SetupStepsTidyTests : AsyncBunitContext
     public SetupStepsTidyTests() => JSInterop.Mode = JSRuntimeMode.Loose;
 
     private static readonly string[] SixSteps =
-        ["Welcome", "Your profile", "Tools", "Libraries", "Metadata", "All set"];
+        ["Your Library", "Your profile", "Tools", "Libraries", "Metadata", "All set"];
 
     private static readonly string[] SevenSteps =
-        ["Welcome", "Your profile", "Tools", "Libraries", "Vault", "Metadata", "All set"];
+        ["Your Library", "Your profile", "Tools", "Vault", "Libraries", "Metadata", "All set"];
 
     private static readonly ToolRequirementsDto NoToolsNeeded = new(
         ToolInstallKinds.Source, DateTimeOffset.UnixEpoch, false, []);

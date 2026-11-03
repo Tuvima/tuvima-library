@@ -10,7 +10,7 @@ public static class SetupWorkflow
     public const int CurrentVersion = 1;
     public static readonly string[] StepKeys =
     [
-        "welcome", "profile", "tools", "libraries", "vault", "metadata", "done",
+        "welcome", "profile", "tools", "vault", "libraries", "metadata", "done",
     ];
 }
 

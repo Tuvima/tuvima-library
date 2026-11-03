@@ -189,8 +189,7 @@
 
     private string WorkflowStep => NormalizeStep(_status?.CurrentStep);
     private string CurrentStep => _selectedStep ?? WorkflowStep;
-    // The Vault entry is wired in with the Libraries step; until then Back, Next and the sidebar pass over it.
-    // The Vault is an optional step: it is walked only while it is being offered, and its entry is drawn only until the person says Not now.
+        // The Vault is an optional step: it is walked only while it is being offered, and its entry is drawn only until the person says Not now.
     private string[] NavigableSteps => SetupWorkflow.StepKeys.Where(key => key != "vault" || VaultOpen).ToArray();
     private bool VaultOpen => _vaultProfileId is not null && StepState("vault") is not ("passed" or "deferred");
     private bool ShowVault => _vaultProfileId is not null && StepState("vault") != "deferred";
@@ -429,8 +428,12 @@
     }
 
     // The Tools step is always shown, even when every tool is ready; Continue is what passes it, and a missing tool never blocks it.
-    private async Task ContinuePastToolsAsync() =>
+    // The optional Vault is offered right after Tools, before Libraries, so Vault kinds only appear in Add library when it is on.
+    private async Task ContinuePastToolsAsync()
+    {
         await DecideStepAsync("tools", "passed", "Tools reviewed during first-run setup.");
+        await OfferVaultAsync();
+    }
 
     // A row's Install starts that tool's download at once (the same call the old "Download now" tick made when Continue was pressed);
     // the download finishes in the background and the list is read again so the row shows Downloading.
@@ -578,10 +581,9 @@
         if (_media?.Passed != true) return;
         _readiness = null;
         await ReloadAsync();
-        await OfferVaultAsync();
     }
 
-    // After Libraries, the first administrator on a desktop or tablet with no Vault yet is offered it once, as its own step; everyone else sees nothing about it.
+    // After Tools, the first administrator on a desktop or tablet with no Vault yet is offered it once, as its own step; everyone else sees nothing about it.
     private async Task OfferVaultAsync()
     {
         if (StepState("vault") is "passed" or "deferred") return;
