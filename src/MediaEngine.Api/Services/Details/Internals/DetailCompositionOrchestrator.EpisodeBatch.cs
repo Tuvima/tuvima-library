@@ -226,6 +226,7 @@ internal sealed partial class DetailCompositionOrchestrator
                 EpisodeStillUrl = enriched.EpisodeStillUrl,
                 EpisodeStillWidthPx = enriched.EpisodeStillWidthPx,
                 EpisodeStillHeightPx = enriched.EpisodeStillHeightPx,
+                StandInRetryAfter = enriched.StandInRetryAfter,
             }
             : work).ToList();
         return (merged, valueMaps);

@@ -183,6 +183,7 @@ public static class DetailFileFacts
         Add(rows, "Subtitles", PlaybackTechnicalSummaryDisplay.SubtitleChip(detail?.PlaybackSummary));
         Add(rows, "Pages", facts?.PageCount);
         Add(rows, "Language", facts?.Language ?? detail?.Language);
+        Add(rows, "Picture", facts?.EpisodePicture);
         if (includeFileLevel && detail?.FileSizeBytes is > 0)
         {
             Add(rows, "Size", DisplayFormat.FormatFileSize(detail.FileSizeBytes.Value));

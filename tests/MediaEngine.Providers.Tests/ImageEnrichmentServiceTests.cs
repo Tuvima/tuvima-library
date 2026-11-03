@@ -348,6 +348,60 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
         Assert.Equal("https://artworks.thetvdb.com/logo-en.png", logo.ImageUrl);
     }
 
+    [Fact]
+    public async Task TvdbImagesPass_MarksAnEpisodeWithoutAStillAsAStandIn_AndAnImageLaterClearsIt()
+    {
+        // TheTVDB is the only TV source: an episode it has no picture for is recorded as data (never a file)
+        // with the date to check again, and a real picture arriving on a later pass clears the mark.
+        ShippedProviderHarness.SaveShipped(_configLoader, "tvdb", "installation-key");
+        var show = await _works.InsertParentAsync(MediaType.TV, "tvdb:fixture:standin-show", null, null);
+        var season = await _works.InsertParentAsync(MediaType.TV, $"season:{show}:1", show, 1);
+        var first = await _works.InsertChildAsync(MediaType.TV, season, 1);
+        var second = await _works.InsertChildAsync(MediaType.TV, season, 2);
+        var asset = await SeedAssetForExistingWorkAsync(first, Path.Combine("TV", "StandIn", "Season 01", "StandIn - s01e01.mkv"));
+        await SeedCanonicalsAsync(show, ("media_type", "TV"), (MetadataFieldConstants.IdentityProvider, "tvdb"), (BridgeIdKeys.TvdbId, "56"));
+        await SeedCanonicalsAsync(season, (MetadataFieldConstants.SeasonNumber, "1"));
+        await SeedCanonicalsAsync(first, (MetadataFieldConstants.IdentityProvider, "tvdb"), (BridgeIdKeys.TvdbEpisodeId, "9101"));
+        await SeedCanonicalsAsync(second, (MetadataFieldConstants.IdentityProvider, "tvdb"), (BridgeIdKeys.TvdbEpisodeId, "9102"));
+        var secondHasImage = false;
+        var image = CreateLogoPng(hasVisibleContent: true);
+        var factory = new RoutingHttpClientFactory(request =>
+        {
+            var path = request.RequestUri!.AbsolutePath;
+            return path switch
+            {
+                "/v4/login" => JsonResponse("""{"data":{"token":"token"}}"""),
+                "/v4/artwork/types" => JsonResponse("""{"data":[{"id":2,"name":"Poster"}]}"""),
+                "/v4/series/56/extended" => JsonResponse("""{"data":{"id":56,"defaultSeasonType":1,"seasons":[{"id":67,"number":1,"type":{"id":1}}],"artworks":[]}}"""),
+                "/v4/seasons/67/extended" => JsonResponse("""{"data":{"id":67,"artworks":[]}}"""),
+                var episodes when episodes.StartsWith("/v4/series/56/episodes/") => JsonResponse(secondHasImage
+                    ? """{"data":{"episodes":[{"id":9101,"seasonNumber":1,"number":1,"image":"https://artworks.thetvdb.com/a.png"},{"id":9102,"seasonNumber":1,"number":2,"image":"https://artworks.thetvdb.com/b.png"}]},"links":{"next":null}}"""
+                    : """{"data":{"episodes":[{"id":9101,"seasonNumber":1,"number":1,"image":"https://artworks.thetvdb.com/a.png"},{"id":9102,"seasonNumber":1,"number":2,"image":null}]},"links":{"next":null}}"""),
+                _ => ImageResponse(image),
+            };
+        });
+        ImageEnrichmentService NewService() => new(
+            _entityAssets, _mediaAssets, new StubCharacterPortraitRepository(), _canonicals, _works,
+            new StubFictionalEntityRepository(), new StubPersonRepository(),
+            new StubProviderConfigurationRepository(), _configLoader, _imageCache, _assetPaths,
+            new StubAssetExportService(), factory, new StubFuzzyMatchingService(),
+            NullLogger<ImageEnrichmentService>.Instance,
+            tvdb: new ProviderApiClient(_configLoader, factory, new ProviderRateLimiterCoordinator()));
+
+        await NewService().EnrichWorkImagesAsync(asset.AssetId, null);
+
+        var expectedDate = DateTimeOffset.UtcNow.AddDays(90).UtcDateTime.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+        Assert.Equal(expectedDate, await GetCanonicalAsync(second, MetadataFieldConstants.EpisodeStillStandIn));
+        Assert.Null(await GetCanonicalAsync(first, MetadataFieldConstants.EpisodeStillStandIn));
+        Assert.Empty(await _entityAssets.GetByEntityAsync(second.ToString(), "EpisodeStill"));
+
+        secondHasImage = true;
+        await NewService().EnrichWorkImagesAsync(asset.AssetId, null);
+
+        Assert.Null(await GetCanonicalAsync(second, MetadataFieldConstants.EpisodeStillStandIn));
+        Assert.Single(await _entityAssets.GetByEntityAsync(second.ToString(), "EpisodeStill"));
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

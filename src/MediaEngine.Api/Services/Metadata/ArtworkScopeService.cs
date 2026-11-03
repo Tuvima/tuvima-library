@@ -523,6 +523,12 @@ internal sealed class ArtworkScopeService(
     {
         var canonicalKey = GetArtworkCanonicalKey(assetType);
 
+        if (preferredAsset is not null && string.Equals(assetType, "EpisodeStill", StringComparison.OrdinalIgnoreCase))
+        {
+            // A real picture (from TheTVDB or chosen by a person) replaces the stand-in with no confirmation.
+            await canonicalRepo.DeleteByKeyAsync(entityId, MetadataFieldConstants.EpisodeStillStandIn, ct);
+        }
+
         if (preferredAsset is null)
         {
             await canonicalRepo.DeleteByKeyAsync(entityId, canonicalKey, ct);

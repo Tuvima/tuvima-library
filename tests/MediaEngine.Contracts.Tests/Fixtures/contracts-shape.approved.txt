@@ -2452,6 +2452,7 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.DetailFactsViewModel
   SeasonNumber: System.String | nullability=nullable | accessors=get,init
   EpisodeNumber: System.String | nullability=nullable | accessors=get,init
   EpisodeTitle: System.String | nullability=nullable | accessors=get,init
+  EpisodePicture: System.String | nullability=nullable | accessors=get,init
   Network: System.String | nullability=nullable | accessors=get,init
   SeasonCount: System.String | nullability=nullable | accessors=get,init
   EpisodeCount: System.String | nullability=nullable | accessors=get,init
@@ -2772,6 +2773,8 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SequenceItemViewMode
   EpisodeStillUrl: System.String | nullability=nullable | accessors=get,init
   EpisodeStillWidthPx: System.Int32? | nullability=nullable | accessors=get,init
   EpisodeStillHeightPx: System.Int32? | nullability=nullable | accessors=get,init
+  PictureIsStandIn: System.Boolean | nullability=not-null | accessors=get,init
+  StandInRetryAfter: System.String | nullability=nullable | accessors=get,init
   EpisodeContext: MediaEngine.Contracts.Display.DisplayEpisodeContextDto | nullability=nullable | accessors=get,init
   ProgressPercent: System.Double? | nullability=nullable | accessors=get,init
   PositionSeconds: System.Double? | nullability=nullable | accessors=get,init
@@ -2831,6 +2834,7 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SequencePlacementVie
   OrderedItems: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.SequenceItemViewModel> | nullability=not-null | accessors=get,set
   AlsoInThisWorld: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.SequenceItemViewModel> | nullability=not-null | accessors=get,init
   Groups: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Details.SequenceGroupViewModel> | nullability=not-null | accessors=get,set
+  StandInBackdropUrl: System.String | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.SetDefaultSequenceRequest
   ContainerId: System.String | nullability=not-null | accessors=get,init

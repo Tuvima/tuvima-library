@@ -1917,6 +1917,15 @@
   <data name="MediaShelfScroller_ScrollRight" xml:space="preserve">
     <value>Scroll right</value>
   </data>
+  <data name="MediaTile_StandIn_Tag" xml:space="preserve">
+    <value>Show image</value>
+  </data>
+  <data name="MediaTile_StandIn_Tooltip" xml:space="preserve">
+    <value>TheTVDB has no picture for this episode yet. Library checks again every 90 days.</value>
+  </data>
+  <data name="MediaTile_StandIn_NextCheck" xml:space="preserve">
+    <value>Next check: {0}.</value>
+  </data>
   <data name="MediaTile_Kept" xml:space="preserve">
     <value>Kept</value>
   </data>
