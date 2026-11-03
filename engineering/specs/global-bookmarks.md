@@ -1,6 +1,6 @@
 # Global bookmarks: promote and find bookmarks (every media type)
 
-> **Status:** In progress (stages 1 video and audiobooks, 2 EPUB books built; PDF/comic next) · **Version:** 4 · **Last updated:** 2026-11-03 (locked by Shy) · **Related docs:** [Videos spec](videos.md) (D43, D46) · [Video player controls and bookmarks](video-player-controls-and-bookmarks.md) · Mockups: [`../design/mockups/global-bookmarks.html`](../design/mockups/global-bookmarks.html)
+> **Status:** In progress (stages 1 video and audiobooks, 2 EPUB books built; stage 3 PDF/comic parked until a reader exists) · **Version:** 4 · **Last updated:** 2026-11-03 (locked by Shy) · **Related docs:** [Videos spec](videos.md) (D43, D46) · [Video player controls and bookmarks](video-player-controls-and-bookmarks.md) · Mockups: [`../design/mockups/global-bookmarks.html`](../design/mockups/global-bookmarks.html)
 
 ## 1. Goal
 
@@ -88,6 +88,7 @@ Pre-release, so resets are acceptable (CLAUDE.md rule 6):
 4. **Config and closeness rules.** Standard. Done when `config/bookmarks.json` holds the three position blocks, the Engine reads it, and changing a value changes the labels without a rebuild.
 5. **Stage 2: EPUB books onto the shared bookmark model.** Complex. Starts with a scout on how reader locations can be compared. Done when a book bookmark can be Promoted, found, compared and Applied like a film bookmark and old reader bookmarks still show for their owner.
 6. **Stage 3: PDFs and comics.** Standard. Done when page bookmarks work on the same model, with a page-strip marker option.
+   - **Parked (Shy, 2026-11-03):** the Dashboard only opens EPUBs today, so there is no PDF or comic reader and no page strip to carry page bookmarks. Stage 3 waits until a reader exists; the `page` block in `config/bookmarks.json` and the shared bookmark table (`position_kind` = page) are already in place.
 7. **Docs and backup list.** Mechanical.
 
 ## 8. Local checks
