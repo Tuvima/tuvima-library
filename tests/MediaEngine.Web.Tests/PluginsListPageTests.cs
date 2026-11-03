@@ -66,6 +66,8 @@ public sealed class PluginsListPageTests : AsyncBunitContext
                 _savedLibraries = (IReadOnlyList<string>)args![1]!;
                 return Task.FromResult(true);
             });
+            stub.SetHandler(nameof(IEngineApiClient.GetPluginSetupPageAsync), args =>
+                Task.FromResult<PluginSetupPageResponse?>(PageFor(_plugins.FirstOrDefault(plugin => plugin.Id == (string)args![0]!))));
             stub.SetHandler(nameof(IEngineApiClient.GetPluginRemovalPreviewAsync), _ => Task.FromResult(_removalPreview));
             stub.SetHandler(nameof(IEngineApiClient.RemovePluginAsync), args =>
             {
@@ -109,16 +111,15 @@ public sealed class PluginsListPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void Configure_OpensThePluginsOwnPage_ByNavigatingToItsAddress()
+    public void TheGear_OpensThePluginsOwnPage_ByItsAddress()
     {
         _plugins = [Plugin("a", "Alpha", enabled: true), Plugin("b", "Beta", enabled: false)];
         var cut = Render<PluginSettingsTab>();
         cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[data-state-card=plugin]").Count));
 
-        cut.FindAll("[data-state-card=plugin]")[0].QuerySelectorAll("button")
-            .First(button => button.TextContent.Trim() == "Configure").Click();
+        var gear = cut.FindAll("[data-state-card=plugin]")[0].QuerySelector("[data-testid=plugin-gear]")!;
 
-        Assert.EndsWith("/settings/plugins/a", Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>().Uri);
+        Assert.Equal("/settings/plugins/a", gear.GetAttribute("href"));
     }
 
     [Fact]
@@ -136,7 +137,7 @@ public sealed class PluginsListPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void TheListView_ShowsOneRowPerPlugin_WithTheSamePillSwitchAndConfigure_WhenTheDeviceRemembersIt()
+    public void TheListView_ShowsOneRowPerPlugin_WithSwitchHealthAndSettingsColumns_WhenTheDeviceRemembersIt()
     {
         JSInterop.Setup<string?>("localStorage.getItem", "tuvima.plugins.layout").SetResult("list");
         _plugins = [Plugin("a", "Alpha", enabled: true), Plugin("b", "Beta", enabled: false)];
@@ -148,7 +149,9 @@ public sealed class PluginsListPageTests : AsyncBunitContext
             var rows = cut.FindAll("[data-testid=plugin-rows] tbody tr");
             Assert.Equal(2, rows.Count);
             Assert.Contains("Alpha", rows[0].TextContent);
-            Assert.Contains(rows[0].QuerySelectorAll("button"), button => button.TextContent.Trim() == "Configure");
+            var cells = rows[0].QuerySelectorAll("td");
+            Assert.NotNull(cells[^2].QuerySelector(".app-status-dot--tick"));
+            Assert.NotNull(cells[^1].QuerySelector("[data-testid=plugin-gear]"));
         });
         Assert.Empty(cut.FindAll("[data-state-card=plugin]"));
     }
@@ -167,7 +170,9 @@ public sealed class PluginsListPageTests : AsyncBunitContext
     {
         _plugins = [Plugin("a", "Alpha", enabled: true)];
 
-        var setup = RenderDetail("a", null).WaitForElement("[data-testid=plugin-setup]");
+        var detail = RenderDetail("a", null);
+        detail.WaitForElement("[data-testid=plugin-privacy-card]");
+        var setup = detail.Find("[data-testid=plugin-setup]");
         Assert.NotNull(setup.QuerySelector("[data-testid=plugin-privacy-card]"));
         Assert.NotNull(setup.QuerySelector("[data-testid=plugin-about-card]"));
         Assert.Contains("Who can use it", setup.TextContent);
@@ -175,8 +180,8 @@ public sealed class PluginsListPageTests : AsyncBunitContext
 
         var activity = RenderDetail("a", "activity");
         var text = activity.WaitForElement("section[aria-label='Activity']").TextContent;
-        Assert.Contains("Nothing has run yet.", text);
-        Assert.Contains(activity.FindAll("button"), button => button.TextContent.Trim() == "Check now");
+        Assert.Contains("Nothing has gone wrong.", text);
+        Assert.DoesNotContain(activity.FindAll("button"), button => button.TextContent.Trim() == "Check now");
 
         Assert.NotNull(setup.QuerySelector("section[aria-label='Removing this plugin']"));
     }
@@ -194,7 +199,9 @@ public sealed class PluginsListPageTests : AsyncBunitContext
             Changelog = "Reads chapter names first.",
         };
         _plugins = [plugin];
-        var text = RenderDetail("a", null).WaitForElement("[data-testid=plugin-setup]").TextContent;
+        var detail = RenderDetail("a", null);
+        detail.WaitForElement("[data-testid=plugin-about-card]");
+        var text = detail.Find("[data-testid=plugin-setup]").TextContent;
         Assert.Contains("Everyone who can use this Library", text);
         Assert.Contains("The song title goes to LRCLIB", text);
         Assert.Contains("Heavy: works when the machine is idle", text);
@@ -259,8 +266,7 @@ public sealed class PluginsListPageTests : AsyncBunitContext
         };
         var cut = RenderDetail("a", null);
 
-        cut.WaitForElement("[data-testid=plugin-setup]").QuerySelectorAll("button")
-            .First(button => button.TextContent.Trim() == "Delete plugin").Click();
+        ClickWhenThere(cut, "Delete plugin");
 
         var preview = cut.WaitForElement("[data-testid=plugin-removal-preview]");
         Assert.Contains("12 skip markers it saved can go with it or stay.", preview.TextContent);
@@ -283,8 +289,7 @@ public sealed class PluginsListPageTests : AsyncBunitContext
         _removalPreview = new PluginRemovalPreviewResponse { PluginId = "a", Name = "Alpha", Lines = ["Its files are removed."] };
         _removeResult = PluginActionResult.Failure("Gamma needs this plugin. Switch it off too, or cancel.");
         var cut = RenderDetail("a", null);
-        cut.WaitForElement("[data-testid=plugin-setup]").QuerySelectorAll("button")
-            .First(button => button.TextContent.Trim() == "Delete plugin").Click();
+        ClickWhenThere(cut, "Delete plugin");
         cut.WaitForElement("[data-testid=plugin-removal-preview]");
 
         cut.FindAll("button").First(button => button.TextContent.Trim() == "Confirm delete").Click();
@@ -408,7 +413,7 @@ public sealed class PluginsListPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ATile_HasADotAndOneButton_AndNoPills()
+    public void ATile_HasATickAndAGear_AndNoPills()
     {
         var plugin = Plugin("a", "Alpha", enabled: true, trust: "official");
         plugin.Provides = ["Details", "Artwork"];
@@ -421,8 +426,10 @@ public sealed class PluginsListPageTests : AsyncBunitContext
         var card = cut.Find("[data-state-card=plugin]");
         Assert.NotNull(card.QuerySelector(".app-status-dot"));
         Assert.Empty(card.QuerySelectorAll(".app-status-badge, .tl-status-badge"));
-        Assert.Single(card.QuerySelectorAll(".app-list-card__footer button"));
-        Assert.Contains("Details", card.QuerySelector("[data-testid=plugin-provides]")!.TextContent);
+        Assert.NotNull(card.QuerySelector(".app-list-card__footer .app-status-dot--tick"));
+        Assert.NotNull(card.QuerySelector(".app-list-card__footer [data-testid=plugin-gear]"));
+        Assert.Empty(card.QuerySelectorAll(".app-list-card__footer button"));
+        Assert.NotNull(card.QuerySelector("[data-testid=plugin-provides] [data-kind=details]"));
         Assert.Equal("Finds things and then some, in a much longer paragraph.", card.QuerySelector(".app-list-card__description")!.GetAttribute("title"));
     }
 
@@ -444,7 +451,7 @@ public sealed class PluginsListPageTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal(1, CardCount(cut)));
 
         var card = cut.Find("[data-state-card=plugin]");
-        cut.WaitForAssertion(() => Assert.Contains("Set up Local AI", card.QuerySelector(".app-list-card__footer")!.TextContent));
+        cut.WaitForAssertion(() => Assert.Equal("Waiting for Local AI", card.QuerySelector(".app-status-dot")!.GetAttribute("data-tip")));
         Assert.Contains("runs on Local AI", card.TextContent);
         Assert.NotNull(card.QuerySelector("input[role=switch][disabled]"));
     }
@@ -534,6 +541,109 @@ public sealed class PluginsListPageTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task EveryTileState_HasATickBottomLeftAndAGearBottomRight_InTheSameFooterOrder()
+    {
+        var working = Plugin("working", "Working one", enabled: true, trust: "official");
+        var keyMissing = Plugin("key", "Key one", enabled: false, trust: "official");
+        keyMissing.ListingKind = "provider";
+        keyMissing.Provider = new PluginProviderInfoDto { RequiresKey = true, KeyPresent = false };
+        var tools = Plugin("tools", "Tools one", enabled: true, trust: "official");
+        tools.ToolRequirements = [new PluginToolRequirementDto { Id = "ffmpeg", ExecutableName = "ffmpeg" }];
+        var ai = Plugin("ai", "Ai one", enabled: false, trust: "official");
+        ai.RequiresLocalAi = true;
+        var broken = Plugin("broken", "Broken one", enabled: true, trust: "official", loadError: "The manifest is missing.");
+        var off = Plugin("off", "Off one", enabled: false, trust: "official");
+        var privatePlugin = Plugin("private", "Private one", enabled: true, trust: "private");
+        _plugins = [working, keyMissing, tools, ai, broken, off, privatePlugin];
+        _onHealth = id => id == "tools"
+            ? new PluginHealthResponse { PluginId = id, Status = "degraded", Checks = [new PluginHealthCheckDto { Status = "degraded", Message = "FFmpeg is missing." }] }
+            : null;
+        _onTools = () => new ToolRequirementsDto(
+            ToolInstallKinds.Source,
+            DateTimeOffset.UnixEpoch,
+            true,
+            [new ToolRequirementDto(ToolRequirementIds.AiRuntime, "Local AI engine", "tool", ToolRequirementLevels.Required, ToolRequirementStates.Missing,
+                "Local AI waits.", null, "Download it.", null, 0, false, false, false, null)]);
+        SignInAdministrator();
+        await Services.GetRequiredService<SettingsAttentionState>().StartAsync();
+
+        var cut = Render<PluginSettingsTab>();
+
+        cut.WaitForAssertion(() => Assert.Equal(7, CardCount(cut)));
+        cut.WaitForAssertion(() => Assert.Equal("Waiting for Local AI", CardOf(cut, "ai").QuerySelector(".app-status-dot")!.GetAttribute("data-tip")));
+        var expectedTone = new Dictionary<string, string>
+        {
+            ["working"] = "working",
+            ["key"] = "attention",
+            ["tools"] = "attention",
+            ["ai"] = "attention",
+            ["broken"] = "broken",
+            ["off"] = "off",
+            ["private"] = "working",
+        };
+        foreach (var (id, tone) in expectedTone)
+        {
+            var footer = CardOf(cut, id).QuerySelector(".app-list-card__footer")!;
+            var kids = footer.Children;
+            Assert.Equal(2, kids.Length);
+            Assert.NotNull(kids[0].QuerySelector(".app-status-dot--tick"));
+            Assert.Equal(tone, kids[0].QuerySelector(".app-status-dot--tick")!.GetAttribute("data-status"));
+            Assert.Equal("plugin-gear", kids[1].GetAttribute("data-testid") ?? kids[1].QuerySelector("[data-testid=plugin-gear]")?.GetAttribute("data-testid"));
+            Assert.Empty(footer.QuerySelectorAll("button"));
+            Assert.Equal(id == "key", kids[0].QuerySelector("[data-testid=plugin-key-missing]") is not null);
+            Assert.Equal(tone is "attention" or "broken" ? "true" : null, footer.QuerySelector("[data-testid=plugin-gear]")!.GetAttribute("data-attention"));
+        }
+
+        Assert.Contains("Tools one", CardOf(cut, "tools").TextContent);
+        Assert.Contains("Requires Ffmpeg", CardOf(cut, "tools").QuerySelector(".app-status-dot")!.GetAttribute("data-tip"));
+        Assert.Contains("/settings/plugins/key?attention=1", CardOf(cut, "key").QuerySelector("[data-testid=plugin-gear]")!.GetAttribute("href"));
+        Assert.Equal("/settings/plugins/working", CardOf(cut, "working").QuerySelector("[data-testid=plugin-gear]")!.GetAttribute("href"));
+        Assert.NotNull(CardOf(cut, "ai").QuerySelector("input[role=switch][disabled]"));
+    }
+
+    [Fact]
+    public void TheAllTab_GroupsPluginsOnceIntoThreeHeadedSections_AndOtherTabsShowOne()
+    {
+        var intake = Plugin("in", "Intake one", enabled: true);
+        intake.Category = PluginCategories.Intake;
+        var after = Plugin("after", "After one", enabled: true, loadError: "Broken.");
+        after.Category = PluginCategories.Enrichment;
+        var account = Plugin("acct", "Account one", enabled: true);
+        account.Category = PluginCategories.Accounts;
+        _plugins = [intake, after, account];
+
+        var cut = Render<PluginSettingsTab>();
+
+        cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll("[data-testid=plugin-section]").Count));
+        var headings = cut.FindAll("[data-testid=plugin-section] h3").Select(h => h.TextContent.Trim()).ToList();
+        Assert.Equal(["Getting items in", "After import", "Accounts & lists"], headings);
+        Assert.Equal(3, CardCount(cut));
+        var afterSection = cut.Find("[data-section=enrichment]");
+        Assert.Equal("1", afterSection.QuerySelector("[data-testid=plugin-section-count]")!.TextContent.Trim());
+        Assert.Equal("1 needs attention", afterSection.QuerySelector("[data-testid=plugin-section-health]")!.TextContent.Trim());
+        Assert.Equal("All fine", cut.Find("[data-section=intake] [data-testid=plugin-section-health]").TextContent.Trim());
+
+        cut.FindAll("[role=tab]").First(tab => tab.TextContent.Contains("Accounts")).Click();
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-testid=plugin-section]")));
+    }
+
+    [Fact]
+    public void TheShowMenu_OffersNeedsLocalAi()
+    {
+        _plugins = [Plugin("a", "Alpha", enabled: true)];
+        var cut = Render<PluginSettingsTab>();
+        cut.WaitForAssertion(() => Assert.Equal(1, CardCount(cut)));
+
+        cut.FindAll(".app-search-filter-row button").First(button => button.TextContent.Contains("Show")).Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Needs Local AI", cut.Markup));
+    }
+
+    private static AngleSharp.Dom.IElement CardOf(IRenderedComponent<PluginSettingsTab> cut, string pluginId) =>
+        cut.Find($"#{PluginSettingsTab.CardElementId(pluginId)} [data-state-card=plugin]");
+
+    [Fact]
     public async Task OnAPhone_TheListIsReadOnly_WithNoSearchOrFilters()
     {
         await Services.GetRequiredService<DeviceContextService>().InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true));
@@ -549,6 +659,40 @@ public sealed class PluginsListPageTests : AsyncBunitContext
     private static int CardCount(IRenderedComponent<PluginSettingsTab> cut) => cut.FindAll("[data-state-card=plugin]").Count;
 
     private static string Squash(AngleSharp.Dom.IElement element) => System.Text.RegularExpressions.Regex.Replace(element.TextContent, "\\s+", "");
+
+    // The Engine builds this page from the plugin's JSON; the tests hand the Dashboard the three cards every plugin gets.
+    private static PluginSetupPageResponse? PageFor(PluginSummaryResponse? plugin)
+    {
+        if (plugin is null)
+        {
+            return null;
+        }
+
+        var access = plugin.Access;
+        var facts = new List<PluginSetupFactDto>();
+        if (!string.IsNullOrWhiteSpace(access.Changelog))
+        {
+            facts.Add(new PluginSetupFactDto { Label = "What changed", Value = access.Changelog });
+        }
+
+        return new PluginSetupPageResponse
+        {
+            PluginId = plugin.Id,
+            PluginName = plugin.Name,
+            Cards =
+            [
+                new PluginSetupCardDto { Key = "access", Title = "Access", Access = access },
+                new PluginSetupCardDto { Key = "privacy", Title = "Privacy", DataLeaving = access.DataLeaving, VaultWords = access.VaultWords },
+                new PluginSetupCardDto { Key = "about", Title = "About", Facts = facts },
+            ],
+        };
+    }
+
+    private static void ClickWhenThere(IRenderedComponent<PluginSettingsTab> cut, string label)
+    {
+        cut.WaitForAssertion(() => Assert.Contains(cut.FindAll("button"), button => button.TextContent.Trim() == label));
+        cut.FindAll("button").First(button => button.TextContent.Trim() == label).Click();
+    }
 
     private IRenderedComponent<PluginSettingsTab> RenderDetail(string pluginId, string? tab) =>
         Render<PluginSettingsTab>(parameters => parameters

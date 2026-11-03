@@ -18,10 +18,11 @@ public sealed class PluginActivityService(
     IPluginActivityRepository repository,
     PluginCircuitBreaker breaker,
     TimeProvider clock,
-    ILogger<PluginActivityService> logger)
+    ILogger<PluginActivityService> logger,
+    IPluginActivityLimits? limits = null)
 {
-    /// <summary>The newest lines kept for each plugin.</summary>
-    public const int KeepPerPlugin = 1000;
+    /// <summary>The newest lines kept for a plugin whose logging cap was never changed (200 lines or 14 days, whichever comes first).</summary>
+    public const int KeepPerPlugin = PluginActivityLimits.DefaultEntries;
 
     /// <summary>True when the plugin may be asked now; false while it is paused after repeated failures.</summary>
     public bool Allow(string pluginId) => breaker.Allow(pluginId);
@@ -124,9 +125,16 @@ public sealed class PluginActivityService(
         };
     }
 
+    // The logging cap is enforced here, where lines are kept: the newest MaxEntries lines, none older than MaxDays (D59).
     private Task WriteAsync(PluginActivityContext context, PluginActivityKind kind, string? reason, Guid? itemId, int itemsChanged, string summary, string? detail, CancellationToken ct) =>
         SafelyAsync(
-            () => repository.AddAsync(new StoredPluginActivity(0, clock.GetUtcNow(), context.PluginId, context.Version, kind, reason, itemId, itemsChanged, summary, detail), KeepPerPlugin, ct),
+            async () =>
+            {
+                var cap = limits?.Get(context.PluginId) ?? PluginActivityLimits.Default;
+                var now = clock.GetUtcNow();
+                await repository.AddAsync(new StoredPluginActivity(0, now, context.PluginId, context.Version, kind, reason, itemId, itemsChanged, summary, detail), cap.MaxEntries, ct).ConfigureAwait(false);
+                await repository.TrimOlderThanAsync(context.PluginId, now.AddDays(-cap.MaxDays), ct).ConfigureAwait(false);
+            },
             context.PluginId);
 
     // Recording is best effort by design: a plugin's Activity list must never be the reason a plugin's work, ingestion or playback fails (D7).

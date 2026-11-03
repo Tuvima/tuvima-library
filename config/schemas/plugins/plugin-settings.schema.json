@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "plugin-settings.schema.json",
+  "title": "Tuvima plugin settings description (settings_schema)",
+  "description": "The words a plugin or a provider source file may use to describe its settings (Plugins and Integrations screens v5 D47 to D50). Every word except the setting's own name is optional and has a plain default. Words not listed here are ignored by Library and reported as things to know on the Plugin file card; they are never an error.",
+  "type": "object",
+  "properties": {
+    "type": { "const": "object" },
+    "title": { "type": "string" },
+    "description": { "type": "string" },
+    "required": { "type": "array", "items": { "type": "string" } },
+    "properties": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/setting" }
+    },
+    "actions": {
+      "description": "The tests the plugin supports. A plugin that declares none shows none.",
+      "type": "array",
+      "items": {
+        "oneOf": [
+          { "$ref": "#/$defs/actionKind" },
+          {
+            "type": "object",
+            "required": ["kind"],
+            "properties": {
+              "kind": { "$ref": "#/$defs/actionKind" },
+              "label": { "type": "string" }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "actionKind": { "enum": ["test_connection", "check_now", "dry_run"] },
+    "control": { "enum": ["toggle", "choice", "number", "text", "url", "path", "secret", "choices", "group_list"] },
+    "scope": { "enum": ["household", "profile"] },
+    "rowAction": { "enum": ["test_connection", "remove", "check_now", "open_link"] },
+    "choice": {
+      "oneOf": [
+        { "type": ["string", "number"] },
+        {
+          "type": "object",
+          "required": ["value"],
+          "properties": { "value": { "type": ["string", "number"] }, "label": { "type": "string" } }
+        }
+      ]
+    },
+    "showWhen": {
+      "description": "Show the setting only while another setting has this value.",
+      "type": "object",
+      "required": ["setting", "equals"],
+      "properties": { "setting": { "type": "string" }, "equals": {} }
+    },
+    "requires": {
+      "description": "The setting is greyed with the reason until the tool, Local AI or key is there.",
+      "type": "object",
+      "required": ["kind"],
+      "properties": {
+        "kind": { "enum": ["tool", "local_ai", "key"] },
+        "name": { "type": "string" },
+        "reason": { "type": "string" }
+      }
+    },
+    "setting": {
+      "type": "object",
+      "properties": {
+        "type": { "enum": ["boolean", "bool", "integer", "int", "number", "string", "array", "object"] },
+        "control": { "$ref": "#/$defs/control" },
+        "format": { "enum": ["uri", "url", "path", "file-path", "directory", "password", "secret"] },
+        "title": { "type": "string" },
+        "description": { "type": "string", "description": "Help text under the control." },
+        "placeholder": { "type": "string" },
+        "unit": { "type": "string", "description": "For a number: seconds, ms, hours ..." },
+        "group": { "type": "string", "description": "A heading inside the Settings card." },
+        "order": { "type": "integer" },
+        "advanced": { "type": "boolean", "description": "Goes in the collapsed Advanced section." },
+        "read_only": { "type": "boolean" },
+        "show_when": { "$ref": "#/$defs/showWhen" },
+        "requires": { "$ref": "#/$defs/requires" },
+        "scope": { "$ref": "#/$defs/scope" },
+        "minimum": { "type": "number" },
+        "maximum": { "type": "number" },
+        "default": {},
+        "enum": { "type": "array" },
+        "enum_labels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "choices": { "type": "array", "items": { "$ref": "#/$defs/choice" } },
+        "value_source": { "type": "string", "description": "The name of an Engine-side list that holds the current value, for a setting whose value is not kept in the plugin's own saved settings." },
+        "item_title": { "type": "string", "description": "Group list: what one item is called." },
+        "add_label": { "type": "string", "description": "Group list: the words on the Add button." },
+        "locked": { "type": "array", "items": { "type": "string" }, "description": "Group list: ids of items that cannot be removed." },
+        "row_actions": { "type": "array", "items": { "$ref": "#/$defs/rowAction" } },
+        "fields": {
+          "description": "Group list: what one item looks like. Each field uses the same words as a setting.",
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/setting" }
+        }
+      }
+    }
+  }
+}

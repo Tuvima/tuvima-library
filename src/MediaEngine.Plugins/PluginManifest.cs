@@ -130,8 +130,17 @@ public sealed record PluginManifest
     [JsonPropertyName("pages")]
     public JsonElement? Pages { get; init; }
 
+    /// <summary>
+    /// The plugin's settings and what they look like on its page (Plugins and Integrations screens v5 D47): each setting's control,
+    /// wording, behaviour and scope, repeating groups, and the tests the plugin supports. Read by <see cref="PluginSettingsDescriptionReader"/>;
+    /// words it does not know are ignored.
+    /// </summary>
     [JsonPropertyName("settings_schema")]
     public JsonElement? SettingsSchema { get; init; }
+
+    /// <summary>Where a person signs up for the service, finds help, and reads its terms and privacy policy (v5 D48). Absent means no links.</summary>
+    [JsonPropertyName("links")]
+    public PluginManifestLinks? Links { get; init; }
 
     /// <summary>
     /// The shared declaration block (Plugin architecture spec PA1): who may use the plugin, what it requires, how heavy it is,
@@ -160,6 +169,22 @@ public sealed record PluginManifest
     [JsonIgnore]
     public ResolvedPluginDeclaration ResolvedDeclaration =>
         PluginDeclarationRules.Resolve(Declaration, Network.Count > 0, MediaTypes, Category);
+}
+
+/// <summary>The addresses a plugin gives for its service: where to sign up, get help, and read its terms and privacy policy.</summary>
+public sealed record PluginManifestLinks
+{
+    [JsonPropertyName("signup_url")]
+    public string? SignupUrl { get; init; }
+
+    [JsonPropertyName("help_url")]
+    public string? HelpUrl { get; init; }
+
+    [JsonPropertyName("terms_url")]
+    public string? TermsUrl { get; init; }
+
+    [JsonPropertyName("privacy_url")]
+    public string? PrivacyUrl { get; init; }
 }
 
 /// <summary>How a plugin runs. <see cref="Official"/> and <see cref="Declarative"/> run in this version of the Library.</summary>

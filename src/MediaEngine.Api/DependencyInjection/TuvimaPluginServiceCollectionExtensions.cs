@@ -1,8 +1,10 @@
 using MediaEngine.Api.Services.Plugins;
 using MediaEngine.Api.Services.Plugins.AiFeatures;
 using MediaEngine.Api.Services.Plugins.Declarative;
+using MediaEngine.Api.Services.Plugins.Files;
 using MediaEngine.Api.Services.Plugins.Pages;
 using MediaEngine.Api.Services.Plugins.Service;
+using MediaEngine.Api.Services.Plugins.Setup;
 using MediaEngine.Api.Services.Plugins.Sources;
 using MediaEngine.Api.Services.Plugins.Trakt;
 using MediaEngine.Api.Services.ScheduledTasks;
@@ -71,12 +73,23 @@ public static class TuvimaPluginServiceCollectionExtensions
         // Activity, failure reasons, the automatic pause and the People-action log (Plugin architecture spec D10, C10, C17, C25).
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<PluginCircuitBreaker>();
+        services.AddSingleton<PluginActivityLimits>();
+        services.AddSingleton<IPluginActivityLimits>(provider => provider.GetRequiredService<PluginActivityLimits>());
         services.AddSingleton<PluginActivityService>();
         services.AddSingleton<PluginLibraryLimitService>();
         services.AddSingleton<IVaultSectionOnlineLookup, VaultSectionOnlineLookup>();
         services.AddSingleton<IPluginAccessGate, PluginAccessGate>();
         services.AddSingleton<PluginRemovalService>();
         services.AddSingleton<PluginCheckNowService>();
+        services.AddSingleton<IPluginSettingValueSource, StashBoxSettingValueSource>();
+        // The Plugin file card (v5 D54): Tuvima's own copy of each shipped plugin file, the shipped descriptions of compiled-in plugins
+        // (the settings JSON each compiled-in plugin embeds; read only), the read and check service and the editor's save and reset.
+        services.TryAddSingleton<IShippedPluginFiles>(_ => new ShippedPluginFiles());
+        services.TryAddSingleton<IShippedPluginDescriptions, CompiledPluginDescriptions>();
+        services.AddSingleton<PluginFileService>();
+        services.AddSingleton<PluginFileEditor>();
+        services.AddSingleton<PluginRestoreService>();
+        services.AddSingleton<PluginPageModelService>();
         services.AddSingleton<PluginProfileConnectionService>();
         services.AddTuvimaHttpClient(PluginDeviceSignInService.HttpClientName, TimeSpan.FromSeconds(20), addStandardResilience: false);
         services.AddSingleton<PluginDeviceSignInService>();

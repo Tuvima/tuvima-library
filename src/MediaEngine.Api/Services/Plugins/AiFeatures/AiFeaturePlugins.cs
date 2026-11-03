@@ -228,41 +228,9 @@ internal sealed class DescriptionInsightsPlugin(IServiceProvider services) : ITu
         };
     }
 
-    private static JsonElement SettingsSchema()
-    {
-        using var document = JsonDocument.Parse("""
-        {
-          "properties": {
-            "books": {
-              "type": "array",
-              "title": "Words for books and audiobooks",
-              "description": "The only words a book or audiobook may be tagged with.",
-              "items": { "type": "string" }
-            },
-            "movies_tv": {
-              "type": "array",
-              "title": "Words for films and TV",
-              "description": "The only words a film or TV show may be tagged with.",
-              "items": { "type": "string" }
-            },
-            "music": {
-              "type": "array",
-              "title": "Words for music",
-              "description": "The only words an album or track may be tagged with.",
-              "items": { "type": "string" }
-            },
-            "comics": {
-              "type": "array",
-              "title": "Words for comics",
-              "description": "The only words a comic may be tagged with.",
-              "items": { "type": "string" }
-            }
-          },
-          "required": ["books", "movies_tv", "music", "comics"]
-        }
-        """);
-        return document.RootElement.Clone();
-    }
+    /// <summary>The settings this plugin shows are described in <c>description-insights.settings.json</c>, shipped beside the code.</summary>
+    private static JsonElement SettingsSchema() =>
+        ShippedPluginSettings.Read(typeof(DescriptionInsightsPlugin).Assembly, "description-insights.settings.json");
 }
 
 /// <summary>Writes the short taste summary on a profile page from what that profile watched, read and listened to.</summary>

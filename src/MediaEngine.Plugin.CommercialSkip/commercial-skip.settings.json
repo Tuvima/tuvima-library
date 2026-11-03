@@ -1,0 +1,101 @@
+{
+  "properties": {
+    "use_comskip": {
+      "type": "boolean",
+      "control": "toggle",
+      "title": "Use Comskip",
+      "description": "Use Comskip when it is available. It is the more accurate of the two.",
+      "group": "Detection",
+      "order": 0,
+      "default": true,
+      "requires": { "kind": "tool", "name": "comskip", "reason": "Comskip is not installed. Library can download it for you when Download missing tools is on." }
+    },
+    "use_ffmpeg_fallback": {
+      "type": "boolean",
+      "control": "toggle",
+      "title": "Fall back to FFmpeg",
+      "description": "Use FFmpeg to find likely breaks when Comskip is not available.",
+      "group": "Detection",
+      "order": 1,
+      "default": true,
+      "requires": { "kind": "tool", "name": "ffmpeg", "reason": "FFmpeg is not installed. Library can download it for you when Download missing tools is on." }
+    },
+    "minimum_commercial_seconds": {
+      "type": "integer",
+      "control": "number",
+      "title": "Shortest break",
+      "description": "Anything shorter is not marked.",
+      "unit": "seconds",
+      "group": "Limits",
+      "order": 2,
+      "minimum": 5,
+      "maximum": 300,
+      "default": 30
+    },
+    "maximum_commercial_seconds": {
+      "type": "integer",
+      "control": "number",
+      "title": "Longest break",
+      "description": "Anything longer is not marked.",
+      "unit": "seconds",
+      "group": "Limits",
+      "order": 3,
+      "minimum": 60,
+      "maximum": 1800,
+      "default": 600
+    },
+    "scheduled_batch_size": {
+      "type": "integer",
+      "control": "number",
+      "title": "Files per pass",
+      "description": "How many recordings are checked in one background pass.",
+      "unit": "files",
+      "group": "Limits",
+      "order": 4,
+      "minimum": 1,
+      "maximum": 500,
+      "default": 25
+    },
+    "auto_install_tools": {
+      "type": "boolean",
+      "control": "toggle",
+      "title": "Download missing tools",
+      "description": "Allow the Library to download Comskip and FFmpeg if they are missing.",
+      "group": "Tools",
+      "order": 5,
+      "advanced": true,
+      "default": true
+    },
+    "tool_path": {
+      "type": "string",
+      "control": "path",
+      "title": "Tool folder",
+      "description": "Leave empty to use the tools the Library finds.",
+      "group": "Tools",
+      "order": 6,
+      "advanced": true,
+      "default": ""
+    },
+    "comskip_tool_path": {
+      "type": "string",
+      "control": "path",
+      "title": "Comskip location",
+      "description": "Leave empty to use the one the Library finds.",
+      "group": "Tools",
+      "order": 7,
+      "advanced": true,
+      "default": ""
+    },
+    "ffmpeg_tool_path": {
+      "type": "string",
+      "control": "path",
+      "title": "FFmpeg location",
+      "description": "Leave empty to use the one the Library finds.",
+      "group": "Tools",
+      "order": 8,
+      "advanced": true,
+      "default": ""
+    }
+  },
+  "required": ["use_comskip", "use_ffmpeg_fallback"]
+}

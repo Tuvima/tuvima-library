@@ -58,9 +58,9 @@ public sealed class ServerPageRegroupTests
         new("AI features", "/settings/ai/models", "/settings/ai/status", SettingsSection.LocalAi, null,
             "LocalAiSettingsTab.razor", "Title=\"AI features are plugins\"", null, null),
         new("Plugin health and jobs", "/settings/plugins/jobs-health", "/settings/plugins", SettingsSection.Plugins, null,
-            "PluginSettingsTab.razor", "PluginHealthJobsPanel(plugin)", null, null),
+            "PluginSettingsTab.razor", "<PluginActivityTimeline", null, null),
         new("Plugin capabilities", "/settings/plugins/capabilities", "/settings/plugins", SettingsSection.Plugins, null,
-            "PluginSettingsTab.razor", "PluginCapabilitiesPanel(plugin)", null, null),
+            "PluginSettingsTab.razor", "PluginPrivacyExtra(plugin)", null, null),
         new("Plugin danger zone", "/settings/plugins/danger", "/settings/plugins", SettingsSection.Plugins, null,
             "PluginSettingsTab.razor", "DangerPanel(plugin)", null, null),
     ];

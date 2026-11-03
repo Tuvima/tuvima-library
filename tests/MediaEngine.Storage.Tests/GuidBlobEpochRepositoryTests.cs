@@ -87,7 +87,7 @@ public sealed class GuidBlobEpochRepositoryTests : IDisposable
         var bookmark = new ReaderBookmark
         {
             Id = Guid.NewGuid(),
-            UserId = "reader",
+            UserId = CreateProfile().ToString("D"),
             AssetId = ebookAssetId,
             ChapterIndex = 1,
             CreatedAt = DateTime.UtcNow,
@@ -149,8 +149,8 @@ public sealed class GuidBlobEpochRepositoryTests : IDisposable
         AssertBlob(conn, "collection_placements", "collection_id", "id", placement.Id);
         AssertBlob(conn, "playback_segments", "id", "id", segment.Id);
         AssertBlob(conn, "playback_segments", "asset_id", "id", segment.Id);
-        AssertBlob(conn, "reader_bookmarks", "id", "id", bookmark.Id);
-        AssertBlob(conn, "reader_bookmarks", "asset_id", "id", bookmark.Id);
+        AssertBlob(conn, "audiobook_bookmarks", "id", "id", bookmark.Id);
+        AssertBlob(conn, "audiobook_bookmarks", "asset_id", "id", bookmark.Id);
         AssertBlob(conn, "reader_highlights", "id", "id", highlight.Id);
         AssertBlob(conn, "reader_highlights", "asset_id", "id", highlight.Id);
         AssertBlob(conn, "reader_statistics", "id", "id", statistics.Id);
@@ -233,6 +233,14 @@ public sealed class GuidBlobEpochRepositoryTests : IDisposable
         TryDelete(_dbPath);
         TryDelete($"{_dbPath}-wal");
         TryDelete($"{_dbPath}-shm");
+    }
+
+    private Guid CreateProfile()
+    {
+        var id = Guid.NewGuid();
+        using var conn = _db.CreateConnection();
+        conn.Execute("INSERT INTO profiles (id, display_name, created_at) VALUES (@id, 'Reader', @now);", new { id, now = DateTimeOffset.UtcNow.ToString("O") });
+        return id;
     }
 
     private Guid CreateCollection()

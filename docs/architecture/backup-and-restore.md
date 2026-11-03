@@ -191,7 +191,6 @@ See "What a backup file holds" above. The restore screens come in the next step.
 
 | Table | Why | Owner column | Points at the catalogue | Left out |
 |---|---|---|---|---|
-| `reader_bookmarks` | Bookmarks a person placed in a book. | `user_id` | `asset_id` (media asset) | none |
 | `reader_highlights` | Highlights and notes a person made in a book. | `user_id` | `asset_id` (media asset) | none |
 | `reader_statistics` | A person's reading time and speed per book. | `user_id` | `asset_id` (media asset) | none |
 | `audiobook_bookmarks` | Bookmarks a person placed in an audiobook. | `profile_id` | `work_id` (work), `asset_id` (media asset) | none |

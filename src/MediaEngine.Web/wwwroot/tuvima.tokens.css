@@ -220,6 +220,18 @@
     --tl-media-game: #22C55E;
     --tl-media-document: #B6C2D6;
     --tl-media-unknown: #7F8DA5;
+    /* "What it provides" accents (Plugins and Integrations screens v5 D53): one fixed colour per kind of thing a plugin provides. */
+    --tl-provides-identification: var(--tl-accent-primary);
+    --tl-provides-details: var(--tl-status-info);
+    --tl-provides-artwork: var(--tl-media-movies);
+    --tl-provides-people: var(--tl-media-audiobooks);
+    --tl-provides-series-order: var(--tl-accent-collection);
+    --tl-provides-lyrics: #F472B6;
+    --tl-provides-subtitles: var(--tl-media-comics);
+    --tl-provides-skip-markers: var(--tl-status-warning);
+    --tl-provides-insights: #A3E635;
+    --tl-provides-lists-and-ratings: var(--tl-media-books);
+    --tl-provides-account-sync: #2DD4BF;
 
     --tl-radius-xs: 4px;
     --tl-radius-sm: 6px;
