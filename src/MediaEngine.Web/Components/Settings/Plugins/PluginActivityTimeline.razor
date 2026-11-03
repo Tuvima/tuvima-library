@@ -1,0 +1,66 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Plugins
+@using Microsoft.Extensions.Localization
+@inject IStringLocalizer<SharedStrings> L
+
+@* The plugin's slice of the app's activity timeline (Plugins and Integrations screens v5 D59): what went wrong comes first, newest
+   first, and the routine lines (runs, skips, notes) are folded away until asked for. A plugin that has had no trouble says so.
+   Testing a plugin is the Test connection button on the Access card, not a second button here. *@
+<section class="plugin-activity" aria-label="@L["PluginPage_Activity"]" data-testid="plugin-activity-section">
+    @if (Activity?.PausedUntil is { } pausedUntil)
+    {
+        <AppAlert Tone="AppUiTone.Warning" data-testid="plugin-paused">@L["PluginPage_Paused", pausedUntil.ToLocalTime().ToString("g")]</AppAlert>
+    }
+
+    @if (Failures.Count == 0)
+    {
+        <div data-testid="plugin-activity-empty"><AppEmptyState Title="@L["PluginPage_NothingWrong"]" /></div>
+    }
+    else
+    {
+        <ul class="plugin-activity__list" data-testid="plugin-activity-failures">
+            @foreach (var entry in Failures)
+            {
+                <li @key="entry.Id" data-kind="failure">
+                    <strong>@entry.Summary</strong>
+                    <small>@entry.OccurredAt.ToLocalTime().ToString("g")@(string.IsNullOrWhiteSpace(entry.ReasonWords) ? null : " · " + entry.ReasonWords)</small>
+                    @if (!string.IsNullOrWhiteSpace(entry.Detail))
+                    {
+                        <small class="plugin-activity__detail">@entry.Detail</small>
+                    }
+                </li>
+            }
+        </ul>
+    }
+
+    @if (Routine.Count > 0)
+    {
+        <AppExpansionPanels Elevation="0" Dense="true">
+            <AppExpansionPanel Text="@RoutineTitle">
+                <ul class="plugin-activity__list" data-testid="plugin-activity-routine">
+                    @foreach (var entry in Routine)
+                    {
+                        <li @key="entry.Id" data-kind="@entry.Kind">
+                            <span>@entry.Summary</span>
+                            <small>@entry.OccurredAt.ToLocalTime().ToString("g")@(entry.ItemsChanged > 0 ? $" · {entry.ItemsChanged} changed" : null)</small>
+                        </li>
+                    }
+                </ul>
+            </AppExpansionPanel>
+        </AppExpansionPanels>
+    }
+
+    <AppButton Label="@L["PluginPage_OpenActivityLog"]" Href="/settings/system/logs?tab=events" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" />
+</section>
+
+@code {
+    [Parameter] public PluginActivityResponse? Activity { get; set; }
+
+    private IReadOnlyList<PluginActivityEntryDto> Failures => [.. (Activity?.Entries ?? []).Where(IsFailure).OrderByDescending(entry => entry.OccurredAt)];
+
+    private IReadOnlyList<PluginActivityEntryDto> Routine => [.. (Activity?.Entries ?? []).Where(entry => !IsFailure(entry)).OrderByDescending(entry => entry.OccurredAt)];
+
+    private string RoutineTitle => Routine.Count == 1 ? "1 routine entry" : $"{Routine.Count} routine entries";
+
+    private static bool IsFailure(PluginActivityEntryDto entry) => string.Equals(entry.Kind, "failure", StringComparison.Ordinal);
+}

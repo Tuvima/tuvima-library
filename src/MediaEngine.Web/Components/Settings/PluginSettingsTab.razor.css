@@ -96,3 +96,14 @@
 .plugin-page__title p { margin: 2px 0 0; color: var(--tl-text-muted); }
 .plugin-page__actions { display: flex; align-items: center; }
 .plugin-page__setup { display: grid; gap: 16px; }
+
+/* The fixed tile footer and list columns (Plugins and Integrations screens v5 D43 to D45). */
+.plugin-foot__health { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.plugin-foot__pill { padding: 2px 8px; border: 1px solid var(--tl-status-warning); border-radius: 999px; color: var(--tl-status-warning); font-size: var(--tl-font-size-sm); white-space: nowrap; }
+.settings-plugin-rows__narrow { width: 64px; text-align: center; }
+.plugin-section { display: grid; gap: 12px; }
+.plugin-section + .plugin-section { margin-top: 8px; }
+.plugin-section__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.plugin-section__head h3 { margin: 0; font-size: var(--tl-font-size-lg); }
+.plugin-section__count, .plugin-section__health { color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
+.plugin-section__explainer { flex-basis: 100%; margin: 0; color: var(--tl-text-muted); }

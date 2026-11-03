@@ -81,6 +81,7 @@ public sealed class LogsPageTests : AsyncBunitContext
             new ConfigurationBuilder().Build(),
             NullLogger<UIOrchestratorService>.Instance));
         Services.AddSingleton(new DeviceContextService(api));
+        Services.AddSingleton(new DashboardSessionAccessor());
     }
 
     // ── Menu ─────────────────────────────────────────────────────────────────

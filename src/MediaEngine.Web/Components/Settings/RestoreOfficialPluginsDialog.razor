@@ -1,0 +1,146 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Plugins
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Ui
+@implements IDisposable
+@inject IEngineApiClient ApiClient
+@inject ILogger<RestoreOfficialPluginsDialog> Logger
+@inject IStringLocalizer<SharedStrings> L
+
+@* The short dialog behind Restore official plugins (v5 D57). It lists each Tuvima plugin file that is missing, damaged or edited with
+   "will be restored" or "will be reset", and says how many already match. Confirming puts Tuvima's versions back; keys, switches,
+   settings values and Private plugins are untouched. The answer shows in the dialog itself, never as a toast. *@
+<AppDialogShell Title="@L["RestorePlugins_Title"].Value" Size="Small" Tone="AppUiTone.Info" OnClose="CloseAsync">
+    <ChildContent>
+        <div class="restore-plugins" data-testid="restore-plugins-dialog">
+            @if (_loading)
+            {
+                <AppSkeleton Height="56px" aria-label="@L["RestorePlugins_Checking"].Value" />
+            }
+            else if (_result is not null)
+            {
+                <p data-testid="restore-plugins-done">@DoneWords</p>
+                @foreach (var failed in _result.Items.Where(item => item.Outcome == "failed"))
+                {
+                    <AppAlert Tone="AppUiTone.Warning" data-testid="restore-plugins-failed">@failed.FileName: @failed.Message</AppAlert>
+                }
+            }
+            else if (_preview is null)
+            {
+                <AppAlert Tone="AppUiTone.Error" data-testid="restore-plugins-error">@L["RestorePlugins_CouldNotCheck"]</AppAlert>
+            }
+            else if (_preview.Items.Count == 0)
+            {
+                <p data-testid="restore-plugins-empty">@L["RestorePlugins_AllMatch"]</p>
+            }
+            else
+            {
+                <ul class="restore-plugins__list" data-testid="restore-plugins-list">
+                    @foreach (var item in _preview.Items)
+                    {
+                        <li data-testid="restore-plugins-item" data-reason="@item.Reason">
+                            <strong>@item.FileName</strong>
+                            <span>@(item.Action == "restore" ? L["RestorePlugins_WillBeRestored"] : L["RestorePlugins_WillBeReset"])</span>
+                        </li>
+                    }
+                </ul>
+                <p class="restore-plugins__quiet" data-testid="restore-plugins-matching">@MatchingWords</p>
+                <p class="restore-plugins__quiet">@L["RestorePlugins_Untouched"]</p>
+            }
+
+            @if (_error is not null)
+            {
+                <AppAlert Tone="AppUiTone.Error" data-testid="restore-plugins-error">@_error</AppAlert>
+            }
+        </div>
+    </ChildContent>
+    <FooterContent>
+        @if (CanConfirm)
+        {
+            <AppButton Label="@L["Search_Cancel"].Value" ButtonStyle="AppButtonStyle.Outlined" Disabled="_working" OnClick="CloseAsync" />
+            <AppButton Label="@L["RestorePlugins_Confirm"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="_working" Disabled="_working" OnClick="RestoreAsync" data-testid="restore-plugins-confirm" />
+        }
+        else
+        {
+            <AppButton Label="@L["Common_Close"].Value" ButtonStyle="AppButtonStyle.Outlined" OnClick="CloseAsync" data-testid="restore-plugins-close" />
+        }
+    </FooterContent>
+</AppDialogShell>
+
+@code {
+    [CascadingParameter] private IAppDialogContext? Dialog { get; set; }
+
+    private readonly CancellationTokenSource _lifetime = new();
+    private PluginRestorePreviewResponse? _preview;
+    private PluginRestoreResponse? _result;
+    private string? _error;
+    private bool _loading = true;
+    private bool _working;
+
+    private bool CanConfirm => !_loading && _result is null && _preview is { Items.Count: > 0 };
+
+    private string MatchingWords => string.Format(System.Globalization.CultureInfo.CurrentCulture, L[_preview!.MatchingCount == 1 ? "RestorePlugins_OneMatches" : "RestorePlugins_ManyMatch"].Value, _preview.MatchingCount);
+
+    private string DoneWords
+    {
+        get
+        {
+            var changed = _result!.RestoredCount + _result.ResetCount;
+            return changed == 0
+                ? L["RestorePlugins_NothingChanged"].Value
+                : string.Format(System.Globalization.CultureInfo.CurrentCulture, L[changed == 1 ? "RestorePlugins_DoneOne" : "RestorePlugins_DoneMany"].Value, changed);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _preview = await ApiClient.GetPluginRestorePreviewAsync(_lifetime.Token);
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "Could not read which official plugin files differ.");
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+            // The dialog closed before the answer came back.
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task RestoreAsync()
+    {
+        _working = true;
+        _error = null;
+        try
+        {
+            _result = await ApiClient.RestoreOfficialPluginsAsync(_lifetime.Token);
+            _error = _result is null ? L["RestorePlugins_CouldNotRestore"].Value : null;
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "Could not restore the official plugin files.");
+            _error = L["RestorePlugins_CouldNotRestore"].Value;
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+            // The dialog closed while the restore was running; the Engine finishes it on its own.
+        }
+        finally
+        {
+            _working = false;
+        }
+    }
+
+    private Task CloseAsync() => Dialog is null ? Task.CompletedTask : Dialog.CloseAsync(AppDialogResult.Ok(_result is not null));
+
+    public void Dispose()
+    {
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+    }
+}
