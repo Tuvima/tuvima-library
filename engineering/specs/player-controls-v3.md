@@ -65,3 +65,7 @@ Import and replace behaviour for Global bookmarks is under review in a separate 
 ## Plain English summary
 
 Buttons and titles get bigger, popups shorter, and "CC" becomes one gear menu. Volume is a vertical slider everywhere. Each media type shows only fitting buttons. The bookmark shortcut goes, and bookmarks can be filtered to Mine or Global.
+
+## Gaps and drift (audit 2026-11-03)
+
+- No dedicated tests for VideoSettingsMenu or PlaybackVolumeControl; WP6 diagnosis report not found. Full report: [spec-audit-2026-11-03](../validation/spec-audit-2026-11-03.md). Status unchanged until Shy decides.

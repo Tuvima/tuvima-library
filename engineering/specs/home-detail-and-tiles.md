@@ -105,3 +105,7 @@ Each needs Shy's decision (recorded in section 4 once answered).
 
 ## Plain English summary
 Home gets bigger, calmer covers that never change shape when you hover, with a thick highlight instead. Continue becomes its own wide row that always shows what each thing is, including books, audiobooks, playlists and shuffle. The big banner gets shorter and simpler. Menus shrink to Restart, Edit and Delete. The detail page puts facts first, then the play button, then a small row of icons. People pages get a big photo and a filter. I also found likely reasons Watch never shows in the banner (the rotation is purely newest-first, and shows with no matched episodes are skipped), which I will confirm with a test before fixing.
+
+## Gaps and drift (audit 2026-11-03)
+
+- Delivered by evidence. Open decisions: trailer button dropped (D20) and one Mark as watched kept (D13) against Shy's 2 Nov notes; person works kind filter and the log of skipped Watch hero candidates not found. Suggested status: Built, with open decisions. Full report: [spec-audit-2026-11-03](../validation/spec-audit-2026-11-03.md). Status unchanged until Shy decides.

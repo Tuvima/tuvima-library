@@ -150,3 +150,7 @@ On SHY-DESKTOP with the small generated library (never the real library): open E
 ## Plain English summary
 
 Today Edit first puts the page into a special editing state with a bar, and only then shows a window. That is why it feels clumsy. This spec makes Edit open a pop-over straight away, like the older editor did, with a small tree down the left showing the show, its seasons and episodes (or an album and its tracks) so you can jump to any one and fix it. A failed or wrong match is fixed on the same Match screen, including sending an episode to a different show. We keep the good parts built last week (the show, season, episode browser, Review before saving, the saved ribbon) and the best ideas from the older editor (a long list that loads in pages, and "move this episode to another season or show"). We also finish the eight small leftovers. For Needs Review, I recommend keeping one list with a clear reason for each item and one-click fixes, and dropping the separate Unidentified tab. Nothing is built until you say it is locked.
+
+## Gaps and drift (audit 2026-11-03)
+
+- WP5 partly: EditingModeContext, ArtworkPickerSession and EditSessionFlow remain for Universe and Chronicle; WP8 screenshots at 1440 and 1280 not found. Full report: [spec-audit-2026-11-03](../validation/spec-audit-2026-11-03.md). Status unchanged until Shy decides.

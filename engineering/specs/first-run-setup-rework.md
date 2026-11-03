@@ -82,3 +82,7 @@ Setup gets a proper welcome with your animation, a better order (Vault first, th
 - **Picker:** the Add library folder picker already read nothing but folder lists (no kind key is sent), so it was kept; the look inside happens once, after Add, in the check step. The Heads up comes from the folder's contents only (season folders or episodes in a Movies folder, or no files of the kind); folder names are never read.
 - **Key dialog:** the existing connect dialog already tests before it saves (a bad key is refused, never stored); its button now reads "Test and save".
 - **Settings table:** Settings keeps its grouped-by-area table for now; the setup table has the four columns from this spec. Aligning Settings fully is a follow-up.
+
+## Gaps and drift (audit 2026-11-03)
+
+- Settings Libraries was left unaligned with the setup table and never scheduled; 3 Nov findings (box around the animation, uncoloured icons, stray green, empty-Libraries spacing, off-centre pop-up) are not covered; Region is kept by D and the mockup; odd-count tile is left-aligned by D10; key dialog is one Test and save button. Suggested status: In progress. Full report: [spec-audit-2026-11-03](../validation/spec-audit-2026-11-03.md). Status unchanged until Shy decides.

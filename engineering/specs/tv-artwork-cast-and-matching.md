@@ -144,3 +144,7 @@ Original questions, one line each:
 ## Plain English summary
 
 Most of the problems you saw on The Continental and Shimmer and Shine come from one weak link: the app only trusts a season or episode's own record, not the show it belongs to, and it only saves the cast and episode pictures if it can pair each episode with TheTVDB's order exactly. When it can't, it quietly gives up, which explains the missing cast, missing episode pictures and the unhelpful "Use Match and Identity first" message. Separately, the app picks a TheTVDB picture without checking language or level, so a French logo or a season poster can end up as the main picture. The blurry cast faces are a simple size mix-up from the recent pictures work, and "Burnt - AVC" fails because one list of format tags is missing AVC. I can fix all of that in the cloud, but two items need your real files first: a quick look at the two shows' stored data, and the Steph Curry Masterclass files, because nothing in the code explains that one.
+
+## Gaps and drift (audit 2026-11-03)
+
+- Header understates progress: WP2 is also built. WP3 cast-kept is unproven; WP6 fixtures not found. Full report: [spec-audit-2026-11-03](../validation/spec-audit-2026-11-03.md). Status unchanged until Shy decides.

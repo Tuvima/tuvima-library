@@ -184,3 +184,7 @@ Waves: **A** = WP22 ∥ WP23; **B** = WP24 ∥ WP25; **C** = WP26 ∥ WP27; **D*
 ## Plain English summary
 
 Every plugin tile gets the same bottom row: a bigger, fixed health tick and a gear that always opens the plugin's settings. A small "Key missing" label appears only when a key is missing. The Plugins page groups plugins by when they run, and "What it provides" becomes neat coloured cards. The big change is behind the scenes: each plugin's settings page is now drawn automatically from the plugin's own JSON file, so nobody writes special screens for one plugin, and anyone who writes a plugin (including you, for yourself) gets a proper settings page for free. For plugins defined by a file, an administrator on a computer can open that file in Settings, see it coloured, edit it, and Library checks it as you type, points to the exact line of any mistake, will not save a broken file, shows you what will change before it saves, and can put Tuvima's version back at any time. There is also a "Restore official plugins" link for when a file goes missing or gets changed. Keys and settings you have entered are never lost by any of this, and an edit cannot widen where a plugin sends data.
+
+## Gaps and drift (audit 2026-11-03)
+
+- Delivered by evidence (WP22 to WP31). Note: Settings > Metadata is only the Ingestion Flow now; providers live on Plugins, so a square, aligned provider tile page with a shared key-review page on Metadata was never in scope. Full report: [spec-audit-2026-11-03](../validation/spec-audit-2026-11-03.md). Status unchanged until Shy decides.

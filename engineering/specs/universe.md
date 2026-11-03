@@ -380,3 +380,7 @@ Before Claude Code starts the first packet, and again before each wave:
 ## Plain English summary
 
 Today a Universe is half a feature: there is a good explorer page that nobody can reach, a shelf that groups by label and can mix up The Expanse's lines, helper apps that only list Series, and a pile of Universe code that nothing calls. This plan makes a Universe a page you open from Collections: your Series in the right order (novels, TV and film kept apart), an "Also in this world" row for extras, and evidence-backed Cast, Adaptations and optionally Characters. Helper apps get the same simple version. One set of rules decides which source wins, and the unused code and wrong docs are cleaned out first. Beyond that, the Universe becomes the backbone of a companion: Layer 1 gives useful, reliable tools such as "this character also appears in your comics"; Layer 2 lets your phone follow what you're watching or reading, at episode or chapter level, spoiler-safe; Layer 3 (AI recaps, name spotting in subtitles) is an experiment we measure before promising. "Who is speaking" is not promised. I need your decisions on the fifteen questions above, mainly Q1, Q7, Q10 and Q11.
+
+## Gaps and drift (audit 2026-11-03)
+
+- U-WP15 (AI feasibility report) has no report in engineering/reports. Full report: [spec-audit-2026-11-03](../validation/spec-audit-2026-11-03.md). Status unchanged until Shy decides.
