@@ -1,0 +1,147 @@
+<title>Home and Detail Redesign Mockups</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: one dark Dashboard frame per screen, switched by tabs. Tokens follow engineering/design/design-system.md. Single dark look by choice (the app is dark). */
+:root{--bg:#070A12;--shell:#0B1020;--surface:#111827;--raised:#151E2F;--text:#F5F7FB;--text2:#B6C2D6;--muted:#94A3B8;--line:rgba(182,194,214,.16);
+--accent:#8852FC;--gold:#E7B84A;--ok:#22C55E;--warn:#F59E0B;--danger:#EF4444;--movie:#FB7185;--tv:#A78BFA;--book:#60A5FA;--audio:#34D399;--music:#FBBF24;
+--font:"Segoe UI Variable","Segoe UI",system-ui,-apple-system,Roboto,sans-serif;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.45;padding-inline:max(16px,env(safe-area-inset-left,0px)) max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+h1,h2,h3{margin:0;font-weight:600;text-wrap:balance} h1{font-size:22px} h2{font-size:18px} h3{font-size:14px} p{margin:0}
+.wrap{max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tabs a{color:var(--muted);text-decoration:none;padding:10px 12px;border-bottom:2px solid transparent;white-space:nowrap}
+.tabs a.on{color:var(--text);border-color:var(--accent)}
+.screen{display:none;flex-direction:column;gap:14px}.screen.on{display:flex}
+.note{color:var(--muted);font-size:13px;max-width:90ch}
+.mk{position:absolute;z-index:5;width:20px;height:20px;border-radius:50%;background:var(--gold);color:#111;font-weight:800;font-size:12px;display:grid;place-items:center;box-shadow:0 0 0 2px #000a}
+.rel{position:relative}
+.notes{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:6px;color:var(--text2);font-size:13px;max-width:100ch}.notes b{color:var(--gold)}
+.changes{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:8px 24px;color:var(--text2);font-size:13px;margin:0;padding-left:18px}
+.frame{background:var(--shell);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.top{display:flex;gap:18px;align-items:center;padding:10px 20px;border-bottom:1px solid var(--line)}
+.top b{letter-spacing:.04em}.top nav{display:flex;gap:16px;color:var(--muted);font-size:13px}.top nav .on{color:var(--text);border-bottom:2px solid var(--accent)}
+.sp{flex:1}.ic{width:30px;height:30px;border-radius:4px;display:grid;place-items:center;color:var(--text2);border:1px solid var(--line);font-size:15px}
+.ic.gold{color:var(--gold);border-color:var(--gold);background:rgba(231,184,74,.12)}
+.body{padding:16px 20px;display:flex;flex-direction:column;gap:22px}
+/* square pills */
+.pill{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border:1px solid var(--line);border-radius:3px;font-size:12px;color:var(--text2);background:rgba(255,255,255,.04)}
+.pill.new{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-size:11px}
+/* art */
+.art{position:relative;border-radius:6px;overflow:hidden;background:linear-gradient(160deg,var(--c1,#3b2a7a),var(--c2,#0f1530));border:2px solid transparent;transition:border-color .12s}
+.p{aspect-ratio:2/3}.l{aspect-ratio:16/9}
+.art em{position:absolute;left:10px;bottom:10px;right:10px;font-style:normal;font-weight:700;font-size:15px;text-shadow:0 2px 8px #000}
+.art .new{position:absolute;top:8px;left:8px}
+.tile:hover .art{border-color:var(--text);box-shadow:0 0 0 2px var(--accent)}
+.tile{display:flex;flex-direction:column;gap:6px;min-width:0;position:relative}
+.tile .t{font-size:14px;font-weight:600}.tile .s{font-size:12px;color:var(--muted)}
+.dots{position:absolute;right:6px;top:6px;width:26px;height:26px;border-radius:4px;background:rgba(0,0,0,.6);display:grid;place-items:center;font-size:14px}
+.x{position:absolute;right:6px;top:6px;width:26px;height:26px;border-radius:4px;background:rgba(0,0,0,.65);display:grid;place-items:center}
+.bar{position:absolute;left:0;right:0;bottom:0;height:4px;background:rgba(255,255,255,.2)}.bar i{display:block;height:100%;background:var(--accent)}
+.row{display:grid;gap:14px;overflow:hidden}
+.row.port{grid-template-columns:repeat(6,minmax(0,1fr))}
+.row.land{grid-template-columns:repeat(4,minmax(0,1fr))}
+.lane h2{margin-bottom:10px;display:flex;justify-content:space-between;align-items:baseline}.lane h2 small{color:var(--muted);font-weight:400;font-size:12px}
+@media(max-width:900px){.row.port{grid-template-columns:repeat(3,minmax(0,1fr))}.row.land{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* hero */
+.hero{position:relative;height:300px;background:linear-gradient(100deg,#0B1020 5%,transparent 70%),linear-gradient(135deg,#5b3bb8,#12183a 70%);padding:20px 28px;display:flex;flex-direction:column;justify-content:flex-end;gap:10px}
+.hero h2{font-size:30px}.hero .acts{display:flex;gap:8px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:4px;border:1px solid var(--line);background:var(--raised);color:var(--text);font:inherit;font-weight:600}
+.btn.pri{background:var(--text);color:#0B1020;border-color:var(--text)}.btn.sm{padding:5px 12px;font-size:13px}.btn.sq{padding:5px 9px}
+.cover-hero{background:linear-gradient(90deg,#0B1020 0 40%,transparent 80%),repeating-linear-gradient(90deg,#27407a 0 90px,#1c2d57 90px 180px)}
+.coll{position:absolute;right:28px;top:20px;bottom:20px;width:380px;display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.coll i{border-radius:3px;background:linear-gradient(135deg,var(--a),var(--b))}
+.dotsrow{position:absolute;bottom:10px;right:20px;display:flex;gap:5px}.dotsrow i{width:18px;height:3px;background:rgba(255,255,255,.3)}.dotsrow i:first-child{background:#fff}
+/* menu */
+.menu{width:200px;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px;font-size:16px}
+.menu div{padding:10px 12px;border-radius:4px}.menu div:hover{background:var(--raised)}.menu .del{color:var(--danger);border-top:1px solid var(--line);margin-top:4px}
+/* detail */
+.detail{display:grid;grid-template-columns:220px 1fr;gap:28px;padding:24px 28px;background:linear-gradient(100deg,#0B1020 30%,#1a1440)}
+.facts{display:flex;flex-wrap:wrap;gap:8px;align-items:center;color:var(--text2);font-size:13px}
+.stack{display:flex;flex-direction:column;gap:14px;align-items:flex-start}
+.sec{display:flex;gap:8px;align-items:center}
+.sec .c{width:34px;height:34px;border-radius:4px;border:1px solid var(--line);display:grid;place-items:center;font-size:15px}
+.people{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:12px}
+.person{display:flex;flex-direction:column;gap:6px;text-align:center;font-size:13px}.person .art{aspect-ratio:1;border-radius:6px}
+.person.sm{max-width:92px}
+.ph{display:grid;grid-template-columns:1fr 340px;gap:24px;padding:24px 28px;background:linear-gradient(100deg,#0B1020 40%,#241748)}
+.ph .art{aspect-ratio:3/4;order:2}
+.filters{display:flex;gap:6px;flex-wrap:wrap}.filters .pill.on{background:var(--text);color:#0B1020;border-color:var(--text)}
+.flag{display:inline-block;margin-top:4px;padding:2px 8px;background:rgba(245,158,11,.15);color:var(--warn);border-radius:3px;font-size:12px}
+@media(max-width:760px){.detail,.ph{grid-template-columns:1fr}.ph .art{order:0}.hero{height:240px}.coll{display:none}}
+</style>
+<div class="wrap">
+<div><h1>Home, detail page and tile redesign</h1>
+<p class="note">Draft mockups for review. Pictures are colour blocks standing in for artwork. Every pill and button is square-cornered. Hover a tile to see the bolder border.</p></div>
+<nav class="tabs" id="tabs"><a href="#home" class="on">1 Home</a><a href="#continue">2 Continue tiles</a><a href="#hero">3 Hero slides</a><a href="#detail">4 Detail page</a><a href="#people">5 People</a></nav>
+
+<section class="screen on" id="home">
+<div class="frame rel"><div class="top"><b>TUVIMA</b><nav><span class="on">Home</span><span>Watch</span><span>Read</span><span>Listen</span><span>View</span></nav><span class="sp"></span><span class="ic gold">🔖</span><span class="mk" style="position:static;display:inline-grid">6</span><span class="ic">⌕</span></div>
+<div class="hero"><span class="pill">Continue Watching</span><span class="mk" style="right:28px;top:14px">3</span><h2>The Expanse</h2><p class="note">S3 · E4 — Triple Point. 38 minutes left.</p><div class="acts"><span class="btn pri">▶ Resume</span><span class="btn sq">＋</span></div><div class="dotsrow"><i></i><i></i><i></i><i></i><i></i></div></div>
+<div class="body">
+<div class="lane"><h2><span class="mk" style="position:static;display:inline-grid;margin-right:8px;vertical-align:middle">2</span>Continue</h2><div class="row land">
+<div class="tile"><div class="art l" style="--c1:#7a3b2a"><em>Dune: Part Two</em><span class="x">✕</span><div class="bar"><i style="width:42%"></i></div></div></div>
+<div class="tile"><div class="art l" style="--c1:#2a527a"><em>The Expanse · S3 E4</em><span class="x">✕</span><div class="bar"><i style="width:70%"></i></div></div></div>
+<div class="tile"><div class="art l" style="--c1:#1f6b52"><em>Project Hail Mary</em><span class="x">✕</span><div class="bar"><i style="width:18%"></i></div></div></div>
+<div class="tile"><div class="art l" style="--c1:#6b5a1f"><em>Discovery (album)</em><span class="x">✕</span><div class="bar"><i style="width:55%"></i></div></div></div></div></div>
+<div class="lane"><h2><span><span class="mk" style="position:static;display:inline-grid;margin-right:8px;vertical-align:middle">1</span>Watch</span><small>See all</small></h2><div class="row port">
+<div class="tile"><div class="art p" style="--c1:#8a3b4e"><span class="pill new" style="position:absolute;top:8px;left:8px;border-radius:3px">New</span><span class="mk" style="left:8px;top:40px">4</span><span class="dots">⋯</span><span class="mk" style="right:8px;top:36px">5</span></div><div class="t">Arrival</div><div class="s">2016 · Movie</div></div>
+<div class="tile"><div class="art p" style="--c1:#3b4e8a"><span class="pill new" style="position:absolute;top:8px;left:8px">New Episode</span><span class="dots">⋯</span></div><div class="t">Severance</div><div class="s">2 seasons</div></div>
+<div class="tile"><div class="art p" style="--c1:#4e8a3b"><span class="dots">⋯</span></div><div class="t">Heat</div><div class="s">1995 · Movie</div></div>
+<div class="tile"><div class="art p" style="--c1:#8a6a3b"><span class="dots">⋯</span></div><div class="t">Sicario</div><div class="s">2015 · Movie</div></div>
+<div class="tile"><div class="art p" style="--c1:#6a3b8a"><span class="dots">⋯</span></div><div class="t">Dark</div><div class="s">3 seasons</div></div>
+<div class="tile"><div class="art p" style="--c1:#3b8a8a"><span class="dots">⋯</span></div><div class="t">Her</div><div class="s">2013 · Movie</div></div></div></div>
+<div class="lane"><h2>Listen </h2><div class="row port">
+<div class="tile"><div class="art" style="aspect-ratio:1;--c1:#8a6a1f"></div><div class="t">Random Access Memories</div><div class="s">Daft Punk</div></div>
+<div class="tile"><div class="art" style="aspect-ratio:1;--c1:#1f6a8a"></div><div class="t">Currents</div><div class="s">Tame Impala</div></div></div></div>
+</div></div>
+<div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start"><div><h3 style="margin-bottom:6px"><span class="mk" style="position:static;display:inline-grid;margin-right:8px;vertical-align:middle">5</span>Menu opened from "..."</h3><div class="menu"><div>Restart</div><div>Edit</div><div class="del">Delete</div></div></div></div>
+<h3>Notes</h3><ol class="notes"><li>All tiles portrait and larger (6 across, not 8). No grow on hover; a thick white border and purple ring instead.</li><li>Continue row is landscape and sits apart from the rest.</li><li>Hero is shorter and shows only Watch and +.</li><li>Small square "New" label top-left. No "Featured content" pill.</li><li>Removed from the menu: Mark watched, Hide from Continue, Add to collection (collections are admin-only). Restart shows only for started items; Edit only on desktop for people allowed to edit. "..." on every cover opens the short menu (shown below the screen).</li><li>The My List button in the top bar is a bookmark, gold while the list is open; click again to close.</li></ol>
+</section>
+
+<section class="screen" id="continue">
+<div class="frame"><div class="body"><div class="row land">
+<div class="tile"><div class="art l" style="--c1:#7a3b2a"><em>Dune: Part Two</em><span class="x">✕</span><span class="mk" style="left:8px;top:8px">1</span><div class="bar"><i style="width:42%"></i></div></div></div>
+<div class="tile"><div class="art l" style="--c1:#2a527a"><em>The Expanse</em><span class="x">✕</span><div class="bar"><i style="width:70%"></i></div></div></div>
+<div class="tile"><div class="art l" style="background:linear-gradient(120deg,#27407a,#101a38)"><div style="position:absolute;inset:10px auto 10px 18px;aspect-ratio:2/3;background:linear-gradient(160deg,#4a78d6,#1c2d57);border-radius:3px;box-shadow:0 6px 18px #000"></div><span class="mk" style="left:8px;top:8px">2</span><em style="left:auto;width:55%;right:14px;bottom:auto;top:30%">Project Hail Mary<br><small style="font-weight:400">Chapter 12 of 40</small></em><span class="x">✕</span><div class="bar"><i style="width:30%"></i></div></div></div>
+<div class="tile"><div class="art l" style="background:linear-gradient(120deg,#1f6b52,#0b2a21)"><div style="position:absolute;inset:10px auto 10px 18px;aspect-ratio:1;background:linear-gradient(160deg,#34d399,#14503c);border-radius:3px"></div><em style="left:auto;width:55%;right:14px;bottom:auto;top:30%">The Martian<br><small style="font-weight:400">Audiobook · 3 h 10 m left</small></em><span class="x">✕</span><div class="bar"><i style="width:60%"></i></div></div></div>
+<div class="tile"><div class="art l" style="background:#0f1530"><span class="mk" style="left:8px;top:8px">3</span><div class="coll" style="inset:0;width:auto;gap:0;grid-template-columns:repeat(4,1fr);grid-template-rows:1fr 1fr"><i style="--a:#e11d48;--b:#4c0519"></i><i style="--a:#f59e0b;--b:#451a03"></i><i style="--a:#10b981;--b:#022c22"></i><i style="--a:#6366f1;--b:#1e1b4b"></i><i style="--a:#06b6d4;--b:#083344"></i><i style="--a:#a855f7;--b:#3b0764"></i><i style="--a:#84cc16;--b:#1a2e05"></i><i style="--a:#f43f5e;--b:#4c0519"></i></div><em style="background:linear-gradient(0deg,#000a,transparent);left:0;right:0;bottom:0;padding:24px 10px 10px">All songs · Shuffle</em><span class="x">✕</span></div></div>
+<div class="tile"><div class="art l" style="--c1:#6b5a1f"><div style="position:absolute;inset:10px auto 10px 18px;aspect-ratio:1;background:linear-gradient(160deg,#fbbf24,#78350f);border-radius:3px"></div><em style="left:auto;width:55%;right:14px;bottom:auto;top:30%">Discovery<br><small style="font-weight:400">Daft Punk · track 5 of 14</small></em><span class="x">✕</span></div></div>
+</div></div></div>
+<h3>Notes</h3><ol class="notes"><li>One landscape tile design for all media; the title or logo always shows (fixes the blank tiles).</li><li>Books and audiobooks: the cover sits on a soft blurred landscape background.</li><li>A playlist or album is one tile. "All songs" with shuffle is a collage of random album art. Played albums are never added one by one.</li><li>X removes it from Continue. Starting it again brings it back.</li></ol>
+</section>
+
+<section class="screen" id="hero">
+<div class="frame rel"><span class="mk" style="left:12px;top:12px">2</span><span class="mk" style="left:40px;top:12px">1</span><span class="mk" style="left:68px;top:12px">4</span><div class="hero cover-hero"><span class="pill">Continue Reading</span><h2>Project Hail Mary</h2><p class="note">Andy Weir · Chapter 12 of 40</p><div class="acts"><span class="btn pri">Read</span><span class="btn sq">＋</span></div>
+<div style="position:absolute;right:60px;top:16px;bottom:16px;aspect-ratio:2/3;background:linear-gradient(160deg,#4a78d6,#1c2d57);border-radius:4px;box-shadow:0 12px 40px #000"></div></div></div>
+<div class="frame rel"><span class="mk" style="left:12px;top:12px">3</span><div class="hero" style="background:linear-gradient(90deg,#0B1020 0 35%,transparent 75%),#14122a"><span class="pill">Recently added music</span><h2>12 new albums</h2><p class="note">Added this week</p><div class="acts"><span class="btn pri">Open</span></div>
+<div class="coll" style="width:46%"><i style="--a:#e11d48;--b:#4c0519"></i><i style="--a:#f59e0b;--b:#451a03"></i><i style="--a:#10b981;--b:#022c22"></i><i style="--a:#6366f1;--b:#1e1b4b"></i><i style="--a:#06b6d4;--b:#083344"></i><i style="--a:#a855f7;--b:#3b0764"></i><i style="--a:#84cc16;--b:#1a2e05"></i><i style="--a:#f43f5e;--b:#4c0519"></i></div></div></div>
+<h3>Notes</h3><ol class="notes"><li>Hero drops from about 80% of the screen height to about 55%, so the rows start sooner.</li><li>Book heroes show the cover large and filling the height, not a small cover floating in empty space.</li><li>Music never appears as single albums; one "Recently added music" collage slide links to Recently Added in Music.</li><li>Only two buttons: Watch (or Read, Listen) and +. No like, dislike or edit.</li><li>Rotation is balanced across Watch, Read and Listen so Watch cannot be crowded out.</li></ol>
+</section>
+
+<section class="screen" id="detail">
+<div class="frame"><div class="detail"><div class="art p" style="--c1:#3b4e8a"></div>
+<div class="stack"><h1 style="font-size:30px">Severance</h1>
+<div class="facts"><span class="mk" style="position:static;display:inline-grid">1</span><span class="pill">TV-MA</span><span>2 seasons</span><span class="pill">Dolby Vision</span><span class="pill">4K</span><span class="pill">Sci-Fi</span><span class="pill">Thriller</span></div>
+<span class="btn pri sm"><span class="mk" style="position:static;display:inline-grid;margin-right:4px">2</span>▶ Resume S2 · E3</span>
+<div class="sec"><span class="mk" style="position:static;display:inline-grid;margin-right:4px">3</span><span class="c" title="My List">＋</span><span class="c">👍</span><span class="c">▷</span><span class="c">⋯</span></div>
+<p class="note" style="max-width:60ch">Mark leads a team whose memories have been surgically divided between work and home.</p></div></div>
+<div class="body"><h3><span class="mk" style="position:static;display:inline-grid;margin-right:8px;vertical-align:middle">4</span>Cast</h3><div class="people" style="grid-template-columns:repeat(auto-fill,minmax(88px,92px))"><div class="person"><div class="art" style="--c1:#8a6a3b"></div>Adam Scott</div><div class="person"><div class="art" style="--c1:#3b8a6a"></div>Britt Lower</div><div class="person"><div class="art" style="--c1:#6a3b8a"></div>Zach Cherry</div><div class="person"><div class="art" style="--c1:#8a3b4e"></div>Tramell Tillman</div></div></div></div>
+<div style="display:flex;gap:24px;flex-wrap:wrap"><div><h3 style="margin-bottom:6px">Menu opened from "..."</h3><div class="menu"><div>Restart</div><div>Edit</div><div class="del">Delete</div></div></div></div>
+<h3>Notes</h3><ol class="notes"><li>Facts (rating, seasons, Dolby Vision) sit above the main button.</li><li>Main button is smaller. On phones a Download button gets its own row. There is no Restart button; Restart is in "...". Mark as watched appears in "..." only when the item is not finished; viewing history is gone from this page.</li><li>My List (+), thumbs up, trailer and "..." sit on one row below the button, shrunk to match.</li><li>Cast pictures are smaller (88px).</li></ol>
+</section>
+
+<section class="screen" id="people">
+<div class="frame"><div class="ph rel"><span class="mk" style="left:12px;top:12px">1</span><div class="art" style="--c1:#6a3b8a"></div><div class="stack"><span class="pill">Actor · Director</span><h1 style="font-size:32px">Greta Gerwig</h1><p class="note" style="max-width:60ch">Born 1983 in Sacramento, California. 7 works in your library.</p></div></div>
+<div class="body"><h3><span class="mk" style="position:static;display:inline-grid;margin-right:8px;vertical-align:middle">2</span>Works in your library</h3><div class="filters"><span class="mk" style="position:static;display:inline-grid;margin-right:8px;vertical-align:middle">3</span><span class="pill on">All 7</span><span class="pill">Movies 4</span><span class="pill">Books 2</span><span class="pill">Shows 1</span></div>
+<div class="row port"><div class="tile"><div class="art p" style="--c1:#8a3b4e"></div><div class="t">Lady Bird</div><div class="s"><span class="pill">🎬</span> 2017</div></div><div class="tile"><div class="art p" style="--c1:#3b4e8a"></div><div class="t">Barbie</div><div class="s"><span class="pill">🎬</span> 2023</div></div><div class="tile"><div class="art p" style="--c1:#4e8a3b"></div><div class="t">Little Women</div><div class="s"><span class="pill">🎬</span> 2019</div></div></div></div></div>
+<div class="frame"><div class="body"><div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><h2><span class="mk" style="position:static;display:inline-grid;margin-right:8px;vertical-align:middle">4</span>People</h2><span class="sp"></span><span class="pill" style="padding:6px 12px;min-width:200px">⌕ Search people</span><span class="pill" style="padding:6px 12px">Sort: Most works ▾</span><span class="pill" style="padding:6px 12px">Kind: All ▾</span></div>
+<div class="people" style="grid-template-columns:repeat(auto-fill,minmax(88px,92px))"><div class="person"><div class="art" style="--c1:#8a6a3b"></div>Adam Scott</div><div class="person"><div class="art" style="--c1:#3b8a6a"></div>Britt Lower</div><div class="person"><div class="art" style="--c1:#6a3b8a"></div>Greta Gerwig</div><div class="person"><div class="art" style="--c1:#8a3b4e"></div>Tramell Tillman</div><div class="person"><div class="art" style="--c1:#3b4e8a"></div>Andy Weir</div><div class="person"><div class="art" style="--c1:#4e8a3b"></div>Hans Zimmer</div></div></div></div>
+<h3>Notes</h3><ol class="notes"><li>Person page: large portrait on the right, as today, filling more of the top.</li><li>Works use a small square kind label (no word "Movie").</li><li>The kind filter appears only when the person has more than one kind of work.</li><li>Collections &gt; People gets search and sort; people pictures are the smaller 88px square size.</li></ol>
+</section>
+</div>
+<script>
+const tabs=[...document.querySelectorAll('#tabs a')];
+function show(){const h=(location.hash||'#home').slice(1);document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id===h));tabs.forEach(a=>a.classList.toggle('on',a.hash==='#'+h))}
+addEventListener('hashchange',show);show();
+</script>

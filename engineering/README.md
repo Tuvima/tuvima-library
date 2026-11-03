@@ -23,6 +23,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 
 | Spec | Status |
 |---|---|
+| [Spec: Home, detail page and tile redesign (bigger portrait tiles, landscape Continue, shorter hero, short menus, People)](specs/home-detail-and-tiles.md) | Locked (v1, 2026-11-03); Continue tiles wait for the 2 Nov bug-fix thread to merge |
 | [Spec: Collections and lists (easy builder, imported lists, lanes on Home, one tile family)](specs/archive/collections-and-lists.md) | Built, awaiting your Local checks (v3, built 2026-11-01; PRs 592 to 604, docs tuvima-docs PR 38; Local checks and open follow-ups in validation/batch.md) |
 | [Spec: One Tuvima documentation hub (docs.tuvima.com: Products, Libraries, Legal; Library and Tuvima.Wikidata docs move into tuvima-docs)](specs/docs-hub.md) | Built, awaiting Local checks (v2; hub live at docs.tuvima.com, Library re-pointed 2026-10-28; checks L1-L3 in validation/batch.md) |
 | [Spec: Links to outside sources (TheTVDB links, linked people, person-page links)](specs/outside-source-links.md) | In progress (2026-10-28; cloud build done, WP1 live-address check parked as Local checks) |
