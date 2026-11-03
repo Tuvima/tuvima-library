@@ -51,7 +51,12 @@ public sealed class LibraryActivityTabTests : AsyncBunitContext
         _activity = new LibraryActivityDto(Guid.Parse(LibraryId), []);
         _universe.PushIngestionQueueProgress(new IngestionQueueProgressDto
         {
-            State = "working", FilesFound = 508, FilesDone = 120, Progress = 0.4, EstimatedSecondsRemaining = 240, UpdatedAt = DateTimeOffset.UtcNow,
+            State = "working",
+            FilesFound = 508,
+            FilesDone = 120,
+            Progress = 0.4,
+            EstimatedSecondsRemaining = 240,
+            UpdatedAt = DateTimeOffset.UtcNow,
         });
 
         var cut = Open();
