@@ -67,7 +67,6 @@
                                         MediaType="@Kind?.MediaTypes.FirstOrDefault()"
                                         KindLabel="@(Kind is null ? null : LabelOf(Kind))"
                                         SelectionMode="@PickerMode"
-                                        KindKey="@_kindKey"
                                         SetupSession="@SetupSession"
                                         InitialPath="@_pickerStart"
                                         OnValidationChanged="FolderChecked">

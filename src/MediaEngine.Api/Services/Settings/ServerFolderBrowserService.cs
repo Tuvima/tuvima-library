@@ -472,12 +472,25 @@ public sealed class ServerFolderBrowserService(
 
         // The count is only worth making for a folder that can be used: a refused folder shows its refusal, not a number.
         var canSelect = issues.All(issue => !string.Equals(issue.Severity, "error", StringComparison.OrdinalIgnoreCase));
-        if (canSelect && exists && hasRead)
+        // Browsing stays a plain folder list: nothing inside the folder is read. The contents are looked at only when the caller names a library
+        // kind, which the picker does not do while someone is choosing; the Add flow does it once the folder has been added.
+        var checkContents = canSelect && exists && hasRead && !string.IsNullOrWhiteSpace(request.KindKey);
+        if (checkContents)
         {
             AddOtherKindWarning(request.KindKey, resolved.Path, issues);
         }
 
-        var count = canSelect && exists && hasRead ? CountSupportedFiles(request.KindKey, resolved.Path, cancellationToken) : null;
+        var count = checkContents ? CountSupportedFiles(request.KindKey, resolved.Path, cancellationToken) : null;
+        if (count is { Count: 0, Unavailable: false } && !string.IsNullOrWhiteSpace(count.KindLabel))
+        {
+            issues.Add(new ServerFolderValidationIssueDto
+            {
+                Code = "no_matching_files",
+                Message = $"No {count.KindLabel} files were found in this folder yet. Check it's the right folder for this library.",
+                Severity = "warning",
+            });
+        }
+
         return new ServerFolderValidationResultDto
         {
             StorageLocationId = location.Id,
@@ -486,8 +499,8 @@ public sealed class ServerFolderBrowserService(
             Exists = exists,
             HasRead = hasRead,
             HasWrite = hasWrite,
-            ContainsFiles = exists && hasRead && ProbeContainsFiles(resolved.Path),
-            LooksLikePhoneFootage = exists && hasRead && videoNaming is not null && VideoPhoneFootageDetector.Looks(resolved.Path, videoNaming.Current.PhoneFootage),
+            ContainsFiles = checkContents && ProbeContainsFiles(resolved.Path),
+            LooksLikePhoneFootage = checkContents && videoNaming is not null && VideoPhoneFootageDetector.Looks(resolved.Path, videoNaming.Current.PhoneFootage),
             AvailableBytes = availableBytes,
             FileSystem = fileSystem,
             CanSelect = canSelect,
@@ -525,7 +538,7 @@ public sealed class ServerFolderBrowserService(
             issues.Add(new ServerFolderValidationIssueDto
             {
                 Code = "looks_like_other_kind",
-                Message = $"This looks like a {other} folder, but you're adding it to {kind.Label}. Check it's the right folder before you add it.",
+                Message = $"This looks like a {other} folder, but it was added to {kind.Label}. Check it's the right folder for this library.",
                 Severity = "warning",
             });
         }
@@ -1026,9 +1039,8 @@ public sealed class ServerFolderBrowserService(
             {
                 issues.Add(new ServerFolderValidationIssueDto { Code = "inside_configured_source", Message = $"This folder is inside a folder that {source.Label} already uses. Choose a folder that does not overlap it.", LibraryName = source.Name });
             }
-            else if (!IsDriveRoot(selected.Path) && IsWithin(selected.Path, configuredPath))
+            else if (IsWithin(selected.Path, configuredPath))
             {
-                // Pointing at a whole drive is allowed even though it holds other libraries' folders.
                 issues.Add(new ServerFolderValidationIssueDto { Code = "contains_configured_source", Message = $"This folder holds a folder that {source.Label} already uses. Choose a folder that does not overlap it.", LibraryName = source.Name });
             }
         }

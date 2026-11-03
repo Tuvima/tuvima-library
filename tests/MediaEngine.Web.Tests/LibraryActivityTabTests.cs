@@ -1,9 +1,11 @@
 using System.Text.RegularExpressions;
 using Bunit;
+using MediaEngine.Contracts.Ingestion;
 using MediaEngine.Contracts.Library;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Playback;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -20,12 +22,15 @@ public sealed class LibraryActivityTabTests : AsyncBunitContext
     private LibraryActivityDto? _activity;
     private TaskCompletionSource<LibraryActivityDto?>? _pending;
 
+    private readonly UniverseStateContainer _universe = new();
+
     public LibraryActivityTabTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLocalization();
+        Services.AddLogging();
         Services.AddNativeUiServices();
-        Services.AddSingleton(EngineApiClientStub.Create(stub =>
+        var api = EngineApiClientStub.Create(stub =>
         {
             stub.SetHandler("get_LastError", _ => null);
             stub.SetHandler(nameof(IEngineApiClient.GetLibraryActivityAsync), args =>
@@ -33,7 +38,37 @@ public sealed class LibraryActivityTabTests : AsyncBunitContext
                 _asked.Add(((string)args![0]!, (int)args[1]!));
                 return _pending is { } pending ? pending.Task : Task.FromResult(_activity);
             });
-        }));
+        });
+        Services.AddSingleton(api);
+        Services.AddSingleton(_universe);
+        Services.AddSingleton(new PlaybackSessionController(null!, api));
+        Services.AddSingleton<ShellActivityState>();
+    }
+
+    [Fact]
+    public void WhileTheLibraryIsProcessingFiles_TheTabShowsItRunningNowWithTheSameWordsAsTheMenu()
+    {
+        _activity = new LibraryActivityDto(Guid.Parse(LibraryId), []);
+        _universe.PushIngestionQueueProgress(new IngestionQueueProgressDto
+        {
+            State = "working", FilesFound = 508, FilesDone = 120, Progress = 0.4, EstimatedSecondsRemaining = 240, UpdatedAt = DateTimeOffset.UtcNow,
+        });
+
+        var cut = Open();
+
+        var running = cut.WaitForElement("[data-testid=library-activity-running]");
+        Assert.Contains("Found 508 files · 120 of 508 done", Text(running));
+    }
+
+    [Fact]
+    public void WhenNothingIsRunning_TheTabShowsNoRunningNowSection()
+    {
+        _activity = new LibraryActivityDto(Guid.Parse(LibraryId), []);
+
+        var cut = Open();
+
+        cut.WaitForElement("[role=status], .app-page-state, [data-testid=library-activity-rows]");
+        Assert.Empty(cut.FindAll("[data-testid=library-activity-running]"));
     }
 
     private static LibraryFolderDto Library() => new() { Id = LibraryId, Name = "Movies", KindKey = "movies", Area = "watch", MediaTypes = ["Movies"] };

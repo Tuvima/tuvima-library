@@ -183,7 +183,6 @@
     [Parameter] public EventCallback<LibrarySourceDto> OnSetDestination { get; set; }
     [Parameter] public EventCallback<ScanChange> OnSetScan { get; set; }
     [Parameter] public EventCallback<LibrarySourceDto> OnOverride { get; set; }
-    [Parameter] public EventCallback<LibrarySourceDto> OnChangeKind { get; set; }
     [Parameter] public EventCallback<LibrarySourceDto> OnRemove { get; set; }
     [Parameter] public EventCallback<LibrarySourceDto> OnChangeHandling { get; set; }
     [Parameter] public EventCallback<LibrarySourceDto> OnLabel { get; set; }
@@ -222,10 +221,6 @@
                 OnClick = EventCallback.Factory.Create(this, () => OnSetScan.InvokeAsync(new ScanChange(source, !source.ScanEnabled))),
             },
         };
-        if (OnChangeKind.HasDelegate && LibraryFolderTable.CanChangeKindOf(Library, source, jobOpen))
-        {
-            items.Add(new() { Label = L["LibraryFolderTable_ChangeWhatThisFolderIs"].Value, Icon = AppMaterialIcons.Outlined.Category, OnClick = Raise(OnChangeKind, source) });
-        }
 
         // What the older folder menu offered stays until the File handling tab (next step) decides where it belongs.
         if (managed && job is null)
