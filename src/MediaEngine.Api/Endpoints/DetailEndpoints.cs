@@ -44,6 +44,7 @@ public static class DetailEndpoints
             }
 
             var timing = System.Diagnostics.Stopwatch.StartNew();
+            parsedType = await composer.ResolveVideoSeriesTypeAsync(parsedType, id, ct);
             var presentationContext = DetailComposerService.ParseContext(context);
             var resolver = httpContext.RequestServices.GetRequiredService<IRequestAuthorityResolver>();
             var authority = await resolver.ResolveAsync(httpContext, ct);
