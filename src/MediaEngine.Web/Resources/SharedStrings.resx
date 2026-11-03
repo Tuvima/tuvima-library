@@ -2007,6 +2007,9 @@
   <data name="BookReader_BookmarkThisPage" xml:space="preserve">
     <value>Bookmark this page</value>
   </data>
+  <data name="BookReader_BackToMine" xml:space="preserve">
+    <value>Back to mine</value>
+  </data>
   <data name="BookReader_NoBookmarksYet" xml:space="preserve">
     <value>No bookmarks yet.</value>
   </data>

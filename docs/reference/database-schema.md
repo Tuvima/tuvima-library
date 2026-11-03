@@ -1573,22 +1573,9 @@ External provider identifiers (ISBN, ASIN, TMDB ID, MBID) used for cross-provide
 
 ## Reader
 
-### reader_bookmarks
-
-Saved reading positions.
-
-| Column | Type | Notes |
-|---|---|---|
-| `id` | TEXT | UUID, primary key |
-| `asset_id` | TEXT | FK -> `media_assets.id` |
-| `profile_id` | TEXT | FK -> `profiles.id` |
-| `chapter_index` | INTEGER | |
-| `cfi_position` | TEXT | EPUB Canonical Fragment Identifier of the bookmarked page (`epubcfi(...)`). The book reader writes `chapter_index` as 0 and puts "section name · percent" in `label`; rows from the retired reader hold offsets and are ignored by the book reader. |
-| `created_at` | TEXT | Timestamp |
-
 ### audiobook_bookmarks
 
-Saved playback positions in a video or an audiobook (the table keeps its audiobook name; a row works for any playable file). These are separate from EPUB reader bookmarks because they use seconds, optional chapter metadata, and the owning work. A bookmark is personal to `profile_id`, or global (`is_global = 1`): global bookmarks are seen by every profile that can see the title and are made and deleted only by a server administrator, with `profile_id` recording who made it. A bookmark on a Vault file is never listed, counted or found while Vault mode is off.
+Saved playback positions in a video or an audiobook (the table keeps its audiobook name; a row works for any file). Book bookmarks live here too (upgrade step 0078 moved the old `reader_bookmarks` table across): `position_kind` says what the position is (`time`, `text` for an EPUB reader location, `page` for a PDF or comic page, later), and a `text` row keeps the reader location (`epubcfi(...)`) in `locator` and its chapter in `chapter_index`. Film and audiobook screens only ever read `time` rows. A bookmark is personal to `profile_id`, or global (`is_global = 1`): global bookmarks are seen by every profile that can see the title and are made and deleted only by a server administrator, with `profile_id` recording who made it. A bookmark on a Vault file is never listed, counted or found while Vault mode is off.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -1605,6 +1592,8 @@ Saved playback positions in a video or an audiobook (the table keeps its audiobo
 | `description` | TEXT | Optional longer description (up to 4,000 characters) |
 | `is_global` | INTEGER | 1 when shared with everyone (upgrade step 0032); 0 for a personal bookmark |
 | `end_seconds` | REAL | Optional end of a bookmark that marks a part of the video (a scene), after `position_seconds` (upgrade step 0034); NULL for a plain bookmark |
+| `position_kind` | TEXT | `time` (default), `text` or `page` (upgrade step 0078) |
+| `locator` | TEXT | The reader location of a `text` bookmark; NULL for `time` rows |
 | `created_at` | TEXT | Timestamp |
 
 ### audiobook_chapter_title_overrides

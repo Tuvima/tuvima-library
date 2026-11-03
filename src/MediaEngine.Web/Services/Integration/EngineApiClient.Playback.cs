@@ -874,6 +874,24 @@ public sealed partial class EngineApiClient
         catch (Exception ex) { LastError = ex.Message; return []; }
     }
 
+    public async Task<List<ReaderBookmarkDto>> GetEveryonesReaderBookmarksAsync(Guid assetId, CancellationToken ct = default)
+    {
+        try { return await _http.GetFromJsonAsync<List<ReaderBookmarkDto>>($"reader/{assetId}/bookmarks/everyones", ct) ?? []; }
+        catch (Exception ex) { LastError = ex.Message; return []; }
+    }
+
+    public async Task<ReaderBookmarkDto?> PromoteReaderBookmarkAsync(Guid bookmarkId, string? name, CancellationToken ct = default)
+    {
+        try
+        {
+            var resp = await _http.PostAsync($"reader/bookmarks/{bookmarkId}/promote", System.Net.Http.Json.JsonContent.Create(new PromoteReaderBookmarkRequestDto(name)), ct);
+            return resp.IsSuccessStatusCode
+                ? await resp.Content.ReadFromJsonAsync<ReaderBookmarkDto>(cancellationToken: ct)
+                : null;
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
+    }
+
     public async Task<ReaderBookmarkDto?> CreateBookmarkAsync(Guid assetId, int chapterIndex, string? cfiPosition, string? label, CancellationToken ct = default)
     {
         try

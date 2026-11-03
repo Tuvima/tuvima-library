@@ -21,7 +21,6 @@ internal static class RecycleBinPersonalState
     [
         new("user_states"),
         new("consumption_history"),
-        new("reader_bookmarks"),
         new("reader_highlights"),
         new("reader_statistics"),
         new("audiobook_bookmarks", HasWork: true, HasProfile: true),

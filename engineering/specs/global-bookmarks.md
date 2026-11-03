@@ -102,7 +102,7 @@ Pre-release, so resets are acceptable (CLAUDE.md rule 6):
 - Administrators can read other people's bookmark notes (Shy's choice). Vault titles are excluded.
 - Same-spot Replace deletes a person's bookmark with no undo; accepted by Shy.
 - Decided: closeness gaps live in `config/bookmarks.json` (starting values above); anyone can use Find bookmarks, into their own Mine unless they are an administrator.
-- Open (small): the Text rule for EPUBs ("same paragraph") depends on how precisely the saved reader location can be compared; a scout must confirm before that stage, and the rule may become "same chapter" for Same spot.
+- Scout result (2026-11-03, stage 2): the reader saves an EPUB CFI such as `epubcfi(/6/14!/4/2/6/1:20)`: the part before `!` is the chapter file, the rest walks the chapter's markup down to a paragraph and a character. Two places in the SAME file compare exactly: same paragraph is Same spot, same chapter is Close, up to 2 chapters is Far. Across editions the markup differs, so positions are never compared; a set from another edition is placed by chapter name (D14). The Text rule therefore stays "same paragraph"; the fallback to "same chapter" was not needed. Book bookmarks now share the bookmark table (`position_kind` = text, reader location in `locator`; upgrade step 0078).
 - Later, not in this spec: Tuvima as a bookmark provider, reusing the same panel.
 
 ## 10. Plain English summary

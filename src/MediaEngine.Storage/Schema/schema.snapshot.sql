@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0077 bookmark_packs_retired).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0078 book_bookmarks_join_shared_model).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -312,7 +312,7 @@ CREATE TABLE audiobook_bookmarks (
     label                  TEXT,
     note                   TEXT,
     created_at             TEXT NOT NULL
-, description TEXT, is_global INTEGER NOT NULL DEFAULT 0 CHECK (is_global IN (0, 1)), end_seconds REAL CHECK (end_seconds IS NULL OR end_seconds > position_seconds));
+, description TEXT, is_global INTEGER NOT NULL DEFAULT 0 CHECK (is_global IN (0, 1)), end_seconds REAL CHECK (end_seconds IS NULL OR end_seconds > position_seconds), position_kind TEXT NOT NULL DEFAULT 'time' CHECK (position_kind IN ('time', 'text', 'page')), locator TEXT);
 
 CREATE TABLE audiobook_chapter_title_overrides (
     work_id                BLOB NOT NULL REFERENCES works(id) ON DELETE CASCADE,
@@ -2391,16 +2391,6 @@ CREATE TABLE qid_labels (
     updated_at  TEXT NOT NULL
 );
 
-CREATE TABLE reader_bookmarks (
-    id             BLOB NOT NULL PRIMARY KEY,
-    user_id        TEXT NOT NULL,
-    asset_id       BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
-    chapter_index  INTEGER NOT NULL,
-    cfi_position   TEXT,
-    label          TEXT,
-    created_at     TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
 CREATE TABLE reader_highlights (
     id             BLOB NOT NULL PRIMARY KEY,
     user_id        TEXT NOT NULL,
@@ -3704,9 +3694,6 @@ CREATE INDEX idx_profile_work_preferences_work
     ON profile_work_preferences(work_id, profile_id);
 
 CREATE INDEX idx_qid_labels_type ON qid_labels(entity_type);
-
-CREATE INDEX idx_reader_bookmarks_user_asset
-    ON reader_bookmarks (user_id, asset_id);
 
 CREATE INDEX idx_reader_highlights_user_asset
     ON reader_highlights (user_id, asset_id);
