@@ -27,6 +27,8 @@ public sealed class VideoBookmarkTests : AsyncBunitContext
         JSInterop.SetupModule("./js/playback-tool-sheet.js");
         JSInterop.SetupModule("./js/playback-seek-rail.js");
         Services.AddLogging();
+        Services.AddScoped<DashboardSessionAccessor>();
+        Services.AddSingleton(EngineApiClientStub.Create(_ => { }));
     }
 
     // ---------------------------------------------------------------- the owner service
@@ -114,7 +116,7 @@ public sealed class VideoBookmarkTests : AsyncBunitContext
         Assert.Contains("0 / 200", cut.Markup);
         Assert.Contains("0 / 4000", cut.Markup);
         var share = cut.Find("input[role=switch]");
-        Assert.Contains("Share with everyone", cut.Markup);
+        Assert.Contains("Make Global", cut.Markup);
         Assert.False(share.HasAttribute("checked"));
         Assert.Contains("Position in video", cut.Markup);
     }
@@ -126,7 +128,7 @@ public sealed class VideoBookmarkTests : AsyncBunitContext
         var cut = RenderDialog(service, context, canShare: false, allowDescription: true);
 
         Assert.Empty(cut.FindAll("input[role=switch]"));
-        Assert.DoesNotContain("Share with everyone", cut.Markup);
+        Assert.DoesNotContain("Make Global", cut.Markup);
         Assert.Equal(2, cut.FindAll("textarea").Count);
     }
 
@@ -181,7 +183,7 @@ public sealed class VideoBookmarkTests : AsyncBunitContext
         var asViewer = RenderDialog(service, context, canShare: false, allowDescription: true);
         await asViewer.Find("button.audiobook-bookmark-dialog__tab.is-selected ~ button").ClickAsync();
         Assert.Equal(2, asViewer.FindAll("[data-bookmark-swipe-row]").Count);
-        Assert.Contains("Everyone", asViewer.Markup);
+        Assert.Contains("Global", asViewer.Markup);
         Assert.Single(asViewer.FindAll("button.audiobook-bookmark-dialog__delete-request"));
         Assert.Single(asViewer.FindAll("button.audiobook-bookmark-dialog__swipe-delete"));
 
@@ -233,7 +235,7 @@ public sealed class VideoBookmarkTests : AsyncBunitContext
         cut.FindAll("button.playback-seek-rail__bookmark")[1].Click();
         cut.FindAll(".playback-seek-rail__bookmark-wrap")[1].MouseLeave();
         var card = cut.Find(".playback-seek-rail__quicklook");
-        Assert.Contains("Everyone", card.TextContent);
+        Assert.Contains("Global", card.TextContent);
         Assert.Contains("For everyone", card.TextContent);
         Assert.DoesNotContain(cut.FindAll(".playback-seek-rail__quicklook button.playback-seek-rail__more"), button => button.TextContent == "More");
 

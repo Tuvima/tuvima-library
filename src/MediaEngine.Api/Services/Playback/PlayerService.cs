@@ -25,6 +25,7 @@ public sealed class PlayerService
     private readonly IUserPlaybackSettingsService _settings;
     private readonly AudiobookListenHistoryRepository _history;
     private readonly AudiobookBookmarkRepository _bookmarks;
+    private readonly BookmarkClosenessProvider? _closeness;
     private readonly MusicPlayStatsRepository _musicStats;
     private readonly PlayerCatalogueScope _scope;
     private readonly PlaybackTelemetryLifecycleService _telemetry;
@@ -43,8 +44,10 @@ public sealed class PlayerService
         MusicPlayStatsRepository musicStats,
         PlayerCatalogueScope scope,
         PlaybackTelemetryLifecycleService telemetry,
-        PlayerDeviceStateRepository deviceStates)
+        PlayerDeviceStateRepository deviceStates,
+        BookmarkClosenessProvider? closeness = null)
     {
+        _closeness = closeness;
         _sessions = sessions;
         _playback = playback;
         _db = db;
@@ -1143,7 +1146,7 @@ public sealed class PlayerService
             throw new ArgumentException($"A bookmark name cannot exceed {AudiobookBookmarkNotePolicy.MaximumLength} characters.", nameof(request));
         }
 
-        return await _bookmarks.PromoteAsync(bookmarkId, name, PromoteMergeWindowSeconds, ct, await _scope.AssetIdsAsync(ct));
+        return await _bookmarks.PromoteAsync(bookmarkId, name, _closeness?.SameSpotSeconds ?? PromoteMergeWindowSeconds, ct, await _scope.AssetIdsAsync(ct));
     }
 
     /// <summary>Changes a Global bookmark's name, note and description. Administrators only. Returns null when it does not exist.</summary>
@@ -1169,7 +1172,10 @@ public sealed class PlayerService
         return await _bookmarks.UpdateGlobalAsync(bookmarkId, label, note, description, ct, await _scope.AssetIdsAsync(ct));
     }
 
-    /// <summary>Personal bookmarks this close together on one file are the same moment when one is promoted to Global.</summary>
+    /// <summary>
+    /// Personal bookmarks this close together on one file are the same moment when one is promoted to Global. Used only when
+    /// <c>config/bookmarks.json</c> cannot be read; the configured same-spot gap normally decides.
+    /// </summary>
     public const double PromoteMergeWindowSeconds = 3d;
 
     private async Task RequireBookmarkAdministratorAsync(CancellationToken ct)

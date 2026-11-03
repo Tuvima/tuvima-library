@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1376; api=0; web-client=54
+# scopes: contracts=1379; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -7881,29 +7881,6 @@
   StartSeconds: System.Double | json=startSeconds | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"title":"sample","startSeconds":7}
 
-[contracts] MediaEngine.Contracts.Playback.BookmarkPackDto
-  kind=class | converter=default | number-handling=default | unmapped=default
-  Id: System.Guid | json=id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  WorkId: System.Guid | json=workId | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Name: System.String | json=name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Author: System.String | json=author | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  IsEnabled: System.Boolean | json=isEnabled | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  IsAligned: System.Boolean | json=isAligned | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  ImportedAt: System.DateTimeOffset | json=importedAt | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Bookmarks: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.PackBookmarkDto> | json=bookmarks | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"id":"11111111-2222-3333-4444-555555555555","workId":"11111111-2222-3333-4444-555555555555","name":"sample","author":"sample","isEnabled":true,"isAligned":true,"importedAt":"2025-01-02T03:04:05+00:00","bookmarks":[]}
-
-[contracts] MediaEngine.Contracts.Playback.BookmarkPackExportRequestDto
-  kind=class | converter=default | number-handling=default | unmapped=default
-  ProfileId: System.Guid? | json=profileId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  AssetId: System.Guid | json=assetId | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  BookmarkIds: System.Collections.Generic.IReadOnlyList<System.Guid> | json=bookmarkIds | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Name: System.String | json=name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Author: System.String | json=author | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  RunningTimeSeconds: System.Double? | json=runningTimeSeconds | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Chapters: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.BookmarkPackChapterDto> | json=chapters | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"profileId":"11111111-2222-3333-4444-555555555555","assetId":"11111111-2222-3333-4444-555555555555","bookmarkIds":[],"name":"sample","author":"sample","runningTimeSeconds":7,"chapters":[]}
-
 [contracts] MediaEngine.Contracts.Playback.BookmarkPackFileDto
   kind=class | converter=default | number-handling=default | unmapped=default
   FileName: System.String | json=fileName | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -7911,7 +7888,66 @@
   BookmarkCount: System.Int32 | json=bookmarkCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"fileName":"sample","contentBase64":"sample","bookmarkCount":7}
 
-[contracts] MediaEngine.Contracts.Playback.BookmarkPackImportRequestDto
+[contracts] MediaEngine.Contracts.Playback.BookmarkSetApplyRequestDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Set: MediaEngine.Contracts.Playback.BookmarkSetRequestDto | json=set | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Choices: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.BookmarkSetRowChoiceDto> | json=choices | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ReplaceGlobalSet: System.Boolean | json=replaceGlobalSet | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"set":null,"choices":[],"replaceGlobalSet":true}
+
+[contracts] MediaEngine.Contracts.Playback.BookmarkSetApplyResultDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Added: System.Int32 | json=added | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Replaced: System.Int32 | json=replaced | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Kept: System.Int32 | json=kept | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Skipped: System.Int32 | json=skipped | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AddedToGlobal: System.Boolean | json=addedToGlobal | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"added":7,"replaced":7,"kept":7,"skipped":7,"addedToGlobal":true}
+
+[contracts] MediaEngine.Contracts.Playback.BookmarkSetCompareDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Name: System.String | json=name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Author: System.String | json=author | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  BookmarkCount: System.Int32 | json=bookmarkCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Match: System.String | json=match | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Reason: System.String | json=reason | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CanAlignByChapter: System.Boolean | json=canAlignByChapter | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  RowsReady: System.Boolean | json=rowsReady | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SkippedCount: System.Int32 | json=skippedCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AppliesToGlobal: System.Boolean | json=appliesToGlobal | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Rows: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.BookmarkSetCompareRowDto> | json=rows | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  GlobalCount: System.Int32 | json=globalCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"name":"sample","author":"sample","bookmarkCount":7,"match":"sample","reason":"sample","canAlignByChapter":true,"rowsReady":true,"skippedCount":7,"appliesToGlobal":true,"rows":[],"globalCount":7}
+
+[contracts] MediaEngine.Contracts.Playback.BookmarkSetCompareRowDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Index: System.Int32 | json=index | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Incoming: MediaEngine.Contracts.Playback.BookmarkSetItemDto | json=incoming | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Yours: MediaEngine.Contracts.Playback.BookmarkSetExistingDto | json=yours | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  GapSeconds: System.Double? | json=gapSeconds | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Closeness: System.String | json=closeness | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DefaultChoice: System.String | json=defaultChoice | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"index":7,"incoming":null,"yours":null,"gapSeconds":7,"closeness":"sample","defaultChoice":"sample"}
+
+[contracts] MediaEngine.Contracts.Playback.BookmarkSetExistingDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Id: System.Guid | json=id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PositionSeconds: System.Double | json=positionSeconds | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Name: System.String | json=name | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Note: System.String | json=note | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  IsGlobal: System.Boolean | json=isGlobal | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"11111111-2222-3333-4444-555555555555","positionSeconds":7,"name":"sample","note":"sample","isGlobal":true}
+
+[contracts] MediaEngine.Contracts.Playback.BookmarkSetItemDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  PositionSeconds: System.Double | json=positionSeconds | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  EndSeconds: System.Double? | json=endSeconds | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ChapterTitle: System.String | json=chapterTitle | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Note: System.String | json=note | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Description: System.String | json=description | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"positionSeconds":7,"endSeconds":7,"chapterTitle":"sample","note":"sample","description":"sample"}
+
+[contracts] MediaEngine.Contracts.Playback.BookmarkSetRequestDto
   kind=class | converter=default | number-handling=default | unmapped=default
   ProfileId: System.Guid? | json=profileId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   AssetId: System.Guid | json=assetId | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -7921,16 +7957,11 @@
   Mode: System.String | json=mode | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"profileId":"11111111-2222-3333-4444-555555555555","assetId":"11111111-2222-3333-4444-555555555555","contentBase64":"sample","runningTimeSeconds":7,"chapters":[],"mode":"sample"}
 
-[contracts] MediaEngine.Contracts.Playback.BookmarkPackPreviewDto
+[contracts] MediaEngine.Contracts.Playback.BookmarkSetRowChoiceDto
   kind=class | converter=default | number-handling=default | unmapped=default
-  Name: System.String | json=name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Author: System.String | json=author | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  BookmarkCount: System.Int32 | json=bookmarkCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Match: System.String | json=match | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Reason: System.String | json=reason | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  CanAlignByChapter: System.Boolean | json=canAlignByChapter | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  AlreadyImported: System.Boolean | json=alreadyImported | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"name":"sample","author":"sample","bookmarkCount":7,"match":"sample","reason":"sample","canAlignByChapter":true,"alreadyImported":true}
+  Index: System.Int32 | json=index | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Choice: System.String | json=choice | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"index":7,"choice":"sample"}
 
 [contracts] MediaEngine.Contracts.Playback.CastSessionDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -8151,6 +8182,14 @@
   ExpiresAt: System.DateTimeOffset? | json=expiresAt | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"id":"11111111-2222-3333-4444-555555555555","assetId":"11111111-2222-3333-4444-555555555555","profileKey":"sample","status":"sample","createdAt":"2025-01-02T03:04:05+00:00","scheduledFor":"2025-01-02T03:04:05+00:00","startedAt":"2025-01-02T03:04:05+00:00","completedAt":"2025-01-02T03:04:05+00:00","progressPct":7,"outputPath":"sample","outputBytes":7,"lastError":"sample","retryCount":7,"expiresAt":"2025-01-02T03:04:05+00:00"}
 
+[contracts] MediaEngine.Contracts.Playback.ExportGlobalBookmarksRequestDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  ProfileId: System.Guid? | json=profileId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AssetId: System.Guid | json=assetId | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  RunningTimeSeconds: System.Double? | json=runningTimeSeconds | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Chapters: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Playback.BookmarkPackChapterDto> | json=chapters | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"profileId":"11111111-2222-3333-4444-555555555555","assetId":"11111111-2222-3333-4444-555555555555","runningTimeSeconds":7,"chapters":[]}
+
 [contracts] MediaEngine.Contracts.Playback.ListenPlaybackCommandDto
   kind=class | converter=default | number-handling=default | unmapped=default
   CommandId: System.Guid | json=commandId | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -8256,16 +8295,6 @@
   ExpiresAt: System.DateTimeOffset? | json=expiresAt | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SourceHash: System.String | json=sourceHash | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"id":"11111111-2222-3333-4444-555555555555","assetId":"11111111-2222-3333-4444-555555555555","profileKey":"sample","displayName":"sample","status":"sample","downloadUrl":"sample","fileSizeBytes":7,"container":"sample","videoCodec":"sample","audioCodec":"sample","width":7,"height":7,"bitrateKbps":7,"createdAt":"2025-01-02T03:04:05+00:00","expiresAt":"2025-01-02T03:04:05+00:00","sourceHash":"sample"}
-
-[contracts] MediaEngine.Contracts.Playback.PackBookmarkDto
-  kind=class | converter=default | number-handling=default | unmapped=default
-  Id: System.Guid | json=id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  PositionSeconds: System.Double | json=positionSeconds | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  EndSeconds: System.Double? | json=endSeconds | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  ChapterTitle: System.String | json=chapterTitle | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Note: System.String | json=note | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  Description: System.String | json=description | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"id":"11111111-2222-3333-4444-555555555555","positionSeconds":7,"endSeconds":7,"chapterTitle":"sample","note":"sample","description":"sample"}
 
 [contracts] MediaEngine.Contracts.Playback.PlaybackAnalyticsDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -8747,12 +8776,6 @@
   track_id: System.Guid? | json=track_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   message: System.String | json=message | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"operation_id":"11111111-2222-3333-4444-555555555555","asset_id":"11111111-2222-3333-4444-555555555555","enrichment_type":"sample","refreshed":true,"status":"sample","before_count":7,"after_count":7,"track_id":"11111111-2222-3333-4444-555555555555","message":"sample"}
-
-[contracts] MediaEngine.Contracts.Playback.SetBookmarkPackEnabledRequestDto
-  kind=class | converter=default | number-handling=default | unmapped=default
-  ProfileId: System.Guid? | json=profileId | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  IsEnabled: System.Boolean | json=isEnabled | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"profileId":"11111111-2222-3333-4444-555555555555","isEnabled":true}
 
 [contracts] MediaEngine.Contracts.Playback.SubtitleLanguageSettingsDto
   kind=class | converter=default | number-handling=default | unmapped=default

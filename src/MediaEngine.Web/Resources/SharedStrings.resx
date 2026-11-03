@@ -7540,7 +7540,7 @@
     <value>No saved bookmarks yet.</value>
   </data>
   <data name="Common_Everyone" xml:space="preserve">
-    <value>· Everyone</value>
+    <value>· Global</value>
   </data>
   <data name="AudiobookBookmarkDialog_DeleteThisBookmark" xml:space="preserve">
     <value>Delete this bookmark?</value>
@@ -7564,7 +7564,7 @@
     <value>Optional longer description</value>
   </data>
   <data name="AudiobookBookmarkDialog_ShareWithEveryone" xml:space="preserve">
-    <value>Share with everyone</value>
+    <value>Make Global</value>
   </data>
   <data name="AudiobookBookmarkDialog_EveryoneWhoCanSeeThis" xml:space="preserve">
     <value>Everyone who can see this title will see it. Only administrators can change it.</value>
@@ -9842,5 +9842,125 @@
   </data>
   <data name="VideoBookmarkPane_ShowOnBar" xml:space="preserve">
     <value>Show bookmarks on the bar</value>
+  </data>
+  <data name="BookmarkFind_Back" xml:space="preserve">
+    <value>Back</value>
+  </data>
+  <data name="BookmarkFind_Title" xml:space="preserve">
+    <value>Find bookmarks</value>
+  </data>
+  <data name="BookmarkFind_CompareTitle" xml:space="preserve">
+    <value>Compare with your bookmarks</value>
+  </data>
+  <data name="BookmarkFind_YourFile" xml:space="preserve">
+    <value>Your file</value>
+  </data>
+  <data name="BookmarkFind_DropPrompt" xml:space="preserve">
+    <value>Drop a bookmark file here, or choose one</value>
+  </data>
+  <data name="BookmarkFind_ExportGlobal" xml:space="preserve">
+    <value>Export Global bookmarks</value>
+  </data>
+  <data name="BookmarkFind_ExportHint" xml:space="preserve">
+    <value>Saves this title’s Global bookmarks as a file. Personal bookmarks are never included.</value>
+  </data>
+  <data name="BookmarkFind_OneBookmark" xml:space="preserve">
+    <value>1 bookmark</value>
+  </data>
+  <data name="BookmarkFind_ManyBookmarks" xml:space="preserve">
+    <value>{0} bookmarks</value>
+  </data>
+  <data name="BookmarkFind_ByAuthor" xml:space="preserve">
+    <value> · by {0}</value>
+  </data>
+  <data name="BookmarkFind_Compare" xml:space="preserve">
+    <value>Compare</value>
+  </data>
+  <data name="BookmarkFind_AlignByChapter" xml:space="preserve">
+    <value>Align by chapter</value>
+  </data>
+  <data name="BookmarkFind_Incoming" xml:space="preserve">
+    <value>Incoming</value>
+  </data>
+  <data name="BookmarkFind_Yours" xml:space="preserve">
+    <value>Yours</value>
+  </data>
+  <data name="BookmarkFind_PickIncoming" xml:space="preserve">
+    <value>Keep the incoming bookmark at {0}</value>
+  </data>
+  <data name="BookmarkFind_PickYours" xml:space="preserve">
+    <value>Keep your bookmark at {0}</value>
+  </data>
+  <data name="BookmarkFind_NothingNearby" xml:space="preserve">
+    <value>Nothing nearby</value>
+  </data>
+  <data name="BookmarkFind_LeaveOut" xml:space="preserve">
+    <value>Leave out</value>
+  </data>
+  <data name="BookmarkFind_AddThis" xml:space="preserve">
+    <value>Add</value>
+  </data>
+  <data name="BookmarkFind_SkippedNote" xml:space="preserve">
+    <value>{0} bookmarks in this file could not be placed on your copy and are left out.</value>
+  </data>
+  <data name="BookmarkFind_ReplaceWhole" xml:space="preserve">
+    <value>Replace the whole Global set with this one</value>
+  </data>
+  <data name="BookmarkFind_ReplaceWholeHint" xml:space="preserve">
+    <value>Removes the {0} Global bookmarks this title has now and adds every bookmark in the file.</value>
+  </data>
+  <data name="BookmarkFind_Apply" xml:space="preserve">
+    <value>Apply</value>
+  </data>
+  <data name="BookmarkFind_ApplyGlobalHint" xml:space="preserve">
+    <value>Nothing changes until Apply. Bookmarks you keep from the file become Global for everyone.</value>
+  </data>
+  <data name="BookmarkFind_ApplyMineHint" xml:space="preserve">
+    <value>Nothing changes until Apply. Bookmarks you keep from the file become yours.</value>
+  </data>
+  <data name="BookmarkFind_NotABookmarkFile" xml:space="preserve">
+    <value>That is not a bookmark file, or it is too large.</value>
+  </data>
+  <data name="BookmarkFind_ApplyFailed" xml:space="preserve">
+    <value>The bookmarks could not be applied.</value>
+  </data>
+  <data name="BookmarkFind_AppliedGlobal" xml:space="preserve">
+    <value>Added {0} Global bookmarks</value>
+  </data>
+  <data name="BookmarkFind_AppliedMine" xml:space="preserve">
+    <value>Added {0} bookmarks</value>
+  </data>
+  <data name="BookmarkFind_ExportFailed" xml:space="preserve">
+    <value>The file could not be made.</value>
+  </data>
+  <data name="BookmarkFind_Exported" xml:space="preserve">
+    <value>Saved a file with {0} Global bookmarks.</value>
+  </data>
+  <data name="BookmarkFind_Matches" xml:space="preserve">
+    <value>Matches this cut</value>
+  </data>
+  <data name="BookmarkFind_DifferentCut" xml:space="preserve">
+    <value>Different cut</value>
+  </data>
+  <data name="BookmarkFind_NotThisTitle" xml:space="preserve">
+    <value>Not this title</value>
+  </data>
+  <data name="BookmarkFind_SameSpot" xml:space="preserve">
+    <value>Same spot · {0}</value>
+  </data>
+  <data name="BookmarkFind_Close" xml:space="preserve">
+    <value>Close · {0}</value>
+  </data>
+  <data name="BookmarkFind_Far" xml:space="preserve">
+    <value>Far · {0}</value>
+  </data>
+  <data name="BookmarkFind_New" xml:space="preserve">
+    <value>New</value>
+  </data>
+  <data name="VideoBookmarkPane_Find" xml:space="preserve">
+    <value>Find bookmarks</value>
+  </data>
+  <data name="AudiobookGlobalExtras_Nobody" xml:space="preserve">
+    <value>Nobody else has bookmarked this title.</value>
   </data>
 </root>
