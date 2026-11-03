@@ -57,3 +57,12 @@ Passed (Shy): Pick up row for movies; hero start for a played show, show lengths
 
 43. Editor: opening Edit shows the wrong movie or title (the editor of a previously opened item); a page refresh shows the right one. Bug, to be remediated in the editor overhaul.
 Shy's decision: the remaining editor checks (Details, Artwork, Match, moves, batch editing, Esc, tablet) are paused because the editor needs an overhaul as its own piece of work. Plan with Opus, review of the implementation with Fable; Shy will provide a target state, screenshots and principles. The wrong-title bug (item 43) is part of that work.
+
+## Settings tour
+
+Passed (Shy): menu order; General (name, language, test email); Playback; Network, Local AI and Backups "okay for now"; Tools "okay for now"; Libraries page status line, Activity tab and Needs Review count.
+
+44. Settings, General, QR pairing: works, but needs more thought for a server that is publicly reachable (the QR code must carry the right public address, not only the .local one).
+45. Settings, profile Preferences: a user's own preferences are hidden inside household/other pages. They should be easy to reach from the profile. The individual pages look good (maybe minor tweaks) but the layout of the user section is poor. Review how Netflix does it (Settings in the profile menu: one clear Profile page with its preferences) as the model. Related to the Settings redesign brief (F90, Manage Profiles).
+46. Needs Review page: heavily needs updating (see item 21).
+47. Settings, Users and households: adding a second profile works, but the page layout needs updating.
