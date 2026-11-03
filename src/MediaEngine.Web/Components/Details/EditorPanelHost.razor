@@ -5,22 +5,20 @@
 @inject IAppDialogService Dialogs
 @inject IStringLocalizer<SharedStrings> L
 
-@* The universal editor's window (v2 spec D1, D2): a large modal window over the dimmed page, with one header (title and close), a rail of
-   tools on the left (Details, Artwork, Match, only where the item has them), one scroll area for the tool, and a footer whose Cancel and
-   Save are always in the same place. Closing it with the X, Esc or Cancel asks "Unsaved changes" when something is staged. What the tool
-   shows is chosen by the page; Artwork is drawn here, docked, from the page's picker session. *@
+@* The universal editor's window (v3 spec D1, D2): the content of the pop-over the layout shows in a modal dialog, with one header (title,
+   the item's trail and close), a rail of tools on the left (Details, Artwork, Match, only where the item has them), one scroll area for the
+   tool, and a footer whose Cancel and Save are always in the same place. Closing it with the X, Esc or Cancel asks "Unsaved changes" when
+   something is staged. The native dialog around it makes the page inert and traps focus; what the tool shows is chosen by the pop-over;
+   Artwork is drawn here, docked, from the editor's picker session. *@
 @if (Mode is { IsOn: true, CanEdit: true } mode && Flow?.Session is { IsActive: true, ActiveTool: { } tool } session)
 {
     var count = session.Pending.ChangeCount;
     var flow = Flow;
-    <div class="tl-editor-scrim" aria-hidden="true"></div>
-    <aside class="tl-editor-panel tl-editor-window"
-           role="dialog"
-           aria-modal="true"
-           aria-labelledby="tl-editor-panel-title"
-           data-tool="@tool.ToString().ToLowerInvariant()">
+    <div class="tl-editor-panel tl-editor-window"
+         data-tool="@tool.ToString().ToLowerInvariant()">
         <header class="tl-editor-panel__header">
             <h2 id="tl-editor-panel-title" class="tl-editor-panel__title" tabindex="-1">@(_reviewing ? "Review changes" : TitleOverride ?? TitleFor(tool))</h2>
+            @HeaderContent
             <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
                            Size="AppControlSize.Large"
                            Tone="AppUiTone.Neutral"
@@ -88,7 +86,7 @@
             </div>
         </footer>
         }
-    </aside>
+    </div>
 }
 
 @code {
@@ -106,7 +104,10 @@
     /// <summary>What the open tool shows; the page decides (the Details fields, or the section the tool hosts).</summary>
     [Parameter] public RenderFragment<EditTool>? ChildContent { get; set; }
 
-    /// <summary>The page's artwork picker session; when set, the Artwork tool is drawn inside the window instead of by the page.</summary>
+    /// <summary>Extra content in the header, between the title and the close button (the trail of the item being edited).</summary>
+    [Parameter] public RenderFragment? HeaderContent { get; set; }
+
+    /// <summary>The editor's artwork picker session; when set, the Artwork tool is drawn inside the window instead of by the page.</summary>
     [Parameter] public ArtworkPickerSession? Picker { get; set; }
 
     /// <summary>True on pages whose items keep a change history (not the Universe pages): the rail then offers the History tool.</summary>

@@ -1,19 +1,20 @@
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// The Chronicle explorer edits the Universe, and one character, place or organisation in it, on the page with the universal editor
-/// (the editing bar, side panel, floating artwork picker and Review changes). The old pop-up editor and its launcher are gone.
+/// The Chronicle explorer edits the Universe, and one character, place or organisation in it, through the universal editor's pop-over
+/// (drawn once by the layout from the shared editor host: Details, floating artwork picker and Review changes), with no editing bar on the
+/// page. The old modal editor launcher is gone.
 /// </summary>
 public sealed class ChronicleExplorerEditingGuardrailTests
 {
     [Fact]
-    public void TheExplorer_UsesTheUniversalEditorInPlace_AndNoPopUp()
+    public void TheExplorer_OpensTheSharedPopOver_WithNoBarOnThePage()
     {
         var explorer = Read("src/MediaEngine.Web/Components/Pages/ChronicleExplorer.razor");
 
-        Assert.Contains("<EditingBar", explorer, StringComparison.Ordinal);
-        Assert.Contains("<EditorPanelHost", explorer, StringComparison.Ordinal);
-        Assert.Contains("Picker=\"_artworkPicker\"", explorer, StringComparison.Ordinal);
+        Assert.DoesNotContain("<EditingBar", explorer, StringComparison.Ordinal);
+        Assert.DoesNotContain("<EditorPanelHost", explorer, StringComparison.Ordinal);
+        Assert.Contains("Editor.OpenAsync(_binding", explorer, StringComparison.Ordinal);
         Assert.Contains("LoadSubjectAsync", explorer, StringComparison.Ordinal);
         Assert.Contains("LoadUniverseSubjectAsync", explorer, StringComparison.Ordinal);
         Assert.Contains("EditorDeviceRule.TryRefuse", explorer, StringComparison.Ordinal);

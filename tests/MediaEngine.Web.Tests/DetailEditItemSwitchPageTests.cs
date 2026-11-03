@@ -80,7 +80,10 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
         Services.AddSingleton(_ => new ProviderCatalogueService(api, new MemoryCache(new MemoryCacheOptions())));
         Render<AppPopoverHost>();
         _dialogs = Render<AppDialogHost>();
+        _editor = Render<EditorPopover>();
     }
+
+    private readonly IRenderedComponent<EditorPopover> _editor;
 
     private sealed class NoHistory : IDetailsOverlayHistory
     {
@@ -123,36 +126,33 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
         var cut = Render<DetailPage>(parameters => parameters.Add(page => page.Model, model));
         cut.Find("button[aria-label='More actions']").Click();
         cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Edit").Click();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-editing-bar__tool")));
+        _editor.WaitForAssertion(() => Assert.NotEmpty(_editor.FindAll(".tl-editor-window__tool")));
         return cut;
     }
 
-    private static EditSessionFlow FlowOf(IRenderedComponent<DetailPage> cut) => cut.FindComponent<EditingBar>().Instance.Flow!;
+    private EditSessionFlow FlowOf(IRenderedComponent<DetailPage> cut) => Services.GetRequiredService<EditorHost>().Flow;
 
-    private static void Choose(IRenderedComponent<DetailPage> cut, int step, string name)
+    private void Choose(IRenderedComponent<DetailPage> cut, int step, string name)
     {
-        cut.FindAll(".tl-editing-bar__step-trigger")[step].Click();
-        cut.WaitForAssertion(() => Assert.Contains(cut.FindAll("[role^='menuitem']"), item => item.TextContent.Contains(name, StringComparison.Ordinal)));
-        cut.FindAll("[role^='menuitem']").First(item => item.TextContent.Contains(name, StringComparison.Ordinal)).Click();
+        _editor.FindAll(".tl-editing-bar__step-trigger")[step].Click();
+        _editor.WaitForAssertion(() => Assert.Contains(_editor.FindAll("[role^='menuitem']"), item => item.TextContent.Contains(name, StringComparison.Ordinal)));
+        _editor.FindAll("[role^='menuitem']").First(item => item.TextContent.Contains(name, StringComparison.Ordinal)).Click();
     }
 
-    private static void OpenDetails(IRenderedComponent<DetailPage> cut)
-    {
-        cut.FindAll(".tl-editing-bar__tool").Single(tool => tool.TextContent.Trim() == "Details").Click();
-        cut.WaitForElement("input[aria-label='Title']");
-    }
+    // The pop-over opens on Details by itself.
+    private void OpenDetails(IRenderedComponent<DetailPage> cut) => _editor.WaitForElement("input[aria-label='Title']");
 
     [Fact]
-    public async Task TheBarListsTheShowsSeasonsAndEpisodes_AndChoosingOneSwitchesWithoutLeavingThePage()
+    public async Task TheTrailListsTheShowsSeasonsAndEpisodes_AndChoosingOneSwitchesWithoutLeavingThePage()
     {
         var cut = await StartEditingAsync(EditTrailTestData.ShowPage());
         var flow = FlowOf(cut);
         var address = Services.GetRequiredService<NavigationManager>().Uri;
 
         Choose(cut, 0, "Season 1");
-        cut.WaitForAssertion(() => Assert.Equal(SeasonOne, flow.Session.ActiveItem!.EntityId));
+        _editor.WaitForAssertion(() => Assert.Equal(SeasonOne, flow.Session.ActiveItem!.EntityId));
         Choose(cut, 1, "Episode 2");
-        cut.WaitForAssertion(() => Assert.Equal(EpisodeTwo, flow.Session.ActiveItem!.EntityId));
+        _editor.WaitForAssertion(() => Assert.Equal(EpisodeTwo, flow.Session.ActiveItem!.EntityId));
 
         Assert.Equal([ShowId, SeasonOne, EpisodeTwo], flow.Session.Trail.Select(step => step.EntityId));
         Assert.Equal(address, Services.GetRequiredService<NavigationManager>().Uri);
@@ -167,13 +167,13 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
         var flow = FlowOf(cut);
         OpenDetails(cut);
         Choose(cut, 0, "Season 1");
-        cut.WaitForAssertion(() => Assert.Equal(SeasonOne, flow.Session.ActiveItem!.EntityId));
+        _editor.WaitForAssertion(() => Assert.Equal(SeasonOne, flow.Session.ActiveItem!.EntityId));
 
-        cut.WaitForElement("[data-field-key='title'] input[aria-label='Season']");
+        _editor.WaitForElement("[data-field-key='title'] input[aria-label='Season']");
         Assert.Equal("season", flow.Mode().Fields.ScopeId);
-        cut.Find("[data-field-key='title'] input").Input("Premiere");
+        _editor.Find("[data-field-key='title'] input").Input("Premiere");
 
-        cut.WaitForAssertion(() => Assert.True(flow.Session.Pending.TryGetField(SeasonOne, "title", out _)));
+        _editor.WaitForAssertion(() => Assert.True(flow.Session.Pending.TryGetField(SeasonOne, "title", out _)));
         Assert.False(flow.Session.Pending.TryGetField(ShowId, "title", out _));
     }
 
@@ -184,12 +184,12 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
         var flow = FlowOf(cut);
         flow.Session.Pending.SetField(ShowId, "tagline", "A hotel");
         Choose(cut, 0, "Season 1");
-        cut.WaitForAssertion(() => Assert.Equal(SeasonOne, flow.Session.ActiveItem!.EntityId));
+        _editor.WaitForAssertion(() => Assert.Equal(SeasonOne, flow.Session.ActiveItem!.EntityId));
         Choose(cut, 1, "Episode 1");
-        cut.WaitForAssertion(() => Assert.Equal(EpisodeOne, flow.Session.ActiveItem!.EntityId));
+        _editor.WaitForAssertion(() => Assert.Equal(EpisodeOne, flow.Session.ActiveItem!.EntityId));
         flow.Session.Pending.SetField(EpisodeOne, "description", "The first night.");
 
-        cut.WaitForAssertion(() => Assert.Equal("Save 2 changes", cut.Find("button.tl-editing-bar__save").TextContent.Trim()));
+        _editor.WaitForAssertion(() => Assert.Equal("Save 2 changes", _editor.Find("button.tl-editor-window__save").TextContent.Trim()));
         var items = flow.ReviewRows().Select(row => row.Item).Distinct().ToList();
         Assert.Equal(["Le Continental", "Episode 1"], items);
     }
@@ -202,9 +202,9 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
         flow.Session.Pending.SetField(ShowId, "title", "Renamed show");
         cut.WaitForAssertion(() => Assert.Equal("Renamed show", cut.Find(".tl-detail-page h1").TextContent.Trim()));
         Choose(cut, 0, "Season 1");
-        cut.WaitForAssertion(() => Assert.Equal(SeasonOne, flow.Session.ActiveItem!.EntityId));
+        _editor.WaitForAssertion(() => Assert.Equal(SeasonOne, flow.Session.ActiveItem!.EntityId));
         Choose(cut, 1, "Episode 1");
-        cut.WaitForAssertion(() => Assert.Equal(EpisodeOne, flow.Session.ActiveItem!.EntityId));
+        _editor.WaitForAssertion(() => Assert.Equal(EpisodeOne, flow.Session.ActiveItem!.EntityId));
 
         flow.Session.Pending.SetField(EpisodeOne, "title", "Pilot");
 
@@ -233,7 +233,7 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
 
         Choose(cut, 1, "Paranoid Android");
 
-        cut.WaitForAssertion(() => Assert.Equal(EditTrailTestData.TrackTwoId, flow.Session.ActiveItem!.EntityId));
+        _editor.WaitForAssertion(() => Assert.Equal(EditTrailTestData.TrackTwoId, flow.Session.ActiveItem!.EntityId));
         Assert.Equal("track", flow.Mode().Fields.ScopeId);
         Assert.Equal([EditTrailTestData.ArtistId, EditTrailTestData.AlbumId, EditTrailTestData.TrackTwoId], flow.Session.Trail.Select(step => step.EntityId));
     }
@@ -252,8 +252,8 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
 
         var cut = await StartEditingAsync(movie);
 
-        Assert.Empty(cut.FindAll(".tl-editing-bar__step-trigger"));
-        Assert.Contains("Dune: Part One", cut.Find(".tl-editing-bar__trail").TextContent);
+        Assert.Empty(_editor.FindAll(".tl-editing-bar__step-trigger"));
+        Assert.Contains("Dune: Part One", _editor.Find(".tl-editing-bar__trail").TextContent);
     }
 
 }

@@ -19,6 +19,7 @@
 @inject IEngineApiClient ApiClient
 @inject DeviceContextService DeviceContext
 @inject SavedItemService SavedItems
+@inject EditorHost Editor
 @inject MediaReactionService Reactions
 @inject PlaybackSessionController Playback
 @inject UIOrchestratorService Orchestrator
@@ -44,27 +45,13 @@
 }
 else if (Model is not null)
 {
-    <CascadingValue Value="_editing" IsFixed="true">
+    @* Editing opens the pop-over the layout draws (EditorPopover); this page is never put into an editing state. It only offers its
+       binding, so a row's own Edit can open the pop-over for this page's item. *@
+    <CascadingValue Value="_binding" IsFixed="true">
     <CascadingValue Value="_batch" IsFixed="true">
     <CascadingValue Value="_preview" IsFixed="true">
     <article class="tl-detail-page">
-        @* Editing: the bar is the first thing in the page's scroll container and sticks to its top; it is outside the
-           hero because the full-bleed hero clips what overflows it. *@
-        <EditingBar Mode="_editing"
-                    Flow="_flow"
-                    CanDelete="@CanDeleteFromLibrary"
-                    GroupDeleteActions="GroupDeleteMenuActions"
-                    GuardInternalNavigation="@(Overlay is null)"
-                    OnActionSelected="HandleDetailActionAsync" />
-
         <section class="@DetailStageClass">
-            @if (TemporaryArtworkSlot is { } temporarySlot)
-            {
-                <EditingTemporaryArtworkView Label="@ArtworkPickerRules.LabelFor(temporarySlot)"
-                                             ImageUrl="@_preview.Artwork.TemporaryUrl(temporarySlot)"
-                                             OnReturn="_artworkPicker.ReturnToNormalView" />
-            }
-
             <DetailHero Model="Model"
                         CanDelete="@CanDeleteFromLibrary"
                         CanAddToCollection="@CanAddToCollection"
@@ -136,47 +123,6 @@ else if (Model is not null)
                 <DetailsTab Model="Model" />
             }
         </section>
-
-
-        @* The right-hand panel of the editor: Details here (or the bulk panel while rows are ticked and the bar opened it), Match through the
-           editor section it has always used. *@
-        <EditSavedRibbon Flow="_flow" />
-        <EditorPanelHost Mode="_editing" Flow="_flow" Picker="_artworkPicker" TitleOverride="@BulkPanelTitle" ShowHistory="true">
-            @if (context == EditTool.Details)
-            {
-                @if (_batch.Panel != BulkPanelKind.None)
-                {
-                    <BulkEditPanel Selection="_batch" Pending="_flow.Session.Pending" CanEdit="@(_editing?.CanEdit == true)" />
-                }
-                else
-                {
-                    <EditorDetailsPanel Mode="_editing" Session="_flow.Session" />
-                }
-            }
-
-            @if (context == EditTool.Match)
-            {
-                @if (_editing is { Fields.Loading: true })
-                {
-                    <EditorPanelBusy Label="@L["DetailPage_LoadingThisItemSMatch"].Value" />
-                }
-
-                <EditorMatchPanel Subject="@(_editing is { Fields.Loading: false } ? _editing.Fields.MatchSubject() : null)"
-                                  Session="_flow.Session"
-                                  CanEdit="@(_editing?.CanEdit == true)"
-                                  Mode="_editing"
-                                  OnMatched="RefreshAfterSectionCommitAsync" />
-                <EditorExtrasMovePanel Subject="@(_editing is { Fields.Loading: false } ? _editing.Fields.MatchSubject() : null)"
-                                       Extras="Model.Extras"
-                                       Session="_flow.Session"
-                                       CanEdit="@(_editing?.CanEdit == true)" />
-            }
-
-            @if (context == EditTool.History)
-            {
-                <EditorHistoryTool EntityId="@(_flow.Session.ActiveItem?.EntityId ?? Guid.Empty)" />
-            }
-        </EditorPanelHost>
     </article>
     </CascadingValue>
     </CascadingValue>
@@ -214,88 +160,91 @@ else if (Model is not null)
     private bool CanEditMedia => DeviceContext.CanEdit && Model?.OverflowActions.Any(action =>
         !action.IsDisabled && action.Key is "edit" or "edit-media") == true;
 
-    // Editing Mode (the bar, side panel and floating artwork picker) serves items, people, series and curated collections.
-    private EditingModeContext? _editing;
-
-    // The universal editor on this page: the staged changes, the open tool, what the person does with them, and how the page shows them.
+    // The universal editor is one pop-over for the whole Dashboard (EditorHost, drawn by the layout); this page only binds itself to it when
+    // the person presses Edit. These are the editor's own objects, shared by every page: they are never disposed here.
+    private EditingModeContext _editing = default!;
     private EditSessionFlow _flow = default!;
     private EditPendingPreview _preview = default!;
     private ArtworkPickerSession _artworkPicker = default!;
-
-    // The rows ticked for the bulk panel, Move, Match and Delete (spec D14). It ends with Editing Mode; the rows ask the page to refresh through it.
-    // What it stages goes into the same pending list as one item's edits, so the one Save changes (and its review) covers everything.
-    private readonly BulkEditSelection _batch = new();
-    private EditTool? _lastTool;
-    private bool _bulkWasOpen;
+    private BulkEditSelection _batch = default!;
+    private EditorBinding _binding = default!;
     private Guid? _editingProfileId;
-    private IDisposable? _overlayGuard;
-    private IDisposable? _overlayEscape;
 
     protected override void OnInitialized()
     {
-        _editing = new EditingModeContext(DeviceContext, new ItemFieldEditSession(ApiClient, DeviceContext, Logger))
+        _editing = Editor.Mode;
+        _flow = Editor.Flow;
+        _preview = Editor.Preview;
+        _artworkPicker = Editor.Picker;
+        _batch = Editor.Batch;
+        _binding = new EditorBinding(DeviceContext)
         {
-            Loader = LoadEditingFieldsAsync,
-            AskSaveOrDiscard = () => EditingSaveOrDiscardDialog.AskAsync(Dialogs),
-        };
-        _editing.Changed += OnEditingChanged;
-        _editing.Fields.Saved += RefreshAfterFieldSavedAsync;
-        var session = new EditSessionState(new PendingEditList());
-        _flow = new EditSessionFlow(session, _editing, new EditSessionSaver(ApiClient), EditTrail, () => EditingUnsavedChangesDialog.AskDiscardAsync(Dialogs))
-        {
-            Saved = RefreshAfterEditSavedAsync,
-            MediaTypes = () => Model is null ? [] : [ResolveEditorMediaType(Model.EntityType, Model.PresentationContext)],
+            ShowHistory = true,
+            LoadFields = LoadEditingFieldsAsync,
             OpenItem = OpenEditItemAsync,
             ItemSwitched = AfterEditItemSwitchedAsync,
+            Saved = RefreshAfterEditSavedAsync,
+            SectionCommitted = RefreshAfterSectionCommitAsync,
+            FieldSaved = RefreshAfterFieldSavedAsync,
+            MediaTypes = () => Model is null ? [] : [ResolveEditorMediaType(Model.EntityType, Model.PresentationContext)],
+            Trail = EditTrail,
+            EditRowAsync = row => RowEditEntry.StartAsync(Editor, _binding, row),
         };
-        _preview = new EditPendingPreview(session, _editing.Fields);
-        _artworkPicker = new ArtworkPickerSession(ApiClient, session, _editing.Fields, _preview.Artwork, Logger);
-        session.Changed += OnEditSessionChanged;
-        _artworkPicker.Changed += OnEditSessionChanged;
-        _batch.Changed += OnBatchChanged;
-        _batch.RefreshAsync = RefreshAfterSectionCommitAsync;
         Orchestrator.OnLibraryItemsRemoved += OnLibraryItemsRemoved;
+        Editor.Changed += OnEditorChanged;
         UpdateEditingEligibility();
     }
 
-    // A page that replaced one which followed its item here (a move removed the title it showed) picks Editing Mode back up: the mode
-    // is on again, Match and Identity is open and the move's result line is showing, so following the surviving item does not end the edit.
+    // The staged changes changed (a field typed into, a picture picked): the hero and overview show them before Save changes, behind the
+    // dimmed pop-over. Nothing else on the page moves.
+    private void OnEditorChanged()
+    {
+        if (!_disposed && ReferenceEquals(Editor.Binding, _binding))
+        {
+            _ = InvokeAsync(StateHasChanged);
+        }
+    }
+
+    // A page that replaced one which followed its item here (a move removed the title it showed) picks the editor back up: the pop-over opens
+    // again on the surviving item with Match and Identity open and the move's result line showing, so following the item does not end the edit.
     protected override async Task OnInitializedAsync() => await ResumeEditingAsync();
 
     private async Task ResumeEditingAsync()
     {
-        if (_editing is null || Model is null || !Guid.TryParse(Model.Id, out var entityId)
+        if (Model is null || !Guid.TryParse(Model.Id, out var entityId)
             || EditResumeStore is not { } store || !store.TryTakeEditResume(entityId, out var resume))
         {
             return;
         }
 
         // The device or the person may no longer qualify: then the page simply opens to read, as a deep link would.
-        if (!await _editing.EnterAsync() || _disposed)
-        {
-            return;
-        }
-
-        if (resume.Section == EditingSection.Match && !_editing.Fields.CanMatch)
-        {
-            // The new item cannot be matched, so there is no section to hold the line: say it here instead.
-            if (!string.IsNullOrWhiteSpace(resume.ResultLine))
-            {
-                Snackbar.Add(resume.ResultLine, AppSeverity.Success);
-            }
-
-            return;
-        }
-
         if (resume.SelectRow is { } row)
         {
             // A song's Edit: the song is ticked and the Edit panel opens for it, on the page it came from.
-            await RowEditEntry.StartAsync(_editing, _batch, row);
+            await RowEditEntry.StartAsync(Editor, _binding, row);
             return;
         }
 
-        _editing.OpenSection(resume.Section);
+        UpdateEditingEligibility();
+        if (!await Editor.OpenAsync(_binding, entityId, ToolFor(resume.Section)) || _disposed)
+        {
+            return;
+        }
+
+        if (resume.Section == EditingSection.Match && !_editing.Fields.CanMatch && !string.IsNullOrWhiteSpace(resume.ResultLine))
+        {
+            // The new item cannot be matched, so there is no section to hold the line: say it here instead.
+            Snackbar.Add(resume.ResultLine, AppSeverity.Success);
+        }
     }
+
+    private static EditTool ToolFor(EditingSection section) => section switch
+    {
+        EditingSection.Artwork => EditTool.Artwork,
+        EditingSection.Match => EditTool.Match,
+        EditingSection.History => EditTool.History,
+        _ => EditTool.Details,
+    };
 
     // The one-shot note lives in the overlay state: this page's own cascade when it is in the overlay, else the circuit's.
     private DetailsOverlayState? EditResumeStore => Overlay ?? Services.GetService<DetailsOverlayState>();
@@ -318,7 +267,6 @@ else if (Model is not null)
     {
         UpdateEditingCatalog();
         UpdateEditingEligibility();
-        _batch.MediaType = Model is null ? null : ResolveEditorMediaType(Model.EntityType, Model.PresentationContext);
     }
 
     /// <summary>The details overlay this page is shown in; null when the page is rendered on its own.</summary>
@@ -330,93 +278,17 @@ else if (Model is not null)
     {
         _disposed = true;
         Orchestrator.OnLibraryItemsRemoved -= OnLibraryItemsRemoved;
-        ReleaseOverlayGuards();
-        if (_editing is null)
-        {
-            return;
-        }
+        Editor.Changed -= OnEditorChanged;
 
-        _editing.Changed -= OnEditingChanged;
-        _editing.Fields.Saved -= RefreshAfterFieldSavedAsync;
-        _flow.Session.Changed -= OnEditSessionChanged;
-        _artworkPicker.Changed -= OnEditSessionChanged;
-        _batch.Changed -= OnBatchChanged;
-        _flow.Dispose();
-        _editing.Dispose();
+        // The editor outlives the page. When it is open on this page it goes with it (the leave guards have already asked).
+        Editor.Unbind(_binding);
     }
-
-    // The staged changes changed (a field typed into, a tool opened): the hero, overview and bar show them. Leaving the Details tool
-    // (the panel's close button, or another tool) also closes the bulk panel; the ticks and the staged changes stay.
-    private void OnEditSessionChanged()
-    {
-        var tool = _flow.Session.ActiveTool;
-        if (_lastTool == EditTool.Details && tool != EditTool.Details && _batch.Panel != BulkPanelKind.None)
-        {
-            _bulkWasOpen = false;
-            _batch.ClosePanel();
-        }
-
-        _lastTool = tool;
-        _ = InvokeAsync(StateHasChanged);
-    }
-
-    // The bar asked for a bulk panel, or the ticks ended: open the Details tool for it (settling an open section first), or close the tool
-    // again when the last ticked row went and the panel was only there for them.
-    private void OnBatchChanged() => _ = InvokeAsync(SyncBulkPanelAsync);
-
-    private async Task SyncBulkPanelAsync()
-    {
-        if (_disposed || _editing is null)
-        {
-            return;
-        }
-
-        if (_batch.Panel != BulkPanelKind.None)
-        {
-            if (_editing is not { IsOn: true, CanEdit: true } || !_flow.Session.IsActive)
-            {
-                _batch.ClosePanel();
-                return;
-            }
-
-            if (_editing.SectionOpen && !await _editing.CloseSectionAsync())
-            {
-                _batch.ClosePanel();
-                return;
-            }
-
-            _bulkWasOpen = true;
-            if (_flow.Session.ActiveTool != EditTool.Details)
-            {
-                _flow.Session.SetTool(EditTool.Details);
-            }
-        }
-        else if (_bulkWasOpen)
-        {
-            _bulkWasOpen = false;
-            if (_flow.Session.IsActive && _flow.Session.ActiveTool == EditTool.Details && !_editing.SectionOpen)
-            {
-                _flow.Session.SetTool(null);
-            }
-        }
-
-        StateHasChanged();
-    }
-
-    // "Edit 4 songs", "Move to album", "Match": what the panel is called while the bulk panel is in it.
-    private string? BulkPanelTitle => _batch.Panel switch
-    {
-        BulkPanelKind.Edit => BulkEditRules.EditTitle(_batch.Rows, _batch.MediaType),
-        BulkPanelKind.Move => BulkEditRules.MoveLabel(_batch.Rows, _batch.MediaType),
-        BulkPanelKind.Match => $"Match {_batch.Count} {BulkEditRules.Noun(_batch.Rows, _batch.MediaType)}",
-        _ => null,
-    };
 
     // Where the item being edited sits (spec D7): the page's own item with its parents (show > season > episode, artist > album > track), read
     // from the page the Dashboard already has. The same lists give each step of the bar the items it can switch to.
     private IReadOnlyList<EditTrailItem> EditTrail() =>
-        _flow.Catalog.PageTrail.Count > 0
-            ? _flow.Catalog.PageTrail
+        _binding.Catalog.PageTrail.Count > 0
+            ? _binding.Catalog.PageTrail
             : [new EditTrailItem(_editing?.Fields.EntityId ?? Guid.Empty, Model?.Title ?? "This item", "Item")];
 
     // Children found after the page loaded (the episodes of a season that was not open), kept across page refreshes.
@@ -439,11 +311,11 @@ else if (Model is not null)
             catalog.AddChildren(parent, children);
         }
 
-        _flow.Catalog = catalog;
+        _binding.Catalog = catalog;
     }
 
     private bool IsPageItem(EditTrailItem item) =>
-        _flow.Catalog.PageTrail is not { Count: > 0 } trail || trail[^1].EntityId == item.EntityId;
+        _binding.Catalog.PageTrail is not { Count: > 0 } trail || trail[^1].EntityId == item.EntityId;
 
     // The fields of whatever the person is editing now: after a save or a section commit the editor reloads the item it is on, not the page's.
     private Task LoadEditingFieldsAsync() =>
@@ -514,7 +386,7 @@ else if (Model is not null)
     // A show page lists the episodes of the season it has open; another season's are fetched the first time the person switches to it.
     private async Task EnsureSeasonChildrenAsync(Guid seasonId)
     {
-        if (Model is not { EntityType: DetailEntityType.TvShow } || !Guid.TryParse(Model.Id, out var showId) || _flow.Catalog.ChildrenOf(seasonId).Count > 0)
+        if (Model is not { EntityType: DetailEntityType.TvShow } || !Guid.TryParse(Model.Id, out var showId) || _binding.Catalog.ChildrenOf(seasonId).Count > 0)
         {
             return;
         }
@@ -528,7 +400,7 @@ else if (Model is not null)
             if (episodes.Count > 0 && !_disposed)
             {
                 _lateChildren[seasonId] = episodes;
-                _flow.Catalog.AddChildren(seasonId, episodes);
+                _binding.Catalog.AddChildren(seasonId, episodes);
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -553,43 +425,8 @@ else if (Model is not null)
         if (chain.Count > 1 && chain[^1].EntityId == fields.EntityId)
         {
             _engineChain = chain;
-            _flow.Catalog.AdoptAncestors(chain);
+            _binding.Catalog.AdoptAncestors(chain);
         }
-    }
-
-    private void OnEditingChanged()
-    {
-        if (_editing is { IsOn: false })
-        {
-            // Leaving Editing Mode (Done, a device change, a removed title) ends the ticks and the bulk panel with them.
-            _batch.Clear();
-        }
-
-        SyncOverlayGuards();
-        _ = InvokeAsync(StateHasChanged);
-    }
-
-    // While Editing Mode is on the overlay asks it before it closes (close button, Esc, backdrop, Back, a link to another
-    // title): it settles unsaved input with "Save or discard?" and leaves the mode first. Esc is offered to it first too,
-    // so Esc closes an open field, then an open section, and only then dismisses the overlay.
-    private void SyncOverlayGuards()
-    {
-        if (_editing is { IsOn: true } && Overlay is not null)
-        {
-            _overlayGuard ??= Overlay.RegisterDismissGuard(_flow);
-            _overlayEscape ??= Overlay.RegisterEscapeHandler(_flow.HandleEscapeAsync);
-            return;
-        }
-
-        ReleaseOverlayGuards();
-    }
-
-    private void ReleaseOverlayGuards()
-    {
-        _overlayGuard?.Dispose();
-        _overlayGuard = null;
-        _overlayEscape?.Dispose();
-        _overlayEscape = null;
     }
 
     /// <summary>
@@ -762,16 +599,31 @@ else if (Model is not null)
 
     private void UpdateEditingEligibility()
     {
-        if (_editing is null)
+        var editAction = Model?.OverflowActions.FirstOrDefault(action => action.Key is "edit" or "edit-media");
+        _binding.EntityId = Model is not null && Guid.TryParse(Model.Id, out var pageId) ? pageId : Guid.Empty;
+        _binding.HasPermission = editAction is not null && SupportsEditingMode;
+        _binding.UnavailableReason = editAction is { IsDisabled: true }
+            ? editAction.Tooltip ?? "Editing is not available right now."
+            : null;
+        _binding.IsUnmatched = Model?.OverflowActions.Any(action => DetailActionKeys.IsUnmatchedAction(action.Key)) == true;
+        _binding.BulkMediaType = Model is null ? null : ResolveEditorMediaType(Model.EntityType, Model.PresentationContext);
+        _binding.Extras = Model?.Extras;
+        if (ReferenceEquals(Editor.Binding, _binding))
+        {
+            Editor.Bind(_binding);
+        }
+    }
+
+    // Edit, Identify and Change thumbnail open the pop-over over this page: the page keeps its state, its scroll position and its rows.
+    private async Task OpenEditorAsync(EditTool? tool = null, string? artworkSlot = null)
+    {
+        if (Model is null || !Guid.TryParse(Model.Id, out var entityId))
         {
             return;
         }
 
-        var editAction = Model?.OverflowActions.FirstOrDefault(action => action.Key is "edit" or "edit-media");
-        _editing.HasPermission = editAction is not null && SupportsEditingMode;
-        _editing.UnavailableReason = editAction is { IsDisabled: true }
-            ? editAction.Tooltip ?? "Editing is not available right now."
-            : null;
+        UpdateEditingEligibility();
+        await Editor.OpenAsync(_binding, entityId, tool, trail: null, artworkSlot);
     }
 
     private bool SupportsEditingMode => Model is not null && Guid.TryParse(Model.Id, out _);
@@ -872,28 +724,23 @@ else if (Model is not null)
     private bool _removedLostSectionInput;
 
     /// <summary>
-    /// A video's "..." shortcuts (Videos spec D42): turn Editing Mode on if it is off, then open Match and Identity (Identify)
-    /// or Manage Artwork on the cover (Change thumbnail). The device rule is checked here again, like Edit.
+    /// A video's "..." shortcuts (Videos spec D42): open the pop-over on Match (Identify) or on the cover in Artwork (Change thumbnail).
+    /// The device rule is checked here again, like Edit.
     /// </summary>
     private async Task OpenEditShortcutAsync(DetailAction action)
     {
-        if (action.IsDisabled || EditorDeviceRule.TryRefuse(DeviceContext, Snackbar) || !CanEditMedia || _editing is not { HasPermission: true } editing)
-        {
-            return;
-        }
-
-        if (!editing.IsOn && !await editing.EnterAsync())
+        if (action.IsDisabled || EditorDeviceRule.TryRefuse(DeviceContext, Snackbar) || !CanEditMedia)
         {
             return;
         }
 
         if (action.Key == DetailActionKeys.Identify)
         {
-            await editing.ShowSectionAsync(EditingSection.Match);
+            await OpenEditorAsync(EditTool.Match);
         }
         else
         {
-            await editing.ShowSectionAsync(EditingSection.Artwork, "CoverArt");
+            await OpenEditorAsync(EditTool.Artwork, "CoverArt");
         }
     }
 
@@ -1026,11 +873,11 @@ else if (Model is not null)
         await LeaveAfterRemovalAsync();
     }
 
-    // Editing Mode ends without asking (the item is gone, so there is nothing to save or discard); unsaved text from a pencil field
-    // is kept for the notice. An open section's unsaved input lives inside the editor and cannot be read from here.
+    // The editor closes without asking when it was open on this page (the item is gone, so there is nothing to save or discard); unsaved text
+    // from a field is kept for the notice. An open section's unsaved input lives inside the editor and cannot be read from here.
     private void ShowRemovedNotice()
     {
-        if (_editing is { IsOn: true } editing)
+        if (ReferenceEquals(Editor.Binding, _binding) && _editing is { IsOn: true } editing)
         {
             var fields = editing.Fields;
             if (fields.IsDirty)
@@ -1104,7 +951,7 @@ else if (Model is not null)
             || (Model.SequencePlacement?.Groups ?? []).SelectMany(group => group.Items)
                 .Any(item => Guid.TryParse(item.Id, out var workId) && removed.WorkIds.Contains(workId)));
 
-    // The title is gone: end Editing Mode (nothing typed matters now, and it must not ask) and go back to where the person came from.
+    // The title is gone: close the editor (nothing typed matters now, and it must not ask) and go back to where the person came from.
     private async Task LeaveAfterRemovalAsync()
     {
         if (Model is null)
@@ -1113,7 +960,11 @@ else if (Model is not null)
         }
 
         var fallback = DetailOriginInterop.FallbackRoute(Model.EntityType, Model.Facts?.MediaKind);
-        _editing?.Leave();
+        if (ReferenceEquals(Editor.Binding, _binding))
+        {
+            _editing.Leave();
+        }
+
         if (Overlay is { IsOpen: true } overlay)
         {
             // In the overlay, "leave" is the close button's path: dismiss it entirely, back to the page under it.
@@ -1135,13 +986,8 @@ else if (Model is not null)
         HasPrimaryModuleAfterNavigation
         && CurrentActiveTab == "overview";
 
-    // The slot the page is showing in its labelled temporary view (a season poster or episode still), or null in the normal view.
-    private string? TemporaryArtworkSlot =>
-        _flow.Session is { IsActive: true, ViewContext: EditViewContext.TemporaryArtwork } ? _preview.Artwork.TemporarySlot : null;
-
     private string DetailStageClass =>
         $"tl-detail-stage{(HasPrimaryModuleAfterNavigation ? " tl-detail-stage--with-primary" : " tl-detail-stage--identity-only")}" +
-        $"{(TemporaryArtworkSlot is null ? string.Empty : " tl-detail-stage--temporary")}" +
         $"{(HasPrimaryModuleAfterNavigation ? " tl-detail-stage--primary-after-navigation" : string.Empty)}" +
         $"{(string.IsNullOrWhiteSpace(PresentationCapabilities.StageModifier) ? string.Empty : $" {PresentationCapabilities.StageModifier}")}" +
         $"{(Model?.EntityType == DetailEntityType.Person ? " tl-detail-stage--person" : string.Empty)}";
@@ -1231,13 +1077,9 @@ else if (Model is not null)
             if (EditorDeviceRule.TryRefuse(DeviceContext, Snackbar)) return;
             if (!CanEditMedia) return;
 
-            // Items, people, series and curated collections all edit in place. The menu entry only ever turns Editing Mode on;
-            // choosing it while already editing keeps it on (Done is the way out).
-            if (_editing is { HasPermission: true } && !_editing.IsOn)
-            {
-                await _editing.EnterAsync();
-            }
-
+            // Items, people, series and curated collections all edit in the pop-over, which opens at once over this page (on Match when the
+            // item is not matched yet). The page itself does not change.
+            await OpenEditorAsync();
             return;
         }
 

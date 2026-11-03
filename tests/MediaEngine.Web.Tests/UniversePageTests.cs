@@ -4,6 +4,7 @@ using MediaEngine.Contracts.Display;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Contracts.Plugins;
 using MediaEngine.Contracts.Universe;
+using MediaEngine.Web.Components.Details;
 using MediaEngine.Web.Components.Pages;
 using MediaEngine.Web.Components.Universe;
 using MediaEngine.Web.Services.Editing;
@@ -373,43 +374,45 @@ public sealed class UniversePageTests : AsyncBunitContext
         _access.Unlocked = false;
 
         var cut = RenderPage();
+        var editor = Render<EditorPopover>();
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("button.universe-hero__edit")));
         cut.Find("button.universe-hero__edit").Click();
 
         cut.WaitForAssertion(() => Assert.Equal(1, _access.Requests));
         Assert.Empty(cut.FindAll(".tl-editing-bar"));
-        Assert.Empty(cut.FindAll(".tl-editor-panel"));
+        Assert.Empty(editor.FindAll(".tl-editor-panel"));
         Assert.DoesNotContain("subject", _calls);
     }
 
     [Fact]
-    public async Task ChoosingEdit_AfterTheUnlock_ShowsTheSharedBarAndPanel_WithDetailsAndArtworkButNoMatch()
+    public async Task ChoosingEdit_AfterTheUnlock_OpensTheSharedPopOver_WithDetailsAndArtworkButNoMatchOrHistory()
     {
         var cut = await StartEditingAsync();
 
-        cut.WaitForAssertion(() =>
+        _editor.WaitForAssertion(() =>
         {
             Assert.Equal(1, _access.Requests);
-            Assert.Single(cut.FindAll(".tl-editing-bar"));
-            Assert.Single(cut.FindAll(".tl-editor-panel[data-tool='details']"));
+            Assert.Single(_editor.FindAll(".tl-editor-window"));
+            Assert.Single(_editor.FindAll(".tl-editor-panel[data-tool='details']"));
         });
-        // The Universe edits through the same bar as every other page: no banner, slot, drawer or dialog.
+        // The Universe edits through the same pop-over as every other page, and the page behind never gets a bar, banner, slot, drawer or pencil.
+        Assert.Empty(cut.FindAll(".tl-editing-bar"));
         Assert.Empty(cut.FindAll(".tl-editing-banner"));
         Assert.Empty(cut.FindAll(".tl-editing-slot"));
         Assert.Empty(cut.FindAll(".tl-dialog"));
         Assert.DoesNotContain("tl-editing-drawer", cut.Markup, StringComparison.Ordinal);
-        Assert.Equal(["Details", "Artwork"], cut.FindAll(".tl-editing-bar__tool").Select(button => button.TextContent.Trim()));
-        Assert.Equal(["Dune"], cut.FindAll(".tl-editing-bar__trail li").Select(item => item.TextContent.Trim()));
+        Assert.Equal(["Details", "Artwork"], _editor.FindAll(".tl-editor-window__tool").Select(button => button.TextContent.Trim()));
+        Assert.Equal(["Dune"], _editor.FindAll(".tl-editing-bar__trail li").Select(item => item.TextContent.Trim()));
     }
 
     [Fact]
     public async Task TheDetailsPanel_ListsTheLocalNameAndDescription_AndTheSeriesReadOnly()
     {
-        var cut = await StartEditingAsync();
+        await StartEditingAsync();
 
-        cut.WaitForElement(".tl-editor-field[data-field-key='title'] input");
-        Assert.Single(cut.FindAll(".tl-editor-field[data-field-key='description'] textarea"));
-        var series = cut.Find(".tl-editor-details__group[aria-label='Series in this Universe']");
+        _editor.WaitForElement(".tl-editor-field[data-field-key='title'] input");
+        Assert.Single(_editor.FindAll(".tl-editor-field[data-field-key='description'] textarea"));
+        var series = _editor.Find(".tl-editor-details__group[aria-label='Series in this Universe']");
         Assert.Contains("The Novels", series.TextContent);
         Assert.Empty(series.QuerySelectorAll("input, textarea, button"));
     }
@@ -419,12 +422,12 @@ public sealed class UniversePageTests : AsyncBunitContext
     {
         var cut = await StartEditingAsync();
 
-        cut.WaitForElement(".tl-editor-field[data-field-key='title'] input").Input("Arrakis");
+        _editor.WaitForElement(".tl-editor-field[data-field-key='title'] input").Input("Arrakis");
 
-        cut.WaitForAssertion(() =>
+        _editor.WaitForAssertion(() =>
         {
             Assert.Equal("Arrakis", cut.Find(".universe-hero__title").TextContent.Trim());
-            Assert.Contains("Save 1 change", cut.Find("button.tl-editing-bar__save").TextContent);
+            Assert.Contains("Save 1 change", _editor.Find("button.tl-editor-window__save").TextContent);
         });
         Assert.Empty(_sessions);
     }
@@ -433,37 +436,37 @@ public sealed class UniversePageTests : AsyncBunitContext
     public async Task AFieldWithALocalOverride_OffersResetToTheCanonicalValue()
     {
         _subject = DuneSubject(overridden: true);
-        var cut = await StartEditingAsync();
+        await StartEditingAsync();
 
-        var title = cut.WaitForElement(".tl-editor-field[data-field-key='title']");
+        var title = _editor.WaitForElement(".tl-editor-field[data-field-key='title']");
 
         Assert.NotNull(title.QuerySelector(".tl-editor-field__dot"));
         Assert.Contains(title.QuerySelectorAll("button"), button => button.TextContent.Contains("Reset to canonical value"));
     }
 
     [Fact]
-    public async Task Cancel_EndsEditing_AndTakesTheBarAndThePanelAway()
+    public async Task Cancel_EndsEditing_AndTakesThePopOverAway()
     {
         var cut = await StartEditingAsync();
-        cut.WaitForElement(".tl-editor-panel");
+        _editor.WaitForElement(".tl-editor-panel");
 
-        cut.Find("button.tl-editing-bar__cancel").Click();
+        _editor.Find("button.tl-editor-window__cancel").Click();
 
-        cut.WaitForAssertion(() =>
+        _editor.WaitForAssertion(() =>
         {
-            Assert.Empty(cut.FindAll(".tl-editing-bar"));
-            Assert.Empty(cut.FindAll(".tl-editor-panel"));
+            Assert.Empty(_editor.FindAll(".tl-editor-window"));
+            Assert.Empty(_editor.FindAll(".tl-editor-panel"));
         });
         Assert.NotEmpty(cut.FindAll(".universe-hero"));
     }
 
     [Fact]
-    public async Task AUniverseTheEngineWillNotOpen_ShowsTheReasonOnTheBar()
+    public async Task AUniverseTheEngineWillNotOpen_ShowsTheReasonInThePopOver()
     {
         _subject = null;
-        var cut = await StartEditingAsync(expectPanel: false);
+        await StartEditingAsync(expectPanel: false);
 
-        cut.WaitForAssertion(() => Assert.Contains("Editing is not ready", cut.Find(".tl-editing-bar__notice").TextContent));
+        _editor.WaitForAssertion(() => Assert.Contains("Editing is not ready", _editor.Find(".tl-editor-window [role='alert']").TextContent));
     }
 
     private async Task<IRenderedComponent<UniversePage>> StartEditingAsync(bool expectPanel = true)
@@ -473,16 +476,19 @@ public sealed class UniversePageTests : AsyncBunitContext
         _access.Unlocked = true;
 
         var cut = RenderPage();
+        _editor = Render<EditorPopover>();
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("button.universe-hero__edit")));
         cut.Find("button.universe-hero__edit").Click();
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-editing-bar")));
+        _editor.WaitForAssertion(() => Assert.Single(_editor.FindAll(".tl-editor-window")));
         if (expectPanel)
         {
-            cut.WaitForElement(".tl-editor-panel");
+            _editor.WaitForElement(".tl-editor-panel");
         }
 
         return cut;
     }
+
+    private IRenderedComponent<EditorPopover> _editor = default!;
 
     private static EditorSubjectDto DuneSubject(bool overridden = false) => new()
     {

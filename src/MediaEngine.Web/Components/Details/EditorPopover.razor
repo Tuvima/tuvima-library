@@ -1,0 +1,128 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Ui
+@using Microsoft.AspNetCore.Components.Routing
+@implements IDisposable
+@inject EditorHost Editor
+@inject IAppDialogService Dialogs
+@inject IStringLocalizer<SharedStrings> L
+
+@* The universal editor's pop-over (v3 D1, D6), drawn once by the app layout so it can open over any page or list. It is a native modal
+   dialog (opened with showModal by app-dialog.js), so it stacks above the details overlay, makes everything behind it inert, traps focus
+   and keeps the page where it was. The page behind is never put into an "editing" state. After Save the slim ribbon proves the save. *@
+<EditSavedRibbon Flow="Editor.Flow" />
+@if (Editor.IsOpen)
+{
+    var flow = Editor.Flow;
+    var mode = Editor.Mode;
+    var binding = Editor.Binding;
+    @* Reload and tab close ask the browser's own question; in-app navigation is asked here only for a page outside the details overlay
+       (inside it the overlay's leave guard asks, so nothing asks twice). *@
+    <NavigationLock ConfirmExternalNavigation="@flow.Session.HasPendingChanges" OnBeforeInternalNavigation="ConfirmNavigationAsync" />
+    <AppDialogFrame Open="true"
+                    Title="@DialogLabel"
+                    DialogOptions="_options"
+                    OnCancel="@(() => Editor.RequestCloseAsync())"
+                    Class="tl-editor-dialog">
+        <EditorPanelHost Mode="mode"
+                         Flow="flow"
+                         Picker="Editor.Picker"
+                         TitleOverride="@BulkPanelTitle"
+                         ShowHistory="@(binding?.ShowHistory == true)">
+            <HeaderContent>
+                <EditorTrail Flow="flow" />
+            </HeaderContent>
+            <ChildContent Context="tool">
+                @if (!mode.Fields.Loaded && !mode.Fields.Loading && !string.IsNullOrWhiteSpace(mode.Fields.LoadError))
+                {
+                    <div class="tl-editor-details">
+                        <AppAlert Severity="AppSeverity.Error" Dense="true">@L["EditingBar_EditingIsNotReady"] @mode.Fields.LoadError</AppAlert>
+                        <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" OnClick="@(() => Editor.RetryLoadAsync())">@L["Common_TryAgain"]</AppButton>
+                    </div>
+                }
+                else if (tool == EditTool.Details)
+                {
+                    @if (Editor.Batch.Panel != BulkPanelKind.None)
+                    {
+                        <BulkEditPanel Selection="Editor.Batch" Pending="flow.Session.Pending" CanEdit="@mode.CanEdit" />
+                    }
+                    else
+                    {
+                        <EditorDetailsPanel Mode="mode" Session="flow.Session">@binding?.DetailsExtra</EditorDetailsPanel>
+                    }
+                }
+                else if (tool == EditTool.Match)
+                {
+                    @if (mode.Fields.Loading)
+                    {
+                        <EditorPanelBusy Label="@L["DetailPage_LoadingThisItemSMatch"].Value" />
+                    }
+
+                    <EditorMatchPanel Subject="@(mode.Fields.Loading ? null : mode.Fields.MatchSubject())"
+                                      Session="flow.Session"
+                                      CanEdit="@mode.CanEdit"
+                                      Mode="mode"
+                                      OnMatched="@(() => binding?.SectionCommitted?.Invoke() ?? Task.CompletedTask)" />
+                    <EditorExtrasMovePanel Subject="@(mode.Fields.Loading ? null : mode.Fields.MatchSubject())"
+                                           Extras="binding?.Extras"
+                                           Session="flow.Session"
+                                           CanEdit="@mode.CanEdit" />
+                }
+                else if (tool == EditTool.History)
+                {
+                    <EditorHistoryTool EntityId="@(flow.Session.ActiveItem?.EntityId ?? Guid.Empty)" />
+                }
+            </ChildContent>
+        </EditorPanelHost>
+    </AppDialogFrame>
+}
+
+@code {
+    private static readonly AppDialogOptions _options = new()
+    {
+        NoHeader = true,
+        BackdropClick = false,
+        CloseOnEscapeKey = true,
+    };
+
+    private string DialogLabel => $"Editing {Editor.Session.ActiveItem?.Title ?? "item"}";
+
+    // The Details tool is called "Edit 4 songs", "Move to album", "Match" while the bulk panel is in it.
+    private string? BulkPanelTitle => Editor.Batch.Panel switch
+    {
+        BulkPanelKind.Edit => BulkEditRules.EditTitle(Editor.Batch.Rows, Editor.Batch.MediaType),
+        BulkPanelKind.Move => BulkEditRules.MoveLabel(Editor.Batch.Rows, Editor.Batch.MediaType),
+        BulkPanelKind.Match => $"Match {Editor.Batch.Count} {BulkEditRules.Noun(Editor.Batch.Rows, Editor.Batch.MediaType)}",
+        _ => null,
+    };
+
+    protected override void OnInitialized()
+    {
+        Editor.AskSaveOrDiscard = () => EditingSaveOrDiscardDialog.AskAsync(Dialogs);
+        Editor.ConfirmDiscard = () => EditingUnsavedChangesDialog.AskDiscardAsync(Dialogs);
+        Editor.Changed += OnChanged;
+    }
+
+    public void Dispose()
+    {
+        Editor.Changed -= OnChanged;
+        Editor.AskSaveOrDiscard = null;
+        Editor.ConfirmDiscard = null;
+    }
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private async Task ConfirmNavigationAsync(LocationChangingContext context)
+    {
+        if (Editor.OverlayGuardsNavigation || Editor.Flow is not { Session.HasPendingChanges: true } flow)
+        {
+            return;
+        }
+
+        if (!await flow.LeaveAsync())
+        {
+            context.PreventNavigation();
+        }
+    }
+}

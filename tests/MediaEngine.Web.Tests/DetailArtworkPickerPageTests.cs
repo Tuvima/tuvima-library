@@ -75,7 +75,10 @@ public sealed class DetailArtworkPickerPageTests : AsyncBunitContext
         Services.AddSingleton(_ => new PlaybackSessionController(null!, null!));
         Services.AddSingleton(_ => new ProviderCatalogueService(api, new MemoryCache(new MemoryCacheOptions())));
         Render<AppPopoverHost>();
+        _editor = Render<EditorPopover>();
     }
+
+    private readonly IRenderedComponent<EditorPopover> _editor;
 
     private static ArtworkEntityWorkspaceDto Workspace() => new(MovieId, "Work",
     [
@@ -113,14 +116,14 @@ public sealed class DetailArtworkPickerPageTests : AsyncBunitContext
         var cut = Render<DetailPage>(parameters => parameters.Add(page => page.Model, Model()));
         cut.Find("button[aria-label='More actions']").Click();
         cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Edit").Click();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-editing-bar__tool")));
+        _editor.WaitForAssertion(() => Assert.NotEmpty(_editor.FindAll(".tl-editor-window__tool")));
         return cut;
     }
 
-    private static void OpenArtworkTool(IRenderedComponent<DetailPage> cut)
+    private void OpenArtworkTool(IRenderedComponent<DetailPage> cut)
     {
-        cut.FindAll(".tl-editing-bar__tool").Single(tool => tool.TextContent.Trim() == "Artwork").Click();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-art-picker__body")));
+        _editor.FindAll(".tl-editor-window__tool").Single(tool => tool.TextContent.Trim() == "Artwork").Click();
+        _editor.WaitForAssertion(() => Assert.NotEmpty(_editor.FindAll(".tl-art-picker__body")));
     }
 
     [Fact]
@@ -130,9 +133,9 @@ public sealed class DetailArtworkPickerPageTests : AsyncBunitContext
 
         OpenArtworkTool(cut);
 
-        Assert.Single(cut.FindAll(".tl-editor-window .tl-art-picker.tl-art-picker--docked"));
+        Assert.Single(_editor.FindAll(".tl-editor-window .tl-art-picker.tl-art-picker--docked"));
         Assert.Empty(cut.FindAll(".tl-editing-slot"));
-        Assert.Equal("true", cut.Find(".tl-editing-bar__tool.is-open").GetAttribute("aria-pressed"));
+        Assert.Equal("true", _editor.Find(".tl-editor-window__tool.is-open").GetAttribute("aria-pressed"));
     }
 
     [Fact]
@@ -142,9 +145,9 @@ public sealed class DetailArtworkPickerPageTests : AsyncBunitContext
         OpenArtworkTool(cut);
         Assert.Contains("stored-backdrop", cut.Markup);
 
-        cut.FindAll(".tl-art-picker__tabs .app-segmented-control__item").Single(tab => tab.TextContent.Trim() == "Background").Click();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-art-picker__tile")));
-        cut.FindAll(".tl-art-picker__tile").Last().Click();
+        _editor.FindAll(".tl-art-picker__tabs .app-segmented-control__item").Single(tab => tab.TextContent.Trim() == "Background").Click();
+        _editor.WaitForAssertion(() => Assert.NotEmpty(_editor.FindAll(".tl-art-picker__tile")));
+        _editor.FindAll(".tl-art-picker__tile").Last().Click();
 
         cut.WaitForAssertion(() =>
         {
@@ -153,10 +156,10 @@ public sealed class DetailArtworkPickerPageTests : AsyncBunitContext
         });
         Assert.Empty(_writes);
 
-        cut.Find("button.tl-art-picker__close").Click();
+        _editor.Find("button.tl-art-picker__close").Click();
 
         cut.WaitForAssertion(() => Assert.Contains("stored-backdrop", cut.Find(".tl-detail-hero").InnerHtml));
-        Assert.Empty(cut.FindAll(".tl-art-picker"));
+        Assert.Empty(_editor.FindAll(".tl-art-picker"));
         Assert.Empty(_writes);
     }
 
@@ -165,53 +168,32 @@ public sealed class DetailArtworkPickerPageTests : AsyncBunitContext
     {
         var cut = await StartEditingAsync();
         OpenArtworkTool(cut);
-        cut.FindAll(".tl-art-picker__tabs .app-segmented-control__item").Single(tab => tab.TextContent.Trim() == "Background").Click();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-art-picker__tile")));
-        cut.FindAll(".tl-art-picker__tile").Last().Click();
-        cut.WaitForAssertion(() => Assert.False(cut.Find("button.tl-art-picker__use").HasAttribute("disabled")));
-        cut.Find("button.tl-art-picker__use").Click();
-        cut.WaitForAssertion(() => Assert.Equal("Save 1 change", cut.Find("button.tl-editing-bar__save").TextContent.Trim()));
+        _editor.FindAll(".tl-art-picker__tabs .app-segmented-control__item").Single(tab => tab.TextContent.Trim() == "Background").Click();
+        _editor.WaitForAssertion(() => Assert.NotEmpty(_editor.FindAll(".tl-art-picker__tile")));
+        _editor.FindAll(".tl-art-picker__tile").Last().Click();
+        _editor.WaitForAssertion(() => Assert.False(_editor.Find("button.tl-art-picker__use").HasAttribute("disabled")));
+        _editor.Find("button.tl-art-picker__use").Click();
+        _editor.WaitForAssertion(() => Assert.Equal("Save 1 change", _editor.Find("button.tl-editor-window__save").TextContent.Trim()));
 
-        cut.Find("button.tl-art-picker__close").Click();
+        _editor.Find("button.tl-art-picker__close").Click();
 
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-art-picker")));
+        _editor.WaitForAssertion(() => Assert.Empty(_editor.FindAll(".tl-art-picker")));
         Assert.Contains("preview-backdrop", cut.Find(".tl-detail-hero").InnerHtml);
         Assert.Empty(_writes);
     }
 
     [Fact]
-    public async Task ASeasonPoster_OpensTheTemporaryView_AndReturnToSeriesViewRestoresThePage()
+    public async Task ASeasonPoster_NeverPutsATemporaryViewOnThePage()
     {
         _context = SeasonContext();
         var cut = await StartEditingAsync();
 
         OpenArtworkTool(cut);
 
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-temporary-view")));
-        Assert.Contains("Temporary editing view", cut.Find(".tl-temporary-view__label").TextContent);
-        Assert.Contains("stored-season", cut.Find(".tl-temporary-view__poster img").GetAttribute("src"));
-        Assert.Contains("tl-detail-stage--temporary", cut.Find(".tl-detail-stage").ClassName);
-
-        cut.Find("button.tl-temporary-view__return").Click();
-
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-temporary-view")));
+        Assert.Empty(cut.FindAll(".tl-temporary-view"));
         Assert.DoesNotContain("tl-detail-stage--temporary", cut.Find(".tl-detail-stage").ClassName);
-        Assert.Single(cut.FindAll(".tl-art-picker"));
+        Assert.Single(_editor.FindAll(".tl-art-picker"));
         Assert.Empty(_writes);
-    }
-
-    [Fact]
-    public async Task ClosingThePicker_TakesTheTemporaryViewAway()
-    {
-        _context = SeasonContext();
-        var cut = await StartEditingAsync();
-        OpenArtworkTool(cut);
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-temporary-view")));
-
-        cut.Find("button.tl-art-picker__close").Click();
-
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-temporary-view")));
-        Assert.Empty(cut.FindAll(".tl-art-picker"));
     }
 
     private static MediaEditorContextDto SeasonContext()

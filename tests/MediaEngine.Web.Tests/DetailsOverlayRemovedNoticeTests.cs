@@ -78,7 +78,10 @@ public sealed class DetailsOverlayRemovedNoticeTests : AsyncBunitContext
         Services.AddScoped<DetailsOverlayState>();
         _nav = Services.GetRequiredService<NavigationManager>();
         Render<AppPopoverHost>();
+        _editor = Render<EditorPopover>();
     }
+
+    private readonly IRenderedComponent<EditorPopover> _editor;
 
     private DetailsOverlayState State => Services.GetRequiredService<DetailsOverlayState>();
 
@@ -123,22 +126,19 @@ public sealed class DetailsOverlayRemovedNoticeTests : AsyncBunitContext
         var cut = RenderInOpenOverlay();
         cut.Find(".tl-detail-secondary-actions button[aria-label='More actions']").Click();
         cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Edit").Click();
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-editing-bar")));
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-editing-bar__tool")));
+        _editor.WaitForAssertion(() => Assert.Single(_editor.FindAll(".tl-editor-window")));
+        _editor.WaitForAssertion(() => Assert.NotEmpty(_editor.FindAll(".tl-editor-window__tool")));
         return cut;
     }
 
-    private static void OpenDetails(IRenderedComponent<DetailPage> cut)
-    {
-        cut.FindAll(".tl-editing-bar__tool").Single(tool => tool.TextContent.Trim() == "Details").Click();
-        cut.WaitForElement("input[aria-label='Title']");
-    }
+    // The pop-over opens on Details by itself.
+    private void OpenDetails() => _editor.WaitForElement("input[aria-label='Title']");
 
     // The staged change lives in the editor's pending list; the notice keeps its text so a deleted title never swallows what was typed.
-    private static void TypeTitle(IRenderedComponent<DetailPage> cut, string text)
+    private void TypeTitle(string text)
     {
-        OpenDetails(cut);
-        cut.Find("input[aria-label='Title']").Input(text);
+        OpenDetails();
+        _editor.Find("input[aria-label='Title']").Input(text);
     }
 
     private Task RemoveFromElsewhereAsync(IRenderedComponent<DetailPage> cut) =>
@@ -155,7 +155,7 @@ public sealed class DetailsOverlayRemovedNoticeTests : AsyncBunitContext
         await RemoveFromElsewhereAsync(cut);
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-removed-notice")));
-        Assert.Empty(cut.FindAll(".tl-editing-bar"));
+        _editor.WaitForAssertion(() => Assert.Empty(_editor.FindAll(".tl-editor-window")));
         Assert.Empty(host.FindAll(".app-confirm"));
         Assert.Empty(_steps);
     }
@@ -165,7 +165,7 @@ public sealed class DetailsOverlayRemovedNoticeTests : AsyncBunitContext
     {
         var host = Render<AppDialogHost>();
         var cut = await StartEditingAsync();
-        TypeTitle(cut, "Dune Messiah");
+        TypeTitle("Dune Messiah");
 
         await RemoveFromElsewhereAsync(cut);
 
@@ -181,7 +181,7 @@ public sealed class DetailsOverlayRemovedNoticeTests : AsyncBunitContext
     public async Task CopyOnTheNotice_PutsTheTypedTextOnTheClipboardAndSaysSo()
     {
         var cut = await StartEditingAsync();
-        TypeTitle(cut, "Dune Messiah");
+        TypeTitle("Dune Messiah");
         await RemoveFromElsewhereAsync(cut);
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-removed-notice__copy")));
 
@@ -197,7 +197,7 @@ public sealed class DetailsOverlayRemovedNoticeTests : AsyncBunitContext
     {
         JSInterop.SetupVoid("navigator.clipboard.writeText", _ => true).SetException(new Microsoft.JSInterop.JSException("not allowed"));
         var cut = await StartEditingAsync();
-        TypeTitle(cut, "Dune Messiah");
+        TypeTitle("Dune Messiah");
         await RemoveFromElsewhereAsync(cut);
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-removed-notice__copy")));
 
@@ -210,7 +210,7 @@ public sealed class DetailsOverlayRemovedNoticeTests : AsyncBunitContext
     public async Task WhenTheDetailsPanelIsOpenButNothingWasTyped_TheNoticeOffersNothingToCopy()
     {
         var cut = await StartEditingAsync();
-        OpenDetails(cut);
+        OpenDetails();
 
         await RemoveFromElsewhereAsync(cut);
 
@@ -223,7 +223,7 @@ public sealed class DetailsOverlayRemovedNoticeTests : AsyncBunitContext
     {
         var host = Render<AppDialogHost>();
         var cut = await StartEditingAsync();
-        TypeTitle(cut, "Dune Messiah");
+        TypeTitle("Dune Messiah");
         await RemoveFromElsewhereAsync(cut);
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-removed-notice__close")));
 

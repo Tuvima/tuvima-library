@@ -242,44 +242,51 @@ public sealed class BulkEditingTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task ARowsOwnEdit_StartsEditMode_TicksTheRow_AndOpensTheEditPanel()
+    public async Task ARowsOwnEdit_OpensThePopOver_TicksTheRow_AndOpensTheEditPanel()
     {
-        var (mode, selection) = await EditingModeAsync(enter: false);
+        var (host, binding) = await EditorAsync();
         var row = new BulkEditRow(Guid.NewGuid(), "Paranoid Android", DetailEntityType.Work, Guid.NewGuid(), "Music");
 
-        Assert.True(await RowEditEntry.StartAsync(mode, selection, row));
+        Assert.True(await RowEditEntry.StartAsync(host, binding, row));
 
-        Assert.True(mode.IsOn);
-        Assert.Equal([row.Id], selection.Rows.Select(ticked => ticked.Id));
-        Assert.Equal(BulkPanelKind.Edit, selection.Panel);
+        Assert.True(host.IsOpen);
+        Assert.Equal([row.Id], host.Batch.Rows.Select(ticked => ticked.Id));
+        Assert.Equal(BulkPanelKind.Edit, host.Batch.Panel);
     }
 
     [Fact]
     public async Task ARowsOwnEdit_WhenTheRowIsAlreadyTicked_KeepsTheTicksAndOpensThePanel()
     {
-        var (mode, selection) = await EditingModeAsync();
+        var (host, binding) = await EditorAsync();
         var first = new BulkEditRow(Guid.NewGuid(), "Karma Police", DetailEntityType.Work, null, "Music");
         var second = new BulkEditRow(Guid.NewGuid(), "No Surprises", DetailEntityType.Work, null, "Music");
-        selection.Toggle(first);
-        selection.Toggle(second);
+        host.Batch.Toggle(first);
+        host.Batch.Toggle(second);
 
-        Assert.True(await RowEditEntry.StartAsync(mode, selection, second));
+        Assert.True(await RowEditEntry.StartAsync(host, binding, second));
 
-        Assert.Equal(2, selection.Count);
-        Assert.Equal(BulkPanelKind.Edit, selection.Panel);
+        Assert.Equal(2, host.Batch.Count);
+        Assert.Equal(BulkPanelKind.Edit, host.Batch.Panel);
     }
 
     [Fact]
     public async Task ARowsOwnEdit_OffTheDesktop_DoesNothing()
     {
-        var (mode, selection) = await EditingModeAsync("phone");
+        var (host, binding) = await EditorAsync("phone");
         var row = new BulkEditRow(Guid.NewGuid(), "Paranoid Android", DetailEntityType.Work, null, "Music");
 
-        Assert.False(await RowEditEntry.StartAsync(mode, selection, row));
+        Assert.False(await RowEditEntry.StartAsync(host, binding, row));
 
-        Assert.False(mode.IsOn);
-        Assert.Equal(0, selection.Count);
-        Assert.Equal(BulkPanelKind.None, selection.Panel);
+        Assert.False(host.IsOpen);
+        Assert.Equal(0, host.Batch.Count);
+        Assert.Equal(BulkPanelKind.None, host.Batch.Panel);
+    }
+
+    private async Task<(EditorHost Host, EditorBinding Binding)> EditorAsync(string formFactor = "desktop")
+    {
+        await UseDevice(formFactor);
+        var host = new EditorHost(Services.GetRequiredService<IEngineApiClient>(), _device, Services, Microsoft.Extensions.Logging.Abstractions.NullLogger<EditorHost>.Instance);
+        return (host, new EditorBinding(_device) { HasPermission = true, EntityId = Guid.NewGuid() });
     }
 
     private async Task<(EditingModeContext Mode, BulkEditSelection Selection)> EditingModeAsync(string formFactor = "desktop", bool enter = true)

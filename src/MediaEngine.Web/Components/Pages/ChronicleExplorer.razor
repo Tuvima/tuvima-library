@@ -13,6 +13,7 @@
 @inject DashboardSessionAccessor Session
 @inject IAppToastService Snackbar
 @inject IEngineApiClient ApiClient
+@inject EditorHost Editor
 @inject IJSRuntime JS
 @inject ILogger<ChronicleExplorer> Logger
 @inject DeviceContextService DeviceContext
@@ -22,10 +23,9 @@
 <PageTitle>@L["ChronicleExplorer_ChronicleExplorer", _graph?.universe.label ?? Qid]</PageTitle>
 
 <AppContainer MaxWidth="AppMaxWidth.False" Class="tl-sp-pa-4">
-@* Editing the Universe, or one character, place or organisation in it, uses the same bar, side panel and floating artwork picker as every
-   other page (Name, Description and pictures; nothing is saved until Save changes shows Review changes). The graph, appearances and
+@* Editing the Universe, or one character, place or organisation in it, uses the same pop-over editor as every other page (the layout draws
+   it; Name, Description and pictures; nothing is saved until Save changes shows Review changes). The graph, appearances and
    relationships stay read-only. Desktop administrators only. *@
-<EditingBar Mode="_editing" Flow="_flow" CanDelete="false" GuardInternalNavigation="true" />
 @if (_loading)
 {
     <AppPanel Class="chronicle-explorer-empty tl-sp-pa-6">
@@ -54,14 +54,6 @@ else
         <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.Edit" Disabled="@(_openingEditor || _editing.IsOn)" OnClick="@(() => EditUniverseAsync(null))">@L["ChronicleExplorer_EditUniverse"]</AppButton>
     }
 </div>
-
-    <EditSavedRibbon Flow="_flow" />
-    <EditorPanelHost Mode="_editing" Flow="_flow" Picker="_artworkPicker">
-        @if (context == EditTool.Details)
-        {
-            <EditorDetailsPanel Mode="_editing" Session="_flow.Session" />
-        }
-    </EditorPanelHost>
 
     <AppStack Row="true" AlignItems="AppAlignItems.Center" Spacing="2" Class="tl-sp-mb-3">
         <AppChip T="string" Color="AppColor.Primary" Size="AppSize.Small">
@@ -435,8 +427,7 @@ else
     private readonly CancellationTokenSource _lifetime = new();
     private EditingModeContext _editing = default!;
     private EditSessionFlow _flow = default!;
-    private EditPendingPreview _preview = default!;
-    private ArtworkPickerSession _artworkPicker = default!;
+    private EditorBinding _binding = default!;
 
     // What the editor is open on: the Universe itself (no id), or one character, place or organisation by its id.
     private Guid? _editEntityId;
@@ -445,21 +436,15 @@ else
 
     protected override void OnInitialized()
     {
-        _editing = new EditingModeContext(DeviceContext, new ItemFieldEditSession(ApiClient, DeviceContext, Logger))
+        _editing = Editor.Mode;
+        _flow = Editor.Flow;
+        _binding = new EditorBinding(DeviceContext)
         {
-            Loader = LoadEditingFieldsAsync,
-            AskSaveOrDiscard = () => EditingSaveOrDiscardDialog.AskAsync(Dialogs),
-        };
-        _editing.Changed += OnEditingChanged;
-        var session = new EditSessionState(new PendingEditList());
-        _flow = new EditSessionFlow(session, _editing, new EditSessionSaver(ApiClient), EditTrail, () => EditingUnsavedChangesDialog.AskDiscardAsync(Dialogs))
-        {
+            LoadFields = LoadEditingFieldsAsync,
             Saved = RefreshAfterEditSavedAsync,
+            Trail = EditTrail,
         };
-        _preview = new EditPendingPreview(session, _editing.Fields);
-        _artworkPicker = new ArtworkPickerSession(ApiClient, session, _editing.Fields, _preview.Artwork, Logger);
-        session.Changed += OnEditingChanged;
-        _artworkPicker.Changed += OnEditingChanged;
+        Editor.Changed += OnEditingChanged;
     }
 
     private Task LoadEditingFieldsAsync() => _editEntityId is { } id
@@ -498,9 +483,8 @@ else
             _editEntityId = entityId;
             _editEntityTitle = entity?.label;
             _editEntityKind = entity?.type;
-            _editing.HasPermission = true;
-            if (await _editing.EnterAsync() && _editing.Fields.Loaded)
-                await _flow.SelectToolAsync(EditTool.Details);
+            _binding.HasPermission = true;
+            await Editor.OpenAsync(_binding, entityId ?? Guid.Empty, EditTool.Details);
         }
         catch (OperationCanceledException) { /* the page was left while the unlock prompt was open */ }
         catch (Exception ex) { Logger.LogWarning(ex, "Could not open Universe editor for {UniverseQid}", Qid); Snackbar.Add(L["Common_UniverseEditingIsUnavailablePlease"].Value, AppSeverity.Error); }
@@ -675,7 +659,11 @@ else
 
         // A different Universe in the same circuit starts over: an open edit belongs to the old one, so close it first.
         _loadedQid = Qid;
-        _editing.Leave();
+        if (ReferenceEquals(Editor.Binding, _binding))
+        {
+            _editing.Leave();
+        }
+
         _editEntityId = null;
         _editEntityTitle = null;
         _editEntityKind = null;
@@ -999,11 +987,8 @@ else
 
     public async ValueTask DisposeAsync()
     {
-        _editing.Changed -= OnEditingChanged;
-        _flow.Session.Changed -= OnEditingChanged;
-        _artworkPicker.Changed -= OnEditingChanged;
-        _flow.Dispose();
-        _editing.Dispose();
+        Editor.Changed -= OnEditingChanged;
+        Editor.Unbind(_binding);
         _lifetime.Cancel();
         _lifetime.Dispose();
         if (_cytoscapeReady)
