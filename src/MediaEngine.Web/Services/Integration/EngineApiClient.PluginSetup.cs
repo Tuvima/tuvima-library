@@ -49,6 +49,16 @@ public sealed partial class EngineApiClient
             new PluginSetupSecretRequest { Value = value },
             ct: ct);
 
+    public Task<PluginFileResponse?> GetPluginFileAsync(string pluginId, CancellationToken ct = default) =>
+        GetAsync<PluginFileResponse>("GET /plugins/{id}/file", $"/plugins/{Uri.EscapeDataString(pluginId)}/file", logAsWarning: false, ct: ct);
+
+    public Task<PluginFileCheckResponse?> CheckPluginFileAsync(string pluginId, string text, CancellationToken ct = default) =>
+        PostAsync<PluginFileCheckRequest, PluginFileCheckResponse>(
+            "POST /plugins/{id}/file/check",
+            $"/plugins/{Uri.EscapeDataString(pluginId)}/file/check",
+            new PluginFileCheckRequest { Text = text },
+            ct: ct);
+
     public Task<PluginActivityCapDto?> SavePluginActivityCapAsync(string pluginId, int maxEntries, int maxDays, CancellationToken ct = default) =>
         PutAsync<PluginActivityCapDto, PluginActivityCapDto>(
             "PUT /plugins/{id}/activity-cap",

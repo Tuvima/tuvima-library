@@ -55,6 +55,21 @@ public static class ShippedProviderFiles
         return restored;
     }
 
+    /// <summary>The text of the provider file that ships with the Library under this file name (for example <c>tmdb.json</c>), or null when none ships.</summary>
+    public static string? ReadText(string fileName) => ReadText(fileName, typeof(ShippedProviderFiles).Assembly);
+
+    internal static string? ReadText(string fileName, Assembly assembly)
+    {
+        using var stream = assembly.GetManifestResourceStream(ResourcePrefix + fileName);
+        if (stream is null)
+        {
+            return null;
+        }
+
+        using var reader = new StreamReader(stream, System.Text.Encoding.UTF8);
+        return reader.ReadToEnd();
+    }
+
     private static bool IsReadable(string path)
     {
         if (!File.Exists(path))

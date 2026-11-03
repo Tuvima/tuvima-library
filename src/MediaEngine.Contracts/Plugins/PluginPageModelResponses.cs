@@ -36,7 +36,7 @@ public sealed class PluginSetupPageResponse
 /// </summary>
 public sealed class PluginSetupCardDto
 {
-    /// <summary><c>access</c>, <c>provides</c>, <c>settings</c>, <c>privacy</c> or <c>about</c>.</summary>
+    /// <summary><c>access</c>, <c>provides</c>, <c>settings</c>, <c>privacy</c>, <c>about</c> or <c>file</c> (the last card).</summary>
     [JsonPropertyName("key")]
     public string Key { get; set; } = "";
 
@@ -98,6 +98,10 @@ public sealed class PluginSetupCardDto
     /// <summary>About card: version, who it is from, how it runs, and the like.</summary>
     [JsonPropertyName("facts")]
     public List<PluginSetupFactDto> Facts { get; set; } = [];
+
+    /// <summary>Plugin file card: the file name, whether it is valid and whether it differs from Tuvima's version. Absent on every other card.</summary>
+    [JsonPropertyName("file")]
+    public PluginFileStateDto? File { get; set; }
 }
 
 /// <summary>One key or login, from either file format (D48). The value is never part of any response.</summary>

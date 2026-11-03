@@ -3,6 +3,8 @@
 @using Microsoft.Extensions.Localization
 @inject IStringLocalizer<SharedStrings> L
 @using MediaEngine.Web.Components.Shared.Providers
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Theming
 @implements IDisposable
 @inject IEngineApiClient ApiClient
 @inject IServiceProvider Services
@@ -59,6 +61,9 @@ else
                     case "about":
                         @AboutCard(card)
                         break;
+                    case "file":
+                        <PluginFileCard PluginId="@Plugin.Id" Card="@card" CanView="@CanViewFile" />
+                        break;
                 }
             </div>
         }
@@ -77,6 +82,10 @@ else
     private readonly Dictionary<string, string> _typed = new(StringComparer.Ordinal);
     private readonly HashSet<string> _glowing = new(StringComparer.Ordinal);
     private PluginSetupPageResponse? _page;
+
+    // Reading a plugin's file follows the same device rule as editing an item: a desktop with a fine, hovering pointer. Unknown means no.
+    private bool CanViewFile => EditorDeviceRule.CanEdit(Services.GetService<DeviceContextService>());
+
     private PluginSetupContext _context = new(false, false, false);
     private PluginCheckNowResponse? _testResult;
     private string? _testing;
