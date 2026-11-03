@@ -9,7 +9,7 @@
 4. **Small square labels.** "New" and "New Episode" are small square tags at the top-left of a cover. Every pill in the app (genres, kinds, facts) becomes square-cornered. Round stays only for avatars, switches, progress bars, the player dock and seek-rail bubbles.
 5. **One short "..." menu** on every cover and on the detail page: Restart (only if started), Edit (desktop, if allowed), Delete (if allowed). Larger text, plain wording.
 6. **Top bar bookmark.** The My List button in the top bar becomes a bookmark icon, gold when the list is open; click again to close. On covers, adding to My List is a + icon.
-7. **Detail page stack.** Title, then facts (rating, seasons, Dolby Vision), then the main button, then one row of small icons (+, thumbs up, trailer, "..."). On phones Download gets its own row.
+7. **Detail page stack.** Title, then facts (rating, seasons, Dolby Vision), then the main button, then one row of small icons (+, thumbs up, trailer, "..."). Download (phone and native) joins that same icon row.
 8. **People.** The person page opens with a large portrait. "Works in your library" uses a small square kind label (no word "Movie") and a filter that appears only when the person has more than one kind of work. People pictures are smaller and square-cornered everywhere else. Collections > People gets search and sort.
 
 ## 1. Goal
@@ -47,6 +47,7 @@ Taken from Shy's 2 Nov review (D1 to D12) and the recommended defaults for the r
 - **D16 (Shy, 2026-11-03).** Hero slides take turns across Watch, Read and Listen, in-progress first inside each kind. Supersedes Home page redesign D1/R1.
 - **D17 (Shy, 2026-11-03).** Round stays for avatars, switches, progress bars, the player dock and seek bubbles.
 - **D18 (Shy, 2026-11-03).** Music Continue uses the plain square label as in the mockup.
+- **D19 (Shy, 2026-11-03).** Download is added to the same icon row, not given its own row. The main button is separate from the row, so the row can hold whichever buttons apply to the item.
 - **D12.** Fable review of continuity requested by Shy (section 10).
 
 ## 5. UI behaviour
@@ -57,7 +58,7 @@ Taken from Shy's 2 Nov review (D1 to D12) and the recommended defaults for the r
 **Empty:** a row with nothing to continue is hidden. **Loading:** grey tiles with the final proportions. **Error:** the shared error state per row. **Partly ready:** a tile still being identified shows its file name and a "Getting details" label and cannot be the hero.
 **Hero:** about 55svh on desktop (min 22rem), phones unchanged (fixed-height card). Slide labels such as "Continue Watching" stay as small square labels; "Featured content" is removed. The Recently added music slide shows an eight-cover collage and opens Music > Recently Added.
 **Menus:** bigger text (16px), 44px row height, no icons or descriptions.
-**Detail page:** facts line wraps; main button about 40px tall (today about 56px); icon buttons 34px; Download (phone and native) own row.
+**Detail page:** facts line wraps; main button about 40px tall (today about 56px); icon buttons 34px; Download (phone and native) is one more button on the icon row; the row takes whatever buttons suit the item.
 **People:** pictures 88 to 96px on the detail page and Collections; person page portrait about 340px wide on desktop, full width on phone.
 **Desktop/tablet/phone/TV:** Edit never shows below desktop (existing rule). TV keeps its own focus look.
 
