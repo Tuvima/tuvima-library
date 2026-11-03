@@ -229,4 +229,63 @@ public sealed class TvdbFlowParityTests
 
         Assert.DoesNotContain(handler.Lines, line => line.Contains("/extended", StringComparison.Ordinal));
     }
+
+    private static RecordingHandler EpisodeHandler(bool englishListFound) => new(request =>
+    {
+        var path = request.Uri.AbsolutePath;
+        if (path.EndsWith("/login", StringComparison.Ordinal))
+        {
+            return RecordingHandler.Json("""{"data":{"token":"bearer-token"}}""");
+        }
+
+        if (path.EndsWith("/search", StringComparison.Ordinal))
+        {
+            return RecordingHandler.Json("""{"data":[{"tvdb_id":"300","name":"Shimmer and Shine"}]}""");
+        }
+
+        if (path.Contains("/series/300/episodes/default", StringComparison.Ordinal))
+        {
+            var withLanguage = path.EndsWith("/eng", StringComparison.Ordinal);
+            return withLanguage && !englishListFound
+                ? new HttpResponseMessage(System.Net.HttpStatusCode.NotFound)
+                : RecordingHandler.Json("""{"data":{"episodes":[{"id":901,"seasonNumber":1,"number":1},{"id":902,"seasonNumber":1,"number":2}]},"links":{"next":null}}""");
+        }
+
+        if (path.Contains("/series/300/translations/eng", StringComparison.Ordinal))
+        {
+            return RecordingHandler.Json("""{"data":{"name":"Shimmer and Shine"}}""");
+        }
+
+        if (path.Contains("/episodes/902/translations/eng", StringComparison.Ordinal))
+        {
+            return RecordingHandler.Json("""{"data":{"name":"Pet Palooza","overview":"A genie story."}}""");
+        }
+
+        return RecordingHandler.Json("""{"data":{"id":300}}""");
+    });
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AnEpisodeInTheShowsList_IsPairedEvenWhenTheEnglishListIsNotFound(bool englishListFound)
+    {
+        var handler = EpisodeHandler(englishListFound);
+        using var rig = new ShippedProviderHarness.TvdbRig(handler);
+
+        var claims = await rig.Provider.FetchAsync(Request("Shimmer and Shine", null, season: "1", episode: "2"));
+
+        Assert.Contains(claims, claim => claim.Key == "tvdb_episode_id" && claim.Value == "902");
+        Assert.Contains(claims, claim => claim.Key == "episode_title" && claim.Value == "Pet Palooza");
+    }
+
+    [Fact]
+    public async Task AnEpisodeTheShowDoesNotList_StillPairsNothing()
+    {
+        var handler = EpisodeHandler(englishListFound: false);
+        using var rig = new ShippedProviderHarness.TvdbRig(handler);
+
+        var claims = await rig.Provider.FetchAsync(Request("Shimmer and Shine", null, season: "1", episode: "9"));
+
+        Assert.Empty(claims);
+    }
 }

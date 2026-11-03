@@ -53,6 +53,14 @@ else
                          decoding="async" />
                 }
                 <div class="media-tile-collection-wash"></div>
+                @if (ShowTileLogo)
+                {
+                    <img src="@Item.LogoUrl" alt="@Item.Title" class="media-tile-landscape-logo is-banner" loading="lazy" decoding="async" />
+                }
+                else if (ShowCollectionTitleOverlay)
+                {
+                    <span class="media-tile-landscape-title is-banner">@Item.Title</span>
+                }
             }
             else if (ShowPreviewStack)
             {
@@ -80,6 +88,20 @@ else
                      class="media-tile-image @TileImageFitClass"
                      loading="@CardImageLoading"
                      decoding="async" />
+                @if (ShowLandscapeIdentity)
+                {
+                    @* A landscape still carries no name of its own: show the title's logo, or its name when there is no logo. *@
+                    <div class="media-tile-landscape-identity">
+                        @if (!string.IsNullOrWhiteSpace(Item.LogoUrl))
+                        {
+                            <img src="@Item.LogoUrl" alt="@Item.Title" class="media-tile-landscape-logo" loading="lazy" decoding="async" />
+                        }
+                        else
+                        {
+                            <span class="media-tile-landscape-title">@Item.Title</span>
+                        }
+                    </div>
+                }
             }
             else
             {
@@ -698,6 +720,8 @@ else
     private IReadOnlyList<string> HoverImageCandidates => _hoverImageCandidates;
 
     private string? ActiveHoverImageUrl => HoverImageCandidates.Skip(_hoverImageIndex).FirstOrDefault();
+
+    private bool ShowLandscapeIdentity => IsContinueCard && Item.Shape == MediaTileShape.Landscape && !ShowsCompactTitleCaption && !ShowsEpisodeCaption;
 
     private bool ShowTileLogo => Item.SurfaceKind == MediaTileSurfaceKind.BannerLandscape && !ShowPreviewStack && !string.IsNullOrWhiteSpace(Item.LogoUrl);
 

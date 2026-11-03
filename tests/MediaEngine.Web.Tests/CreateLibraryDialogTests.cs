@@ -553,7 +553,8 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
         _dialogs.WaitForElement(".server-folder-picker");
 
         _dialogs.WaitForAssertion(() => Assert.Equal("Folder accessible, 126 video files found", Text(_dialogs.Find("[data-folder-result=accessible]"))));
-        Assert.Equal("tv", _validations.Last().KindKey);
+        // Choosing a folder reads nothing inside it, so no library kind is sent; the match check runs after the folder is added.
+        Assert.Null(_validations.Last().KindKey);
 
         _picked = Folder("E:\\Huge", count: 10_000, capped: true);
         _dialogs.Find("button[aria-label='Refresh folders']").Click();

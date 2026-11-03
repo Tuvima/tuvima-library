@@ -136,6 +136,9 @@ public sealed class LibraryVaultPagesTests : AsyncBunitContext
         Services.AddScoped<DashboardSessionAccessor>();
         Services.AddScoped<DeviceContextService>();
         Services.AddScoped<UniverseStateContainer>();
+        Services.AddLogging();
+        Services.AddScoped(sp => new MediaEngine.Web.Services.Playback.PlaybackSessionController(null!, sp.GetRequiredService<IEngineApiClient>()));
+        Services.AddScoped<ShellActivityState>();
         Services.AddScoped<ActiveProfileSessionService>();
         Services.AddScoped<UIOrchestratorService>();
         Services.AddScoped<MediaEngine.Web.Services.Settings.LibraryKindsState>();

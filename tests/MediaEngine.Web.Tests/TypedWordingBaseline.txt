@@ -21,7 +21,6 @@ src/MediaEngine.Web/Components/Settings/InvitationShare.razor|1
 src/MediaEngine.Web/Components/Settings/Libraries/LibraryFileHandlingTab.razor|1
 src/MediaEngine.Web/Components/Settings/Libraries/MoveToVaultDialog.razor|1
 src/MediaEngine.Web/Components/Settings/Libraries/ViewDuplicatesPanel.razor|2
-src/MediaEngine.Web/Components/Settings/LibraryFoldersPanel.razor|1
 src/MediaEngine.Web/Components/Settings/ManagedApplicationWebhooks.razor|1
 src/MediaEngine.Web/Components/Settings/MergeFolderDialog.razor|1
 src/MediaEngine.Web/Components/Settings/NewIntegrationWizard.razor|2

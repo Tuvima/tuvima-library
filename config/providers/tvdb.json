@@ -407,6 +407,36 @@
                   "number_equals": "$episode"
                 }
               ]
+            },
+            {
+              "if": [
+                {
+                  "blank": "$match"
+                }
+              ],
+              "then": [
+                {
+                  "pages": "series_episodes",
+                  "args": {
+                    "id": "$show_id"
+                  },
+                  "into": "episodes_any_language"
+                },
+                {
+                  "find": "match",
+                  "in": "$episodes_any_language",
+                  "where": [
+                    {
+                      "path": "seasonNumber",
+                      "number_equals": "$season"
+                    },
+                    {
+                      "path": "number",
+                      "number_equals": "$episode"
+                    }
+                  ]
+                }
+              ]
             }
           ]
         },
