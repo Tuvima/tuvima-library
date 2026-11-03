@@ -88,7 +88,8 @@ public sealed record PlaybackControlState(
     int SkipForwardSeconds = 15,
     int HistoryCount = 0,
     string? RepeatMode = null,
-    bool CanBookmark = false);
+    bool CanBookmark = false,
+    bool IsMovie = false);
 
 public sealed record PlaybackControlDefinition(
     PlaybackControlKey Key,
@@ -316,14 +317,17 @@ public static class PlaybackControlCatalog
                 controls.Add(sleepTimer);
                 break;
             case PlaybackExperience.Video:
+                // Control sets by media (player-controls-v3 D7). A film has bookmarks only: no Up next and no chapters.
+                // A TV episode adds Episodes (the season list with Up next); other video adds Lessons when it belongs to a series.
+                // Chapters belong to audiobooks.
                 controls.Add(Tool(PlaybackControlKey.Speed, "Speed", "speed", state, ValueText: DisplayFormat.FormatSpeedControl(state.PlaybackRate)));
-                if (state.HasChapters)
-                {
-                    controls.Add(Tool(PlaybackControlKey.Chapters, "Chapters", "chapters", state));
-                }
                 if (state.IsTvEpisode && state.HasQueue)
                 {
-                    controls.Add(Tool(PlaybackControlKey.Queue, "Next Up", "queue", state));
+                    controls.Add(Tool(PlaybackControlKey.Queue, "Episodes", "queue", state));
+                }
+                else if (!state.IsTvEpisode && !state.IsMovie && state.HasQueue)
+                {
+                    controls.Add(Tool(PlaybackControlKey.Queue, "Lessons", "queue", state));
                 }
                 if (state.HasCaptions || state.CanFindCaptions)
                 {

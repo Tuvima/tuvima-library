@@ -1,0 +1,37 @@
+{
+  "properties": {
+    "books": {
+      "type": "array",
+      "control": "text",
+      "title": "Words for books and audiobooks",
+      "description": "The only words a book or audiobook may be tagged with.",
+      "group": "Mood words",
+      "order": 0
+    },
+    "movies_tv": {
+      "type": "array",
+      "control": "text",
+      "title": "Words for films and TV",
+      "description": "The only words a film or TV show may be tagged with.",
+      "group": "Mood words",
+      "order": 1
+    },
+    "music": {
+      "type": "array",
+      "control": "text",
+      "title": "Words for music",
+      "description": "The only words an album or track may be tagged with.",
+      "group": "Mood words",
+      "order": 2
+    },
+    "comics": {
+      "type": "array",
+      "control": "text",
+      "title": "Words for comics",
+      "description": "The only words a comic may be tagged with.",
+      "group": "Mood words",
+      "order": 3
+    }
+  },
+  "required": ["books", "movies_tv", "music", "comics"]
+}

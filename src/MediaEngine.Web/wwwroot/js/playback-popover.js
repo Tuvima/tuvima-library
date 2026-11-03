@@ -93,12 +93,13 @@ function position(state) {
     }
     const isMenu = state.panel.classList.contains('playback-popover--menu');
     const isSpeed = state.panel.classList.contains('playback-popover--speed');
+    const isSettings = state.panel.classList.contains('playback-popover--settings');
     if (width <= 720 && !isMenu && !isSpeed) {
         Object.assign(state.panel.style, { left: `${x}px`, top: `${y}px`, width: `${width}px`, height: `${height}px`, maxHeight: `${height}px` });
         return;
     }
     const trigger = state.trigger.getBoundingClientRect();
-    state.panel.style.width = isMenu || isSpeed ? 'max-content' : `${Math.min(width - 16, state.panel.classList.contains('playback-popover--lyrics') ? 460 : 400)}px`;
+    state.panel.style.width = isMenu || isSpeed || isSettings ? 'max-content' : `${Math.min(width - 16, state.panel.classList.contains('playback-popover--lyrics') ? 460 : 400)}px`;
     state.panel.style.maxWidth = `${width - 16}px`;
     const audioDock = state.trigger.closest('.listen-player');
     const videoHost = state.panel.dataset?.playbackPopoverSurface === 'video' ? state.trigger.closest('.video-playback-host,.media-viewer__stage') : null;

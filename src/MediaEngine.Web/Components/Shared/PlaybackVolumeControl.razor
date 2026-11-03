@@ -1,0 +1,60 @@
+@namespace MediaEngine.Web.Components.Shared
+@using Microsoft.AspNetCore.Components.Web
+@inject IStringLocalizer<SharedStrings> L
+
+@* The one volume control for the video, audiobook and music players (player-controls-v3 D6): a speaker button, and above it a
+   vertical slider with a square track and knob. CSS opens the slider on hover or keyboard focus (so the busy player never has to
+   re-render for it). Arrow keys change the volume by 5.
+   Phones use the hardware buttons, so the slider is not drawn there (CSS hides it). When the device cannot set the volume in
+   software the slider is not drawn at all. *@
+<span class="@RootClass" data-chrome-hold>
+    <span class="playback-volume__button" @onkeydown="HandleKeyAsync">
+        <PlaybackIconButton Control="@Control" Surface="@Surface" Size="@Size" Appearance="@Appearance" OnClick="OnToggleMute" />
+    </span>
+    @if (Supported)
+    {
+        <span class="playback-volume__panel" role="group" aria-label="@L["Common_Volume"].Value">
+            <AppRangeSlider Vertical="true" Min="0" Max="1" Step="@Step" Value="@Volume" ShowTicks="false" CommitOnChange="@CommitOnChange"
+                            Surface="@Surface" Class="playback-volume__slider" AriaLabel="@L["Common_Volume"].Value"
+                            ValueFormatter="FormatVolume" ValueChanged="OnVolumeChanged" />
+        </span>
+    }
+</span>
+
+@code {
+    /// <summary>Volume from 0 to 1.</summary>
+    [Parameter] public double Volume { get; set; }
+    [Parameter] public bool IsMuted { get; set; }
+    /// <summary>False when the device can only change its volume with its own buttons; the slider is then not drawn.</summary>
+    [Parameter] public bool Supported { get; set; } = true;
+    [Parameter] public string Surface { get; set; } = "video";
+    [Parameter] public string Size { get; set; } = "compact";
+    [Parameter] public string Appearance { get; set; } = "standard";
+    [Parameter] public bool CommitOnChange { get; set; }
+    /// <summary>The size of one arrow-key step (5 percent by default).</summary>
+    [Parameter] public double Step { get; set; } = 0.05;
+    [Parameter] public EventCallback<double> OnVolumeChanged { get; set; }
+    [Parameter] public EventCallback OnToggleMute { get; set; }
+
+    private string RootClass => $"playback-volume playback-volume--{Surface}";
+
+    private PlaybackControlDefinition Control => new(
+        PlaybackControlKey.Mute,
+        IsMuted ? "Unmute" : "Mute",
+        IsMuted ? "Unmute" : "Mute",
+        string.Empty,
+        PlaybackControlPlacement.Utility,
+        "toggle-mute",
+        IsActive: IsMuted);
+
+    private static string FormatVolume(double value) => $"{Math.Clamp((int)Math.Round(value * 100d), 0, 100)}%";
+
+    // Arrow keys on the speaker button itself step the volume too, so the control works before the slider has focus.
+    // (A key pressed on the slider is handled by the slider's own range input, which sits outside this handler.)
+    private async Task HandleKeyAsync(KeyboardEventArgs args)
+    {
+        if (!Supported || args.Key is not ("ArrowUp" or "ArrowDown")) return;
+        var next = Math.Clamp(Volume + (args.Key == "ArrowUp" ? Step : -Step), 0d, 1d);
+        await OnVolumeChanged.InvokeAsync(Math.Round(next, 2));
+    }
+}

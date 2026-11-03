@@ -16,17 +16,61 @@ public interface IHeroOrderer
 }
 
 /// <summary>
-/// The default hero rules: everything the person is in the middle of first, most recently touched first, then newly added items,
-/// newest first. A plugin's suggestion only lifts an item inside the "new" group (strongest first); it can never move anything ahead of
-/// something the person is in the middle of. This is also what runs when a smarter orderer is off or fails.
+/// The default hero rules (Home, detail and tiles spec D16): the slides take turns across Watch, Read and Listen so no kind is shut
+/// out. Inside each kind, what the person is in the middle of comes first (most recently touched first), then newly added items,
+/// newest first. A plugin's suggestion only lifts an item inside the "new" group of its kind (strongest first); it can never move
+/// anything ahead of something the person is in the middle of. This is also what runs when a smarter orderer is off or fails.
 /// </summary>
 public sealed class DefaultHeroOrderer : IHeroOrderer
 {
-    public IReadOnlyList<HeroSlideCandidate> Order(IReadOnlyList<HeroSlideCandidate> allowed) =>
-        allowed.OrderByDescending(slide => slide.Continued)
-            .ThenByDescending(slide => slide.Continued ? 0 : slide.Suggested)
-            .ThenByDescending(slide => slide.At)
+    public IReadOnlyList<HeroSlideCandidate> Order(IReadOnlyList<HeroSlideCandidate> allowed)
+    {
+        var lanes = allowed
+            .GroupBy(slide => HomeHeroKinds.Of(slide.Hero))
+            .OrderBy(group => group.Key)
+            .Select(group => new Queue<HeroSlideCandidate>(group
+                .OrderByDescending(slide => slide.Continued)
+                .ThenByDescending(slide => slide.Continued ? 0 : slide.Suggested)
+                .ThenByDescending(slide => slide.At)))
             .ToList();
+
+        var ordered = new List<HeroSlideCandidate>(allowed.Count);
+        while (lanes.Any(lane => lane.Count > 0))
+        {
+            foreach (var lane in lanes.Where(lane => lane.Count > 0))
+            {
+                ordered.Add(lane.Dequeue());
+            }
+        }
+        return ordered;
+    }
+}
+
+/// <summary>Which of the three Home kinds a hero slide belongs to. The numbers are the turn order: Watch, Read, Listen, anything else.</summary>
+public static class HomeHeroKinds
+{
+    public const int Watch = 0;
+    public const int Read = 1;
+    public const int Listen = 2;
+    public const int Other = 3;
+
+    public static int Of(DisplayHeroDto hero)
+    {
+        if (hero.EpisodeContext is not null || hero.Subject is DisplaySubjectKind.TvShow or DisplaySubjectKind.TvEpisode)
+        {
+            return Watch;
+        }
+        if (hero.Subject == DisplaySubjectKind.Album)
+        {
+            return Listen;
+        }
+
+        var mediaType = hero.MediaType ?? string.Empty;
+        return DisplayMediaRules.IsWatchKind(mediaType) ? Watch
+            : DisplayMediaRules.IsReadKind(mediaType) ? Read
+            : DisplayMediaRules.IsListenKind(mediaType) ? Listen
+            : Other;
+    }
 }
 
 /// <summary>

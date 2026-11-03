@@ -159,7 +159,7 @@
 .top-nav-account-menu__review-count {
     min-width: 1.6rem;
     padding: 0.12rem 0.38rem;
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     color: #16100a;
     background: var(--tl-status-warning, #fbbf24);
     font-size: var(--tl-font-size-xs);

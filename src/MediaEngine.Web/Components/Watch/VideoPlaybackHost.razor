@@ -22,6 +22,7 @@
 
 <section @ref="_hostRef" class="@StageClass"
          data-subtitle-size="@SubtitleSizeValue" data-subtitle-background="@SubtitleBackgroundValue"
+         data-subtitle-font="@SubtitleFontValue" data-subtitle-color="@SubtitleColorValue" data-subtitle-shadow="@SubtitleShadowValue"
          aria-label="@(Playback.IsVideoMode ? "Video player" : null)"
          aria-hidden="@(Playback.IsVideoMode ? "false" : "true")"
          tabindex="-1" @onkeydown="HandleVideoKeyDown">
@@ -81,8 +82,8 @@
                         AriaLabel="@SkipLabel(segment.Kind)" OnClick="@(() => SeekOnHostAsync(segment.EndSeconds!.Value))"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SkipNext" /></AppNativeButton></AppTooltip>
                 </div>
             }
-            <PlaybackSeekRail Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds" ValueChanged="SeekOnHostAsync" ChapterTicks="@ChapterTicks" ChapterLabel="ChapterTickLabel" Surface="video"
-                               Bookmarks="@_railBookmarks" BookmarkJump="JumpToRailBookmarkAsync" BookmarkDelete="DeleteBookmarkAsync" Notice="@_bookmarkNotice" />
+            <PlaybackSeekRail Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds" ValueChanged="SeekOnHostAsync" ChapterTicks="@ShownChapterTicks" ChapterLabel="ChapterTickLabel" Surface="video"
+                               Bookmarks="@ShownRailBookmarks" BookmarkJump="JumpToRailBookmarkAsync" BookmarkDelete="DeleteBookmarkAsync" Notice="@_bookmarkNotice" />
             <div class="playback-video-controls">
                 <div class="playback-video-controls__left">
             <PlaybackPrimaryButton Appearance="video" IsPlaying="@VideoIsPlaying" NeedsUserGestureToStart="@Playback.NeedsUserGestureToStart"
@@ -91,24 +92,19 @@
             <PlaybackRelativeSkipButton Seconds="@Playback.SkipBackSeconds" Direction="back" Size="compact" OnClick="SkipBackAsync" />
             <PlaybackRelativeSkipButton Seconds="@Playback.SkipForwardSeconds" Direction="forward" Size="compact" OnClick="SkipForwardAsync" />
 
-                <div class="playback-video-controls__volume">
-                    <PlaybackIconButton Control="@MuteControl" Surface="video" OnClick="ToggleMuteAsync" />
-                    <AppRangeSlider Min="0" Max="1" Step="0.05" InputStep="0.05" Value="@Playback.Volume"
-                        ValueChanged="SetVolumeOnHostAsync" ShowTicks="false" Surface="video" Class="video-playback-host__volume"
-                        AriaLabel="@L["Common_Volume"].Value" ValueFormatter="FormatVolume" />
-                </div>
+                <PlaybackVolumeControl Surface="video" Volume="@Playback.Volume" IsMuted="@(Playback.IsMuted || Playback.Volume <= 0)" OnToggleMute="ToggleMuteAsync" OnVolumeChanged="SetVolumeOnHostAsync" />
                 </div>
                 <div class="playback-video-controls__identity" title="@VideoBarTitle">@VideoBarTitle</div>
                 <div class="playback-video-controls__right">
                     @if (EligibleNextEpisode is not null) { <AppTooltip Text="@L["VideoPlaybackHost_NextEpisode"].Value"><AppNativeButton AriaLabel="@L["VideoPlaybackHost_NextEpisode"].Value" OnClick="AdvanceCurrentVideoAsync"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SkipNext" /></AppNativeButton></AppTooltip> }
                     @if (ContextKind is not null)
                     {
-                        <PlaybackPopover Title="@L["Common_UpNext"].Value" ToolId="video-context" Kind="video" Surface="video" ItemKey="@VideoInstanceKey">
+                        <PlaybackPopover Title="@ContextTitle" ToolId="video-context" Kind="video" Surface="video" ItemKey="@VideoInstanceKey">
                             <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Queue" /></TriggerContent>
                             <ChildContent><VideoContextPanel Context="@ContextKind" Episodes="@(_presentationContext?.Episodes ?? [])"
-                                Chapters="@VideoChapters" Upcoming="@UpcomingVideo" NextEpisode="@EligibleNextEpisode" CurrentWorkId="@Playback.CurrentItem.WorkId"
+                                Lessons="@(!IsTvEpisode)" Upcoming="@UpcomingVideo" NextEpisode="@EligibleNextEpisode" CurrentWorkId="@Playback.CurrentItem.WorkId"
                                 Position="@Playback.CurrentTimeSeconds" IsPlaying="@VideoIsPlaying"
-                                EpisodeSelected="PlayOwnedEpisodeAsync" ChapterSelected="PlayVideoChapterAsync" QueueSelected="PlayVideoQueueEntryAsync" /></ChildContent>
+                                EpisodeSelected="PlayOwnedEpisodeAsync" QueueSelected="PlayVideoQueueEntryAsync" /></ChildContent>
                         </PlaybackPopover>
                     }
                     @if (VideoControlState.CanBookmark && Playback.CurrentItem is { WorkId: var bookmarkWorkId, AssetId: Guid bookmarkAssetId })
@@ -116,20 +112,30 @@
                         <PlaybackPopover Title="@L["Glossary_Bookmarks"].Value" ToolId="video-bookmarks" Kind="video" Surface="video" ShowHeading="false" ItemKey="@VideoInstanceKey">
                             <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Bookmark" /></TriggerContent>
                             <ChildContent>
-                                <VideoBookmarkPanel ProfileId="@(Playback.ActiveProfileId ?? Guid.Empty)" WorkId="@bookmarkWorkId" AssetId="@bookmarkAssetId"
-                                                    Title="@Playback.CurrentItem.Title" Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds"
-                                                    Chapters="@VideoChapters" CanShare="@CanShareBookmarks" JumpTo="JumpToBookmarkAsync"
-                                                    RailBookmarks="@_railBookmarks" Current="@Playback.CurrentTimeSeconds" Add="AddBookmarkAsync" Delete="DeleteBookmarkAsync"
-                                                    SavedChanged="HandleBookmarksSaved" OnClose="CloseBookmarksAsync"
-                                                    AllowPacks="@(!Playback.CurrentItem.IsVault)" Packs="@_packs" PacksChanged="ReloadPacksAsync" />
+                                <VideoBookmarkPane Position="@Playback.CurrentTimeSeconds" Current="@Playback.CurrentTimeSeconds"
+                                                   Bookmarks="@_savedRail" Everyones="@_everyonesRail" IsAdministrator="@CanShareBookmarks" AllowEveryones="@AllowEveryonesBookmarks" AllowFind="@AllowFindBookmarks"
+                                                   Filter="@BookmarkFilter" FilterChanged="ChangeBookmarkFilterAsync"
+                                                   ShowOnBar="@ShowBookmarksOnBar" ShowOnBarChanged="ChangeShowBookmarksOnBarAsync"
+                                                   Add="AddBookmarkAsync" Play="@(seconds => JumpToBookmarkAsync(seconds, true))" Delete="DeleteBookmarkAsync"
+                                                   Promote="PromoteBookmarkAsync" Update="UpdateGlobalBookmarkAsync">
+                                    <FindView Context="closeFind">
+                                        @if (AllowFindBookmarks)
+                                        {
+                                            <BookmarkFindView ProfileId="@(Playback.ActiveProfileId ?? Guid.Empty)" WorkId="@bookmarkWorkId" AssetId="@bookmarkAssetId"
+                                                              Duration="@Playback.DurationSeconds" Chapters="@VideoChapters" IsAdministrator="@CanShareBookmarks"
+                                                              JumpTo="JumpToBookmarkAsync" Applied="HandleBookmarkSetAppliedAsync" Closed="closeFind" />
+                                        }
+                                    </FindView>
+                                </VideoBookmarkPane>
                             </ChildContent>
                         </PlaybackPopover>
                     }
-                    <PlaybackPopover Title="@L["VideoPlaybackHost_SubtitlesAndAudio"].Value" ToolId="video-captions" Kind="video" Surface="video" ShowHeading="false" ItemKey="@VideoInstanceKey"
-                                     TriggerClass="@(_captionTracks.Any(track => track.Selected) ? "is-on" : null)">
-                        <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Captions" /></TriggerContent>
+                    <PlaybackPopover Title="@L["PlayerSettings_Title"].Value" ToolId="video-captions" Kind="settings" Surface="video" ShowHeading="false" ItemKey="@VideoInstanceKey"
+                                     OpenChanged="HandleSettingsOpenChangedAsync" TriggerClass="@(_captionTracks.Any(track => track.Selected) ? "is-on" : null)">
+                        <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Settings" /></TriggerContent>
                         <ChildContent>
-                            <VideoTracksPanel SettingsHref="@(Playback.ActiveProfileId is { } settingsProfile && settingsProfile != Guid.Empty ? $"/settings/profiles/{settingsProfile:D}" : "/settings/profiles")">
+                            <VideoSettingsMenu NoSubtitleSource="@_noSubtitleSource" IsAdministrator="@CanShareBookmarks" Look="@_profileSubtitles"
+                                               StyleChanged="ChangeSubtitleStyleAsync" OnClose="CloseSettingsAsync">
                                 <Audio>
                                     <PlaybackSheetList>
                                         @for (var index = 0; index < AudioTracks.Count; index++)
@@ -138,8 +144,8 @@
                                             var track = AudioTracks[index];
                                             var audioSelected = _selectedAudioTrackIndex == trackIndex || (_selectedAudioTrackIndex is null && track.IsDefault) || AudioTracks.Count == 1;
                                             <PlaybackSheetRow Appearance="outlined" OnClick="@(() => SelectAudioTrackAsync(trackIndex))" IsActive="@audioSelected"
-                                                              AriaLabel="@($"Select {AudioTrackLabel(track, trackIndex)}")">
-                                                <span class="playback-sheet-row__copy"><strong>@AudioTrackLabel(track, trackIndex)</strong><span>@AudioTrackDetail(track)</span></span>
+                                                              AriaLabel="@(AudioTracks.Count == 1 ? L["PlayerSettings_OnlyAudioTrack", AudioTrackLabel(track, trackIndex)].Value : $"Select {AudioTrackLabel(track, trackIndex)}")">
+                                                <span class="playback-sheet-row__copy"><strong>@AudioTrackLabel(track, trackIndex)</strong></span>
                                                 @if (audioSelected) { <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Check" /> }
                                             </PlaybackSheetRow>
                                         }
@@ -155,19 +161,22 @@
                                         @foreach (var track in _captionTracks)
                                         {
                                             <PlaybackSheetRow Appearance="outlined" OnClick="@(() => SelectCaptionAsync(track.Key))" IsActive="@track.Selected" AriaLabel="@($"Select {track.Label} subtitles")">
-                                                <span class="playback-sheet-row__copy"><strong>@track.Label</strong><span>@CaptionChoiceSubtitle(track)</span></span>
+                                                <span class="playback-sheet-row__copy"><strong>@track.Label</strong></span>
                                                 @if (track.Selected) { <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Check" /> }
                                             </PlaybackSheetRow>
                                         }
-                                        @if (_selectedCaptionKey?.StartsWith("managed:", StringComparison.Ordinal) == true)
+                                        @if (!_noSubtitleSource)
                                         {
-                                            <PlaybackSheetRow Appearance="outlined" OnClick="SetPreferredSubtitleAsync" AriaLabel="@L["VideoPlaybackHost_SetSelectedSubtitlesAsPreferred"].Value"><span class="playback-sheet-row__copy"><strong>@L["VideoPlaybackHost_SetPreferredVersion"]</strong></span></PlaybackSheetRow>
+                                            @if (_selectedCaptionKey?.StartsWith("managed:", StringComparison.Ordinal) == true)
+                                            {
+                                                <PlaybackSheetRow Appearance="outlined" OnClick="SetPreferredSubtitleAsync" AriaLabel="@L["VideoPlaybackHost_SetSelectedSubtitlesAsPreferred"].Value"><span class="playback-sheet-row__copy"><strong>@L["VideoPlaybackHost_SetPreferredVersion"]</strong></span></PlaybackSheetRow>
+                                            }
+                                            <PlaybackSheetRow Appearance="outlined" OnClick="RefreshSubtitlesAsync" AriaLabel="@L["VideoPlaybackHost_FindBetterSubtitles2"].Value"><span class="playback-sheet-row__copy"><strong>@(_textTrackLoading ? L["PlayerSettings_Searching"].Value : L["VideoPlaybackHost_FindBetterSubtitles"].Value)</strong></span></PlaybackSheetRow>
                                         }
-                                        <PlaybackSheetRow Appearance="outlined" OnClick="RefreshSubtitlesAsync" AriaLabel="@L["VideoPlaybackHost_FindBetterSubtitles2"].Value"><span class="playback-sheet-row__copy"><strong>@L["VideoPlaybackHost_FindBetterSubtitles"]</strong><span>@(_textTrackLoading ? "Searching…" : "Search available providers")</span></span></PlaybackSheetRow>
                                         @if (!string.IsNullOrWhiteSpace(_textTrackStatus)) { <p role="status" class="video-playback-host__track-status">@_textTrackStatus</p> }
                                     </PlaybackSheetList>
                                 </Subtitles>
-                            </VideoTracksPanel>
+                            </VideoSettingsMenu>
                         </ChildContent>
                     </PlaybackPopover>
                     <PlaybackSpeedControl Class="@(Math.Abs(Playback.PlaybackRate - 1d) > 0.001 ? "is-on" : null)" Value="@Playback.PlaybackRate" ValueChanged="SelectPlaybackRateAsync" Open="@_rateMenuOpen" MenuOpenChanged="HandleRateMenuOpenChanged" Surface="video" />
@@ -251,11 +260,18 @@
 
     private bool _rateMenuOpen;
     // The title's saved bookmarks, drawn as ticks beside the chapters (Videos spec D43). Loaded again whenever the video changes.
-    private IReadOnlyList<PlaybackRailBookmark> _railBookmarks = [];
     // The profile's own, shared and pack bookmarks are kept apart so a change to one redraws the rail without the others being reloaded.
     private IReadOnlyList<AudiobookBookmarkDto> _railSaved = [];
-    private IReadOnlyList<BookmarkPackDto> _packs = [];
+    private IReadOnlyList<PlaybackRailBookmark> _savedRail = [];
+    private IReadOnlyList<PlaybackRailBookmark> _everyonesRail = [];
     private Task? _railBookmarksLoad;
+    private bool ShowBookmarksOnBar => _profileSettings?.General.ShowBookmarksOnBar == true;
+    private string BookmarkFilter => _profileSettings?.General.BookmarkFilter ?? PlaybackPreferenceValues.All;
+    /// <summary>Everyone's is for administrators on a desktop or tablet, never in the Vault, on a phone or on a TV (player-controls-v3 D10).</summary>
+    private bool AllowEveryonesBookmarks => Playback.CurrentItem is { IsVault: false }
+        && Services.GetService<MediaEngine.Web.Services.Theming.DeviceContextService>()?.FormFactor is null or "desktop" or "tablet";
+    /// <summary>Find bookmarks follows the same rule as Everyone's: not in the Vault, never on a phone or a TV (Global bookmarks spec section 5).</summary>
+    private bool AllowFindBookmarks => AllowEveryonesBookmarks;
     private bool CanShareBookmarks => Services.GetService<DashboardSessionAccessor>()?.Authority?.EffectiveAdministrator == true;
     private Guid? _loadedSubtitleAssetId;
     private IReadOnlyList<TextTrackDto> _managedSubtitleTracks = [];
@@ -274,17 +290,27 @@
     private IReadOnlyList<ListenQueueItem> UpcomingVideo => Playback.Queue.Skip(Playback.CurrentIndex + 1).Where(item => MediaKindClassifier.IsVideo(item.MediaType)).ToList();
     private string? ContextKind => VideoPresentationResolver.ContextKind(VideoPresentationResolver.IsTvEpisode(Playback.CurrentItem),
         Playback.CurrentItem?.MediaType.Contains("movie", StringComparison.OrdinalIgnoreCase) == true,
-        _presentationContext?.Episodes.Count ?? 0, VideoChapters.Count, UpcomingVideo.Count);
-    private string ContextTitle => ContextKind switch { "episodes" => "Episodes", "chapters" => "Chapters", _ => "Up Next" };
+        _presentationContext?.Episodes.Count ?? 0, UpcomingVideo.Count);
+    private bool IsMovie => Playback.CurrentItem?.MediaType.Contains("movie", StringComparison.OrdinalIgnoreCase) == true;
+    private bool IsTvEpisode => VideoPresentationResolver.IsTvEpisode(Playback.CurrentItem);
+    private string ContextTitle => ContextKind == "episodes" ? L["PlayerContext_Episodes"].Value : IsTvEpisode ? L["PlayerContext_UpNext"].Value : L["PlayerContext_Lessons"].Value;
     private string ChapterTickLabel(double seconds) => VideoChapters.Where(chapter => chapter.StartSeconds <= seconds).OrderByDescending(chapter => chapter.StartSeconds).FirstOrDefault() is { } chapter
         ? $"Chapter {chapter.Index + 1:00} · {chapter.Title} · {FormatTimestamp(chapter.StartSeconds)}" : FormatTimestamp(seconds);
+    /// <summary>Chapter ticks follow the profile's setting: off by default for video (player-controls-v3 D8).</summary>
+    private IReadOnlyList<double> ShownChapterTicks => PlayerPreferenceService.ShowChapterMarks(_profileSettings, audiobook: false) ? ChapterTicks : [];
+    /// <summary>The bookmark bubbles on the bar: off by default, and following the pane's filter when on (D8a).</summary>
+    private IReadOnlyList<PlaybackRailBookmark> ShownRailBookmarks => !ShowBookmarksOnBar ? [] : BookmarkFilter switch
+    {
+        PlaybackPreferenceValues.Mine => _savedRail.Where(bookmark => !bookmark.IsGlobal).ToList(),
+        PlaybackPreferenceValues.Global => _savedRail.Where(bookmark => bookmark.IsGlobal).ToList(),
+        _ => _savedRail,
+    };
     private IReadOnlyList<double> ChapterTicks => Playback.DurationSeconds > 0 ? VideoChapters.Select(chapter => chapter.StartSeconds).Where(time => time >= 0 && time < Playback.DurationSeconds).Distinct().Order().ToList() : [];
     private IReadOnlyList<PlaybackSegmentDto> VerifiedSegments => (Playback.CurrentManifest?.Segments ?? [])
         .Where(segment => segment.Kind.ToLowerInvariant() is "intro" or "recap" or "credits" && VideoEndCardState.IsVerifiedRange(segment, Playback.DurationSeconds)).ToList();
     private string SegmentStyle(PlaybackSegmentDto segment) => $"left:{(segment.StartSeconds / ProgressMax * 100).ToString("0.###", CultureInfo.InvariantCulture)}%;width:{((segment.EndSeconds!.Value - segment.StartSeconds) / ProgressMax * 100).ToString("0.###", CultureInfo.InvariantCulture)}%;";
     private VideoOwnedEpisode? EligibleNextEpisode => _presentationContext is { NextEpisode: { } next } context
         && context.Identity.IsCurrent(Playback) && Playback.Queue.Skip(Playback.CurrentIndex + 1).FirstOrDefault()?.WorkId == next.WorkId ? next : null;
-    private PlaybackControlDefinition MuteControl => VideoUtilityControls.First(control => control.Key == PlaybackControlKey.Mute);
     private PlaybackControlDefinition FullscreenControl => VideoUtilityControls.First(control => control.Key == PlaybackControlKey.Fullscreen)
         with { AriaLabel = _isFullscreen ? "Exit fullscreen" : "Fullscreen" };
     [JSInvokable] public Task HandleFullscreenChanged(bool fullscreen) { _isFullscreen = fullscreen; return InvokeAsync(StateHasChanged); }
@@ -306,6 +332,8 @@
     // Profile defaults (Settings > Playback > Subtitles & audio). The size and background reach the cues through
     // --tl-subtitle-size / --tl-subtitle-bg, which wwwroot/app.css derives from these two attributes.
     private SubtitleLanguageSettingsDto? _profileSubtitles;
+    // The profile's whole playback settings: the bar's chapter and bookmark marks and the remembered bookmark filter (player-controls-v3 D8, D8a, D10).
+    private UserPlaybackSettingsDto? _profileSettings;
     private string? _profileAudioAppliedFor;
     private Guid? _profileSubtitlesProfile;
     private string SubtitleSizeValue => (_profileSubtitles?.SubtitleSize) switch
@@ -316,6 +344,9 @@
         _ => PlaybackPreferenceValues.Medium,
     };
     private string SubtitleBackgroundValue => _profileSubtitles?.SubtitleBackground == false ? "false" : "true";
+    private string SubtitleFontValue => _profileSubtitles?.SubtitleFont ?? PlaybackPreferenceValues.FontDefault;
+    private string SubtitleColorValue => _profileSubtitles?.SubtitleColor ?? PlaybackPreferenceValues.ColorWhite;
+    private string SubtitleShadowValue => _profileSubtitles?.SubtitleShadow == true ? "true" : "false";
     // The audio track can be changed only when the player reports every track (HLS, or a browser with audioTracks). Direct play in
     // Chrome or Firefox reports none, so the profile's audio language must not be assumed to play there.
     private bool CanSwitchAudio => AudioTracks.Count > 1 && _availableAudioTrackCount == AudioTracks.Count;
@@ -358,6 +389,7 @@
                 HasChapters: VideoChapters.Count > 0,
                 HasQueue: Playback.CurrentIndex < Playback.Queue.Count - 1,
                 IsTvEpisode: VideoPresentationResolver.IsTvEpisode(Playback.CurrentItem),
+                IsMovie: IsMovie,
                 HasCaptions: SubtitleTracks.Count > 0 || ManagedSubtitleTracks.Count > 0 || _captionTracks.Count > 0 || _availableSubtitleCount > 0,
                 HasAudioTracks: AudioTracks.Count > 1 && _availableAudioTrackCount == AudioTracks.Count,
                 CanBookmark: Playback.CurrentItem is { AssetId: not null } && Playback.ActiveProfileId is { } bookmarkProfile && bookmarkProfile != Guid.Empty,
@@ -420,10 +452,10 @@
         _managedSubtitleTracks = []; _captionTracks = []; _selectedCaptionKey = null;
         _selectedAudioTrackIndex = null; _pendingAudioIndex = null; _switchingAudio = false; _textTrackStatus = null; _textTrackLoading = false;
         _profileAudioAppliedFor = null;
-        _railBookmarks = [];
+        _savedRail = [];
+        _everyonesRail = [];
         _railSaved = [];
-        _packs = [];
-        if (identity?.ProfileId != _profileSubtitlesProfile) { _profileSubtitles = null; _profileSubtitlesProfile = identity?.ProfileId; }
+        if (identity?.ProfileId != _profileSubtitlesProfile) { _profileSubtitles = null; _profileSettings = null; _profileSubtitlesProfile = identity?.ProfileId; }
         Tools.Close(); _rateMenuOpen = false;
         if (identity is null) return;
         var request = _metadataCancellation = new();
@@ -444,13 +476,15 @@
                 RebuildRail();
             }
 
-            // A Vault video has no packs: they cannot be made or added there.
-            if (Playback.CurrentItem is { IsVault: false })
+            if (CanShareBookmarks && AllowEveryonesBookmarks)
             {
-                var packs = await ApiClient.GetBookmarkPacksAsync(identity.WorkId, identity.ProfileId, ct);
+                var everyones = await ApiClient.GetEveryonesBookmarksWithOutcomeAsync(identity.WorkId, identity.ProfileId, ct);
                 if (_disposed || ct.IsCancellationRequested || !identity.IsCurrent(Playback)) return;
-                _packs = packs;
-                RebuildRail();
+                if (everyones is { Outcome: AudiobookBookmarkOperationOutcome.Success, Value: { } others })
+                {
+                    _everyonesRail = PlaybackRailBookmark.From(others.Where(bookmark => bookmark.AssetId == identity.AssetId), Playback.DurationSeconds);
+                    RebuildRail();
+                }
             }
         }
         catch (OperationCanceledException)
@@ -462,17 +496,8 @@
 
     private void RebuildRail()
     {
-        _railBookmarks = PlaybackRailBookmark.From(_railSaved, Playback.DurationSeconds)
-            .Concat(PlaybackRailBookmark.FromPacks(_packs, Playback.DurationSeconds))
-            .OrderBy(bookmark => bookmark.Seconds).ToList();
+        _savedRail = PlaybackRailBookmark.From(_railSaved, Playback.DurationSeconds);
         if (!_disposed) _ = InvokeAsync(StateHasChanged);
-    }
-
-    private async Task ReloadPacksAsync()
-    {
-        if (VideoPlaybackIdentity.Capture(Playback) is not { } identity) return;
-        _packs = await ApiClient.GetBookmarkPacksAsync(identity.WorkId, identity.ProfileId);
-        RebuildRail();
     }
 
     private Task HandleBookmarksSaved(IReadOnlyList<AudiobookBookmarkDto> saved)
@@ -484,12 +509,6 @@
         }
 
         return Task.CompletedTask;
-    }
-
-    private async Task CloseBookmarksAsync()
-    {
-        Tools.Close();
-        await InvokeAsync(StateHasChanged);
     }
 
     /// <summary>Goes to a bookmark's time (preview, Replay or Jump) and plays from there.</summary>
@@ -523,7 +542,7 @@
 
     private async Task<bool> DeleteBookmarkAsync(PlaybackRailBookmark bookmark)
     {
-        if (Playback.CurrentItem is not { WorkId: var workId } || bookmark.IsPack) return false;
+        if (Playback.CurrentItem is not { WorkId: var workId }) return false;
         var profileId = Playback.ActiveProfileId ?? Guid.Empty;
         var result = await ApiClient.DeleteAudiobookBookmarkWithOutcomeAsync(bookmark.Id, profileId);
         if (result.Outcome != AudiobookBookmarkOperationOutcome.Success) return false;
@@ -551,6 +570,75 @@
         await InvokeAsync(StateHasChanged);
     }
 
+    /// <summary>An administrator makes a person's bookmark Global at once; no confirmation, the row glows instead.</summary>
+    private async Task<bool> PromoteBookmarkAsync(PlaybackRailBookmark bookmark, string? name)
+    {
+        if (Playback.CurrentItem is not { WorkId: var workId }) return false;
+        var profileId = Playback.ActiveProfileId ?? Guid.Empty;
+        var result = await ApiClient.PromoteAudiobookBookmarkWithOutcomeAsync(bookmark.Id, name, profileId);
+        if (result.Outcome != AudiobookBookmarkOperationOutcome.Success) return false;
+        await ReloadSavedBookmarksAsync(workId, profileId);
+        await ReloadEveryonesAsync(workId, profileId);
+        return true;
+    }
+
+    /// <summary>An administrator changes a Global bookmark's name, note and description.</summary>
+    private async Task<bool> UpdateGlobalBookmarkAsync(PlaybackRailBookmark bookmark, string? label, string? note, string? description)
+    {
+        if (Playback.CurrentItem is not { WorkId: var workId }) return false;
+        var profileId = Playback.ActiveProfileId ?? Guid.Empty;
+        var result = await ApiClient.UpdateGlobalAudiobookBookmarkWithOutcomeAsync(bookmark.Id,
+            new UpdateAudiobookBookmarkRequestDto { Label = label, Note = note, Description = description }, profileId);
+        if (result.Outcome != AudiobookBookmarkOperationOutcome.Success) return false;
+        await ReloadSavedBookmarksAsync(workId, profileId);
+        return true;
+    }
+
+    private async Task ReloadEveryonesAsync(Guid workId, Guid profileId)
+    {
+        if (!CanShareBookmarks || !AllowEveryonesBookmarks || Playback.CurrentItem?.AssetId is not Guid assetId) return;
+        var result = await ApiClient.GetEveryonesBookmarksWithOutcomeAsync(workId, profileId);
+        if (result is { Outcome: AudiobookBookmarkOperationOutcome.Success, Value: { } others })
+        {
+            _everyonesRail = PlaybackRailBookmark.From(others.Where(bookmark => bookmark.AssetId == assetId), Playback.DurationSeconds);
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    /// <summary>A bookmark file was applied: reload the list (and Everyone's for an administrator) and say so on the bar.</summary>
+    private async Task HandleBookmarkSetAppliedAsync(string message)
+    {
+        if (Playback.CurrentItem is not { WorkId: var workId }) return;
+        var profileId = Playback.ActiveProfileId ?? Guid.Empty;
+        await ReloadSavedBookmarksAsync(workId, profileId);
+        await ReloadEveryonesAsync(workId, profileId);
+        await ShowBookmarkNoticeAsync(message);
+    }
+
+    private async Task ChangeBookmarkFilterAsync(string filter)
+    {
+        _profileSettings ??= new UserPlaybackSettingsDto();
+        _profileSettings.General.BookmarkFilter = filter;
+        await SavePreferenceAsync(settings => settings.General.BookmarkFilter = filter);
+    }
+
+    private async Task ChangeShowBookmarksOnBarAsync(bool show)
+    {
+        _profileSettings ??= new UserPlaybackSettingsDto();
+        _profileSettings.General.ShowBookmarksOnBar = show;
+        await SavePreferenceAsync(settings => settings.General.ShowBookmarksOnBar = show);
+    }
+
+    private async Task SavePreferenceAsync(Action<UserPlaybackSettingsDto> change)
+    {
+        await InvokeAsync(StateHasChanged);
+        var preferences = Services.GetService<PlayerPreferenceService>();
+        if (preferences is null) return;
+        try { await preferences.UpdateAsync(change, _lifetimeCancellation.Token); }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { Logger.LogWarning(ex, "The bookmark choice could not be saved."); }
+    }
+
     private Task JumpToRailBookmarkAsync(PlaybackRailBookmark bookmark) => JumpToBookmarkAsync(bookmark.Seconds, play: false);
     private Task? _presentationResolution;
     private Task? _profileSubtitlesLoad;
@@ -558,8 +646,10 @@
     {
         try
         {
-            var settings = await Presentation.GetSubtitleSettingsAsync(ct);
+            var all = await Presentation.GetPlaybackSettingsAsync(ct);
+            var settings = all?.Subtitles;
             if (_disposed || ct.IsCancellationRequested || !identity.IsCurrent(Playback)) return;
+            _profileSettings = all;
             _profileSubtitles = settings;
             await InvokeAsync(StateHasChanged);
         }
@@ -1319,6 +1409,46 @@
 
     private void CloseToolSheet() => Tools.Close();
 
+    // Settings menu (player-controls-v3 D4, D5). Whether a subtitle source is switched on is asked once per video, the first time the
+    // menu opens, so the Subtitles column can say so instead of offering a search that can never find anything.
+    private bool _noSubtitleSource;
+    private Guid? _subtitleSourceProbedFor;
+
+    private async Task HandleSettingsOpenChangedAsync(bool open)
+    {
+        if (!open || Playback.CurrentItem?.AssetId is not Guid assetId || _subtitleSourceProbedFor == assetId) return;
+        _subtitleSourceProbedFor = assetId;
+        var identity = VideoPlaybackIdentity.Capture(Playback);
+        try
+        {
+            var result = await ApiClient.GetTextTrackAlternativesAsync(assetId, "subtitles", _lifetimeCancellation.Token);
+            if (_disposed || identity is not null && !identity.IsCurrent(Playback)) return;
+            _noSubtitleSource = string.Equals(result?.status, "NoSourceOn", StringComparison.OrdinalIgnoreCase);
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { Logger.LogDebug(ex, "Whether a subtitle source is switched on could not be checked."); }
+    }
+
+    private Task CloseSettingsAsync()
+    {
+        Tools.Close();
+        return InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>Applies a subtitle styling choice to the playing video at once, then saves it on the profile.</summary>
+    private async Task ChangeSubtitleStyleAsync(Action<SubtitleLanguageSettingsDto> change)
+    {
+        _profileSubtitles ??= new SubtitleLanguageSettingsDto();
+        change(_profileSubtitles);
+        await InvokeAsync(StateHasChanged);
+        var preferences = Services.GetService<PlayerPreferenceService>();
+        if (preferences is null) return;
+        try { await preferences.UpdateAsync(settings => change(settings.Subtitles), _lifetimeCancellation.Token); }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { Logger.LogWarning(ex, "The subtitle styling choice could not be saved."); }
+    }
+
     private void HandleRateMenuOpenChanged(bool isOpen)
     {
         _rateMenuOpen = isOpen;
@@ -1337,19 +1467,8 @@
         else if (args.Key is " " or "k" or "K") await TogglePlayPauseAsync();
         else if (args.Key == "ArrowLeft") await SkipBackAsync();
         else if (args.Key == "ArrowRight") await SkipForwardAsync();
-        else if (args.Key.Equals("b", StringComparison.OrdinalIgnoreCase) && !args.CtrlKey && !args.MetaKey && !args.AltKey)
-        {
-            if (args.ShiftKey) Tools.Open("video-bookmarks", pinned: true);
-            else await AddBookmarkAsync(Playback.CurrentTimeSeconds, null);
-        }
         else if (args.Key.Equals("m", StringComparison.OrdinalIgnoreCase)) await ToggleMuteAsync();
         else if (args.Key.Equals("f", StringComparison.OrdinalIgnoreCase)) await ToggleFullscreenAsync();
-    }
-
-    private async Task PlayVideoChapterAsync(PlaybackChapterDto chapter)
-    {
-        await SeekOnHostAsync(chapter.StartSeconds);
-        CloseToolSheet();
     }
 
     private async Task ClosePlayerAsync()
@@ -1388,7 +1507,8 @@
         _activeAssetId = null;
         _isPictureInPicture = false;
         Playback.ClosePlayer();
-        Nav.NavigateTo(detailUrl);
+        // Back over the page the title was opened from, so closing the title afterwards returns there instead of to the (now empty) player address.
+        await DetailsOverlayNavigation.ExitToTitleAsync(Nav, Services.GetService(typeof(DetailsOverlayState)) as DetailsOverlayState, detailUrl);
     }
 
     private string? AbsoluteUrl(string? value)
@@ -1428,7 +1548,6 @@
             : span.ToString(@"m\:ss", CultureInfo.InvariantCulture);
     }
 
-    private static string FormatVolume(double value) => $"{Math.Clamp((int)Math.Round(value * 100), 0, 100)}%";
 
     public async ValueTask DisposeAsync()
     {

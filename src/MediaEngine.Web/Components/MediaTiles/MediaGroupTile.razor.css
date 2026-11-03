@@ -95,7 +95,7 @@
     left: 8px;
     z-index: 4;
     padding: 2px 8px;
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     background: rgba(3, 7, 18, 0.62);
     color: #fff;
     font-size: 0.75rem;
@@ -124,7 +124,7 @@
     align-self: flex-start;
     padding: 1px 8px;
     border: 1px solid var(--tl-status-warning-border);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     background: var(--tl-status-warning-soft);
     color: var(--tl-status-warning);
     font-size: 0.75rem;

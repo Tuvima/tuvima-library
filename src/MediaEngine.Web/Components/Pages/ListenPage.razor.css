@@ -211,7 +211,7 @@
     padding: 1px 5px;
     color: #c4b5fd;
     border: 1px solid rgba(167, 139, 250, 0.35);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     font-size: var(--tl-font-size-xs);
     font-weight: 800;
     line-height: 1.45;

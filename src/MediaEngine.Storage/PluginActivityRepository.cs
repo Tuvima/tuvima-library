@@ -74,6 +74,15 @@ public sealed class PluginActivityRepository : IPluginActivityRepository
             new { pluginId, since = Format(since) }));
     }
 
+    public Task<int> TrimOlderThanAsync(string pluginId, DateTimeOffset olderThan, CancellationToken ct = default) =>
+        _db.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            return connection.Execute(
+                "DELETE FROM plugin_activity WHERE plugin_id = @pluginId AND occurred_at < @olderThan;",
+                new { pluginId, olderThan = Format(olderThan) }, transaction);
+        }, ct);
+
     public Task<int> DeleteForPluginAsync(string pluginId, CancellationToken ct = default) =>
         _db.ExecuteWriteAsync((connection, transaction, token) =>
         {

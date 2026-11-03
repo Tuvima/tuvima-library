@@ -57,15 +57,15 @@ public sealed class MediaTilePhoneRenderTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task MouseDesktopKeepsTheHoverPanelAndRegistersTheHoverScript()
+    public async Task MouseDesktopRendersNoHoverPanelAndRegistersNoHoverScript()
     {
         await Init("desktop", touch: false);
 
         var cut = Render<MediaTile>(p => p.Add(c => c.Item, CinematicMovie()).Add(c => c.IsHomeSurface, true));
 
-        Assert.Single(cut.FindAll(".media-tile-hover-panel"));
-        Assert.Empty(cut.FindAll(".media-tile-caption"));
-        Assert.Single(JSInterop.Invocations["registerMediaTileHover"]);
+        // No tile grows on hover any more (Home, detail and tiles spec D1), so there is no panel and no hover script.
+        Assert.Empty(cut.FindAll(".media-tile-hover-panel"));
+        Assert.DoesNotContain(JSInterop.Invocations, call => call.Identifier == "registerMediaTileHover");
     }
 
     private static MediaTileViewModel KeptShow() => new()
@@ -112,19 +112,6 @@ public sealed class MediaTilePhoneRenderTests : AsyncBunitContext
         var cut = Render<MediaTile>(p => p.Add(c => c.Item, CinematicMovie()).Add(c => c.IsHomeSurface, true));
 
         Assert.DoesNotContain("Kept", cut.Markup);
-    }
-
-    [Fact]
-    public async Task SwitchingToPhoneRemovesThePanelAndStopsTheHoverScript()
-    {
-        await Init("desktop", touch: false);
-        var cut = Render<MediaTile>(p => p.Add(c => c.Item, CinematicMovie()).Add(c => c.IsHomeSurface, true));
-        Assert.Single(cut.FindAll(".media-tile-hover-panel"));
-
-        await cut.InvokeAsync(() => _device.SwitchDeviceAsync(new DeviceContextSnapshot("mobile", "phone", true)));
-
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".media-tile-hover-panel")));
-        Assert.Single(JSInterop.Invocations["unregisterMediaTileHover"]);
     }
 
     [Fact]

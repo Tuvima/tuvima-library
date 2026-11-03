@@ -221,6 +221,22 @@ public sealed record AudiobookBookmarkDto
     /// <summary>True for a bookmark shared with everybody who can see the title; only a server administrator can make or change one.</summary>
     public bool IsGlobal { get; init; }
     public DateTimeOffset CreatedAt { get; init; }
+    /// <summary>Whose bookmark it is, by display name. Filled in only in the administrator's Everyone's view; null everywhere else.</summary>
+    public string? OwnerName { get; init; }
+}
+
+/// <summary>Turns one profile's personal bookmark into a Global one (administrators only). The optional name replaces the bookmark's name.</summary>
+public sealed record PromoteAudiobookBookmarkRequestDto
+{
+    public string? Name { get; init; }
+}
+
+/// <summary>New name, note and description for a Global bookmark (administrators only). A null or blank value clears the field.</summary>
+public sealed record UpdateAudiobookBookmarkRequestDto
+{
+    public string? Label { get; init; }
+    public string? Note { get; init; }
+    public string? Description { get; init; }
 }
 
 /// <summary>Native owner proof returned when capturing a live audiobook position.</summary>
@@ -562,6 +578,18 @@ public sealed class PlaybackGeneralSettingsDto
     public bool SyncProgressBetweenBookAndAudiobook { get; set; } = true;
 
     /// <summary>
+    /// "Show chapter marks on the progress bar" (player controls v3 D8). Null means the media default: off for video, on for
+    /// audiobooks. Once the profile picks a value it applies to both.
+    /// </summary>
+    public bool? ShowChapterMarks { get; set; }
+
+    /// <summary>"Show bookmarks on the bar" (player controls v3 D8a): the bookmark bubbles on the video progress bar. Off by default.</summary>
+    public bool ShowBookmarksOnBar { get; set; }
+
+    /// <summary>The bookmark list filter the profile last chose in the player: <c>All</c>, <c>Mine</c>, <c>Global</c> or <c>Everyones</c> (administrators).</summary>
+    public string BookmarkFilter { get; set; } = PlaybackPreferenceValues.All;
+
+    /// <summary>
     /// How much of a story characters may reveal for this profile: <c>up_to_progress</c> ("Up to where I am", the default) or
     /// <c>everything</c>. Read-only here: it changes only through the profile's own spoiler action, never a bulk save.
     /// </summary>
@@ -683,11 +711,31 @@ public sealed class SubtitleLanguageSettingsDto
     public bool SubtitleBackground { get; set; } = true;
     public string SubtitlePosition { get; set; } = PlaybackPreferenceValues.Bottom;
     public string SubtitleStyle { get; set; } = PlaybackPreferenceValues.Clean;
+
+    /// <summary>Subtitle typeface in the player (player controls v3 D4): <c>Default</c>, <c>Serif</c> or <c>Mono</c>.</summary>
+    public string SubtitleFont { get; set; } = PlaybackPreferenceValues.FontDefault;
+
+    /// <summary>A soft shadow behind the subtitle text. It is also drawn whenever the background is off.</summary>
+    public bool SubtitleShadow { get; set; }
+
+    /// <summary>Subtitle text colour: <c>White</c>, <c>Yellow</c>, <c>Cyan</c> or <c>Green</c>.</summary>
+    public string SubtitleColor { get; set; } = PlaybackPreferenceValues.ColorWhite;
 }
 
 public static class PlaybackPreferenceValues
 {
     public const string Auto = "Auto";
+    public const string All = "All";
+    public const string Mine = "Mine";
+    public const string Global = "Global";
+    public const string Everyones = "Everyones";
+    public const string FontDefault = "Default";
+    public const string FontSerif = "Serif";
+    public const string FontMono = "Mono";
+    public const string ColorWhite = "White";
+    public const string ColorYellow = "Yellow";
+    public const string ColorCyan = "Cyan";
+    public const string ColorGreen = "Green";
     public const string Original = "Original";
     public const string High = "High";
     public const string Balanced = "Balanced";

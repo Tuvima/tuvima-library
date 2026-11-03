@@ -168,6 +168,7 @@ public sealed class MediaTileComposerService
             Genres = hero.Genres,
             PreviewItems = hero.PreviewItems.Select(item => ToArtworkStackItem(item, hero.MediaType)).ToList(),
             PreviewTotalCount = hero.PreviewTotalCount,
+            CollageUrls = hero.CollageUrls,
             PrimaryActionLabel = primaryAction?.Label ?? "Open",
             PrimaryNavigationUrl = primaryAction?.WebUrl ?? "/",
             SecondaryActionLabel = "Details",
@@ -349,6 +350,7 @@ public sealed class MediaTileComposerService
             MetaText = string.Join(" / ", card.Facts),
             QualityBadge = BadgeLabel(card.Badges, "quality"),
             IsKept = card.Flags.KeptAsIs,
+            NewLabel = NewLabelFor(card),
             SourceBadgeLabel = BadgeLabel(card.Badges, "source"),
             SourceLogoUrl = SourceLogos.ResolveLogoPath(BadgeLabel(card.Badges, "source")),
             MediaCounts = card.GroupSummary?.MediaCounts.Select(ToMediaCount).ToList() ?? [],
@@ -661,6 +663,17 @@ public sealed class MediaTileComposerService
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Take(card.Flags.IsCollection ? 5 : 3)
             .ToList();
+    }
+
+    /// <summary>Added in the last 7 days and not started yet: "New" (or "New Episode" for an episode). Anything the person is partway through is not new.</summary>
+    internal static string? NewLabelFor(DisplayCardDto card)
+    {
+        if (card.ContinuationState is DisplayContinuationState.InProgress or DisplayContinuationState.Completed
+            || DateTimeOffset.UtcNow - card.SortTimestamp > TimeSpan.FromDays(7))
+        {
+            return null;
+        }
+        return card.EpisodeContext is not null ? "New Episode" : "New";
     }
 
     private static string? BadgeLabel(IReadOnlyList<DisplayCardBadgeDto> badges, string kind) =>

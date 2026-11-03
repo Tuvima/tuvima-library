@@ -26,6 +26,37 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
     private const string TmdbImageBaseUrl = "https://image.tmdb.org/t/p/original";
     private const int MaxVariantsPerAssetType = 3;
 
+    private static bool IsTvdbImageUrl(string? value) =>
+        Uri.TryCreate(value, UriKind.Absolute, out var uri)
+        && uri.Scheme == Uri.UriSchemeHttps
+        && (uri.Host.Equals("thetvdb.com", StringComparison.OrdinalIgnoreCase)
+            || uri.Host.EndsWith(".thetvdb.com", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// Records, as data only, that an episode has no TheTVDB still: the value is the date Library checks again
+    /// (the existing refresh period). Nothing is written to artwork, media files or folders. A real still clears it.
+    /// </summary>
+    private async Task SetEpisodeStandInAsync(
+        Guid episodeWorkId, bool standIn, bool alreadyStandIn, DateTimeOffset checkedAt, CancellationToken ct)
+    {
+        if (!standIn)
+        {
+            if (alreadyStandIn)
+            {
+                await _canonicalRepo.DeleteByKeyAsync(episodeWorkId, MetadataFieldConstants.EpisodeStillStandIn, ct).ConfigureAwait(false);
+            }
+            return;
+        }
+        var days = _configLoader.LoadHydration().Stage3RefreshDays;
+        var retryAfter = checkedAt.AddDays(days > 0 ? days : 90).UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        await _canonicalRepo.UpsertBatchAsync([new CanonicalValue
+            {
+                EntityId = episodeWorkId, Key = MetadataFieldConstants.EpisodeStillStandIn,
+                Value = retryAfter, WinningProviderId = WellKnownProviders.Tvdb,
+                LastScoredAt = checkedAt,
+            }], ct).ConfigureAwait(false);
+    }
+
     public async Task<ProviderArtworkDiscovery> DiscoverArtworkAsync(Guid assetId, string scope, string role, CancellationToken ct = default)
     {
         var context = await ResolveContextAsync(assetId, ct);
@@ -528,6 +559,11 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         var offered = new Dictionary<(Guid Owner, AssetType Type), List<string>>();
         async Task<bool> AddAsync(string? value, AssetType type, Guid owner, bool makePreferred = true)
         {
+            // TheTVDB's episode list gives each picture as a path ("/banners/episodes/…"); its other calls give a full address.
+            if (value?.StartsWith("/banners/", StringComparison.Ordinal) == true)
+            {
+                value = "https://artworks.thetvdb.com" + value;
+            }
             if (!Uri.TryCreate(value, UriKind.Absolute, out var uri)
                 || uri.Scheme != Uri.UriSchemeHttps
                 || !(uri.Host.Equals("thetvdb.com", StringComparison.OrdinalIgnoreCase)
@@ -659,6 +695,13 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
                     {
                         showEpisodes = await _tvdb.GetAllPagesAsync("tvdb", "series_episodes",
                             ProviderApiClient.Args(("id", showId), ("season_type", "default"), ("lang", "eng")), ct).ConfigureAwait(false);
+                        if (showEpisodes.Count == 0)
+                        {
+                            // TheTVDB answers "not found" for a language the show has no translation in; the
+                            // untranslated list still carries every episode's number and picture.
+                            showEpisodes = await _tvdb.GetAllPagesAsync("tvdb", "series_episodes",
+                                ProviderApiClient.Args(("id", showId), ("season_type", "default")), ct).ConfigureAwait(false);
+                        }
                     }
                     catch (Exception ex) when (ex is not OperationCanceledException)
                     {
@@ -673,8 +716,12 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
                             node["seasonNumber"]?.ToString() == season.SeasonNumber.ToString(CultureInfo.InvariantCulture)
                             && node["number"]?.ToString() == episodeNumber.Value.ToString(CultureInfo.InvariantCulture))
                         : null;
+                var alreadyStandIn = episodeValues.Any(value =>
+                    string.Equals(value.Key, MetadataFieldConstants.EpisodeStillStandIn, StringComparison.Ordinal));
                 if (match is null)
                 {
+                    // TheTVDB has nothing for this episode, so it shows the marked stand-in and is checked again later.
+                    await SetEpisodeStandInAsync(episode.WorkId, true, alreadyStandIn, checkedAt, ct).ConfigureAwait(false);
                     continue;
                 }
                 var matchedId = match["id"]?.ToString();
@@ -689,6 +736,8 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
                 }
                 episodeOwners.Add(episode.WorkId);
                 await AddAsync(match["image"]?.ToString(), AssetType.EpisodeStill, episode.WorkId).ConfigureAwait(false);
+                await SetEpisodeStandInAsync(episode.WorkId, !IsTvdbImageUrl(match["image"]?.ToString()), alreadyStandIn, checkedAt, ct)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -723,6 +772,9 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             {
                 await AddAsync(episode["image"]?.ToString(), AssetType.EpisodeStill,
                         context.SelfWorkId).ConfigureAwait(false);
+                await SetEpisodeStandInAsync(context.SelfWorkId, !IsTvdbImageUrl(episode["image"]?.ToString()),
+                    own.Any(value => string.Equals(value.Key, MetadataFieldConstants.EpisodeStillStandIn, StringComparison.Ordinal)),
+                    checkedAt, ct).ConfigureAwait(false);
             }
         }
 

@@ -141,9 +141,9 @@ public sealed class DetailPresentationCapabilityTests : AsyncBunitContext
     }
 
     [Theory]
-    [InlineData(false, "Add to My List", null)]
-    [InlineData(true, "Remove from My List", "true")]
-    public void HeroActionRow_MyListIsAHeart_FilledOnlyOnceSaved(bool saved, string expectedLabel, string? expectedFilled)
+    [InlineData(false, "Add to My List", "Add")]
+    [InlineData(true, "Remove from My List", "Check")]
+    public void HeroActionRow_MyListIsAPlus_ATickOnceSaved(bool saved, string expectedLabel, string expectedGlyph)
     {
         // The page flips IsSelected in place after a save, so the name must follow it rather than the original label.
         var cut = Render<HeroActionRow>(parameters => parameters
@@ -156,8 +156,8 @@ public sealed class DetailPresentationCapabilityTests : AsyncBunitContext
         var glyph = circle.QuerySelector("svg.playback-utility-glyph")!;
         Assert.Equal(expectedLabel, circle.GetAttribute("aria-label"));
         Assert.Equal(saved ? "true" : "false", circle.GetAttribute("aria-pressed"));
-        Assert.Equal("Favorite", glyph.GetAttribute("data-playback-glyph"));
-        Assert.Equal(expectedFilled, glyph.GetAttribute("data-filled"));
+        // My List is a plus, then a tick; the heart is only for Favourites (Home, detail and tiles spec D6).
+        Assert.Equal(expectedGlyph, glyph.GetAttribute("data-playback-glyph"));
     }
 
     [Fact]

@@ -43,6 +43,7 @@ public sealed class ServerFolderBrowserServiceTests
             StorageLocationId = "media",
             RelativePath = relative,
             SelectionMode = ServerFolderSelectionModes.ExistingLibrary,
+            KindKey = "movies",
         }).ContainsFiles;
 
         Assert.False(Contains("Empty"));

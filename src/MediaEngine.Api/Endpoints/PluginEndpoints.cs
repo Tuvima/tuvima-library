@@ -6,7 +6,9 @@ using MediaEngine.Api.Services.LocalAi;
 using MediaEngine.Api.Services.Plugins;
 using MediaEngine.Api.Services.Plugins.AiFeatures;
 using MediaEngine.Api.Services.Plugins.Declarative;
+using MediaEngine.Api.Services.Plugins.Files;
 using MediaEngine.Api.Services.Plugins.Service;
+using MediaEngine.Api.Services.Plugins.Setup;
 using MediaEngine.Api.Services.Plugins.Sources;
 using MediaEngine.Api.Services.Vault;
 using MediaEngine.Contracts.Approvals;
@@ -375,6 +377,248 @@ internal static class PluginEndpoints
         .Produces<PluginSummaryResponse>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsRead);
 
+        group.MapGet("/{pluginId}/page", async (
+            string pluginId,
+            [FromServices] PluginPageModelService pages,
+            CancellationToken ct) =>
+        {
+            var page = await pages.BuildAsync(pluginId, ct).ConfigureAwait(false);
+            return page is null ? ApiErrors.NotFound($"Plugin '{pluginId}' not found.") : Results.Ok(page);
+        })
+        .WithName("GetPluginSetupPage")
+        .WithSummary("The plugin's Set up page as an ordered list of cards (Access, What it provides, Settings, Privacy, About), built from the plugin's own JSON whichever file format it is. Never a secret value.")
+        .Produces<PluginSetupPageResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsRead);
+
+        // The Plugin file card (v5 D54, D55 first half): the file's text with its state, and a check of proposed text. Both read only.
+        group.MapGet("/{pluginId}/file", async (
+            string pluginId,
+            [FromServices] PluginFileService files,
+            CancellationToken ct) =>
+        {
+            var file = await files.ReadAsync(pluginId, ct).ConfigureAwait(false);
+            return file is null ? ApiErrors.NotFound($"Plugin '{pluginId}' has no file to show.") : Results.Ok(file);
+        })
+        .WithName("GetPluginFile")
+        .WithSummary("The text of the file that defines a plugin (a provider source file, a manifest, or the shipped description of a compiled-in plugin) with its state: valid or the problems with their lines, and whether it differs from Tuvima's version.")
+        .Produces<PluginFileResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsRead);
+
+        group.MapPost("/{pluginId}/file/check", async (
+            string pluginId,
+            PluginFileCheckRequest request,
+            [FromServices] PluginFileService files,
+            CancellationToken ct) =>
+        {
+            if (request.Text is null || request.Text.Length > PluginFileChecker.MaxCharacters)
+            {
+                return ApiErrors.BadRequest("The text is missing or too large to check.");
+            }
+
+            var result = await files.CheckAsync(pluginId, request.Text, ct).ConfigureAwait(false);
+            return result is null ? ApiErrors.NotFound($"Plugin '{pluginId}' has no file to check.") : Results.Ok(result);
+        })
+        .WithName("CheckPluginFile")
+        .WithSummary("Checks proposed text for a plugin's file against the published schema and Library's own rules. Returns every problem with its line and plain words. Writes nothing.")
+        .Produces<PluginFileCheckResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
+
+        // The Plugin file editor's two writing actions (v5 D55, D56). Both write only the plugin's own file, re-check it here, reload the
+        // plugin and run its check; neither touches keys or saved setting values, which live apart from the file.
+        group.MapPut("/{pluginId}/file", async (
+            string pluginId,
+            PluginFileCheckRequest request,
+            HttpContext http,
+            [FromServices] PluginFileEditor editor,
+            [FromServices] PluginPeopleActionLog peopleActions,
+            [FromServices] IRequestAuthorityResolver authorityResolver,
+            CancellationToken ct) =>
+        {
+            if (request.Text is null || request.Text.Length > PluginFileChecker.MaxCharacters)
+            {
+                return ApiErrors.BadRequest("The text is missing or too large to save.");
+            }
+
+            var result = await editor.SaveAsync(pluginId, request.Text, ct).ConfigureAwait(false);
+            if (result is null)
+            {
+                return ApiErrors.NotFound($"Plugin '{pluginId}' has no file to save.");
+            }
+
+            await RecordFileActionAsync(http, authorityResolver, peopleActions, pluginId, result, "edited-plugin-file", "Edited the file of", ct).ConfigureAwait(false);
+            return Results.Ok(result);
+        })
+        .WithName("SavePluginFile")
+        .WithSummary("Saves the text of a plugin's file. The Engine checks it again and refuses a file with any blocking problem (nothing is written then). A valid file is written atomically, the plugin is loaded again and its check runs; the answer says whether it loaded and whether it works.")
+        .Produces<PluginFileSaveResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
+
+        group.MapPost("/{pluginId}/file/reset", async (
+            string pluginId,
+            HttpContext http,
+            [FromServices] PluginFileEditor editor,
+            [FromServices] PluginPeopleActionLog peopleActions,
+            [FromServices] IRequestAuthorityResolver authorityResolver,
+            CancellationToken ct) =>
+        {
+            var result = await editor.ResetAsync(pluginId, ct).ConfigureAwait(false);
+            if (result is null)
+            {
+                return ApiErrors.NotFound($"Plugin '{pluginId}' has no file to reset.");
+            }
+
+            await RecordFileActionAsync(http, authorityResolver, peopleActions, pluginId, result, "reset-plugin-file", "Reset the file of", ct).ConfigureAwait(false);
+            return Results.Ok(result);
+        })
+        .WithName("ResetPluginFile")
+        .WithSummary("Puts Tuvima's pristine copy of a plugin's file back (a provider source file keeps the person's own on/off switch), loads the plugin again and runs its check. A private plugin has no Tuvima version, so this is refused for it.")
+        .Produces<PluginFileSaveResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
+
+        // Restore official plugins (v5 D57): a quiet row in Settings > Tools. The preview writes nothing; the restore puts Tuvima's version of each
+        // missing, damaged or edited Tuvima plugin file back, the same way Reset does. Keys, switches, values and Private plugins are untouched.
+        group.MapGet("/restore-preview", async (
+            [FromServices] PluginRestoreService restore,
+            CancellationToken ct) => Results.Ok(await restore.PreviewAsync(ct).ConfigureAwait(false)))
+        .WithName("PreviewRestoreOfficialPlugins")
+        .WithSummary("Each official plugin file that is missing, damaged or edited (and so would be restored or reset), and how many already match the shipped version. Writes nothing.")
+        .Produces<PluginRestorePreviewResponse>(StatusCodes.Status200OK)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsRead);
+
+        group.MapPost("/restore", async (
+            HttpContext http,
+            [FromServices] PluginRestoreService restore,
+            [FromServices] PluginPeopleActionLog peopleActions,
+            [FromServices] IRequestAuthorityResolver authorityResolver,
+            CancellationToken ct) =>
+        {
+            var result = await restore.RestoreAsync(ct).ConfigureAwait(false);
+            var authority = await authorityResolver.ResolveAsync(http, ct).ConfigureAwait(false);
+            foreach (var item in result.Items.Where(item => item.Outcome != "failed"))
+            {
+                await peopleActions.RecordAsync(new PluginPeopleAction(authority.ActiveProfileId, item.PluginId, "restored-official-plugin", $"Restored the official file of {item.PluginId}", Before: item.FileName, After: item.Outcome), ct).ConfigureAwait(false);
+            }
+
+            return Results.Ok(result);
+        })
+        .WithName("RestoreOfficialPlugins")
+        .WithSummary("Puts the shipped version back for every official plugin file that is missing, damaged or edited (a source file keeps the person's own on/off switch). Keys, switches, setting values and Private plugins are untouched.")
+        .Produces<PluginRestoreResponse>(StatusCodes.Status200OK)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
+
+        // The changes the generated page makes to values kept outside the plugin's saved settings, to the rows of a repeating group and
+        // to the Activity cap (v5 D49, D59). The Dashboard calls these for every plugin; a plugin's JSON names where its values live.
+        group.MapPut("/{pluginId}/page/values/{key}", async (
+            string pluginId,
+            string key,
+            PluginSetupValueRequest request,
+            HttpContext http,
+            [FromServices] PluginPageModelService pages,
+            CancellationToken ct) =>
+            await ChangeThroughValueSourceAsync(pages, http, pluginId, key,
+                (source, token) => source.SetValueAsync(key, request.Value, token), ct).ConfigureAwait(false))
+        .WithName("SavePluginSetupValue")
+        .WithSummary("Saves one value of a plugin's page that the plugin's JSON says is kept elsewhere (a switch on a repeating group's owner, say).")
+        .Produces<PluginSetupChangeResult>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
+
+        group.MapPost("/{pluginId}/page/items/{key}", async (
+            string pluginId,
+            string key,
+            PluginSetupItemRequest request,
+            HttpContext http,
+            [FromServices] PluginPageModelService pages,
+            CancellationToken ct) =>
+            await ChangeThroughValueSourceAsync(pages, http, pluginId, key,
+                (source, token) => source.AddItemAsync(key, request.Values, token), ct).ConfigureAwait(false))
+        .WithName("AddPluginSetupItem")
+        .WithSummary("Adds a row to a repeating group on a plugin's page. A secret field is checked and kept, never echoed.")
+        .Produces<PluginSetupChangeResult>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
+
+        group.MapDelete("/{pluginId}/page/items/{key}/{itemId}", async (
+            string pluginId,
+            string key,
+            string itemId,
+            HttpContext http,
+            [FromServices] PluginPageModelService pages,
+            CancellationToken ct) =>
+            await ChangeThroughValueSourceAsync(pages, http, pluginId, key,
+                (source, token) => source.RemoveItemAsync(key, itemId, token), ct).ConfigureAwait(false))
+        .WithName("RemovePluginSetupItem")
+        .WithSummary("Removes a row of a repeating group on a plugin's page. A locked row cannot be removed.")
+        .Produces<PluginSetupChangeResult>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
+
+        group.MapPost("/{pluginId}/page/items/{key}/{itemId}/test", async (
+            string pluginId,
+            string key,
+            string itemId,
+            HttpContext http,
+            [FromServices] PluginPageModelService pages,
+            CancellationToken ct) =>
+            await ChangeThroughValueSourceAsync(pages, http, pluginId, key,
+                (source, token) => source.TestItemAsync(key, itemId, token), ct).ConfigureAwait(false))
+        .WithName("TestPluginSetupItem")
+        .WithSummary("Tests one row of a repeating group on a plugin's page (test connection).")
+        .Produces<PluginSetupChangeResult>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
+
+        group.MapPut("/{pluginId}/page/items/{key}/{itemId}/secret/{field}", async (
+            string pluginId,
+            string key,
+            string itemId,
+            string field,
+            PluginSetupSecretRequest request,
+            HttpContext http,
+            [FromServices] PluginPageModelService pages,
+            CancellationToken ct) =>
+            await ChangeThroughValueSourceAsync(pages, http, pluginId, key,
+                (source, token) => source.SetItemSecretAsync(key, itemId, field, request.Value, token), ct).ConfigureAwait(false))
+        .WithName("SavePluginSetupItemSecret")
+        .WithSummary("Saves a row's key. It is checked first where the service allows, and is never returned.")
+        .Produces<PluginSetupChangeResult>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
+
+        group.MapPut("/{pluginId}/activity-cap", (
+            string pluginId,
+            PluginActivityCapDto request,
+            [FromServices] PluginPageModelService pages) =>
+        {
+            if (!pages.Exists(pluginId))
+            {
+                return ApiErrors.NotFound($"Plugin '{pluginId}' not found.");
+            }
+
+            try
+            {
+                var cap = pages.SetActivityCap(pluginId, request.MaxEntries, request.MaxDays);
+                return Results.Ok(new PluginActivityCapDto { MaxEntries = cap.MaxEntries, MaxDays = cap.MaxDays });
+            }
+            catch (ArgumentOutOfRangeException ex)
+            {
+                return ApiErrors.BadRequest(ex.Message.Split(" (Parameter", StringSplitOptions.None)[0]);
+            }
+        })
+        .WithName("SavePluginActivityCap")
+        .WithSummary("How much of a plugin's Activity list is kept: the newest entries, none older than the days. Enforced where the entries are stored.")
+        .Produces<PluginActivityCapDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
+
         group.MapPost("/{pluginId}/enable", EnablePlugin)
         .WithName("EnablePlugin")
         .WithSummary("Switch a plugin on. Needs the plugin's current approval statement to have been confirmed (409 approval_required otherwise).")
@@ -671,6 +915,25 @@ internal static class PluginEndpoints
 
     private const int MaximumSecretValueLength = 8192;
 
+    private static async Task RecordFileActionAsync(
+        HttpContext http,
+        IRequestAuthorityResolver authorityResolver,
+        PluginPeopleActionLog peopleActions,
+        string pluginId,
+        PluginFileSaveResponse result,
+        string kind,
+        string words,
+        CancellationToken ct)
+    {
+        if (!result.Saved)
+        {
+            return;
+        }
+
+        var authority = await authorityResolver.ResolveAsync(http, ct).ConfigureAwait(false);
+        await peopleActions.RecordAsync(new PluginPeopleAction(authority.ActiveProfileId, pluginId, kind, $"{words} {pluginId}", Before: result.State.FileName, After: result.Outcome), ct).ConfigureAwait(false);
+    }
+
     private const string NoProfileMessage = "Choose a profile first. Accounts are linked to a profile.";
 
     internal static async Task<IResult> GetPluginConnectionAsync(
@@ -876,6 +1139,26 @@ internal static class PluginEndpoints
     }
 
     /// <summary>Which declared secrets are set. Names, labels and a yes/no only; never a value.</summary>
+    // A change to a setting whose value the plugin's JSON says is kept in a named place. An unknown plugin, setting or place is
+    // "not found"; a place that belongs to the Vault answers "not found" to anyone whose Vault mode is off.
+    private static async Task<IResult> ChangeThroughValueSourceAsync(
+        PluginPageModelService pages,
+        HttpContext http,
+        string pluginId,
+        string key,
+        Func<IPluginSettingValueSource, CancellationToken, Task<PluginSettingWriteResult>> change,
+        CancellationToken ct)
+    {
+        var source = pages.ValueSourceFor(pluginId, key);
+        if (source is null || (source.VaultGated && !await VaultBrowseEndpoints.PassesGateAsync(http).ConfigureAwait(false)))
+        {
+            return ApiErrors.NotFound("There is nothing to change there.");
+        }
+
+        var result = await change(source, ct).ConfigureAwait(false);
+        return Results.Ok(new PluginSetupChangeResult { Ok = result.Ok, Message = result.Message, ItemId = result.ItemId });
+    }
+
     internal static async Task<IResult> ListPluginSecretsAsync(
         string pluginId,
         PluginCatalog catalog,
@@ -1301,6 +1584,7 @@ internal static class PluginEndpoints
         MaximumLibraryVersion = registration.Manifest.MaximumLibraryVersion,
         Category = PluginCategories.Resolve(registration.Manifest.Category),
         Provides = PluginProvides.Resolve(registration.Manifest.Provides).ToList(),
+        ProvidesCards = PluginProvidesSentences.Cards(registration.Manifest.Provides),
         RequiresLocalAi = registration.Manifest.Declaration?.Requires.Any(requirement =>
             string.Equals(requirement.Kind, "local_ai", StringComparison.OrdinalIgnoreCase)) == true,
         ShortDescription = PluginDescriptions.Short(registration.Manifest.ShortDescription, registration.Manifest.Description),

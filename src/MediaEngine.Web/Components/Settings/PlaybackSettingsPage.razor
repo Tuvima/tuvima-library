@@ -92,6 +92,21 @@ else if (_settings is not null)
                     value => UpdateAndSaveAsync(s => s.Watching.SkipForwardSeconds = value))
             </SettingsSectionPanel>
 
+            <SettingsSectionPanel Title="@L["PlaybackSettingsPage_BarTitle"].Value"
+                                  Description="@L["PlaybackSettingsPage_BarDescription"].Value"
+                                  Class="tl-card settings-section-card playback-settings-card">
+                @BoolRow(
+                    L["PlaybackSettingsPage_ChapterMarks"].Value,
+                    L["PlaybackSettingsPage_ChapterMarksHint"].Value,
+                    _settings.General.ShowChapterMarks ?? false,
+                    value => UpdateAndSaveAsync(s => s.General.ShowChapterMarks = value))
+                @BoolRow(
+                    L["PlaybackSettingsPage_BookmarkMarks"].Value,
+                    L["PlaybackSettingsPage_BookmarkMarksHint"].Value,
+                    _settings.General.ShowBookmarksOnBar,
+                    value => UpdateAndSaveAsync(s => s.General.ShowBookmarksOnBar = value))
+            </SettingsSectionPanel>
+
             @if (!IsOtherProfile)
             {
                 @* Only the person themselves chooses this; an administrator editing another profile does not see it. *@

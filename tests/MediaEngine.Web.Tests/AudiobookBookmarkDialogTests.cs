@@ -3,6 +3,7 @@ using MediaEngine.Contracts.Playback;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Playback;
+using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
@@ -23,6 +24,8 @@ public sealed class AudiobookBookmarkDialogTests : AsyncBunitContext
         JSInterop.SetupModule("./js/audiobook-bookmark-dialog.js");
         JSInterop.SetupModule("./js/playback-tool-sheet.js");
         Services.AddLogging();
+        Services.AddScoped<DashboardSessionAccessor>();
+        Services.AddSingleton(EngineApiClientStub.Create(_ => { }));
         Services.AddNativeUiServices();
     }
 

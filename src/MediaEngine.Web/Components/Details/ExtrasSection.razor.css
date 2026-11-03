@@ -22,7 +22,7 @@
     display: inline-grid;
     place-items: center;
     border: 1px solid rgba(246, 240, 232, 0.14);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     color: rgba(246, 240, 232, 0.72);
     font-size: 0.78rem;
     font-weight: 700;

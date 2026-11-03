@@ -3,32 +3,20 @@ using MediaEngine.Contracts.Playback;
 namespace MediaEngine.Web.Components.Shared;
 
 /// <summary>
-/// One bookmark as the progress rail shows it: a tick at its position and a quick-look card with the short note and,
-/// under "More", the longer description (Videos spec D43). A pack bookmark (D46) carries the label of the pack it came from
-/// (its name and author) and gets its own tick shade.
+/// One bookmark as the progress bar and the bookmark pane show it: a bubble at its position and a quick-look card with its name, the short note
+/// and, under "More", the longer description (player-controls-v3 D8a, D10). Global bookmarks are white, a person's own are the accent colour.
 /// </summary>
-public sealed record PlaybackRailBookmark(Guid Id, double Seconds, bool IsGlobal, string? Note, string? Description, string? PackLabel = null)
+public sealed record PlaybackRailBookmark(Guid Id, double Seconds, bool IsGlobal, string? Note, string? Description, string? Label = null, string? OwnerName = null)
 {
-    /// <summary>True for a read-only bookmark that came from an imported pack.</summary>
-    public bool IsPack => PackLabel is not null;
+    /// <summary>The bookmark's name when it has one, otherwise its short note.</summary>
+    public string? DisplayName => string.IsNullOrWhiteSpace(Label) ? Note : Label;
 
-    /// <summary>The ticks for a title's saved bookmarks, in time order. A bookmark outside the file's length is left out.</summary>
+    /// <summary>The bubbles for a title's bookmarks, in time order. A bookmark outside the file's length is left out.</summary>
     public static IReadOnlyList<PlaybackRailBookmark> From(IEnumerable<AudiobookBookmarkDto> saved, double duration) => saved
         .Where(bookmark => double.IsFinite(bookmark.PositionSeconds) && bookmark.PositionSeconds >= 0
             && (duration <= 0 || bookmark.PositionSeconds <= duration))
         .OrderBy(bookmark => bookmark.PositionSeconds)
-        .Select(bookmark => new PlaybackRailBookmark(bookmark.Id, bookmark.PositionSeconds, bookmark.IsGlobal, bookmark.Note, bookmark.Description))
-        .ToList();
-
-    /// <summary>The ticks for the title's imported packs. A pack that is switched off, and a bookmark outside the file's length, are left out.</summary>
-    public static IReadOnlyList<PlaybackRailBookmark> FromPacks(IEnumerable<BookmarkPackDto> packs, double duration) => packs
-        .Where(pack => pack.IsEnabled)
-        .SelectMany(pack => pack.Bookmarks.Select(bookmark => (Pack: pack, Bookmark: bookmark)))
-        .Where(item => double.IsFinite(item.Bookmark.PositionSeconds) && item.Bookmark.PositionSeconds >= 0
-            && (duration <= 0 || item.Bookmark.PositionSeconds <= duration))
-        .OrderBy(item => item.Bookmark.PositionSeconds)
-        .Select(item => new PlaybackRailBookmark(
-            item.Bookmark.Id, item.Bookmark.PositionSeconds, false, item.Bookmark.Note, item.Bookmark.Description,
-            string.IsNullOrWhiteSpace(item.Pack.Author) ? item.Pack.Name : $"{item.Pack.Name} by {item.Pack.Author}"))
+        .Select(bookmark => new PlaybackRailBookmark(bookmark.Id, bookmark.PositionSeconds, bookmark.IsGlobal, bookmark.Note,
+            bookmark.Description, bookmark.Label, bookmark.OwnerName))
         .ToList();
 }

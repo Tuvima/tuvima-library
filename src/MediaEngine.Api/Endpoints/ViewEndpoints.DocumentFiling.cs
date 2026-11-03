@@ -14,7 +14,6 @@ namespace MediaEngine.Api.Endpoints;
 /// </summary>
 public static partial class ViewEndpoints
 {
-    private const string SharedInboxFiledByAdministrator = "Filed by a household administrator.";
 
     private static void MapDocumentFiling(RouteGroupBuilder group)
     {
@@ -34,25 +33,11 @@ public static partial class ViewEndpoints
             IViewResourceAuthorizationService authorization, IDocumentFilingRepository filing,
             ILocalAssetRepository assets, CancellationToken ct) =>
         {
+            // Only your own Inbox is filed from here. Shared documents have no Inbox.
             var decision = await AuthorizeOwnedItemAsync(id, identity, authorization, ct);
             if (!decision.IsAllowed)
             {
-                // Not the person's own document: a Shared Library document in their household's Inbox can still be
-                // filed by a household or server administrator. Anyone else is told who files it.
-                var authority = await identity.ResolveAuthorityAsync(ct);
-                var shared = decision.Outcome == ViewAccessOutcome.Unauthenticated
-                    ? decision
-                    : await authorization.AuthorizeAsync(authority,
-                        new ViewResourceRequest(ViewScopeRequest.Shared, ViewResourceKind.Asset, id), ct);
-                if (!shared.IsAllowed)
-                {
-                    return Access(decision.Outcome);
-                }
-
-                if (!ViewSharedInboxAccess.CanFile(authority))
-                {
-                    return ApiErrors.Forbidden(SharedInboxFiledByAdministrator);
-                }
+                return Access(decision.Outcome);
             }
 
             try

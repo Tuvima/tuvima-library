@@ -25,6 +25,7 @@ public sealed class PlayerService
     private readonly IUserPlaybackSettingsService _settings;
     private readonly AudiobookListenHistoryRepository _history;
     private readonly AudiobookBookmarkRepository _bookmarks;
+    private readonly BookmarkClosenessProvider? _closeness;
     private readonly MusicPlayStatsRepository _musicStats;
     private readonly PlayerCatalogueScope _scope;
     private readonly PlaybackTelemetryLifecycleService _telemetry;
@@ -43,8 +44,10 @@ public sealed class PlayerService
         MusicPlayStatsRepository musicStats,
         PlayerCatalogueScope scope,
         PlaybackTelemetryLifecycleService telemetry,
-        PlayerDeviceStateRepository deviceStates)
+        PlayerDeviceStateRepository deviceStates,
+        BookmarkClosenessProvider? closeness = null)
     {
+        _closeness = closeness;
         _sessions = sessions;
         _playback = playback;
         _db = db;
@@ -981,7 +984,7 @@ public sealed class PlayerService
             extended["player_session_id"] = sessionId.Value.ToString("D");
         }
 
-        foreach (var key in new[] { "hide_continue", "status_changed_at", "blocked_player_session_id" })
+        foreach (var key in new[] { "status_changed_at", "blocked_player_session_id" })
         {
             if (prior?.ExtendedProperties.TryGetValue(key, out var value) == true)
             {
@@ -1113,6 +1116,74 @@ public sealed class PlayerService
         }
 
         return await _bookmarks.CreateAsync(normalizedProfile, workId, normalizedRequest, ct);
+    }
+
+    /// <summary>Every profile's personal bookmarks on a title, with the owner's name. Administrators only (the Everyone's filter).</summary>
+    public async Task<IReadOnlyList<AudiobookBookmarkDto>> GetEveryonesBookmarksAsync(
+        Guid? profileId,
+        Guid workId,
+        CancellationToken ct = default)
+    {
+        await _scope.RequireProfileAsync(profileId, ct);
+        await RequireBookmarkAdministratorAsync(ct);
+        return await _bookmarks.GetEveryonesByWorkAsync(workId, ct, await _scope.AssetIdsAsync(ct));
+    }
+
+    /// <summary>
+    /// Makes a personal bookmark Global at once. Personal bookmarks within <see cref="PromoteMergeWindowSeconds"/> of it on the
+    /// same file are replaced by it, so a spot is never listed twice. Returns null when the bookmark does not exist.
+    /// </summary>
+    public async Task<AudiobookBookmarkDto?> PromoteAudiobookBookmarkAsync(
+        Guid? profileId,
+        Guid bookmarkId,
+        PromoteAudiobookBookmarkRequestDto? request,
+        CancellationToken ct = default)
+    {
+        await _scope.RequireProfileAsync(profileId, ct);
+        await RequireBookmarkAdministratorAsync(ct);
+        if (!AudiobookBookmarkNotePolicy.TryNormalize(request?.Name, out var name))
+        {
+            throw new ArgumentException($"A bookmark name cannot exceed {AudiobookBookmarkNotePolicy.MaximumLength} characters.", nameof(request));
+        }
+
+        return await _bookmarks.PromoteAsync(bookmarkId, name, _closeness?.SameSpotSeconds ?? PromoteMergeWindowSeconds, ct, await _scope.AssetIdsAsync(ct));
+    }
+
+    /// <summary>Changes a Global bookmark's name, note and description. Administrators only. Returns null when it does not exist.</summary>
+    public async Task<AudiobookBookmarkDto?> UpdateGlobalAudiobookBookmarkAsync(
+        Guid? profileId,
+        Guid bookmarkId,
+        UpdateAudiobookBookmarkRequestDto request,
+        CancellationToken ct = default)
+    {
+        await _scope.RequireProfileAsync(profileId, ct);
+        await RequireBookmarkAdministratorAsync(ct);
+        if (!AudiobookBookmarkNotePolicy.TryNormalize(request.Label, out var label)
+            || !AudiobookBookmarkNotePolicy.TryNormalize(request.Note, out var note))
+        {
+            throw new ArgumentException($"A bookmark name or note cannot exceed {AudiobookBookmarkNotePolicy.MaximumLength} characters.", nameof(request));
+        }
+
+        if (!AudiobookBookmarkNotePolicy.TryNormalizeDescription(request.Description, out var description))
+        {
+            throw new ArgumentException($"A bookmark description cannot exceed {AudiobookBookmarkNotePolicy.MaximumDescriptionLength} characters.", nameof(request));
+        }
+
+        return await _bookmarks.UpdateGlobalAsync(bookmarkId, label, note, description, ct, await _scope.AssetIdsAsync(ct));
+    }
+
+    /// <summary>
+    /// Personal bookmarks this close together on one file are the same moment when one is promoted to Global. Used only when
+    /// <c>config/bookmarks.json</c> cannot be read; the configured same-spot gap normally decides.
+    /// </summary>
+    public const double PromoteMergeWindowSeconds = 3d;
+
+    private async Task RequireBookmarkAdministratorAsync(CancellationToken ct)
+    {
+        if (!await _scope.IsServerAdministratorAsync(ct))
+        {
+            throw new PlayerBookmarkAdminDeniedException();
+        }
     }
 
     public static bool TryNormalizeAudiobookBookmarkRequest(

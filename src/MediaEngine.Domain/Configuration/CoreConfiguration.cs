@@ -137,11 +137,27 @@ public sealed class CoreConfiguration
     [JsonPropertyName("plugin_catalog")]
     public PluginCatalogSettings PluginCatalog { get; set; } = new();
 
+    /// <summary>
+    /// How much of each plugin's Activity list is kept (Plugins and Integrations screens v5 D59), by plugin id in lower case.
+    /// A plugin with no entry keeps the default (200 lines or 14 days, whichever comes first).
+    /// </summary>
+    [JsonPropertyName("plugin_activity_limits")]
+    public Dictionary<string, PluginActivityLimit> PluginActivityLimits { get; set; } = new(StringComparer.Ordinal);
+
     private static string GetDefaultCountry()
     {
         try { return RegionInfo.CurrentRegion.TwoLetterISORegionName; }
         catch { return "US"; }
     }
+}
+
+public sealed class PluginActivityLimit
+{
+    [JsonPropertyName("max_entries")]
+    public int MaxEntries { get; set; } = 200;
+
+    [JsonPropertyName("max_days")]
+    public int MaxDays { get; set; } = 14;
 }
 
 public sealed class PluginCatalogSettings

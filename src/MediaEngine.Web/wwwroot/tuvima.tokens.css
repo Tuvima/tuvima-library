@@ -157,6 +157,11 @@
     --player-track: #30364A;
     --player-text: #F7F7FA;
     --player-text-secondary: #9EA4BC;
+    /* One size set for every playback button (player-controls-v3 D1): 38 px glyph in a 56 px target, Play 44 px, bottom title 22 px. */
+    --playback-control-target: 56px;
+    --playback-control-glyph: 38px;
+    --playback-play-glyph: 44px;
+    --playback-title-size: 22px;
     --playback-bg: var(--player-bg);
     --playback-surface: var(--player-surface);
     --playback-surface-elevated: var(--player-surface);
@@ -215,13 +220,26 @@
     --tl-media-game: #22C55E;
     --tl-media-document: #B6C2D6;
     --tl-media-unknown: #7F8DA5;
+    /* "What it provides" accents (Plugins and Integrations screens v5 D53): one fixed colour per kind of thing a plugin provides. */
+    --tl-provides-identification: var(--tl-accent-primary);
+    --tl-provides-details: var(--tl-status-info);
+    --tl-provides-artwork: var(--tl-media-movies);
+    --tl-provides-people: var(--tl-media-audiobooks);
+    --tl-provides-series-order: var(--tl-accent-collection);
+    --tl-provides-lyrics: #F472B6;
+    --tl-provides-subtitles: var(--tl-media-comics);
+    --tl-provides-skip-markers: var(--tl-status-warning);
+    --tl-provides-insights: #A3E635;
+    --tl-provides-lists-and-ratings: var(--tl-media-books);
+    --tl-provides-account-sync: #2DD4BF;
 
     --tl-radius-xs: 4px;
     --tl-radius-sm: 6px;
     --tl-radius-md: 8px;
     --tl-radius-lg: 8px;
     --tl-radius-xl: 12px;
-    --tl-radius-pill: 999px;
+    --tl-radius-pill: 3px;
+    --tl-radius-round: 999px;
 
     --tl-space-1: 4px;
     --tl-space-2: 8px;
@@ -261,10 +279,10 @@
     --tl-motion-ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
     --tl-hover-quiet-y: -2px;
     --tl-hover-standard-y: -5px;
-    --tl-hover-media-y: -8px;
-    --tl-hover-media-scale: 1.025;
-    --tl-hover-artwork-scale: 1.075;
-    --tl-hover-artwork-pan-y: -2%;
+    --tl-hover-media-y: 0;
+    --tl-hover-media-scale: 1;
+    --tl-hover-artwork-scale: 1;
+    --tl-hover-artwork-pan-y: 0%;
     --tl-hover-overlay-opacity: 1;
     --tl-hover-overlay-bg: linear-gradient(180deg, transparent 34%, rgba(7, 10, 18, 0.76) 100%);
     --tl-hover-border-color: rgba(182, 194, 214, 0.32);
@@ -285,7 +303,7 @@
     --tl-shadow-raised: 0 18px 44px rgba(0, 0, 0, 0.28);
     --tl-shadow-hover-quiet: 0 10px 24px rgba(0, 0, 0, 0.24);
     --tl-shadow-hover-standard: 0 18px 42px rgba(0, 0, 0, 0.32), 0 0 0 1px var(--tl-hover-glow-color);
-    --tl-shadow-hover-media: 0 26px 70px rgba(0, 0, 0, 0.46), 0 0 0 1px var(--tl-hover-glow-color), 0 0 34px rgba(136, 82, 252, 0.18);
+    --tl-shadow-hover-media: 0 0 0 3px #fff, 0 0 0 6px rgba(136, 82, 252, 0.9);
 
     --tl-gradient-primary: linear-gradient(135deg, var(--tl-accent-primary) 0%, var(--tl-accent-primary-active) 100%);
     --tl-gradient-warning: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);

@@ -132,7 +132,8 @@ public static partial class ViewEndpoints
                 // Only a server administrator signed in as a person sees "Other people" in the scope picker.
                 CanBrowseOtherPeople = authority.PrincipalKind == PrincipalKind.Human && authority.IsEffectiveAdministrator,
                 CanViewDocuments = canViewDocuments,
-                CanFileSharedInbox = ViewSharedInboxAccess.CanFile(authority) && canViewDocuments,
+                CanEditSharedDocuments = authority.ActiveProfileId is { } editorId
+                    && ViewSharedDocumentAccess.CanEdit(await preferences.GetPolicyAsync(editorId, ct)),
                 CanViewPhotos = !blocked.Contains(ViewContentKinds.Photos),
                 CanViewPersonalVideos = !blocked.Contains(ViewContentKinds.PersonalVideos),
             });
@@ -1783,6 +1784,39 @@ public static partial class ViewEndpoints
         IViewRequestProfileContext identity, IViewResourceAuthorizationService authorization, CancellationToken ct) =>
         await authorization.AuthorizeAsync(await identity.ResolveAuthorityAsync(ct),
             new ViewResourceRequest(ViewScopeRequest.Mine, ViewResourceKind.Gallery, id, action), ct);
+
+    /// <summary>
+    /// A person's own item, or (for a document only) a Shared Library document in their household that they may edit
+    /// because they may use Documents and open Shared. Anything else answers as before: not theirs, so not found.
+    /// </summary>
+    private static async Task<ViewAccessDecision> AuthorizeDocumentEditAsync(Guid id,
+        IViewRequestProfileContext identity, IViewProfileRepository preferences,
+        IViewResourceAuthorizationService authorization, ILocalAssetRepository assets, CancellationToken ct)
+    {
+        var owned = await AuthorizeOwnedItemAsync(id, identity, authorization, ct);
+        if (owned.IsAllowed || owned.Outcome == ViewAccessOutcome.Unauthenticated)
+        {
+            return owned;
+        }
+
+        var authority = await identity.ResolveAuthorityAsync(ct);
+        if (authority.ActiveProfileId is not { } profileId
+            || assets.Find(id, ct) is not { MediaKind: LocalAssetMediaKinds.Document })
+        {
+            return owned;
+        }
+
+        var shared = await authorization.AuthorizeAsync(authority,
+            new ViewResourceRequest(ViewScopeRequest.Shared, ViewResourceKind.Asset, id), ct);
+        if (!shared.IsAllowed || shared.Scope is not { Kind: ViewScopeKind.Shared })
+        {
+            return owned;
+        }
+
+        return ViewSharedDocumentAccess.CanEdit(await preferences.GetPolicyAsync(profileId, ct))
+            ? shared
+            : ViewAccessDecision.Forbidden();
+    }
 
     private static async Task<ViewAccessDecision> AuthorizeOwnedItemAsync(Guid id,
         IViewRequestProfileContext identity, IViewResourceAuthorizationService authorization, CancellationToken ct) =>

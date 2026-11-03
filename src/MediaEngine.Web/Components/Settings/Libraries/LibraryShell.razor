@@ -170,7 +170,7 @@
                     }
                     else if (tab.Slug == UnidentifiedTab)
                     {
-                        <LibraryUnidentifiedTab Library="@Library" Kinds="@Kinds" Configuration="@Configuration" ReadOnly="@ReadOnly" Changed="ChangedAsync" />
+                        <LibraryUnidentifiedTab Library="@Library" ReadOnly="@ReadOnly" Changed="ChangedAsync" />
                     }
                     else if (tab.Slug == ActivityTab && IsVault)
                     {
@@ -326,7 +326,6 @@
             { component => component.HelpText, $"Choose the folder on the Library server that holds more of {row_name()}." },
             { component => component.ConfirmLabel, "Choose folder" },
             { component => component.SelectionMode, managed && !IsVault ? ServerFolderSelectionModes.ManagedLibrary : ServerFolderSelectionModes.ExistingLibrary },
-            { component => component.KindKey, Library.KindKey },
             { component => component.MediaType, kind.MediaTypes.FirstOrDefault() },
             { component => component.OfferManagedChoice, IsVault },
             { component => component.OnManagedChoiceChanged, EventCallback.Factory.Create<bool>(this, value => managedVault = value) },

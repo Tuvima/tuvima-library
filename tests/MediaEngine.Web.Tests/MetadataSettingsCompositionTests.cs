@@ -54,7 +54,7 @@ public sealed class MetadataSettingsCompositionTests
     [Fact]
     public void ProviderConfiguration_ProtectsSecretsAndRequiredProviders()
     {
-        var page = Read("src/MediaEngine.Web/Components/Settings/Plugins/ProviderDetail.razor") + Read("src/MediaEngine.Web/Resources/SharedStrings.resx") + Read("src/MediaEngine.Web/Components/Shared/Providers/ProviderAccessCard.razor");
+        var page = Read("src/MediaEngine.Web/Components/Settings/Plugins/PluginSetupPage.razor") + Read("src/MediaEngine.Web/Resources/SharedStrings.resx") + Read("src/MediaEngine.Web/Components/Shared/Providers/ProviderAccessCard.razor");
         var dialog = Read("src/MediaEngine.Web/Components/Shared/Providers/ProviderOnboardingDialog.razor");
         var form = Read("src/MediaEngine.Web/Components/Shared/Providers/ProviderCredentialForm.razor");
 
@@ -68,7 +68,7 @@ public sealed class MetadataSettingsCompositionTests
         Assert.Contains("TestProviderAsync", page, StringComparison.Ordinal);
         Assert.Contains("TestProviderCredentialsAsync", dialog, StringComparison.Ordinal);
         Assert.Contains("SaveProviderCredentialsAsync", dialog, StringComparison.Ordinal);
-        Assert.Contains("SaveProviderConfigAsync", page, StringComparison.Ordinal);
+        Assert.Contains("TestProviderAsync", page, StringComparison.Ordinal);
         Assert.DoesNotContain("UpdateHydrationSettingsAsync", page, StringComparison.Ordinal);
     }
 

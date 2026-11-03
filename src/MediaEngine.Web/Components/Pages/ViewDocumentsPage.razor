@@ -63,7 +63,7 @@
                 <div class="view-documents-layout">
                 @if (!Device.IsPhone)
                 {
-                    <aside class="view-documents-rail"><ViewDocumentFilterRail Catalogue="_catalogue" State="_filter" InboxCount="_inboxCount" OnChanged="FilterChangedAsync"
+                    <aside class="view-documents-rail"><ViewDocumentFilterRail Catalogue="_catalogue" State="_filter" InboxCount="_inboxCount" ShowInbox="HasInbox" OnChanged="FilterChangedAsync"
                                                                   ShowSavedViews="CanUseSavedViews" SavedViews="SavedViews" CanSaveView="CanSaveView" SavedViewsBusy="_savedViewsBusy"
                                                                   OnApplyView="ApplySavedViewAsync" OnSaveView="SaveViewAsync" OnRenameView="RenameViewAsync" OnDeleteView="DeleteViewAsync"
                                                                   OnSortChanged="SortChangedAsync" OnExport="@ExportCallback" Exporting="_exporting" ShowTrash="CanSelect" /></aside>
@@ -152,7 +152,7 @@
                                 <ViewDocumentInboxCard Item="item" ThumbnailUrl="@ThumbnailUrl(item)"
                                                        ShowPicture="@(ViewDocumentPresentation.HasPicture(item) && !_brokenThumbnails.Contains(item.Id))"
                                                        OnPictureError="@(() => _brokenThumbnails.Add(item.Id))"
-                                                       CanFile="CanFileInbox" Note="@InboxNote" EnterAccepts="@(CanFileInbox && Device.IsDesktop)"
+                                                       CanFile="CanFileInbox" EnterAccepts="@(CanFileInbox && Device.IsDesktop)"
                                                        Busy="@_filing.Contains(item.Id)"
                                                        Correspondents="@CorrespondentNames" DocumentTypes="@DocumentTypeNames" Tags="@TagNames"
                                                        OnFile="@(request => FileFromInboxAsync(item, request))"
@@ -252,7 +252,7 @@
         <div class="view-documents-sheet__body">
             @ScopePicker
             @LayoutPicker
-            <ViewDocumentFilterRail Catalogue="_catalogue" State="_filter" InboxCount="_inboxCount" OnChanged="FilterChangedAsync"
+            <ViewDocumentFilterRail Catalogue="_catalogue" State="_filter" InboxCount="_inboxCount" ShowInbox="HasInbox" OnChanged="FilterChangedAsync"
                                     ShowSavedViews="CanUseSavedViews" SavedViews="SavedViews" CanSaveView="CanSaveView" SavedViewsBusy="_savedViewsBusy"
                                     OnApplyView="ApplySavedViewAsync" OnSaveView="SaveViewAsync" OnRenameView="RenameViewAsync" OnDeleteView="DeleteViewAsync"
                                     OnSortChanged="SortChangedAsync" OnExport="@ExportCallback" Exporting="_exporting" ShowTrash="CanSelect" />
@@ -317,15 +317,14 @@
     // Choosing and favoriting documents is for your own space on a pointer or touch screen, never on a television.
     private bool CanSelect => !Device.IsTv && Workspace.ScopeKind == ViewScopeKind.Mine;
     // Editing a document's details is for your own space on a desktop with a mouse (EditorDeviceRule); other devices only read and filter.
-    private bool CanEditDetails => Device.CanEdit && Workspace.ScopeKind == ViewScopeKind.Mine;
-    // Filing from the Inbox is for your own space on a phone, tablet or desktop; a television only reads. The Shared Library
-    // Inbox is filed by a household or server administrator; everyone else reads it.
-    private bool CanFileInbox => !Device.IsTv
+    // In the Shared Library anyone who may use Documents and open Shared can tag and edit a document too: shared documents have no Inbox and wait for no one.
+    private bool CanEditDetails => Device.CanEdit
         && (Workspace.ScopeKind == ViewScopeKind.Mine
-            || Workspace.ScopeKind == ViewScopeKind.Shared && Workspace.Scopes?.CanFileSharedInbox == true);
-    private string? InboxNote => Workspace.ScopeKind == ViewScopeKind.Shared && Workspace.Scopes?.CanFileSharedInbox != true
-        ? "Filed by a household administrator"
-        : null;
+            || Workspace.ScopeKind == ViewScopeKind.Shared && Workspace.Scopes?.CanEditSharedDocuments == true);
+    // Filing from the Inbox is for your own space on a phone, tablet or desktop; a television only reads. Shared has no Inbox.
+    // Shared documents have no Inbox, so the Inbox mode, its count and its card list exist only in a personal scope.
+    private bool HasInbox => Workspace.ScopeKind != ViewScopeKind.Shared;
+    private bool CanFileInbox => !Device.IsTv && Workspace.ScopeKind == ViewScopeKind.Mine;
     // Saved views belong to the person's own documents on a screen that can pick and name them (not a television).
     private bool CanUseSavedViews => !Device.IsTv && Workspace.ScopeKind == ViewScopeKind.Mine;
     private bool CanSaveView => CanUseSavedViews && ViewDocumentSavedViews.CanSave(_filter, _search);
@@ -396,6 +395,12 @@
 
     private async Task LoadInboxCountAsync()
     {
+        if (!HasInbox)
+        {
+            _inboxCount = null;
+            return;
+        }
+
         var summary = await ApiClient.GetViewDocumentInboxSummaryAsync(Workspace.ScopeKind, Workspace.ScopeProfileId);
         if (summary is not null)
         {

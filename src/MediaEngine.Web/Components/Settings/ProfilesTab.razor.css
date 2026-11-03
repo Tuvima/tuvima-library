@@ -19,7 +19,7 @@
 .profiles-tab__signin { color: var(--tl-text-muted); font-size: .8125rem; overflow-wrap: anywhere; }
 .profiles-tab__row--add .profiles-tab__row-name { color: var(--tl-text-muted); }
 .profiles-tab__badges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
-.profiles-tab__badge { padding: 2px 8px; color: var(--tl-text-muted); border: 1px solid var(--tl-border-subtle); border-radius: 999px; font-size: .75rem; }
+.profiles-tab__badge { padding: 2px 8px; color: var(--tl-text-muted); border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-pill); font-size: .75rem; }
 .profiles-tab__badge--you { color: var(--tl-accent-primary); border-color: var(--tl-accent-primary); }
 
 @media (min-width: 1600px) {

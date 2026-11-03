@@ -171,6 +171,10 @@ public sealed record PluginSummaryResponse
     [JsonPropertyName("provides")]
     public List<string> Provides { get; set; } = [];
 
+    /// <summary>One plain sentence per entry of <see cref="Provides"/>, from the Engine's single list (spec plugins-and-integrations-screens-v5 D53), in the same order.</summary>
+    [JsonPropertyName("provides_cards")]
+    public List<PluginProvidesCardDto> ProvidesCards { get; set; } = [];
+
     /// <summary>True when the plugin needs Local AI to work (its requirements list a Local AI ability).</summary>
     [JsonPropertyName("requires_local_ai")]
     public bool RequiresLocalAi { get; set; }

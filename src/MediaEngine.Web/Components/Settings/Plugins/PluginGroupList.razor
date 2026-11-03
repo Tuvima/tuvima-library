@@ -1,0 +1,262 @@
+@namespace MediaEngine.Web.Components.Settings
+@using System.Text.Json
+@using MediaEngine.Contracts.Plugins
+@using Microsoft.Extensions.Localization
+@inject IStringLocalizer<SharedStrings> L
+@implements IDisposable
+@inject IEngineApiClient ApiClient
+
+@* A repeating group on a plugin's Settings card (Plugins and Integrations screens v5 D49): a row for each item with its state and the
+   row actions the plugin's JSON lists, and an Add button. A locked row cannot be removed. A row with no key says "Key missing" and
+   offers Add key. Every action goes to the Engine's generic item actions; the Engine routes them to wherever the plugin keeps the
+   items, so this component never knows which plugin it is drawing. *@
+@{
+    var list = Control.GroupList!;
+    var keyField = list.Fields.FirstOrDefault(field => field.Control == PluginSetupValues.SecretControl);
+}
+<section class="plugin-group" data-testid="plugin-group-list" data-setting="@Control.Key" aria-label="@Control.Title">
+    <header class="plugin-group__head">
+        <strong>@Control.Title</strong>
+        @if (!string.IsNullOrWhiteSpace(Control.Description))
+        {
+            <small>@Control.Description</small>
+        }
+    </header>
+    @if (list.Items.Count == 0)
+    {
+        <p class="plugin-group__empty">@L["PluginPage_NothingAdded"]</p>
+    }
+    else
+    {
+        <ul class="plugin-group__rows">
+            @foreach (var item in list.Items)
+            {
+                var id = item.Id;
+                <li @key="id" class="plugin-group__row" data-testid="plugin-group-row" data-item="@id">
+                    <div class="plugin-group__copy">
+                        <strong>@item.Title</strong>
+                        @if (!string.IsNullOrWhiteSpace(item.Subtitle))
+                        {
+                            <small>@item.Subtitle</small>
+                        }
+                    </div>
+                    @if (item.KeyMissing)
+                    {
+                        <span data-testid="plugin-group-key-missing"><AppStatusBadge Text="@L["PluginPage_KeyMissing"]" Tone="AppUiTone.Warning" /></span>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(item.State))
+                    {
+                        <AppStatusBadge Text="@StateWords(item.State!)" Tone="@StateTone(item.State!)" />
+                    }
+                    @if (CanChange)
+                    {
+                        <div class="plugin-group__actions">
+                            @if (keyField is not null)
+                            {
+                                <AppButton Label="@(item.KeyMissing ? "Add key" : "Replace key")" Size="AppControlSize.Compact" Disabled="@_busy"
+                                           OnClick="@(() => ToggleKey(id))" data-testid="plugin-group-add-key" />
+                            }
+                            @if (HasAction(PluginSetupValues.RowActionTest))
+                            {
+                                <AppButton Label="@L["PluginPage_TestConnection"]" Size="AppControlSize.Compact" Disabled="@(_busy || item.KeyMissing)"
+                                           OnClick="@(() => TestAsync(id))" data-testid="plugin-group-test" />
+                            }
+                            @if (HasAction(PluginSetupValues.RowActionCheckNow))
+                            {
+                                <AppButton Label="@L["PluginPage_CheckNow"]" Size="AppControlSize.Compact" Disabled="@_busy"
+                                           OnClick="@(() => TestAsync(id))" data-testid="plugin-group-check" />
+                            }
+                            @if (HasAction(PluginSetupValues.RowActionOpenLink) && LinkOf(item) is { } link)
+                            {
+                                <AppButton Label="@L["PluginPage_OpenLink"]" Href="@link" Target="_blank" Size="AppControlSize.Compact" EndIcon="@AppMaterialIcons.Outlined.OpenInNew" />
+                            }
+                            @if (HasAction(PluginSetupValues.RowActionRemove) && !item.Locked)
+                            {
+                                <AppButton Label="@L["PluginPage_Remove"]" Tone="AppUiTone.Error" Size="AppControlSize.Compact" Disabled="@_busy"
+                                           OnClick="@(() => RemoveAsync(id))" data-testid="plugin-group-remove" />
+                            }
+                        </div>
+                    }
+                    @if (_keyOpenFor == id && keyField is not null)
+                    {
+                        <div class="plugin-group__key">
+                            <AppTextField Label="@keyField.Title" InputType="AppInputType.Password" Placeholder="@keyField.Placeholder"
+                                          Value="@_typedKey" ValueChanged="@(value => _typedKey = value ?? string.Empty)" />
+                            <AppButton Label="@L["PluginPage_SaveKey"]" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
+                                       Disabled="@(_busy || string.IsNullOrWhiteSpace(_typedKey))" OnClick="@(() => SaveKeyAsync(id, keyField.Key))" />
+                        </div>
+                    }
+                    @if (_messages.TryGetValue(id, out var message))
+                    {
+                        <small class="plugin-group__message" role="status" data-testid="plugin-group-message">@message</small>
+                    }
+                </li>
+            }
+        </ul>
+    }
+    @if (CanChange && !string.IsNullOrWhiteSpace(list.AddLabel))
+    {
+        @if (_adding)
+        {
+            <div class="plugin-group__add" data-testid="plugin-group-add-form">
+                @foreach (var field in list.Fields.Where(field => !field.ReadOnly).OrderBy(field => field.Order))
+                {
+                    var key = field.Key;
+                    <AppTextField Label="@field.Title"
+                                  Placeholder="@field.Placeholder"
+                                  HelpText="@field.Description"
+                                  InputType="@FieldInputType(field)"
+                                  Value="@_newValues.GetValueOrDefault(key)"
+                                  ValueChanged="@(value => _newValues[key] = value ?? string.Empty)" />
+                }
+                <div class="plugin-group__actions">
+                    <AppButton Label="@list.AddLabel" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
+                               Disabled="@_busy" OnClick="AddAsync" data-testid="plugin-group-add-save" />
+                    <AppButton Label="@L["PluginPage_Cancel"]" Size="AppControlSize.Compact" OnClick="CancelAdd" />
+                </div>
+                @if (_addMessage is not null)
+                {
+                    <small class="plugin-group__message" role="status">@_addMessage</small>
+                }
+            </div>
+        }
+        else
+        {
+            <AppButton Label="@list.AddLabel" StartIcon="@AppMaterialIcons.Outlined.Add" Size="AppControlSize.Compact"
+                       OnClick="@(() => _adding = true)" data-testid="plugin-group-add" />
+        }
+    }
+</section>
+
+@code {
+    private readonly CancellationTokenSource _disposed = new();
+    private readonly Dictionary<string, string> _messages = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _newValues = new(StringComparer.Ordinal);
+    private bool _busy;
+    private bool _adding;
+    private string? _addMessage;
+    private string? _keyOpenFor;
+    private string _typedKey = string.Empty;
+
+    [Parameter, EditorRequired] public string PluginId { get; set; } = string.Empty;
+
+    /// <summary>The group-list control: its fields, its row actions and its items.</summary>
+    [Parameter, EditorRequired] public PluginSetupControlDto Control { get; set; } = new();
+
+    /// <summary>False on a phone, where plugins are read and not changed.</summary>
+    [Parameter] public bool CanChange { get; set; } = true;
+
+    /// <summary>Raised after a row was added, removed or given a key, so the page reads the plugin's page again.</summary>
+    [Parameter] public EventCallback Changed { get; set; }
+
+    private bool HasAction(string action) => Control.GroupList!.RowActions.Contains(action, StringComparer.Ordinal);
+
+    private static AppInputType FieldInputType(PluginSetupControlDto field) => field.Control switch
+    {
+        PluginSetupValues.SecretControl => AppInputType.Password,
+        PluginSetupValues.UrlControl => AppInputType.Url,
+        _ => AppInputType.Text,
+    };
+
+    private string? LinkOf(PluginSetupGroupItemDto item)
+    {
+        var field = Control.GroupList!.Fields.FirstOrDefault(candidate => candidate.Control == PluginSetupValues.UrlControl);
+        return field is not null && item.Values.TryGetValue(field.Key, out var value) && PluginSetupValues.Text(value) is { Length: > 0 } text ? text : null;
+    }
+
+    private static string StateWords(string state) => state switch
+    {
+        "connected" => "Connected",
+        "failed" or "key_rejected" => "Key not accepted",
+        "unavailable" => "Not reachable",
+        "not_connected" => "No key yet",
+        _ => state.Replace('_', ' '),
+    };
+
+    private static AppUiTone StateTone(string state) => state switch
+    {
+        "connected" => AppUiTone.Success,
+        "failed" or "key_rejected" or "unavailable" => AppUiTone.Error,
+        _ => AppUiTone.Warning,
+    };
+
+    private void ToggleKey(string id)
+    {
+        _keyOpenFor = _keyOpenFor == id ? null : id;
+        _typedKey = string.Empty;
+    }
+
+    private void CancelAdd()
+    {
+        _adding = false;
+        _newValues.Clear();
+        _addMessage = null;
+    }
+
+    private async Task TestAsync(string id) => await RunAsync(id, () => ApiClient.TestPluginSetupItemAsync(PluginId, Control.Key, id, _disposed.Token));
+
+    private async Task RemoveAsync(string id) => await RunAsync(id, () => ApiClient.RemovePluginSetupItemAsync(PluginId, Control.Key, id, _disposed.Token), reload: true);
+
+    private async Task SaveKeyAsync(string id, string field)
+    {
+        var typed = _typedKey;
+        await RunAsync(id, () => ApiClient.SavePluginSetupItemSecretAsync(PluginId, Control.Key, id, field, typed, _disposed.Token), reload: true);
+        _typedKey = string.Empty;
+        _keyOpenFor = null;
+    }
+
+    private async Task AddAsync()
+    {
+        if (_busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            var values = _newValues.ToDictionary(pair => pair.Key, pair => JsonSerializer.SerializeToElement(pair.Value), StringComparer.Ordinal);
+            var result = await ApiClient.AddPluginSetupItemAsync(PluginId, Control.Key, values, _disposed.Token);
+            _addMessage = result?.Message ?? "The Engine could not be reached.";
+            if (result is { Ok: true } or { ItemId.Length: > 0 })
+            {
+                _adding = false;
+                _newValues.Clear();
+                await Changed.InvokeAsync();
+            }
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task RunAsync(string id, Func<Task<PluginSetupChangeResult?>> action, bool reload = false)
+    {
+        if (_busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            var result = await action();
+            _messages[id] = result?.Message ?? "The Engine could not be reached.";
+            if (reload || result?.Ok == true)
+            {
+                await Changed.InvokeAsync();
+            }
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        _disposed.Cancel();
+        _disposed.Dispose();
+    }
+}

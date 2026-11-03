@@ -1,2 +1,4 @@
 .setup-server-form { display: grid; gap: 16px; max-width: 520px; }
 .setup-server-form__preview { margin: 0; color: var(--tl-text-muted); line-height: 1.55; }
+.setup-server-form__host { display: flex; align-items: flex-end; gap: 8px; }
+.setup-server-form__host > :first-child { flex: 1 1 auto; }

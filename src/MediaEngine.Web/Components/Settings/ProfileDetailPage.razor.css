@@ -8,7 +8,7 @@
 .profile-detail__name { margin: 0; font-size: 1.5rem; font-weight: 700; overflow-wrap: anywhere; }
 .profile-detail__role { margin: 2px 0 0; color: var(--tl-text-muted); }
 .profile-detail__badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
-.profile-detail__badge { padding: 2px 8px; color: var(--tl-text-muted); border: 1px solid var(--tl-border-subtle); border-radius: 999px; font-size: .75rem; }
+.profile-detail__badge { padding: 2px 8px; color: var(--tl-text-muted); border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-pill); font-size: .75rem; }
 .profile-detail__badge--you { color: var(--tl-accent-primary); border-color: var(--tl-accent-primary); }
 .profile-detail__group { display: grid; gap: 8px; }
 /* The rows sit inside a standard settings card, so the list draws no box of its own. */

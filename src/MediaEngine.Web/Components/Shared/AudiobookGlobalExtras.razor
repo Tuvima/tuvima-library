@@ -1,0 +1,96 @@
+@namespace MediaEngine.Web.Components.Shared
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Components.Watch
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient ApiClient
+@inject DashboardSessionAccessor Session
+@inject IStringLocalizer<SharedStrings> L
+
+@* Global bookmarks for audiobooks (Global bookmarks spec D1 to D3, D6 to D9, D15): the same Everyone's list with Promote for an administrator
+   and the same Find bookmarks sub-view as the video player, inside the audiobook bookmark dialog's Saved tab. The Engine rules are the
+   same for every media; only the place they sit differs. *@
+<section class="audiobook-global-extras">
+    @if (_finding)
+    {
+        <BookmarkFindView ProfileId="ProfileId" WorkId="WorkId" AssetId="AssetId" IsAdministrator="IsAdministrator"
+                          Applied="AppliedAsync" Closed="@(EventCallback.Factory.Create(this, () => _finding = false))" />
+    }
+    else
+    {
+        <div class="audiobook-global-extras__buttons">
+            <AppNativeButton Type="button" Class="audiobook-bookmark-dialog__secondary" OnClick="@(() => _finding = true)">@L["VideoBookmarkPane_Find"]</AppNativeButton>
+            @if (IsAdministrator)
+            {
+                <AppNativeButton Type="button" Class="audiobook-bookmark-dialog__secondary" OnClick="ToggleEveryonesAsync">@L["VideoBookmarkPane_Everyones"]</AppNativeButton>
+            }
+        </div>
+        @if (_message is not null)
+        {
+            <p class="audiobook-global-extras__message" role="status">@_message</p>
+        }
+        @if (_showEveryones)
+        {
+            <ul class="audiobook-global-extras__list" aria-label="@L["VideoBookmarkPane_Everyones"].Value">
+                @if (_everyones.Count == 0)
+                {
+                    <li class="audiobook-global-extras__empty">@L["AudiobookGlobalExtras_Nobody"]</li>
+                }
+                @foreach (var bookmark in _everyones)
+                {
+                    <li @key="bookmark.Id" class="@(bookmark.Id == _glowId ? "is-glow" : null)">
+                        <strong>@PlaybackSeekRail.Time(bookmark.PositionSeconds)</strong>
+                        <span>@bookmark.OwnerName@(string.IsNullOrWhiteSpace(bookmark.Note) ? null : $" · {bookmark.Note}")</span>
+                        <AppNativeButton Type="button" Class="audiobook-bookmark-dialog__secondary" OnClick="@(() => PromoteAsync(bookmark))">@L["VideoBookmarkPane_Promote"]</AppNativeButton>
+                    </li>
+                }
+            </ul>
+        }
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public Guid ProfileId { get; set; }
+    [Parameter, EditorRequired] public Guid WorkId { get; set; }
+    [Parameter, EditorRequired] public Guid AssetId { get; set; }
+    /// <summary>Raised after a bookmark is promoted or a file is applied, so the dialog reloads its Saved list.</summary>
+    [Parameter] public EventCallback Changed { get; set; }
+
+    private IReadOnlyList<AudiobookBookmarkDto> _everyones = [];
+    private bool _finding, _showEveryones;
+    private string? _message;
+    private Guid? _glowId;
+
+    private bool IsAdministrator => Session.Authority?.EffectiveAdministrator == true;
+
+    private async Task ToggleEveryonesAsync()
+    {
+        _showEveryones = !_showEveryones;
+        if (_showEveryones) await LoadEveryonesAsync();
+    }
+
+    private async Task LoadEveryonesAsync()
+    {
+        var result = await ApiClient.GetEveryonesBookmarksWithOutcomeAsync(WorkId, ProfileId);
+        _everyones = result is { Outcome: AudiobookBookmarkOperationOutcome.Success, Value: { } others }
+            ? others.Where(bookmark => bookmark.AssetId == AssetId).ToList()
+            : [];
+    }
+
+    /// <summary>Promote is immediate with no confirmation: the row glows instead of a toast.</summary>
+    private async Task PromoteAsync(AudiobookBookmarkDto bookmark)
+    {
+        var result = await ApiClient.PromoteAudiobookBookmarkWithOutcomeAsync(bookmark.Id, null, ProfileId);
+        if (result.Outcome != AudiobookBookmarkOperationOutcome.Success) return;
+        _glowId = bookmark.Id;
+        StateHasChanged();
+        await Changed.InvokeAsync();
+        await LoadEveryonesAsync();
+        _glowId = null;
+    }
+
+    private async Task AppliedAsync(string message)
+    {
+        _message = message;
+        await Changed.InvokeAsync();
+    }
+}

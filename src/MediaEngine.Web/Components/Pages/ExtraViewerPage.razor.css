@@ -35,7 +35,7 @@
 .tl-extra-viewer__download {
     padding: 0.5rem 0.95rem;
     border: 1px solid rgba(246, 240, 232, 0.2);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     color: inherit;
     font-size: 0.82rem;
     font-weight: 700;

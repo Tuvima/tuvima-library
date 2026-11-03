@@ -77,31 +77,9 @@ public sealed class SkipMarkersPlugin : ITuvimaPlugin
             degradedMessage: "Some media tools are unavailable."),
     ];
 
-    private static JsonElement SettingsSchema()
-    {
-        using var document = JsonDocument.Parse("""
-        {
-          "properties": {
-            "detect_intro": { "type": "boolean", "title": "Find intros", "description": "Mark where the intro of an episode is.", "default": true },
-            "detect_credits": { "type": "boolean", "title": "Find credits", "description": "Mark where the end credits start.", "default": true },
-            "detect_recap": { "type": "boolean", "title": "Find recaps", "description": "Mark the recap of the last episode at the start of an episode.", "default": true },
-            "scheduled_batch_size": { "type": "integer", "title": "Files per pass", "description": "How many files are checked in one background pass.", "minimum": 1, "maximum": 500, "default": 20 },
-            "minimum_intro_seconds": { "type": "integer", "title": "Shortest intro", "description": "Seconds. Anything shorter is not marked.", "minimum": 5, "maximum": 300, "default": 20, "advanced": true },
-            "maximum_intro_seconds": { "type": "integer", "title": "Longest intro", "description": "Seconds.", "minimum": 20, "maximum": 600, "default": 120, "advanced": true },
-            "intro_search_window_seconds": { "type": "integer", "title": "Intro search window", "description": "Seconds from the start in which an intro is looked for.", "minimum": 60, "maximum": 1800, "default": 360, "advanced": true },
-            "minimum_credit_seconds": { "type": "integer", "title": "Shortest credits", "description": "Seconds. Anything shorter is not marked.", "minimum": 5, "maximum": 600, "default": 30, "advanced": true },
-            "credits_tail_window_seconds": { "type": "integer", "title": "Credits search window", "description": "Seconds from the end in which credits are looked for.", "minimum": 60, "maximum": 3600, "default": 900, "advanced": true },
-            "minimum_recap_seconds": { "type": "integer", "title": "Shortest recap", "description": "Seconds.", "minimum": 5, "maximum": 300, "default": 20, "advanced": true },
-            "maximum_recap_seconds": { "type": "integer", "title": "Longest recap", "description": "Seconds.", "minimum": 20, "maximum": 600, "default": 180, "advanced": true },
-            "auto_install_tools": { "type": "boolean", "title": "Download missing tools", "description": "Allow the Library to download FFmpeg if it is missing.", "default": false, "advanced": true },
-            "ffmpeg_tool_path": { "type": "string", "title": "FFmpeg location", "description": "Leave empty to use the one the Library finds.", "default": "", "advanced": true },
-            "ffprobe_tool_path": { "type": "string", "title": "FFprobe location", "description": "Leave empty to use the one the Library finds.", "default": "", "advanced": true }
-          },
-          "required": ["detect_intro", "detect_credits", "detect_recap"]
-        }
-        """);
-        return document.RootElement.Clone();
-    }
+    /// <summary>The settings this plugin shows are described in <c>skip-markers.settings.json</c>, shipped beside the code.</summary>
+    private static JsonElement SettingsSchema() =>
+        ShippedPluginSettings.Read(typeof(SkipMarkersPlugin).Assembly, "skip-markers.settings.json");
 }
 
 internal static class SegmentManifestFactory

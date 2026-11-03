@@ -29,7 +29,7 @@ The kinds are:
 | Listen | Music, Audiobooks | Yes |
 | Listen | Other audio | No: recordings and lectures, shown by folder and the tags inside the files |
 | Read | Books, Comics | Yes |
-| Read | Other reading | No: loose books and documents, shown by folder and the details inside the files |
+| Read | Other reading | No: loose books and reading material, shown by folder and the details inside the files |
 | View | Photos, Personal videos, Documents | No (Documents are read on your computer with text recognition) |
 
 A kind that looks details up has its icon tile in its area's colour; a kind that does not has a quiet grey tile. Kinds that look nothing up (Videos, Other audio and Other reading) can hold several named libraries, up to five each (for example Lectures and Family recordings): each is its own row. The other kinds hold one library each, and you add more folders to it instead. In Watch, the Videos page in the lanes gathers the YouTube and Videos libraries: with more than one it shows a chip for each library to filter by, and a profile that cannot see a library sees neither its row nor its chip. Photos, Personal videos and Documents open the same page shape as any library (see [View libraries](#view-libraries)). Older addresses (a group such as `/settings/libraries/watch`, or a type such as `/settings/libraries/watch/movies`) still work and land on the matching tab or library. On a phone the rows, counts and status are read-only, with a note to use a desktop or tablet to change folders.

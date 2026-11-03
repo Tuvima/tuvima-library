@@ -143,7 +143,7 @@ public sealed record ViewScopeResolutionDto(
     [property: JsonPropertyName("available_scopes")] IReadOnlyList<ViewScopeOptionDto> AvailableScopes,
     [property: JsonPropertyName("can_browse_other_people")] bool CanBrowseOtherPeople = false,
     [property: JsonPropertyName("can_view_documents")] bool CanViewDocuments = true,
-    [property: JsonPropertyName("can_file_shared_inbox")] bool CanFileSharedInbox = false,
+    [property: JsonPropertyName("can_edit_shared_documents")] bool CanEditSharedDocuments = false,
     [property: JsonPropertyName("can_view_photos")] bool CanViewPhotos = true,
     [property: JsonPropertyName("can_view_personal_videos")] bool CanViewPersonalVideos = true);
 

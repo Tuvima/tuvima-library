@@ -314,6 +314,14 @@ public sealed class ProviderConfiguration
     public ProviderOnboardingConfiguration? Onboarding { get; set; }
 
     /// <summary>
+    /// The source's own settings in the same words a plugin manifest uses for <c>settings_schema</c> (Plugins and Integrations screens
+    /// v5 D47, D51): toggles, choices, numbers, repeating groups and the tests it supports. The tunables every source has (weight,
+    /// timeout, rate limit, cache time) are added to the page as Advanced settings without being written here.
+    /// </summary>
+    [JsonPropertyName("settings_schema")]
+    public System.Text.Json.JsonElement? SettingsSchema { get; set; }
+
+    /// <summary>
     /// The shared declaration block (Plugin architecture spec PA1), the same one a plugin manifest carries: who may use the
     /// source, what it requires, how heavy it is, what it stores and how it fails. Absent means administrators only.
     /// </summary>

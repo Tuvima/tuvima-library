@@ -1,0 +1,6 @@
+{
+  "_comment": "How close two bookmarks must be to count as the same spot, close, or far when Find bookmarks compares a bookmark file with the bookmarks you already have. Anything further than 'far' is New. Edit and save: no rebuild or restart needed.",
+  "time": { "same_spot": 3, "close": 30, "far": 180 },
+  "page": { "same_spot": 0, "close": 2, "far": 10 },
+  "text": { "same_spot": 0.02, "close": 0, "far": 2 }
+}

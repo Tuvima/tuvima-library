@@ -6,7 +6,6 @@
 @inject IEngineApiClient Api
 @inject NavigationManager Navigation
 @inject DeviceContextService DeviceContext
-@inject LibraryFolderAddService AddService
 @inject IAppDialogService Dialogs
 @inject IAppToastService Toasts
 @inject DashboardSessionAccessor Session
@@ -96,11 +95,6 @@
                                     <AppButton Label="@L["LibraryUnidentifiedTab_RemoveFromLibrary"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" Disabled="@_busy" aria-label="@($"Remove {item.FileName} from the library")"
                                                OnClick="@(() => RemoveAsync(item, removableId))" />
                                 }
-                                @if (SourceOf(item) is { } source)
-                                {
-                                    <AppButton Label="@L["Common_ChangeWhatThisFolderIs"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" aria-label="@($"Change what the folder of {item.FileName} is")"
-                                               OnClick="@(() => ChangeFolderKindAsync(source))" />
-                                }
                             }
                             else
                             {
@@ -122,9 +116,6 @@
     private const int PageSize = 50;
 
     [Parameter, EditorRequired] public LibraryFolderDto Library { get; set; } = default!;
-    /// <summary>The library kinds and the saved libraries, so a row can offer Change what this folder is for the folder the file sits in.</summary>
-    [Parameter] public LibraryKindCatalog? Kinds { get; set; }
-    [Parameter] public LibrariesConfigurationDto? Configuration { get; set; }
     /// <summary>Phones: look only, no control that changes anything.</summary>
     [Parameter] public bool ReadOnly { get; set; }
     /// <summary>Raised after a file was retried, kept or changed, so the page can read the counts again.</summary>
@@ -179,29 +170,6 @@
         }
 
         _busy = false;
-    }
-
-    // The library folder a file sits in: the one whose path holds the file's folder (the deepest, when folders nest). No folder to name, no button.
-    private LibrarySourceDto? SourceOf(UnmatchedItemDto item)
-    {
-        if (Kinds is null || Configuration is null || string.IsNullOrWhiteSpace(item.Folder)) return null;
-        var folder = Normal(item.Folder);
-        return Library.Sources
-            .Where(source => !string.IsNullOrWhiteSpace(source.Path) && (folder.Equals(Normal(source.Path), StringComparison.OrdinalIgnoreCase)
-                || folder.StartsWith(Normal(source.Path) + "/", StringComparison.OrdinalIgnoreCase)))
-            .OrderByDescending(source => source.Path.Length)
-            .FirstOrDefault();
-    }
-
-    private static string Normal(string path) => path.Replace('\\', '/').TrimEnd('/');
-
-    private async Task ChangeFolderKindAsync(LibrarySourceDto source)
-    {
-        if (Kinds is null || Configuration is null) return;
-        _busy = true;
-        var follow = await AddService.ChangeKindAsync(FolderAddScope.Settings, Kinds, Configuration, Library, source);
-        _busy = false;
-        if (follow.Started) await Changed.InvokeAsync();
     }
 
     private async Task RemoveAsync(UnmatchedItemDto item, Guid workId)

@@ -240,7 +240,7 @@ public sealed class LibraryFoldersTabTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task TheRowMenuOffersOverrideFileHandlingPauseScanningChangeWhatTheFolderIsAndRemove()
+    public async Task TheRowMenuOffersOverrideFileHandlingPauseScanningAndRemove()
     {
         var cut = OpenTable();
 
@@ -250,7 +250,7 @@ public sealed class LibraryFoldersTabTests : AsyncBunitContext
         var items = cut.FindAll("[role=menuitem]").Select(Text).ToArray();
         Assert.Contains("Override file handling for this folder…", items);
         Assert.Contains("Pause scanning", items);
-        Assert.Contains("Change what this folder is…", items);
+        Assert.DoesNotContain("Change what this folder is…", items);
         Assert.Contains("Remove folder", items);
         Assert.Equal("Remove folder", items[^1]);
     }

@@ -46,7 +46,7 @@
 .playback-context-row--chapter .playback-context-row__duration { grid-column:4; }
 .playback-context-row__leading { align-items:center; display:flex; height:56px; justify-content:center; overflow:visible; position:relative; width:var(--playback-context-leading-width,56px); }
 .playback-context-row__leading img { border-radius:6px; height:56px; object-fit:cover; width:56px; }
-.playback-context-row__activity { align-items:center; background:rgba(11,23,40,.84); border-radius:999px; bottom:-3px; display:flex; height:20px; justify-content:center; position:absolute; right:-5px; width:22px; }
+.playback-context-row__activity { align-items:center; background:rgba(11,23,40,.84); border-radius:var(--tl-radius-pill); bottom:-3px; display:flex; height:20px; justify-content:center; position:absolute; right:-5px; width:22px; }
 .playback-context-row__leading-text { color:var(--playback-text-secondary); font-variant-numeric:tabular-nums; font-size:.82rem; white-space:nowrap; }
 .playback-context-row__identity,.playback-context-row ::deep .playback-context-row__identity { align-items:flex-start; background:transparent; border:0; color:var(--playback-text); display:flex; flex-direction:column; min-height:44px; min-width:0; overflow:hidden; padding:4px 0; text-align:left; }
 .playback-context-row__identity strong,.playback-context-row ::deep .playback-context-row__identity strong { font-size:14px; font-weight:500; line-height:1.25; }

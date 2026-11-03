@@ -92,7 +92,7 @@
     min-width: 1.45rem;
     height: 1.45rem;
     padding: 0 .38rem;
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     display: inline-flex;
     align-items: center;
     justify-content: center;

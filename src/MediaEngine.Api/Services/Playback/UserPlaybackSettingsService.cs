@@ -94,6 +94,21 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         PlaybackPreferenceValues.HighContrast,
         PlaybackPreferenceValues.Shadowed);
 
+    private static readonly HashSet<string> SubtitleFontValues = BuildSet(
+        PlaybackPreferenceValues.FontDefault,
+        PlaybackPreferenceValues.FontSerif,
+        PlaybackPreferenceValues.FontMono);
+    private static readonly HashSet<string> SubtitleColorValues = BuildSet(
+        PlaybackPreferenceValues.ColorWhite,
+        PlaybackPreferenceValues.ColorYellow,
+        PlaybackPreferenceValues.ColorCyan,
+        PlaybackPreferenceValues.ColorGreen);
+    private static readonly HashSet<string> BookmarkFilterValues = BuildSet(
+        PlaybackPreferenceValues.All,
+        PlaybackPreferenceValues.Mine,
+        PlaybackPreferenceValues.Global,
+        PlaybackPreferenceValues.Everyones);
+
     private readonly IDatabaseConnection _db;
     private readonly IProfileRepository _profiles;
 
@@ -313,6 +328,9 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         settings.Subtitles.SubtitleSize = NormalizeToken(settings.Subtitles.SubtitleSize);
         settings.Subtitles.SubtitlePosition = NormalizeToken(settings.Subtitles.SubtitlePosition);
         settings.Subtitles.SubtitleStyle = NormalizeToken(settings.Subtitles.SubtitleStyle);
+        settings.Subtitles.SubtitleFont = NormalizeToken(settings.Subtitles.SubtitleFont);
+        settings.Subtitles.SubtitleColor = NormalizeToken(settings.Subtitles.SubtitleColor);
+        settings.General.BookmarkFilter = NormalizeToken(settings.General.BookmarkFilter);
         settings.Subtitles.DefaultSubtitleLanguage = NormalizeLanguage(settings.Subtitles.DefaultSubtitleLanguage);
         settings.Subtitles.AudioLanguage = NormalizeLanguage(settings.Subtitles.AudioLanguage);
         settings.Subtitles.AlternateSubtitleLanguages = NormalizeAlternates(settings.Subtitles.AlternateSubtitleLanguages, settings.Subtitles.DefaultSubtitleLanguage);
@@ -368,6 +386,9 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         RequireAllowed(settings.Subtitles.SubtitleSize, SubtitleSizeValues, nameof(settings.Subtitles.SubtitleSize));
         RequireAllowed(settings.Subtitles.SubtitlePosition, SubtitlePositionValues, nameof(settings.Subtitles.SubtitlePosition));
         RequireAllowed(settings.Subtitles.SubtitleStyle, SubtitleStyleValues, nameof(settings.Subtitles.SubtitleStyle));
+        RequireAllowed(settings.Subtitles.SubtitleFont, SubtitleFontValues, nameof(settings.Subtitles.SubtitleFont));
+        RequireAllowed(settings.Subtitles.SubtitleColor, SubtitleColorValues, nameof(settings.Subtitles.SubtitleColor));
+        RequireAllowed(settings.General.BookmarkFilter, BookmarkFilterValues, nameof(settings.General.BookmarkFilter));
 
         if (settings.Listening.MusicCrossfade)
         {

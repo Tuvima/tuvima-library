@@ -8,11 +8,11 @@ public sealed class ProviderManagementStateTests
     public void ProviderSettings_UsesSharedOnboardingWithoutProviderSpecificInstructions()
     {
         var page = File.ReadAllText(FindRepoFile(
-            "src", "MediaEngine.Web", "Components", "Settings", "Plugins", "ProviderDetail.razor"));
+            "src", "MediaEngine.Web", "Components", "Settings", "Plugins", "PluginSetupPage.razor"));
         var dialog = File.ReadAllText(FindRepoFile(
             "src", "MediaEngine.Web", "Components", "Shared", "Providers", "ProviderOnboardingDialog.razor"));
 
-        Assert.Contains("OpenProviderDialogAsync", page, StringComparison.Ordinal);
+        Assert.Contains("OpenKeyDialogAsync", page, StringComparison.Ordinal);
         Assert.Contains("Onboarding.Steps", dialog, StringComparison.Ordinal);
         Assert.Contains("KeyLink", dialog, StringComparison.Ordinal);
         Assert.Contains("Onboarding.Troubleshooting", dialog, StringComparison.Ordinal);

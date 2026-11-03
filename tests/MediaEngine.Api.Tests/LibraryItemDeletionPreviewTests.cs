@@ -453,9 +453,9 @@ public sealed class LibraryItemDeletionPreviewTests : IDisposable
                 VALUES (@id, @bea, @assetId, 's2', 'watch', @now, @now, 10);
                 """, new { id = Guid.NewGuid(), bea, assetId, now });
             connection.Execute("""
-                INSERT INTO reader_bookmarks (id, user_id, asset_id, chapter_index)
-                VALUES (@id, @userId, @assetId, 3);
-                """, new { id = Guid.NewGuid(), userId = bea.ToString("D"), assetId });
+                INSERT INTO audiobook_bookmarks (id, profile_id, work_id, asset_id, chapter_index, created_at, position_kind, locator)
+                VALUES (@id, @bea, @workId, @assetId, 3, @now, 'text', 'epubcfi(/6/4!/4/2/1:0)');
+                """, new { id = Guid.NewGuid(), bea, workId, assetId, now });
             // Casey: only a saved item.
             connection.Execute("""
                 INSERT INTO profile_saved_items (profile_id, entity_kind, entity_id, saved_at)
