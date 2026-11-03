@@ -18,6 +18,12 @@ public interface IShippedPluginFiles
 
     /// <summary>The shipped text of a plugin manifest by plugin id, or null when none ships.</summary>
     string? ReadManifest(string pluginId);
+
+    /// <summary>The file names of every provider source file that ships with Library, for example <c>tmdb.json</c>.</summary>
+    IReadOnlyList<string> SourceFileNames();
+
+    /// <summary>The ids of every plugin manifest that ships with Library.</summary>
+    IReadOnlyList<string> ManifestPluginIds();
 }
 
 /// <summary>The JSON that ships with Library to describe a plugin that is compiled in: its file name and text.</summary>
@@ -94,6 +100,29 @@ public sealed class ShippedPluginFiles(string? manifestRoot = null) : IShippedPl
 
     public string? ReadSourceFile(string fileName) =>
         string.IsNullOrWhiteSpace(fileName) || fileName.AsSpan().IndexOfAny('/', '\\') >= 0 ? null : ShippedProviderFiles.ReadText(fileName);
+
+    public IReadOnlyList<string> SourceFileNames() => ShippedProviderFiles.FileNames();
+
+    public IReadOnlyList<string> ManifestPluginIds()
+    {
+        try
+        {
+            return Directory.Exists(_manifestRoot)
+                ? Directory.EnumerateDirectories(_manifestRoot)
+                    .Select(Path.GetFileName)
+                    .OfType<string>()
+                    .Where(id => PluginPackageRules.IsSafeId(id) && File.Exists(Path.Combine(_manifestRoot, id, "plugin.json")))
+                    .Order(StringComparer.OrdinalIgnoreCase)
+                    .ToList()
+                : [];
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // The shipped folder cannot be listed, so no manifest is offered for restoring.
+            _ = ex;
+            return [];
+        }
+    }
 
     public string? ReadManifest(string pluginId)
     {

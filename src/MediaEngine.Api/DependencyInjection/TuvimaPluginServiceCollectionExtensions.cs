@@ -88,6 +88,7 @@ public static class TuvimaPluginServiceCollectionExtensions
         services.TryAddSingleton<IShippedPluginDescriptions, CompiledPluginDescriptions>();
         services.AddSingleton<PluginFileService>();
         services.AddSingleton<PluginFileEditor>();
+        services.AddSingleton<PluginRestoreService>();
         services.AddSingleton<PluginPageModelService>();
         services.AddSingleton<PluginProfileConnectionService>();
         services.AddTuvimaHttpClient(PluginDeviceSignInService.HttpClientName, TimeSpan.FromSeconds(20), addStandardResilience: false);

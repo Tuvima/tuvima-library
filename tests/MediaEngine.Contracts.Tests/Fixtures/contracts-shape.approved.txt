@@ -8017,6 +8017,28 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginRequirementDto
   VersionRange: System.String | nullability=nullable | accessors=get,set
   Optional: System.Boolean | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginRestoreItemDto
+  PluginId: System.String | nullability=not-null | accessors=get,set
+  FileName: System.String | nullability=not-null | accessors=get,set
+  Reason: System.String | nullability=not-null | accessors=get,set
+  Action: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginRestorePreviewResponse
+  Items: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginRestoreItemDto> | nullability=not-null | accessors=get,set
+  MatchingCount: System.Int32 | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginRestoreResponse
+  Items: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginRestoreResultItemDto> | nullability=not-null | accessors=get,set
+  RestoredCount: System.Int32 | nullability=not-null | accessors=get,set
+  ResetCount: System.Int32 | nullability=not-null | accessors=get,set
+  FailedCount: System.Int32 | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginRestoreResultItemDto
+  PluginId: System.String | nullability=not-null | accessors=get,set
+  FileName: System.String | nullability=not-null | accessors=get,set
+  Outcome: System.String | nullability=not-null | accessors=get,set
+  Message: System.String | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSavedResponse
   plugin_id: System.String | nullability=not-null | accessors=get,init
   saved: System.Boolean | nullability=not-null | accessors=get,init

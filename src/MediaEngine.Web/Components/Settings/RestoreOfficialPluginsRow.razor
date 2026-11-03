@@ -1,0 +1,20 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Ui
+@inject DashboardSessionAccessor Session
+@inject IAppDialogService DialogService
+@inject IStringLocalizer<SharedStrings> L
+
+@* Restore official plugins (Plugins and Integrations screens v5 D57): a quiet row on Settings > Tools, for administrators only. It is
+   not on the Plugins tiles. The button opens a short dialog that lists each Tuvima plugin file that is missing, damaged or edited. *@
+@if (Session.Authority?.EffectiveAdministrator == true)
+{
+    <AppCard Title="@L["RestorePlugins_Title"].Value" Description="@L["RestorePlugins_Description"].Value" Class="tl-sp-mb-3" data-testid="restore-plugins-row">
+        <AppButton Label="@L["RestorePlugins_Open"].Value" ButtonStyle="AppButtonStyle.Outlined" OnClick="OpenAsync" data-testid="restore-plugins-open" />
+    </AppCard>
+}
+
+@code {
+    private Task OpenAsync() =>
+        DialogService.ShowAsync<RestoreOfficialPluginsDialog>(string.Empty, new AppDialogOptions { MaxWidth = AppMaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true, NoHeader = true });
+}

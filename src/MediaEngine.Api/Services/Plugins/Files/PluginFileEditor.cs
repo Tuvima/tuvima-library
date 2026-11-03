@@ -79,11 +79,15 @@ public sealed class PluginFileEditor(
     /// <summary>Puts Tuvima's pristine copy of the file back. Null when the plugin does not exist or has no file.</summary>
     public async Task<PluginFileSaveResponse?> ResetAsync(string pluginId, CancellationToken ct)
     {
-        if (files.Locate(pluginId) is not { } target)
-        {
-            return null;
-        }
+        return files.Locate(pluginId) is not { } target ? null : await ResetTargetAsync(pluginId, target, ct).ConfigureAwait(false);
+    }
 
+    /// <summary>
+    /// Puts Tuvima's pristine copy of a located file back. Also the one write that Restore official plugins (D57) uses, so Reset and
+    /// Restore can never disagree: a source file keeps the person's own on/off switch, and a missing or unreadable file is simply replaced.
+    /// </summary>
+    internal async Task<PluginFileSaveResponse> ResetTargetAsync(string pluginId, PluginFileTarget target, CancellationToken ct)
+    {
         var installed = await files.ReadTextAsync(target, ct).ConfigureAwait(false);
         if (!target.Editable || target.FullPath is null)
         {

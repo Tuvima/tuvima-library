@@ -9819,4 +9819,52 @@
   <data name="PluginPage_Settings" xml:space="preserve">
     <value>Settings</value>
   </data>
+  <data name="RestorePlugins_Title" xml:space="preserve">
+    <value>Restore official plugins</value>
+  </data>
+  <data name="RestorePlugins_Description" xml:space="preserve">
+    <value>Put the official plugin files back to the way they ship. Your keys, switches, settings and Private plugins are not touched.</value>
+  </data>
+  <data name="RestorePlugins_Open" xml:space="preserve">
+    <value>Review official plugins</value>
+  </data>
+  <data name="RestorePlugins_Checking" xml:space="preserve">
+    <value>Checking the official plugins</value>
+  </data>
+  <data name="RestorePlugins_CouldNotCheck" xml:space="preserve">
+    <value>Library could not check the official plugins. Check that the server is online, then try again.</value>
+  </data>
+  <data name="RestorePlugins_CouldNotRestore" xml:space="preserve">
+    <value>Library could not restore the official plugins. Check that the server is online, then try again.</value>
+  </data>
+  <data name="RestorePlugins_AllMatch" xml:space="preserve">
+    <value>All official plugins match.</value>
+  </data>
+  <data name="RestorePlugins_WillBeRestored" xml:space="preserve">
+    <value>will be restored</value>
+  </data>
+  <data name="RestorePlugins_WillBeReset" xml:space="preserve">
+    <value>will be reset</value>
+  </data>
+  <data name="RestorePlugins_OneMatches" xml:space="preserve">
+    <value>{0} other official plugin file already matches.</value>
+  </data>
+  <data name="RestorePlugins_ManyMatch" xml:space="preserve">
+    <value>{0} other official plugin files already match.</value>
+  </data>
+  <data name="RestorePlugins_Untouched" xml:space="preserve">
+    <value>Keys, switches, settings values and Private plugins are not touched.</value>
+  </data>
+  <data name="RestorePlugins_Confirm" xml:space="preserve">
+    <value>Restore</value>
+  </data>
+  <data name="RestorePlugins_DoneOne" xml:space="preserve">
+    <value>Done. 1 official plugin file is back to the version that ships with Library.</value>
+  </data>
+  <data name="RestorePlugins_DoneMany" xml:space="preserve">
+    <value>Done. {0} official plugin files are back to the version that ships with Library.</value>
+  </data>
+  <data name="RestorePlugins_NothingChanged" xml:space="preserve">
+    <value>Nothing could be restored.</value>
+  </data>
 </root>

@@ -35,6 +35,12 @@ public partial interface IEngineApiClient
     /// <summary>POST /plugins/{id}/file/reset — puts Tuvima's pristine copy of the plugin's file back, reloads the plugin and runs its check. Null when the Engine could not be asked.</summary>
     Task<PluginFileSaveResponse?> ResetPluginFileAsync(string pluginId, CancellationToken ct = default);
 
+    /// <summary>GET /plugins/restore-preview — each Tuvima plugin file that is missing, damaged or edited, and how many already match. Writes nothing. Null when the Engine could not be asked.</summary>
+    Task<PluginRestorePreviewResponse?> GetPluginRestorePreviewAsync(CancellationToken ct = default);
+
+    /// <summary>POST /plugins/restore — puts Tuvima's version of every missing, damaged or edited plugin file back (administrator only). Null when the Engine could not be asked.</summary>
+    Task<PluginRestoreResponse?> RestoreOfficialPluginsAsync(CancellationToken ct = default);
+
     /// <summary>PUT /plugins/{id}/activity-cap — how much of the plugin's Activity list is kept.</summary>
     Task<PluginActivityCapDto?> SavePluginActivityCapAsync(string pluginId, int maxEntries, int maxDays, CancellationToken ct = default);
 }

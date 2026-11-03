@@ -482,6 +482,37 @@ internal static class PluginEndpoints
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
 
+        // Restore official plugins (v5 D57): a quiet row in Settings > Tools. The preview writes nothing; the restore puts Tuvima's version of each
+        // missing, damaged or edited Tuvima plugin file back, the same way Reset does. Keys, switches, values and Private plugins are untouched.
+        group.MapGet("/restore-preview", async (
+            [FromServices] PluginRestoreService restore,
+            CancellationToken ct) => Results.Ok(await restore.PreviewAsync(ct).ConfigureAwait(false)))
+        .WithName("PreviewRestoreOfficialPlugins")
+        .WithSummary("Each official plugin file that is missing, damaged or edited (and so would be restored or reset), and how many already match the shipped version. Writes nothing.")
+        .Produces<PluginRestorePreviewResponse>(StatusCodes.Status200OK)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsRead);
+
+        group.MapPost("/restore", async (
+            HttpContext http,
+            [FromServices] PluginRestoreService restore,
+            [FromServices] PluginPeopleActionLog peopleActions,
+            [FromServices] IRequestAuthorityResolver authorityResolver,
+            CancellationToken ct) =>
+        {
+            var result = await restore.RestoreAsync(ct).ConfigureAwait(false);
+            var authority = await authorityResolver.ResolveAsync(http, ct).ConfigureAwait(false);
+            foreach (var item in result.Items.Where(item => item.Outcome != "failed"))
+            {
+                await peopleActions.RecordAsync(new PluginPeopleAction(authority.ActiveProfileId, item.PluginId, "restored-official-plugin", $"Restored the official file of {item.PluginId}", Before: item.FileName, After: item.Outcome), ct).ConfigureAwait(false);
+            }
+
+            return Results.Ok(result);
+        })
+        .WithName("RestoreOfficialPlugins")
+        .WithSummary("Puts the shipped version back for every official plugin file that is missing, damaged or edited (a source file keeps the person's own on/off switch). Keys, switches, setting values and Private plugins are untouched.")
+        .Produces<PluginRestoreResponse>(StatusCodes.Status200OK)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
+
         // The changes the generated page makes to values kept outside the plugin's saved settings, to the rows of a repeating group and
         // to the Activity cap (v5 D49, D59). The Dashboard calls these for every plugin; a plugin's JSON names where its values live.
         group.MapPut("/{pluginId}/page/values/{key}", async (

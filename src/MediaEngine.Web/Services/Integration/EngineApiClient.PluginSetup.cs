@@ -73,6 +73,12 @@ public sealed partial class EngineApiClient
             new { },
             ct: ct);
 
+    public Task<PluginRestorePreviewResponse?> GetPluginRestorePreviewAsync(CancellationToken ct = default) =>
+        GetAsync<PluginRestorePreviewResponse>("GET /plugins/restore-preview", "/plugins/restore-preview", logAsWarning: false, ct: ct);
+
+    public Task<PluginRestoreResponse?> RestoreOfficialPluginsAsync(CancellationToken ct = default) =>
+        PostAsync<object, PluginRestoreResponse>("POST /plugins/restore", "/plugins/restore", new { }, ct: ct);
+
     public Task<PluginActivityCapDto?> SavePluginActivityCapAsync(string pluginId, int maxEntries, int maxDays, CancellationToken ct = default) =>
         PutAsync<PluginActivityCapDto, PluginActivityCapDto>(
             "PUT /plugins/{id}/activity-cap",

@@ -178,6 +178,43 @@ public sealed class PluginFileService(
         }
     }
 
+    /// <summary>
+    /// Every plugin file that ships with Library, each with the place it belongs in (Restore official plugins, D57): the provider
+    /// source files embedded in the Engine and the shipped manifests. A private plugin is never listed.
+    /// </summary>
+    internal IReadOnlyList<(string PluginId, PluginFileTarget Target)> OfficialFiles()
+    {
+        var result = new List<(string, PluginFileTarget)>();
+        if (!string.IsNullOrWhiteSpace(loader.ConfigDirectoryPath))
+        {
+            foreach (var fileName in shipped.SourceFileNames())
+            {
+                if (shipped.ReadSourceFile(fileName) is not { } text || !string.Equals(Path.GetFileName(fileName), fileName, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                result.Add((Path.GetFileNameWithoutExtension(fileName), new PluginFileTarget(
+                    SourceFileKind, PluginFileFormat.SourceFile, fileName, Path.Combine(loader.ConfigDirectoryPath, "providers", fileName), DescriptionText: null, Editable: true, text)));
+            }
+        }
+
+        foreach (var pluginId in shipped.ManifestPluginIds())
+        {
+            if (shipped.ReadManifest(pluginId) is not { } text)
+            {
+                continue;
+            }
+
+            var installedPath = catalog.Get(pluginId) is { } registration && !string.IsNullOrWhiteSpace(registration.ManifestPath)
+                ? Path.GetFullPath(registration.ManifestPath)
+                : Path.Combine(catalog.PluginRoot, pluginId, "plugin.json");
+            result.Add((pluginId, new PluginFileTarget(ManifestKind, PluginFileFormat.Manifest, "plugin.json", installedPath, DescriptionText: null, Editable: true, text)));
+        }
+
+        return result;
+    }
+
     internal PluginFileTarget? Locate(string pluginId)
     {
         if (string.IsNullOrWhiteSpace(pluginId))

@@ -43,6 +43,8 @@ public sealed class PluginEndpointAuthorizationTests
             ("/plugins/{pluginId}/file/check", "POST", ApplicationPermissionIds.PluginsManage),
             ("/plugins/{pluginId}/file", "PUT", ApplicationPermissionIds.PluginsManage),
             ("/plugins/{pluginId}/file/reset", "POST", ApplicationPermissionIds.PluginsManage),
+            ("/plugins/restore-preview", "GET", ApplicationPermissionIds.PluginsRead),
+            ("/plugins/restore", "POST", ApplicationPermissionIds.PluginsManage),
             ("/plugins/{pluginId}/removal-impact", "GET", ApplicationPermissionIds.PluginsRead),
             ("/plugins/{pluginId}/enable", "POST", ApplicationPermissionIds.PluginsManage),
             ("/plugins/{pluginId}/disable", "POST", ApplicationPermissionIds.PluginsManage),

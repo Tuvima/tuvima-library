@@ -55,6 +55,16 @@ public static class ShippedProviderFiles
         return restored;
     }
 
+    /// <summary>The file names of every provider file that ships with the Library (for example <c>tmdb.json</c>).</summary>
+    public static IReadOnlyList<string> FileNames() => FileNames(typeof(ShippedProviderFiles).Assembly);
+
+    internal static IReadOnlyList<string> FileNames(Assembly assembly) =>
+        assembly.GetManifestResourceNames()
+            .Where(name => name.StartsWith(ResourcePrefix, StringComparison.Ordinal))
+            .Select(name => name[ResourcePrefix.Length..])
+            .Order(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
     /// <summary>The text of the provider file that ships with the Library under this file name (for example <c>tmdb.json</c>), or null when none ships.</summary>
     public static string? ReadText(string fileName) => ReadText(fileName, typeof(ShippedProviderFiles).Assembly);
 
