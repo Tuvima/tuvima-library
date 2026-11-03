@@ -82,8 +82,8 @@
                         AriaLabel="@SkipLabel(segment.Kind)" OnClick="@(() => SeekOnHostAsync(segment.EndSeconds!.Value))"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SkipNext" /></AppNativeButton></AppTooltip>
                 </div>
             }
-            <PlaybackSeekRail Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds" ValueChanged="SeekOnHostAsync" ChapterTicks="@ChapterTicks" ChapterLabel="ChapterTickLabel" Surface="video"
-                               Bookmarks="@_railBookmarks" BookmarkJump="JumpToRailBookmarkAsync" BookmarkDelete="DeleteBookmarkAsync" Notice="@_bookmarkNotice" />
+            <PlaybackSeekRail Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds" ValueChanged="SeekOnHostAsync" ChapterTicks="@ShownChapterTicks" ChapterLabel="ChapterTickLabel" Surface="video"
+                               Bookmarks="@ShownRailBookmarks" BookmarkJump="JumpToRailBookmarkAsync" BookmarkDelete="DeleteBookmarkAsync" Notice="@_bookmarkNotice" />
             <div class="playback-video-controls">
                 <div class="playback-video-controls__left">
             <PlaybackPrimaryButton Appearance="video" IsPlaying="@VideoIsPlaying" NeedsUserGestureToStart="@Playback.NeedsUserGestureToStart"
@@ -112,12 +112,12 @@
                         <PlaybackPopover Title="@L["Glossary_Bookmarks"].Value" ToolId="video-bookmarks" Kind="video" Surface="video" ShowHeading="false" ItemKey="@VideoInstanceKey">
                             <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Bookmark" /></TriggerContent>
                             <ChildContent>
-                                <VideoBookmarkPanel ProfileId="@(Playback.ActiveProfileId ?? Guid.Empty)" WorkId="@bookmarkWorkId" AssetId="@bookmarkAssetId"
-                                                    Title="@Playback.CurrentItem.Title" Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds"
-                                                    Chapters="@VideoChapters" CanShare="@CanShareBookmarks" JumpTo="JumpToBookmarkAsync"
-                                                    RailBookmarks="@_railBookmarks" Current="@Playback.CurrentTimeSeconds" Add="AddBookmarkAsync" Delete="DeleteBookmarkAsync"
-                                                    SavedChanged="HandleBookmarksSaved" OnClose="CloseBookmarksAsync"
-                                                    AllowPacks="@(!Playback.CurrentItem.IsVault)" Packs="@_packs" PacksChanged="ReloadPacksAsync" />
+                                <VideoBookmarkPane Position="@Playback.CurrentTimeSeconds" Current="@Playback.CurrentTimeSeconds"
+                                                   Bookmarks="@_savedRail" Everyones="@_everyonesRail" IsAdministrator="@CanShareBookmarks" AllowEveryones="@AllowEveryonesBookmarks"
+                                                   Filter="@BookmarkFilter" FilterChanged="ChangeBookmarkFilterAsync"
+                                                   ShowOnBar="@ShowBookmarksOnBar" ShowOnBarChanged="ChangeShowBookmarksOnBarAsync"
+                                                   Add="AddBookmarkAsync" Play="@(seconds => JumpToBookmarkAsync(seconds, true))" Delete="DeleteBookmarkAsync"
+                                                   Promote="PromoteBookmarkAsync" Update="UpdateGlobalBookmarkAsync" />
                             </ChildContent>
                         </PlaybackPopover>
                     }
@@ -251,11 +251,16 @@
 
     private bool _rateMenuOpen;
     // The title's saved bookmarks, drawn as ticks beside the chapters (Videos spec D43). Loaded again whenever the video changes.
-    private IReadOnlyList<PlaybackRailBookmark> _railBookmarks = [];
     // The profile's own, shared and pack bookmarks are kept apart so a change to one redraws the rail without the others being reloaded.
     private IReadOnlyList<AudiobookBookmarkDto> _railSaved = [];
-    private IReadOnlyList<BookmarkPackDto> _packs = [];
+    private IReadOnlyList<PlaybackRailBookmark> _savedRail = [];
+    private IReadOnlyList<PlaybackRailBookmark> _everyonesRail = [];
     private Task? _railBookmarksLoad;
+    private bool ShowBookmarksOnBar => _profileSettings?.General.ShowBookmarksOnBar == true;
+    private string BookmarkFilter => _profileSettings?.General.BookmarkFilter ?? PlaybackPreferenceValues.All;
+    /// <summary>Everyone's is for administrators on a desktop or tablet, never in the Vault, on a phone or on a TV (player-controls-v3 D10).</summary>
+    private bool AllowEveryonesBookmarks => Playback.CurrentItem is { IsVault: false }
+        && Services.GetService<MediaEngine.Web.Services.Theming.DeviceContextService>()?.FormFactor is null or "desktop" or "tablet";
     private bool CanShareBookmarks => Services.GetService<DashboardSessionAccessor>()?.Authority?.EffectiveAdministrator == true;
     private Guid? _loadedSubtitleAssetId;
     private IReadOnlyList<TextTrackDto> _managedSubtitleTracks = [];
@@ -280,6 +285,15 @@
     private string ContextTitle => ContextKind == "episodes" ? L["PlayerContext_Episodes"].Value : IsTvEpisode ? L["PlayerContext_UpNext"].Value : L["PlayerContext_Lessons"].Value;
     private string ChapterTickLabel(double seconds) => VideoChapters.Where(chapter => chapter.StartSeconds <= seconds).OrderByDescending(chapter => chapter.StartSeconds).FirstOrDefault() is { } chapter
         ? $"Chapter {chapter.Index + 1:00} · {chapter.Title} · {FormatTimestamp(chapter.StartSeconds)}" : FormatTimestamp(seconds);
+    /// <summary>Chapter ticks follow the profile's setting: off by default for video (player-controls-v3 D8).</summary>
+    private IReadOnlyList<double> ShownChapterTicks => PlayerPreferenceService.ShowChapterMarks(_profileSettings, audiobook: false) ? ChapterTicks : [];
+    /// <summary>The bookmark bubbles on the bar: off by default, and following the pane's filter when on (D8a).</summary>
+    private IReadOnlyList<PlaybackRailBookmark> ShownRailBookmarks => !ShowBookmarksOnBar ? [] : BookmarkFilter switch
+    {
+        PlaybackPreferenceValues.Mine => _savedRail.Where(bookmark => !bookmark.IsGlobal).ToList(),
+        PlaybackPreferenceValues.Global => _savedRail.Where(bookmark => bookmark.IsGlobal).ToList(),
+        _ => _savedRail,
+    };
     private IReadOnlyList<double> ChapterTicks => Playback.DurationSeconds > 0 ? VideoChapters.Select(chapter => chapter.StartSeconds).Where(time => time >= 0 && time < Playback.DurationSeconds).Distinct().Order().ToList() : [];
     private IReadOnlyList<PlaybackSegmentDto> VerifiedSegments => (Playback.CurrentManifest?.Segments ?? [])
         .Where(segment => segment.Kind.ToLowerInvariant() is "intro" or "recap" or "credits" && VideoEndCardState.IsVerifiedRange(segment, Playback.DurationSeconds)).ToList();
@@ -427,9 +441,9 @@
         _managedSubtitleTracks = []; _captionTracks = []; _selectedCaptionKey = null;
         _selectedAudioTrackIndex = null; _pendingAudioIndex = null; _switchingAudio = false; _textTrackStatus = null; _textTrackLoading = false;
         _profileAudioAppliedFor = null;
-        _railBookmarks = [];
+        _savedRail = [];
+        _everyonesRail = [];
         _railSaved = [];
-        _packs = [];
         if (identity?.ProfileId != _profileSubtitlesProfile) { _profileSubtitles = null; _profileSettings = null; _profileSubtitlesProfile = identity?.ProfileId; }
         Tools.Close(); _rateMenuOpen = false;
         if (identity is null) return;
@@ -451,13 +465,15 @@
                 RebuildRail();
             }
 
-            // A Vault video has no packs: they cannot be made or added there.
-            if (Playback.CurrentItem is { IsVault: false })
+            if (CanShareBookmarks && AllowEveryonesBookmarks)
             {
-                var packs = await ApiClient.GetBookmarkPacksAsync(identity.WorkId, identity.ProfileId, ct);
+                var everyones = await ApiClient.GetEveryonesBookmarksWithOutcomeAsync(identity.WorkId, identity.ProfileId, ct);
                 if (_disposed || ct.IsCancellationRequested || !identity.IsCurrent(Playback)) return;
-                _packs = packs;
-                RebuildRail();
+                if (everyones is { Outcome: AudiobookBookmarkOperationOutcome.Success, Value: { } others })
+                {
+                    _everyonesRail = PlaybackRailBookmark.From(others.Where(bookmark => bookmark.AssetId == identity.AssetId), Playback.DurationSeconds);
+                    RebuildRail();
+                }
             }
         }
         catch (OperationCanceledException)
@@ -469,17 +485,8 @@
 
     private void RebuildRail()
     {
-        _railBookmarks = PlaybackRailBookmark.From(_railSaved, Playback.DurationSeconds)
-            .Concat(PlaybackRailBookmark.FromPacks(_packs, Playback.DurationSeconds))
-            .OrderBy(bookmark => bookmark.Seconds).ToList();
+        _savedRail = PlaybackRailBookmark.From(_railSaved, Playback.DurationSeconds);
         if (!_disposed) _ = InvokeAsync(StateHasChanged);
-    }
-
-    private async Task ReloadPacksAsync()
-    {
-        if (VideoPlaybackIdentity.Capture(Playback) is not { } identity) return;
-        _packs = await ApiClient.GetBookmarkPacksAsync(identity.WorkId, identity.ProfileId);
-        RebuildRail();
     }
 
     private Task HandleBookmarksSaved(IReadOnlyList<AudiobookBookmarkDto> saved)
@@ -491,12 +498,6 @@
         }
 
         return Task.CompletedTask;
-    }
-
-    private async Task CloseBookmarksAsync()
-    {
-        Tools.Close();
-        await InvokeAsync(StateHasChanged);
     }
 
     /// <summary>Goes to a bookmark's time (preview, Replay or Jump) and plays from there.</summary>
@@ -530,7 +531,7 @@
 
     private async Task<bool> DeleteBookmarkAsync(PlaybackRailBookmark bookmark)
     {
-        if (Playback.CurrentItem is not { WorkId: var workId } || bookmark.IsPack) return false;
+        if (Playback.CurrentItem is not { WorkId: var workId }) return false;
         var profileId = Playback.ActiveProfileId ?? Guid.Empty;
         var result = await ApiClient.DeleteAudiobookBookmarkWithOutcomeAsync(bookmark.Id, profileId);
         if (result.Outcome != AudiobookBookmarkOperationOutcome.Success) return false;
@@ -556,6 +557,65 @@
         if (_disposed) return;
         _bookmarkNotice = null;
         await InvokeAsync(StateHasChanged);
+    }
+
+    /// <summary>An administrator makes a person's bookmark Global at once; no confirmation, the row glows instead.</summary>
+    private async Task<bool> PromoteBookmarkAsync(PlaybackRailBookmark bookmark, string? name)
+    {
+        if (Playback.CurrentItem is not { WorkId: var workId }) return false;
+        var profileId = Playback.ActiveProfileId ?? Guid.Empty;
+        var result = await ApiClient.PromoteAudiobookBookmarkWithOutcomeAsync(bookmark.Id, name, profileId);
+        if (result.Outcome != AudiobookBookmarkOperationOutcome.Success) return false;
+        await ReloadSavedBookmarksAsync(workId, profileId);
+        await ReloadEveryonesAsync(workId, profileId);
+        return true;
+    }
+
+    /// <summary>An administrator changes a Global bookmark's name, note and description.</summary>
+    private async Task<bool> UpdateGlobalBookmarkAsync(PlaybackRailBookmark bookmark, string? label, string? note, string? description)
+    {
+        if (Playback.CurrentItem is not { WorkId: var workId }) return false;
+        var profileId = Playback.ActiveProfileId ?? Guid.Empty;
+        var result = await ApiClient.UpdateGlobalAudiobookBookmarkWithOutcomeAsync(bookmark.Id,
+            new UpdateAudiobookBookmarkRequestDto { Label = label, Note = note, Description = description }, profileId);
+        if (result.Outcome != AudiobookBookmarkOperationOutcome.Success) return false;
+        await ReloadSavedBookmarksAsync(workId, profileId);
+        return true;
+    }
+
+    private async Task ReloadEveryonesAsync(Guid workId, Guid profileId)
+    {
+        if (!CanShareBookmarks || !AllowEveryonesBookmarks || Playback.CurrentItem?.AssetId is not Guid assetId) return;
+        var result = await ApiClient.GetEveryonesBookmarksWithOutcomeAsync(workId, profileId);
+        if (result is { Outcome: AudiobookBookmarkOperationOutcome.Success, Value: { } others })
+        {
+            _everyonesRail = PlaybackRailBookmark.From(others.Where(bookmark => bookmark.AssetId == assetId), Playback.DurationSeconds);
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task ChangeBookmarkFilterAsync(string filter)
+    {
+        _profileSettings ??= new UserPlaybackSettingsDto();
+        _profileSettings.General.BookmarkFilter = filter;
+        await SavePreferenceAsync(settings => settings.General.BookmarkFilter = filter);
+    }
+
+    private async Task ChangeShowBookmarksOnBarAsync(bool show)
+    {
+        _profileSettings ??= new UserPlaybackSettingsDto();
+        _profileSettings.General.ShowBookmarksOnBar = show;
+        await SavePreferenceAsync(settings => settings.General.ShowBookmarksOnBar = show);
+    }
+
+    private async Task SavePreferenceAsync(Action<UserPlaybackSettingsDto> change)
+    {
+        await InvokeAsync(StateHasChanged);
+        var preferences = Services.GetService<PlayerPreferenceService>();
+        if (preferences is null) return;
+        try { await preferences.UpdateAsync(change, _lifetimeCancellation.Token); }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) { Logger.LogWarning(ex, "The bookmark choice could not be saved."); }
     }
 
     private Task JumpToRailBookmarkAsync(PlaybackRailBookmark bookmark) => JumpToBookmarkAsync(bookmark.Seconds, play: false);

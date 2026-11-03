@@ -8139,53 +8139,8 @@
   <data name="ViewPlacesTimeline_TimelineGranularity" xml:space="preserve">
     <value>Timeline granularity</value>
   </data>
-  <data name="BookmarkPackSection_BookmarkPacks" xml:space="preserve">
-    <value>Bookmark packs</value>
-  </data>
-  <data name="BookmarkPackSection_ChooseWhatToInclude" xml:space="preserve">
-    <value>Choose what to include</value>
-  </data>
-  <data name="BookmarkPackSection_ThePackHoldsHowTo" xml:space="preserve">
-    <value>The pack holds how to recognise this title and the {0} bookmarks below. It does not hold file paths, profile names or what anyone watched.</value>
-  </data>
-  <data name="BookmarkPackSection_ThisPackIsAlreadyOn" xml:space="preserve">
-    <value>This pack is already on this title.</value>
-  </data>
-  <data name="BookmarkPackSection_AddPack" xml:space="preserve">
-    <value>Add pack</value>
-  </data>
-  <data name="BookmarkPackSection_AlignByChapter" xml:space="preserve">
-    <value>Align by chapter</value>
-  </data>
-  <data name="BookmarkPackSection_RemovePack" xml:space="preserve">
-    <value>Remove pack</value>
-  </data>
-  <data name="BookmarkPackSection_ChooseBookmarksToExport" xml:space="preserve">
-    <value>Choose bookmarks to export</value>
-  </data>
-  <data name="BookmarkPackSection_PackName" xml:space="preserve">
-    <value>Pack name</value>
-  </data>
-  <data name="BookmarkPackSection_AuthorOptional" xml:space="preserve">
-    <value>Author (optional)</value>
-  </data>
-  <data name="BookmarkPackSection_ReviewThePack" xml:space="preserve">
-    <value>Review the pack</value>
-  </data>
-  <data name="BookmarkPackSection_ImportAPack" xml:space="preserve">
-    <value>Import a pack</value>
-  </data>
-  <data name="VideoBookmarkPanel_BookmarksAreUnavailableUntilThe" xml:space="preserve">
-    <value>Bookmarks are unavailable until the video is ready.</value>
-  </data>
-  <data name="VideoBookmarkQuickList_NoBookmarksYetClickAbove" xml:space="preserve">
-    <value>No bookmarks yet. Click above, or press B while watching.</value>
-  </data>
   <data name="VideoBookmarkQuickList_Keep" xml:space="preserve">
     <value>Keep</value>
-  </data>
-  <data name="VideoBookmarkQuickList_More" xml:space="preserve">
-    <value>More…</value>
   </data>
   <data name="VideoBookmarkQuickList_AddANoteOptional" xml:space="preserve">
     <value>Add a note (optional)</value>
@@ -9477,12 +9432,6 @@
   <data name="CollectionEditor_ListNeedsOwned" xml:space="preserve">
     <value>Drop a list with at least one title you own before creating the collection.</value>
   </data>
-  <data name="BookmarkPackSection_ChooseAPack" xml:space="preserve">
-    <value>Choose a pack to import</value>
-  </data>
-  <data name="BookmarkPackSection_DropPrompt" xml:space="preserve">
-    <value>Drop a bookmark pack here, or click to choose one</value>
-  </data>
   <data name="Accounts_LoadFailed" xml:space="preserve">
     <value>Your accounts could not be loaded. Try again in a moment.</value>
   </data>
@@ -9851,5 +9800,44 @@
   </data>
   <data name="PlaybackSettingsPage_BookmarkMarksHint" xml:space="preserve">
     <value>Little dots where bookmarks were added. The bookmark list works either way.</value>
+  </data>
+  <data name="VideoBookmarkPane_AddHere" xml:space="preserve">
+    <value>Add bookmark here · {0}</value>
+  </data>
+  <data name="VideoBookmarkPane_AddFailed" xml:space="preserve">
+    <value>Couldn’t save · Try again</value>
+  </data>
+  <data name="VideoBookmarkPane_Empty" xml:space="preserve">
+    <value>No bookmarks yet.</value>
+  </data>
+  <data name="VideoBookmarkPane_Show" xml:space="preserve">
+    <value>Show bookmarks</value>
+  </data>
+  <data name="VideoBookmarkPane_All" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="VideoBookmarkPane_Mine" xml:space="preserve">
+    <value>Mine</value>
+  </data>
+  <data name="VideoBookmarkPane_Global" xml:space="preserve">
+    <value>Global</value>
+  </data>
+  <data name="VideoBookmarkPane_Everyones" xml:space="preserve">
+    <value>Everyone’s</value>
+  </data>
+  <data name="VideoBookmarkPane_Promote" xml:space="preserve">
+    <value>Promote</value>
+  </data>
+  <data name="VideoBookmarkPane_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="VideoBookmarkPane_Description" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="VideoBookmarkPane_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="VideoBookmarkPane_ShowOnBar" xml:space="preserve">
+    <value>Show bookmarks on the bar</value>
   </data>
 </root>

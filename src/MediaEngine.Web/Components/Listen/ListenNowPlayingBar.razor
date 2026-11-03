@@ -71,7 +71,7 @@
          @ondrop:preventDefault="true"
          @ondrop="QueueDraggedItemsAsync">
         <PlaybackMiniPlayer Experience="@CurrentMiniPlayerExperience" Class="@($"listen-player {(Playback.IsAudiobookMode ? "listen-player--audiobook" : "listen-player--music")}")" AriaLabel="@L["ListenNowPlayingBar_NowPlayingMiniPlayer"].Value">
-                <PlaybackSeekRail Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds" ValueChanged="SeekOnHostAsync" Surface="dock"
+                <PlaybackSeekRail Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds" ValueChanged="SeekOnHostAsync" Surface="dock" ChapterTicks="@ChapterTicks"
                                   ShowRemaining="@_showRemainingTime" ShowRemainingChanged="@(value => _showRemainingTime = value)" />
 
             <div class="listen-player__meta">
@@ -583,9 +583,27 @@
 
     private void ReactionChanged() => _ = InvokeAsync(async () => { await LoadFavoriteAsync(); StateHasChanged(); });
 
+    // Chapter ticks on an audiobook's bar follow the profile setting, which is on unless the person turned it off (player-controls-v3 D8).
+    private bool _chapterMarks = true;
+    private IReadOnlyList<double> ChapterTicks => Playback.IsAudiobookMode && _chapterMarks && Playback.DurationSeconds > 0
+        ? CurrentChapters.Select(chapter => chapter.StartSeconds).Where(time => time > 0 && time < Playback.DurationSeconds).Distinct().Order().ToList()
+        : [];
+
+    private async Task LoadChapterMarksAsync()
+    {
+        try
+        {
+            var settings = await PlaybackPreferences.GetAsync();
+            _chapterMarks = MediaEngine.Web.Services.Playback.PlayerPreferenceService.ShowChapterMarks(settings, audiobook: true);
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex) { Logger.LogDebug(ex, "The chapter marks setting could not be read; the bar keeps the default."); }
+    }
+
     protected override void OnInitialized()
     {
         Reactions.Changed += ReactionChanged;
+        _ = LoadChapterMarksAsync();
         Playback.SetTransportHostNotReady();
         Playback.Changed += HandlePlaybackChanged;
         AudioSidebar.Changed += HandleAudioPanelChanged;

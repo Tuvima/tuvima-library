@@ -11,6 +11,9 @@ public sealed class PlayerResourceDeniedException : Exception;
 /// <summary>A person who is not a server administrator tried to make a bookmark shared with everybody.</summary>
 public sealed class PlayerBookmarkSharingDeniedException : Exception;
 
+/// <summary>An administrator-only bookmark action (the Everyone's view, Promote, editing a Global bookmark) was asked for by someone else.</summary>
+public sealed class PlayerBookmarkAdminDeniedException : Exception;
+
 /// <summary>Request-bound catalogue access used by the singleton player before selection or persistence.</summary>
 public sealed class PlayerCatalogueScope(IHttpContextAccessor http)
 {
@@ -127,6 +130,10 @@ internal sealed class PlayerResourceFailureFilter : IEndpointFilter
         catch (PlayerBookmarkSharingDeniedException)
         {
             return ApiErrors.Forbidden("Only a server administrator can share a bookmark with everyone.");
+        }
+        catch (PlayerBookmarkAdminDeniedException)
+        {
+            return ApiErrors.Forbidden("Only a server administrator can do that with bookmarks.");
         }
     }
 }

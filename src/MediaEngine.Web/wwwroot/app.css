@@ -3599,21 +3599,26 @@ button.app-menu-item {
     .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls button:not(:disabled):focus-visible .tl-icon-root { transform: none; }
 }
 /* Video Bookmarks panel quick list (video-player-controls-and-bookmarks D6, D7) */
-.video-bookmark-quick { display:grid; gap:10px; width:min(360px,92vw); }
-.video-bookmark-quick .video-bookmark-quick__add { display:flex; align-items:center; gap:8px; width:100%; padding:10px 14px; border:0; border-radius:10px; background:var(--tl-accent-primary); color:#fff; font-weight:600; cursor:pointer; }
-.video-bookmark-quick__note { width:100%; padding:8px 10px; border:1px solid var(--playback-border); border-radius:8px; background:transparent; color:inherit; }
-.video-bookmark-quick__list { display:grid; gap:2px; max-height:min(280px,40svh); margin:0; padding:0; overflow:auto; list-style:none; }
-.video-bookmark-quick__empty { padding:12px 4px; color:var(--playback-text-secondary); font-size:.9rem; }
-.video-bookmark-quick__row { display:flex; align-items:center; gap:10px; padding:6px 8px; border-radius:8px; }
-.video-bookmark-quick__row.is-near { background:var(--playback-accent-soft); }
-.video-bookmark-quick__dot { flex:0 0 12px; width:12px; height:12px; border-radius:50%; background:var(--tl-accent-primary); }
-.video-bookmark-quick__dot.is-global { background:var(--playback-text); }
-.video-bookmark-quick__dot.is-pack { background:var(--tl-accent-secondary); }
-.video-bookmark-quick__copy { display:grid; flex:1; min-width:0; }
-.video-bookmark-quick__copy > span { overflow:hidden; color:var(--playback-text-secondary); font-size:.82rem; text-overflow:ellipsis; white-space:nowrap; }
-.video-bookmark-quick .video-bookmark-quick__action,.video-bookmark-quick .video-bookmark-quick__more { padding:4px 8px; border:0; border-radius:6px; background:transparent; color:var(--playback-text); font-size:.85rem; cursor:pointer; }
-.video-bookmark-quick .video-bookmark-quick__action:hover,.video-bookmark-quick .video-bookmark-quick__more:hover { color:var(--tl-accent-primary); }
-.video-bookmark-quick .video-bookmark-quick__action.is-danger { color:var(--tl-danger,#ff6b6b); }
+.video-bookmark-pane { display:grid; gap:10px; width:min(380px,92vw); }
+.video-bookmark-pane .video-bookmark-pane__add { display:flex; align-items:center; gap:8px; width:100%; padding:10px 14px; border:0; border-radius:var(--tl-radius-sm,6px); background:var(--tl-accent-primary); color:#fff; font-weight:600; cursor:pointer; }
+.video-bookmark-pane__note,.video-bookmark-pane__edit input { width:100%; padding:8px 10px; border:1px solid var(--playback-border); border-radius:var(--tl-radius-sm,6px); background:transparent; color:inherit; }
+.video-bookmark-pane__list { display:grid; align-content:start; gap:2px; height:min(52svh,520px); margin:0; padding:0; overflow:auto; list-style:none; }
+.video-bookmark-pane__empty { padding:12px 4px; color:var(--playback-text-secondary); font-size:.9rem; }
+.video-bookmark-pane__row { display:flex; align-items:center; gap:10px; padding:6px 8px; border-radius:var(--tl-radius-sm,6px); }
+.video-bookmark-pane__row.is-near { background:var(--playback-accent-soft); }
+.video-bookmark-pane__row.is-glow { animation:video-bookmark-glow 1.4s ease-out 1; }
+@keyframes video-bookmark-glow { 0% { background:var(--tl-accent-primary); } 100% { background:transparent; } }
+.video-bookmark-pane__dot { flex:0 0 12px; width:12px; height:12px; border-radius:50%; background:var(--tl-accent-primary); }
+.video-bookmark-pane__dot.is-global { background:var(--playback-text); }
+.video-bookmark-pane__copy { display:grid; flex:1; min-width:0; }
+.video-bookmark-pane__copy > strong,.video-bookmark-pane__copy > span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.video-bookmark-pane__copy > span { color:var(--playback-text-secondary); font-size:.82rem; }
+.video-bookmark-pane__edit { display:grid; flex:1; gap:6px; min-width:0; }
+.video-bookmark-pane__edit-actions { display:flex; gap:4px; }
+.video-bookmark-pane .video-bookmark-pane__action { padding:4px 8px; border:0; border-radius:var(--tl-radius-sm,6px); background:transparent; color:var(--playback-text); font-size:.85rem; cursor:pointer; }
+.video-bookmark-pane .video-bookmark-pane__action:hover { color:var(--tl-accent-primary); }
+.video-bookmark-pane .video-bookmark-pane__action.is-danger { color:var(--tl-danger,#ff6b6b); }
+@media (prefers-reduced-motion:reduce) { .video-bookmark-pane__row.is-glow { animation:none; } }
 @keyframes playback-popover-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (max-width: 720px){
     .playback-popover .playback-context-tabs { gap: 4px; padding: 4px; border: 0; background: var(--playback-surface-hover); border-radius: 8px; }

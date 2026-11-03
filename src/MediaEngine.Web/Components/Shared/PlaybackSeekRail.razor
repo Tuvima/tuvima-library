@@ -19,13 +19,14 @@
                     var open = _quickLookId == bookmark.Id;
                     <span class="playback-seek-rail__bookmark-wrap" style="left:@Percent(bookmark.Seconds)%"
                           @onmouseenter="@(() => HoverBookmark(bookmark.Id))" @onmouseleave="@(() => LeaveBookmark(bookmark.Id))">
-                        <button type="button" class="playback-seek-rail__bookmark @(bookmark.IsGlobal ? "is-global" : bookmark.IsPack ? "is-pack" : null)"
+                        <button type="button" class="playback-seek-rail__bookmark @(bookmark.IsGlobal ? "is-global" : null)"
                                 aria-label="@BookmarkLabel(bookmark)" aria-expanded="@(open ? "true" : "false")" data-bookmark-id="@bookmark.Id"
                                 @onclick="@(() => ToggleBookmark(bookmark.Id))" @onfocus="@(() => HoverBookmark(bookmark.Id))"></button>
                         @if (open)
                         {
                             <div class="playback-seek-rail__quicklook" role="dialog" aria-label="@L["PlaybackSeekRail_Bookmark"].Value" style="@CardStyle(bookmark.Seconds)">
-                                <strong>@Time(bookmark.Seconds)@if (bookmark.IsGlobal) { <span> @L["Common_Everyone"]</span> }@if (bookmark.IsPack) { <span> · @bookmark.PackLabel</span> }</strong>
+                                <strong>@Time(bookmark.Seconds)@if (bookmark.IsGlobal) { <span> @L["Common_Everyone"]</span> }</strong>
+                                @if (!string.IsNullOrWhiteSpace(bookmark.Label)) { <p><b>@bookmark.Label</b></p> }
                                 @if (!string.IsNullOrWhiteSpace(bookmark.Note)) { <p>@bookmark.Note</p> }
                                 @if (!string.IsNullOrWhiteSpace(bookmark.Description))
                                 {
@@ -34,7 +35,7 @@
                                 }
                                 <span>
                                     <button type="button" class="playback-seek-rail__more" @onclick="@(() => JumpAsync(bookmark))">@L["Common_Play"]</button>
-                                    @if (BookmarkDelete.HasDelegate && !bookmark.IsPack && !bookmark.IsGlobal)
+                                    @if (BookmarkDelete.HasDelegate && !bookmark.IsGlobal)
                                     {
                                         @if (_deleteId == bookmark.Id) { <button type="button" class="playback-seek-rail__more" @onclick="@(() => DeleteAsync(bookmark))">@L["Common_Delete3"]</button> }
                                         else { <button type="button" class="playback-seek-rail__more" @onclick="@(() => _deleteId = bookmark.Id)">@L["Common_Delete"]</button> }
@@ -74,7 +75,7 @@
         return fraction < .25 ? "left:-6px;transform:none" : fraction > .75 ? "right:-6px;left:auto;transform:none" : string.Empty;
     }
     private string BookmarkLabel(PlaybackRailBookmark bookmark) =>
-        $"{(bookmark.IsPack ? $"Pack bookmark ({bookmark.PackLabel})" : bookmark.IsGlobal ? "Shared bookmark" : "Bookmark")} at {Time(bookmark.Seconds)}";
+        $"{(bookmark.IsGlobal ? "Global bookmark" : "Bookmark")} at {Time(bookmark.Seconds)}";
     private void HoverBookmark(Guid id) { if (_pinnedId is null) { _quickLookId = id; _moreId = null; } }
     private void LeaveBookmark(Guid id) { if (_pinnedId is null && _quickLookId == id) { _quickLookId = null; _moreId = null; } }
     private void ToggleBookmark(Guid id)
