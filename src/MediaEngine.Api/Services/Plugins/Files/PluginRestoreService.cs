@@ -62,7 +62,7 @@ public sealed class PluginRestoreService(PluginFileService files, PluginFileEdit
                     break;
                 default:
                     response.FailedCount++;
-                    logger.LogWarning("Restoring the official file {FileName} of {PluginId} did not finish: {Outcome}", target.FileName, pluginId, result.Outcome);
+                    logger.LogWarning("Restoring the official file {FileName} of {PluginId} did not finish: {Outcome}", PluginLogText.Safe(target.FileName), PluginLogText.Safe(pluginId), result.Outcome);
                     break;
             }
         }

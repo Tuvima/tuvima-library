@@ -114,7 +114,7 @@ public sealed class PluginFileEditor(
         try
         {
             WriteAtomically(path, text);
-            logger.LogInformation("The file of plugin {PluginId} was {Outcome} ({Bytes} bytes)", pluginId, outcome, Utf8.GetByteCount(text));
+            logger.LogInformation("The file of plugin {PluginId} was {Outcome} ({Bytes} bytes)", PluginLogText.Safe(pluginId), outcome, Utf8.GetByteCount(text));
 
             var reloadFailure = Reload(pluginId, target, path, text);
             var onDisk = await files.ReadTextAsync(target, ct).ConfigureAwait(false);
@@ -187,7 +187,7 @@ public sealed class PluginFileEditor(
         }
         catch (ConfigValidationException ex)
         {
-            logger.LogWarning("The source file {FileName} was written but the loader refused it: {Reason}", target.FileName, ex.Message);
+            logger.LogWarning("The source file {FileName} was written but the loader refused it: {Reason}", PluginLogText.Safe(target.FileName), PluginLogText.Safe(ex.Message));
             return $"Library saved the file but could not load the source from it: {FirstProblem(ex)}";
         }
 
@@ -198,7 +198,7 @@ public sealed class PluginFileEditor(
         }
         catch (IOException ex)
         {
-            logger.LogWarning("The source file {FileName} could not be read back after saving ({ErrorType})", target.FileName, ex.GetType().Name);
+            logger.LogWarning("The source file {FileName} could not be read back after saving ({ErrorType})", PluginLogText.Safe(target.FileName), ex.GetType().Name);
             return "Library saved the file but could not read it back.";
         }
 

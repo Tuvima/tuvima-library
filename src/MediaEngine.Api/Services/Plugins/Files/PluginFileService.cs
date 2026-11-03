@@ -124,7 +124,7 @@ public sealed class PluginFileService(
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            logger.LogWarning("The file {FileName} could not be read for the Plugin file card ({ErrorType})", target.FileName, ex.GetType().Name);
+            logger.LogWarning("The file {FileName} could not be read for the Plugin file card ({ErrorType})", PluginLogText.Safe(target.FileName), ex.GetType().Name);
             return null;
         }
     }
@@ -143,7 +143,7 @@ public sealed class PluginFileService(
         }
         catch (ConfigValidationException ex)
         {
-            logger.LogWarning("A provider file failed its checks, so {PluginId} is found by file name instead: {Reason}", pluginId, ex.Message);
+            logger.LogWarning("A provider file failed its checks, so {PluginId} is found by file name instead: {Reason}", PluginLogText.Safe(pluginId), PluginLogText.Safe(ex.Message));
         }
 
         if (!PluginPackageRules.IsSafeId(pluginId))
@@ -173,7 +173,7 @@ public sealed class PluginFileService(
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
-            logger.LogWarning("The provider file {FileName} could not be read to tell whether it is a source ({ErrorType})", fileName, ex.GetType().Name);
+            logger.LogWarning("The provider file {FileName} could not be read to tell whether it is a source ({ErrorType})", PluginLogText.Safe(fileName), ex.GetType().Name);
             return null;
         }
     }

@@ -56,7 +56,7 @@ public sealed class PluginPageModelService(
         }
         catch (ConfigValidationException ex)
         {
-            logger.LogWarning("A provider file failed its checks, so the page of {PluginId} shows only its Plugin file card: {Reason}", pluginId, ex.Message);
+            logger.LogWarning("A provider file failed its checks, so the page of {PluginId} shows only its Plugin file card: {Reason}", PluginLogText.Safe(pluginId), PluginLogText.Safe(ex.Message));
             unreadable = true;
             return null;
         }
@@ -143,7 +143,7 @@ public sealed class PluginPageModelService(
         }
         catch (Exception ex) when (ex is InvalidDataException or IOException or ArgumentException)
         {
-            logger.LogWarning("Secrets for plugin {PluginId} could not be read ({ErrorType}); showing none as set", manifest.Id, ex.GetType().Name);
+            logger.LogWarning("Secrets for plugin {PluginId} could not be read ({ErrorType}); showing none as set", PluginLogText.Safe(manifest.Id), ex.GetType().Name);
             return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         }
     }
@@ -156,7 +156,7 @@ public sealed class PluginPageModelService(
             var source = valueSources.FirstOrDefault(candidate => string.Equals(candidate.Name, name, StringComparison.OrdinalIgnoreCase));
             if (source is null)
             {
-                logger.LogWarning("A plugin setting names the value source {ValueSource}, which Library does not have", name);
+                logger.LogWarning("A plugin setting names the value source {ValueSource}, which Library does not have", PluginLogText.Safe(name));
                 continue;
             }
 
