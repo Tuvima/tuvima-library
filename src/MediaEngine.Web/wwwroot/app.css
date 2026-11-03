@@ -1035,6 +1035,8 @@ code,
 .media-tile-actions .media-tile-action { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: var(--tl-radius-pill); background: rgba(5, 8, 14, .78); color: #fff; cursor: pointer; }
 .media-tile-actions .media-tile-action:is(:hover, :focus-visible) { outline: 3px solid #fff; outline-offset: 0; box-shadow: 0 0 0 6px color-mix(in srgb, var(--tl-accent-primary) 90%, transparent); }
 .media-tile-actions .media-tile-action.is-saved { background: var(--tl-accent-primary, #8852FC); }
+.media-tile-actions .app-overflow-menu__trigger { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; min-width: 32px; min-height: 32px; padding: 0; border: 0; border-radius: var(--tl-radius-pill); background: rgba(5, 8, 14, .78); color: #fff; }
+.media-tile-actions .app-overflow-menu__trigger:is(:hover, :focus-visible, [aria-expanded="true"]) { outline: 3px solid #fff; outline-offset: 0; box-shadow: 0 0 0 6px color-mix(in srgb, var(--tl-accent-primary) 90%, transparent); }
 /* Continue tile X (Home, detail and tiles spec D3): always visible on touch, on hover or focus with a mouse. */
 .continue-tile__remove { position: absolute; top: 8px; right: 8px; z-index: 4; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--tl-radius-round, 999px); background: rgba(5, 8, 14, .78); color: #fff; cursor: pointer; opacity: 0; transition: opacity var(--tl-motion-duration-fast, 120ms) ease; }
 .continue-tile:is(:hover, :focus-within) .continue-tile__remove, .continue-tile__remove:focus-visible { opacity: 1; }
