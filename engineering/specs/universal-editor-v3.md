@@ -84,6 +84,8 @@ Press Edit anywhere (an item page, a list row, Needs Review) and a pop-over edit
 | Several ticked rows | None; a chip per item | Details | Mixed fields left unchanged |
 | Person, series, curated collection, Universe | None | Details | Match only for people (provider record) |
 
+**Moving a song to another album** (for example from Greatest Hits to its real album) is done in the song's Match tool on the Albums segment: pick the correct album, see its songs with this one placed on its matched track, and the switch "Move to that album" is on. The old album is kept even if it empties. Several songs at once use Change album in the multi-edit (mockup screen 4b). The same pattern moves an episode to another season or show and a book to another series.
+
 Artwork and Review work the same for every type; only the slots in Artwork differ (poster, backdrop, logo for a film; cover for a book or album; season poster and episode stills for TV).
 
 ## 4. UI behaviour
