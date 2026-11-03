@@ -138,7 +138,7 @@ else
     [
         new("official", "Official"),
         new("private", "Private"),
-        new("ai", "AI enabled"),
+        new("ai", "Needs Local AI"),
     ];
 
     private static readonly IReadOnlyList<AppSelectOption> SortOptions =
@@ -154,6 +154,13 @@ else
         (PluginCategories.Enrichment, "After import"),
         (PluginCategories.Accounts, "Accounts & lists"),
     ];
+
+    private static string SectionExplainer(string key) => key switch
+    {
+        PluginCategories.Intake => "Used while Library reads new files and works out what they are.",
+        PluginCategories.Accounts => "Connect your accounts and lists on other services.",
+        _ => "Used after an item is in, to fill in details, artwork and lyrics.",
+    };
 
     private static string CategoryLabel(PluginSummaryResponse plugin) =>
         Categories.FirstOrDefault(category => category.Key == PluginCategories.Resolve(plugin.Category)).Label ?? "After import";
@@ -312,23 +319,42 @@ else
             }
             else
             {
-                @if (_layout == AppLayoutSwitch.List && !DeviceContext.IsMobile)
+                @* Grouped by when plugins run (v5 D45): a plugin appears once, in the section of its category. *@
+                var pageItems = visible.Skip((_page - 1) * PageSize).Take(PageSize).ToList();
+                @foreach (var category in Categories)
                 {
-                    @PluginRows(visible.Skip((_page - 1) * PageSize).Take(PageSize).ToList())
-                }
-                else
-                {
-                    <div class="app-card-grid" role="list">
-                        @foreach (var plugin in visible.Skip((_page - 1) * PageSize).Take(PageSize))
+                    var inSection = pageItems.Where(plugin => PluginCategories.Resolve(plugin.Category) == category.Key).ToList();
+                    if (inSection.Count == 0)
+                        continue;
+
+                    var all = visible.Where(plugin => PluginCategories.Resolve(plugin.Category) == category.Key).ToList();
+                    var attention = all.Count(plugin => StatusOf(plugin).NeedsAdministrator);
+                    <section class="plugin-section" aria-labelledby="@($"plugin-section-{category.Key}")" data-testid="plugin-section" data-section="@category.Key">
+                        <header class="plugin-section__head">
+                            <h3 id="@($"plugin-section-{category.Key}")">@category.Label</h3>
+                            <span class="plugin-section__count" data-testid="plugin-section-count">@all.Count</span>
+                            <span class="plugin-section__health" data-testid="plugin-section-health">@(attention == 0 ? "All fine" : $"{attention} need{(attention == 1 ? "s" : string.Empty)} attention")</span>
+                            <p class="plugin-section__explainer">@SectionExplainer(category.Key)</p>
+                        </header>
+                        @if (_layout == AppLayoutSwitch.List && !DeviceContext.IsMobile)
                         {
-                            var focused = IsFocused(plugin);
-                            <div role="listitem"
-                                 @key="plugin.Id"
-                                 id="@CardElementId(plugin.Id)"
-                                 class="@(focused ? "settings-plugin-card-focus" : null)"
-                                 data-focused="@(focused ? "true" : null)">@PluginCard(plugin)</div>
+                            @PluginRows(inSection)
                         }
-                    </div>
+                        else
+                        {
+                            <div class="app-card-grid" role="list">
+                                @foreach (var plugin in inSection)
+                                {
+                                    var focused = IsFocused(plugin);
+                                    <div role="listitem"
+                                         @key="plugin.Id"
+                                         id="@CardElementId(plugin.Id)"
+                                         class="@(focused ? "settings-plugin-card-focus" : null)"
+                                         data-focused="@(focused ? "true" : null)">@PluginCard(plugin)</div>
+                                }
+                            </div>
+                        }
+                    </section>
                 }
                 <AppPager Total="@visible.Count" PageSize="@PageSize" Page="@_page" Noun="plugins" PageChanged="@(page => _page = page)" />
             }
@@ -357,9 +383,9 @@ else
 
         return @<div class="plugin-page" data-testid="plugin-page">
             <header class="plugin-page__header">
-                <AppStatusDot Tone="@status.Tone" Sentence="@status.Sentence">@TileLogo(plugin, 48)</AppStatusDot>
+                @TileLogo(plugin, 48)
                 <div class="plugin-page__title">
-                    <h2>@plugin.Name</h2>
+                    <h2>@plugin.Name <AppStatusDot Tick="true" Tone="@status.Tone" Sentence="@status.Sentence" /></h2>
                     <p data-testid="plugin-status-sentence">@status.Sentence</p>
                 </div>
                 @if (canChange && SwitchState(plugin, canChange) is { } on)
@@ -390,11 +416,12 @@ else
         var state = StateCardHealth.ForPlugin(plugin, health, StateCardHealth.LatestRun(_tasks, plugin.Id));
         var missing = MissingToolText(plugin, state.Word);
         var waiting = WaitingFor(plugin);
+        var attentionAsked = AttentionRequested();
         return @<div class="plugin-page__setup" data-testid="plugin-setup">
-            @if (waiting.Count > 0 || missing is not null || (plugin.RequiresLocalAi && Attention.LocalAiBlocked))
+            @if (waiting.Count > 0 || missing is not null || (plugin.RequiresLocalAi && Attention.LocalAiBlocked) || (attentionAsked && status.NeedsAdministrator))
             {
-                <AppAlert Tone="AppUiTone.Warning" data-testid="plugin-overview-attention">
-                    @(plugin.RequiresLocalAi && Attention.LocalAiBlocked ? "It is waiting for Local AI." : waiting.Count > 0 ? $"It is waiting for {string.Join(" and ", waiting)}." : missing)
+                <AppAlert Tone="AppUiTone.Warning" Class="@(attentionAsked ? "settings-plugin-card-focus" : null)" data-highlighted="@(attentionAsked ? "true" : null)" data-testid="plugin-overview-attention">
+                    @(plugin.RequiresLocalAi && Attention.LocalAiBlocked ? "It is waiting for Local AI." : waiting.Count > 0 ? $"It is waiting for {string.Join(" and ", waiting)}." : missing ?? status.Sentence)
                     <AppActionBar Align="AppHorizontalAlignment.Start">
                         @if (plugin.RequiresLocalAi && Attention.LocalAiBlocked)
                         {
@@ -434,7 +461,7 @@ else
     // and one button. 56 px rows; nothing wraps at 1280.
     private RenderFragment PluginRows(IReadOnlyList<PluginSummaryResponse> plugins) => @<AppTable Class="settings-plugin-rows" data-testid="plugin-rows">
         <thead>
-            <tr><th scope="col">Plugin</th><th scope="col">Provides</th><th scope="col">Status</th><th scope="col"><span class="settings-plugin-rows__sr">Switch</span></th><th scope="col"><span class="settings-plugin-rows__sr">Action</span></th></tr>
+            <tr><th scope="col">Plugin</th><th scope="col">Provides</th><th scope="col"><span class="settings-plugin-rows__sr">Switch</span></th><th scope="col" class="settings-plugin-rows__narrow">Health</th><th scope="col" class="settings-plugin-rows__narrow">Settings</th></tr>
         </thead>
         <tbody>
             @foreach (var plugin in plugins)
@@ -444,28 +471,24 @@ else
                 <tr @key="plugin.Id" id="@CardElementId(plugin.Id)" data-plugin-row="@plugin.Id" class="@(focused ? "settings-plugin-card-focus" : null)" data-focused="@(focused ? "true" : null)">
                     <td>
                         <div class="settings-plugin-rows__name">
-                            <AppStatusDot Tone="@status.Tone" Sentence="@status.Sentence">@TileLogo(plugin, 32)</AppStatusDot>
+                            @TileLogo(plugin, 32)
                             <span class="settings-plugin-rows__copy">
                                 <a href="@DetailHref(plugin.Id)" title="@plugin.LongDescription">@plugin.Name</a>
                                 @if (IsPrivate(plugin)) { <span class="settings-plugin-rows__private">Private</span> }
+                                @if (status.KeyMissing) { <span class="plugin-foot__pill" data-testid="plugin-key-missing">Key missing</span> }
                                 <small title="@plugin.LongDescription">@plugin.ShortDescription</small>
                             </span>
                         </div>
                     </td>
                     <td><PluginProvidesLine Plugin="@plugin" /></td>
-                    <td>@status.Sentence</td>
                     <td>
                         @if (SwitchState(plugin, true) is { } on)
                         {
                             <AppSwitchRow Value="@on" ValueChanged="@(value => SetEnabledAsync(plugin, value))" Disabled="@(SwitchDisabledReason(plugin) is not null)" AriaLabel="@($"Switch {plugin.Name} on or off")" />
                         }
                     </td>
-                    <td>
-                        <div class="settings-plugin-rows__actions">
-                            <AppButton Label="@status.ButtonLabel" Size="AppControlSize.Compact" aria-label="@($"{status.ButtonLabel} for {plugin.Name}")"
-                                       OnClick="@(() => RunTileAction(plugin, status))" />
-                        </div>
-                    </td>
+                    <td class="settings-plugin-rows__narrow"><AppStatusDot Tick="true" Tone="@status.Tone" Sentence="@status.Sentence" /></td>
+                    <td class="settings-plugin-rows__narrow">@PluginGear(plugin, status)</td>
                 </tr>
             }
         </tbody>
@@ -495,7 +518,7 @@ else
                              Class="@(IsPrivate(plugin) ? "app-list-card--private" : null)"
                              data-state-card="plugin"
                              data-health="@WordOf(plugin).ToString().ToLowerInvariant()">
-            <Logo><AppStatusDot Tone="@status.Tone" Sentence="@status.Sentence">@TileLogo(plugin, 40)</AppStatusDot></Logo>
+            <Logo>@TileLogo(plugin, 40)</Logo>
             <Aside>
                 @if (SwitchState(plugin, canChange) is { } on)
                 {
@@ -510,17 +533,24 @@ else
                 <PluginProvidesLine Plugin="@plugin" />
             </ChildContent>
             <Footer>
-                @if (canChange)
-                {
-                    <AppButton Label="@status.ButtonLabel" Size="AppControlSize.Compact"
-                               aria-label="@($"{status.ButtonLabel} for {plugin.Name}")"
-                               OnClick="@(() => RunTileAction(plugin, status))" />
-                }
+                @* The fixed footer (v5 D43, D44): tick bottom left, "Key missing" beside it only when a key is missing, gear bottom right. *@
+                <span class="plugin-foot__health">
+                    <AppStatusDot Tick="true" Tone="@status.Tone" Sentence="@status.Sentence" />
+                    @if (status.KeyMissing)
+                    {
+                        <span class="plugin-foot__pill" data-testid="plugin-key-missing">Key missing</span>
+                    }
+                </span>
+                @PluginGear(plugin, status)
             </Footer>
         </AppListCard>;
     }
 
-    private sealed record TileStatus(AppStatusDotTone Tone, string Sentence, string Key, string ButtonLabel);
+    private sealed record TileStatus(AppStatusDotTone Tone, string Sentence, string Key, bool KeyMissing = false)
+    {
+        /// <summary>The gear turns amber when the administrator has something to do (amber or red tick).</summary>
+        public bool NeedsAdministrator => Tone is AppStatusDotTone.Attention or AppStatusDotTone.Broken;
+    }
 
     // The one status a tile, row and page header shows (v4 D29): a dot colour, one sentence, a filter key and the button's words.
     // When the dot is amber or red the button is the fix; otherwise it is Configure.
@@ -529,56 +559,46 @@ else
         if (IsProvider(plugin) && plugin.Provider is { } provider)
         {
             if (provider.AlwaysOn)
-                return new(AppStatusDotTone.Off, "Always on", "always-on", "Configure");
+                return new(AppStatusDotTone.Off, "Always on", "always-on");
             if (provider.RequiresKey && !provider.KeyPresent)
-                return new(AppStatusDotTone.Attention, "Needs a key", "needs-key", "Add key");
+                return new(AppStatusDotTone.Attention, "Needs a key", "needs-key", KeyMissing: true);
             if (!plugin.Enabled)
-                return new(AppStatusDotTone.Off, "Off", "off", "Configure");
+                return new(AppStatusDotTone.Off, "Off", "off");
             return _providerStatus.TryGetValue(plugin.Id, out var providerStatus) && ProviderIsFailing(providerStatus)
-                ? new(AppStatusDotTone.Broken, providerStatus.LastFailureReason ?? "Not responding", "broken", "Retry")
-                : new(AppStatusDotTone.Working, "Working", "working", "Configure");
+                ? new(AppStatusDotTone.Broken, providerStatus.LastFailureReason ?? "Not responding", "broken")
+                : new(AppStatusDotTone.Working, "Working", "working");
         }
 
         if (plugin.RequiresLocalAi && Attention.LocalAiBlocked)
-            return new(AppStatusDotTone.Attention, "Waiting for Local AI", "waiting-ai", "Set up Local AI");
+            return new(AppStatusDotTone.Attention, "Waiting for Local AI", "waiting-ai");
 
         _health.TryGetValue(plugin.Id, out var health);
         var state = StateCardHealth.ForPlugin(plugin, health, StateCardHealth.LatestRun(_tasks, plugin.Id));
         if (WaitingFor(plugin) is { Count: > 0 } waiting)
-            return new(AppStatusDotTone.Attention, $"Waiting for {string.Join(" and ", waiting)}", "waiting", "Configure");
+            return new(AppStatusDotTone.Attention, $"Waiting for {string.Join(" and ", waiting)}", "waiting");
 
         if (MissingToolText(plugin, state.Word) is { } missing)
-            return new(AppStatusDotTone.Attention, missing, "missing-tools", "Install tools");
+            return new(AppStatusDotTone.Attention, missing, "missing-tools");
 
         return state.Word switch
         {
-            HealthWord.NeedsAttention => new(AppStatusDotTone.Attention, state.LastProblem ?? "Needs attention", "needs-attention", "Configure"),
-            HealthWord.Broken => new(AppStatusDotTone.Broken, state.LastProblem ?? "Not working", "broken", "Retry"),
-            HealthWord.Off => new(AppStatusDotTone.Off, "Off", "off", "Configure"),
-            _ when !plugin.Enabled => new(AppStatusDotTone.Off, "Off", "off", "Configure"),
-            _ => new(AppStatusDotTone.Working, "Working", "working", "Configure"),
+            HealthWord.NeedsAttention => new(AppStatusDotTone.Attention, state.LastProblem ?? "Needs attention", "needs-attention"),
+            HealthWord.Broken => new(AppStatusDotTone.Broken, state.LastProblem ?? "Not working", "broken"),
+            HealthWord.Off => new(AppStatusDotTone.Off, "Off", "off"),
+            _ when !plugin.Enabled => new(AppStatusDotTone.Off, "Off", "off"),
+            _ => new(AppStatusDotTone.Working, "Working", "working"),
         };
     }
 
-    // The tile's button: the fix when the dot is amber or red, otherwise the plugin's own page.
-    private void RunTileAction(PluginSummaryResponse plugin, TileStatus status)
-    {
-        switch (status.ButtonLabel)
-        {
-            case "Set up Local AI":
-                Navigation.NavigateTo("/settings/ai");
-                break;
-            case "Install tools":
-                Navigation.NavigateTo("/settings/tools");
-                break;
-            case "Retry":
-                _ = ReloadAsync();
-                break;
-            default:
-                ConfigurePlugin(plugin.Id);
-                break;
-        }
-    }
+    // The gear (v5 D43): on every tile and row, always opens the plugin's own page. It turns amber when the administrator has
+    // something to do; the page then opens with the part that needs attention highlighted.
+    private RenderFragment PluginGear(PluginSummaryResponse plugin, TileStatus status) => @<AppIconButton Icon="@AppMaterialIcons.Outlined.Settings"
+                                 Tooltip="@($"Open {plugin.Name}")"
+                                 AriaLabel="@($"Open {plugin.Name}")"
+                                 Href="@DetailHref(plugin.Id, "setup", status.NeedsAdministrator)"
+                                 Tone="@(status.NeedsAdministrator ? AppUiTone.Warning : AppUiTone.Neutral)"
+                                 data-testid="plugin-gear"
+                                 data-attention="@(status.NeedsAdministrator ? "true" : null)" />;
 
     // A provider shows its bundled brand logo (an uploaded one overrides it); a plugin that runs on Local AI has no brand logo,
     // so its box is a purple sparkle (v4 D32); any other plugin keeps the extension icon.
@@ -1391,8 +1411,12 @@ else
     private void ConfigurePlugin(string pluginId, string tab = "setup") =>
         Navigation.NavigateTo(DetailHref(pluginId, tab));
 
-    private static string DetailHref(string pluginId, string tab = "setup") =>
-        $"/settings/plugins/{Uri.EscapeDataString(pluginId)}" + (tab == "setup" ? string.Empty : "/" + tab);
+    private static string DetailHref(string pluginId, string tab = "setup", bool attention = false) =>
+        $"/settings/plugins/{Uri.EscapeDataString(pluginId)}" + (tab == "setup" ? string.Empty : "/" + tab) + (attention ? "?attention=1" : string.Empty);
+
+    // The gear of a plugin that needs the administrator links with ?attention=1.
+    private bool AttentionRequested() =>
+        new Uri(Navigation.Uri).Query.Split('&', '?').Contains("attention=1", StringComparer.Ordinal);
 
     private async Task SetEnabledAsync(PluginSummaryResponse plugin, bool enabled)
     {
