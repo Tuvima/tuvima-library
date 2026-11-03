@@ -124,7 +124,8 @@
     private Guid _loadedFor;
     private bool _naming;
     private string _newName = string.Empty;
-    private bool _dragReady;
+    // The element the drag script is attached to; a new element (another video was opened) needs it attached again.
+    private string? _attachedTo;
     private IJSObjectReference? _module;
     private DotNetObjectReference<EditorVideoSeriesPanel>? _self;
 
@@ -165,8 +166,11 @@
         _newName = string.Empty;
         try
         {
-            var series = await Api.GetVideoSeriesAsync(id);
-            var order = await Api.GetVideoOrderAsync(id);
+            var seriesRead = Api.GetVideoSeriesAsync(id);
+            var orderRead = Api.GetVideoOrderAsync(id);
+            await Task.WhenAll(seriesRead, orderRead);
+            var series = await seriesRead;
+            var order = await orderRead;
             if (_loadedFor != id)
             {
                 return;
@@ -182,12 +186,14 @@
             Logger.LogWarning(ex, "The series and order of video {EntityId} could not be read for the editor", id);
             _series = null;
             _editor.Load(null);
+            // Forget that this item was loaded, so the next time the panel is shown it reads again instead of staying blank.
+            _loadedFor = Guid.Empty;
         }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (_dragReady || !_editor.HasSomethingToOrder || _root.Context is null)
+        if (_attachedTo == _root.Id || !_editor.HasSomethingToOrder || _root.Context is null)
         {
             return;
         }
@@ -197,11 +203,12 @@
             _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/video-order-drag.js");
             _self ??= DotNetObjectReference.Create(this);
             await _module.InvokeVoidAsync("attach", _root, _self);
-            _dragReady = true;
+            _attachedTo = _root.Id;
         }
         catch (Exception ex) when (ex is JSException or InvalidOperationException or TaskCanceledException or JSDisconnectedException)
         {
             // No script support here (a test host, a closing circuit): the arrows still reorder, so the panel is fully usable without drag.
+            Logger.LogDebug(ex, "Drag and drop for the series order could not start; the arrows still work");
         }
     }
 
@@ -211,6 +218,21 @@
         if (Pending is not { } pending)
         {
             return;
+        }
+
+        // A video moved into another section comes back in that section first, then the order of each section is applied.
+        foreach (var move in pending.Changes.Where(change => change.Kind == EditSessionChangeKinds.VideoSeries && Guid.TryParse(change.TargetId, out _)))
+        {
+            var to = _editor.IndexOfList(Guid.Parse(move.TargetId!));
+            for (var from = 0; to >= 0 && from < _editor.Lists.Count; from++)
+            {
+                var at = _editor.Lists[from].Current.FindIndex(row => row.Id == move.EntityId);
+                if (at >= 0 && from != to)
+                {
+                    _editor.Drop(from, at, to, _editor.Lists[to].Current.Count);
+                    break;
+                }
+            }
         }
 
         foreach (var list in _editor.Lists)
@@ -422,6 +444,7 @@
         catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException or TaskCanceledException)
         {
             // The page is already gone; there is nothing left to detach.
+            Logger.LogDebug(ex, "The series order drag script was already gone when the panel closed");
         }
 
         _self?.Dispose();

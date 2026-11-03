@@ -31,6 +31,8 @@ public static class EditSessionReasons
     public const string AlreadyAlone = "This video is not in a series.";
     public const string OrderChanged = "The videos of this series changed. Open the editor again to reorder them.";
     public const string NothingToOrder = "A series needs at least two videos to be put in order.";
+    public const string RenameIncomplete = "Some of the files could not be renamed, so they keep their old names. The order itself was saved.";
+
     public const string RenameNotAllowed = "Library can only rename files in a Managed folder. Some of these videos are in a folder it only reads, or a file is missing.";
     public const string SeriesClash = "The series changed at the same moment. Open the editor again and retry.";
 

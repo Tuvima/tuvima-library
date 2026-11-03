@@ -54,6 +54,11 @@ public sealed class VideoRenameEditSessionChangeHandler(
             EntityType = "Work",
             Detail = $"Renamed {result.Renamed} video files to match their order.",
         }, ct).ConfigureAwait(false);
+        if (result.Failed > 0)
+        {
+            throw new InvalidOperationException(EditSessionReasons.RenameIncomplete);
+        }
+
         return null;
     }
 

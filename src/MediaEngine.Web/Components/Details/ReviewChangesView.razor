@@ -264,7 +264,7 @@
             // The data is in the library; what is left are file moves (or similar) that did not go through. The rows are no longer editable.
             var failed = _rows.Count(row => _results.TryGetValue(row.ChangeId, out var result) && result.Status != EditSessionChangeStatuses.Ok);
             var onlyMoves = _rows.Where(row => _results.TryGetValue(row.ChangeId, out var result) && result.Status != EditSessionChangeStatuses.Ok)
-                .All(row => row.Kind == EditSessionChangeKinds.FileMove);
+                .All(row => EditSessionChangeKinds.IsFileChange(row.Kind));
             _savedNote = onlyMoves
                 ? $"Your changes were saved; {failed} file {(failed == 1 ? "move" : "moves")} could not be completed."
                 : $"Your changes were saved; {failed} {(failed == 1 ? "change" : "changes")} could not be completed.";
