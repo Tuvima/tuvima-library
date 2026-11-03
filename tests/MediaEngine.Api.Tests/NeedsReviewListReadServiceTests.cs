@@ -87,8 +87,14 @@ public sealed class NeedsReviewListReadServiceTests : IDisposable
     [Fact]
     public async Task ALibrarysNotIdentifiedCountOpensAListOfExactlyThatManyRows()
     {
-        for (var i = 0; i < 5; i++) SeedFile("movies", $"m{i}.mkv", tried: At(i));
-        for (var i = 0; i < 2; i++) SeedFile("tv", $"t{i}.mkv", tried: At(10 + i));
+        for (var i = 0; i < 5; i++)
+        {
+            SeedFile("movies", $"m{i}.mkv", tried: At(i));
+        }
+        for (var i = 0; i < 2; i++)
+        {
+            SeedFile("tv", $"t{i}.mkv", tried: At(10 + i));
+        }
         var kept = SeedFile("movies", "kept.mkv", tried: At(20));
         await _unmatched.KeepAsIsAsync(kept, DateTimeOffset.UtcNow);
         SeedReview("movies", ReviewTrigger.MetadataConflict, created: At(30));
@@ -150,7 +156,10 @@ public sealed class NeedsReviewListReadServiceTests : IDisposable
     [Fact]
     public async Task PagingKeepsTheTotalAndTheOrder()
     {
-        for (var i = 0; i < 5; i++) SeedFile("movies", $"m{i}.mkv", tried: At(i));
+        for (var i = 0; i < 5; i++)
+        {
+            SeedFile("movies", $"m{i}.mkv", tried: At(i));
+        }
 
         var first = await _service.ListAsync(null, null, true, 0, 2);
         var second = await _service.ListAsync(null, null, true, 2, 2);

@@ -296,11 +296,22 @@ internal class EngineApiClientStub : DispatchProxy
                         LastTriedAt = item.CreatedAt,
                         Review = new MediaEngine.Contracts.Review.ReviewItemDto
                         {
-                            Id = item.Id, EntityId = item.EntityId, EntityType = item.EntityType, Trigger = item.Trigger, Status = item.Status,
-                            ConfidenceScore = item.ConfidenceScore, CandidatesJson = item.CandidatesJson, Detail = item.Detail, CreatedAt = item.CreatedAt,
-                            MediaType = item.MediaType, EntityTitle = item.EntityTitle, CoverUrl = item.CoverUrl,
-                            BridgeIdentifiers = item.BridgeIdentifiers, DetectedFacts = item.DetectedFacts,
-                            FromImportFolder = item.FromImportFolder, FromMerge = item.FromMerge,
+                            Id = item.Id,
+                            EntityId = item.EntityId,
+                            EntityType = item.EntityType,
+                            Trigger = item.Trigger,
+                            Status = item.Status,
+                            ConfidenceScore = item.ConfidenceScore,
+                            CandidatesJson = item.CandidatesJson,
+                            Detail = item.Detail,
+                            CreatedAt = item.CreatedAt,
+                            MediaType = item.MediaType,
+                            EntityTitle = item.EntityTitle,
+                            CoverUrl = item.CoverUrl,
+                            BridgeIdentifiers = item.BridgeIdentifiers,
+                            DetectedFacts = item.DetectedFacts,
+                            FromImportFolder = item.FromImportFolder,
+                            FromMerge = item.FromMerge,
                         },
                     }).ToList();
                     var shown = rows.Where(row => string.IsNullOrWhiteSpace(kind) || kind == "all" || row.Kind == kind).ToList();

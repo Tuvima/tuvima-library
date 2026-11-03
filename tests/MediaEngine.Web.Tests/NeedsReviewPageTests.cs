@@ -496,7 +496,12 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
         LastTriedAt = DateTimeOffset.UtcNow.AddHours(-3),
         Unmatched = new MediaEngine.Contracts.Library.UnmatchedItemDto
         {
-            AssetId = assetId, LibraryId = library, FileName = name, Folder = "C:/media/movies", WorkId = workId, Reason = reason,
+            AssetId = assetId,
+            LibraryId = library,
+            FileName = name,
+            Folder = "C:/media/movies",
+            WorkId = workId,
+            Reason = reason,
             LastTriedAt = DateTimeOffset.UtcNow.AddHours(-3),
         },
     };
@@ -511,8 +516,15 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
         BestGuess = guess,
         Review = new MediaEngine.Contracts.Review.ReviewItemDto
         {
-            Id = id, EntityId = Guid.NewGuid(), EntityType = "MediaAsset", Trigger = trigger, Status = "Pending", EntityTitle = title,
-            MediaType = "Movies", CreatedAt = DateTimeOffset.UtcNow.AddHours(-2), LibraryId = "movies",
+            Id = id,
+            EntityId = Guid.NewGuid(),
+            EntityType = "MediaAsset",
+            Trigger = trigger,
+            Status = "Pending",
+            EntityTitle = title,
+            MediaType = "Movies",
+            CreatedAt = DateTimeOffset.UtcNow.AddHours(-2),
+            LibraryId = "movies",
         },
     };
 
