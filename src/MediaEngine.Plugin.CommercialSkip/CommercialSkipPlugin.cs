@@ -86,24 +86,7 @@ public sealed class CommercialSkipPlugin : ITuvimaPlugin
             degradedMessage: "One or more commercial detection tools are unavailable."),
     ];
 
-    private static JsonElement SettingsSchema()
-    {
-        using var document = JsonDocument.Parse("""
-        {
-          "properties": {
-            "use_comskip": { "type": "boolean", "title": "Use Comskip", "description": "Use Comskip when it is available. It is the more accurate of the two.", "default": true },
-            "use_ffmpeg_fallback": { "type": "boolean", "title": "Fall back to FFmpeg", "description": "Use FFmpeg to find likely breaks when Comskip is not available.", "default": true },
-            "minimum_commercial_seconds": { "type": "integer", "title": "Shortest break", "description": "Seconds. Anything shorter is not marked.", "minimum": 5, "maximum": 300, "default": 30 },
-            "maximum_commercial_seconds": { "type": "integer", "title": "Longest break", "description": "Seconds. Anything longer is not marked.", "minimum": 60, "maximum": 1800, "default": 600 },
-            "scheduled_batch_size": { "type": "integer", "title": "Files per pass", "description": "How many recordings are checked in one background pass.", "minimum": 1, "maximum": 500, "default": 25 },
-            "auto_install_tools": { "type": "boolean", "title": "Download missing tools", "description": "Allow the Library to download Comskip and FFmpeg if they are missing.", "default": true, "advanced": true },
-            "tool_path": { "type": "string", "title": "Tool folder", "description": "Leave empty to use the tools the Library finds.", "default": "", "advanced": true },
-            "comskip_tool_path": { "type": "string", "title": "Comskip location", "description": "Leave empty to use the one the Library finds.", "default": "", "advanced": true },
-            "ffmpeg_tool_path": { "type": "string", "title": "FFmpeg location", "description": "Leave empty to use the one the Library finds.", "default": "", "advanced": true }
-          },
-          "required": ["use_comskip", "use_ffmpeg_fallback"]
-        }
-        """);
-        return document.RootElement.Clone();
-    }
+    /// <summary>The settings this plugin shows are described in <c>commercial-skip.settings.json</c>, shipped beside the code.</summary>
+    private static JsonElement SettingsSchema() =>
+        ShippedPluginSettings.Read(typeof(CommercialSkipPlugin).Assembly, "commercial-skip.settings.json");
 }

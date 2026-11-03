@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using MediaEngine.Api.Services.Plugins.Sources;
 using MediaEngine.Contracts.Plugins;
 using MediaEngine.Domain.Configuration;
@@ -15,14 +14,6 @@ namespace MediaEngine.Api.Services.Plugins.Setup;
 internal static class PluginPageModelInputs
 {
     private static readonly JsonSerializerOptions Json = new();
-
-    /// <summary>The standard words on the language choice every metadata source has.</summary>
-    private static readonly (string Value, string Label)[] LanguageChoices =
-    [
-        ("source", "Source defaults"),
-        ("localized", "Prefer localized metadata"),
-        ("both", "Source + localized"),
-    ];
 
     public static PluginPageModelInput FromManifest(
         PluginRegistration registration,
@@ -68,13 +59,8 @@ internal static class PluginPageModelInputs
         IReadOnlySet<string> configuredCredentials,
         IReadOnlyDictionary<string, JsonElement> externalValues)
     {
-        var declared = PluginSettingsDescriptionReader.Read(config.SettingsSchema);
-        var tunables = Tunables(config);
-        var declaredKeys = declared.Settings.Select(setting => setting.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var settings = declared with
-        {
-            Settings = [.. declared.Settings, .. tunables.Settings.Where(setting => !declaredKeys.Contains(setting.Key))],
-        };
+        // Every setting of a source file, its tunables included, is described by the file's own settings_schema (D51, D58).
+        var settings = PluginSettingsDescriptionReader.Read(config.SettingsSchema);
 
         var values = TunableValues(config);
         foreach (var (key, value) in externalValues)
@@ -128,75 +114,7 @@ internal static class PluginPageModelInputs
         };
     }
 
-    /// <summary>
-    /// The tunables every source file has, said in the settings vocabulary as Advanced settings (D51). The ones the Dashboard let
-    /// people change before (language, timeout, request interval, concurrency, address) stay editable; weight, rate limit and cache
-    /// time are shown read-only because nothing changed them before.
-    /// </summary>
-    private static PluginSettingsDescription Tunables(ProviderConfiguration config)
-    {
-        var properties = new JsonObject
-        {
-            ["language_strategy"] = new JsonObject
-            {
-                ["title"] = "Language",
-                ["description"] = "Which language the source's details come in.",
-                ["choices"] = new JsonArray([.. LanguageChoices.Select(choice => (JsonNode)new JsonObject { ["value"] = choice.Value, ["label"] = choice.Label })]),
-                ["default"] = "source",
-                ["order"] = 1000,
-            },
-            ["timeout_seconds"] = Number("Request timeout", "How long to wait for the source before giving up.", "seconds", 1, 120, 1001, readOnly: false, integer: true),
-            ["throttle_ms"] = Number("Minimum request interval", "The shortest wait between two requests.", "ms", 0, 60000, 1002, readOnly: false, integer: true),
-            ["max_concurrency"] = Number("Most requests at once", "How many requests may be waiting for the source at the same time.", "", 1, 32, 1003, readOnly: false, integer: true),
-        };
-
-        if (PrimaryEndpoint(config) is not null)
-        {
-            properties["primary_endpoint"] = new JsonObject
-            {
-                ["title"] = "Primary address",
-                ["description"] = "Where Library asks this source.",
-                ["format"] = "url",
-                ["advanced"] = true,
-                ["order"] = 1004,
-            };
-        }
-
-        properties["weight"] = Number("Weight", "How much Library trusts this source when two disagree. Set by Library.", "", 0, 1, 1005, readOnly: true, integer: false);
-        if (config.RateLimit?.RequestsPerSecond is not null)
-        {
-            properties["requests_per_second"] = Number("Rate limit", "The most requests a second Library makes to this source.", "per second", 0, 1000, 1006, readOnly: true, integer: false);
-        }
-
-        if (config.CacheTtlHours is not null)
-        {
-            properties["cache_ttl_hours"] = Number("Cache time", "How long an answer is kept before the source is asked again.", "hours", 0, 8760, 1007, readOnly: true, integer: true);
-        }
-
-        foreach (var (key, node) in properties)
-        {
-            if (node is JsonObject obj && key != "language_strategy")
-            {
-                obj["advanced"] = true;
-            }
-        }
-
-        using var document = JsonDocument.Parse(new JsonObject { ["properties"] = properties }.ToJsonString());
-        return PluginSettingsDescriptionReader.Read(document.RootElement.Clone());
-    }
-
-    private static JsonObject Number(string title, string description, string unit, double minimum, double maximum, int order, bool readOnly, bool integer) => new()
-    {
-        ["type"] = integer ? "integer" : "number",
-        ["title"] = title,
-        ["description"] = description,
-        ["unit"] = unit,
-        ["minimum"] = minimum,
-        ["maximum"] = maximum,
-        ["order"] = order,
-        ["read_only"] = readOnly,
-    };
-
+    /// <summary>The current value of each tunable a source file keeps in its own fields (the file's <c>settings_schema</c> describes them).</summary>
     private static Dictionary<string, JsonElement> TunableValues(ProviderConfiguration config)
     {
         var values = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)

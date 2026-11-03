@@ -791,6 +791,99 @@
   "requires_api_key": true,
   "custom_icon_name": null,
   "language_strategy": "localized",
+  "settings_schema": {
+    "properties": {
+      "language_strategy": {
+        "type": "string",
+        "control": "choice",
+        "title": "Language",
+        "description": "Which language the source's details come in.",
+        "group": "Details",
+        "order": 1000,
+        "enum": [
+          "source",
+          "localized",
+          "both"
+        ],
+        "enum_labels": {
+          "source": "Source defaults",
+          "localized": "Prefer localized metadata",
+          "both": "Source + localized"
+        },
+        "default": "source"
+      },
+      "timeout_seconds": {
+        "type": "integer",
+        "control": "number",
+        "title": "Request timeout",
+        "description": "How long to wait for the source before giving up.",
+        "unit": "seconds",
+        "group": "Connection",
+        "order": 1001,
+        "advanced": true,
+        "minimum": 1,
+        "maximum": 120
+      },
+      "throttle_ms": {
+        "type": "integer",
+        "control": "number",
+        "title": "Minimum request interval",
+        "description": "The shortest wait between two requests.",
+        "unit": "ms",
+        "group": "Connection",
+        "order": 1002,
+        "advanced": true,
+        "minimum": 0,
+        "maximum": 60000
+      },
+      "max_concurrency": {
+        "type": "integer",
+        "control": "number",
+        "title": "Most requests at once",
+        "description": "How many requests may be waiting for the source at the same time.",
+        "group": "Connection",
+        "order": 1003,
+        "advanced": true,
+        "minimum": 1,
+        "maximum": 32
+      },
+      "primary_endpoint": {
+        "type": "string",
+        "control": "url",
+        "title": "Primary address",
+        "description": "Where Library asks this source.",
+        "format": "url",
+        "group": "Connection",
+        "order": 1004,
+        "advanced": true
+      },
+      "weight": {
+        "type": "number",
+        "control": "number",
+        "title": "Weight",
+        "description": "How much Library trusts this source when two disagree. Set by Library.",
+        "group": "Connection",
+        "order": 1005,
+        "advanced": true,
+        "read_only": true,
+        "minimum": 0,
+        "maximum": 1
+      },
+      "requests_per_second": {
+        "type": "number",
+        "control": "number",
+        "title": "Rate limit",
+        "description": "The most requests a second Library makes to this source.",
+        "unit": "per second",
+        "group": "Connection",
+        "order": 1006,
+        "advanced": true,
+        "read_only": true,
+        "minimum": 0,
+        "maximum": 1000
+      }
+    }
+  },
   "ui_metadata": {
     "plugin_category": "intake",
     "provides": ["Identification", "Details", "Artwork", "People"],

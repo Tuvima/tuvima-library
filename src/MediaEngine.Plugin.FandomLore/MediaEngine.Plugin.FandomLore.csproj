@@ -8,4 +8,10 @@
   <ItemGroup>
     <ProjectReference Include="..\MediaEngine.Plugins\MediaEngine.Plugins.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <!-- The settings this plugin shows, kept as JSON beside the code (Plugins screens v5 D51, D58). -->
+    <EmbeddedResource Include="*.settings.json" LogicalName="shipped-plugin-settings.%(Filename)%(Extension)" />
+  </ItemGroup>
+
 </Project>

@@ -51,6 +51,8 @@
     <EmbeddedResource Include="..\..\config\exiftool\tuvima.config" LogicalName="MediaEngine.Api.exiftool.tuvima.config" />
     <!-- The providers that ship with the Library, kept so a missing or unreadable provider file can be put back at start-up (Plugins screens v4 D37). -->
     <EmbeddedResource Include="..\..\config\providers\*.json" LogicalName="MediaEngine.Api.shipped-providers.%(Filename)%(Extension)" />
+    <!-- The settings of the Local AI feature plugins, kept as JSON beside their code (Plugins screens v5 D51, D58). -->
+    <EmbeddedResource Include="Services\Plugins\AiFeatures\*.settings.json" LogicalName="shipped-plugin-settings.%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(Configuration)' == 'Release'">
