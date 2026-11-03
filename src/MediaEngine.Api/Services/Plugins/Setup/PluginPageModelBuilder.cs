@@ -60,12 +60,15 @@ internal sealed record PluginPageModelInput
 
     /// <summary>The plugin's logging cap (D59). When set, the Settings card ends with the two Activity log controls that change it.</summary>
     public PluginActivityCap? ActivityCap { get; init; }
+
+    /// <summary>The state of the plugin's file (D54), or null when the plugin has no file to show. It becomes the last card.</summary>
+    public PluginFileStateDto? File { get; init; }
 }
 
 /// <summary>
 /// Builds a plugin's page model (Plugins and Integrations screens v5 D46, D48, D51) from facts the plugin's JSON already holds:
-/// Access, What it provides, Settings, Privacy and About. Pure: no storage, no network, no clock. The Plugin file card is added by
-/// a later packet. A plugin never supplies layout, only content, and a card it has nothing for is left out.
+/// Access, What it provides, Settings, Privacy and About, then the Plugin file card (D54) last. Pure: no storage, no network, no
+/// clock. A plugin never supplies layout, only content, and a card it has nothing for is left out.
 /// </summary>
 internal static class PluginPageModelBuilder
 {
@@ -74,6 +77,7 @@ internal static class PluginPageModelBuilder
     public const string SettingsCard = "settings";
     public const string PrivacyCard = "privacy";
     public const string AboutCard = "about";
+    public const string FileCard = "file";
     public const string ActivityEntriesKey = "max_entries";
     public const string ActivityDaysKey = "max_days";
 
@@ -109,6 +113,11 @@ internal static class PluginPageModelBuilder
 
         page.Cards.Add(BuildPrivacy(input));
         page.Cards.Add(BuildAbout(input));
+        if (input.File is { } file)
+        {
+            page.Cards.Add(BuildFile(file));
+        }
+
         page.ThingsToKnow = [.. input.Settings.ThingsToKnow.Concat(input.ExtraNotes).Select(note => new PluginSetupNoteDto { Where = note.Where, Word = note.Word, Message = note.Message })];
         return page;
     }
@@ -180,6 +189,35 @@ internal static class PluginPageModelBuilder
                 Sends = destination.Sends,
                 MaxRequestsPerMinute = destination.MaxRequestsPerMinute,
             })],
+        };
+    }
+
+    /// <summary>The Plugin file card (D54): the file's name, whether it is valid and whether it differs from Tuvima's version.</summary>
+    private static PluginSetupCardDto BuildFile(PluginFileStateDto file)
+    {
+        var state = file.State == "valid"
+            ? "Valid"
+            : file.ErrorCount == 1 ? "1 problem" : $"{file.ErrorCount} problems";
+        if (file.NoteCount > 0)
+        {
+            state += file.NoteCount == 1 ? ", 1 thing to know" : $", {file.NoteCount} things to know";
+        }
+
+        var compared = !file.HasShippedCopy
+            ? "A plugin of your own: there is no Tuvima version to compare with"
+            : file.DiffersFromShipped ? "Differs from Tuvima's version" : "The same as Tuvima's version";
+        return new PluginSetupCardDto
+        {
+            Key = FileCard,
+            Title = "Plugin file",
+            NeedsAttention = false,
+            File = file,
+            Facts =
+            [
+                new PluginSetupFactDto { Label = "File", Value = file.FileName },
+                new PluginSetupFactDto { Label = "State", Value = state },
+                new PluginSetupFactDto { Label = "Compared with", Value = compared },
+            ],
         };
     }
 

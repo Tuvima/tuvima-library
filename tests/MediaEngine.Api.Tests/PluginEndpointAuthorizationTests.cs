@@ -39,6 +39,8 @@ public sealed class PluginEndpointAuthorizationTests
             ("/plugins/directory", "GET", ApplicationPermissionIds.PluginsRead),
             ("/plugins/{pluginId}", "GET", ApplicationPermissionIds.PluginsRead),
             ("/plugins/{pluginId}/page", "GET", ApplicationPermissionIds.PluginsRead),
+            ("/plugins/{pluginId}/file", "GET", ApplicationPermissionIds.PluginsRead),
+            ("/plugins/{pluginId}/file/check", "POST", ApplicationPermissionIds.PluginsManage),
             ("/plugins/{pluginId}/removal-impact", "GET", ApplicationPermissionIds.PluginsRead),
             ("/plugins/{pluginId}/enable", "POST", ApplicationPermissionIds.PluginsManage),
             ("/plugins/{pluginId}/disable", "POST", ApplicationPermissionIds.PluginsManage),

@@ -1,6 +1,7 @@
 using MediaEngine.Api.Services.Plugins;
 using MediaEngine.Api.Services.Plugins.AiFeatures;
 using MediaEngine.Api.Services.Plugins.Declarative;
+using MediaEngine.Api.Services.Plugins.Files;
 using MediaEngine.Api.Services.Plugins.Pages;
 using MediaEngine.Api.Services.Plugins.Service;
 using MediaEngine.Api.Services.Plugins.Setup;
@@ -81,6 +82,11 @@ public static class TuvimaPluginServiceCollectionExtensions
         services.AddSingleton<PluginRemovalService>();
         services.AddSingleton<PluginCheckNowService>();
         services.AddSingleton<IPluginSettingValueSource, StashBoxSettingValueSource>();
+        // The Plugin file card (v5 D54): Tuvima's own copy of each shipped plugin file, the shipped descriptions of compiled-in plugins
+        // (none until they exist; whoever adds them registers their own locator first), and the read and check service.
+        services.TryAddSingleton<IShippedPluginFiles>(_ => new ShippedPluginFiles());
+        services.TryAddSingleton<IShippedPluginDescriptions, NoShippedPluginDescriptions>();
+        services.AddSingleton<PluginFileService>();
         services.AddSingleton<PluginPageModelService>();
         services.AddSingleton<PluginProfileConnectionService>();
         services.AddTuvimaHttpClient(PluginDeviceSignInService.HttpClientName, TimeSpan.FromSeconds(20), addStandardResilience: false);

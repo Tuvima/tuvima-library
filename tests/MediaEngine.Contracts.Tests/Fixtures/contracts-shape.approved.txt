@@ -7763,6 +7763,37 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginEnabledRespons
   enabled: System.Boolean | nullability=not-null | accessors=get,init
   also_changed: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginFileCheckRequest
+  Text: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginFileCheckResponse
+  PluginId: System.String | nullability=not-null | accessors=get,set
+  State: MediaEngine.Contracts.Plugins.PluginFileStateDto | nullability=not-null | accessors=get,set
+  Problems: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginFileProblemDto> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginFileProblemDto
+  Line: System.Int32 | nullability=not-null | accessors=get,set
+  Column: System.Int32 | nullability=not-null | accessors=get,set
+  Severity: System.String | nullability=not-null | accessors=get,set
+  Code: System.String | nullability=not-null | accessors=get,set
+  Message: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginFileResponse
+  PluginId: System.String | nullability=not-null | accessors=get,set
+  Text: System.String | nullability=not-null | accessors=get,set
+  State: MediaEngine.Contracts.Plugins.PluginFileStateDto | nullability=not-null | accessors=get,set
+  Problems: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginFileProblemDto> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginFileStateDto
+  FileName: System.String | nullability=not-null | accessors=get,set
+  Kind: System.String | nullability=not-null | accessors=get,set
+  State: System.String | nullability=not-null | accessors=get,set
+  ErrorCount: System.Int32 | nullability=not-null | accessors=get,set
+  NoteCount: System.Int32 | nullability=not-null | accessors=get,set
+  DiffersFromShipped: System.Boolean | nullability=not-null | accessors=get,set
+  HasShippedCopy: System.Boolean | nullability=not-null | accessors=get,set
+  Editable: System.Boolean | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginHealthCheckDto
   Status: System.String | nullability=not-null | accessors=get,set
   Message: System.String | nullability=nullable | accessors=get,set
@@ -8014,6 +8045,7 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupCardDto
   VaultWords: System.String | nullability=nullable | accessors=get,set
   Text: System.String | nullability=nullable | accessors=get,set
   Facts: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginSetupFactDto> | nullability=not-null | accessors=get,set
+  File: MediaEngine.Contracts.Plugins.PluginFileStateDto | nullability=nullable | accessors=get,set
 
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupChangeResult
   Ok: System.Boolean | nullability=not-null | accessors=get,set

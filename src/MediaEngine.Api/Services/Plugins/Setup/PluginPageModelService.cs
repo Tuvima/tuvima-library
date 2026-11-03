@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MediaEngine.Api.Services.Plugins.Files;
 using MediaEngine.Api.Services.Plugins.Sources;
 using MediaEngine.Contracts.Plugins;
 using MediaEngine.Domain.Configuration;
@@ -20,6 +21,7 @@ public sealed class PluginPageModelService(
     IConfigSecretsStore secrets,
     IEnumerable<IPluginSettingValueSource> valueSources,
     PluginActivityLimits activityLimits,
+    PluginFileService files,
     ILogger<PluginPageModelService> logger)
 {
     /// <summary>The page model of a plugin or a metadata source, or null when there is none with that id.</summary>
@@ -79,7 +81,11 @@ public sealed class PluginPageModelService(
         var configured = await ConfiguredAsync(manifest, ct).ConfigureAwait(false);
         var description = PluginSettingsDescriptionReader.Read(registration.SettingsSchema);
         var external = await ExternalValuesAsync(description, ct).ConfigureAwait(false);
-        return PluginPageModelBuilder.Build(PluginPageModelInputs.FromManifest(registration, access, configured, external) with { ActivityCap = activityLimits.Get(manifest.Id) });
+        return PluginPageModelBuilder.Build(PluginPageModelInputs.FromManifest(registration, access, configured, external) with
+        {
+            ActivityCap = activityLimits.Get(manifest.Id),
+            File = await files.StateAsync(manifest.Id, ct).ConfigureAwait(false),
+        });
     }
 
     private async Task<PluginSetupPageResponse> BuildForSourceAsync(ProviderConfiguration config, CancellationToken ct)
@@ -93,7 +99,11 @@ public sealed class PluginPageModelService(
 
         var description = PluginSettingsDescriptionReader.Read(config.SettingsSchema);
         var external = await ExternalValuesAsync(description, ct).ConfigureAwait(false);
-        return PluginPageModelBuilder.Build(PluginPageModelInputs.FromSourceFile(config, sheet, ProviderListings.IsCore(config.Name), configured, external) with { ActivityCap = activityLimits.Get(config.Name) });
+        return PluginPageModelBuilder.Build(PluginPageModelInputs.FromSourceFile(config, sheet, ProviderListings.IsCore(config.Name), configured, external) with
+        {
+            ActivityCap = activityLimits.Get(config.Name),
+            File = await files.StateAsync(config.Name, ct).ConfigureAwait(false),
+        });
     }
 
     private async Task<IReadOnlySet<string>> ConfiguredAsync(PluginManifest manifest, CancellationToken ct)

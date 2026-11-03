@@ -23,6 +23,12 @@ public partial interface IEngineApiClient
     /// <summary>PUT /plugins/{id}/page/items/{key}/{itemId}/secret/{field} — saves a row's key.</summary>
     Task<PluginSetupChangeResult?> SavePluginSetupItemSecretAsync(string pluginId, string key, string itemId, string field, string value, CancellationToken ct = default);
 
+    /// <summary>GET /plugins/{id}/file — the text of the file that defines the plugin, with its state and problems. Null when the Engine could not be asked or the plugin has no file.</summary>
+    Task<PluginFileResponse?> GetPluginFileAsync(string pluginId, CancellationToken ct = default);
+
+    /// <summary>POST /plugins/{id}/file/check — checks proposed text for the plugin's file. Writes nothing.</summary>
+    Task<PluginFileCheckResponse?> CheckPluginFileAsync(string pluginId, string text, CancellationToken ct = default);
+
     /// <summary>PUT /plugins/{id}/activity-cap — how much of the plugin's Activity list is kept.</summary>
     Task<PluginActivityCapDto?> SavePluginActivityCapAsync(string pluginId, int maxEntries, int maxDays, CancellationToken ct = default);
 }

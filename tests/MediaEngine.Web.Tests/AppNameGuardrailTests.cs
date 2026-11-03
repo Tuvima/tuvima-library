@@ -61,6 +61,11 @@ public sealed partial class AppNameGuardrailTests
         new("src/MediaEngine.Api/Services/Approvals/ApprovalStatementBuilder.cs", "\"Tuvima hasn't checked this plugin.", "The company that verifies plugins; the not-verified warning (developer-tools spec D-H trust levels)."),
         new("src/MediaEngine.Api/Services/Plugins/Setup/PluginPageModelBuilder.cs", "\"official\" => \"Tuvima\"", "The company that publishes Official plugins: the About card's Made by line."),
         new("src/MediaEngine.Api/Services/Plugins/Setup/PluginPageModelBuilder.cs", "A plugin Tuvima has checked", "The company that verifies plugins: the About card's Made by line."),
+        new("src/MediaEngine.Api/Services/Plugins/Setup/PluginPageModelBuilder.cs", "there is no Tuvima version to compare with", "The company's own copy of a plugin file, which a private plugin does not have (Plugins screens v5 D54)."),
+        new("src/MediaEngine.Api/Services/Plugins/Setup/PluginPageModelBuilder.cs", "Differs from Tuvima's version", "The company's own copy of a plugin file that ships with Library (Plugins screens v5 D54)."),
+        new("src/MediaEngine.Api/Services/Plugins/Files/", "\"Tuvima's version\"", "The company's own copy of a plugin file that ships with Library; a locked-field message names it (Plugins screens v5 D55)."),
+        new("src/MediaEngine.Api/Endpoints/PluginEndpoints.cs", "differs from Tuvima's version", "The company's own copy of a plugin file that ships with Library (Plugins screens v5 D54)."),
+        new("src/MediaEngine.Web/Components/Settings/Plugins/PluginFileCard.razor", "Tuvima's version", "The company's own copy of a plugin file that ships with Library (Plugins screens v5 D54)."),
     ];
 
     [Fact]

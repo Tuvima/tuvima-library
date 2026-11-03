@@ -9723,6 +9723,15 @@
   <data name="PluginPage_Loading" xml:space="preserve">
     <value>Loading</value>
   </data>
+  <data name="PluginFile_None" xml:space="preserve">
+    <value>This plugin has no file to show.</value>
+  </data>
+  <data name="PluginFile_ComputerOnly" xml:space="preserve">
+    <value>Editing is available on a computer.</value>
+  </data>
+  <data name="PluginFile_Opening" xml:space="preserve">
+    <value>Opening the file</value>
+  </data>
   <data name="PluginPage_Unavailable" xml:space="preserve">
     <value>This plugin's page is unavailable</value>
   </data>

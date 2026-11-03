@@ -1,0 +1,134 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Plugins
+@using Microsoft.Extensions.Localization
+@inject IStringLocalizer<SharedStrings> L
+@implements IDisposable
+@inject IEngineApiClient ApiClient
+@inject ILogger<PluginFileCard> Logger
+
+@* The Plugin file card, last on every plugin's page (Plugins and Integrations screens v5 D54). It shows the file's name, whether it is
+   valid or how many problems it has, and whether it differs from Tuvima's version, and View file opens the file in place, read only
+   and coloured, with line numbers. Reading is for a computer: on a phone or tablet only the name and state show, with a line saying
+   so. The card draws whatever file the Engine names; it never knows which plugin it belongs to. WP28 adds the Edit button through
+   EditAction, so the card does not change shape when editing arrives. *@
+@{
+    var file = Card.File;
+}
+<AppCard Title="@Card.Title" Class="plugin-page__card" data-testid="plugin-file-card">
+    @if (file is null)
+    {
+        <p class="plugin-file__quiet" data-testid="plugin-file-none">@L["PluginFile_None"]</p>
+    }
+    else
+    {
+        <div class="plugin-file" data-testid="plugin-file-state" data-state="@file.State">
+            <div class="plugin-file__heading">
+                <strong data-testid="plugin-file-name">@file.FileName</strong>
+                <span data-testid="plugin-file-valid"><AppStatusBadge Text="@StateWords(file)" Tone="@(file.State == "valid" ? AppUiTone.Success : AppUiTone.Error)" /></span>
+                @if (file.HasShippedCopy)
+                {
+                    <span data-testid="plugin-file-differs"><AppStatusBadge Text="@(file.DiffersFromShipped ? "Differs from Tuvima's version" : "Same as Tuvima's version")"
+                                    Tone="@(file.DiffersFromShipped ? AppUiTone.Warning : AppUiTone.Neutral)" /></span>
+                }
+            </div>
+            @if (file.NoteCount > 0)
+            {
+                <small class="plugin-file__quiet" data-testid="plugin-file-notes">@(file.NoteCount == 1 ? "1 thing to know" : $"{file.NoteCount} things to know") that does not stop it working.</small>
+            }
+
+            @if (CanView)
+            {
+                <div class="plugin-file__actions">
+                    <AppButton Label="@(_open ? "Hide file" : "View file")" StartIcon="@AppMaterialIcons.Outlined.Description" Size="AppControlSize.Compact"
+                               Disabled="@_loading" OnClick="@ToggleAsync" data-testid="plugin-file-view" />
+                    @* The place the editor's Edit button goes (a later packet). Nothing is drawn here yet. *@
+                    @EditAction
+                </div>
+            }
+            else
+            {
+                <small class="plugin-file__quiet" data-testid="plugin-file-computer-only">@L["PluginFile_ComputerOnly"]</small>
+            }
+
+            @if (CanView && _open)
+            {
+                @if (_loading)
+                {
+                    <AppPageState Kind="AppPageStateKind.Loading" Title="@L["PluginFile_Opening"]" />
+                }
+                else if (_response is null)
+                {
+                    <AppAlert Tone="AppUiTone.Error" data-testid="plugin-file-unavailable">The Engine did not return the file. Try again.</AppAlert>
+                }
+                else
+                {
+                    <PluginFileViewer Text="@_response.Text" FileName="@_response.State.FileName" Problems="@_response.Problems" />
+                }
+            }
+        </div>
+    }
+</AppCard>
+
+@code {
+    private readonly CancellationTokenSource _disposed = new();
+    private PluginFileResponse? _response;
+    private bool _open;
+    private bool _loading;
+    private string? _loadedFor;
+
+    /// <summary>The plugin whose file this is.</summary>
+    [Parameter, EditorRequired] public string PluginId { get; set; } = string.Empty;
+
+    /// <summary>The file card of the plugin's page model.</summary>
+    [Parameter, EditorRequired] public PluginSetupCardDto Card { get; set; } = default!;
+
+    /// <summary>True on a computer (the same rule as editing items); false on a phone or tablet, where only the name and state show.</summary>
+    [Parameter] public bool CanView { get; set; }
+
+    /// <summary>The extension point for the editor's Edit button. Not filled yet.</summary>
+    [Parameter] public RenderFragment? EditAction { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        if (!string.Equals(_loadedFor, PluginId, StringComparison.Ordinal))
+        {
+            _loadedFor = PluginId;
+            _open = false;
+            _response = null;
+        }
+    }
+
+    private async Task ToggleAsync()
+    {
+        if (_open)
+        {
+            _open = false;
+            return;
+        }
+
+        _open = true;
+        _loading = true;
+        try
+        {
+            _response = await ApiClient.GetPluginFileAsync(PluginId, _disposed.Token);
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "Could not read the file of plugin {PluginId}.", PluginId);
+            _response = null;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private static string StateWords(PluginFileStateDto file) =>
+        file.State == "valid" ? "Valid" : file.ErrorCount == 1 ? "1 problem" : $"{file.ErrorCount} problems";
+
+    public void Dispose()
+    {
+        _disposed.Cancel();
+        _disposed.Dispose();
+    }
+}

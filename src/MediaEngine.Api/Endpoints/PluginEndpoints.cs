@@ -6,6 +6,7 @@ using MediaEngine.Api.Services.LocalAi;
 using MediaEngine.Api.Services.Plugins;
 using MediaEngine.Api.Services.Plugins.AiFeatures;
 using MediaEngine.Api.Services.Plugins.Declarative;
+using MediaEngine.Api.Services.Plugins.Files;
 using MediaEngine.Api.Services.Plugins.Service;
 using MediaEngine.Api.Services.Plugins.Setup;
 using MediaEngine.Api.Services.Plugins.Sources;
@@ -389,6 +390,42 @@ internal static class PluginEndpoints
         .Produces<PluginSetupPageResponse>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsRead);
+
+        // The Plugin file card (v5 D54, D55 first half): the file's text with its state, and a check of proposed text. Both read only.
+        group.MapGet("/{pluginId}/file", async (
+            string pluginId,
+            [FromServices] PluginFileService files,
+            CancellationToken ct) =>
+        {
+            var file = await files.ReadAsync(pluginId, ct).ConfigureAwait(false);
+            return file is null ? ApiErrors.NotFound($"Plugin '{pluginId}' has no file to show.") : Results.Ok(file);
+        })
+        .WithName("GetPluginFile")
+        .WithSummary("The text of the file that defines a plugin (a provider source file, a manifest, or the shipped description of a compiled-in plugin) with its state: valid or the problems with their lines, and whether it differs from Tuvima's version.")
+        .Produces<PluginFileResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsRead);
+
+        group.MapPost("/{pluginId}/file/check", async (
+            string pluginId,
+            PluginFileCheckRequest request,
+            [FromServices] PluginFileService files,
+            CancellationToken ct) =>
+        {
+            if (request.Text is null || request.Text.Length > PluginFileChecker.MaxCharacters)
+            {
+                return ApiErrors.BadRequest("The text is missing or too large to check.");
+            }
+
+            var result = await files.CheckAsync(pluginId, request.Text, ct).ConfigureAwait(false);
+            return result is null ? ApiErrors.NotFound($"Plugin '{pluginId}' has no file to check.") : Results.Ok(result);
+        })
+        .WithName("CheckPluginFile")
+        .WithSummary("Checks proposed text for a plugin's file against the published schema and Library's own rules. Returns every problem with its line and plain words. Writes nothing.")
+        .Produces<PluginFileCheckResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
 
         // The changes the generated page makes to values kept outside the plugin's saved settings, to the rows of a repeating group and
         // to the Activity cap (v5 D49, D59). The Dashboard calls these for every plugin; a plugin's JSON names where its values live.
