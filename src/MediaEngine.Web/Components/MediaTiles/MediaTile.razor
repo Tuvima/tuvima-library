@@ -22,7 +22,7 @@ else if (Item.RenderAsLandscapeGroupTile)
 {
     <MediaGroupTile Item="@Item" />
 }
-else
+else if (!_removed)
 {
 <AppCssElement Tag="div"
                Css="@PaletteScopeStyle">
@@ -211,6 +211,10 @@ else
         <div class="media-tile-episode-caption"><strong>@if (Item.IsSettling) { <span class="media-tile-settling-dot" title="@L["Common_StillBeingMatched"].Value"><span class="media-tile-settling-dot__label">@L["Common_StillBeingMatched"]</span></span> }@(Item.EpisodeContext is { } episode ? $"S{episode.SeasonNumber} E{episode.EpisodeNumber} · {episode.EpisodeTitle}" : Item.Title)</strong><span>@EpisodeShowCaption</span></div>
     }
     </a>
+    @if (ShowActions)
+    {
+        <MediaTileActions Item="@Item" OnDeleted="@(() => { _removed = true; StateHasChanged(); })" />
+    }
     @if (UsesCinematicHover && !SuppressHover)
     {
         <div class="@HoverPanelClass"
@@ -371,6 +375,9 @@ else
     [Parameter] public bool ShowCompactCaption { get; set; }
     [Parameter] public RenderFragment? CaptionContent { get; set; }
     [Parameter] public bool EagerArtwork { get; set; }
+    /// <summary>Draws the cover's "+" (My List) and "..." (Restart, Edit, Delete) buttons; off for places where a cover is only a picture.</summary>
+    [Parameter] public bool ShowActions { get; set; } = true;
+    private bool _removed;
 
     private bool ShouldHideGroupKind => HideGroupIndicators || HideGroupKind;
     private bool ShouldHideGroupCount => HideGroupIndicators || HideGroupCount;
