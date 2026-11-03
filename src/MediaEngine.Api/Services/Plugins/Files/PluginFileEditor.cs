@@ -326,7 +326,7 @@ public sealed class PluginFileEditor(
             }
 
             root["enabled"] = wanted;
-            return root.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+            return root.ToJsonString(MediaEngine.Domain.Services.MediaEngineJson.Indented);
         }
         catch (JsonException)
         {
