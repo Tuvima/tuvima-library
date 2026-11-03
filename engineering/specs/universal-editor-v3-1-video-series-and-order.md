@@ -1,6 +1,6 @@
 # Spec: Universal editor v3.1 — video series, order and rename-to-order
 
-> **Status:** Draft · **Version:** 1 · **Last updated:** 2026-11-03 · **Related docs:** [Universal editor v3](universal-editor-v3.md) (Locked, built; its body is not rewritten) · [Videos](videos.md) · Mockups: [`video-series-and-order.html`](../design/mockups/universal-editor-v3/video-series-and-order.html)
+> **Status:** Draft · **Version:** 1 · **Last updated:** 2026-11-03 (drag and drop added) · **Related docs:** [Universal editor v3](universal-editor-v3.md) (Locked, built; its body is not rewritten) · [Videos](videos.md) · Mockups: [`video-series-and-order.html`](../design/mockups/universal-editor-v3/video-series-and-order.html)
 
 ## 1. Goal
 
@@ -10,13 +10,12 @@ Put back three things that disappeared when the old page editor was retired, now
 
 **In scope**
 - Series chooser for a video (existing series, start a new series by name, not in a series), in the Match tool.
-- Order of a series' videos (move up, move down), in the Match tool of the series.
+- Order of a series' videos: drag and drop by a grip handle on each row, with move up and move down arrows kept for the keyboard and for screen readers, in the Match tool of the series.
 - A "Rename the files to match this order" switch, off by default, shown only when every video is in a Managed folder.
 - All three are staged like every other change: nothing saves until Save changes and Review changes.
 - Public docs and the Local checks list.
 
 **Out of scope**
-- Drag-and-drop ordering (arrows are keyboard friendly and enough for now).
 - Identify by YouTube link and Change thumbnail (already built in the pop-over's Match and Artwork).
 - Photos, music, TV and books (they already have their own ordering and parent moves).
 - Any change to the Engine's rules for who may edit.
@@ -28,6 +27,7 @@ Put back three things that disappeared when the old page editor was retired, now
 - **D3.** Series and order changes never move files. Only the rename switch does, and it is **off by default**, listed last in Review as "Cannot be undone", and run one file at a time like every file move.
 - **D4.** The rename switch is shown only when every video in the list is in a Managed folder. A Read-only folder never shows it and is never touched; files stay in their folder. This keeps the existing Engine rule.
 - **D5.** The Engine already has the actions (read and save series, read and save order, rename). They gain "preview" answers so Review can check them before saving; no new product behaviour.
+- **D7.** Drag and drop is in scope (Shy, 2026-11-03). Each row has a grip handle on the left; dragging shows a line where the video will land, and dropping stages the new order exactly like the arrows do. Arrows stay because drag is not usable by keyboard or screen reader. The same handle drags a video onto another series in the tree (a drop on a series row stages "join this series"). Editing is desktop only, so touch drag is not needed.
 - **D6.** Editing is desktop only, as for the whole editor; the Engine's permission check still decides who may edit.
 
 ## 4. UI behaviour
@@ -37,6 +37,7 @@ Put back three things that disappeared when the old page editor was retired, now
 | Video on its own, Match | A Series chooser: existing series with video counts, "Start a new series…" (asks a name), "Not in a series". A "What will happen" line says no file moves. |
 | Video in a series | The chooser shows the current series; "Not in a series" takes it out. |
 | Series of videos, Match | The videos in order with positions and move up/down arrows; the tree on the left follows the order. |
+| Dragging a video | A grip handle on every row; a line shows where it will land; dropping stages the new order and the tree updates. Arrows still work. |
 | Rename switch | Off by default; only in a Managed folder; wording "Rename the files to match this order". |
 | Review changes | Series and order rows say "Library only"; a rename row is last and says "Cannot be undone". |
 | Nothing to order | A series with one video shows no order list. |
@@ -57,10 +58,10 @@ None to the stored data: series membership, order and the files' names are alrea
 - **Done when:** tests show a series change, an order change and a rename each check and apply through an edit session, a Read-only folder refuses the rename, and nothing is saved on Cancel.
 
 ### WP2 — Series and Order in the Match tool
-- **What it does:** Series chooser and order list in the pop-over, rename switch, preview line, Review rows; tree follows the order.
+- **What it does:** Series chooser and order list with drag handles (a small drag script, no new library) in the pop-over, rename switch, preview line, Review rows; tree follows the order.
 - **Files likely touched:** `src/MediaEngine.Web/Components/Details/EditorMatchPanel.razor` and a small series/order panel, `SharedStrings.resx`, component CSS, bUnit tests.
 - **Depends on:** WP1 · **Size:** Standard
-- **Done when:** bUnit tests cover choosing a series, reordering, the switch showing only for Managed folders, and the Review rows; screenshots match the mockups.
+- **Done when:** bUnit tests cover choosing a series, reordering by drag and by arrows, the switch showing only for Managed folders, and the Review rows; screenshots match the mockups.
 
 ### WP3 — Docs
 - **What it does:** Brings back the "Videos: series, order, names" section of the editing guide (already worded) with the why: Library-only changes never touch files; rename is optional because it cannot be undone.
@@ -76,4 +77,5 @@ None to the stored data: series membership, order and the files' names are alrea
 
 - **Risks:** a rename cannot be undone, so it is off by default and always listed last in Review.
 - **Q1.** Where should Order live? A: in Match (recommended, matches the Locked editor); B: a new "Order" tool.
+- **Q3.** Drag and drop approved by Shy; no open question.
 - **Q2.** Should series and order changes be staged (recommended) or save at once as before?
