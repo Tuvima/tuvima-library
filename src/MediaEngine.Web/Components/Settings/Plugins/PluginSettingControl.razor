@@ -1,0 +1,148 @@
+@namespace MediaEngine.Web.Components.Settings
+@using System.Text.Json
+@using MediaEngine.Contracts.Plugins
+@using Microsoft.Extensions.Localization
+@inject IStringLocalizer<SharedStrings> L
+
+@* One setting of a plugin's Settings card, drawn from the control the Engine built out of the plugin's JSON (Plugins and
+   Integrations screens v5 D47). The control type decides the field; nothing here knows which plugin it belongs to. A control that
+   is read only or whose requirement is not met is greyed, and says why. *@
+<div class="@ClassName" data-setting="@Control.Key" data-control="@Control.Control" data-testid="plugin-setting">
+    @switch (Control.Control)
+    {
+        case PluginSetupValues.ToggleControl:
+            <AppSwitchRow Label="@Control.Title"
+                          Description="@Control.Description"
+                          Value="@PluginSetupValues.IsOn(Value)"
+                          ValueChanged="@(on => Changed(PluginSetupValues.FromBoolean(on)))"
+                          Disabled="@IsDisabled" />
+            break;
+
+        case PluginSetupValues.ChoiceControl:
+            <AppSelect Label="@Control.Title"
+                       HelpText="@Control.Description"
+                       Value="@PluginSetupValues.Text(Value)"
+                       ValueChanged="@(picked => Changed(PluginSetupValues.FromText(Control, picked)))"
+                       Options="@ChoiceOptions"
+                       Disabled="@IsDisabled" />
+            break;
+
+        case PluginSetupValues.NumberControl when UseSlider:
+            <AppSlider Label="@PluginSetupValues.Label(Control)"
+                       HelpText="@Control.Description"
+                       Min="@((int)Control.Minimum!.Value)"
+                       Max="@((int)Control.Maximum!.Value)"
+                       ShowBounds="true"
+                       Value="@((int)(PluginSetupValues.Number(Value) ?? Control.Minimum!.Value))"
+                       ValueChanged="@(number => Changed(PluginSetupValues.FromInteger(number)))"
+                       Disabled="@IsDisabled" />
+            break;
+
+        case PluginSetupValues.NumberControl when Control.Integer:
+            <AppNumericField Label="@PluginSetupValues.Label(Control)"
+                             HelpText="@Control.Description"
+                             Min="@(Control.Minimum is { } min ? (int)min : null)"
+                             Max="@(Control.Maximum is { } max ? (int)max : null)"
+                             Value="@((int)(PluginSetupValues.Number(Value) ?? 0))"
+                             ValueChanged="@(number => Changed(PluginSetupValues.FromInteger(number)))"
+                             Disabled="@IsDisabled" />
+            break;
+
+        case PluginSetupValues.NumberControl:
+            <AppTextField Label="@PluginSetupValues.Label(Control)"
+                          HelpText="@Control.Description"
+                          InputType="AppInputType.Number"
+                          Value="@PluginSetupValues.Text(Value)"
+                          ValueChanged="@(typed => Changed(PluginSetupValues.FromText(Control, typed)))"
+                          Disabled="@IsDisabled" />
+            break;
+
+        case PluginSetupValues.ChoicesControl:
+            <div class="plugin-setting__choices" role="group" aria-label="@Control.Title">
+                <strong>@Control.Title</strong>
+                @if (!string.IsNullOrWhiteSpace(Control.Description))
+                {
+                    <small>@Control.Description</small>
+                }
+                @foreach (var choice in Control.Choices)
+                {
+                    var value = choice.Value;
+                    <AppCheckbox Label="@choice.Label"
+                                 Value="@PluginSetupValues.List(Value).Contains(value, StringComparer.Ordinal)"
+                                 ValueChanged="@(on => Changed(PluginSetupValues.FromList(Toggle(value, on))))"
+                                 Disabled="@IsDisabled" />
+                }
+            </div>
+            break;
+
+        case PluginSetupValues.SecretControl:
+            <div class="plugin-setting__secret">
+                <strong>@Control.Title</strong>
+                @if (!string.IsNullOrWhiteSpace(Control.Description))
+                {
+                    <small>@Control.Description</small>
+                }
+                @if (Control.Scope == "profile")
+                {
+                    <span class="plugin-setting__secret-state">Each person links their own on Profile &gt; Accounts.</span>
+                    <AppButton Label="@L["PluginPage_OpenAccounts"]" Href="/settings/overview/accounts" Size="AppControlSize.Compact" />
+                }
+                else
+                {
+                    <AppStatusBadge Text="@(Control.Configured == true ? "Set" : "Not set")" Tone="@(Control.Configured == true ? AppUiTone.Success : AppUiTone.Neutral)" />
+                }
+            </div>
+            break;
+
+        default:
+            <AppTextField Label="@Control.Title"
+                          HelpText="@Control.Description"
+                          Placeholder="@Control.Placeholder"
+                          InputType="@(Control.Control == PluginSetupValues.UrlControl ? AppInputType.Url : AppInputType.Text)"
+                          Value="@PluginSetupValues.Text(Value)"
+                          ValueChanged="@(typed => Changed(PluginSetupValues.FromText(Control, typed)))"
+                          Disabled="@IsDisabled" />
+            break;
+    }
+    @if (!string.IsNullOrWhiteSpace(DisabledReason))
+    {
+        <small class="plugin-setting__reason" data-testid="plugin-setting-reason">@DisabledReason</small>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public PluginSetupControlDto Control { get; set; } = new();
+
+    /// <summary>The value being shown: what the person has typed, or the saved one.</summary>
+    [Parameter] public JsonElement? Value { get; set; }
+
+    [Parameter] public EventCallback<JsonElement> ValueChanged { get; set; }
+
+    /// <summary>Why the control is greyed because of a requirement that is not met (D47 <c>requires</c>), or null.</summary>
+    [Parameter] public string? DisabledReason { get; set; }
+
+    /// <summary>True for a moment after the control's value was saved: the row glows instead of a toast.</summary>
+    [Parameter] public bool Saved { get; set; }
+
+    private bool IsDisabled => Control.ReadOnly || !string.IsNullOrWhiteSpace(DisabledReason);
+
+    private string ClassName => "plugin-setting" + (Saved ? " plugin-setting--saved" : string.Empty) + (IsDisabled ? " plugin-setting--disabled" : string.Empty);
+
+    // A small whole-number range reads better as a slider than as a typed number.
+    private bool UseSlider => Control.Integer && Control.Minimum is { } min && Control.Maximum is { } max && max - min is > 0 and <= 20;
+
+    private IReadOnlyList<AppSelectOption> ChoiceOptions => [.. Control.Choices.Select(choice => new AppSelectOption(choice.Value, choice.Label))];
+
+    private Task Changed(JsonElement value) => ValueChanged.InvokeAsync(value);
+
+    private IEnumerable<string> Toggle(string value, bool on)
+    {
+        var picked = PluginSetupValues.List(Value).Where(item => !string.Equals(item, value, StringComparison.Ordinal)).ToList();
+        if (on)
+        {
+            picked.Add(value);
+        }
+
+        return Control.Choices.Select(choice => choice.Value).Where(picked.Contains);
+    }
+}

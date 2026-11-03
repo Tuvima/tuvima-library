@@ -302,6 +302,14 @@ public sealed class PluginSetupControlDto
     /// <summary>For a group list: what one item looks like, and the items.</summary>
     [JsonPropertyName("group_list")]
     public PluginSetupGroupListDto? GroupList { get; set; }
+
+    /// <summary>
+    /// Where a change to this control is saved, so the Dashboard can route it without knowing the plugin: <c>settings</c> (the plugin's
+    /// own saved settings), <c>source_config</c> (a metadata source's connection settings), <c>value_source</c> (a value the Engine
+    /// keeps elsewhere, saved with <c>PUT /plugins/{id}/page/values/{key}</c>) or <c>activity_cap</c> (the plugin's logging cap).
+    /// </summary>
+    [JsonPropertyName("stored_in")]
+    public string StoredIn { get; set; } = "settings";
 }
 
 /// <summary>A repeating group (D49): what an item looks like, which actions each row has, and the current items.</summary>
@@ -339,6 +347,10 @@ public sealed class PluginSetupGroupItemDto
     /// <summary>A short state word for the row ("connected", "no key yet").</summary>
     [JsonPropertyName("state")]
     public string? State { get; set; }
+
+    /// <summary>True when the row needs a key it does not have yet (shown as "Key missing" with Add key).</summary>
+    [JsonPropertyName("key_missing")]
+    public bool KeyMissing { get; set; }
 
     /// <summary>True when the row cannot be removed (declared locked in the plugin's file, or the item says so).</summary>
     [JsonPropertyName("locked")]

@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1388; api=0; web-client=54
+# scopes: contracts=1393; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -8897,6 +8897,12 @@
   Edits: System.Boolean | json=edits | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"id":"sample","kind":"sample","label":"sample","slot":"sample","audience":"sample","priority":7,"edits":true}
 
+[contracts] MediaEngine.Contracts.Plugins.PluginActivityCapDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  MaxEntries: System.Int32 | json=max_entries | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MaxDays: System.Int32 | json=max_days | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"max_entries":7,"max_days":7}
+
 [contracts] MediaEngine.Contracts.Plugins.PluginActivityEntryDto
   kind=class | converter=default | number-handling=default | unmapped=default
   Id: System.Int64 | json=id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -9419,6 +9425,13 @@
   Facts: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginSetupFactDto> | json=facts | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"key":"sample","title":"sample","needs_attention":true,"access":null,"credentials":[],"links":[],"provides":[],"media_types":[],"supplies":[],"controls":[],"actions":[],"destinations":[],"data_leaving":"sample","vault_words":"sample","text":"sample","facts":[]}
 
+[contracts] MediaEngine.Contracts.Plugins.PluginSetupChangeResult
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Ok: System.Boolean | json=ok | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Message: System.String | json=message | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ItemId: System.String | json=item_id | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"ok":true,"message":"sample","item_id":"sample"}
+
 [contracts] MediaEngine.Contracts.Plugins.PluginSetupChoiceDto
   kind=class | converter=default | number-handling=default | unmapped=default
   Value: System.String | json=value | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -9449,7 +9462,8 @@
   Configured: System.Boolean? | json=configured | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SignInMethod: System.String | json=sign_in_method | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   GroupList: MediaEngine.Contracts.Plugins.PluginSetupGroupListDto | json=group_list | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"key":"sample","control":"sample","title":"sample","description":"sample","placeholder":"sample","unit":"sample","group":"sample","order":7,"advanced":true,"read_only":true,"scope":"sample","minimum":7,"maximum":7,"integer":true,"choices":[],"value":{"sample":true},"default_value":{"sample":true},"show_when":null,"requires":null,"configured":true,"sign_in_method":"sample","group_list":null}
+  StoredIn: System.String | json=stored_in | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"key":"sample","control":"sample","title":"sample","description":"sample","placeholder":"sample","unit":"sample","group":"sample","order":7,"advanced":true,"read_only":true,"scope":"sample","minimum":7,"maximum":7,"integer":true,"choices":[],"value":{"sample":true},"default_value":{"sample":true},"show_when":null,"requires":null,"configured":true,"sign_in_method":"sample","group_list":null,"stored_in":"sample"}
 
 [contracts] MediaEngine.Contracts.Plugins.PluginSetupCredentialDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -9483,9 +9497,10 @@
   Title: System.String | json=title | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Subtitle: System.String | json=subtitle | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   State: System.String | json=state | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  KeyMissing: System.Boolean | json=key_missing | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Locked: System.Boolean | json=locked | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Values: System.Collections.Generic.Dictionary<System.String, System.Text.Json.JsonElement> | json=values | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"id":"sample","title":"sample","subtitle":"sample","state":"sample","locked":true,"values":{}}
+  sample={"id":"sample","title":"sample","subtitle":"sample","state":"sample","key_missing":true,"locked":true,"values":{}}
 
 [contracts] MediaEngine.Contracts.Plugins.PluginSetupGroupListDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -9495,6 +9510,11 @@
   Fields: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginSetupControlDto> | json=fields | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Items: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginSetupGroupItemDto> | json=items | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"item_title":"sample","add_label":"sample","row_actions":[],"fields":[],"items":[]}
+
+[contracts] MediaEngine.Contracts.Plugins.PluginSetupItemRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Values: System.Collections.Generic.Dictionary<System.String, System.Text.Json.JsonElement> | json=values | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"values":{}}
 
 [contracts] MediaEngine.Contracts.Plugins.PluginSetupLinkDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -9526,11 +9546,21 @@
   Reason: System.String | json=reason | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"kind":"sample","name":"sample","reason":"sample"}
 
+[contracts] MediaEngine.Contracts.Plugins.PluginSetupSecretRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Value: System.String | json=value | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"value":"sample"}
+
 [contracts] MediaEngine.Contracts.Plugins.PluginSetupShowWhenDto
   kind=class | converter=default | number-handling=default | unmapped=default
   Setting: System.String | json=setting | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Value: System.Text.Json.JsonElement? | json=value | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"setting":"sample","value":{"sample":true}}
+
+[contracts] MediaEngine.Contracts.Plugins.PluginSetupValueRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Value: System.Text.Json.JsonElement | json=value | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"value":{"sample":true}}
 
 [contracts] MediaEngine.Contracts.Plugins.PluginSourceComparisonDto
   kind=class | converter=default | number-handling=default | unmapped=default

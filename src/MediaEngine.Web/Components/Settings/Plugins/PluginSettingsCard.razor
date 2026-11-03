@@ -1,0 +1,305 @@
+@namespace MediaEngine.Web.Components.Settings
+@using System.Text.Json
+@using MediaEngine.Contracts.Plugins
+@using Microsoft.Extensions.Localization
+@inject IStringLocalizer<SharedStrings> L
+@using MediaEngine.Contracts.Settings
+@implements IDisposable
+@inject IEngineApiClient ApiClient
+@inject IAppDialogService DialogService
+@inject ILogger<PluginSettingsCard> Logger
+
+@* The Settings card of a plugin's page (Plugins and Integrations screens v5 D47): every control the plugin's JSON describes, under its
+   group headings, with the Advanced ones collapsed. Nothing is saved until Save changes, which shows Review changes first. A control
+   that depends on another setting (show_when) appears only while it applies, one that needs a tool, Local AI or a key is greyed with
+   the reason, and a saved control glows for a moment. Repeating groups act on their own rows and are not part of Save changes. *@
+<NavigationLock ConfirmExternalNavigation="@HasUnsavedChanges" />
+
+<AppCard Title="@Card.Title" Class="plugin-page__card" data-testid="plugin-settings-card">
+    <div class="plugin-settings">
+        @if (!string.IsNullOrWhiteSpace(_problem))
+        {
+            <AppAlert Tone="AppUiTone.Error" data-testid="plugin-settings-problem">@_problem</AppAlert>
+        }
+        @RenderControls(Primary)
+        @Extra
+        @if (Advanced.Count > 0)
+        {
+            <AppExpansionPanels Elevation="0" Dense="true">
+                <AppExpansionPanel Text="@L["PluginPage_AdvancedSettings"]">
+                    <div class="plugin-settings__advanced" data-testid="plugin-settings-advanced">
+                        @RenderControls(Advanced)
+                    </div>
+                </AppExpansionPanel>
+            </AppExpansionPanels>
+        }
+        @if (HasDraftableControls && CanChange)
+        {
+            <footer class="plugin-settings__savebar">
+                <AppButton Label="@L["PluginPage_Cancel"]" Disabled="@(!HasUnsavedChanges || _saving)" OnClick="Discard" />
+                <AppButton Label="@(_saving ? "Saving…" : "Save changes")" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                           Disabled="@(!HasUnsavedChanges || _saving)" OnClick="SaveAsync" data-testid="plugin-settings-save" />
+            </footer>
+        }
+    </div>
+</AppCard>
+
+@code {
+    private readonly CancellationTokenSource _disposed = new();
+    private readonly Dictionary<string, JsonElement> _draft = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _saved = new(StringComparer.Ordinal);
+    private bool _saving;
+    private string? _problem;
+
+    [Parameter, EditorRequired] public string PluginId { get; set; } = string.Empty;
+
+    /// <summary>The plugin's own saved settings, including any the page does not describe, so saving one never drops the others.</summary>
+    [Parameter] public IReadOnlyDictionary<string, JsonElement> SavedSettings { get; set; } = new Dictionary<string, JsonElement>();
+
+    /// <summary>Whether the plugin is switched on; a metadata source's connection settings are saved together with it.</summary>
+    [Parameter] public bool Enabled { get; set; }
+
+    [Parameter, EditorRequired] public PluginSetupCardDto Card { get; set; } = new();
+
+    [Parameter] public PluginSetupContext Context { get; set; } = new(false, false, false);
+
+    /// <summary>False on a phone: plugins are read there and not changed.</summary>
+    [Parameter] public bool CanChange { get; set; } = true;
+
+    /// <summary>Rows the page adds inside the Settings card (Who can use it, Libraries).</summary>
+    [Parameter] public RenderFragment? Extra { get; set; }
+
+    /// <summary>Raised after a save so the page reads the plugin's page again and the tiles refresh.</summary>
+    [Parameter] public EventCallback Changed { get; set; }
+
+    private IReadOnlyList<PluginSetupControlDto> Ordered => [.. Card.Controls.OrderBy(control => control.Order)];
+
+    private IReadOnlyList<PluginSetupControlDto> Primary => [.. Ordered.Where(control => !control.Advanced)];
+
+    private IReadOnlyList<PluginSetupControlDto> Advanced => [.. Ordered.Where(control => control.Advanced)];
+
+    private bool HasDraftableControls => Card.Controls.Any(IsDraftable);
+
+    private static bool IsDraftable(PluginSetupControlDto control) =>
+        !control.ReadOnly && control.Control is not (PluginSetupValues.GroupListControl or PluginSetupValues.SecretControl);
+
+    private bool HasUnsavedChanges => ChangedKeys().Count > 0;
+
+    private JsonElement? ShownValue(PluginSetupControlDto control) =>
+        _draft.TryGetValue(control.Key, out var typed) ? typed : control.Value ?? control.DefaultValue;
+
+    private JsonElement? CurrentValueOf(string key) =>
+        _draft.TryGetValue(key, out var typed)
+            ? typed
+            : Card.Controls.FirstOrDefault(control => string.Equals(control.Key, key, StringComparison.Ordinal)) is { } found ? found.Value ?? found.DefaultValue : null;
+
+    private List<PluginSetupControlDto> ChangedKeys() => [.. Card.Controls.Where(control =>
+        IsDraftable(control) && _draft.TryGetValue(control.Key, out var typed) && !PluginSetupValues.Same(typed, control.Value ?? control.DefaultValue))];
+
+    protected override void OnParametersSet()
+    {
+        // A fresh page model (after a save) replaces whatever was typed.
+        foreach (var key in _draft.Keys.ToList())
+        {
+            var control = Card.Controls.FirstOrDefault(candidate => candidate.Key == key);
+            if (control is null || PluginSetupValues.Same(_draft[key], control.Value ?? control.DefaultValue))
+            {
+                _draft.Remove(key);
+            }
+        }
+    }
+
+    private RenderFragment RenderControls(IReadOnlyList<PluginSetupControlDto> controls) => @<text>
+        @foreach (var heading in controls.Select(control => control.Group).Distinct(StringComparer.Ordinal))
+        {
+            var inGroup = controls.Where(control => control.Group == heading && PluginSetupValues.IsShown(control, CurrentValueOf)).ToList();
+            if (inGroup.Count == 0)
+            {
+                continue;
+            }
+
+            <section class="plugin-settings__group" data-testid="plugin-settings-group">
+                @if (!string.IsNullOrWhiteSpace(heading))
+                {
+                    <h4>@heading</h4>
+                }
+                @foreach (var control in inGroup)
+                {
+                    @ControlFragment(control)
+                }
+            </section>
+        }
+    </text>;
+
+    private RenderFragment ControlFragment(PluginSetupControlDto control) => control.Control == PluginSetupValues.GroupListControl && control.GroupList is not null
+        ? @<PluginGroupList @key="control.Key" PluginId="@PluginId" Control="@control" CanChange="@CanChange" Changed="@Changed" />
+        : @<PluginSettingControl @key="control.Key" Control="@control" Value="@ShownValue(control)" Saved="@_saved.Contains(control.Key)"
+                                 DisabledReason="@(CanChange ? PluginSetupValues.WhyDisabled(control, Context) : "Plugins are changed on a computer or tablet.")"
+                                 ValueChanged="@(value => Typed(control, value))" />;
+
+    private void Typed(PluginSetupControlDto control, JsonElement value)
+    {
+        _saved.Clear();
+        _draft[control.Key] = value;
+    }
+
+    private void Discard()
+    {
+        _draft.Clear();
+        _saved.Clear();
+    }
+
+    private async Task SaveAsync()
+    {
+        var changes = ChangedKeys();
+        if (_saving || changes.Count == 0)
+        {
+            return;
+        }
+
+        // Review changes first: nothing is saved until the person has seen what will change.
+        if (!await ReviewAsync(changes))
+        {
+            return;
+        }
+
+        _saving = true;
+        _problem = null;
+        try
+        {
+            var failed = await ApplyAsync(changes);
+            if (failed is not null)
+            {
+                _problem = $"Could not save {failed}.";
+                return;
+            }
+
+            _saved.Clear();
+            foreach (var control in changes)
+            {
+                _saved.Add(control.Key);
+            }
+
+            _draft.Clear();
+            await Changed.InvokeAsync();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Logger.LogWarning(ex, "Could not save the settings of plugin {PluginId}.", PluginId);
+            _problem = "The settings could not be saved.";
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    // Each change goes where the plugin's JSON says it lives. Returns the title of the first setting that could not be saved, or null.
+    private async Task<string?> ApplyAsync(IReadOnlyList<PluginSetupControlDto> changes)
+    {
+        var ct = _disposed.Token;
+        var plugin = changes.Where(control => control.StoredIn == PluginSetupValues.StoredInSettings).ToList();
+        if (plugin.Count > 0)
+        {
+            var settings = SavedSettings.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+            foreach (var control in plugin)
+            {
+                settings[control.Key] = _draft[control.Key];
+            }
+
+            if (!await ApiClient.SavePluginSettingsAsync(PluginId, settings, ct))
+            {
+                return plugin[0].Title;
+            }
+        }
+
+        var source = changes.Where(control => control.StoredIn == PluginSetupValues.StoredInSourceConfig).ToList();
+        if (source.Count > 0 && !await ApiClient.SaveProviderConfigAsync(PluginId, SourceConfigUpdate(), ct))
+        {
+            return source[0].Title;
+        }
+
+        foreach (var control in changes.Where(control => control.StoredIn == PluginSetupValues.StoredInValueSource))
+        {
+            var result = await ApiClient.SavePluginSetupValueAsync(PluginId, control.Key, _draft[control.Key], ct);
+            if (result is not { Ok: true })
+            {
+                return control.Title;
+            }
+        }
+
+        var cap = changes.Where(control => control.StoredIn == PluginSetupValues.StoredInActivityCap).ToList();
+        if (cap.Count > 0)
+        {
+            var entries = (int)(PluginSetupValues.Number(CapValue("max_entries")) ?? 200);
+            var days = (int)(PluginSetupValues.Number(CapValue("max_days")) ?? 14);
+            if (await ApiClient.SavePluginActivityCapAsync(PluginId, entries, days, ct) is null)
+            {
+                return cap[0].Title;
+            }
+        }
+
+        return null;
+    }
+
+    private JsonElement? CapValue(string key) => Card.Controls
+        .Where(control => control.StoredIn == PluginSetupValues.StoredInActivityCap && control.Key == key)
+        .Select(CurrentFor)
+        .FirstOrDefault();
+
+    private JsonElement? CurrentFor(PluginSetupControlDto control) => _draft.TryGetValue(control.Key, out var typed) ? typed : control.Value ?? control.DefaultValue;
+
+    // A metadata source keeps its connection settings in one record, so the whole record is sent with the new values laid over it.
+    private ProviderConfigUpdateDto SourceConfigUpdate()
+    {
+        var values = Card.Controls.Where(control => control.StoredIn == PluginSetupValues.StoredInSourceConfig)
+            .ToDictionary(control => control.Key, CurrentFor, StringComparer.Ordinal);
+        int? Whole(string key) => PluginSetupValues.Number(values.GetValueOrDefault(key)) is { } number ? (int)number : null;
+        var address = PluginSetupValues.Text(values.GetValueOrDefault("primary_endpoint")).Trim();
+        return new ProviderConfigUpdateDto
+        {
+            Enabled = Enabled,
+            Weight = null,
+            FieldWeights = null,
+            CapabilityTags = null,
+            Endpoints = address.Length == 0 ? null : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { ["api"] = address },
+            ThrottleMs = Whole("throttle_ms"),
+            MaxConcurrency = Whole("max_concurrency"),
+            TimeoutSeconds = Whole("timeout_seconds"),
+            LanguageStrategy = PluginSetupValues.Text(values.GetValueOrDefault("language_strategy")) is { Length: > 0 } language ? language : null,
+        };
+    }
+
+    // What the person is about to save, in plain words, one line per change.
+    private async Task<bool> ReviewAsync(IReadOnlyList<PluginSetupControlDto> changes)
+    {
+        RenderFragment preview = builder =>
+        {
+            builder.OpenElement(0, "ul");
+            builder.AddAttribute(1, "data-testid", "review-changes");
+            var sequence = 2;
+            foreach (var control in changes)
+            {
+                builder.OpenElement(sequence++, "li");
+                builder.AddContent(sequence++, $"{control.Title}: {PluginSetupValues.Say(control, control.Value ?? control.DefaultValue)} to {PluginSetupValues.Say(control, _draft[control.Key])}");
+                builder.CloseElement();
+            }
+
+            builder.CloseElement();
+        };
+        var answer = await AppConfirmDialog.ShowAsync(
+            DialogService,
+            "Review changes",
+            null,
+            primaryLabel: "Save changes",
+            secondaryLabel: "Keep editing",
+            preview: preview);
+        return answer == AppConfirmResult.Primary;
+    }
+
+    public void Dispose()
+    {
+        _disposed.Cancel();
+        _disposed.Dispose();
+    }
+}

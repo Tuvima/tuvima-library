@@ -72,6 +72,8 @@ public static class TuvimaPluginServiceCollectionExtensions
         // Activity, failure reasons, the automatic pause and the People-action log (Plugin architecture spec D10, C10, C17, C25).
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<PluginCircuitBreaker>();
+        services.AddSingleton<PluginActivityLimits>();
+        services.AddSingleton<IPluginActivityLimits>(provider => provider.GetRequiredService<PluginActivityLimits>());
         services.AddSingleton<PluginActivityService>();
         services.AddSingleton<PluginLibraryLimitService>();
         services.AddSingleton<IVaultSectionOnlineLookup, VaultSectionOnlineLookup>();

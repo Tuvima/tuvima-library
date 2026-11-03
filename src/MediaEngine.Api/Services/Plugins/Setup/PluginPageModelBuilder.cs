@@ -57,6 +57,9 @@ internal sealed record PluginPageModelInput
     public bool NoSettingsCard { get; init; }
 
     public IReadOnlyList<PluginSettingsNote> ExtraNotes { get; init; } = [];
+
+    /// <summary>The plugin's logging cap (D59). When set, the Settings card ends with the two Activity log controls that change it.</summary>
+    public PluginActivityCap? ActivityCap { get; init; }
 }
 
 /// <summary>
@@ -71,6 +74,8 @@ internal static class PluginPageModelBuilder
     public const string SettingsCard = "settings";
     public const string PrivacyCard = "privacy";
     public const string AboutCard = "about";
+    public const string ActivityEntriesKey = "max_entries";
+    public const string ActivityDaysKey = "max_days";
 
     public static PluginSetupPageResponse Build(PluginPageModelInput input)
     {
@@ -238,7 +243,51 @@ internal static class PluginPageModelBuilder
             });
         }
 
+        if (input.ActivityCap is { } cap)
+        {
+            controls.AddRange(ActivityCapControls(cap));
+        }
+
         return controls;
+    }
+
+    /// <summary>The two controls every plugin has for its Activity list (D59), kept in the collapsed Advanced section.</summary>
+    private static IEnumerable<PluginSetupControlDto> ActivityCapControls(PluginActivityCap cap)
+    {
+        yield return new PluginSetupControlDto
+        {
+            Key = ActivityEntriesKey,
+            Control = PluginSettingControls.Number,
+            Title = "Most entries to keep",
+            Description = "The newest entries of this plugin's Activity list that are kept.",
+            Unit = "entries",
+            Group = "Activity log",
+            Order = 2000,
+            Advanced = true,
+            Minimum = PluginActivityLimits.MinimumEntries,
+            Maximum = PluginActivityLimits.MaximumEntries,
+            Integer = true,
+            Value = JsonSerializer.SerializeToElement(cap.MaxEntries),
+            DefaultValue = JsonSerializer.SerializeToElement(PluginActivityLimits.DefaultEntries),
+            StoredIn = "activity_cap",
+        };
+        yield return new PluginSetupControlDto
+        {
+            Key = ActivityDaysKey,
+            Control = PluginSettingControls.Number,
+            Title = "Most days to keep",
+            Description = "Entries older than this are removed, even when there are fewer than the most entries.",
+            Unit = "days",
+            Group = "Activity log",
+            Order = 2001,
+            Advanced = true,
+            Minimum = PluginActivityLimits.MinimumDays,
+            Maximum = PluginActivityLimits.MaximumDays,
+            Integer = true,
+            Value = JsonSerializer.SerializeToElement(cap.MaxDays),
+            DefaultValue = JsonSerializer.SerializeToElement(PluginActivityLimits.DefaultDays),
+            StoredIn = "activity_cap",
+        };
     }
 
     private static PluginSetupControlDto ToControl(PluginSettingDefinition definition, PluginPageModelInput input)
@@ -265,6 +314,7 @@ internal static class PluginPageModelBuilder
             Integer = definition.IsInteger,
             Choices = [.. definition.Choices.Select(choice => new PluginSetupChoiceDto { Value = choice.Value, Label = choice.Label })],
             DefaultValue = definition.Default,
+            StoredIn = definition.ValueSource.Length > 0 ? "value_source" : input.Definition == "source_file" ? "source_config" : "settings",
             ShowWhen = definition.ShowWhen is { } showWhen ? new PluginSetupShowWhenDto { Setting = showWhen.Setting, Value = showWhen.Value } : null,
             Requires = definition.Requires is { } requires ? new PluginSetupRequirementDto { Kind = requires.Kind, Name = requires.Name, Reason = requires.Reason } : null,
         };
@@ -326,6 +376,7 @@ internal static class PluginPageModelBuilder
                 Title = ReadString(item, "title") ?? ReadString(item, "name") ?? id,
                 Subtitle = ReadString(item, "subtitle"),
                 State = ReadString(item, "state"),
+                KeyMissing = item.TryGetProperty("key_missing", out var keyMissing) && keyMissing.ValueKind == JsonValueKind.True,
                 Locked = groupList.Locked.Contains(id, StringComparer.Ordinal)
                     || (item.TryGetProperty("locked", out var locked) && locked.ValueKind == JsonValueKind.True),
             };

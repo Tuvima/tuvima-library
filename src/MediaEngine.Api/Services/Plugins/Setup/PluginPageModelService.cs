@@ -19,6 +19,7 @@ public sealed class PluginPageModelService(
     ProviderCapabilityCatalogue sources,
     IConfigSecretsStore secrets,
     IEnumerable<IPluginSettingValueSource> valueSources,
+    PluginActivityLimits activityLimits,
     ILogger<PluginPageModelService> logger)
 {
     /// <summary>The page model of a plugin or a metadata source, or null when there is none with that id.</summary>
@@ -34,6 +35,37 @@ public sealed class PluginPageModelService(
         return config is null ? null : await BuildForSourceAsync(config, ct).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// The value source that holds a setting the plugin's JSON says is kept elsewhere (<c>value_source</c>), or null when the plugin,
+    /// the setting or the source does not exist. The page's changes to such a setting go through it.
+    /// </summary>
+    public IPluginSettingValueSource? ValueSourceFor(string pluginId, string settingKey)
+    {
+        var description = DescriptionFor(pluginId);
+        var name = description?.Settings.FirstOrDefault(setting => string.Equals(setting.Key, settingKey, StringComparison.OrdinalIgnoreCase))?.ValueSource;
+        return string.IsNullOrEmpty(name)
+            ? null
+            : valueSources.FirstOrDefault(candidate => string.Equals(candidate.Name, name, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private PluginSettingsDescription? DescriptionFor(string pluginId)
+    {
+        if (catalog.Get(pluginId) is { Manifest.Hidden: false } registration)
+        {
+            return PluginSettingsDescriptionReader.Read(registration.SettingsSchema);
+        }
+
+        var config = loader.LoadAllProviders().FirstOrDefault(provider =>
+            provider.ProviderId is not null && provider.PluginId is null && string.Equals(provider.Name, pluginId, StringComparison.OrdinalIgnoreCase));
+        return config is null ? null : PluginSettingsDescriptionReader.Read(config.SettingsSchema);
+    }
+
+    /// <summary>True when a plugin or a metadata source with this id has a page.</summary>
+    public bool Exists(string pluginId) => DescriptionFor(pluginId) is not null;
+
+    /// <summary>Saves how much of the plugin's Activity list is kept. Throws <see cref="ArgumentOutOfRangeException"/> for a number the page does not allow.</summary>
+    public PluginActivityCap SetActivityCap(string pluginId, int maxEntries, int maxDays) => activityLimits.Set(pluginId, maxEntries, maxDays);
+
     private async Task<PluginSetupPageResponse> BuildForManifestAsync(PluginRegistration registration, CancellationToken ct)
     {
         var manifest = registration.Manifest;
@@ -47,7 +79,7 @@ public sealed class PluginPageModelService(
         var configured = await ConfiguredAsync(manifest, ct).ConfigureAwait(false);
         var description = PluginSettingsDescriptionReader.Read(registration.SettingsSchema);
         var external = await ExternalValuesAsync(description, ct).ConfigureAwait(false);
-        return PluginPageModelBuilder.Build(PluginPageModelInputs.FromManifest(registration, access, configured, external));
+        return PluginPageModelBuilder.Build(PluginPageModelInputs.FromManifest(registration, access, configured, external) with { ActivityCap = activityLimits.Get(manifest.Id) });
     }
 
     private async Task<PluginSetupPageResponse> BuildForSourceAsync(ProviderConfiguration config, CancellationToken ct)
@@ -61,7 +93,7 @@ public sealed class PluginPageModelService(
 
         var description = PluginSettingsDescriptionReader.Read(config.SettingsSchema);
         var external = await ExternalValuesAsync(description, ct).ConfigureAwait(false);
-        return PluginPageModelBuilder.Build(PluginPageModelInputs.FromSourceFile(config, sheet, ProviderListings.IsCore(config.Name), configured, external));
+        return PluginPageModelBuilder.Build(PluginPageModelInputs.FromSourceFile(config, sheet, ProviderListings.IsCore(config.Name), configured, external) with { ActivityCap = activityLimits.Get(config.Name) });
     }
 
     private async Task<IReadOnlySet<string>> ConfiguredAsync(PluginManifest manifest, CancellationToken ct)

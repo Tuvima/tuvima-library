@@ -64,6 +64,9 @@ public sealed class VaultRouteInventoryTests
         ("/works/{workId:guid}/editions", "The handler restricts the work to the files the catalogue authorization allows, and answers not found for none"),
         ("/works/{workId:guid}/cast", "The handler answers not found unless the catalogue authorization allows a file of the work"),
         ("/library/editor-subjects/{id:guid}", "People, Series, curated collections and Universes are never files, so a Vault item cannot be one; the handler still asks the edit session's catalogue refusal check for the id (EditSessionAccessService) and answers not found for anything that is not such a subject"),
+        ("/plugins/{pluginId}/page/items/{key}/{itemId}", "The id is a row in a plugin's settings list (a server, a connection), not a catalogue item; the route needs plugins-manage and returns only a plain sentence, and a Vault-gated list answers not found without the Vault gate"),
+        ("/plugins/{pluginId}/page/items/{key}/{itemId}/test", "The id is a row in a plugin's settings list (a server, a connection), not a catalogue item; the route needs plugins-manage and returns only a plain sentence, and a Vault-gated list answers not found without the Vault gate"),
+        ("/plugins/{pluginId}/page/items/{key}/{itemId}/secret/{field}", "The id is a row in a plugin's settings list (a server, a connection), not a catalogue item; the route needs plugins-manage and returns only a plain sentence, and a Vault-gated list answers not found without the Vault gate"),
     ];
 
     [Fact]
