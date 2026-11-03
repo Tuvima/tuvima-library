@@ -35,6 +35,8 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
     private int _previewCalls;
     private LibraryItemDeletionResultDto _result = new() { DeletedWorkIds = [MovieId], Titles = ["Dune: Part One"], BytesFreed = 1_073_741_824 };
 
+    private readonly IRenderedComponent<EditorPopover> _editor;
+
     public DeleteFromLibraryDetailPageTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
@@ -71,6 +73,7 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
         Services.AddSingleton(new MediaReactionService(api));
         Services.AddSingleton<ListenAudioDragService>();
         Services.AddSingleton(_ => new PlaybackSessionController(null!, null!));
+        _editor = Render<EditorPopover>();
     }
 
     private Task UseDeviceAsync(string formFactor, bool fine = true, bool hover = true) =>
@@ -99,19 +102,12 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
     private IRenderedComponent<DetailPage> RenderPage(DetailEntityType type = DetailEntityType.Movie) =>
         Render<DetailPage>(parameters => parameters.Add(page => page.Model, Model(type)));
 
-    private static void StartEditing(IRenderedComponent<DetailPage> cut)
+    private void StartEditing(IRenderedComponent<DetailPage> cut)
     {
-        // Edit is an entry in the page's "..." menu; there is no standing Edit button.
+        // Edit is an entry in the page's "..." menu; there is no standing Edit button. It opens the pop-over the layout draws.
         cut.Find("button[aria-label='More actions']").Click();
         cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Edit").Click();
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".tl-editing-bar")));
-    }
-
-    private static IReadOnlyList<AngleSharp.Dom.IElement> OpenMoreMenu(IRenderedComponent<DetailPage> cut)
-    {
-        cut.Find("button.tl-editing-bar__more").Click();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[role='menuitem']")));
-        return cut.FindAll("[role='menuitem']");
+        _editor.WaitForAssertion(() => Assert.Single(_editor.FindAll(".tl-editor-window")));
     }
 
     private IReadOnlyList<string> Toasts => [.. Services.GetRequiredService<AppToastService>().Toasts.Select(toast => toast.Message)];
@@ -120,21 +116,6 @@ public sealed class DeleteFromLibraryDetailPageTests : AsyncBunitContext
         cut.InvokeAsync(() => cut.FindComponent<DetailHero>().Instance.OnActionSelected.InvokeAsync(new DetailAction { Key = key, Label = Label }));
 
     // -- Where the entry shows -----------------------------------------------------------------
-
-    [Fact]
-    public async Task Entry_IsTheOnlyThingInTheBannerMenuAndInTheDestructiveTone()
-    {
-        await UseDeviceAsync("desktop");
-        SetAdministrator(true);
-        var cut = RenderPage();
-        StartEditing(cut);
-
-        var items = OpenMoreMenu(cut);
-
-        var only = Assert.Single(items);
-        Assert.Equal(Label, only.TextContent.Trim());
-        Assert.Contains("app-tone--error", only.ClassList);
-    }
 
     private static IReadOnlyList<AngleSharp.Dom.IElement> OpenPageMoreMenu(IRenderedComponent<DetailPage> cut)
     {

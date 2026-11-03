@@ -42,7 +42,7 @@ public static class BulkEditStager
                 continue;
             }
 
-            pending.SetField(item.EntityId, field.Key, value);
+            pending.SetField(item.EntityId, field.Key, value, before: BeforeText(item));
             staged++;
         }
 
@@ -87,7 +87,7 @@ public static class BulkEditStager
             }
             else
             {
-                pending.SetField(item.EntityId, field.Key, BatchEditFieldCatalog.ToOverrideValue(catalog, next));
+                pending.SetField(item.EntityId, field.Key, BatchEditFieldCatalog.ToOverrideValue(catalog, next), before: BeforeText(item));
                 staged++;
             }
         }
@@ -96,6 +96,13 @@ public static class BulkEditStager
             ? $"{kept} {(kept == 1 ? "item keeps" : "items keep")} its {field.Label.ToLowerInvariant()}: the list can't be left empty."
             : SkippedNote(field);
         return new BulkStageResult(staged, field.Locked.Count + kept, note);
+    }
+
+    // What the item holds now, for Review's Before.
+    private static string BeforeText(BulkFieldItem item)
+    {
+        var text = string.Join("; ", item.Values.Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value.Trim()));
+        return text.Length == 0 ? EditReviewRows.NotSet : text;
     }
 
     /// <summary>Takes every staged value of one field back out for the ticked items (the person set the field back to "No change").</summary>

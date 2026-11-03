@@ -25,10 +25,6 @@
                 {
                     <span class="@WatchStatClass(entry.item)" title="@entry.item.Tooltip">@WatchStatContent(entry.item)</span>
                 }
-                @if (EditKeysFor(entry.item) is { } editKeys)
-                {
-                    <EditableFieldPencil Keys="editKeys" Owner="hero" />
-                }
                 @if (entry.index < inlinePrimaryItems.Count - 1)
                 {
                     <span class="tl-detail-watch-metadata-separator" aria-hidden="true">&middot;</span>
@@ -39,7 +35,6 @@
         @if (inlineGenreItems.Count > 0)
         {
             <HeroGenreList Genres="inlineGenreItems" />
-            <EditableFieldPencil Keys="GenreKeys" Owner="hero" />
         }
     }
 
@@ -48,7 +43,6 @@
         @if (GenreItems.Count > 0)
         {
             <HeroGenreList Genres="GenreItems" />
-            <EditableFieldPencil Keys="GenreKeys" Owner="hero" />
         }
         @if (statItems.Count > 0 || ShouldRenderHeroBrand)
         {
@@ -85,10 +79,6 @@
                             <span class="tl-detail-metadata-item__value">@item.Label</span>
                             <span class="tl-detail-metadata-item__label">@LabelFor(item)</span>
                         </span>
-                    }
-                    @if (EditKeysFor(item) is { } editKeys)
-                    {
-                        <EditableFieldPencil Keys="editKeys" Owner="hero" />
                     }
                 }
             </div>
@@ -158,18 +148,6 @@
             .OrderBy(PrimaryChromeStatSort)
             .Take(6)
             .ToList();
-
-    private static readonly string[] GenreKeys = ["genre"];
-
-    // Editing Mode: the editor field behind each editable hero fact. Counts and quality are observed, not edited.
-    private static string[]? EditKeysFor(MetadataPill item) => item.Kind?.ToLowerInvariant() switch
-    {
-        "year" => ["release_date", "first_air_date", "air_date", "original_publication_date", "publication_date", "year"],
-        "duration" => ["runtime", "duration"],
-        "rating" => ["rating"],
-        "certification" or "content_rating" => ["content_rating"],
-        _ => null,
-    };
 
     private static bool KindEquals(MetadataPill item, string kind)
         => string.Equals(item.Kind, kind, StringComparison.OrdinalIgnoreCase);

@@ -112,7 +112,7 @@
                     <div class="libpage__strip-line" data-strip="unidentified">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" />
                         <span>@L["LibraryShell_CouldNotBeIdentified", LibraryListing.UnidentifiedText(row.Unidentified)]</span>
-                        <AppButton Label="@L["LibraryShell_ReviewThem"].Value" ButtonStyle="AppButtonStyle.Text" Href="@LibraryListing.UnidentifiedAddress(row.Key)" />
+                        <AppButton Label="@L["LibraryShell_ReviewThem"].Value" ButtonStyle="AppButtonStyle.Text" Href="@LibraryListing.NotIdentifiedAddress(row.Key)" />
                     </div>
                 }
                 @if (row.NeedsReview > 0)
@@ -168,10 +168,6 @@
                                                 ReadOnly="@ReadOnly"
                                                 Changed="ChangedAsync" />
                     }
-                    else if (tab.Slug == UnidentifiedTab)
-                    {
-                        <LibraryUnidentifiedTab Library="@Library" ReadOnly="@ReadOnly" Changed="ChangedAsync" />
-                    }
                     else if (tab.Slug == ActivityTab && IsVault)
                     {
                         @* A Vault library's activity is listed in the Vault, never here (Vault sections D40), so nothing about it is read from this page. *@
@@ -208,7 +204,6 @@
     public const string FileHandlingTab = "file-handling";
     public const string ActivityTab = "activity";
     public const string LookupTab = "lookup";
-    public const string UnidentifiedTab = "unidentified";
 
     [Parameter, EditorRequired] public LibraryFolderDto Library { get; set; } = default!;
     [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
@@ -265,12 +260,8 @@
                 new(FileHandlingTab, "File handling"),
                 new(ActivityTab, "Activity"),
             };
-            // The Engine's unmatched files get their own tab only while there are some (Libraries redesign D5); a Vault library never lists them here.
-            if (Library.UnmatchedCount > 0 && !IsVault)
-            {
-                tabs.Add(new(UnidentifiedTab, $"Unidentified ({Library.UnmatchedCount:N0})"));
-            }
-
+            // The files the Engine could not match are not a tab here: they sit in Needs Review beside the items it is unsure about, and the
+            // strip above links there filtered to this library (universal editor v3 D9).
             if (LibraryLookupRules.HasLookupTab(Library, Kinds.Find(Library.KindKey)))
             {
                 tabs.Add(new(LookupTab, "Lookup"));

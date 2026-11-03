@@ -138,7 +138,13 @@ public sealed class EditSessionService(
         // Dashboard's order is kept within each kind.
         var dataChanges = changes
             .Where(change => EditSessionChangeKinds.IsDataChange(change.Kind))
-            .OrderBy(change => change.Kind is EditSessionChangeKinds.Identity or EditSessionChangeKinds.ExtraMove ? 1 : 0)
+            .OrderBy(change => change.Kind switch
+            {
+                EditSessionChangeKinds.ChildRematch => 3,
+                EditSessionChangeKinds.SiblingMatch => 2,
+                EditSessionChangeKinds.Identity or EditSessionChangeKinds.ExtraMove => 1,
+                _ => 0,
+            })
             .ToList();
         var moves = changes.Where(change => change.Kind == EditSessionChangeKinds.FileMove).ToList();
         var outcomes = new Dictionary<string, EditSessionChangeResult>(StringComparer.Ordinal);

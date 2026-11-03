@@ -6,7 +6,10 @@
 
 <div class="sme-tag-editor">
     <div class="sme-tag-editor__label-row">
-        <label>@Label</label>
+        @if (!HideLabel)
+        {
+            <label>@Label</label>
+        }
         @if (OnAction.HasDelegate)
         {
             <AppIconButton Icon="@ActionIcon"
@@ -95,6 +98,8 @@
 
 @code {
     [Parameter] public string Label { get; set; } = "Library tags";
+    /// <summary>True when the host already shows the field label (the pop-over's Details tool), so it is not repeated.</summary>
+    [Parameter] public bool HideLabel { get; set; }
     [Parameter] public string AddLabel { get; set; } = "Add tag";
     [Parameter] public string HelpText { get; set; } = "Tags are private library organization and are not replaced by provider refreshes.";
     [Parameter] public string? Value { get; set; }

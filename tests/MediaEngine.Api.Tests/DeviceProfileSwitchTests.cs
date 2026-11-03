@@ -257,7 +257,8 @@ public sealed partial class DeviceProfileSwitchTests : IAsyncLifetime
         Assert.Equal(_phoneId.ToString("D"), row.SubjectId);
         Assert.Contains(_mary.Id.ToString("D"), row.ChangesJson);
         Assert.Contains(_sam.Id.ToString("D"), row.ChangesJson);
-        Assert.DoesNotContain(Pin, row.ChangesJson);
+        // A random id can contain the PIN's digits by chance, so look for the PIN as a whole value, never as a fragment.
+        Assert.DoesNotContain($"\"{Pin}\"", row.ChangesJson);
     }
 
     [Fact]

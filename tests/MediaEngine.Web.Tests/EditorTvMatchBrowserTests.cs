@@ -31,6 +31,8 @@ public sealed class EditorTvMatchBrowserTests : AsyncBunitContext
         _session.Begin([new EditTrailItem(EpisodeId, "Pilot", "Item")]);
         Services.AddSingleton(EngineApiClientStub.Create(stub =>
         {
+            stub.SetHandler(nameof(IEngineApiClient.PreviewShowChildRematchAsync), args =>
+                Task.FromResult<ShowChildRematchPreviewDto?>(new ShowChildRematchPreviewDto { EntityId = EpisodeId, SeriesId = (string)args![1]!, ShowName = "Other Show", EpisodeCount = 4, MatchableCount = 3, NotFoundCount = 1 }));
             stub.SetHandler(nameof(IEngineApiClient.SearchTvMatchBrowserShowsAsync), args =>
             {
                 _calls.Add($"shows:{args![1]}");
@@ -132,6 +134,36 @@ public sealed class EditorTvMatchBrowserTests : AsyncBunitContext
         Assert.Equal("show", match!.TargetFieldGroup);
         Assert.Equal("200", match.ProviderItemId);
         Assert.False(match.BridgeIds.ContainsKey(BridgeIdKeys.TvdbEpisodeId));
+    }
+
+    [Fact]
+    public void ChoosingAnotherShow_OffersToRematchItsSeasonsAndEpisodes_AndStagesItWhenOn()
+    {
+        var cut = RenderPanel(Show());
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[aria-label='Show'] .tl-tvm__row").Count));
+        cut.Find("button[aria-label='Select Other Show']").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("input[role=switch][aria-label='Re-match seasons and episodes']")));
+
+        var rematch = cut.Find("input[role=switch][aria-label='Re-match seasons and episodes']");
+        Assert.True(rematch.HasAttribute("checked"));
+        Assert.Contains("1 it does not have go to Needs Review", cut.Markup);
+        cut.FindAll("button").First(button => button.TextContent.Trim() == "Use this match").Click();
+
+        var change = _session.Pending.Changes.Single(c => c.Kind == EditSessionChangeKinds.ChildRematch);
+        Assert.True(EditSessionChildRematchTarget.TryParse(change.TargetId, out var target));
+        Assert.Equal("200", target!.SeriesId);
+        Assert.Equal("Matched as they are now", _session.Pending.Before(change.Id));
+    }
+
+    [Fact]
+    public void AnEpisodeMatch_NeverOffersTheSeasonsAndEpisodesRematch()
+    {
+        var cut = RenderPanel(Episode());
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[aria-label='Episode'] .tl-tvm__row").Count));
+        cut.Find("button[aria-label='Select Second']").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("#tl-match-review")));
+
+        Assert.Empty(cut.FindAll("input[role=switch][aria-label='Re-match seasons and episodes']"));
     }
 
     [Fact]

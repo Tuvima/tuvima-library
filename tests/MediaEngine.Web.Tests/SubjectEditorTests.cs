@@ -12,7 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// The universal editor on a person, a Series, a curated collection and a Universe (spec D17, D17a): which tools the bar offers for each
+/// The universal editor on a person, a Series, a curated collection and a Universe (spec D17, D17a): which tools the window offers for each
 /// (Artwork only where there are pictures; never Match here), the Details fields and read-only facts, staging instead of saving, the
 /// wording of the way back to the canonical value, and the rows Review changes shows for each. The Engine is a hand-written stub.
 /// </summary>
@@ -22,7 +22,6 @@ public sealed class SubjectEditorTests : AsyncBunitContext
 
     private readonly DeviceContextService _device = new(EngineApiClientStub.CreateDefault());
     private readonly List<EditSessionRequest> _requests = [];
-    private readonly IRenderedComponent<AppDialogHost> _dialogs;
     private EditorSubjectDto _subject = Person();
 
     public SubjectEditorTests()
@@ -54,7 +53,6 @@ public sealed class SubjectEditorTests : AsyncBunitContext
             });
         }));
         Render<AppPopoverHost>();
-        _dialogs = Render<AppDialogHost>();
     }
 
     private sealed record Editor(EditingModeContext Mode, EditSessionState Session, EditSessionFlow Flow);
@@ -64,7 +62,7 @@ public sealed class SubjectEditorTests : AsyncBunitContext
         _subject = subject;
         await _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
         var api = Services.GetRequiredService<IEngineApiClient>();
-        var fields = new ItemFieldEditSession(api, _device);
+        var fields = new ItemFieldEditSession(api);
         var mode = new EditingModeContext(_device, fields) { HasPermission = true };
         mode.Loader = () => fields.LoadSubjectAsync(SubjectId);
         var session = new EditSessionState(new PendingEditList());
@@ -78,10 +76,12 @@ public sealed class SubjectEditorTests : AsyncBunitContext
         return new Editor(mode, session, flow);
     }
 
-    private IRenderedComponent<EditingBar> RenderBar(Editor editor) =>
-        Render<EditingBar>(parameters => parameters
-            .Add(bar => bar.Mode, editor.Mode)
-            .Add(bar => bar.Flow, editor.Flow));
+    // The window as the pop-over draws it: the Details tool open.
+    private IRenderedComponent<CascadingValue<EditingModeContext>> RenderBar(Editor editor)
+    {
+        editor.Flow.SelectToolAsync(EditTool.Details).GetAwaiter().GetResult();
+        return RenderPanel(editor);
+    }
 
     private IRenderedComponent<CascadingValue<EditingModeContext>> RenderPanel(Editor editor) =>
         Render<CascadingValue<EditingModeContext>>(parameters => parameters
@@ -113,7 +113,7 @@ public sealed class SubjectEditorTests : AsyncBunitContext
 
         var bar = RenderBar(editor);
 
-        Assert.Equal(["Details", "Artwork"], bar.FindAll(".tl-editing-bar__tool").Select(button => button.TextContent.Trim()));
+        Assert.Equal(["Details", "Artwork"], bar.FindAll(".tl-editor-window__tabs [role='tab']").Select(button => button.TextContent.Trim()));
         Assert.False(editor.Mode.Fields.CanMatch);
         Assert.False(editor.Mode.Fields.ProvidersAvailable);
         Assert.Equal(EditorSubjectKinds.Person, editor.Mode.Fields.SubjectKind);
@@ -130,7 +130,7 @@ public sealed class SubjectEditorTests : AsyncBunitContext
 
         var bar = RenderBar(editor);
 
-        Assert.Equal(["Details", "Artwork"], bar.FindAll(".tl-editing-bar__tool").Select(button => button.TextContent.Trim()));
+        Assert.Equal(["Details", "Artwork"], bar.FindAll(".tl-editor-window__tabs [role='tab']").Select(button => button.TextContent.Trim()));
         Assert.False(editor.Mode.Fields.CanMatch);
     }
 
@@ -148,7 +148,7 @@ public sealed class SubjectEditorTests : AsyncBunitContext
 
         var bar = RenderBar(editor);
 
-        Assert.Equal(["Details"], bar.FindAll(".tl-editing-bar__tool").Select(button => button.TextContent.Trim()));
+        Assert.Equal(["Details"], bar.FindAll(".tl-editor-window__tabs [role='tab']").Select(button => button.TextContent.Trim()));
     }
 
     [Theory]
@@ -244,18 +244,18 @@ public sealed class SubjectEditorTests : AsyncBunitContext
         editor.Session.Pending.SetField(SubjectId, key, after);
         var bar = RenderBar(editor);
 
-        bar.Find("button.tl-editing-bar__save").Click();
+        bar.Find("button.tl-editor-window__save").Click();
 
-        _dialogs.WaitForElement(".review-changes");
-        _dialogs.WaitForAssertion(() =>
+        bar.WaitForElement(".review-changes");
+        bar.WaitForAssertion(() =>
         {
-            var row = Assert.Single(_dialogs.FindAll(".review-changes__row"));
+            var row = Assert.Single(bar.FindAll(".review-changes__row"));
             Assert.Contains(label, row.TextContent);
             Assert.Contains(before, row.TextContent);
             Assert.Contains(after, row.TextContent);
         });
-        _dialogs.WaitForAssertion(() => Assert.False(_dialogs.Find(".app-dialog-shell__footer button:last-child").HasAttribute("disabled")));
-        _dialogs.Find(".app-dialog-shell__footer button:last-child").Click();
+        bar.WaitForAssertion(() => Assert.False(bar.Find(".review-changes__footer button:last-child").HasAttribute("disabled")));
+        bar.Find(".review-changes__footer button:last-child").Click();
 
         bar.WaitForAssertion(() => Assert.Contains(_requests, request => !request.PreviewOnly));
         var saved = _requests.Last(request => !request.PreviewOnly).Changes.Single();

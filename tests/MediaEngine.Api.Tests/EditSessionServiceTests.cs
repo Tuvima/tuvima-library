@@ -74,6 +74,27 @@ public sealed class EditSessionServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Apply_RunsTheSiblingMatchAfterTheIdentityChange_WhateverOrderTheyWereStagedIn()
+    {
+        var work = SeedWork();
+        var order = new List<string>();
+        var service = CreateService(
+            new RecordingHandler(EditSessionChangeKinds.SiblingMatch, order),
+            new RecordingHandler(EditSessionChangeKinds.Identity, order));
+
+        var result = await service.RunAsync(
+            Request(
+                previewOnly: false,
+                new EditSessionChange { Id = "siblings", Kind = EditSessionChangeKinds.SiblingMatch, EntityId = work, TargetId = "{}" },
+                new EditSessionChange { Id = "identity", Kind = EditSessionChangeKinds.Identity, EntityId = work, TargetId = "{}" },
+                DetailsChange("c1", work, ("title", "Orbital"))),
+            NoRefusals);
+
+        Assert.True(result.DataSaved);
+        Assert.Equal(["apply:identity", "apply:siblings"], order);
+    }
+
+    [Fact]
     public async Task Apply_WhenOneCheckFails_SavesNothingAndSaysWhichChangeFailed()
     {
         var work = SeedWork();

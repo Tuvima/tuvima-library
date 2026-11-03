@@ -21,6 +21,19 @@ public interface IReviewQueueReadService
     Task<IReadOnlyList<ReviewReasonCount>> GetPendingReasonCountsAsync(CancellationToken ct = default);
 }
 
+public interface INeedsReviewListReadService
+{
+    /// <summary>
+    /// One page of the Needs Review list: review items and unmatched files merged, newest first. <paramref name="kind"/> is
+    /// <c>null</c>/<c>all</c>, <c>not_matched</c> or <c>not_sure</c>; <paramref name="libraryId"/> narrows to one library.
+    /// <paramref name="includeFiles"/> is false for a caller who may not see the unmatched files (they are an administrator's list).
+    /// </summary>
+    Task<NeedsReviewListDto> ListAsync(string? kind, string? libraryId, bool includeFiles, int skip, int take, CancellationToken ct = default);
+
+    /// <summary>What the Settings notifier shows: every row the list holds, split by kind.</summary>
+    Task<ReviewCountResponse> CountAsync(bool includeFiles, CancellationToken ct = default);
+}
+
 public interface IUniversalSearchReadService
 {
     Task<UniversalSearchResponseDto> SearchAsync(string? query, int limit, CancellationToken ct);

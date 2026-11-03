@@ -359,6 +359,14 @@ public sealed class MediaEditorNavigatorNodeDto
 
     [JsonPropertyName("quarantine_count")]
     public int QuarantineCount { get; set; }
+
+    /// <summary>"matched" or "unmatched": whether this item (or the parent it sits under) carries a provider identity. Used by the editor's family tree.</summary>
+    [JsonPropertyName("match_state")]
+    public string MatchState { get; set; } = "matched";
+
+    /// <summary>Why the item is not matched, in plain words; null when it is matched.</summary>
+    [JsonPropertyName("match_reason")]
+    public string? MatchReason { get; set; }
 }
 
 /// <summary>
@@ -450,6 +458,10 @@ public sealed class MediaEditorOwnedChildDto
 
     [JsonPropertyName("match_state")]
     public string MatchState { get; set; } = "unmatched";
+
+    /// <summary>Why the file is not matched, in plain words (for example the file name has no season and episode number); null when it is matched.</summary>
+    [JsonPropertyName("match_reason")]
+    public string? MatchReason { get; set; }
 
     [JsonPropertyName("file_state")]
     public string FileState { get; set; } = "unknown";

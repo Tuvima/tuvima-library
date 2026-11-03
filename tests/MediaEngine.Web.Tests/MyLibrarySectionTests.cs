@@ -299,7 +299,7 @@ public sealed class MyLibrarySectionTests : AsyncBunitContext
         Assert.DoesNotContain("Settings", cut.Find(".my-library-header").TextContent);
         // Same sections as everyone, and no editing controls anywhere on the page.
         Assert.Contains("My List", Headings(cut));
-        Assert.Empty(cut.FindAll("button, input, select, textarea"));
+        Assert.Empty(cut.FindAll("button:not(.media-tile-action):not([hidden]), input, select, textarea"));
     }
 
     [Fact]

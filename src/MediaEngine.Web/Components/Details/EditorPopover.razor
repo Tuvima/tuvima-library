@@ -1,0 +1,174 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Ui
+@using Microsoft.AspNetCore.Components.Routing
+@implements IDisposable
+@inject EditorHost Editor
+@inject IAppDialogService Dialogs
+@inject IStringLocalizer<SharedStrings> L
+@inject IJSRuntime JS
+
+@* The universal editor's pop-over (v3 D1, D6), drawn once by the app layout so it can open over any page or list. It is a native modal
+   dialog (opened with showModal by app-dialog.js), so it stacks above the details overlay, makes everything behind it inert, traps focus
+   and keeps the page where it was. The page behind is never put into an "editing" state. After Save the slim ribbon proves the save. *@
+<EditSavedRibbon Flow="Editor.Flow" />
+@if (Editor.IsOpen)
+{
+    var flow = Editor.Flow;
+    var mode = Editor.Mode;
+    var binding = Editor.Binding;
+    @* Reload and tab close ask the browser's own question; in-app navigation is asked here only for a page outside the details overlay
+       (inside it the overlay's leave guard asks, so nothing asks twice). *@
+    <NavigationLock ConfirmExternalNavigation="@flow.Session.HasPendingChanges" OnBeforeInternalNavigation="ConfirmNavigationAsync" />
+    <AppDialogFrame Open="true"
+                    Title="@DialogLabel"
+                    DialogOptions="_options"
+                    OnCancel="@(() => Editor.RequestCloseAsync())"
+                    Class="tl-editor-dialog">
+        <EditorPanelHost Mode="mode"
+                         Flow="flow"
+                         Picker="Editor.Picker"
+                         TitleOverride="@BulkPanelTitle"
+                         ShowHistory="@(binding?.ShowHistory == true)">
+            <HeaderContent>
+                @if (Editor.Batch.Panel == BulkPanelKind.None && Editor.Session.ActiveItem is { } editing)
+                {
+                    <span class="tl-editor-popover__editing" title="@editing.Title">@L["EditorPopover_EditingItem", editing.Title]</span>
+                }
+            </HeaderContent>
+            <TreeContent>
+                <EditorFamilyTree Family="Editor.Family" Flow="flow" CanMatch="@mode.Fields.CanMatch" />
+            </TreeContent>
+            <ChildContent Context="tool">
+                @if (Editor.Batch.Panel != BulkPanelKind.None && tool == EditTool.Details)
+                {
+                    @* Ticked rows are edited together: the panel needs the rows, not the fields of any one item, so a failed read of the first row never blocks it. *@
+                    <BulkEditPanel Selection="Editor.Batch" Pending="flow.Session.Pending" CanEdit="@mode.CanEdit" />
+                }
+                else if (!mode.Fields.Loaded && !mode.Fields.Loading && !string.IsNullOrWhiteSpace(mode.Fields.LoadError))
+                {
+                    <div class="tl-editor-details">
+                        <AppAlert Severity="AppSeverity.Error" Dense="true">@L["EditorPopover_EditingIsNotReady"] @mode.Fields.LoadError</AppAlert>
+                        <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" OnClick="@(() => Editor.RetryLoadAsync())">@L["Common_TryAgain"]</AppButton>
+                    </div>
+                }
+                else if (tool == EditTool.Details)
+                {
+                    <EditorDetailsPanel Mode="mode" Session="flow.Session">@binding?.DetailsExtra</EditorDetailsPanel>
+                }
+                else if (tool == EditTool.Match)
+                {
+                    @if (mode.Fields.Loading)
+                    {
+                        <EditorPanelBusy Label="@L["DetailPage_LoadingThisItemSMatch"].Value" />
+                    }
+
+                    <EditorMatchPanel Subject="@(mode.Fields.Loading ? null : mode.Fields.MatchSubject())"
+                                      Session="flow.Session"
+                                      CanEdit="@mode.CanEdit"
+                                      Mode="mode"
+                                      IsUnmatched="@IsActiveUnmatched"
+                                      OnMatched="@(() => Editor.NotifyCommittedAsync())" />
+                    <EditorPlacementPicker Subject="@(mode.Fields.Loading ? null : mode.Fields.MatchSubject())"
+                                           Session="flow.Session"
+                                           CanEdit="@mode.CanEdit" />
+                    <EditorExtrasMovePanel Subject="@(mode.Fields.Loading ? null : mode.Fields.MatchSubject())"
+                                           Extras="binding?.Extras"
+                                           Session="flow.Session"
+                                           CanEdit="@mode.CanEdit" />
+                }
+                else if (tool == EditTool.History)
+                {
+                    <EditorHistoryTool EntityId="@(flow.Session.ActiveItem?.EntityId ?? Guid.Empty)" />
+                }
+            </ChildContent>
+        </EditorPanelHost>
+    </AppDialogFrame>
+}
+
+@code {
+    private static readonly AppDialogOptions _options = new()
+    {
+        NoHeader = true,
+        BackdropClick = false,
+        CloseOnEscapeKey = true,
+    };
+
+    // Match is where a failed item is fixed: the tree's own mark wins for an item it lists, else the page's answer for the item it was opened on.
+    private bool IsActiveUnmatched => Editor.Session.ActiveItem is { } active
+        && (Editor.Family.IsMatched(active.EntityId) is { } matched ? !matched : Editor.Binding?.IsUnmatched == true);
+
+    private string DialogLabel => Editor.Batch.Panel == BulkPanelKind.None
+        ? $"Editing {Editor.Session.ActiveItem?.Title ?? "item"}"
+        : BulkEditRules.EditingTitle(Editor.Batch.Rows, Editor.Batch.MediaType);
+
+    // The Details tool is called "Edit 4 songs", "Move to album", "Match" while the bulk panel is in it.
+    private string? BulkPanelTitle => Editor.Batch.Panel switch
+    {
+        BulkPanelKind.Edit => BulkEditRules.EditingTitle(Editor.Batch.Rows, Editor.Batch.MediaType),
+        BulkPanelKind.Move => BulkEditRules.MoveLabel(Editor.Batch.Rows, Editor.Batch.MediaType),
+        BulkPanelKind.Match => $"Match {Editor.Batch.Count} {BulkEditRules.Noun(Editor.Batch.Rows, Editor.Batch.MediaType)}",
+        _ => null,
+    };
+
+    protected override void OnInitialized()
+    {
+        Editor.AskSaveOrDiscard = () => EditingSaveOrDiscardDialog.AskAsync(Dialogs);
+        Editor.ConfirmDiscard = () => EditingUnsavedChangesDialog.AskDiscardAsync(Dialogs);
+        Editor.Changed += OnChanged;
+    }
+
+    public void Dispose()
+    {
+        Editor.Changed -= OnChanged;
+        Editor.AskSaveOrDiscard = null;
+        Editor.ConfirmDiscard = null;
+    }
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private int _focusTries;
+    private IJSObjectReference? _focusModule;
+
+    // The player's lyrics button asks for the Lyrics field: once the pop-over has drawn the fields, the cursor goes there. A field the
+    // item does not show (or a page without scripts) is not an error; the request is dropped after a few tries.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (Editor.FocusField is not { } key || !Editor.IsOpen)
+        {
+            _focusTries = 0;
+            return;
+        }
+
+        var found = false;
+        try
+        {
+            _focusModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/editor-focus.js");
+            found = await _focusModule.InvokeAsync<bool>("focusField", key);
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or TaskCanceledException or JSDisconnectedException)
+        {
+            // No script support here (a test host, a closing circuit): the pop-over is still fully usable without the cursor placed.
+        }
+
+        if (found || ++_focusTries >= 4)
+        {
+            _focusTries = 0;
+            Editor.ClearFocusRequest();
+        }
+    }
+
+    private async Task ConfirmNavigationAsync(LocationChangingContext context)
+    {
+        if (Editor.OverlayGuardsNavigation || Editor.Flow is not { Session.HasPendingChanges: true } flow)
+        {
+            return;
+        }
+
+        if (!await flow.LeaveAsync())
+        {
+            context.PreventNavigation();
+        }
+    }
+}

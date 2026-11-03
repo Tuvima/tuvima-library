@@ -370,6 +370,8 @@ builder.Services.AddScoped<ViewAssetDragService>();
 builder.Services.AddScoped<UIOrchestratorService>();
 builder.Services.AddScoped<IngestionLiveDashboardState>();
 builder.Services.AddScoped<CollectionEditorLauncherService>();
+builder.Services.AddScoped<EditorHost>();
+builder.Services.AddScoped<ListEditLauncher>();
 builder.Services.AddScoped<GalleryEditorLauncherService>();
 builder.Services.AddScoped<MediaTileComposerService>();
 builder.Services.AddScoped<RecentViewAssetAdapter>();

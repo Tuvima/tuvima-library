@@ -1,3 +1,4 @@
+using MediaEngine.Contracts.Editing;
 using MediaEngine.Contracts.Metadata;
 
 namespace MediaEngine.Web.Services.Integration;
@@ -69,4 +70,22 @@ public sealed partial class EngineApiClient
         await GetAsync<TvMatchBrowserEpisodesDto>(
             "TV match browser episodes",
             $"/metadata/{entityId}/tv-match-browser/shows/{Uri.EscapeDataString(seriesId)}/seasons/{seasonNumber}/episodes", ct: ct);
+
+    public async Task<EditorMatchContextDto?> GetEditorMatchContextAsync(Guid entityId, CancellationToken ct = default) =>
+        await GetAsync<EditorMatchContextDto>("Editor match context", $"/metadata/{entityId}/match-context", ct: ct);
+
+    public async Task<EpisodeSiblingMatchPreviewDto?> PreviewEpisodeSiblingMatchAsync(Guid entityId, string seriesId, int seasonNumber, CancellationToken ct = default) =>
+        await GetAsync<EpisodeSiblingMatchPreviewDto>(
+            "Episode sibling match preview",
+            $"/metadata/{entityId}/match-siblings",
+            new Dictionary<string, string?> { ["seriesId"] = seriesId, ["seasonNumber"] = seasonNumber.ToString(System.Globalization.CultureInfo.InvariantCulture) }, ct: ct);
+
+    public async Task<ShowChildRematchPreviewDto?> PreviewShowChildRematchAsync(Guid entityId, string seriesId, CancellationToken ct = default) =>
+        await GetAsync<ShowChildRematchPreviewDto>(
+            "Show re-match preview",
+            $"/metadata/{entityId}/rematch-children",
+            new Dictionary<string, string?> { ["seriesId"] = seriesId }, ct: ct);
+
+    public async Task<EditorFollowUpDto?> GetEditorFollowUpAsync(Guid entityId, CancellationToken ct = default) =>
+        await GetAsync<EditorFollowUpDto>("Editor follow-up", $"/metadata/{entityId}/follow-up", ct: ct);
 }

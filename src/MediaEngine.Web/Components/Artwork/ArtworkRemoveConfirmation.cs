@@ -5,8 +5,8 @@ using Microsoft.AspNetCore.Components;
 namespace MediaEngine.Web.Components.Artwork;
 
 /// <summary>
-/// The two artwork questions Editing Mode asks before something is lost (details overlay spec D7 and D17): Remove artwork and
-/// Restore automatic artwork. Both use the shared confirmation dialog, in the Editing Mode section and in the Needs Review
+/// The two artwork questions the editor asks before something is lost (details overlay spec D7 and D17): Remove artwork and
+/// Restore automatic artwork. Both use the shared confirmation dialog, in the Artwork tool and in the Needs Review
 /// modal alike. A pick, an upload or a URL applies at once; only these two ask first.
 /// </summary>
 public static class ArtworkRemoveConfirmation

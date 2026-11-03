@@ -21,6 +21,8 @@
 
 @inject IEngineApiClient ApiClient
 @inject IServiceProvider Services
+@inject ListEditLauncher EditLauncher
+@inject EditorHost Editor
 @inject MediaEngine.Web.Services.Theming.DeviceContextService DeviceContext
 @inject UIOrchestratorService Orchestrator
 @inject MediaReactionService Reactions
@@ -367,7 +369,7 @@
             @if (!IsContainerGrouping)
             {
                 @* Ticked rows get the selection bar and the right-hand "Edit N items" panel (universal editor spec D14). Filters, sort and scroll stay. *@
-                <BulkEditHost Rows="@BulkRows" MediaType="@CurrentTab.MediaType" OnSaved="ReloadAfterBulkSaveAsync" OnCleared="ClearBulkSelectionAsync" OnDeleted="OnBulkDeletedAsync" />
+                <BulkListEntry Rows="@BulkRows" MediaType="@CurrentTab.MediaType" OnSaved="ReloadAfterBulkSaveAsync" OnCleared="ClearBulkSelectionAsync" OnDeleted="OnBulkDeletedAsync" />
             }
             <LibraryConfigurableTable Columns="@ActiveColumns"
                                       VisibleColumnKeys="@VisibleColumnKeys"
@@ -754,6 +756,7 @@
         StateContainer.MediaAddedReceived += OnMediaAdded;
         Orchestrator.OnLibraryItemsRemoved += OnLibraryItemsRemoved;
         Playback.Changed += OnPlaybackChanged;
+        Editor.Closed += OnEditorClosed;
     }
 
     private void OnPlaybackChanged(PlaybackChangeKind kind)
@@ -2031,46 +2034,39 @@
         return Task.CompletedTask;
     }
 
+    // Edit opens the pop-over editor over this list (universal editor v3 D6): nothing navigates away, the list keeps its filters, sort and
+    // scroll, and it reloads its rows when the pop-over closes with a change (the Engine's own answer says whether this item may be edited).
     private async Task OpenItemEditorAsync(Guid entityId)
     {
         var item = ActiveTableItems.FirstOrDefault(candidate => candidate.EntityId == entityId)
                    ?? _items.FirstOrDefault(candidate => candidate.EntityId == entityId);
-
-        await OpenEditorAsync(
-            entityId,
-            item?.Title,
-            item?.Creator ?? item?.ContextLabel,
-            item?.CoverUrl,
-            item?.MediaType,
-            reloadOrigin: true);
-    }
-
-    // Edit opens the item's own page with the editor already on, on the Details tool (universal editor spec D2): the same bar and panel as
-    // everywhere else, not a pop-up. The list behind keeps its filters, sort and scroll for when the person comes back.
-    private Task OpenEditorAsync(
-        Guid entityId,
-        string? title,
-        string? subtitle,
-        string? coverUrl,
-        string? mediaType,
-        bool reloadOrigin)
-    {
-        if (entityId == Guid.Empty || EditorDeviceRule.TryRefuse(DeviceContext, Snackbar))
+        if (entityId == Guid.Empty)
         {
-            return Task.CompletedTask;
+            return;
         }
 
-        var item = ActiveTableItems.FirstOrDefault(candidate => candidate.EntityId == entityId)
-                   ?? _items.FirstOrDefault(candidate => candidate.EntityId == entityId);
-        Services.GetService<DetailsOverlayState>()?.OfferEditResume(new DetailsEditResume(entityId, EditingSection.Details, null));
-        Nav.NavigateTo(item is not null ? MediaNavigation.ForLibraryItem(item) : $"/details/work/{entityId:D}");
-        return Task.CompletedTask;
+        _awaitingSingleEdit = true;
+        if (!await EditLauncher.OpenAsync(ListEditTarget.ForLibraryRow(entityId, item?.Title, item?.MediaType)))
+        {
+            _awaitingSingleEdit = false;
+        }
     }
 
-    private async Task RefreshOriginAsync(bool reloadOrigin = true)
+    // True from the moment a row's Edit opened the pop-over until it closes, so a bulk edit (which reloads through its own save) is not reloaded twice.
+    private bool _awaitingSingleEdit;
+
+    private void OnEditorClosed(EditorClosedEventArgs closed)
     {
-        if (reloadOrigin)
-            await LoadBrowseContentAsync();
+        if (!_awaitingSingleEdit)
+        {
+            return;
+        }
+
+        _awaitingSingleEdit = false;
+        if (closed.Changed)
+        {
+            _ = InvokeAsync(ReloadAfterBulkSaveAsync);
+        }
     }
 
     private static string NormalizeEditorMediaType(string? mediaType)
@@ -2490,6 +2486,7 @@
         StateContainer.MediaAddedReceived -= OnMediaAdded;
         Orchestrator.OnLibraryItemsRemoved -= OnLibraryItemsRemoved;
         Playback.Changed -= OnPlaybackChanged;
+        Editor.Closed -= OnEditorClosed;
         _mediaAddedReloadCts?.Cancel();
         _mediaAddedReloadCts?.Dispose();
         _browseRequestCts?.Cancel();

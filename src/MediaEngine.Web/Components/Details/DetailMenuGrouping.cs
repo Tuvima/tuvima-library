@@ -20,7 +20,7 @@ public static class DetailMenuGrouping
     public const int UtilityGroup = 2;
     public const int EditGroup = 3;
 
-    /// <summary>Shortcuts into Editing Mode sections (Videos: Identify, Change thumbnail): straight after Edit, before Delete.</summary>
+    /// <summary>Shortcuts that open an editor tool (Videos: Identify, Change thumbnail): straight after Edit, before Delete.</summary>
     public const int ShortcutGroup = 4;
     public const int DestructiveGroup = 9;
 
@@ -79,7 +79,7 @@ public static class DetailMenuGrouping
     public static bool IsEditAction(DetailAction action) =>
         action.Key is DetailActionKeys.Edit or DetailActionKeys.EditMedia;
 
-    /// <summary>The "..." shortcuts that open an Editing Mode section; like Edit, they disappear where the device cannot edit.</summary>
+    /// <summary>The "..." shortcuts that open an editor tool; like Edit, they disappear where the device cannot edit.</summary>
     public static bool IsEditShortcut(DetailAction action) =>
         action.Key is DetailActionKeys.Identify or DetailActionKeys.ChangeThumbnail;
 

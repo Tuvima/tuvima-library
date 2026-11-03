@@ -40,6 +40,7 @@ public partial class ListenPage
     [Inject] private MediaReactionService Reactions { get; set; } = default!;
     [Inject] private SavedItemService SavedItems { get; set; } = default!;
     [Inject] private IServiceProvider Services { get; set; } = default!;
+    [Inject] private ListEditLauncher EditLauncher { get; set; } = default!;
     [Inject] private MediaEngine.Web.Services.Theming.DeviceContextService DeviceContext { get; set; } = default!;
     [Inject] private CollectionEditorLauncherService CollectionEditorLauncher { get; set; } = default!;
     [Inject] private NavigationManager Nav { get; set; } = default!;
@@ -1714,44 +1715,12 @@ public partial class ListenPage
         Snackbar.Add($"{work.Title} will play next", AppSeverity.Success);
     }
 
-    // A song's Edit (the playlist's Edit button): edit mode starts on the song's album page with the song ticked and the Edit panel open
-    // (universal editor spec D19). The songs lists edit in place instead, so this is only for a list that has no editor of its own.
-    private Task EditTrackAsync(WorkViewModel work)
+    // A song's Edit (the playlist's Edit button): the pop-over editor opens over this page with the song ticked and the Edit panel open
+    // (universal editor v3 D6, D19). Nothing navigates away, and the Engine's own answer says whether the song may be edited.
+    private async Task EditTrackAsync(WorkViewModel work)
     {
-        if (EditorDeviceRule.TryRefuse(DeviceContext, Snackbar))
-        {
-            return Task.CompletedTask;
-        }
-
-        if (AlbumOfTrack(work) is not { } album)
-        {
-            Snackbar.Add("This song is not on an album yet, so there is no page to edit it on.", AppSeverity.Info);
-            return Task.CompletedTask;
-        }
-
-        var row = new BulkEditRow(work.Id, DisplayTrackTitle(work), DetailEntityType.Work, album.AlbumId, "Music");
-        (Overlay ?? Services.GetService<DetailsOverlayState>())?.OfferEditResume(new DetailsEditResume(album.AlbumId, EditingSection.Details, null, row));
-        NavigateTo(album.Route);
-        return Task.CompletedTask;
-    }
-
-    private (Guid AlbumId, string Route)? AlbumOfTrack(WorkViewModel work)
-    {
-        if (work.CollectionId is { } collection)
-        {
-            return (collection, $"/details/musicalbum/{collection:D}?context=listen&track={work.Id:D}");
-        }
-
-        if (string.IsNullOrWhiteSpace(work.Album))
-        {
-            return null;
-        }
-
-        var artist = StringHelpers.FirstNonBlank(work.Artist, work.Author);
-        var album = _albumGroups.FirstOrDefault(group =>
-            string.Equals(group.DisplayName, work.Album, StringComparison.OrdinalIgnoreCase)
-            && (string.IsNullOrWhiteSpace(artist) || string.Equals(group.Creator, artist, StringComparison.OrdinalIgnoreCase)));
-        return album is null ? null : (album.CollectionId, BuildAlbumDetailRoute(work.Album, artist, work.Id));
+        var row = new BulkEditRow(work.Id, DisplayTrackTitle(work), DetailEntityType.Work, work.CollectionId, "Music");
+        await EditLauncher.OpenRowAsync(row, DetailPresentationContext.Listen);
     }
 
     private string? BuildAlbumRouteForTrack(WorkViewModel work)

@@ -115,31 +115,6 @@ window.tuvimaEditorFocus = function (selector) {
     });
 };
 
-// Editing Mode section slot: remember the control that opened it and give focus back when it closes. When that control is gone
-// (Done closes the section and the banner button with it) focus goes to the first fallback selector that still matches.
-window.tuvimaFocusReturn = (function () {
-    var opener = null;
-    return {
-        remember: function () {
-            var active = document.activeElement;
-            opener = active && active !== document.body ? active : null;
-        },
-        restore: function (fallbackSelectors) {
-            var remembered = opener;
-            opener = null;
-            window.requestAnimationFrame(function () {
-                var target = remembered && remembered.isConnected ? remembered : null;
-                for (var index = 0; !target && fallbackSelectors && index < fallbackSelectors.length; index++) {
-                    target = document.querySelector(fallbackSelectors[index]);
-                }
-                if (target && typeof target.focus === 'function') {
-                    target.focus({ preventScroll: true });
-                }
-            });
-        }
-    };
-})();
-
 window.tuvimaEditorScrollTop = function () {
     window.requestAnimationFrame(function () {
         var pane = document.querySelector('.sme-body, .person-editor__main');
@@ -257,6 +232,22 @@ window.tuvimaFocusById = function (id) {
     const target = id && document.getElementById(id);
     if (target) target.focus({ preventScroll: true });
 };
+
+// The editor's family tree: a row takes focus (and scrolls into view inside the list), and the keys the tree uses never scroll the dialog.
+window.tuvimaFocusFamilyRow = function (id) {
+    const target = id && document.getElementById(id);
+    if (target) {
+        target.focus({ preventScroll: true });
+        target.scrollIntoView({ block: 'nearest' });
+    }
+};
+
+document.addEventListener('keydown', function (event) {
+    if (event.target instanceof Element && event.target.matches('.tl-family__row')
+        && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', ' '].includes(event.key)) {
+        event.preventDefault();
+    }
+}, true);
 
 window.tuvimaPositionSharedEntityPopover = function (anchorId, popoverId) {
     const anchor = anchorId && document.getElementById(anchorId);

@@ -2,8 +2,8 @@ namespace MediaEngine.Web.Services.Editing;
 
 /// <summary>
 /// Where Match and Identity can be used: everywhere except a TV target below the episode level (a TV file group has no
-/// identity of its own). The editor and the Editing Mode banner both ask this one rule, so the banner never offers a
-/// section the editor would leave out.
+/// identity of its own). The editor and its tool tabs both ask this one rule, so the tabs never offer a
+/// tool the editor would leave out.
 /// </summary>
 public static class MediaEditorMatchRule
 {

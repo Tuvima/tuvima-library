@@ -1,6 +1,8 @@
 # Spec: Home, detail page and tile redesign
 
-> **Status:** In progress · **Version:** 1 · **Last updated:** 2026-11-03 (locked by Shy) · **Related docs:** [One shared look](one-shared-look.md) · [Collections and lists](collections-and-lists.md) · [Universal editor](universal-editor.md) · [Video player controls](video-player-controls-and-bookmarks.md) · Local check 2026-11-02 items 16, 17, 18, 20 to 24, 34, 35 (items 34 and 35 are owned by the build thread "Fix bugs from the 2 Nov review") · Mockups: [home-detail-and-tiles.html](../design/mockups/home-detail-and-tiles.html)
+> **Status:** Built · **Version:** 1 · **Last updated:** 2026-11-03 (locked by Shy) · **Related docs:** [One shared look](one-shared-look.md) · [Collections and lists](collections-and-lists.md) · [Universal editor](universal-editor.md) · [Video player controls](video-player-controls-and-bookmarks.md) · Local check 2026-11-02 items 16, 17, 18, 20 to 24, 34, 35 (items 34 and 35 are owned by the build thread "Fix bugs from the 2 Nov review") · Mockups: [home-detail-and-tiles.html](../design/mockups/home-detail-and-tiles.html)
+
+> **Built (2026-11-03):** every packet is built, including the cover-level "+" and "..." buttons. Download in the icon row (D19) moved to the native-app pass; Local checks are in [validation/batch.md](../validation/batch.md).
 
 ## 0. Product walkthrough (what you will see)
 1. **Home looks calmer and bigger.** Every cover is portrait. Covers in Watch, Read and Listen rows are larger (about six across on a desktop instead of eight). Nothing grows or turns landscape on hover; the cover gets a thick white border with a purple ring.

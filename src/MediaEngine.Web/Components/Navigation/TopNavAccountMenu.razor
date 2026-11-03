@@ -119,7 +119,15 @@
                        @onclick="CloseMenu">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Settings"
                                  Class="top-nav-account-menu__item-icon" />
-                        <span>@L["Nav_Settings"]</span>
+                        <span class="top-nav-account-menu__item-copy">
+                            <span>@L["Nav_Settings"]</span>
+                            @* The one place the app says "something needs you" (universal editor v3 D13): a small count that goes away at zero. *@
+                            @if (ReviewCount > 0)
+                            {
+                                <span class="top-nav-account-menu__review-count" data-testid="settings-review-count" role="img"
+                                      aria-label="@L["TopNavAccountMenu_NeedsReviewCount", ReviewCount.ToString("N0")].Value">@ReviewCount.ToString("N0")</span>
+                            }
+                        </span>
                     </a>
                 }
 
@@ -207,6 +215,9 @@
     /// <summary>Pages plugins add to the menu, already cut to what the active profile may see.</summary>
     [Parameter] public IReadOnlyList<PluginMenuEntryDto> PluginMenu { get; set; } = [];
     [Parameter] public bool ShowSignOut { get; set; }
+
+    /// <summary>Rows in Needs Review (review items plus files the Engine could not match); shown beside Settings, and absent at zero. Zero for anyone who is not an administrator.</summary>
+    [Parameter] public int ReviewCount { get; set; }
 
     /// <summary>True for a Kids profile: no settings or review links, and a "Kids" badge.</summary>
     [Parameter] public bool IsKids { get; set; }

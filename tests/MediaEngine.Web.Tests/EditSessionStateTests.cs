@@ -138,19 +138,6 @@ public sealed class EditSessionStateTests
     }
 
     [Fact]
-    public void LeavingTheArtworkTool_ReturnsThePageToItsNormalView()
-    {
-        var state = new EditSessionState(new PendingEditList());
-        state.Begin([new EditTrailItem(Season, "Season 1", "season")]);
-        state.SetTool(EditTool.Artwork);
-        state.SetViewContext(EditViewContext.TemporaryArtwork);
-
-        state.SetTool(EditTool.Details);
-
-        Assert.Equal(EditViewContext.Normal, state.ViewContext);
-    }
-
-    [Fact]
     public void Cancel_DiscardsThePendingListAndLeavesEditMode()
     {
         var state = new EditSessionState(new PendingEditList());

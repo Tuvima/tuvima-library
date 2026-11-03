@@ -126,7 +126,7 @@
     </div>
     }
 
-    @* Editing Mode: the ticked rows' bar sits directly above the rows. *@
+    @* The ticked rows' bar sits directly above the rows. *@
     <BulkSelectionBar />
 
     @if (_seasonBrowserOpen && IsSeasonContainer)
@@ -199,7 +199,7 @@
             {
                 var item = VisibleItems[index];
                 var previousItem = index > 0 ? VisibleItems[index - 1] : null;
-                // While Editing Mode is on a tickable card is not a link: the tick box is the card's one control.
+                // A tickable card is not a link: the tick box is the card's one control.
                 var tickable = IsTickable(item);
                 var route = tickable ? null : SequenceItemRoute(item);
                 if (route is not null)
@@ -218,7 +218,7 @@
                 }
                 else
                 {
-                    @* While Editing Mode is on, a tickable card ticks anywhere you click it; the box stays the keyboard control. Opening the
+                    @* A tickable card ticks anywhere you click it; the box stays the keyboard control. Opening the
                        title is for after Done (a card has no row menu of its own). *@
                     <article class="@SequenceItemClass(item)"
                              aria-current="@(item.IsCurrent ? "page" : null)"
@@ -1453,11 +1453,6 @@ else
     }
     public async ValueTask DisposeAsync()
     {
-        if (_hookedMode is not null)
-        {
-            _hookedMode.Changed -= OnBatchStateChanged;
-        }
-
         if (_hookedSelection is not null)
         {
             _hookedSelection.Changed -= OnBatchStateChanged;
@@ -1571,10 +1566,10 @@ else
     private string SequenceItemClass(SequenceItemViewModel item)
         => $"tl-series-item{(item.IsCurrent ? " is-current" : string.Empty)}{(item.IsOwned ? " is-owned" : " is-missing")}{(!IsTickable(item) && SequenceItemRoute(item) is not null ? " is-clickable" : string.Empty)}{(IsSeasonContainer ? " is-season-episode" : string.Empty)}{(IsTicked(item) ? " is-selected" : string.Empty)}";
 
-    // Details overlay spec D8: while Editing Mode is on, an owned single title in the detail page's own list can be ticked.
+    // Details overlay spec D8: an owned single title in the detail page's own list can be ticked.
     private bool IsTickable(SequenceItemViewModel item)
         => DetailSurface
-           && EditingMode is { IsOn: true, CanEdit: true }
+           && PageEditor is { CanEdit: true }
            && BatchSelection is not null
            && item.IsOwned
            && TickId(item) != Guid.Empty
@@ -1593,6 +1588,7 @@ else
             return;
         }
 
+        EditorHostService.Bind(PageEditor!);
         if (!BatchSelection.Toggle(new BulkEditRow(TickId(item), SequenceItemTitle(item), item.EntityType, Guid.TryParse(SelectedContainerValue, out var season) ? season : null, "TV")))
         {
             Snackbar.Add(BulkEditSelection.FullNotice, AppSeverity.Info);
@@ -1602,29 +1598,17 @@ else
     private static Guid TickId(SequenceItemViewModel item)
         => Guid.TryParse(item.Id, out var id) ? id : Guid.Empty;
 
-    [CascadingParameter] public EditingModeContext? EditingMode { get; set; }
+    /// <summary>The detail page this list sits on, which carries the Engine's answer whether the item may be edited. Null outside a detail page.</summary>
+    [CascadingParameter] public EditorBinding? PageEditor { get; set; }
 
     [CascadingParameter] public BulkEditSelection? BatchSelection { get; set; }
 
-    private EditingModeContext? _hookedMode;
+    [Inject] private EditorHost EditorHostService { get; set; } = default!;
+
     private BulkEditSelection? _hookedSelection;
 
     private void HookBatchState()
     {
-        if (!ReferenceEquals(_hookedMode, EditingMode))
-        {
-            if (_hookedMode is not null)
-            {
-                _hookedMode.Changed -= OnBatchStateChanged;
-            }
-
-            _hookedMode = EditingMode;
-            if (_hookedMode is not null)
-            {
-                _hookedMode.Changed += OnBatchStateChanged;
-            }
-        }
-
         if (!ReferenceEquals(_hookedSelection, BatchSelection))
         {
             if (_hookedSelection is not null)

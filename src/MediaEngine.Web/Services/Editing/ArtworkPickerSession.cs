@@ -6,8 +6,11 @@ using Microsoft.Extensions.Logging;
 
 namespace MediaEngine.Web.Services.Editing;
 
-/// <summary>One tab of the floating Artwork picker: the slot it edits and what it is called.</summary>
-public sealed record ArtworkPickerTab(string Slot, string Label);
+/// <summary>One tab of the Artwork tool: the slot it edits and what it is called.</summary>
+public sealed record ArtworkPickerTab(string Slot, string Label, string Level = ArtworkPickerRules.ThisItemLevel);
+
+/// <summary>The tabs of one level of the Artwork tool (the item's own pictures, its seasons' pictures, its episodes' stills).</summary>
+public sealed record ArtworkPickerGroup(string Level, IReadOnlyList<ArtworkPickerTab> Tabs);
 
 /// <summary>A picture already saved for the item and slot, as the picker lists it.</summary>
 public sealed record ArtworkPickerPicture(Guid AssetId, string ThumbnailUrl, string ContentUrl, string Caption, bool IsCurrent);
@@ -25,9 +28,31 @@ public static class ArtworkPickerRules
             .Where(slot => RoleFor(slot) is not null)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(slot => Rank(slot))
-            .Select(slot => new ArtworkPickerTab(Canonical(slot), LabelFor(slot, cover)))
+            .Select(slot => new ArtworkPickerTab(Canonical(slot), LabelFor(slot, cover), LevelOf(slot)))
             .ToList();
     }
+
+    /// <summary>The level that holds the item's own pictures.</summary>
+    public const string ThisItemLevel = "This item";
+
+    public const string SeasonsLevel = "Seasons";
+
+    public const string EpisodesLevel = "Episodes";
+
+    /// <summary>The level a slot belongs to: the item's own pictures, those of the seasons below it, or the stills of the episodes below that.</summary>
+    public static string LevelOf(string? slot) => slot?.Trim().ToLowerInvariant() switch
+    {
+        "seasonposter" or "seasonthumb" => SeasonsLevel,
+        "episodestill" => EpisodesLevel,
+        _ => ThisItemLevel,
+    };
+
+    /// <summary>The tabs grouped by level, in the order This item, Seasons, Episodes; a level with no tab is left out.</summary>
+    public static IReadOnlyList<ArtworkPickerGroup> GroupByLevel(IReadOnlyList<ArtworkPickerTab> tabs) =>
+        new[] { ThisItemLevel, SeasonsLevel, EpisodesLevel }
+            .Select(level => new ArtworkPickerGroup(level, tabs.Where(tab => tab.Level == level).ToList()))
+            .Where(group => group.Tabs.Count > 0)
+            .ToList();
 
     /// <summary>The Engine's artwork role a slot belongs to, or null for a slot the picker does not edit.</summary>
     public static string? RoleFor(string? slot) => slot?.Trim().ToLowerInvariant() switch
@@ -71,8 +96,8 @@ public static class ArtworkPickerRules
 }
 
 /// <summary>
-/// What the floating Artwork picker does (universal editor spec D8, D9), kept off the screen so it can be tested. Picking a picture only
-/// previews it on the page; "Use this artwork" stages it in the pending list; nothing becomes the chosen picture until Save changes.
+/// What the Artwork tool does (universal editor spec D8), kept off the screen so it can be tested. Picking a picture only
+/// previews it in the tool; "Use this artwork" stages it in the pending list; nothing becomes the chosen picture until Save changes.
 /// Pictures that have to exist before they can be shown (an upload, a pasted link, a provider picture) are stored as unchosen pictures
 /// of the item, which changes nothing on the page.
 /// </summary>
@@ -128,7 +153,7 @@ public sealed class ArtworkPickerSession
     public string? PickedTarget => ActiveSlot is null ? null : _preview.PickedTarget(ActiveSlot);
 
     /// <summary>The picture the page shows for the active slot right now: the pick, else the staged picture, else the one the item has.</summary>
-    public string? ShownUrl => ActiveSlot is null ? null : _preview.TemporaryUrl(ActiveSlot);
+    public string? ShownUrl => ActiveSlot is null ? null : _preview.ShownUrl(ActiveSlot);
 
     /// <summary>The change staged for the active slot, if any.</summary>
     public bool IsStaged => ActiveSlot is not null && _preview.IsStaged(ActiveSlot);
@@ -145,7 +170,7 @@ public sealed class ArtworkPickerSession
         await SelectSlotAsync(target);
     }
 
-    /// <summary>Moves to another tab. A pick that was not used is dropped; the page leaves or enters the temporary view as the slot needs.</summary>
+    /// <summary>Moves to another tab. A pick that was not used is dropped.</summary>
     public async Task SelectSlotAsync(string? slot)
     {
         if (ActiveSlot is not null && !string.Equals(ActiveSlot, slot, StringComparison.OrdinalIgnoreCase))
@@ -158,7 +183,6 @@ public sealed class ArtworkPickerSession
         Provider = null;
         Saved = [];
         Message = null;
-        ApplyViewContext();
         Changed?.Invoke();
         if (slot is not null)
         {
@@ -166,17 +190,12 @@ public sealed class ArtworkPickerSession
         }
     }
 
-    /// <summary>Closes the picker: unused picks go away and the page returns to its normal view.</summary>
+    /// <summary>Closes the picker: unused picks go away.</summary>
     public void Close()
     {
         _preview.ClearPicks();
         _pickedProviderId = null;
         ActiveSlot = null;
-        _preview.SetTemporarySlot(null);
-        if (_session.IsActive && _session.ViewContext != EditViewContext.Normal)
-        {
-            _session.SetViewContext(EditViewContext.Normal);
-        }
     }
 
     /// <summary>
@@ -193,16 +212,6 @@ public sealed class ArtworkPickerSession
         Saved = [];
         Message = null;
         await OpenAsync(slot);
-    }
-
-    /// <summary>Leaves the temporary view for the normal page while the tool stays open ("Return to series view").</summary>
-    public void ReturnToNormalView()
-    {
-        _preview.SetTemporarySlot(null);
-        if (_session.IsActive)
-        {
-            _session.SetViewContext(EditViewContext.Normal);
-        }
     }
 
     /// <summary>Lists the pictures already saved for the item and slot.</summary>
@@ -406,7 +415,7 @@ public sealed class ArtworkPickerSession
                 url = Saved.FirstOrDefault(picture => picture.AssetId.ToString("D") == target)?.ContentUrl;
             }
 
-            _session.Pending.SetArtwork(_fields.ArtworkEntityId, slot, assetId);
+            _session.Pending.SetArtwork(_fields.ArtworkEntityId, slot, assetId, before: BeforeText(slot));
             _preview.RememberStaged(slot, assetId, url);
             _pickedProviderId = null;
             return true;
@@ -427,7 +436,7 @@ public sealed class ArtworkPickerSession
         }
 
         _pickedProviderId = null;
-        _session.Pending.SetArtwork(_fields.ArtworkEntityId, slot, EditSessionArtworkTargets.None);
+        _session.Pending.SetArtwork(_fields.ArtworkEntityId, slot, EditSessionArtworkTargets.None, before: BeforeText(slot));
         _preview.RememberStaged(slot, EditSessionArtworkTargets.None, null);
         Changed?.Invoke();
     }
@@ -505,30 +514,105 @@ public sealed class ArtworkPickerSession
         return null;
     }
 
+    /// <summary>Where "Fetch all" finds the episodes under the item being edited; set by the editor host from the family tree.</summary>
+    public Func<Task<IReadOnlyList<Guid>>>? EpisodeSource { get; set; }
+
+    /// <summary>Whether "Fetch all stills" is offered: a show or season whose episodes the tree can list.</summary>
+    public bool CanFetchAllStills => EpisodeSource is not null
+        && (string.Equals(_fields.MediaType, "TV", StringComparison.OrdinalIgnoreCase))
+        && Tabs.Any(tab => string.Equals(tab.Slot, "EpisodeStill", StringComparison.OrdinalIgnoreCase) || tab.Level == ArtworkPickerRules.EpisodesLevel);
+
+    /// <summary>
+    /// Fetches the provider's still for every episode under this item and stages each as a change (nothing is saved until Save changes).
+    /// An episode the provider has no still for is skipped and counted in the sentence in <see cref="Message"/>.
+    /// </summary>
+    public async Task<int> FetchAllStillsAsync()
+    {
+        if (Busy || EpisodeSource is null)
+        {
+            return 0;
+        }
+
+        Busy = true;
+        Message = null;
+        Changed?.Invoke();
+        var staged = 0;
+        var skipped = 0;
+        try
+        {
+            var episodes = await EpisodeSource();
+            foreach (var episodeId in episodes)
+            {
+                var fetched = await FetchStillAsync(episodeId);
+                if (fetched)
+                {
+                    staged++;
+                }
+                else
+                {
+                    skipped++;
+                }
+            }
+
+            Message = episodes.Count == 0
+                ? "No episodes were found to fetch pictures for."
+                : skipped == 0
+                    ? $"Added a picture for {staged} episodes. Save changes to keep them."
+                    : $"Added a picture for {staged} episodes; {skipped} had none to offer. Save changes to keep them.";
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            _logger?.LogWarning(ex, "Pictures for the episodes could not be fetched");
+            Message = staged == 0
+                ? "The episode pictures could not be fetched. Check the provider connection and try again."
+                : $"Added a picture for {staged} episodes before the connection failed. Save changes to keep them.";
+        }
+        finally
+        {
+            Busy = false;
+            Changed?.Invoke();
+        }
+
+        return staged;
+    }
+
+    private async Task<bool> FetchStillAsync(Guid episodeId)
+    {
+        var context = await _api.GetMediaEditorContextAsync(episodeId);
+        var scope = context?.Scopes.FirstOrDefault(candidate => candidate.ArtworkSlots.Contains("EpisodeStill", StringComparer.OrdinalIgnoreCase));
+        if (scope is null)
+        {
+            return false;
+        }
+
+        var owner = scope.ArtworkOwnerEntityId ?? episodeId;
+        var found = await _api.DiscoverProviderArtworkAsync(
+            owner, scope.ScopeId, "Primary", new ProviderArtworkDiscoveryRequestDto(PageSize: 12, SourceAssetType: "EpisodeStill"));
+        var candidate = found?.Items.FirstOrDefault();
+        if (candidate is null)
+        {
+            return false;
+        }
+
+        var imported = await _api.ImportProviderArtworkAsync(owner, scope.ScopeId, "Primary", [candidate.Id]);
+        if (imported?.Items.FirstOrDefault()?.AssetId is not { } assetId)
+        {
+            return false;
+        }
+
+        _session.Pending.SetArtwork(owner, "EpisodeStill", assetId.ToString("D"), "Episode picture", EditReviewRows.NoPictureYet);
+        return true;
+    }
+
+    // Review's Before for a picture: the item has one saved for the slot, or none.
+    private string BeforeText(string slot) =>
+        _preview.HasCurrent(slot) ? "The current picture" : EditReviewRows.NoPictureYet;
+
     private bool Fail(string message)
     {
         Message = message;
         Changed?.Invoke();
         return false;
-    }
-
-    private void ApplyViewContext()
-    {
-        if (!_session.IsActive)
-        {
-            return;
-        }
-
-        if (ArtworkEditPreview.UsesTemporaryView(ActiveSlot))
-        {
-            _preview.SetTemporarySlot(ActiveSlot);
-            _session.SetViewContext(EditViewContext.TemporaryArtwork);
-        }
-        else
-        {
-            _preview.SetTemporarySlot(null);
-            _session.SetViewContext(EditViewContext.Normal);
-        }
     }
 
     private static string Caption(ArtworkEntityVariantDto variant)

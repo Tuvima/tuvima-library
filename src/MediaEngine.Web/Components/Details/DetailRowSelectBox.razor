@@ -3,9 +3,12 @@
 @using MediaEngine.Web.Services.Editing
 @implements IDisposable
 @inject IAppToastService Toasts
+@inject EditorHost Editor
+@inject DeviceContextService Device
 
-@* The tick box on a child row (track, audiobook part, episode, series item) while Editing Mode is on (details overlay spec D8).
-   Outside Editing Mode, on a device that may not edit, or for a row that is not one title, nothing renders. *@
+@* The tick box on a child row (track, audiobook part, episode, series item) of a page whose item the person may edit (universal editor
+   spec D8, v3 WP3). Ticking needs no editor to be open: ticked rows go to the one editor host, and the bar's Edit opens the pop-over for
+   them. On a device that may not edit, on a page without the Engine's edit permission, or for a row that is not one title, nothing renders. *@
 @if (Visible)
 {
     <span class="@RootClass" @onclick:stopPropagation="true" @ondblclick:stopPropagation="true">
@@ -16,10 +19,10 @@
 }
 
 @code {
-    private EditingModeContext? _mode;
     private BulkEditSelection? _selection;
 
-    [CascadingParameter] public EditingModeContext? Mode { get; set; }
+    /// <summary>The page the row sits on, which says whether the person may edit it (the Engine's answer) and on which device.</summary>
+    [CascadingParameter] public EditorBinding? Binding { get; set; }
 
     [CascadingParameter] public BulkEditSelection? Selection { get; set; }
 
@@ -38,7 +41,7 @@
     /// <summary>True on a card: the box sits in the card's top-left corner instead of inline in a row.</summary>
     [Parameter] public bool Floating { get; set; }
 
-    private bool Visible => Mode is { IsOn: true, CanEdit: true }
+    private bool Visible => Binding is { CanEdit: true }
         && Selection is not null
         && ItemId != Guid.Empty
         && BulkEditRules.IsSelectableKind(Kind);
@@ -49,18 +52,10 @@
 
     protected override void OnParametersSet()
     {
-        if (!ReferenceEquals(_mode, Mode))
+        if (!_deviceHooked)
         {
-            if (_mode is not null)
-            {
-                _mode.Changed -= OnStateChanged;
-            }
-
-            _mode = Mode;
-            if (_mode is not null)
-            {
-                _mode.Changed += OnStateChanged;
-            }
+            _deviceHooked = true;
+            Device.OnChanged += OnStateChanged;
         }
 
         if (!ReferenceEquals(_selection, Selection))
@@ -78,12 +73,17 @@
         }
     }
 
+    private bool _deviceHooked;
+
     private void ToggleAsync(bool _)
     {
-        if (Selection is null || Mode is not { IsOn: true, CanEdit: true })
+        if (Selection is null || Binding is not { CanEdit: true })
         {
             return;
         }
+
+        // The ticks belong to this page's editor binding, so the bar's Edit opens the pop-over for this page.
+        Editor.Bind(Binding);
 
         if (!Selection.Toggle(new BulkEditRow(ItemId, Title, Kind, ParentId, MediaType)))
         {
@@ -95,11 +95,7 @@
 
     public void Dispose()
     {
-        if (_mode is not null)
-        {
-            _mode.Changed -= OnStateChanged;
-        }
-
+        Device.OnChanged -= OnStateChanged;
         if (_selection is not null)
         {
             _selection.Changed -= OnStateChanged;

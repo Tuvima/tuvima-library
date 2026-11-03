@@ -47,6 +47,9 @@ public static class ApiReadServiceCollectionExtensions
         services.AddSingleton<EditSessionCallerAccessor>();
         services.AddSingleton<IEditSessionChangeHandler, IdentityEditSessionChangeHandler>();
         services.AddSingleton<IEditSessionChangeHandler, ExtraMoveEditSessionChangeHandler>();
+        services.AddScoped<IEpisodeSiblingMatcher, EpisodeSiblingMatcher>();
+        services.AddScoped<IShowChildRematcher, ShowChildRematcher>();
+        services.AddSingleton<IEditSessionChangeHandler, SiblingMatchEditSessionChangeHandler>();
         services.AddSingleton<IEditSessionFileWrites, EditSessionFileWrites>();
         services.AddSingleton<IEditSessionService, EditSessionService>();
         services.AddSingleton<IMetadataClaimHistoryReadService, MetadataClaimHistoryReadService>();
@@ -71,6 +74,7 @@ public static class ApiReadServiceCollectionExtensions
         services.AddScoped<CollectionPackService>();
         services.AddScoped<IPackFileImporter>(sp => sp.GetRequiredService<CollectionPackService>());
         services.AddSingleton<IReviewQueueReadService, ReviewQueueReadService>();
+        services.AddSingleton<INeedsReviewListReadService, NeedsReviewListReadService>();
         services.AddSingleton<EditorSuggestionReadService>();
         services.AddSingleton<PersonEditorReadService>();
         services.AddSingleton<ArtworkLibraryReadService>();

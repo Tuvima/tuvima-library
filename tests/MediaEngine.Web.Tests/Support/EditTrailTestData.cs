@@ -1,5 +1,6 @@
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Metadata;
+using MediaEngine.Web.Services.Integration;
 
 namespace MediaEngine.Web.Tests.Support;
 
@@ -103,6 +104,99 @@ public static class EditTrailTestData
                 ],
             },
         ],
+    };
+
+    /// <summary>
+    /// The Engine's family reads for the editor's tree (navigator and owned-children), for the show and the album above. Season 1 holds a matched
+    /// Episode 1 and an unmatched Episode 2; Season 2 holds an unmatched Episode 3; the album holds two matched tracks. Every other id has no family.
+    /// <paramref name="asked"/> collects "navigator:{id}" and "children:{id}:page{n}" in the order they were asked.
+    /// </summary>
+    internal static void RegisterFamily(EngineApiClientStub stub, List<string>? asked = null)
+    {
+        stub.SetHandler(nameof(IEngineApiClient.GetMediaEditorNavigatorAsync), args =>
+        {
+            var id = (Guid)args![0]!;
+            asked?.Add($"navigator:{id:N}");
+            return Task.FromResult(Navigator(id));
+        });
+        stub.SetHandler(nameof(IEngineApiClient.GetMediaEditorOwnedChildrenAsync), args =>
+        {
+            var parent = (Guid)args![0]!;
+            var page = (int)args[2]!;
+            asked?.Add($"children:{parent:N}:page{page}");
+            return Task.FromResult(OwnedChildren(parent));
+        });
+    }
+
+    private static MediaEditorNavigatorDto? Navigator(Guid id)
+    {
+        if (id == ShowId || id == SeasonOneId || id == SeasonTwoId || id == EpisodeOneId || id == EpisodeTwoId || id == EpisodeThreeId)
+        {
+            return new MediaEditorNavigatorDto
+            {
+                Enabled = true,
+                MediaType = "TV",
+                ContainerEntityId = ShowId,
+                SelectedEntityId = id,
+                Nodes =
+                [
+                    Node(ShowId, null, "series", ShowTitle, 0),
+                    Node(SeasonOneId, ShowId, "season", "Season 1", 1),
+                    Node(SeasonTwoId, ShowId, "season", "Season 2", 1),
+                ],
+            };
+        }
+
+        if (id == AlbumId || id == TrackOneId || id == TrackTwoId)
+        {
+            return new MediaEditorNavigatorDto
+            {
+                Enabled = true,
+                MediaType = "Music",
+                ContainerEntityId = AlbumId,
+                SelectedEntityId = id,
+                Nodes = [Node(AlbumId, null, "album", "OK Computer", 0)],
+            };
+        }
+
+        return null;
+    }
+
+    private static MediaEditorNavigatorNodeDto Node(Guid id, Guid? parent, string kind, string title, int depth) => new()
+    {
+        NodeId = id,
+        EntityId = id,
+        ParentNodeId = parent,
+        NodeKind = kind,
+        Title = title,
+        Depth = depth,
+        IsRoot = depth == 0,
+        IsLeaf = false,
+        IsOwned = true,
+    };
+
+    private static MediaEditorOwnedChildSearchDto OwnedChildren(Guid parent)
+    {
+        var items = parent switch
+        {
+            _ when parent == SeasonOneId => new List<MediaEditorOwnedChildDto> { File(EpisodeOneId, "Episode 1", "1", true), File(EpisodeTwoId, "Episode 2", "2", false) },
+            _ when parent == SeasonTwoId => [File(EpisodeThreeId, "Episode 3", "3", false)],
+            _ when parent == AlbumId => [File(TrackOneId, "Airbag", "1", true), File(TrackTwoId, "Paranoid Android", "2", true)],
+            _ => [],
+        };
+        return new MediaEditorOwnedChildSearchDto { ParentEntityId = parent, Page = 1, PageSize = 50, TotalCount = items.Count, Items = items };
+    }
+
+    private static MediaEditorOwnedChildDto File(Guid workId, string title, string number, bool matched) => new()
+    {
+        WorkId = workId,
+        AssetId = Guid.NewGuid(),
+        Title = title,
+        MatchedNumber = number,
+        SourceFileName = title + ".mkv",
+        SourceFilePath = "/library/" + title + ".mkv",
+        MatchState = matched ? "matched" : "unmatched",
+        MatchReason = matched ? null : "No show, season or episode on a provider matches this file yet.",
     };
 
     private static SequenceItemViewModel Episode(Guid id, string title, string groupKey, bool current = false) => new()

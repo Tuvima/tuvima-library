@@ -3,6 +3,7 @@
 @using MediaEngine.Web.Services.Editing
 @implements IDisposable
 @inject DeviceContextService Device
+@inject EditorHost Editor
 @inject IAppToastService Toasts
 @inject IAppDialogService Dialogs
 @inject IServiceProvider Services
@@ -10,8 +11,9 @@
 
 @* The ticked rows' bar (universal editor spec D14), in the list column directly above the rows. It reads "{n} selected", then Edit, Match
    and Move to album/season where they make sense for the ticked rows, a "..." menu holding Delete from library, and Clear. It only opens
-   the right-hand panel (the selection says which one); the panel stages, and the one Save changes saves. Nothing renders on a device
-   that may not edit, outside Editing Mode on a detail page, or while no row is ticked. *@
+   pop-over's bulk panel (the selection says which one; the one editor host opens it over the page or list); the panel stages, and the
+   one Save changes saves. Nothing renders on a device that may not edit, on a page the Engine does not let the person edit, or while no
+   row is ticked. *@
 @if (Active is { Count: > 0 } selection && IsAvailable)
 {
     var rows = selection.Rows;
@@ -86,11 +88,12 @@
     /// <summary>The id of the bar's button for a panel, so focus can come back to it when that panel closes.</summary>
     public static string ButtonId(BulkPanelKind panel) => $"tl-batch-{panel.ToString().ToLowerInvariant()}";
 
-    private EditingModeContext? _mode;
     private BulkEditSelection? _selection;
     private bool _deleting;
+    private bool _deviceHooked;
 
-    [CascadingParameter] public EditingModeContext? Mode { get; set; }
+    /// <summary>The detail page the bar sits on (its Engine edit permission); null for a list with no page behind it, which needs only a device that may edit.</summary>
+    [CascadingParameter] public EditorBinding? Binding { get; set; }
 
     [CascadingParameter] public BulkEditSelection? CascadedSelection { get; set; }
 
@@ -108,10 +111,10 @@
 
     private BulkEditSelection? Active => Selection ?? CascadedSelection;
 
-    // On a detail page the bar belongs to Editing Mode; on a list it only needs a device that may edit.
-    private bool IsAvailable => Mode is not null ? Mode is { IsOn: true, CanEdit: true } : EditorDeviceRule.CanEdit(Device);
+    // On a detail page the bar needs the Engine's edit answer for that page; on a list it only needs a device that may edit.
+    private bool IsAvailable => Binding is not null ? Binding.CanEdit : EditorDeviceRule.CanEdit(Device);
 
-    private bool IsBusy => Busy || _deleting || Mode is { IsSettling: true } || Mode is { SectionSaving: true };
+    private bool IsBusy => Busy || _deleting || Editor.Mode.IsSettling || Editor.Mode.SectionSaving;
 
     private static AppButtonStyle Style(BulkEditSelection selection, BulkPanelKind kind) =>
         selection.Panel == kind ? AppButtonStyle.Filled : AppButtonStyle.Outlined;
@@ -150,18 +153,11 @@
 
     protected override void OnParametersSet()
     {
-        if (!ReferenceEquals(_mode, Mode))
+        if (!_deviceHooked)
         {
-            if (_mode is not null)
-            {
-                _mode.Changed -= OnStateChanged;
-            }
-
-            _mode = Mode;
-            if (_mode is not null)
-            {
-                _mode.Changed += OnStateChanged;
-            }
+            _deviceHooked = true;
+            Device.OnChanged += OnStateChanged;
+            Editor.Changed += OnStateChanged;
         }
 
         if (!ReferenceEquals(_selection, Active))
@@ -203,6 +199,11 @@
         if (kind == BulkPanelKind.Move && !BulkEditRules.CanMove(Active.Rows))
         {
             return;
+        }
+
+        if (Binding is not null)
+        {
+            Editor.Bind(Binding);
         }
 
         Active.OpenPanel(kind);
@@ -261,11 +262,8 @@
 
     public void Dispose()
     {
-        if (_mode is not null)
-        {
-            _mode.Changed -= OnStateChanged;
-        }
-
+        Device.OnChanged -= OnStateChanged;
+        Editor.Changed -= OnStateChanged;
         if (_selection is not null)
         {
             _selection.Changed -= OnStateChanged;

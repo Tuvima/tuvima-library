@@ -35,10 +35,11 @@ public static partial class MetadataEndpoints
 
         group.MapGet("/{entityId:guid}/navigator", async (
             Guid entityId,
+            bool? structureOnly,
             IMediaEditorNavigationReadService navigationReadService,
             CancellationToken ct) =>
         {
-            var navigator = await navigationReadService.GetNavigatorAsync(entityId, ct);
+            var navigator = await navigationReadService.GetNavigatorAsync(entityId, ct, structureOnly == true);
             return navigator is null
                 ? ApiErrors.NotFound($"Navigator for {entityId} not found.")
                 : Results.Ok(ToContract(navigator));
@@ -60,6 +61,7 @@ public static partial class MetadataEndpoints
             int? volume,
             string? matchStatus,
             string? fileStatus,
+            bool? directOnly,
             IMediaEditorOwnedChildReadService ownedChildReadService,
             HttpContext http,
             CatalogueResourceAuthorizationService catalogueAuthorization,
@@ -77,7 +79,7 @@ public static partial class MetadataEndpoints
             }
             var result = await ownedChildReadService.SearchAsync(
                 entityId, q, page ?? 1, pageSize ?? 50, season, disc, volume,
-                matchStatus, fileStatus, ct, allowedSegments);
+                matchStatus, fileStatus, ct, allowedSegments, directOnly == true);
             return result is null
                 ? ApiErrors.NotFound($"Editor parent {entityId} not found.")
                 : Results.Ok(ToContract(result));
@@ -210,6 +212,8 @@ public static partial class MetadataEndpoints
                 CanSelectAsEditorTarget = node.CanSelectAsEditorTarget,
                 CanQuarantine = node.CanQuarantine,
                 QuarantineCount = node.QuarantineCount,
+                MatchState = node.MatchState,
+                MatchReason = node.MatchReason,
             }).ToList(),
         };
 
@@ -248,6 +252,7 @@ public static partial class MetadataEndpoints
                 SeasonNumber = item.SeasonNumber,
                 DiscNumber = item.DiscNumber,
                 VolumeNumber = item.VolumeNumber,
+                MatchReason = item.MatchReason,
             }).ToList(),
         };
 

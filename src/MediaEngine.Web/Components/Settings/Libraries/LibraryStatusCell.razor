@@ -2,7 +2,7 @@
 @inject IStringLocalizer<SharedStrings> L
 
 @* A library's status in words (Libraries redesign D3): Healthy, Empty, Scanning, Folder offline (the warning's words open as a tooltip), or an amber
-   count that names its kind and goes exactly there: "12 files not identified" opens the library's Unidentified tab, "3 need review" opens Needs
+   count that names its kind and goes exactly there: "12 files not identified" opens Needs Review filtered to this library's unmatched files, "3 need review" opens Needs
    Review for the library. A library can have both; each is its own link, never mixed. Nothing is claimed while the status is not known. *@
 @if (Row.Status is not { } status)
 {
@@ -20,8 +20,8 @@ else
             <span class="lib-status-group">
                 @if (Row.Unidentified > 0)
                 {
-                    <a class="lib-status lib-status--warning" data-status="not-identified" href="@LibraryListing.UnidentifiedAddress(Row.Key)" @onclick:stopPropagation="true"
-                       aria-label="@($"{LibraryListing.UnidentifiedText(Row.Unidentified)}. Open the Unidentified files for {Row.Name}")">
+                    <a class="lib-status lib-status--warning" data-status="not-identified" href="@LibraryListing.NotIdentifiedAddress(Row.Key)" @onclick:stopPropagation="true"
+                       aria-label="@($"{LibraryListing.UnidentifiedText(Row.Unidentified)}. Open the files that were not identified in {Row.Name} in Needs Review")">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" />@LibraryListing.UnidentifiedText(Row.Unidentified)
                     </a>
                 }

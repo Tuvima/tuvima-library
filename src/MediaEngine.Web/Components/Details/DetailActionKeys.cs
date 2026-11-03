@@ -30,9 +30,9 @@ public static class DetailActionKeys
     public const string ReactionLike = "reaction-like";
     public const string ReactionLove = "reaction-love";
     public const string Details = "details";
-    /// <summary>A video's "..." shortcut into Editing Mode with Match and Identity open (shown only for a video not yet matched).</summary>
+    /// <summary>A video's "..." shortcut that opens the editor on Match (shown only for a video not yet matched).</summary>
     public const string Identify = "identify";
-    /// <summary>A video's "..." shortcut into Editing Mode with Manage Artwork open.</summary>
+    /// <summary>A video's "..." shortcut that opens the editor on Artwork.</summary>
     public const string ChangeThumbnail = "change-thumbnail";
     /// <summary>An administrator's "..." entry for a file the Engine could not match: look it up again now (Library setup spec D34).</summary>
     public const string UnmatchedRetry = "unmatched-retry";
@@ -40,7 +40,7 @@ public static class DetailActionKeys
     public const string UnmatchedKeep = "unmatched-keep";
     /// <summary>An administrator's "..." entry for a kept Unmatched file: bring it back and look it up now (D40).</summary>
     public const string UnmatchedLookUpAgain = "unmatched-look-up-again";
-    /// <summary>Added by the Dashboard itself to Editing Mode's More list, never sent by the Engine; <c>DetailPage</c> opens the delete confirmation.</summary>
+    /// <summary>Added by the Dashboard itself to the page's "..." menu, never sent by the Engine; <c>DetailPage</c> opens the delete confirmation.</summary>
     public const string DeleteFromLibrary = "delete-from-library";
 
     /// <summary>

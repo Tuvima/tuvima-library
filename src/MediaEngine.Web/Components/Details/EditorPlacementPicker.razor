@@ -1,0 +1,294 @@
+@namespace MediaEngine.Web.Components.Details
+@using System.Net.Http
+@using MediaEngine.Contracts.Editing
+@using MediaEngine.Contracts.Library
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@implements IDisposable
+@inject IEngineApiClient Api
+@inject ILogger<EditorPlacementPicker> Logger
+@inject IStringLocalizer<SharedStrings> L
+
+@* The Match tool's "Move to another season or show" / "Move to another album" / "Move to another series" (universal editor v3, WP4, spec 3a),
+   under the search. Pick a place the library already has, see where the item would go and what happens to its files, and stage it. Nothing
+   moves until Save changes; a place the item's match does not name is flagged "Not on this album" (or season, series) in Review first.
+   The empty place a move leaves behind is kept, not deleted. *@
+@if (Subject is not null && EditorPlacementRules.PlaceNoun(Subject.MediaType) != "place")
+{
+    <section class="tl-place" data-testid="placement-picker" aria-label="@EditorPlacementRules.MoveHeading(Subject.MediaType)">
+        <h3 class="tl-place__heading">@EditorPlacementRules.MoveHeading(Subject.MediaType)</h3>
+        @if (!_open)
+        {
+            <AppButton Label="@EditorPlacementRules.MoveHeading(Subject.MediaType)" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                       Disabled="@(!CanEdit || Session is not { IsActive: true })" OnClick="OpenAsync" />
+            @if (StagedMove is not null)
+            {
+                <p class="tl-place__staged">@L["EditorPlacementPicker_Staged", _stagedLabel ?? string.Empty] <AppButton Label="@L["EditorPlacementPicker_Undo"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="Unstage" /></p>
+            }
+        }
+        else
+        {
+            <div class="tl-match__searchrow">
+                <AppTextField Label="@L["EditorPlacementPicker_SearchPlaces"].Value" HideLabel="true" Value="@_query" ValueChanged="@(value => _query = value ?? string.Empty)"
+                              Placeholder="@L["EditorPlacementPicker_SearchFor", EditorPlacementRules.PlaceNoun(Subject.MediaType)].Value" Immediate="true" OnKeyDown="OnQueryKey"
+                              aria-label="@L["EditorPlacementPicker_SearchFor", EditorPlacementRules.PlaceNoun(Subject.MediaType)].Value" />
+                <AppButton Label="@L["EditorPlacementPicker_Search"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Search" Disabled="@_loading" OnClick="SearchAsync" />
+            </div>
+            @if (_problem is not null)
+            {
+                <AppAlert Severity="AppSeverity.Warning" Dense="true">@_problem</AppAlert>
+            }
+            else if (_loading)
+            {
+                <div aria-busy="true" aria-label="@L["EditorPlacementPicker_Searching"].Value"><AppSkeleton Shape="AppSkeletonShape.Text" Width="60%" /></div>
+            }
+            else
+            {
+                <div class="tl-match__results" role="list">
+                    @foreach (var place in _places)
+                    {
+                        <div class="tl-match__row @(_chosen?.Id == place.Id ? "is-active" : null)" role="listitem">
+                            <div class="tl-match__text">
+                                <div class="tl-match__title"><span>@place.Label</span></div>
+                                @if (!string.IsNullOrWhiteSpace(place.ParentLabel))
+                                {
+                                    <div class="tl-match__meta">@place.ParentLabel</div>
+                                }
+                            </div>
+                            <AppButton Label="@L["EditorPlacementPicker_Select"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                                       aria-label="@L["EditorPlacementPicker_SelectPlace", place.Label].Value" OnClick="@(() => ChooseAsync(place))" />
+                        </div>
+                    }
+                    @if (_places.Count == 0 && _searched)
+                    {
+                        <p class="tl-match__meta">@L["EditorPlacementPicker_NothingMatches"]</p>
+                    }
+                </div>
+            }
+
+            @if (_chosen is not null)
+            {
+                <div class="tl-place__preview" role="group" aria-label="@L["EditorPlacementPicker_WhereItGoes"].Value">
+                    <h4>@L["EditorPlacementPicker_WhereItGoes"]</h4>
+                    <p><strong>@Subject.Title</strong> @L["EditorPlacementPicker_MovesTo"] <strong>@PlaceText(_chosen)</strong>.</p>
+                    @if (_previewing)
+                    {
+                        <p class="tl-match__meta">@L["EditorPlacementPicker_CheckingFiles"]</p>
+                    }
+                    else if (_blocked is not null)
+                    {
+                        <AppAlert Severity="AppSeverity.Warning" Dense="true">@_blocked</AppAlert>
+                    }
+                    else if (_fileNote is not null)
+                    {
+                        <p class="tl-match__meta">@_fileNote</p>
+                    }
+                    <p class="tl-match__meta">@L["EditorPlacementPicker_LeavesBehind"]</p>
+                    <AppSwitchRow Label="@L["EditorPlacementPicker_RenameFiles"].Value"
+                                  Description="@L["EditorPlacementPicker_RenameFilesDescription"].Value"
+                                  Value="@_moveFiles" ValueChanged="@(value => _moveFiles = value)"
+                                  Disabled="@(!CanEdit || _blocked is not null)" />
+                    <div class="tl-match__actions">
+                        <AppButton Label="@L["EditorPlacementPicker_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="Close" />
+                        <AppButton Label="@L["EditorPlacementPicker_UsePlace"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                                   Disabled="@(!CanEdit || _previewing || _blocked is not null)" OnClick="Stage" />
+                    </div>
+                </div>
+            }
+        }
+    </section>
+}
+
+@code {
+    private CancellationTokenSource? _cts;
+    private Guid _startedFor;
+    private bool _open;
+    private bool _loading;
+    private bool _searched;
+    private bool _previewing;
+    private bool _moveFiles;
+    private string _query = string.Empty;
+    private string? _problem;
+    private string? _blocked;
+    private string? _fileNote;
+    private string? _stagedLabel;
+    private IReadOnlyList<LibraryMoveDestination> _places = [];
+    private LibraryMoveDestination? _chosen;
+
+    /// <summary>The item being moved; null until the editor's fields have loaded.</summary>
+    [Parameter] public EditorMatchSubject? Subject { get; set; }
+
+    /// <summary>The edit session whose pending list the move is staged in.</summary>
+    [Parameter, EditorRequired] public EditSessionState? Session { get; set; }
+
+    /// <summary>False when the person may look but not change.</summary>
+    [Parameter] public bool CanEdit { get; set; } = true;
+
+    private EditSessionChange? StagedMove =>
+        Subject is null || Session is null
+            ? null
+            : Session.Pending.Changes.FirstOrDefault(change => change.Kind == EditSessionChangeKinds.Relationship && change.EntityId == Subject.EntityId);
+
+    protected override void OnParametersSet()
+    {
+        if (Subject is null || _startedFor == Subject.EntityId)
+        {
+            return;
+        }
+
+        _startedFor = Subject.EntityId;
+        Close();
+        _places = [];
+        _searched = false;
+        _stagedLabel = Session?.Pending.Label(StagedMove?.Id ?? string.Empty);
+    }
+
+    private static string PlaceText(LibraryMoveDestination place) =>
+        string.IsNullOrWhiteSpace(place.ParentLabel) ? place.Label : $"{place.Label} ({place.ParentLabel})";
+
+    private async Task OpenAsync()
+    {
+        _open = true;
+        await SearchAsync();
+    }
+
+    private void Close()
+    {
+        _open = false;
+        _chosen = null;
+        _blocked = null;
+        _fileNote = null;
+        _moveFiles = false;
+        _problem = null;
+    }
+
+    private Task OnQueryKey(KeyboardEventArgs args) => args.Key == "Enter" ? SearchAsync() : Task.CompletedTask;
+
+    private async Task SearchAsync()
+    {
+        if (Subject is null)
+        {
+            return;
+        }
+
+        _cts?.Cancel();
+        _cts?.Dispose();
+        var cts = _cts = new CancellationTokenSource();
+        _loading = true;
+        _problem = null;
+        _chosen = null;
+        StateHasChanged();
+        try
+        {
+            var outcome = await Api.GetLibraryMoveDestinationsAsync(Subject.EntityId, string.IsNullOrWhiteSpace(_query) ? null : _query.Trim(), cts.Token);
+            if (cts.IsCancellationRequested)
+            {
+                return;
+            }
+
+            if (outcome.IsOk)
+            {
+                _places = outcome.Value!.Destinations;
+            }
+            else
+            {
+                _places = [];
+                _problem = outcome.Message ?? "Your library's places could not be listed. Try again.";
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "The places for a move could not be listed for {EntityId}", Subject.EntityId);
+            _places = [];
+            _problem = "Your library's places could not be listed. Try again.";
+        }
+
+        _loading = false;
+        _searched = true;
+    }
+
+    // Choosing a place only asks what it would do (the preview changes nothing); the move is staged by "Use this place".
+    private async Task ChooseAsync(LibraryMoveDestination place)
+    {
+        if (Subject is null)
+        {
+            return;
+        }
+
+        _chosen = place;
+        _blocked = null;
+        _fileNote = null;
+        _moveFiles = false;
+        _previewing = true;
+        StateHasChanged();
+        try
+        {
+            var preview = await Api.PreviewLibraryMoveAsync(new LibraryMovePreviewRequest { ItemIds = [Subject.EntityId], DestinationId = place.Id });
+            if (!ReferenceEquals(_chosen, place))
+            {
+                return;
+            }
+
+            if (!preview.IsOk)
+            {
+                _blocked = preview.Message ?? "That move cannot be checked right now.";
+            }
+            else if (preview.Value!.Rows.FirstOrDefault() is { } row)
+            {
+                _blocked = row.BlockedReason;
+                _fileNote = row.FileChange is not null ? "The files would be renamed and moved to fit." : row.FileNote;
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "The move to {Place} could not be previewed for {EntityId}", place.Id, Subject.EntityId);
+            _fileNote = "The files could not be checked. The Engine checks them again when you save.";
+        }
+
+        _previewing = false;
+    }
+
+    private void Stage()
+    {
+        if (Subject is null || Session is null || _chosen is null || !CanEdit || _blocked is not null)
+        {
+            return;
+        }
+
+        var pending = Session.Pending;
+        var note = EditorPlacementRules.NotThereNote(
+            Subject.MediaType,
+            new EditorPlacementRules.Place(_chosen.Label, _chosen.ParentLabel),
+            EditorPlacementRules.StagedMatchPlace(pending, Subject.EntityId, Subject.MediaType));
+        pending.SetTarget(EditSessionChangeKinds.Relationship, Subject.EntityId, _chosen.Id.ToString("D"), label: PlaceText(_chosen), note: note,
+            before: string.IsNullOrWhiteSpace(Subject.ParentLabel) ? EditReviewRows.AsItIsNow : Subject.ParentLabel);
+        if (_moveFiles)
+        {
+            pending.SetTarget(EditSessionChangeKinds.FileMove, Subject.EntityId, null);
+        }
+
+        _stagedLabel = PlaceText(_chosen);
+        Close();
+    }
+
+    private void Unstage()
+    {
+        if (Session is null || StagedMove is not { } staged)
+        {
+            return;
+        }
+
+        Session.Pending.Remove(staged.Id);
+        _stagedLabel = null;
+    }
+
+    public void Dispose()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+    }
+}

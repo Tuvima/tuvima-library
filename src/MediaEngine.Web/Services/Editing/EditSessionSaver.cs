@@ -25,7 +25,7 @@ public sealed record EditSessionSaveOutcome(
 
 /// <summary>
 /// Saves the pending list the way the universal editor requires (spec D13): check everything first, then apply only if every change
-/// passed. Kept apart from any screen so the editing bar now and the Review changes dialog later share one save.
+/// passed. Kept apart from any screen so the pop-over and Review changes share one save.
 /// </summary>
 public sealed class EditSessionSaver
 {

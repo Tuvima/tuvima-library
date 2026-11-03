@@ -1,4 +1,5 @@
 @namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Items
 @using MediaEngine.Web.Components.MediaEditor
 @using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Integration
@@ -27,7 +28,7 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
 
         @if (editable.Count > 0)
         {
-            @if (canEdit && editable.Any(row => row.CanRevert))
+            @if (canEdit && ResettableRows(fields, session, editable).Count > 0)
             {
                 <div class="tl-editor-details__toolbar">
                     <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
@@ -40,6 +41,11 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
                     @EditableRow(fields, session, field)
                 }
             </section>
+        }
+
+        @if (canEdit && fields.ExplicitMark is { } explicitMark)
+        {
+            @ExplicitRow(fields, session, explicitMark)
         }
 
         @if (facts.Count > 0)
@@ -90,6 +96,7 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
             @if (field.IsChips)
             {
                 <MediaEditorTagEditor Label="@field.Label"
+                                      HideLabel="true"
                                       AddLabel="@(isTags ? "Add tag" : "Add genre")"
                                       HelpText="@(isTags ? "Tags are private library organization and are not replaced by provider refreshes." : "Genres you set replace the provider's genres on this item only.")"
                                       Value="@shown"
@@ -120,6 +127,41 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
             }
         </div>
     };
+
+    // Only a video or a series of videos has the mark (the Engine says so). It is staged like a field and saved with Save changes.
+    private RenderFragment ExplicitRow(ItemFieldEditSession fields, EditSessionState session, ItemExplicitResponse saved) => __builder =>
+    {
+        var on = session.Pending.TryGetField(fields.EntityId, ItemFieldEditSession.ExplicitFieldKey, out var staged)
+            ? string.Equals(staged, "true", StringComparison.OrdinalIgnoreCase)
+            : saved.IsExplicit;
+        <section class="tl-editor-details__group tl-editor-explicit" aria-label="@L["EditorDetailsPanel_ExplicitMark"].Value" data-field-key="explicit">
+            <AppTooltip Text="@L["EditorDetailsPanel_ExplicitInfo"].Value">
+                <AppSwitchRow Label="@L["EditorDetailsPanel_Explicit"].Value"
+                              Description="@L["EditorDetailsPanel_ExplicitInfo"].Value"
+                              Value="@on"
+                              ValueChanged="@((bool value) => StageExplicit(fields, session, saved, value))" />
+            </AppTooltip>
+        </section>
+    };
+
+    private void StageExplicit(ItemFieldEditSession fields, EditSessionState session, ItemExplicitResponse saved, bool value)
+    {
+        if (!session.IsActive || Mode is not { CanEdit: true })
+        {
+            return;
+        }
+
+        // Back to what is saved takes the staged change out, so Save never counts a no-op.
+        if (value == saved.IsExplicit)
+        {
+            session.Pending.ClearField(fields.EntityId, ItemFieldEditSession.ExplicitFieldKey);
+        }
+        else
+        {
+            session.Pending.SetField(fields.EntityId, ItemFieldEditSession.ExplicitFieldKey, value ? "true" : "false",
+                before: EditReviewRows.ExplicitText(saved.IsExplicit));
+        }
+    }
 
     private RenderFragment FactRow(MediaEditorDetailsFieldPresentation field) => __builder =>
     {
@@ -183,11 +225,20 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
             return;
         }
 
-        foreach (var field in editable.Where(row => row.CanRevert))
+        foreach (var field in ResettableRows(fields, session, editable))
         {
-            session.Pending.SetField(fields.EntityId, StageKey(field), string.Empty);
+            session.Pending.SetField(fields.EntityId, StageKey(field), string.Empty, before: BeforeText(field));
         }
     }
+
+    // "Reset all" is for overrides that are saved in the library: a field with nothing saved has nothing to reset, and one already sent
+    // back to the provider's value (staged, waiting for Save) is not offered again.
+    private static IReadOnlyList<MediaEditorDetailsFieldPresentation> ResettableRows(
+        ItemFieldEditSession fields, EditSessionState session, IReadOnlyList<MediaEditorDetailsFieldPresentation> editable) =>
+        editable
+            .Where(row => row.CanRevert
+                && !(session.Pending.TryGetField(fields.EntityId, StageKey(row), out var staged) && string.IsNullOrWhiteSpace(staged)))
+            .ToList();
 
     // The box grows with the text, so a long synopsis never gets a scroll bar of its own inside the window's.
     private static int LinesFor(string value) => Math.Clamp((value.Length / 90) + 2, 4, 14);
@@ -232,7 +283,7 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
         }
         else
         {
-            session.Pending.SetField(fields.EntityId, key, value);
+            session.Pending.SetField(fields.EntityId, key, value, before: BeforeText(field));
         }
     }
 
@@ -240,9 +291,13 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
     {
         if (session.IsActive && Mode is { CanEdit: true })
         {
-            session.Pending.SetField(fields.EntityId, StageKey(field), string.Empty);
+            session.Pending.SetField(fields.EntityId, StageKey(field), string.Empty, before: BeforeText(field));
         }
     }
+
+    // What the field holds before this change, for Review's Before column.
+    private static string BeforeText(MediaEditorDetailsFieldPresentation field) =>
+        string.IsNullOrWhiteSpace(field.DisplayValue ?? field.Value) ? EditReviewRows.NotSet : (field.DisplayValue ?? field.Value)!.Trim();
 
     private static void Undo(ItemFieldEditSession fields, EditSessionState session, MediaEditorDetailsFieldPresentation field) =>
         session.Pending.ClearField(fields.EntityId, StageKey(field));

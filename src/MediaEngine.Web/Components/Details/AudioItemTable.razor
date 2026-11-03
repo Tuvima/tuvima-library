@@ -447,30 +447,16 @@
             .Where(column => column.Key != "artist" || ShowArtistColumn)
             .ToList();
 
-    // Editing Mode (while it is on, each row gets a tick box and a ticked row is highlighted). Null outside a detail page.
-    [CascadingParameter] public EditingModeContext? EditingMode { get; set; }
-
+    // Each row of a page the person may edit gets a tick box and a ticked row is highlighted. Null outside a detail page.
     [CascadingParameter] public BulkEditSelection? BatchSelection { get; set; }
 
-    private EditingModeContext? _hookedMode;
+    /// <summary>The page this list sits on, for a row's own Edit (opens the pop-over editor over the page). Null outside a detail page.</summary>
+    [CascadingParameter] public EditorBinding? Editor { get; set; }
+
     private BulkEditSelection? _hookedSelection;
 
     private void HookBatchState()
     {
-        if (!ReferenceEquals(_hookedMode, EditingMode))
-        {
-            if (_hookedMode is not null)
-            {
-                _hookedMode.Changed -= OnBatchStateChanged;
-            }
-
-            _hookedMode = EditingMode;
-            if (_hookedMode is not null)
-            {
-                _hookedMode.Changed += OnBatchStateChanged;
-            }
-        }
-
         if (!ReferenceEquals(_hookedSelection, BatchSelection))
         {
             if (_hookedSelection is not null)
@@ -492,15 +478,10 @@
     private void OnBatchStateChanged() => _ = InvokeAsync(StateHasChanged);
 
     private bool IsRowSelected(MediaGroupingItemViewModel item)
-        => EditingMode is { IsOn: true } && BatchSelection?.Contains(ItemId(item)) == true;
+        => Editor is { CanEdit: true } && BatchSelection?.Contains(ItemId(item)) == true;
 
     public void Dispose()
     {
-        if (_hookedMode is not null)
-        {
-            _hookedMode.Changed -= OnBatchStateChanged;
-        }
-
         if (_hookedSelection is not null)
         {
             _hookedSelection.ListOrder = null;
@@ -604,9 +585,9 @@
             new() { Label = L["Common_PlayNext"].Value, Icon = AppMaterialIcons.Outlined.PlaylistPlay, OnClick = EventCallback.Factory.Create(this, () => PlayItemNextAsync(item)) },
             new() { Label = L["Common_AddToQueue"].Value, Icon = AppMaterialIcons.Outlined.PlaylistAdd, Disabled = !CanQueue(item), OnClick = EventCallback.Factory.Create(this, () => QueueItemAsync(item)) },
         };
-        if (EditingMode is { CanEdit: true } && BatchSelection is not null && BulkEditRules.IsSelectableKind(item.EntityType))
+        if (Editor is { CanEdit: true, EditRowAsync: not null } && BulkEditRules.IsSelectableKind(item.EntityType))
         {
-            // Edit starts edit mode on this page with this track ticked and the Edit panel open (universal editor spec D19).
+            // Edit opens the pop-over over this page with this track ticked and the Edit panel open (universal editor spec D19).
             items.Add(new()
             {
                 Label = "Edit",
@@ -624,7 +605,7 @@
     }
 
     private Task EditTrackAsync(MediaGroupingItemViewModel item) =>
-        RowEditEntry.StartAsync(EditingMode, BatchSelection, new BulkEditRow(ItemId(item), item.Title, item.EntityType, RowParentId, RowMediaType));
+        Editor?.EditRowAsync?.Invoke(new BulkEditRow(ItemId(item), item.Title, item.EntityType, RowParentId, RowMediaType)) ?? Task.FromResult(false);
 
     private async Task PlayItemNextAsync(MediaGroupingItemViewModel item)
     {

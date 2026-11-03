@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1410; api=0; web-client=54
+# scopes: contracts=1422; api=0; web-client=55
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -4010,6 +4010,43 @@
   Changes: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditSessionChangeResult> | json=changes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"preview_only":true,"valid":true,"data_saved":true,"changes":[]}
 
+[contracts] MediaEngine.Contracts.Editing.EditorFollowUpDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  EntityId: System.Guid | json=entity_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Finished: System.Boolean | json=finished | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Steps: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditorFollowUpStepDto> | json=steps | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"entity_id":"11111111-2222-3333-4444-555555555555","finished":true,"steps":[]}
+
+[contracts] MediaEngine.Contracts.Editing.EditorFollowUpStepDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Key: System.String | json=key | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Label: System.String | json=label | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  State: System.String | json=state | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Reason: System.String | json=reason | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"key":"sample","label":"sample","state":"sample","reason":"sample"}
+
+[contracts] MediaEngine.Contracts.Editing.EditorMatchBestGuessDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  ProviderName: System.String | json=provider_name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProviderItemId: System.String | json=provider_item_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Name: System.String | json=name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Year: System.String | json=year | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ImageUrl: System.String | json=image_url | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"provider_name":"sample","provider_item_id":"sample","name":"sample","year":"sample","image_url":"sample"}
+
+[contracts] MediaEngine.Contracts.Editing.EditorMatchContextDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  EntityId: System.Guid | json=entity_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MediaType: System.String | json=media_type | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FileName: System.String | json=file_name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ParsedTitle: System.String | json=parsed_title | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ParsedShow: System.String | json=parsed_show | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ParsedSeason: System.Int32? | json=parsed_season | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ParsedEpisode: System.Int32? | json=parsed_episode | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ParsedYear: System.String | json=parsed_year | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  BestGuess: MediaEngine.Contracts.Editing.EditorMatchBestGuessDto | json=best_guess | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"entity_id":"11111111-2222-3333-4444-555555555555","media_type":"sample","file_name":"sample","parsed_title":"sample","parsed_show":"sample","parsed_season":7,"parsed_episode":7,"parsed_year":"sample","best_guess":null}
+
 [contracts] MediaEngine.Contracts.Editing.EditorSubjectDto
   kind=class | converter=default | number-handling=default | unmapped=default
   Id: System.Guid | json=id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -4038,6 +4075,47 @@
   IsOverridden: System.Boolean | json=is_overridden | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SourceLabel: System.String | json=source_label | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"key":"sample","label":"sample","input_kind":"sample","value":"sample","canonical_value":"sample","is_overridden":true,"source_label":"sample"}
+
+[contracts] MediaEngine.Contracts.Editing.EpisodeSiblingMatchPreviewDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  EntityId: System.Guid | json=entity_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SeriesId: System.String | json=series_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ShowName: System.String | json=show_name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SeasonNumber: System.Int32 | json=season_number | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MatchableCount: System.Int32 | json=matchable_count | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Rows: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EpisodeSiblingMatchRowDto> | json=rows | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"entity_id":"11111111-2222-3333-4444-555555555555","series_id":"sample","show_name":"sample","season_number":7,"matchable_count":7,"rows":[]}
+
+[contracts] MediaEngine.Contracts.Editing.EpisodeSiblingMatchRowDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  EntityId: System.Guid | json=entity_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SourceFileName: System.String | json=source_file_name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  EpisodeNumber: System.Int32 | json=episode_number | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  TargetEpisodeId: System.String | json=target_episode_id | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  TargetTitle: System.String | json=target_title | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Found: System.Boolean | json=found | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"entity_id":"11111111-2222-3333-4444-555555555555","source_file_name":"sample","episode_number":7,"target_episode_id":"sample","target_title":"sample","found":true}
+
+[contracts] MediaEngine.Contracts.Editing.EpisodeSiblingMatchTarget
+  kind=class | converter=default | number-handling=default | unmapped=default
+  SeriesId: System.String | json=series_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SeasonNumber: System.Int32 | json=season_number | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"series_id":"sample","season_number":7}
+
+[contracts] MediaEngine.Contracts.Editing.ShowChildRematchPreviewDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  EntityId: System.Guid | json=entity_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SeriesId: System.String | json=series_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ShowName: System.String | json=show_name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  EpisodeCount: System.Int32 | json=episode_count | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MatchableCount: System.Int32 | json=matchable_count | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  NotFoundCount: System.Int32 | json=not_found_count | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"entity_id":"11111111-2222-3333-4444-555555555555","series_id":"sample","show_name":"sample","episode_count":7,"matchable_count":7,"not_found_count":7}
+
+[contracts] MediaEngine.Contracts.Editing.ShowChildRematchTarget
+  kind=class | converter=default | number-handling=default | unmapped=default
+  SeriesId: System.String | json=series_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"series_id":"sample"}
 
 [contracts] MediaEngine.Contracts.Import.ImportApplyRequest
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -6801,7 +6879,9 @@
   CanSelectAsEditorTarget: System.Boolean | json=can_select_as_editor_target | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CanQuarantine: System.Boolean | json=can_quarantine | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   QuarantineCount: System.Int32 | json=quarantine_count | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"node_id":"11111111-2222-3333-4444-555555555555","parent_node_id":"11111111-2222-3333-4444-555555555555","entity_id":"11111111-2222-3333-4444-555555555555","scope_id":"sample","node_kind":"sample","label":"sample","title":"sample","subtitle":"sample","ordinal_label":"sample","depth":7,"is_root":true,"is_leaf":true,"is_owned":true,"primary_asset_id":"11111111-2222-3333-4444-555555555555","artwork_url":"sample","artwork_shape":"sample","compact_ordinal_label":"sample","technical_badges":[],"is_clickable":true,"can_select_as_editor_target":true,"can_quarantine":true,"quarantine_count":7}
+  MatchState: System.String | json=match_state | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MatchReason: System.String | json=match_reason | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"node_id":"11111111-2222-3333-4444-555555555555","parent_node_id":"11111111-2222-3333-4444-555555555555","entity_id":"11111111-2222-3333-4444-555555555555","scope_id":"sample","node_kind":"sample","label":"sample","title":"sample","subtitle":"sample","ordinal_label":"sample","depth":7,"is_root":true,"is_leaf":true,"is_owned":true,"primary_asset_id":"11111111-2222-3333-4444-555555555555","artwork_url":"sample","artwork_shape":"sample","compact_ordinal_label":"sample","technical_badges":[],"is_clickable":true,"can_select_as_editor_target":true,"can_quarantine":true,"quarantine_count":7,"match_state":"sample","match_reason":"sample"}
 
 [contracts] MediaEngine.Contracts.Metadata.MediaEditorOwnedChildDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -6827,11 +6907,12 @@
   SourceFileName: System.String | json=source_file_name | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SourceFilePath: System.String | json=source_file_path | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   MatchState: System.String | json=match_state | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MatchReason: System.String | json=match_reason | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   FileState: System.String | json=file_state | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SeasonNumber: System.Int32? | json=season_number | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   DiscNumber: System.Int32? | json=disc_number | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   VolumeNumber: System.Int32? | json=volume_number | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"asset_id":"11111111-2222-3333-4444-555555555555","edition_id":"11111111-2222-3333-4444-555555555555","edition_label":"sample","edition_asset_count":7,"work_edition_count":7,"collapse_edition":true,"edition_release_id":"sample","identity_owner_entity_id":"11111111-2222-3333-4444-555555555555","artwork_owner_entity_id":"11111111-2222-3333-4444-555555555555","metadata_owner_entity_id":"11111111-2222-3333-4444-555555555555","selection_node_kind":"sample","work_id":"11111111-2222-3333-4444-555555555555","parent_work_id":"11111111-2222-3333-4444-555555555555","root_work_id":"11111111-2222-3333-4444-555555555555","structural_parent_id":"11111111-2222-3333-4444-555555555555","selection_revision":"sample","title":"sample","matched_title":"sample","matched_number":"sample","source_file_name":"sample","source_file_path":"sample","match_state":"sample","file_state":"sample","season_number":7,"disc_number":7,"volume_number":7}
+  sample={"asset_id":"11111111-2222-3333-4444-555555555555","edition_id":"11111111-2222-3333-4444-555555555555","edition_label":"sample","edition_asset_count":7,"work_edition_count":7,"collapse_edition":true,"edition_release_id":"sample","identity_owner_entity_id":"11111111-2222-3333-4444-555555555555","artwork_owner_entity_id":"11111111-2222-3333-4444-555555555555","metadata_owner_entity_id":"11111111-2222-3333-4444-555555555555","selection_node_kind":"sample","work_id":"11111111-2222-3333-4444-555555555555","parent_work_id":"11111111-2222-3333-4444-555555555555","root_work_id":"11111111-2222-3333-4444-555555555555","structural_parent_id":"11111111-2222-3333-4444-555555555555","selection_revision":"sample","title":"sample","matched_title":"sample","matched_number":"sample","source_file_name":"sample","source_file_path":"sample","match_state":"sample","match_reason":"sample","file_state":"sample","season_number":7,"disc_number":7,"volume_number":7}
 
 [contracts] MediaEngine.Contracts.Metadata.MediaEditorOwnedChildSearchDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -10437,10 +10518,43 @@
   Overview: System.String | json=overview | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"tmdb_tv_id":"sample","name":"sample","first_air_year":7,"type":"sample","seasons":7,"episodes":7,"poster_url":"sample","overview":"sample"}
 
+[contracts] MediaEngine.Contracts.Review.NeedsReviewBestGuessDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Action: System.String | json=action | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Name: System.String | json=name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Year: System.String | json=year | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Source: System.String | json=source | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ImageUrl: System.String | json=image_url | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"action":"sample","name":"sample","year":"sample","source":"sample","image_url":"sample"}
+
+[contracts] MediaEngine.Contracts.Review.NeedsReviewListDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Items: System.Collections.Generic.List<MediaEngine.Contracts.Review.NeedsReviewRowDto> | json=items | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Total: System.Int32 | json=total | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  NotMatchedTotal: System.Int32 | json=not_matched_total | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  NotSureTotal: System.Int32 | json=not_sure_total | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Skip: System.Int32 | json=skip | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Take: System.Int32 | json=take | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"items":[],"total":7,"not_matched_total":7,"not_sure_total":7,"skip":7,"take":7}
+
+[contracts] MediaEngine.Contracts.Review.NeedsReviewRowDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Key: System.String | json=key | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Kind: System.String | json=kind | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LibraryId: System.String | json=library_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LibraryName: System.String | json=library_name | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LastTriedAt: System.DateTimeOffset | json=last_tried_at | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  BestGuess: MediaEngine.Contracts.Review.NeedsReviewBestGuessDto | json=best_guess | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Review: MediaEngine.Contracts.Review.ReviewItemDto | json=review | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Unmatched: MediaEngine.Contracts.Library.UnmatchedItemDto | json=unmatched | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"key":"sample","kind":"sample","library_id":"sample","library_name":"sample","last_tried_at":"2025-01-02T03:04:05+00:00","best_guess":null,"review":null,"unmatched":null}
+
 [contracts] MediaEngine.Contracts.Review.ReviewCountResponse
   kind=class | converter=default | number-handling=default | unmapped=default
   PendingCount: System.Int32 | json=pending_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"pending_count":7}
+  NotMatchedCount: System.Int32 | json=not_matched_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  NotSureCount: System.Int32 | json=not_sure_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"pending_count":7,"not_matched_count":7,"not_sure_count":7}
 
 [contracts] MediaEngine.Contracts.Review.ReviewDismissResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -10469,9 +10583,10 @@
   CoverUrl: System.String | json=cover_url | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   BridgeIdentifiers: System.Collections.Generic.Dictionary<System.String, System.String> | json=bridge_identifiers | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   DetectedFacts: System.Collections.Generic.Dictionary<System.String, System.String> | json=detected_facts | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LibraryId: System.String | json=library_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   FromImportFolder: System.Boolean | json=from_import_folder | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   FromMerge: System.Boolean | json=from_merge | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"id":"11111111-2222-3333-4444-555555555555","entity_id":"11111111-2222-3333-4444-555555555555","entity_type":"sample","trigger":"sample","status":"sample","proposed_collection_id":"sample","confidence_score":7,"candidates_json":"sample","detail":"sample","created_at":"2025-01-02T03:04:05+00:00","resolved_at":"2025-01-02T03:04:05+00:00","resolved_by":"sample","source_operation_id":"11111111-2222-3333-4444-555555555555","source_capability_id":"sample","source_capability_sub_key":"sample","media_type":"sample","entity_title":"sample","cover_url":"sample","bridge_identifiers":{},"detected_facts":{},"from_import_folder":true,"from_merge":true}
+  sample={"id":"11111111-2222-3333-4444-555555555555","entity_id":"11111111-2222-3333-4444-555555555555","entity_type":"sample","trigger":"sample","status":"sample","proposed_collection_id":"sample","confidence_score":7,"candidates_json":"sample","detail":"sample","created_at":"2025-01-02T03:04:05+00:00","resolved_at":"2025-01-02T03:04:05+00:00","resolved_by":"sample","source_operation_id":"11111111-2222-3333-4444-555555555555","source_capability_id":"sample","source_capability_sub_key":"sample","media_type":"sample","entity_title":"sample","cover_url":"sample","bridge_identifiers":{},"detected_facts":{},"library_id":"sample","from_import_folder":true,"from_merge":true}
 
 [contracts] MediaEngine.Contracts.Review.ReviewMoveToTvResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -14051,6 +14166,11 @@
   ModifiedAt: System.DateTimeOffset? | json=modified_at | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CanEdit: System.Boolean | json=can_edit | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   CanShare: System.Boolean | json=can_share | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[web-client] MediaEngine.Web.Models.ViewDTOs.NeedsReviewListAttempt
+  kind=class | converter=default | number-handling=default | unmapped=default
+  List: MediaEngine.Contracts.Review.NeedsReviewListDto | json=list | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Error: System.String | json=error | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [web-client] MediaEngine.Web.Models.ViewDTOs.PersonDetailViewModel
   kind=class | converter=default | number-handling=default | unmapped=default

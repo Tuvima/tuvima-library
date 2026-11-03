@@ -163,23 +163,17 @@
     private bool IsAdministrator => Services.GetService<DashboardSessionAccessor>()?.Authority?.EffectiveAdministrator == true;
     private bool ShowMenu => CanManageLyrics || Presenter.Offers("find_lyrics") || (Presenter.Lines.Count > 0 && Presenter.SelectedTrackId is not null);
     private bool CanManageLyrics => !DeviceContext.IsPhone && Services.GetService<DashboardSessionAccessor>()?.Authority?.EffectiveAdministrator == true;
-    // The lyrics button opens the editor on the page behind the player (universal editor spec D18): edit mode starts on the song's album page
-    // with this song ticked. A song that is not on an album has no such page, so it says so in plain words instead of opening a pop-up.
-    private Task ManageLyricsAsync()
+    // The lyrics button opens the pop-over editor over the player (universal editor v3 D6, D18) with this song ticked and the Edit panel open;
+    // nothing navigates away and the music keeps playing. The Engine's own answer says whether the song may be edited.
+    private async Task ManageLyricsAsync()
     {
         if (!CanManageLyrics || _identity is not { } identity || Snapshot.CurrentIndex < 0 || Snapshot.CurrentIndex >= Snapshot.Queue.Count)
-            return Task.CompletedTask;
+            return;
         var item = Snapshot.Queue[Snapshot.CurrentIndex];
-        if (item.AlbumWorkId is not { } album || album == Guid.Empty)
-        {
-            Services.GetService<IAppToastService>()?.Add("Lyrics can be edited once this song is on an album.", AppSeverity.Info);
-            return Task.CompletedTask;
-        }
+        var album = item.AlbumWorkId is { } albumId && albumId != Guid.Empty ? albumId : (Guid?)null;
         var row = new BulkEditRow(identity.WorkId, item.Title, MediaEngine.Contracts.Details.DetailEntityType.Work, album, "Music");
-        Services.GetService<MediaEngine.Web.Services.Navigation.DetailsOverlayState>()?.OfferEditResume(
-            new MediaEngine.Web.Services.Navigation.DetailsEditResume(album, EditingSection.Details, null, row));
-        Services.GetService<NavigationManager>()?.NavigateTo($"/details/musicalbum/{album:D}?context=listen&track={identity.WorkId:D}");
-        return Task.CompletedTask;
+        if (Services.GetService<ListEditLauncher>() is { } launcher)
+            await launcher.OpenRowAsync(row, MediaEngine.Contracts.Details.DetailPresentationContext.Listen, "lyrics");
     }
     private int ActiveIndex => Timeline.Select((line, index) => (line, index))
         .Where(row => row.line.StartSeconds is double time && time <= Snapshot.CurrentTimeSeconds

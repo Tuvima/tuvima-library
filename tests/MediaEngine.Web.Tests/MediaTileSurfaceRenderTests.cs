@@ -120,7 +120,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         Assert.Same(link, cut.Find(".media-tile-episode-caption").Closest("a"));
         link.Click();
         Assert.EndsWith(item.DetailsNavigationUrl, Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>().Uri);
-        Assert.DoesNotContain("button", cut.Find("article").InnerHtml, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(cut.FindAll("article button:not(.media-tile-action):not([hidden])"));
     }
 
     [Fact]
@@ -165,7 +165,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         Assert.Empty(cut.FindAll(".media-tile-static-hover"));
         Assert.Empty(cut.FindAll(".media-tile-hover-identity-strip"));
         Assert.DoesNotContain(item.Description, cut.Markup);
-        Assert.Empty(cut.FindAll("button"));
+        Assert.Empty(cut.FindAll("button:not(.media-tile-action):not([hidden])"));
         Assert.DoesNotContain(JSInterop.Invocations, invocation => invocation.Identifier == "registerMediaTileHover");
     }
 
@@ -460,7 +460,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, item));
         Assert.Empty(cut.FindAll(".media-tile-hover-identity-strip"));
         Assert.Empty(cut.FindAll(".media-tile-hover-panel"));
-        Assert.Empty(cut.FindAll("button"));
+        Assert.Empty(cut.FindAll("button:not(.media-tile-action):not([hidden])"));
     }
 
     [Fact]
@@ -555,7 +555,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         Assert.Empty(cut.FindAll(".media-group-tile__picture .media-group-tile__name"));
         Assert.Empty(cut.FindAll(".media-group-tile__picture .media-count-line"));
         Assert.Empty(cut.FindAll(".media-group-tile__open-cue"));
-        Assert.Empty(cut.FindAll("button"));
+        Assert.Empty(cut.FindAll("button:not(.media-tile-action):not([hidden])"));
     }
 
     [Theory]
@@ -1103,7 +1103,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         cut.Find(".media-tile-media").Click();
         var nav = Services.GetRequiredService<NavigationManager>();
         Assert.EndsWith(details, nav.Uri, StringComparison.Ordinal);
-        Assert.Empty(cut.FindAll("button"));
+        Assert.Empty(cut.FindAll("button:not(.media-tile-action):not([hidden])"));
     }
 
     [Theory]
@@ -1135,7 +1135,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
 
         var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, item));
 
-        Assert.Empty(cut.FindAll("button"));
+        Assert.Empty(cut.FindAll("button:not(.media-tile-action):not([hidden])"));
         cut.Find(".media-tile-media").Click();
 
         var nav = Services.GetRequiredService<NavigationManager>();
@@ -1168,7 +1168,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         };
         var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, item));
 
-        Assert.Empty(cut.FindAll("button"));
+        Assert.Empty(cut.FindAll("button:not(.media-tile-action):not([hidden])"));
         cut.Find(".media-tile-media").Click();
 
         var playback = Services.GetRequiredService<PlaybackSessionController>();
@@ -1200,7 +1200,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
 
         var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, item).Add(component => component.IsHomeSurface, true));
 
-        Assert.Empty(cut.FindAll("button"));
+        Assert.Empty(cut.FindAll("button:not(.media-tile-action):not([hidden])"));
         Assert.DoesNotContain("is-cinematic-hover", cut.Find("article.media-tile").ClassList);
 
         cut.Find(".media-tile-media").Click();
@@ -1231,7 +1231,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
 
         var cut = Render<MediaTile>(parameters => parameters.Add(component => component.Item, item));
 
-        Assert.Empty(cut.FindAll("button"));
+        Assert.Empty(cut.FindAll("button:not(.media-tile-action):not([hidden])"));
         Assert.Contains("is-hover-glow-only", cut.Find("article.media-tile").ClassList);
         Assert.Empty(cut.FindAll(".media-tile-hover-panel"));
     }
@@ -1280,7 +1280,7 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
 
         Assert.Contains("is-hover-glow-only", cut.Find("article.media-tile").ClassList);
         Assert.Empty(cut.FindAll(".media-tile-hover-panel"));
-        Assert.Empty(cut.FindAll("button"));
+        Assert.Empty(cut.FindAll("button:not(.media-tile-action):not([hidden])"));
     }
 
     [Fact]

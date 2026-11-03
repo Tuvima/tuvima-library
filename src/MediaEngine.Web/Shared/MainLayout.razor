@@ -44,6 +44,7 @@
 <MediaEngine.Web.Components.Navigation.SessionEndedRedirect />
 <AppPopoverHost />
 <AppDialogHost />
+<MediaEngine.Web.Components.Details.EditorPopover />
 <AppToastHost />
 <NsfwLockWatcher ActiveProfileId="@_activeProfileId" IsKids="@_isKids" />
 <ActivityNotificationHost Enabled="@CanViewSystemActivity" />
@@ -167,6 +168,7 @@
                                    Profiles="@_profiles"
                                    PluginMenu="@_pluginMenu"
                                    IsKids="@_isKids"
+                                   ReviewCount="@(CanViewReview && !_isKids ? _reviewCount : 0)"
                                    ShowSignOut="true" />
             </span>
         </AppStack>

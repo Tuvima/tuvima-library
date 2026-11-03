@@ -12,6 +12,8 @@ public sealed class PendingEditList
 {
     private readonly List<EditSessionChange> _changes = [];
     private readonly Dictionary<string, string> _labels = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _notes = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _before = new(StringComparer.Ordinal);
 
     public event Action? Changed;
 
@@ -25,19 +27,21 @@ public sealed class PendingEditList
     public int ChangeCount => _changes.Sum(change => change.Kind == EditSessionChangeKinds.Details ? Math.Max(1, change.Fields.Count) : 1);
 
     /// <summary>Stages one details field for an item, replacing an earlier value staged for the same field.</summary>
-    public void SetField(Guid entityId, string key, string? value)
+    public void SetField(Guid entityId, string key, string? value, string? before = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
         var change = Find(EditSessionChangeKinds.Details, entityId);
         var fields = change?.Fields.Where(f => !SameKey(f.Key, key)).ToList() ?? [];
         fields.Add(new EditSessionFieldChange { Key = key.Trim(), Value = value });
-        Replace(change, new EditSessionChange
+        var next = new EditSessionChange
         {
             Id = change?.Id ?? NewId(),
             Kind = EditSessionChangeKinds.Details,
             EntityId = entityId,
             Fields = fields,
-        });
+        };
+        Replace(change, next);
+        RememberBefore(RowKey(next.Id, key.Trim()), before);
     }
 
     /// <summary>Takes one staged details field back out. The item's entry goes when its last field does.</summary>
@@ -57,6 +61,7 @@ public sealed class PendingEditList
         }
 
         Replace(change, new EditSessionChange { Id = change.Id, Kind = change.Kind, EntityId = entityId, Fields = fields });
+        _before.Remove(RowKey(change.Id, key.Trim()));
         return true;
     }
 
@@ -72,7 +77,7 @@ public sealed class PendingEditList
     /// Stages an artwork choice for one slot of an item (target is the picked picture), replacing an earlier choice for it.
     /// <paramref name="label"/> is an optional name for the picture, shown in Review changes; it is never sent to the Engine.
     /// </summary>
-    public void SetArtwork(Guid entityId, string slot, string targetId, string? label = null)
+    public void SetArtwork(Guid entityId, string slot, string targetId, string? label = null, string? before = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(slot);
         ArgumentException.ThrowIfNullOrWhiteSpace(targetId);
@@ -85,14 +90,15 @@ public sealed class PendingEditList
             EntityId = entityId,
             Slot = slot,
             TargetId = targetId,
-        }, label);
+        }, label, before: before);
     }
 
     /// <summary>
     /// Stages an identity, relationship or file-move change; one per item and kind, a later one replacing the earlier.
     /// <paramref name="label"/> is an optional name for the chosen record or destination, shown in Review changes; it is never sent to the Engine.
+    /// <paramref name="note"/> is an optional plain warning Review shows on the row (for example "Not on this album"); also never sent.
     /// </summary>
-    public void SetTarget(string kind, Guid entityId, string? targetId, string? token = null, string? label = null)
+    public void SetTarget(string kind, Guid entityId, string? targetId, string? token = null, string? label = null, string? note = null, string? before = null)
     {
         if (kind is EditSessionChangeKinds.Details or EditSessionChangeKinds.Artwork or EditSessionChangeKinds.ExtraMove || !EditSessionChangeKinds.IsKnown(kind))
         {
@@ -107,7 +113,7 @@ public sealed class PendingEditList
             EntityId = entityId,
             TargetId = targetId,
             Token = token,
-        }, label);
+        }, label, note, before);
     }
 
     /// <summary>
@@ -138,6 +144,12 @@ public sealed class PendingEditList
     /// <summary>The name given for a staged identity, relationship or artwork choice, or null when none was given.</summary>
     public string? Label(string changeId) => _labels.GetValueOrDefault(changeId);
 
+    /// <summary>The warning given for a staged change, or null when none was given.</summary>
+    public string? Note(string changeId) => _notes.GetValueOrDefault(changeId);
+
+    /// <summary>What the item had before the change, as the staging screen recorded it (a Review row id: the change id, or the change id and field key for a details field); null when it was not recorded.</summary>
+    public string? Before(string rowId) => _before.GetValueOrDefault(rowId);
+
     /// <summary>Removes one staged change by its id (the row's menu in Review changes).</summary>
     public bool Remove(string changeId)
     {
@@ -145,6 +157,8 @@ public sealed class PendingEditList
         if (removed)
         {
             _labels.Remove(changeId);
+            _notes.Remove(changeId);
+            ForgetBefore(changeId);
             Changed?.Invoke();
         }
 
@@ -158,7 +172,12 @@ public sealed class PendingEditList
         var removed = _changes.RemoveAll(c => c.EntityId == entityId);
         if (removed > 0)
         {
-            gone.ForEach(id => _labels.Remove(id));
+            gone.ForEach(id =>
+            {
+                _labels.Remove(id);
+                _notes.Remove(id);
+                ForgetBefore(id);
+            });
             Changed?.Invoke();
         }
 
@@ -175,6 +194,8 @@ public sealed class PendingEditList
 
         _changes.Clear();
         _labels.Clear();
+        _notes.Clear();
+        _before.Clear();
         Changed?.Invoke();
     }
 
@@ -188,8 +209,13 @@ public sealed class PendingEditList
     private EditSessionChange? Find(string kind, Guid entityId) =>
         _changes.FirstOrDefault(c => c.Kind == kind && c.EntityId == entityId);
 
-    private void Replace(EditSessionChange? existing, EditSessionChange next, string? label = null)
+    private void Replace(EditSessionChange? existing, EditSessionChange next, string? label = null, string? note = null, string? before = null)
     {
+        if (!string.IsNullOrWhiteSpace(before))
+        {
+            _before[next.Id] = before.Trim();
+        }
+
         if (string.IsNullOrWhiteSpace(label))
         {
             _labels.Remove(next.Id);
@@ -197,6 +223,15 @@ public sealed class PendingEditList
         else
         {
             _labels[next.Id] = label.Trim();
+        }
+
+        if (string.IsNullOrWhiteSpace(note))
+        {
+            _notes.Remove(next.Id);
+        }
+        else
+        {
+            _notes[next.Id] = note.Trim();
         }
 
         if (existing is null)
@@ -209,6 +244,24 @@ public sealed class PendingEditList
         }
 
         Changed?.Invoke();
+    }
+
+    private static string RowKey(string changeId, string fieldKey) => changeId + ":" + fieldKey;
+
+    private void RememberBefore(string rowId, string? before)
+    {
+        if (!string.IsNullOrWhiteSpace(before))
+        {
+            _before[rowId] = before.Trim();
+        }
+    }
+
+    private void ForgetBefore(string changeId)
+    {
+        foreach (var key in _before.Keys.Where(key => key == changeId || key.StartsWith(changeId + ":", StringComparison.Ordinal)).ToList())
+        {
+            _before.Remove(key);
+        }
     }
 
     private static bool SameKey(string a, string b) => string.Equals(a.Trim(), b.Trim(), StringComparison.OrdinalIgnoreCase);

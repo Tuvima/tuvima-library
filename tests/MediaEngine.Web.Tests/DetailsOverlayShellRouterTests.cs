@@ -51,7 +51,8 @@ public sealed class DetailsOverlayShellRouterTests : AsyncBunitContext
         _nav = Services.GetRequiredService<NavigationManager>();
     }
 
-    private int ApiCalls => ((EngineApiClientStub)(object)_api).Calls.Count;
+    // The covers ask once, then remember, whether each title is on My List; that is not a lane load.
+    private int ApiCalls => ((EngineApiClientStub)(object)_api).Calls.Count(call => call is not (nameof(IEngineApiClient.GetSavedItemsAsync) or "get_LastError"));
 
     private async Task<int> SettledCallsAsync()
     {

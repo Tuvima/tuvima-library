@@ -90,7 +90,7 @@
     }
 
     // Esc, the backdrop and a swipe down on the sheet's grip all arrive here. The open page is offered the press first
-    // (Editing Mode closes a field, then a section, with it); when it uses the press the overlay stays open. Otherwise this
+    // (the pop-over editor closes a tool with it); when it uses the press the overlay stays open. Otherwise this
     // is the close button: the guards are asked and the overlay closes.
     [JSInvokable]
     public async Task RequestCancel()

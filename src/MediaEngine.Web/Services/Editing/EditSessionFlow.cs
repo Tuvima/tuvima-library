@@ -4,10 +4,10 @@ using MediaEngine.Web.Services.Navigation;
 namespace MediaEngine.Web.Services.Editing;
 
 /// <summary>
-/// What a person does with the universal editor on one detail page, kept off the screens so the bar, the Esc key and the overlay's
-/// leave guard all follow the same rules: pick a tool, close the panel (edit mode and the pending list stay, spec D22), Cancel (asks
-/// "Unsaved changes" first when anything is pending), and Save changes (check, then save, with the reason for every change that failed).
-/// It follows <see cref="EditingModeContext"/>: turning that on starts the <see cref="EditSessionState"/>, turning it off ends it.
+/// What a person does with the pop-over editor, kept off the screens so the window, the Esc key and the overlay's leave guard all
+/// follow the same rules: pick a tool, switch item, Cancel (asks "Unsaved changes" first when anything is pending), and Save changes
+/// (check, then save, with the reason for every change that failed).
+/// It follows <see cref="EditingModeContext"/>: opening that starts the <see cref="EditSessionState"/>, closing it ends it.
 /// </summary>
 public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource, IDisposable
 {
@@ -32,13 +32,12 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
         _saver = saver;
         _trail = trail;
         _confirmDiscard = confirmDiscard;
-        _mode.UseStagedEditor = true;
         _mode.Changed += OnModeChanged;
     }
 
     public EditSessionState Session => _session;
 
-    /// <summary>Raised after a save that reached the library, so the page can refresh before edit mode ends.</summary>
+    /// <summary>Raised after a save that reached the library, so the page can refresh before the editor closes.</summary>
     public Func<Task>? Saved { get; set; }
 
     /// <summary>What the last successful save wrote, for the confirmation ribbon (universal editor v2, D7); null until a save, and cleared when the ribbon is dismissed or editing starts again.</summary>
@@ -98,14 +97,14 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
 
     IReadOnlyList<string> IReviewSource.FileWriteMediaTypes => MediaTypes?.Invoke() ?? [];
 
-    /// <summary>This save's own answer to "Save changes into the files" (null follows the library). Reset when edit mode ends.</summary>
+    /// <summary>This save's own answer to "Save changes into the files" (null follows the library). Reset when the editor closes.</summary>
     public bool? WriteIntoFiles { get; set; }
 
     public event Action? Changed;
 
     public void Dispose() => _mode.Changed -= OnModeChanged;
 
-    /// <summary>Keeps the session in step with edit mode and keeps the open tool in step with the section the panel hosts.</summary>
+    /// <summary>Keeps the session in step with the editor and keeps the open tool in step with the section the panel hosts.</summary>
     public void Sync()
     {
         if (_mode is { IsOn: true, CanEdit: true })
@@ -167,7 +166,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
         }
     }
 
-    /// <summary>The panel's close button: closes the panel only. Edit mode and the pending list stay; no question is asked.</summary>
+    /// <summary>The panel's close button: closes the panel only. The pending list stays; no question is asked.</summary>
     public async Task<bool> ClosePanelAsync()
     {
         if (!_session.IsActive)
@@ -188,7 +187,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
         return true;
     }
 
-    /// <summary>Cancel: leaves edit mode and drops the pending changes, asking "Unsaved changes" first when there are any. False means the person stayed.</summary>
+    /// <summary>Cancel: closes the editor and drops the pending changes, asking "Unsaved changes" first when there are any. False means the person stayed.</summary>
     public async Task<bool> LeaveAsync()
     {
         if (!_mode.IsOn)
@@ -210,7 +209,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
 
             if (!_mode.IsOn)
             {
-                // Edit mode ended while the question was open (the title was removed): there is nothing left to discard.
+                // The editor closed while the question was open (the title was removed): there is nothing left to discard.
                 return true;
             }
         }
@@ -256,8 +255,8 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
     }
 
     /// <summary>
-    /// Save changes: checks every pending change, saves them, and on success leaves edit mode. A change that fails stays in the list with
-    /// its reason, so nothing is lost. Returns true only when everything was saved and edit mode ended.
+    /// Save changes: checks every pending change, saves them, and on success closes the editor. A change that fails stays in the list with
+    /// its reason, so nothing is lost. Returns true only when everything was saved and the editor closed.
     /// </summary>
     public async Task<bool> SaveAsync()
     {
@@ -301,6 +300,10 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
         // Counted before the applied changes leave the list: the ribbon says how many this save wrote.
         var savedCount = _session.Pending.ChangeCount;
         var savedItems = _session.Pending.Changes.Select(change => change.EntityId).Where(id => id != Guid.Empty).Distinct().ToList();
+        // Only a saved match starts the Engine's finishing work, so only those items have named steps to watch.
+        var matchedItems = _session.Pending.Changes
+            .Where(change => change.Kind is EditSessionChangeKinds.Identity or EditSessionChangeKinds.SiblingMatch or EditSessionChangeKinds.ChildRematch)
+            .Select(change => change.EntityId).Where(id => id != Guid.Empty).Distinct().ToList();
         if (Saved is { } refresh)
         {
             await refresh();
@@ -321,7 +324,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
         _session.End();
         WriteIntoFiles = null;
         _mode.Leave();
-        LastSave = new EditSaveSummary(savedCount, DateTimeOffset.Now, savedItems);
+        LastSave = new EditSaveSummary(savedCount, DateTimeOffset.Now, savedItems, matchedItems);
         Changed?.Invoke();
         return true;
     }
@@ -478,6 +481,8 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
                 EditSessionChangeKinds.Relationship => "Relationship",
                 EditSessionChangeKinds.FileMove => "File move",
                 EditSessionChangeKinds.ExtraMove => "Extras move",
+                EditSessionChangeKinds.SiblingMatch => "Other episodes",
+                EditSessionChangeKinds.ChildRematch => "Seasons and episodes",
                 _ => "Details",
             };
         }
@@ -505,4 +510,4 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
 /// What a save wrote: how many changes and when, shown in the confirmation ribbon after the window closes, and which items they were on so
 /// the ribbon can say when the Engine's follow-up work for them arrives.
 /// </summary>
-public sealed record EditSaveSummary(int Count, DateTimeOffset At, IReadOnlyList<Guid>? ItemIds = null);
+public sealed record EditSaveSummary(int Count, DateTimeOffset At, IReadOnlyList<Guid>? ItemIds = null, IReadOnlyList<Guid>? MatchedItemIds = null);

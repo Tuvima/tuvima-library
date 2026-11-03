@@ -16,7 +16,7 @@ public enum EditReviewGroup
 /// <summary>
 /// One line in Review changes: the item, what changes, and the before and after the person can compare. A details change with several
 /// fields becomes one row per field, so the count on Save matches the rows. <see cref="Before"/> is null when the Dashboard does not
-/// know the old value (only the item being edited has its values loaded).
+/// know the old value; staging records it when it can, and a row without one reads <see cref="AsItIsNow"/> so every row has a Before.
 /// </summary>
 public sealed record EditReviewRow(
     string ChangeId,
@@ -49,6 +49,17 @@ public static class EditReviewRows
     public const string ExtraToExtrasNote = "The file stays where it is. The episode leaves your Library and its progress is lost.";
 
     public const string ExtraToEpisodeNote = "The file stays where it is and is added to your Library as that episode.";
+
+    public const string SiblingMatchNote = "Each other episode in this season takes the episode with its own number. Matching cannot be undone from here.";
+
+    /// <summary>The Before of a row whose old value was not recorded when it was staged (a list holds no loaded values); never blank, so every row can be compared.</summary>
+    public const string AsItIsNow = "As it is now";
+
+    public const string NotSet = "Not set";
+
+    public const string NoPictureYet = "No picture chosen";
+
+    public const string ChildRematchNote = "Each of the show's episodes takes the episode with its own season and number. Any the new show does not have go to Needs Review. Matching cannot be undone from here.";
 
     public const string FileMoveWarning = "Moves the files on disk. This cannot be undone.";
 
@@ -88,32 +99,49 @@ public static class EditReviewRows
                     foreach (var field in change.Fields)
                     {
                         var presented = fields?.Find(field.Key);
-                        var before = fields is not null && fields.EntityId == change.EntityId && presented is not null
-                            ? FirstText(presented.DisplayValue, presented.Value)
-                            : null;
+                        var before = pending.Before(change.Id + ":" + field.Key.Trim())
+                                     ?? (fields is not null && fields.EntityId == change.EntityId && presented is not null
+                                         ? FirstText(presented.DisplayValue, presented.Value) ?? NotSet
+                                         : AsItIsNow);
                         var after = string.IsNullOrWhiteSpace(field.Value) ? "Provider value" : field.Value.Trim();
+                        var isExplicit = string.Equals(field.Key.Trim(), ItemFieldEditSession.ExplicitFieldKey, StringComparison.OrdinalIgnoreCase);
+                        if (isExplicit)
+                        {
+                            after = ExplicitText(string.Equals(after, "true", StringComparison.OrdinalIgnoreCase));
+                            before = pending.Before(change.Id + ":" + field.Key.Trim())
+                                     ?? (fields is { ExplicitMark: { } mark } && fields.EntityId == change.EntityId ? ExplicitText(mark.IsExplicit) : AsItIsNow);
+                        }
+
                         rows.Add(new EditReviewRow(change.Id, field.Key, change.EntityId, change.Kind, EditReviewGroup.Metadata, item,
-                            presented?.Label ?? ReadableKey(field.Key), before, after, null));
+                            isExplicit ? "Explicit" : presented?.Label ?? ReadableKey(field.Key), before, after, null));
                     }
 
                     break;
                 case EditSessionChangeKinds.Identity:
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Identity, item,
-                        "Match", null, label ?? IdentityText(change.TargetId), null));
+                        "Match", pending.Before(change.Id) ?? CurrentMatchText(fields, change.EntityId) ?? AsItIsNow, label ?? IdentityText(change.TargetId), null));
+                    break;
+                case EditSessionChangeKinds.SiblingMatch:
+                    rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Identity, item,
+                        "Other episodes", "Matched as they are now", label ?? "The other episodes in this season, by number", SiblingMatchNote));
+                    break;
+                case EditSessionChangeKinds.ChildRematch:
+                    rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Identity, item,
+                        "Seasons and episodes", "Matched as they are now", label ?? "The show's episodes, by season and number", ChildRematchNote));
                     break;
                 case EditSessionChangeKinds.Artwork:
                     var removal = string.Equals(change.TargetId, EditSessionArtworkTargets.None, StringComparison.OrdinalIgnoreCase);
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Artwork, item,
-                        SlotText(change.Slot), null, removal ? "Removed" : label ?? "New picture", null));
+                        SlotText(change.Slot), pending.Before(change.Id) ?? AsItIsNow, removal ? "Removed" : label ?? "New picture", null));
                     break;
                 case EditSessionChangeKinds.Relationship:
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Relationships, item,
-                        "Moves to", null, label ?? "The chosen place", null));
+                        "Moves to", pending.Before(change.Id) ?? AsItIsNow, label ?? "The chosen place", pending.Note(change.Id)));
                     break;
                 case EditSessionChangeKinds.ExtraMove:
                     var toExtras = EditSessionExtraMove.IsToExtras(change.Token);
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Relationships, item,
-                        "Moves to", null, label ?? (toExtras ? "Extras" : "An episode"), toExtras ? ExtraToExtrasNote : ExtraToEpisodeNote));
+                        "Moves to", toExtras ? "An episode of your Library" : "Extras", label ?? (toExtras ? "Extras" : "An episode"), toExtras ? ExtraToExtrasNote : ExtraToEpisodeNote));
                     break;
                 case EditSessionChangeKinds.FileMove:
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.PhysicalFiles, item,
@@ -126,7 +154,40 @@ public static class EditReviewRows
         return rows.OrderBy(row => row.Group).ToList();
     }
 
+    // What the loaded item is matched as now (show, season and episode, title), so a re-match shows its before and after.
+    private static string? CurrentMatchText(ItemFieldEditSession? fields, Guid entityId)
+    {
+        if (fields is null || fields.EntityId != entityId)
+        {
+            return null;
+        }
+
+        string? Read(string key) => fields.Find(key) is { } field ? FirstText(field.DisplayValue, field.Value) : null;
+
+        var parts = new List<string>();
+        if (Read("show_name") is { } show)
+        {
+            parts.Add(show);
+        }
+
+        if (int.TryParse(Read("season_number"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var season)
+            && int.TryParse(Read("episode_number"), System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var episode))
+        {
+            parts.Add(EditorTvMatchCandidates.SlotLabel(season, episode));
+        }
+
+        if (Read("title") is { } title)
+        {
+            parts.Add(title);
+        }
+
+        return parts.Count == 0 ? null : string.Join(" · ", parts);
+    }
+
     // "release_year" reads "Release year" when no loaded item gives the field its own label.
+    /// <summary>How the Explicit mark reads in Review changes, before and after.</summary>
+    public static string ExplicitText(bool isExplicit) => isExplicit ? "On" : "Off";
+
     private static string ReadableKey(string key)
     {
         var words = key.Replace('_', ' ').Trim();
