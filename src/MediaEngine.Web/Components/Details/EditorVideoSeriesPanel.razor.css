@@ -1,0 +1,104 @@
+.tl-vseries {
+    display: grid;
+    gap: 0.6rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(246, 240, 232, 0.12);
+}
+
+.tl-vseries__heading {
+    margin: 0;
+    font-size: 0.95rem;
+}
+
+.tl-vseries__section {
+    margin: 0.4rem 0 0;
+    font-size: 0.85rem;
+    opacity: 0.85;
+}
+
+.tl-vseries__new {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.5rem;
+}
+
+.tl-vseries__sort {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.tl-vseries__rows {
+    display: grid;
+    gap: 0.25rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.tl-vseries__row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.35rem 0.5rem;
+    border: 1px solid rgba(246, 240, 232, 0.12);
+    background: rgba(246, 240, 232, 0.03);
+    font-size: 0.85rem;
+}
+
+.tl-vseries__row.is-dragging {
+    opacity: 0.45;
+}
+
+/* The line that shows where a dragged video will land. */
+.tl-vseries__row.is-drop-before::before,
+.tl-vseries__row.is-drop-after::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--tl-primary, #8b5cf6);
+}
+
+.tl-vseries__row.is-drop-before::before {
+    top: -2px;
+}
+
+.tl-vseries__row.is-drop-after::after {
+    bottom: -2px;
+}
+
+.tl-vseries__grip {
+    display: inline-flex;
+    cursor: grab;
+    opacity: 0.7;
+}
+
+.tl-vseries__position {
+    min-width: 1.5rem;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.75;
+}
+
+.tl-vseries__title {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tl-vseries__arrows {
+    display: inline-flex;
+    gap: 0.1rem;
+}
+
+.tl-vseries__happen {
+    margin: 0;
+    font-size: 0.85rem;
+}

@@ -387,6 +387,7 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
             "TV" => "No show, season or episode on a provider matches this file yet.",
             "Music" => "No album or song on a provider matches this file yet.",
             "Books" or "Audiobooks" or "Comics" => "No book or issue on a provider matches this file yet.",
+            "Videos" => "This video is not in a series.",
             _ => "No provider matches this file yet.",
         };
     }
@@ -477,7 +478,11 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
                    NULLIF((SELECT cv.value FROM canonical_values cv WHERE cv.entity_id = w.id AND cv.key IN ('episode_number', 'track_number', 'issue_number', 'part_number') LIMIT 1), ''),
                    CAST(w.ordinal AS TEXT)) AS MatchedNumber,
                ma.file_path_root AS SourceFilePath,
-               CASE WHEN EXISTS (
+               CASE WHEN w.media_type = 'Videos'
+                   -- A video has no provider record to match: it counts as matched once it belongs to a series (universal editor v3.1).
+                   THEN CASE WHEN EXISTS (SELECT 1 FROM works series WHERE series.id = w.parent_work_id AND series.work_kind = 'parent')
+                             THEN 'matched' ELSE 'unmatched' END
+                   WHEN EXISTS (
                    SELECT 1 FROM canonical_values identity_value
                    WHERE identity_value.entity_id IN (ma.id, w.id)
                      AND identity_value.key IN ('tmdb_id', 'tvdb_id', 'musicbrainz_release_id', 'musicbrainz_recording_id', 'comicvine_issue_id', 'openlibrary_work_id', 'wikidata_qid')
@@ -520,7 +525,9 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
           AND (@season IS NULL OR CAST(COALESCE((SELECT cv.value FROM canonical_values cv WHERE cv.entity_id IN (ma.id, w.id) AND cv.key = 'season_number' LIMIT 1), (SELECT ordinal FROM works WHERE id = w.parent_work_id)) AS INTEGER) = @season)
           AND (@disc IS NULL OR CAST((SELECT cv.value FROM canonical_values cv WHERE cv.entity_id IN (ma.id, w.id) AND cv.key = 'disc_number' LIMIT 1) AS INTEGER) = @disc)
           AND (@volume IS NULL OR CAST((SELECT cv.value FROM canonical_values cv WHERE cv.entity_id IN (ma.id, w.id) AND cv.key = 'volume_number' LIMIT 1) AS INTEGER) = @volume)
-          AND (@matchStatus IS NULL OR @matchStatus = CASE WHEN EXISTS (
+          AND (@matchStatus IS NULL OR @matchStatus = CASE WHEN w.media_type = 'Videos'
+              THEN CASE WHEN EXISTS (SELECT 1 FROM works series WHERE series.id = w.parent_work_id AND series.work_kind = 'parent') THEN 'matched' ELSE 'unmatched' END
+              WHEN EXISTS (
               SELECT 1 FROM canonical_values identity_value WHERE identity_value.entity_id IN (ma.id, w.id)
               AND identity_value.key IN ('tmdb_id', 'tvdb_id', 'musicbrainz_release_id', 'musicbrainz_recording_id', 'comicvine_issue_id', 'openlibrary_work_id', 'wikidata_qid')
               AND NULLIF(identity_value.value, '') IS NOT NULL) THEN 'matched' ELSE 'unmatched' END)

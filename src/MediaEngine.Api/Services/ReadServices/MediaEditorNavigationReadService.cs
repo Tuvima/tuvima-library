@@ -304,6 +304,12 @@ public sealed class MediaEditorNavigationReadService(
         IReadOnlyDictionary<Guid, Guid?> parentOf,
         HashSet<Guid> matched)
     {
+        // A series of videos and its sections are never "not matched": videos have no provider record, and a video's own mark is its series.
+        if (string.Equals(mediaType, "Videos", StringComparison.Ordinal))
+        {
+            return node;
+        }
+
         Guid? current = node.NodeId;
         var guard = 0;
         while (current is { } id && guard++ < 8)
@@ -576,7 +582,7 @@ public sealed class MediaEditorNavigationReadService(
         {
             "TV" or "Music" => true,
             "Movies" => true,
-            "Books" or "Audiobooks" or "Comics" => rows.Count > 1,
+            "Books" or "Audiobooks" or "Comics" or "Videos" => rows.Count > 1,
             _ => false,
         };
 

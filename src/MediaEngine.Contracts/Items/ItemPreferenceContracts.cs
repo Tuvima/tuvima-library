@@ -85,6 +85,12 @@ public sealed class VideoOrderEntryDto
 {
     [JsonPropertyName("id")] public Guid Id { get; init; }
     [JsonPropertyName("title")] public string Title { get; init; } = "";
+
+    /// <summary>The file's own name, for the editor's "Sort by file name"; empty when unknown.</summary>
+    [JsonPropertyName("file_name")] public string FileName { get; init; } = "";
+
+    /// <summary>When Library first showed the video (sortable text), for "Sort by date added"; null when unknown.</summary>
+    [JsonPropertyName("added_at")] public string? AddedAt { get; init; }
 }
 
 public sealed class VideoOrderRequest

@@ -61,6 +61,14 @@ public static class EditReviewRows
 
     public const string ChildRematchNote = "Each of the show's episodes takes the episode with its own season and number. Any the new show does not have go to Needs Review. Matching cannot be undone from here.";
 
+    public const string VideoSeriesNote = "Library only. No file is moved or renamed.";
+
+    public const string VideoOrderNote = "Library only. No file is moved or renamed.";
+
+    public const string VideoRenameWarning = "Renames the files on disk to match the order. This cannot be undone.";
+
+    public const string NotInASeries = "Not in a series";
+
     public const string FileMoveWarning = "Moves the files on disk. This cannot be undone.";
 
     public static string GroupTitle(EditReviewGroup group) => group switch
@@ -142,6 +150,21 @@ public static class EditReviewRows
                     var toExtras = EditSessionExtraMove.IsToExtras(change.Token);
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Relationships, item,
                         "Moves to", toExtras ? "An episode of your Library" : "Extras", label ?? (toExtras ? "Extras" : "An episode"), toExtras ? ExtraToExtrasNote : ExtraToEpisodeNote));
+                    break;
+                case EditSessionChangeKinds.VideoSeries:
+                    var leaves = EditSessionVideo.IsNoSeries(change.Token);
+                    rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Relationships, item,
+                        "Series", pending.Before(change.Id) ?? AsItIsNow,
+                        leaves ? NotInASeries : label ?? (EditSessionVideo.TryParseNewSeries(change.Token, out var started) ? started : "The chosen series"),
+                        VideoSeriesNote));
+                    break;
+                case EditSessionChangeKinds.VideoOrder:
+                    rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Relationships, label ?? item,
+                        "Order", pending.Before(change.Id) ?? AsItIsNow, $"{change.OrderedIds.Count} videos in a new order", VideoOrderNote));
+                    break;
+                case EditSessionChangeKinds.VideoRename:
+                    rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.PhysicalFiles, label ?? item,
+                        "File names", "As they are now", "Numbered to match the order", VideoRenameWarning));
                     break;
                 case EditSessionChangeKinds.FileMove:
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.PhysicalFiles, item,

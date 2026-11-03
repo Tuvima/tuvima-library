@@ -1,0 +1,422 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Editing
+@using MediaEngine.Contracts.Items
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@implements IAsyncDisposable
+@inject IEngineApiClient Api
+@inject ILogger<EditorVideoSeriesPanel> Logger
+@inject IJSRuntime JS
+@inject IStringLocalizer<SharedStrings> L
+
+@* The Match tool's video series and order (universal editor v3.1, WP2 and WP3). A video chooses its series (or starts a new one, or stands
+   alone); the videos of a series are put in the order the person wants, by drag and drop or the arrows, and a series with sections lets a
+   video be dragged from one section to another. Everything here only stages a change: Save changes shows it in Review first, and none of it
+   moves a file. The one exception is the "Rename the files to match this order" switch, off by default and offered only when every video is
+   in a Managed folder. *@
+@if (Subject is not null && IsVideo && (_series is { Supported: true } || _editor.HasSomethingToOrder))
+{
+    <section class="tl-vseries" data-testid="video-series" @ref="_root">
+        @if (_series is { Supported: true })
+        {
+            <h3 class="tl-vseries__heading">@L["EditorVideoSeries_Series"]</h3>
+            <AppSelect T="string"
+                       Label="@L["EditorVideoSeries_ChooseSeries"].Value"
+                       Value="@ChoiceValue"
+                       ValueChanged="OnChoiceChanged"
+                       Options="@ChoiceOptions"
+                       Disabled="@(!CanChange)"
+                       AriaLabel="@L["EditorVideoSeries_ChooseSeries"].Value" />
+            @if (_naming)
+            {
+                <div class="tl-vseries__new">
+                    <AppTextField Label="@L["EditorVideoSeries_NewSeriesName"].Value" Value="@_newName" ValueChanged="@(value => _newName = value ?? string.Empty)"
+                                  Immediate="true" MaxLength="@EditSessionVideo.MaxSeriesNameLength" />
+                    <AppButton Label="@L["EditorVideoSeries_Add"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
+                               Disabled="@string.IsNullOrWhiteSpace(_newName)" OnClick="StageNewSeries" />
+                </div>
+            }
+
+            @if (SeriesSentence is { } sentence)
+            {
+                <p class="tl-vseries__happen" data-testid="video-series-happen"><strong>@L["EditorVideoSeries_WhatWillHappen"]</strong> @sentence</p>
+            }
+        }
+
+        @if (_editor.HasSomethingToOrder)
+        {
+            <h3 class="tl-vseries__heading">@L["EditorVideoSeries_OrderHeading"]</h3>
+            @for (var listIndex = 0; listIndex < _editor.Lists.Count; listIndex++)
+            {
+                var list = _editor.Lists[listIndex];
+                var li = listIndex;
+                <div class="tl-vseries__list" data-testid="video-order-list">
+                    @if (_editor.HasSections)
+                    {
+                        <h4 class="tl-vseries__section">@list.Title</h4>
+                    }
+
+                    <div class="tl-vseries__sort">
+                        <AppButton Label="@L["EditorVideoSeries_SortByFileName"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                                   Disabled="@(!CanChange || list.Current.Count < 2)" OnClick="@(() => SortAsync(li, VideoSortBy.FileName))" />
+                        <AppButton Label="@L["EditorVideoSeries_SortByDateAdded"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                                   Disabled="@(!CanChange || list.Current.Count < 2)" OnClick="@(() => SortAsync(li, VideoSortBy.DateAdded))" />
+                        @if (list.IsChanged || Pending?.FindVideoOrder(list.ParentId) is not null)
+                        {
+                            <AppButton Label="@L["EditorVideoSeries_Reset"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                                       OnClick="ResetAsync" />
+                        }
+                    </div>
+
+                    <ol class="tl-vseries__rows" aria-label="@L["EditorVideoSeries_OrderHeading"].Value">
+                        @for (var rowIndex = 0; rowIndex < list.Current.Count; rowIndex++)
+                        {
+                            var row = list.Current[rowIndex];
+                            var ri = rowIndex;
+                            <li class="tl-vseries__row" data-vo-list="@li" data-vo-row="@ri" data-vo-title="@row.Title" @key="row.Id">
+                                <span class="tl-vseries__grip" data-vo-handle draggable="@(CanChange ? "true" : "false")" title="@L["EditorVideoSeries_DragToReorder", row.Title].Value" aria-hidden="true">
+                                    <AppIcon Name="@AppMaterialIcons.Outlined.DragIndicator" Decorative="true" />
+                                </span>
+                                <span class="tl-vseries__position" aria-label="@L["EditorVideoSeries_Position", ri + 1].Value">@(ri + 1)</span>
+                                <span class="tl-vseries__title">@row.Title</span>
+                                <span class="tl-vseries__arrows">
+                                    <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowUpward" Size="AppControlSize.Compact" Tooltip="@L["EditorVideoSeries_MoveUp", row.Title].Value"
+                                                   AriaLabel="@L["EditorVideoSeries_MoveUp", row.Title].Value" Disabled="@(!CanChange || !_editor.CanMoveUp(li, ri))"
+                                                   OnClick="@(() => NudgeAsync(li, ri, -1))" />
+                                    <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowDownward" Size="AppControlSize.Compact" Tooltip="@L["EditorVideoSeries_MoveDown", row.Title].Value"
+                                                   AriaLabel="@L["EditorVideoSeries_MoveDown", row.Title].Value" Disabled="@(!CanChange || !_editor.CanMoveDown(li, ri))"
+                                                   OnClick="@(() => NudgeAsync(li, ri, 1))" />
+                                </span>
+                            </li>
+                        }
+                    </ol>
+
+                    @if (list.CanRenameFiles && list.Current.Count > 0)
+                    {
+                        <AppSwitchRow Label="@L["EditorVideoSeries_RenameFiles"].Value"
+                                      Description="@L["EditorVideoSeries_RenameDescription"].Value"
+                                      Value="@(Pending?.FindVideoRename(list.ParentId) is not null)"
+                                      ValueChanged="@(value => SetRename(list, value))"
+                                      Disabled="@(!CanChange)" />
+                    }
+                </div>
+            }
+
+            @if (_editor.WhatWillHappen() is { Length: > 0 } happen)
+            {
+                <p class="tl-vseries__happen" data-testid="video-order-happen"><strong>@L["EditorVideoSeries_WhatWillHappen"]</strong> @happen</p>
+            }
+        }
+    </section>
+}
+
+@code {
+    private readonly VideoOrderEditor _editor = new();
+    private ElementReference _root;
+    private VideoSeriesStateResponse? _series;
+    private Guid _loadedFor;
+    private bool _naming;
+    private string _newName = string.Empty;
+    private bool _dragReady;
+    private IJSObjectReference? _module;
+    private DotNetObjectReference<EditorVideoSeriesPanel>? _self;
+
+    /// <summary>The item being edited; null until its fields have loaded.</summary>
+    [Parameter] public EditorMatchSubject? Subject { get; set; }
+
+    [Parameter] public EditSessionState? Session { get; set; }
+
+    /// <summary>The editor's family tree, so it can show the order as it is being arranged.</summary>
+    [Parameter] public EditorFamilyState? Family { get; set; }
+
+    [Parameter] public bool CanEdit { get; set; }
+
+    private PendingEditList? Pending => Session?.Pending;
+
+    private bool CanChange => CanEdit && Session is { IsActive: true };
+
+    private bool IsVideo => Subject is not null && string.Equals(Subject.MediaType, "Videos", StringComparison.OrdinalIgnoreCase);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!IsVideo || Subject is null)
+        {
+            _series = null;
+            _editor.Load(null);
+            _loadedFor = Guid.Empty;
+            return;
+        }
+
+        if (_loadedFor == Subject.EntityId)
+        {
+            return;
+        }
+
+        var id = Subject.EntityId;
+        _loadedFor = id;
+        _naming = false;
+        _newName = string.Empty;
+        try
+        {
+            var series = await Api.GetVideoSeriesAsync(id);
+            var order = await Api.GetVideoOrderAsync(id);
+            if (_loadedFor != id)
+            {
+                return;
+            }
+
+            _series = series;
+            _editor.Load(order, series?.SeriesTitle);
+            // What was staged earlier for this item (switching items keeps every item's changes) is shown again, not lost.
+            RestoreStaged();
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Logger.LogWarning(ex, "The series and order of video {EntityId} could not be read for the editor", id);
+            _series = null;
+            _editor.Load(null);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_dragReady || !_editor.HasSomethingToOrder || _root.Context is null)
+        {
+            return;
+        }
+
+        try
+        {
+            _module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/video-order-drag.js");
+            _self ??= DotNetObjectReference.Create(this);
+            await _module.InvokeVoidAsync("attach", _root, _self);
+            _dragReady = true;
+        }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or TaskCanceledException or JSDisconnectedException)
+        {
+            // No script support here (a test host, a closing circuit): the arrows still reorder, so the panel is fully usable without drag.
+        }
+    }
+
+    // The staged order of each list comes back when the person returns to this item: the changes are read from the pending list.
+    private void RestoreStaged()
+    {
+        if (Pending is not { } pending)
+        {
+            return;
+        }
+
+        foreach (var list in _editor.Lists)
+        {
+            if (pending.FindVideoOrder(list.ParentId) is { } order)
+            {
+                var byId = list.Current.ToDictionary(row => row.Id);
+                var restored = order.OrderedIds.Where(byId.ContainsKey).Select(id => byId[id]).ToList();
+                restored.AddRange(list.Current.Where(row => !order.OrderedIds.Contains(row.Id)));
+                list.Current.Clear();
+                list.Current.AddRange(restored);
+            }
+        }
+    }
+
+    // ----- Series chooser -----
+
+    private const string Current = "current";
+    private const string None = "none";
+    private const string Start = "new";
+
+    private string ChoiceValue
+    {
+        get
+        {
+            var staged = Subject is null ? null : Pending?.FindVideoSeries(Subject.EntityId);
+            if (staged is null)
+            {
+                return _series is { InSeries: true } ? Current : None;
+            }
+
+            if (EditSessionVideo.IsNoSeries(staged.Token))
+            {
+                return None;
+            }
+
+            return EditSessionVideo.TryParseNewSeries(staged.Token, out _) ? Start : staged.TargetId ?? None;
+        }
+    }
+
+    private IReadOnlyList<AppSelectOption> ChoiceOptions
+    {
+        get
+        {
+            var options = new List<AppSelectOption>();
+            if (_series is { InSeries: true })
+            {
+                options.Add(new AppSelectOption(Current, _series.SeriesTitle ?? L["EditorVideoSeries_Series"].Value));
+                options.Add(new AppSelectOption(None, L["EditorVideoSeries_NotInASeries"].Value));
+                return options;
+            }
+
+            options.Add(new AppSelectOption(None, $"{L["EditorVideoSeries_NotInASeries"].Value} · {L["EditorVideoSeries_StandsOnItsOwn"].Value}"));
+            foreach (var target in _series?.Targets ?? [])
+            {
+                options.Add(new AppSelectOption(target.Id.ToString(), $"{target.Title} · {CountText(target.VideoCount)}"));
+            }
+
+            options.Add(new AppSelectOption(Start, L["EditorVideoSeries_StartANewSeries"].Value));
+            return options;
+        }
+    }
+
+    private string CountText(int count) => count == 1 ? L["EditorVideoSeries_VideoOne"].Value : L["EditorVideoSeries_VideoMany", count].Value;
+
+    private void OnChoiceChanged(string? value)
+    {
+        if (!CanChange || Subject is null || Pending is not { } pending)
+        {
+            return;
+        }
+
+        if (pending.FindVideoSeries(Subject.EntityId) is { } staged)
+        {
+            pending.Remove(staged.Id);
+        }
+
+        _naming = false;
+        switch (value)
+        {
+            case Start:
+                _naming = true;
+                break;
+            case None when _series is { InSeries: true }:
+                pending.SetTarget(EditSessionChangeKinds.VideoSeries, Subject.EntityId, null, EditSessionVideo.NoSeriesToken, null, null, _series.SeriesTitle);
+                break;
+            case Current or None or null:
+                break;
+            default:
+                if (Guid.TryParse(value, out var target))
+                {
+                    var place = _series?.Targets.FirstOrDefault(candidate => candidate.Id == target);
+                    pending.SetTarget(EditSessionChangeKinds.VideoSeries, Subject.EntityId, target.ToString(), null, place?.Title, null, EditReviewRows.NotInASeries);
+                }
+
+                break;
+        }
+    }
+
+    private void StageNewSeries()
+    {
+        if (!CanChange || Subject is null || Pending is not { } pending || string.IsNullOrWhiteSpace(_newName))
+        {
+            return;
+        }
+
+        pending.SetTarget(EditSessionChangeKinds.VideoSeries, Subject.EntityId, null, EditSessionVideo.NewSeriesToken(_newName), _newName.Trim(), null, EditReviewRows.NotInASeries);
+        _naming = false;
+    }
+
+    private string? SeriesSentence
+    {
+        get
+        {
+            if (Subject is null || Pending?.FindVideoSeries(Subject.EntityId) is not { } staged)
+            {
+                return null;
+            }
+
+            var title = Subject.Title;
+            if (EditSessionVideo.IsNoSeries(staged.Token))
+            {
+                return $"\"{title}\" leaves its series and stands on its own. Your file is not moved or renamed.";
+            }
+
+            var name = EditSessionVideo.TryParseNewSeries(staged.Token, out var started)
+                ? started
+                : _series?.Targets.FirstOrDefault(candidate => candidate.Id.ToString() == staged.TargetId)?.Title ?? "the chosen series";
+            return EditSessionVideo.TryParseNewSeries(staged.Token, out _)
+                ? $"A new series, {name}, is started and \"{title}\" is its first video. Your file is not moved or renamed."
+                : $"\"{title}\" joins {name}, at the end of the list. Your file is not moved or renamed.";
+        }
+    }
+
+    // ----- Order -----
+
+    private Task NudgeAsync(int list, int index, int step) => ChangedAsync(_editor.Nudge(list, index, step));
+
+    private Task SortAsync(int list, VideoSortBy by)
+    {
+        _editor.Sort(list, by);
+        return ChangedAsync(true);
+    }
+
+    private Task ResetAsync()
+    {
+        _editor.Reset();
+        return ChangedAsync(true);
+    }
+
+    [JSInvokable]
+    public Task OnDropAsync(int fromList, int fromIndex, int toList, int insertAt) =>
+        InvokeAsync(() => ChangedAsync(CanChange && _editor.Drop(fromList, fromIndex, toList, insertAt)));
+
+    [JSInvokable]
+    public Task OnDropOnParentAsync(int fromList, int fromIndex, string parentId) =>
+        InvokeAsync(() =>
+        {
+            if (!CanChange || !Guid.TryParse(parentId, out var parent))
+            {
+                return Task.CompletedTask;
+            }
+
+            var target = _editor.IndexOfList(parent);
+            return ChangedAsync(target >= 0 && _editor.Drop(fromList, fromIndex, target, _editor.Lists[target].Current.Count));
+        });
+
+    private Task ChangedAsync(bool changed)
+    {
+        if (!changed || Pending is not { } pending)
+        {
+            return Task.CompletedTask;
+        }
+
+        _editor.Stage(pending);
+        Family?.ApplyArrangement(_editor.Lists.Select(list => (list.ParentId, (IReadOnlyList<Guid>)[.. list.Current.Select(row => row.Id)])));
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private void SetRename(VideoOrderList list, bool on)
+    {
+        if (!CanChange || Pending is not { } pending)
+        {
+            return;
+        }
+
+        if (pending.FindVideoRename(list.ParentId) is { } staged)
+        {
+            pending.Remove(staged.Id);
+        }
+
+        if (on)
+        {
+            pending.SetTarget(EditSessionChangeKinds.VideoRename, list.ParentId, null, null, list.Title);
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (_module is not null)
+            {
+                await _module.InvokeVoidAsync("detach", _root);
+                await _module.DisposeAsync();
+            }
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException or TaskCanceledException)
+        {
+            // The page is already gone; there is nothing left to detach.
+        }
+
+        _self?.Dispose();
+    }
+}

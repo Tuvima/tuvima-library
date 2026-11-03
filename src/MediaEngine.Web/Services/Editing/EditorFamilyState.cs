@@ -209,6 +209,51 @@ public sealed class EditorFamilyState
         Changed?.Invoke();
     }
 
+    /// <summary>
+    /// Shows a video series in the order the person has arranged it while the Match tool is open (universal editor v3.1): the videos of each
+    /// list take the given order, number labels follow it, and a video moved into another section sits under that section. Only the tree
+    /// changes; nothing is saved, and the Engine's own order comes back when the family is read again.
+    /// </summary>
+    public void ApplyArrangement(IEnumerable<(Guid ParentId, IReadOnlyList<Guid> OrderedIds)> lists)
+    {
+        var changed = false;
+        foreach (var (parentId, ids) in lists)
+        {
+            if (!_nodes.TryGetValue(parentId, out var parent))
+            {
+                continue;
+            }
+
+            var present = ids.Where(id => _nodes.TryGetValue(id, out var node) && !node.IsParent).ToList();
+            foreach (var id in present)
+            {
+                var leaf = _nodes[id];
+                if (leaf.ParentId is { } old && old != parentId && _nodes.TryGetValue(old, out var oldParent))
+                {
+                    oldParent.Leaves.Remove(id);
+                }
+
+                leaf.ParentId = parentId;
+            }
+
+            var rest = parent.Leaves.Where(id => !present.Contains(id) && _nodes.TryGetValue(id, out var node) && node.ParentId == parentId).ToList();
+            parent.Leaves.Clear();
+            parent.Leaves.AddRange(present);
+            parent.Leaves.AddRange(rest);
+            for (var i = 0; i < present.Count; i++)
+            {
+                _nodes[present[i]].Detail = (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            }
+
+            changed = true;
+        }
+
+        if (changed)
+        {
+            Changed?.Invoke();
+        }
+    }
+
     /// <summary>Reads the family again (after a save or a match committed), keeping what was open.</summary>
     public async Task RefreshAsync(Guid entityId)
     {
@@ -603,7 +648,7 @@ public sealed class EditorFamilyState
         public Guid? ParentId { get; set; }
         public string Kind { get; init; } = "Item";
         public string Title { get; init; } = string.Empty;
-        public string? Detail { get; init; }
+        public string? Detail { get; set; }
         public bool Matched { get; init; } = true;
         public string? Reason { get; init; }
         public string? ImageUrl { get; init; }

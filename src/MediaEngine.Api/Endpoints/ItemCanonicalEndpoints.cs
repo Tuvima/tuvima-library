@@ -323,7 +323,7 @@ public static partial class ItemCanonicalEndpoints
                 {
                     ParentId = group.ParentWorkId,
                     Title = group.Title,
-                    Entries = group.Entries.Select(entry => new VideoOrderEntryDto { Id = entry.WorkId, Title = entry.Title }).ToList(),
+                    Entries = group.Entries.Select(entry => new VideoOrderEntryDto { Id = entry.WorkId, Title = entry.Title, FileName = entry.FileName, AddedAt = entry.AddedAt }).ToList(),
                     CanRenameFiles = await renamer.CanRenameAllAsync(group.Entries.Select(entry => entry.AssetId), ct),
                 });
             }

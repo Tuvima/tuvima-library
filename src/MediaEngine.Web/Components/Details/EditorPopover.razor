@@ -73,6 +73,10 @@
                     <EditorPlacementPicker Subject="@(mode.Fields.Loading ? null : mode.Fields.MatchSubject())"
                                            Session="flow.Session"
                                            CanEdit="@mode.CanEdit" />
+                    <EditorVideoSeriesPanel Subject="@(mode.Fields.Loading ? null : mode.Fields.MatchSubject())"
+                                            Session="flow.Session"
+                                            Family="Editor.Family"
+                                            CanEdit="@mode.CanEdit" />
                     <EditorExtrasMovePanel Subject="@(mode.Fields.Loading ? null : mode.Fields.MatchSubject())"
                                            Extras="binding?.Extras"
                                            Session="flow.Session"
