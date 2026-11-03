@@ -1,5 +1,6 @@
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
+using MediaEngine.Api.Services.Playback;
 using MediaEngine.Contracts.Reading;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Constants;
@@ -172,6 +173,96 @@ public static class ReaderEndpoints
         .ProducesProblem(StatusCodes.Status403Forbidden)
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireProfileOperation(ApplicationPermissionIds.ProgressWrite);
+
+        // Find bookmarks for a book (Global bookmarks spec D6 to D10): compare, apply and export, as for films and audiobooks.
+        group.MapPost("/{assetId:guid}/bookmark-sets/compare", async (
+            Guid assetId,
+            HttpContext context,
+            MediaEngine.Contracts.Playback.BookmarkSetRequestDto request,
+            ReaderBookmarkSetService sets,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                return Results.Ok(await sets.CompareAsync(Guid.Parse(ProfileUserId(context)), assetId, request, ct));
+            }
+            catch (BookmarkPackInvalidException ex)
+            {
+                return ApiErrors.BadRequest(ex.Message);
+            }
+            catch (PlayerResourceDeniedException)
+            {
+                return ApiErrors.NotFound("Book not found.");
+            }
+        })
+        .WithName("CompareReaderBookmarkSet")
+        .WithSummary("Find bookmarks in a book: read a bookmark file and list each bookmark beside the nearest one the person has. Changes nothing.")
+        .Produces<MediaEngine.Contracts.Playback.BookmarkSetCompareDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireProfileOperation(ApplicationPermissionIds.ProgressRead)
+        .RequireCatalogueAssetAccess(ApplicationPermissionIds.ProgressRead);
+
+        group.MapPost("/{assetId:guid}/bookmark-sets/apply", async (
+            Guid assetId,
+            HttpContext context,
+            MediaEngine.Contracts.Playback.BookmarkSetApplyRequestDto request,
+            ReaderBookmarkSetService sets,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                return Results.Ok(await sets.ApplyAsync(Guid.Parse(ProfileUserId(context)), assetId, request, ct));
+            }
+            catch (BookmarkPackInvalidException ex)
+            {
+                return ApiErrors.BadRequest(ex.Message);
+            }
+            catch (PlayerResourceDeniedException)
+            {
+                return ApiErrors.NotFound("Book not found.");
+            }
+        })
+        .WithName("ApplyReaderBookmarkSet")
+        .WithSummary("Apply the person's choices from a bookmark file in one write. An administrator's apply changes Global; anyone else's changes only their own bookmarks.")
+        .Produces<MediaEngine.Contracts.Playback.BookmarkSetApplyResultDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireProfileOperation(ApplicationPermissionIds.ProgressWrite)
+        .RequireCatalogueAssetAccess(ApplicationPermissionIds.ProgressWrite);
+
+        group.MapPost("/{assetId:guid}/bookmarks/global/export", async (
+            Guid assetId,
+            HttpContext context,
+            MediaEngine.Contracts.Playback.ExportGlobalBookmarksRequestDto request,
+            ReaderBookmarkSetService sets,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                return Results.Ok(await sets.ExportGlobalAsync(Guid.Parse(ProfileUserId(context)), assetId, request, ct));
+            }
+            catch (BookmarkPackInvalidException ex)
+            {
+                return ApiErrors.BadRequest(ex.Message);
+            }
+            catch (PlayerResourceDeniedException)
+            {
+                return ApiErrors.NotFound("Book not found.");
+            }
+            catch (PlayerBookmarkAdminDeniedException)
+            {
+                return ApiErrors.Forbidden("Only a server administrator can do that with bookmarks.");
+            }
+        })
+        .WithName("ExportGlobalReaderBookmarks")
+        .WithSummary("Save this book's Global bookmarks as a bookmark file (never anyone's personal ones). Server administrators only; never available for a Vault book.")
+        .Produces<MediaEngine.Contracts.Playback.BookmarkPackFileDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireProfileOperation(ApplicationPermissionIds.ProgressRead)
+        .RequireCatalogueAssetAccess(ApplicationPermissionIds.ProgressRead);
 
         // ── Highlights ──────────────────────────────────────────────────────
 

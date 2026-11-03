@@ -71,16 +71,16 @@
                     var choice = ChoiceFor(row);
                     <li class="video-bookmark-find__cmp" @key="row.Index">
                         <AppNativeButton Type="button" Class="@($"video-bookmark-find__card{(choice == BookmarkRowChoices.Incoming ? " is-on" : null)}")" OnClick="@(() => PickAsync(row, BookmarkRowChoices.Incoming))"
-                                         AriaLabel="@L["BookmarkFind_PickIncoming", PlaybackSeekRail.Time(row.Incoming.PositionSeconds)].Value">
-                            <span class="video-bookmark-find__time">@PlaybackSeekRail.Time(row.Incoming.PositionSeconds)</span>
+                                         AriaLabel="@L["BookmarkFind_PickIncoming", Place(row.Incoming.PositionSeconds, row.Incoming.ChapterTitle)].Value">
+                            <span class="video-bookmark-find__time">@Place(row.Incoming.PositionSeconds, row.Incoming.ChapterTitle)</span>
                             <span class="video-bookmark-find__text">@row.Incoming.Note</span>
                             @if (choice == BookmarkRowChoices.Incoming) { <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Check" /> }
                         </AppNativeButton>
                         @if (row.Yours is { } yours)
                         {
                             <AppNativeButton Type="button" Class="@($"video-bookmark-find__card{(choice == BookmarkRowChoices.Yours ? " is-on" : null)}")" OnClick="@(() => PickAsync(row, BookmarkRowChoices.Yours))"
-                                             AriaLabel="@L["BookmarkFind_PickYours", PlaybackSeekRail.Time(yours.PositionSeconds)].Value">
-                                <span class="video-bookmark-find__time">@PlaybackSeekRail.Time(yours.PositionSeconds)</span>
+                                             AriaLabel="@L["BookmarkFind_PickYours", Place(yours.PositionSeconds, null)].Value">
+                                <span class="video-bookmark-find__time">@Place(yours.PositionSeconds, null)</span>
                                 <span class="video-bookmark-find__text">@(string.IsNullOrWhiteSpace(yours.Name) ? yours.Note : yours.Name)</span>
                                 @if (yours.IsGlobal) { <span class="video-bookmark-find__tag">@L["VideoBookmarkPane_Global"]</span> }
                                 @if (choice == BookmarkRowChoices.Yours) { <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Check" /> }
@@ -119,6 +119,10 @@
     [Parameter, EditorRequired] public Guid ProfileId { get; set; }
     [Parameter, EditorRequired] public Guid WorkId { get; set; }
     [Parameter, EditorRequired] public Guid AssetId { get; set; }
+    /// <summary>True when the bookmarks are places in a book (a reader location) rather than times in a film or audiobook.</summary>
+    [Parameter] public bool IsBook { get; set; }
+    /// <summary>Takes the reader to a place in the book (tap a card to see it).</summary>
+    [Parameter] public Func<string, Task>? JumpToLocator { get; set; }
     /// <summary>The running time of this copy, in seconds.</summary>
     [Parameter] public double Duration { get; set; }
     [Parameter] public IReadOnlyList<PlaybackChapterDto> Chapters { get; set; } = [];
@@ -186,7 +190,7 @@
 
     private async Task LoadAsync(string mode)
     {
-        var compare = await ApiClient.CompareBookmarkSetAsync(WorkId, ProfileId, Request(mode));
+        var compare = IsBook ? await ApiClient.CompareReaderBookmarkSetAsync(AssetId, Request(mode)) : await ApiClient.CompareBookmarkSetAsync(WorkId, ProfileId, Request(mode));
         if (compare is null)
         {
             _message = ApiClient.LastError ?? L["BookmarkFind_NotABookmarkFile"].Value;
@@ -213,7 +217,15 @@
     private async Task PickAsync(BookmarkSetCompareRowDto row, string choice)
     {
         _choices[row.Index] = choice;
-        var seconds = choice == BookmarkRowChoices.Yours && row.Yours is { } yours ? yours.PositionSeconds : row.Incoming.PositionSeconds;
+        var yoursRow = choice == BookmarkRowChoices.Yours ? row.Yours : null;
+        if (IsBook)
+        {
+            var locator = yoursRow is not null ? yoursRow.Locator : row.Incoming.Locator;
+            if (JumpToLocator is not null && locator is not null) await JumpToLocator(locator);
+            return;
+        }
+
+        var seconds = yoursRow is not null ? yoursRow.PositionSeconds : row.Incoming.PositionSeconds;
         if (JumpTo is not null) await JumpTo(seconds, true);
     }
 
@@ -222,12 +234,15 @@
 
     private Task ApplyAsync() => RunBusyAsync(async () =>
     {
-        var applied = await ApiClient.ApplyBookmarkSetAsync(WorkId, ProfileId, new BookmarkSetApplyRequestDto
+        var request = new BookmarkSetApplyRequestDto
         {
             Set = Request(_compare?.Match == BookmarkPackMatchResults.DifferentCut ? BookmarkPackImportModes.AlignByChapter : BookmarkPackImportModes.AsIs),
             Choices = _compare?.Rows.Select(row => new BookmarkSetRowChoiceDto { Index = row.Index, Choice = ChoiceFor(row) }).ToList() ?? [],
             ReplaceGlobalSet = _replaceWhole,
-        });
+        };
+        var applied = IsBook
+            ? await ApiClient.ApplyReaderBookmarkSetAsync(AssetId, request)
+            : await ApiClient.ApplyBookmarkSetAsync(WorkId, ProfileId, request);
         if (applied is null)
         {
             _message = ApiClient.LastError ?? L["BookmarkFind_ApplyFailed"].Value;
@@ -243,13 +258,16 @@
     private Task ExportGlobalAsync() => RunBusyAsync(async () =>
     {
         _message = null;
-        var file = await ApiClient.ExportGlobalBookmarksAsync(WorkId, ProfileId, new ExportGlobalBookmarksRequestDto
+        var exportRequest = new ExportGlobalBookmarksRequestDto
         {
             ProfileId = ProfileId,
             AssetId = AssetId,
             RunningTimeSeconds = RunningTime,
             Chapters = ChapterDtos,
-        });
+        };
+        var file = IsBook
+            ? await ApiClient.ExportGlobalReaderBookmarksAsync(AssetId, exportRequest)
+            : await ApiClient.ExportGlobalBookmarksAsync(WorkId, ProfileId, exportRequest);
         if (file is null)
         {
             _message = ApiClient.LastError ?? L["BookmarkFind_ExportFailed"].Value;
@@ -279,12 +297,29 @@
 
     private static string? MatchClass(BookmarkSetCompareDto set) => set.Match == BookmarkPackMatchResults.Match ? "is-ok" : "is-warn";
 
-    private string CloseText(BookmarkSetCompareRowDto row) => row.Closeness switch
+    private string CloseText(BookmarkSetCompareRowDto row)
     {
-        BookmarkClosenessLabels.SameSpot => L["BookmarkFind_SameSpot", Gap(row.GapSeconds)].Value,
-        BookmarkClosenessLabels.Close => L["BookmarkFind_Close", Gap(row.GapSeconds)].Value,
-        BookmarkClosenessLabels.Far => L["BookmarkFind_Far", Gap(row.GapSeconds)].Value,
-        _ => L["BookmarkFind_New"].Value,
+        var gap = IsBook ? ChapterGap(row.GapChapters) : Gap(row.GapSeconds);
+        return row.Closeness switch
+        {
+            BookmarkClosenessLabels.SameSpot => L["BookmarkFind_SameSpot", IsBook ? L["BookmarkFind_SameParagraph"].Value : gap].Value,
+            BookmarkClosenessLabels.Close => L["BookmarkFind_Close", gap].Value,
+            BookmarkClosenessLabels.Far => L["BookmarkFind_Far", gap].Value,
+            _ => L["BookmarkFind_New"].Value,
+        };
+    }
+
+    /// <summary>The place a card shows: a time for a film or audiobook, the chapter name (or "Chapter N") for a book.</summary>
+    private string Place(double seconds, string? chapterTitle) => !IsBook
+        ? PlaybackSeekRail.Time(seconds)
+        : string.IsNullOrWhiteSpace(chapterTitle) ? L["BookmarkFind_ChapterNumber", (int)seconds + 1].Value : chapterTitle;
+
+    /// <summary>For a book the gap sits beside the label too: "same paragraph", "same chapter", "2 chapters away".</summary>
+    private string ChapterGap(int? chapters) => (chapters ?? 0) switch
+    {
+        0 => L["BookmarkFind_SameChapter"].Value,
+        1 => L["BookmarkFind_OneChapterAway"].Value,
+        var many => L["BookmarkFind_ChaptersAway", many].Value,
     };
 
     private static string? CloseClass(BookmarkSetCompareRowDto row) => row.Closeness switch

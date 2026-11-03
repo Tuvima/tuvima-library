@@ -6725,6 +6725,7 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkSetCompare
   Incoming: MediaEngine.Contracts.Playback.BookmarkSetItemDto | nullability=not-null | accessors=get,init
   Yours: MediaEngine.Contracts.Playback.BookmarkSetExistingDto | nullability=nullable | accessors=get,init
   GapSeconds: System.Double? | nullability=nullable | accessors=get,init
+  GapChapters: System.Int32? | nullability=nullable | accessors=get,init
   Closeness: System.String | nullability=not-null | accessors=get,init
   DefaultChoice: System.String | nullability=not-null | accessors=get,init
 
@@ -6734,6 +6735,7 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkSetExistin
   Name: System.String | nullability=nullable | accessors=get,init
   Note: System.String | nullability=nullable | accessors=get,init
   IsGlobal: System.Boolean | nullability=not-null | accessors=get,init
+  Locator: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkSetItemDto
   PositionSeconds: System.Double | nullability=not-null | accessors=get,init
@@ -6741,6 +6743,7 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkSetItemDto
   ChapterTitle: System.String | nullability=nullable | accessors=get,init
   Note: System.String | nullability=nullable | accessors=get,init
   Description: System.String | nullability=nullable | accessors=get,init
+  Locator: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.BookmarkSetRequestDto
   ProfileId: System.Guid? | nullability=nullable | accessors=get,init

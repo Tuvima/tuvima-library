@@ -79,6 +79,7 @@ public static class BookmarkPackArchive
                         ChapterStart = bookmark.ChapterStart,
                         Note = bookmark.Note,
                         Description = bookmark.Description,
+                        Locator = bookmark.Locator,
                     }).ToList(),
                 }, WriteOptions);
             }
@@ -158,7 +159,7 @@ public static class BookmarkPackArchive
         {
             text.Append(bookmark.Time.ToString("R", System.Globalization.CultureInfo.InvariantCulture)).Append('|')
                 .Append(bookmark.EndTime?.ToString("R", System.Globalization.CultureInfo.InvariantCulture)).Append('|')
-                .Append(bookmark.Chapter).Append('|').Append(bookmark.Note).Append('|').Append(bookmark.Description).Append('\n');
+                .Append(bookmark.Chapter).Append('|').Append(bookmark.Note).Append('|').Append(bookmark.Description).Append('|').Append(bookmark.Locator).Append('\n');
         }
 
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text.ToString()))).ToLowerInvariant();
@@ -202,7 +203,14 @@ public static class BookmarkPackArchive
                 throw new BookmarkPackInvalidException("This bookmark pack has a bookmark that is not valid.");
             }
 
-            bookmarks.Add(new BookmarkPackBookmark(item.Time, item.EndTime, chapter, chapter is null ? null : item.ChapterStart, note, description));
+            // A book bookmark carries a reader location; one that is not a plain point in the text is not valid.
+            var locator = string.IsNullOrWhiteSpace(item.Locator) ? null : item.Locator.Trim();
+            if (locator is not null && (locator.Length > 4096 || ReaderLocation.TryParse(locator) is null))
+            {
+                throw new BookmarkPackInvalidException("This bookmark pack has a bookmark that is not valid.");
+            }
+
+            bookmarks.Add(new BookmarkPackBookmark(item.Time, item.EndTime, chapter, chapter is null ? null : item.ChapterStart, note, description, locator));
         }
 
         var ids = (payload.Title?.Ids ?? [])
@@ -264,5 +272,6 @@ public static class BookmarkPackArchive
         [JsonPropertyName("chapter_start")] public double? ChapterStart { get; set; }
         [JsonPropertyName("note")] public string? Note { get; set; }
         [JsonPropertyName("description")] public string? Description { get; set; }
+        [JsonPropertyName("locator")] public string? Locator { get; set; }
     }
 }

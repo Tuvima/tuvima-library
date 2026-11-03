@@ -47,6 +47,8 @@ public sealed record BookmarkSetItemDto
     public string? ChapterTitle { get; init; }
     public string? Note { get; init; }
     public string? Description { get; init; }
+    /// <summary>For a book bookmark: the saved reader location (an EPUB location). Null for a film or audiobook bookmark.</summary>
+    public string? Locator { get; init; }
 }
 
 /// <summary>The nearest bookmark the person already has (their own or a Global one).</summary>
@@ -57,6 +59,8 @@ public sealed record BookmarkSetExistingDto
     public string? Name { get; init; }
     public string? Note { get; init; }
     public bool IsGlobal { get; init; }
+    /// <summary>For a book bookmark: the saved reader location. Null for a film or audiobook bookmark.</summary>
+    public string? Locator { get; init; }
 }
 
 public sealed record BookmarkSetCompareRowDto
@@ -68,6 +72,8 @@ public sealed record BookmarkSetCompareRowDto
     public BookmarkSetExistingDto? Yours { get; init; }
     /// <summary>How far apart the two are, in seconds. Null on a New row.</summary>
     public double? GapSeconds { get; init; }
+    /// <summary>For a book: how many chapters apart the two are (0 when in the same chapter). Null on a New row and for films.</summary>
+    public int? GapChapters { get; init; }
     /// <summary>See <see cref="BookmarkClosenessLabels"/>.</summary>
     public string Closeness { get; init; } = BookmarkClosenessLabels.New;
     /// <summary>The choice that is ticked when the person just presses Apply. See <see cref="BookmarkRowChoices"/>.</summary>

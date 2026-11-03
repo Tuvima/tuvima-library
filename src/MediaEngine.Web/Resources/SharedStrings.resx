@@ -10065,6 +10065,21 @@
   <data name="BookmarkFind_Far" xml:space="preserve">
     <value>Far · {0}</value>
   </data>
+  <data name="BookmarkFind_SameParagraph" xml:space="preserve">
+    <value>same paragraph</value>
+  </data>
+  <data name="BookmarkFind_SameChapter" xml:space="preserve">
+    <value>same chapter</value>
+  </data>
+  <data name="BookmarkFind_OneChapterAway" xml:space="preserve">
+    <value>1 chapter away</value>
+  </data>
+  <data name="BookmarkFind_ChaptersAway" xml:space="preserve">
+    <value>{0} chapters away</value>
+  </data>
+  <data name="BookmarkFind_ChapterNumber" xml:space="preserve">
+    <value>Chapter {0}</value>
+  </data>
   <data name="BookmarkFind_New" xml:space="preserve">
     <value>New</value>
   </data>

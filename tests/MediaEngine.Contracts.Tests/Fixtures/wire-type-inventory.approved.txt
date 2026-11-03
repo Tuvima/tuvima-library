@@ -7925,9 +7925,10 @@
   Incoming: MediaEngine.Contracts.Playback.BookmarkSetItemDto | json=incoming | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Yours: MediaEngine.Contracts.Playback.BookmarkSetExistingDto | json=yours | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   GapSeconds: System.Double? | json=gapSeconds | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  GapChapters: System.Int32? | json=gapChapters | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Closeness: System.String | json=closeness | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   DefaultChoice: System.String | json=defaultChoice | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"index":7,"incoming":null,"yours":null,"gapSeconds":7,"closeness":"sample","defaultChoice":"sample"}
+  sample={"index":7,"incoming":null,"yours":null,"gapSeconds":7,"gapChapters":7,"closeness":"sample","defaultChoice":"sample"}
 
 [contracts] MediaEngine.Contracts.Playback.BookmarkSetExistingDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -7936,7 +7937,8 @@
   Name: System.String | json=name | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Note: System.String | json=note | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   IsGlobal: System.Boolean | json=isGlobal | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"id":"11111111-2222-3333-4444-555555555555","positionSeconds":7,"name":"sample","note":"sample","isGlobal":true}
+  Locator: System.String | json=locator | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"11111111-2222-3333-4444-555555555555","positionSeconds":7,"name":"sample","note":"sample","isGlobal":true,"locator":"sample"}
 
 [contracts] MediaEngine.Contracts.Playback.BookmarkSetItemDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -7945,7 +7947,8 @@
   ChapterTitle: System.String | json=chapterTitle | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Note: System.String | json=note | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Description: System.String | json=description | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"positionSeconds":7,"endSeconds":7,"chapterTitle":"sample","note":"sample","description":"sample"}
+  Locator: System.String | json=locator | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"positionSeconds":7,"endSeconds":7,"chapterTitle":"sample","note":"sample","description":"sample","locator":"sample"}
 
 [contracts] MediaEngine.Contracts.Playback.BookmarkSetRequestDto
   kind=class | converter=default | number-handling=default | unmapped=default
