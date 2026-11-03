@@ -167,7 +167,7 @@ public sealed class ServerFolderPickerUiTests
         var preflight = Read("src/MediaEngine.Web/Components/Setup/SetupToolsStage.razor");
 
         Assert.Contains("\"metadata\" => \"Metadata\"", stepper, StringComparison.Ordinal);
-        Assert.Contains("\"welcome\" => \"Welcome\"", stepper, StringComparison.Ordinal);
+        Assert.Contains("\"welcome\" => \"Your Library\"", stepper, StringComparison.Ordinal);
         Assert.DoesNotContain("ProviderStatus(", providers, StringComparison.Ordinal);
         Assert.Contains("Media locations", picker, StringComparison.Ordinal);
         Assert.DoesNotContain("Approved folders", picker, StringComparison.Ordinal);

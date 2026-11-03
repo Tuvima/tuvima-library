@@ -1,0 +1,23 @@
+.intro-anim { display: grid; place-items: center; padding: 28px 12px; border-radius: 12px; background: radial-gradient(ellipse 48% 58% at 47% 49%, #301b59 0%, #1a1036 47%, #0b0920 100%); color: #f2f8fc; }
+.intro-anim__stage { position: relative; width: min(100%, 760px); aspect-ratio: 1545 / 400; }
+.intro-anim__emblem { position: absolute; left: 0; top: 5%; width: 17%; opacity: 0; animation: intro-emblem 1.75s .12s cubic-bezier(.16,.85,.2,1) forwards; }
+.intro-anim__glow { position: absolute; left: -2%; top: 1%; width: 21%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle, rgba(255,218,113,.24), rgba(237,187,55,.08) 43%, transparent 73%); filter: blur(13px); opacity: 0; animation: intro-glow 2.3s .15s ease-out both; }
+.intro-anim__word { position: absolute; width: 78%; left: 21.75%; top: 26%; opacity: 0; transform: translateX(22px); animation: intro-in 1s 2s ease-out forwards; }
+.intro-anim__line { position: absolute; top: 82%; left: 50%; width: 0; height: 1px; background: linear-gradient(90deg, transparent, #8b5cf6, transparent); transform: translateX(-50%); animation: intro-line 1s 2.65s ease-out forwards; }
+.intro-anim__tag { position: absolute; top: 89%; left: 50%; transform: translate(-50%, 15px); white-space: nowrap; letter-spacing: .24em; color: #ddd6fe; font-weight: 500; font-size: clamp(9px, 1.32vw, 16px); opacity: 0; animation: intro-tag .9s 2.85s ease-out forwards; }
+.intro-anim--compact .intro-anim__stage { width: min(100%, 460px); }
+.intro-anim--compact .intro-anim__emblem { animation-duration: .9s; animation-delay: 0s; }
+.intro-anim--compact .intro-anim__word { animation-duration: .6s; animation-delay: .7s; }
+.intro-anim--compact .intro-anim__line { animation-duration: .5s; animation-delay: 1.1s; }
+.intro-anim--compact .intro-anim__tag { animation-duration: .5s; animation-delay: 1.2s; }
+@keyframes intro-emblem { from { opacity: 0; transform: translateY(12px) rotate(-18deg) scale(.7); } to { opacity: 1; transform: none; } }
+@keyframes intro-glow { 0% { opacity: 0; transform: scale(.6); } 45% { opacity: 1; transform: scale(1.13); } 100% { opacity: .12; transform: scale(1); } }
+@keyframes intro-in { to { opacity: 1; transform: none; } }
+@keyframes intro-tag { to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes intro-line { to { width: 26%; } }
+@media (prefers-reduced-motion: reduce) {
+    .intro-anim .intro-anim__emblem, .intro-anim .intro-anim__word { animation: none; opacity: 1; transform: none; }
+    .intro-anim .intro-anim__glow { animation: none; opacity: .12; }
+    .intro-anim .intro-anim__line { animation: none; width: 26%; }
+    .intro-anim .intro-anim__tag { animation: none; opacity: 1; transform: translate(-50%, 0); }
+}

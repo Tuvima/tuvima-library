@@ -8,8 +8,8 @@
 @inject DeviceContextService DeviceContext
 @inject IStringLocalizer<SharedStrings> L
 
-@* "What do you have?": the four area cards (SetupAreaCards), each with its own Add, which opens the one Add library pop-up on that area and saves through
-   setup's own session. Rows under an area rename, change folder or remove through the same session. The footer, the step key and the deferral belong to this step.
+@* "What do you have?": the one Libraries table (SetupLibrariesTable) with its Add library button, which opens the Add library wizard and saves through
+   setup's own session. Rows rename, change folder or remove through the same session. The footer, the step key and the deferral belong to this step.
    The optional private step that may follow is the page's to offer. *@
 <div class="setup-stage-content">
     <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" /><div><h2 id="setup-stage-title">@L["SetupLibrariesStage_WhatDoYouHave"]</h2><p>@L["SetupLibrariesStage_AddALibraryForWhat"]</p></div></div>
@@ -21,12 +21,13 @@
     }
     else if (_configuration is not null)
     {
-        <SetupAreaCards SetupSession="@SetupSession"
-                        Configuration="@_configuration"
-                        Kinds="@_kinds"
-                        ViewFolders="@_viewFolders"
-                        ReadOnly="@DeviceContext.IsMobile"
-                        Changed="LibraryChangedAsync" />
+        <SetupLibrariesTable SetupSession="@SetupSession"
+                             Configuration="@_configuration"
+                             Kinds="@_kinds"
+                             ViewFolders="@_viewFolders"
+                             VaultOn="@VaultOn"
+                             ReadOnly="@DeviceContext.IsMobile"
+                             Changed="LibraryChangedAsync" />
     }
 
     @if (HasLibraries && Media is not null)
@@ -47,6 +48,8 @@
 
 @code {
     [Parameter] public bool HasLibraries { get; set; }
+    /// <summary>True once the Vault was turned on in this setup; Add library then offers the Vault.</summary>
+    [Parameter] public bool VaultOn { get; set; }
     [Parameter] public EventCallback DeferMedia { get; set; }
     [Parameter] public SetupMediaLocationsDto? Media { get; set; }
     [Parameter] public string? SetupSession { get; set; }

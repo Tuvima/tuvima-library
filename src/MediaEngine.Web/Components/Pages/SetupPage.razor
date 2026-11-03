@@ -57,6 +57,9 @@
         <section class="setup-stage" aria-labelledby="setup-stage-title">
             @switch (CurrentStep)
             {
+                case "welcome" when ShowIntro:
+                    <SetupIntroStage GetStarted="DismissIntro" Restore="RestoreFromIntro" />
+                    break;
                 case "welcome":
                     <SetupWelcomeStage Locale="@_locale" LocaleChanged="@((SetupLocaleDto value) => _locale = value)"
                                       ServerName="@_serverName" ServerNameChanged="@((string value) => _serverName = value)"
@@ -85,7 +88,7 @@
                                              Continue="ContinueAfterProfileAsync" Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
                 case "libraries":
-                    <SetupLibrariesStage Media="@_media" SetupSession="@_setupSession" Busy="@_busy"
+                    <SetupLibrariesStage VaultOn="@(StepState("vault") == "passed")" Media="@_media" SetupSession="@_setupSession" Busy="@_busy"
                                      LibraryCreated="LibraryCreatedAsync" ValidateMedia="ValidateMediaAsync" HasLibraries="@(_setupLibraries?.Libraries.Any(library => library.Sources.Count > 0) == true)" DeferMedia="DeferMediaAsync"
                                      Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
@@ -99,7 +102,7 @@
                                          Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
                 default:
-                    <SetupReadinessStage Readiness="@_readiness" Failed="@_readinessFailed" Retry="RetryReadinessAsync" Tools="@_preflight?.Tools" Busy="@_busy" Complete="CompleteAsync"
+                    <SetupReadinessStage HeldKinds="@HeldKinds" Readiness="@_readiness" Failed="@_readinessFailed" Retry="RetryReadinessAsync" Tools="@_preflight?.Tools" Busy="@_busy" Complete="CompleteAsync"
                                          Back="GoBackAsync" ShowReturnToCurrentStep="@(CurrentStep != WorkflowStep)" ReturnToCurrentStep="ReturnToCurrentStep" />
                     break;
             }
@@ -133,9 +136,27 @@
         .Where(library => library.Sources.Count > 0)
         .SelectMany(library => library.MediaTypes)
         .ToList() ?? [];
+    // Kinds that wait for a metadata source: shown on All set only when a library of that kind exists and no source was connected during setup.
+    private IReadOnlyList<string> HeldKinds
+    {
+        get
+        {
+            if (HasConfiguredSource) return [];
+            var kinds = _setupLibraries?.Libraries.Where(library => library.Sources.Count > 0).Select(library => library.KindKey).ToHashSet(StringComparer.OrdinalIgnoreCase) ?? [];
+            var held = new List<string>();
+            if (kinds.Contains("movies")) held.Add("films");
+            if (kinds.Contains("tv")) held.Add("TV shows");
+            if (kinds.Contains("comics")) held.Add("comics");
+            return held;
+        }
+    }
+    private bool HasConfiguredSource => SetupMetadataStage.HasConfiguredKey(_providerCatalogue);
     private bool _loading = true;
     private bool _busy;
     private bool _showRestore;
+    // The full intro plays once at first run: until Get started, and never once the first step has been passed (a reload past it skips it).
+    private bool _introDismissed;
+    private bool ShowIntro => !_introDismissed && !_showRestore && CurrentStep == "welcome" && StepState("welcome") != "passed" && RequestedStep is null;
     private bool _authenticated;
     private bool _setupSessionReadyForCircuit;
     private bool _codeRequired, _remoteRefused;
@@ -374,6 +395,13 @@
             await LoadProvidersAsync();
             _providersLoaded = true;
         }
+        if (CurrentStep == "done" && !_busy)
+        {
+            // All set names kinds that still wait for a metadata source, so it needs the libraries and the sources as they are now.
+            _setupLibraries = await ApiClient.GetSetupLibrariesAsync(_setupSession);
+            _providerCatalogue = await ApiClient.GetProviderCatalogueAsync();
+        }
+
         if (CurrentStep == "done" && _readiness is null && !_busy)
             await LoadReadinessAsync();
     }
@@ -505,6 +533,8 @@
         else
             await RunPreflightAsync();
     }
+    private void DismissIntro() => _introDismissed = true;
+    private void RestoreFromIntro() { _introDismissed = true; _showRestore = true; }
     private void CancelRestore() { _showRestore = false; _backup = null; _backupError = null; }
     private async Task UploadBackupAsync(InputFileChangeEventArgs args) { _busy = true; try { await using var stream = args.File.OpenReadStream(2L * 1024 * 1024 * 1024); _backupError = null; _backup = await ApiClient.UploadSetupBackupAsync(stream, args.File.Name, _setupSession ?? string.Empty); if (_backup is null) { _backupError = ApiClient.LastError is { Length: > 0 } sentence ? sentence : "The backup failed validation."; Snackbar.Add(_backupError, AppSeverity.Error); } } finally { _busy = false; } }
     private async Task ConfirmRestoreAsync() { if (_backup is null || _setupSession is null) return; _busy = true; var result = await ApiClient.ConfirmSetupRestoreAsync(_backup.OperationId, _setupSession); _busy = false; if (result is null) Snackbar.Add(L["Common_TheRestoreCouldNotBe"].Value, AppSeverity.Error); else Snackbar.Add(L["SetupPage_RestoreScheduledLibraryIsRestarting"].Value, AppSeverity.Info); }

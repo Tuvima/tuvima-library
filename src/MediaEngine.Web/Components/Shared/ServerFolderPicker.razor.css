@@ -192,7 +192,7 @@ input.server-folder-picker__address-field { padding: 0 12px; }
 }
 
 .server-folder-picker__list {
-    min-height: 280px;
+    height: min(300px, 40vh);
     max-height: min(420px, 48vh);
     overflow-y: auto;
     border: 1px solid var(--tl-border-subtle);

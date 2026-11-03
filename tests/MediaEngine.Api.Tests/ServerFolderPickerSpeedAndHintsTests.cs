@@ -64,12 +64,12 @@ public sealed class ServerFolderPickerSpeedAndHintsTests : IDisposable
 
     [Theory]
     [InlineData("TV Shows", "Movies", "TV")]
-    [InlineData("My Movies", "TV", "Movies")]
-    [InlineData("Music", "Books", "Music")]
-    [InlineData("Audiobooks", "Books", "Audiobooks")]
+    [InlineData("My Movies", "TV", null)]
+    [InlineData("Music", "Books", null)]
+    [InlineData("Audiobooks", "Books", null)]
     [InlineData("Movies", "Movies", null)]
     [InlineData("Stuff", "Music", null)]
-    public void LooksLikeOtherFormat_UsesTheFolderName(string name, string kindFormat, string? expected) =>
+    public void LooksLikeOtherFormat_LooksOnlyAtTheContentsNeverTheFolderName(string name, string kindFormat, string? expected) =>
         Assert.Equal(expected, FolderKindHint.LooksLikeOtherFormat(Path.Combine(_shared, name), kindFormat));
 
     [Fact]

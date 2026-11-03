@@ -161,7 +161,7 @@
     private string ProviderPurpose => Onboarding.SupportedLanes.Count > 0
         ? $"Supports {string.Join(", ", Onboarding.SupportedLanes)}."
         : "Metadata provider";
-    private string SubmitLabel => Operation == ProviderOnboardingOperation.Test ? "Test connection" : "Test";
+    private string SubmitLabel => Operation == ProviderOnboardingOperation.Test ? "Test connection" : "Test and save";
     private string SuccessTitle => Operation == ProviderOnboardingOperation.Test
         ? "Connection verified"
         : "Key saved";

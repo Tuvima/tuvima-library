@@ -49,7 +49,10 @@
 ::deep .setup-storage-editor { display: grid; gap: 14px; padding: 18px; border: 1px solid var(--tl-border-subtle); border-radius: 12px; background: var(--tl-bg-surface-elevated); }
 ::deep .setup-storage-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 12px; }
 ::deep .setup-storage-row > :last-child { margin-bottom: 9px; }
-::deep .setup-provider-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+::deep .setup-provider-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); justify-content: start; align-items: stretch; gap: 14px; }
+::deep .setup-provider-group { display: grid; gap: 8px; margin-bottom: 18px; }
+::deep .setup-provider-group h3 { margin: 0; font-size: 0.95rem; color: var(--tl-text-muted); }
+@media (max-width: 600px) { ::deep .setup-provider-grid { grid-template-columns: 1fr; } }
 ::deep .setup-sources-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
 ::deep .setup-sources-bar__note { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0; color: var(--tl-text-muted); }
 ::deep .setup-source-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 12px; min-height: 68px; border-bottom: 1px solid var(--tl-border-subtle); color: var(--tl-text-primary); }

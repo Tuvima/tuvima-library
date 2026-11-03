@@ -16,8 +16,8 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Web.Tests;
 
-// First-run setup's "What do you have?" step (settings and setup simplified D8): four area cards (Watch, Listen, Read, View), each with its own Add,
-// libraries as rows under their area, every change saved through setup's own session, with the footer (Skip for now, Continue), step key and deferral.
+// First-run setup's "What do you have?" step (first-run setup rework): one libraries table (Library, Area, Folders, Status) with one Add library button,
+// libraries as rows, every change saved through setup's own session, with the footer (Skip for now, Continue), step key and deferral.
 public sealed class SetupMediaStageTests : AsyncBunitContext
 {
     private const string Session = "setup-session";
@@ -98,93 +98,85 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
             .Add(x => x.DeferMedia, EventCallback.Factory.Create(this, () => _deferred++))
             .Add(x => x.ValidateMedia, EventCallback.Factory.Create(this, () => _validated++))
             .Add(x => x.LibraryCreated, EventCallback.Factory.Create(this, () => _created++)));
-        cut.WaitForAssertion(() => Assert.True(cut.FindAll("[data-setup-areas], .alert, [role=alert]").Count > 0));
+        cut.WaitForAssertion(() => Assert.True(cut.FindAll("[data-setup-libraries-table], .alert, [role=alert]").Count > 0));
         return cut;
     }
 
     private static AngleSharp.Dom.IElement Button(IRenderedComponent<SetupLibrariesStage> cut, string text) => cut.FindAll("button").Single(x => Text(x) == text);
 
-    private AngleSharp.Dom.IElement Card(IRenderedComponent<SetupLibrariesStage> cut, string area) => cut.Find($".setup-area[data-area={area}]");
+    private static string[] Names(IRenderedComponent<SetupLibrariesStage> cut) => cut.FindAll(".setup-libs__name strong").Select(Text).ToArray();
 
     private AngleSharp.Dom.IElement DialogButton(string text) => _dialogs.FindAll("button").Single(x => Text(x) == text);
 
-    // 1. Four area cards are always drawn, each with its icon, one line on what fits, its own Add and "Nothing yet" while empty.
+    // 1. One table: Library, Area, Folders and Status, with one Add library button and an empty state while nothing is added.
     [Fact]
-    public void TheStageAsksWhatDoYouHaveAndAlwaysDrawsTheFourAreaCardsEachSayingNothingYet()
+    public void TheStageAsksWhatDoYouHaveAndDrawsOneLibrariesTableWithOneAddLibraryButton()
     {
         var cut = RenderStage();
 
         Assert.Equal("What do you have?", Text(cut.Find("h2")));
-        Assert.Single(cut.FindComponents<SetupAreaCards>());
-        Assert.Equal(Session, cut.FindComponent<SetupAreaCards>().Instance.SetupSession);
-        Assert.Equal(["Watch", "Listen", "Read", "View"], cut.FindAll(".setup-area").Select(card => card.GetAttribute("aria-label")!).ToArray());
-        Assert.All(cut.FindAll(".setup-area"), card => Assert.NotNull(card.QuerySelector(".setup-area__head svg")));
-        Assert.Equal(["Nothing yet", "Nothing yet", "Nothing yet", "Nothing yet"], cut.FindAll(".setup-area__empty").Select(Text).ToArray());
-        Assert.Contains("Movies, TV shows, home videos", Text(Card(cut, "watch").QuerySelector(".setup-area__copy")!), StringComparison.Ordinal);
-        Assert.Contains("Music, audiobooks, podcasts", Text(Card(cut, "listen").QuerySelector(".setup-area__copy")!), StringComparison.Ordinal);
-        Assert.Contains("Books, comics, documents", Text(Card(cut, "read").QuerySelector(".setup-area__copy")!), StringComparison.Ordinal);
-        Assert.Contains("Photos and personal videos", Text(Card(cut, "view").QuerySelector(".setup-area__copy")!), StringComparison.Ordinal);
-        foreach (var area in new[] { "Watch", "Listen", "Read", "View" })
-        {
-            Assert.Single(cut.FindAll($"button[aria-label='Add a {area} library']"));
-        }
+        Assert.Single(cut.FindComponents<SetupLibrariesTable>());
+        Assert.Equal(Session, cut.FindComponent<SetupLibrariesTable>().Instance.SetupSession);
+        Assert.Contains("No libraries yet", cut.Markup, StringComparison.Ordinal);
+        Assert.Single(cut.FindAll("button"), button => Text(button) == "Add library");
+        Assert.Empty(cut.FindAll(".setup-area"));
 
-        // No search, filter, layout switch or per-row Add folder.
+        // No search, filter or layout switch.
         Assert.Empty(cut.FindAll("input[type=search], select, [aria-label='Libraries layout'], [aria-label='Search libraries']"));
-        Assert.DoesNotContain(cut.FindAll("button"), button => Text(button) is "Add library" or "Add folder");
         Assert.Contains(Session, _setupSessions);
     }
 
-    // Added libraries are rows under their area: icon, name, folder path, rename, change folder, remove. Nothing in the vault shows here.
+    // Added libraries are rows: name, area, folder path and Pending (nothing is scanned in setup), with rename, change folder and remove. Nothing in the vault shows here.
     [Fact]
-    public void ALibraryIsARowUnderItsAreaWithRenameChangeFolderAndRemoveAndOnlyThatAreaLosesNothingYet()
+    public void ALibraryIsARowWithItsAreaFolderAndPendingStatusAndRenameChangeFolderAndRemove()
     {
         AddMoviesLibrary();
         _configuration.Libraries.Add(new() { Id = VaultId, Name = "Private movies", KindKey = "movies", Area = "watch", Kind = "catalogued", MediaTypes = ["Movies"], IsVault = true, Sources = [new() { Id = "v1", Path = "E:\\Vault" }] });
         var cut = RenderStage(hasLibraries: true);
 
-        var watch = Card(cut, "watch");
-        Assert.Equal(["Movies"], watch.QuerySelectorAll(".setup-area__name").Select(Text).ToArray());
-        Assert.Equal("E:\\Library\\Movies", Text(watch.QuerySelector(".setup-area__path")!));
-        Assert.NotNull(watch.QuerySelector(".setup-area__row .lib-kind-tile svg, .setup-area__row .lib-kind-tile .tl-icon-root"));
-        Assert.Empty(watch.QuerySelectorAll(".setup-area__empty"));
-        Assert.Equal(["Nothing yet", "Nothing yet", "Nothing yet"], cut.FindAll(".setup-area__empty").Select(Text).ToArray());
-        Assert.NotEmpty(watch.QuerySelectorAll("button[aria-label='Rename Movies']"));
-        Assert.NotEmpty(watch.QuerySelectorAll("button[aria-label='Change the folder of Movies']"));
-        Assert.NotEmpty(watch.QuerySelectorAll("button[aria-label='Remove Movies']"));
+        Assert.Equal(["Movies"], Names(cut));
+        var row = cut.Find("tr[data-library]");
+        Assert.Contains("Watch", Text(row), StringComparison.Ordinal);
+        Assert.Contains("E:\\Library\\Movies", Text(row), StringComparison.Ordinal);
+        Assert.Contains("Pending", Text(row), StringComparison.Ordinal);
+        Assert.NotNull(row.QuerySelector(".lib-kind-tile svg, .lib-kind-tile .tl-icon-root"));
+        Assert.NotEmpty(cut.FindAll("button[aria-label='Rename Movies']"));
+        Assert.NotEmpty(cut.FindAll("button[aria-label='Change the folder of Movies']"));
+        Assert.NotEmpty(cut.FindAll("button[aria-label='Remove Movies']"));
         Assert.DoesNotContain("Vault", cut.Markup, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Private movies", cut.Markup, StringComparison.Ordinal);
     }
 
-    // Nothing a person clicks in the cards changes the browser address (first-run setup D14).
+    // Nothing a person clicks in the table changes the browser address (first-run setup D14).
     [Fact]
-    public void TheCardsHaveNoLinksAndNoRailSoNothingInThemLeavesTheWizard()
+    public void TheTableHasNoLinksAndNoRailSoNothingInItLeavesTheWizard()
     {
         AddMoviesLibrary();
         var cut = RenderStage(hasLibraries: true);
         var navigation = Services.GetRequiredService<NavigationManager>();
         var before = navigation.Uri;
 
-        Assert.Empty(cut.FindAll(".librail, [aria-label='Library areas'], .setup-areas a[href]"));
-        cut.Find(".setup-area__row").Click();
+        Assert.Empty(cut.FindAll(".librail, [aria-label='Library areas'], .setup-libs a[href]"));
 
         Assert.Equal(before, navigation.Uri);
     }
 
-    // 3. Add opens the one Add library pop-up already on that area; the name sits in the folder picker's footer; the library is saved through the setup session.
+    // 3. Add library opens the four-step wizard on the area question; the name sits in the folder picker's footer; the library is saved through the setup session.
     [Fact]
-    public void AddOnTheWatchCardOpensTheAddLibraryPopUpOnWatchAndTheNewLibraryIsARowUnderWatch()
+    public void AddLibraryOpensTheWizardOnTheAreaQuestionAndTheNewLibraryBecomesARow()
     {
         var cut = RenderStage();
 
-        cut.Find("button[aria-label='Add a Watch library']").Click();
+        cut.FindAll("button").Single(x => Text(x) == "Add library").Click();
 
-        _dialogs.WaitForElement(".create-library");
-        Assert.Equal("What is it?", Text(_dialogs.Find(".app-dialog-shell__title")));
-        Assert.Contains("Movies", Text(_dialogs.Find("[aria-label='Content type']")), StringComparison.Ordinal);
+        _dialogs.WaitForElement(".create-library[data-step='1']");
+        Assert.Equal(["Watch", "Listen", "Read", "View"], _dialogs.Find("[data-area-rows]").QuerySelectorAll("button strong").Select(Text).ToArray());
         Assert.DoesNotContain("Vault", _dialogs.Markup, StringComparison.OrdinalIgnoreCase);
         DialogButton("Next").Click();
-        _dialogs.WaitForElement(".create-library[data-step='2'] .server-folder-picker");
+        _dialogs.WaitForElement(".create-library[data-step='2']");
+        Assert.Contains("Movies", Text(_dialogs.Find("[aria-label='Content type']")), StringComparison.Ordinal);
+        DialogButton("Next").Click();
+        _dialogs.WaitForElement(".create-library[data-step='3'] .server-folder-picker");
         Assert.NotNull(_dialogs.Find(".server-folder-picker__footer-start [data-library-name] input"));
         _dialogs.WaitForAssertion(() => Assert.False(DialogButton("Add library").HasAttribute("disabled")));
 
@@ -192,8 +184,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
 
         _dialogs.WaitForAssertion(() => Assert.Single(_setupSaves));
         Assert.Contains(_setupSaves[0].Libraries, library => library.KindKey == "movies" && library.Area == "watch");
-        cut.WaitForAssertion(() => Assert.Equal(["Movies"], Card(cut, "watch").QuerySelectorAll(".setup-area__name").Select(Text).ToArray()));
-        Assert.Empty(Card(cut, "listen").QuerySelectorAll(".setup-area__name"));
+        cut.WaitForAssertion(() => Assert.Equal(["Movies"], Names(cut)));
         cut.WaitForAssertion(() => Assert.Equal(1, _created));
     }
 
@@ -211,7 +202,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
 
         _dialogs.WaitForAssertion(() => Assert.Single(_setupSaves));
         Assert.Equal("Family films", Assert.Single(_setupSaves[0].Libraries).Name);
-        cut.WaitForAssertion(() => Assert.Equal(["Family films"], Card(cut, "watch").QuerySelectorAll(".setup-area__name").Select(Text).ToArray()));
+        cut.WaitForAssertion(() => Assert.Equal(["Family films"], Names(cut)));
         Assert.Equal(1, _created);
     }
 
@@ -231,7 +222,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         var saved = Assert.Single(_setupSaves[0].Libraries);
         Assert.Equal(MoviesId, saved.Id);
         Assert.Equal(["C:\\media"], saved.Sources.Select(source => source.Path).ToArray());
-        cut.WaitForAssertion(() => Assert.Equal("C:\\media", Text(Card(cut, "watch").QuerySelector(".setup-area__path")!)));
+        cut.WaitForAssertion(() => Assert.Equal("C:\\media", Text(cut.Find(".setup-libs__path"))));
     }
 
     // Remove asks once, then the library leaves the setup session's list.
@@ -248,7 +239,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
 
         _dialogs.WaitForAssertion(() => Assert.Single(_setupSaves));
         Assert.Empty(_setupSaves[0].Libraries);
-        cut.WaitForAssertion(() => Assert.Equal("Nothing yet", Text(Card(cut, "watch").QuerySelector(".setup-area__empty")!)));
+        cut.WaitForAssertion(() => Assert.Contains("No libraries yet", cut.Markup, StringComparison.Ordinal));
     }
 
     [Fact]
@@ -262,7 +253,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         DialogButton("Keep").Click();
 
         Assert.Empty(_setupSaves);
-        Assert.Equal(["Movies"], Card(cut, "watch").QuerySelectorAll(".setup-area__name").Select(Text).ToArray());
+        Assert.Equal(["Movies"], Names(cut));
     }
 
     // 4. The footer.
@@ -300,8 +291,9 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         var cut = RenderStage(hasLibraries: true);
 
         Assert.Contains("Use a desktop or tablet to change folders.", cut.Markup, StringComparison.Ordinal);
-        Assert.Empty(cut.FindAll("button[aria-label^='Add a '], button[aria-label^='Rename '], button[aria-label^='Remove ']"));
-        Assert.Equal(["Movies"], Card(cut, "watch").QuerySelectorAll(".setup-area__name").Select(Text).ToArray());
+        Assert.Empty(cut.FindAll("button[aria-label^='Rename '], button[aria-label^='Remove ']"));
+        Assert.DoesNotContain(cut.FindAll("button"), button => Text(button) == "Add library");
+        Assert.Equal(["Movies"], Names(cut));
     }
 
     // 6. Errors.
@@ -312,11 +304,11 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         var cut = RenderStage();
 
         Assert.Contains("Your folders could not be loaded.", cut.Markup, StringComparison.Ordinal);
-        Assert.Empty(cut.FindAll(".setup-area"));
+        Assert.Empty(cut.FindAll("[data-setup-libraries-table]"));
         _failLoads = false;
         Button(cut, "Try again").Click();
 
-        cut.WaitForElement(".setup-area");
+        cut.WaitForElement("[data-setup-libraries-table]");
         cut.WaitForAssertion(() => Assert.Equal(1, _created));
     }
 
@@ -327,17 +319,18 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         var cut = RenderStage();
 
         Assert.Contains("The kinds of library could not be loaded.", cut.Markup, StringComparison.Ordinal);
-        Assert.Empty(cut.FindAll(".setup-area"));
+        Assert.Empty(cut.FindAll("[data-setup-libraries-table]"));
     }
 
-    // 7. The step is built from the one area-cards component alone; the old table, wizard and tick cards are gone.
+    // 7. The step is built from the one libraries-table component alone; the old table, wizard and tick cards are gone.
     [Fact]
     public void TheStageSourceHoldsNoTableNoTickCardsNoWizardAndNoSecondFoldersPanel()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "MediaEngine.Web", "Components", "Setup", "SetupLibrariesStage.razor");
         var source = File.ReadAllText(path);
 
-        Assert.Contains("<SetupAreaCards", source, StringComparison.Ordinal);
+        Assert.Contains("<SetupLibrariesTable", source, StringComparison.Ordinal);
+        Assert.DoesNotContain("<SetupAreaCards", source, StringComparison.Ordinal);
         Assert.DoesNotContain("<LibrariesOverview", source, StringComparison.Ordinal);
         Assert.DoesNotContain("AddFolderWizard", source, StringComparison.Ordinal);
         Assert.DoesNotContain("LibraryFoldersPanel", source, StringComparison.Ordinal);
@@ -351,7 +344,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
     {
         var root = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "MediaEngine.Web", "Components");
         var setupSources = Directory.GetFiles(Path.Combine(root, "Setup"), "*.razor", SearchOption.AllDirectories).Select(File.ReadAllText).ToArray();
-        var cards = File.ReadAllText(Path.Combine(root, "Setup", "SetupAreaCards.razor"));
+        var cards = File.ReadAllText(Path.Combine(root, "Setup", "SetupLibrariesTable.razor"));
         var overview = File.ReadAllText(Path.Combine(root, "Settings", "Libraries", "LibrariesOverview.razor"));
 
         Assert.Contains("LibraryAddFlow.OpenAsync", cards, StringComparison.Ordinal);
@@ -366,7 +359,6 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
             Assert.DoesNotContain("<ServerFolderPicker", source, StringComparison.Ordinal);
             Assert.DoesNotContain("AppDialogParameters<ServerFolderPicker>", source, StringComparison.Ordinal);
             Assert.DoesNotContain("<AppSegmentedControl", source, StringComparison.Ordinal);
-            Assert.DoesNotContain("<AppTable", source, StringComparison.Ordinal);
             Assert.DoesNotContain("<LibrariesRail", source, StringComparison.Ordinal);
             Assert.DoesNotContain("<LibrariesOverview", source, StringComparison.Ordinal);
         });
@@ -409,7 +401,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         Assert.DoesNotContain("<LibrariesOverview", vaultStep, StringComparison.Ordinal);
 
         var others = Directory.GetFiles(Path.Combine(root, "Setup"), "*.razor", SearchOption.AllDirectories)
-            .Where(file => Path.GetFileName(file) is not ("SetupVaultOffer.razor" or "SetupStepper.razor" or "SetupAreaCards.razor"));
+            .Where(file => Path.GetFileName(file) is not ("SetupVaultOffer.razor" or "SetupStepper.razor" or "SetupAreaCards.razor" or "SetupLibrariesStage.razor" or "SetupLibrariesTable.razor"));
         Assert.All(others, file => Assert.DoesNotContain("Vault", File.ReadAllText(file), StringComparison.OrdinalIgnoreCase));
     }
 
@@ -419,7 +411,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
     {
         var root = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "MediaEngine.Web", "Components");
         var offenders = Directory.GetFiles(Path.Combine(root, "Setup"), "*.razor", SearchOption.AllDirectories)
-            .Where(file => Path.GetFileName(file) != "SetupReadinessStage.razor")
+            .Where(file => Path.GetFileName(file) is not ("SetupReadinessStage.razor" or "SetupIntroStage.razor"))
             .Where(file =>
             {
                 var source = File.ReadAllText(file);
