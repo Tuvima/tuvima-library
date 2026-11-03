@@ -76,6 +76,18 @@ public sealed class VideoSeriesDetailTests : IDisposable
         Assert.Equal(DetailEntityType.TvShow, page!.EntityType);
     }
 
+    [Fact]
+    public async Task ACourseWhoseLessonNumbersAreOnlyOnTheirFilesOpensAsAShowPage()
+    {
+        // A Videos lesson takes its number from its file name, so the number is stored on the file and the lesson itself has none.
+        var series = SeedSeries(sections: false, numbersOnWork: false);
+
+        var page = await ComposeAsync(series);
+
+        Assert.NotNull(page);
+        Assert.Equal(DetailEntityType.TvShow, page!.EntityType);
+    }
+
     [Theory]
     [InlineData(DetailEntityType.Collection)]
     [InlineData(DetailEntityType.MovieSeries)]
@@ -121,7 +133,7 @@ public sealed class VideoSeriesDetailTests : IDisposable
             Profile.SeedProfileId,
             new DetailActionAuthorizationContext(true, true));
 
-    private Guid SeedSeries(bool sections)
+    private Guid SeedSeries(bool sections, bool numbersOnWork = true)
     {
         var series = Guid.NewGuid();
         using (var connection = _database.CreateConnection())
@@ -154,7 +166,7 @@ public sealed class VideoSeriesDetailTests : IDisposable
         {
             for (var episode = 1; episode <= 3; episode++)
             {
-                InsertLesson(parent, sections ? sectionNumber : 1, episode);
+                InsertLesson(parent, sections ? sectionNumber : 1, episode, numbersOnWork);
             }
 
             sectionNumber++;
@@ -163,7 +175,7 @@ public sealed class VideoSeriesDetailTests : IDisposable
         return series;
     }
 
-    private void InsertLesson(Guid parent, int section, int episode)
+    private void InsertLesson(Guid parent, int section, int episode, bool numbersOnWork)
     {
         var workId = Guid.NewGuid();
         var editionId = Guid.NewGuid();
@@ -178,12 +190,14 @@ public sealed class VideoSeriesDetailTests : IDisposable
             INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
             VALUES (@assetId, 'title', @title, CURRENT_TIMESTAMP),
                    (@assetId, 'season_number', @section, CURRENT_TIMESTAMP),
-                   (@workId, 'season_number', @section, CURRENT_TIMESTAMP),
-                   (@assetId, 'episode_number', @episode, CURRENT_TIMESTAMP),
-                   (@workId, 'episode_number', @episode, CURRENT_TIMESTAMP);
+                   (@assetId, 'episode_number', @episode, CURRENT_TIMESTAMP);
+            INSERT INTO canonical_values (entity_id, key, value, last_scored_at)
+            SELECT @workId, key, value, CURRENT_TIMESTAMP FROM canonical_values
+            WHERE @numbersOnWork = 1 AND entity_id = @assetId AND key IN ('season_number', 'episode_number');
             """, new
         {
             workId,
+            numbersOnWork = numbersOnWork ? 1 : 0,
             parent,
             editionId,
             assetId,
