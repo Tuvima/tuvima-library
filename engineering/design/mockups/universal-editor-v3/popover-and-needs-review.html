@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Universal editor v3 - pop-over and Needs Review</title>
+<style>
+body{margin:0;background:#04060b;color:#F5F7FB;font-family:"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;font-size:14px;line-height:1.35}
+*{box-sizing:border-box}h2.cap{margin:24px 32px 8px;font-size:15px;color:#B6C2D6;font-weight:600}
+.vp{width:1440px;height:900px;position:relative;overflow:hidden;background:#070A12;margin:0 0 8px}
+.nav{height:56px;display:flex;align-items:center;gap:28px;padding:0 32px;border-bottom:1px solid #1E293B;background:#0B1020}
+.brand{font-weight:700;letter-spacing:.08em}.nav .l{display:flex;gap:22px;color:#B6C2D6}.av{margin-left:auto;width:32px;height:32px;border-radius:50%;background:#8852FC}
+.hero{height:340px;background:linear-gradient(180deg,#221a3e,#0B1020);padding:120px 48px 0;display:flex;gap:28px;align-items:flex-end}
+.poster{width:150px;height:225px;border-radius:10px;background:linear-gradient(160deg,#4c3a8c,#1c1538)}
+.dim{position:absolute;inset:0;background:rgba(3,5,10,.66)}
+.win{position:absolute;left:100px;top:36px;width:1240px;height:828px;background:#0F1626;border:1px solid #243049;border-radius:14px;box-shadow:0 30px 80px rgba(0,0,0,.65);display:flex;flex-direction:column;overflow:hidden}
+.wh{height:60px;display:flex;align-items:center;gap:12px;padding:0 20px;border-bottom:1px solid #1E293B;flex:none}
+.wh b{font-size:16px}.chip{padding:3px 10px;border-radius:6px;background:#2a2146;color:#C4A1FF;font-size:12px}
+.x{margin-left:auto;color:#94A3B8;font-size:20px}
+.body{flex:1;display:flex;min-height:0}
+.tree{width:300px;border-right:1px solid #1E293B;padding:12px 10px;overflow:hidden;flex:none}
+.tree h4{margin:6px 8px 8px;font-size:11px;letter-spacing:.08em;color:#94A3B8;text-transform:uppercase}
+.row{display:flex;align-items:center;gap:8px;height:34px;padding:0 8px;border-radius:8px;color:#B6C2D6}
+.row.l2{margin-left:14px}.row.l3{margin-left:28px}.row.on{background:#1D2940;color:#F5F7FB;border-left:3px solid #8852FC}
+.dot{width:8px;height:8px;border-radius:50%;background:#8852FC;margin-left:auto}.ok{color:#4ade80;margin-left:auto}.warn{color:#fbbf24;margin-left:auto;font-size:12px}
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.tabs{display:flex;gap:6px;padding:12px 24px 0;border-bottom:1px solid #1E293B}
+.tab{padding:10px 16px;color:#B6C2D6;font-weight:600;border-bottom:2px solid transparent}.tab.on{color:#F5F7FB;border-color:#8852FC}
+.pane{flex:1;padding:20px 24px;display:flex;flex-direction:column;gap:14px;overflow:hidden}
+.cols{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:12px;flex:1;min-height:0}
+.col{border:1px solid #243049;border-radius:10px;padding:10px;overflow:hidden}.col h5{margin:0 0 8px;color:#94A3B8;font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+.item{display:flex;gap:10px;align-items:center;padding:6px;border-radius:8px}.item.sel{background:#1D2940;outline:1px solid #8852FC}
+.th{width:44px;height:30px;border-radius:5px;background:linear-gradient(160deg,#35406b,#1a2038);flex:none}
+.tag{font-size:11px;padding:2px 7px;border-radius:5px;background:#1E293B;color:#B6C2D6;margin-left:auto}.tag.g{background:#12351f;color:#4ade80}.tag.a{background:#3a2c0b;color:#fbbf24}
+input.s{height:36px;border-radius:8px;border:1px solid #2A3650;background:#0B1020;color:#F5F7FB;padding:0 12px;width:100%}
+.what{border:1px solid #243049;border-radius:10px;padding:12px 14px;background:#0C1322;display:flex;gap:24px;align-items:center}
+.sw{display:flex;gap:18px;color:#B6C2D6;font-size:13px}.sw i{font-style:normal;color:#8852FC}
+.wf{height:64px;display:flex;align-items:center;gap:12px;padding:0 24px;border-top:1px solid #1E293B;background:#0C1322;flex:none}
+.btn{height:38px;padding:0 18px;border-radius:10px;font-weight:600;border:1px solid #2A3650;background:transparent;color:#F5F7FB;display:inline-flex;align-items:center}.btn.p{background:#8852FC;border-color:#8852FC}
+.sp{margin-left:auto;display:flex;gap:10px}.mut{color:#94A3B8}
+.pg{padding:32px 48px}.pg h1{margin:0 0 4px;font-size:28px}
+table{width:100%;border-collapse:collapse;margin-top:16px}th{text-align:left;color:#94A3B8;font-size:12px;text-transform:uppercase;padding:8px 10px;border-bottom:1px solid #1E293B}td{padding:10px;border-bottom:1px solid #161f33;vertical-align:middle}
+.sq{display:inline-block;padding:3px 9px;border-radius:5px;font-size:12px}.sq.a{background:#3a2c0b;color:#fbbf24}.sq.u{background:#3b1d1d;color:#f87171}
+.bar{display:flex;gap:10px;margin-top:14px;align-items:center}.f{padding:6px 12px;border:1px solid #2A3650;border-radius:6px;color:#B6C2D6}.f.on{border-color:#8852FC;color:#F5F7FB}
+</style></head><body>
+
+<h2 class="cap">Screen 1 - Edit on an episode opens the pop-over at once. The tree on the left stays inside this one show. (No editing bar, no edit mode on the page behind.)</h2>
+<div class="vp">
+ <div class="nav"><span class="brand">TUVIMA</span><span class="l"><span>Home</span><span>Watch</span><span>Listen</span><span>Read</span><span>View</span></span><span class="av"></span></div>
+ <div class="hero"><div class="poster"></div><div><h1 style="margin:0 0 6px;font-size:34px">The Continental</h1><span class="mut">Season 1 · Episode 2 · Loyalty to the Master</span></div></div>
+ <div class="dim"></div>
+ <div class="win">
+  <div class="wh"><div class="poster" style="width:30px;height:40px;border-radius:5px"></div><b>Editing: The Continental</b><span class="chip">2 changes waiting</span><span class="x">✕</span></div>
+  <div class="body">
+   <div class="tree"><h4>This show</h4>
+    <div class="row">▾ The Continental <span class="warn">show not matched</span></div>
+    <div class="row l2">▾ Season 1</div>
+    <div class="row l3">1 · Brothers in Arms <span class="ok">✓</span></div>
+    <div class="row l3 on">2 · Loyalty to the Master <span class="dot"></span></div>
+    <div class="row l3">3 · Theft of the Century <span class="ok">✓</span></div>
+    <div class="row l3">Unknown file 04.mkv <span class="warn">not matched</span></div>
+    <div class="row l2">▸ Season 2 (empty)</div>
+   </div>
+   <div class="main">
+    <div class="tabs"><span class="tab">Details</span><span class="tab">Artwork</span><span class="tab on">Match</span><span class="tab">History</span></div>
+    <div class="pane">
+     <div style="display:flex;gap:12px;align-items:center"><input class="s" value="The Continental"><span class="mut" style="white-space:nowrap">Search all shows <span style="color:#8852FC">●</span></span></div>
+     <div class="cols">
+      <div class="col"><h5>Show</h5><div class="item sel"><div class="th"></div>John Wick: The Continental<span class="tag g">Best guess</span></div><div class="item"><div class="th"></div>The Continental (2023)</div><div class="item"><div class="th"></div>Continental Drift</div></div>
+      <div class="col"><h5>Season</h5><div class="item sel"><div class="th"></div>Season 1<span class="tag">3 episodes</span></div><div class="item"><div class="th"></div>Specials</div></div>
+      <div class="col"><h5>Episode</h5><div class="item"><div class="th"></div>1 · Brothers in Arms<span class="tag">Has a file</span></div><div class="item sel"><div class="th"></div>2 · Loyalty to the Master<span class="tag g">This file now</span></div><div class="item"><div class="th"></div>3 · Theft of the Century<span class="tag">Has a file</span></div></div>
+     </div>
+     <div class="what"><div><b>What will happen</b><div class="mut">Show: not matched → John Wick: The Continental · Season 1 · Episode 2 keeps its number</div></div><div class="sw"><span><i>●</i> Keep my own edits</span><span>○ Move the file</span><span><i>●</i> Fetch artwork and cast now</span><span><i>●</i> Match the other 3 episodes by number</span></div></div>
+    </div>
+   </div>
+  </div>
+  <div class="wf"><span class="mut">Files will be updated: On · Change</span><span class="sp"><span class="btn">Cancel</span><span class="btn p">Save 2 changes</span></span></div>
+ </div>
+</div>
+
+<h2 class="cap">Screen 2 - Needs Review as the one place for "not matched" and "not sure". Fix opens the same pop-over over this list.</h2>
+<div class="vp">
+ <div class="nav"><span class="brand">TUVIMA</span><span class="l"><span>Home</span><span>Watch</span><span>Listen</span><span>Read</span><span>View</span></span><span class="av"></span></div>
+ <div class="pg"><h1>Needs Review</h1><div class="mut">14 items need a person. Not matched files and uncertain matches are listed together.</div>
+  <div class="bar"><span class="f on">All 14</span><span class="f">Not matched 9</span><span class="f">Not sure 5</span><span class="f">TV Shows ▾</span><span class="mut" style="margin-left:auto">Try again for all · Keep all as they are</span></div>
+  <table><tr><th></th><th>Item</th><th>Why</th><th>Best guess</th><th>Last tried</th><th></th></tr>
+   <tr><td><div class="th"></div></td><td><b>Unknown file 04.mkv</b><div class="mut">TV Shows / The Continental</div></td><td><span class="sq u">Not matched</span> No episode number in the name</td><td>The Continental · S1 · E4 <span class="tag g">Use this</span></td><td>Today</td><td><span class="btn" style="height:30px">Fix</span></td></tr>
+   <tr><td><div class="th"></div></td><td><b>Dune.2021.mkv</b><div class="mut">Movies</div></td><td><span class="sq a">Not sure</span> Two close matches</td><td>Dune (2021) <span class="tag">82%</span></td><td>Yesterday</td><td><span class="btn" style="height:30px">Fix</span></td></tr>
+   <tr><td><div class="th"></div></td><td><b>sample_clip.mp4</b><div class="mut">Movies</div></td><td><span class="sq u">Not matched</span> Looks like a sample file</td><td class="mut">None</td><td>2 days ago</td><td><span class="btn" style="height:30px">Fix</span></td></tr>
+  </table></div>
+ <div class="dim" style="display:none"></div>
+</div>
+</body></html>
