@@ -49,7 +49,7 @@ public sealed class AudiobookBookmarkRepository
             FROM audiobook_bookmarks
             WHERE (profile_id = @profileId OR is_global = 1)
               AND (@unrestricted = 1 OR asset_id IN @allowedAssets)
-              AND work_id = @workId
+              AND work_id = @workId AND position_kind = 'time'
             ORDER BY created_at DESC;
             """,
             new
@@ -187,7 +187,7 @@ public sealed class AudiobookBookmarkRepository
             LEFT JOIN profiles p ON p.id = b.profile_id
             WHERE b.is_global = 0
               AND (@unrestricted = 1 OR b.asset_id IN @allowedAssets)
-              AND b.work_id = @workId
+              AND b.work_id = @workId AND b.position_kind = 'time'
             ORDER BY b.position_seconds ASC, b.created_at ASC;
             """,
             new
@@ -225,7 +225,7 @@ public sealed class AudiobookBookmarkRepository
                        end_seconds AS EndSeconds, label AS Label, note AS Note, description AS Description,
                        is_global AS IsGlobal, created_at AS CreatedAt
                 FROM audiobook_bookmarks
-                WHERE id = @bookmarkId AND is_global = 0
+                WHERE id = @bookmarkId AND is_global = 0 AND position_kind = 'time'
                   AND (@unrestricted = 1 OR asset_id IN @allowedAssets);
                 """,
                 new { bookmarkId, unrestricted, allowedAssets = allowed },
@@ -239,7 +239,7 @@ public sealed class AudiobookBookmarkRepository
             conn.Execute(
                 """
                 DELETE FROM audiobook_bookmarks
-                WHERE is_global = 0 AND id <> @bookmarkId AND asset_id = @assetId
+                WHERE is_global = 0 AND position_kind = 'time' AND id <> @bookmarkId AND asset_id = @assetId
                   AND ABS(position_seconds - @position) <= @window;
                 """,
                 new { bookmarkId, assetId = row.AssetId, position = row.PositionSeconds, window = mergeWindowSeconds },
@@ -335,7 +335,7 @@ public sealed class AudiobookBookmarkRepository
             if (replaceGlobalSet && addAsGlobal)
             {
                 replaced += conn.Execute(
-                    "DELETE FROM audiobook_bookmarks WHERE is_global = 1 AND asset_id = @assetId;",
+                    "DELETE FROM audiobook_bookmarks WHERE is_global = 1 AND position_kind = 'time' AND asset_id = @assetId;",
                     new { assetId },
                     tx);
             }
@@ -360,7 +360,7 @@ public sealed class AudiobookBookmarkRepository
                     replaced += conn.Execute(
                         """
                         DELETE FROM audiobook_bookmarks
-                        WHERE is_global = 0 AND asset_id = @assetId AND ABS(position_seconds - @position) <= @window;
+                        WHERE is_global = 0 AND position_kind = 'time' AND asset_id = @assetId AND ABS(position_seconds - @position) <= @window;
                         """,
                         new { assetId, position = add.PositionSeconds, window = sameSpotSeconds },
                         tx);

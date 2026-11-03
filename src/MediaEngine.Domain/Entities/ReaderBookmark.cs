@@ -19,5 +19,11 @@ public sealed class ReaderBookmark
     /// <summary>User-supplied label for this bookmark (e.g. "Important passage").</summary>
     public string? Label { get; set; }
 
+    /// <summary>True when the bookmark is Global: everyone who can see the book sees it, and only an administrator changes it.</summary>
+    public bool IsGlobal { get; set; }
+
+    /// <summary>The owner's display name; set only when an administrator lists everyone's personal bookmarks.</summary>
+    public string? OwnerName { get; set; }
+
     public DateTime CreatedAt { get; set; }
 }

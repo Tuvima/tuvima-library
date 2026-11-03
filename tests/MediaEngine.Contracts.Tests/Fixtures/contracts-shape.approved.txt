@@ -8554,6 +8554,9 @@ MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.EpubTocEntryDto
   FragmentId: System.String | nullability=nullable | accessors=get,init
   Children: System.Collections.Generic.List<MediaEngine.Contracts.Reading.EpubTocEntryDto> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.PromoteReaderBookmarkRequestDto
+  Name: System.String | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ReaderBookmarkDto
   Id: System.Guid | nullability=not-null | accessors=get,init
   UserId: System.String | nullability=not-null | accessors=get,init
@@ -8561,6 +8564,8 @@ MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ReaderBookmarkDto
   ChapterIndex: System.Int32 | nullability=not-null | accessors=get,init
   CfiPosition: System.String | nullability=nullable | accessors=get,init
   Label: System.String | nullability=nullable | accessors=get,init
+  IsGlobal: System.Boolean | nullability=not-null | accessors=get,init
+  OwnerName: System.String | nullability=nullable | accessors=get,init
   CreatedAt: System.DateTime | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Reading.MediaEngine.Contracts.Reading.ReaderHighlightDto

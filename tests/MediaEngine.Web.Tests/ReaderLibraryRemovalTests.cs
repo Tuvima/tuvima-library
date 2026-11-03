@@ -28,6 +28,7 @@ public sealed class ReaderLibraryRemovalTests : AsyncBunitContext
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
         Services.AddLogging();
+        Services.AddScoped<DashboardSessionAccessor>();
         var api = EngineApiClientStub.CreateDefault();
         Services.AddSingleton(api);
         var profiles = new ActiveProfileSessionService(null!, api);
