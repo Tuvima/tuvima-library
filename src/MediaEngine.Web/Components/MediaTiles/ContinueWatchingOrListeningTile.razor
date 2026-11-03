@@ -1,10 +1,8 @@
 @namespace MediaEngine.Web.Components.MediaTiles
 @using MediaEngine.Web.Models.ViewDTOs
 
-<MediaTile Item="@Item" IsHomeSurface="@IsHomeSurface" IsContinueCard="true"
-           HoverMode="@MediaTileHoverPolicy.ForContinue(Item)"
-           HideMediaKindBadge="@HideMediaKindBadge"
-           HideSourceBadge="@HideSourceBadge" />
+@* Continue is a landscape tile for every kind (Home, detail and tiles spec D3). *@
+<ContinueLandscapeTile Item="@Item" />
 
 @code {
     [Parameter, EditorRequired] public MediaTileViewModel Item { get; set; } = default!;

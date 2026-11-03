@@ -1346,12 +1346,11 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
             DetailsNavigationUrl = "/details/tvshow/episode"
         };
         var cut = Render<ContinueWatchingOrListeningTile>(p => p.Add(c => c.Item, item).Add(c => c.IsHomeSurface, true));
-        var overlay = cut.Find(".media-tile-static-hover").TextContent;
-        Assert.Contains("S1 E1", overlay);
-        Assert.Contains("I am Used to It", overlay);
-        Assert.DoesNotContain("Solo Leveling", overlay);
-        Assert.Equal("Solo Leveling", cut.Find(".media-tile-episode-caption span").TextContent);
-        Assert.Contains("S1 E1", cut.Find(".media-tile-episode-caption strong").TextContent);
+        // The Continue tile is landscape: the show's title is always drawn, with the episode identity on the line below it.
+        Assert.Equal("Solo Leveling", cut.Find(".continue-tile__title").TextContent);
+        var line = cut.Find(".continue-tile__line").TextContent;
+        Assert.Contains("S1 E1", line);
+        Assert.Contains("I am Used to It", line);
         Assert.Single(cut.FindAll("a"));
         var home = Render<ContinueAcrossMediaSection>(p => p.Add(c => c.Shelf, new MediaTileShelfViewModel { Items = [item] }));
         Assert.Equal("Solo Leveling", home.Find(".pickup-title").TextContent);
@@ -1407,8 +1406,10 @@ public sealed class MediaTileSurfaceRenderTests : AsyncBunitContext
         Assert.Equal("41", cut.Find("[role=progressbar]").GetAttribute("aria-valuenow"));
         Assert.Contains("41% complete", cut.Find(".pickup-progress-text").TextContent);
         var lane = Render<ContinueWatchingOrListeningTile>(p => p.Add(c => c.Item, item));
-        Assert.Single(lane.FindAll(".media-tile-static-hover"));
-        Assert.Contains("is-hover-overlay", lane.Find("article").ClassList);
+        Assert.Equal("41", lane.Find("[role=progressbar]").GetAttribute("aria-valuenow"));
+        Assert.Contains("continue-tile", lane.Find("article").ClassList);
+        // The title is always on the tile, even with no logo or backdrop (blank-tile fix).
+        Assert.Equal("Continue movie", lane.Find(".continue-tile__title").TextContent);
     }
 
     private static string FindRepoRoot()

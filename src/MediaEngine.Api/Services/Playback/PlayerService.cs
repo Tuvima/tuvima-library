@@ -981,7 +981,7 @@ public sealed class PlayerService
             extended["player_session_id"] = sessionId.Value.ToString("D");
         }
 
-        foreach (var key in new[] { "hide_continue", "status_changed_at", "blocked_player_session_id" })
+        foreach (var key in new[] { "status_changed_at", "blocked_player_session_id" })
         {
             if (prior?.ExtendedProperties.TryGetValue(key, out var value) == true)
             {

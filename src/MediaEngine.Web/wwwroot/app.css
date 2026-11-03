@@ -1036,6 +1036,11 @@ code,
     color: var(--tl-text-secondary) !important;
 }
 
+/* Continue tile X (Home, detail and tiles spec D3): always visible on touch, on hover or focus with a mouse. */
+.continue-tile__remove { position: absolute; top: 8px; right: 8px; z-index: 4; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--tl-radius-round, 999px); background: rgba(5, 8, 14, .78); color: #fff; cursor: pointer; opacity: 0; transition: opacity var(--tl-motion-duration-fast, 120ms) ease; }
+.continue-tile:is(:hover, :focus-within) .continue-tile__remove, .continue-tile__remove:focus-visible { opacity: 1; }
+@media (hover: none) { .continue-tile__remove { opacity: 1; } }
+
 .user-overview-media-art::after {
     content: "";
     position: absolute;
@@ -6726,5 +6731,3 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module__rail .
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module__rail .tl-detail-primary-module__item--wide {
     width: min(86vw, 320px);
 }
-
-
