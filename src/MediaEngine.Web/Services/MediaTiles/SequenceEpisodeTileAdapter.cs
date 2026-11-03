@@ -7,11 +7,14 @@ namespace MediaEngine.Web.Services.MediaTiles;
 /// <summary>The sequence owns placement; the shared tile owns episode artwork, state, and detail navigation.</summary>
 public static class SequenceEpisodeTileAdapter
 {
-    public static MediaTileViewModel FromItem(SequenceItemViewModel item)
+    public static MediaTileViewModel FromItem(SequenceItemViewModel item, string? standInBackdropUrl = null)
     {
         var context = item.EpisodeContext ?? throw new ArgumentException("An owned episode identity is required.", nameof(item));
-        var small = MediaTileArtworkUrl.Sized(item.ArtworkUrl, "s") ?? item.ArtworkUrl;
-        var medium = MediaTileArtworkUrl.Sized(item.ArtworkUrl, "m");
+        // A real picture always wins; the stand-in is drawn only when the Engine says TheTVDB has none.
+        var standIn = item.PictureIsStandIn && string.IsNullOrWhiteSpace(item.EpisodeStillUrl);
+        var artworkUrl = standIn ? standInBackdropUrl : item.ArtworkUrl;
+        var small = MediaTileArtworkUrl.Sized(artworkUrl, "s") ?? artworkUrl;
+        var medium = MediaTileArtworkUrl.Sized(artworkUrl, "m");
         var route = TvEpisodeDetailRoute.Build(context.ShowWorkId, context.EpisodeWorkId, "watch");
         return new MediaTileViewModel
         {
@@ -23,6 +26,9 @@ public static class SequenceEpisodeTileAdapter
             ContinuationState = context.State,
             Title = item.Title,
             Subtitle = $"S{context.SeasonNumber} E{context.EpisodeNumber}",
+            IsStandInPicture = standIn,
+            StandInLabel = standIn ? StandInLabelFor(item, context) : null,
+            StandInRetryAfter = standIn ? item.StandInRetryAfter : null,
             MediaKind = "TV",
             Description = item.Description,
             HoverFacts = string.IsNullOrWhiteSpace(item.Duration) ? [] : [item.Duration],
@@ -48,5 +54,15 @@ public static class SequenceEpisodeTileAdapter
             PositionSeconds = item.PositionSeconds,
             DurationSeconds = item.DurationSeconds,
         };
+    }
+
+    /// <summary>"E5" for an episode; a special shows its own label (for example "S1"), as the sequence names it.</summary>
+    private static string StandInLabelFor(SequenceItemViewModel item, DisplayEpisodeContextDto context)
+    {
+        if (context.SeasonNumber == 0 && !string.IsNullOrWhiteSpace(item.PositionLabel))
+        {
+            return $"S{item.PositionLabel.Trim().TrimStart('S', 's')}";
+        }
+        return context.EpisodeNumber is { } number ? $"E{number}" : item.PositionText ?? string.Empty;
     }
 }

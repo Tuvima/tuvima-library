@@ -98,6 +98,12 @@ public sealed class MediaTileViewModel
 {
     /// <summary>True while the item is still being matched or enriched; shows the quiet caption marker.</summary>
     public bool IsSettling { get; init; }
+    /// <summary>True for an episode TheTVDB has no picture for: the tile draws a marked stand-in (the show's backdrop, dimmed, with the episode number) instead of artwork.</summary>
+    public bool IsStandInPicture { get; init; }
+    /// <summary>The episode number drawn over a stand-in, such as "E5" or the special's label.</summary>
+    public string? StandInLabel { get; init; }
+    /// <summary>The date Library checks again for the real picture (yyyy-MM-dd), shown in the stand-in's tooltip.</summary>
+    public string? StandInRetryAfter { get; init; }
     public DisplaySubjectKind Subject { get; init; }
     public DisplayContinuationState ContinuationState { get; init; }
     public DisplayEpisodeContextDto? EpisodeContext { get; init; }

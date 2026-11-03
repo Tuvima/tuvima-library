@@ -1,6 +1,6 @@
 # Spec: TV episode stand-in pictures
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-11-03 (locked by Shy) · **Related docs:** [Product overview](../product/overview.md) · [TV artwork, cast and matching](./tv-artwork-cast-and-matching.md) · research: TheTVDB versus TMDB comparison on 17 shows (2026-11-03)
+> **Status:** Built, awaiting your Local checks · **Version:** 1 · **Last updated:** 2026-11-03 (locked by Shy) · **Related docs:** [Product overview](../../product/overview.md) · [TV artwork, cast and matching](../tv-artwork-cast-and-matching.md) · research: TheTVDB versus TMDB comparison on 17 shows (2026-11-03)
 
 ## 1. Goal
 

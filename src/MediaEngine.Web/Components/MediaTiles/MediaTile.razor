@@ -79,6 +79,25 @@ else
                     }
                 </div>
             }
+            else if (Item.IsStandInPicture)
+            {
+                @* TheTVDB has no picture for this episode: a marked stand-in, never a real-looking still. *@
+                <div class="media-tile-standin" data-standin="true">
+                    @if (!string.IsNullOrWhiteSpace(CardImageUrl))
+                    {
+                        <img src="@MediaTileArtworkUrl.ForDrawnSize(CardImageUrl, TileDrawnPx)" srcset="@TileSrcSet" sizes="@Item.TileImageSizes"
+                             alt="" aria-hidden="true" class="media-tile-standin__image" loading="@CardImageLoading" decoding="async" />
+                    }
+                    else
+                    {
+                        <div class="media-tile-standin__library-tile" aria-hidden="true">
+                            <AppMaterialIcon Icon="@FallbackIcon" Class="tl-u-font-size-44px tl-u-color-rgba-255-255-255--18" />
+                        </div>
+                    }
+                    <span class="media-tile-standin__number">@Item.StandInLabel</span>
+                    <span class="media-tile-standin__tag" title="@StandInTooltip" aria-label="@($"{L["MediaTile_StandIn_Tag"].Value}. {StandInTooltip}")">@L["MediaTile_StandIn_Tag"]</span>
+                </div>
+            }
             else if (!string.IsNullOrWhiteSpace(CardImageUrl))
             {
                 @if (Item.TileImageFitMode == MediaTileImageFitMode.Contain)
@@ -716,6 +735,10 @@ else
     private const int TileWidthPx = 228;
 
     private string? TileSrcSet => Item.TileImageSrcSet ?? MediaTileArtworkUrl.SrcSetForDrawnSize(CardImageUrl, TileWidthPx);
+
+    private string StandInTooltip => string.IsNullOrWhiteSpace(Item.StandInRetryAfter)
+        ? L["MediaTile_StandIn_Tooltip"].Value
+        : $"{L["MediaTile_StandIn_Tooltip"].Value} {L["MediaTile_StandIn_NextCheck", Item.StandInRetryAfter].Value}";
 
     private string CardImageUrl => Item.TileImageUrl ?? string.Empty;
 

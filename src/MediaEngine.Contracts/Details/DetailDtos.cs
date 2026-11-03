@@ -224,6 +224,8 @@ public sealed class DetailFactsViewModel
     public string? SeasonNumber { get; init; }
     public string? EpisodeNumber { get; init; }
     public string? EpisodeTitle { get; init; }
+    /// <summary>Where an episode's picture comes from: "TheTVDB", or "Stand-in from show image" with the next check date while TheTVDB has none.</summary>
+    public string? EpisodePicture { get; init; }
     public string? Network { get; init; }
     public string? SeasonCount { get; init; }
     public string? EpisodeCount { get; init; }
@@ -471,6 +473,8 @@ public sealed class SequencePlacementViewModel
     /// </summary>
     public IReadOnlyList<SequenceItemViewModel> AlsoInThisWorld { get; init; } = [];
     public IReadOnlyList<SequenceGroupViewModel> Groups { get; set; } = [];
+    /// <summary>The show's landscape backdrop, used to draw stand-ins for episodes TheTVDB has no picture for; null when the show has none.</summary>
+    public string? StandInBackdropUrl { get; set; }
 }
 
 public sealed class SequenceContainerOptionViewModel
@@ -539,6 +543,10 @@ public sealed class SequenceItemViewModel
     public string? EpisodeStillUrl { get; init; }
     public int? EpisodeStillWidthPx { get; init; }
     public int? EpisodeStillHeightPx { get; init; }
+    /// <summary>True when TheTVDB has no picture for this episode, so the screen draws a marked stand-in from the show's own artwork.</summary>
+    public bool PictureIsStandIn { get; init; }
+    /// <summary>The date (yyyy-MM-dd) Library checks TheTVDB again for the real picture; set only with <see cref="PictureIsStandIn"/>.</summary>
+    public string? StandInRetryAfter { get; init; }
     public MediaEngine.Contracts.Display.DisplayEpisodeContextDto? EpisodeContext { get; init; }
     public double? ProgressPercent { get; init; }
     public double? PositionSeconds { get; init; }

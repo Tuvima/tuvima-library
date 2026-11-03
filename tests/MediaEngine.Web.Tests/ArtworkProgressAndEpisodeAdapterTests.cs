@@ -55,6 +55,46 @@ public sealed class ArtworkProgressAndEpisodeAdapterTests : AsyncBunitContext
         Assert.Equal("S2 E5", tile.Subtitle); Assert.Equal("Episode synopsis", tile.Description);
         Assert.Equal(MediaTileShape.Landscape, tile.Shape); Assert.Contains("size=s", tile.TileImageUrl); Assert.Equal(600, tile.RemainingSeconds);
     }
+    private static SequenceItemViewModel StandInItem(bool standIn, string? still = null)
+    {
+        var show = Guid.NewGuid(); var episode = Guid.NewGuid(); var asset = Guid.NewGuid();
+        var context = new DisplayEpisodeContextDto(show, episode, asset, "Show", "Episode", 4, 7, DisplayContinuationState.Unstarted, null, null);
+        return new SequenceItemViewModel { Id = episode.ToString("D"), Title = "Episode", IsOwned = true, EntityType = DetailEntityType.TvEpisode, EpisodeContext = context, PictureIsStandIn = standIn, StandInRetryAfter = "2027-02-01", EpisodeStillUrl = still };
+    }
+    [Fact]
+    public void EpisodeWithoutAPicture_IsDrawnAsAMarkedStandInFromTheShowBackdrop()
+    {
+        var tile = SequenceEpisodeTileAdapter.FromItem(StandInItem(true), "/stream/artwork/show-backdrop");
+        Assert.True(tile.IsStandInPicture); Assert.Equal("E7", tile.StandInLabel); Assert.Equal("2027-02-01", tile.StandInRetryAfter);
+        Assert.Contains("/stream/artwork/show-backdrop", tile.TileImageUrl);
+    }
+    [Fact]
+    public void ARealStill_AlwaysWinsOverTheStandIn()
+    {
+        var tile = SequenceEpisodeTileAdapter.FromItem(StandInItem(true, "/stream/artwork/real"), "/stream/artwork/show-backdrop");
+        Assert.False(tile.IsStandInPicture); Assert.Null(tile.StandInLabel);
+        Assert.False(SequenceEpisodeTileAdapter.FromItem(StandInItem(false), "/stream/artwork/show-backdrop").IsStandInPicture);
+    }
+    [Fact]
+    public void StandInTile_ShowsTheEpisodeNumberAndTheShowImageTag_WithABackdrop()
+    {
+        var tile = SequenceEpisodeTileAdapter.FromItem(StandInItem(true), "/stream/artwork/show-backdrop");
+        var cut = Render<MediaEngine.Web.Components.MediaTiles.MediaTile>(p => p.Add(c => c.Item, tile));
+        Assert.Equal("E7", cut.Find(".media-tile-standin__number").TextContent.Trim());
+        Assert.Equal("Show image", cut.Find(".media-tile-standin__tag").TextContent.Trim());
+        Assert.Contains("Library checks again every 90 days", cut.Find(".media-tile-standin__tag").GetAttribute("title"));
+        Assert.NotEmpty(cut.FindAll(".media-tile-standin__image"));
+    }
+    [Fact]
+    public void StandInTile_FallsBackToALibraryTile_WhenTheShowHasNoBackdrop()
+    {
+        var tile = SequenceEpisodeTileAdapter.FromItem(StandInItem(true), null);
+        var cut = Render<MediaEngine.Web.Components.MediaTiles.MediaTile>(p => p.Add(c => c.Item, tile));
+        Assert.Empty(cut.FindAll(".media-tile-standin__image"));
+        Assert.NotEmpty(cut.FindAll(".media-tile-standin__library-tile"));
+        Assert.Equal("E7", cut.Find(".media-tile-standin__number").TextContent.Trim());
+        Assert.Equal("Show image", cut.Find(".media-tile-standin__tag").TextContent.Trim());
+    }
     [Theory]
     [InlineData(600, 900, MediaTileShape.Square)]
     [InlineData(900, 900, MediaTileShape.Square)]

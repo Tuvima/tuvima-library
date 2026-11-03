@@ -56,6 +56,9 @@ internal sealed partial class DetailCompositionOrchestrator
                 EpisodeStillUrl = actualStills.GetValueOrDefault(episodeId)?.EpisodeStillAssetId is Guid stillId ? $"/stream/artwork/{stillId:D}" : null,
                 EpisodeStillWidthPx = actualStills.GetValueOrDefault(episodeId)?.EpisodeStillWidthPx,
                 EpisodeStillHeightPx = actualStills.GetValueOrDefault(episodeId)?.EpisodeStillHeightPx,
+                StandInRetryAfter = actualStills.GetValueOrDefault(episodeId)?.EpisodeStillAssetId is null
+                    ? GetValue(episodeValues, MetadataFieldConstants.EpisodeStillStandIn)
+                    : null,
                 Year = FirstText(GetValue(episodeValues, "air_date"), GetValue(episodeValues, "release_date")),
             });
         }
@@ -431,6 +434,11 @@ internal sealed partial class DetailCompositionOrchestrator
                 .ToList();
             var (carriedWorks, _) = await EnrichTvEpisodeSubsetAsync(displayWorks, carriedEpisodeIds, enrichedEpisodeIds, ct);
             sequencePlacement = BuildPlacement(carriedWorks);
+            if (sequencePlacement is not null
+                && sequencePlacement.EmittedItems().Any(item => item.PictureIsStandIn))
+            {
+                sequencePlacement.StandInBackdropUrl = await LoadShowStandInBackdropUrlAsync(rootWorkId ?? collectionId, ct);
+            }
         }
         if (placementOnly)
         {
@@ -1003,6 +1011,22 @@ internal sealed partial class DetailCompositionOrchestrator
     {
         var parsedTrackNumber = TryParseInt(trackNumber);
         return parsedTrackNumber.HasValue ? parsedTrackNumber.Value : zeroBasedIndex + 1;
+    }
+
+    /// <summary>An owned TV episode with no real picture of any kind, which TheTVDB has been asked for and will be asked again.</summary>
+    private static bool IsEpisodeStandIn(DetailEntityType entityType, CollectionWorkSummary work) =>
+        entityType == DetailEntityType.TvShow
+        && work.IsOwned
+        && !string.IsNullOrWhiteSpace(work.StandInRetryAfter)
+        && string.IsNullOrWhiteSpace(work.EpisodeStillUrl)
+        && string.IsNullOrWhiteSpace(work.BackgroundUrl);
+
+    /// <summary>The show's preferred landscape backdrop, which the Dashboard dims behind the number of an episode with no picture.</summary>
+    private async Task<string?> LoadShowStandInBackdropUrlAsync(Guid showWorkId, CancellationToken ct)
+    {
+        var assets = await _entityAssets.GetPreferredByEntitiesAsync([showWorkId.ToString("D")], ct);
+        var background = assets.FirstOrDefault(asset => string.Equals(asset.AssetTypeValue, "Background", StringComparison.OrdinalIgnoreCase));
+        return background is null ? null : ArtworkCanonicalHelper.StoredArtworkUrl(background, "m");
     }
 
     private async Task<IReadOnlyDictionary<string, SeasonArtworkPresentation>> LoadTvSeasonArtworkAsync(
