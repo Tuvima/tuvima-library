@@ -130,9 +130,16 @@ public sealed class MediaEditorFamilyReadTests : IDisposable
             INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@series, 'title', 'Cooking with Sam', datetime('now'));
             """, new
         {
-            series, inSeries, other, alone,
-            e1 = Guid.NewGuid(), e2 = Guid.NewGuid(), e3 = Guid.NewGuid(),
-            a1 = Guid.NewGuid(), a2 = Guid.NewGuid(), a3 = Guid.NewGuid(),
+            series,
+            inSeries,
+            other,
+            alone,
+            e1 = Guid.NewGuid(),
+            e2 = Guid.NewGuid(),
+            e3 = Guid.NewGuid(),
+            a1 = Guid.NewGuid(),
+            a2 = Guid.NewGuid(),
+            a3 = Guid.NewGuid(),
         });
         return (series, inSeries, alone);
     }

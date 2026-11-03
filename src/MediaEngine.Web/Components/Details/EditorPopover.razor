@@ -112,6 +112,7 @@
     {
         BulkPanelKind.Edit => BulkEditRules.EditingTitle(Editor.Batch.Rows, Editor.Batch.MediaType),
         BulkPanelKind.Move => BulkEditRules.MoveLabel(Editor.Batch.Rows, Editor.Batch.MediaType),
+        BulkPanelKind.Series => BulkEditRules.PutInSeriesLabel,
         BulkPanelKind.Match => $"Match {Editor.Batch.Count} {BulkEditRules.Noun(Editor.Batch.Rows, Editor.Batch.MediaType)}",
         _ => null,
     };

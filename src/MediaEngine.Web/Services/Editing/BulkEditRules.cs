@@ -45,6 +45,11 @@ public static class BulkEditRules
         return AllEpisodes(rows) || AllSongs(rows, pageMediaType);
     }
 
+    /// <summary>"Put in a series" is offered when every ticked row is a video: the same series chooser as one video, applied to each.</summary>
+    public static bool CanPutInSeries(IReadOnlyList<BulkEditRow> rows, string? pageMediaType = null) => AllVideos(rows, pageMediaType);
+
+    public const string PutInSeriesLabel = "Put in a series";
+
     /// <summary>Renumber sequentially is for music: songs of one album, numbered in the order the list shows them.</summary>
     public static bool CanRenumber(IReadOnlyList<BulkEditRow> rows, string? pageMediaType = null) =>
         rows.Count > 0 && rows[0].ParentId is { } parent && parent != Guid.Empty && rows.All(row => row.ParentId == parent) && AllSongs(rows, pageMediaType);
@@ -103,6 +108,11 @@ public static class BulkEditRules
             return plural ? "songs" : "song";
         }
 
+        if (AllVideos(rows, pageMediaType))
+        {
+            return plural ? "videos" : "video";
+        }
+
         return plural ? "items" : "item";
     }
 
@@ -127,6 +137,10 @@ public static class BulkEditRules
 
     private static bool AllEpisodes(IReadOnlyList<BulkEditRow> rows) =>
         rows.Count > 0 && rows.All(row => row.Kind == DetailEntityType.TvEpisode);
+
+    private static bool AllVideos(IReadOnlyList<BulkEditRow> rows, string? pageMediaType) =>
+        rows.Count > 0
+        && rows.All(row => IsSelectableKind(row.Kind) && string.Equals(row.MediaType ?? pageMediaType, "Videos", StringComparison.OrdinalIgnoreCase));
 
     private static bool AllSongs(IReadOnlyList<BulkEditRow> rows, string? pageMediaType) =>
         rows.Count > 0

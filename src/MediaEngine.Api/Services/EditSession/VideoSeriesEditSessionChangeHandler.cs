@@ -13,13 +13,21 @@ namespace MediaEngine.Api.Services.EditSession;
 /// A video already in a series that joins another place is taken out and put in as one step; if the second half fails the first is put back.
 /// See <see cref="EditSessionVideo"/> for how a change names where the video goes.
 /// </summary>
-public sealed class VideoSeriesEditSessionChangeHandler(IVideoSeriesRepository series, ISystemActivityRepository activityRepo) : IEditSessionChangeHandler
+public sealed class VideoSeriesEditSessionChangeHandler(
+    IVideoSeriesRepository series,
+    ISystemActivityRepository activityRepo,
+    IItemCanonicalRepository items) : IEditSessionChangeHandler
 {
     public string Kind => EditSessionChangeKinds.VideoSeries;
 
+    // The editor may hold a video by its file's id (the page's own id for it); the series store speaks in works.
+    private async Task<Guid> WorkOfAsync(EditSessionChange change, CancellationToken ct) =>
+        await items.ResolveWorkIdForAssetAsync(change.EntityId, ct).ConfigureAwait(false) ?? change.EntityId;
+
     public async Task<string?> CheckAsync(EditSessionChange change, CancellationToken ct = default)
     {
-        var membership = await series.GetMembershipAsync(change.EntityId, ct).ConfigureAwait(false);
+        var workId = await WorkOfAsync(change, ct).ConfigureAwait(false);
+        var membership = await series.GetMembershipAsync(workId, ct).ConfigureAwait(false);
         if (membership is null)
         {
             return EditSessionReasons.NotAVideo;
@@ -50,20 +58,21 @@ public sealed class VideoSeriesEditSessionChangeHandler(IVideoSeriesRepository s
             return null;
         }
 
-        var places = await series.ListTargetsAsync(change.EntityId, ct).ConfigureAwait(false);
+        var places = await series.ListTargetsAsync(workId, ct).ConfigureAwait(false);
         return places.Any(place => place.ParentWorkId == target) ? null : EditSessionReasons.SeriesGone;
     }
 
     public async Task<Func<CancellationToken, Task>?> ApplyAsync(EditSessionChange change, CancellationToken ct = default)
     {
-        var before = await series.GetMembershipAsync(change.EntityId, ct).ConfigureAwait(false)
+        var workId = await WorkOfAsync(change, ct).ConfigureAwait(false);
+        var before = await series.GetMembershipAsync(workId, ct).ConfigureAwait(false)
             ?? throw new InvalidOperationException(EditSessionReasons.NotAVideo);
 
         if (EditSessionVideo.IsNoSeries(change.Token))
         {
-            Require(await series.RemoveAsync(change.EntityId, ct).ConfigureAwait(false), EditSessionReasons.AlreadyAlone);
-            await LogAsync(change.EntityId, "Took a video out of its series.", ct).ConfigureAwait(false);
-            return before.ParentWorkId is { } old ? undoCt => PutBackAsync(change.EntityId, old, undoCt) : null;
+            Require(await series.RemoveAsync(workId, ct).ConfigureAwait(false), EditSessionReasons.AlreadyAlone);
+            await LogAsync(workId, "Took a video out of its series.", ct).ConfigureAwait(false);
+            return before.ParentWorkId is { } old ? undoCt => PutBackAsync(workId, old, undoCt) : null;
         }
 
         Guid? target = Guid.TryParse(change.TargetId, out var parsed) ? parsed : null;
@@ -75,18 +84,18 @@ public sealed class VideoSeriesEditSessionChangeHandler(IVideoSeriesRepository s
         var leftOld = false;
         if (before.ParentWorkId is not null)
         {
-            Require(await series.RemoveAsync(change.EntityId, ct).ConfigureAwait(false), EditSessionReasons.SeriesClash);
+            Require(await series.RemoveAsync(workId, ct).ConfigureAwait(false), EditSessionReasons.SeriesClash);
             leftOld = true;
         }
 
         VideoSeriesChange joined;
         if (target is { } place)
         {
-            joined = await series.PromoteAsync(change.EntityId, place, ct).ConfigureAwait(false);
+            joined = await series.PromoteAsync(workId, place, ct).ConfigureAwait(false);
         }
         else if (EditSessionVideo.TryParseNewSeries(change.Token, out var name))
         {
-            joined = await series.PromoteToNewSeriesAsync(change.EntityId, name, ct).ConfigureAwait(false);
+            joined = await series.PromoteToNewSeriesAsync(workId, name, ct).ConfigureAwait(false);
         }
         else
         {
@@ -97,19 +106,19 @@ public sealed class VideoSeriesEditSessionChangeHandler(IVideoSeriesRepository s
         {
             if (leftOld && before.ParentWorkId is { } back)
             {
-                await series.PromoteAsync(change.EntityId, back, ct).ConfigureAwait(false);
+                await series.PromoteAsync(workId, back, ct).ConfigureAwait(false);
             }
 
             Require(joined, EditSessionReasons.SeriesGone);
         }
 
-        await LogAsync(change.EntityId, $"Put a video in the series {joined.SeriesTitle}.", ct).ConfigureAwait(false);
+        await LogAsync(workId, $"Put a video in the series {joined.SeriesTitle}.", ct).ConfigureAwait(false);
         return async undoCt =>
         {
-            await series.RemoveAsync(change.EntityId, undoCt).ConfigureAwait(false);
+            await series.RemoveAsync(workId, undoCt).ConfigureAwait(false);
             if (before.ParentWorkId is { } old)
             {
-                await series.PromoteAsync(change.EntityId, old, undoCt).ConfigureAwait(false);
+                await series.PromoteAsync(workId, old, undoCt).ConfigureAwait(false);
             }
         };
     }

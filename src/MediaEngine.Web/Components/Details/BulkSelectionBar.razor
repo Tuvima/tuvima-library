@@ -55,6 +55,19 @@
                                OnClick="@(() => TogglePanel(BulkPanelKind.Match))" />
                 }
 
+                @if (BulkEditRules.CanPutInSeries(rows, selection.MediaType))
+                {
+                    <AppButton Label="@BulkEditRules.PutInSeriesLabel"
+                               StartIcon="@AppMaterialIcons.Outlined.VideoLibrary"
+                               Class="tl-batch__series"
+                           id="@ButtonId(BulkPanelKind.Series)"
+                               ButtonStyle="@Style(selection, BulkPanelKind.Series)"
+                               Tone="@ToneOf(selection, BulkPanelKind.Series)"
+                               Disabled="@busy"
+                               aria-pressed="@Pressed(selection, BulkPanelKind.Series)"
+                               OnClick="@(() => TogglePanel(BulkPanelKind.Series))" />
+                }
+
                 @if (BulkEditRules.CanMove(rows))
                 {
                     <AppButton Label="@BulkEditRules.MoveLabel(rows, selection.MediaType)"

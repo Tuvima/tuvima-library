@@ -102,3 +102,13 @@
     margin: 0;
     font-size: 0.85rem;
 }
+
+.tl-vseries__tag {
+    margin-left: 0.5rem;
+    padding: 0.05rem 0.45rem;
+    border: 1px solid rgba(240, 180, 60, 0.6);
+    color: #f0b43c;
+    font-size: 0.72rem;
+    font-weight: 500;
+    vertical-align: middle;
+}

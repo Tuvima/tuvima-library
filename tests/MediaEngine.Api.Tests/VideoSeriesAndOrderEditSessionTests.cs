@@ -41,7 +41,7 @@ public sealed class VideoSeriesAndOrderEditSessionTests : IDisposable
         var renamer = new VideoOrderRenamer(new MediaAssetRepository(_db), null!, null!, null!, NullLogger<VideoOrderRenamer>.Instance);
         _service = new EditSessionService(
             [
-                new VideoSeriesEditSessionChangeHandler(_series, activity),
+                new VideoSeriesEditSessionChangeHandler(_series, activity, new ItemCanonicalRepository(_db, NullLogger<ItemCanonicalRepository>.Instance)),
                 new VideoOrderEditSessionChangeHandler(_order, writer),
                 new VideoRenameEditSessionChangeHandler(_order, renamer, activity),
             ],
@@ -77,6 +77,37 @@ public sealed class VideoSeriesAndOrderEditSessionTests : IDisposable
         Assert.Equal(course.Parent, (await _series.GetMembershipAsync(loose.Work))!.ParentWorkId);
         var entries = (await _order.LoadAsync(course.Parent)).Single().Entries;
         Assert.Equal(loose.Work, entries[^1].WorkId);
+    }
+
+    [Fact]
+    public async Task Apply_OfAJoin_WhenTheEditorHoldsTheVideoByItsFileId_StillPutsTheVideoInTheSeries()
+    {
+        var (course, loose) = await CourseWithOneLooseVideoAsync();
+        Guid asset;
+        using (var conn = _db.CreateConnection())
+        {
+            asset = conn.ExecuteScalar<Guid>(
+                "SELECT ma.id FROM media_assets ma JOIN editions e ON e.id = ma.edition_id WHERE e.work_id = @work;", new { work = loose.Work });
+        }
+
+        var result = await _service.RunAsync(Request(false, Join("c1", asset, course.Parent)), NoRefusals);
+
+        Assert.True(result.DataSaved);
+        Assert.Equal(course.Parent, (await _series.GetMembershipAsync(loose.Work))!.ParentWorkId);
+    }
+
+    [Fact]
+    public async Task Check_OfSeveralVideosJoining_FlagsOnlyTheOneThatCannot()
+    {
+        var (course, loose) = await CourseWithOneLooseVideoAsync();
+        var gone = Guid.NewGuid();
+
+        var result = await _service.RunAsync(Request(true, Join("c1", loose.Work, course.Parent), Join("c2", gone, course.Parent)), NoRefusals);
+
+        Assert.False(result.Valid);
+        Assert.Equal(EditSessionChangeStatuses.Ok, result.Changes.Single(change => change.Id == "c1").Status);
+        Assert.Equal(EditSessionReasons.NotAVideo, result.Changes.Single(change => change.Id == "c2").Reason);
+        Assert.Null((await _series.GetMembershipAsync(loose.Work))!.ParentWorkId);
     }
 
     [Fact]

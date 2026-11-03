@@ -88,6 +88,16 @@ public sealed class EditorVideoSeriesPanelTests : AsyncBunitContext
     }
 
     [Fact]
+    public void AVideoInNoSeries_CarriesTheNotMatchedMark_UntilItJoinsOne()
+    {
+        var cut = RenderPanel();
+        Assert.Contains("Not matched", cut.Find("[data-testid=video-not-matched]").TextContent);
+
+        _state = new VideoSeriesStateResponse { Supported = true, InSeries = true, SeriesTitle = "Cooking with Sam" };
+        Assert.Empty(RenderPanel().FindAll("[data-testid=video-not-matched]"));
+    }
+
+    [Fact]
     public void ANonVideo_ShowsNothing()
     {
         var cut = Render<EditorVideoSeriesPanel>(p => p

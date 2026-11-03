@@ -10290,4 +10290,16 @@
   <data name="EditorVideoSeries_Position" xml:space="preserve">
     <value>Position {0}</value>
   </data>
+  <data name="BulkVideoSeries_Intro" xml:space="preserve">
+    <value>Put the {0} ticked videos in one series. Nothing is moved or renamed on disk, and Review changes lists each video before anything is saved.</value>
+  </data>
+  <data name="BulkVideoSeries_Stage" xml:space="preserve">
+    <value>Stage this series</value>
+  </data>
+  <data name="EditorVideoSeries_NotMatched" xml:space="preserve">
+    <value>Not matched</value>
+  </data>
+  <data name="EditorVideoSeries_NotInASeriesTip" xml:space="preserve">
+    <value>This video is not in a series yet, so Library shows it on its own.</value>
+  </data>
 </root>

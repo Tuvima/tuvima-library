@@ -23,6 +23,9 @@ public enum BulkPanelKind
 
     /// <summary>"Match": pair the ticked rows with the entries of the album or season they already sit in.</summary>
     Match,
+
+    /// <summary>"Put in a series": ticked videos join one series (or start a new one) together (universal editor v3.1).</summary>
+    Series,
 }
 
 /// <summary>

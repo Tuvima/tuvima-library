@@ -19,7 +19,14 @@
     <section class="tl-vseries" data-testid="video-series" @ref="_root">
         @if (_series is { Supported: true })
         {
-            <h3 class="tl-vseries__heading">@L["EditorVideoSeries_Series"]</h3>
+            <h3 class="tl-vseries__heading">
+                @L["EditorVideoSeries_Series"]
+                @if (_series is { InSeries: false } && ChoiceValue == None)
+                {
+                    @* The same amber "not matched" mark the tree gives a video that is in no series (universal editor v3.1, D8). *@
+                    <span class="tl-vseries__tag" data-testid="video-not-matched" title="@L["EditorVideoSeries_NotInASeriesTip"].Value">@L["EditorVideoSeries_NotMatched"]</span>
+                }
+            </h3>
             <AppSelect T="string"
                        Label="@L["EditorVideoSeries_ChooseSeries"].Value"
                        Value="@ChoiceValue"
