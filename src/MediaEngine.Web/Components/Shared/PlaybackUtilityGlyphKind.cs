@@ -31,6 +31,7 @@ public enum PlaybackUtilityGlyphKind
     Dislike,
     Add,
     Check,
+    Settings,
 }
 
 public static class PlaybackUtilityGlyphMap

@@ -208,7 +208,7 @@
       "naming_template": "default",
       "misfit": "keep",
       "default_handling": "read_only",
-      "tooltip": "Loose books and documents with no match, shown by folder and the details inside the files.",
+      "tooltip": "Loose books and reading material with no match, shown by folder and the details inside the files.",
       "order": 3,
       "built_in": true,
       "available": true,

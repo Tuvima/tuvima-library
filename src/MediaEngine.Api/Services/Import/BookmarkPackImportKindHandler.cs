@@ -82,18 +82,18 @@ public sealed class BookmarkPackImportKindHandler : IImportKindHandler
         return new ImportPreviewDto
         {
             Kind = Kind,
-            KindLabel = "Bookmark pack",
+            KindLabel = "Bookmark file",
             Recognised = true,
             Heading = pack.Name,
             Subheading = $"{count} bookmark{(count == 1 ? string.Empty : "s")}{(workTitle is null ? string.Empty : $" for {workTitle}")}",
             Facts = facts,
             Notes =
             [
-                "A pack holds how to recognise the title and each bookmark's time, chapter name, note and description. It holds no file paths, profile names or what anyone watched.",
+                "A bookmark file holds how to recognise the title and each bookmark's time, chapter name, note and description. It holds no file paths, profile names or what anyone watched.",
             ],
             Message = workTitle is null
-                ? "Library cannot tell which title this pack is for. Open the title you want it on and import it from the player's Saved list."
-                : "Bookmark packs are added from the title's player: open it, choose More… in the bookmarks panel, then Import.",
+                ? "Library cannot tell which title this file is for. Open the title you want it on and use Find bookmarks in its player."
+                : "Bookmark files are added from the title's player: open it, open the bookmarks pane, then choose Find bookmarks.",
             CanApply = false,
             BookmarkPack = new ImportBookmarkPackSummaryDto
             {
@@ -107,5 +107,5 @@ public sealed class BookmarkPackImportKindHandler : IImportKindHandler
     }
 
     public Task<ImportApplyResultDto> ApplyAsync(ImportSource source, ImportContext context, CancellationToken ct) =>
-        Task.FromResult(new ImportApplyResultDto(false, "Bookmark packs are added from the title's player."));
+        Task.FromResult(new ImportApplyResultDto(false, "Bookmark files are added from the title's player (Find bookmarks)."));
 }

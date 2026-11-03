@@ -1,0 +1,21 @@
+@namespace MediaEngine.Web.Components.Watch
+@using MediaEngine.Web.Components.Shared
+
+@* One row of choices on the Settings menu's Styling page (player-controls-v3 D4): a title and a few buttons, one of them pressed. *@
+<div class="video-settings-menu__group" role="group" aria-label="@Title">
+    <h4>@Title</h4>
+    @foreach (var option in Options)
+    {
+        var selected = string.Equals(Current, option.Value, StringComparison.OrdinalIgnoreCase);
+        <AppNativeButton Type="button" Class="@(selected ? "video-settings-menu__choice is-selected" : "video-settings-menu__choice")"
+                         AriaLabel="@($"{Title}: {option.Label}")" aria-pressed="@(selected ? "true" : "false")"
+                         OnClick="@(() => ValueSelected.InvokeAsync(option.Value))">@option.Label</AppNativeButton>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public IReadOnlyList<(string Label, string Value)> Options { get; set; } = [];
+    [Parameter] public string? Current { get; set; }
+    [Parameter] public EventCallback<string> ValueSelected { get; set; }
+}

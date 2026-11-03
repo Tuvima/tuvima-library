@@ -83,10 +83,9 @@ public static partial class BackupTableClassification
         // ---------------------------------------------------------------------------------------------------------
         // Personal state: a person's own state tied to a title. Kept, re-attached by recognition data after a rescan.
         // ---------------------------------------------------------------------------------------------------------
-        Personal("reader_bookmarks", "user_id", "Bookmarks a person placed in a book.", refs: [Asset("asset_id")]),
         Personal("reader_highlights", "user_id", "Highlights and notes a person made in a book.", refs: [Asset("asset_id")]),
         Personal("reader_statistics", "user_id", "A person's reading time and speed per book.", refs: [Asset("asset_id")]),
-        Personal("audiobook_bookmarks", "profile_id", "Bookmarks a person placed in an audiobook.", refs: [Work("work_id"), Asset("asset_id")]),
+        Personal("audiobook_bookmarks", "profile_id", "Bookmarks a person placed in a film, episode, audiobook or book (Global ones are shared).", refs: [Work("work_id"), Asset("asset_id")]),
         Personal("audiobook_listen_history", "profile_id", "What a person listened to in audiobooks.", refs: [Work("work_id"), Asset("asset_id")]),
         Personal("music_play_stats", "profile_id", "Play counts and last played time per album or track.", refs: [Work("work_id")]),
         Personal("consumption_history", "profile_id", "What a person watched, read or listened to, with progress.", refs: [Asset("asset_id")]),
@@ -268,8 +267,6 @@ public static partial class BackupTableClassification
         Config("vault_section_grants", "Which Vault sections each profile may open."),
         Transient("vault_moves", "Move to Vault jobs; a job in flight is not worth restoring, the files are the record."),
         Transient("vault_move_items", "The items of a Move to Vault job."),
-        Personal("bookmark_packs", "profile_id", "Bookmark packs a person imported for a title.", refs: [Work("work_id"), Asset("asset_id")]),
-        Personal("bookmark_pack_items", null, "The bookmarks inside a pack (owned through the pack's profile).", refs: []),
         Transient("nsfw_session_unlocks", "Temporary Vault mode sessions."),
         Catalogue("vault_activity", "Quiet list of Vault ingestion activity."),
         Catalogue("vault_artwork", "Vault artwork."),

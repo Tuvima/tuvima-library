@@ -1,5 +1,6 @@
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
+using MediaEngine.Api.Services.Playback;
 using MediaEngine.Contracts.Reading;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Constants;
@@ -73,6 +74,7 @@ public static class ReaderEndpoints
             HttpContext context,
             IReaderBookmarkRepository repo,
             CatalogueResourceAuthorizationService authorization,
+            PlayerCatalogueScope scope,
             CancellationToken ct) =>
         {
             var existing = await repo.FindByIdAsync(id, ct);
@@ -80,7 +82,12 @@ public static class ReaderEndpoints
             {
                 return ApiErrors.NotFound($"Bookmark '{id}' not found.");
             }
-            if (!string.Equals(existing.UserId, ProfileUserId(context), StringComparison.OrdinalIgnoreCase))
+
+            // A personal bookmark is changed only by its owner; a Global one only by an administrator.
+            var allowed = existing.IsGlobal
+                ? await scope.IsServerAdministratorAsync(ct)
+                : string.Equals(existing.UserId, ProfileUserId(context), StringComparison.OrdinalIgnoreCase);
+            if (!allowed)
             {
                 return ApiErrors.NotFound("Bookmark not found for the active profile.");
             }
@@ -99,6 +106,163 @@ public static class ReaderEndpoints
         .Produces(StatusCodes.Status204NoContent)
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireProfileOperation(ApplicationPermissionIds.ProgressWrite);
+
+        // Everyone's: every profile's personal bookmarks in the book, for an administrator (Global bookmarks spec D1).
+        group.MapGet("/{assetId:guid}/bookmarks/everyones", async (
+            Guid assetId,
+            IReaderBookmarkRepository repo,
+            PlayerCatalogueScope scope,
+            MediaEngine.Domain.Contracts.IVaultLibraryRepository vault,
+            CancellationToken ct) =>
+        {
+            if (!await scope.IsServerAdministratorAsync(ct) || await vault.IsInVaultAsync(assetId, ct))
+            {
+                return Results.Forbid();
+            }
+
+            var bookmarks = await repo.ListEveryonesByAssetAsync(assetId, ct);
+            return Results.Ok(bookmarks.Select(MapBookmark).ToList());
+        })
+        .WithName("ListEveryonesBookmarks")
+        .WithSummary("Lists every profile's personal bookmarks in a book with the owner's name. Server administrators only.")
+        .Produces<IReadOnlyList<ReaderBookmarkDto>>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .RequireProfileOperation(ApplicationPermissionIds.ProgressRead)
+        .RequireCatalogueAssetAccess(ApplicationPermissionIds.ProgressRead);
+
+        // Promote: a personal bookmark becomes Global at once; personal bookmarks in the same paragraph are replaced by it.
+        group.MapPost("/bookmarks/{id:guid}/promote", async (
+            Guid id,
+            HttpContext context,
+            PromoteReaderBookmarkRequestDto? request,
+            IReaderBookmarkRepository repo,
+            CatalogueResourceAuthorizationService authorization,
+            PlayerCatalogueScope scope,
+            MediaEngine.Domain.Contracts.IVaultLibraryRepository vault,
+            CancellationToken ct) =>
+        {
+            if (!await scope.IsServerAdministratorAsync(ct))
+            {
+                return Results.Forbid();
+            }
+
+            var existing = await repo.FindByIdAsync(id, ct);
+            if (existing is null || existing.IsGlobal)
+            {
+                return ApiErrors.NotFound($"Bookmark '{id}' not found.");
+            }
+
+            if (await authorization.EvaluateAssetAsync(
+                    context, existing.AssetId, ApplicationPermissionIds.ProgressWrite, ct) != CatalogueResourceAccess.Allowed
+                || await vault.IsInVaultAsync(existing.AssetId, ct))
+            {
+                return Results.Forbid();
+            }
+
+            if (request?.Name?.Length > MaxLabelLength)
+            {
+                return ApiErrors.BadRequest("The bookmark name is too long.");
+            }
+
+            var promoted = await repo.PromoteAsync(id, request?.Name, ct);
+            return promoted is null ? ApiErrors.NotFound($"Bookmark '{id}' not found.") : Results.Ok(MapBookmark(promoted));
+        })
+        .WithName("PromoteBookmark")
+        .WithSummary("Makes a personal bookmark Global at once. Server administrators only.")
+        .Produces<ReaderBookmarkDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireProfileOperation(ApplicationPermissionIds.ProgressWrite);
+
+        // Find bookmarks for a book (Global bookmarks spec D6 to D10): compare, apply and export, as for films and audiobooks.
+        group.MapPost("/{assetId:guid}/bookmark-sets/compare", async (
+            Guid assetId,
+            HttpContext context,
+            MediaEngine.Contracts.Playback.BookmarkSetRequestDto request,
+            ReaderBookmarkSetService sets,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                return Results.Ok(await sets.CompareAsync(Guid.Parse(ProfileUserId(context)), assetId, request, ct));
+            }
+            catch (BookmarkPackInvalidException ex)
+            {
+                return ApiErrors.BadRequest(ex.Message);
+            }
+            catch (PlayerResourceDeniedException)
+            {
+                return ApiErrors.NotFound("Book not found.");
+            }
+        })
+        .WithName("CompareReaderBookmarkSet")
+        .WithSummary("Find bookmarks in a book: read a bookmark file and list each bookmark beside the nearest one the person has. Changes nothing.")
+        .Produces<MediaEngine.Contracts.Playback.BookmarkSetCompareDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireProfileOperation(ApplicationPermissionIds.ProgressRead)
+        .RequireCatalogueAssetAccess(ApplicationPermissionIds.ProgressRead);
+
+        group.MapPost("/{assetId:guid}/bookmark-sets/apply", async (
+            Guid assetId,
+            HttpContext context,
+            MediaEngine.Contracts.Playback.BookmarkSetApplyRequestDto request,
+            ReaderBookmarkSetService sets,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                return Results.Ok(await sets.ApplyAsync(Guid.Parse(ProfileUserId(context)), assetId, request, ct));
+            }
+            catch (BookmarkPackInvalidException ex)
+            {
+                return ApiErrors.BadRequest(ex.Message);
+            }
+            catch (PlayerResourceDeniedException)
+            {
+                return ApiErrors.NotFound("Book not found.");
+            }
+        })
+        .WithName("ApplyReaderBookmarkSet")
+        .WithSummary("Apply the person's choices from a bookmark file in one write. An administrator's apply changes Global; anyone else's changes only their own bookmarks.")
+        .Produces<MediaEngine.Contracts.Playback.BookmarkSetApplyResultDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireProfileOperation(ApplicationPermissionIds.ProgressWrite)
+        .RequireCatalogueAssetAccess(ApplicationPermissionIds.ProgressWrite);
+
+        group.MapPost("/{assetId:guid}/bookmarks/global/export", async (
+            Guid assetId,
+            HttpContext context,
+            MediaEngine.Contracts.Playback.ExportGlobalBookmarksRequestDto request,
+            ReaderBookmarkSetService sets,
+            CancellationToken ct) =>
+        {
+            try
+            {
+                return Results.Ok(await sets.ExportGlobalAsync(Guid.Parse(ProfileUserId(context)), assetId, request, ct));
+            }
+            catch (BookmarkPackInvalidException ex)
+            {
+                return ApiErrors.BadRequest(ex.Message);
+            }
+            catch (PlayerResourceDeniedException)
+            {
+                return ApiErrors.NotFound("Book not found.");
+            }
+            catch (PlayerBookmarkAdminDeniedException)
+            {
+                return ApiErrors.Forbidden("Only a server administrator can do that with bookmarks.");
+            }
+        })
+        .WithName("ExportGlobalReaderBookmarks")
+        .WithSummary("Save this book's Global bookmarks as a bookmark file (never anyone's personal ones). Server administrators only; never available for a Vault book.")
+        .Produces<MediaEngine.Contracts.Playback.BookmarkPackFileDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireProfileOperation(ApplicationPermissionIds.ProgressRead)
+        .RequireCatalogueAssetAccess(ApplicationPermissionIds.ProgressRead);
 
         // ── Highlights ──────────────────────────────────────────────────────
 
@@ -298,6 +462,7 @@ public static class ReaderEndpoints
     }
 
     private const int MaxCfiLength = 4096;
+    private const int MaxLabelLength = 500;
     private const int MaxSelectedTextLength = 4000;
     private const int MaxNoteLength = 4000;
 
@@ -314,6 +479,8 @@ public static class ReaderEndpoints
         ChapterIndex = bookmark.ChapterIndex,
         CfiPosition = bookmark.CfiPosition,
         Label = bookmark.Label,
+        IsGlobal = bookmark.IsGlobal,
+        OwnerName = bookmark.OwnerName,
         CreatedAt = bookmark.CreatedAt,
     };
 

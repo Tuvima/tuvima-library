@@ -16,12 +16,15 @@
         <p class="setup-server-form__preview" data-testid="setup-network-name-line">@L["SetupWelcomeStage_PhonesAndTVsOnYourHome"] <strong>@(string.IsNullOrWhiteSpace(HostName) ? NetworkNameRules.DefaultLabel : HostName).local</strong>
             @if (!_showHostField)
             {
-                <text> &middot; </text><AppButton Label="@L["SetupWelcomeStage_Change"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="RevealHostField" data-testid="setup-network-name-change" />
+                <text> &middot; </text><AppButton Label="@L["SetupWelcomeStage_Change"].Value" ButtonStyle="AppButtonStyle.Outlined" Size="AppControlSize.Compact" OnClick="RevealHostField" data-testid="setup-network-name-change" />
             }
         </p>
         @if (_showHostField)
         {
-            <AppTextField Label="@L["SetupWelcomeStage_NetworkName"].Value" Value="@HostName" ValueChanged="OnHostChanged" Placeholder="@NetworkNameRules.DefaultLabel" data-testid="setup-network-name-field" />
+            <div class="setup-server-form__host">
+                <AppTextField Label="@L["SetupWelcomeStage_NetworkName"].Value" Value="@HostName" ValueChanged="OnHostChanged" Placeholder="@NetworkNameRules.DefaultLabel" data-testid="setup-network-name-field" />
+                <AppButton Label="@L["SetupWelcomeStage_Cancel"].Value" ButtonStyle="AppButtonStyle.Outlined" Size="AppControlSize.Compact" OnClick="CancelHostField" data-testid="setup-network-name-cancel" />
+            </div>
         }
     </div>
 
@@ -100,6 +103,13 @@
     private bool _showHostField;
 
     private void RevealHostField() => _showHostField = true;
+
+    // Cancel closes the editor and hands the network name back to the friendly name, as emptying the field does.
+    private async Task CancelHostField()
+    {
+        _showHostField = false;
+        await OnHostChanged(string.Empty);
+    }
 
     private async Task OnNameChanged(string? value)
     {

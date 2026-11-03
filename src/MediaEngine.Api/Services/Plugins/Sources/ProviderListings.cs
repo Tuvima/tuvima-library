@@ -1,3 +1,4 @@
+using MediaEngine.Api.Services.Plugins;
 using MediaEngine.Contracts.Plugins;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
@@ -45,6 +46,7 @@ public sealed class ProviderListings(IConfigurationLoader loader, ProviderCapabi
             ShortDescription = PluginDescriptions.Short(config.UiMetadata?.ShortDescription, config.Onboarding?.Intro?.Summary),
             LongDescription = config.Onboarding?.Intro?.Summary ?? "",
             Provides = PluginProvides.Resolve(config.UiMetadata?.Provides).ToList(),
+            ProvidesCards = PluginProvidesSentences.Cards(config.UiMetadata?.Provides),
             // The bundled brand icon, unless an administrator uploaded their own (the Engine serves that at the provider icon action).
             IconPath = !string.IsNullOrWhiteSpace(config.CustomIconName)
                 ? $"settings/providers/{config.Name}/icon"

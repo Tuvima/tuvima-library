@@ -140,7 +140,7 @@ public sealed class StateCardPagesTests : AsyncBunitContext
     }
 
     [Fact]
-    public void PluginsPage_AnEnabledPluginWithALoadError_ShowsBroken_WithRetry_AndTheMenuRowTurnsRed()
+    public void PluginsPage_AnEnabledPluginWithALoadError_ShowsBroken_WithAnAmberGear_AndTheMenuRowTurnsRed()
     {
         _plugins = [Plugin("a.bad", "Bad plugin", enabled: true, loadError: "The manifest is missing.")];
 
@@ -151,8 +151,7 @@ public sealed class StateCardPagesTests : AsyncBunitContext
         Assert.Equal("broken", card.GetAttribute("data-health"));
         Assert.Equal("broken", card.QuerySelector(".app-status-dot")!.GetAttribute("data-status"));
         Assert.Contains("The manifest is missing.", card.InnerHtml, StringComparison.Ordinal);
-        Assert.Contains(card.QuerySelectorAll("button"), button => button.TextContent.Trim() == "Retry");
-        Assert.DoesNotContain(card.QuerySelectorAll("button"), button => button.TextContent.Trim() == "Configure");
+        Assert.Equal("true", card.QuerySelector("[data-testid=plugin-gear]")!.GetAttribute("data-attention"));
 
         Assert.True(State.PluginsBroken);
         var plugins = PluginsRow();
@@ -170,7 +169,7 @@ public sealed class StateCardPagesTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-state-card=plugin]")));
         var card = cut.Find("[data-state-card=plugin]");
         Assert.Equal("off", card.GetAttribute("data-health"));
-        Assert.Contains(card.QuerySelectorAll("button"), button => button.TextContent.Trim() == "Configure");
+        Assert.NotNull(card.QuerySelector("[data-testid=plugin-gear]"));
         Assert.DoesNotContain("The manifest is missing.", card.TextContent, StringComparison.Ordinal);
 
         Assert.False(State.PluginsBroken);
@@ -235,7 +234,7 @@ public sealed class StateCardPagesTests : AsyncBunitContext
             var card = cut.Find("[data-state-card=plugin]");
             Assert.Equal("needsattention", card.GetAttribute("data-health"));
             Assert.Contains("FFmpeg is missing.", card.InnerHtml, StringComparison.Ordinal);
-            Assert.Contains(card.QuerySelectorAll("button"), button => button.TextContent.Trim() == "Configure");
+            Assert.NotNull(card.QuerySelector("[data-testid=plugin-gear]"));
         });
     }
 
@@ -271,19 +270,6 @@ public sealed class StateCardPagesTests : AsyncBunitContext
     }
 
     [Fact]
-    public void PluginsPage_ReadsTheRunRecordsOncePerVisit_EvenWhenRetryReloadsTheList()
-    {
-        _plugins = [Plugin("a.bad", "Bad plugin", enabled: true, loadError: "Could not load.")];
-        var cut = Render<PluginSettingsTab>();
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-state-card=plugin]")));
-
-        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Retry").Click();
-
-        cut.WaitForAssertion(() => Assert.Equal(2, Volatile.Read(ref _pluginListReads)));
-        Assert.Equal(1, Volatile.Read(ref _taskListReads));
-    }
-
-    [Fact]
     public async Task PluginsPage_OnAPhone_ShowsTheCardsReadOnly()
     {
         await Services.GetRequiredService<DeviceContextService>().InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true));
@@ -293,7 +279,7 @@ public sealed class StateCardPagesTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("[data-state-card=plugin]")));
         Assert.Empty(cut.FindAll("input[role=switch]"));
-        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Trim() == "Configure");
+        Assert.NotNull(cut.Find("[data-testid=plugin-gear]"));
     }
 
     // ── Local AI ─────────────────────────────────────────────────────────────

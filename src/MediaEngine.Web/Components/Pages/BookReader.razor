@@ -1,7 +1,9 @@
 @namespace MediaEngine.Web.Components.Pages
 
 @using System.Diagnostics
+@using MediaEngine.Contracts.Playback
 @using MediaEngine.Contracts.Reading
+@using MediaEngine.Web.Components.Watch
 @using MediaEngine.Domain.Constants
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
@@ -9,6 +11,7 @@
 @using MediaEngine.Web.Services.Playback
 
 @inject IEngineApiClient Api
+@inject DashboardSessionAccessor Session
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject ILogger<BookReader> Logger
@@ -184,28 +187,53 @@
                 else if (_panel == "saved")
                 {
                     <AppSegmentedControl Options="SavedTabs" Value="@_savedTab" ValueChanged="@(value => { _savedTab = value; })" AriaLabel="@L["BookReader_SavedPlaces"].Value" />
-                    @if (_savedTab == "bookmarks")
+                    @if (_savedTab == "bookmarks" && _finding)
+                    {
+                        <BookmarkFindView ProfileId="Guid.Empty" WorkId="Guid.Empty" AssetId="AssetId" IsBook="true"
+                                          IsAdministrator="IsAdministrator" Chapters="_chapterNames"
+                                          JumpToLocator="GoToPlaceAsync" Applied="FindAppliedAsync" Closed="CloseFindAsync" />
+                    }
+                    else if (_savedTab == "bookmarks")
                     {
                         <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" OnClick="AddBookmarkAsync" StartIcon="@AppMaterialIcons.Filled.BookmarkAdd">
                             @L["BookReader_BookmarkThisPage"]
                         </AppButton>
-                        @if (_bookmarks.Count == 0)
+                        <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" OnClick="OpenFindAsync" StartIcon="@AppMaterialIcons.Filled.Search">
+                            @L["BookmarkFind_Title"]
+                        </AppButton>
+                        @if (IsAdministrator)
                         {
-                            <p class="br-empty">@L["BookReader_NoBookmarksYet"]</p>
+                            <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Primary" OnClick="ToggleEveryonesAsync">
+                                @(_showEveryones ? L["BookReader_BackToMine"] : L["VideoBookmarkPane_Everyones"])
+                            </AppButton>
+                        }
+                        var shown = _showEveryones ? _everyones : _bookmarks;
+                        @if (shown.Count == 0)
+                        {
+                            <p class="br-empty">@(_showEveryones ? L["AudiobookGlobalExtras_Nobody"] : L["BookReader_NoBookmarksYet"])</p>
                         }
                         else
                         {
                             <ul class="br-list">
-                                @foreach (var mark in _bookmarks)
+                                @foreach (var mark in shown)
                                 {
                                     <li class="br-item">
                                         <AppNativeButton Class="br-row br-row--grow" OnClick="@(() => OpenBookmarkAsync(mark))" AriaLabel="@($"Go to bookmark {mark.Label}")">
-                                            <span class="br-row-main">@(string.IsNullOrWhiteSpace(mark.Label) ? "Bookmark" : mark.Label)</span>
-                                            <span class="br-row-sub">@mark.CreatedAt.ToLocalTime().ToString("d MMM yyyy")</span>
+                                            <span class="br-row-main">@(string.IsNullOrWhiteSpace(mark.Label) ? "Bookmark" : mark.Label)@if (mark.IsGlobal) { <em class="br-global"> @L["Common_Everyone"]</em> }</span>
+                                            <span class="br-row-sub">@(string.IsNullOrWhiteSpace(mark.OwnerName) ? null : mark.OwnerName + " · ")@mark.CreatedAt.ToLocalTime().ToString("d MMM yyyy")</span>
                                         </AppNativeButton>
-                                        <AppNativeButton Class="br-icon-btn br-icon-btn--small" OnClick="@(() => DeleteBookmarkAsync(mark))" Title="@L["Common_DeleteBookmark"].Value" AriaLabel="@L["Common_DeleteBookmark"].Value">
-                                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DeleteOutline" Size="AppSize.Small" />
-                                        </AppNativeButton>
+                                        @if (IsAdministrator && !mark.IsGlobal)
+                                        {
+                                            <AppNativeButton Class="br-icon-btn br-icon-btn--small" OnClick="@(() => PromoteBookmarkAsync(mark))" Title="@L["VideoBookmarkPane_Promote"].Value" AriaLabel="@L["VideoBookmarkPane_Promote"].Value">
+                                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Public" Size="AppSize.Small" />
+                                            </AppNativeButton>
+                                        }
+                                        @if (CanChange(mark))
+                                        {
+                                            <AppNativeButton Class="br-icon-btn br-icon-btn--small" OnClick="@(() => DeleteBookmarkAsync(mark))" Title="@L["Common_DeleteBookmark"].Value" AriaLabel="@L["Common_DeleteBookmark"].Value">
+                                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DeleteOutline" Size="AppSize.Small" />
+                                            </AppNativeButton>
+                                        }
                                     </li>
                                 }
                             </ul>
@@ -353,6 +381,10 @@
     private string _savedTab = "bookmarks";     // bookmarks | highlights
     private List<BookReaderTocItem> _toc = [];
     private List<ReaderBookmarkDto> _bookmarks = [];
+    private List<ReaderBookmarkDto> _everyones = [];
+    private bool _showEveryones;
+    private bool _finding;
+    private IReadOnlyList<PlaybackChapterDto> _chapterNames = [];
     private List<ReaderHighlightDto> _highlights = [];
     private PendingSelection? _selection;
     private ReaderHighlightDto? _editing;
@@ -1114,11 +1146,86 @@
         await GoToPlaceAsync(mark.CfiPosition);
     }
 
+    private bool IsAdministrator => Session.Authority?.EffectiveAdministrator == true;
+
+    /// <summary>A person changes their own bookmarks; a Global one only an administrator changes.</summary>
+    private bool CanChange(ReaderBookmarkDto mark) => !mark.IsGlobal || IsAdministrator;
+
+    /// <summary>Find bookmarks (Global bookmarks spec D6 to D10). The chapter names let a file made on another edition be placed by name.</summary>
+    private async Task OpenFindAsync()
+    {
+        _chapterNames = [];
+        if (_module is not null && !_disposed)
+        {
+            try
+            {
+                var titles = await _module.InvokeAsync<List<BookReaderChapterTitle>>("getChapterTitles");
+                _chapterNames = titles.Select(item => new PlaybackChapterDto { Title = item.Title, StartSeconds = item.Index }).ToList();
+            }
+            catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException)
+            {
+                Logger.LogDebug(ex, "The chapter names could not be read for Find bookmarks.");
+            }
+        }
+
+        _finding = true;
+    }
+
+    private Task CloseFindAsync()
+    {
+        _finding = false;
+        return Task.CompletedTask;
+    }
+
+    private async Task FindAppliedAsync(string line)
+    {
+        _bookmarks = (await Api.GetBookmarksAsync(AssetId))
+            .Where(item => item.CfiPosition?.StartsWith("epubcfi(", StringComparison.Ordinal) == true)
+            .OrderByDescending(item => item.CreatedAt).ToList();
+        if (_showEveryones)
+        {
+            _everyones = await Api.GetEveryonesReaderBookmarksAsync(AssetId);
+        }
+
+        ShowNotice(line);
+    }
+
+    private async Task ToggleEveryonesAsync()
+    {
+        _showEveryones = !_showEveryones;
+        if (_showEveryones)
+        {
+            _everyones = await Api.GetEveryonesReaderBookmarksAsync(AssetId);
+        }
+    }
+
+    /// <summary>Makes a personal bookmark Global at once; the list reloads so the replaced bookmarks disappear (Global bookmarks spec D1).</summary>
+    private async Task PromoteBookmarkAsync(ReaderBookmarkDto mark)
+    {
+        var promoted = await Api.PromoteReaderBookmarkAsync(mark.Id, null);
+        if (promoted is null)
+        {
+            ShowNotice("The bookmark could not be made Global. Try again.");
+            return;
+        }
+
+        _bookmarks = (await Api.GetBookmarksAsync(AssetId))
+            .Where(item => item.CfiPosition?.StartsWith("epubcfi(", StringComparison.Ordinal) == true)
+            .OrderByDescending(item => item.CreatedAt).ToList();
+        if (_showEveryones)
+        {
+            _everyones = await Api.GetEveryonesReaderBookmarksAsync(AssetId);
+        }
+
+        ShowNotice("Now Global.");
+    }
+
     private async Task DeleteBookmarkAsync(ReaderBookmarkDto mark)
     {
         if (await Api.DeleteBookmarkAsync(mark.Id))
         {
             _bookmarks.Remove(mark);
+            _everyones.Remove(mark);
         }
         else
         {

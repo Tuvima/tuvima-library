@@ -40,9 +40,6 @@ internal static class WaitingStateTimePositions
         // length of the cut it was saved on), the two keys PlayerService writes in seconds. On a different cut the row attaches with its
         // percent and those two keys are removed (the other keys, such as the device, client and hide-from-Continue flag, stay).
         ["user_states"] = new([], null, false, "extended_properties", ["position_seconds", "duration_seconds"]),
-
-        // The bookmarks inside a pack are positions in the cut the pack was made on.
-        ["bookmark_packs"] = new([], null, true),
     };
 
     /// <summary>
@@ -56,6 +53,5 @@ internal static class WaitingStateTimePositions
         "player_device_states.duration_seconds",
         "personal_activity.played_seconds",
         "reader_statistics.total_reading_time_secs",
-        "bookmark_packs.source_running_time_seconds",
     };
 }

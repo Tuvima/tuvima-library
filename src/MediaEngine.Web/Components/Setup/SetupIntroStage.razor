@@ -1,0 +1,32 @@
+@namespace MediaEngine.Web.Components.Setup
+@inject IStringLocalizer<SharedStrings> L
+
+@* The first thing a new person sees (first-run setup rework D4, D5): the intro animation landing on the tagline, three short cards on what setup does and a
+   "Private by default" panel with a link to how privacy works. Get started opens step 1 (Your Library); Restore a backup instead opens the restore panel.
+   Reduced motion shows the finished frame. *@
+<div class="setup-intro" data-testid="setup-intro">
+    <IntroAnimation Tagline="@L["SetupIntro_Tagline"].Value" />
+    <p class="setup-intro__lead">@L["SetupIntro_Lead"]</p>
+    <ul class="setup-intro__cards">
+        <li><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" /><strong>@L["SetupIntro_FindTitle"]</strong><span>@L["SetupIntro_FindText"]</span></li>
+        <li><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Link" /><strong>@L["SetupIntro_ConnectTitle"]</strong><span>@L["SetupIntro_ConnectText"]</span></li>
+        <li><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlayCircle" /><strong>@L["SetupIntro_EnjoyTitle"]</strong><span>@L["SetupIntro_EnjoyText"]</span></li>
+    </ul>
+    <section class="setup-intro__private" aria-label="@L["SetupIntro_PrivateTitle"].Value">
+        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" />
+        <div>
+            <strong>@L["SetupIntro_PrivateTitle"]</strong>
+            <p>@L["SetupIntro_PrivateText"]</p>
+            <a href="https://docs.tuvima.com/products/library/explanation/privacy-local-first/" target="_blank" rel="noopener noreferrer">@L["SetupIntro_PrivacyLink"]</a>
+        </div>
+    </section>
+    <div class="setup-intro__actions">
+        <AppButton Label="@L["SetupIntro_RestoreInstead"].Value" StartIcon="@AppMaterialIcons.Outlined.Restore" ButtonStyle="AppButtonStyle.Outlined" OnClick="Restore" data-testid="setup-restore-open" />
+        <AppButton Label="@L["SetupIntro_GetStarted"].Value" EndIcon="@AppMaterialIcons.Outlined.ArrowForward" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="GetStarted" data-testid="setup-get-started" />
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback GetStarted { get; set; }
+    [Parameter] public EventCallback Restore { get; set; }
+}

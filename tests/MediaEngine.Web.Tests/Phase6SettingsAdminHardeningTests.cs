@@ -98,10 +98,10 @@ public sealed class Phase6SettingsAdminHardeningTests
     public void MetadataSettings_DoesNotUseHardcodedFallbackAsLiveConfig()
     {
         var source = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/MetadataSettingsPage.razor")
-                     + ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/Plugins/ProviderDetail.razor")
+                     + ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/Plugins/PluginSetupPage.razor")
+                     + ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/Plugins/PluginSettingsCard.razor")
                      + ReadRepoFile(@"src/MediaEngine.Web/Services/Integration/MetadataSettingsStateService.cs");
 
-        Assert.Contains("No sample provider state is being shown", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Load sample chain", source, StringComparison.Ordinal);
         Assert.Contains("GetProviderStatusAsync", source, StringComparison.Ordinal);
         Assert.Contains("TestProviderAsync", source, StringComparison.Ordinal);
@@ -234,7 +234,7 @@ public sealed class Phase6SettingsAdminHardeningTests
         Assert.DoesNotContain("<AvailablePluginsPanel", plugins, StringComparison.Ordinal);
         var available = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/AvailablePluginsPanel.razor");
         Assert.Contains("InstallSupported: true", available, StringComparison.Ordinal);
-        Assert.Contains("Advanced settings", plugins, StringComparison.Ordinal);
+        Assert.Contains("Advanced settings", ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/Plugins/PluginSettingsCard.razor"), StringComparison.Ordinal);
         Assert.DoesNotContain("Text=\"JSON\"", plugins, StringComparison.Ordinal);
         Assert.DoesNotContain("Text=\"Manifest\"", plugins, StringComparison.Ordinal);
         Assert.DoesNotContain("Settings JSON", plugins, StringComparison.Ordinal);

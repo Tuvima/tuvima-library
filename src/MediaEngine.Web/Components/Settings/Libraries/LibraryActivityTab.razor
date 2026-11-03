@@ -1,13 +1,41 @@
 @namespace MediaEngine.Web.Components.Settings
+@implements IDisposable
 @using MediaEngine.Contracts.Library
 @using MediaEngine.Web.Components.Shared
 @inject IEngineApiClient Api
+@inject ShellActivityState Running
+@using MediaEngine.Web.Components.Navigation
 @inject IStringLocalizer<SharedStrings> L
 
 @* A library's Activity tab (Library pages D16): a filtered view of events the Engine already records for this library only: what was
    added, what needs review, what failed, folder checks, renames, merges and moves. The Engine writes the sentences; this tab lays them out
    with a time, an icon whose colour says the kind, and the sentence. A line that needs review links to Needs Review. *@
 <section class="library-activity" aria-label="@L["Common_Activity"].Value">
+    @* Work in progress right now, read from the same place as the menu's activity indicator, so the two always agree. *@
+    @if (Running.Current is { IsWorking: true } now)
+    {
+        <div class="library-activity__running" data-testid="library-activity-running">
+            <h3 class="library-activity__running-title">@L["LibraryActivityTab_RunningNow"]</h3>
+            @foreach (var item in now.Items)
+            {
+                <div class="library-activity__running-item">
+                    <span class="library-activity__running-label">@(item.Kind == ShellActivityKind.Ingestion && now.Queue is { } queue ? SystemActivityText.Ingestion(queue, DateTimeOffset.UtcNow) : item.Label)</span>
+                    @if (item.Detail is { Length: > 0 } && item.Kind != ShellActivityKind.Ingestion)
+                    {
+                        <span class="library-activity__running-detail">@item.Detail</span>
+                    }
+                    @if (item.ProgressPercent is { } percent)
+                    {
+                        <AppProgressBar Value="@percent" Decorative="true" AccentColor="var(--tl-accent-primary, #8852FC)" />
+                    }
+                    else
+                    {
+                        <AppProgressBar Indeterminate="true" Decorative="true" />
+                    }
+                </div>
+            }
+        </div>
+    }
     @if (_loading)
     {
         <AppPageState Kind="AppPageStateKind.Loading" Title="@L["Common_LoadingActivity"].Value" />
@@ -62,6 +90,12 @@
     private string? _loadedFor;
     private bool _loading = true;
     private bool _failed;
+
+    protected override void OnInitialized() => Running.Changed += OnRunningChanged;
+
+    private void OnRunningChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Running.Changed -= OnRunningChanged;
 
     protected override async Task OnParametersSetAsync()
     {

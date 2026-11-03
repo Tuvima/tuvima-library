@@ -140,6 +140,30 @@ public sealed partial class DisplayComposerService
             slides.Add(new(DisplayCardBuilder.ToHero(card, "Featured Content") with { IsContinued = false }, false, card.SortTimestamp));
         }
 
+        // New music is one "Recently added music" collage slide, never single albums (Home, detail and tiles spec D4).
+        var newAlbums = slides.Where(slide => !slide.Continued && slide.Hero.Subject == DisplaySubjectKind.Album)
+            .OrderByDescending(slide => slide.At).ToList();
+        if (newAlbums.Count > 0)
+        {
+            slides.RemoveAll(slide => newAlbums.Contains(slide));
+            var newest = newAlbums[0];
+            var covers = newAlbums.Select(slide => slide.Hero.Artwork.CoverUrl).Where(url => !string.IsNullOrWhiteSpace(url)).Select(url => url!).Take(8).ToList();
+            slides.Add(newest with
+            {
+                Hero = newest.Hero with
+                {
+                    Title = "Recently added music",
+                    Subtitle = null,
+                    Description = null,
+                    Tagline = null,
+                    Facts = [],
+                    CollageUrls = covers,
+                    PreviewItems = [],
+                    Actions = [new DisplayActionDto("openRoute", "Open", null, null, null, "/listen/music/playlists/system/recently-added")],
+                },
+            });
+        }
+
         // Plugin suggestions only label and lift items that are already allowed on the hero; a plugin cannot add an item that is still
         // settling, has no artwork or is outside what this person may see.
         foreach (var nomination in nominations ?? [])

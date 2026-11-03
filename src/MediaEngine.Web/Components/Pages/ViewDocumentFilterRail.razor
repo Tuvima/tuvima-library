@@ -20,7 +20,10 @@
     </header>
 
     <div class="view-documents-mode" role="radiogroup" aria-label="@L["ViewDocumentFilterRail_DocumentsToShow"].Value">
-        <AppNativeButton Type="button" role="radio" aria-checked="@(State.InboxOnly ? "true" : "false")" Class="@ModeClass(State.InboxOnly)" OnClick="@(_ => SetModeAsync(inbox: true, trash: false))">@InboxLabel</AppNativeButton>
+        @if (ShowInbox)
+        {
+            <AppNativeButton Type="button" role="radio" aria-checked="@(State.InboxOnly ? "true" : "false")" Class="@ModeClass(State.InboxOnly)" OnClick="@(_ => SetModeAsync(inbox: true, trash: false))">@InboxLabel</AppNativeButton>
+        }
         <AppNativeButton Type="button" role="radio" aria-checked="@(!State.InboxOnly && !State.TrashOnly ? "true" : "false")" Class="@ModeClass(!State.InboxOnly && !State.TrashOnly)" OnClick="@(_ => SetModeAsync(inbox: false, trash: false))">@L["ViewDocumentFilterRail_AllDocuments"]</AppNativeButton>
         @if (ShowTrash)
         {
@@ -144,6 +147,9 @@
 
     /// <summary>How many documents wait in the Inbox of the scope being looked at; null while it is not known.</summary>
     [Parameter] public int? InboxCount { get; set; }
+
+    /// <summary>False in the Shared Library: shared documents have no Inbox, so the mode is not offered.</summary>
+    [Parameter] public bool ShowInbox { get; set; } = true;
 
     /// <summary>The person's saved Documents views, shown at the top of the rail.</summary>
     [Parameter] public IReadOnlyList<ViewGalleryDto> SavedViews { get; set; } = [];

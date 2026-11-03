@@ -1,5 +1,19 @@
 .tools-summary {
     margin: 0 0 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
     color: var(--tl-text-muted);
     font-weight: 600;
 }
+
+.tools-summary__part {
+    padding: 2px 10px;
+    border-radius: 4px;
+    background: rgba(127, 127, 127, 0.12);
+    font-size: 0.875rem;
+}
+
+.tools-summary__part[data-tone="ready"] { color: var(--tl-success, #2e9d5b); background: color-mix(in srgb, var(--tl-success, #2e9d5b) 14%, transparent); }
+.tools-summary__part[data-tone="attention"] { color: var(--tl-warning, #c98a00); background: color-mix(in srgb, var(--tl-warning, #c98a00) 14%, transparent); }
+.tools-summary__part[data-tone="busy"] { color: var(--tl-info, #3b82c4); background: color-mix(in srgb, var(--tl-info, #3b82c4) 14%, transparent); }

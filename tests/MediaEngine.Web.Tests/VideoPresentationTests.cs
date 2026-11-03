@@ -38,19 +38,20 @@ public sealed class VideoPresentationTests
     }
 
     [Theory]
-    [InlineData(true, true, 2, 3, 2, "episodes")]
-    [InlineData(true, true, 0, 3, 2, "queue")]
-    [InlineData(true, true, 0, 3, 0, null)]
-    [InlineData(true, false, 0, 3, 2, "queue")]
-    [InlineData(true, false, 0, 3, 0, null)]
-    [InlineData(true, false, 1, 0, 2, "episodes")]
-    [InlineData(false, true, 0, 2, 2, "chapters")]
-    [InlineData(false, true, 0, 1, 2, "queue")]
-    [InlineData(false, false, 0, 3, 0, null)]
-    [InlineData(false, false, 0, 3, 2, "queue")]
-    [InlineData(false, true, 0, 1, 0, null)]
-    public void ContextPriorityUsesOnlyRealApplicableChoices(bool tv, bool movie, int episodes, int chapters, int queue, string? expected)
-        => Assert.Equal(expected, VideoPresentationResolver.ContextKind(tv, movie, episodes, chapters, queue));
+    [InlineData(true, true, 2, 2, "episodes")]
+    [InlineData(true, true, 0, 2, null)]
+    [InlineData(true, true, 0, 0, null)]
+    [InlineData(true, false, 0, 2, "queue")]
+    [InlineData(true, false, 0, 0, null)]
+    [InlineData(true, false, 1, 2, "episodes")]
+    // A film has bookmarks only: no chapters list and no Up next (player-controls-v3 D7).
+    [InlineData(false, true, 0, 2, null)]
+    [InlineData(false, true, 0, 0, null)]
+    [InlineData(false, false, 0, 0, null)]
+    // Other video lists its Lessons when it belongs to a series.
+    [InlineData(false, false, 0, 2, "queue")]
+    public void ContextPriorityUsesOnlyRealApplicableChoices(bool tv, bool movie, int episodes, int queue, string? expected)
+        => Assert.Equal(expected, VideoPresentationResolver.ContextKind(tv, movie, episodes, queue));
 
     [Fact]
     public void OwnedEpisodeProjectionIncludesUnnumberedTvAndDoesNotUseFallbackShowArtwork()

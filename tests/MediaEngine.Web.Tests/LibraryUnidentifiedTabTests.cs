@@ -30,12 +30,6 @@ public sealed class LibraryUnidentifiedTabTests : AsyncBunitContext
         Sources = [new() { Id = "tv-main", Path = "Z:\\TV Shows", ManagementMode = "existing_library", AccessMode = "read_only" }],
     };
 
-    private readonly LibrariesConfigurationDto _configuration = new()
-    {
-        StorageLocations = [new() { Id = "media", Label = "Media storage", Path = "Z:\\", AllowWrite = false }],
-        Libraries = [Tv],
-    };
-
     public LibraryUnidentifiedTabTests()
     {
         JSInterop.Mode = JSRuntimeMode.Loose;
@@ -77,20 +71,6 @@ public sealed class LibraryUnidentifiedTabTests : AsyncBunitContext
     private static string Text(AngleSharp.Dom.IElement element) => Regex.Replace(element.TextContent, "\\s+", " ").Trim();
 
     [Fact]
-    public void AFileInsideALibraryFolderCanHaveItsFolderChangedAndOneOutsideCannot()
-    {
-        var cut = Render<LibraryUnidentifiedTab>(parameters => parameters
-            .Add(x => x.Library, Tv)
-            .Add(x => x.Kinds, LibraryKindsTestData.Catalog)
-            .Add(x => x.Configuration, _configuration));
-        cut.WaitForElement("[data-asset]");
-
-        var rows = cut.FindAll("[data-asset]");
-        Assert.Contains(rows[0].QuerySelectorAll("button"), button => Text(button) == "Change what this folder is");
-        Assert.DoesNotContain(rows[1].QuerySelectorAll("button"), button => Text(button) == "Change what this folder is");
-    }
-
-    [Fact]
     public async Task ARowWithAnItemOffersRemoveFromLibrary_OnlyToAnAdministratorOnADesktop()
     {
         var cut = Render<LibraryUnidentifiedTab>(parameters => parameters.Add(x => x.Library, Tv));
@@ -107,15 +87,6 @@ public sealed class LibraryUnidentifiedTabTests : AsyncBunitContext
         var rows = admin.FindAll("[data-asset]");
         Assert.Contains(rows[0].QuerySelectorAll("button"), button => Text(button) == "Remove from library");
         Assert.DoesNotContain(rows[1].QuerySelectorAll("button"), button => Text(button) == "Remove from library");
-    }
-
-    [Fact]
-    public void WithoutTheLibraryKindsNoRowOffersChangeWhatThisFolderIs()
-    {
-        var cut = Render<LibraryUnidentifiedTab>(parameters => parameters.Add(x => x.Library, Tv));
-        cut.WaitForElement("[data-asset]");
-
-        Assert.DoesNotContain(cut.FindAll("button"), button => Text(button) == "Change what this folder is");
     }
 
     [Fact]

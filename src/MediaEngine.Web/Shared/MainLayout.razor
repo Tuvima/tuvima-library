@@ -136,13 +136,13 @@
                 </span>
             }
 
-            <span class="layout-shell__my-list-slot">
+            <span class="layout-shell__my-list-slot@(IsMyListOpen ? " is-open" : string.Empty)">
                 <AppTooltip Text="@L["TopBar_MyList"]" Placement="AppPlacement.Bottom">
                     <AppNativeButton Type="button"
                                      Class="layout-shell__my-list"
                                      AriaLabel="@L["TopBar_MyList"]"
                                      OnClick="@(_ => OpenForMe())">
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FavoriteBorder"
+                        <AppMaterialIcon Icon="@(IsMyListOpen ? AppMaterialIcons.Filled.Bookmark : AppMaterialIcons.Outlined.BookmarkBorder)"
                                  Class="layout-shell__my-list-icon" />
                     </AppNativeButton>
                 </AppTooltip>
@@ -657,7 +657,11 @@
         });
     }
 
-    private void OpenForMe() => Nav.NavigateTo("/for-me?view=my-list");
+    // The top bar button is a bookmark, gold while My List is open; clicking it again closes the list and returns Home
+    // (Home, detail and tiles spec D6).
+    private bool IsMyListOpen => Nav.ToBaseRelativePath(Nav.Uri).StartsWith("for-me?view=my-list", StringComparison.OrdinalIgnoreCase);
+
+    private void OpenForMe() => Nav.NavigateTo(IsMyListOpen ? "/" : "/for-me?view=my-list");
 
     private void OpenSearch() => _searchOverlay?.Open();
 

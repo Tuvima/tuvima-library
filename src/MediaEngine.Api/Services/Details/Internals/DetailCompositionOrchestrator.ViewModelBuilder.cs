@@ -80,6 +80,7 @@ internal sealed partial class DetailCompositionOrchestrator
             SeasonNumber = StringHelpers.FirstNonBlankOr(string.Empty, detail.SeasonNumber, GetValue(canonicalValues, MetadataFieldConstants.SeasonNumber), GetValue(canonicalValues, "season")),
             EpisodeNumber = StringHelpers.FirstNonBlankOr(string.Empty, detail.EpisodeNumber, GetValue(canonicalValues, MetadataFieldConstants.EpisodeNumber), GetValue(canonicalValues, "episode")),
             EpisodeTitle = StringHelpers.FirstNonBlankOr(string.Empty, detail.EpisodeTitle, GetValue(canonicalValues, MetadataFieldConstants.EpisodeTitle)),
+            EpisodePicture = EpisodePictureSource(canonicalValues),
             Network = StringHelpers.FirstNonBlankOr(string.Empty, GetValue(canonicalValues, MetadataFieldConstants.Network), GetValue(canonicalValues, "broadcaster")),
             SeasonCount = GetValue(canonicalValues, MetadataFieldConstants.SeasonCount),
             EpisodeCount = GetValue(canonicalValues, MetadataFieldConstants.EpisodeCount),
@@ -1378,4 +1379,15 @@ internal sealed partial class DetailCompositionOrchestrator
                 && normalizedTitle.EndsWith(normalizedIssue, StringComparison.OrdinalIgnoreCase));
     }
 
+    private static string? EpisodePictureSource(IReadOnlyDictionary<string, string> canonicalValues)
+    {
+        var retryAfter = GetValue(canonicalValues, MetadataFieldConstants.EpisodeStillStandIn);
+        if (!string.IsNullOrWhiteSpace(retryAfter))
+        {
+            return $"Stand-in from show image, next check {retryAfter}";
+        }
+
+        return string.IsNullOrWhiteSpace(GetValue(canonicalValues, BridgeIdKeys.TvdbEpisodeId)) ? null : "TheTVDB";
+    }
 }
+

@@ -38,13 +38,15 @@ input.s{height:36px;border-radius:8px;border:1px solid #2A3650;background:#0B102
 table{width:100%;border-collapse:collapse;margin-top:16px}th{text-align:left;color:#94A3B8;font-size:12px;text-transform:uppercase;padding:8px 10px;border-bottom:1px solid #1E293B}td{padding:10px;border-bottom:1px solid #161f33;vertical-align:middle}
 .sq{display:inline-block;padding:3px 9px;border-radius:5px;font-size:12px}.sq.a{background:#3a2c0b;color:#fbbf24}.sq.u{background:#3b1d1d;color:#f87171}
 .bar{display:flex;gap:10px;margin-top:14px;align-items:center}.f{padding:6px 12px;border:1px solid #2A3650;border-radius:6px;color:#B6C2D6}.f.on{border-color:#8852FC;color:#F5F7FB}
+.m{position:absolute;width:22px;height:22px;border-radius:50%;background:#f59e0b;color:#111;font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;z-index:5;box-shadow:0 0 0 3px rgba(245,158,11,.3)}.notes{margin:8px 32px 36px;color:#B6C2D6;max-width:1100px}.notes h3{margin:0 0 6px;font-size:14px;color:#F5F7FB}.notes ol{margin:0;padding-left:22px}.notes li{margin:4px 0}
 </style></head><body>
 
-<h2 class="cap">Screen 1 - Edit on an episode opens the pop-over at once. The tree on the left stays inside this one show. (No editing bar, no edit mode on the page behind.)</h2>
+<h2 class="cap">Screen 1: Edit on an episode</h2>
 <div class="vp">
  <div class="nav"><span class="brand">TUVIMA</span><span class="l"><span>Home</span><span>Watch</span><span>Listen</span><span>Read</span><span>View</span></span><span class="av"></span></div>
  <div class="hero"><div class="poster"></div><div><h1 style="margin:0 0 6px;font-size:34px">The Continental</h1><span class="mut">Season 1 · Episode 2 · Loyalty to the Master</span></div></div>
  <div class="dim"></div>
+<span class="m" style="left:110px;top:44px">1</span><span class="m" style="left:84px;top:200px">2</span><span class="m" style="left:420px;top:160px">3</span><span class="m" style="left:660px;top:242px">4</span><span class="m" style="left:1290px;top:242px">5</span><span class="m" style="left:1060px;top:760px">6</span><span class="m" style="left:1200px;top:860px">7</span>
  <div class="win">
   <div class="wh"><div class="poster" style="width:30px;height:40px;border-radius:5px"></div><b>Editing: The Continental</b><span class="chip">2 changes waiting</span><span class="x">✕</span></div>
   <div class="body">
@@ -74,10 +76,17 @@ table{width:100%;border-collapse:collapse;margin-top:16px}th{text-align:left;col
  </div>
 </div>
 
-<h2 class="cap">Screen 2 - Needs Review as the one place for "not matched" and "not sure". Fix opens the same pop-over over this list.</h2>
+<div class="notes"><h3>Notes for screen 1</h3><ol>
+<li>Pop-over opened by "..." then Edit. The page behind is dimmed, not in any editing state (no bar, no pencils). The header shows what you are editing and how many changes wait.</li>
+<li>The family tree for this show only. Tick = matched, "not matched" = failed, purple dot = changes waiting on that row. Clicking a row switches the right side to it; changes on other rows are kept.</li>
+<li>The four tools. The pop-over opens on Match here because the show is not matched; for a matched item it opens on Details.</li>
+<li>Search is pre-filled from the file name. "Search all shows" lets this episode go to a different show.</li>
+<li>Show, Season, Episode columns. The top show carries "Best guess"; the episode list tags the file's own slot and the ones that already have a file.</li>
+<li>What will happen: before and after in words, then the switches. Moving the file is off by default; "Match the other 3 episodes by number" is on when a show is chosen.</li>
+<li>Footer buttons never move. Nothing is written until Save; Save shows Review changes first.</li></ol></div><h2 class="cap">Screen 2: Needs Review</h2>
 <div class="vp">
  <div class="nav"><span class="brand">TUVIMA</span><span class="l"><span>Home</span><span>Watch</span><span>Listen</span><span>Read</span><span>View</span></span><span class="av"></span></div>
- <div class="pg"><h1>Needs Review</h1><div class="mut">14 items need a person. Not matched files and uncertain matches are listed together.</div>
+ <span class="m" style="left:12px;top:118px">1</span><span class="m" style="left:20px;top:196px">2</span><span class="m" style="left:735px;top:262px">3</span><span class="m" style="left:1085px;top:262px">4</span><span class="m" style="left:1365px;top:262px">5</span><span class="m" style="left:1250px;top:196px">6</span><div class="pg"><h1>Needs Review</h1><div class="mut">14 items need a person. Not matched files and uncertain matches are listed together.</div>
   <div class="bar"><span class="f on">All 14</span><span class="f">Not matched 9</span><span class="f">Not sure 5</span><span class="f">TV Shows ▾</span><span class="mut" style="margin-left:auto">Try again for all · Keep all as they are</span></div>
   <table><tr><th></th><th>Item</th><th>Why</th><th>Best guess</th><th>Last tried</th><th></th></tr>
    <tr><td><div class="th"></div></td><td><b>Unknown file 04.mkv</b><div class="mut">TV Shows / The Continental</div></td><td><span class="sq u">Not matched</span> No episode number in the name</td><td>The Continental · S1 · E4 <span class="tag g">Use this</span></td><td>Today</td><td><span class="btn" style="height:30px">Fix</span></td></tr>
@@ -86,4 +95,10 @@ table{width:100%;border-collapse:collapse;margin-top:16px}th{text-align:left;col
   </table></div>
  <div class="dim" style="display:none"></div>
 </div>
-</body></html>
+<div class="notes"><h3>Notes for screen 2</h3><ol>
+<li>One list for everything that needs a person. The count covers both kinds.</li>
+<li>Filters: All, Not matched, Not sure, and a library filter.</li>
+<li>Why says in words what happened (Not matched or Not sure, then the reason). Wikidata reviews and "looks like a TV episode" cards keep their own reason and buttons here.</li>
+<li>Best guess, with a one-click "Use this" for the clear cases.</li>
+<li>Fix opens the same pop-over over this list, on Match; the row updates when it closes.</li>
+<li>Bulk Try again and Keep as they are, moved here from the old Unidentified tab.</li></ol></div></body></html>

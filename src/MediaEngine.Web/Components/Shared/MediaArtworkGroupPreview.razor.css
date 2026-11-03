@@ -488,7 +488,7 @@
     place-items: center;
     color: rgba(248, 250, 252, 0.98);
     border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     background: rgba(3, 7, 18, 0.88);
     box-shadow: 0 6px 13px rgba(0, 0, 0, 0.42);
     font-size: var(--tl-font-size-xs);

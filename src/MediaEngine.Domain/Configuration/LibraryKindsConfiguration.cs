@@ -44,7 +44,7 @@ public sealed class LibraryKindsConfiguration
         Kind("comics", LibraryAreas.Read, "Comics", "AutoStories", MediaType.Comics, ["comicvine"], LibraryKindGroupings.ComicSeries, "Comics",
             LibraryKindMisfits.Unmatched, "CBZ and CBR comics and manga.", 2),
         Kind("other_reading", LibraryAreas.Read, "Other reading", "Description", MediaType.Books, null, LibraryKindGroupings.FolderAndTags, "default",
-            LibraryKindMisfits.Keep, "Loose books and documents with no match, shown by folder and the details inside the files.", 3, allowsMultiple: true),
+            LibraryKindMisfits.Keep, "Loose books and reading material with no match, shown by folder and the details inside the files.", 3, allowsMultiple: true),
         new LibraryKindDefinition
         {
             Key = "photos",

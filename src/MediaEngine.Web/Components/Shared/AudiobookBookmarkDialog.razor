@@ -177,6 +177,10 @@
                     </div>
                 }
                 @if (SavedExtras is not null) { @SavedExtras }
+                @if (Surface != "video" && (Context.ExpectedAssetId ?? Snapshot.Draft?.AssetId) is Guid globalAssetId)
+                {
+                    <AudiobookGlobalExtras ProfileId="Context.ProfileId" WorkId="Context.WorkId" AssetId="globalAssetId" Changed="ReloadSavedAsync" />
+                }
                 @if (ShowMessage is { } savedMessage)
                 {
                     <div class="audiobook-bookmark-dialog__message" role="status">@savedMessage</div>

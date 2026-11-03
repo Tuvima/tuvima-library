@@ -45,9 +45,17 @@
                                         {
                                             <GeneratedIdentity Name="@item.Title" />
                                         }
-                                        <span class="@MediaTypeBadgeClass(item)">
+                                        @* A small square kind label; on a person page it is the icon alone, without the word "Movie" (spec D10). *@
+                                        <span class="@MediaTypeBadgeClass(item)" title="@MediaTypeLabel(item.EntityType)">
                                             <AppMaterialIcon Icon="@MediaTypeIcon(item.EntityType)" Size="AppSize.Small" />
-                                            @MediaTypeLabel(item.EntityType)
+                                            @if (IsPersonSurface)
+                                            {
+                                                <span class="sr-only">@MediaTypeLabel(item.EntityType)</span>
+                                            }
+                                            else
+                                            {
+                                                @MediaTypeLabel(item.EntityType)
+                                            }
                                         </span>
                                     </span>
                                     <span class="tl-detail-primary-module__copy">

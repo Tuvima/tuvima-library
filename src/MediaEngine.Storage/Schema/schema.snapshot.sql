@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0076 collection_list_source_connection_profile).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0078 book_bookmarks_join_shared_model).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -312,7 +312,7 @@ CREATE TABLE audiobook_bookmarks (
     label                  TEXT,
     note                   TEXT,
     created_at             TEXT NOT NULL
-, description TEXT, is_global INTEGER NOT NULL DEFAULT 0 CHECK (is_global IN (0, 1)), end_seconds REAL CHECK (end_seconds IS NULL OR end_seconds > position_seconds));
+, description TEXT, is_global INTEGER NOT NULL DEFAULT 0 CHECK (is_global IN (0, 1)), end_seconds REAL CHECK (end_seconds IS NULL OR end_seconds > position_seconds), position_kind TEXT NOT NULL DEFAULT 'time' CHECK (position_kind IN ('time', 'text', 'page')), locator TEXT);
 
 CREATE TABLE audiobook_chapter_title_overrides (
     work_id                BLOB NOT NULL REFERENCES works(id) ON DELETE CASCADE,
@@ -418,32 +418,6 @@ CREATE TABLE backup_settings (
     setting_key  TEXT NOT NULL PRIMARY KEY,
     value_json   TEXT NOT NULL,
     updated_at   TEXT NOT NULL
-);
-
-CREATE TABLE bookmark_pack_items (
-    id               BLOB NOT NULL PRIMARY KEY,
-    pack_id          BLOB NOT NULL REFERENCES bookmark_packs(id) ON DELETE CASCADE,
-    position_seconds REAL NOT NULL CHECK (position_seconds >= 0),
-    end_seconds      REAL CHECK (end_seconds IS NULL OR end_seconds > position_seconds),
-    chapter_title    TEXT,
-    note             TEXT,
-    description      TEXT
-);
-
-CREATE TABLE bookmark_packs (
-    id                           BLOB NOT NULL PRIMARY KEY,
-    profile_id                   BLOB NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-    work_id                      BLOB NOT NULL REFERENCES works(id) ON DELETE CASCADE,
-    asset_id                     BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
-    name                         TEXT NOT NULL,
-    author                       TEXT,
-    content_hash                 TEXT NOT NULL,
-    source_running_time_seconds  REAL,
-    source_edition               TEXT,
-    is_aligned                   INTEGER NOT NULL DEFAULT 0 CHECK (is_aligned IN (0, 1)),
-    is_enabled                   INTEGER NOT NULL DEFAULT 1 CHECK (is_enabled IN (0, 1)),
-    imported_at                  TEXT NOT NULL,
-    UNIQUE (profile_id, work_id, content_hash)
 );
 
 CREATE TABLE bridge_ids (
@@ -2417,16 +2391,6 @@ CREATE TABLE qid_labels (
     updated_at  TEXT NOT NULL
 );
 
-CREATE TABLE reader_bookmarks (
-    id             BLOB NOT NULL PRIMARY KEY,
-    user_id        TEXT NOT NULL,
-    asset_id       BLOB NOT NULL REFERENCES media_assets(id) ON DELETE CASCADE,
-    chapter_index  INTEGER NOT NULL,
-    cfi_position   TEXT,
-    label          TEXT,
-    created_at     TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
 CREATE TABLE reader_highlights (
     id             BLOB NOT NULL PRIMARY KEY,
     user_id        TEXT NOT NULL,
@@ -3348,12 +3312,6 @@ CREATE INDEX idx_auth_sessions_account_active
 CREATE INDEX idx_authorization_audit_subject
     ON authorization_audit_events(subject_type, subject_id, occurred_at DESC);
 
-CREATE INDEX idx_bookmark_pack_items_pack
-    ON bookmark_pack_items(pack_id, position_seconds);
-
-CREATE INDEX idx_bookmark_packs_profile_work
-    ON bookmark_packs(profile_id, work_id, imported_at DESC);
-
 CREATE INDEX idx_bridge_ids_entity
     ON bridge_ids(entity_id);
 
@@ -3736,9 +3694,6 @@ CREATE INDEX idx_profile_work_preferences_work
     ON profile_work_preferences(work_id, profile_id);
 
 CREATE INDEX idx_qid_labels_type ON qid_labels(entity_type);
-
-CREATE INDEX idx_reader_bookmarks_user_asset
-    ON reader_bookmarks (user_id, asset_id);
 
 CREATE INDEX idx_reader_highlights_user_asset
     ON reader_highlights (user_id, asset_id);

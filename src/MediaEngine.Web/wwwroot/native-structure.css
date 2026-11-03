@@ -189,3 +189,7 @@ strong,b { font-weight:700; }
 .tl-grid-item-xxl-11 { flex:0 0 91.666667%;max-width:91.666667%; }
 .tl-grid-item-xxl-12 { flex:0 0 100%;max-width:100%; }
 }
+
+/* Launch splash (first-run setup rework D4): covers the page only while the Dashboard connects, then fades away. */
+.tl-launch-splash{position:fixed;inset:0;z-index:2147483000;display:grid;place-items:center;background:#0b0920;transition:opacity .2s ease}
+.tl-launch-splash--done{opacity:0;pointer-events:none}

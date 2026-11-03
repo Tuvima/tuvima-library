@@ -918,8 +918,8 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         cut.WaitForAssertion(() =>
         {
             Assert.Empty(cut.FindAll(".settings-subsection-nav"));
-            // Five playback cards plus the Spoilers card (U-WP11), which sits with the profile's own preferences.
-            Assert.Equal(6, cut.FindAll(".playback-settings-card").Count);
+            // Five playback cards, the progress-bar card, plus the Spoilers card (U-WP11), which sits with the profile's own preferences.
+            Assert.Equal(7, cut.FindAll(".playback-settings-card").Count);
             Assert.Contains("Spoilers", cut.Markup);
             Assert.NotEmpty(cut.FindAll(".settings-section-header"));
             Assert.NotEmpty(cut.FindAll(".playback-preference-row"));

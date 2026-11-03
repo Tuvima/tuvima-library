@@ -50,7 +50,7 @@
 
 .notifications-page__badge {
     padding: 1px 8px;
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     font-size: 0.8em;
     background: var(--tl-surface-variant, rgba(127, 127, 127, 0.2));
 }

@@ -1,5 +1,5 @@
 @namespace MediaEngine.Web.Components.Shared
-<AppTextField @ref="_field" Label="@Label" Value="@Value" ValueChanged="@ValueChanged" Placeholder="@Placeholder" HelpText="@HelpText" Lines="@Lines" OnKeyDown="@OnKeyDown" Disabled="@Disabled" ReadOnly="@ReadOnly" FullWidth="@FullWidth" Immediate="@Immediate" Size="@Size" Class="@($"app-field--textarea {Class}")" @attributes="AdditionalAttributes" />
+<AppTextField @ref="_field" Label="@Label" Value="@Value" ValueChanged="@ValueChanged" Placeholder="@Placeholder" HelpText="@HelpText" Lines="@Lines" OnKeyDown="@OnKeyDown" Disabled="@Disabled" ReadOnly="@ReadOnly" FullWidth="@FullWidth" Immediate="@Immediate" Size="@Size" InlineStyle="@InlineStyle" Class="@($"app-field--textarea {Class}")" @attributes="AdditionalAttributes" />
 @code {
     private AppTextField? _field;
     [Parameter] public string? Label { get; set; }
@@ -16,5 +16,6 @@
     [Parameter] public bool Immediate { get; set; } = true;
     [Parameter] public AppControlSize Size { get; set; } = AppControlSize.Normal;
     [Parameter] public string? Class { get; set; }
+    [Parameter] public string? InlineStyle { get; set; }
     public ValueTask FocusAsync() => _field?.FocusAsync() ?? ValueTask.CompletedTask;
 }

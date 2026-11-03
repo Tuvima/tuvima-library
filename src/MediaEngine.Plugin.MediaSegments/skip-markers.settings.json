@@ -1,0 +1,172 @@
+{
+  "properties": {
+    "detect_intro": {
+      "type": "boolean",
+      "control": "toggle",
+      "title": "Find intros",
+      "description": "Mark where the intro of an episode is.",
+      "group": "What to find",
+      "order": 0,
+      "default": true
+    },
+    "detect_credits": {
+      "type": "boolean",
+      "control": "toggle",
+      "title": "Find credits",
+      "description": "Mark where the end credits start.",
+      "group": "What to find",
+      "order": 1,
+      "default": true
+    },
+    "detect_recap": {
+      "type": "boolean",
+      "control": "toggle",
+      "title": "Find recaps",
+      "description": "Mark the recap of the last episode at the start of an episode.",
+      "group": "What to find",
+      "order": 2,
+      "default": true
+    },
+    "scheduled_batch_size": {
+      "type": "integer",
+      "control": "number",
+      "title": "Files per pass",
+      "description": "How many files are checked in one background pass.",
+      "unit": "files",
+      "group": "What to find",
+      "order": 3,
+      "minimum": 1,
+      "maximum": 500,
+      "default": 20
+    },
+    "minimum_intro_seconds": {
+      "type": "integer",
+      "control": "number",
+      "title": "Shortest intro",
+      "description": "Anything shorter is not marked.",
+      "unit": "seconds",
+      "group": "Intros",
+      "order": 4,
+      "advanced": true,
+      "minimum": 5,
+      "maximum": 300,
+      "default": 20,
+      "show_when": { "setting": "detect_intro", "equals": true }
+    },
+    "maximum_intro_seconds": {
+      "type": "integer",
+      "control": "number",
+      "title": "Longest intro",
+      "description": "Anything longer is not marked.",
+      "unit": "seconds",
+      "group": "Intros",
+      "order": 5,
+      "advanced": true,
+      "minimum": 20,
+      "maximum": 600,
+      "default": 120,
+      "show_when": { "setting": "detect_intro", "equals": true }
+    },
+    "intro_search_window_seconds": {
+      "type": "integer",
+      "control": "number",
+      "title": "Intro search window",
+      "description": "How far from the start an intro is looked for.",
+      "unit": "seconds",
+      "group": "Intros",
+      "order": 6,
+      "advanced": true,
+      "minimum": 60,
+      "maximum": 1800,
+      "default": 360,
+      "show_when": { "setting": "detect_intro", "equals": true }
+    },
+    "minimum_credit_seconds": {
+      "type": "integer",
+      "control": "number",
+      "title": "Shortest credits",
+      "description": "Anything shorter is not marked.",
+      "unit": "seconds",
+      "group": "Credits",
+      "order": 7,
+      "advanced": true,
+      "minimum": 5,
+      "maximum": 600,
+      "default": 30,
+      "show_when": { "setting": "detect_credits", "equals": true }
+    },
+    "credits_tail_window_seconds": {
+      "type": "integer",
+      "control": "number",
+      "title": "Credits search window",
+      "description": "How far from the end credits are looked for.",
+      "unit": "seconds",
+      "group": "Credits",
+      "order": 8,
+      "advanced": true,
+      "minimum": 60,
+      "maximum": 3600,
+      "default": 900,
+      "show_when": { "setting": "detect_credits", "equals": true }
+    },
+    "minimum_recap_seconds": {
+      "type": "integer",
+      "control": "number",
+      "title": "Shortest recap",
+      "description": "Anything shorter is not marked.",
+      "unit": "seconds",
+      "group": "Recaps",
+      "order": 9,
+      "advanced": true,
+      "minimum": 5,
+      "maximum": 300,
+      "default": 20,
+      "show_when": { "setting": "detect_recap", "equals": true }
+    },
+    "maximum_recap_seconds": {
+      "type": "integer",
+      "control": "number",
+      "title": "Longest recap",
+      "description": "Anything longer is not marked.",
+      "unit": "seconds",
+      "group": "Recaps",
+      "order": 10,
+      "advanced": true,
+      "minimum": 20,
+      "maximum": 600,
+      "default": 180,
+      "show_when": { "setting": "detect_recap", "equals": true }
+    },
+    "auto_install_tools": {
+      "type": "boolean",
+      "control": "toggle",
+      "title": "Download missing tools",
+      "description": "Allow the Library to download FFmpeg if it is missing.",
+      "group": "Tools",
+      "order": 11,
+      "advanced": true,
+      "default": false
+    },
+    "ffmpeg_tool_path": {
+      "type": "string",
+      "control": "path",
+      "title": "FFmpeg location",
+      "description": "Leave empty to use the one the Library finds.",
+      "group": "Tools",
+      "order": 12,
+      "advanced": true,
+      "default": ""
+    },
+    "ffprobe_tool_path": {
+      "type": "string",
+      "control": "path",
+      "title": "FFprobe location",
+      "description": "Leave empty to use the one the Library finds.",
+      "group": "Tools",
+      "order": 13,
+      "advanced": true,
+      "default": ""
+    }
+  },
+  "required": ["detect_intro", "detect_credits", "detect_recap"]
+}

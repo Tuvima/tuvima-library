@@ -1,0 +1,47 @@
+.plugin-setting {
+    display: grid;
+    min-width: 0;
+    gap: var(--tl-space-1, 4px);
+    border-radius: var(--tl-radius-sm, 8px);
+}
+
+.plugin-setting--disabled {
+    opacity: 0.8;
+}
+
+.plugin-setting__reason,
+.plugin-setting__choices > small,
+.plugin-setting__secret > small {
+    color: var(--tl-text-muted);
+}
+
+.plugin-setting__reason {
+    color: var(--tl-status-warning, var(--tl-text-secondary));
+}
+
+.plugin-setting__choices,
+.plugin-setting__secret {
+    display: grid;
+    gap: var(--tl-space-1, 4px);
+}
+
+.plugin-setting__secret-state {
+    color: var(--tl-text-secondary);
+}
+
+/* A saved setting glows for a moment instead of raising a toast. */
+.plugin-setting--saved {
+    animation: plugin-setting-glow 2.4s ease-out;
+}
+
+@keyframes plugin-setting-glow {
+    0% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--tl-accent-primary) 55%, transparent); }
+    100% { box-shadow: 0 0 0 3px transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .plugin-setting--saved {
+        animation: none;
+        outline: 2px solid color-mix(in srgb, var(--tl-accent-primary) 55%, transparent);
+    }
+}

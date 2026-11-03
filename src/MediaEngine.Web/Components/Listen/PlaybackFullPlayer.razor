@@ -114,10 +114,9 @@
                 </div>
             }
             <div class="playback-full__volume">
-                <AppTooltip Text="@(Snapshot.IsMuted ? "Unmute" : "Mute")"><AppNativeButton Type="button" AriaLabel="@(Snapshot.IsMuted ? "Unmute" : "Mute")" OnClick="@(() => SendAsync(displayed, ListenPlaybackCommandActions.ToggleMute))"><PlaybackUtilityGlyph Glyph="@(Snapshot.IsMuted ? PlaybackUtilityGlyphKind.Mute : PlaybackUtilityGlyphKind.Volume)" /></AppNativeButton></AppTooltip>
-                <AppRangeSlider Min="0" Max="1" Step="0.05" Value="Snapshot.Volume" ShowTicks="false" CommitOnChange="true" AriaLabel="@L["Common_Volume"].Value"
-                    disabled="@(!Snapshot.SoftwareVolumeSupported)" ValueFormatter="@(value => $"{value:P0}")" ValueChanged="@(value => SendAsync(displayed, ListenPlaybackCommandActions.SetVolume, value))" />
-                <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Volume" />
+                <PlaybackVolumeControl Surface="popup" Size="standard" CommitOnChange="true" Volume="@Snapshot.Volume" IsMuted="@Snapshot.IsMuted" Supported="@Snapshot.SoftwareVolumeSupported"
+                                       OnToggleMute="@(() => SendAsync(displayed, ListenPlaybackCommandActions.ToggleMute))"
+                                       OnVolumeChanged="@(value => SendAsync(displayed, ListenPlaybackCommandActions.SetVolume, value))" />
             </div>
             @if (!Snapshot.SoftwareVolumeSupported) { <p class="playback-full__status">@L["PlaybackFullPlayer_UseYourDeviceVolumeButtons"]</p> }
             @if (!string.IsNullOrWhiteSpace(_commandError)) { <p class="playback-full__status" role="status">@_commandError</p> }

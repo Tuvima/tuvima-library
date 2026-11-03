@@ -39,8 +39,15 @@ public sealed class ReaderBookmarkDto
     public int ChapterIndex { get; init; }
     public string? CfiPosition { get; init; }
     public string? Label { get; init; }
+    /// <summary>True when the bookmark is Global: everyone who can see the book sees it, and only an administrator changes it.</summary>
+    public bool IsGlobal { get; init; }
+    /// <summary>The owner's display name; set only on the administrator's Everyone's list.</summary>
+    public string? OwnerName { get; init; }
     public DateTime CreatedAt { get; init; }
 }
+
+/// <summary>Optional name for a bookmark being made Global.</summary>
+public sealed record PromoteReaderBookmarkRequestDto(string? Name);
 
 /// <summary>A text highlight stored for an EPUB asset.</summary>
 public sealed class ReaderHighlightDto

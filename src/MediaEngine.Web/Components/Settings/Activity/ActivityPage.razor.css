@@ -53,7 +53,7 @@
     justify-content: center;
     margin-inline-start: var(--tl-space-2, 8px);
     padding: 0 6px;
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     background: var(--tl-accent-primary);
     color: #fff;
     font-size: 0.75rem;

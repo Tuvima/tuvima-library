@@ -164,7 +164,7 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
             .Add(x => x.HasLibraries, true)
             .Add(x => x.DeferMedia, EventCallback.Factory.Create(this, () => _deferred++))
             .Add(x => x.ValidateMedia, EventCallback.Factory.Create(this, () => _continued++)));
-        cut.WaitForAssertion(() => Assert.True(cut.FindAll("[data-setup-areas]").Count > 0));
+        cut.WaitForAssertion(() => Assert.True(cut.FindAll("[data-setup-libraries-table]").Count > 0));
         return cut;
     }
 
@@ -175,8 +175,11 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
     // View's Add opens the one Add library pop-up on View ("What is it?" lists its three kinds); Next goes to the View folder dialog for the chosen kind.
     private void OpenViewFolderDialog(IRenderedComponent<SetupLibrariesStage> cut, string kindLabel)
     {
-        cut.Find(".setup-area[data-area=view] button[aria-label='Add a View library']").Click();
-        _dialogs.WaitForElement(".create-library");
+        cut.FindAll("button").Single(x => Text(x) == "Add library").Click();
+        _dialogs.WaitForElement(".create-library[data-step='1']");
+        _dialogs.Find("[data-area-rows]").QuerySelectorAll("button").Single(row => Text(row).StartsWith("View", StringComparison.Ordinal)).Click();
+        DialogButton("Next").Click();
+        _dialogs.WaitForElement(".create-library[data-step='2']");
         _dialogs.FindAll(".create-library__rows button").Single(row => Text(row).StartsWith(kindLabel, StringComparison.Ordinal)).Click();
         DialogButton("Next").Click();
         _dialogs.WaitForElement(".add-view-folder");
@@ -185,15 +188,14 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
     // ----- View in setup (packet 7) ----------------------------------------------------------------------------------------------
 
     [Fact]
-    public void ViewIsTheFourthAreaCardWithItsOwnAddAndNothingYetUntilAFolderIsAdded()
+    public void ViewIsTheFourthAreaInTheAddLibraryWizardAndNoLibraryShowsUntilAFolderIsAdded()
     {
         var cut = RenderStage();
 
-        Assert.Equal(["Watch", "Listen", "Read", "View"], cut.FindAll(".setup-area").Select(card => card.GetAttribute("aria-label")!).ToArray());
-        var view = cut.Find(".setup-area[data-area=view]");
-        Assert.Contains("Photos and personal videos", Text(view), StringComparison.Ordinal);
-        Assert.Equal("Nothing yet", Text(view.QuerySelector(".setup-area__empty")!));
-        Assert.Single(view.QuerySelectorAll("button[aria-label='Add a View library']"));
+        cut.FindAll("button").Single(x => Text(x) == "Add library").Click();
+        _dialogs.WaitForElement(".create-library[data-step='1']");
+        Assert.Equal(["Watch", "Listen", "Read", "View"], _dialogs.Find("[data-area-rows]").QuerySelectorAll("button strong").Select(Text).ToArray());
+        Assert.Contains("Photos, personal videos and documents", _dialogs.Find("[data-area-rows]").TextContent, StringComparison.Ordinal);
         Assert.DoesNotContain(cut.FindAll("button"), button => button.GetAttribute("aria-label")?.StartsWith("Add a folder to ", StringComparison.Ordinal) == true);
     }
 
@@ -234,8 +236,8 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
         Assert.True(created.IncludeSubdirectories);
         Assert.True(created.IncludeInTimeline);
         Assert.Equal("Pictures", created.Name);
-        cut.WaitForAssertion(() => Assert.Equal(["Pictures"], cut.FindAll(".setup-area[data-area=view] .setup-area__name").Select(Text).ToArray()));
-        Assert.Equal("E:\\Pictures", Text(cut.Find(".setup-area[data-area=view] .setup-area__path")));
+        cut.WaitForAssertion(() => Assert.Equal(["Movies", "Pictures"], cut.FindAll(".setup-libs__name strong").Select(Text).ToArray()));
+        Assert.Contains("E:\\Pictures", cut.FindAll(".setup-libs__path").Select(Text));
     }
 
     [Fact]

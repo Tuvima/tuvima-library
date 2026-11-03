@@ -76,16 +76,16 @@
                 actions = actions.Where(action => action.Key != "companion").ToList();
             }
 
+            // The "..." menu is short (Home, detail and tiles spec D8, D13, D14): Restart, one "Mark as watched" while the title is
+            // not finished, Edit and Delete. Mark unwatched, Hide from Continue (the X on a Continue tile does that now), viewing
+            // history and Add to collection (collections are made on the Collections screen) are gone from this menu.
+            actions = actions
+                .Where(action => action.Key is not (DetailActionKeys.StatusReset or DetailActionKeys.StatusHide or DetailActionKeys.StatusShow
+                    or DetailActionKeys.StatusHistory or DetailActionKeys.AddToCollection))
+                .ToList();
             if (HideStatusActions)
             {
-                actions = actions
-                    .Where(action => action.Key is not (DetailActionKeys.StatusComplete or DetailActionKeys.StatusReset))
-                    .ToList();
-            }
-
-            if (CanAddToCollection && !actions.Any(action => action.Key == DetailActionKeys.AddToCollection))
-            {
-                actions = [.. actions, DetailMenuGrouping.AddToCollectionAction];
+                actions = actions.Where(action => action.Key != DetailActionKeys.StatusComplete).ToList();
             }
 
             if (ExtraActions is { Count: > 0 })
@@ -124,7 +124,8 @@
     private Task SelectReaction(DetailAction action) => Select(action);
     private static PlaybackUtilityGlyphKind UtilityGlyphFor(DetailAction action) => action.Key switch
     {
-        "my-list" => PlaybackUtilityGlyphKind.Favorite,
+        // My List is a plus, or a tick once added; the heart is only for Favourites in Listen (Home, detail and tiles spec D6).
+        "my-list" => action.IsSelected ? PlaybackUtilityGlyphKind.Check : PlaybackUtilityGlyphKind.Add,
         "shuffle" => PlaybackUtilityGlyphKind.Shuffle,
         "favorite" or "favorite-song" => PlaybackUtilityGlyphKind.Favorite,
         _ => action.Icon switch

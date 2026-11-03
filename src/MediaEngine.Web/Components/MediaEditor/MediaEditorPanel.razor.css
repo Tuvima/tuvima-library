@@ -45,7 +45,7 @@
     justify-content: center;
     width: var(--tl-space-5);
     height: var(--tl-space-5);
-    border-radius: var(--tl-radius-pill);
+    border-radius: var(--tl-radius-round, 999px);
     color: var(--tl-text-muted);
     background: var(--tl-bg-surface-hover);
 }

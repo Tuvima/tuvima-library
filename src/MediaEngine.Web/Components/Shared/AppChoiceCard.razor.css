@@ -39,7 +39,7 @@
     right: 14px;
     padding: 2px 8px;
     border: 1px solid var(--tl-divider);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     color: var(--tl-text-muted);
     font-size: .75rem;
     font-style: normal;

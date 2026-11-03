@@ -234,6 +234,50 @@ public sealed partial class EngineApiClient
         }
     }
 
+    public Task<AudiobookBookmarkOperationResult<IReadOnlyList<AudiobookBookmarkDto>>> GetEveryonesBookmarksWithOutcomeAsync(
+        Guid workId, Guid profileId, CancellationToken ct = default) =>
+        SendBookmarkAsync<IReadOnlyList<AudiobookBookmarkDto>>(
+            $"/api/v1/player/audiobooks/{workId:D}/bookmarks/everyones", profileId, "load",
+            (path, token) => _http.GetAsync(path, token), ct);
+
+    public Task<AudiobookBookmarkOperationResult<AudiobookBookmarkDto>> PromoteAudiobookBookmarkWithOutcomeAsync(
+        Guid bookmarkId, string? name, Guid profileId, CancellationToken ct = default) =>
+        SendBookmarkAsync<AudiobookBookmarkDto>(
+            $"/api/v1/player/audiobooks/bookmarks/{bookmarkId:D}/promote", profileId, "save",
+            (path, token) => _http.PostAsJsonAsync(path, new PromoteAudiobookBookmarkRequestDto { Name = name }, token), ct);
+
+    public Task<AudiobookBookmarkOperationResult<AudiobookBookmarkDto>> UpdateGlobalAudiobookBookmarkWithOutcomeAsync(
+        Guid bookmarkId, UpdateAudiobookBookmarkRequestDto request, Guid profileId, CancellationToken ct = default) =>
+        SendBookmarkAsync<AudiobookBookmarkDto>(
+            $"/api/v1/player/audiobooks/bookmarks/{bookmarkId:D}", profileId, "save",
+            (path, token) => _http.PutAsJsonAsync(path, request, token), ct);
+
+    /// <summary>One bookmark call that returns a typed outcome: success with the body, a clear rejection, or "could not confirm".</summary>
+    private async Task<AudiobookBookmarkOperationResult<T>> SendBookmarkAsync<T>(
+        string endpoint, Guid profileId, string operation,
+        Func<string, CancellationToken, Task<HttpResponseMessage>> send, CancellationToken ct)
+    {
+        var path = BuildEndpointPath(endpoint, new Dictionary<string, string?> { ["profileId"] = profileId.ToString("D") });
+        try
+        {
+            using var response = await send(path, ct).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                return BookmarkFailure<T>(response.StatusCode, operation);
+            }
+
+            var value = await response.Content.ReadFromJsonAsync<T>(cancellationToken: ct).ConfigureAwait(false);
+            return value is null
+                ? AudiobookBookmarkOperationResult<T>.Unknown("The response was empty; the change may have been applied.")
+                : AudiobookBookmarkOperationResult<T>.Succeeded(value);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "A bookmark call had no reliable response");
+            return AudiobookBookmarkOperationResult<T>.Unknown("The outcome could not be confirmed. Reload the bookmarks to check.");
+        }
+    }
+
     private static AudiobookBookmarkOperationResult<T> BookmarkFailure<T>(HttpStatusCode statusCode, string operation)
     {
         var verb = operation switch { "load" => "loaded", "save" => "saved", _ => "deleted" };
@@ -244,57 +288,61 @@ public sealed partial class EngineApiClient
             : AudiobookBookmarkOperationResult<T>.Unknown($"The bookmark {operation} outcome could not be confirmed (HTTP {(int)statusCode}). Reload Saved to check.", statusCode);
     }
 
-    public Task<IReadOnlyList<BookmarkPackDto>> GetBookmarkPacksAsync(Guid workId, Guid profileId, CancellationToken ct = default) =>
-        GetAsync<IReadOnlyList<BookmarkPackDto>>(
-            "GET /player/audiobooks/{workId}/bookmark-packs",
-            $"/api/v1/player/audiobooks/{workId:D}/bookmark-packs",
-            () => [],
-            new Dictionary<string, string?> { ["profileId"] = profileId.ToString("D") },
-            ct: ct);
-
-    public Task<BookmarkPackFileDto?> ExportBookmarkPackAsync(
-        Guid workId, Guid profileId, BookmarkPackExportRequestDto request, CancellationToken ct = default) =>
-        PostAsync<BookmarkPackExportRequestDto, BookmarkPackFileDto>(
-            "POST /player/audiobooks/{workId}/bookmark-packs/export",
-            BuildEndpointPath($"/api/v1/player/audiobooks/{workId:D}/bookmark-packs/export",
+    public Task<BookmarkSetCompareDto?> CompareBookmarkSetAsync(
+        Guid workId, Guid profileId, BookmarkSetRequestDto request, CancellationToken ct = default) =>
+        PostAsync<BookmarkSetRequestDto, BookmarkSetCompareDto>(
+            "POST /player/audiobooks/{workId}/bookmark-sets/compare",
+            BuildEndpointPath($"/api/v1/player/audiobooks/{workId:D}/bookmark-sets/compare",
                 new Dictionary<string, string?> { ["profileId"] = profileId.ToString("D") }),
             request,
             logAsWarning: false,
             ct: ct);
 
-    public Task<BookmarkPackPreviewDto?> InspectBookmarkPackAsync(
-        Guid workId, Guid profileId, BookmarkPackImportRequestDto request, CancellationToken ct = default) =>
-        PostAsync<BookmarkPackImportRequestDto, BookmarkPackPreviewDto>(
-            "POST /player/audiobooks/{workId}/bookmark-packs/inspect",
-            BuildEndpointPath($"/api/v1/player/audiobooks/{workId:D}/bookmark-packs/inspect",
+    public Task<BookmarkSetApplyResultDto?> ApplyBookmarkSetAsync(
+        Guid workId, Guid profileId, BookmarkSetApplyRequestDto request, CancellationToken ct = default) =>
+        PostAsync<BookmarkSetApplyRequestDto, BookmarkSetApplyResultDto>(
+            "POST /player/audiobooks/{workId}/bookmark-sets/apply",
+            BuildEndpointPath($"/api/v1/player/audiobooks/{workId:D}/bookmark-sets/apply",
                 new Dictionary<string, string?> { ["profileId"] = profileId.ToString("D") }),
             request,
             logAsWarning: false,
             ct: ct);
 
-    public Task<BookmarkPackDto?> ImportBookmarkPackAsync(
-        Guid workId, Guid profileId, BookmarkPackImportRequestDto request, CancellationToken ct = default) =>
-        PostAsync<BookmarkPackImportRequestDto, BookmarkPackDto>(
-            "POST /player/audiobooks/{workId}/bookmark-packs/import",
-            BuildEndpointPath($"/api/v1/player/audiobooks/{workId:D}/bookmark-packs/import",
+    public Task<BookmarkPackFileDto?> ExportGlobalBookmarksAsync(
+        Guid workId, Guid profileId, ExportGlobalBookmarksRequestDto request, CancellationToken ct = default) =>
+        PostAsync<ExportGlobalBookmarksRequestDto, BookmarkPackFileDto>(
+            "POST /player/audiobooks/{workId}/bookmarks/global/export",
+            BuildEndpointPath($"/api/v1/player/audiobooks/{workId:D}/bookmarks/global/export",
                 new Dictionary<string, string?> { ["profileId"] = profileId.ToString("D") }),
             request,
             logAsWarning: false,
             ct: ct);
 
-    public Task<bool> SetBookmarkPackEnabledAsync(Guid packId, Guid profileId, bool isEnabled, CancellationToken ct = default) =>
-        PutAsync(
-            "PUT /player/bookmark-packs/{packId}/enabled",
-            BuildEndpointPath($"/api/v1/player/bookmark-packs/{packId:D}/enabled",
-                new Dictionary<string, string?> { ["profileId"] = profileId.ToString("D") }),
-            new SetBookmarkPackEnabledRequestDto { ProfileId = profileId, IsEnabled = isEnabled },
+    public Task<BookmarkSetCompareDto?> CompareReaderBookmarkSetAsync(
+        Guid assetId, BookmarkSetRequestDto request, CancellationToken ct = default) =>
+        PostAsync<BookmarkSetRequestDto, BookmarkSetCompareDto>(
+            "POST /reader/{assetId}/bookmark-sets/compare",
+            $"reader/{assetId:D}/bookmark-sets/compare",
+            request,
+            logAsWarning: false,
             ct: ct);
 
-    public Task<bool> DeleteBookmarkPackAsync(Guid packId, Guid profileId, CancellationToken ct = default) =>
-        DeleteAsync(
-            "DELETE /player/bookmark-packs/{packId}",
-            BuildEndpointPath($"/api/v1/player/bookmark-packs/{packId:D}",
-                new Dictionary<string, string?> { ["profileId"] = profileId.ToString("D") }),
+    public Task<BookmarkSetApplyResultDto?> ApplyReaderBookmarkSetAsync(
+        Guid assetId, BookmarkSetApplyRequestDto request, CancellationToken ct = default) =>
+        PostAsync<BookmarkSetApplyRequestDto, BookmarkSetApplyResultDto>(
+            "POST /reader/{assetId}/bookmark-sets/apply",
+            $"reader/{assetId:D}/bookmark-sets/apply",
+            request,
+            logAsWarning: false,
+            ct: ct);
+
+    public Task<BookmarkPackFileDto?> ExportGlobalReaderBookmarksAsync(
+        Guid assetId, ExportGlobalBookmarksRequestDto request, CancellationToken ct = default) =>
+        PostAsync<ExportGlobalBookmarksRequestDto, BookmarkPackFileDto>(
+            "POST /reader/{assetId}/bookmarks/global/export",
+            $"reader/{assetId:D}/bookmarks/global/export",
+            request,
+            logAsWarning: false,
             ct: ct);
 
     // Migrated to the shared GetAsync<T> fallback-overload helper (stage 5B wave 2).
@@ -851,6 +899,24 @@ public sealed partial class EngineApiClient
     {
         try { return await _http.GetFromJsonAsync<List<ReaderBookmarkDto>>($"reader/{assetId}/bookmarks", ct) ?? []; }
         catch (Exception ex) { LastError = ex.Message; return []; }
+    }
+
+    public async Task<List<ReaderBookmarkDto>> GetEveryonesReaderBookmarksAsync(Guid assetId, CancellationToken ct = default)
+    {
+        try { return await _http.GetFromJsonAsync<List<ReaderBookmarkDto>>($"reader/{assetId}/bookmarks/everyones", ct) ?? []; }
+        catch (Exception ex) { LastError = ex.Message; return []; }
+    }
+
+    public async Task<ReaderBookmarkDto?> PromoteReaderBookmarkAsync(Guid bookmarkId, string? name, CancellationToken ct = default)
+    {
+        try
+        {
+            var resp = await _http.PostAsync($"reader/bookmarks/{bookmarkId}/promote", System.Net.Http.Json.JsonContent.Create(new PromoteReaderBookmarkRequestDto(name)), ct);
+            return resp.IsSuccessStatusCode
+                ? await resp.Content.ReadFromJsonAsync<ReaderBookmarkDto>(cancellationToken: ct)
+                : null;
+        }
+        catch (Exception ex) { LastError = ex.Message; return null; }
     }
 
     public async Task<ReaderBookmarkDto?> CreateBookmarkAsync(Guid assetId, int chapterIndex, string? cfiPosition, string? label, CancellationToken ct = default)
