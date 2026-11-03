@@ -3316,6 +3316,7 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionChange
   TargetId: System.String | nullability=nullable | accessors=get,init
   Slot: System.String | nullability=nullable | accessors=get,init
   Token: System.String | nullability=nullable | accessors=get,init
+  OrderedIds: System.Collections.Generic.List<System.Guid> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionChangeKinds
 
@@ -3352,6 +3353,8 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionResult
   Changes: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditSessionChangeResult> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionSiblingMatchTarget
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionVideo
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorFollowUpDto
   EntityId: System.Guid | nullability=not-null | accessors=get,set

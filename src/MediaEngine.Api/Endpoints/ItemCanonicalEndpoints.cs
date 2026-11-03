@@ -4,6 +4,7 @@ using MediaEngine.Api.Security;
 using MediaEngine.Api.Services;
 using MediaEngine.Api.Services.Canonical;
 using MediaEngine.Api.Services.Collections;
+using MediaEngine.Api.Services.EditSession;
 using MediaEngine.Api.Services.Matching;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Application.ReadModels;
@@ -340,9 +341,7 @@ public static partial class ItemCanonicalEndpoints
             Guid entityId,
             VideoOrderRequest request,
             IVideoOrderRepository order,
-            IMetadataClaimRepository claimRepo,
-            ICanonicalValueRepository canonicalRepo,
-            ISystemActivityRepository activityRepo,
+            VideoOrderWriter writer,
             IItemCanonicalRepository itemCanonicalData,
             CancellationToken ct) =>
         {
@@ -353,52 +352,11 @@ public static partial class ItemCanonicalEndpoints
                 return ApiErrors.NotFound("These videos are not part of that series.");
             }
 
-            var placements = await order.ReorderAsync(request.ParentId, request.OrderedIds, ct);
-            if (placements is null)
+            if (await writer.SaveAsync(request.ParentId, request.OrderedIds, ct) is null)
             {
                 return ApiErrors.Conflict("The list of videos changed. Reload the page and try again.");
             }
 
-            var now = DateTimeOffset.UtcNow;
-            var claims = new List<MetadataClaim>();
-            var canonicals = new List<CanonicalValue>();
-            foreach (var placement in placements)
-            {
-                foreach (var key in new[] { MetadataFieldConstants.EpisodeNumber, MetadataFieldConstants.VideoEpisodeIndex })
-                {
-                    var value = placement.Position.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                    claims.Add(new MetadataClaim
-                    {
-                        Id = Guid.NewGuid(),
-                        EntityId = placement.AssetId,
-                        ProviderId = WellKnownProviders.UserManual,
-                        ClaimKey = key,
-                        ClaimValue = value,
-                        ClaimedAt = now,
-                        Confidence = 1.0,
-                        IsUserLocked = true,
-                    });
-                    canonicals.Add(new CanonicalValue
-                    {
-                        EntityId = placement.AssetId,
-                        Key = key,
-                        Value = value,
-                        LastScoredAt = now,
-                        WinningProviderId = WellKnownProviders.UserManual,
-                    });
-                }
-            }
-
-            await claimRepo.InsertBatchAsync(claims, ct);
-            await canonicalRepo.UpsertBatchAsync(canonicals, ct);
-            await activityRepo.LogAsync(new SystemActivityEntry
-            {
-                OccurredAt = now,
-                ActionType = SystemActionType.MetadataManualOverride,
-                EntityId = request.ParentId,
-                EntityType = "Work",
-                Detail = $"Put {placements.Count} videos in a new order.",
-            }, ct);
             return Results.NoContent();
         })
         .WithName("SaveVideoOrder")

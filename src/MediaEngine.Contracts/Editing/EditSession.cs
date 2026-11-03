@@ -43,12 +43,34 @@ public static class EditSessionChangeKinds
     /// </summary>
     public const string ChildRematch = "child_rematch";
 
-    public static readonly IReadOnlyList<string> All = [Details, Identity, Relationship, Artwork, FileMove, ExtraMove, SiblingMatch, ChildRematch];
+    /// <summary>
+    /// A video joins a series or one of its sections, starts a new series, or stands alone again (universal editor v3.1, WP1). Library's own
+    /// data only: no file moves. <see cref="EditSessionChange.EntityId"/> is the video; see <see cref="EditSessionVideo"/> for the target.
+    /// </summary>
+    public const string VideoSeries = "video_series";
+
+    /// <summary>
+    /// The videos of a series (or of one section) in the order the person chose (universal editor v3.1, WP1). <see cref="EditSessionChange.EntityId"/>
+    /// is the series or section; <see cref="EditSessionChange.OrderedIds"/> lists its videos, first to last. Library's own data only: no file moves.
+    /// </summary>
+    public const string VideoOrder = "video_order";
+
+    /// <summary>
+    /// "Rename the files to match this order" (universal editor v3.1, WP1): each video file of the series or section gets its position in its
+    /// name. Physical, so it runs last, one change at a time, cannot be undone, and only ever touches Managed folders.
+    /// <see cref="EditSessionChange.EntityId"/> is the series or section.
+    /// </summary>
+    public const string VideoRename = "video_rename";
+
+    public static readonly IReadOnlyList<string> All = [Details, Identity, Relationship, Artwork, FileMove, ExtraMove, SiblingMatch, ChildRematch, VideoSeries, VideoOrder, VideoRename];
 
     public static bool IsKnown(string? kind) => kind is not null && All.Contains(kind, StringComparer.Ordinal);
 
-    /// <summary>True for the kinds saved together as one unit (everything except file moves).</summary>
-    public static bool IsDataChange(string? kind) => IsKnown(kind) && kind != FileMove;
+    /// <summary>True for the kinds that change files on disk: they run last, one at a time, and cannot be undone.</summary>
+    public static bool IsFileChange(string? kind) => kind is FileMove or VideoRename;
+
+    /// <summary>True for the kinds saved together as one unit (everything except file changes).</summary>
+    public static bool IsDataChange(string? kind) => IsKnown(kind) && !IsFileChange(kind);
 }
 
 /// <summary>How one pending change came out of a check or a save.</summary>
@@ -100,6 +122,10 @@ public sealed class EditSessionChange
     /// <summary>Confirmation token from a move preview (file moves).</summary>
     [JsonPropertyName("token")]
     public string? Token { get; init; }
+
+    /// <summary>The videos of a series or section, first to last (<see cref="EditSessionChangeKinds.VideoOrder"/> changes).</summary>
+    [JsonPropertyName("ordered_ids")]
+    public List<Guid> OrderedIds { get; init; } = [];
 }
 
 /// <summary>One staged value for a details field. An empty value reverts the field to the provider's value.</summary>

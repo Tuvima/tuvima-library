@@ -24,5 +24,15 @@ public static class EditSessionReasons
     public const string BadPosition = "The track number is not valid. Use a whole number from 1 to 9999.";
     public const string NotInThatAlbum = "This song is no longer in that album.";
 
+    public const string NotAVideo = "That is not a video.";
+    public const string SeriesGone = "That series is no longer available. Pick it again.";
+    public const string SeriesNeedsName = "Give the new series a name.";
+    public const string SeriesNameTooLong = "The series name is too long.";
+    public const string AlreadyAlone = "This video is not in a series.";
+    public const string OrderChanged = "The videos of this series changed. Open the editor again to reorder them.";
+    public const string NothingToOrder = "A series needs at least two videos to be put in order.";
+    public const string RenameNotAllowed = "Library can only rename files in a Managed folder. Some of these videos are in a folder it only reads, or a file is missing.";
+    public const string SeriesClash = "The series changed at the same moment. Open the editor again and retry.";
+
     public static string DuplicateField(string key) => $"'{key}' is changed twice for the same item.";
 }
