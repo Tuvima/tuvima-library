@@ -5,7 +5,7 @@
     min-height: 34px;
     padding: 6px 14px;
     border: 1px solid var(--tl-divider);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     background: var(--tl-bg-surface-raised);
     color: var(--tl-text-secondary);
     font: inherit;

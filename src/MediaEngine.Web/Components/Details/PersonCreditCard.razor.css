@@ -10,9 +10,11 @@
 }
 
 :where(.tl-detail-page) .tl-credit-card__image {
-    width: 100%;
+    /* One small square size for people pictures everywhere except the person page (Home, detail and tiles spec D11, D15). */
+    width: 88px;
+    margin-inline: auto;
     aspect-ratio: 1 / 1;
-    border-radius: 50%;
+    border-radius: var(--tl-radius-md);
     overflow: hidden;
     border: 0;
     background: rgba(0,0,0,0.2);

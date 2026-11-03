@@ -8319,6 +8319,12 @@
   <data name="CinematicHeroCarousel_RestartFromBeginning" xml:space="preserve">
     <value>Restart from beginning</value>
   </data>
+  <data name="ContinueTile_Remove" xml:space="preserve">
+    <value>Remove {0} from Continue</value>
+  </data>
+  <data name="ContinueTile_RemoveShort" xml:space="preserve">
+    <value>Remove from Continue</value>
+  </data>
   <data name="CinematicHeroCarousel_GoToDetails" xml:space="preserve">
     <value>Go to details</value>
   </data>

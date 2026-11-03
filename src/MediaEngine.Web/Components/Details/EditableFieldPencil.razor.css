@@ -19,7 +19,7 @@
     justify-content: center;
     width: 2rem;
     height: 2rem;
-    border-radius: var(--tl-radius-pill);
+    border-radius: var(--tl-radius-round, 999px);
     color: var(--tl-text-muted);
     vertical-align: middle;
 }

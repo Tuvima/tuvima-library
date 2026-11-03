@@ -1,6 +1,6 @@
 .cinematic-hero-carousel {
     --cinematic-hero-rotation-duration: 8s;
-    --cinematic-hero-height: clamp(34rem,80svh,calc(100svh - var(--app-topbar-height,65px)));
+    --cinematic-hero-height: clamp(22rem,55svh,calc(100svh - var(--app-topbar-height,65px)));
     --cinematic-hero-min-height: var(--cinematic-hero-height);
     position: relative;
     min-height: var(--cinematic-hero-min-height);
@@ -69,7 +69,7 @@
     max-width: calc(100% - 6rem);
     padding: 0.48rem 0.72rem;
     border: 1px solid rgba(255, 255, 255, 0.13);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     background: rgba(5, 7, 12, 0.46);
     color: rgba(248, 250, 252, 0.82);
     font-size: var(--tl-font-size-xs);
@@ -285,7 +285,7 @@
 
 @media (min-width: 721px) and (max-height: 760px) {
     .cinematic-hero-carousel {
-        --cinematic-hero-height:72svh;
+        --cinematic-hero-height:55svh;
     }
 }
 

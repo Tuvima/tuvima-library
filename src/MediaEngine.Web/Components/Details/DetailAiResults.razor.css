@@ -30,7 +30,7 @@
 .tl-ai-results__value {
     padding: 0.2rem 0.65rem;
     border: 1px solid var(--tl-border-subtle, currentColor);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
 }
 
 .tl-ai-results__note {

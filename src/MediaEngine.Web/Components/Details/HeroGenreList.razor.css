@@ -16,7 +16,7 @@
     min-height: 2.15rem;
     padding: 0.35rem 0.9rem;
     border: 1px solid color-mix(in srgb, var(--tl-detail-primary, #8852FC) 48%, rgba(255, 255, 255, 0.2));
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     background: rgba(6, 9, 17, 0.42);
     color: rgba(218, 202, 255, 0.96);
     font-size: 0.9rem;

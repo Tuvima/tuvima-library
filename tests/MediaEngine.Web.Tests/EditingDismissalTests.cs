@@ -460,14 +460,15 @@ public sealed class EditingDismissalTests : AsyncBunitContext
         }
 
         Assert.Contains("Mark as watched", PageMenu());
-        Assert.Contains("Mark as unwatched", PageMenu());
+        // Mark unwatched and viewing history left the menu (Home, detail and tiles spec D8, D14).
+        Assert.DoesNotContain("Mark as unwatched", PageMenu());
 
         ChooseEditFromOpenMenuAgain(cut);
         var whileEditing = PageMenu();
 
         Assert.DoesNotContain("Mark as watched", whileEditing);
         Assert.DoesNotContain("Mark as unwatched", whileEditing);
-        Assert.Contains("Viewing history", whileEditing);
+        Assert.DoesNotContain("Viewing history", whileEditing);
         Assert.DoesNotContain("Mark as watched", cut.Find(".tl-editing-bar").TextContent, StringComparison.OrdinalIgnoreCase);
 
         cut.Find("button.tl-editing-bar__cancel").Click();

@@ -99,7 +99,7 @@
     color: var(--ingestion-card-accent);
     font-size: .78rem;
     background: color-mix(in srgb, var(--ingestion-card-accent) 14%, transparent);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
 }
 
 .ingestion-media-list-row__status > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }

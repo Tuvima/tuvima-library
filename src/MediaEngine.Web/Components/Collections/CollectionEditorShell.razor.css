@@ -477,7 +477,7 @@
 .collection-editor-item-title { overflow: hidden; color: rgba(248, 250, 252, 0.94); font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .collection-editor-item-meta { overflow: hidden; font-size: 0.8rem; text-overflow: ellipsis; white-space: nowrap; }
 .collection-editor-preview-header { margin-bottom: 4px; color: rgba(248, 250, 252, 0.78); font-size: 0.88rem; font-weight: 700; }
-.collection-editor-preview-type { padding: 4px 10px; border: 1px solid rgba(148, 163, 184, 0.18); border-radius: 999px; color: rgba(226, 232, 240, 0.8); font-size: var(--tl-font-size-xs); font-weight: 700; white-space: nowrap; }
+.collection-editor-preview-type { padding: 4px 10px; border: 1px solid rgba(148, 163, 184, 0.18); border-radius: var(--tl-radius-pill); color: rgba(226, 232, 240, 0.8); font-size: var(--tl-font-size-xs); font-weight: 700; white-space: nowrap; }
 .collection-editor-note { font-size: 0.84rem; line-height: 1.5; }
 .collection-editor-note--tight { margin-top: -4px; }
 
@@ -557,7 +557,7 @@
 .collection-flow__preview-sub,
 .collection-flow__preview-note { margin: 0; color: var(--tl-text-secondary); font-size: .85rem; }
 .collection-flow__pills { display: flex; flex-wrap: wrap; gap: 6px; }
-.collection-flow__pill { padding: 3px 9px; border: 1px solid var(--pill, var(--tl-divider)); border-radius: 999px; color: var(--pill, var(--tl-text-secondary)); font-size: .75rem; }
+.collection-flow__pill { padding: 3px 9px; border: 1px solid var(--pill, var(--tl-divider)); border-radius: var(--tl-radius-pill); color: var(--pill, var(--tl-text-secondary)); font-size: .75rem; }
 .collection-flow__pill[data-media="Movies"] { --pill: var(--tl-media-movies); }
 .collection-flow__pill[data-media="TV"] { --pill: var(--tl-media-tv); }
 .collection-flow__pill[data-media="Books"] { --pill: var(--tl-media-books); }

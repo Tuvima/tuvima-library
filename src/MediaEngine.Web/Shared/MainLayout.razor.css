@@ -442,10 +442,12 @@
     padding: 0;
     border: 0;
     border-radius: 999px;
-    color: var(--app-text-primary, #f5f7fb);
+    color: var(--layout-my-list-color, var(--app-text-primary, #f5f7fb));
     background: transparent;
     cursor: pointer;
 }
+
+.layout-shell__my-list-slot.is-open { --layout-my-list-color: #f5c518; }
 
 .layout-shell__search-action-slot ::deep .layout-shell__search-action:hover,
 .layout-shell__search-action-slot ::deep .layout-shell__search-action:focus-visible,
