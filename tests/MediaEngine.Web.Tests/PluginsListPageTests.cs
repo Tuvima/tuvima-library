@@ -425,7 +425,7 @@ public sealed class PluginsListPageTests : AsyncBunitContext
         Assert.NotNull(card.QuerySelector(".app-list-card__footer .app-status-dot--tick"));
         Assert.NotNull(card.QuerySelector(".app-list-card__footer [data-testid=plugin-gear]"));
         Assert.Empty(card.QuerySelectorAll(".app-list-card__footer button"));
-        Assert.Contains("Details", card.QuerySelector("[data-testid=plugin-provides]")!.TextContent);
+        Assert.NotNull(card.QuerySelector("[data-testid=plugin-provides] [data-kind=details]"));
         Assert.Equal("Finds things and then some, in a much longer paragraph.", card.QuerySelector(".app-list-card__description")!.GetAttribute("title"));
     }
 

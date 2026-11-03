@@ -1,26 +1,76 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Contracts.Plugins
 
-@* The standard "what it provides" line (Plugins and Integrations screens v4 D34): the same icons and words on every tile, row and
-   page, built from the fixed list the Engine returns, never from field names. A plugin that runs on Local AI says so at the end. *@
+@* The standard "what it provides" display (Plugins and Integrations screens v4 D34, v5 D53): each of the eleven kinds has the same icon and
+   accent colour everywhere, built from the fixed list the Engine returns, never from field names. Mode picks the form: Card (the page: coloured
+   icon, name, the Engine's one sentence, media-type chips), Icons (tiles: coloured icons only) or Named (list view: icons with names). A plugin
+   that runs on Local AI says so at the end. *@
 @if (Plugin.Provides.Count > 0 || Plugin.RequiresLocalAi)
 {
-    <span class="plugin-provides" data-testid="plugin-provides">
-        @foreach (var word in Plugin.Provides)
-        {
-            <span class="plugin-provides__item"><AppMaterialIcon Icon="@IconFor(word)" Size="AppSize.Small" />@word</span>
-        }
-        @if (Plugin.RequiresLocalAi)
-        {
-            <span class="plugin-provides__ai">@L["PluginProvides_RunsOnLocalAi"]</span>
-        }
-    </span>
+    @if (Mode == PluginProvidesMode.Card)
+    {
+        <div class="plugin-provides-cards" data-testid="plugin-provides">
+            @foreach (var word in Plugin.Provides)
+            {
+                <div class="plugin-provides-kind plugin-provides-kind--@KindKey(word)" data-kind="@KindKey(word)" data-testid="plugin-provides-card-item">
+                    <span class="plugin-provides-kind__icon"><AppMaterialIcon Icon="@IconFor(word)" /></span>
+                    <span class="plugin-provides-kind__body">
+                        <strong class="plugin-provides-kind__name">@word</strong>
+                        <span class="plugin-provides-kind__sentence">@SentenceFor(word)</span>
+                        <span class="plugin-provides-kind__chips">
+                            @if (Plugin.MediaTypes.Count == 0)
+                            {
+                                <AppStatusBadge Text="@L["PluginProvides_EveryType"]" Tone="AppUiTone.Neutral" />
+                            }
+                            else
+                            {
+                                @foreach (var media in Plugin.MediaTypes)
+                                {
+                                    <AppMediaPill Media="@media" />
+                                }
+                            }
+                        </span>
+                    </span>
+                </div>
+            }
+            @if (Plugin.RequiresLocalAi)
+            {
+                <span class="plugin-provides__ai">@L["PluginProvides_RunsOnLocalAi"]</span>
+            }
+        </div>
+    }
+    else
+    {
+        <span class="plugin-provides" data-testid="plugin-provides">
+            @foreach (var word in Plugin.Provides)
+            {
+                <span class="plugin-provides__item plugin-provides-kind--@KindKey(word)" data-kind="@KindKey(word)" title="@word">
+                    <AppMaterialIcon Icon="@IconFor(word)" Size="AppSize.Small" />@if (Mode == PluginProvidesMode.Named) { @word }
+                </span>
+            }
+            @if (Plugin.RequiresLocalAi)
+            {
+                <span class="plugin-provides__ai">@L["PluginProvides_RunsOnLocalAi"]</span>
+            }
+        </span>
+    }
 }
 
 @code {
     [Inject] private IStringLocalizer<SharedStrings> L { get; set; } = default!;
 
     [Parameter, EditorRequired] public PluginSummaryResponse Plugin { get; set; } = default!;
+
+    /// <summary>Which form to draw; the list view's icons with names is the default.</summary>
+    [Parameter] public PluginProvidesMode Mode { get; set; } = PluginProvidesMode.Named;
+
+    private string SentenceFor(string word) =>
+        Plugin.ProvidesCards.FirstOrDefault(card => string.Equals(card.Kind, word, StringComparison.OrdinalIgnoreCase))?.Sentence ?? "";
+
+    internal static string KindKey(string word) => word.Trim().ToLowerInvariant().Replace(" & ", "-and-").Replace(' ', '-');
+
+    /// <summary>The colour token for a kind (defined in tuvima.tokens.css); an unknown word stays neutral.</summary>
+    internal static string AccentToken(string word) => PluginProvides.All.Contains(word) ? $"--tl-provides-{KindKey(word)}" : "--tl-text-secondary";
 
     internal static string IconFor(string word) => word switch
     {

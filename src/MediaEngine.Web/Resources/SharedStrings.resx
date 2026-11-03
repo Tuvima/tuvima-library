@@ -9606,6 +9606,9 @@
   <data name="PluginProvides_RunsOnLocalAi" xml:space="preserve">
     <value>runs on Local AI</value>
   </data>
+  <data name="PluginProvides_EveryType" xml:space="preserve">
+    <value>Every type</value>
+  </data>
   <data name="ProviderAccess_Title" xml:space="preserve">
     <value>Access</value>
   </data>
