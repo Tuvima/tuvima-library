@@ -13,6 +13,7 @@ internal static class NativeUiTestServices
         services.TryAddScoped<AppPopoverService>();
         // The universal editor is one service per circuit; pages bind to it and the layout draws it (render EditorPopover to see it).
         services.TryAddScoped<MediaEngine.Web.Services.Editing.EditorHost>();
+        services.TryAddScoped<MediaEngine.Web.Services.Editing.ListEditLauncher>();
         services.TryAddScoped<AppDialogService>();
         services.TryAddScoped<IAppDialogService>(provider => provider.GetRequiredService<AppDialogService>());
         services.TryAddScoped<AppToastService>();

@@ -44,6 +44,17 @@ public sealed class LibraryUnidentifiedTabTests : AsyncBunitContext
         Services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         Services.AddSingleton(EngineApiClientStub.Create(stub =>
         {
+            // The Engine's own per-item answer for Identify: this file's item may be edited, and its fields can be read.
+            stub.SetHandler(nameof(IEngineApiClient.GetDetailPageAsync), _ => Task.FromResult<MediaEngine.Contracts.Details.DetailPageViewModel?>(new()
+            {
+                Id = EditingModeTestData.MovieId.ToString("D"),
+                EntityType = MediaEngine.Contracts.Details.DetailEntityType.TvEpisode,
+                Title = "Episode 12",
+                OverflowActions = [new() { Key = "edit", Label = "Edit this episode", Icon = "edit" }],
+            }));
+            stub.SetHandler(nameof(IEngineApiClient.GetMediaEditorContextAsync), _ =>
+                Task.FromResult<MediaEngine.Contracts.Metadata.MediaEditorContextDto?>(EditingModeTestData.MovieContext()));
+            stub.SetHandler(nameof(IEngineApiClient.GetItemEditorSuggestionsAsync), _ => Task.FromResult<IReadOnlyList<string>>([]));
             stub.SetHandler(nameof(IEngineApiClient.GetUnmatchedItemsAsync), _ => Task.FromResult<UnmatchedPageDto?>(new()
             {
                 Total = 2,
@@ -105,5 +116,25 @@ public sealed class LibraryUnidentifiedTabTests : AsyncBunitContext
         cut.WaitForElement("[data-asset]");
 
         Assert.DoesNotContain(cut.FindAll("button"), button => Text(button) == "Change what this folder is");
+    }
+
+    [Fact]
+    public async Task Identify_OpensThePopOverOverTheTabOnMatch_WithoutNavigatingAway()
+    {
+        await Services.GetRequiredService<DeviceContextService>().InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
+        var navigation = Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>();
+        var before = navigation.Uri;
+        var popover = Render<MediaEngine.Web.Components.Details.EditorPopover>();
+        var cut = Render<LibraryUnidentifiedTab>(parameters => parameters.Add(x => x.Library, Tv));
+        cut.WaitForElement("[data-asset]");
+
+        cut.FindAll("[data-asset]")[0].QuerySelectorAll("button").Single(button => Text(button) == "Identify").Click();
+
+        var host = Services.GetRequiredService<MediaEngine.Web.Services.Editing.EditorHost>();
+        popover.WaitForAssertion(() => Assert.Single(popover.FindAll(".tl-editor-panel[data-tool='match']")));
+        Assert.True(host.IsOpen);
+        Assert.Equal(MediaEngine.Web.Services.Editing.EditTool.Match, host.Session.ActiveTool);
+        Assert.Equal(before, navigation.Uri);
+        Assert.Equal(2, cut.FindAll("[data-asset]").Count);
     }
 }

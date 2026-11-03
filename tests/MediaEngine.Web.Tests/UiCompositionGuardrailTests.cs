@@ -353,11 +353,11 @@ public sealed class UiCompositionGuardrailTests
         var detailPage = LocalizedSource.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Details", "DetailPage.razor"));
         var reviewTab = LocalizedSource.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Settings", "NeedsReviewPageContent.razor"));
 
-        // A single item, person or series edits in place and Needs Review opens its page; there is no pop-up editor left.
+        // A single item, person or series edits in the one pop-over (EditorHost) and Needs Review Fix opens it over the list on Match.
         Assert.DoesNotContain("MediaEditorLauncher.OpenAsync", detailPage);
         Assert.DoesNotContain("MediaEditorLauncher.BeginInline", detailPage);
         Assert.DoesNotContain("MediaEditorLauncher", reviewTab);
-        Assert.Contains("EditingSection.Match", reviewTab);
+        Assert.Contains("EditTool.Match", reviewTab);
     }
 
     [Fact]

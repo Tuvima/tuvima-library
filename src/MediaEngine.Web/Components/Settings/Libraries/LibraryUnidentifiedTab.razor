@@ -1,4 +1,5 @@
 @namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Web.Services.Editing
 @using MediaEngine.Contracts.Library
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Web.Components.Shared
@@ -6,6 +7,9 @@
 @inject IEngineApiClient Api
 @inject NavigationManager Navigation
 @inject DeviceContextService DeviceContext
+@inject ListEditLauncher EditLauncher
+@inject EditorHost Editor
+@implements IDisposable
 @inject LibraryFolderAddService AddService
 @inject IAppDialogService Dialogs
 @inject IAppToastService Toasts
@@ -13,7 +17,7 @@
 @inject IStringLocalizer<SharedStrings> L
 
 @* A library's Unidentified files tab (Libraries redesign D3, D6): the files the Engine could not identify, each with the reason in plain words and when it
-   was last tried. Identify opens the file's own page, where Edit > Match sorts it out in the universal editor (no editor lives in Settings); Try again looks it
+   was last tried. Identify opens the pop-over editor over this tab on Match (no editor lives in Settings); Try again looks it
    up now; Keep as it is stops further tries; Remove from library takes the file out through the same Delete from library dialog as any title (with the Recycle bin on for the
    library's type, the file goes there). Bulk Try again and Keep all as they are sit at the top. Phones can look but not change. *@
 <section class="lib-unid" aria-label="@L["LibraryUnidentifiedTab_UnidentifiedFiles"].Value" data-testid="library-unidentified">
@@ -84,7 +88,7 @@
                                 @if (item.WorkId is { } workId && DeviceContext.CanEdit)
                                 {
                                     <AppButton Label="@L["Common_Identify"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" aria-label="@($"Identify {item.FileName}")"
-                                               OnClick="@(() => Navigation.NavigateTo($"/details/work/{workId:D}"))" />
+                                               OnClick="@(() => IdentifyAsync(item, workId))" />
                                 }
                                 @if (item.Reason != "no_youtube_id")
                                 {
@@ -142,7 +146,50 @@
     // Deleting is for an administrator on a desktop; the Engine checks again on every call.
     private bool CanRemove => LibraryItemDeletionFlow.CanDelete(DeviceContext, Session);
 
-    protected override Task OnInitializedAsync() => LoadAsync();
+    protected override Task OnInitializedAsync()
+    {
+        Editor.Closed += OnEditorClosed;
+        return LoadAsync();
+    }
+
+    // Identify opens the pop-over editor over this tab, on Match (universal editor v3 D6): no navigation away. When it closes with a
+    // change the list is read again, so the identified file leaves it.
+    private async Task IdentifyAsync(UnmatchedItemDto item, Guid workId)
+    {
+        _awaitingIdentify = true;
+        var target = ListEditTarget.ForLibraryRow(workId, string.IsNullOrWhiteSpace(item.Title) ? item.FileName : item.Title, Library.MediaTypes.FirstOrDefault());
+        if (!await EditLauncher.OpenAsync(target, EditTool.Match))
+        {
+            _awaitingIdentify = false;
+        }
+    }
+
+    private bool _awaitingIdentify;
+    private bool _disposed;
+
+    private void OnEditorClosed(EditorClosedEventArgs closed)
+    {
+        if (!_awaitingIdentify)
+        {
+            return;
+        }
+
+        _awaitingIdentify = false;
+        if (closed.Changed && !_disposed)
+        {
+            _ = InvokeAsync(async () =>
+            {
+                await LoadAsync();
+                await Changed.InvokeAsync();
+            });
+        }
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        Editor.Closed -= OnEditorClosed;
+    }
 
     private async Task LoadAsync()
     {

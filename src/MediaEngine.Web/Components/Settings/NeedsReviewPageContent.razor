@@ -4,6 +4,8 @@
 @using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Navigation
 @inject IServiceProvider Services
+@inject ListEditLauncher EditLauncher
+@inject EditorHost Editor
 @inject DeviceContextService Device
 @inject NavigationManager Nav
 @inject IAppToastService Snackbar
@@ -139,7 +141,33 @@
 
     private bool _disposed;
 
-    protected override void OnInitialized() => Orchestrator.OnLibraryItemsRemoved += OnLibraryItemsRemoved;
+    protected override void OnInitialized()
+    {
+        Orchestrator.OnLibraryItemsRemoved += OnLibraryItemsRemoved;
+        Editor.Closed += OnEditorClosed;
+    }
+
+    // The pop-over Fix opened over this list closed: when it saved or matched something, the queue is read again so the fixed row leaves
+    // (or shows its new state) without the person being taken away from the list.
+    private void OnEditorClosed(EditorClosedEventArgs closed)
+    {
+        if (!_awaitingFix)
+        {
+            return;
+        }
+
+        _awaitingFix = false;
+        if (closed.Changed && !_disposed)
+        {
+            _ = InvokeAsync(async () =>
+            {
+                await LoadReviewsAsync();
+                StateHasChanged();
+            });
+        }
+    }
+
+    private bool _awaitingFix;
 
     // Titles deleted from the library close their Needs Review items: reload the queue so they leave the list.
     private void OnLibraryItemsRemoved(MediaEngine.Contracts.Realtime.LibraryItemsRemovedEvent ev) =>
@@ -154,6 +182,7 @@
     {
         _disposed = true;
         Orchestrator.OnLibraryItemsRemoved -= OnLibraryItemsRemoved;
+        Editor.Closed -= OnEditorClosed;
     }
 
     protected override async Task OnParametersSetAsync()
@@ -228,18 +257,16 @@
 
     private Task OnSearchChanged(string? value) { _search = value; return Task.CompletedTask; }
 
-    // Fix opens the item's own page with the editor already on, on the Match tool (universal editor spec D16): the same bar, panel and
-    // Review changes as everywhere else. There is no separate review pop-up.
-    private Task OpenReviewEditorAsync(ReviewItemViewModel item)
+    // Fix opens the pop-over editor over this list, on Match (universal editor v3 D6, D9): the same Match, Review changes and Save as
+    // everywhere else, and no navigation away. The Engine's own answer says whether this item may be edited.
+    private async Task OpenReviewEditorAsync(ReviewItemViewModel item)
     {
-        if (EditorDeviceRule.TryRefuse(Device, Snackbar))
+        _awaitingFix = true;
+        var target = ListEditTarget.ForLibraryRow(item.EntityId, DisplayTitle(item), item.MediaType);
+        if (!await EditLauncher.OpenAsync(target, EditTool.Match))
         {
-            return Task.CompletedTask;
+            _awaitingFix = false;
         }
-
-        Services.GetService<DetailsOverlayState>()?.OfferEditResume(new DetailsEditResume(item.EntityId, EditingSection.Match, null));
-        Nav.NavigateTo($"/details/work/{item.EntityId:D}");
-        return Task.CompletedTask;
     }
 
     private async Task DismissAsync(ReviewItemViewModel item)

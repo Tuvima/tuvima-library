@@ -31,10 +31,18 @@
                          TitleOverride="@BulkPanelTitle"
                          ShowHistory="@(binding?.ShowHistory == true)">
             <HeaderContent>
-                <EditorTrail Flow="flow" />
+                @if (Editor.Batch.Panel == BulkPanelKind.None)
+                {
+                    <EditorTrail Flow="flow" />
+                }
             </HeaderContent>
             <ChildContent Context="tool">
-                @if (!mode.Fields.Loaded && !mode.Fields.Loading && !string.IsNullOrWhiteSpace(mode.Fields.LoadError))
+                @if (Editor.Batch.Panel != BulkPanelKind.None && tool == EditTool.Details)
+                {
+                    @* Ticked rows are edited together: the panel needs the rows, not the fields of any one item, so a failed read of the first row never blocks it. *@
+                    <BulkEditPanel Selection="Editor.Batch" Pending="flow.Session.Pending" CanEdit="@mode.CanEdit" />
+                }
+                else if (!mode.Fields.Loaded && !mode.Fields.Loading && !string.IsNullOrWhiteSpace(mode.Fields.LoadError))
                 {
                     <div class="tl-editor-details">
                         <AppAlert Severity="AppSeverity.Error" Dense="true">@L["EditingBar_EditingIsNotReady"] @mode.Fields.LoadError</AppAlert>
@@ -43,14 +51,7 @@
                 }
                 else if (tool == EditTool.Details)
                 {
-                    @if (Editor.Batch.Panel != BulkPanelKind.None)
-                    {
-                        <BulkEditPanel Selection="Editor.Batch" Pending="flow.Session.Pending" CanEdit="@mode.CanEdit" />
-                    }
-                    else
-                    {
-                        <EditorDetailsPanel Mode="mode" Session="flow.Session">@binding?.DetailsExtra</EditorDetailsPanel>
-                    }
+                    <EditorDetailsPanel Mode="mode" Session="flow.Session">@binding?.DetailsExtra</EditorDetailsPanel>
                 }
                 else if (tool == EditTool.Match)
                 {
@@ -63,7 +64,7 @@
                                       Session="flow.Session"
                                       CanEdit="@mode.CanEdit"
                                       Mode="mode"
-                                      OnMatched="@(() => binding?.SectionCommitted?.Invoke() ?? Task.CompletedTask)" />
+                                      OnMatched="@(() => Editor.NotifyCommittedAsync())" />
                     <EditorExtrasMovePanel Subject="@(mode.Fields.Loading ? null : mode.Fields.MatchSubject())"
                                            Extras="binding?.Extras"
                                            Session="flow.Session"
@@ -86,12 +87,14 @@
         CloseOnEscapeKey = true,
     };
 
-    private string DialogLabel => $"Editing {Editor.Session.ActiveItem?.Title ?? "item"}";
+    private string DialogLabel => Editor.Batch.Panel == BulkPanelKind.None
+        ? $"Editing {Editor.Session.ActiveItem?.Title ?? "item"}"
+        : BulkEditRules.EditingTitle(Editor.Batch.Rows, Editor.Batch.MediaType);
 
     // The Details tool is called "Edit 4 songs", "Move to album", "Match" while the bulk panel is in it.
     private string? BulkPanelTitle => Editor.Batch.Panel switch
     {
-        BulkPanelKind.Edit => BulkEditRules.EditTitle(Editor.Batch.Rows, Editor.Batch.MediaType),
+        BulkPanelKind.Edit => BulkEditRules.EditingTitle(Editor.Batch.Rows, Editor.Batch.MediaType),
         BulkPanelKind.Move => BulkEditRules.MoveLabel(Editor.Batch.Rows, Editor.Batch.MediaType),
         BulkPanelKind.Match => $"Match {Editor.Batch.Count} {BulkEditRules.Noun(Editor.Batch.Rows, Editor.Batch.MediaType)}",
         _ => null,

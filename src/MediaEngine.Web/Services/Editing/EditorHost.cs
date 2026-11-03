@@ -90,6 +90,11 @@ public sealed class EditorBinding
     public Func<BulkEditRow, Task<bool>>? EditRowAsync { get; set; }
 }
 
+/// <summary>What a list needs to know when the pop-over it opened over itself closes (universal editor v3 WP3).</summary>
+/// <param name="Changed">True when something was saved or committed (a match, a field) while the pop-over was open.</param>
+/// <param name="ItemIds">Every item the pop-over was on or had ticked, so a list can refresh just those rows.</param>
+public sealed record EditorClosedEventArgs(bool Changed, IReadOnlyList<Guid> ItemIds);
+
 /// <summary>
 /// The one universal editor of the Dashboard: the field session, the staged changes, the saver, the artwork picker session and the
 /// permission answer all live here, once per circuit, so the pop-over can open over any page (an item page, a Universe, a list) without
@@ -112,6 +117,9 @@ public sealed class EditorHost : IDisposable
     private EditTool? _lastTool;
     private bool _bulkWasOpen;
     private bool _disposed;
+    private bool _wasOpen;
+    private bool _changedWhileOpen;
+    private readonly HashSet<Guid> _touched = [];
 
     public EditorHost(
         IEngineApiClient api,
@@ -134,7 +142,7 @@ public sealed class EditorHost : IDisposable
             () => _openTrail ?? _binding?.Trail?.Invoke() ?? [new EditTrailItem(Mode.Fields.EntityId, "This item", "Item")],
             () => ConfirmDiscard?.Invoke() ?? Task.FromResult(false))
         {
-            Saved = () => _binding?.Saved?.Invoke() ?? Task.CompletedTask,
+            Saved = OnSavedAsync,
             MediaTypes = () => _binding?.MediaTypes?.Invoke() ?? [],
             OpenItem = item => _binding?.OpenItem?.Invoke(item) ?? Task.FromResult(false),
             ItemSwitched = () => _binding?.ItemSwitched?.Invoke() ?? Task.CompletedTask,
@@ -184,6 +192,22 @@ public sealed class EditorHost : IDisposable
     /// <summary>Raised whenever the pop-over's content may need to be drawn again.</summary>
     public event Action? Changed;
 
+    /// <summary>
+    /// Raised once each time the pop-over closes, whatever opened it (a list row's Edit, Fix, a page). A list subscribes while it is on
+    /// screen and refreshes the rows named in the event when something changed, so the person is never taken away from it.
+    /// </summary>
+    public event Action<EditorClosedEventArgs>? Closed;
+
+    /// <summary>A tool committed a change on its own (a match went through): the page behind refreshes and the closing event says something changed.</summary>
+    public async Task NotifyCommittedAsync()
+    {
+        _changedWhileOpen = true;
+        if (_binding?.SectionCommitted is { } committed)
+        {
+            await committed();
+        }
+    }
+
     /// <summary>Makes <paramref name="binding"/> the page the editor serves. A page binds right before it opens the editor.</summary>
     public void Bind(EditorBinding binding)
     {
@@ -220,6 +244,8 @@ public sealed class EditorHost : IDisposable
             Mode.Leave();
         }
 
+        // Rows ticked on a page or list that is going away must not wait for the next one.
+        Batch.Clear();
         RaiseChanged();
     }
 
@@ -403,20 +429,64 @@ public sealed class EditorHost : IDisposable
         }
     }
 
-    private Task OnFieldSavedAsync(string key) => _binding?.FieldSaved?.Invoke(key) ?? Task.CompletedTask;
+    private Task OnFieldSavedAsync(string key)
+    {
+        _changedWhileOpen = true;
+        return _binding?.FieldSaved?.Invoke(key) ?? Task.CompletedTask;
+    }
+
+    private Task OnSavedAsync()
+    {
+        _changedWhileOpen = true;
+        return _binding?.Saved?.Invoke() ?? Task.CompletedTask;
+    }
 
     private void OnModeChanged()
     {
-        if (!Mode.IsOn)
+        if (Mode.IsOn && !_wasOpen)
+        {
+            _wasOpen = true;
+            _changedWhileOpen = false;
+            _touched.Clear();
+        }
+        else if (!Mode.IsOn && _wasOpen)
         {
             // Leaving (Done, a device change, a removed title) ends the ticks and the bulk panel with them.
+            _wasOpen = false;
+            var closed = new EditorClosedEventArgs(_changedWhileOpen, [.. _touched]);
+            _touched.Clear();
             Batch.Clear();
             _bulkWasOpen = false;
             _lastTool = null;
+            SyncOverlayGuard();
+            RaiseChanged();
+            RaiseClosed(closed);
+            return;
         }
 
         SyncOverlayGuard();
         RaiseChanged();
+    }
+
+    private void RaiseClosed(EditorClosedEventArgs closed)
+    {
+        if (Closed is not { } handlers)
+        {
+            return;
+        }
+
+        foreach (var handler in handlers.GetInvocationList().Cast<Action<EditorClosedEventArgs>>())
+        {
+            try
+            {
+                handler(closed);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // A list that cannot refresh must not break the editor closing; it keeps what it showed.
+                _logger.LogWarning(ex, "A list could not refresh after the editor closed");
+            }
+        }
     }
 
     // The window asks "Unsaved changes" itself; the details overlay behind it asks through this guard when it is about to close
@@ -451,6 +521,11 @@ public sealed class EditorHost : IDisposable
     private void OnSessionChanged()
     {
         var tool = Session.ActiveTool;
+        if (Mode.IsOn && Session.ActiveItem is { } active && active.EntityId != Guid.Empty)
+        {
+            _touched.Add(active.EntityId);
+        }
+
         if (_lastTool == EditTool.Details && tool != EditTool.Details && Batch.Panel != BulkPanelKind.None)
         {
             _bulkWasOpen = false;
@@ -476,6 +551,12 @@ public sealed class EditorHost : IDisposable
 
             if (Batch.Panel != BulkPanelKind.None)
             {
+                if (!Mode.IsOn && _binding is { CanEdit: true } binding)
+                {
+                    // The bar's Edit, Match or Move on rows ticked on a page or a list: the pop-over opens for them, over that page or list.
+                    await OpenAsync(binding, binding.EntityId, EditTool.Details);
+                }
+
                 if (Mode is not { IsOn: true, CanEdit: true } || !Session.IsActive)
                 {
                     Batch.ClosePanel();
@@ -486,6 +567,11 @@ public sealed class EditorHost : IDisposable
                 {
                     Batch.ClosePanel();
                     return;
+                }
+
+                foreach (var id in Batch.Ids)
+                {
+                    _touched.Add(id);
                 }
 
                 _bulkWasOpen = true;

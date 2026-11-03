@@ -72,7 +72,7 @@ else
     if (ShowSelect)
     {
         @* Ticking songs shows the selection bar (Edit, Match, Move to album, Delete in "...") and its right-hand panel (universal editor spec D14). *@
-        <BulkEditHost @ref="_bulkHost" Rows="@BulkRows" MediaType="Music" OnSaved="OnEditedAsync" OnCleared="ClearSelectionAsync" OnDeleted="OnDeletedAsync" />
+        <BulkListEntry @ref="_bulkHost" Rows="@BulkRows" MediaType="Music" OnSaved="OnEditedAsync" OnCleared="ClearSelectionAsync" OnDeleted="OnDeletedAsync" />
     }
     <div class="listen-song-table"
          role="table"
@@ -754,7 +754,7 @@ else
         return Task.CompletedTask;
     }
 
-    private BulkEditHost? _bulkHost;
+    private BulkListEntry? _bulkHost;
     private bool _openEditPanelAfterRender;
 
     protected override void OnAfterRender(bool firstRender)

@@ -447,33 +447,16 @@
             .Where(column => column.Key != "artist" || ShowArtistColumn)
             .ToList();
 
-    // Editing Mode (while it is on, each row gets a tick box and a ticked row is highlighted). Null outside a detail page.
-    [CascadingParameter] public EditingModeContext? EditingMode { get; set; }
-
+    // Each row of a page the person may edit gets a tick box and a ticked row is highlighted. Null outside a detail page.
     [CascadingParameter] public BulkEditSelection? BatchSelection { get; set; }
 
     /// <summary>The page this list sits on, for a row's own Edit (opens the pop-over editor over the page). Null outside a detail page.</summary>
     [CascadingParameter] public EditorBinding? Editor { get; set; }
 
-    private EditingModeContext? _hookedMode;
     private BulkEditSelection? _hookedSelection;
 
     private void HookBatchState()
     {
-        if (!ReferenceEquals(_hookedMode, EditingMode))
-        {
-            if (_hookedMode is not null)
-            {
-                _hookedMode.Changed -= OnBatchStateChanged;
-            }
-
-            _hookedMode = EditingMode;
-            if (_hookedMode is not null)
-            {
-                _hookedMode.Changed += OnBatchStateChanged;
-            }
-        }
-
         if (!ReferenceEquals(_hookedSelection, BatchSelection))
         {
             if (_hookedSelection is not null)
@@ -495,15 +478,10 @@
     private void OnBatchStateChanged() => _ = InvokeAsync(StateHasChanged);
 
     private bool IsRowSelected(MediaGroupingItemViewModel item)
-        => EditingMode is { IsOn: true } && BatchSelection?.Contains(ItemId(item)) == true;
+        => Editor is { CanEdit: true } && BatchSelection?.Contains(ItemId(item)) == true;
 
     public void Dispose()
     {
-        if (_hookedMode is not null)
-        {
-            _hookedMode.Changed -= OnBatchStateChanged;
-        }
-
         if (_hookedSelection is not null)
         {
             _hookedSelection.ListOrder = null;

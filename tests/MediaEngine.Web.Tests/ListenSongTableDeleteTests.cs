@@ -407,33 +407,36 @@ public sealed class ListenSongTableDeleteTests : AsyncBunitContext
     {
         await UseDeviceAsync("desktop");
         SetAdministrator(false);
+        var popover = Render<MediaEngine.Web.Components.Details.EditorPopover>();
         var cut = RenderTable(Songs(4));
         Checkboxes(cut)[1].Change(true);
         Checkboxes(cut)[2].Change(true);
 
         cut.FindAll($"{Bar} button").Single(button => button.TextContent.Trim() == "Edit").Click();
 
-        cut.WaitForAssertion(() => Assert.Equal("Edit 2 songs", cut.Find(".tl-editor-panel__title").TextContent.Trim()));
+        // The one pop-over opens over the list; the list is still there under it.
+        popover.WaitForAssertion(() => Assert.Equal("Editing 2 songs", popover.Find(".tl-editor-panel__title").TextContent.Trim()));
         Assert.Equal(4, cut.FindAll(".listen-song-table__row").Count);
         Assert.Equal(2, Checkboxes(cut).Count(box => box.HasAttribute("checked")));
         Assert.Empty(_played);
     }
 
     [Fact]
-    public async Task ClosingThePanelKeepsTheTicks()
+    public async Task ClosingThePopOverEndsTheTicks_AndTheListDropsItsOwnToo()
     {
         await UseDeviceAsync("desktop");
         SetAdministrator(false);
+        var popover = Render<MediaEngine.Web.Components.Details.EditorPopover>();
         var cut = RenderTable(Songs(3));
         Checkboxes(cut)[0].Change(true);
         cut.FindAll($"{Bar} button").Single(button => button.TextContent.Trim() == "Edit").Click();
-        cut.WaitForElement(".tl-editor-panel");
+        popover.WaitForElement(".tl-editor-panel");
 
-        cut.Find(".tl-editor-panel__close").Click();
+        popover.Find(".tl-editor-panel__close").Click();
 
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-editor-panel")));
-        Assert.Equal("1 selected", BarCount(cut));
-        Assert.Single(Checkboxes(cut), box => box.HasAttribute("checked"));
+        popover.WaitForAssertion(() => Assert.Empty(popover.FindAll(".tl-editor-panel")));
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(Bar)));
+        Assert.DoesNotContain(Checkboxes(cut), box => box.HasAttribute("checked"));
     }
 
     // -- No browser confirm --------------------------------------------------------------------

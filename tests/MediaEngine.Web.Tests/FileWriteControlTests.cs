@@ -100,16 +100,21 @@ public sealed class FileWriteControlTests : AsyncBunitContext
         return flow;
     }
 
-    private IReviewSource ListSource()
+    // Rows ticked on a list go through the same editor host and flow as a detail page's item, so Review changes is built from the same source.
+    private async Task<IReviewSource> ListSourceAsync()
     {
+        await _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
         var api = Services.GetRequiredService<IEngineApiClient>();
-        var list = new BulkEditSession(new PendingEditList(), new EditSessionSaver(api), () => Task.FromResult(false))
-        {
-            ItemName = _ => "Dune: Part One",
-            MediaTypes = () => ["Movies"],
-        };
-        list.Pending.SetField(MovieId, "title", "Dune 2");
-        return list;
+        var host = new EditorHost(api, _device, Services, Microsoft.Extensions.Logging.Abstractions.NullLogger<EditorHost>.Instance);
+        var launcher = new ListEditLauncher(host, api, _device, Services, Microsoft.Extensions.Logging.Abstractions.NullLogger<ListEditLauncher>.Instance);
+        var row = new BulkEditRow(MovieId, "Dune: Part One", MediaEngine.Contracts.Details.DetailEntityType.Movie, null, "Movies");
+        var binding = launcher.BindRows("Movies", () => [row]);
+        host.Bind(binding);
+        host.Batch.MediaType = "Movies";
+        host.Batch.Toggle(row);
+        Assert.True(await host.OpenAsync(binding, MovieId, EditTool.Details));
+        host.Session.Pending.SetField(MovieId, "title", "Dune 2");
+        return host.Flow;
     }
 
     private void Show(IReviewSource source)
@@ -136,7 +141,7 @@ public sealed class FileWriteControlTests : AsyncBunitContext
         _dialogs.Find(".app-dialog-shell__footer button").Click();
         _dialogs.WaitForAssertion(() => Assert.Empty(_dialogs.FindAll(".review-changes")));
 
-        Show(ListSource());
+        Show(await ListSourceAsync());
         var fromList = FilesControlMarkup();
 
         Assert.Contains("Files will be updated: <strong>On</strong>", fromDetailPage, StringComparison.Ordinal);
@@ -148,7 +153,7 @@ public sealed class FileWriteControlTests : AsyncBunitContext
     {
         _libraryWritesTags = false;
 
-        Show(ListSource());
+        Show(await ListSourceAsync());
 
         Assert.Equal("Files will be updated: Off", _dialogs.Find(".review-changes__files").TextContent.Trim());
         Assert.Equal(FileWriteSetting.SettingsHref, _dialogs.Find(".review-changes__files-link").GetAttribute("href"));
@@ -169,7 +174,7 @@ public sealed class FileWriteControlTests : AsyncBunitContext
     [Fact]
     public async Task TheOverride_SkipsTheFilesForThisSaveOnly_AndTheSaveCarriesIt()
     {
-        var source = ListSource();
+        var source = await ListSourceAsync();
         Show(source);
 
         _dialogs.Find(".review-changes__files-override input").Change(false);
@@ -185,7 +190,7 @@ public sealed class FileWriteControlTests : AsyncBunitContext
     [Fact]
     public async Task ASaveWithoutTouchingTheOverride_FollowsTheLibrary()
     {
-        var source = ListSource();
+        var source = await ListSourceAsync();
         Show(source);
 
         _dialogs.Find(".app-dialog-shell__footer button:last-child").Click();
@@ -199,7 +204,7 @@ public sealed class FileWriteControlTests : AsyncBunitContext
     {
         _masterSwitch = null;
 
-        Show(ListSource());
+        Show(await ListSourceAsync());
 
         Assert.Empty(_dialogs.FindAll(".review-changes__files"));
         Assert.Empty(_dialogs.FindAll(".review-changes__files-override"));

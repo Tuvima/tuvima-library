@@ -33,6 +33,9 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
     {
         /// <summary>Every Engine client method the Dashboard called, in order.</summary>
         public List<string> EngineCalls { get; set; } = [];
+
+        /// <summary>How many times the Needs Review list was read.</summary>
+        public int ReviewReads { get; set; }
     }
 
     private static readonly Guid AccountId = Guid.Parse("44444444-4444-4444-8444-444444444444");
@@ -68,7 +71,22 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
         var api = EngineApiClientStub.Create(stub =>
         {
             result.EngineCalls = stub.Calls;
-            stub.SetHandler(nameof(IEngineApiClient.GetPendingReviewsAttemptAsync), _ => Task.FromResult(reviews()));
+            stub.SetHandler(nameof(IEngineApiClient.GetPendingReviewsAttemptAsync), _ =>
+            {
+                result.ReviewReads++;
+                return Task.FromResult(reviews());
+            });
+            // The Engine's own per-item answer for Fix: this item may be edited, and its fields can be read.
+            stub.SetHandler(nameof(IEngineApiClient.GetDetailPageAsync), _ => Task.FromResult<MediaEngine.Contracts.Details.DetailPageViewModel?>(new()
+            {
+                Id = MediaEngine.Web.Tests.Support.EditingModeTestData.MovieId.ToString("D"),
+                EntityType = MediaEngine.Contracts.Details.DetailEntityType.Work,
+                Title = "Cibola Burn",
+                OverflowActions = [new() { Key = "edit", Label = "Edit this title", Icon = "edit" }],
+            }));
+            stub.SetHandler(nameof(IEngineApiClient.GetMediaEditorContextAsync), _ =>
+                Task.FromResult<MediaEngine.Contracts.Metadata.MediaEditorContextDto?>(MediaEngine.Web.Tests.Support.EditingModeTestData.MovieContext()));
+            stub.SetHandler(nameof(IEngineApiClient.GetItemEditorSuggestionsAsync), _ => Task.FromResult<IReadOnlyList<string>>([]));
             if (libraryReviews is not null)
             {
                 stub.SetHandler(nameof(IEngineApiClient.GetPendingReviewsForLibraryAttemptAsync), args => Task.FromResult(libraryReviews((string)args![0]!)));
@@ -140,38 +158,65 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
         cut.FindAll("button.app-menu-item").Single(button => button.TextContent.Contains(label, StringComparison.Ordinal)).Click();
     }
 
-    private sealed class NoHistory : MediaEngine.Web.Services.Navigation.IDetailsOverlayHistory
-    {
-        public ValueTask<bool> GoBackAsync(int steps) => ValueTask.FromResult(true);
-    }
-
     [Fact]
-    public async Task Review_OnADesktop_OpensTheItemsOwnPageOnTheMatchTool_NotAPopUp()
+    public async Task Fix_OnADesktop_OpensThePopOverOverTheListOnMatch_AndTheListReadsAgainAfterAMatch()
     {
         var item = Item(FirstId, "Cibola Burn");
-        Register(() => Loaded(item));
-        Services.AddSingleton<MediaEngine.Web.Services.Navigation.IDetailsOverlayHistory>(new NoHistory());
-        Services.AddScoped<MediaEngine.Web.Services.Navigation.DetailsOverlayState>();
+        var registered = Register(() => Loaded(item));
         await Services.GetRequiredService<DeviceContextService>()
             .InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
+        var navigation = Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>();
+        var before = navigation.Uri;
+        var popover = Render<MediaEngine.Web.Components.Details.EditorPopover>();
         var cut = Render<NeedsReviewPageContent>();
         cut.WaitForAssertion(() => Assert.Single(cut.FindAll("article.review-row")));
+        var readsBefore = registered.ReviewReads;
 
         cut.FindAll("article.review-row button").Single(button => button.TextContent.Trim() == "Review").Click();
 
-        Assert.EndsWith($"/details/work/{item.EntityId:D}", Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>().Uri, StringComparison.Ordinal);
-        var overlay = Services.GetRequiredService<MediaEngine.Web.Services.Navigation.DetailsOverlayState>();
-        Assert.True(overlay.TryTakeEditResume(item.EntityId, out var resume));
-        Assert.Equal(EditingSection.Match, resume.Section);
+        // The pop-over is open over the list, on Match, and the person is still on the list.
+        var host = Services.GetRequiredService<EditorHost>();
+        popover.WaitForAssertion(() => Assert.Single(popover.FindAll(".tl-editor-panel[data-tool='match']")));
+        Assert.True(host.IsOpen);
+        Assert.Equal(EditTool.Match, host.Session.ActiveTool);
+        Assert.Equal(before, navigation.Uri);
+        Assert.Single(cut.FindAll("article.review-row"));
+
+        // A match went through and the pop-over closed: the queue is read again, so the row shows its new state.
+        await cut.InvokeAsync(async () =>
+        {
+            await host.NotifyCommittedAsync();
+            await host.RequestCloseAsync();
+        });
+        cut.WaitForAssertion(() => Assert.True(registered.ReviewReads > readsBefore));
     }
 
     [Fact]
-    public async Task Review_OffTheDesktop_StaysOnTheListAndOffersNothing()
+    public async Task Fix_ThatChangedNothing_DoesNotReadTheQueueAgain()
+    {
+        var item = Item(FirstId, "Cibola Burn");
+        var registered = Register(() => Loaded(item));
+        await Services.GetRequiredService<DeviceContextService>()
+            .InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
+        var popover = Render<MediaEngine.Web.Components.Details.EditorPopover>();
+        var cut = Render<NeedsReviewPageContent>();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("article.review-row")));
+        cut.FindAll("article.review-row button").Single(button => button.TextContent.Trim() == "Review").Click();
+        var host = Services.GetRequiredService<EditorHost>();
+        popover.WaitForAssertion(() => Assert.True(host.IsOpen));
+        var readsBefore = registered.ReviewReads;
+
+        await cut.InvokeAsync(() => host.RequestCloseAsync());
+
+        Assert.False(host.IsOpen);
+        Assert.Equal(readsBefore, registered.ReviewReads);
+    }
+
+    [Fact]
+    public async Task Fix_OffTheDesktop_StaysOnTheListAndOpensNothing()
     {
         var item = Item(FirstId, "Cibola Burn");
         Register(() => Loaded(item));
-        Services.AddSingleton<MediaEngine.Web.Services.Navigation.IDetailsOverlayHistory>(new NoHistory());
-        Services.AddScoped<MediaEngine.Web.Services.Navigation.DetailsOverlayState>();
         await Services.GetRequiredService<DeviceContextService>().InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true));
         var navigation = Services.GetRequiredService<Microsoft.AspNetCore.Components.NavigationManager>();
         var before = navigation.Uri;
@@ -181,7 +226,7 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
         cut.FindAll("article.review-row button").Single(button => button.TextContent.Trim() == "Review").Click();
 
         Assert.Equal(before, navigation.Uri);
-        Assert.False(Services.GetRequiredService<MediaEngine.Web.Services.Navigation.DetailsOverlayState>().TryTakeEditResume(item.EntityId, out _));
+        Assert.False(Services.GetRequiredService<EditorHost>().IsOpen);
     }
 
     [Fact]

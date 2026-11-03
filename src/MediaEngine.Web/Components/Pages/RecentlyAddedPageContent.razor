@@ -9,6 +9,8 @@
 @using MediaEngine.Web.Services.Playback
 @inject IEngineApiClient Api
 @inject IServiceProvider Services
+@inject ListEditLauncher EditLauncher
+@inject EditorHost Editor
 @inject DeviceContextService DeviceContext
 @inject NavigationManager Nav
 @inject IngestionLiveDashboardState Dashboard
@@ -191,6 +193,7 @@
     protected override async Task OnInitializedAsync()
     {
         Dashboard.OnChanged += OnDashboardChanged;
+        Editor.Closed += OnEditorClosed;
         _drawerWidth = (await ContextPreferences.GetAsync("desktop:ingestion")).Width;
         await Dashboard.InitializeAsync();
         _wasRunning = Dashboard.Presentation?.IsRunning == true;
@@ -407,19 +410,36 @@
         await InvokeAsync(StateHasChanged);
     }
 
-    // Edit opens the item's own page with the editor already on, on the Details tool (universal editor spec D2): the same bar and panel as
-    // everywhere else, not a pop-up.
-    private Task OpenMediaEditorAsync(IngestionMediaGroupDto item)
+    // Edit opens the pop-over editor over this list (universal editor v3 D6): nothing navigates away, and the list reads its rows again
+    // when the pop-over closes with a change.
+    private async Task OpenMediaEditorAsync(IngestionMediaGroupDto item)
     {
-        if (EditorDeviceRule.TryRefuse(DeviceContext, null))
+        var entityId = item.WorkId ?? item.EditionId ?? item.GroupId;
+        _awaitingEdit = true;
+        if (!await EditLauncher.OpenAsync(ListEditTarget.ForLibraryRow(entityId, item.Title, item.MediaType)))
         {
-            return Task.CompletedTask;
+            _awaitingEdit = false;
+        }
+    }
+
+    private bool _awaitingEdit;
+
+    private void OnEditorClosed(EditorClosedEventArgs closed)
+    {
+        if (!_awaitingEdit)
+        {
+            return;
         }
 
-        var entityId = item.WorkId ?? item.EditionId ?? item.GroupId;
-        Services.GetService<DetailsOverlayState>()?.OfferEditResume(new DetailsEditResume(entityId, EditingSection.Details, null));
-        Nav.NavigateTo($"/details/work/{entityId:D}");
-        return Task.CompletedTask;
+        _awaitingEdit = false;
+        if (closed.Changed && !_disposed)
+        {
+            _ = InvokeAsync(async () =>
+            {
+                await LoadHistoryAsync(0);
+                StateHasChanged();
+            });
+        }
     }
 
     private static string RelativeAge(DateTimeOffset value) { var age = DateTimeOffset.UtcNow - value; return age.TotalDays >= 1 ? $"{Math.Max(1, (int)age.TotalDays)}d" : age.TotalHours >= 1 ? $"{Math.Max(1, (int)age.TotalHours)}h" : $"{Math.Max(1, (int)age.TotalMinutes)}m"; }
@@ -440,6 +460,7 @@
         _drawerRevision++;
         StopTimer();
         Dashboard.OnChanged -= OnDashboardChanged;
+        Editor.Closed -= OnEditorClosed;
         _loadCts?.Cancel();
         _loadCts?.Dispose();
         if (_contextLeaseId is { } leaseId) ContextSidebar.Release(leaseId);

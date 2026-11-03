@@ -1453,11 +1453,6 @@ else
     }
     public async ValueTask DisposeAsync()
     {
-        if (_hookedMode is not null)
-        {
-            _hookedMode.Changed -= OnBatchStateChanged;
-        }
-
         if (_hookedSelection is not null)
         {
             _hookedSelection.Changed -= OnBatchStateChanged;
@@ -1574,7 +1569,7 @@ else
     // Details overlay spec D8: while Editing Mode is on, an owned single title in the detail page's own list can be ticked.
     private bool IsTickable(SequenceItemViewModel item)
         => DetailSurface
-           && EditingMode is { IsOn: true, CanEdit: true }
+           && PageEditor is { CanEdit: true }
            && BatchSelection is not null
            && item.IsOwned
            && TickId(item) != Guid.Empty
@@ -1593,6 +1588,7 @@ else
             return;
         }
 
+        EditorHostService.Bind(PageEditor!);
         if (!BatchSelection.Toggle(new BulkEditRow(TickId(item), SequenceItemTitle(item), item.EntityType, Guid.TryParse(SelectedContainerValue, out var season) ? season : null, "TV")))
         {
             Snackbar.Add(BulkEditSelection.FullNotice, AppSeverity.Info);
@@ -1602,29 +1598,17 @@ else
     private static Guid TickId(SequenceItemViewModel item)
         => Guid.TryParse(item.Id, out var id) ? id : Guid.Empty;
 
-    [CascadingParameter] public EditingModeContext? EditingMode { get; set; }
+    /// <summary>The detail page this list sits on, which carries the Engine's answer whether the item may be edited. Null outside a detail page.</summary>
+    [CascadingParameter] public EditorBinding? PageEditor { get; set; }
 
     [CascadingParameter] public BulkEditSelection? BatchSelection { get; set; }
 
-    private EditingModeContext? _hookedMode;
+    [Inject] private EditorHost EditorHostService { get; set; } = default!;
+
     private BulkEditSelection? _hookedSelection;
 
     private void HookBatchState()
     {
-        if (!ReferenceEquals(_hookedMode, EditingMode))
-        {
-            if (_hookedMode is not null)
-            {
-                _hookedMode.Changed -= OnBatchStateChanged;
-            }
-
-            _hookedMode = EditingMode;
-            if (_hookedMode is not null)
-            {
-                _hookedMode.Changed += OnBatchStateChanged;
-            }
-        }
-
         if (!ReferenceEquals(_hookedSelection, BatchSelection))
         {
             if (_hookedSelection is not null)

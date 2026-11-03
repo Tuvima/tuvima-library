@@ -13,7 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// Ticking rows on a show's season list in Editing Mode (universal editor spec D14): a tickable card ticks anywhere it is clicked
+/// Ticking rows on a show's season list of a page the Engine lets the person edit (universal editor spec D14, v3 WP3): a tickable card ticks anywhere it is clicked
 /// (the box stays the keyboard control), and ticks never stay behind, out of sight, when the person switches to another season or
 /// series. Staged changes live in the page's pending list, so switching asks nothing. The Engine is a hand-written stub.
 /// </summary>
@@ -27,8 +27,6 @@ public sealed class BulkSeasonTickTests : AsyncBunitContext
     private static readonly Guid FirstFinale = Guid.Parse("41200000-0000-0000-0000-000000000000");
 
     private readonly DeviceContextService _device = new(EngineApiClientStub.CreateDefault());
-    private readonly Queue<SaveOrDiscardChoice> _answers = new();
-    private int _asked;
 
     public BulkSeasonTickTests()
     {
@@ -45,34 +43,22 @@ public sealed class BulkSeasonTickTests : AsyncBunitContext
         Services.AddScoped<UIOrchestratorService>();
     }
 
-    private sealed record Page(EditingModeContext Mode, BulkEditSelection Selection, IRenderedComponent<SequencePlacementPanel> Panel);
+    private sealed record Page(EditorBinding Binding, BulkEditSelection Selection, IRenderedComponent<SequencePlacementPanel> Panel);
 
     private async Task<Page> StartAsync(bool editing = true, bool withTwoSeries = false)
     {
         await _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
-        var session = new ItemFieldEditSession(Services.GetRequiredService<IEngineApiClient>(), _device);
-        var mode = new EditingModeContext(_device, session)
-        {
-            HasPermission = true,
-            AskSaveOrDiscard = () =>
-            {
-                _asked++;
-                return Task.FromResult(_answers.Count > 0 ? _answers.Dequeue() : SaveOrDiscardChoice.Cancel);
-            },
-        };
-        if (editing)
-        {
-            Assert.True(await mode.EnterAsync());
-        }
+        // The Engine's edit answer rides on the page's binding; without it nothing is tickable.
+        var binding = new EditorBinding(_device) { HasPermission = editing, EntityId = Show, BulkMediaType = "TV" };
 
         var selection = new BulkEditSelection { MediaType = "TV" };
         var panel = Render<SequencePlacementPanel>(parameters => parameters
-            .AddCascadingValue(mode)
+            .AddCascadingValue(binding)
             .AddCascadingValue(selection)
             .Add(component => component.Placement, Placement(withTwoSeries))
             .Add(component => component.OnContainerSelected, Microsoft.AspNetCore.Components.EventCallback.Factory.Create<SequenceContainerOptionViewModel>(this, option => _containerPicks.Add(option.ContainerId)))
             .Add(component => component.DetailSurface, true));
-        return new Page(mode, selection, panel);
+        return new Page(binding, selection, panel);
     }
 
     private static void SwitchToSeasonTwo(IRenderedComponent<SequencePlacementPanel> panel)
@@ -138,7 +124,6 @@ public sealed class BulkSeasonTickTests : AsyncBunitContext
 
         page.Panel.WaitForAssertion(() => Assert.Equal("Season 2", ActiveSeason(page.Panel)));
         Assert.Equal(0, page.Selection.Count);
-        Assert.Equal(0, _asked);
     }
 
     [Fact]
@@ -149,7 +134,6 @@ public sealed class BulkSeasonTickTests : AsyncBunitContext
         SwitchToSeasonTwo(page.Panel);
 
         page.Panel.WaitForAssertion(() => Assert.Equal("Season 2", ActiveSeason(page.Panel)));
-        Assert.Equal(0, _asked);
     }
 
     // -- Ticks do not survive a series switch ---------------------------------------------------
@@ -167,7 +151,6 @@ public sealed class BulkSeasonTickTests : AsyncBunitContext
 
         Assert.Equal(0, page.Selection.Count);
         Assert.Equal([SeriesTwo], _containerPicks);
-        Assert.Equal(0, _asked);
     }
 
     // -- Fixtures ------------------------------------------------------------------------------

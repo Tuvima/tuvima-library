@@ -289,31 +289,26 @@ public sealed class BulkEditingTests : AsyncBunitContext
         return (host, new EditorBinding(_device) { HasPermission = true, EntityId = Guid.NewGuid() });
     }
 
-    private async Task<(EditingModeContext Mode, BulkEditSelection Selection)> EditingModeAsync(string formFactor = "desktop", bool enter = true)
+    // A detail page's answer: the Engine's edit permission rides on the page's binding, and the ticks go to the one editor host.
+    private async Task<(EditorBinding Binding, BulkEditSelection Selection)> TickingAsync(string formFactor = "desktop", bool permission = true)
     {
         await UseDevice(formFactor);
-        var session = new ItemFieldEditSession(Services.GetRequiredService<IEngineApiClient>(), _device);
-        var mode = new EditingModeContext(_device, session) { HasPermission = true };
-        if (formFactor == "desktop" && enter)
-        {
-            Assert.True(await mode.EnterAsync());
-        }
-
-        return (mode, new BulkEditSelection { MediaType = "TV" });
+        var binding = new EditorBinding(_device) { HasPermission = permission, EntityId = Guid.NewGuid(), BulkMediaType = "TV" };
+        return (binding, new BulkEditSelection { MediaType = "TV" });
     }
 
-    private IRenderedComponent<DetailRowSelectBox> RenderBox(EditingModeContext mode, BulkEditSelection selection, Guid id, string title, DetailEntityType kind) =>
+    private IRenderedComponent<DetailRowSelectBox> RenderBox(EditorBinding binding, BulkEditSelection selection, Guid id, string title, DetailEntityType kind) =>
         Render<DetailRowSelectBox>(parameters => parameters
-            .AddCascadingValue(mode)
+            .AddCascadingValue(binding)
             .AddCascadingValue(selection)
             .Add(component => component.ItemId, id)
             .Add(component => component.Title, title)
             .Add(component => component.Kind, kind));
 
     [Fact]
-    public async Task TickBox_InEditingModeOnADesktop_IsLabelledWithTheRowTitle()
+    public async Task TickBox_OnAPageTheEngineLetsThePersonEdit_IsLabelledWithTheRowTitle()
     {
-        var (mode, selection) = await EditingModeAsync();
+        var (mode, selection) = await TickingAsync();
 
         var box = RenderBox(mode, selection, EpisodeOne, "Pilot", DetailEntityType.TvEpisode);
 
@@ -321,10 +316,9 @@ public sealed class BulkEditingTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task TickBox_OutsideEditingMode_DoesNotRender()
+    public async Task TickBox_OnAPageTheEngineDoesNotLetThePersonEdit_DoesNotRender()
     {
-        var (mode, selection) = await EditingModeAsync();
-        mode.Leave();
+        var (mode, selection) = await TickingAsync(permission: false);
 
         var box = RenderBox(mode, selection, EpisodeOne, "Pilot", DetailEntityType.TvEpisode);
 
@@ -336,7 +330,7 @@ public sealed class BulkEditingTests : AsyncBunitContext
     [InlineData("phone")]
     public async Task TickBox_OnADeviceThatMayNotEdit_DoesNotRender(string formFactor)
     {
-        var (mode, selection) = await EditingModeAsync(formFactor);
+        var (mode, selection) = await TickingAsync(formFactor);
 
         var box = RenderBox(mode, selection, EpisodeOne, "Pilot", DetailEntityType.TvEpisode);
 
@@ -346,7 +340,7 @@ public sealed class BulkEditingTests : AsyncBunitContext
     [Fact]
     public async Task TickBox_ForASeasonRow_DoesNotRender()
     {
-        var (mode, selection) = await EditingModeAsync();
+        var (mode, selection) = await TickingAsync();
 
         var box = RenderBox(mode, selection, Guid.NewGuid(), "Season 1", DetailEntityType.TvSeason);
 
@@ -356,7 +350,7 @@ public sealed class BulkEditingTests : AsyncBunitContext
     [Fact]
     public async Task Ticking_ARowOnTheDetailPage_AddsItWithItsAlbumToTheSelection()
     {
-        var (mode, selection) = await EditingModeAsync();
+        var (mode, selection) = await TickingAsync();
         var box = Render<DetailRowSelectBox>(parameters => parameters
             .AddCascadingValue(mode)
             .AddCascadingValue(selection)
@@ -370,6 +364,8 @@ public sealed class BulkEditingTests : AsyncBunitContext
 
         var row = Assert.Single(selection.Rows);
         Assert.Equal(new BulkEditRow(SongOne, "Airbag", DetailEntityType.Work, Album, "Music"), row);
+        // The ticks belong to this page's editor binding, so the bar's Edit opens the pop-over for this page.
+        Assert.Same(mode, Services.GetRequiredService<EditorHost>().Binding);
     }
 
     // -- The selection bar ---------------------------------------------------------------------
@@ -500,9 +496,9 @@ public sealed class BulkEditingTests : AsyncBunitContext
     [Fact]
     public void Rules_NameTheRowsAndTheirMove()
     {
-        Assert.Equal("Edit 4 songs", BulkEditRules.EditTitle(FourSongs(), "Music"));
-        Assert.Equal("Edit 1 song", BulkEditRules.EditTitle([Song(SongOne, "Airbag")], "Music"));
-        Assert.Equal("Edit 2 episodes", BulkEditRules.EditTitle([Episode(EpisodeOne, "Pilot"), Episode(EpisodeTwo, "Second")], "TV"));
+        Assert.Equal("Editing 4 songs", BulkEditRules.EditingTitle(FourSongs(), "Music"));
+        Assert.Equal("Editing 1 song", BulkEditRules.EditingTitle([Song(SongOne, "Airbag")], "Music"));
+        Assert.Equal("Editing 2 episodes", BulkEditRules.EditingTitle([Episode(EpisodeOne, "Pilot"), Episode(EpisodeTwo, "Second")], "TV"));
         Assert.Equal("Move to album", BulkEditRules.MoveLabel(FourSongs(), "Music"));
         Assert.Equal("Move to season", BulkEditRules.MoveLabel([Episode(EpisodeOne, "Pilot")], "TV"));
     }
@@ -759,151 +755,122 @@ public sealed class BulkEditingTests : AsyncBunitContext
         Assert.Equal(4, pending.Changes.Count(change => change.Kind == EditSessionChangeKinds.Details));
     }
 
-    // -- The list host: filters, sort and ticks stay -------------------------------------------
+    // -- The list entry: the one editor host opens over the list; filters, sort and ticks stay ----------
+
+    private async Task<(IRenderedComponent<BulkListEntry> List, IRenderedComponent<EditorPopover> Popover, EditorHost Host)> ListOverPopoverAsync(
+        IReadOnlyList<BulkEditRow>? rows = null, Action? saved = null, Action? cleared = null, string formFactor = "desktop")
+    {
+        await UseDevice(formFactor);
+        var popover = Render<EditorPopover>();
+        var list = Render<BulkListEntry>(parameters => parameters
+            .Add(component => component.Rows, rows ?? FourSongs())
+            .Add(component => component.MediaType, "Music")
+            .Add(component => component.OnSaved, Microsoft.AspNetCore.Components.EventCallback.Factory.Create(this, () => saved?.Invoke()))
+            .Add(component => component.OnCleared, Microsoft.AspNetCore.Components.EventCallback.Factory.Create(this, () => cleared?.Invoke())));
+        return (list, popover, Services.GetRequiredService<EditorHost>());
+    }
 
     [Fact]
-    public async Task Host_SavesTheStagedChangesWithOneCheckAndOneSave_ThenAsksTheListToReloadAndKeepsTheTicks()
+    public async Task List_EditOnTheBar_OpensThePopOverOverTheList_TitledEditingFourSongs()
     {
-        await UseDevice("desktop");
+        var (list, popover, host) = await ListOverPopoverAsync();
+
+        list.Find(".tl-batch__edit").Click();
+
+        popover.WaitForElement("[data-field-key='year']");
+        Assert.Equal("Editing 4 songs", popover.Find(".tl-editor-panel__title").TextContent.Trim());
+        Assert.True(host.IsOpen);
+        Assert.Equal(BulkPanelKind.Edit, host.Batch.Panel);
+        // The list is still there under the pop-over, with its ticks.
+        Assert.Equal("4 selected", list.Find(".tl-batch__count").TextContent.Trim());
+        Assert.Empty(popover.FindAll(".tl-editor-trail"));
+    }
+
+    [Fact]
+    public async Task List_SavesTheStagedChangesWithOneCheckAndOneSave_ThenAsksTheListToReload()
+    {
         var dialogs = Render<AppDialogHost>();
         var saved = 0;
-        var cleared = 0;
-        var rows = FourSongs();
-        var host = Render<BulkEditHost>(parameters => parameters
-            .Add(component => component.Rows, rows)
-            .Add(component => component.MediaType, "Music")
-            .Add(component => component.OnSaved, Microsoft.AspNetCore.Components.EventCallback.Factory.Create(this, () => saved++))
-            .Add(component => component.OnCleared, Microsoft.AspNetCore.Components.EventCallback.Factory.Create(this, () => cleared++)));
-        host.Find(".tl-batch__edit").Click();
-        host.WaitForElement("[data-field-key='year']");
-        Assert.Equal("Edit 4 songs", host.Find(".tl-editor-panel__title").TextContent.Trim());
-        TypeScalar(host, "year", "2021");
-        host.WaitForAssertion(() => Assert.NotEmpty(host.FindAll(".tl-batch__pending")));
+        var (list, popover, host) = await ListOverPopoverAsync(saved: () => saved++);
+        list.Find(".tl-batch__edit").Click();
+        popover.WaitForElement("[data-field-key='year']");
+        TypeScalar(popover, "year", "2021");
+        popover.WaitForAssertion(() => Assert.Equal("Save 4 changes", popover.Find("button.tl-editor-window__save").TextContent.Trim()));
 
-        // Save changes opens Review changes, the same dialog the editing bar opens; nothing is saved until its own Save.
-        host.Find(".tl-batch__save").Click();
-        dialogs.WaitForElement(".review-changes");
-        dialogs.WaitForAssertion(() => Assert.Empty(dialogs.FindAll(".review-changes__state")));
+        // Save changes opens Review changes; nothing is saved until its own Save.
+        popover.Find("button.tl-editor-window__save").Click();
+        popover.WaitForAssertion(() => Assert.False(popover.Find(".review-changes__footer button:last-child").HasAttribute("disabled")));
         Assert.Equal(0, saved);
         Assert.Equal([true], _sessions.Select(request => request.PreviewOnly));
-        dialogs.Find(".app-dialog-shell__footer button:last-child").Click();
+        popover.Find(".review-changes__footer button:last-child").Click();
 
-        host.WaitForAssertion(() => Assert.Equal(1, saved));
+        popover.WaitForAssertion(() => Assert.Equal(1, saved));
         Assert.Equal([true, true, false], _sessions.Select(request => request.PreviewOnly));
         Assert.Equal(4, _sessions[2].Changes.Count);
-        Assert.Empty(host.FindAll(".tl-batch__pending"));
-        Assert.Equal("4 selected", host.Find(".tl-batch__count").TextContent.Trim());
-        Assert.NotEmpty(host.FindAll(".tl-editor-panel"));
-        Assert.Equal(0, cleared);
+        popover.WaitForAssertion(() => Assert.False(host.IsOpen));
+        _ = dialogs;
     }
 
     [Fact]
-    public async Task Host_MovesFocusIntoThePanel_EscClosesIt_AndFocusGoesBackToTheBarsEditButton()
+    public async Task List_CancelWithStagedChanges_AsksFirst_AndThrowingThemAwayClosesThePopOverAndTheTicks()
     {
-        await UseDevice("desktop");
-        var host = Render<BulkEditHost>(parameters => parameters
-            .Add(component => component.Rows, FourSongs())
-            .Add(component => component.MediaType, "Music"));
-        Assert.Equal(BulkSelectionBar.ButtonId(BulkPanelKind.Edit), host.Find(".tl-batch__edit").Id);
-
-        host.Find(".tl-batch__edit").Click();
-        host.WaitForElement("[data-field-key='year']");
-        host.WaitForAssertion(() => Assert.Equal("tl-bulk-panel-title", FocusedIds().LastOrDefault()));
-        Assert.Contains(JSInterop.Invocations, call => call.Identifier == "import" && Equals(call.Arguments[0], "./js/editing-section-escape.js"));
-        TypeScalar(host, "year", "2021");
-
-        await host.InvokeAsync(() => host.Instance.HandleEscapeFromBrowser());
-
-        host.WaitForAssertion(() => Assert.Empty(host.FindAll(".tl-editor-panel")));
-        host.WaitForAssertion(() => Assert.Equal(BulkSelectionBar.ButtonId(BulkPanelKind.Edit), FocusedIds().LastOrDefault()));
-        // Closing only the panel asks nothing and keeps what is staged.
-        Assert.NotEmpty(host.FindAll(".tl-batch__pending"));
-    }
-
-    private List<string?> FocusedIds() => JSInterop.Invocations
-        .Where(call => call.Identifier == "tuvimaFocusById")
-        .Select(call => call.Arguments[0] as string)
-        .ToList();
-
-    [Fact]
-    public async Task Host_RereadsTheSavedValuesAfterASave()
-    {
-        await UseDevice("desktop");
         var dialogs = Render<AppDialogHost>();
-        var host = Render<BulkEditHost>(parameters => parameters
-            .Add(component => component.Rows, FourSongs())
-            .Add(component => component.MediaType, "Music"));
-        host.Find(".tl-batch__edit").Click();
-        host.WaitForElement("[data-field-key='year']");
-        var readsBefore = _previewReads;
-        TypeScalar(host, "year", "2021");
-        host.WaitForAssertion(() => Assert.NotEmpty(host.FindAll(".tl-batch__save")));
+        var cleared = 0;
+        var (list, popover, host) = await ListOverPopoverAsync(cleared: () => cleared++);
+        list.Find(".tl-batch__edit").Click();
+        popover.WaitForElement("[data-field-key='year']");
+        TypeScalar(popover, "year", "2021");
+        popover.WaitForAssertion(() => Assert.NotEmpty(popover.FindAll("button.tl-editor-window__cancel")));
 
-        host.Find(".tl-batch__save").Click();
-        dialogs.WaitForElement(".review-changes");
-        dialogs.WaitForAssertion(() => Assert.Empty(dialogs.FindAll(".review-changes__state")));
-        dialogs.Find(".app-dialog-shell__footer button:last-child").Click();
-
-        host.WaitForAssertion(() => Assert.True(_previewReads >= readsBefore + 4));
-    }
-
-    [Fact]
-    public async Task Host_Cancel_ThrowsTheStagedChangesAwayButKeepsTheTicks()
-    {
-        await UseDevice("desktop");
-        var dialogs = Render<AppDialogHost>();
-        var host = Render<BulkEditHost>(parameters => parameters
-            .Add(component => component.Rows, FourSongs())
-            .Add(component => component.MediaType, "Music"));
-        host.Find(".tl-batch__edit").Click();
-        host.WaitForElement("[data-field-key='year']");
-        TypeScalar(host, "year", "2021");
-        host.WaitForAssertion(() => Assert.NotEmpty(host.FindAll(".tl-batch__cancel")));
-
-        host.Find(".tl-batch__cancel").Click();
+        popover.Find("button.tl-editor-window__cancel").Click();
         dialogs.WaitForElement(".app-confirm");
         dialogs.FindAll(".app-dialog-shell__footer button").Single(button => button.TextContent.Trim() == EditingUnsavedChangesDialog.DiscardLabel).Click();
 
-        host.WaitForAssertion(() => Assert.Empty(host.FindAll(".tl-batch__pending")));
+        popover.WaitForAssertion(() => Assert.False(host.IsOpen));
         Assert.Empty(_sessions);
-        Assert.Equal("4 selected", host.Find(".tl-batch__count").TextContent.Trim());
+        Assert.Equal(0, host.Batch.Count);
+        // The list drops its own ticks too, so what it shows matches the editor.
+        list.WaitForAssertion(() => Assert.True(cleared >= 1));
     }
 
     [Theory]
     [InlineData("tablet")]
     [InlineData("phone")]
-    public async Task Host_OnADeviceThatMayNotEdit_RendersNothing(string formFactor)
+    public async Task List_OnADeviceThatMayNotEdit_RendersNothing_AndOpensNothing(string formFactor)
     {
-        await UseDevice(formFactor);
+        var (list, popover, host) = await ListOverPopoverAsync(formFactor: formFactor);
 
-        var host = Render<BulkEditHost>(parameters => parameters
-            .Add(component => component.Rows, FourSongs())
-            .Add(component => component.MediaType, "Music"));
-
-        Assert.Empty(host.FindAll(".tl-batch"));
-        Assert.Empty(host.FindAll(".tl-editor-panel"));
-        Assert.Empty(host.FindAll(".tl-batch__pending"));
+        Assert.Empty(list.FindAll(".tl-batch"));
+        Assert.Empty(popover.FindAll(".tl-editor-panel"));
+        Assert.False(host.IsOpen);
+        Assert.Equal(0, host.Batch.Count);
     }
 
     [Fact]
-    public async Task Host_WhenTheListUnticksEverything_RemovesTheBarAndClosesThePanel()
+    public async Task List_WhenTheListUnticksEverything_RemovesTheBarAndClosesThePanel()
     {
-        await UseDevice("desktop");
-        var host = Render<BulkEditHost>(parameters => parameters
-            .Add(component => component.Rows, FourSongs())
-            .Add(component => component.MediaType, "Music"));
-        host.Find(".tl-batch__edit").Click();
-        host.WaitForElement(".tl-editor-panel");
+        var (list, popover, host) = await ListOverPopoverAsync();
+        list.Find(".tl-batch__edit").Click();
+        popover.WaitForElement(".tl-editor-panel");
 
-        host.Render(parameters => parameters
+        list.Render(parameters => parameters
             .Add(component => component.Rows, Array.Empty<BulkEditRow>())
             .Add(component => component.MediaType, "Music"));
 
-        host.WaitForAssertion(() =>
-        {
-            Assert.Empty(host.FindAll(".tl-batch__bar"));
-            Assert.Empty(host.FindAll(".tl-editor-panel"));
-        });
+        list.WaitForAssertion(() => Assert.Empty(list.FindAll(".tl-batch__bar")));
+        Assert.Equal(BulkPanelKind.None, host.Batch.Panel);
+    }
+
+    [Fact]
+    public async Task List_ARowsOwnEdit_TicksOnlyThatRow_AndOpensThePopOverOnItsEditPanel()
+    {
+        var (list, popover, host) = await ListOverPopoverAsync(rows: [Song(SongTwo, "Paranoid Android")]);
+
+        await list.InvokeAsync(() => list.Instance.OpenEditPanel());
+
+        popover.WaitForElement("[data-field-key='year']");
+        Assert.Equal("Editing 1 song", popover.Find(".tl-editor-panel__title").TextContent.Trim());
+        Assert.Equal([SongTwo], host.Batch.Rows.Select(row => row.Id));
     }
 
     [Fact]

@@ -106,9 +106,9 @@ public static class BulkEditRules
         return plural ? "items" : "item";
     }
 
-    /// <summary>The panel's title: "Edit 4 songs".</summary>
-    public static string EditTitle(IReadOnlyList<BulkEditRow> rows, string? pageMediaType = null) =>
-        $"Edit {rows.Count} {Noun(rows, pageMediaType)}";
+    /// <summary>The pop-over's title while several ticked items are edited together: "Editing 4 songs".</summary>
+    public static string EditingTitle(IReadOnlyList<BulkEditRow> rows, string? pageMediaType = null) =>
+        $"Editing {rows.Count} {Noun(rows, pageMediaType)}";
 
     /// <summary>The Move entry's label for these rows: "Move to album" or "Move to season" for music and TV, else the single Move's own wording.</summary>
     public static string MoveLabel(IReadOnlyList<BulkEditRow> rows, string? pageMediaType = null)
