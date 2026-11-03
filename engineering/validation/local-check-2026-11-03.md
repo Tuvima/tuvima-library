@@ -52,3 +52,8 @@ Passed (Shy): Pick up row for movies; hero start for a played show, show lengths
 40. Watch (and likely Read, Listen): the Continue tile is not landscape like the Home one. Rule: portrait-only tiles in lanes, landscape for Continue, everywhere. This makes the old "tiles without a landscape background" row moot.
 41. "View all" on a lane opens a bare page with no sidebar. It should open the matching page in that section (for example Watch filtered by that genre, or new items). Every generated lane should have an equivalent filter in each main section.
 42. Details page: opens fine but a little slow. The cast picture size and shape are still wrong (a bug reported before that was never fixed).
+
+## Detail pages and editor walk
+
+43. Editor: opening Edit shows the wrong movie or title (the editor of a previously opened item); a page refresh shows the right one. Bug, to be remediated in the editor overhaul.
+Shy's decision: the remaining editor checks (Details, Artwork, Match, moves, batch editing, Esc, tablet) are paused because the editor needs an overhaul as its own piece of work. Plan with Opus, review of the implementation with Fable; Shy will provide a target state, screenshots and principles. The wrong-title bug (item 43) is part of that work.
