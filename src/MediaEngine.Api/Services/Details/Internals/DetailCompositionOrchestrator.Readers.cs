@@ -58,7 +58,8 @@ internal sealed partial class DetailCompositionOrchestrator
                            AND EXISTS (
                                SELECT 1
                                FROM canonical_values child_marker
-                               WHERE child_marker.entity_id = w.id
+                               WHERE (child_marker.entity_id = w.id
+                                      OR child_marker.entity_id IN (SELECT marker_woa.asset_id FROM work_owned_assets marker_woa WHERE marker_woa.work_id = w.id))
                                  AND child_marker.key IN ('episode_number', 'track_number')
                                  AND NULLIF(CAST(child_marker.value AS TEXT), '') IS NOT NULL
                            )

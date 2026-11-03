@@ -528,6 +528,11 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         var offered = new Dictionary<(Guid Owner, AssetType Type), List<string>>();
         async Task<bool> AddAsync(string? value, AssetType type, Guid owner, bool makePreferred = true)
         {
+            // TheTVDB's episode list gives each picture as a path ("/banners/episodes/…"); its other calls give a full address.
+            if (value?.StartsWith("/banners/", StringComparison.Ordinal) == true)
+            {
+                value = "https://artworks.thetvdb.com" + value;
+            }
             if (!Uri.TryCreate(value, UriKind.Absolute, out var uri)
                 || uri.Scheme != Uri.UriSchemeHttps
                 || !(uri.Host.Equals("thetvdb.com", StringComparison.OrdinalIgnoreCase)

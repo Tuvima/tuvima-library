@@ -322,7 +322,7 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
                 "/v4/artwork/types" => JsonResponse("""{"data":[{"id":2,"name":"Poster"},{"id":7,"name":"Season Poster"},{"id":23,"name":"Clear Logo"}]}"""),
                 "/v4/series/55/extended" => JsonResponse("""{"data":{"id":55,"defaultSeasonType":1,"seasons":[{"id":66,"number":1,"type":{"id":1}}],"artworks":[{"type":7,"language":"eng","score":99999,"image":"https://artworks.thetvdb.com/season-poster.png"},{"type":2,"language":"eng","score":10,"image":"https://artworks.thetvdb.com/show-poster.png"},{"type":23,"language":"fra","score":99999,"image":"https://artworks.thetvdb.com/logo-fr.png"},{"type":23,"language":"eng","score":5,"image":"https://artworks.thetvdb.com/logo-en.png"}]}}"""),
                 "/v4/seasons/66/extended" => JsonResponse("""{"data":{"id":66,"artworks":[{"type":7,"image":"https://artworks.thetvdb.com/season-one.png"}]}}"""),
-                var episodes when episodes.StartsWith("/v4/series/55/episodes/") => JsonResponse("""{"data":{"episodes":[{"id":9001,"seasonNumber":1,"number":1,"image":"https://artworks.thetvdb.com/ep1.png"},{"id":9002,"seasonNumber":1,"number":2,"image":"https://artworks.thetvdb.com/ep2.png"}]},"links":{"next":null}}"""),
+                var episodes when episodes.StartsWith("/v4/series/55/episodes/") => JsonResponse("""{"data":{"episodes":[{"id":9001,"seasonNumber":1,"number":1,"image":"https://artworks.thetvdb.com/ep1.png"},{"id":9002,"seasonNumber":1,"number":2,"image":"/banners/episodes/55/ep2.png"}]},"links":{"next":null}}"""),
                 _ => ImageResponse(image),
             };
         });
@@ -339,7 +339,8 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
         var firstStill = Assert.Single(await _entityAssets.GetByEntityAsync(first.ToString(), "EpisodeStill"));
         Assert.Equal("https://artworks.thetvdb.com/ep1.png", firstStill.ImageUrl);
         var secondStill = Assert.Single(await _entityAssets.GetByEntityAsync(second.ToString(), "EpisodeStill"));
-        Assert.Equal("https://artworks.thetvdb.com/ep2.png", secondStill.ImageUrl);
+        // TheTVDB's episode list gives a picture as a path, not a full address.
+        Assert.Equal("https://artworks.thetvdb.com/banners/episodes/55/ep2.png", secondStill.ImageUrl);
         Assert.Equal("9002", await GetCanonicalAsync(second, BridgeIdKeys.TvdbEpisodeId));
         var showPoster = Assert.Single(await _entityAssets.GetByEntityAsync(show.ToString(), "CoverArt"));
         Assert.Equal("https://artworks.thetvdb.com/show-poster.png", showPoster.ImageUrl);
