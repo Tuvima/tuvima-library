@@ -1,6 +1,6 @@
 # Player controls v3
 
-> **Status:** Locked · **Version:** 3 (revises [Video player controls and bookmarks](video-player-controls-and-bookmarks.md) v2 where stated) · **Last updated:** 2026-11-03 · **Related docs:** [Video player controls and bookmarks](video-player-controls-and-bookmarks.md) · [Music player and queue](music-player-and-queue.md) · [Design system](../design/design-system.md) · Mockups: https://claude.ai/artifact/Gvyp7d2gcWM9o5wxd3JBu1 (source `plans/player-controls-redesign/mockup.html` in the planning project)
+> **Status:** Locked · **Version:** 3 (revises [Video player controls and bookmarks](video-player-controls-and-bookmarks.md) v2 where stated) · **Last updated:** 2026-11-03 (locked by Shy with the bookmark model v2 details) · **Related docs:** [Video player controls and bookmarks](video-player-controls-and-bookmarks.md) · [Music player and queue](music-player-and-queue.md) · [Design system](../design/design-system.md) · Mockups: https://claude.ai/artifact/Gvyp7d2gcWM9o5wxd3JBu1 (source `plans/player-controls-redesign/mockup.html` in the planning project)
 
 ## 1. Goal
 
@@ -41,7 +41,7 @@ Remembered bookmark filter and the chapter-ticks setting per profile. No wire re
 4. **Control sets, chapter setting, shortcut removal** — Standard — `PlaybackControlCatalog`, Settings > Playback, remove B/Shift+B.
 5. **Bookmark filter and Global label** — Standard — depends on 4's bookmark work only for files touched.
 6. **Diagnose private bookmarks not saving and missing rail markers** — Standard — reproduce on a small generated library first and report the cause before fixing.
-7. **Docs** — Mechanical — Watch and Listen pages in tuvima-docs, presentation rules.
+7. **Docs** — Mechanical — Watch and Listen player pages in tuvima-docs, presentation rules, and a short "Why the player works this way" section on the Watch player page built from section 9 below (Shy, 2026-11-03: users like to know how conclusions were reached, even when they cannot change them). Done when each point in section 9 appears in plain words in the public docs.
 
 ## 7. Local checks
 
@@ -50,6 +50,17 @@ Real episode and film at 1440 and 1280; a file with two audio tracks in Chrome a
 ## 8. Risks and open questions
 
 Import and replace behaviour for Global bookmarks is under review in a separate thread and may change D10's wording. The book reader top bar bug needs its own investigation.
+
+## 9. Why it works this way (for the public docs)
+
+1. **Bigger controls and title:** icons were too small to find and hit comfortably on a living-room-distance screen; one size set keeps every control equal.
+2. **Hover shows a name as well as growing:** an icon alone is hard to read for some people and for anyone using the keyboard, so every control gets a visible name.
+3. **One gear Settings menu:** "CC" only covered subtitles; audio and subtitle styling belong in the same place.
+4. **Controls differ by media:** a film has no episodes or chapters, an audiobook lives by chapters, music is about the queue. Showing only what fits keeps the bar calm.
+5. **No bookmark keyboard shortcut:** a stray key press should never add something.
+6. **Bookmark marks and chapter ticks off by default:** a clean progress bar first; turn them on if you like them.
+7. **Mine and Global:** you bookmark for yourself; an administrator can promote the best ones to Global so everyone benefits. Promotion is immediate because nobody loses a bookmark, everybody gains one. Only administrators edit or delete Global bookmarks; everyone else sees them read only.
+8. **Volume is vertical and square:** it matches the rest of the design and stays out of the way until needed.
 
 ## Plain English summary
 
