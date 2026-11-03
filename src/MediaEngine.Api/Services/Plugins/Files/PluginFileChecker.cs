@@ -48,9 +48,12 @@ public static class PluginFileChecker
         }
 
         var problems = new List<PluginFileProblem>();
-        var schema = format == PluginFileFormat.SourceFile
-            ? PluginSchemaValidator.SourceSchema
-            : PluginSchemaValidator.ManifestSchema(root.TryGetProperty("kind", out var kind) && kind.ValueKind == JsonValueKind.String ? kind.GetString() : null);
+        var schema = format switch
+        {
+            PluginFileFormat.SourceFile => PluginSchemaValidator.SourceSchema,
+            PluginFileFormat.SettingsDescription => PluginSchemaValidator.SettingsDescriptionSchema,
+            _ => PluginSchemaValidator.ManifestSchema(root.TryGetProperty("kind", out var kind) && kind.ValueKind == JsonValueKind.String ? kind.GetString() : null),
+        };
         foreach (var finding in OnePerPlace(PluginSchemaValidator.Validate(root, schema)))
         {
             var (line, column) = finding.Code == PluginFileProblemCodes.UnknownWord
@@ -66,7 +69,7 @@ public static class PluginFileChecker
         {
             PluginFileLibraryRules.CheckSource(root, map, fileName, structureHasErrors, rules);
         }
-        else
+        else if (format == PluginFileFormat.Manifest)
         {
             PluginFileLibraryRules.CheckManifest(root, map, structureHasErrors, rules);
         }
@@ -74,7 +77,7 @@ public static class PluginFileChecker
         // A rule that complains about a line the structure layer already complained about is the same finding said twice.
         problems.AddRange(rules.Where(rule => rule.Severity == PluginFileSeverity.Note || !structureLines.Contains(rule.Line)));
 
-        if (baselineText is not null && TryParse(baselineText) is { } baseline)
+        if (format != PluginFileFormat.SettingsDescription && baselineText is not null && TryParse(baselineText) is { } baseline)
         {
             using (baseline)
             {

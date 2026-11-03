@@ -8,11 +8,12 @@
 
 @* The Plugin file card, last on every plugin's page (Plugins and Integrations screens v5 D54). It shows the file's name, whether it is
    valid or how many problems it has, and whether it differs from Tuvima's version, and View file opens the file in place, read only
-   and coloured, with line numbers. Reading is for a computer: on a phone or tablet only the name and state show, with a line saying
-   so. The card draws whatever file the Engine names; it never knows which plugin it belongs to. WP28 adds the Edit button through
-   EditAction, so the card does not change shape when editing arrives. *@
+   and coloured, with line numbers. Edit file (an administrator on a computer, for a file the Engine says is editable) turns the card
+   into the editor (D55); after a save or a reset the card says what happened and, if the plugin did not load or its check failed, offers
+   Reset. Reading and editing are for a computer: on a phone or tablet only the name and state show, with a line saying so. The card
+   draws whatever file the Engine names; it never knows which plugin it belongs to. *@
 @{
-    var file = Card.File;
+    var file = _latest ?? Card.File;
 }
 <AppCard Title="@Card.Title" Class="plugin-page__card" data-testid="plugin-file-card">
     @if (file is null)
@@ -36,13 +37,38 @@
                 <small class="plugin-file__quiet" data-testid="plugin-file-notes">@(file.NoteCount == 1 ? "1 thing to know" : $"{file.NoteCount} things to know") that does not stop it working.</small>
             }
 
-            @if (CanView)
+            @if (_result is not null)
+            {
+                <div class="@("plugin-file__result" + (_result.Health == "needs_attention" || !_result.Reloaded ? " plugin-file__result--problem" : " plugin-file__result--saved"))" data-testid="plugin-file-result" data-outcome="@_result.Outcome" data-health="@_result.Health">
+                    <strong>@_result.Message</strong>
+                    @if (!string.IsNullOrWhiteSpace(_result.HealthSummary))
+                    {
+                        <span data-testid="plugin-file-health">@_result.HealthSummary</span>
+                    }
+                    @if (CanEdit && file.HasShippedCopy && file.Editable && (!_result.Reloaded || _result.Health == "needs_attention"))
+                    {
+                        <div class="plugin-file__actions">
+                            <AppButton Label="@L["PluginFile_ResetToShipped"].Value" StartIcon="@AppMaterialIcons.Outlined.RestartAlt" Size="AppControlSize.Compact"
+                                       Disabled="@_resetting" OnClick="@ResetAfterFailureAsync" data-testid="plugin-file-reset-after" />
+                        </div>
+                    }
+                </div>
+            }
+
+            @if (_editing && CanEdit && _response is not null)
+            {
+                <PluginFileEditorPanel PluginId="@PluginId" Initial="@_response" Done="@EditorDoneAsync" />
+            }
+            else if (CanView)
             {
                 <div class="plugin-file__actions">
                     <AppButton Label="@(_open ? "Hide file" : "View file")" StartIcon="@AppMaterialIcons.Outlined.Description" Size="AppControlSize.Compact"
                                Disabled="@_loading" OnClick="@ToggleAsync" data-testid="plugin-file-view" />
-                    @* The place the editor's Edit button goes (a later packet). Nothing is drawn here yet. *@
-                    @EditAction
+                    @if (CanEdit && file.Editable)
+                    {
+                        <AppButton Label="@L["PluginFile_Edit"].Value" StartIcon="@AppMaterialIcons.Outlined.Edit" Size="AppControlSize.Compact"
+                                   Disabled="@_loading" OnClick="@EditAsync" data-testid="plugin-file-edit" />
+                    }
                 </div>
             }
             else
@@ -50,7 +76,7 @@
                 <small class="plugin-file__quiet" data-testid="plugin-file-computer-only">@L["PluginFile_ComputerOnly"]</small>
             }
 
-            @if (CanView && _open)
+            @if (CanView && _open && !_editing)
             {
                 @if (_loading)
                 {
@@ -72,8 +98,13 @@
 @code {
     private readonly CancellationTokenSource _disposed = new();
     private PluginFileResponse? _response;
+    private PluginFileStateDto? _latest;
+    private PluginFileSaveResponse? _result;
+    private PluginSetupCardDto? _card;
     private bool _open;
     private bool _loading;
+    private bool _editing;
+    private bool _resetting;
     private string? _loadedFor;
 
     /// <summary>The plugin whose file this is.</summary>
@@ -85,8 +116,14 @@
     /// <summary>True on a computer (the same rule as editing items); false on a phone or tablet, where only the name and state show.</summary>
     [Parameter] public bool CanView { get; set; }
 
-    /// <summary>The extension point for the editor's Edit button. Not filled yet.</summary>
-    [Parameter] public RenderFragment? EditAction { get; set; }
+    /// <summary>
+    /// True when the Edit file button may be offered: the same device rule as editing an item (a computer with a fine, hovering pointer).
+    /// The Engine still decides who may save. Defaults to false so a card that is not told never offers editing.
+    /// </summary>
+    [Parameter] public bool CanEdit { get; set; }
+
+    /// <summary>Raised after a save or a reset, so the page and the plugin's tile read the plugin again.</summary>
+    [Parameter] public EventCallback Changed { get; set; }
 
     protected override void OnParametersSet()
     {
@@ -94,7 +131,15 @@
         {
             _loadedFor = PluginId;
             _open = false;
+            _editing = false;
             _response = null;
+            _result = null;
+        }
+
+        if (!ReferenceEquals(_card, Card))
+        {
+            _card = Card;
+            _latest = null;
         }
     }
 
@@ -120,6 +165,76 @@
         finally
         {
             _loading = false;
+        }
+    }
+
+    private async Task EditAsync()
+    {
+        if (!CanEdit)
+        {
+            return;
+        }
+
+        _result = null;
+        _loading = true;
+        try
+        {
+            _response = await ApiClient.GetPluginFileAsync(PluginId, _disposed.Token);
+            _editing = _response is not null;
+            _open = false;
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "Could not read the file of plugin {PluginId} to edit it.", PluginId);
+            _response = null;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task EditorDoneAsync(PluginFileSaveResponse? result)
+    {
+        _editing = false;
+        _response = null;
+        if (result is null)
+        {
+            return;
+        }
+
+        _result = result;
+        _latest = result.State;
+        await Changed.InvokeAsync();
+    }
+
+    private async Task ResetAfterFailureAsync()
+    {
+        if (!CanEdit || _resetting)
+        {
+            return;
+        }
+
+        _resetting = true;
+        try
+        {
+            var result = await ApiClient.ResetPluginFileAsync(PluginId, _disposed.Token);
+            if (result is not null)
+            {
+                _result = result;
+                _latest = result.State;
+                _response = null;
+                _open = false;
+                await Changed.InvokeAsync();
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "Could not reset the file of plugin {PluginId}.", PluginId);
+        }
+        finally
+        {
+            _resetting = false;
         }
     }
 

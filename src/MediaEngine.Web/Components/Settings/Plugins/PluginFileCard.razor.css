@@ -3,3 +3,8 @@
 .plugin-file__heading strong { overflow-wrap: anywhere; }
 .plugin-file__actions { display: flex; flex-wrap: wrap; gap: var(--tl-space-2, 8px); }
 .plugin-file__quiet { color: var(--tl-text-muted); }
+.plugin-file__result { display: grid; gap: var(--tl-space-2, 8px); padding: var(--tl-space-2, 8px) var(--tl-space-3, 12px); border-inline-start: 3px solid var(--tl-status-success); border-radius: var(--tl-radius-sm, 8px); }
+.plugin-file__result--saved { animation: plugin-file-glow 2.4s ease-out; }
+.plugin-file__result--problem { border-inline-start-color: var(--tl-status-error); }
+@keyframes plugin-file-glow { from { background: color-mix(in srgb, var(--tl-status-success) 30%, transparent); } to { background: transparent; } }
+@media (prefers-reduced-motion: reduce) { .plugin-file__result--saved { animation: none; } }

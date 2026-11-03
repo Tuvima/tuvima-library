@@ -26,6 +26,9 @@ internal static class PluginSchemaValidator
     /// <summary>The schema file name for a provider source file.</summary>
     public const string SourceSchema = "provider.schema.json";
 
+    /// <summary>The schema file for the settings description that ships beside a compiled-in plugin.</summary>
+    public const string SettingsDescriptionSchema = "plugin-settings.schema.json";
+
     /// <summary>The schema file for a plugin manifest of the given <c>kind</c> word (official, declarative, service, sandboxed); anything else uses the official one.</summary>
     public static string ManifestSchema(string? kind) => (kind ?? string.Empty).Trim().ToLowerInvariant() switch
     {

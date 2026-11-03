@@ -28,6 +28,20 @@ public static class ShippedPluginSettings
         return document.RootElement.Clone();
     }
 
+    /// <summary>The text of <paramref name="fileName"/> exactly as it ships, or null when the assembly does not embed it. The Plugin file card shows this text read only.</summary>
+    public static string? ReadText(Assembly assembly, string fileName)
+    {
+        ArgumentNullException.ThrowIfNull(assembly);
+        using var stream = assembly.GetManifestResourceStream(ResourcePrefix + fileName);
+        if (stream is null)
+        {
+            return null;
+        }
+
+        using var reader = new StreamReader(stream, System.Text.Encoding.UTF8);
+        return reader.ReadToEnd();
+    }
+
     /// <summary>The names of every shipped settings file embedded in <paramref name="assembly"/>, without the resource prefix.</summary>
     public static IReadOnlyList<string> FilesIn(Assembly assembly) =>
     [

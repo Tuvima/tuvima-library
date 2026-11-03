@@ -62,7 +62,7 @@ else
                         @AboutCard(card)
                         break;
                     case "file":
-                        <PluginFileCard PluginId="@Plugin.Id" Card="@card" CanView="@CanViewFile" />
+                        <PluginFileCard PluginId="@Plugin.Id" Card="@card" CanView="@CanViewFile" CanEdit="@CanViewFile" Changed="@ChangedAsync" />
                         break;
                 }
             </div>

@@ -427,6 +427,61 @@ internal static class PluginEndpoints
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
 
+        // The Plugin file editor's two writing actions (v5 D55, D56). Both write only the plugin's own file, re-check it here, reload the
+        // plugin and run its check; neither touches keys or saved setting values, which live apart from the file.
+        group.MapPut("/{pluginId}/file", async (
+            string pluginId,
+            PluginFileCheckRequest request,
+            HttpContext http,
+            [FromServices] PluginFileEditor editor,
+            [FromServices] PluginPeopleActionLog peopleActions,
+            [FromServices] IRequestAuthorityResolver authorityResolver,
+            CancellationToken ct) =>
+        {
+            if (request.Text is null || request.Text.Length > PluginFileChecker.MaxCharacters)
+            {
+                return ApiErrors.BadRequest("The text is missing or too large to save.");
+            }
+
+            var result = await editor.SaveAsync(pluginId, request.Text, ct).ConfigureAwait(false);
+            if (result is null)
+            {
+                return ApiErrors.NotFound($"Plugin '{pluginId}' has no file to save.");
+            }
+
+            await RecordFileActionAsync(http, authorityResolver, peopleActions, pluginId, result, "edited-plugin-file", "Edited the file of", ct).ConfigureAwait(false);
+            return Results.Ok(result);
+        })
+        .WithName("SavePluginFile")
+        .WithSummary("Saves the text of a plugin's file. The Engine checks it again and refuses a file with any blocking problem (nothing is written then). A valid file is written atomically, the plugin is loaded again and its check runs; the answer says whether it loaded and whether it works.")
+        .Produces<PluginFileSaveResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
+
+        group.MapPost("/{pluginId}/file/reset", async (
+            string pluginId,
+            HttpContext http,
+            [FromServices] PluginFileEditor editor,
+            [FromServices] PluginPeopleActionLog peopleActions,
+            [FromServices] IRequestAuthorityResolver authorityResolver,
+            CancellationToken ct) =>
+        {
+            var result = await editor.ResetAsync(pluginId, ct).ConfigureAwait(false);
+            if (result is null)
+            {
+                return ApiErrors.NotFound($"Plugin '{pluginId}' has no file to reset.");
+            }
+
+            await RecordFileActionAsync(http, authorityResolver, peopleActions, pluginId, result, "reset-plugin-file", "Reset the file of", ct).ConfigureAwait(false);
+            return Results.Ok(result);
+        })
+        .WithName("ResetPluginFile")
+        .WithSummary("Puts Tuvima's pristine copy of a plugin's file back (a provider source file keeps the person's own on/off switch), loads the plugin again and runs its check. A private plugin has no Tuvima version, so this is refused for it.")
+        .Produces<PluginFileSaveResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
+
         // The changes the generated page makes to values kept outside the plugin's saved settings, to the rows of a repeating group and
         // to the Activity cap (v5 D49, D59). The Dashboard calls these for every plugin; a plugin's JSON names where its values live.
         group.MapPut("/{pluginId}/page/values/{key}", async (
@@ -828,6 +883,25 @@ internal static class PluginEndpoints
     }
 
     private const int MaximumSecretValueLength = 8192;
+
+    private static async Task RecordFileActionAsync(
+        HttpContext http,
+        IRequestAuthorityResolver authorityResolver,
+        PluginPeopleActionLog peopleActions,
+        string pluginId,
+        PluginFileSaveResponse result,
+        string kind,
+        string words,
+        CancellationToken ct)
+    {
+        if (!result.Saved)
+        {
+            return;
+        }
+
+        var authority = await authorityResolver.ResolveAsync(http, ct).ConfigureAwait(false);
+        await peopleActions.RecordAsync(new PluginPeopleAction(authority.ActiveProfileId, pluginId, kind, $"{words} {pluginId}", Before: result.State.FileName, After: result.Outcome), ct).ConfigureAwait(false);
+    }
 
     private const string NoProfileMessage = "Choose a profile first. Accounts are linked to a profile.";
 

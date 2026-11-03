@@ -5,6 +5,7 @@ using MediaEngine.Contracts.Plugins;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Plugins;
+using MediaEngine.Storage.Configuration;
 using MediaEngine.Storage.Contracts;
 
 namespace MediaEngine.Api.Services.Plugins.Setup;
@@ -32,9 +33,33 @@ public sealed class PluginPageModelService(
             return await BuildForManifestAsync(registration, ct).ConfigureAwait(false);
         }
 
-        var config = loader.LoadAllProviders().FirstOrDefault(provider =>
-            provider.ProviderId is not null && provider.PluginId is null && string.Equals(provider.Name, pluginId, StringComparison.OrdinalIgnoreCase));
-        return config is null ? null : await BuildForSourceAsync(config, ct).ConfigureAwait(false);
+        var config = FindSource(pluginId, out var unreadable);
+        if (config is not null)
+        {
+            return await BuildForSourceAsync(config, ct).ConfigureAwait(false);
+        }
+
+        // One source file failed the loader's checks. The page still opens, with only the Plugin file card, which shows the problem
+        // and (for an administrator on a computer) lets the file be fixed or reset (v5 D55).
+        return unreadable && await files.StateAsync(pluginId, ct).ConfigureAwait(false) is { } state
+            ? PluginPageModelBuilder.Build(new PluginPageModelInput { PluginId = pluginId, Name = pluginId, File = state })
+            : null;
+    }
+
+    private ProviderConfiguration? FindSource(string pluginId, out bool unreadable)
+    {
+        unreadable = false;
+        try
+        {
+            return loader.LoadAllProviders().FirstOrDefault(provider =>
+                provider.ProviderId is not null && provider.PluginId is null && string.Equals(provider.Name, pluginId, StringComparison.OrdinalIgnoreCase));
+        }
+        catch (ConfigValidationException ex)
+        {
+            logger.LogWarning("A provider file failed its checks, so the page of {PluginId} shows only its Plugin file card: {Reason}", pluginId, ex.Message);
+            unreadable = true;
+            return null;
+        }
     }
 
     /// <summary>
@@ -57,8 +82,7 @@ public sealed class PluginPageModelService(
             return PluginSettingsDescriptionReader.Read(registration.SettingsSchema);
         }
 
-        var config = loader.LoadAllProviders().FirstOrDefault(provider =>
-            provider.ProviderId is not null && provider.PluginId is null && string.Equals(provider.Name, pluginId, StringComparison.OrdinalIgnoreCase));
+        var config = FindSource(pluginId, out _);
         return config is null ? null : PluginSettingsDescriptionReader.Read(config.SettingsSchema);
     }
 

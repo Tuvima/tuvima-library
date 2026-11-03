@@ -7784,6 +7784,18 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginFileResponse
   State: MediaEngine.Contracts.Plugins.PluginFileStateDto | nullability=not-null | accessors=get,set
   Problems: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginFileProblemDto> | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginFileSaveResponse
+  PluginId: System.String | nullability=not-null | accessors=get,set
+  Saved: System.Boolean | nullability=not-null | accessors=get,set
+  Outcome: System.String | nullability=not-null | accessors=get,set
+  Message: System.String | nullability=not-null | accessors=get,set
+  Text: System.String | nullability=not-null | accessors=get,set
+  State: MediaEngine.Contracts.Plugins.PluginFileStateDto | nullability=not-null | accessors=get,set
+  Problems: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginFileProblemDto> | nullability=not-null | accessors=get,set
+  Reloaded: System.Boolean | nullability=not-null | accessors=get,set
+  Health: System.String | nullability=not-null | accessors=get,set
+  HealthSummary: System.String | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginFileStateDto
   FileName: System.String | nullability=not-null | accessors=get,set
   Kind: System.String | nullability=not-null | accessors=get,set

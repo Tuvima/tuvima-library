@@ -104,3 +104,52 @@ public sealed class PluginFileCheckResponse
     [JsonPropertyName("problems")]
     public List<PluginFileProblemDto> Problems { get; set; } = [];
 }
+
+/// <summary>
+/// What happened to a plugin's file when an administrator pressed Save changes or Reset to Tuvima's version (Plugins and
+/// Integrations screens v5 D55, D56). <c>PUT /plugins/{pluginId}/file</c> and <c>POST /plugins/{pluginId}/file/reset</c> both answer
+/// with this. Keys and setting values are stored apart from the file, so neither action touches them.
+/// </summary>
+public sealed class PluginFileSaveResponse
+{
+    [JsonPropertyName("plugin_id")]
+    public string PluginId { get; set; } = "";
+
+    /// <summary>True when the file on disk now holds the proposed text (or Tuvima's version, for a reset). False when nothing was written.</summary>
+    [JsonPropertyName("saved")]
+    public bool Saved { get; set; }
+
+    /// <summary>
+    /// <c>saved</c> (written, reloaded and checked), <c>reset</c> (Tuvima's version put back), <c>invalid</c> (the check found problems
+    /// that block, nothing written), <c>read_only</c> (the file cannot be edited here), <c>no_shipped_copy</c> (a reset with no
+    /// Tuvima version to go back to) or <c>reload_failed</c> (the Engine could not load what was written).
+    /// </summary>
+    [JsonPropertyName("outcome")]
+    public string Outcome { get; set; } = "invalid";
+
+    /// <summary>One plain sentence saying what happened.</summary>
+    [JsonPropertyName("message")]
+    public string Message { get; set; } = "";
+
+    /// <summary>The file's text as it is on disk after the action.</summary>
+    [JsonPropertyName("text")]
+    public string Text { get; set; } = "";
+
+    [JsonPropertyName("state")]
+    public PluginFileStateDto State { get; set; } = new();
+
+    [JsonPropertyName("problems")]
+    public List<PluginFileProblemDto> Problems { get; set; } = [];
+
+    /// <summary>True when the Engine loaded the written file again. False when it could not (the page then offers Reset).</summary>
+    [JsonPropertyName("reloaded")]
+    public bool Reloaded { get; set; }
+
+    /// <summary><c>working</c>, <c>needs_attention</c> or <c>not_checked</c> (the plugin is switched off, so there was nothing to run). Empty when nothing was written.</summary>
+    [JsonPropertyName("health")]
+    public string Health { get; set; } = "";
+
+    /// <summary>The health check's one-sentence answer, in plain words. Empty when nothing was written.</summary>
+    [JsonPropertyName("health_summary")]
+    public string HealthSummary { get; set; } = "";
+}

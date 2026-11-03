@@ -1,4 +1,7 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using MediaEngine.Api.Services.Plugins.Sources;
+using MediaEngine.Plugins;
 
 namespace MediaEngine.Api.Services.Plugins.Files;
 
@@ -30,7 +33,55 @@ public interface IShippedPluginDescriptions
     ShippedPluginDescription? Find(string pluginId);
 }
 
-/// <summary>No compiled-in plugin has a shipped description yet.</summary>
+/// <summary>
+/// The shipped description of each compiled-in plugin (D58): the settings JSON its assembly embeds (<see cref="ShippedPluginSettings"/>).
+/// A plugin is matched to its file by what the file says: the embedded file whose content equals the settings description the plugin
+/// reports. A plugin with no settings of its own has no file, so its page has no Plugin file card. Read only (D54).
+/// </summary>
+public sealed class CompiledPluginDescriptions : IShippedPluginDescriptions
+{
+    private readonly Dictionary<string, ShippedPluginDescription> _byPlugin = new(StringComparer.OrdinalIgnoreCase);
+
+    public CompiledPluginDescriptions(IEnumerable<ITuvimaPlugin> plugins)
+    {
+        foreach (var plugin in plugins)
+        {
+            if (plugin.Manifest.SettingsSchema is not { ValueKind: JsonValueKind.Object } schema)
+            {
+                continue;
+            }
+
+            var assembly = plugin.GetType().Assembly;
+            var wanted = JsonNode.Parse(schema.GetRawText());
+            foreach (var file in ShippedPluginSettings.FilesIn(assembly))
+            {
+                var text = ShippedPluginSettings.ReadText(assembly, file);
+                if (text is not null && SameJson(text, wanted))
+                {
+                    _byPlugin[plugin.Manifest.Id] = new ShippedPluginDescription(file, text);
+                    break;
+                }
+            }
+        }
+    }
+
+    public ShippedPluginDescription? Find(string pluginId) => _byPlugin.GetValueOrDefault(pluginId);
+
+    private static bool SameJson(string text, JsonNode? other)
+    {
+        try
+        {
+            return JsonNode.DeepEquals(JsonNode.Parse(text, documentOptions: new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true }), other);
+        }
+        catch (JsonException)
+        {
+            // An embedded file that is not JSON is a build mistake the settings test reports; here it simply does not match.
+            return false;
+        }
+    }
+}
+
+/// <summary>No compiled-in plugin has a shipped description.</summary>
 public sealed class NoShippedPluginDescriptions : IShippedPluginDescriptions
 {
     public ShippedPluginDescription? Find(string pluginId) => null;

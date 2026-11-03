@@ -88,7 +88,6 @@ public sealed class PluginFileCardTests : AsyncBunitContext
         Assert.Equal("3", cut.Find("[data-line='4'] .plugin-json--number").TextContent);
         Assert.Equal("true", cut.Find("[data-line='5'] .plugin-json--literal").TextContent);
         Assert.Equal(1, _fileCalls);
-        Assert.Empty(cut.FindAll("[data-testid=plugin-file-edit]"));
         Assert.Contains("Hide file", cut.Find("[data-testid=plugin-file-view]").TextContent, StringComparison.Ordinal);
     }
 

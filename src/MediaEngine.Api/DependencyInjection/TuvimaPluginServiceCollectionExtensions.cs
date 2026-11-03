@@ -83,10 +83,11 @@ public static class TuvimaPluginServiceCollectionExtensions
         services.AddSingleton<PluginCheckNowService>();
         services.AddSingleton<IPluginSettingValueSource, StashBoxSettingValueSource>();
         // The Plugin file card (v5 D54): Tuvima's own copy of each shipped plugin file, the shipped descriptions of compiled-in plugins
-        // (none until they exist; whoever adds them registers their own locator first), and the read and check service.
+        // (the settings JSON each compiled-in plugin embeds; read only), the read and check service and the editor's save and reset.
         services.TryAddSingleton<IShippedPluginFiles>(_ => new ShippedPluginFiles());
-        services.TryAddSingleton<IShippedPluginDescriptions, NoShippedPluginDescriptions>();
+        services.TryAddSingleton<IShippedPluginDescriptions, CompiledPluginDescriptions>();
         services.AddSingleton<PluginFileService>();
+        services.AddSingleton<PluginFileEditor>();
         services.AddSingleton<PluginPageModelService>();
         services.AddSingleton<PluginProfileConnectionService>();
         services.AddTuvimaHttpClient(PluginDeviceSignInService.HttpClientName, TimeSpan.FromSeconds(20), addStandardResilience: false);

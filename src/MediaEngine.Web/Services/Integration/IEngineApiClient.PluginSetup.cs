@@ -29,6 +29,12 @@ public partial interface IEngineApiClient
     /// <summary>POST /plugins/{id}/file/check — checks proposed text for the plugin's file. Writes nothing.</summary>
     Task<PluginFileCheckResponse?> CheckPluginFileAsync(string pluginId, string text, CancellationToken ct = default);
 
+    /// <summary>PUT /plugins/{id}/file — saves the plugin's file. The Engine checks it again, writes it only when nothing blocks, reloads the plugin and runs its check. Null when the Engine could not be asked.</summary>
+    Task<PluginFileSaveResponse?> SavePluginFileAsync(string pluginId, string text, CancellationToken ct = default);
+
+    /// <summary>POST /plugins/{id}/file/reset — puts Tuvima's pristine copy of the plugin's file back, reloads the plugin and runs its check. Null when the Engine could not be asked.</summary>
+    Task<PluginFileSaveResponse?> ResetPluginFileAsync(string pluginId, CancellationToken ct = default);
+
     /// <summary>PUT /plugins/{id}/activity-cap — how much of the plugin's Activity list is kept.</summary>
     Task<PluginActivityCapDto?> SavePluginActivityCapAsync(string pluginId, int maxEntries, int maxDays, CancellationToken ct = default);
 }

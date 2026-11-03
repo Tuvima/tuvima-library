@@ -9732,6 +9732,87 @@
   <data name="PluginFile_Opening" xml:space="preserve">
     <value>Opening the file</value>
   </data>
+  <data name="PluginFile_Edit" xml:space="preserve">
+    <value>Edit file</value>
+  </data>
+  <data name="PluginFile_ResetToShipped" xml:space="preserve">
+    <value>Reset to Tuvima's version</value>
+  </data>
+  <data name="PluginFileEditor_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="PluginFileEditor_Save" xml:space="preserve">
+    <value>Save changes</value>
+  </data>
+  <data name="PluginFileEditor_Checking" xml:space="preserve">
+    <value>Checking...</value>
+  </data>
+  <data name="PluginFileEditor_NothingToFix" xml:space="preserve">
+    <value>Nothing to fix.</value>
+  </data>
+  <data name="PluginFileEditor_NotChecked" xml:space="preserve">
+    <value>The Engine did not answer, so this text has not been checked. Try typing again.</value>
+  </data>
+  <data name="PluginFileEditor_Problems" xml:space="preserve">
+    <value>Problems</value>
+  </data>
+  <data name="PluginFileEditor_TextOf" xml:space="preserve">
+    <value>Text of {0}</value>
+  </data>
+  <data name="PluginFileEditor_NotSaved" xml:space="preserve">
+    <value>The Engine did not answer, so nothing was saved.</value>
+  </data>
+  <data name="PluginFileEditor_NotReset" xml:space="preserve">
+    <value>The Engine did not answer, so the file was not reset.</value>
+  </data>
+  <data name="PluginFileEditor_ReviewTitle" xml:space="preserve">
+    <value>Review changes</value>
+  </data>
+  <data name="PluginFileEditor_KeepEditing" xml:space="preserve">
+    <value>Keep editing</value>
+  </data>
+  <data name="PluginFileEditor_ResetTitle" xml:space="preserve">
+    <value>Reset to Tuvima's version?</value>
+  </data>
+  <data name="PluginFileEditor_ResetMessage" xml:space="preserve">
+    <value>The file goes back to the version that ships with Library. Your edits to it are lost. Your keys and the values you saved for its settings are kept.</value>
+  </data>
+  <data name="PluginFileEditor_ResetConfirm" xml:space="preserve">
+    <value>Reset file</value>
+  </data>
+  <data name="PluginFileEditor_UnsavedTitle" xml:space="preserve">
+    <value>Unsaved changes</value>
+  </data>
+  <data name="PluginFileEditor_UnsavedMessage" xml:space="preserve">
+    <value>You changed this file and have not saved it. Leave without saving?</value>
+  </data>
+  <data name="PluginFileEditor_Discard" xml:space="preserve">
+    <value>Discard changes</value>
+  </data>
+  <data name="PluginFileDiff_Region" xml:space="preserve">
+    <value>Changes to the file</value>
+  </data>
+  <data name="PluginFileEditor_Valid" xml:space="preserve">
+    <value>Valid</value>
+  </data>
+  <data name="PluginFileEditor_StatusChecking" xml:space="preserve">
+    <value>Checking</value>
+  </data>
+  <data name="PluginFileEditor_StatusNotChecked" xml:space="preserve">
+    <value>Not checked</value>
+  </data>
+  <data name="PluginFileEditor_OneProblem" xml:space="preserve">
+    <value>1 problem</value>
+  </data>
+  <data name="PluginFileEditor_ManyProblems" xml:space="preserve">
+    <value>{0} problems</value>
+  </data>
+  <data name="PluginFileEditor_LineError" xml:space="preserve">
+    <value>Line {0}</value>
+  </data>
+  <data name="PluginFileEditor_LineNote" xml:space="preserve">
+    <value>To know, line {0}</value>
+  </data>
   <data name="PluginPage_Unavailable" xml:space="preserve">
     <value>This plugin's page is unavailable</value>
   </data>

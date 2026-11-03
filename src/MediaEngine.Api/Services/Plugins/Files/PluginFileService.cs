@@ -5,6 +5,16 @@ using MediaEngine.Storage.Configuration;
 
 namespace MediaEngine.Api.Services.Plugins.Files;
 
+/// <summary>Where a plugin's file is and what it is, found by <see cref="PluginFileService"/>.</summary>
+internal sealed record PluginFileTarget(
+    string Kind,
+    PluginFileFormat Format,
+    string FileName,
+    string? FullPath,
+    string? DescriptionText,
+    bool Editable,
+    string? ShippedText);
+
 /// <summary>
 /// Reads and checks a plugin's file for the Plugin file card (Plugins and Integrations screens v5 D54, D55 first half). A plugin
 /// defined by a file (a provider source file, a declarative or other manifest, a private upload) is read from disk; a compiled-in
@@ -21,16 +31,6 @@ public sealed class PluginFileService(
     public const string SourceFileKind = "source_file";
     public const string ManifestKind = "manifest";
     public const string ShippedDescriptionKind = "shipped_description";
-
-    /// <summary>Where the plugin's file is and what it is, or null when the plugin has no file to show.</summary>
-    private sealed record Target(
-        string Kind,
-        PluginFileFormat Format,
-        string FileName,
-        string? FullPath,
-        string? DescriptionText,
-        bool Editable,
-        string? ShippedText);
 
     /// <summary>The file's text with its state and findings, or null when the plugin does not exist or has no file to show.</summary>
     public async Task<PluginFileResponse?> ReadAsync(string pluginId, CancellationToken ct)
@@ -70,7 +70,7 @@ public sealed class PluginFileService(
         return Evaluate(target, text, installedText: text).State;
     }
 
-    private (PluginFileStateDto State, List<PluginFileProblemDto> Problems) Evaluate(Target target, string? text, string? installedText)
+    internal (PluginFileStateDto State, List<PluginFileProblemDto> Problems) Evaluate(PluginFileTarget target, string? text, string? installedText)
     {
         PluginFileCheckResult result;
         if (text is null)
@@ -111,7 +111,7 @@ public sealed class PluginFileService(
         return (state, problems);
     }
 
-    private async Task<string?> ReadTextAsync(Target target, CancellationToken ct)
+    internal async Task<string?> ReadTextAsync(PluginFileTarget target, CancellationToken ct)
     {
         if (target.DescriptionText is not null)
         {
@@ -178,7 +178,7 @@ public sealed class PluginFileService(
         }
     }
 
-    private Target? Locate(string pluginId)
+    internal PluginFileTarget? Locate(string pluginId)
     {
         if (string.IsNullOrWhiteSpace(pluginId))
         {
@@ -189,7 +189,7 @@ public sealed class PluginFileService(
         {
             if (!string.IsNullOrWhiteSpace(registration.ManifestPath))
             {
-                return new Target(
+                return new PluginFileTarget(
                     ManifestKind,
                     PluginFileFormat.Manifest,
                     Path.GetFileName(registration.ManifestPath),
@@ -200,7 +200,7 @@ public sealed class PluginFileService(
             }
 
             return descriptions.Find(registration.Manifest.Id) is { } description
-                ? new Target(ShippedDescriptionKind, PluginFileFormat.Manifest, description.FileName, FullPath: null, description.Text, Editable: false, ShippedText: null)
+                ? new PluginFileTarget(ShippedDescriptionKind, PluginFileFormat.SettingsDescription, description.FileName, FullPath: null, description.Text, Editable: false, ShippedText: null)
                 : null;
         }
 
@@ -217,7 +217,7 @@ public sealed class PluginFileService(
         }
 
         var fileName = name + ".json";
-        return new Target(
+        return new PluginFileTarget(
             SourceFileKind,
             PluginFileFormat.SourceFile,
             fileName,

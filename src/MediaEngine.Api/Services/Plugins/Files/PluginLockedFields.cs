@@ -8,8 +8,11 @@ public enum PluginFileFormat
     /// <summary>A provider source file (<c>config/providers/{name}.json</c>).</summary>
     SourceFile,
 
-    /// <summary>A plugin manifest (<c>plugin.json</c>) or the shipped JSON that describes a compiled-in plugin.</summary>
+    /// <summary>A plugin manifest (<c>plugin.json</c>).</summary>
     Manifest,
+
+    /// <summary>The settings description (the <c>settings_schema</c> object) that ships beside a compiled-in plugin. Read only: nothing is locked, because nothing can be saved.</summary>
+    SettingsDescription,
 }
 
 /// <summary>
