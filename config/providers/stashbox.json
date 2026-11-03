@@ -53,6 +53,35 @@
     ],
     "authentication_probe": null
   },
+  "settings_schema": {
+    "properties": {
+      "servers": {
+        "control": "group_list",
+        "title": "Servers",
+        "description": "Stash-box videos are looked up on these servers, in this order. StashDB is the public one; you can add another stash-box server.",
+        "value_source": "stash_box",
+        "item_title": "Server",
+        "add_label": "Add a server",
+        "locked": ["stashdb"],
+        "row_actions": ["test_connection", "remove"],
+        "order": 0,
+        "fields": {
+          "name": { "type": "string", "title": "Name", "placeholder": "My stash-box" },
+          "address": { "type": "string", "format": "url", "title": "Address", "placeholder": "https://" },
+          "api_key": { "type": "string", "format": "secret", "title": "Account key" }
+        }
+      },
+      "fingerprint_permission": {
+        "type": "boolean",
+        "title": "Send a fingerprint of your file",
+        "description": "Off by default. A short fingerprint of the video file helps StashDB find an exact match; the file itself is never sent.",
+        "value_source": "stash_box",
+        "default": false,
+        "order": 1
+      }
+    },
+    "actions": [ { "kind": "test_connection" } ]
+  },
   "ui_metadata": {
     "plugin_category": "intake",
     "provides": ["Identification", "Details", "Artwork", "People"],

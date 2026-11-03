@@ -7,6 +7,7 @@ using MediaEngine.Api.Services.Plugins;
 using MediaEngine.Api.Services.Plugins.AiFeatures;
 using MediaEngine.Api.Services.Plugins.Declarative;
 using MediaEngine.Api.Services.Plugins.Service;
+using MediaEngine.Api.Services.Plugins.Setup;
 using MediaEngine.Api.Services.Plugins.Sources;
 using MediaEngine.Api.Services.Vault;
 using MediaEngine.Contracts.Approvals;
@@ -373,6 +374,20 @@ internal static class PluginEndpoints
         })
         .WithName("GetPlugin")
         .Produces<PluginSummaryResponse>(StatusCodes.Status200OK)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsRead);
+
+        group.MapGet("/{pluginId}/page", async (
+            string pluginId,
+            [FromServices] PluginPageModelService pages,
+            CancellationToken ct) =>
+        {
+            var page = await pages.BuildAsync(pluginId, ct).ConfigureAwait(false);
+            return page is null ? ApiErrors.NotFound($"Plugin '{pluginId}' not found.") : Results.Ok(page);
+        })
+        .WithName("GetPluginSetupPage")
+        .WithSummary("The plugin's Set up page as an ordered list of cards (Access, What it provides, Settings, Privacy, About), built from the plugin's own JSON whichever file format it is. Never a secret value.")
+        .Produces<PluginSetupPageResponse>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsRead);
 
         group.MapPost("/{pluginId}/enable", EnablePlugin)
