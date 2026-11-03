@@ -26,7 +26,6 @@ internal static class RecycleBinPersonalState
         new("reader_statistics"),
         new("audiobook_bookmarks", HasWork: true, HasProfile: true),
         new("audiobook_listen_history", HasWork: true, HasProfile: true),
-        new("bookmark_packs", HasWork: true, HasProfile: true),
     ];
 
     private sealed record Cell(string? T, string? V);

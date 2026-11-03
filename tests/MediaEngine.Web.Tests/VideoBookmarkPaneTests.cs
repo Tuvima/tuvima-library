@@ -189,19 +189,43 @@ public sealed class VideoBookmarkPaneTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task TheBarSwitch_ReportsItsChoice_AndTheFooterSlotRendersWhatTheHostGives()
+    public async Task TheBarSwitch_ReportsItsChoice_AndFindBookmarksOpensTheHostsView_WithABackArrowToTheList()
     {
         bool? shown = null;
         var cut = Render<VideoBookmarkPane>(parameters => parameters
             .Add(component => component.ShowOnBar, false)
             .Add(component => component.ShowOnBarChanged, EventCallback.Factory.Create<bool>(this, value => shown = value))
-            .Add(component => component.Footer, (RenderFragment)(builder => builder.AddMarkupContent(0, "<p class=\"find-slot\">Find bookmarks</p>"))));
+            .Add(component => component.AllowFind, true)
+            .Add(component => component.FindView, (RenderFragment<EventCallback>)(close => builder =>
+            {
+                builder.AddMarkupContent(0, "<p class=\"find-slot\">Finding</p>");
+                builder.OpenElement(1, "button");
+                builder.AddAttribute(2, "class", "find-back");
+                builder.AddAttribute(3, "onclick", close);
+                builder.CloseElement();
+            })));
 
         Assert.Contains("Show bookmarks on the bar", cut.Markup);
         await cut.Find("input[role=switch]").ChangeAsync(true);
-
         Assert.True(shown);
-        Assert.Equal("Find bookmarks", cut.Find(".find-slot").TextContent);
+
+        await cut.Find("button.video-bookmark-pane__find").ClickAsync();
+        Assert.Equal("Finding", cut.Find(".find-slot").TextContent);
+        Assert.Empty(cut.FindAll(".video-bookmark-pane__add"));
+
+        await cut.Find(".find-back").ClickAsync();
+        Assert.Empty(cut.FindAll(".find-slot"));
+        Assert.NotEmpty(cut.FindAll(".video-bookmark-pane__add"));
+    }
+
+    [Fact]
+    public void FindBookmarks_IsNotOffered_WhenTheHostDoesNotAllowIt()
+    {
+        var cut = Render<VideoBookmarkPane>(parameters => parameters
+            .Add(component => component.AllowFind, false)
+            .Add(component => component.FindView, (RenderFragment<EventCallback>)(_ => builder => builder.AddContent(0, "x"))));
+
+        Assert.Empty(cut.FindAll("button.video-bookmark-pane__find"));
     }
 
     [Fact]

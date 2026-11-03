@@ -9,6 +9,12 @@
    on a desktop or tablet). Global bookmarks are read-only for everyone but an administrator, who can rename, edit and delete them.
    Promote is immediate: no confirmation, a short glow on the row instead of a toast. *@
 <div class="video-bookmark-pane">
+@if (_finding && AllowFind && FindView is not null)
+{
+    @FindView(EventCallback.Factory.Create(this, CloseFindAsync))
+}
+else
+{
     <AppNativeButton Type="button" Class="video-bookmark-pane__add" OnClick="AddAsync" Disabled="@_saving"
                      AriaLabel="@($"Add bookmark here at {PlaybackSeekRail.Time(Position)}")">
         <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Bookmark" />
@@ -76,7 +82,11 @@
         }
     </ul>
     <AppSwitchRow T="bool" Label="@L["VideoBookmarkPane_ShowOnBar"].Value" Value="@ShowOnBar" ValueChanged="@(value => ShowOnBarChanged.InvokeAsync(value))" Color="AppColor.Primary" />
-    @Footer
+    @if (AllowFind && FindView is not null)
+    {
+        <AppNativeButton Type="button" Class="video-bookmark-pane__find" OnClick="@(() => _finding = true)">@L["VideoBookmarkPane_Find"]</AppNativeButton>
+    }
+}
 </div>
 
 @code {
@@ -105,12 +115,19 @@
     [Parameter] public Func<PlaybackRailBookmark, string?, Task<bool>>? Promote { get; set; }
     /// <summary>Changes a Global bookmark's name, note and description (administrators).</summary>
     [Parameter] public Func<PlaybackRailBookmark, string?, string?, string?, Task<bool>>? Update { get; set; }
-    /// <summary>A slot below the switch, for the "Find bookmarks" entry point that arrives with Global bookmark imports.</summary>
-    [Parameter] public RenderFragment? Footer { get; set; }
+    /// <summary>
+    /// The Find bookmarks sub-view (Global bookmarks spec D6). When set, a "Find bookmarks" entry sits below the switch and replaces the
+    /// list with this view, which gets a callback that returns to the list. Not offered in the Vault, on phones or on TVs.
+    /// </summary>
+    /// <summary>False in the Vault and on phones and TVs, where Find bookmarks is never offered.</summary>
+    [Parameter] public bool AllowFind { get; set; }
+    [Parameter] public RenderFragment<EventCallback>? FindView { get; set; }
 
     private string? _note, _editLabel, _editNote, _editDescription;
     private bool _saving, _failed;
     private Guid? _confirmId, _editId, _glowId;
+    private bool _finding;
+    private Task CloseFindAsync() { _finding = false; StateHasChanged(); return Task.CompletedTask; }
 
     private bool IsEveryonesView => EffectiveFilter == PlaybackPreferenceValues.Everyones;
     private bool EveryonesAvailable => IsAdministrator && AllowEveryones;

@@ -6254,6 +6254,47 @@ html[data-form-factor="tv"] .tl-detail-hero__synopsis {
 
 .app-official-pill__icon { display: block; flex: 0 0 auto; }
 
+.video-bookmark-pane .video-bookmark-pane__find { padding:8px 10px; border:1px solid var(--playback-border); border-radius:var(--tl-radius-sm,6px); background:transparent; color:var(--playback-text); font-weight:600; cursor:pointer; }
+.video-bookmark-pane .video-bookmark-pane__find:hover { color:var(--tl-accent-primary); }
+/* Find bookmarks inside the bookmark pane (Global bookmarks spec D6, D7). */
+.video-bookmark-find { display:grid; gap:10px; width:100%; }
+.video-bookmark-find__head { display:flex; align-items:center; gap:8px; }
+.video-bookmark-find .video-bookmark-find__back { display:inline-grid; place-items:center; width:32px; height:32px; border:0; border-radius:50%; background:transparent; color:var(--playback-text); cursor:pointer; }
+.video-bookmark-find .video-bookmark-find__back:hover { background:var(--playback-accent-soft); }
+.video-bookmark-find__message { margin:0; padding:8px 10px; border-radius:var(--tl-radius-sm,6px); background:var(--playback-accent-soft); font-size:.9rem; }
+.video-bookmark-find__source { display:grid; gap:6px; }
+.video-bookmark-find__source-name { color:var(--playback-text-secondary); font-size:.82rem; }
+.video-bookmark-find__export { display:grid; gap:4px; color:var(--playback-text-secondary); font-size:.82rem; }
+.video-bookmark-find .video-bookmark-find__button { padding:8px 12px; border:1px solid var(--playback-border); border-radius:var(--tl-radius-sm,6px); background:transparent; color:var(--playback-text); font-weight:600; cursor:pointer; }
+.video-bookmark-find .video-bookmark-find__button.is-primary { border-color:transparent; background:var(--tl-accent-primary); color:#fff; }
+.video-bookmark-find .video-bookmark-find__button:disabled { opacity:.5; cursor:default; }
+.video-bookmark-find__set { display:grid; gap:8px; padding:10px; border:1px solid var(--playback-border); border-radius:var(--tl-radius-sm,6px); }
+.video-bookmark-find__set-copy { display:grid; gap:4px; min-width:0; }
+.video-bookmark-find__set-copy > span { color:var(--playback-text-secondary); font-size:.85rem; }
+.video-bookmark-find__tag { display:inline-block; padding:1px 8px; border:1px solid var(--playback-border); border-radius:var(--tl-radius-sm,6px); font-size:.75rem; font-weight:500; white-space:nowrap; }
+.video-bookmark-find__tag.is-ok { border-color:#3cae6a; color:#3cae6a; }
+.video-bookmark-find__tag.is-warn { border-color:#d9a21b; color:#d9a21b; }
+.video-bookmark-find__table { display:grid; gap:8px; }
+.video-bookmark-find__rows { display:grid; align-content:start; gap:8px; height:min(48svh,480px); margin:0; padding:0; overflow:auto; list-style:none; }
+.video-bookmark-find__cmp { display:grid; grid-template-columns:1fr 1fr; gap:6px; align-items:stretch; }
+.video-bookmark-find__cmp.is-head { color:var(--playback-text-secondary); font-size:.8rem; }
+.video-bookmark-find__cmp > .video-bookmark-find__tag { grid-column:1 / -1; justify-self:start; }
+.video-bookmark-find .video-bookmark-find__card { display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:6px; padding:8px; border:1px solid var(--playback-border); border-radius:var(--tl-radius-sm,6px); background:transparent; color:var(--playback-text); text-align:left; cursor:pointer; }
+.video-bookmark-find .video-bookmark-find__card.is-on { border-color:var(--tl-accent-primary); background:var(--playback-accent-soft); }
+.video-bookmark-find__time { font-weight:600; font-variant-numeric:tabular-nums; }
+.video-bookmark-find__text { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--playback-text-secondary); font-size:.85rem; }
+.video-bookmark-find__nothing { display:flex; align-items:center; justify-content:space-between; gap:6px; padding:8px; color:var(--playback-text-secondary); font-size:.85rem; }
+.video-bookmark-find .video-bookmark-find__leave { padding:2px 6px; border:0; background:transparent; color:var(--playback-text); font-size:.8rem; cursor:pointer; }
+.video-bookmark-find__note { margin:0; color:var(--playback-text-secondary); font-size:.82rem; }
+.video-bookmark-find__actions { display:flex; align-items:center; gap:10px; color:var(--playback-text-secondary); font-size:.8rem; }
+.audiobook-global-extras { display:grid; gap:8px; margin-top:12px; }
+.audiobook-global-extras__buttons { display:flex; gap:8px; }
+.audiobook-global-extras__message { margin:0; font-size:.9rem; }
+.audiobook-global-extras__list { display:grid; gap:4px; margin:0; padding:0; list-style:none; }
+.audiobook-global-extras__list li { display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:var(--tl-radius-sm,6px); }
+.audiobook-global-extras__list li.is-glow { animation:video-bookmark-glow 1.4s ease-out 1; }
+.audiobook-global-extras__list li > span { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; opacity:.75; }
+.audiobook-global-extras__empty { opacity:.75; }
 /* Details page, phone pass. Everything here is scoped to the phone form factor; tablet and desktop keep the
    existing hero, tab and list rules. Phones never carry an editor entry point, and nothing relies on hover. */
 

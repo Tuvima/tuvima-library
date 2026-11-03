@@ -399,135 +399,84 @@ public static class PlayerEndpoints
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireClientScope(ClientApiScopes.ProgressWrite);
 
-        group.MapGet("/audiobooks/{workId:guid}/bookmark-packs", async (
+        group.MapPost("/audiobooks/{workId:guid}/bookmark-sets/compare", async (
             Guid workId,
             Guid? profileId,
+            BookmarkSetRequestDto request,
             ClaimsPrincipal user,
-            BookmarkPackService packs,
-            CancellationToken ct) =>
-        {
-            var identity = Bind(user, profileId, null, null);
-            return Results.Ok(await packs.GetAsync(identity.ProfileId, workId, ct));
-        })
-        .WithName("GetBookmarkPacks")
-        .RequireCatalogueEntityAccess(ApplicationPermissionIds.ProgressRead, "work", "workId")
-        .WithSummary("Return the bookmark packs the profile has imported on a title, with their read-only pack bookmarks.")
-        .Produces<IReadOnlyList<BookmarkPackDto>>(StatusCodes.Status200OK)
-        .RequireClientScope(ClientApiScopes.ProgressRead);
-
-        group.MapPost("/audiobooks/{workId:guid}/bookmark-packs/export", async (
-            Guid workId,
-            Guid? profileId,
-            BookmarkPackExportRequestDto request,
-            ClaimsPrincipal user,
-            BookmarkPackService packs,
+            BookmarkSetService sets,
             CancellationToken ct) =>
         {
             var identity = Bind(user, profileId, null, null);
             try
             {
-                return Results.Ok(await packs.ExportAsync(identity.ProfileId, workId, request, ct));
+                return Results.Ok(await sets.CompareAsync(identity.ProfileId, workId, request, ct));
             }
             catch (BookmarkPackInvalidException ex)
             {
                 return ApiErrors.BadRequest(ex.Message);
             }
         })
-        .WithName("ExportBookmarkPack")
+        .WithName("CompareBookmarkSet")
         .RequireCatalogueEntityAccess(ApplicationPermissionIds.ProgressRead, "work", "workId")
-        .WithSummary("Build a bookmark pack file from some of the profile's own bookmarks. Never available for a Vault title.")
+        .WithSummary("Find bookmarks: read a bookmark file, say whether it is for this title, and list each bookmark beside the nearest one the person has with how close the two are. Changes nothing.")
+        .Produces<BookmarkSetCompareDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireClientScope(ClientApiScopes.ProgressRead);
+
+        group.MapPost("/audiobooks/{workId:guid}/bookmark-sets/apply", async (
+            Guid workId,
+            Guid? profileId,
+            BookmarkSetApplyRequestDto request,
+            ClaimsPrincipal user,
+            BookmarkSetService sets,
+            CancellationToken ct) =>
+        {
+            var identity = Bind(user, profileId, null, null);
+            try
+            {
+                return Results.Ok(await sets.ApplyAsync(identity.ProfileId, workId, request, ct));
+            }
+            catch (BookmarkPackInvalidException ex)
+            {
+                return ApiErrors.BadRequest(ex.Message);
+            }
+        })
+        .WithName("ApplyBookmarkSet")
+        .RequireCatalogueEntityAccess(ApplicationPermissionIds.ProgressWrite, "work", "workId")
+        .WithSummary("Apply the person's choices from a bookmark file in one write. An administrator's apply changes Global; anyone else's changes only their own bookmarks.")
+        .Produces<BookmarkSetApplyResultDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireClientScope(ClientApiScopes.ProgressWrite);
+
+        group.MapPost("/audiobooks/{workId:guid}/bookmarks/global/export", async (
+            Guid workId,
+            Guid? profileId,
+            ExportGlobalBookmarksRequestDto request,
+            ClaimsPrincipal user,
+            BookmarkSetService sets,
+            CancellationToken ct) =>
+        {
+            var identity = Bind(user, profileId, null, null);
+            try
+            {
+                return Results.Ok(await sets.ExportGlobalAsync(identity.ProfileId, workId, request, ct));
+            }
+            catch (BookmarkPackInvalidException ex)
+            {
+                return ApiErrors.BadRequest(ex.Message);
+            }
+        })
+        .WithName("ExportGlobalBookmarks")
+        .RequireCatalogueEntityAccess(ApplicationPermissionIds.ProgressRead, "work", "workId")
+        .WithSummary("Save this title's Global bookmarks as a bookmark file (never anyone's personal ones). Server administrators only; never available for a Vault title.")
         .Produces<BookmarkPackFileDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireClientScope(ClientApiScopes.ProgressRead);
-
-        group.MapPost("/audiobooks/{workId:guid}/bookmark-packs/inspect", async (
-            Guid workId,
-            Guid? profileId,
-            BookmarkPackImportRequestDto request,
-            ClaimsPrincipal user,
-            BookmarkPackService packs,
-            CancellationToken ct) =>
-        {
-            var identity = Bind(user, profileId, null, null);
-            try
-            {
-                return Results.Ok(await packs.InspectAsync(identity.ProfileId, workId, request, ct));
-            }
-            catch (BookmarkPackInvalidException ex)
-            {
-                return ApiErrors.BadRequest(ex.Message);
-            }
-        })
-        .WithName("InspectBookmarkPack")
-        .RequireCatalogueEntityAccess(ApplicationPermissionIds.ProgressRead, "work", "workId")
-        .WithSummary("Read a bookmark pack file and say whether it is for this title, without adding anything.")
-        .Produces<BookmarkPackPreviewDto>(StatusCodes.Status200OK)
-        .ProducesProblem(StatusCodes.Status400BadRequest)
-        .ProducesProblem(StatusCodes.Status404NotFound)
-        .RequireClientScope(ClientApiScopes.ProgressRead);
-
-        group.MapPost("/audiobooks/{workId:guid}/bookmark-packs/import", async (
-            Guid workId,
-            Guid? profileId,
-            BookmarkPackImportRequestDto request,
-            ClaimsPrincipal user,
-            BookmarkPackService packs,
-            CancellationToken ct) =>
-        {
-            var identity = Bind(user, profileId, null, null);
-            try
-            {
-                var pack = await packs.ImportAsync(identity.ProfileId, workId, request, ct);
-                return Results.Created($"/player/audiobooks/{workId:D}/bookmark-packs", pack);
-            }
-            catch (BookmarkPackInvalidException ex)
-            {
-                return ApiErrors.BadRequest(ex.Message);
-            }
-        })
-        .WithName("ImportBookmarkPack")
-        .RequireCatalogueEntityAccess(ApplicationPermissionIds.ProgressWrite, "work", "workId")
-        .WithSummary("Add a bookmark pack's bookmarks to a title as read-only pack bookmarks. A pack for another title is refused.")
-        .Produces<BookmarkPackDto>(StatusCodes.Status201Created)
-        .ProducesProblem(StatusCodes.Status400BadRequest)
-        .ProducesProblem(StatusCodes.Status404NotFound)
-        .RequireClientScope(ClientApiScopes.ProgressWrite);
-
-        group.MapPut("/bookmark-packs/{packId:guid}/enabled", async (
-            Guid packId,
-            Guid? profileId,
-            SetBookmarkPackEnabledRequestDto request,
-            ClaimsPrincipal user,
-            BookmarkPackService packs,
-            CancellationToken ct) =>
-        {
-            var identity = Bind(user, profileId ?? request.ProfileId, null, null);
-            var changed = await packs.SetEnabledAsync(identity.ProfileId, packId, request.IsEnabled, ct);
-            return changed ? Results.NoContent() : ApiErrors.NotFound($"Bookmark pack '{packId}' not found.");
-        })
-        .WithName("SetBookmarkPackEnabled")
-        .WithSummary("Switch one imported bookmark pack on or off for the profile.")
-        .Produces(StatusCodes.Status204NoContent)
-        .ProducesProblem(StatusCodes.Status404NotFound)
-        .RequireClientScope(ClientApiScopes.ProgressWrite);
-
-        group.MapDelete("/bookmark-packs/{packId:guid}", async (
-            Guid packId,
-            Guid? profileId,
-            ClaimsPrincipal user,
-            BookmarkPackService packs,
-            CancellationToken ct) =>
-        {
-            var identity = Bind(user, profileId, null, null);
-            var deleted = await packs.DeleteAsync(identity.ProfileId, packId, ct);
-            return deleted ? Results.NoContent() : ApiErrors.NotFound($"Bookmark pack '{packId}' not found.");
-        })
-        .WithName("DeleteBookmarkPack")
-        .WithSummary("Remove one imported bookmark pack and its pack bookmarks.")
-        .Produces(StatusCodes.Status204NoContent)
-        .ProducesProblem(StatusCodes.Status404NotFound)
-        .RequireClientScope(ClientApiScopes.ProgressWrite);
 
         group.MapGet("/audiobooks/{workId:guid}/chapter-overrides", async (
             Guid workId,

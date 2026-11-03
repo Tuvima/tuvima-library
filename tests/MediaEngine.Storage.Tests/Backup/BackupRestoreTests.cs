@@ -85,29 +85,6 @@ public sealed class BackupRestoreTests : IDisposable
         Assert.Equal(0, refused.Scalar("SELECT COUNT(*) FROM backup_restores"));
     }
 
-    [Fact]
-    public void Import_KeepsTheItemsOfAWaitingBookmarkPackWithIt()
-    {
-        var source = NewStore();
-        var profile = source.AddProfile("Maya");
-        var movie = source.AddMovie("Dune", "2021", imdb: "tt1160419", tmdb: null, hash: "aaaa1111", seconds: 9300.5);
-        source.AddBookmarkPack(profile, movie, itemCount: 2);
-        var target = NewStore();
-
-        Import(source, target);
-
-        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM bookmark_packs"));
-        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM bookmark_pack_items"));
-        Assert.Equal(1, target.Scalar("SELECT COUNT(*) FROM waiting_personal_state"));
-
-        target.AddMovie("Dune", "2021", imdb: "tt1160419", tmdb: null, hash: "bbbb2222", seconds: 9300.5);
-        var pass = new WaitingPersonalStateRepository(target.Database).RunPass(RestoredAt.AddMinutes(5), 100, 90);
-
-        Assert.Equal(1, pass.Attached);
-        Assert.Equal(1, target.Scalar("SELECT COUNT(*) FROM bookmark_packs"));
-        Assert.Equal(2, target.Scalar("SELECT COUNT(*) FROM bookmark_pack_items"));
-    }
-
     // ---------------------------------------------------------------------------------------------------------
     // Coming back
     // ---------------------------------------------------------------------------------------------------------
@@ -305,33 +282,6 @@ public sealed class BackupRestoreTests : IDisposable
         var summary = Assert.IsType<RestoreSummary>(repository.GetLatestRestore());
         Assert.Equal(0, summary.AttachedRows);
         Assert.Equal(1, summary.YieldedRows);
-    }
-
-    [Fact]
-    public void Reattach_YieldsAWaitingBookmarkPackWithItsItems_WhenThePackWasImportedAgainAfterTheRestore()
-    {
-        var source = NewStore();
-        var target = NewStore();
-        var profile = source.AddProfile("Maya");
-        var movie = source.AddMovie("Dune", "2021", imdb: "tt1160419", tmdb: null, hash: "aaaa1111", seconds: 9300.5);
-        source.AddBookmarkPack(profile, movie, itemCount: 2);
-        Import(source, target);
-
-        // The person imports the same pack again once the title is back: the same person, title and pack fingerprint.
-        var returned = target.AddMovie("Dune", "2021", imdb: "tt1160419", tmdb: null, hash: "bbbb2222", seconds: 9300.5);
-        target.AddBookmarkPack(profile, returned, itemCount: 0);
-        var repository = new WaitingPersonalStateRepository(target.Database);
-        var pass = repository.RunPass(RestoredAt.AddMinutes(1), 100, 90);
-
-        // The waiting pack yields with its items (they would point at a pack that was never made): no failure, no retry.
-        Assert.Equal(0, pass.Attached);
-        Assert.Equal(1, pass.Yielded);
-        Assert.Equal(0, pass.FailedRows);
-        Assert.Equal(0, pass.StillWaiting);
-        Assert.Equal(1, target.Scalar("SELECT COUNT(*) FROM bookmark_packs"));
-        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM bookmark_pack_items"));
-        Assert.Equal(0, target.Scalar("SELECT COUNT(*) FROM waiting_personal_state"));
-        Assert.Equal(0, repository.RunPass(RestoredAt.AddMinutes(2), 100, 90).Checked);
     }
 
     [Fact]
@@ -852,23 +802,6 @@ public sealed class BackupRestoreTests : IDisposable
                 VALUES (@id, @profile, @asset, 'session-1', 'watch', @now, @now, @progress)
                 """,
                 new { id = GuidSql.ToBlob(Guid.NewGuid()), profile, asset, progress, now = Stamp });
-
-        public void AddBookmarkPack(byte[] profile, Movie movie, int itemCount)
-        {
-            var pack = GuidSql.ToBlob(Guid.NewGuid());
-            Run(
-                """
-                INSERT INTO bookmark_packs (id, profile_id, work_id, asset_id, name, content_hash, imported_at)
-                VALUES (@pack, @profile, @work, @asset, 'Director notes', 'pack-hash-1', @now)
-                """,
-                new { pack, profile, work = movie.Work, asset = movie.Asset, now = Stamp });
-            for (var i = 0; i < itemCount; i++)
-            {
-                Run(
-                    "INSERT INTO bookmark_pack_items (id, pack_id, position_seconds) VALUES (@id, @pack, @position)",
-                    new { id = GuidSql.ToBlob(Guid.NewGuid()), pack, position = 60.0 * (i + 1) });
-            }
-        }
 
         public void AddTwoStepSecret(string protectedValue)
         {

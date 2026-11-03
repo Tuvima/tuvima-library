@@ -113,11 +113,20 @@
                             <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Bookmark" /></TriggerContent>
                             <ChildContent>
                                 <VideoBookmarkPane Position="@Playback.CurrentTimeSeconds" Current="@Playback.CurrentTimeSeconds"
-                                                   Bookmarks="@_savedRail" Everyones="@_everyonesRail" IsAdministrator="@CanShareBookmarks" AllowEveryones="@AllowEveryonesBookmarks"
+                                                   Bookmarks="@_savedRail" Everyones="@_everyonesRail" IsAdministrator="@CanShareBookmarks" AllowEveryones="@AllowEveryonesBookmarks" AllowFind="@AllowFindBookmarks"
                                                    Filter="@BookmarkFilter" FilterChanged="ChangeBookmarkFilterAsync"
                                                    ShowOnBar="@ShowBookmarksOnBar" ShowOnBarChanged="ChangeShowBookmarksOnBarAsync"
                                                    Add="AddBookmarkAsync" Play="@(seconds => JumpToBookmarkAsync(seconds, true))" Delete="DeleteBookmarkAsync"
-                                                   Promote="PromoteBookmarkAsync" Update="UpdateGlobalBookmarkAsync" />
+                                                   Promote="PromoteBookmarkAsync" Update="UpdateGlobalBookmarkAsync">
+                                    <FindView Context="closeFind">
+                                        @if (AllowFindBookmarks)
+                                        {
+                                            <BookmarkFindView ProfileId="@(Playback.ActiveProfileId ?? Guid.Empty)" WorkId="@bookmarkWorkId" AssetId="@bookmarkAssetId"
+                                                              Duration="@Playback.DurationSeconds" Chapters="@VideoChapters" IsAdministrator="@CanShareBookmarks"
+                                                              JumpTo="JumpToBookmarkAsync" Applied="HandleBookmarkSetAppliedAsync" Closed="closeFind" />
+                                        }
+                                    </FindView>
+                                </VideoBookmarkPane>
                             </ChildContent>
                         </PlaybackPopover>
                     }
@@ -261,6 +270,8 @@
     /// <summary>Everyone's is for administrators on a desktop or tablet, never in the Vault, on a phone or on a TV (player-controls-v3 D10).</summary>
     private bool AllowEveryonesBookmarks => Playback.CurrentItem is { IsVault: false }
         && Services.GetService<MediaEngine.Web.Services.Theming.DeviceContextService>()?.FormFactor is null or "desktop" or "tablet";
+    /// <summary>Find bookmarks follows the same rule as Everyone's: not in the Vault, never on a phone or a TV (Global bookmarks spec section 5).</summary>
+    private bool AllowFindBookmarks => AllowEveryonesBookmarks;
     private bool CanShareBookmarks => Services.GetService<DashboardSessionAccessor>()?.Authority?.EffectiveAdministrator == true;
     private Guid? _loadedSubtitleAssetId;
     private IReadOnlyList<TextTrackDto> _managedSubtitleTracks = [];
@@ -592,6 +603,16 @@
             _everyonesRail = PlaybackRailBookmark.From(others.Where(bookmark => bookmark.AssetId == assetId), Playback.DurationSeconds);
             await InvokeAsync(StateHasChanged);
         }
+    }
+
+    /// <summary>A bookmark file was applied: reload the list (and Everyone's for an administrator) and say so on the bar.</summary>
+    private async Task HandleBookmarkSetAppliedAsync(string message)
+    {
+        if (Playback.CurrentItem is not { WorkId: var workId }) return;
+        var profileId = Playback.ActiveProfileId ?? Guid.Empty;
+        await ReloadSavedBookmarksAsync(workId, profileId);
+        await ReloadEveryonesAsync(workId, profileId);
+        await ShowBookmarkNoticeAsync(message);
     }
 
     private async Task ChangeBookmarkFilterAsync(string filter)

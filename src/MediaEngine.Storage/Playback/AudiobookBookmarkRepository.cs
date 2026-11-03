@@ -301,6 +301,102 @@ public sealed class AudiobookBookmarkRepository
         }, ct);
     }
 
+    /// <summary>One bookmark from a bookmark set, ready to be saved.</summary>
+    public sealed record SetBookmark(
+        double PositionSeconds, double? EndSeconds, string? ChapterTitle, string? Note, string? Description);
+
+    /// <summary>What happened when a bookmark set was applied.</summary>
+    public sealed record SetApplyOutcome(int Added, int Replaced);
+
+    /// <summary>
+    /// Applies a bookmark set in one write (Global bookmarks spec D8): the bookmarks in <paramref name="deleteIds"/> go, every
+    /// bookmark in <paramref name="adds"/> is saved (Global when <paramref name="addAsGlobal"/>), and for Global adds any other
+    /// profile's personal bookmark on the file within <paramref name="sameSpotSeconds"/> of an added one is replaced by it. Only
+    /// the caller's own personal bookmarks and, for an administrator, Global ones can be deleted. With
+    /// <paramref name="replaceGlobalSet"/> every Global bookmark on the file goes first.
+    /// </summary>
+    public Task<SetApplyOutcome> ApplySetAsync(
+        Guid profileId,
+        Guid workId,
+        Guid assetId,
+        double? durationSeconds,
+        IReadOnlyList<SetBookmark> adds,
+        IReadOnlyCollection<Guid> deleteIds,
+        bool addAsGlobal,
+        bool replaceGlobalSet,
+        double sameSpotSeconds,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        return _db.ExecuteWriteAsync((conn, tx, innerCt) =>
+        {
+            innerCt.ThrowIfCancellationRequested();
+            var replaced = 0;
+            if (replaceGlobalSet && addAsGlobal)
+            {
+                replaced += conn.Execute(
+                    "DELETE FROM audiobook_bookmarks WHERE is_global = 1 AND asset_id = @assetId;",
+                    new { assetId },
+                    tx);
+            }
+
+            foreach (var id in deleteIds)
+            {
+                replaced += conn.Execute(
+                    """
+                    DELETE FROM audiobook_bookmarks
+                    WHERE id = @id AND asset_id = @assetId
+                      AND ((is_global = 0 AND profile_id = @profileId) OR (is_global = 1 AND @addAsGlobal = 1));
+                    """,
+                    new { id, assetId, profileId, addAsGlobal = addAsGlobal ? 1 : 0 },
+                    tx);
+            }
+
+            var now = DateTimeOffset.UtcNow;
+            foreach (var add in adds)
+            {
+                if (addAsGlobal)
+                {
+                    replaced += conn.Execute(
+                        """
+                        DELETE FROM audiobook_bookmarks
+                        WHERE is_global = 0 AND asset_id = @assetId AND ABS(position_seconds - @position) <= @window;
+                        """,
+                        new { assetId, position = add.PositionSeconds, window = sameSpotSeconds },
+                        tx);
+                }
+
+                conn.Execute(
+                    """
+                    INSERT INTO audiobook_bookmarks
+                        (id, profile_id, work_id, asset_id, chapter_index, chapter_title,
+                         position_seconds, duration_seconds, end_seconds, label, note, description, is_global, created_at)
+                    VALUES
+                        (@Id, @profileId, @workId, @assetId, NULL, @ChapterTitle,
+                         @PositionSeconds, @durationSeconds, @EndSeconds, NULL, @Note, @Description, @isGlobal, @now);
+                    """,
+                    new
+                    {
+                        Id = Guid.NewGuid(),
+                        profileId,
+                        workId,
+                        assetId,
+                        ChapterTitle = BlankToNull(add.ChapterTitle),
+                        add.PositionSeconds,
+                        durationSeconds,
+                        add.EndSeconds,
+                        Note = BlankToNull(add.Note),
+                        Description = BlankToNull(add.Description),
+                        isGlobal = addAsGlobal ? 1 : 0,
+                        now,
+                    },
+                    tx);
+            }
+
+            return new SetApplyOutcome(adds.Count, replaced);
+        }, ct);
+    }
+
     private static AudiobookBookmarkDto ToDto(BookmarkRow row) => new()
     {
         OwnerName = row.OwnerName,
