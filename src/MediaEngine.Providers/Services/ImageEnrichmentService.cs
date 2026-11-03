@@ -659,6 +659,13 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
                     {
                         showEpisodes = await _tvdb.GetAllPagesAsync("tvdb", "series_episodes",
                             ProviderApiClient.Args(("id", showId), ("season_type", "default"), ("lang", "eng")), ct).ConfigureAwait(false);
+                        if (showEpisodes.Count == 0)
+                        {
+                            // TheTVDB answers "not found" for a language the show has no translation in; the
+                            // untranslated list still carries every episode's number and picture.
+                            showEpisodes = await _tvdb.GetAllPagesAsync("tvdb", "series_episodes",
+                                ProviderApiClient.Args(("id", showId), ("season_type", "default")), ct).ConfigureAwait(false);
+                        }
                     }
                     catch (Exception ex) when (ex is not OperationCanceledException)
                     {
