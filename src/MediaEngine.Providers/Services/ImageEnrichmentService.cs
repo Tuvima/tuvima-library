@@ -528,6 +528,11 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         var offered = new Dictionary<(Guid Owner, AssetType Type), List<string>>();
         async Task<bool> AddAsync(string? value, AssetType type, Guid owner, bool makePreferred = true)
         {
+            // TheTVDB's episode list gives each picture as a path ("/banners/episodes/…"); its other calls give a full address.
+            if (value?.StartsWith("/banners/", StringComparison.Ordinal) == true)
+            {
+                value = "https://artworks.thetvdb.com" + value;
+            }
             if (!Uri.TryCreate(value, UriKind.Absolute, out var uri)
                 || uri.Scheme != Uri.UriSchemeHttps
                 || !(uri.Host.Equals("thetvdb.com", StringComparison.OrdinalIgnoreCase)
@@ -659,6 +664,13 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
                     {
                         showEpisodes = await _tvdb.GetAllPagesAsync("tvdb", "series_episodes",
                             ProviderApiClient.Args(("id", showId), ("season_type", "default"), ("lang", "eng")), ct).ConfigureAwait(false);
+                        if (showEpisodes.Count == 0)
+                        {
+                            // TheTVDB answers "not found" for a language the show has no translation in; the
+                            // untranslated list still carries every episode's number and picture.
+                            showEpisodes = await _tvdb.GetAllPagesAsync("tvdb", "series_episodes",
+                                ProviderApiClient.Args(("id", showId), ("season_type", "default")), ct).ConfigureAwait(false);
+                        }
                     }
                     catch (Exception ex) when (ex is not OperationCanceledException)
                     {

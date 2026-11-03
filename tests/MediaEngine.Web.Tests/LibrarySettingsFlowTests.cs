@@ -1175,7 +1175,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         var line = Assert.Single(cut.FindAll("[data-first-check=paused]"));
         Assert.Contains("Most files in this folder aren't matching: 30 of 50. This is often the wrong kind or the wrong folder.", Text(line));
         Assert.Contains("folder-table__status--warning", line.ClassList);
-        Assert.Equal(["Keep going", "Remove the folder", "Change what this folder is"], line.QuerySelectorAll("button").Select(Text).ToArray());
+        Assert.Equal(["Keep going", "Remove the folder"], line.QuerySelectorAll("button").Select(Text).ToArray());
         Assert.Equal("D:\\Plex\\Movies", line.ParentElement!.QuerySelector(".folder-table__path")!.TextContent);
         // Only that folder's row has it; the status is also in the live region for screen readers.
         Assert.Single(cut.FindAll("[data-first-check]"));

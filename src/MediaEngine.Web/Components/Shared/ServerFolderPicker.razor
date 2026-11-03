@@ -321,8 +321,6 @@ else
     [Parameter] public bool Inline { get; set; }
     /// <summary>Called with the validated folder when the person confirms while <see cref="Inline"/> is true; the dialog form closes with the same result instead.</summary>
     [Parameter] public EventCallback<ServerFolderValidationResultDto> OnConfirmed { get; set; }
-    /// <summary>The library kind the folder is for (for example <c>movies</c>): the Engine counts that kind's supported files and the result card says how many were found.</summary>
-    [Parameter] public string? KindKey { get; set; }
     /// <summary>Leaves out the confirm button, for a host (the Create library dialog) that has its own button and reads <see cref="OnValidationChanged"/> instead.</summary>
     [Parameter] public bool HideConfirm { get; set; }
     /// <summary>Called whenever the checked folder changes: the Engine's answer for the selected folder, or null while it is being checked or nothing is selected.</summary>
@@ -465,7 +463,6 @@ else
                 ManualPath = InitialPath,
                 SelectionMode = EffectiveMode,
                 CurrentSourceId = CurrentSourceId,
-                KindKey = KindKey,
             };
             var initial = string.IsNullOrWhiteSpace(SetupSession)
                 ? await ApiClient.ValidateServerFolderAsync(request, _lifetime.Token)
@@ -669,7 +666,6 @@ else
             RelativePath = _selectedRelativePath,
             SelectionMode = EffectiveMode,
             CurrentSourceId = CurrentSourceId,
-            KindKey = KindKey,
         };
         ServerFolderValidationResultDto? validation;
         try
@@ -704,7 +700,7 @@ else
         _validating = true;
         _error = null;
         _pathMessage = null;
-        var request = new ValidateServerFolderRequest { ManualPath = _pathText, SelectionMode = EffectiveMode, CurrentSourceId = CurrentSourceId, KindKey = KindKey };
+        var request = new ValidateServerFolderRequest { ManualPath = _pathText, SelectionMode = EffectiveMode, CurrentSourceId = CurrentSourceId };
         ServerFolderValidationResultDto? validation;
         try
         {

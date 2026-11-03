@@ -148,6 +148,8 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
             toasts.Add(message, AppSeverity.Success);
         }
 
+        // The folder is only checked against the library's kind now that it is added; browsing for it read nothing inside it.
+        notice = await MatchNoticeAsync(scope, type.Key, source, notice);
         var result = new AddFolderResult(saved, source, type, managed, notice, null, library.Id);
 
         // "Should new media go here?" answered Yes: when another folder of the type already holds the marker, move it.
@@ -168,6 +170,15 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
         }
 
         return result;
+    }
+
+    // After the add: does what is in the folder look like this library's kind? A warning is shown, never a block (the folder is already added).
+    private async Task<string?> MatchNoticeAsync(FolderAddScope scope, string kindKey, LibrarySourceDto source, string? notice)
+    {
+        var request = new ValidateServerFolderRequest { ManualPath = source.Path, SelectionMode = ServerFolderSelectionModes.ExistingLibrary, CurrentSourceId = source.Id, KindKey = kindKey };
+        var checkedFolder = scope.Embedded ? await apiClient.ValidateSetupServerFolderAsync(request, scope.SetupSession) : await apiClient.ValidateServerFolderAsync(request);
+        var warning = checkedFolder?.Issues.FirstOrDefault(issue => issue.Code is "looks_like_other_kind" or "no_matching_files")?.Message;
+        return warning is null ? notice : string.IsNullOrWhiteSpace(notice) ? warning : $"{notice} {warning}";
     }
 
     /// <summary>Saves one library (setup: the whole list with this library replaced; Settings: one library change guarded by the copy the caller read). Null when the Engine refused it.</summary>
@@ -222,7 +233,6 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
             { component => component.HelpText, help },
             { component => component.ConfirmLabel, "Choose folder" },
             { component => component.SelectionMode, mode },
-            { component => component.KindKey, kindKey },
             { component => component.MediaType, mediaType },
             { component => component.SetupSession, scope.SetupSession },
             { component => component.InitialPath, start },
@@ -478,38 +488,6 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
         var saved = await SaveLibraryAsync(scope, baseline, library);
         var held = saved?.Libraries.FirstOrDefault(item => item.Id == library.Id);
         return saved is null || held is null ? null : new CreatedLibrary(saved, held);
-    }
-
-    // "Change what this folder is": choose the new kind and library, read the impact, then queue the change. The dialog does the Engine calls so
-    // a refusal or a failure stays on screen; the follow-up says whether the host should read the folders again (a job was queued, or a library was made).
-    public async Task<FolderFollowUp> ChangeKindAsync(FolderAddScope scope, LibraryKindCatalog kinds, LibrariesConfigurationDto configuration, LibraryFolderDto library, LibrarySourceDto source)
-    {
-        if (scope.Embedded)
-        {
-            return new FolderFollowUp(false, null);
-        }
-
-        var parameters = new AppDialogParameters<ChangeFolderKindDialog>
-        {
-            { component => component.Source, source },
-            { component => component.Library, library },
-            { component => component.Kinds, kinds },
-            { component => component.Configuration, configuration },
-        };
-        var dialog = await dialogs.ShowAsync<ChangeFolderKindDialog>(string.Empty, parameters, SheetOptions());
-        if (await dialog.Result is not { Canceled: false, Data: ChangeFolderKindDialog.Outcome outcome })
-        {
-            return new FolderFollowUp(false, null);
-        }
-
-        if (outcome.StartedKindLabel is null)
-        {
-            // A library was made and left unused; the dialog already said so, so the host only reads the libraries again.
-            return new FolderFollowUp(true, null);
-        }
-
-        toasts.Add($"Library is changing {source.DisplayName()} to {outcome.StartedKindLabel}. You can keep using Library meanwhile.", AppSeverity.Success);
-        return new FolderFollowUp(true, null);
     }
 
     private static AppDialogOptions SheetOptions() => new()

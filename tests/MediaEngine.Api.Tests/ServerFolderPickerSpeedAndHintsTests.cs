@@ -24,6 +24,7 @@ public sealed class ServerFolderPickerSpeedAndHintsTests : IDisposable
         _configFolder = Path.Combine(_root, "config");
         Directory.CreateDirectory(Path.Combine(_shared, "TV Shows", "Some Show", "Season 1"));
         Directory.CreateDirectory(Path.Combine(_shared, "Films"));
+        Directory.CreateDirectory(Path.Combine(_shared, "TV Empty"));
         Directory.CreateDirectory(Path.Combine(_shared, "Stuff", "Show B", "Season 2"));
         File.WriteAllText(Path.Combine(_shared, "Films", "A Film (2001).mkv"), "x");
         File.WriteAllText(Path.Combine(_shared, "TV Shows", "Some Show", "Season 1", "Some Show - S01E01.mkv"), "x");
@@ -63,14 +64,11 @@ public sealed class ServerFolderPickerSpeedAndHintsTests : IDisposable
         });
 
     [Theory]
-    [InlineData("TV Shows", "Movies", "TV")]
-    [InlineData("My Movies", "TV", "Movies")]
-    [InlineData("Music", "Books", "Music")]
-    [InlineData("Audiobooks", "Books", "Audiobooks")]
-    [InlineData("Movies", "Movies", null)]
-    [InlineData("Stuff", "Music", null)]
-    public void LooksLikeOtherFormat_UsesTheFolderName(string name, string kindFormat, string? expected) =>
-        Assert.Equal(expected, FolderKindHint.LooksLikeOtherFormat(Path.Combine(_shared, name), kindFormat));
+    [InlineData("TV Empty", "Movies")]
+    [InlineData("Films", "Movies")]
+    [InlineData("Stuff", "Music")]
+    public void LooksLikeOtherFormat_IgnoresTheFolderName(string name, string kindFormat) =>
+        Assert.Null(FolderKindHint.LooksLikeOtherFormat(Path.Combine(_shared, name), kindFormat));
 
     [Fact]
     public void LooksLikeOtherFormat_SeesSeasonFoldersInsideAMoviesFolder() =>
@@ -90,6 +88,31 @@ public sealed class ServerFolderPickerSpeedAndHintsTests : IDisposable
         Assert.Equal("warning", warning.Severity);
         Assert.Contains("TV folder", warning.Message);
         Assert.Contains("Movies", warning.Message);
+    }
+
+    [Fact]
+    public void Validate_OfAFolderNamedTvThatHoldsNothing_DoesNotWarnAboutItsName()
+    {
+        var result = Validate("TV Empty", "movies");
+
+        Assert.DoesNotContain(result.Issues, issue => issue.Code == "looks_like_other_kind");
+        Assert.Contains(result.Issues, issue => issue.Code == "no_matching_files" && issue.Severity == "warning");
+    }
+
+    [Fact]
+    public void Validate_WithoutAKind_ReadsNothingInsideTheFolder()
+    {
+        var result = _service.Validate(new ValidateServerFolderRequest
+        {
+            StorageLocationId = "shared",
+            RelativePath = "TV Shows",
+            SelectionMode = ServerFolderSelectionModes.ExistingLibrary,
+        });
+
+        Assert.True(result.CanSelect);
+        Assert.Null(result.SupportedFileCount);
+        Assert.False(result.ContainsFiles);
+        Assert.DoesNotContain(result.Issues, issue => issue.Code is "looks_like_other_kind" or "no_matching_files");
     }
 
     [Fact]

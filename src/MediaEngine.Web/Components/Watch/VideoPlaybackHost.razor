@@ -1486,7 +1486,8 @@
         _activeAssetId = null;
         _isPictureInPicture = false;
         Playback.ClosePlayer();
-        Nav.NavigateTo(detailUrl);
+        // Back over the page the title was opened from, so closing the title afterwards returns there instead of to the (now empty) player address.
+        await DetailsOverlayNavigation.ExitToTitleAsync(Nav, Services.GetService(typeof(DetailsOverlayState)) as DetailsOverlayState, detailUrl);
     }
 
     private string? AbsoluteUrl(string? value)

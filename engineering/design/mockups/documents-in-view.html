@@ -1,0 +1,71 @@
+<title>Documents in View mockup</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+:root{--bg:#f3f4f7;--fg:#1b2030;--mut:#5c6578;--panel:#fff;--line:#d9dde6;--app:#12151f;--appfg:#e8ebf3;--appmut:#8b93a7;--appline:#262b3b;--appcard:#1a1e2c;--acc:#6aa5ff;--mark:#ff7a3d;--markfg:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0c0e15;--fg:#e8ebf3;--mut:#9aa2b5;--panel:#151926;--line:#262b3b}}
+:root[data-theme="dark"]{--bg:#0c0e15;--fg:#e8ebf3;--mut:#9aa2b5;--panel:#151926;--line:#262b3b}
+body{background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,sans-serif;padding-block:24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+main{max-width:980px;margin:auto;display:flex;flex-direction:column;gap:28px}
+h1{font-size:22px;margin:0}h2{font-size:17px;margin:0 0 10px}
+.sub{color:var(--mut);margin:4px 0 0}
+.screen{background:var(--app);color:var(--appfg);border-radius:10px;display:grid;grid-template-columns:150px 1fr;min-height:330px;overflow:hidden;border:1px solid var(--line)}
+.side{border-right:1px solid var(--appline);padding:14px 10px;display:flex;flex-direction:column;gap:2px;font-size:13px}
+.side span{padding:7px 10px;border-radius:6px;color:var(--appmut)}.side .on{background:var(--appcard);color:var(--appfg)}
+.body{padding:16px;min-width:0;display:flex;flex-direction:column;gap:12px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.top b{font-size:18px}.pick{border:1px solid var(--appline);border-radius:6px;padding:5px 10px;font-size:13px;color:var(--appfg)}
+.search{border:1px solid var(--appline);border-radius:6px;padding:8px 10px;color:var(--appmut);font-size:13px}
+.chips{display:flex;gap:8px;font-size:12px;align-items:center;flex-wrap:wrap;color:var(--appmut)}
+.chip{border:1px solid var(--appline);border-radius:4px;padding:3px 9px;color:var(--appfg)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.doc{background:var(--appcard);border-radius:6px;padding:10px;font-size:12px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.doc i{display:block;height:46px;border-radius:4px;background:var(--appline);margin-bottom:4px}
+.doc em{font-style:normal;color:var(--appmut)}
+.inbox{background:var(--appcard);border:1px solid var(--appline);border-radius:6px;padding:10px;font-size:13px;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+.btn{background:var(--acc);color:#0b1020;border-radius:5px;padding:5px 12px;font-size:12px;font-weight:600}
+.n{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:var(--mark);color:var(--markfg);font-size:11px;font-weight:700;vertical-align:middle;flex:none}
+.pos{position:relative}.pos .n{position:absolute;top:-6px;left:-6px}
+ol.notes{margin:12px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+ol.notes li{display:flex;gap:10px;align-items:flex-start;color:var(--fg)}
+@media(max-width:560px){.screen{grid-template-columns:1fr}.side{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--appline)}}
+</style>
+<main>
+<header><h1>Documents in View</h1><p class="sub">Two screens: your own documents, and the household's shared documents. Numbers on the screens match the notes underneath each one.</p></header>
+
+<section>
+<h2>Screen A. Documents, Mine</h2>
+<div class="screen"><nav class="side"><span>Photos</span><span>Galleries</span><span class="on">Documents</span><span>People</span><span>Places</span></nav>
+<div class="body">
+<div class="top"><b>Documents</b><span class="pos pick"><span class="n">1</span>Scope: Mine ▾</span></div>
+<div class="search">Search documents and the words inside them</div>
+<div class="pos inbox"><span class="n">2</span><span><b>Inbox</b> · 3 documents to file</span><span class="btn">Review</span></div>
+<div class="grid">
+<div class="doc"><i></i>Bank statement<em>Taxes · Meridian Bank</em></div>
+<div class="doc"><i></i>Lease agreement<em>Home · Oak Realty</em></div>
+<div class="doc"><i></i>Car insurance<em>Insurance · Nova</em></div>
+<div class="doc"><i></i>Clinic letter<em>Health</em></div>
+</div></div></div>
+<ol class="notes">
+<li><span class="n">1</span><span>The scope picker is the same one Photos uses. Mine shows only this profile's documents.</span></li>
+<li><span class="n">2</span><span>Your own Inbox stays. New documents wait here with suggested tags until you accept or change them.</span></li>
+</ol></section>
+
+<section>
+<h2>Screen B. Documents, Shared Library</h2>
+<div class="screen"><nav class="side"><span>Photos</span><span>Galleries</span><span class="on">Documents</span><span>People</span><span>Places</span></nav>
+<div class="body">
+<div class="top"><b>Documents</b><span class="pos pick"><span class="n">1</span>Scope: Shared Library ▾</span></div>
+<div class="search">Search documents and the words inside them</div>
+<div class="chips pos"><span class="n">2</span>Added by <span class="chip">Shy</span><span class="chip">Sam</span><span class="chip">Priya</span></div>
+<div class="grid pos"><span class="n">3</span>
+<div class="doc"><i></i>Mortgage papers<em>Home · Shy</em></div>
+<div class="doc"><i></i>Passport scans<em>Travel · Sam</em></div>
+<div class="doc"><i></i>School calendar<em>School · Priya</em></div>
+<div class="doc"><i></i>Warranty, dishwasher<em>Home · Shy</em></div>
+</div></div></div>
+<ol class="notes">
+<li><span class="n">1</span><span>Switching the scope to Shared Library shows the household's documents. Sending a document here keeps its tags, date and notes.</span></li>
+<li><span class="n">2</span><span>Who added each document shows as a plain name. These filter chips appear only when two or more people added items.</span></li>
+<li><span class="n">3</span><span>What is gone: there is no Inbox card here and no "Filed by a household administrator" note. A shared document shows as soon as it is added, and any adult with Documents can tag it.</span></li>
+</ol></section>
+</main>

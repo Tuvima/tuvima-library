@@ -4806,21 +4806,6 @@
   <data name="Common_AddFolder" xml:space="preserve">
     <value>Add folder</value>
   </data>
-  <data name="ChangeFolderKindDialog_WhatIsThisFolder" xml:space="preserve">
-    <value>What is this folder?</value>
-  </data>
-  <data name="ChangeFolderKindDialog_ThereIsNoOtherKind" xml:space="preserve">
-    <value>There is no other kind of folder to change this one into.</value>
-  </data>
-  <data name="Common_ChangeWhatThisFolderIs" xml:space="preserve">
-    <value>Change what this folder is</value>
-  </data>
-  <data name="ChangeFolderKindDialog_CountingWhatWouldChange" xml:space="preserve">
-    <value>Counting what would change</value>
-  </data>
-  <data name="ChangeFolderKindDialog_ChangeFolder" xml:space="preserve">
-    <value>Change folder</value>
-  </data>
   <data name="CreateLibraryDialog_ThereAreNoContentTypes" xml:space="preserve">
     <value>There are no content types in this area yet.</value>
   </data>
@@ -5489,9 +5474,6 @@
   </data>
   <data name="LibraryFolderTable_MergeInto" xml:space="preserve">
     <value>Merge into…</value>
-  </data>
-  <data name="LibraryFolderTable_ChangeWhatThisFolderIs" xml:space="preserve">
-    <value>Change what this folder is…</value>
   </data>
   <data name="LibraryFolderTable_RemoveFolder" xml:space="preserve">
     <value>Remove folder</value>
@@ -7436,6 +7418,12 @@
   </data>
   <data name="SetupWelcomeStage_Change" xml:space="preserve">
     <value>Change</value>
+  </data>
+  <data name="LibraryActivityTab_RunningNow" xml:space="preserve">
+    <value>Running now</value>
+  </data>
+  <data name="SetupWelcomeStage_Cancel" xml:space="preserve">
+    <value>Cancel</value>
   </data>
   <data name="SetupWelcomeStage_RestoreABackupFile" xml:space="preserve">
     <value>Restore a backup file</value>

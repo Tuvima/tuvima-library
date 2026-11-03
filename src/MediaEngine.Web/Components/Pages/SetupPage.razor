@@ -348,6 +348,8 @@
             {
                 _serverName = identity.ServerName;
                 _hostName = identity.HostName;
+                // The network name follows the friendly name until someone sets it by hand, so the line under the name field never contradicts it.
+                if (identity.HostNameDerived && NetworkNameRules.ToLabel(identity.ServerName) is { Length: > 0 } followed) _hostName = followed;
                 _hostDerived = identity.HostNameDerived;
                 _serverIdentityLoaded = true;
             }
