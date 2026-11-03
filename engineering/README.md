@@ -52,6 +52,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Spec: Simpler access (areas, ratings, untick a library, folder checkbox)](specs/simpler-access.md) | Built, awaiting your Local checks (v5, 2026-10-29, revised by Library access v3; v4 added Selected profiles WP7; v3 packets all merged; access now on profiles per Users, profiles and households) |
 | [Spec: Home page redesign (hero, pick-up row, Recently Added, hover, details opening)](specs/archive/home-page-redesign.md) | Built (v1, archived 2026-10-28; awaiting Local checks L1-L9) |
 | [Spec: TV artwork, cast and matching](specs/tv-artwork-cast-and-matching.md) | In progress (v1; WP1, WP4, WP5 built; WP2, WP3, WP6 parked until Local check L1 is run) |
+| [Spec: TV episode stand-in pictures](specs/tv-episode-stand-in-pictures.md) | Locked (v1; TheTVDB only, marked show-backdrop stand-in where an episode has no still, retried every 90 days) |
 | [Spec: Vault sections and Move to Vault](specs/vault-sections-and-move.md) | Built, awaiting your Local checks (v6, 2026-10-29: a PIN is strongly suggested, never required (D44); v5; folder-level moves, see batch.md) |
 | [Spec: Delete a show, season, album or Series, and the Recycle bin](specs/archive/delete-groups.md) | Built, awaiting your Local checks (v7; photo grid D16 dropped) |
 | [Spec: Safer deleting in View](specs/archive/safer-deleting-in-view.md) | Built, awaiting your Local checks (v2, archived 2026-10-30; tuvima-docs companion PR) |
