@@ -123,6 +123,7 @@ On SHY-DESKTOP with the small generated library (never the real library): open E
 **Open questions for Shy**
 - **Q1. Needs Review and Unidentified.** Note this changes what you locked on 30 Oct (Libraries redesign: Unidentified files get their own tab) and differs from your 2 Nov lean (merge into the library list and redo Unidentified, closest to A or C).  A fold into library lists, **B one Needs Review list (recommended)**, C keep both and redo the Unidentified view (see D9).
 - **Q2. Tree on the left, or a trail of dropdowns on top?** **A tree (recommended)**: you see everything and spot the unmatched one. B dropdown trail (v2 style): less space used, but you cannot see which episodes are unmatched.
+- **Q4. Bookmarks in the pop-over.** Shy (3 Nov) wants importing and managing global bookmarks to live in the edit panel. The "Review global bookmark imports" planning thread owns the import mechanics; this spec only reserves the place (a Bookmarks tool for video items, beside Details, Artwork, Match, History). Placement is settled with that thread before Lock.
 - **Q3. "Match the other episodes by number" on by default?** **A yes when a show is chosen (recommended)**, B off.
 
 ## 9. Gaps and drift
