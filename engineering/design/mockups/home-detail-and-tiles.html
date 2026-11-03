@@ -56,7 +56,7 @@ h1,h2,h3{margin:0;font-weight:600;text-wrap:balance} h1{font-size:22px} h2{font-
 .menu{width:200px;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px;font-size:16px}
 .menu div{padding:10px 12px;border-radius:4px}.menu div:hover{background:var(--raised)}.menu .del{color:var(--danger);border-top:1px solid var(--line);margin-top:4px}
 /* detail */
-.detail{display:grid;grid-template-columns:220px 1fr;gap:28px;padding:24px 28px;background:linear-gradient(100deg,#0B1020 30%,#1a1440)}
+.detail{display:grid;grid-template-columns:1fr 220px;gap:28px;padding:24px 28px;background:linear-gradient(100deg,#0B1020 30%,#1a1440)}
 .facts{display:flex;flex-wrap:wrap;gap:8px;align-items:center;color:var(--text2);font-size:13px}
 .stack{display:flex;flex-direction:column;gap:14px;align-items:flex-start}
 .sec{display:flex;gap:8px;align-items:center}
@@ -65,10 +65,10 @@ h1,h2,h3{margin:0;font-weight:600;text-wrap:balance} h1{font-size:22px} h2{font-
 .person{display:flex;flex-direction:column;gap:6px;text-align:center;font-size:13px}.person .art{aspect-ratio:1;border-radius:6px}
 .person.sm{max-width:92px}
 .ph{display:grid;grid-template-columns:1fr 340px;gap:24px;padding:24px 28px;background:linear-gradient(100deg,#0B1020 40%,#241748)}
-.ph .art{aspect-ratio:3/4;order:2}
+.ph .art{aspect-ratio:3/4;order:2}.detail>.art{order:2}
 .filters{display:flex;gap:6px;flex-wrap:wrap}.filters .pill.on{background:var(--text);color:#0B1020;border-color:var(--text)}
 .flag{display:inline-block;margin-top:4px;padding:2px 8px;background:rgba(245,158,11,.15);color:var(--warn);border-radius:3px;font-size:12px}
-@media(max-width:760px){.detail,.ph{grid-template-columns:1fr}.ph .art{order:0}.hero{height:240px}.coll{display:none}}
+@media(max-width:760px){.detail,.ph{grid-template-columns:1fr}.ph .art,.detail>.art{order:0}.hero{height:240px}.coll{display:none}}
 </style>
 <div class="wrap">
 <div><h1>Home, detail page and tile redesign</h1>
