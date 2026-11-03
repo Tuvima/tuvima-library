@@ -6627,36 +6627,6 @@
   <data name="PluginUploadDialog_Upload" xml:space="preserve">
     <value>Upload</value>
   </data>
-  <data name="ProviderDetail_ThisSourceIsUnavailable" xml:space="preserve">
-    <value>This source is unavailable</value>
-  </data>
-  <data name="ProviderDetail_UnknownSource" xml:space="preserve">
-    <value>Unknown source</value>
-  </data>
-  <data name="ProviderDetail_ThisSourceIsNotIn" xml:space="preserve">
-    <value>This source is not in the configured provider catalogue.</value>
-  </data>
-  <data name="StashBoxSettingsCard_Servers" xml:space="preserve">
-    <value>Servers</value>
-  </data>
-  <data name="StashBoxSettingsCard_StashBoxVideosAreLooked" xml:space="preserve">
-    <value>Stash-box videos are looked up on these servers, in this order. Each has its own account key.</value>
-  </data>
-  <data name="StashBoxSettingsCard_AccountKey" xml:space="preserve">
-    <value>Account key</value>
-  </data>
-  <data name="StashBoxSettingsCard_PasteYourKey" xml:space="preserve">
-    <value>Paste your key</value>
-  </data>
-  <data name="StashBoxSettingsCard_ReplaceKey" xml:space="preserve">
-    <value>Replace key</value>
-  </data>
-  <data name="StashBoxSettingsCard_TestConnection" xml:space="preserve">
-    <value>Test connection</value>
-  </data>
-  <data name="StashBoxSettingsCard_SendAFingerprintOfThe" xml:space="preserve">
-    <value>Send a fingerprint of the file</value>
-  </data>
   <data name="ProfileDetailPage_ManageProfiles" xml:space="preserve">
     <value>Manage Profiles</value>
   </data>
@@ -8874,12 +8844,6 @@
   <data name="PluginSettingsTab_TheSourceCouldNotBe" xml:space="preserve">
     <value>The source could not be switched.</value>
   </data>
-  <data name="PluginSettingsTab_PluginSettingCouldNotBe" xml:space="preserve">
-    <value>Plugin setting could not be saved.</value>
-  </data>
-  <data name="PluginSettingsTab_SettingNumberIsInvalid" xml:space="preserve">
-    <value>Setting number is invalid.</value>
-  </data>
   <data name="PluginSettingsTab_SearchPluginsByNameOr" xml:space="preserve">
     <value>Search plugins by name or capability</value>
   </data>
@@ -8894,15 +8858,6 @@
   </data>
   <data name="Common_ProviderSettingsCouldNotBe" xml:space="preserve">
     <value>Provider settings could not be saved.</value>
-  </data>
-  <data name="ProviderDetail_StartTheEngineAndRetry" xml:space="preserve">
-    <value>Start the Engine and retry. Nothing shown here is sample data.</value>
-  </data>
-  <data name="StashBoxSettingsCard_TheServerCouldNotBe" xml:space="preserve">
-    <value>The server could not be removed.</value>
-  </data>
-  <data name="StashBoxSettingsCard_ThatCouldNotBeSaved" xml:space="preserve">
-    <value>That could not be saved.</value>
   </data>
   <data name="Common_SetAPINForThis" xml:space="preserve">
     <value>Set a PIN for this profile first (Profile details), then turn this on.</value>
@@ -9555,45 +9510,6 @@
   <data name="Accounts_SignedOutToast" xml:space="preserve">
     <value>Signed out of {0}.</value>
   </data>
-  <data name="PluginKeys_Title" xml:space="preserve">
-    <value>App details</value>
-  </data>
-  <data name="PluginKeys_Intro" xml:space="preserve">
-    <value>Keys this plugin needs from an administrator. They stay on this machine, and a saved value is never shown again.</value>
-  </data>
-  <data name="PluginKeys_Set" xml:space="preserve">
-    <value>Set</value>
-  </data>
-  <data name="PluginKeys_NotSet" xml:space="preserve">
-    <value>Not set</value>
-  </data>
-  <data name="PluginKeys_EnterPlaceholder" xml:space="preserve">
-    <value>Paste it here</value>
-  </data>
-  <data name="PluginKeys_ReplacePlaceholder" xml:space="preserve">
-    <value>Paste a new one to replace it</value>
-  </data>
-  <data name="PluginKeys_Save" xml:space="preserve">
-    <value>Save</value>
-  </data>
-  <data name="PluginKeys_Remove" xml:space="preserve">
-    <value>Remove</value>
-  </data>
-  <data name="PluginKeys_Saved" xml:space="preserve">
-    <value>{0} saved.</value>
-  </data>
-  <data name="PluginKeys_Removed" xml:space="preserve">
-    <value>{0} removed.</value>
-  </data>
-  <data name="PluginKeys_SaveFailed" xml:space="preserve">
-    <value>That could not be saved. Try again.</value>
-  </data>
-  <data name="PluginKeys_AccountsNote" xml:space="preserve">
-    <value>Each person signs in to their own account on their own Profile, under Accounts.</value>
-  </data>
-  <data name="PluginKeys_OpenAccounts" xml:space="preserve">
-    <value>Open Accounts</value>
-  </data>
   <data name="ListSection_SignInAgain" xml:space="preserve">
     <value>This list was read with your {0} sign-in, which is no longer active, so it cannot refresh until you sign in again. It keeps what it has.</value>
   </data>
@@ -9761,5 +9677,56 @@
   </data>
   <data name="Backups_ThisComputer" xml:space="preserve">
     <value>This computer</value>
+  </data>
+  <data name="PluginPage_Activity" xml:space="preserve">
+    <value>Activity</value>
+  </data>
+  <data name="PluginPage_Paused" xml:space="preserve">
+    <value>Paused until {0}. Library will try it again then.</value>
+  </data>
+  <data name="PluginPage_NothingWrong" xml:space="preserve">
+    <value>Nothing has gone wrong.</value>
+  </data>
+  <data name="PluginPage_OpenActivityLog" xml:space="preserve">
+    <value>Open the full Activity log</value>
+  </data>
+  <data name="PluginPage_NothingAdded" xml:space="preserve">
+    <value>Nothing added yet.</value>
+  </data>
+  <data name="PluginPage_KeyMissing" xml:space="preserve">
+    <value>Key missing</value>
+  </data>
+  <data name="PluginPage_TestConnection" xml:space="preserve">
+    <value>Test connection</value>
+  </data>
+  <data name="PluginPage_CheckNow" xml:space="preserve">
+    <value>Check now</value>
+  </data>
+  <data name="PluginPage_OpenLink" xml:space="preserve">
+    <value>Open link</value>
+  </data>
+  <data name="PluginPage_Remove" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="PluginPage_SaveKey" xml:space="preserve">
+    <value>Save key</value>
+  </data>
+  <data name="PluginPage_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="PluginPage_OpenAccounts" xml:space="preserve">
+    <value>Open Accounts</value>
+  </data>
+  <data name="PluginPage_AdvancedSettings" xml:space="preserve">
+    <value>Advanced settings</value>
+  </data>
+  <data name="PluginPage_Loading" xml:space="preserve">
+    <value>Loading</value>
+  </data>
+  <data name="PluginPage_Unavailable" xml:space="preserve">
+    <value>This plugin's page is unavailable</value>
+  </data>
+  <data name="PluginPage_Settings" xml:space="preserve">
+    <value>Settings</value>
   </data>
 </root>

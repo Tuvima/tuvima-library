@@ -1,0 +1,544 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Plugins
+@using Microsoft.Extensions.Localization
+@inject IStringLocalizer<SharedStrings> L
+@using MediaEngine.Web.Components.Shared.Providers
+@implements IDisposable
+@inject IEngineApiClient ApiClient
+@inject IServiceProvider Services
+@inject IAppDialogService DialogService
+@inject IJSRuntime JS
+@inject ILogger<PluginSetupPage> Logger
+
+@* The one generator for a plugin's Set up page (Plugins and Integrations screens v5 D46, D49, D50, D52). The Engine builds the page
+   model from the plugin's own JSON, whichever file format it came from, and this draws every card from it: Access (keys, sign-in,
+   links and the declared test), What it provides, Settings, Privacy and About. A plugin supplies content, never layout, and a card
+   it has nothing for is absent. Nothing in the Dashboard names a plugin; PluginPageGeneratorGuardrailTests keeps it that way. *@
+@if (_loading)
+{
+    <AppPageState Kind="AppPageStateKind.Loading" Title="@L["PluginPage_Loading"]" Class="tl-sp-py-8" />
+}
+else if (_page is null)
+{
+    <AppPageState Kind="AppPageStateKind.Error"
+                  Icon="@AppMaterialIcons.Outlined.CloudOff"
+                  Title="@L["PluginPage_Unavailable"]"
+                  Message="The Engine did not return the plugin's settings. Start the Engine and try again." />
+}
+else
+{
+    <div class="plugin-setup" data-testid="plugin-setup-page" data-definition="@_page.Definition">
+        @foreach (var card in _page.Cards)
+        {
+            <div @key="card.Key"
+                 id="@CardId(card.Key)"
+                 class="@CardClass(card)"
+                 data-card="@card.Key"
+                 data-highlighted="@(IsHighlighted(card) ? "true" : null)">
+                @switch (card.Key)
+                {
+                    case "access":
+                        @AccessCard(card)
+                        break;
+                    case "provides":
+                        @ProvidesCard(card)
+                        break;
+                    case "settings":
+                        <PluginSettingsCard PluginId="@Plugin.Id"
+                                            SavedSettings="@Plugin.Settings"
+                                            Enabled="@Plugin.Enabled"
+                                            Card="@card"
+                                            Context="@_context"
+                                            CanChange="@CanChange"
+                                            Extra="@SettingsExtra"
+                                            Changed="@ChangedAsync" />
+                        break;
+                    case "privacy":
+                        @PrivacyCard(card)
+                        break;
+                    case "about":
+                        @AboutCard(card)
+                        break;
+                }
+            </div>
+        }
+        @* A plugin whose JSON describes no settings still has the rows every plugin has (who can use it, which libraries). *@
+        @if (_page.Cards.All(card => card.Key != "settings") && SettingsExtra is not null)
+        {
+            <div class="plugin-card" data-card="settings">
+                <AppCard Title="@L["PluginPage_Settings"]" Class="plugin-page__card" data-testid="plugin-settings-card">@SettingsExtra</AppCard>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private readonly CancellationTokenSource _disposed = new();
+    private readonly Dictionary<string, string> _typed = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _glowing = new(StringComparer.Ordinal);
+    private PluginSetupPageResponse? _page;
+    private PluginSetupContext _context = new(false, false, false);
+    private PluginCheckNowResponse? _testResult;
+    private string? _testing;
+    private string? _problem;
+    private bool _loading = true;
+    private bool _busy;
+    private string? _loadedFor;
+    private bool _scrolled;
+
+    [Parameter, EditorRequired] public PluginSummaryResponse Plugin { get; set; } = default!;
+
+    /// <summary>False on a phone: plugins are read there and not changed.</summary>
+    [Parameter] public bool CanChange { get; set; } = true;
+
+    /// <summary>True when the page was opened from an amber gear: the card that needs the administrator is highlighted.</summary>
+    [Parameter] public bool Attention { get; set; }
+
+    /// <summary>Whether a tool the plugin needs is missing, so a setting that needs it can be greyed with its reason.</summary>
+    [Parameter] public bool ToolMissing { get; set; }
+
+    /// <summary>Whether the plugin is waiting for Local AI.</summary>
+    [Parameter] public bool LocalAiBlocked { get; set; }
+
+    /// <summary>"Last checked ..." in plain words, shown on the Access card; empty when never checked.</summary>
+    [Parameter] public string? LastChecked { get; set; }
+
+    /// <summary>Under the What it provides cards: where the plugin is used.</summary>
+    [Parameter] public RenderFragment? ProvidesExtra { get; set; }
+
+    /// <summary>Rows inside the Settings card: who can use it, which libraries.</summary>
+    [Parameter] public RenderFragment? SettingsExtra { get; set; }
+
+    /// <summary>Inside the Privacy card: what the plugin is allowed to do and its capabilities.</summary>
+    [Parameter] public RenderFragment? PrivacyExtra { get; set; }
+
+    /// <summary>Inside the About card: who turned it on, what it needs, what needs it and removing it.</summary>
+    [Parameter] public RenderFragment? AboutExtra { get; set; }
+
+    /// <summary>Raised after anything that the tiles should show (a key added, a setting saved, a test run).</summary>
+    [Parameter] public EventCallback Changed { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (string.Equals(_loadedFor, Plugin.Id, StringComparison.Ordinal))
+        {
+            RefreshContext();
+            return;
+        }
+
+        _loadedFor = Plugin.Id;
+        _testResult = null;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _page = await ApiClient.GetPluginSetupPageAsync(Plugin.Id, _disposed.Token);
+        }
+        catch (Exception ex) when (ex is HttpRequestException)
+        {
+            Logger.LogWarning(ex, "Could not read the page of plugin {PluginId}.", Plugin.Id);
+            _page = null;
+        }
+        finally
+        {
+            _loading = false;
+        }
+
+        RefreshContext();
+    }
+
+    private void RefreshContext() =>
+        _context = new PluginSetupContext(ToolMissing, LocalAiBlocked, _page?.Cards.FirstOrDefault(card => card.Key == "access")?.NeedsAttention == true);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!Attention || _scrolled || _page is null || FlaggedCard() is not { } card)
+        {
+            return;
+        }
+
+        _scrolled = true;
+        try
+        {
+            await JS.InvokeVoidAsync("tuvimaEditorScrollTo", "#" + CardId(card.Key));
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit ended; there is nothing left to scroll.
+        }
+    }
+
+    private PluginSetupCardDto? FlaggedCard() => _page?.Cards.FirstOrDefault(card => card.NeedsAttention);
+
+    private bool IsHighlighted(PluginSetupCardDto card) => Attention && card.NeedsAttention;
+
+    private static string CardId(string key) => "plugin-setup-card-" + key;
+
+    private string CardClass(PluginSetupCardDto card) => "plugin-card" + (IsHighlighted(card) ? " plugin-card--attention" : string.Empty);
+
+    private async Task ChangedAsync()
+    {
+        await LoadAsync();
+        await Changed.InvokeAsync();
+    }
+
+    // ------------------------------------------------------------------------------------------------ Access
+
+    private bool IsSourceFile => string.Equals(_page?.Definition, "source_file", StringComparison.Ordinal);
+
+    private ProviderCatalogueDto? Catalogue => IsSourceFile ? Services.GetService<ProviderCatalogueService>()?.GetByName(Plugin.Id) : null;
+
+    private IReadOnlyList<PluginSetupActionDto> TestActions(PluginSetupCardDto card)
+    {
+        // Check now merges into Test connection (D59): a plugin that declares a connection test gets that one button.
+        var all = _page?.Cards.SelectMany(candidate => candidate.Actions).DistinctBy(action => action.Kind).ToList() ?? [];
+        return all.Any(action => action.Kind == PluginSetupValues.RowActionTest) ? [.. all.Where(action => action.Kind == PluginSetupValues.RowActionTest)] : all;
+    }
+
+    private RenderFragment AccessCard(PluginSetupCardDto card) => @<AppCard Title="@card.Title" Class="plugin-page__card" data-testid="plugin-access-card">
+        <div class="plugin-access">
+            @if (card.Credentials.Count == 0)
+            {
+                <p class="plugin-access__quiet" data-testid="plugin-access-none">No key or sign-in is needed.</p>
+            }
+
+            @foreach (var credential in card.Credentials)
+            {
+                var name = credential.Name;
+                <div class="@("plugin-access__row" + (_glowing.Contains(name) ? " plugin-access__row--saved" : string.Empty))" data-credential="@name" data-testid="plugin-credential">
+                    <div class="plugin-access__heading">
+                        <strong>@credential.Label</strong>
+                        @if (credential.Scope == "profile")
+                        {
+                            <AppStatusBadge Text="Each person links their own" Tone="AppUiTone.Neutral" />
+                        }
+                        else
+                        {
+                            <AppStatusBadge Text="@(credential.Configured == true ? "Set" : credential.Required ? "Key missing" : "Not set")"
+                                            Tone="@(credential.Configured == true ? AppUiTone.Success : credential.Required ? AppUiTone.Warning : AppUiTone.Neutral)" />
+                        }
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(credential.Help))
+                    {
+                        <small>@credential.Help</small>
+                    }
+                    @if (credential.Scope == "profile")
+                    {
+                        <small>@(credential.SignInMethod == "device_code" ? "Each person signs in with a code they approve on another device, on their Profile > Accounts page." : "Each person adds it on their Profile > Accounts page.")</small>
+                        <div class="plugin-access__actions">
+                            <AppButton Label="Open Accounts" Href="/settings/overview/accounts" Size="AppControlSize.Compact" />
+                        </div>
+                    }
+                    else if (CanChange && !IsSourceFile)
+                    {
+                        <AppTextField Label="@credential.Label" HideLabel="true" InputType="AppInputType.Password"
+                                      MaxLength="@(credential.MaximumLength ?? 512)"
+                                      Placeholder="@(credential.Configured == true ? "Paste a new value to replace it" : "Paste the value here")"
+                                      Value="@_typed.GetValueOrDefault(name)" ValueChanged="@(value => _typed[name] = value ?? string.Empty)" />
+                        <div class="plugin-access__actions">
+                            <AppButton Label="@(credential.Configured == true ? "Replace" : "Save")" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
+                                       Disabled="@(_busy || !LongEnough(credential, _typed.GetValueOrDefault(name)))" OnClick="@(() => SaveSecretAsync(credential))" />
+                            @if (credential.Configured == true)
+                            {
+                                <AppButton Label="Remove" Tone="AppUiTone.Error" Size="AppControlSize.Compact" Disabled="@_busy" OnClick="@(() => RemoveSecretAsync(credential))" />
+                            }
+                        </div>
+                    }
+                </div>
+            }
+
+            @if (IsSourceFile && Catalogue is { } catalogue && card.Credentials.Count > 0 && CanChange)
+            {
+                var saved = card.Credentials.Where(credential => credential.Required).All(credential => credential.Configured == true);
+                <div class="plugin-access__actions" data-testid="plugin-source-key-actions">
+                    <AppButton Label="@(saved ? "Replace key" : "Add key")" StartIcon="@AppMaterialIcons.Outlined.Key" ButtonStyle="@(saved ? AppButtonStyle.Outlined : AppButtonStyle.Filled)"
+                               Tone="@(saved ? AppUiTone.Neutral : AppUiTone.Primary)" Disabled="@_busy"
+                               OnClick="@(() => OpenKeyDialogAsync(catalogue, saved ? ProviderOnboardingOperation.Replace : ProviderOnboardingOperation.Connect))" />
+                    @if (saved && catalogue.Onboarding?.Credentials.Any(field => field.Configured && string.Equals(field.Ownership, "user_supplied", StringComparison.OrdinalIgnoreCase)) == true)
+                    {
+                        <AppButton Label="Remove key" Tone="AppUiTone.Error" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="@(() => RemoveSourceKeyAsync(catalogue))" />
+                    }
+                </div>
+            }
+
+            @if (card.Links.Count > 0)
+            {
+                <div class="plugin-access__actions" data-testid="plugin-access-links">
+                    @foreach (var link in card.Links)
+                    {
+                        <AppButton Label="@link.Label" Href="@link.Url" Target="_blank" ButtonStyle="AppButtonStyle.Text" EndIcon="@AppMaterialIcons.Outlined.OpenInNew" />
+                    }
+                </div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(LastChecked))
+            {
+                <small class="plugin-access__quiet" data-testid="plugin-last-checked">@LastChecked</small>
+            }
+
+            @if (TestActions(card) is { Count: > 0 } tests)
+            {
+                <div class="plugin-access__actions" data-testid="plugin-tests">
+                    @foreach (var test in tests)
+                    {
+                        var kind = test.Kind;
+                        <AppButton Label="@(_testing == kind ? "Testing…" : test.Label)" StartIcon="@AppMaterialIcons.Outlined.NetworkCheck" Size="AppControlSize.Compact"
+                                   Disabled="@(_testing is not null || !CanChange)" OnClick="@(() => RunTestAsync(kind))" data-testid="@("plugin-test-" + kind)" />
+                    }
+                </div>
+                @if (_testResult is { } result)
+                {
+                    <AppAlert Tone="@ResultTone(result.Result)" data-testid="plugin-test-result">
+                        @result.Summary
+                        @foreach (var step in result.Steps)
+                        {
+                            <div>@(step.Ok ? "✓" : "✕") @step.Label@(string.IsNullOrWhiteSpace(step.Detail) ? null : $" - {step.Detail}")</div>
+                        }
+                    </AppAlert>
+                }
+            }
+
+            @if (!string.IsNullOrWhiteSpace(_problem))
+            {
+                <AppAlert Tone="AppUiTone.Error" data-testid="plugin-access-problem">@_problem</AppAlert>
+            }
+        </div>
+    </AppCard>;
+
+    private static bool LongEnough(PluginSetupCredentialDto credential, string? typed) =>
+        !string.IsNullOrWhiteSpace(typed) && typed.Trim().Length >= (credential.MinimumLength ?? 1);
+
+    private static AppUiTone ResultTone(string result) => result switch
+    {
+        "working" => AppUiTone.Success,
+        "not_working" => AppUiTone.Error,
+        _ => AppUiTone.Warning,
+    };
+
+    // The one standard test (D50): the button the plugin's JSON declares and the same result for every plugin.
+    private async Task RunTestAsync(string kind)
+    {
+        if (_testing is not null)
+        {
+            return;
+        }
+
+        _testing = kind;
+        _problem = null;
+        try
+        {
+            if (kind == PluginSetupValues.RowActionTest && IsSourceFile)
+            {
+                var tested = await ApiClient.TestProviderAsync(Plugin.Id, _disposed.Token);
+                _testResult = new PluginCheckNowResponse
+                {
+                    PluginId = Plugin.Id,
+                    Result = tested?.Success == true ? "working" : "not_working",
+                    Summary = tested?.Message is { Length: > 0 } message ? message : "No connection result was returned.",
+                };
+            }
+            else
+            {
+                _testResult = await ApiClient.CheckPluginNowAsync(Plugin.Id, _disposed.Token)
+                    ?? new PluginCheckNowResponse { PluginId = Plugin.Id, Result = "cannot_check", Summary = "The Engine could not be reached." };
+            }
+        }
+        finally
+        {
+            _testing = null;
+        }
+
+        await Changed.InvokeAsync();
+    }
+
+    private async Task SaveSecretAsync(PluginSetupCredentialDto credential)
+    {
+        if (_busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        _problem = null;
+        try
+        {
+            if (await ApiClient.SetPluginSecretAsync(Plugin.Id, credential.Name, _typed.GetValueOrDefault(credential.Name)?.Trim() ?? string.Empty, _disposed.Token))
+            {
+                _typed.Remove(credential.Name);
+                _glowing.Clear();
+                _glowing.Add(credential.Name);
+                await ChangedAsync();
+            }
+            else
+            {
+                _problem = ApiClient.LastError ?? "The value could not be saved.";
+            }
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task RemoveSecretAsync(PluginSetupCredentialDto credential)
+    {
+        if (_busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        _problem = null;
+        try
+        {
+            if (await ApiClient.RemovePluginSecretAsync(Plugin.Id, credential.Name, _disposed.Token))
+            {
+                await ChangedAsync();
+            }
+            else
+            {
+                _problem = ApiClient.LastError ?? "The value could not be removed.";
+            }
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task OpenKeyDialogAsync(ProviderCatalogueDto catalogue, ProviderOnboardingOperation operation)
+    {
+        var parameters = new AppDialogParameters<ProviderOnboardingDialog>
+        {
+            { component => component.Catalogue, catalogue },
+            { component => component.Operation, operation },
+        };
+        var dialog = await DialogService.ShowAsync<ProviderOnboardingDialog>(string.Empty, parameters, new AppDialogOptions
+        {
+            MaxWidth = AppMaxWidth.Large,
+            FullWidth = true,
+            CloseButton = false,
+            CloseOnEscapeKey = true,
+        });
+        var result = await dialog.Result;
+        if (result is not { Canceled: false, Data: ProviderOnboardingDialogResult })
+        {
+            return;
+        }
+
+        Services.GetService<ProviderCatalogueService>()?.Invalidate();
+        await ChangedAsync();
+    }
+
+    private async Task RemoveSourceKeyAsync(ProviderCatalogueDto catalogue)
+    {
+        var answer = await AppConfirmDialog.ShowAsync(
+            DialogService,
+            $"Remove the {catalogue.DisplayName} key?",
+            "It will stop running until it is connected again.",
+            primaryLabel: "Remove",
+            secondaryLabel: "Keep",
+            primaryDestructive: true);
+        if (answer != AppConfirmResult.Primary)
+        {
+            return;
+        }
+
+        var result = await ApiClient.RemoveProviderCredentialsAsync(Plugin.Id, _disposed.Token);
+        if (result?.Success != true)
+        {
+            _problem = result?.Message ?? "The key could not be removed.";
+            return;
+        }
+
+        Services.GetService<ProviderCatalogueService>()?.Invalidate();
+        await ChangedAsync();
+    }
+
+    // ------------------------------------------------------------------------------------------------ What it provides
+
+    private RenderFragment ProvidesCard(PluginSetupCardDto card) => @<AppCard Title="@card.Title" Class="plugin-page__card" data-testid="plugin-provides-card">
+        <PluginProvidesLine Plugin="@Plugin" />
+        @if (card.MediaTypes.Count > 0)
+        {
+            <p class="plugin-card__line" data-testid="plugin-works-on">Works on: @string.Join(", ", card.MediaTypes)</p>
+        }
+        @if (card.Supplies.Count > 0)
+        {
+            <ul class="plugin-card__list" data-testid="plugin-supplies">
+                @foreach (var supply in card.Supplies)
+                {
+                    <li>@supply</li>
+                }
+            </ul>
+        }
+        @ProvidesExtra
+    </AppCard>;
+
+    // ------------------------------------------------------------------------------------------------ Privacy
+
+    private RenderFragment PrivacyCard(PluginSetupCardDto card) => @<AppCard Title="@card.Title" Class="plugin-page__card" data-testid="plugin-privacy-card">
+        <p class="plugin-card__line" data-testid="plugin-leaves">@(string.IsNullOrWhiteSpace(card.DataLeaving) ? "Nothing leaves this machine." : card.DataLeaving)</p>
+        @if (card.Destinations.Count > 0)
+        {
+            <ul class="plugin-card__list" data-testid="plugin-destinations">
+                @foreach (var destination in card.Destinations)
+                {
+                    <li><strong>@destination.Host</strong>@(string.IsNullOrWhiteSpace(destination.Sends) ? null : " - " + destination.Sends)@(destination.MaxRequestsPerMinute is { } rate ? $" (at most {rate} a minute)" : null)</li>
+                }
+            </ul>
+        }
+        @if (!string.IsNullOrWhiteSpace(card.VaultWords))
+        {
+            <p class="plugin-card__line" data-testid="plugin-vault-words">@card.VaultWords</p>
+        }
+        @PrivacyExtra
+        @if (card.Links.Count > 0)
+        {
+            <div class="plugin-access__actions" data-testid="plugin-privacy-links">
+                @foreach (var link in card.Links)
+                {
+                    <AppButton Label="@link.Label" Href="@link.Url" Target="_blank" ButtonStyle="AppButtonStyle.Text" EndIcon="@AppMaterialIcons.Outlined.OpenInNew" />
+                }
+            </div>
+        }
+    </AppCard>;
+
+    // ------------------------------------------------------------------------------------------------ About
+
+    private RenderFragment AboutCard(PluginSetupCardDto card) => @<AppCard Title="@card.Title" Class="plugin-page__card" data-testid="plugin-about-card">
+        @if (!string.IsNullOrWhiteSpace(card.Text))
+        {
+            <p class="plugin-card__line" data-testid="plugin-about-text">@card.Text</p>
+        }
+        <AppTable Class="plugin-about__facts">
+            <tbody>
+                @foreach (var fact in card.Facts)
+                {
+                    <tr><td>@fact.Label</td><td>@fact.Value</td></tr>
+                }
+                @if (_page?.Cards.FirstOrDefault(candidate => candidate.Key == "access")?.Access is { } access)
+                {
+                    <tr data-testid="plugin-weight"><td>Weight</td><td>@WeightWords(access.WeightClass)</td></tr>
+                }
+            </tbody>
+        </AppTable>
+        @AboutExtra
+    </AppCard>;
+
+    private static string WeightWords(string weight) => weight switch
+    {
+        "heavy" => "Heavy: works when the machine is idle",
+        "medium" => "Medium",
+        _ => "Light",
+    };
+
+    public void Dispose()
+    {
+        _disposed.Cancel();
+        _disposed.Dispose();
+    }
+}

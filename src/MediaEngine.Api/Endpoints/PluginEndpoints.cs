@@ -390,6 +390,112 @@ internal static class PluginEndpoints
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsRead);
 
+        // The changes the generated page makes to values kept outside the plugin's saved settings, to the rows of a repeating group and
+        // to the Activity cap (v5 D49, D59). The Dashboard calls these for every plugin; a plugin's JSON names where its values live.
+        group.MapPut("/{pluginId}/page/values/{key}", async (
+            string pluginId,
+            string key,
+            PluginSetupValueRequest request,
+            HttpContext http,
+            [FromServices] PluginPageModelService pages,
+            CancellationToken ct) =>
+            await ChangeThroughValueSourceAsync(pages, http, pluginId, key,
+                (source, token) => source.SetValueAsync(key, request.Value, token), ct).ConfigureAwait(false))
+        .WithName("SavePluginSetupValue")
+        .WithSummary("Saves one value of a plugin's page that the plugin's JSON says is kept elsewhere (a switch on a repeating group's owner, say).")
+        .Produces<PluginSetupChangeResult>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
+
+        group.MapPost("/{pluginId}/page/items/{key}", async (
+            string pluginId,
+            string key,
+            PluginSetupItemRequest request,
+            HttpContext http,
+            [FromServices] PluginPageModelService pages,
+            CancellationToken ct) =>
+            await ChangeThroughValueSourceAsync(pages, http, pluginId, key,
+                (source, token) => source.AddItemAsync(key, request.Values, token), ct).ConfigureAwait(false))
+        .WithName("AddPluginSetupItem")
+        .WithSummary("Adds a row to a repeating group on a plugin's page. A secret field is checked and kept, never echoed.")
+        .Produces<PluginSetupChangeResult>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
+
+        group.MapDelete("/{pluginId}/page/items/{key}/{itemId}", async (
+            string pluginId,
+            string key,
+            string itemId,
+            HttpContext http,
+            [FromServices] PluginPageModelService pages,
+            CancellationToken ct) =>
+            await ChangeThroughValueSourceAsync(pages, http, pluginId, key,
+                (source, token) => source.RemoveItemAsync(key, itemId, token), ct).ConfigureAwait(false))
+        .WithName("RemovePluginSetupItem")
+        .WithSummary("Removes a row of a repeating group on a plugin's page. A locked row cannot be removed.")
+        .Produces<PluginSetupChangeResult>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
+
+        group.MapPost("/{pluginId}/page/items/{key}/{itemId}/test", async (
+            string pluginId,
+            string key,
+            string itemId,
+            HttpContext http,
+            [FromServices] PluginPageModelService pages,
+            CancellationToken ct) =>
+            await ChangeThroughValueSourceAsync(pages, http, pluginId, key,
+                (source, token) => source.TestItemAsync(key, itemId, token), ct).ConfigureAwait(false))
+        .WithName("TestPluginSetupItem")
+        .WithSummary("Tests one row of a repeating group on a plugin's page (test connection).")
+        .Produces<PluginSetupChangeResult>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
+
+        group.MapPut("/{pluginId}/page/items/{key}/{itemId}/secret/{field}", async (
+            string pluginId,
+            string key,
+            string itemId,
+            string field,
+            PluginSetupSecretRequest request,
+            HttpContext http,
+            [FromServices] PluginPageModelService pages,
+            CancellationToken ct) =>
+            await ChangeThroughValueSourceAsync(pages, http, pluginId, key,
+                (source, token) => source.SetItemSecretAsync(key, itemId, field, request.Value, token), ct).ConfigureAwait(false))
+        .WithName("SavePluginSetupItemSecret")
+        .WithSummary("Saves a row's key. It is checked first where the service allows, and is never returned.")
+        .Produces<PluginSetupChangeResult>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
+
+        group.MapPut("/{pluginId}/activity-cap", (
+            string pluginId,
+            PluginActivityCapDto request,
+            [FromServices] PluginPageModelService pages) =>
+        {
+            if (!pages.Exists(pluginId))
+            {
+                return ApiErrors.NotFound($"Plugin '{pluginId}' not found.");
+            }
+
+            try
+            {
+                var cap = pages.SetActivityCap(pluginId, request.MaxEntries, request.MaxDays);
+                return Results.Ok(new PluginActivityCapDto { MaxEntries = cap.MaxEntries, MaxDays = cap.MaxDays });
+            }
+            catch (ArgumentOutOfRangeException ex)
+            {
+                return ApiErrors.BadRequest(ex.Message.Split(" (Parameter", StringSplitOptions.None)[0]);
+            }
+        })
+        .WithName("SavePluginActivityCap")
+        .WithSummary("How much of a plugin's Activity list is kept: the newest entries, none older than the days. Enforced where the entries are stored.")
+        .Produces<PluginActivityCapDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.PluginsManage);
+
         group.MapPost("/{pluginId}/enable", EnablePlugin)
         .WithName("EnablePlugin")
         .WithSummary("Switch a plugin on. Needs the plugin's current approval statement to have been confirmed (409 approval_required otherwise).")
@@ -891,6 +997,26 @@ internal static class PluginEndpoints
     }
 
     /// <summary>Which declared secrets are set. Names, labels and a yes/no only; never a value.</summary>
+    // A change to a setting whose value the plugin's JSON says is kept in a named place. An unknown plugin, setting or place is
+    // "not found"; a place that belongs to the Vault answers "not found" to anyone whose Vault mode is off.
+    private static async Task<IResult> ChangeThroughValueSourceAsync(
+        PluginPageModelService pages,
+        HttpContext http,
+        string pluginId,
+        string key,
+        Func<IPluginSettingValueSource, CancellationToken, Task<PluginSettingWriteResult>> change,
+        CancellationToken ct)
+    {
+        var source = pages.ValueSourceFor(pluginId, key);
+        if (source is null || (source.VaultGated && !await VaultBrowseEndpoints.PassesGateAsync(http).ConfigureAwait(false)))
+        {
+            return ApiErrors.NotFound("There is nothing to change there.");
+        }
+
+        var result = await change(source, ct).ConfigureAwait(false);
+        return Results.Ok(new PluginSetupChangeResult { Ok = result.Ok, Message = result.Message, ItemId = result.ItemId });
+    }
+
     internal static async Task<IResult> ListPluginSecretsAsync(
         string pluginId,
         PluginCatalog catalog,

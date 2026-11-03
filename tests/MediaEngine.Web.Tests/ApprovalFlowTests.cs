@@ -44,6 +44,8 @@ public sealed class ApprovalFlowTests : AsyncBunitContext
         {
             stub.SetHandler(nameof(IEngineApiClient.GetPluginsAsync), _ =>
                 Task.FromResult<IReadOnlyList<PluginSummaryResponse>>(_plugins.ToList()));
+            stub.SetHandler(nameof(IEngineApiClient.GetPluginSetupPageAsync), args =>
+                Task.FromResult<PluginSetupPageResponse?>(new PluginSetupPageResponse { PluginId = (string)args![0]!, Cards = [new PluginSetupCardDto { Key = "about", Title = "About" }] }));
             stub.SetHandler(nameof(IEngineApiClient.GetAiUsageAsync), _ => Task.FromResult<AiUsageResponse?>(_usage));
             stub.SetHandler(nameof(IEngineApiClient.SetPluginEnabledAsync), args =>
             {

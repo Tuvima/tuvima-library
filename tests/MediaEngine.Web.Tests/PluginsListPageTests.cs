@@ -66,6 +66,8 @@ public sealed class PluginsListPageTests : AsyncBunitContext
                 _savedLibraries = (IReadOnlyList<string>)args![1]!;
                 return Task.FromResult(true);
             });
+            stub.SetHandler(nameof(IEngineApiClient.GetPluginSetupPageAsync), args =>
+                Task.FromResult<PluginSetupPageResponse?>(PageFor(_plugins.FirstOrDefault(plugin => plugin.Id == (string)args![0]!))));
             stub.SetHandler(nameof(IEngineApiClient.GetPluginRemovalPreviewAsync), _ => Task.FromResult(_removalPreview));
             stub.SetHandler(nameof(IEngineApiClient.RemovePluginAsync), args =>
             {
@@ -168,7 +170,9 @@ public sealed class PluginsListPageTests : AsyncBunitContext
     {
         _plugins = [Plugin("a", "Alpha", enabled: true)];
 
-        var setup = RenderDetail("a", null).WaitForElement("[data-testid=plugin-setup]");
+        var detail = RenderDetail("a", null);
+        detail.WaitForElement("[data-testid=plugin-privacy-card]");
+        var setup = detail.Find("[data-testid=plugin-setup]");
         Assert.NotNull(setup.QuerySelector("[data-testid=plugin-privacy-card]"));
         Assert.NotNull(setup.QuerySelector("[data-testid=plugin-about-card]"));
         Assert.Contains("Who can use it", setup.TextContent);
@@ -176,8 +180,8 @@ public sealed class PluginsListPageTests : AsyncBunitContext
 
         var activity = RenderDetail("a", "activity");
         var text = activity.WaitForElement("section[aria-label='Activity']").TextContent;
-        Assert.Contains("Nothing has run yet.", text);
-        Assert.Contains(activity.FindAll("button"), button => button.TextContent.Trim() == "Check now");
+        Assert.Contains("Nothing has gone wrong.", text);
+        Assert.DoesNotContain(activity.FindAll("button"), button => button.TextContent.Trim() == "Check now");
 
         Assert.NotNull(setup.QuerySelector("section[aria-label='Removing this plugin']"));
     }
@@ -195,7 +199,9 @@ public sealed class PluginsListPageTests : AsyncBunitContext
             Changelog = "Reads chapter names first.",
         };
         _plugins = [plugin];
-        var text = RenderDetail("a", null).WaitForElement("[data-testid=plugin-setup]").TextContent;
+        var detail = RenderDetail("a", null);
+        detail.WaitForElement("[data-testid=plugin-about-card]");
+        var text = detail.Find("[data-testid=plugin-setup]").TextContent;
         Assert.Contains("Everyone who can use this Library", text);
         Assert.Contains("The song title goes to LRCLIB", text);
         Assert.Contains("Heavy: works when the machine is idle", text);
@@ -260,8 +266,7 @@ public sealed class PluginsListPageTests : AsyncBunitContext
         };
         var cut = RenderDetail("a", null);
 
-        cut.WaitForElement("[data-testid=plugin-setup]").QuerySelectorAll("button")
-            .First(button => button.TextContent.Trim() == "Delete plugin").Click();
+        ClickWhenThere(cut, "Delete plugin");
 
         var preview = cut.WaitForElement("[data-testid=plugin-removal-preview]");
         Assert.Contains("12 skip markers it saved can go with it or stay.", preview.TextContent);
@@ -284,8 +289,7 @@ public sealed class PluginsListPageTests : AsyncBunitContext
         _removalPreview = new PluginRemovalPreviewResponse { PluginId = "a", Name = "Alpha", Lines = ["Its files are removed."] };
         _removeResult = PluginActionResult.Failure("Gamma needs this plugin. Switch it off too, or cancel.");
         var cut = RenderDetail("a", null);
-        cut.WaitForElement("[data-testid=plugin-setup]").QuerySelectorAll("button")
-            .First(button => button.TextContent.Trim() == "Delete plugin").Click();
+        ClickWhenThere(cut, "Delete plugin");
         cut.WaitForElement("[data-testid=plugin-removal-preview]");
 
         cut.FindAll("button").First(button => button.TextContent.Trim() == "Confirm delete").Click();
@@ -569,8 +573,13 @@ public sealed class PluginsListPageTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal("Waiting for Local AI", CardOf(cut, "ai").QuerySelector(".app-status-dot")!.GetAttribute("data-tip")));
         var expectedTone = new Dictionary<string, string>
         {
-            ["working"] = "working", ["key"] = "attention", ["tools"] = "attention", ["ai"] = "attention",
-            ["broken"] = "broken", ["off"] = "off", ["private"] = "working",
+            ["working"] = "working",
+            ["key"] = "attention",
+            ["tools"] = "attention",
+            ["ai"] = "attention",
+            ["broken"] = "broken",
+            ["off"] = "off",
+            ["private"] = "working",
         };
         foreach (var (id, tone) in expectedTone)
         {
@@ -650,6 +659,40 @@ public sealed class PluginsListPageTests : AsyncBunitContext
     private static int CardCount(IRenderedComponent<PluginSettingsTab> cut) => cut.FindAll("[data-state-card=plugin]").Count;
 
     private static string Squash(AngleSharp.Dom.IElement element) => System.Text.RegularExpressions.Regex.Replace(element.TextContent, "\\s+", "");
+
+    // The Engine builds this page from the plugin's JSON; the tests hand the Dashboard the three cards every plugin gets.
+    private static PluginSetupPageResponse? PageFor(PluginSummaryResponse? plugin)
+    {
+        if (plugin is null)
+        {
+            return null;
+        }
+
+        var access = plugin.Access;
+        var facts = new List<PluginSetupFactDto>();
+        if (!string.IsNullOrWhiteSpace(access.Changelog))
+        {
+            facts.Add(new PluginSetupFactDto { Label = "What changed", Value = access.Changelog });
+        }
+
+        return new PluginSetupPageResponse
+        {
+            PluginId = plugin.Id,
+            PluginName = plugin.Name,
+            Cards =
+            [
+                new PluginSetupCardDto { Key = "access", Title = "Access", Access = access },
+                new PluginSetupCardDto { Key = "privacy", Title = "Privacy", DataLeaving = access.DataLeaving, VaultWords = access.VaultWords },
+                new PluginSetupCardDto { Key = "about", Title = "About", Facts = facts },
+            ],
+        };
+    }
+
+    private static void ClickWhenThere(IRenderedComponent<PluginSettingsTab> cut, string label)
+    {
+        cut.WaitForAssertion(() => Assert.Contains(cut.FindAll("button"), button => button.TextContent.Trim() == label));
+        cut.FindAll("button").First(button => button.TextContent.Trim() == label).Click();
+    }
 
     private IRenderedComponent<PluginSettingsTab> RenderDetail(string pluginId, string? tab) =>
         Render<PluginSettingsTab>(parameters => parameters

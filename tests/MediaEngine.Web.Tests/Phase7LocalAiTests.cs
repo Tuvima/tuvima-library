@@ -85,8 +85,8 @@ public sealed class Phase7LocalAiTests
         Assert.DoesNotContain("<AppTabs", localAi, StringComparison.Ordinal);
         Assert.DoesNotContain("<AppTabs", plugins, StringComparison.Ordinal);
         Assert.DoesNotContain("<AvailablePluginsPanel", plugins, StringComparison.Ordinal);
-        Assert.Contains("PluginHealthJobsPanel(plugin)", plugins, StringComparison.Ordinal);
-        Assert.Contains("PluginCapabilitiesPanel(plugin)", plugins, StringComparison.Ordinal);
+        Assert.Contains("<PluginActivityTimeline", plugins, StringComparison.Ordinal);
+        Assert.Contains("PluginPrivacyExtra(plugin)", plugins, StringComparison.Ordinal);
         Assert.Contains("DangerPanel(plugin)", plugins, StringComparison.Ordinal);
         Assert.DoesNotContain("marketplace flows are planned", plugins, StringComparison.Ordinal);
         Assert.DoesNotContain("Approved Catalog", plugins, StringComparison.Ordinal);
