@@ -1,3 +1,21 @@
 .plugin-provides { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; min-width: 0; color: var(--tl-text-secondary); font-size: var(--tl-font-size-sm); }
-.plugin-provides__item { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.plugin-provides__item { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; color: var(--provides-accent, currentColor); }
 .plugin-provides__ai { color: var(--tl-text-muted); font-style: italic; }
+.plugin-provides-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; min-width: 0; }
+.plugin-provides-kind { display: flex; gap: 12px; padding: 12px; min-width: 0; border: 1px solid color-mix(in srgb, var(--provides-accent, var(--tl-text-secondary)) 40%, transparent); border-radius: 8px; background: color-mix(in srgb, var(--provides-accent, var(--tl-text-secondary)) 10%, transparent); }
+.plugin-provides-kind__icon { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; color: var(--provides-accent, var(--tl-text-secondary)); background: color-mix(in srgb, var(--provides-accent, var(--tl-text-secondary)) 20%, transparent); }
+.plugin-provides-kind__body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.plugin-provides-kind__name { color: var(--tl-text-primary); }
+.plugin-provides-kind__sentence { color: var(--tl-text-secondary); font-size: var(--tl-font-size-sm); }
+.plugin-provides-kind__chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.plugin-provides-kind--identification { --provides-accent: var(--tl-provides-identification); }
+.plugin-provides-kind--details { --provides-accent: var(--tl-provides-details); }
+.plugin-provides-kind--artwork { --provides-accent: var(--tl-provides-artwork); }
+.plugin-provides-kind--people { --provides-accent: var(--tl-provides-people); }
+.plugin-provides-kind--series-order { --provides-accent: var(--tl-provides-series-order); }
+.plugin-provides-kind--lyrics { --provides-accent: var(--tl-provides-lyrics); }
+.plugin-provides-kind--subtitles { --provides-accent: var(--tl-provides-subtitles); }
+.plugin-provides-kind--skip-markers { --provides-accent: var(--tl-provides-skip-markers); }
+.plugin-provides-kind--insights { --provides-accent: var(--tl-provides-insights); }
+.plugin-provides-kind--lists-and-ratings { --provides-accent: var(--tl-provides-lists-and-ratings); }
+.plugin-provides-kind--account-sync { --provides-accent: var(--tl-provides-account-sync); }

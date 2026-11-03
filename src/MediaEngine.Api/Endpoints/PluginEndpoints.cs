@@ -1301,6 +1301,7 @@ internal static class PluginEndpoints
         MaximumLibraryVersion = registration.Manifest.MaximumLibraryVersion,
         Category = PluginCategories.Resolve(registration.Manifest.Category),
         Provides = PluginProvides.Resolve(registration.Manifest.Provides).ToList(),
+        ProvidesCards = PluginProvidesSentences.Cards(registration.Manifest.Provides),
         RequiresLocalAi = registration.Manifest.Declaration?.Requires.Any(requirement =>
             string.Equals(requirement.Kind, "local_ai", StringComparison.OrdinalIgnoreCase)) == true,
         ShortDescription = PluginDescriptions.Short(registration.Manifest.ShortDescription, registration.Manifest.Description),

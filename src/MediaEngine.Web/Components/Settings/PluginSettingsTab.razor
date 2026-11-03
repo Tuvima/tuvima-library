@@ -419,7 +419,7 @@ else
                 {
                     <AppCard Title="Access" Class="plugin-page__card" data-testid="plugin-access-card"><PluginAppDetails PluginId="@plugin.Id" /></AppCard>
                 }
-                <AppCard Title="What it provides" Class="plugin-page__card" data-testid="plugin-provides-card"><PluginProvidesLine Plugin="@plugin" /></AppCard>
+                <AppCard Title="What it provides" Class="plugin-page__card" data-testid="plugin-provides-card"><PluginProvidesLine Plugin="@plugin" Mode="PluginProvidesMode.Card" /></AppCard>
                 <AppCard Title="Settings" Class="plugin-page__card" data-testid="plugin-settings-card">
                     @PluginSettingsPanel(plugin)
                     @PluginWhoAndLibraries(plugin)
@@ -507,7 +507,7 @@ else
                 }
             </Aside>
             <ChildContent>
-                <PluginProvidesLine Plugin="@plugin" />
+                <PluginProvidesLine Plugin="@plugin" Mode="PluginProvidesMode.Icons" />
             </ChildContent>
             <Footer>
                 @if (canChange)

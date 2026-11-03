@@ -143,7 +143,7 @@ else
     private RenderFragment ProvidesContent(MetadataProviderInventoryItem provider) => @<AppCard Title="What it provides" Class="metadata-summary-card" data-testid="provider-provides">
         @if (Plugin is not null)
         {
-            <PluginProvidesLine Plugin="@Plugin" />
+            <PluginProvidesLine Plugin="@Plugin" Mode="PluginProvidesMode.Card" />
         }
         <p class="provider-about" data-testid="provider-used-in">
             @UsedInWords(provider)

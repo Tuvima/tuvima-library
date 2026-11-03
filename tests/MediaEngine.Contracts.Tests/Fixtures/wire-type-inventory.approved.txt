@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1374; api=0; web-client=54
+# scopes: contracts=1375; api=0; web-client=54
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -9330,6 +9330,12 @@
   SignupUrl: System.String | json=signup_url | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"requires_key":true,"key_present":true,"always_on":true,"vault_only":true,"supplies":[],"sends_data_to":[],"about":"sample","signup_url":"sample"}
 
+[contracts] MediaEngine.Contracts.Plugins.PluginProvidesCardDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Kind: System.String | json=kind | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Sentence: System.String | json=sentence | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"kind":"sample","sentence":"sample"}
+
 [contracts] MediaEngine.Contracts.Plugins.PluginRemovalImpactResponse
   kind=class | converter=default | number-handling=default | unmapped=default
   PluginId: System.String | json=plugin_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -9456,6 +9462,7 @@
   MaximumLibraryVersion: System.String | json=maximum_library_version | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Category: System.String | json=category | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Provides: System.Collections.Generic.List<System.String> | json=provides | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProvidesCards: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginProvidesCardDto> | json=provides_cards | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   RequiresLocalAi: System.Boolean | json=requires_local_ai | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ShortDescription: System.String | json=short_description | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   LongDescription: System.String | json=long_description | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -9479,7 +9486,7 @@
   SettingsSchema: System.Text.Json.JsonElement? | json=settings_schema | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ManifestPath: System.String | json=manifest_path | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   HostServices: MediaEngine.Contracts.Plugins.PluginHostServicesDto | json=host_services | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"id":"sample","name":"sample","version":"sample","description":"sample","enabled":true,"is_built_in":true,"needs_approval":true,"load_error":"sample","listing_kind":"sample","provider":null,"kind":"sample","trust_level":"sample","minimum_library_version":"sample","maximum_library_version":"sample","category":"sample","provides":[],"requires_local_ai":true,"short_description":"sample","long_description":"sample","icon_path":"sample","removable":true,"media_types":[],"supported_platforms":[],"is_compatible":true,"compatibility_problem":"sample","capabilities":[],"permissions":[],"tool_requirements":[],"ai_permissions":[],"declared_secrets":7,"configured_secrets":7,"allowed_to":[],"sends_data_to":"sample","network_destinations":[],"access":null,"settings":{},"settings_schema":{"sample":true},"manifest_path":"sample","host_services":null}
+  sample={"id":"sample","name":"sample","version":"sample","description":"sample","enabled":true,"is_built_in":true,"needs_approval":true,"load_error":"sample","listing_kind":"sample","provider":null,"kind":"sample","trust_level":"sample","minimum_library_version":"sample","maximum_library_version":"sample","category":"sample","provides":[],"provides_cards":[],"requires_local_ai":true,"short_description":"sample","long_description":"sample","icon_path":"sample","removable":true,"media_types":[],"supported_platforms":[],"is_compatible":true,"compatibility_problem":"sample","capabilities":[],"permissions":[],"tool_requirements":[],"ai_permissions":[],"declared_secrets":7,"configured_secrets":7,"allowed_to":[],"sends_data_to":"sample","network_destinations":[],"access":null,"settings":{},"settings_schema":{"sample":true},"manifest_path":"sample","host_services":null}
 
 [contracts] MediaEngine.Contracts.Plugins.PluginToolPlatformDto
   kind=class | converter=default | number-handling=default | unmapped=default

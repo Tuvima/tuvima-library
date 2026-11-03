@@ -7938,6 +7938,10 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginProviderInfoDt
 
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginProvides
 
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginProvidesCardDto
+  Kind: System.String | nullability=not-null | accessors=get,set
+  Sentence: System.String | nullability=not-null | accessors=get,set
+
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginRemovalImpactResponse
   PluginId: System.String | nullability=not-null | accessors=get,set
   WouldLose: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
@@ -8037,6 +8041,7 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSummaryRespons
   MaximumLibraryVersion: System.String | nullability=nullable | accessors=get,set
   Category: System.String | nullability=not-null | accessors=get,set
   Provides: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  ProvidesCards: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginProvidesCardDto> | nullability=not-null | accessors=get,set
   RequiresLocalAi: System.Boolean | nullability=not-null | accessors=get,set
   ShortDescription: System.String | nullability=not-null | accessors=get,set
   LongDescription: System.String | nullability=not-null | accessors=get,set
