@@ -155,6 +155,19 @@ public sealed class EditorVideoSeriesPanelTests : AsyncBunitContext
     }
 
     [Fact]
+    public void WithTheRenameSwitchOn_TheSentenceDoesNotSayFilesStayAsTheyAre()
+    {
+        _order = Order(canRename: true);
+        var cut = RenderPanel();
+
+        cut.Find("input[role=switch]").Change(true);
+
+        var sentence = cut.Find("[data-testid=video-order-happen]").TextContent;
+        Assert.Contains("renamed to match", sentence);
+        Assert.DoesNotContain("not moved or renamed", sentence);
+    }
+
+    [Fact]
     public void EveryVideoShowsAVisibleGripToDragBy()
     {
         _order = Order(canRename: false);

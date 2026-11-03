@@ -109,7 +109,7 @@
                 </div>
             }
 
-            @if (_editor.WhatWillHappen() is { Length: > 0 } happen)
+            @if (_editor.WhatWillHappen(_editor.Lists.Any(list => Pending?.FindVideoRename(list.ParentId) is not null)) is { Length: > 0 } happen)
             {
                 <p class="tl-vseries__happen" data-testid="video-order-happen"><strong>@L["EditorVideoSeries_WhatWillHappen"]</strong> @happen</p>
             }

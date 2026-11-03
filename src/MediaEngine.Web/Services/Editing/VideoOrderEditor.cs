@@ -231,8 +231,8 @@ public sealed class VideoOrderEditor
         }
     }
 
-    /// <summary>Plain words for what Save would do with this arrangement, shown under the list ("What will happen"); empty when nothing changed.</summary>
-    public string WhatWillHappen()
+    /// <summary>Plain words for what Save would do with this arrangement, shown under the list ("What will happen"); empty when nothing changed. <paramref name="filesRenamed"/> says the rename switch is on, so the sentence does not claim the files stay as they are.</summary>
+    public string WhatWillHappen(bool filesRenamed = false)
     {
         var parts = new List<string>();
         foreach (var list in _lists.Where(list => list.IsChanged))
@@ -248,6 +248,14 @@ public sealed class VideoOrderEditor
             {
                 parts.Add(HasSections ? $"{list.Title} is put in a new order." : "The videos are put in a new order.");
             }
+        }
+
+        if (filesRenamed)
+        {
+            parts.Add(parts.Count == 0
+                ? "The files are renamed to match the order. This cannot be undone."
+                : "The order is saved in Library, and the files are renamed to match it. Renaming cannot be undone.");
+            return string.Join(' ', parts);
         }
 
         if (parts.Count == 0)
@@ -278,19 +286,39 @@ public sealed class VideoOrderEditor
                 {
                     var startX = i;
                     var startY = j;
-                    while (i < x.Length && char.IsDigit(x[i])) i++;
-                    while (j < y.Length && char.IsDigit(y[j])) j++;
+                    while (i < x.Length && char.IsDigit(x[i]))
+                    {
+                        i++;
+                    }
+
+                    while (j < y.Length && char.IsDigit(y[j]))
+                    {
+                        j++;
+                    }
+
                     var numberX = x[startX..i].TrimStart('0');
                     var numberY = y[startY..j].TrimStart('0');
                     var byLength = numberX.Length.CompareTo(numberY.Length);
-                    if (byLength != 0) return byLength;
+                    if (byLength != 0)
+                    {
+                        return byLength;
+                    }
+
                     var byDigits = string.CompareOrdinal(numberX, numberY);
-                    if (byDigits != 0) return byDigits;
+                    if (byDigits != 0)
+                    {
+                        return byDigits;
+                    }
+
                     continue;
                 }
 
                 var byChar = char.ToUpperInvariant(x[i]).CompareTo(char.ToUpperInvariant(y[j]));
-                if (byChar != 0) return byChar;
+                if (byChar != 0)
+                {
+                    return byChar;
+                }
+
                 i++;
                 j++;
             }
