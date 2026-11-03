@@ -112,3 +112,53 @@ A spec should only read "Built" when every item in its Scope has been seen worki
 ## Plain English summary
 
 Much of what you expected was never written into a spec, so the builds could not have delivered it: the Activity page, folder counts with paths, Edit that adds folders, and the chips. A few items were written the other way round and the builds followed that. A few are true misses: the folder picker still shows errors while browsing and is narrow, and rounded pills remain in about 80 places. The best next step is one Libraries and folder-picker spec that settles the design from your pictures, then an Activity spec, then a look-and-colour pass. I have marked each affected spec with a "Gaps and drift" note but left every Status as it is until you decide.
+
+---
+
+# Addendum: reported bugs that were never fixed or never assigned
+
+Added the same evening. Sources: Shy's 2 Nov list (40 items), the 1 Nov fix list and the 26 to 27 Oct bug section of `batch.md`, and Shy's 3 Nov list (30 items). Checked by reading code and commits, not by running the app. Plain words; no bug codes.
+
+## Reported before, and still not right today (we said "fixed" or never fixed it)
+
+1. **Folder picker.** Asked for three times (26 to 27 Oct, 1 Nov, 2 Nov): wide, fast, plain browsing, check only after you choose. Today it is still capped at 760 px, still shows the overlap error while you browse, has no Go button and puts the name at the bottom.
+2. **Navbar Activity icon.** Reported 2 Nov, again 3 Nov. It still always opens Libraries (`SystemActivityIndicator.razor:71`). A "Running now" block was added to the per-library Activity tab only. The reason the indicator ran for 1h30m with nothing shown was never found.
+3. **Activity page redesign.** Reported 2 Nov. No spec, no mockup, never built (direct link instead of "...", artwork hover preview, per-file stage bar, cleaner summary).
+4. **Square pills everywhere.** Reported 2 Nov. Only tiles were changed; about 80 rounded pills remain and pills are misaligned in Settings.
+5. **Settings Libraries page.** Reported 2 Nov (folder count, one Add button, area chips, summary strip). Only the setup table was rebuilt; Settings was deferred on purpose and never scheduled.
+6. **Folder count with paths on click.** First asked 26 to 27 Oct (make the count clickable), again 2 Nov and 3 Nov. Still plain text.
+7. **Metadata providers: key page and tiles.** Reported 2 Nov. Built for setup only; the Settings page it was shown on no longer has tiles.
+8. **"..." menu text too small.** Reported 2 Nov ("larger, cleaner") and again 3 Nov. Menu items are 14 px, hints 13 px, in a narrow popup (`native-fields.css:32`, `app.css:3338`).
+9. **Watch/Read hero and Watch items missing from the hero.** 2 Nov. Rotation was built; the cause of "no Watch items" was never diagnosed and no log was added.
+10. **Metadata-source warning when adding Movies or TV.** 1 Nov and 2 Nov. Only an "All set" warning exists; adding a TV or Movies folder with no key still adds files silently.
+11. **Stephen Curry MasterClass.** 2 Nov. A fix for "Videos course page not found" went in, but the batch row says the cause is not confirmed.
+12. **Wrong-language logo (The Continental), Shimmer and Shine cast loss, episode stills.** 26 Oct to 2 Nov. Spec question about the logo is still open; cast-kept and fixtures not built; live checks never run.
+13. **Wikipedia descriptions in the household language.** 1 Nov. Not confirmed; foreign-language translations cover about 8% of the text.
+14. **Binned film still counted as "in progress" after Put back.** Marked "known, left".
+
+## Reported on 2 or 3 Nov and never assigned to any spec
+
+15. Whole-app colour: one icon and button scheme, purple background like the intro animation, track down the stray green (3 Nov 2, 3).
+16. Setup: animation box, empty-Libraries spacing, off-centre pop-up, Region field, "your details stay on your Library server" line still on profile page, Vault libraries wrapped into Libraries, SubDL showing "Key saved" (3 Nov 1, 4 to 7, 16).
+17. View: "Photos and Videos" as one choice, no folder name for photos, Shared photos plus per-profile plus aggregated folders (3 Nov 13, 14; needs Fable review).
+18. **Hero and tile sizing rules (3 Nov 22, 23).** Shy now finds the hero too short (it was built to 55% of screen height on purpose) and every shelf below Recently Added too small. New rule asked for: every tile in a row has the same height (square albums wider, equally tall), also on Watch, Listen and Read. The spec only said "bigger tiles"; no uniform-height rule exists.
+19. **Badges on tiles (3 Nov 24).** A "New" badge overlaps the episode count and Watch adds a type badge. Wanted: at most one small badge per tile. Not in the spec.
+20. **Tile "..." and hover (3 Nov 25, 26).** "..." beside "+" may offer only Edit, and hover styles still differ in Read > Books and the hover overlay can cover the title. The spec says one hover style; it is not true everywhere.
+21. **Needs Review page and the Match page look poor (3 Nov 21).** Merged functionally on 3 Nov; no design target; needs specifics from Shy.
+22. Aligned and uniform pills; "Mark as watched" and trailer decisions (see main report).
+23. Missing from 1 Nov and never specced: the "Compare" feature question, offering Tesseract and Local AI downloads in setup, "Reading file 3 of 38" progress for slow drives, a "this is a movie" prompt when dragging large files.
+
+## Detail page buttons (3 Nov 27 to 30), with measured causes
+
+- **Play, Read, Watch button too short.** 24 px text inside a 40 px box with no top or bottom padding (`HeroActionRow.razor.css` line 4). Netflix-like balance means about 48 px high with 18 to 20 px text.
+- **Resume button looks bad.** It uses the same 40 px box for two lines of text (Resume and "4% watched") plus a progress bar, so everything is crushed (`HeroActionRow.razor` lines 12 to 19). Fix: same size as Play, one line of text, thin progress bar under the button or along its bottom edge.
+- **Thumbs up/down hover mismatch.** Drawn button is 34 px, hover circles are 44 px (`MediaRateControl.razor.css`). Make them the same size.
+- **"..." menu fonts.** See item 8 above.
+
+## Why these slipped through
+
+The 2 Nov review was turned into specs on 3 Nov, but only the parts that fitted a spec's scope. Items outside any spec, and items where the spec chose differently, were not carried forward and the review notes were not checked off against the builds. Specs then said "Built" for the packets written, not for Shy's reports. Fix: a bug reported by Shy is one numbered line in the next spec or a fix brief, and a spec cannot be "Built" until each of those lines is delivered or explicitly dropped by Shy.
+
+## Plain English summary (addendum)
+
+About fourteen things Shy reported in earlier checks are still not right, even though the specs around them say "Built". Nine more from today were never written into a spec at all (colour scheme, tile heights, tile badges, hover, View photos model, setup polish). The button problems are simple and measured: the Play button is too short for its text, the Resume button crams two lines into the same small box, the thumbs hover is bigger than its button, and the "..." menu text is small. I recommend one quick "buttons and menus" fix brief, then the Libraries and folder-picker spec, then Activity, then the look pass.
