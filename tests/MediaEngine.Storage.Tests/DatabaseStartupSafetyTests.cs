@@ -654,8 +654,6 @@ public sealed class DatabaseStartupSafetyTests
             ("personal_status_commands", "id"),
             ("personal_status_commands", "profile_id"),
             ("personal_status_commands", "target_id"),
-            ("reader_bookmarks", "id"),
-            ("reader_bookmarks", "asset_id"),
             ("reader_highlights", "id"),
             ("reader_highlights", "asset_id"),
             ("reader_statistics", "id"),

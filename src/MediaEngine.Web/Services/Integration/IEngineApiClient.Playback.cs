@@ -143,6 +143,12 @@ public partial interface IEngineApiClient
     /// <summary>POST /reader/{assetId}/bookmarks  -  create bookmark.</summary>
     Task<ReaderBookmarkDto?> CreateBookmarkAsync(Guid assetId, int chapterIndex, string? cfiPosition, string? label, CancellationToken ct = default);
 
+    /// <summary>GET /reader/{assetId}/bookmarks/everyones  -  every profile's personal bookmarks in the book (administrators only).</summary>
+    Task<List<ReaderBookmarkDto>> GetEveryonesReaderBookmarksAsync(Guid assetId, CancellationToken ct = default);
+
+    /// <summary>POST /reader/bookmarks/{id}/promote  -  makes a personal bookmark Global at once (administrators only).</summary>
+    Task<ReaderBookmarkDto?> PromoteReaderBookmarkAsync(Guid bookmarkId, string? name, CancellationToken ct = default);
+
     /// <summary>DELETE /reader/bookmarks/{id}  -  delete bookmark.</summary>
     Task<bool> DeleteBookmarkAsync(Guid bookmarkId, CancellationToken ct = default);
 

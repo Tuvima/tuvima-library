@@ -229,8 +229,6 @@ public sealed partial class LibraryItemDeletionRepository(
                 UNION
                 SELECT lower(hex(profile_id)) FROM music_play_stats WHERE work_id IN @ids
                 UNION
-                SELECT lower(replace(user_id, '-', '')) FROM reader_bookmarks WHERE asset_id IN (SELECT id FROM scoped_assets)
-                UNION
                 SELECT lower(replace(user_id, '-', '')) FROM reader_highlights WHERE asset_id IN (SELECT id FROM scoped_assets)
                 UNION
                 SELECT lower(replace(user_id, '-', '')) FROM reader_statistics WHERE asset_id IN (SELECT id FROM scoped_assets)
