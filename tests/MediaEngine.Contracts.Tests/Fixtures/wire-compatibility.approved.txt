@@ -1908,7 +1908,7 @@
 [method] GetViewScopesAsync
   input scope | default=null | shape=6197caa86ef7acccd6cb82fe6ed090eefedca8a3fd906fdfaf57656f7cc2572e
   input scopeProfileId | default=null | shape=1cc7cad302ebf04503481215740acd66365a6458785e51466ebcca79d1b00b6c
-  response | shape=de6c309a70397ffa7a34a2fadd3027391f9763dda28601f2eb9c97311b01ac80
+  response | shape=a03a7056780def071b5a1783b67297cb21ad71201940fcc2d2902f077652eb9c
 
 [method] GetViewSharedContributionAsync
   input contributionId | default=required | shape=23c91dbfe78898b3bcd60f3f3d70fe800646117006a807de3b3d788e8a1d7981
@@ -10952,6 +10952,16 @@ property=updatedAt | nullability=not-null | accessors=get,init | required=no | o
 [shape] a0322d49048886181f200fa817375db2bcbabb00bb7d44d903c769aac1c41971
 direction=read | kind=array | item=1d770894b8d19a364fe818c4af1a8d147df8bc9cd16984939f1d3d8a9b82b0fa
 
+[shape] a03a7056780def071b5a1783b67297cb21ad71201940fcc2d2902f077652eb9c
+direction=read | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
+property=scope | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=0cd8a7830c76f0f5f9411eead79c32482c21df902fd94bb5a9c0c4b031040882
+property=available_scopes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=6b2d74531211ff7d9eedb76472318a676b6276514fbc0d565977704848f28fd3
+property=can_browse_other_people | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
+property=can_view_documents | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
+property=can_edit_shared_documents | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
+property=can_view_photos | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
+property=can_view_personal_videos | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
+
 [shape] a03db3e27ea1c1376b8b9e3bdd1a19e51a3423bb126a75b3e43638fb5d11a3c9
 direction=write | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
 property=mode | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
@@ -13892,16 +13902,6 @@ property=source_path | nullability=not-null | accessors=get,init | required=no |
 property=destination_path | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
 property=operation_kind | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
 property=reason | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
-
-[shape] de6c309a70397ffa7a34a2fadd3027391f9763dda28601f2eb9c97311b01ac80
-direction=read | kind=object | converter=default | number-handling=default | unmapped=default | polymorphism=none
-property=scope | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=0cd8a7830c76f0f5f9411eead79c32482c21df902fd94bb5a9c0c4b031040882
-property=available_scopes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=6b2d74531211ff7d9eedb76472318a676b6276514fbc0d565977704848f28fd3
-property=can_browse_other_people | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
-property=can_view_documents | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
-property=can_file_shared_inbox | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
-property=can_view_photos | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
-property=can_view_personal_videos | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
 
 [shape] de90e303991baa8350126e3a1eea45e473c4adf0b1ab3ae8c834d4e2f3eb3026
 direction=write | kind=array | item=6798b5d03d6d074d4226a5790ae20cfc829c5a36781d4fa77541b9eb060ca6ca

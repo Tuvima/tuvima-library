@@ -1,6 +1,6 @@
 # Spec: Documents in View, one place for personal and shared
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-11-03 · **Related docs:** [Library setup groups](library-setup-groups.md) (D36, D47, D48, D49, D52) · [Extras](archive/extras.md) · [Libraries redesign](libraries-redesign.md)
+> **Status:** Built (awaiting Local checks L1 and L2, listed in `engineering/validation/batch.md`) · **Version:** 1 · **Last updated:** 2026-11-03 · **Related docs:** [Library setup groups](../library-setup-groups.md) (D36, D47, D48, D49, D52) · [Extras](extras.md) · [Libraries redesign](../libraries-redesign.md)
 
 ## 1. Goal
 Documents work like photos: each person has their own, the household has one shared set, and documents that belong to a show, film, album, comic or book sit on that page as Extras. Most of this is already built. This spec closes three gaps so it reads that way.
@@ -50,6 +50,11 @@ None. The "can file Shared Inbox" permission is removed from the scopes answer. 
 - **Depends on:** WP1
 - **Size:** Mechanical
 - **Done when:** no page says "Shared Inbox" or "documents" under Other reading.
+
+## 6a. As built (2026-11-03)
+- **WP1 done.** The scopes answer swaps `can_file_shared_inbox` for `can_edit_shared_documents` (true when the profile may use View, open the Shared Library and use Documents; this is how D2 "child profiles follow their Documents switch" is read, so a child with Documents on can edit and needs no separate "add to Shared" switch). A shared document's tags and details are saved through the same routes as your own documents; shared photos stay read-only. The Inbox card list, count and note are gone from Shared; Mark filed on a shared document is now skipped like every other bulk edit. Shared contribution approval (a household administrator accepting what people send) is a separate flow and is unchanged.
+- **WP2 done.** "Other reading" tooltip reads "Loose books and reading material with no match"; public pages (Documents in View, How documents are filed, Libraries settings, API reference) explain the Shared change and why.
+- **D3** (a loose PDF in a books folder stays a book) needed no code: Documents already come only from Documents folders. L2 confirms it on real files.
 
 ## 7. Local checks
 - **L1.** Sign in as a second adult, add a PDF to Shared, and tag it. Expected: it appears at once with your name and no Inbox. Failure: it waits to be filed.

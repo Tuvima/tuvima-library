@@ -107,7 +107,7 @@ public static partial class ViewEndpoints
             IViewResourceAuthorizationService authorization, IViewCatalogueRepository catalogue,
             ILocalAssetRepository assets, CancellationToken ct) =>
         {
-            var decision = await AuthorizeOwnedItemAsync(id, identity, authorization, ct);
+            var decision = await AuthorizeDocumentEditAsync(id, identity, preferences, authorization, assets, ct);
             if (!decision.IsAllowed)
             {
                 return Access(decision.Outcome);
@@ -148,7 +148,7 @@ public static partial class ViewEndpoints
             IViewResourceAuthorizationService authorization, IViewCatalogueRepository catalogue,
             ILocalAssetRepository assets, CancellationToken ct) =>
         {
-            var decision = await AuthorizeOwnedItemAsync(id, identity, authorization, ct);
+            var decision = await AuthorizeDocumentEditAsync(id, identity, preferences, authorization, assets, ct);
             if (!decision.IsAllowed)
             {
                 return Access(decision.Outcome);
