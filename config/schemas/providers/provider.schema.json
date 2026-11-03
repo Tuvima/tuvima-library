@@ -909,6 +909,10 @@
       },
       "additionalProperties": false
     },
+    "settings_schema": {
+      "type": "object",
+      "description": "The source's own settings, said in the plugin settings vocabulary (see ../plugins/plugin-settings.schema.json). Words the Library does not know are ignored and reported on the Plugin file card."
+    },
     "onboarding": {
       "type": "object",
       "required": ["classification", "supported_lanes", "skip_consequences", "credentials"],

@@ -7985,6 +7985,117 @@ MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginServiceLookupR
   message: System.String | nullability=not-null | accessors=get,init
   result: System.Text.Json.JsonElement? | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupActionDto
+  Kind: System.String | nullability=not-null | accessors=get,set
+  Label: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupCardDto
+  Key: System.String | nullability=not-null | accessors=get,set
+  Title: System.String | nullability=not-null | accessors=get,set
+  NeedsAttention: System.Boolean | nullability=not-null | accessors=get,set
+  Access: MediaEngine.Contracts.Plugins.PluginAccessDto | nullability=nullable | accessors=get,set
+  Credentials: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginSetupCredentialDto> | nullability=not-null | accessors=get,set
+  Links: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginSetupLinkDto> | nullability=not-null | accessors=get,set
+  Provides: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  MediaTypes: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  Supplies: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  Controls: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginSetupControlDto> | nullability=not-null | accessors=get,set
+  Actions: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginSetupActionDto> | nullability=not-null | accessors=get,set
+  Destinations: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginSetupDestinationDto> | nullability=not-null | accessors=get,set
+  DataLeaving: System.String | nullability=nullable | accessors=get,set
+  VaultWords: System.String | nullability=nullable | accessors=get,set
+  Text: System.String | nullability=nullable | accessors=get,set
+  Facts: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginSetupFactDto> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupChoiceDto
+  Value: System.String | nullability=not-null | accessors=get,set
+  Label: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupControlDto
+  Key: System.String | nullability=not-null | accessors=get,set
+  Control: System.String | nullability=not-null | accessors=get,set
+  Title: System.String | nullability=not-null | accessors=get,set
+  Description: System.String | nullability=not-null | accessors=get,set
+  Placeholder: System.String | nullability=not-null | accessors=get,set
+  Unit: System.String | nullability=not-null | accessors=get,set
+  Group: System.String | nullability=not-null | accessors=get,set
+  Order: System.Int32 | nullability=not-null | accessors=get,set
+  Advanced: System.Boolean | nullability=not-null | accessors=get,set
+  ReadOnly: System.Boolean | nullability=not-null | accessors=get,set
+  Scope: System.String | nullability=not-null | accessors=get,set
+  Minimum: System.Double? | nullability=nullable | accessors=get,set
+  Maximum: System.Double? | nullability=nullable | accessors=get,set
+  Integer: System.Boolean | nullability=not-null | accessors=get,set
+  Choices: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginSetupChoiceDto> | nullability=not-null | accessors=get,set
+  Value: System.Text.Json.JsonElement? | nullability=nullable | accessors=get,set
+  DefaultValue: System.Text.Json.JsonElement? | nullability=nullable | accessors=get,set
+  ShowWhen: MediaEngine.Contracts.Plugins.PluginSetupShowWhenDto | nullability=nullable | accessors=get,set
+  Requires: MediaEngine.Contracts.Plugins.PluginSetupRequirementDto | nullability=nullable | accessors=get,set
+  Configured: System.Boolean? | nullability=nullable | accessors=get,set
+  SignInMethod: System.String | nullability=nullable | accessors=get,set
+  GroupList: MediaEngine.Contracts.Plugins.PluginSetupGroupListDto | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupCredentialDto
+  Name: System.String | nullability=not-null | accessors=get,set
+  Label: System.String | nullability=not-null | accessors=get,set
+  Help: System.String | nullability=not-null | accessors=get,set
+  Required: System.Boolean | nullability=not-null | accessors=get,set
+  MinimumLength: System.Int32? | nullability=nullable | accessors=get,set
+  MaximumLength: System.Int32? | nullability=nullable | accessors=get,set
+  Scope: System.String | nullability=not-null | accessors=get,set
+  SignInMethod: System.String | nullability=nullable | accessors=get,set
+  Configured: System.Boolean? | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupDestinationDto
+  Host: System.String | nullability=not-null | accessors=get,set
+  Sends: System.String | nullability=not-null | accessors=get,set
+  MaxRequestsPerMinute: System.Int32? | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupFactDto
+  Label: System.String | nullability=not-null | accessors=get,set
+  Value: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupGroupItemDto
+  Id: System.String | nullability=not-null | accessors=get,set
+  Title: System.String | nullability=not-null | accessors=get,set
+  Subtitle: System.String | nullability=nullable | accessors=get,set
+  State: System.String | nullability=nullable | accessors=get,set
+  Locked: System.Boolean | nullability=not-null | accessors=get,set
+  Values: System.Collections.Generic.Dictionary<System.String, System.Text.Json.JsonElement> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupGroupListDto
+  ItemTitle: System.String | nullability=not-null | accessors=get,set
+  AddLabel: System.String | nullability=not-null | accessors=get,set
+  RowActions: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  Fields: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginSetupControlDto> | nullability=not-null | accessors=get,set
+  Items: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginSetupGroupItemDto> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupLinkDto
+  Role: System.String | nullability=not-null | accessors=get,set
+  Label: System.String | nullability=not-null | accessors=get,set
+  Url: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupNoteDto
+  Where: System.String | nullability=not-null | accessors=get,set
+  Word: System.String | nullability=not-null | accessors=get,set
+  Message: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupPageResponse
+  PluginId: System.String | nullability=not-null | accessors=get,set
+  PluginName: System.String | nullability=not-null | accessors=get,set
+  Definition: System.String | nullability=not-null | accessors=get,set
+  Cards: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginSetupCardDto> | nullability=not-null | accessors=get,set
+  ThingsToKnow: System.Collections.Generic.List<MediaEngine.Contracts.Plugins.PluginSetupNoteDto> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupRequirementDto
+  Kind: System.String | nullability=not-null | accessors=get,set
+  Name: System.String | nullability=not-null | accessors=get,set
+  Reason: System.String | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSetupShowWhenDto
+  Setting: System.String | nullability=not-null | accessors=get,set
+  Value: System.Text.Json.JsonElement? | nullability=nullable | accessors=get,set
+
 MediaEngine.Contracts.Plugins.MediaEngine.Contracts.Plugins.PluginSourceComparisonDto
   From: System.String | nullability=not-null | accessors=get,set
   To: System.String | nullability=not-null | accessors=get,set

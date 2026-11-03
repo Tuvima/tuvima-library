@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "plugin-declarative.schema.json",
+  "title": "Tuvima declarative (JSON only) plugin manifest",
+  "allOf": [ { "$ref": "plugin-manifest-common.schema.json" } ],
+  "required": ["kind", "declarative"],
+  "properties": {
+    "kind": { "const": "declarative" },
+    "declarative": {
+      "type": "object",
+      "description": "ai_steps, channel_sources, metadata_sources, notification_channels, library_kinds and the like."
+    }
+  }
+}

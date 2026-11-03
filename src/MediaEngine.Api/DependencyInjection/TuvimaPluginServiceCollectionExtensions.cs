@@ -3,6 +3,7 @@ using MediaEngine.Api.Services.Plugins.AiFeatures;
 using MediaEngine.Api.Services.Plugins.Declarative;
 using MediaEngine.Api.Services.Plugins.Pages;
 using MediaEngine.Api.Services.Plugins.Service;
+using MediaEngine.Api.Services.Plugins.Setup;
 using MediaEngine.Api.Services.Plugins.Sources;
 using MediaEngine.Api.Services.Plugins.Trakt;
 using MediaEngine.Api.Services.ScheduledTasks;
@@ -77,6 +78,8 @@ public static class TuvimaPluginServiceCollectionExtensions
         services.AddSingleton<IPluginAccessGate, PluginAccessGate>();
         services.AddSingleton<PluginRemovalService>();
         services.AddSingleton<PluginCheckNowService>();
+        services.AddSingleton<IPluginSettingValueSource, StashBoxSettingValueSource>();
+        services.AddSingleton<PluginPageModelService>();
         services.AddSingleton<PluginProfileConnectionService>();
         services.AddTuvimaHttpClient(PluginDeviceSignInService.HttpClientName, TimeSpan.FromSeconds(20), addStandardResilience: false);
         services.AddSingleton<PluginDeviceSignInService>();
