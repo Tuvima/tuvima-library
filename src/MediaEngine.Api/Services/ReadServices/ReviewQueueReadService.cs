@@ -177,7 +177,8 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
                     (SELECT cv.value FROM canonical_values cv WHERE cv.entity_id = p.asset_id AND cv.key IN ('cover_url', 'cover', 'poster_url') AND cv.value <> '' ORDER BY CASE cv.key WHEN 'cover_url' THEN 0 WHEN 'cover' THEN 1 ELSE 2 END LIMIT 1),
                     (SELECT cv.value FROM canonical_values cv WHERE cv.entity_id = p.work_id AND cv.key IN ('cover_url', 'cover', 'poster_url') AND cv.value <> '' ORDER BY CASE cv.key WHEN 'cover_url' THEN 0 WHEN 'cover' THEN 1 ELSE 2 END LIMIT 1)
                 ) AS CoverUrl,
-                ma.file_path_root AS FilePath
+                ma.file_path_root AS FilePath,
+                ma.library_id AS LibraryId
             FROM pending p
             LEFT JOIN media_assets ma ON ma.id = p.asset_id
             LEFT JOIN works w ON w.id = p.work_id
@@ -200,7 +201,8 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
             result.Add(ToContract(
                 entry, row.MediaType, row.EntityTitle, ResolveCoverUrl(row), bridgeIds, detectedFacts,
                 IsFromImportFolder(importPath, row.FilePath),
-                IsFromMerge(managedRoots, row.FilePath)));
+                IsFromMerge(managedRoots, row.FilePath),
+                row.LibraryId));
         }
 
         return result;
@@ -293,7 +295,8 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
                     (SELECT cv.value FROM canonical_values cv WHERE cv.entity_id = i.asset_id AND cv.key IN ('cover_url', 'cover', 'poster_url') AND cv.value <> '' ORDER BY CASE cv.key WHEN 'cover_url' THEN 0 WHEN 'cover' THEN 1 ELSE 2 END LIMIT 1),
                     (SELECT cv.value FROM canonical_values cv WHERE cv.entity_id = i.work_id AND cv.key IN ('cover_url', 'cover', 'poster_url') AND cv.value <> '' ORDER BY CASE cv.key WHEN 'cover_url' THEN 0 WHEN 'cover' THEN 1 ELSE 2 END LIMIT 1)
                 ) AS CoverUrl,
-                ma.file_path_root AS FilePath
+                ma.file_path_root AS FilePath,
+                ma.library_id AS LibraryId
             FROM item i
             LEFT JOIN media_assets ma ON ma.id = i.asset_id
             LEFT JOIN works w ON w.id = i.work_id
@@ -313,7 +316,8 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
         return ToContract(
             entry, row.MediaType, row.EntityTitle, ResolveCoverUrl(row), bridgeIds, detectedFacts,
             IsFromImportFolder(_importFolders?.GetImportPath(), row.FilePath),
-            IsFromMerge(ManagedFolderRoots(), row.FilePath));
+            IsFromMerge(ManagedFolderRoots(), row.FilePath),
+            row.LibraryId);
     }
 
     public async Task<int> GetPendingCountAsync(CancellationToken ct = default)
@@ -396,7 +400,8 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
         Dictionary<string, string> bridgeIdentifiers,
         Dictionary<string, string> detectedFacts,
         bool fromImportFolder,
-        bool fromMerge) => new()
+        bool fromMerge,
+        string? libraryId) => new()
         {
             Id = entry.Id,
             EntityId = entry.EntityId,
@@ -420,6 +425,7 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
             DetectedFacts = detectedFacts,
             FromImportFolder = fromImportFolder,
             FromMerge = fromMerge,
+            LibraryId = string.IsNullOrWhiteSpace(libraryId) ? null : libraryId,
         };
 
     // A provider's web link never reaches the browser. Items in review often have no saved copy yet, so the work's
@@ -565,6 +571,7 @@ public sealed class ReviewQueueReadService : IReviewQueueReadService
         public string? EntityTitle { get; init; }
         public string? CoverUrl { get; init; }
         public string? FilePath { get; init; }
+        public string? LibraryId { get; init; }
     }
 
     private sealed record KeyValueRow(string Key, string Value);

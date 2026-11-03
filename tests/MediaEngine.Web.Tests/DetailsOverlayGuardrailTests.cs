@@ -84,6 +84,7 @@ public sealed partial class DetailsOverlayGuardrailTests
         ["Components/Pages/BookReader.razor"] = (1, "The reader's no-title exit to the literal Home address; a title exit goes through DetailsOverlayNavigation."),
         ["Components/Pages/ForMe.razor"] = (2, "Redirects to the My Library page or a View all grid."),
         ["Components/Pages/Operations.razor"] = (2, "Redirects to Settings routes."),
+        ["Components/Settings/NeedsReviewPageContent.razor"] = (2, "The Needs Review list rewriting its own filter address (kind and library) so Back leaves the list."),
         ["Components/Pages/ProfilePickerPage.razor"] = (1, "Full reload to the sanitized same-site return address after choosing a profile (ProfilePickerRoute)."),
         ["Components/Pages/SearchPage.razor"] = (1, "The search page rewriting its own query."),
         ["Components/Pages/Settings.razor"] = (7, "Settings redirects to Home, /not-found or another Settings route."),

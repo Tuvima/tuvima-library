@@ -3328,6 +3328,8 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionChangeRes
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionChangeStatuses
 
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionChildRematchTarget
+
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionExtraMove
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionFieldChange
@@ -3350,6 +3352,21 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionResult
   Changes: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditSessionChangeResult> | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditSessionSiblingMatchTarget
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorFollowUpDto
+  EntityId: System.Guid | nullability=not-null | accessors=get,set
+  Finished: System.Boolean | nullability=not-null | accessors=get,set
+  Steps: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditorFollowUpStepDto> | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorFollowUpStates
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorFollowUpStepDto
+  Key: System.String | nullability=not-null | accessors=get,set
+  Label: System.String | nullability=not-null | accessors=get,set
+  State: System.String | nullability=not-null | accessors=get,set
+  Reason: System.String | nullability=nullable | accessors=get,set
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorFollowUpSteps
 
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchBestGuessDto
   ProviderName: System.String | nullability=not-null | accessors=get,set
@@ -3415,6 +3432,17 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EpisodeSiblingMatchR
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EpisodeSiblingMatchTarget
   SeriesId: System.String | nullability=not-null | accessors=get,set
   SeasonNumber: System.Int32 | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.ShowChildRematchPreviewDto
+  EntityId: System.Guid | nullability=not-null | accessors=get,set
+  SeriesId: System.String | nullability=not-null | accessors=get,set
+  ShowName: System.String | nullability=not-null | accessors=get,set
+  EpisodeCount: System.Int32 | nullability=not-null | accessors=get,set
+  MatchableCount: System.Int32 | nullability=not-null | accessors=get,set
+  NotFoundCount: System.Int32 | nullability=not-null | accessors=get,set
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.ShowChildRematchTarget
+  SeriesId: System.String | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Import.MediaEngine.Contracts.Import.ImportApplyRequest
   Kind: System.String | nullability=not-null | accessors=get,init
@@ -8893,8 +8921,37 @@ MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.MovieTvSuggestionDto
   PosterUrl: System.String | nullability=nullable | accessors=get,init
   Overview: System.String | nullability=nullable | accessors=get,init
 
+MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.NeedsReviewBestGuessDto
+  Action: System.String | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+  Year: System.String | nullability=nullable | accessors=get,init
+  Source: System.String | nullability=nullable | accessors=get,init
+  ImageUrl: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.NeedsReviewKinds
+
+MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.NeedsReviewListDto
+  Items: System.Collections.Generic.List<MediaEngine.Contracts.Review.NeedsReviewRowDto> | nullability=not-null | accessors=get,init
+  Total: System.Int32 | nullability=not-null | accessors=get,init
+  NotMatchedTotal: System.Int32 | nullability=not-null | accessors=get,init
+  NotSureTotal: System.Int32 | nullability=not-null | accessors=get,init
+  Skip: System.Int32 | nullability=not-null | accessors=get,init
+  Take: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.NeedsReviewRowDto
+  Key: System.String | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  LibraryId: System.String | nullability=nullable | accessors=get,init
+  LibraryName: System.String | nullability=nullable | accessors=get,init
+  LastTriedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+  BestGuess: MediaEngine.Contracts.Review.NeedsReviewBestGuessDto | nullability=nullable | accessors=get,init
+  Review: MediaEngine.Contracts.Review.ReviewItemDto | nullability=nullable | accessors=get,init
+  Unmatched: MediaEngine.Contracts.Library.UnmatchedItemDto | nullability=nullable | accessors=get,init
+
 MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.ReviewCountResponse
   PendingCount: System.Int32 | nullability=not-null | accessors=get,init
+  NotMatchedCount: System.Int32 | nullability=not-null | accessors=get,init
+  NotSureCount: System.Int32 | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.ReviewDismissResponse
   dismissed: System.Boolean | nullability=not-null | accessors=get,init
@@ -8921,6 +8978,7 @@ MediaEngine.Contracts.Review.MediaEngine.Contracts.Review.ReviewItemDto
   CoverUrl: System.String | nullability=nullable | accessors=get,init
   BridgeIdentifiers: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,init
   DetectedFacts: System.Collections.Generic.Dictionary<System.String, System.String> | nullability=not-null | accessors=get,init
+  LibraryId: System.String | nullability=nullable | accessors=get,init
   FromImportFolder: System.Boolean | nullability=not-null | accessors=get,init
   FromMerge: System.Boolean | nullability=not-null | accessors=get,init
 

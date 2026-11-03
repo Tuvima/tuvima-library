@@ -4,6 +4,8 @@ using MediaEngine.Api.Models;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Api.Services.Review;
+using MediaEngine.Api.Services.Unmatched;
+using MediaEngine.Application.Services;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Contracts.Realtime;
 using MediaEngine.Contracts.Review;
@@ -54,16 +56,40 @@ public static class ReviewEndpoints
         .Produces<List<MediaEngine.Contracts.Review.ReviewItemDto>>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.ReviewRead);
 
-        // ── GET /review/count ────────────────────────────────────────────────
-        group.MapGet("/count", async (
-            IReviewQueueReadService reviewReadService,
+        // ── GET /review/queue ────────────────────────────────────────────────
+        group.MapGet("/queue", async (
+            string? kind,
+            string? library,
+            int? skip,
+            int? take,
+            HttpContext http,
+            IRequestAuthorityResolver authorities,
+            INeedsReviewListReadService list,
             CancellationToken ct) =>
         {
-            var count = await reviewReadService.GetPendingCountAsync(ct);
-            return Results.Ok(new MediaEngine.Contracts.Review.ReviewCountResponse { PendingCount = count });
+            // One list for review items and unmatched files (universal editor v3, WP7). The unmatched files are an administrator's list.
+            var includeFiles = UnmatchedScope.For(await authorities.ResolveAsync(http, ct)).AllLibraries;
+            return Results.Ok(await list.ListAsync(kind, library, includeFiles, skip ?? 0, Math.Clamp(take ?? 100, 1, 500), ct));
+        })
+        .WithName("GetNeedsReviewList")
+        .WithSummary("Needs Review as one list: review items and files that could not be matched, newest first, filtered by kind (all, not_matched, not_sure) and library.")
+        .Produces<MediaEngine.Contracts.Review.NeedsReviewListDto>(StatusCodes.Status200OK)
+        .RequireAdministratorOrApplication(ApplicationPermissionIds.ReviewRead);
+
+        // ── GET /review/count ────────────────────────────────────────────────
+        group.MapGet("/count", async (
+            HttpContext http,
+            IRequestAuthorityResolver authorities,
+            INeedsReviewListReadService list,
+            CancellationToken ct) =>
+        {
+            // The number the Settings notifier shows is the number of rows the Needs Review list holds: review items plus, for an
+            // administrator, the files that could not be matched.
+            var includeFiles = UnmatchedScope.For(await authorities.ResolveAsync(http, ct)).AllLibraries;
+            return Results.Ok(await list.CountAsync(includeFiles, ct));
         })
         .WithName("GetReviewCount")
-        .WithSummary("Get the number of pending review queue items (for sidebar badge).")
+        .WithSummary("Get the number of rows in Needs Review (review items and unmatched files), for the Settings notifier.")
         .Produces<MediaEngine.Contracts.Review.ReviewCountResponse>(StatusCodes.Status200OK)
         .RequireAdministratorOrApplication(ApplicationPermissionIds.ReviewRead);
 

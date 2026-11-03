@@ -5070,45 +5070,6 @@
   <data name="LibraryStatusCell_NoStatusToShow" xml:space="preserve">
     <value>No status to show</value>
   </data>
-  <data name="LibraryUnidentifiedTab_TheyStayWhereTheyAre" xml:space="preserve">
-    <value>{0} · they stay where they are and keep playing under their file names.</value>
-  </data>
-  <data name="LibraryUnidentifiedTab_UnidentifiedFiles" xml:space="preserve">
-    <value>Unidentified files</value>
-  </data>
-  <data name="LibraryUnidentifiedTab_Why" xml:space="preserve">
-    <value>Why</value>
-  </data>
-  <data name="LibraryUnidentifiedTab_LastTried" xml:space="preserve">
-    <value>Last tried</value>
-  </data>
-  <data name="LibraryUnidentifiedTab_UseADesktopToIdentify" xml:space="preserve">
-    <value>Use a desktop to identify files</value>
-  </data>
-  <data name="LibraryUnidentifiedTab_LoadingUnidentifiedFiles" xml:space="preserve">
-    <value>Loading unidentified files</value>
-  </data>
-  <data name="LibraryUnidentifiedTab_UnidentifiedFilesCouldNotBe" xml:space="preserve">
-    <value>Unidentified files could not be loaded</value>
-  </data>
-  <data name="LibraryUnidentifiedTab_EveryFileInThisLibrary" xml:space="preserve">
-    <value>Every file in this library is identified</value>
-  </data>
-  <data name="LibraryUnidentifiedTab_FilesLibraryCannotIdentifyWill" xml:space="preserve">
-    <value>Files Library cannot identify will be listed here, with the reason.</value>
-  </data>
-  <data name="LibraryUnidentifiedTab_TryAgainForAll" xml:space="preserve">
-    <value>Try again for all</value>
-  </data>
-  <data name="LibraryUnidentifiedTab_KeepAllAsTheyAre" xml:space="preserve">
-    <value>Keep all as they are</value>
-  </data>
-  <data name="LibraryUnidentifiedTab_KeepAsItIs" xml:space="preserve">
-    <value>Keep as it is</value>
-  </data>
-  <data name="LibraryUnidentifiedTab_RemoveFromLibrary" xml:space="preserve">
-    <value>Remove from library</value>
-  </data>
   <data name="LibraryUploadZone_LargeUploadsCanFailFor" xml:space="preserve">
     <value>Large uploads can fail. For files this size, copying straight into the Import folder on the server is more reliable.</value>
   </data>
@@ -6182,9 +6143,6 @@
   </data>
   <data name="NeedsReviewPageContent_AskAServerAdministratorTo" xml:space="preserve">
     <value>Ask a server administrator to resolve items that need review.</value>
-  </data>
-  <data name="NeedsReviewPageContent_ShowAll" xml:space="preserve">
-    <value>Show all</value>
   </data>
   <data name="NeedsReviewPageContent_NeedsReviewSearch" xml:space="preserve">
     <value>Needs Review search</value>
@@ -8694,9 +8652,6 @@
   <data name="LibraryServerRulesCard_TheArtworkSettingCouldNot" xml:space="preserve">
     <value>The artwork setting could not be saved.</value>
   </data>
-  <data name="LibraryUnidentifiedTab_MoreFilesCouldNotBe" xml:space="preserve">
-    <value>More files could not be loaded. Try again in a moment.</value>
-  </data>
   <data name="ViewFileHandlingTab_FilingLayoutSavedItApplies" xml:space="preserve">
     <value>Filing layout saved. It applies to files filed from now on.</value>
   </data>
@@ -10256,5 +10211,80 @@
   </data>
   <data name="AudiobookGlobalExtras_Nobody" xml:space="preserve">
     <value>Nobody else has bookmarked this title.</value>
+  </data>
+  <data name="NeedsReviewList_ShowAriaLabel" xml:space="preserve">
+    <value>Show</value>
+  </data>
+  <data name="NeedsReviewList_Library" xml:space="preserve">
+    <value>Library</value>
+  </data>
+  <data name="NeedsReviewList_AllLibraries" xml:space="preserve">
+    <value>All libraries</value>
+  </data>
+  <data name="NeedsReviewList_TickToTryAgain" xml:space="preserve">
+    <value>Tick rows to try them again or keep them as they are.</value>
+  </data>
+  <data name="NeedsReviewList_NSelected" xml:space="preserve">
+    <value>{0} selected</value>
+  </data>
+  <data name="NeedsReviewList_KeepAsTheyAre" xml:space="preserve">
+    <value>Keep as they are</value>
+  </data>
+  <data name="NeedsReviewList_TryAgainN" xml:space="preserve">
+    <value>Try again ({0})</value>
+  </data>
+  <data name="NeedsReviewList_Caption" xml:space="preserve">
+    <value>Items that need review, with why, the best guess and when each was last tried</value>
+  </data>
+  <data name="NeedsReviewList_SelectAll" xml:space="preserve">
+    <value>Select all</value>
+  </data>
+  <data name="NeedsReviewList_Item" xml:space="preserve">
+    <value>Item</value>
+  </data>
+  <data name="NeedsReviewList_Why" xml:space="preserve">
+    <value>Why</value>
+  </data>
+  <data name="NeedsReviewList_BestGuess" xml:space="preserve">
+    <value>Best guess</value>
+  </data>
+  <data name="NeedsReviewList_LastTried" xml:space="preserve">
+    <value>Last tried</value>
+  </data>
+  <data name="NeedsReviewList_Fix" xml:space="preserve">
+    <value>Fix</value>
+  </data>
+  <data name="NeedsReviewList_All" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="NeedsReviewList_NotMatched" xml:space="preserve">
+    <value>Not matched</value>
+  </data>
+  <data name="NeedsReviewList_NotSure" xml:space="preserve">
+    <value>Not sure</value>
+  </data>
+  <data name="NeedsReviewList_NothingNotMatched" xml:space="preserve">
+    <value>Every file has been matched.</value>
+  </data>
+  <data name="NeedsReviewList_NothingNotSure" xml:space="preserve">
+    <value>Nothing the Engine is unsure about.</value>
+  </data>
+  <data name="NeedsReviewList_MoreCouldNotBeLoaded" xml:space="preserve">
+    <value>More items could not be loaded. Try again in a moment.</value>
+  </data>
+  <data name="NeedsReviewList_UseThis" xml:space="preserve">
+    <value>Use this</value>
+  </data>
+  <data name="NeedsReviewList_NoGuess" xml:space="preserve">
+    <value>No guess yet. Fix searches from the file name.</value>
+  </data>
+  <data name="NeedsReviewList_KeepAsItIs" xml:space="preserve">
+    <value>Keep as it is</value>
+  </data>
+  <data name="NeedsReviewList_RemoveFromLibrary" xml:space="preserve">
+    <value>Remove from library</value>
+  </data>
+  <data name="TopNavAccountMenu_NeedsReviewCount" xml:space="preserve">
+    <value>{0} need review</value>
   </data>
 </root>

@@ -51,7 +51,6 @@ public sealed class EditorEntryPointGuardrailTests
 
     [Theory]
     [InlineData("src/MediaEngine.Web/Components/Settings/NeedsReviewPageContent.razor")]
-    [InlineData("src/MediaEngine.Web/Components/Settings/Libraries/LibraryUnidentifiedTab.razor")]
     [InlineData("src/MediaEngine.Web/Components/Pages/RecentlyAddedPageContent.razor")]
     [InlineData("src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor")]
     [InlineData("src/MediaEngine.Web/Components/Pages/ListenPage.razor.cs")]

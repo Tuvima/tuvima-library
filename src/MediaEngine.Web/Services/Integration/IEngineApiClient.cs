@@ -39,6 +39,9 @@ public partial interface IEngineApiClient
     /// <summary>GET /review/pending?library= — the pending items whose file belongs to one library.</summary>
     Task<ReviewListAttempt> GetPendingReviewsForLibraryAttemptAsync(string libraryId, int limit = 50, CancellationToken ct = default);
 
+    /// <summary>GET /review/queue — Needs Review as one list: review items and unmatched files, filtered by kind (all, not_matched, not_sure) and library.</summary>
+    Task<NeedsReviewListAttempt> GetNeedsReviewListAsync(string? kind, string? libraryId, int skip, int take, CancellationToken ct = default);
+
     /// <summary>GET /review/{id} — single review item with full detail.</summary>
     Task<ReviewItemViewModel?> GetReviewItemAsync(Guid id, CancellationToken ct = default);
 

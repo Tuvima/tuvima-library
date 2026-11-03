@@ -19,7 +19,7 @@ public sealed class OperationsRecentlyAddedGuardrailTests
         Assert.Contains("/settings/library-activity", operations, StringComparison.Ordinal);
         Assert.Contains("/settings/review", operations, StringComparison.Ordinal);
         Assert.DoesNotContain("<MediaSectionShell", operations, StringComparison.Ordinal);
-        Assert.Contains("GetPendingReviewsAttemptAsync(int.MaxValue)", review, StringComparison.Ordinal);
+        Assert.Contains("GetNeedsReviewListAsync(", review, StringComparison.Ordinal);
         Assert.Contains("RefreshReviewCountAsync", review, StringComparison.Ordinal);
         Assert.Contains("EditLauncher.OpenAsync(target, EditTool.Match)", review, StringComparison.Ordinal);
         Assert.DoesNotContain("MediaEditorLauncher", review, StringComparison.Ordinal);

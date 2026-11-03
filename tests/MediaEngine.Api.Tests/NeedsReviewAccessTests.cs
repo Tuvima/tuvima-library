@@ -3,6 +3,7 @@ using MediaEngine.Api.Endpoints;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Api.Services.Review;
+using MediaEngine.Application.Services;
 using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
@@ -30,7 +31,7 @@ namespace MediaEngine.Api.Tests;
 /// </summary>
 public sealed class NeedsReviewAccessTests : IDisposable
 {
-    private static readonly string[] ReadRoutes = ["GetPendingReviews", "GetReviewCount", "GetReviewItem"];
+    private static readonly string[] ReadRoutes = ["GetPendingReviews", "GetNeedsReviewList", "GetReviewCount", "GetReviewItem"];
     private static readonly string[] ResolveRoutes = ["ResolveReviewItem", "DismissReviewItem", "MoveReviewItemToTv", "SkipUniverseMatch"];
 
     private readonly string _databasePath;
@@ -291,6 +292,7 @@ public sealed class NeedsReviewAccessTests : IDisposable
             typeof(IReviewQueueReadService), typeof(IReviewQueueRepository), typeof(IMetadataClaimRepository),
             typeof(IHydrationPipelineService), typeof(ICanonicalValueRepository), typeof(IEventPublisher),
             typeof(ISystemActivityRepository), typeof(IReviewMoveToTvService), typeof(ICollectionRepository), typeof(IVaultLibraryRepository),
+            typeof(IRequestAuthorityResolver), typeof(INeedsReviewListReadService),
         })
         {
             builder.Services.AddSingleton(service, _ => throw new InvalidOperationException(
