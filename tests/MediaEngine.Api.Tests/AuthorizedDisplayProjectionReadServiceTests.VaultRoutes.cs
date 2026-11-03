@@ -243,7 +243,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         builder.Services.AddSingleton<VaultAccessResolver>();
         foreach (var service in new[]
         {
-            typeof(IReviewQueueReadService), typeof(IMetadataClaimRepository), typeof(IHydrationPipelineService),
+            typeof(IReviewQueueReadService), typeof(INeedsReviewListReadService), typeof(IMetadataClaimRepository), typeof(IHydrationPipelineService),
             typeof(ICanonicalValueRepository), typeof(IEventPublisher), typeof(ISystemActivityRepository),
             typeof(ICollectionRepository), typeof(IConfigurationLoader),
         })
