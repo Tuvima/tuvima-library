@@ -8199,23 +8199,14 @@
   <data name="VideoContextPanel_Episodes" xml:space="preserve">
     <value>Episodes · {0}</value>
   </data>
-  <data name="VideoContextPanel_Chapters" xml:space="preserve">
-    <value>Chapters · {0}</value>
-  </data>
   <data name="VideoContextPanel_NothingUpNext" xml:space="preserve">
     <value>Nothing up next</value>
   </data>
   <data name="VideoContextPanel_VideoContext" xml:space="preserve">
     <value>Video context</value>
   </data>
-  <data name="Common_UpNext" xml:space="preserve">
-    <value>Up Next</value>
-  </data>
   <data name="VideoContextPanel_Episodes2" xml:space="preserve">
     <value>Episodes</value>
-  </data>
-  <data name="VideoContextPanel_Chapters2" xml:space="preserve">
-    <value>Chapters</value>
   </data>
   <data name="VideoPlaybackHost_SwitchingAudio" xml:space="preserve">
     <value>Switching audio…</value>
@@ -8270,12 +8261,6 @@
   </data>
   <data name="VideoPlaybackHost_StopVideoPlayback" xml:space="preserve">
     <value>Stop video playback</value>
-  </data>
-  <data name="VideoTracksPanel_Audio" xml:space="preserve">
-    <value>Audio</value>
-  </data>
-  <data name="VideoTracksPanel_SubtitleSizeAndBackgroundIn" xml:space="preserve">
-    <value>Subtitle size and background in Settings</value>
   </data>
   <data name="MainLayout_Primary" xml:space="preserve">
     <value>Primary</value>
@@ -9054,9 +9039,6 @@
   <data name="ToolsRequirementsTab_OpenModelsAndHardware" xml:space="preserve">
     <value>Open Models &amp; Hardware</value>
   </data>
-  <data name="VideoPlaybackHost_SubtitlesAndAudio" xml:space="preserve">
-    <value>Subtitles &amp; Audio</value>
-  </data>
   <data name="ExtraViewerPage_Extra" xml:space="preserve">
     <value>Extra</value>
   </data>
@@ -9770,5 +9752,104 @@
   </data>
   <data name="Backups_ThisComputer" xml:space="preserve">
     <value>This computer</value>
+  </data>
+  <data name="PlayerSettings_Title" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="PlayerSettings_Audio" xml:space="preserve">
+    <value>Audio</value>
+  </data>
+  <data name="PlayerSettings_Styling" xml:space="preserve">
+    <value>Styling…</value>
+  </data>
+  <data name="PlayerSettings_StylingTitle" xml:space="preserve">
+    <value>Subtitle styling</value>
+  </data>
+  <data name="PlayerSettings_NoSubtitleSource" xml:space="preserve">
+    <value>No subtitle source is switched on</value>
+  </data>
+  <data name="PlayerSettings_Plugins" xml:space="preserve">
+    <value>Plugins</value>
+  </data>
+  <data name="PlayerSettings_Size" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="PlayerSettings_Font" xml:space="preserve">
+    <value>Font</value>
+  </data>
+  <data name="PlayerSettings_Shadow" xml:space="preserve">
+    <value>Shadow</value>
+  </data>
+  <data name="PlayerSettings_Colour" xml:space="preserve">
+    <value>Colour</value>
+  </data>
+  <data name="PlayerSettings_Background" xml:space="preserve">
+    <value>Background</value>
+  </data>
+  <data name="PlayerSettings_Small" xml:space="preserve">
+    <value>Small</value>
+  </data>
+  <data name="PlayerSettings_Medium" xml:space="preserve">
+    <value>Medium</value>
+  </data>
+  <data name="PlayerSettings_Large" xml:space="preserve">
+    <value>Large</value>
+  </data>
+  <data name="PlayerSettings_Default" xml:space="preserve">
+    <value>Default</value>
+  </data>
+  <data name="PlayerSettings_Serif" xml:space="preserve">
+    <value>Serif</value>
+  </data>
+  <data name="PlayerSettings_Mono" xml:space="preserve">
+    <value>Mono</value>
+  </data>
+  <data name="PlayerSettings_On" xml:space="preserve">
+    <value>On</value>
+  </data>
+  <data name="PlayerSettings_White" xml:space="preserve">
+    <value>White</value>
+  </data>
+  <data name="PlayerSettings_Yellow" xml:space="preserve">
+    <value>Yellow</value>
+  </data>
+  <data name="PlayerSettings_Cyan" xml:space="preserve">
+    <value>Cyan</value>
+  </data>
+  <data name="PlayerSettings_Green" xml:space="preserve">
+    <value>Green</value>
+  </data>
+  <data name="PlayerSettings_Searching" xml:space="preserve">
+    <value>Searching…</value>
+  </data>
+  <data name="PlayerSettings_OnlyAudioTrack" xml:space="preserve">
+    <value>{0} (the only audio track)</value>
+  </data>
+  <data name="PlayerContext_UpNext" xml:space="preserve">
+    <value>Up Next</value>
+  </data>
+  <data name="PlayerContext_Lessons" xml:space="preserve">
+    <value>Lessons</value>
+  </data>
+  <data name="PlayerContext_Episodes" xml:space="preserve">
+    <value>Episodes</value>
+  </data>
+  <data name="PlaybackSettingsPage_BarTitle" xml:space="preserve">
+    <value>On the progress bar</value>
+  </data>
+  <data name="PlaybackSettingsPage_BarDescription" xml:space="preserve">
+    <value>What the bar under a video or an audiobook shows.</value>
+  </data>
+  <data name="PlaybackSettingsPage_ChapterMarks" xml:space="preserve">
+    <value>Show chapter marks on the progress bar</value>
+  </data>
+  <data name="PlaybackSettingsPage_ChapterMarksHint" xml:space="preserve">
+    <value>Off for video and on for audiobooks until you choose.</value>
+  </data>
+  <data name="PlaybackSettingsPage_BookmarkMarks" xml:space="preserve">
+    <value>Show bookmarks on the bar</value>
+  </data>
+  <data name="PlaybackSettingsPage_BookmarkMarksHint" xml:space="preserve">
+    <value>Little dots where bookmarks were added. The bookmark list works either way.</value>
   </data>
 </root>

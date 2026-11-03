@@ -225,12 +225,9 @@
                         </ListenDockTool>
                     }
                     @if (!IsPhonePresentation) {
-                    <span class="listen-player__volume">
-                        <AppTooltip Text="@(Playback.IsMuted ? "Unmute" : "Mute")"><AppNativeButton Type="button" Class="listen-player__icon" OnClick="ToggleMuteAsync" AriaLabel="@(Playback.IsMuted ? "Unmute" : "Mute")">
-                            <PlaybackUtilityGlyph Glyph="@(Playback.IsMuted || Playback.Volume <= 0 ? PlaybackUtilityGlyphKind.Mute : PlaybackUtilityGlyphKind.Volume)" />
-                        </AppNativeButton></AppTooltip>
-                        <AppRangeSlider Surface="dock" Min="0" Max="1" Step="@VolumeStep" Value="@Playback.Volume" ShowTicks="false" CommitOnChange="true" disabled="@(!Playback.SoftwareVolumeSupported)" title="@(Playback.SoftwareVolumeSupported ? null : "Use your device volume buttons")" Class="listen-player__volume-slider" AriaLabel="@L["Common_Volume"].Value" ValueFormatter="FormatVolumeValue" ValueChanged="SetVolumeOnHostAsync" />
-                    </span>
+                    <PlaybackVolumeControl Surface="dock" Size="standard" Appearance="bare" CommitOnChange="true" Step="@VolumeStep"
+                                           Volume="@Playback.Volume" IsMuted="@(Playback.IsMuted || Playback.Volume <= 0)" Supported="@Playback.SoftwareVolumeSupported"
+                                           OnToggleMute="ToggleMuteAsync" OnVolumeChanged="SetVolumeOnHostAsync" />
                     }
                 </div>
                 <span class="listen-player__compact-context"><AppTooltip Text="@(Playback.IsAudiobookMode ? "Chapters" : "Queue")"><AppNativeButton Type="button" Class="listen-player__icon" OnClick="@(() => OpenDockPanelAsync(Playback.IsAudiobookMode ? HasUsableChapters ? "chapters" : "history" : "queue", _artButton?.Element))" AriaLabel="@(Playback.IsAudiobookMode ? "Chapters" : "Queue")"><PlaybackUtilityGlyph Glyph="@(Playback.IsAudiobookMode ? PlaybackUtilityGlyphKind.Chapters : PlaybackUtilityGlyphKind.Queue)" /></AppNativeButton></AppTooltip></span>
@@ -258,10 +255,9 @@
                                                       OnControlActivation="HandleAudiobookDockActivationAsync" />
                             }
                             @if (!IsPhonePresentation) {
-                            <div class="listen-player__more-volume">
-                                <AppNativeButton Type="button" OnClick="ToggleMuteAsync" AriaLabel="@(Playback.IsMuted ? "Unmute" : "Mute")">@(Playback.IsMuted ? "Unmute" : "Mute")</AppNativeButton>
-                                <AppRangeSlider Surface="panel" Min="0" Max="1" Step="@VolumeStep" Value="@Playback.Volume" ShowTicks="false" CommitOnChange="true" AriaLabel="@L["Common_Volume"].Value" ValueFormatter="FormatVolumeValue" ValueChanged="SetVolumeOnHostAsync" />
-                            </div>
+                            <PlaybackVolumeControl Surface="panel" Size="standard" CommitOnChange="true" Step="@VolumeStep"
+                                                   Volume="@Playback.Volume" IsMuted="@(Playback.IsMuted || Playback.Volume <= 0)" Supported="@Playback.SoftwareVolumeSupported"
+                                                   OnToggleMute="ToggleMuteAsync" OnVolumeChanged="SetVolumeOnHostAsync" />
                             }
                         </div>
                     </ListenDockTool>

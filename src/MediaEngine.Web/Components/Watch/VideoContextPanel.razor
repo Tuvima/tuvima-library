@@ -7,9 +7,8 @@
 
 <div class="video-context-panel" data-playback-context-scroll-key="@($"{CurrentWorkId}:{_season}")">
 <div class="playback-context-tabs" role="tablist" aria-label="@L["VideoContextPanel_VideoContext"].Value">
-    <AppNativeButton Type="button" role="tab" aria-label="@L["Common_UpNext"].Value" aria-selected="@(_tab == "queue")" OnClick="@(() => _tab = "queue")">Up Next · @(Upcoming.Count + (NextEpisode is not null && !Upcoming.Any(item => item.WorkId == NextEpisode.WorkId) ? 1 : 0))</AppNativeButton>
+    <AppNativeButton Type="button" role="tab" aria-label="@QueueTabName" aria-selected="@(_tab == "queue")" OnClick="@(() => _tab = "queue")">@QueueTabName · @(Upcoming.Count + (NextEpisode is not null && !Upcoming.Any(item => item.WorkId == NextEpisode.WorkId) ? 1 : 0))</AppNativeButton>
     @if (Episodes.Count > 0) { <AppNativeButton Type="button" role="tab" aria-label="@L["VideoContextPanel_Episodes2"].Value" aria-selected="@(_tab == "episodes")" OnClick="@(() => _tab = "episodes")">@L["VideoContextPanel_Episodes", Episodes.Count]</AppNativeButton> }
-    @if (Chapters.Count > 0) { <AppNativeButton Type="button" role="tab" aria-label="@L["VideoContextPanel_Chapters2"].Value" aria-selected="@(_tab == "chapters")" OnClick="@(() => _tab = "chapters")">@L["VideoContextPanel_Chapters", Chapters.Count]</AppNativeButton> }
 </div>
 @if (_tab == "episodes")
 {
@@ -32,21 +31,6 @@
                 </span>
                 <span class="playback-sheet-row__duration">@episode.Runtime</span>
                 <span class="video-context-current">@if (current) { <PlaybackActivityMark IsPlaying="IsPlaying" Size="compact" AriaLabel="@(IsPlaying ? "Playing" : "Paused")" /> }</span>
-            </PlaybackSheetRow>
-        }
-    </PlaybackSheetList>
-}
-else if (_tab == "chapters")
-{
-    <PlaybackSheetList>
-        @foreach (var chapter in Chapters)
-        {
-            var active = chapter.StartSeconds <= Position && (!chapter.EndSeconds.HasValue || Position < chapter.EndSeconds.Value);
-            <PlaybackSheetRow Appearance="outlined" Class="video-context-chapter" Variant="chapter" IsActive="@active" OnClick="@(() => ChapterSelected.InvokeAsync(chapter))" AriaLabel="@($"Play {chapter.Title}")">
-                <span class="video-context-number">@((chapter.Index + 1).ToString("00"))</span>
-                <span class="playback-sheet-row__copy"><strong>@chapter.Title</strong></span>
-                <span class="playback-sheet-row__duration">@Timestamp(chapter.StartSeconds)</span>
-                <span class="video-context-current">@if (active) { <PlaybackActivityMark IsPlaying="IsPlaying" Size="compact" AriaLabel="@(IsPlaying ? "Playing" : "Paused")" /> }</span>
             </PlaybackSheetRow>
         }
     </PlaybackSheetList>
@@ -83,14 +67,15 @@ else if (_tab == "queue")
 
 @code {
     [Parameter] public string Context { get; set; } = "queue";
+    /// <summary>True when the queue belongs to a series of lessons or a course, not to a TV show, so the list is called Lessons.</summary>
+    [Parameter] public bool Lessons { get; set; }
+    private string QueueTabName => Lessons ? L["PlayerContext_Lessons"].Value : L["PlayerContext_UpNext"].Value;
     [Parameter] public IReadOnlyList<VideoOwnedEpisode> Episodes { get; set; } = [];
-    [Parameter] public IReadOnlyList<PlaybackChapterDto> Chapters { get; set; } = [];
     [Parameter] public IReadOnlyList<ListenQueueItem> Upcoming { get; set; } = [];
     [Parameter] public Guid? CurrentWorkId { get; set; }
     [Parameter] public double Position { get; set; }
     [Parameter] public bool IsPlaying { get; set; }
     [Parameter] public EventCallback<Guid> EpisodeSelected { get; set; }
-    [Parameter] public EventCallback<PlaybackChapterDto> ChapterSelected { get; set; }
     [Parameter] public EventCallback<Guid> QueueSelected { get; set; }
     [Parameter] public VideoOwnedEpisode? NextEpisode { get; set; }
     private string _tab = "queue";
@@ -101,8 +86,8 @@ else if (_tab == "queue")
     {
         if (_lastWork != CurrentWorkId || !Episodes.Any(item => item.SeasonKey == _season))
             _season = Episodes.FirstOrDefault(item => item.WorkId == CurrentWorkId)?.SeasonKey ?? Episodes.FirstOrDefault()?.SeasonKey;
-        if (_lastWork != CurrentWorkId) _tab = NextEpisode is not null || Upcoming.Count > 0 ? "queue" : Episodes.Count > 0 ? "episodes" : Chapters.Count > 0 ? "chapters" : "queue";
-        if (_tab == "episodes" && Episodes.Count == 0 || _tab == "chapters" && Chapters.Count == 0) _tab = "queue";
+        if (_lastWork != CurrentWorkId) _tab = NextEpisode is not null || Upcoming.Count > 0 ? "queue" : Episodes.Count > 0 ? "episodes" : "queue";
+        if (_tab == "episodes" && Episodes.Count == 0) _tab = "queue";
         _lastWork = CurrentWorkId;
     }
     private void SelectSeason(string? value) => _season = value;
@@ -110,5 +95,4 @@ else if (_tab == "queue")
     public static string? EpisodeArtworkSrcSet(VideoOwnedEpisode episode) => MediaTileArtworkUrl.SrcSet(
         MediaTileArtworkUrl.Sized(episode.StillUrl, "s"), MediaTileArtworkUrl.Sized(episode.StillUrl, "m"),
         MediaTileArtworkUrl.Sized(episode.StillUrl, "l"), episode.StillWidthPx, episode.StillHeightPx);
-    private static string Timestamp(double seconds) => TimeSpan.FromSeconds(Math.Max(0, seconds)).ToString(seconds >= 3600 ? @"h\:mm\:ss" : @"m\:ss");
 }

@@ -155,8 +155,155 @@ public sealed class AudiobookBookmarkRepository
         }, ct);
     }
 
+    /// <summary>
+    /// Every profile's personal bookmarks on the title in time order, each with the owner's display name (the administrator's Everyone's
+    /// view). Global bookmarks are not included: they already show in the ordinary list. Limited to the files the caller may see.
+    /// </summary>
+    public Task<IReadOnlyList<AudiobookBookmarkDto>> GetEveryonesByWorkAsync(
+        Guid workId,
+        CancellationToken ct = default,
+        IReadOnlySet<Guid>? authorizedAssetIds = null)
+    {
+        ct.ThrowIfCancellationRequested();
+        using var conn = _db.CreateConnection();
+        var rows = conn.Query<BookmarkRow>(
+            """
+            SELECT b.id AS Id,
+                   b.profile_id AS ProfileId,
+                   b.work_id AS WorkId,
+                   b.asset_id AS AssetId,
+                   b.chapter_index AS ChapterIndex,
+                   b.chapter_title AS ChapterTitle,
+                   b.position_seconds AS PositionSeconds,
+                   b.duration_seconds AS DurationSeconds,
+                   b.end_seconds AS EndSeconds,
+                   b.label AS Label,
+                   b.note AS Note,
+                   b.description AS Description,
+                   b.is_global AS IsGlobal,
+                   b.created_at AS CreatedAt,
+                   p.display_name AS OwnerName
+            FROM audiobook_bookmarks b
+            LEFT JOIN profiles p ON p.id = b.profile_id
+            WHERE b.is_global = 0
+              AND (@unrestricted = 1 OR b.asset_id IN @allowedAssets)
+              AND b.work_id = @workId
+            ORDER BY b.position_seconds ASC, b.created_at ASC;
+            """,
+            new
+            {
+                workId,
+                unrestricted = authorizedAssetIds is null ? 1 : 0,
+                allowedAssets = (authorizedAssetIds ?? new HashSet<Guid>()).Select(GuidSql.ToBlob).ToArray()
+            }).ToList();
+
+        return Task.FromResult<IReadOnlyList<AudiobookBookmarkDto>>(rows.Select(ToDto).ToList());
+    }
+
+    /// <summary>
+    /// Makes a personal bookmark Global at once (the caller has checked that they are a server administrator). Any personal bookmark
+    /// of any profile on the same file within <paramref name="mergeWindowSeconds"/> of the spot is treated as the same bookmark and is
+    /// replaced by the Global one, so nobody loses a bookmark. Returns null when there is no such personal bookmark.
+    /// </summary>
+    public Task<AudiobookBookmarkDto?> PromoteAsync(
+        Guid bookmarkId,
+        string? name,
+        double mergeWindowSeconds,
+        CancellationToken ct = default,
+        IReadOnlySet<Guid>? authorizedAssetIds = null)
+    {
+        ct.ThrowIfCancellationRequested();
+        return _db.ExecuteWriteAsync<AudiobookBookmarkDto?>((conn, tx, innerCt) =>
+        {
+            innerCt.ThrowIfCancellationRequested();
+            var unrestricted = authorizedAssetIds is null ? 1 : 0;
+            var allowed = (authorizedAssetIds ?? new HashSet<Guid>()).Select(GuidSql.ToBlob).ToArray();
+            var row = conn.QuerySingleOrDefault<BookmarkRow>(
+                """
+                SELECT id AS Id, profile_id AS ProfileId, work_id AS WorkId, asset_id AS AssetId, chapter_index AS ChapterIndex,
+                       chapter_title AS ChapterTitle, position_seconds AS PositionSeconds, duration_seconds AS DurationSeconds,
+                       end_seconds AS EndSeconds, label AS Label, note AS Note, description AS Description,
+                       is_global AS IsGlobal, created_at AS CreatedAt
+                FROM audiobook_bookmarks
+                WHERE id = @bookmarkId AND is_global = 0
+                  AND (@unrestricted = 1 OR asset_id IN @allowedAssets);
+                """,
+                new { bookmarkId, unrestricted, allowedAssets = allowed },
+                tx);
+            if (row is null)
+            {
+                return null;
+            }
+
+            var label = BlankToNull(name) ?? row.Label;
+            conn.Execute(
+                """
+                DELETE FROM audiobook_bookmarks
+                WHERE is_global = 0 AND id <> @bookmarkId AND asset_id = @assetId
+                  AND ABS(position_seconds - @position) <= @window;
+                """,
+                new { bookmarkId, assetId = row.AssetId, position = row.PositionSeconds, window = mergeWindowSeconds },
+                tx);
+            conn.Execute(
+                "UPDATE audiobook_bookmarks SET is_global = 1, label = @label WHERE id = @bookmarkId;",
+                new { bookmarkId, label },
+                tx);
+            return ToDto(row with { IsGlobal = true, Label = label });
+        }, ct);
+    }
+
+    /// <summary>Changes a Global bookmark's name, note and description (the caller has checked that they are a server administrator).</summary>
+    public Task<AudiobookBookmarkDto?> UpdateGlobalAsync(
+        Guid bookmarkId,
+        string? label,
+        string? note,
+        string? description,
+        CancellationToken ct = default,
+        IReadOnlySet<Guid>? authorizedAssetIds = null)
+    {
+        ct.ThrowIfCancellationRequested();
+        return _db.ExecuteWriteAsync<AudiobookBookmarkDto?>((conn, tx, innerCt) =>
+        {
+            innerCt.ThrowIfCancellationRequested();
+            var affected = conn.Execute(
+                """
+                UPDATE audiobook_bookmarks
+                SET label = @label, note = @note, description = @description
+                WHERE id = @bookmarkId AND is_global = 1
+                  AND (@unrestricted = 1 OR asset_id IN @allowedAssets);
+                """,
+                new
+                {
+                    bookmarkId,
+                    label = BlankToNull(label),
+                    note = BlankToNull(note),
+                    description = BlankToNull(description),
+                    unrestricted = authorizedAssetIds is null ? 1 : 0,
+                    allowedAssets = (authorizedAssetIds ?? new HashSet<Guid>()).Select(GuidSql.ToBlob).ToArray()
+                },
+                tx);
+            if (affected == 0)
+            {
+                return null;
+            }
+
+            var row = conn.QuerySingle<BookmarkRow>(
+                """
+                SELECT id AS Id, profile_id AS ProfileId, work_id AS WorkId, asset_id AS AssetId, chapter_index AS ChapterIndex,
+                       chapter_title AS ChapterTitle, position_seconds AS PositionSeconds, duration_seconds AS DurationSeconds,
+                       end_seconds AS EndSeconds, label AS Label, note AS Note, description AS Description,
+                       is_global AS IsGlobal, created_at AS CreatedAt
+                FROM audiobook_bookmarks WHERE id = @bookmarkId;
+                """,
+                new { bookmarkId },
+                tx);
+            return ToDto(row);
+        }, ct);
+    }
+
     private static AudiobookBookmarkDto ToDto(BookmarkRow row) => new()
     {
+        OwnerName = row.OwnerName,
         Id = row.Id,
         ProfileId = row.ProfileId,
         WorkId = row.WorkId,
@@ -192,5 +339,6 @@ public sealed class AudiobookBookmarkRepository
         public string? Description { get; init; }
         public bool IsGlobal { get; init; }
         public DateTimeOffset CreatedAt { get; init; }
+        public string? OwnerName { get; init; }
     }
 }
