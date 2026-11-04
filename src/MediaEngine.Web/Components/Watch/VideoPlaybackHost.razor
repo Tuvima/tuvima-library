@@ -60,10 +60,25 @@
             <div class="video-playback-host__status" role="status">@(Playback.CurrentError ?? "Preparing video… Playback will begin automatically.")</div>
         }
         @if (_switchingAudio) { <div class="video-playback-host__status" role="status">@L["VideoPlaybackHost_SwitchingAudio"]</div> }
+        @* Unified player D7: after a short pause the picture dims and left-aligned details appear, with a rating card on top
+           (and for the first few seconds of playback). A title with no rating shows no card. *@
+        @if (!string.IsNullOrWhiteSpace(Playback.CurrentItem.ContentRating))
+        {
+            <div class="video-playback-host__rating-card" data-paused="@(VideoIsPlaying ? "false" : "true")" aria-hidden="true" @key="@VideoInstanceKey"><i></i><strong>@L["VideoPlaybackHost_Rated", Playback.CurrentItem.ContentRating.Trim().ToUpperInvariant()]</strong></div>
+        }
         <div class="video-playback-host__paused-title" data-paused="@(VideoIsPlaying ? "false" : "true")" aria-hidden="true">
-            @if (!string.IsNullOrWhiteSpace(_presentationContext?.ShowTitle)) { <small>@_presentationContext!.ShowTitle</small> }
-            @if (VideoEpisodeMetadata is { } pausedEpisode) { <span>@pausedEpisode</span> }
-            <strong>@(Playback.CurrentItem.EpisodeTitle ?? Playback.CurrentItem.Title)</strong>
+            @if (IsTvEpisodeNow)
+            {
+                @if (!string.IsNullOrWhiteSpace(_presentationContext?.ShowTitle)) { <h2>@_presentationContext!.ShowTitle</h2> }
+                @if (Playback.CurrentItem.SeasonNumber is { Length: > 0 } seasonNumber) { <span>@L["VideoPlaybackHost_SeasonN", seasonNumber]</span> }
+                <strong>@PausedEpisodeLine</strong>
+                @if (!string.IsNullOrWhiteSpace(PausedSynopsis)) { <p>@PausedSynopsis</p> }
+            }
+            else
+            {
+                <h2>@Playback.CurrentItem.Title</h2>
+                @if (PausedFilmFacts is { Length: > 0 } facts) { <span>@facts</span> }
+            }
         </div>
         <PlaybackVideoChrome>
             <HeaderContent>            <AppTooltip Text="@L["Common_Close"].Value">
@@ -286,6 +301,14 @@
             : "video-playback-host";
     private double ProgressMax => Playback.DurationSeconds > 0 ? Playback.DurationSeconds : 1d;
     private string ProgressValueText => Playback.DurationSeconds > 0 ? $"{FormatTimestamp(Playback.CurrentTimeSeconds)} of {FormatTimestamp(ProgressMax)}" : "Duration unavailable";
+    private bool IsTvEpisodeNow => VideoPresentationResolver.IsTvEpisode(Playback.CurrentItem);
+    private string PausedEpisodeLine => Playback.CurrentItem is { } item
+        ? item.EpisodeNumber is { Length: > 0 } number ? $"{number}. {item.EpisodeTitle ?? item.Title}" : item.EpisodeTitle ?? item.Title
+        : string.Empty;
+    private string? PausedSynopsis => _presentationContext?.Episodes.FirstOrDefault(episode => episode.WorkId == Playback.CurrentItem?.WorkId)?.Synopsis;
+    private string PausedFilmFacts => Playback.CurrentItem is { } item
+        ? string.Join(" · ", new[] { item.Year, Playback.DurationSeconds > 0 ? $"{(int)(Playback.DurationSeconds / 3600)}h {(int)(Playback.DurationSeconds / 60 % 60)}m" : null }.Where(part => !string.IsNullOrWhiteSpace(part)))
+        : string.Empty;
     private string VideoInstanceKey => $"{Playback.ActiveProfileId}:{Playback.CurrentItem?.AssetId}:{Playback.PlaybackRequestVersion}";
     private IReadOnlyList<ListenQueueItem> UpcomingVideo => Playback.Queue.Skip(Playback.CurrentIndex + 1).Where(item => MediaKindClassifier.IsVideo(item.MediaType)).ToList();
     private string? ContextKind => VideoPresentationResolver.ContextKind(VideoPresentationResolver.IsTvEpisode(Playback.CurrentItem),

@@ -8106,8 +8106,17 @@
   <data name="ListenNowPlayingBar_ChapterTimes" xml:space="preserve">
     <value> · {0} in chapter · {1} left in book</value>
   </data>
+  <data name="NowPlayingNavButton_NowPlaying" xml:space="preserve">
+    <value>Now playing</value>
+  </data>
   <data name="ListenNowPlayingBar_BarShows" xml:space="preserve">
     <value>The bar shows the chapter or the whole book</value>
+  </data>
+  <data name="VideoPlaybackHost_Rated" xml:space="preserve">
+    <value>RATED {0}</value>
+  </data>
+  <data name="VideoPlaybackHost_SeasonN" xml:space="preserve">
+    <value>Season {0}</value>
   </data>
   <data name="VideoPlaybackHost_TurnSubtitlesOff" xml:space="preserve">
     <value>Turn subtitles off</value>
