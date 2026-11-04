@@ -152,7 +152,8 @@ public sealed record MediaEditorOwnedChildEnvelope(
     string? EditionReleaseId = null,
     Guid? StructuralParentId = null,
     string SelectionRevision = "",
-    string? MatchReason = null);
+    string? MatchReason = null,
+    long? FileSizeBytes = null);
 
 public sealed record MembershipSuggestionEnvelope(
     [property: JsonPropertyName("entity_id")] Guid? EntityId,

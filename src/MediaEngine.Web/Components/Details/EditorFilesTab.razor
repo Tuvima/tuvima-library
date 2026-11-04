@@ -1,0 +1,144 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Metadata
+@using MediaEngine.Web.Services.Formatting
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient Api
+@inject ILogger<EditorFilesTab> Logger
+@inject IStringLocalizer<SharedStrings> L
+
+@* The Files tab of the universal editor window (v4 D3, WP5): the files of the item being edited with their name, folder, size, quality and a
+   Read-only mark for a file in a Read-only library folder. An audiobook's files are numbered in the order they play. It is read-only
+   and reads again whenever the item being edited changes; deleting a file is a later step and is not offered here yet. *@
+<div class="tl-files" data-testid="editor-files">
+    @if (_loading)
+    {
+        <EditorPanelBusy Label="@L["EditorFiles_Loading"].Value" />
+    }
+    else if (_failed)
+    {
+        <AppAlert Severity="AppSeverity.Error" Dense="true">
+            @L["EditorFiles_CouldNotRead"]
+            <AppButton Label="@L["Common_TryAgain"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="ReloadAsync" />
+        </AppAlert>
+    }
+    else if (_editions.Count == 0)
+    {
+        <p class="tl-files__empty" data-testid="files-empty">@(IsGrouping ? L["EditorFiles_EmptyGrouping"].Value : L["EditorFiles_Empty"].Value)</p>
+    }
+    else
+    {
+        @foreach (var edition in _editions)
+        {
+            <section class="tl-files__group">
+                @if (_editions.Count > 1 && !string.IsNullOrWhiteSpace(edition.Label))
+                {
+                    <h3 class="tl-files__heading">@edition.Label</h3>
+                }
+
+                <table class="tl-files__table">
+                    <thead>
+                        <tr>
+                            @if (edition.Assets.Count > 1)
+                            {
+                                <th scope="col" class="tl-files__num">#</th>
+                            }
+
+                            <th scope="col">@L["EditorFiles_Name"]</th>
+                            <th scope="col">@L["EditorFiles_Folder"]</th>
+                            <th scope="col" class="tl-files__size">@L["EditorFiles_Size"]</th>
+                            <th scope="col">@L["EditorFiles_Quality"]</th>
+                            <th scope="col">@L["EditorFiles_Access"]</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (var index = 0; index < edition.Assets.Count; index++)
+                        {
+                            var asset = edition.Assets[index];
+                            <tr class="tl-files__row" data-asset-id="@asset.AssetId" @key="asset.AssetId">
+                                @if (edition.Assets.Count > 1)
+                                {
+                                    <td class="tl-files__num">@(index + 1)</td>
+                                }
+
+                                <td class="tl-files__name" title="@asset.FileName">@asset.FileName</td>
+                                <td class="tl-files__folder" title="@asset.Folder">@asset.Folder</td>
+                                <td class="tl-files__size">@(asset.FileSizeBytes is > 0 ? DisplayFormat.FormatFileSize(asset.FileSizeBytes.Value) : string.Empty)</td>
+                                <td class="tl-files__quality">@asset.TechnicalLabel</td>
+                                <td>
+                                    @if (asset.ReadOnly)
+                                    {
+                                        <AppChip Text="@L["EditorFiles_ReadOnly"].Value" Icon="@AppMaterialIcons.Outlined.Lock" Tone="AppUiTone.Neutral" Title="@L["EditorFiles_ReadOnlyTip"].Value" Class="tl-files__mark" />
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </section>
+        }
+
+        @if (_truncated)
+        {
+            <p class="tl-files__note">@L["EditorFiles_OnlyFirst"]</p>
+        }
+    }
+</div>
+
+@code {
+    private IReadOnlyList<MediaEditorEditionSelectorDto> _editions = [];
+    private bool _loading;
+    private bool _failed;
+    private bool _truncated;
+    private Guid _loadedFor;
+
+    /// <summary>The item being edited.</summary>
+    [Parameter, EditorRequired] public Guid EntityId { get; set; }
+
+    /// <summary>The item is a show, season or album: it holds no file itself, so an empty list says where the files are.</summary>
+    [Parameter] public bool IsGrouping { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_loadedFor == EntityId)
+        {
+            return;
+        }
+
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        var id = EntityId;
+        _loadedFor = id;
+        _loading = true;
+        _failed = false;
+        try
+        {
+            var versions = id == Guid.Empty ? null : await Api.GetMediaEditorWorkVersionsAsync(id);
+            if (_loadedFor != id)
+            {
+                return;
+            }
+
+            _editions = versions?.Editions ?? [];
+            _truncated = versions?.IsTruncated == true;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Logger.LogWarning(ex, "The files of {EntityId} could not be read for the editor", id);
+            if (_loadedFor == id)
+            {
+                _editions = [];
+                _failed = true;
+            }
+        }
+        finally
+        {
+            if (_loadedFor == id)
+            {
+                _loading = false;
+            }
+        }
+    }
+}

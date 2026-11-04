@@ -65,6 +65,9 @@ public sealed class MediaEditorWorkVersionReadRepositoryTests
             Assert.True(edition.Collapse);
             Assert.Equal("MKV", edition.Label);
             Assert.Equal("MKV", Assert.Single(edition.Assets).TechnicalLabel);
+            // The Files tab shows the folder apart from the name.
+            Assert.Equal("movie.mkv", Assert.Single(edition.Assets).FileName);
+            Assert.Equal(Path.GetDirectoryName("/movies/movie.mkv"), Assert.Single(edition.Assets).Folder);
             Assert.DoesNotContain("cut", edition.Label, StringComparison.OrdinalIgnoreCase);
         }
         finally { try { File.Delete(path); } catch { } }

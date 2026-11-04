@@ -463,6 +463,11 @@ public sealed class MediaEditorOwnedChildDto
     [JsonPropertyName("match_reason")]
     public string? MatchReason { get; set; }
 
+    /// <summary>The file's size in bytes when the Engine already holds it (the hash cache); null when unknown. The editor's Contents tab shows it.</summary>
+    [JsonPropertyName("file_size_bytes")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? FileSizeBytes { get; set; }
+
     [JsonPropertyName("file_state")]
     public string FileState { get; set; } = "unknown";
 
@@ -511,6 +516,14 @@ public sealed class MediaEditorAssetSelectorDto
     [JsonPropertyName("container")] public string? Container { get; set; }
     [JsonPropertyName("audio_tracks")] public List<MediaEditorAssetAudioTrackDto> AudioTracks { get; set; } = [];
     [JsonPropertyName("subtitle_languages")] public List<string> SubtitleLanguages { get; set; } = [];
+
+    /// <summary>The folder the file sits in (no file name); the editor's Files tab shows it.</summary>
+    [JsonPropertyName("folder")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Folder { get; set; }
+
+    /// <summary>True when the file is in a Read-only library folder (or outside every library folder), so Tuvima will not change or delete it.</summary>
+    [JsonPropertyName("read_only")] public bool ReadOnly { get; set; }
 }
 
 /// <summary>One audio track stored for a file, as recorded by its last playback inspection.</summary>
