@@ -2276,6 +2276,13 @@ input.app-control.tl-input-slot,
     border-color: var(--tl-border-strong) !important;
 }
 
+/* Destructive (Look pass 4.2): outlined red, never filled. */
+.app-button--outlined.app-tone--error {
+    color: var(--tl-status-danger) !important;
+    background: transparent !important;
+    border-color: var(--tl-status-danger) !important;
+}
+
 .app-button.tl-button {
     min-height: var(--app-control-height, var(--tl-control-height-md)) !important;
     border-radius: var(--tl-control-radius) !important;

@@ -82,11 +82,14 @@
     [Parameter] public EventCallback OnClose { get; set; }
     [Parameter] public bool CenterTitle { get; set; }
     [Parameter] public bool Modal { get; set; } = true;
+
+    /// <summary>Extra presentation class for the hosting dialog frame (for example a wider picker).</summary>
+    [Parameter] public string? HostClass { get; set; }
     private string TitleId { get; } = $"dialog-title-{Guid.NewGuid():N}";
     private string HeaderClass => $"app-dialog-shell__header{(CenterTitle ? " app-dialog-shell__header--centered" : string.Empty)}";
 
-    protected override Task OnParametersSetAsync() => Context is not null && Context.PresentationClass is null
-        ? Context.SetPresentationClassAsync("app-dialog-host") : Task.CompletedTask;
+    protected override Task OnParametersSetAsync() => Context is not null && (Context.PresentationClass is null || !string.IsNullOrWhiteSpace(HostClass))
+        ? Context.SetPresentationClassAsync(string.IsNullOrWhiteSpace(HostClass) ? "app-dialog-host" : $"app-dialog-host {HostClass}") : Task.CompletedTask;
 
     private string? ResolvedIcon => !string.IsNullOrWhiteSpace(Icon)
         ? Icon

@@ -102,10 +102,16 @@ public sealed class AppDialogService : IAppDialogService, IDisposable
     public Task<bool?> ShowMessageBoxAsync(string? title, MarkupString message, string yesText = "OK", string? noText = null, string? cancelText = null, AppDialogOptions? options = null) => MessageBoxAsync(title, message, yesText, noText, cancelText, options);
     private async Task<bool?> MessageBoxAsync(string? title, object message, string yesText, string? noText, string? cancelText, AppDialogOptions? options)
     {
+        var asksNo = noText is not null && cancelText is null;
         var parameters = new AppDialogParameters { { nameof(AppMessageBox.Message), message }, { nameof(AppMessageBox.YesText), yesText }, { nameof(AppMessageBox.NoText), noText }, { nameof(AppMessageBox.CancelText), cancelText } };
-        var dialog = await ShowAsync<AppMessageBox>(title, parameters, options ?? new() { MaxWidth = AppMaxWidth.Small, FullWidth = true });
+        var dialog = await ShowAsync<AppMessageBox>(title, parameters, options ?? new() { MaxWidth = AppMaxWidth.Small, FullWidth = true, CloseButton = false, NoHeader = true, CloseOnEscapeKey = true });
         var result = await dialog.Result;
-        return result is { Canceled: false, Data: bool answer } ? answer : null;
+        return result switch
+        {
+            { Canceled: false, Data: bool flag } => flag,
+            { Canceled: false, Data: AppConfirmResult answer } => answer == AppConfirmResult.Primary ? true : asksNo ? false : null,
+            _ => null,
+        };
     }
     internal void NotifyChanged() => Changed?.Invoke();
     public void SetFrameVisibility(Guid id, bool visible)
