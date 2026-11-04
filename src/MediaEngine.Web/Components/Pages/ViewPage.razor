@@ -1,13 +1,15 @@
 @page "/view"
+@using MediaEngine.Web.Services.Editing
 @using MediaEngine.Contracts.LocalAssets
 @using MediaEngine.Domain.PersonalMedia
 @using MediaEngine.Web.Components.View
 @inject IEngineApiClient ApiClient
 @inject UIOrchestratorService Orchestrator
-@inject IAppToastService Snackbar
+@inject ViewRibbonVoice Snackbar
 @inject ViewWorkspaceService Workspace
 @inject ViewAssetDragService AssetDrag
 @inject ViewMediaGrantService MediaGrants
+@inject ViewEditorHost EditorHost
 @inject IJSRuntime JS
 @inject IAppDialogService DialogService
 @inject DeviceContextService DeviceContext
@@ -75,7 +77,7 @@ else
         </AdvancedFilters>
     </AppDiscoveryFilterBar>
     @if (_filter == "trash") { <ViewTrashHeader IsMine="@(Workspace.ScopeKind == ViewScopeKind.Mine)" Version="@_trashVersion" OnChanged="@(() => LoadAsync())" /> }
-    @if (_selected.Count > 0) { <ViewSelectionToolbar Count="@_selected.Count" Phone="@DeviceContext.IsPhone" ManualGalleries="@Workspace.OwnedGalleries.Where(g => g.Kind == ViewGalleryKind.Manual).ToList()" OnClear="CancelSelection" OnAddToGallery="AddSelectionToGalleryAsync" OnCreateGallery="@CreateGalleryCallback" OnDownload="@DownloadCallback" OnSharedLibrary="SubmitSelectionToSharedAsync" ShowSharedLibrary="@(Workspace.ScopeKind == ViewScopeKind.Mine)" OnFavorite="FavoriteSelectionAsync" OnArchive="ArchiveSelectionAsync" OnRestore="RestoreSelectionAsync" ShowRestore="@(_filter is "archive" or "trash")" OnTrash="TrashSelectionAsync" ShowTrash="@(_filter != "trash" && AnySelectedTrashable)" /> }
+    @if (_selected.Count > 0) { <ViewSelectionToolbar Count="@_selected.Count" Phone="@DeviceContext.IsPhone" ManualGalleries="@Workspace.OwnedGalleries.Where(g => g.Kind == ViewGalleryKind.Manual).ToList()" OnClear="CancelSelection" OnAddToGallery="AddSelectionToGalleryAsync" OnCreateGallery="@CreateGalleryCallback" OnDownload="@DownloadCallback" OnSharedLibrary="SubmitSelectionToSharedAsync" ShowSharedLibrary="@(Workspace.ScopeKind == ViewScopeKind.Mine)" OnFavorite="FavoriteSelectionAsync" OnEdit="@EditCallback" OnArchive="ArchiveSelectionAsync" OnRestore="RestoreSelectionAsync" ShowRestore="@(_filter is "archive" or "trash")" OnTrash="TrashSelectionAsync" ShowTrash="@(_filter != "trash" && AnySelectedTrashable)" /> }
     @if (_loading) { <AppPageState Kind="AppPageStateKind.Loading" Title="@L["ViewPage_LoadingPhotos"].Value" Message="@L["ViewPage_BuildingYourPersonalTimeline"].Value" /> }
     else if (_page is null) { <AppErrorState Title="@L["Common_PhotosCouldNotBeLoaded"].Value" Message="The Engine did not return a timeline." Retry="@(() => LoadAsync())" /> }
     else if (_page.Items.Count == 0) { <AppPageState Kind="AppPageStateKind.Empty" Title="@EmptyTitle" Message="@EmptyMessage" /> }
@@ -339,6 +341,18 @@ else
         }
         finally { _mutatingSelection = false; }
     }
+    private EventCallback EditCallback => EditorHost.CanEdit && _filter != "trash" ? EventCallback.Factory.Create(this, EditSelectionAsync) : default;
+
+    // Edit opens the one editor window on the ticked items (spec photos-documents-editor): Tags, People, Date taken and Place are shared.
+    // Afterward the timeline reads again so the changed dates and places show where they now belong.
+    private async Task EditSelectionAsync()
+    {
+        var items = _page?.Items.Where(item => _selected.Contains(item.Id)).ToList() ?? [];
+        if (items.Count == 0 || !await EditorHost.OpenItemsAsync(items)) return;
+        var closed = await EditorHost.WhenClosedAsync();
+        if (closed.Changed) { ClearSelection(); await LoadAsync(preserveSelection: false); }
+    }
+
     private Task FavoriteSelectionAsync() => MutateSelectionAsync((id, ct) => ApiClient.SetViewItemFavoriteAsync(id, true, ct), "Favorited selected items.");
     private async Task SubmitSelectionToSharedAsync()
     {

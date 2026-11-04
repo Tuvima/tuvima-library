@@ -736,9 +736,9 @@ public sealed class ViewEmptyTrashTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Equal(2, handler.Trashed.Count));
         Assert.Equal(photos.Where(photo => photo.CanTrash).Select(photo => photo.Id).Order(), handler.Trashed.Order());
-        var messages = Services.GetRequiredService<AppToastService>().Toasts.Select(toast => toast.Message).ToList();
-        Assert.Contains("Moved selected items to Trash.", messages);
-        Assert.Contains("2 items are in a read-only folder and weren't moved to Trash.", messages);
+        // The result is said in the slim ribbon (spec photos-documents-editor D6), never as a toast.
+        Assert.Empty(Services.GetRequiredService<AppToastService>().Toasts);
+        Assert.Contains("read-only folder", Services.GetRequiredService<MediaEngine.Web.Services.Editing.ViewRibbonState>().Message, StringComparison.Ordinal);
     }
 
     [Fact]

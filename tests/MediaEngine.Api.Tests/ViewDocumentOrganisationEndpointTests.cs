@@ -85,6 +85,7 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
         builder.Services.AddSingleton<IDocumentRuleRepository, DocumentRuleRepository>();
         builder.Services.AddSingleton<IDocumentBulkRepository, DocumentBulkRepository>();
         builder.Services.AddScoped<ViewDocumentBulkService>();
+        builder.Services.AddScoped<ViewItemsEditService>();
         builder.Services.AddSingleton<IMediaOperationRepository, MediaOperationRepository>();
         builder.Services.AddSingleton<DocumentRulesQueue>();
         builder.Services.AddSingleton<ViewDocumentRuleService>();
@@ -1751,6 +1752,7 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
         ["POST /view/document-rules/test"] = Refused,
         ["POST /view/document-types"] = Refused,
         ["POST /view/documents/bulk"] = Refused,
+        ["POST /view/items/edit"] = Covers("AProfileWithoutDocumentsCannotEditADocumentWithTheOneSave", "/view/items/edit"),
         ["POST /view/galleries"] = Covers(GalleryWrite, "PostAsJsonAsync(\"/view/galleries\""),
         ["POST /view/galleries/{id:guid}/items"] = Covers(GalleryWrite, "PostAsJsonAsync($\"/view/galleries/{gallery.Id:D}/items\""),
         ["POST /view/items/{id:guid}/archive"] = Covers(Lifecycle, "/archive"),

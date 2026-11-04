@@ -1,0 +1,32 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Services.Editing
+@inject IStringLocalizer<SharedStrings> L
+
+@* Files of the View editor (spec D3): read-only. It lists the file behind the item (name, type, size) and says that edits stay in Library and never
+   change the file itself. Moving or renaming files is not done here. *@
+<div class="tl-editor-details view-edit-files">
+    <p class="view-edit-files__note">@L["ViewEdit_NoteStaysInLibrary"]</p>
+    @foreach (var item in Items)
+    {
+        <section class="tl-editor-field" @key="item.Id">
+            <strong>@item.FileName</strong>
+            <ul class="view-edit-files__list">
+                @foreach (var file in item.Files)
+                {
+                    <li @key="file.Id">
+                        <span>@(file.FileName ?? item.FileName)</span>
+                        <small>@file.MimeType · @ViewEditFacts.SizeText(file.ByteSize)@(file.SourceCount > 1 ? $" · {file.SourceCount}" : string.Empty)</small>
+                    </li>
+                }
+            </ul>
+            @if (!item.CanTrash)
+            {
+                <small>@L["ViewEdit_NoteReadOnlyFolder"]</small>
+            }
+        </section>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<MediaEngine.Contracts.LocalAssets.LocalAssetDto> Items { get; set; } = [];
+}

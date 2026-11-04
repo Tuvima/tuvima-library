@@ -22,18 +22,19 @@ public sealed class UnifiedContainerEditorTests
     }
 
     [Fact]
-    public void GalleryCreation_UsesTheSharedEditorWorkspace()
+    public void GalleryCreation_UsesTheOneEditorWindowPhotosAndDocumentsUse()
     {
         var root = FindRepoRoot();
-        var editor = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Collections", "GalleryEditorShell.razor"));
+        var launcher = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Services", "Editing", "GalleryEditorLauncherService.cs"));
+        var popover = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Details", "ViewEditorPopover.razor"));
+        var panel = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Details", "ViewGalleryDetailsPanel.razor"));
         var page = File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Pages", "ViewGalleriesPage.razor"));
 
-        Assert.Contains("sme-shell collection-editor-workspace", editor, StringComparison.Ordinal);
-        Assert.Contains("(\"membership\", \"Membership\"", editor, StringComparison.Ordinal);
-        Assert.Contains("(\"soundtrack\", \"Soundtrack\"", editor, StringComparison.Ordinal);
-        Assert.Contains("SoundtrackPlaylistId", editor, StringComparison.Ordinal);
-        Assert.Contains("GetManagedCollectionsAsync", editor, StringComparison.Ordinal);
-        Assert.DoesNotContain("persistence is enabled", editor, StringComparison.OrdinalIgnoreCase);
+        Assert.False(File.Exists(Path.Combine(root, "src", "MediaEngine.Web", "Components", "Collections", "GalleryEditorShell.razor")));
+        Assert.Contains("OpenGalleryAsync", launcher, StringComparison.Ordinal);
+        Assert.Contains("<ViewGalleryDetailsPanel", popover, StringComparison.Ordinal);
+        Assert.Contains("SoundtrackPlaylistId", File.ReadAllText(Path.Combine(root, "src", "MediaEngine.Web", "Services", "Editing", "ViewEdit", "ViewGalleryEditStage.cs")), StringComparison.Ordinal);
+        Assert.Contains("GetManagedCollectionsAsync", panel, StringComparison.Ordinal);
         Assert.Contains("GalleryEditorLauncher.OpenAsync", page, StringComparison.Ordinal);
         Assert.DoesNotContain("view-gallery-editor", page, StringComparison.Ordinal);
     }

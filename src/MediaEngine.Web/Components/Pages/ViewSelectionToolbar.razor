@@ -51,6 +51,7 @@
         else
         {
             @if (OnFavorite.HasDelegate) { <AppNativeButton Type="button" Class="view-selection-toolbar__action" OnClick="@(_ => OnFavorite.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FavoriteBorder" />@L["Glossary_Favorite"]</AppNativeButton> }
+            @if (OnEdit.HasDelegate) { <AppNativeButton Type="button" Class="view-selection-toolbar__action" OnClick="@(_ => OnEdit.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Edit" />@L["ViewEdit_Edit"]</AppNativeButton> }
             @if (ShowRestore)
             {
                 <AppNativeButton Type="button" Class="view-selection-toolbar__action" OnClick="@(_ => OnRestore.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Restore" />@L["Common_Restore"]</AppNativeButton>
@@ -88,6 +89,9 @@
     [Parameter] public IReadOnlyList<ViewGalleryDto> ManualGalleries { get; set; } = [];
     [Parameter] public EventCallback OnClear { get; set; }
     [Parameter] public EventCallback OnFavorite { get; set; }
+
+    /// <summary>Opens the editor window on the selection (spec photos-documents-editor D2). Editing is desktop-only, so the phone bar never offers it.</summary>
+    [Parameter] public EventCallback OnEdit { get; set; }
     [Parameter] public EventCallback OnSharedLibrary { get; set; }
     [Parameter] public bool ShowSharedLibrary { get; set; }
     [Parameter] public bool ShowRestore { get; set; }

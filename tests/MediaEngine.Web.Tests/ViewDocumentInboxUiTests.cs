@@ -25,7 +25,7 @@ public sealed class ViewDocumentInboxUiTests : AsyncBunitContext
 
     private readonly InboxHandler _handler = new();
     private readonly IRenderedComponent<AppDialogHost> _dialogs;
-    private readonly IRenderedComponent<AppToastHost> _toasts;
+    private readonly IRenderedComponent<MediaEngine.Web.Components.Details.ViewSavedRibbon> _toasts;
 
     public ViewDocumentInboxUiTests()
     {
@@ -41,7 +41,7 @@ public sealed class ViewDocumentInboxUiTests : AsyncBunitContext
         Services.AddSingleton<ViewAssetDragService>();
         Services.AddSingleton(new ViewMediaGrantService(new byte[32], TimeSpan.FromMinutes(1)));
         _dialogs = Render<AppDialogHost>();
-        _toasts = Render<AppToastHost>();
+        _toasts = Render<MediaEngine.Web.Components.Details.ViewSavedRibbon>();
     }
 
     [Fact]

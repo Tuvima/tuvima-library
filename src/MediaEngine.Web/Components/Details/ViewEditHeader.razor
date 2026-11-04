@@ -1,0 +1,51 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Services.Editing
+@inject IStringLocalizer<SharedStrings> L
+
+@* The header of the View editor (spec photos-documents-editor D1): the same header the library editor draws (tl-editor-header), with the picture, the
+   kind line, the title and one line of facts. Read-only. *@
+<header class="tl-editor-header">
+    <div class="tl-editor-header__cover" aria-hidden="true">
+        @if (Image is not null)
+        {
+            <AppImage Src="@Image" Alt="" DrawnPx="200" ObjectFit="AppObjectFit.Cover" Class="tl-editor-header__img" />
+        }
+        else
+        {
+            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PhotoAlbum" Size="AppSize.Large" />
+        }
+    </div>
+    <div class="tl-editor-header__body">
+        <div class="tl-editor-header__kicker">@Kicker</div>
+        <h2 id="tl-editor-panel-title" class="tl-editor-header__title" tabindex="-1" title="@Title">@Title</h2>
+        @if (!string.IsNullOrWhiteSpace(Facts))
+        {
+            <div class="tl-editor-header__facts">@Facts</div>
+        }
+    </div>
+</header>
+
+@code {
+    [Parameter, EditorRequired] public ViewEditSession Session { get; set; } = default!;
+
+    private ViewEditStage Stage => Session.Active;
+
+    private string? Image => Session.IsGallery ? null : Stage.Items.Count > 0 ? Stage.Items[0].ThumbnailUrl : null;
+
+    private string Kicker => Session.IsGallery ? L["ViewEdit_KindGallery"].Value
+        : Stage.IsGroup ? L["ViewEdit_KindSelection"].Value
+        : Stage.Items[0].MediaKind switch
+        {
+            ViewMediaKinds.Video => L["ViewEdit_KindVideo"].Value,
+            ViewMediaKinds.Document => L["ViewEdit_KindDocument"].Value,
+            _ => L["ViewEdit_KindPhoto"].Value,
+        };
+
+    private string Title => Session.IsGallery
+        ? (string.IsNullOrWhiteSpace(Session.Gallery!.Name) ? L["ViewEdit_NewGallery"].Value : Session.Gallery.Name)
+        : Stage.ItemLabel();
+
+    private string Facts => Session.IsGallery ? string.Empty
+        : Stage.IsGroup ? ViewEditFacts.DateRange(Stage.Items) ?? string.Empty
+        : ViewEditFacts.HeaderLine(Stage.Items[0]);
+}

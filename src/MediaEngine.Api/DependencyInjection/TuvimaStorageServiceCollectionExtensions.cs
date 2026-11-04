@@ -82,6 +82,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddScoped<ViewDiscoveryService>();
         services.AddSingleton<ViewDocumentRuleService>();
         services.AddScoped<ViewDocumentBulkService>();
+        services.AddScoped<ViewItemsEditService>();
         services.AddScoped<ViewTrashDeletionPlanner>();
         services.AddScoped<ViewTrashDeletionService>();
         services.AddSingleton<ViewTrashRecoveryService>();

@@ -179,4 +179,7 @@
   <data name="SetupIntro_FindText" xml:space="preserve">
     <value>Point Library at your folders and it recognises books, shows, films, music and more.</value>
   </data>
+  <data name="ViewEdit_HistoryFavorite" xml:space="preserve">
+    <value>Marked as a favourite</value>
+  </data>
 </root>

@@ -20,135 +20,64 @@
     // A tool the item switched to does not have (Contents on an episode) falls back to Details instead of drawing nothing.
     var shown = railTools.Any(entry => entry.Item1 == tool) ? tool : EditTool.Details;
     var framed = ItemHeader is not null && TitleOverride is null && !_reviewing;
-    <div class="@(framed ? (RailVisible ? "tl-editor-panel tl-editor-window tl-editor-window--framed tl-editor-window--rail" : "tl-editor-panel tl-editor-window tl-editor-window--framed") : "tl-editor-panel tl-editor-window")"
-         data-tool="@shown.ToString().ToLowerInvariant()">
-        @if (framed)
-        {
-            @if (RailVisible)
+    var tabs = railTools.Select(entry => new EditorWindowChrome.Tab(entry.Item1.ToString(), entry.Item2, entry.Item3)).ToList();
+    var title = _reviewing ? "Review changes" : TitleOverride ?? TitleFor(shown);
+    <EditorWindowChrome Framed="framed"
+                        RailVisible="RailVisible"
+                        Rail="RailContent"
+                        ItemHeader="ItemHeader"
+                        Title="@title"
+                        CloseName="@(TitleOverride ?? TitleFor(shown))"
+                        HeaderExtra="HeaderContent"
+                        ShowTabs="@(TitleOverride is null && !_reviewing)"
+                        Tabs="tabs"
+                        ActiveKey="@shown.ToString()"
+                        TabsDisabled="@(flow.Saving || flow.Switching)"
+                        OnTab="@(key => Enum.TryParse<EditTool>(key, out var picked) && picked != shown ? flow.SelectToolAsync(picked) : Task.CompletedTask)"
+                        ShowFooter="@(!_reviewing)"
+                        ChangeCount="count"
+                        Saving="flow.Saving"
+                        OnClose="@(() => flow.LeaveAsync())"
+                        OnDiscard="@(() => flow.LeaveAsync())"
+                        OnSave="OpenReviewAsync">
+        <Notice>
+            @if (!_reviewing && (flow.Failures.Count > 0 || !string.IsNullOrWhiteSpace(flow.Message)))
             {
-                <div class="tl-editor-window__top">
-                    @RailContent
+                @* A save that left changes behind, or an item that could not be opened: the reason stays above the tools until it is dealt with. *@
+                <div class="tl-editor-window__notice" role="alert">
+                    <AppAlert Severity="AppSeverity.Error" Dense="true">
+                        <strong>@(flow.Failures.Count > 0 ? "Some changes could not be saved." : flow.Message)</strong>
+                        @if (flow.Failures.Count > 0)
+                        {
+                            <ul>
+                                @foreach (var failure in flow.Failures)
+                                {
+                                    <li>@flow.Describe(failure)</li>
+                                }
+                            </ul>
+                        }
+                    </AppAlert>
                 </div>
             }
-
-            @ItemHeader
-            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
-                           Size="AppControlSize.Large"
-                           Tone="AppUiTone.Neutral"
-                           Class="tl-editor-panel__close tl-editor-window__close"
-                           Tooltip="@L["EditorHeader_Close"].Value"
-                           AriaLabel="@L["EditorHeader_Close"].Value"
-                           OnClick="@(() => flow.LeaveAsync())" />
-        }
-        else
-        {
-            <header class="tl-editor-panel__header">
-                <h2 id="tl-editor-panel-title" class="tl-editor-panel__title" tabindex="-1">@(_reviewing ? "Review changes" : TitleOverride ?? TitleFor(shown))</h2>
-                @HeaderContent
-                <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
-                               Size="AppControlSize.Large"
-                               Tone="AppUiTone.Neutral"
-                               Class="tl-editor-panel__close"
-                               Tooltip="@($"Close {TitleOverride ?? TitleFor(shown)}")"
-                               AriaLabel="@($"Close {TitleOverride ?? TitleFor(shown)}")"
-                               OnClick="@(() => flow.LeaveAsync())" />
-            </header>
-        }
-        @if (!_reviewing && (flow.Failures.Count > 0 || !string.IsNullOrWhiteSpace(flow.Message)))
-        {
-            @* A save that left changes behind, or an item that could not be opened: the reason stays above the tools until it is dealt with. *@
-            <div class="tl-editor-window__notice" role="alert">
-                <AppAlert Severity="AppSeverity.Error" Dense="true">
-                    <strong>@(flow.Failures.Count > 0 ? "Some changes could not be saved." : flow.Message)</strong>
-                    @if (flow.Failures.Count > 0)
-                    {
-                        <ul>
-                            @foreach (var failure in flow.Failures)
-                            {
-                                <li>@flow.Describe(failure)</li>
-                            }
-                        </ul>
-                    }
-                </AppAlert>
-            </div>
-        }
-        <div class="tl-editor-window__main">
-            <div class="tl-editor-window__content">
-                @{
-                    RenderFragment body = @<div class="tl-editor-panel__body">
-                            @if (_reviewing)
-                            {
-                                <ReviewChangesView Source="flow" OnOutcome="OnReviewOutcome" />
-                            }
-                            else if (shown == EditTool.Artwork && Picker is not null)
-                            {
-                                <EditorArtworkTool Mode="Mode" Picker="Picker" />
-                            }
-                            else
-                            {
-                                @ChildContent?.Invoke(shown)
-                            }
-                        </div>;
-                }
-                @if (TitleOverride is null && !_reviewing)
-                {
-                    @* The shared tab strip (the same underline, spacing and arrow keys as the profile and browse pages). The open tool's panel holds the body. *@
-                    var activeIndex = Math.Max(0, railTools.FindIndex(entry => entry.Item1 == shown));
-                    <AppTabs Class="tl-editor-window__tabs"
-                             Label="@L["Common_EditingTools"].Value"
-                             Rounded="false"
-                             Border="false"
-                             Elevation="0"
-                             ActivePanelIndex="@activeIndex"
-                             ActivePanelIndexChanged="@(index => index >= 0 && index < railTools.Count && railTools[index].Item1 != shown ? flow.SelectToolAsync(railTools[index].Item1) : Task.CompletedTask)">
-                        @foreach (var (railTool, label, icon) in railTools)
-                        {
-                            <AppTabPanel Text="@label" Icon="@icon" Disabled="@(flow.Saving || flow.Switching)">
-                                @if (railTool == shown)
-                                {
-                                    @body
-                                }
-                            </AppTabPanel>
-                        }
-                    </AppTabs>
-                }
-                else
-                {
-                    @body
-                }
-            </div>
-        </div>
-        @if (!_reviewing)
-        {
-        <footer class="tl-editor-window__footer">
-            @if (framed)
+        </Notice>
+        <Where>
+            <EditorWhereLine Source="flow" />
+        </Where>
+        <Body>
+            @if (_reviewing)
             {
-                <EditorWhereLine Source="flow" />
+                <ReviewChangesView Source="flow" OnOutcome="OnReviewOutcome" />
             }
-
-            <span class="tl-editor-window__changes" role="status">@(count == 0 ? "No changes yet" : $"{count} {(count == 1 ? "change" : "changes")} waiting")</span>
-            <div class="tl-editor-window__actions">
-                <AppButton ButtonStyle="AppButtonStyle.Outlined"
-                           Tone="AppUiTone.Neutral"
-                           Size="AppControlSize.Large"
-                           Class="tl-editor-window__cancel"
-                           Disabled="@flow.Saving"
-                           OnClick="@(() => flow.LeaveAsync())">
-                    @(framed ? L["EditorFooter_Discard"] : L["Search_Cancel"])
-                </AppButton>
-                <AppButton ButtonStyle="AppButtonStyle.Filled"
-                           Tone="AppUiTone.Primary"
-                           Size="AppControlSize.Large"
-                           Class="tl-editor-window__save"
-                           StartIcon="@AppMaterialIcons.Outlined.Check"
-                           Disabled="@(count == 0 || flow.Saving)"
-                           OnClick="OpenReviewAsync">
-                    @(flow.Saving ? "Saving..." : count == 0 ? "Save changes" : $"Save {count} {(count == 1 ? "change" : "changes")}")
-                </AppButton>
-            </div>
-        </footer>
-        }
-    </div>
+            else if (shown == EditTool.Artwork && Picker is not null)
+            {
+                <EditorArtworkTool Mode="Mode" Picker="Picker" />
+            }
+            else
+            {
+                @ChildContent?.Invoke(shown)
+            }
+        </Body>
+    </EditorWindowChrome>
 }
 
 @code {

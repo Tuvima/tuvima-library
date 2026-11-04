@@ -1,0 +1,63 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.LocalAssets
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient Api
+@inject IStringLocalizer<SharedStrings> L
+
+@* Contents of a gallery (spec D4): the photos in it, each with a Remove that is staged (it takes the photo out of the gallery only; the photo
+   stays in the library) and a way back until Save. A new gallery lists the photos it was started with. *@
+<div class="tl-editor-details view-edit-contents">
+    @if (_loading)
+    {
+        <AppProgressBar Indeterminate="true" />
+    }
+    else if (Members.Count == 0)
+    {
+        <p>@L["ViewEdit_GalleryEmpty"]</p>
+    }
+    else
+    {
+        <p class="tl-editor-field__hint">@L["ViewEdit_GalleryContentsHint"]</p>
+        <ul class="view-edit-contents__grid">
+            @foreach (var item in Members)
+            {
+                var removed = Gallery.Removed.Contains(item.Id);
+                <li class="@(removed ? "view-edit-contents__tile is-removed" : "view-edit-contents__tile")" @key="item.Id">
+                    <AppImage Src="@item.ThumbnailUrl" Alt="@ViewEditStage.DisplayTitle(item)" Width="96" Height="96" ObjectFit="AppObjectFit.Cover" />
+                    <span class="view-edit-contents__name">@ViewEditStage.DisplayTitle(item)</span>
+                    @if (removed)
+                    {
+                        <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.Replay" OnClick="@(() => Gallery.KeepAgain(item.Id))">@L["ViewEdit_KeepAgain"]</AppButton>
+                    }
+                    else
+                    {
+                        <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.Close" OnClick="@(() => Gallery.Remove([item.Id]))">@L["ViewEdit_RemoveFromGallery"]</AppButton>
+                    }
+                </li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    private bool _loading = true;
+    private List<LocalAssetDto> _members = [];
+
+    [Parameter, EditorRequired] public ViewGalleryEditStage Gallery { get; set; } = default!;
+
+    private IReadOnlyList<LocalAssetDto> Members => _members;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _members = [.. Gallery.StartingMembers];
+        if (Gallery.Id is { } id && Gallery.Original is { } original)
+        {
+            var page = await Api.GetViewAssetsAsync(new ViewAssetQueryOptions(MediaEngine.Domain.PersonalMedia.ViewScopeKind.Mine, null, GalleryId: id, Limit: 500));
+            _members = [.. page?.Items ?? []];
+            _ = original;
+        }
+
+        _loading = false;
+    }
+}
