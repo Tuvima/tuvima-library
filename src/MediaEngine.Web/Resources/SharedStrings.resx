@@ -10452,4 +10452,7 @@
   <data name="EditorFiles_OnlyFirst" xml:space="preserve">
     <value>Only the first files are listed.</value>
   </data>
+  <data name="EditorQuickFacts_Title" xml:space="preserve">
+    <value>Quick Facts</value>
+  </data>
 </root>

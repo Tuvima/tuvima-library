@@ -1,0 +1,69 @@
+/* Quick Facts: the read-only side panel of the Details tab (universal editor v4 D4). It sits to the right of the form and moves under it
+   when the editor window is narrower than 1280 px (see EditorDetailsPanel.razor.css). */
+.tl-quick-facts {
+    display: flex;
+    flex: 0 0 15rem;
+    flex-direction: column;
+    gap: var(--tl-space-3);
+    width: 15rem;
+    padding: var(--tl-space-4);
+    border: 1px solid var(--tl-divider);
+    border-radius: var(--tl-radius-md);
+    background: var(--tl-bg-surface-raised, var(--tl-bg-surface));
+}
+
+.tl-quick-facts__title {
+    margin: 0;
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-sm);
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.tl-quick-facts__row {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--tl-space-3);
+    min-width: 0;
+}
+
+.tl-quick-facts__icon {
+    display: inline-flex;
+    flex: 0 0 auto;
+    margin-top: var(--tl-space-1);
+    color: var(--tl-text-muted);
+}
+
+.tl-quick-facts__text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.tl-quick-facts__value {
+    overflow-wrap: anywhere;
+    color: var(--tl-text-primary);
+    font-size: var(--tl-font-size-md);
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.tl-quick-facts__label {
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-xs);
+}
+
+.tl-quick-facts__note {
+    padding: var(--tl-space-2) var(--tl-space-3);
+    border: 1px solid var(--tl-divider);
+    border-radius: var(--tl-radius-md);
+    background: var(--tl-bg-surface-hover);
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+}
+
+@container tl-editor (max-width: 1279px) {
+    .tl-quick-facts {
+        flex: 0 0 auto;
+        width: auto;
+        align-self: stretch;
+    }
+}
