@@ -1482,7 +1482,7 @@
     overflow: hidden;
     appearance: none;
     border: 0;
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
     background: rgba(120, 139, 171, 0.18);
 }
 

@@ -70,7 +70,7 @@
     align-items: center;
     background: transparent;
     border: 0;
-    border-radius: 999px;
+    border-radius: var(--tl-control-radius);
     color: var(--playback-text-secondary);
     cursor: pointer;
     display: inline-flex;

@@ -48,7 +48,7 @@
 
 :where(.tl-detail-page) .tl-detail-hero-progress__track {
     height: 6px;
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
     background: rgba(255, 255, 255, 0.18);
     overflow: hidden;
 }

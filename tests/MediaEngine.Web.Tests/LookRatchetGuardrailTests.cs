@@ -9,7 +9,8 @@ namespace MediaEngine.Web.Tests;
 /// </summary>
 public sealed class LookRatchetGuardrailTests
 {
-    private const int RoundedEndCeiling = 60;
+    private const int RoundedEndCeiling = 0;
+    private const int RoundTokenCeiling = 47;
     private const int NativeControlCeiling = 501;
 
     private static IEnumerable<(string Relative, string Text)> WebFiles(params string[] extensions)

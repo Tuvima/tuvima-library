@@ -8,7 +8,7 @@
 ::deep .view-date-group__select.is-true span{border-color:#c4b5fd;background:#a78bfa;box-shadow:0 0 .6rem rgba(136, 82, 252,.55)}
 ::deep .view-date-group__select.is-true span::after{content:"";width:.32rem;height:.58rem;margin-top:-.1rem;border:solid #111827;border-width:0 .13rem .13rem 0;transform:rotate(45deg)}
 ::deep .view-date-group__select.is-mixed span{border-color:#c4b5fd;background:rgba(136, 82, 252,.8)}
-::deep .view-date-group__select.is-mixed span::after{content:"";width:.55rem;height:.12rem;border-radius:999px;background:white}
+::deep .view-date-group__select.is-mixed span::after{content:"";width:.55rem;height:.12rem;border-radius:var(--tl-radius-round);background:white}
 ::deep .view-date-group__select:focus-visible{opacity:1;outline:2px solid #ddd6fe;outline-offset:1px}
 .view-grid{display:flex;flex-wrap:wrap;align-items:flex-start;gap:var(--gallery-gap)}
 .view-grid::after{content:none}

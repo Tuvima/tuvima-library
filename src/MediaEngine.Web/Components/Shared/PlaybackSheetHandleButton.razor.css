@@ -25,7 +25,7 @@
 
 .playback-sheet-handle-button__bar {
     background: color-mix(in srgb, var(--playback-text-muted) 48%, transparent);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
     display: block;
     height: 6px;
     transition: background 0.16s ease, transform 0.16s ease;

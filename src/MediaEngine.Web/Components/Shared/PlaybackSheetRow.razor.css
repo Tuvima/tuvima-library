@@ -99,7 +99,7 @@
 
 .playback-sheet-row-shell ::deep .playback-sheet-row__radio {
     border: 2px solid var(--playback-text-secondary);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
     flex: 0 0 auto;
     display: inline-block;
     height: 20px;

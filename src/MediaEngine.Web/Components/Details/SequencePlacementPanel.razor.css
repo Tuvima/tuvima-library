@@ -371,7 +371,7 @@
     min-height: 2.1rem;
     padding: 0 0.8rem;
     border: 1px solid rgba(126, 162, 255, 0.34);
-    border-radius: 999px;
+    border-radius: var(--tl-control-radius);
     background: rgba(10, 18, 30, 0.7);
     color: rgba(235, 242, 255, 0.86);
     font-size: 0.78rem;
@@ -1443,7 +1443,7 @@
     height: 0.35rem;
     margin-inline: 0.35rem;
     overflow: hidden;
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
     background: rgba(255, 255, 255, 0.16);
 }
 

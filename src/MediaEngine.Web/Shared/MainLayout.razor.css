@@ -209,7 +209,7 @@
     top: 0;
     width: 1.5rem;
     height: 2px;
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
     background: var(--tl-accent-primary);
     opacity: 0;
 }
@@ -385,7 +385,7 @@
     right: 0;
     bottom: 0.12rem;
     height: 2px;
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
     background: var(--app-primary, #236dc9);
     opacity: 0;
     transform: scaleX(0.45);
@@ -441,7 +441,7 @@
     place-items: center;
     padding: 0;
     border: 0;
-    border-radius: 999px;
+    border-radius: var(--tl-control-radius);
     color: var(--layout-my-list-color, var(--app-text-primary, #f5f7fb));
     background: transparent;
     cursor: pointer;
@@ -565,7 +565,7 @@ html[data-form-factor="phone"] .layout-shell__intent-dock {
     padding: 4px;
     overflow: hidden;
     border: 1px solid var(--tl-border-default);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
     background: color-mix(in srgb, var(--tl-bg-shell) 88%, transparent);
     box-shadow: var(--tl-shadow-lg);
     backdrop-filter: blur(20px) saturate(120%);
@@ -579,7 +579,7 @@ html[data-form-factor="phone"] .layout-shell__intent-dock-link {
     grid-template-rows: 22px auto;
     padding: 4px 2px;
     gap: 2px;
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
 }
 
 html[data-form-factor="phone"] .layout-shell__intent-dock-link::before {

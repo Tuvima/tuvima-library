@@ -176,7 +176,7 @@
 .playback-position-row__action-ring {
     align-items: center;
     border: 2px solid var(--playback-accent);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
     color: var(--playback-accent);
     display: inline-flex;
     height: 46px;

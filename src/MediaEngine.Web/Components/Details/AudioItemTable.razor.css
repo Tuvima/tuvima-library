@@ -223,7 +223,7 @@
     width: min(7rem, 100%);
     height: 0.24rem;
     overflow: hidden;
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
     background: rgba(148, 163, 184, 0.22);
 }
 
@@ -648,7 +648,7 @@
     justify-content: center;
     padding: 0;
     border: 1px solid rgba(255,255,255,0.10);
-    border-radius: 999px;
+    border-radius: var(--tl-control-radius);
     background: rgba(255,255,255,0.04);
     color: rgba(246, 240, 232, 0.66);
 }

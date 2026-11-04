@@ -184,7 +184,7 @@
 .media-section-shell__rail-child-marker {
     width: 5px;
     height: 5px;
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
     background: currentColor;
 }
 
@@ -376,7 +376,7 @@
     justify-self: end;
     width: 0.5rem;
     height: 0.5rem;
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
     background: var(--tl-accent-primary);
 }
 
@@ -647,7 +647,7 @@
         width: 0.35rem;
         height: 0.35rem;
         justify-self: center;
-        border-radius: 999px;
+        border-radius: var(--tl-radius-round);
         background: currentColor;
     }
 

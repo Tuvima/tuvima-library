@@ -593,7 +593,7 @@
     width: 28px !important;
     height: 28px !important;
     place-items: center !important;
-    border-radius: 999px !important;
+    border-radius: var(--tl-control-radius) !important;
     background: rgba(124, 77, 255, 0.13) !important;
 }
 

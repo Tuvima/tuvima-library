@@ -29,7 +29,7 @@
                 <span class="top-nav-account-menu__trigger-copy">@DisplayName</span>
                 @if (IsKids)
                 {
-                    <span class="kids-badge">@L["Common_Kids"]</span>
+                    <AppChip Text="@L["Common_Kids"].Value" Tone="AppUiTone.Info" />
                 }
                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.KeyboardArrowDown"
                          Class="top-nav-account-menu__chevron" />
@@ -68,7 +68,7 @@
                     <strong>@HeaderLabel</strong>
                     @if (IsKids)
                     {
-                        <span class="kids-badge">@L["Common_Kids"]</span>
+                        <AppChip Text="@L["Common_Kids"].Value" Tone="AppUiTone.Info" />
                     }
                 </header>
 

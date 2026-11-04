@@ -27,7 +27,7 @@
     height: var(--playback-relative-skip-size);
     min-width: var(--playback-relative-skip-size);
     border: 0;
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
     background: transparent;
     color: currentColor;
     cursor: pointer;

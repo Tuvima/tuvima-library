@@ -627,7 +627,7 @@ body {
     height: 30px;
     align-items: center;
     justify-content: center;
-    border-radius: 999px;
+    border-radius: var(--tl-control-radius);
     color: var(--app-text-primary);
     background: rgba(12, 14, 20, 0.9);
     border: 1px solid var(--app-border);
@@ -920,7 +920,7 @@ code,
 
 .app-progress-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; min-width: 0; }
 .app-progress-bar__label { grid-column: 1 / -1; color: var(--app-text-muted); font-size: 12px; font-weight: 600; }
-.app-progress-bar__track { min-width: 0; height: 5px; overflow: hidden; background: var(--app-surface-2); border-radius: 999px; }
+.app-progress-bar__track { min-width: 0; height: 5px; overflow: hidden; background: var(--app-surface-2); border-radius: var(--tl-radius-round); }
 .app-progress-bar__fill { width: 0; height: 100%; background: var(--app-progress-accent, var(--app-primary)); border-radius: inherit; transition: width 0.2s ease; }
 .app-progress-bar__value { color: var(--app-text-muted); font-size: 12px; font-weight: 600; }
 
@@ -2618,7 +2618,7 @@ input.app-control.tl-input-slot,
     min-height: 24px;
     padding: 0 var(--tl-space-2);
     border: 1px solid var(--tl-border-default);
-    border-radius: var(--tl-radius-md);
+    border-radius: var(--tl-radius-pill);
     color: var(--tl-text-secondary);
     background: var(--tl-bg-surface-raised);
     font-family: var(--font-ui);
@@ -4143,7 +4143,7 @@ html[data-form-factor="tablet"] .tl-detail-page {
 }
 
 .view-artwork-row-menu .app-row-menu__trigger {
-    border-radius: 999px;
+    border-radius: var(--tl-control-radius);
     background: rgba(2, 6, 16, 0.72);
     color: var(--tl-text-primary);
 }
@@ -4861,7 +4861,7 @@ input[type="reset"],
 
 /* Universe hierarchy inside the shared artwork workspace. */
 .artwork-workspace-core__hierarchy { display:flex; gap:.45rem; padding:0 1.5rem .8rem; overflow-x:auto; }
-.artwork-workspace-core__hierarchy .artwork-workspace-core__hierarchy-item { display:flex; align-items:center; gap:.4rem; padding:.5rem .75rem; border:1px solid rgba(255,255,255,.1); border-radius:999px; background:transparent; color:rgba(255,255,255,.64); white-space:nowrap; cursor:pointer; }
+.artwork-workspace-core__hierarchy .artwork-workspace-core__hierarchy-item { display:flex; align-items:center; gap:.4rem; padding:.5rem .75rem; border:1px solid rgba(255,255,255,.1); border-radius:var(--tl-radius-pill); background:transparent; color:rgba(255,255,255,.64); white-space:nowrap; cursor:pointer; }
 .artwork-workspace-core__hierarchy .artwork-workspace-core__hierarchy-item.is-active { border-color:#9859f6; background:rgba(126,63,210,.22); color:#fff; }
 .artwork-workspace-core__hierarchy-item span { font-size:.75rem; color:#b993f5; }
 .artwork-workspace-core__entities { display:flex; gap:.6rem; padding:0 1.5rem 1rem; overflow-x:auto; }
@@ -4973,7 +4973,7 @@ input[type="reset"],
 .profiles-tab__row:hover { background: color-mix(in srgb, var(--tl-text-primary) 6%, transparent); }
 .profiles-tab__row:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: -2px; }
 @media (min-width: 1600px) { .profiles-tab__row { min-height: 72px; font-size: 1.15rem; } }
-.who-button { min-height: 44px; padding: 0 28px; color: var(--tl-text-primary); border: 1px solid var(--tl-border-strong); border-radius: 999px; background: transparent; font: inherit; font-weight: 600; cursor: pointer; }
+.who-button { min-height: 44px; padding: 0 28px; color: var(--tl-text-primary); border: 1px solid var(--tl-border-strong); border-radius: var(--tl-control-radius); background: transparent; font: inherit; font-weight: 600; cursor: pointer; }
 .who-button--primary { color: #fff; border-color: transparent; background: var(--tl-accent-primary); }
 .who-button:disabled { cursor: not-allowed; opacity: .55; }
 .who-dialog__input { box-sizing: border-box; width: 100%; min-height: 48px; padding: 0 14px; color: var(--tl-text-primary); border: 1px solid var(--tl-border-strong); border-radius: var(--tl-radius-md); background: var(--tl-bg-base); font: inherit; font-size: 1.2rem; letter-spacing: .3em; text-align: center; }
@@ -5140,7 +5140,7 @@ input[type="reset"],
     width: 2.2rem;
     height: 2.2rem;
     overflow: hidden;
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
 }
 
 .profile-switcher__name {
@@ -5154,7 +5154,7 @@ input[type="reset"],
 .profile-switcher__tag {
     flex: 0 0 auto;
     padding: 0.1rem 0.45rem;
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     color: #fff;
     background: rgba(136, 82, 252, 0.45);
     font-size: 0.75rem;
@@ -5331,7 +5331,7 @@ input[type="reset"],
     height: var(--tl-touch-target-min);
     padding: 0;
     border: 0;
-    border-radius: 999px;
+    border-radius: var(--tl-control-radius);
     color: var(--app-text-primary, var(--tl-text-primary));
     background: transparent;
     cursor: pointer;
@@ -5609,7 +5609,7 @@ input[type="reset"],
 
 /* Settings banner X (SettingsNoticeBubble): an AppNativeButton, so its root styles live here. Touch and narrow windows grow it to 44px
    in the shared tap-target block. */
-.settings-notice__dismiss { display: inline-flex; flex: 0 0 auto; width: 32px; height: 32px; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 999px; background: transparent; color: var(--tl-text-secondary); cursor: pointer; }
+.settings-notice__dismiss { display: inline-flex; flex: 0 0 auto; width: 32px; height: 32px; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: var(--tl-control-radius); background: transparent; color: var(--tl-text-secondary); cursor: pointer; }
 .settings-notice__dismiss:hover,
 .settings-notice__dismiss:focus-visible { background: var(--tl-bg-surface-hover); color: var(--tl-text-primary); }
 
@@ -6299,7 +6299,7 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-watch-metadata-separat
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-watch-metadata-item:not(.tl-detail-watch-metadata-item--classification) {
     padding: 0.28rem 0.65rem;
     border: 1px solid rgba(255, 255, 255, 0.16);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     background: rgba(6, 9, 17, 0.42);
     white-space: normal;
 }
@@ -6328,7 +6328,7 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-hero-genre::before {
     z-index: 0;
     inset: 0.4rem 0;
     border: 1px solid color-mix(in srgb, var(--tl-detail-primary, #8852FC) 48%, rgba(255, 255, 255, 0.2));
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
     background: rgba(6, 9, 17, 0.42);
 }
 

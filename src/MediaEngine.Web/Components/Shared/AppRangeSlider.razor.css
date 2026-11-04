@@ -26,7 +26,7 @@
 
 .playback-range-slider__track {
     background: var(--playback-track, #30364A);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
     height: var(--playback-range-track-height);
     left: 0;
     overflow: hidden;
@@ -119,7 +119,7 @@
 .playback-range-slider__thumb {
     background: var(--playback-surface);
     border: 4px solid var(--playback-range-accent);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
     box-shadow: 0 0 0 4px var(--playback-accent-soft), 0 0 18px var(--playback-accent-glow);
     height: var(--playback-range-thumb-size);
     position: absolute;

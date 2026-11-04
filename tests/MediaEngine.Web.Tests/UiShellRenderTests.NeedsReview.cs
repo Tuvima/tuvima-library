@@ -80,7 +80,7 @@ public sealed partial class UiShellRenderTests
 
         var cut = RenderOpenAccountMenu(authority, KidsProfile("Maya"));
 
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".kids-badge")));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".app-chip")));
         Assert.Empty(cut.FindAll(NeedsReviewLink));
     }
 }

@@ -170,7 +170,7 @@
 .universal-search-overlay__empty section ::deep button {
     padding: 8px 12px;
     border: 1px solid rgba(128, 146, 180, 0.24);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     background: rgba(17, 25, 43, 0.64);
     color: var(--tl-text-secondary);
     cursor: pointer;
