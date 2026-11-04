@@ -27,7 +27,7 @@ public partial interface IEngineApiClient
 
     /// <summary>Applies one bulk edit to the selected documents and returns what happened to each.</summary>
     /// <summary>The one Save of the photos, videos and documents editor: checks everything first, then changes every item or none (spec photos-documents-editor, WP1).</summary>
-    Task<ViewCatalogueResult<ViewItemsEditResultDto>> EditViewItemsAsync(ViewItemsEditRequest request, CancellationToken ct = default);
+    Task<ViewCatalogueResult<ViewItemsEditResultDto>> EditViewItemsAsync(ViewItemsEditSetRequest request, CancellationToken ct = default);
 
     Task<ViewCatalogueResult<ViewDocumentBulkResultDto>> BulkEditViewDocumentsAsync(ViewDocumentBulkRequest request, CancellationToken ct = default);
 

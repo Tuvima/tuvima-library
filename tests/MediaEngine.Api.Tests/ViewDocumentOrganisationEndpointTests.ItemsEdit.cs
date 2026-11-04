@@ -24,9 +24,9 @@ public sealed partial class ViewDocumentOrganisationEndpointTests
         return id;
     }
 
-    private async Task<ViewItemsEditResultDto> SaveEdit(ViewItemsEditRequest request)
+    private async Task<ViewItemsEditResultDto> SaveEdit(ViewItemsEditRequest request, bool previewOnly = false)
     {
-        using var response = await _client.PostAsJsonAsync("/view/items/edit", request);
+        using var response = await _client.PostAsJsonAsync("/view/items/edit", new ViewItemsEditSetRequest([request], previewOnly));
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         return (await response.Content.ReadFromJsonAsync<ViewItemsEditResultDto>())!;
     }
@@ -67,7 +67,7 @@ public sealed partial class ViewDocumentOrganisationEndpointTests
         var late = await AddPhoto(person, 'a', new DateTimeOffset(2026, 3, 8, 22, 0, 0, TimeSpan.Zero));
         var early = await AddPhoto(person, 'b', new DateTimeOffset(2026, 3, 8, 9, 0, 0, TimeSpan.Zero));
 
-        var preview = await SaveEdit(new ViewItemsEditRequest([late, early], PreviewOnly: true, CapturedShiftSeconds: 3 * 3600, TagsAdd: ["x"]));
+        var preview = await SaveEdit(new ViewItemsEditRequest([late, early], CapturedShiftSeconds: 3 * 3600, TagsAdd: ["x"]), previewOnly: true);
 
         Assert.True(preview.Valid);
         Assert.False(preview.Saved);
@@ -84,7 +84,7 @@ public sealed partial class ViewDocumentOrganisationEndpointTests
         _actor.Current = blocked.Authority;
 
         using var response = await _client.PostAsJsonAsync("/view/items/edit",
-            new ViewItemsEditRequest([document], TagsAdd: ["Sneaky"], Document: new ViewItemsDocumentEdit(SetCorrespondent: true, Correspondent: "Someone")));
+            new ViewItemsEditSetRequest([new ViewItemsEditRequest([document], TagsAdd: ["Sneaky"], Document: new ViewItemsDocumentEdit(SetCorrespondent: true, Correspondent: "Someone"))]));
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         Assert.Empty(_assets.Find(document)!.Tags);
@@ -126,6 +126,28 @@ public sealed partial class ViewDocumentOrganisationEndpointTests
     }
 
     [Fact]
+    public async Task ASaveOfSeveralEditsIsCheckedAsOne_SoOneRefusedEditStopsThemAll()
+    {
+        var mine = await CreatePerson("StandardUser");
+        var theirs = await CreatePerson("StandardUser");
+        var first = await AddPhoto(mine, 'a');
+        var second = await AddPhoto(mine, 'b');
+        var other = await AddPhoto(theirs, 'c');
+        _actor.Current = mine.Authority;
+
+        using var refused = await _client.PostAsJsonAsync("/view/items/edit", new ViewItemsEditSetRequest(
+            [new ViewItemsEditRequest([first], TagsAdd: ["One"]), new ViewItemsEditRequest([other], TagsAdd: ["Two"])]));
+        Assert.False((await refused.Content.ReadFromJsonAsync<ViewItemsEditResultDto>())!.Saved);
+        Assert.Empty(_assets.Find(first)!.Tags);
+
+        using var fine = await _client.PostAsJsonAsync("/view/items/edit", new ViewItemsEditSetRequest(
+            [new ViewItemsEditRequest([first], TagsAdd: ["One"]), new ViewItemsEditRequest([second], SetDescription: true, Description: "Two")]));
+        Assert.True((await fine.Content.ReadFromJsonAsync<ViewItemsEditResultDto>())!.Saved);
+        Assert.Contains("One", _assets.Find(first)!.Tags);
+        Assert.Equal("Two", _assets.Find(second)!.Description);
+    }
+
+    [Fact]
     public async Task NewGalleryNamedInTheSaveIsMadeWithAllTheChosenPhotos()
     {
         var person = await CreatePerson("StandardUser");
@@ -153,7 +175,7 @@ public sealed partial class ViewDocumentOrganisationEndpointTests
         var context = new ViewItemsEditService.Context(viewer, person.ProfileId, space.Id, [], _ => Task.FromResult<string?>(null), _ => Task.FromResult(true));
 
         var result = await service.RunAsync(context,
-            new ViewItemsEditRequest([one, two], TagsAdd: ["Temp"], CapturedShiftSeconds: 3600, CreateGalleryName: "Doomed"), [], CancellationToken.None);
+            new ViewItemsEditSetRequest([new ViewItemsEditRequest([one, two], TagsAdd: ["Temp"], CapturedShiftSeconds: 3600, CreateGalleryName: "Doomed")]), [], CancellationToken.None);
 
         Assert.False(result.Saved);
         Assert.Empty(_assets.Find(one)!.Tags);

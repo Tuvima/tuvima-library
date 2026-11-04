@@ -3,13 +3,11 @@ using System.Text.Json.Serialization;
 namespace MediaEngine.Contracts.LocalAssets;
 
 /// <summary>
-/// One Save from the photos, videos and documents editor (spec photos-documents-editor, WP1): everything the person changed on one or
-/// many items, applied together. A field left null is left alone. All of it is checked first; if anything is refused nothing is
+/// What the person changed on one item or one group of items in the photos, videos and documents editor (spec photos-documents-editor, WP1). A field left null is left alone. All of it is checked first; if anything is refused nothing is
 /// written, and if a step fails part-way the steps already taken are put back, so a failed Save never leaves 20 photos half-tagged.
 /// </summary>
 public sealed record ViewItemsEditRequest(
     [property: JsonPropertyName("item_ids")] IReadOnlyList<Guid> ItemIds,
-    [property: JsonPropertyName("preview_only")] bool PreviewOnly = false,
     [property: JsonPropertyName("set_description")] bool SetDescription = false,
     [property: JsonPropertyName("description")] string? Description = null,
     [property: JsonPropertyName("tags_add")] IReadOnlyList<string>? TagsAdd = null,
@@ -24,6 +22,14 @@ public sealed record ViewItemsEditRequest(
     [property: JsonPropertyName("gallery_remove_ids")] IReadOnlyList<Guid>? GalleryRemoveIds = null,
     [property: JsonPropertyName("create_gallery_name")] string? CreateGalleryName = null,
     [property: JsonPropertyName("document")] ViewItemsDocumentEdit? Document = null);
+
+/// <summary>
+/// The whole of one Save: one edit for each item or group the person changed (when stepping between photos of a gallery, changes on several
+/// photos are kept and saved together). Every edit is checked before any is written, so the set is all or none.
+/// </summary>
+public sealed record ViewItemsEditSetRequest(
+    [property: JsonPropertyName("edits")] IReadOnlyList<ViewItemsEditRequest> Edits,
+    [property: JsonPropertyName("preview_only")] bool PreviewOnly = false);
 
 /// <summary>
 /// The document fields of one Save. A group offers only Correspondent, Type and Date; Title, Archive number and Notes are single-item only

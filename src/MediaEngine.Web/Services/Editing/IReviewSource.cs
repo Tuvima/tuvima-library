@@ -42,6 +42,9 @@ public interface IReviewSource
     /// <summary>The editor media types ("Music", "TV"...) being edited, which say which library's file setting applies.</summary>
     IReadOnlyList<string> FileWriteMediaTypes { get; }
 
+    /// <summary>Whether Review shows the "Files will be updated" line (the View editor never writes into files, so it does not).</summary>
+    bool ShowsFilesStatus => true;
+
     /// <summary>This save's own answer to "Save changes into the files": null follows the library, false skips the files this once.</summary>
     bool? WriteIntoFiles { get; set; }
 }

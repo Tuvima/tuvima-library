@@ -28,62 +28,80 @@ public sealed class ViewItemsEditService(
         Func<IReadOnlyCollection<string>, Task<string?>> FirstUnknownPerson,
         Func<Guid, Task<bool>> CanContributeToGallery);
 
-    public async Task<ViewItemsEditResultDto> RunAsync(Context context, ViewItemsEditRequest request, IReadOnlyCollection<ViewItemsEditRefusalDto> accessRefusals, CancellationToken ct)
+    public async Task<ViewItemsEditResultDto> RunAsync(Context context, ViewItemsEditSetRequest set, IReadOnlyCollection<ViewItemsEditRefusalDto> accessRefusals, CancellationToken ct)
     {
-        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(set);
+        if (set.Edits is null || set.Edits.Count == 0)
+        {
+            throw new ArgumentException("There is nothing to save.");
+        }
+
         var refusals = new List<ViewItemsEditRefusalDto>(accessRefusals);
-        var ids = ValidateShape(request);
-        var snapshots = new Dictionary<Guid, LocalAssetDto>();
-        foreach (var id in ids)
-        {
-            if (assets.Find(id, ct) is { } found)
-            {
-                snapshots[id] = found;
-            }
-            else
-            {
-                refusals.Add(new ViewItemsEditRefusalDto(id, "This item is not available."));
-            }
-        }
-
-        var group = ids.Count > 1;
+        var planned = new List<(ViewItemsEditRequest Request, Dictionary<Guid, LocalAssetDto> Snapshots)>();
         var dayMoves = 0;
-        foreach (var (id, item) in snapshots)
+        var seen = new HashSet<Guid>();
+        foreach (var request in set.Edits)
         {
-            var isDocument = string.Equals(item.MediaKind, LocalAssetMediaKinds.Document, StringComparison.Ordinal);
-            if (Reason(item, isDocument, group, request) is { } reason)
+            ArgumentNullException.ThrowIfNull(request);
+            var ids = ValidateShape(request);
+            var snapshots = new Dictionary<Guid, LocalAssetDto>();
+            foreach (var id in ids)
             {
-                refusals.Add(new ViewItemsEditRefusalDto(id, reason));
-                continue;
-            }
-
-            if (NewCapturedAt(item, request) is { } moved && item.CapturedAt is { } was && DayOf(was) != DayOf(moved))
-            {
-                dayMoves++;
-            }
-        }
-
-        if (refusals.Count == 0 && request.PeopleAdd is { Count: > 0 } added
-            && await context.FirstUnknownPerson(added) is { } unknown)
-        {
-            throw new ArgumentException($"'{unknown}' is not an identified person in this View library.");
-        }
-
-        var galleryAdds = (request.GalleryAddIds ?? []).Where(id => id != Guid.Empty).Distinct().ToList();
-        var galleryRemoves = (request.GalleryRemoveIds ?? []).Where(id => id != Guid.Empty).Distinct().ToList();
-        if (refusals.Count == 0)
-        {
-            foreach (var galleryId in galleryAdds.Concat(galleryRemoves))
-            {
-                if (!await context.CanContributeToGallery(galleryId))
+                if (!seen.Add(id))
                 {
-                    throw new ArgumentException("One of the galleries is not available.");
+                    throw new ArgumentException("An item can only be in one edit of a Save.");
+                }
+
+                if (assets.Find(id, ct) is { } found)
+                {
+                    snapshots[id] = found;
+                }
+                else
+                {
+                    refusals.Add(new ViewItemsEditRefusalDto(id, "This item is not available."));
                 }
             }
 
-            if (!string.IsNullOrWhiteSpace(request.CreateGalleryName) && context.PersonalSpaceId is null)
+            var group = ids.Count > 1;
+            foreach (var (id, item) in snapshots)
             {
-                throw new ArgumentException("A new gallery can't be made here.");
+                var isDocument = string.Equals(item.MediaKind, LocalAssetMediaKinds.Document, StringComparison.Ordinal);
+                if (Reason(item, isDocument, group, request) is { } reason)
+                {
+                    refusals.Add(new ViewItemsEditRefusalDto(id, reason));
+                    continue;
+                }
+
+                if (NewCapturedAt(item, request) is { } moved && item.CapturedAt is { } was && DayOf(was) != DayOf(moved))
+                {
+                    dayMoves++;
+                }
+            }
+
+            planned.Add((request, snapshots));
+        }
+
+        if (refusals.Count == 0)
+        {
+            foreach (var request in set.Edits)
+            {
+                if (request.PeopleAdd is { Count: > 0 } added && await context.FirstUnknownPerson(added) is { } unknown)
+                {
+                    throw new ArgumentException($"'{unknown}' is not an identified person in this View library.");
+                }
+
+                foreach (var galleryId in (request.GalleryAddIds ?? []).Concat(request.GalleryRemoveIds ?? []).Where(id => id != Guid.Empty).Distinct())
+                {
+                    if (!await context.CanContributeToGallery(galleryId))
+                    {
+                        throw new ArgumentException("One of the galleries is not available.");
+                    }
+                }
+
+                if (!string.IsNullOrWhiteSpace(request.CreateGalleryName) && context.PersonalSpaceId is null)
+                {
+                    throw new ArgumentException("A new gallery can't be made here.");
+                }
             }
         }
 
@@ -92,51 +110,57 @@ public sealed class ViewItemsEditService(
             return new ViewItemsEditResultDto(false, false, 0, refusals, "Nothing was saved: some items can't be changed this way.", DayMoves: dayMoves);
         }
 
-        if (request.PreviewOnly)
+        var total = planned.Sum(entry => entry.Snapshots.Count);
+        if (set.PreviewOnly)
         {
-            return new ViewItemsEditResultDto(false, true, snapshots.Count, [], DayMoves: dayMoves);
+            return new ViewItemsEditResultDto(false, true, total, [], DayMoves: dayMoves);
         }
 
-        var applied = new List<Guid>();
-        Guid? createdGallery = null;
+        var applied = new List<LocalAssetDto>();
+        var createdGalleries = new List<Guid>();
+        Guid? firstCreated = null;
         try
         {
-            foreach (var (id, item) in snapshots)
+            foreach (var (request, snapshots) in planned)
             {
-                ct.ThrowIfCancellationRequested();
-                applied.Add(id);
-                await ApplyAsync(context, item, request, ct).ConfigureAwait(false);
-            }
+                foreach (var (_, item) in snapshots)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    applied.Add(item);
+                    await ApplyAsync(context, item, request, ct).ConfigureAwait(false);
+                }
 
-            var touched = snapshots.Keys.ToList();
-            if (!string.IsNullOrWhiteSpace(request.CreateGalleryName))
-            {
-                var gallery = await galleries.CreateAsync(new CreateViewGalleryCommand(
-                    context.ProfileId, context.PersonalSpaceId!.Value, request.CreateGalleryName.Trim(), ViewGalleryKind.Manual), ct).ConfigureAwait(false);
-                createdGallery = gallery.Id;
-                await galleries.AddItemsAsync(gallery.Id, touched, context.BlockedKinds, ct).ConfigureAwait(false);
-            }
+                var touched = snapshots.Keys.ToList();
+                if (!string.IsNullOrWhiteSpace(request.CreateGalleryName))
+                {
+                    var gallery = await galleries.CreateAsync(new CreateViewGalleryCommand(
+                        context.ProfileId, context.PersonalSpaceId!.Value, request.CreateGalleryName.Trim(), ViewGalleryKind.Manual), ct).ConfigureAwait(false);
+                    createdGalleries.Add(gallery.Id);
+                    firstCreated ??= gallery.Id;
+                    await galleries.AddItemsAsync(gallery.Id, touched, context.BlockedKinds, ct).ConfigureAwait(false);
+                }
 
-            foreach (var galleryId in galleryAdds)
-            {
-                await galleries.AddItemsAsync(galleryId, touched, context.BlockedKinds, ct).ConfigureAwait(false);
-            }
+                foreach (var galleryId in (request.GalleryAddIds ?? []).Where(id => id != Guid.Empty).Distinct())
+                {
+                    await galleries.AddItemsAsync(galleryId, touched, context.BlockedKinds, ct).ConfigureAwait(false);
+                }
 
-            foreach (var galleryId in galleryRemoves)
-            {
-                await galleries.RemoveItemsAsync(galleryId, touched, true, ct).ConfigureAwait(false);
+                foreach (var galleryId in (request.GalleryRemoveIds ?? []).Where(id => id != Guid.Empty).Distinct())
+                {
+                    await galleries.RemoveItemsAsync(galleryId, touched, true, ct).ConfigureAwait(false);
+                }
             }
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             logger.LogWarning(exception, "A View save failed part-way; putting {Count} item(s) back.", applied.Count);
-            await PutBackAsync(context, applied.Select(id => snapshots[id]).ToList(), createdGallery, ct).ConfigureAwait(false);
+            await PutBackAsync(context, applied, createdGalleries, ct).ConfigureAwait(false);
             return exception is ArgumentException or InvalidOperationException or ViewCatalogueAccessException or ViewCatalogueConflictException
                 ? new ViewItemsEditResultDto(false, false, 0, [], $"Nothing was saved. {exception.Message}")
                 : new ViewItemsEditResultDto(false, false, 0, [], "Nothing was saved: something went wrong, and everything was put back as it was.");
         }
 
-        return new ViewItemsEditResultDto(true, true, snapshots.Count, [], CreatedGalleryId: createdGallery, DayMoves: dayMoves);
+        return new ViewItemsEditResultDto(true, true, total, [], CreatedGalleryId: firstCreated, DayMoves: dayMoves);
     }
 
     private static List<Guid> ValidateShape(ViewItemsEditRequest request)
@@ -287,11 +311,12 @@ public sealed class ViewItemsEditService(
     }
 
     // Puts every touched item back to what it said before, in reverse; a gallery made by this Save is removed and its additions undone.
-    private async Task PutBackAsync(Context context, IReadOnlyList<LocalAssetDto> touchedItems, Guid? createdGallery, CancellationToken ct)
+    private async Task PutBackAsync(Context context, IReadOnlyList<LocalAssetDto> touchedItems, IReadOnlyList<Guid> createdGalleries, CancellationToken ct)
     {
-        if (createdGallery is { } made)
+        foreach (var made in createdGalleries)
         {
-            await Try(() => galleries.DeleteAsync(made, ct)).ConfigureAwait(false);
+            var gallery = made;
+            await Try(() => galleries.DeleteAsync(gallery, ct)).ConfigureAwait(false);
         }
 
         // Items that were already in a gallery are not told apart here, so a failed Save never removes an item from a gallery it

@@ -17,7 +17,7 @@ public static partial class ViewEndpoints
 {
     private static void MapItemsEdit(RouteGroupBuilder group)
     {
-        group.MapPost("/items/edit", async ([FromBody] ViewItemsEditRequest request,
+        group.MapPost("/items/edit", async ([FromBody] ViewItemsEditSetRequest set,
             IViewRequestProfileContext identity, IViewProfileRepository preferences, IViewScopeResolver resolver,
             IViewResourceAuthorizationService authorization, ILocalAssetRepository assets,
             IViewPersonalSpaceRepository spaces, ViewDiscoveryService discovery, ViewItemsEditService service,
@@ -31,7 +31,8 @@ public static partial class ViewEndpoints
                     return Unauthenticated();
                 }
 
-                var ids = (request.ItemIds ?? []).Distinct().ToList();
+                var requests = set.Edits ?? [];
+                var ids = requests.SelectMany(request => request.ItemIds ?? []).Distinct().ToList();
                 var refusals = new List<ViewItemsEditRefusalDto>();
                 var hasDocuments = false;
                 foreach (var id in ids)
@@ -56,7 +57,7 @@ public static partial class ViewEndpoints
                 }
 
                 var blocked = await BlockedKindsAsync(authority, preferences, ct);
-                var space = request.CreateGalleryName is { Length: > 0 } ? await spaces.GetByOwnerAsync(profileId, ct) : null;
+                var space = requests.Any(request => request.CreateGalleryName is { Length: > 0 }) ? await spaces.GetByOwnerAsync(profileId, ct) : null;
                 var context = new ViewItemsEditService.Context(
                     access.Viewer, profileId, space?.Id, blocked,
                     async names =>
@@ -73,7 +74,7 @@ public static partial class ViewEndpoints
                         return null;
                     },
                     async galleryId => (await GalleryAccessAsync(galleryId, ViewResourceAction.Contribute, identity, authorization, ct)).IsAllowed);
-                return Results.Ok(await service.RunAsync(context, request, refusals, ct));
+                return Results.Ok(await service.RunAsync(context, set, refusals, ct));
             }
             catch (Exception exception) when (exception is ViewCatalogueConflictException or ViewCatalogueAccessException or ArgumentException)
             {
