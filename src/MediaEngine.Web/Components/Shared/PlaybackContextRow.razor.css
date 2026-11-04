@@ -10,13 +10,13 @@
 }
 .playback-context-row.is-current { background: var(--playback-accent-soft); box-shadow: inset 3px 0 var(--tl-accent-primary); }
 .playback-context-row--history { --playback-context-duration-width:0px; }
-.playback-context-row--history-played { --playback-context-duration-width:84px; }
-.playback-context-row--history-played .playback-context-row__duration { line-height:1.25; white-space:normal; }
+
+
 .playback-context-row--handled { column-gap:8px; grid-template-columns:28px var(--playback-context-leading-width, 56px) minmax(0, 1fr) var(--playback-context-duration-width, 56px) 44px; padding-inline-start:4px; }
 .playback-context-row--handled .playback-context-row__duration { grid-column:4; }
 .playback-context-row--handled .playback-context-row__actions { grid-column:5; }
 .playback-context-row__handle { align-items:center; display:flex; justify-content:center; width:28px; }
-.playback-context-row--history-duration { --playback-context-leading-width:80px; --playback-context-duration-width:56px; }
+
 .playback-context-row--chapter {
     appearance:none;
     background:transparent;

@@ -62,13 +62,7 @@
     border-bottom: 0;
 }
 
-.library-folders__row--head {
-    min-height: 40px;
-    color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 700;
-    text-transform: uppercase;
-}
+
 
 .library-folders__name {
     display: flex;
@@ -120,9 +114,7 @@
         grid-template-columns: minmax(0, 1fr) auto;
     }
 
-    .library-folders__row--head {
-        display: none;
-    }
+    
 
     .library-folders__table-head {
         display: none;

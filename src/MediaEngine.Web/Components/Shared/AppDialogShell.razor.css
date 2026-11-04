@@ -52,10 +52,7 @@
     background: transparent;
 }
 
-.app-dialog-shell--fullscreen-editor {
-    width: min(100%, 1180px);
-    max-height: min(92vh, 980px);
-}
+
 
 .app-dialog-shell__header {
     display: flex;

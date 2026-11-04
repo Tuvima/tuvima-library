@@ -285,17 +285,7 @@
     font-size: var(--tl-font-size-secondary);
 }
 
-.media-section-shell__smart-badge {
-    padding: 2px 5px;
-    color: rgba(216, 180, 254, 0.95);
-    border: 1px solid rgba(136, 82, 252, 0.3);
-    border-radius: var(--tl-radius-pill);
-    background: rgba(126, 34, 206, 0.14);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 800;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-}
+
 
 ::deep .media-section-shell__manage-menu .app-overflow-menu__trigger {
     width: 28px;

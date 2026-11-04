@@ -31,10 +31,7 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.encode-settings__table-wrap {
-    min-width: 0;
-    overflow-x: auto;
-}
+
 
 .encode-settings__health {
     display: flex;

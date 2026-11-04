@@ -556,18 +556,9 @@
     }
 
 
-    .vmt-row--drillable:hover .vmt-drill-chevron {
-        opacity: 0.6;
-    }
+    
 
-    .vmt-drill-chevron {
-        opacity: 0;
-        transition: opacity 0.15s;
-        color: var(--tl-text-muted);
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-    }
+    
 
 
     .vmt-manage-actions {

@@ -1,24 +1,24 @@
 
 .libraries,.library-detail {display:flex;flex-direction:column;gap:16px;min-width:0}
 .libraries__actions:empty {display:none}
-.libraries-card__heading,.libraries__savebar {display:flex;align-items:center;justify-content:space-between;gap:20px}
-.libraries-card__heading p {margin:5px 0 0;color:var(--tl-text-muted);font-size:var(--tl-font-size-sm);line-height:1.5}
-.libraries-card__heading h2 {margin:0;font-size:var(--tl-font-size-xl)}
-.libraries-card__heading h3 {margin:0;font-size:var(--tl-font-size-lg)}
+.libraries__savebar {display:flex;align-items:center;justify-content:space-between;gap:20px}
+
+
+
 .libraries-form-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
 .libraries-example {display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding:10px 12px;border:1px solid var(--tl-border-subtle);border-radius:8px;font-size:var(--tl-font-size-secondary)}
-.libraries-example code,.library-detail__advanced code {overflow-wrap:anywhere;display:block}
+.libraries-example code{overflow-wrap:anywhere;display:block}
 .libraries-example span {color:var(--tl-text-muted)}
 .libraries-example details {margin-left:auto}
-.library-detail__note,.libraries__mobile-note {margin:4px 0 0;color:var(--tl-text-muted);font-size:var(--tl-font-size-secondary);line-height:1.5}
+.libraries__mobile-note {margin:4px 0 0;color:var(--tl-text-muted);font-size:var(--tl-font-size-secondary);line-height:1.5}
 summary {cursor:pointer;padding:8px 0}
-.library-detail__advanced summary span {margin-left:14px;color:var(--tl-text-muted);font-size:var(--tl-font-size-secondary)}
-.library-detail__advanced[open] summary {margin-bottom:18px}
-.library-detail__advanced p {margin:6px 0;color:var(--tl-text-secondary)}
+
+
+
 .libraries__savebar {position:sticky;bottom:0;padding:14px 18px;background:var(--tl-bg-surface-raised);border:1px solid var(--tl-accent-primary);border-radius:10px;z-index:5;font-size:var(--tl-font-size-sm)}
 @media(max-width:700px) {
- .libraries-card__heading,.libraries__savebar {align-items:flex-start;flex-wrap:wrap}
- .library-detail__advanced summary span {display:block;margin:6px 0 0}
+ .libraries__savebar {align-items:flex-start;flex-wrap:wrap}
+ 
  .libraries__savebar {position:static}
 }
 

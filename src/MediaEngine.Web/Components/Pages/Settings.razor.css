@@ -68,9 +68,7 @@
     padding: 0;
 }
 
-.settings-page-canvas ::deep .settings-helper-text {
-    color: var(--tl-text-muted);
-}
+
 
 .settings-page-canvas ::deep .tl-table-root,
 .settings-page-canvas ::deep table {
@@ -225,74 +223,23 @@
 
 /* Shared, readable treatment for settings actions that expose a numeric
    interval. Pages supply only the icon, value, label, and behavior. */
-.settings-page-canvas ::deep .settings-interval-actions {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: stretch;
-    gap: 8px;
-    width: 100%;
-    min-height: 58px;
-    margin-top: 10px;
-}
 
-.settings-page-canvas ::deep .settings-interval-action {
-    width: 100%;
-    min-width: 0;
-    min-height: 54px !important;
-    height: 54px !important;
-    padding: 7px 8px !important;
-    color: var(--tl-text-secondary);
-    border: 0;
-    background: transparent;
-}
 
-.settings-page-canvas ::deep .settings-interval-action .tl-button-label {
-    display: grid;
-    grid-template-columns: 28px minmax(0, 1fr);
-    align-items: center;
-    gap: 8px;
-    width: 100%;
-}
 
-.settings-page-canvas ::deep .settings-interval-action .tl-icon-root {
-    width: 28px !important;
-    height: 28px !important;
-    color: var(--tl-text-primary) !important;
-    font-size: 28px !important;
-}
 
-.settings-page-canvas ::deep .settings-interval-action__copy {
-    display: flex;
-    min-width: 0;
-    align-items: flex-start;
-    flex-direction: column;
-}
 
-.settings-page-canvas ::deep .settings-interval-action__value {
-    color: var(--tl-text-primary);
-    font-size: var(--tl-font-size-sm);
-    font-weight: 700;
-    line-height: 1.2;
-    white-space: nowrap;
-}
 
-.settings-page-canvas ::deep .settings-interval-action__label {
-    margin-top: 1px;
-    color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-secondary);
-    line-height: 1.25;
-}
 
-.settings-page-canvas ::deep .settings-interval-action:hover,
-.settings-page-canvas ::deep .settings-interval-action:focus-visible {
-    color: var(--tl-accent-primary-hover);
-}
 
-.settings-page-canvas ::deep .settings-interval-action:focus-visible {
-    outline: 2px solid var(--tl-focus-ring);
-    outline-offset: 3px;
-    border-radius: 6px;
-}
+
+
+
+
+
+
+
+
+
 
 .settings-page-canvas ::deep .settings-section-card__header .tl-typography {
     font-size: var(--tl-font-size-lg);
@@ -449,8 +396,7 @@
     }
 
     .settings-page-canvas ::deep small,
-    .settings-page-canvas ::deep .tl-typography-caption,
-    .settings-page-canvas ::deep .settings-helper-text {
+    .settings-page-canvas ::deep .tl-typography-caption{
         font-size: var(--tl-font-size-sm) !important;
         line-height: 1.45 !important;
     }

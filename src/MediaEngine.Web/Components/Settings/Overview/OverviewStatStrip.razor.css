@@ -19,10 +19,10 @@
     --stat-accent: var(--tl-accent-primary);
 }
 
-.overview-stats__item--in-progress { --stat-accent: var(--tl-accent-secondary); }
+
 .overview-stats__item--finished { --stat-accent: var(--tl-status-success, #22C55E); }
 .overview-stats__item--hours { --stat-accent: var(--tl-accent-collection); }
-.overview-stats__item--days-active { --stat-accent: var(--tl-accent-primary); }
+
 
 .overview-stats__icon {
     display: grid;

@@ -52,7 +52,7 @@
 .network-settings ::deep .network-status-card__value.is-healthy,
 .network-settings ::deep .network-status-card__value.is-available,
 .network-settings ::deep .network-status-card__value.is-enabled { color: var(--tl-palette-success); }
-.network-settings ::deep .network-status-card__value.is-needs-attention,
+
 .network-settings ::deep .network-status-card__value.is-unavailable { color: var(--tl-palette-warning); }
 .network-settings ::deep .network-status-card p { min-height: 2.4em; margin: 8px 0 0; color: var(--tl-text-muted); font-size: var(--tl-font-size-xs); line-height: 1.4; }
 
@@ -96,24 +96,20 @@
 .network-settings ::deep .network-danger-row strong { color: var(--tl-text-primary); font-size: var(--tl-font-size-secondary); }
 .network-settings ::deep .network-setting-row span,
 .network-settings ::deep .network-danger-row span { color: var(--tl-text-muted); font-size: var(--tl-font-size-xs); }
-.network-settings ::deep .network-setting-row__control,
-.network-settings ::deep .network-server-name-control { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
-.network-settings ::deep .network-server-name-control .app-field { flex: 1; }
-.network-settings ::deep .network-setting-row__control code,
-.network-settings ::deep .network-forwarding-rule code,
-.network-settings ::deep .network-address-value { color: var(--tl-text-primary); font-family: var(--tl-typography-default-family); }
+.network-settings ::deep .network-setting-row__control{ display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
 
-.network-settings ::deep .network-radio-list { display: grid; gap: 8px; margin-top: 12px; }
-.network-settings ::deep .network-radio-option { display: flex; width: 100%; align-items: flex-start; gap: 11px; padding: 9px; border: 0; border-radius: 8px; color: var(--tl-text-secondary); text-align: left; background: transparent; cursor: pointer; }
-.network-settings ::deep .network-radio-option:hover:not(:disabled),
-.network-settings ::deep .network-radio-option.is-selected { background: color-mix(in srgb, var(--tl-accent-primary) 8%, transparent); color: var(--tl-text-primary); }
-.network-settings ::deep .network-radio-option:disabled { opacity: 0.46; cursor: not-allowed; }
-.network-settings ::deep .network-radio-option__marker { width: 13px; height: 13px; margin-top: 3px; flex: 0 0 auto; border: 1px solid var(--tl-text-muted); border-radius: 50%; }
-.network-settings ::deep .network-radio-option.is-selected .network-radio-option__marker { border: 4px solid var(--tl-accent-primary); }
-.network-settings ::deep .network-radio-option > span:last-child { display: grid; gap: 2px; }
-.network-settings ::deep .network-radio-option strong { font-size: var(--tl-font-size-secondary); }
-.network-settings ::deep .network-radio-option small { color: var(--tl-text-muted); font-size: var(--tl-font-size-xs); }
-.network-settings ::deep .network-forwarding-rule { margin: 14px 0; padding: 14px; border-radius: 8px; background: rgba(0,0,0,.18); text-align: center; }
+.network-settings ::deep .network-setting-row__control code{ color: var(--tl-text-primary); font-family: var(--tl-typography-default-family); }
+
+
+
+
+
+
+
+
+
+
+
 
 .network-settings ::deep .network-card-actions { justify-content: flex-end; margin-top: 16px; }
 .network-settings ::deep .network-advanced { gap: 10px; }
