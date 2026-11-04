@@ -80,9 +80,13 @@
         _editing = Editor.Mode;
         _binding = new EditorBinding(DeviceContext)
         {
-            LoadFields = () => _editing.Fields.LoadSubjectAsync(ThingId, _lifetime.Token),
             Saved = RefreshAfterEditSavedAsync,
-            Trail = () => [new EditTrailItem(_editing.Fields.EntityId, _thing?.Label ?? "Universe", _thing?.KindLabel ?? "Universe")],
+            Trail = () =>
+            [
+                new EditTrailItem(Guid.Empty, _thing?.UniverseLabel ?? "Universe", EditTrailKinds.Universe),
+                new EditTrailItem(ThingId, _thing?.Label ?? "Universe", EditTrailKinds.Thing),
+            ],
+            ShowHistory = true,
         };
         DeviceContext.OnChanged += OnAccessContextChanged;
         Session.OnAuthorityChanged += OnAccessContextChanged;
@@ -98,6 +102,7 @@
 
         // A different thing in the same circuit starts over: close any editor and show the loading state.
         _loadedKey = key;
+        _binding.UniverseQid = Qid;
         _thing = null;
         _status = UniverseThingLoadStatus.Loaded;
         if (ReferenceEquals(Editor.Binding, _binding))
@@ -210,7 +215,6 @@
         try
         {
             await LoadAsync();
-            await _editing.Fields.LoadSubjectAsync(ThingId, _lifetime.Token);
             await InvokeAsync(StateHasChanged);
         }
         catch (OperationCanceledException)

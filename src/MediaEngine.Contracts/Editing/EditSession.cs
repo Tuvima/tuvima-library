@@ -62,7 +62,15 @@ public static class EditSessionChangeKinds
     /// </summary>
     public const string VideoRename = "video_rename";
 
-    public static readonly IReadOnlyList<string> All = [Details, Identity, Relationship, Artwork, FileMove, ExtraMove, SiblingMatch, ChildRematch, VideoSeries, VideoOrder, VideoRename];
+    /// <summary>
+    /// A new character, place, faction or other thing is added by hand to a Universe (universal editor v4, WP11). Library's own data only: the
+    /// thing gets a local ID and the "added by you" mark, and nothing is sent to a provider. <see cref="EditSessionChange.EntityId"/> is the
+    /// Universe the thing is added to; <see cref="EditSessionChange.TargetId"/> is an id the Dashboard made up to tell several additions to the
+    /// same Universe apart. The fields are named in <see cref="EditSessionThingAdd"/>.
+    /// </summary>
+    public const string ThingAdd = "thing_add";
+
+    public static readonly IReadOnlyList<string> All = [Details, Identity, Relationship, Artwork, FileMove, ExtraMove, SiblingMatch, ChildRematch, VideoSeries, VideoOrder, VideoRename, ThingAdd];
 
     public static bool IsKnown(string? kind) => kind is not null && All.Contains(kind, StringComparer.Ordinal);
 

@@ -123,14 +123,24 @@ public sealed class SubjectEditorTests : AsyncBunitContext
     [Theory]
     [InlineData(EditorSubjectKinds.Series)]
     [InlineData(EditorSubjectKinds.Collection)]
-    [InlineData(EditorSubjectKinds.Universe)]
-    public async Task ASeriesCollectionOrUniverse_OffersDetailsAndArtwork_ButNoMatch(string kind)
+    public async Task ASeriesOrCollection_OffersDetailsAndArtwork_ButNoMatch(string kind)
     {
         var editor = await StartAsync(Grouping(kind));
 
         var bar = RenderBar(editor);
 
         Assert.Equal(["Details", "Artwork"], bar.FindAll(".tl-editor-window__tabs [role='tab']").Select(button => button.TextContent.Trim()));
+        Assert.False(editor.Mode.Fields.CanMatch);
+    }
+
+    [Fact]
+    public async Task AUniverse_OffersDetailsPicturesAndAReadOnlyMatch()
+    {
+        var editor = await StartAsync(Grouping(EditorSubjectKinds.Universe));
+
+        var bar = RenderBar(editor);
+
+        Assert.Equal(["Details", "Pictures", "Match"], bar.FindAll(".tl-editor-window__tabs [role='tab']").Select(button => button.TextContent.Trim()));
         Assert.False(editor.Mode.Fields.CanMatch);
     }
 

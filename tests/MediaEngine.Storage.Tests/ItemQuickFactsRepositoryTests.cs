@@ -245,6 +245,32 @@ public sealed class ItemQuickFactsRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task AThingOfAUniverse_CountsTheDistinctWorksItAppearsIn_AndNotExtraLore()
+    {
+        var entities = new FictionalEntityRepository(_database);
+        var thing = new MediaEngine.Domain.Entities.FictionalEntity
+        {
+            Id = Guid.NewGuid(),
+            WikidataQid = "Q123456",
+            Label = "Paul Atreides",
+            EntitySubType = "Character",
+            FictionalUniverseQid = "Q4024",
+            FictionalUniverseLabel = "Dune",
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
+        await entities.CreateAsync(thing);
+        await entities.LinkToWorkAsync(new MediaEngine.Domain.Contracts.FictionalEntityWorkLink(thing.Id, "Q1", "Dune", "appears_in", AppearanceKey: "a1"));
+        await entities.LinkToWorkAsync(new MediaEngine.Domain.Contracts.FictionalEntityWorkLink(thing.Id, "Q1", "Dune", "appears_in", AppearanceRole: "lead", AppearanceKey: "a2"));
+        await entities.LinkToWorkAsync(new MediaEngine.Domain.Contracts.FictionalEntityWorkLink(thing.Id, "Q2", "Dune Messiah", "appears_in", AppearanceKey: "a3"));
+        await entities.LinkToWorkAsync(new MediaEngine.Domain.Contracts.FictionalEntityWorkLink(thing.Id, "Q3", "A wiki page", "mentioned_in", IsSupplemental: true, AppearanceKey: "a4"));
+
+        var facts = (await ReadAsync(thing.Id))!;
+
+        Assert.Equal(ItemQuickFactsKinds.Thing, facts.Facts.Kind);
+        Assert.Equal(2, facts.Facts.ItemCount);
+    }
+
+    [Fact]
     public async Task AnUnknownId_HasNoFacts()
     {
         Assert.Null(await ReadAsync(Guid.NewGuid()));

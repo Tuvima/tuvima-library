@@ -10569,4 +10569,28 @@
   <data name="ExcludedFilesSection_IgnoredByYou" xml:space="preserve">
     <value>Ignored by you</value>
   </data>
+  <data name="EditorUniverse_Universe" xml:space="preserve">
+    <value>Universe</value>
+  </data>
+  <data name="EditorUniverseAdd_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="EditorUniverseAdd_DescriptionOptional" xml:space="preserve">
+    <value>Description (optional)</value>
+  </data>
+  <data name="EditorUniverseAdd_Note" xml:space="preserve">
+    <value>Added by you. It is not on Wikidata, and nothing about it is sent anywhere.</value>
+  </data>
+  <data name="EditorUniverseMatch_Heading" xml:space="preserve">
+    <value>Match</value>
+  </data>
+  <data name="EditorUniverseMatch_Wikidata" xml:space="preserve">
+    <value>Wikidata</value>
+  </data>
+  <data name="EditorUniverseMatch_AddedByYou" xml:space="preserve">
+    <value>Not on Wikidata, added by you</value>
+  </data>
+  <data name="EditorUniverseMatch_NotMatched" xml:space="preserve">
+    <value>Not matched</value>
+  </data>
 </root>

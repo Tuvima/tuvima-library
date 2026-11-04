@@ -83,6 +83,9 @@
     /// <summary>The item being edited now; the history is read again when it changes.</summary>
     [Parameter, EditorRequired] public Guid EntityId { get; set; }
 
+    /// <summary>The item is a Universe or one of its things, whose history is what was changed in the editor (read from its own Engine connection point).</summary>
+    [Parameter] public bool ForUniverse { get; set; }
+
     private IReadOnlyList<LibraryItemHistoryDto> Visible => _all
         .Where(entry => _filter switch
         {
@@ -120,7 +123,7 @@
         _loading = true;
         try
         {
-            var (items, error) = await Api.GetItemHistoryWithStatusAsync(EntityId);
+            var (items, error) = ForUniverse ? await Api.GetEditorSubjectHistoryAsync(EntityId) : await Api.GetItemHistoryWithStatusAsync(EntityId);
             if (_loadedFor != EntityId)
             {
                 return;

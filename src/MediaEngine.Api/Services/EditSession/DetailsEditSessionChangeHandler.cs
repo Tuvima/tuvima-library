@@ -19,7 +19,8 @@ public sealed class DetailsEditSessionChangeHandler(
     ISystemActivityRepository activityRepository,
     EditSubjectDirectory? subjects = null,
     IMetadataClaimRepository? claimRepository = null,
-    ICanonicalValueRepository? canonicalRepository = null) : IEditSessionChangeHandler
+    ICanonicalValueRepository? canonicalRepository = null,
+    IEntityTimelineRepository? timeline = null) : IEditSessionChangeHandler
 {
     /// <summary>
     /// The Explicit mark (hides a video or a series of videos from every content-limited profile) rides on a details change under this
@@ -254,6 +255,17 @@ public sealed class DetailsEditSessionChangeHandler(
             EntityType = subject.ArtworkEntityType,
             Detail = $"Edit session saved {change.Fields.Count} {subject.Kind} field(s): {string.Join(", ", change.Fields.Select(field => field.Key.Trim()).Distinct(StringComparer.OrdinalIgnoreCase))}.",
         }, ct).ConfigureAwait(false);
+        if (timeline is not null && EditorUniverseHistory.Keeps(subject.Kind))
+        {
+            await EditorUniverseHistory.Record(
+                timeline,
+                change.EntityId,
+                subject.Kind,
+                EditorUniverseHistory.FieldEvent,
+                $"Changed {string.Join(", ", change.Fields.Select(field => field.Key.Trim()).Distinct(StringComparer.OrdinalIgnoreCase))}.",
+                ct).ConfigureAwait(false);
+        }
+
         return undo;
     }
 }

@@ -48,6 +48,12 @@ public sealed class ItemQuickFactsRepository(IDatabaseConnection db)
                 return ForPerson(connection, transaction, token, id, blob);
             }
 
+            if (connection.QuerySingleOrDefault<int?>(new CommandDefinition(
+                    "SELECT 1 FROM fictional_entities WHERE id = @id;", new { id = blob }, transaction, cancellationToken: token)) is not null)
+            {
+                return ForThing(connection, transaction, token, id, blob);
+            }
+
             var collection = connection.QuerySingleOrDefault<CollectionRow>(new CommandDefinition("""
                 SELECT c.collection_type AS CollectionType, c.membership_mode AS MembershipMode, c.owner_kind AS OwnerKind,
                        p.display_name AS OwnerName
@@ -74,6 +80,17 @@ public sealed class ItemQuickFactsRepository(IDatabaseConnection db)
         return new ItemQuickFactsRead(
             new ItemQuickFactsDto { Id = id, Kind = ItemQuickFactsKinds.Person, ItemCount = works, Roles = roles },
             []);
+    }
+
+    // A character, place, faction or other thing of a Universe: in how many of the Works it appears (the Works themselves are what the
+    // appearance links name; a link kept only as extra lore does not count). It owns no files of its own.
+    private static ItemQuickFactsRead ForThing(
+        Microsoft.Data.Sqlite.SqliteConnection connection, Microsoft.Data.Sqlite.SqliteTransaction transaction, CancellationToken ct, Guid id, byte[] blob)
+    {
+        var works = connection.QuerySingle<int>(new CommandDefinition(
+            "SELECT COUNT(DISTINCT work_qid) FROM fictional_entity_work_links WHERE entity_id = @id AND is_supplemental = 0;",
+            new { id = blob }, transaction, cancellationToken: ct));
+        return new ItemQuickFactsRead(new ItemQuickFactsDto { Id = id, Kind = ItemQuickFactsKinds.Thing, ItemCount = works }, []);
     }
 
     private static ItemQuickFactsRead ForCollection(

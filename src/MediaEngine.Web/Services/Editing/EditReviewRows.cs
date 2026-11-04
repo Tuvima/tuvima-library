@@ -36,6 +36,7 @@ public sealed record EditReviewRow(
     public EditTool Tool => Kind switch
     {
         EditSessionChangeKinds.Details => EditTool.Details,
+        EditSessionChangeKinds.ThingAdd => EditTool.Details,
         EditSessionChangeKinds.Artwork => EditTool.Artwork,
         _ => EditTool.Match,
     };
@@ -62,6 +63,8 @@ public static class EditReviewRows
     public const string AsItIsNow = "As it is now";
 
     public const string NotSet = "Not set";
+
+    public const string ThingAddNote = "Added by you. It is not on Wikidata, and nothing about it is sent anywhere.";
 
     public const string NoPictureYet = "No picture chosen";
 
@@ -130,6 +133,11 @@ public static class EditReviewRows
                             isExplicit ? "Explicit" : presented?.Label ?? ReadableKey(field.Key), before, after, null));
                     }
 
+                    break;
+                case EditSessionChangeKinds.ThingAdd:
+                    var added = change.Fields.FirstOrDefault(field => field.Key == EditSessionThingAdd.NameKey)?.Value?.Trim() ?? "New";
+                    rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Metadata, item,
+                        label is null ? "Add" : $"Add {label.ToLowerInvariant()}", "Not in this Universe", added, ThingAddNote));
                     break;
                 case EditSessionChangeKinds.Identity:
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Identity, item,
