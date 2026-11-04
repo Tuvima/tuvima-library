@@ -1,6 +1,6 @@
 .cinematic-hero-carousel {
     --cinematic-hero-rotation-duration: 8s;
-    --cinematic-hero-height: clamp(22rem,55svh,calc(100svh - var(--app-topbar-height,65px)));
+    --cinematic-hero-height: clamp(22rem,var(--tl-hero-height),calc(100svh - var(--app-topbar-height,65px)));
     --cinematic-hero-min-height: var(--cinematic-hero-height);
     position: relative;
     min-height: var(--cinematic-hero-min-height);
@@ -285,7 +285,7 @@
 
 @media (min-width: 721px) and (max-height: 760px) {
     .cinematic-hero-carousel {
-        --cinematic-hero-height:55svh;
+        --cinematic-hero-height:var(--tl-hero-height);
     }
 }
 

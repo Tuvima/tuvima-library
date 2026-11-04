@@ -8,12 +8,12 @@
     <IntroAnimation Tagline="@L["SetupIntro_Tagline"].Value" />
     <p class="setup-intro__lead">@L["SetupIntro_Lead"]</p>
     <ul class="setup-intro__cards">
-        <li><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" /><strong>@L["SetupIntro_FindTitle"]</strong><span>@L["SetupIntro_FindText"]</span></li>
-        <li><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Link" /><strong>@L["SetupIntro_ConnectTitle"]</strong><span>@L["SetupIntro_ConnectText"]</span></li>
-        <li><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PlayCircle" /><strong>@L["SetupIntro_EnjoyTitle"]</strong><span>@L["SetupIntro_EnjoyText"]</span></li>
+        <li><AppIconTile MaterialIcon="@AppMaterialIcons.Outlined.Search" Tone="AppIconTone.Info" /><strong>@L["SetupIntro_FindTitle"]</strong><span>@L["SetupIntro_FindText"]</span></li>
+        <li><AppIconTile MaterialIcon="@AppMaterialIcons.Outlined.Link" Tone="AppIconTone.Accent" /><strong>@L["SetupIntro_ConnectTitle"]</strong><span>@L["SetupIntro_ConnectText"]</span></li>
+        <li><AppIconTile MaterialIcon="@AppMaterialIcons.Outlined.PlayCircle" Tone="AppIconTone.Watch" /><strong>@L["SetupIntro_EnjoyTitle"]</strong><span>@L["SetupIntro_EnjoyText"]</span></li>
     </ul>
     <section class="setup-intro__private" aria-label="@L["SetupIntro_PrivateTitle"].Value">
-        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" />
+        <AppIconTile MaterialIcon="@AppMaterialIcons.Outlined.Lock" Tone="AppIconTone.Accent" />
         <div>
             <strong>@L["SetupIntro_PrivateTitle"]</strong>
             <p>@L["SetupIntro_PrivateText"]</p>

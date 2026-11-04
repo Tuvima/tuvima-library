@@ -191,5 +191,5 @@ strong,b { font-weight:700; }
 }
 
 /* Launch splash (first-run setup rework D4): covers the page only while the Dashboard connects, then fades away. */
-.tl-launch-splash{position:fixed;inset:0;z-index:2147483000;display:grid;place-items:center;background:#0b0920;transition:opacity .2s ease}
+.tl-launch-splash{position:fixed;inset:0;z-index:2147483000;display:grid;place-items:center;background:var(--tl-bg-root,#0b0920);transition:opacity .2s ease}
 .tl-launch-splash--done{opacity:0;pointer-events:none}

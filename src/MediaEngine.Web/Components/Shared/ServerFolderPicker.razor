@@ -17,15 +17,16 @@
 }
 else
 {
-    <AppHostedDialog Title="@Title"
+    <AppDialogShell Title="@Title"
                      Subtitle="@HelpText"
                      Icon="@AppMediaPresentation.IconFor(MediaType, outlined: true)"
                      Size="Large"
-                     Class="server-folder-picker-host"
+                     Modal="false"
+                     HostClass="server-folder-picker-host"
                      OnClose="Cancel">
         <ChildContent>@BodyContent</ChildContent>
         <FooterContent>@FooterContent</FooterContent>
-    </AppHostedDialog>
+    </AppDialogShell>
 }
 
 @code {

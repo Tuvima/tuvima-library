@@ -61,7 +61,7 @@
     left: 0;
     right: 0;
     height: 2px;
-    background: var(--tl-primary, #8b5cf6);
+    background: var(--tl-primary, #8852fc);
 }
 
 .tl-vseries__row.is-drop-before::before {

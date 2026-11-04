@@ -29,14 +29,14 @@
     outline-offset: 2px;
 }
 
-/* Two states only: blue while the Library works, green when it is idle. */
+/* Two states only: blue while the Library works, neutral when it is idle (green means healthy or done only). */
 .system-activity-indicator-shell ::deep .system-activity-indicator.is-working {
     --system-activity-glyph: 1.4rem;
     color: var(--tl-accent-secondary);
 }
 
 .system-activity-indicator-shell ::deep .system-activity-indicator.is-idle {
-    color: var(--tl-status-success);
+    color: var(--tl-tone-neutral);
 }
 
 .system-activity-indicator__ring,
@@ -104,7 +104,7 @@
     place-items: center;
     padding-inline: 0.2rem;
     border: 2px solid var(--app-surface, #1e1f27);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     color: var(--app-surface, #1e1f27);
     background: var(--tl-accent-secondary);
     font-size: var(--tl-font-size-xs);

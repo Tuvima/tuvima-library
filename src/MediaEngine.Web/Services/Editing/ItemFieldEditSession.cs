@@ -136,6 +136,26 @@ public sealed class ItemFieldEditSession
     /// <summary>Existing library tags, offered while typing a tag.</summary>
     public IReadOnlyList<string> TagSuggestions { get; private set; } = [];
 
+    /// <summary>
+    /// Forgets whatever item was loaded. The editor calls this each time it opens, so a second Edit on another title never shows the
+    /// first title's fields while (or instead of) loading its own.
+    /// </summary>
+    public void Reset()
+    {
+        _context = null;
+        _scope = null;
+        _subject = null;
+        _preferences = null;
+        _profileOverrides = null;
+        _presentation = new MediaEditorDetailsPresentation();
+        ExplicitMark = null;
+        EditorEntityId = Guid.Empty;
+        LoadError = null;
+        Loading = false;
+        Loaded = false;
+        Changed?.Invoke();
+    }
+
     /// <summary>Loads (or reloads) the editor field snapshot for the item shown on the page.</summary>
     public async Task LoadAsync(
         Guid editorEntityId,

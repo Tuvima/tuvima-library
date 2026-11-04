@@ -54,7 +54,8 @@ public sealed record PairingCandidate(
     PairingCatalogueChild Child,
     PairingBand Band,
     IReadOnlyList<string> Reasons,
-    IReadOnlyList<string> Conflicts);
+    IReadOnlyList<string> Conflicts,
+    string? ReasonText = null);
 
 public sealed record PairingRow(
     PairingAssetEvidence Asset,
@@ -135,9 +136,12 @@ public static class ParentFirstPairingEngine
         }
 
         var band = conflicts.Count > 0 ? PairingBand.Review : top.Band;
-        var proposed = new PairingCandidate(top.Child, band, top.Reasons, conflicts);
+        var proposedText = ambiguous
+            ? MatchReasonText.Compose(top.Matched, [], top.Differs, "another entry looks similar")
+            : top.ReasonText;
+        var proposed = new PairingCandidate(top.Child, band, top.Reasons, conflicts, proposedText);
         var alternatives = ranked.Skip(1).Take(4)
-            .Select(item => new PairingCandidate(item.Child, item.Band, item.Reasons, item.Conflicts))
+            .Select(item => new PairingCandidate(item.Child, item.Band, item.Reasons, item.Conflicts, item.ReasonText))
             .ToArray();
         return new PairingRow(asset, proposed, alternatives, band,
             request.CatalogueComplete && !ambiguous && conflicts.Count == 0 && band is PairingBand.Exact or PairingBand.Strong,
@@ -149,12 +153,16 @@ public static class ParentFirstPairingEngine
         var score = 0;
         var reasons = new List<string>();
         var conflicts = new List<string>();
+        // The same evidence in a few words each, for the one-line reason the editor shows beside the confidence.
+        var matched = new List<string>();
+        var differs = new List<string>();
         var scopedIdMatch = !string.IsNullOrWhiteSpace(asset.ScopedChildId)
             && asset.ScopedChildId.Equals(child.ChildId, StringComparison.OrdinalIgnoreCase);
         if (scopedIdMatch)
         {
             score += 100;
             reasons.Add("The file's scoped provider child ID matches this catalogue entry.");
+            matched.Add("provider ID");
         }
 
         var sourceTitle = asset.Title;
@@ -170,6 +178,7 @@ public static class ParentFirstPairingEngine
             {
                 score += 75;
                 reasons.Add("The title matches.");
+                matched.Add("title");
             }
             else if (normalized.Length >= 4 && candidateTitle.Length >= 4
                 && (normalized.Contains(candidateTitle, StringComparison.Ordinal)
@@ -177,10 +186,12 @@ public static class ParentFirstPairingEngine
             {
                 score += 20;
                 reasons.Add("The titles partly agree.");
+                differs.Add("title (only partly)");
             }
             else if (asset.Title is not null || sourceTitle != asset.FileName)
             {
                 conflicts.Add("The source title disagrees with this catalogue title.");
+                differs.Add("title");
             }
         }
 
@@ -204,6 +215,7 @@ public static class ParentFirstPairingEngine
                 if (filenameMatch.Groups["ep2"].Success)
                 {
                     conflicts.Add("The filename names more than one episode.");
+                    differs.Add("episode count in the file name");
                 }
             }
             if (season.HasValue && episode.HasValue)
@@ -213,6 +225,7 @@ public static class ParentFirstPairingEngine
                 {
                     score += 60;
                     reasons.Add("Season and episode numbers match the default TheTVDB order.");
+                    matched.Add("season and episode number");
                 }
                 else
                 {
@@ -224,6 +237,7 @@ public static class ParentFirstPairingEngine
             {
                 score += 10;
                 reasons.Add("Absolute numbering supports this episode; default season order remains canonical.");
+                matched.Add("absolute number");
             }
         }
         else if (asset.DiscNumber.HasValue && asset.TrackNumber.HasValue)
@@ -233,6 +247,7 @@ public static class ParentFirstPairingEngine
             {
                 score += 60;
                 reasons.Add("Disc and release-track positions match this exact release.");
+                matched.Add("disc and track number");
             }
             else
             {
@@ -247,16 +262,19 @@ public static class ParentFirstPairingEngine
             {
                 score += 10;
                 reasons.Add("Durations agree within three seconds.");
+                matched.Add(kind == PairingMediaKind.TvEpisode ? "runtime" : "length");
             }
             else if (difference > 30)
             {
                 conflicts.Add("Durations differ by more than thirty seconds.");
+                differs.Add(kind == PairingMediaKind.TvEpisode ? "runtime" : "length");
             }
         }
         if (asset.Date.HasValue && child.Date.HasValue && asset.Date == child.Date)
         {
             score += 5;
             reasons.Add("Dates agree.");
+            matched.Add(kind == PairingMediaKind.TvEpisode ? "air date" : "date");
         }
 
         // A recording is not a release-track: repeated recordings on one release
@@ -264,6 +282,7 @@ public static class ParentFirstPairingEngine
         var hasTitle = reasons.Any(reason => reason.StartsWith("The title", StringComparison.Ordinal));
         if (positionDisagrees && (scopedIdMatch || hasTitle))
         {
+            differs.Add(kind == PairingMediaKind.TvEpisode ? "season or episode number" : "disc or track number");
             conflicts.Add(kind == PairingMediaKind.TvEpisode
                     ? "The source season or episode number disagrees with this candidate."
                     : "The source disc or track number disagrees with this release-track candidate.");
@@ -272,7 +291,8 @@ public static class ParentFirstPairingEngine
             : numbered && score >= 60 && (hasTitle || string.IsNullOrWhiteSpace(sourceTitle)) ? PairingBand.Strong
             : !numbered && hasTitle && score >= 75 ? PairingBand.Strong
             : PairingBand.Review;
-        return new ScoredChild(child, score, band, reasons, conflicts);
+        return new ScoredChild(child, score, band, reasons, conflicts, matched, differs,
+            MatchReasonText.Compose(matched, [], differs));
     }
 
     private static string? ExtractFileTitle(string fileName, PairingMediaKind kind)
@@ -313,7 +333,8 @@ public static class ParentFirstPairingEngine
     }
 
     private sealed record ScoredChild(PairingCatalogueChild Child, int Score, PairingBand Band,
-        IReadOnlyList<string> Reasons, IReadOnlyList<string> Conflicts);
+        IReadOnlyList<string> Reasons, IReadOnlyList<string> Conflicts,
+        IReadOnlyList<string> Matched, IReadOnlyList<string> Differs, string? ReasonText);
 }
 
 /// <summary>Pure adapters for the existing exact-parent provider catalogue shapes.</summary>

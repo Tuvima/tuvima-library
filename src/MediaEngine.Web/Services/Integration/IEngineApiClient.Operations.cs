@@ -124,6 +124,17 @@ public partial interface IEngineApiClient
     Task<LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>> DeleteLibraryGroupAsync(
         LibraryGroupTarget target, string fingerprint, CancellationToken ct = default);
 
+    /// <summary>
+    /// POST /library/items/file-deletion-preview - what deleting one file of an item would do (the file and its sidecars, space freed, whether the
+    /// item stays with its other files: <see cref="MediaEngine.Contracts.Items.LibraryItemDeletionPreview.FileScope"/>). Same outcomes as <see cref="GetLibraryItemDeletionPreviewAsync"/>.
+    /// </summary>
+    Task<LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionPreview>> GetLibraryItemFileDeletionPreviewAsync(
+        Guid workId, Guid assetId, CancellationToken ct = default);
+
+    /// <summary>POST /library/items/file-delete - deletes the one file as confirmed, with the preview's fingerprint. Same outcomes as <see cref="DeleteLibraryItemsAsync"/>.</summary>
+    Task<LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>> DeleteLibraryItemFileAsync(
+        Guid workId, Guid assetId, string fingerprint, CancellationToken ct = default);
+
     Task<IngestionPresentationSnapshotDto?> GetIngestionPresentationAsync(CancellationToken ct = default);
 
     /// <summary>GET /ingestion/queue-progress — the Engine's live ingestion numbers (files found, tally, bar, state).</summary>
