@@ -7,7 +7,7 @@
     min-height: 3.25rem;
     padding: .35rem .75rem;
     color: var(--tl-palette-text-secondary);
-    border-bottom: 1px solid var(--app-border);
+    border-bottom: 1px solid var(--tl-border-default);
 }
 
 .app-row-error__icon {

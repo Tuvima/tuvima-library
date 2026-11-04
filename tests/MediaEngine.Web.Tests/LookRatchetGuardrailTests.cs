@@ -16,6 +16,8 @@ public sealed class LookRatchetGuardrailTests
     private const int HandTypedHexCeiling = 902;
     private const int ForcedOverrideCeiling = 1501;
     private const int HandTypedLayerCeiling = 307;
+    private const int OldAppVariableCeiling = 918;
+    private const int DeadStyleClassCeiling = 0;
 
     private static IEnumerable<(string Relative, string Text)> WebFiles(params string[] extensions)
     {
@@ -76,6 +78,74 @@ public sealed class LookRatchetGuardrailTests
     {
         var count = WebFiles(".css", ".razor").Sum(f => Regex.Matches(f.Text, @"z-index:\s*[0-9]+").Count);
         Assert.True(count <= HandTypedLayerCeiling, $"Hand-typed layers rose to {count} (ceiling {HandTypedLayerCeiling}). Use the layer tokens (menu, popover, dialog, toast, player).");
+    }
+
+    [Fact]
+    public void TheOldAppColorVariablesOnlyGoDown()
+    {
+        var count = WebFiles(".css", ".razor", ".cs", ".js").Sum(f => Regex.Matches(f.Text, @"var\(--app-").Count);
+        Assert.True(count <= OldAppVariableCeiling, $"Uses of the old --app-* variables rose to {count} (ceiling {OldAppVariableCeiling}). Use the --tl-* tokens.");
+    }
+
+    [Fact]
+    public void EveryComponentIsUsedSomewhere()
+    {
+        var web = Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web", "Components");
+        var all = Directory.EnumerateFiles(Path.Combine(FindRepoRoot(), "src"), "*.*", SearchOption.AllDirectories)
+            .Concat(Directory.EnumerateFiles(Path.Combine(FindRepoRoot(), "tests"), "*.cs", SearchOption.AllDirectories))
+            .Where(p => (p.EndsWith(".razor") || p.EndsWith(".cs")) && !p.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}") && !p.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}"))
+            .Select(p => (Path: p, Text: File.ReadAllText(p)))
+            .ToList();
+        var unused = new List<string>();
+        foreach (var path in Directory.EnumerateFiles(web, "*.razor", SearchOption.AllDirectories).Where(p => !p.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")))
+        {
+            var text = File.ReadAllText(path);
+            if (Regex.IsMatch(text, @"^@page\b", RegexOptions.Multiline)) continue;
+            var name = Path.GetFileNameWithoutExtension(path);
+            var pattern = new Regex(@"(?<![A-Za-z0-9_])" + Regex.Escape(name) + @"(?![A-Za-z0-9_])");
+            if (!all.Any(f => f.Path != path && pattern.IsMatch(f.Text))) unused.Add(name);
+        }
+
+        Assert.True(unused.Count == 0, "Components nothing uses (delete them): " + string.Join(", ", unused));
+    }
+
+    [Fact]
+    public void NoStyleRuleTargetsAClassNothingUses()
+    {
+        var root = FindRepoRoot();
+        var blob = string.Join("\n", new[] { "src", "tests", "clients" }
+            .Select(d => Path.Combine(root, d)).Where(Directory.Exists)
+            .SelectMany(d => Directory.EnumerateFiles(d, "*.*", SearchOption.AllDirectories))
+            .Where(p => !p.EndsWith(".css") && !p.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}") && !p.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}") && !p.Contains("node_modules"))
+            .Where(p => new[] { ".razor", ".cs", ".js", ".cshtml", ".html", ".json", ".md", ".mjs", ".ts", ".kt", ".swift", ".xml" }.Any(p.EndsWith))
+            .Select(File.ReadAllText));
+        var known = new HashSet<string>(StringComparer.Ordinal);
+        foreach (Match word in Regex.Matches(blob, @"[A-Za-z_][\w-]*"))
+        {
+            var value = word.Value;
+            known.Add(value);
+            for (var i = 0; i < value.Length - 1; i++)
+            {
+                if (value[i] is '-' or '_') known.Add(value[..(i + 1)]);
+            }
+        }
+
+        var dead = new SortedSet<string>();
+        foreach (var file in WebFiles(".css").Where(f => f.Relative != "wwwroot/tuvima.tokens.css"))
+        {
+            var selectors = Regex.Replace(file.Text, @"\{[^}]*\}", "{}");
+            selectors = Regex.Replace(selectors, @"/\*.*?\*/", string.Empty, RegexOptions.Singleline);
+            foreach (Match m in Regex.Matches(selectors, @"\.([a-zA-Z_][\w-]*)"))
+            {
+                var name = m.Groups[1].Value;
+                if (known.Contains(name)) continue;
+                var prefix = Regex.Match(name, @"^(.*[-_])[^-_]+$");
+                if (prefix.Success && known.Contains(prefix.Groups[1].Value)) continue;
+                dead.Add(name);
+            }
+        }
+
+        Assert.True(dead.Count <= DeadStyleClassCeiling, $"{dead.Count} style classes nothing uses (ceiling {DeadStyleClassCeiling}): " + string.Join(", ", dead.Take(15)));
     }
 
     [Fact]

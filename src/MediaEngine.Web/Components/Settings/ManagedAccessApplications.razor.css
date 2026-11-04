@@ -1,23 +1,23 @@
 .access-notice { margin-bottom: 1rem; }
 .access-form-section { display: grid; gap: .75rem; }
-.access-form-section + .access-form-section { padding-top: 1.1rem; border-top: 1px solid var(--app-border); }
-.access-native-label, .access-form-section small { color: var(--app-text-muted); font-size: var(--tl-font-size-secondary); }
+.access-form-section + .access-form-section { padding-top: 1.1rem; border-top: 1px solid var(--tl-border-default); }
+.access-native-label, .access-form-section small { color: var(--tl-text-muted); font-size: var(--tl-font-size-secondary); }
 .access-permission-group { display: grid; gap: .5rem; }
-.access-permission-row { display: grid; gap: .25rem; padding: .7rem; border: 1px solid var(--app-border); border-radius: var(--app-radius-sm); }
+.access-permission-row { display: grid; gap: .25rem; padding: .7rem; border: 1px solid var(--tl-border-default); border-radius: var(--tl-radius-sm); }
 .access-permission-row.is-unavailable { opacity: .72; }
 .access-permission-row > div { display: flex; gap: .35rem; }
-.access-credential-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 1rem; padding: .75rem 0; border-bottom: 1px solid var(--app-border); }
+.access-credential-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 1rem; padding: .75rem 0; border-bottom: 1px solid var(--tl-border-default); }
 .access-credential-row > div:last-child { display: flex; gap: .5rem; }
 .access-credential-issue { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: .75rem; }
 .access-credential-secret strong, .access-credential-secret code { display: block; }
-.access-credential-secret code { margin-top: .6rem; padding: .65rem; overflow-wrap: anywhere; border-radius: var(--app-radius-sm); background: rgb(0 0 0 / 28%); user-select: all; }
+.access-credential-secret code { margin-top: .6rem; padding: .65rem; overflow-wrap: anywhere; border-radius: var(--tl-radius-sm); background: rgb(0 0 0 / 28%); user-select: all; }
 @media (max-width: 640px) { .access-drawer__body { padding: 1rem; } .access-drawer__header, .access-drawer__footer { padding-inline: 1rem; } .access-credential-row, .access-credential-issue { grid-template-columns: minmax(0, 1fr); } }
 
-.access-phone-note { margin: 0 0 1rem; color: var(--app-text-muted); font-size: var(--tl-font-size-sm); }
+.access-phone-note { margin: 0 0 1rem; color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
 
 .access-cards { margin-bottom: 1rem; }
-.access-card__meta { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .75rem; margin: 0; color: var(--app-text-muted); font-size: var(--tl-font-size-secondary); }
-.access-card__failure { display: flex; align-items: center; gap: .35rem; margin: 0; color: var(--app-error, #ef4444); font-size: var(--tl-font-size-secondary); }
+.access-card__meta { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .75rem; margin: 0; color: var(--tl-text-muted); font-size: var(--tl-font-size-secondary); }
+.access-card__failure { display: flex; align-items: center; gap: .35rem; margin: 0; color: var(--tl-status-danger, #ef4444); font-size: var(--tl-font-size-secondary); }
 .access-page { display: grid; min-width: 0; gap: 18px; }
 
 .access-rows__sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
@@ -32,5 +32,5 @@
 .integration-page__title p { margin: 0; color: var(--tl-text-secondary); }
 .integration-page__pills, .integration-page__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .integration-page__body { display: grid; gap: 16px; }
-.integration-page__savebar { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: 12px; padding: 12px 0; border-top: 1px solid var(--app-border); background: var(--app-surface); }
+.integration-page__savebar { position: sticky; bottom: 0; display: flex; justify-content: flex-end; gap: 12px; padding: 12px 0; border-top: 1px solid var(--tl-border-default); background: var(--tl-bg-surface); }
 @media (max-width: 640px) { .integration-page__header { flex-wrap: wrap; } }

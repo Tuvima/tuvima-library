@@ -6,8 +6,8 @@
 .vault-identify__candidate { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 8px 0; border-bottom: 1px solid color-mix(in srgb, currentColor 18%, transparent); }
 .vault-identify__candidate-text { display: grid; gap: 2px; min-width: 0; flex: 1 1 14rem; }
 .vault-identify__candidate-text span { overflow-wrap: anywhere; font-size: var(--tl-font-size-sm); opacity: 0.85; }
-.vault-identify__ok { color: var(--app-success, inherit); }
-.vault-identify__warn { color: var(--app-warning, inherit); }
+.vault-identify__ok { color: var(--tl-status-success, inherit); }
+.vault-identify__warn { color: var(--tl-status-warning, inherit); }
 .vault-identify__empty { margin: 0; opacity: 0.75; }
 .vault-identify__preview { display: grid; gap: 12px; }
 .vault-identify__record { margin: 0; font-weight: 600; }

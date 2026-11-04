@@ -11,8 +11,8 @@
 
 .access-users {
     overflow: visible;
-    border: 1px solid var(--app-border);
-    border-radius: var(--app-radius-lg);
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-lg);
 }
 
 .access-users__header,
@@ -25,7 +25,7 @@
 
 .access-users__header {
     padding: .7rem 1rem;
-    color: var(--app-text-muted);
+    color: var(--tl-text-muted);
     font-size: var(--tl-font-size-xs);
     font-weight: 700;
     letter-spacing: .06em;
@@ -35,7 +35,7 @@
 .access-users__row {
     min-height: 5rem;
     padding: .85rem 1rem;
-    border-top: 1px solid var(--app-border);
+    border-top: 1px solid var(--tl-border-default);
 }
 
 .access-users__identity,
@@ -72,8 +72,8 @@
 }
 
 .access-drawer {
-    border-left: 1px solid var(--app-border);
-    background: var(--app-surface);
+    border-left: 1px solid var(--tl-border-default);
+    background: var(--tl-bg-surface);
 }
 
 .access-drawer-host ::deep .tl-drawer.access-drawer {
@@ -96,11 +96,11 @@
     gap: 1rem;
     min-height: 5rem;
     padding: 1rem 1.25rem;
-    border-bottom: 1px solid var(--app-border);
+    border-bottom: 1px solid var(--tl-border-default);
 }
 
 .access-drawer__header .tl-typography-overline {
-    color: var(--app-text-muted);
+    color: var(--tl-text-muted);
 }
 
 .access-drawer__body {
@@ -119,7 +119,7 @@
     justify-content: flex-end;
     gap: .75rem;
     padding-top: 1rem;
-    border-top: 1px solid var(--app-border);
+    border-top: 1px solid var(--tl-border-default);
 }
 
 .access-form-section {
@@ -129,12 +129,12 @@
 
 .access-form-section + .access-form-section {
     padding-top: 1.15rem;
-    border-top: 1px solid var(--app-border);
+    border-top: 1px solid var(--tl-border-default);
 }
 
 .access-form-section small {
     display: block;
-    color: var(--app-text-muted);
+    color: var(--tl-text-muted);
 }
 
 .access-invitation strong,
@@ -148,7 +148,7 @@
     margin: .55rem 0;
     padding: .65rem;
     overflow-wrap: anywhere;
-    border-radius: var(--app-radius-sm);
+    border-radius: var(--tl-radius-sm);
     background: rgb(0 0 0 / 28%);
     user-select: all;
 }
@@ -190,6 +190,6 @@
 
 .access-phone-note {
     margin: 0 0 1rem;
-    color: var(--app-text-muted);
+    color: var(--tl-text-muted);
     font-size: var(--tl-font-size-sm);
 }

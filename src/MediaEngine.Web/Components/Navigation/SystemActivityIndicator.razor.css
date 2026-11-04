@@ -99,9 +99,9 @@
     display: grid;
     place-items: center;
     padding-inline: 0.2rem;
-    border: 2px solid var(--app-surface, #1e1f27);
+    border: 2px solid var(--tl-bg-surface, #1e1f27);
     border-radius: var(--tl-radius-pill);
-    color: var(--app-surface, #1e1f27);
+    color: var(--tl-bg-surface, #1e1f27);
     background: var(--tl-accent-secondary);
     font-size: var(--tl-font-size-xs);
     font-weight: 800;

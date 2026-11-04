@@ -5,7 +5,7 @@
     align-items: center;
     min-height: 3.5rem;
     flex: none;
-    border-top: 1px solid var(--app-border);
+    border-top: 1px solid var(--tl-border-default);
 }
 .ingestion-facets__slot { display: flex; justify-content: center; min-width: 0; }
 .ingestion-facet {
@@ -25,7 +25,7 @@
     width: .75rem;
     height: .75rem;
     font-size: var(--tl-font-size-xs) !important;
-    background: var(--app-surface-elevated, var(--app-surface));
+    background: var(--app-surface-elevated, var(--tl-bg-surface));
     border-radius: 50%;
 }
 /* Not started yet, or no result: the symbol stays in its slot, dimmed. A symbol that does not apply to the type is a dash instead. */

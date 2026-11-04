@@ -1,7 +1,7 @@
 .folder-table {
     container: folder-table / inline-size;
     border: 1px solid var(--tl-border-subtle);
-    border-radius: var(--app-radius-md, 8px);
+    border-radius: var(--tl-radius-md, 8px);
     overflow: hidden;
 }
 
@@ -43,7 +43,7 @@
     justify-content: center;
     width: 32px;
     height: 32px;
-    border-radius: var(--app-radius-sm, 6px);
+    border-radius: var(--tl-radius-sm, 6px);
 }
 
 .folder-table__icon.is-managed {

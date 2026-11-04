@@ -90,7 +90,7 @@
     place-items: center;
     align-content: center;
     border: 1px dashed rgba(255, 255, 255, 0.32);
-    border-radius: var(--app-radius-md);
+    border-radius: var(--tl-radius-md);
     color: rgba(210, 220, 238, 0.5);
     font-size: var(--tl-font-size-xs);
     font-weight: 700;

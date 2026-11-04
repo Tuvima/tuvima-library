@@ -25,7 +25,7 @@
 }
 
 :where(.app-switch-row) ::deep :where(.app-switch-row__icon) {
-    color: var(--app-tone-color, var(--tl-text-muted));
+    color: var(--tl-status-danger, var(--tl-text-muted));
 }
 
 :where(.app-switch-row__label) {

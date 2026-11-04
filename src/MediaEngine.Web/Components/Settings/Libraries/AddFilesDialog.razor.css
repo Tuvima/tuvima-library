@@ -1,6 +1,6 @@
 .add-files__bar { display: flex; align-items: center; gap: 8px; margin: 8px 0; min-width: 0; }
 .add-files__path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
-.add-files__list { max-height: 320px; margin: 0; padding: 0; overflow-y: auto; list-style: none; border: 1px solid var(--tl-border-subtle); border-radius: var(--app-radius-md, 8px); }
+.add-files__list { max-height: 320px; margin: 0; padding: 0; overflow-y: auto; list-style: none; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 8px); }
 .add-files__row { display: flex; align-items: center; gap: 12px; padding: 4px 12px; border-top: 1px solid var(--tl-border-subtle); }
 .add-files__row:first-child { border-top: 0; }
 .add-files__row[data-supported="false"] { opacity: 0.6; }

@@ -5,10 +5,10 @@
     width: min(100%, 960px);
     max-height: min(86vh, 900px);
     overflow: hidden;
-    border-radius: var(--app-radius-md, 8px);
+    border-radius: var(--tl-radius-md, 8px);
     border: 1px solid var(--tl-border-subtle);
     background: var(--tl-bg-surface-raised);
-    color: var(--app-text-primary, rgba(255, 255, 255, 0.92));
+    color: var(--tl-text-primary, rgba(255, 255, 255, 0.92));
 }
 
 .app-dialog-shell--small {
@@ -94,7 +94,7 @@
 .app-dialog-shell__icon {
     width: 44px;
     height: 44px;
-    border-radius: var(--app-radius-md, 8px);
+    border-radius: var(--tl-radius-md, 8px);
     display: inline-flex;
     align-items: center;
     justify-content: center;

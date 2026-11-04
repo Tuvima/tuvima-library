@@ -153,8 +153,8 @@
     margin: 0;
     padding: 10px 12px;
     border: 1px solid var(--tl-border-subtle);
-    border-radius: var(--app-radius-md, 8px);
-    background: var(--app-glass-inner-bg);
+    border-radius: var(--tl-radius-md, 8px);
+    background: var(--tl-bg-surface-raised);
     color: var(--tl-text-secondary);
     font-size: var(--tl-font-size-sm);
 }
@@ -178,7 +178,7 @@
 
 .library-folders__table {
     border: 1px solid var(--tl-border-subtle);
-    border-radius: var(--app-radius-md, 8px);
+    border-radius: var(--tl-radius-md, 8px);
     overflow: hidden;
 }
 
@@ -230,7 +230,7 @@
     padding: 0;
     list-style: none;
     border: 1px solid var(--tl-border-subtle);
-    border-radius: var(--app-radius-md, 8px);
+    border-radius: var(--tl-radius-md, 8px);
 }
 
 .library-folders__destination {

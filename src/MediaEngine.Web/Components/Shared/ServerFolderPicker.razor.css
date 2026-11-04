@@ -28,8 +28,8 @@
     min-height: 48px;
     padding: 0 4px;
     border: 1px solid var(--tl-border-subtle);
-    border-radius: var(--app-radius-sm, 6px);
-    background: var(--app-glass-inner-bg);
+    border-radius: var(--tl-radius-sm, 6px);
+    background: var(--tl-bg-surface-raised);
 }
 
 .server-folder-picker__segment { display: inline-flex; align-items: center; }
@@ -89,7 +89,7 @@ input.server-folder-picker__address-field { padding: 0 12px; }
     min-height: 48px;
     padding: 4px 10px;
     border: 1px solid transparent;
-    border-radius: var(--app-radius-sm, 6px);
+    border-radius: var(--tl-radius-sm, 6px);
     background: transparent;
     color: inherit;
     font: inherit;
@@ -150,7 +150,7 @@ input.server-folder-picker__address-field { padding: 0 12px; }
     min-height: 44px;
     padding: 0 8px;
     border: 0;
-    border-radius: var(--app-radius-sm, 6px);
+    border-radius: var(--tl-radius-sm, 6px);
     background: transparent;
     color: inherit;
     font: inherit;
@@ -178,8 +178,8 @@ input.server-folder-picker__address-field { padding: 0 12px; }
     min-height: 44px;
     padding: 0 10px;
     border: 1px solid var(--tl-border-subtle);
-    border-radius: var(--app-radius-sm, 6px);
-    background: var(--app-glass-inner-bg);
+    border-radius: var(--tl-radius-sm, 6px);
+    background: var(--tl-bg-surface-raised);
 }
 
 .server-folder-picker__search ::deep input {
@@ -196,8 +196,8 @@ input.server-folder-picker__address-field { padding: 0 12px; }
     max-height: min(420px, 48vh);
     overflow-y: auto;
     border: 1px solid var(--tl-border-subtle);
-    border-radius: var(--app-radius-md, 8px);
-    background: var(--app-glass-inner-bg);
+    border-radius: var(--tl-radius-md, 8px);
+    background: var(--tl-bg-surface-raised);
 }
 
 .server-folder-picker__list:focus-visible {
@@ -313,7 +313,7 @@ input.server-folder-picker__address-field { padding: 0 12px; }
     gap: 6px;
     padding: 10px 12px;
     border: 1px solid rgba(255, 107, 107, 0.35);
-    border-radius: var(--app-radius-sm, 6px);
+    border-radius: var(--tl-radius-sm, 6px);
     background: rgba(255, 107, 107, 0.08);
 }
 

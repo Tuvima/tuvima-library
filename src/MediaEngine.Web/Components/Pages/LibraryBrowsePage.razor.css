@@ -7,7 +7,7 @@
 
 .home-discovery-loading {
     margin-top: var(--app-topbar-height, 65px);
-    border-radius: var(--app-radius-md);
+    border-radius: var(--tl-radius-md);
 }
 
 .home-discovery-page {
@@ -122,7 +122,7 @@
     font-family: var(--font-ui);
     font-weight: 600;
     text-transform: none;
-    border-radius: var(--app-radius-md);
+    border-radius: var(--tl-radius-md);
 }
 
 @media (min-width: 841px) {

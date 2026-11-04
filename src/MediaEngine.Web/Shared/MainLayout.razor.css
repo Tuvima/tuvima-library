@@ -1,5 +1,5 @@
 .app-bg {
-    background: var(--app-bg, #17181e);
+    background: var(--tl-bg-root, #17181e);
     min-height: 100vh;
     min-height: 100dvh;
 }
@@ -17,7 +17,7 @@
     height: 100dvh;
     min-height: 0;
     overflow: hidden;
-    background: var(--app-bg, #17181e);
+    background: var(--tl-bg-root, #17181e);
 }
 
 /* The shared variable carrier keeps the native frame's CSS isolation scope. */
@@ -133,7 +133,7 @@
 
 .playback-app-frame__audio-dock:has(.listen-player-shell) {
     padding: 0;
-    background: var(--app-bg);
+    background: var(--tl-bg-root);
 }
 
 @media (max-width: 840px) {
@@ -162,10 +162,10 @@
     min-height: var(--app-topbar-height, 65px);
     height: var(--app-topbar-height, 65px);
     padding: var(--tl-safe-area-top) var(--tl-safe-area-right) 0 var(--tl-safe-area-left) !important;
-    color: var(--app-text-primary, #aab8c5);
-    background: var(--app-surface, #1e1f27) !important;
-    border-bottom: 1px solid var(--app-border, #293036);
-    box-shadow: var(--app-shadow, 0 1px 4px rgba(130, 143, 163, 0.15));
+    color: var(--tl-text-primary, #aab8c5);
+    background: var(--tl-bg-surface, #1e1f27) !important;
+    border-bottom: 1px solid var(--tl-border-default, #293036);
+    box-shadow: var(--tl-shadow-sm, 0 1px 4px rgba(130, 143, 163, 0.15));
     overflow: visible;
 }
 
@@ -350,8 +350,8 @@
     padding-inline: 0.1rem;
     min-width: 0;
     flex: 0 0 auto;
-    border-radius: var(--app-radius-xs, 4px);
-    color: var(--app-text-muted, #8391a2);
+    border-radius: var(--tl-radius-xs, 4px);
+    color: var(--tl-text-muted, #8391a2);
     text-decoration: none;
     transition: color 0.15s ease;
 }
@@ -374,7 +374,7 @@
     bottom: 0.12rem;
     height: 2px;
     border-radius: var(--tl-radius-round);
-    background: var(--app-primary, #236dc9);
+    background: var(--tl-accent-primary, #236dc9);
     opacity: 0;
     transform: scaleX(0.45);
     transition: opacity 0.15s ease, transform 0.15s ease;
@@ -382,7 +382,7 @@
 
 .layout-shell__nav-link:hover,
 .layout-shell__nav-link--active {
-    color: var(--app-text-primary, #aab8c5);
+    color: var(--tl-text-primary, #aab8c5);
 }
 
 .layout-shell__nav-link:hover::after,
@@ -430,7 +430,7 @@
     padding: 0;
     border: 0;
     border-radius: var(--tl-control-radius);
-    color: var(--layout-my-list-color, var(--app-text-primary, #f5f7fb));
+    color: var(--layout-my-list-color, var(--tl-text-primary, #f5f7fb));
     background: transparent;
     cursor: pointer;
 }
