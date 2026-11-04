@@ -315,6 +315,7 @@
 
         var ids = Batch.Ids;
         _deleting = true;
+        using var editorDeleting = Services.GetService<EditorHost>()?.MarkDeleting();
         try
         {
             var answer = await LibraryItemDeletionFlow.RunForResultAsync(dialogs, toasts, ids, ids.Count == 1 ? Batch.Rows[0].Title : null);

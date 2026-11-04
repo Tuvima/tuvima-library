@@ -77,8 +77,12 @@ public static partial class EditorMatchFacts
         _ => "Provider ID or link",
     };
 
-    /// <summary>Reads a pasted provider ID or link: a TheTVDB series, an IMDb title, a MusicBrainz id, an ISBN. Null when it is none of them.</summary>
-    public static EditorProviderReference? ParseProviderReference(string? text)
+    /// <summary>
+    /// Reads a pasted provider ID or link: a TheTVDB series, a TMDB movie or show, an IMDb title, a MusicBrainz id, an ISBN. Null when it
+    /// is none of them. A bare number belongs to the provider the kind of item uses: TMDB for Movies, TheTVDB for TV (and when no kind is
+    /// given); for any other kind a bare number is not read, because it cannot be told which provider it is from.
+    /// </summary>
+    public static EditorProviderReference? ParseProviderReference(string? text, string? mediaType = null)
     {
         var value = text?.Trim();
         if (string.IsNullOrEmpty(value))
@@ -89,6 +93,11 @@ public static partial class EditorMatchFacts
         if (TvdbLink().Match(value) is { Success: true } tvdb)
         {
             return new EditorProviderReference("tvdb", tvdb.Groups["id"].Value);
+        }
+
+        if (TmdbLink().Match(value) is { Success: true } tmdb)
+        {
+            return new EditorProviderReference("tmdb", tmdb.Groups["id"].Value);
         }
 
         if (ImdbId().Match(value) is { Success: true } imdb)
@@ -107,11 +116,34 @@ public static partial class EditorMatchFacts
             return new EditorProviderReference("isbn", digits);
         }
 
-        return value.Length is >= 1 and <= 12 && value.All(char.IsAsciiDigit) ? new EditorProviderReference("tvdb", value) : null;
+        if (value.Length is >= 1 and <= 12 && value.All(char.IsAsciiDigit))
+        {
+            if (string.IsNullOrEmpty(mediaType) || string.Equals(mediaType, "TV", StringComparison.OrdinalIgnoreCase))
+            {
+                return new EditorProviderReference("tvdb", value);
+            }
+
+            return string.Equals(mediaType, "Movies", StringComparison.OrdinalIgnoreCase) ? new EditorProviderReference("tmdb", value) : null;
+        }
+
+        return null;
     }
+
+    /// <summary>What a kind of item accepts in the ID or link box, for the message shown when a paste is not understood.</summary>
+    public static string AcceptedProviderForms(string mediaType) => mediaType.ToLowerInvariant() switch
+    {
+        "tv" => "a TheTVDB ID or link",
+        "movies" => "an IMDb ID or link, or a TMDB ID or link",
+        "books" or "audiobooks" => "an ISBN",
+        "music" => "a MusicBrainz ID or link",
+        _ => "an ID or link from one of the providers listed",
+    };
 
     [GeneratedRegex(@"thetvdb\.com/(?:series|dataset/series|\?tab=series[^#]*?id=)/?(?<id>\d{1,12})", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex TvdbLink();
+
+    [GeneratedRegex(@"themoviedb\.org/(?:movie|tv)/(?<id>\d{1,12})", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex TmdbLink();
 
     [GeneratedRegex(@"(?<![A-Za-z0-9])(?<id>tt\d{6,10})(?![A-Za-z0-9])", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex ImdbId();
