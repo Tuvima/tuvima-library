@@ -282,7 +282,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='delete']")));
         Row(cut, "delete").Click();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-editor__confirm")));
-        cut.Find(".profile-editor__confirm .who-button--danger").Click();
+        cut.Find(".profile-editor__confirm .profile-editor__confirm-delete").Click();
 
         cut.WaitForAssertion(() =>
         {
@@ -303,7 +303,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='delete']")));
         Row(cut, "delete").Click();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-editor__confirm")));
-        cut.Find(".profile-editor__confirm .who-button--danger").Click();
+        cut.Find(".profile-editor__confirm .profile-editor__confirm-delete").Click();
 
         cut.WaitForAssertion(() =>
         {
@@ -739,7 +739,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-nav-row='delete']")));
         Row(cut, "delete").Click();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-editor__confirm")));
-        cut.Find(".profile-editor__confirm .who-button--danger").Click();
+        cut.Find(".profile-editor__confirm .profile-editor__confirm-delete").Click();
 
         cut.WaitForAssertion(() => Assert.Contains(_requests, request => request.Method == HttpMethod.Delete && request.Path == $"/access/profiles/{SamId:D}" && request.Query == "?photos=move"));
     }
@@ -755,7 +755,7 @@ public sealed class ProfileDetailPageTests : AsyncBunitContext
         Row(cut, "delete").Click();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".profile-editor__confirm")));
         cut.FindAll(".profile-editor__confirm input[type='radio']")[1].Change(true);
-        cut.Find(".profile-editor__confirm .who-button--danger").Click();
+        cut.Find(".profile-editor__confirm .profile-editor__confirm-delete").Click();
 
         cut.WaitForAssertion(() => Assert.Contains(_requests, request => request.Method == HttpMethod.Delete && request.Query == "?photos=delete"));
     }

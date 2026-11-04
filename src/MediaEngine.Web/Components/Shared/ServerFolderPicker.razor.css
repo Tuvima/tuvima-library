@@ -28,8 +28,8 @@
     min-height: 48px;
     padding: 0 4px;
     border: 1px solid var(--tl-border-subtle);
-    border-radius: var(--app-radius-sm, 6px);
-    background: var(--app-glass-inner-bg);
+    border-radius: var(--tl-radius-sm, 6px);
+    background: var(--tl-bg-surface-raised);
 }
 
 .server-folder-picker__segment { display: inline-flex; align-items: center; }
@@ -73,7 +73,7 @@ input.server-folder-picker__address-field { padding: 0 12px; }
     margin: 8px 0 2px;
     padding: 0 10px;
     color: var(--tl-text-muted);
-    font-size: 0.75rem;
+    font-size: var(--tl-font-size-xs);
     letter-spacing: 0.04em;
     text-transform: uppercase;
 }
@@ -89,7 +89,7 @@ input.server-folder-picker__address-field { padding: 0 12px; }
     min-height: 48px;
     padding: 4px 10px;
     border: 1px solid transparent;
-    border-radius: var(--app-radius-sm, 6px);
+    border-radius: var(--tl-radius-sm, 6px);
     background: transparent;
     color: inherit;
     font: inherit;
@@ -116,7 +116,7 @@ input.server-folder-picker__address-field { padding: 0 12px; }
 
 .server-folder-picker__location small {
     overflow: hidden;
-    font-size: 0.75rem;
+    font-size: var(--tl-font-size-xs);
     line-height: 1.25;
     color: var(--tl-text-muted);
     text-overflow: ellipsis;
@@ -150,7 +150,7 @@ input.server-folder-picker__address-field { padding: 0 12px; }
     min-height: 44px;
     padding: 0 8px;
     border: 0;
-    border-radius: var(--app-radius-sm, 6px);
+    border-radius: var(--tl-radius-sm, 6px);
     background: transparent;
     color: inherit;
     font: inherit;
@@ -178,8 +178,8 @@ input.server-folder-picker__address-field { padding: 0 12px; }
     min-height: 44px;
     padding: 0 10px;
     border: 1px solid var(--tl-border-subtle);
-    border-radius: var(--app-radius-sm, 6px);
-    background: var(--app-glass-inner-bg);
+    border-radius: var(--tl-radius-sm, 6px);
+    background: var(--tl-bg-surface-raised);
 }
 
 .server-folder-picker__search ::deep input {
@@ -196,8 +196,8 @@ input.server-folder-picker__address-field { padding: 0 12px; }
     max-height: min(420px, 48vh);
     overflow-y: auto;
     border: 1px solid var(--tl-border-subtle);
-    border-radius: var(--app-radius-md, 8px);
-    background: var(--app-glass-inner-bg);
+    border-radius: var(--tl-radius-md, 8px);
+    background: var(--tl-bg-surface-raised);
 }
 
 .server-folder-picker__list:focus-visible {
@@ -218,7 +218,7 @@ input.server-folder-picker__address-field { padding: 0 12px; }
     top: 0;
     background: rgba(17, 24, 39, 0.98);
     color: var(--tl-text-muted);
-    font-size: 0.8125rem;
+    font-size: var(--tl-font-size-secondary);
     font-weight: 500;
 }
 
@@ -277,7 +277,7 @@ input.server-folder-picker__address-field { padding: 0 12px; }
 
 .server-folder-picker__modified {
     color: var(--tl-text-muted);
-    font-size: 0.8125rem;
+    font-size: var(--tl-font-size-secondary);
     text-align: left;
 }
 
@@ -313,7 +313,7 @@ input.server-folder-picker__address-field { padding: 0 12px; }
     gap: 6px;
     padding: 10px 12px;
     border: 1px solid rgba(255, 107, 107, 0.35);
-    border-radius: var(--app-radius-sm, 6px);
+    border-radius: var(--tl-radius-sm, 6px);
     background: rgba(255, 107, 107, 0.08);
 }
 
@@ -349,7 +349,7 @@ input.server-folder-picker__address-field { padding: 0 12px; }
 
 .server-folder-picker__selected-label {
     color: var(--tl-text-muted);
-    font-size: 0.875rem;
+    font-size: var(--tl-font-size-sm);
     white-space: nowrap;
 }
 
@@ -363,7 +363,7 @@ input.server-folder-picker__address-field { padding: 0 12px; }
 .server-folder-picker__copied {
     min-width: 3.5rem;
     color: var(--tl-text-muted);
-    font-size: 0.8rem;
+    font-size: var(--tl-font-size-secondary);
 }
 
 /* Under 840px (the one card breakpoint shared with the Libraries panel): a narrower location column, and Modified is hidden. */

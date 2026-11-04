@@ -31,11 +31,11 @@
     align-items: center;
     gap: 5px;
     color: #c4b5fd;
-    font-size: 0.76rem;
+    font-size: var(--tl-font-size-xs);
 }
 
 .search-page__input ::deep input {
-    font-size: 1.12rem;
+    font-size: var(--tl-font-size-lg);
 }
 
 .search-page__filters {
@@ -61,7 +61,7 @@
 .search-page__year-filter > span {
     margin-left: 2px;
     color: rgba(215, 224, 240, 0.78);
-    font-size: 0.78rem;
+    font-size: var(--tl-font-size-xs);
     font-weight: 600;
 }
 
@@ -88,19 +88,6 @@
 
 .search-page__year-filter ::deep input::placeholder {
     color: rgba(181, 193, 214, 0.58);
-}
-
-.search-page ::deep .search-page__more-filters {
-    display: inline-flex;
-    min-height: 42px;
-    align-items: center;
-    gap: 8px;
-    padding: 0 13px;
-    border: 1px solid rgba(128, 146, 180, 0.22);
-    border-radius: 9px;
-    background: rgba(8, 16, 31, 0.5);
-    color: var(--tl-text-muted);
-    font: inherit;
 }
 
 .search-page__body {

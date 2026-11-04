@@ -3,4 +3,4 @@
 
 @* The quiet "Not matched" tag (details overlay spec D13): a title that was added to an album, season, series or audiobook with
    "Add anyway" has no number and borrows no details from any entry. It is not a problem to fix, so it is a small tag, not an alert. *@
-<span class="tl-not-matched-tag" title="@L["NotMatchedTag_AddedWithoutANumberEdit"].Value">@L["NotMatchedTag_NotMatched"]</span>
+<AppChip Text="@L["NotMatchedTag_NotMatched"].Value" Tone="AppUiTone.Warning" Title="@L["NotMatchedTag_AddedWithoutANumberEdit"].Value" />

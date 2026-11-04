@@ -165,7 +165,7 @@
                     <div class="tl-detail-capability-row" aria-label="@L["DetailHero_Availability"].Value">
                         @foreach (var pill in Presentation.CapabilityPills)
                         {
-                            <span class="tl-detail-capability-pill">@pill.Label</span>
+                            <AppChip Text="@pill.Label" />
                         }
                     </div>
                 }

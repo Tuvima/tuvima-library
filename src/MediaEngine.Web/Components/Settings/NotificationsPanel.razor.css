@@ -71,9 +71,7 @@
     border: 1px solid var(--tl-border-subtle, transparent);
 }
 
-.notifications-page__channel--needs_attention {
-    border-color: var(--tl-warning);
-}
+
 
 .notifications-page__channel--off {
     border-color: var(--tl-error);
@@ -145,4 +143,8 @@
     .notifications-page__matrix-copy {
         grid-column: 1 / -1;
     }
+}
+
+.notifications-page__channel--needs_attention {
+    border-color: var(--tl-warning);
 }

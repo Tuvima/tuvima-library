@@ -10,12 +10,12 @@
 
 .invite-form__section + .invite-form__section {
     padding-top: 1.15rem;
-    border-top: 1px solid var(--app-border);
+    border-top: 1px solid var(--tl-border-default);
 }
 
 .invite-form__section small {
     display: block;
-    color: var(--app-text-muted);
+    color: var(--tl-text-muted);
 }
 
 .invite-form__actions {
@@ -24,5 +24,5 @@
     justify-content: flex-end;
     gap: .75rem;
     padding-top: 1rem;
-    border-top: 1px solid var(--app-border);
+    border-top: 1px solid var(--tl-border-default);
 }

@@ -39,7 +39,7 @@
 .media-hub__header p {
     margin: 9px 0 0;
     color: rgba(203, 213, 225, 0.62);
-    font-size: 0.9rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 @media (max-width: 840px) {

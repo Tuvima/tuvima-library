@@ -2,7 +2,7 @@
     display: inline-flex;
     align-items: center;
     flex: 0 0 auto;
-    font-size: 1.35rem;
+    font-size: var(--tl-font-size-dialog-title);
 }
 
 .lib-health--ok {

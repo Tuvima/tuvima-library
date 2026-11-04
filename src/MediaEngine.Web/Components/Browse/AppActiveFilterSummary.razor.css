@@ -18,7 +18,7 @@
     background: rgba(91, 33, 182, 0.18);
     color: rgba(231, 223, 255, 0.96);
     font: inherit;
-    font-size: 0.82rem;
+    font-size: var(--tl-font-size-secondary);
     cursor: pointer;
 }
 
@@ -41,7 +41,7 @@
     background: transparent;
     color: #bda7ff;
     font: inherit;
-    font-size: 0.82rem;
+    font-size: var(--tl-font-size-secondary);
     font-weight: 600;
     cursor: pointer;
 }

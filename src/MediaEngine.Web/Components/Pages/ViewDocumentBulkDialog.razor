@@ -59,7 +59,7 @@
                     <AppCheckboxRow Label="@L["ViewDocumentBulkDialog_ClearTheTypeInstead"].Value" Value="@_clear" ValueChanged="@(value => _clear = value)" />
                     break;
                 case ViewDocumentBulkOperations.SetDocumentDate:
-                    <label class="view-document-details__field"><span>@L["Common_Date"]</span><AppNativeInput Type="date" Class="view-document-details__input" AriaLabel="@L["Common_DocumentDate"].Value" Value="@_date" ValueChanged="@(value => _date = value?.ToString() ?? string.Empty)" Disabled="@_clear" /></label>
+                    <label class="view-document-details__field"><span>@L["Common_Date"]</span><AppTextField InputType="AppInputType.Date" Label="@L["Common_DocumentDate"].Value" HideLabel="true" Value="@_date" ValueChanged="@(value => _date = value?.ToString() ?? string.Empty)" Disabled="@_clear" /></label>
                     <AppCheckboxRow Label="@L["ViewDocumentBulkDialog_ClearTheDateInstead"].Value" Value="@_clear" ValueChanged="@(value => _clear = value)" />
                     break;
             }

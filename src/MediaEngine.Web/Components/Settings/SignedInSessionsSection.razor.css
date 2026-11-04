@@ -106,7 +106,7 @@
     border: 1px solid var(--tl-accent-primary);
     border-radius: var(--tl-radius-pill);
     color: var(--tl-accent-primary);
-    font-size: .75rem;
+    font-size: var(--tl-font-size-xs);
 }
 
 @media (max-width: 640px) {

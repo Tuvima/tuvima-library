@@ -34,7 +34,7 @@
 
 .import-panel__accepts {
     max-width: 44rem;
-    font-size: .85rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 .import-panel__drop.is-busy {
@@ -51,7 +51,7 @@
 .import-panel__privacy {
     margin: 0;
     color: var(--tl-text-muted);
-    font-size: .8rem;
+    font-size: var(--tl-font-size-secondary);
 }
 
 .import-panel__busy {
@@ -59,7 +59,7 @@
     align-items: center;
     gap: var(--tl-space-2, 8px);
     color: var(--tl-text-secondary);
-    font-size: .9rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 .import-panel__actions {

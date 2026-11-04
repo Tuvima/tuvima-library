@@ -6,7 +6,7 @@
 
 .companion-devices__title {
     margin: 0;
-    font-size: 1rem;
+    font-size: var(--tl-font-size-md);
     font-weight: 600;
     color: var(--tl-text-primary);
 }
@@ -57,6 +57,6 @@
 }
 
 .companion-devices__where {
-    font-size: 0.8125rem;
+    font-size: var(--tl-font-size-secondary);
     color: var(--tl-text-secondary);
 }

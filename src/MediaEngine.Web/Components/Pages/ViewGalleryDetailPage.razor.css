@@ -13,7 +13,7 @@
 .view-feature-page__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .5rem; }
 .view-gallery-share-list { display: grid; gap: .65rem; }
 .view-gallery-share-row { display: grid; grid-template-columns: 2rem minmax(0,1fr) minmax(8rem,auto); align-items: center; gap: .65rem; padding: .7rem; border: 1px solid rgba(148,163,184,.18); border-radius: .7rem; }
-.view-gallery-share-avatar { width: 2rem; height: 2rem; font-size: .78rem; font-weight: 800; }
+.view-gallery-share-avatar { width: 2rem; height: 2rem; font-size: var(--tl-font-size-xs); font-weight: 800; }
 @media (max-width:640px) {
     .view-feature-page { padding: 1.2rem .9rem 2rem; }
     .view-feature-page__header { display: grid; }

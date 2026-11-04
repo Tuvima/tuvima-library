@@ -120,7 +120,7 @@
     place-items: center;
     padding: 0;
     border: 0;
-    border-radius: 999px;
+    border-radius: var(--tl-control-radius);
     background: transparent;
     cursor: pointer;
 }
@@ -139,7 +139,7 @@
     width: 1.65rem;
     height: 0.22rem;
     overflow: hidden;
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
     background: rgba(226, 232, 240, 0.3);
     box-shadow: 0 1px 8px rgba(0, 0, 0, 0.3);
 }
@@ -201,7 +201,7 @@
     place-items: center;
     padding: 0;
     border: 1px solid rgba(255, 255, 255, 0.16);
-    border-radius: 999px;
+    border-radius: var(--tl-control-radius);
     background: rgba(5, 7, 12, 0.58);
     color: rgba(248, 250, 252, 0.9);
     cursor: pointer;
@@ -242,7 +242,7 @@
     align-items: center;
     justify-content: space-between;
     color: rgba(248, 250, 252, 0.9);
-    font-size: 0.8rem;
+    font-size: var(--tl-font-size-secondary);
     font-weight: 700;
 }
 
@@ -265,7 +265,7 @@
     grid-template-columns: 1.5rem minmax(0, 1fr);
     gap: 0.45rem;
     color: rgba(226, 232, 240, 0.74);
-    font-size: 0.76rem;
+    font-size: var(--tl-font-size-xs);
 }
 
 ::deep .cinematic-hero__track-preview a,

@@ -13,7 +13,7 @@
     place-items: center;
     padding: 0;
     border: 0;
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
     color: var(--tl-status-success);
     background: transparent;
     cursor: pointer;
@@ -78,7 +78,7 @@
     right: 0.6rem;
     width: 0.5rem;
     height: 0.5rem;
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
     background: var(--tl-accent-secondary);
     animation: system-activity-dot-pulse 1.8s ease-in-out infinite;
 }
@@ -88,11 +88,7 @@
     50% { opacity: 0.45; }
 }
 
-.system-activity-indicator-shell ::deep .system-activity-indicator__idle-icon {
-    width: 1.75rem;
-    height: 1.75rem;
-    font-size: 1.75rem;
-}
+
 
 .system-activity-indicator__count {
     position: absolute;
@@ -103,9 +99,9 @@
     display: grid;
     place-items: center;
     padding-inline: 0.2rem;
-    border: 2px solid var(--app-surface, #1e1f27);
+    border: 2px solid var(--tl-bg-surface, #1e1f27);
     border-radius: var(--tl-radius-pill);
-    color: var(--app-surface, #1e1f27);
+    color: var(--tl-bg-surface, #1e1f27);
     background: var(--tl-accent-secondary);
     font-size: var(--tl-font-size-xs);
     font-weight: 800;

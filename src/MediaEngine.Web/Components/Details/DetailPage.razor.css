@@ -73,7 +73,7 @@
 
 ::deep .tl-detail-hero-brand-badge span {
     color: rgba(var(--hero-text-rgb, 245, 247, 250), 0.95);
-    font-size: 0.86rem;
+    font-size: var(--tl-font-size-sm);
     font-weight: 700;
     letter-spacing: 0;
     line-height: 1;
@@ -160,7 +160,7 @@
 
 ::deep :where(.tl-section-heading) h2 {
     margin: 0 0 1rem;
-    font-size: 1rem;
+    font-size: var(--tl-font-size-md);
     font-weight: 700;
     color: #fff8eb;
 }
@@ -226,7 +226,7 @@
 ::deep .tl-detail-dl {
     margin-top: 0.25rem;
     color: rgba(246, 240, 232, 0.62);
-    font-size: 0.82rem;
+    font-size: var(--tl-font-size-secondary);
     line-height: 1.35;
 }
 
@@ -417,7 +417,7 @@
 @media (width < 840px) {
 ::deep .tl-detail-watch-metadata-row {
         gap: 0.52rem;
-        font-size: 0.96rem;
+        font-size: var(--tl-font-size-md);
     }
 
 }
@@ -701,7 +701,7 @@
 
 ::deep .tl-overview-section__heading > span {
     color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 72%, #fff);
-    font-size: 0.75rem;
+    font-size: var(--tl-font-size-xs);
     font-weight: 700;
     letter-spacing: 0.13em;
     text-transform: uppercase;
@@ -819,7 +819,7 @@
 .tl-detail-stage__navigation ::deep .detail-surface-navigation .surface-navigation-bar__tab {
         padding-inline: 0.25rem;
         margin-right: clamp(1.6rem, 2.5vw, 3rem);
-        font-size: 0.9rem;
+        font-size: var(--tl-font-size-sm);
     }
 
 .tl-detail-page__primary-content {
@@ -889,7 +889,7 @@
 
 .tl-detail-stage__navigation
         ::deep .detail-surface-navigation .surface-navigation-bar__tab {
-        font-size: 1rem;
+        font-size: var(--tl-font-size-md);
     }
 
 .tl-detail-page__primary-content

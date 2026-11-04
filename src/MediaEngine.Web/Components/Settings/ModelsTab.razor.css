@@ -8,6 +8,6 @@
 .model-card__meta {
     display: block;
     color: var(--tl-text-muted);
-    font-size: 13px;
+    font-size: var(--tl-font-size-secondary);
     line-height: 1.45;
 }

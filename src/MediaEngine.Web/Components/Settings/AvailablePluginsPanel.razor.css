@@ -38,12 +38,12 @@
 
 .available-plugins__entry-title strong {
     color: var(--tl-text-primary);
-    font-size: 16px;
+    font-size: var(--tl-font-size-md);
 }
 
 .available-plugins__entry-meta {
     color: var(--tl-text-muted);
-    font-size: 14px;
+    font-size: var(--tl-font-size-sm);
 }
 
 .available-plugins__entry-badges {
@@ -65,7 +65,7 @@
     margin: 0;
     padding-left: 18px;
     color: var(--tl-text-muted);
-    font-size: 14px;
+    font-size: var(--tl-font-size-sm);
 }
 
 .available-plugins__entry-actions {
