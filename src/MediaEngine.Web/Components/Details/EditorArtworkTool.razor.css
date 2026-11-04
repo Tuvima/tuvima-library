@@ -1,0 +1,413 @@
+.tl-art-picker {
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    color: var(--tl-text-primary);
+}
+
+.tl-art-picker__body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: var(--tl-space-4);
+    min-height: 0;
+    padding: var(--tl-space-3) var(--tl-space-4) var(--tl-space-4);
+}
+
+.tl-art-picker__muted,
+.tl-art-picker__status,
+.tl-art-picker__hint {
+    margin: 0;
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-sm);
+}
+
+.tl-art-picker__preferred {
+    color: var(--tl-accent-primary);
+    font-size: var(--tl-font-size-sm);
+}
+
+/* ---- Role cards ------------------------------------------------------------------------------------- */
+
+.tl-art-picker__levels {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-2);
+}
+
+.tl-art-picker__level {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-1);
+    min-width: 0;
+}
+
+.tl-art-picker__level-name {
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.tl-art-picker__roles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+    gap: var(--tl-space-3);
+}
+
+.tl-art-picker__face {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.tl-art-picker__face--role {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-3);
+    padding: var(--tl-space-2);
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-md);
+    background: var(--tl-bg-surface-raised);
+    color: var(--tl-text-primary);
+    text-align: left;
+    cursor: pointer;
+}
+
+.tl-art-picker__face--role.is-active {
+    border-color: var(--tl-accent-primary);
+    background: var(--tl-accent-primary-soft);
+}
+
+.tl-art-picker__role-text {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-1);
+    min-width: 0;
+}
+
+/* ---- Thumbnails keep each role's real shape ------------------------------------------------------------ */
+
+.tl-art-picker__thumb {
+    display: block;
+    flex: 0 0 auto;
+    height: 4rem;
+    overflow: hidden;
+    border-radius: var(--tl-radius-sm);
+    background: var(--tl-bg-shell);
+}
+
+.tl-art-picker__thumb--portrait { aspect-ratio: 2 / 3; }
+.tl-art-picker__thumb--landscape { aspect-ratio: 16 / 9; }
+.tl-art-picker__thumb--wide { aspect-ratio: 5 / 2; }
+.tl-art-picker__thumb--square { aspect-ratio: 1 / 1; }
+
+.tl-art-picker__thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.tl-art-picker__thumb--wide img {
+    object-fit: contain;
+}
+
+.tl-art-picker__thumb.is-small img {
+    opacity: .7;
+}
+
+/* ---- Preview ---------------------------------------------------------------------------------------- */
+
+.tl-art-picker__main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(14rem, 20rem);
+    gap: var(--tl-space-4);
+    align-items: start;
+}
+
+.tl-art-picker__preview,
+.tl-art-picker__side {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-3);
+    min-width: 0;
+    padding: var(--tl-space-3);
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-md);
+    background: var(--tl-bg-surface-raised);
+}
+
+.tl-art-picker__tools {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--tl-space-2);
+}
+
+.tl-art-picker__zoom {
+    min-width: 3rem;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+    text-align: center;
+}
+
+.tl-art-picker__stage {
+    display: flex;
+    height: min(26rem, 46vh);
+    overflow: auto;
+    border-radius: var(--tl-radius-sm);
+    background: var(--tl-bg-shell);
+}
+
+.tl-art-picker__image {
+    flex: none;
+    margin: auto;
+    object-fit: contain;
+}
+
+/* Zoom steps: 100%, 150%, 200%, 300% of the stage, along the side the role's shape is limited by. */
+.tl-art-picker__image--height { width: auto; }
+.tl-art-picker__image--width { height: auto; }
+.tl-art-picker__image--height.is-zoom-0 { height: 100%; }
+.tl-art-picker__image--height.is-zoom-1 { height: 150%; }
+.tl-art-picker__image--height.is-zoom-2 { height: 200%; }
+.tl-art-picker__image--height.is-zoom-3 { height: 300%; }
+.tl-art-picker__image--width.is-zoom-0 { width: 100%; }
+.tl-art-picker__image--width.is-zoom-1 { width: 150%; }
+.tl-art-picker__image--width.is-zoom-2 { width: 200%; }
+.tl-art-picker__image--width.is-zoom-3 { width: 300%; }
+
+.tl-art-picker__empty {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--tl-space-2);
+    height: 100%;
+    margin: auto;
+    border: 1px dashed var(--tl-border-strong);
+    border-radius: var(--tl-radius-sm);
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-sm);
+}
+
+.tl-art-picker__empty.tl-art-picker__thumb--wide,
+.tl-art-picker__empty.tl-art-picker__thumb--landscape {
+    height: auto;
+    width: 70%;
+}
+
+.tl-art-picker__reach {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-2);
+    margin: 0;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+}
+
+.tl-art-picker__preview.is-full {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    border-radius: 0;
+    background: var(--tl-bg-base);
+}
+
+.tl-art-picker__preview.is-full .tl-art-picker__stage {
+    flex: 1 1 auto;
+    height: auto;
+}
+
+/* ---- File facts and actions --------------------------------------------------------------------------- */
+
+.tl-art-picker__facts {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: var(--tl-space-1) var(--tl-space-3);
+    margin: 0;
+    padding-top: var(--tl-space-3);
+    border-top: 1px solid var(--tl-border-subtle);
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+}
+
+.tl-art-picker__facts dt {
+    color: var(--tl-text-muted);
+}
+
+.tl-art-picker__facts dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+    color: var(--tl-text-primary);
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+/* ---- Versions strip ------------------------------------------------------------------------------------ */
+
+.tl-art-picker__strip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--tl-space-3);
+}
+
+.tl-art-picker__face--version {
+    position: relative;
+    display: block;
+    flex: 0 0 auto;
+    height: 5.5rem;
+    padding: 0;
+    overflow: hidden;
+    border: 2px solid transparent;
+    border-radius: var(--tl-radius-sm);
+    background: var(--tl-bg-shell);
+    cursor: pointer;
+}
+
+.tl-art-picker__strip--portrait .tl-art-picker__face--version { height: 8rem; }
+.tl-art-picker__strip--wide .tl-art-picker__face--version { height: 3.5rem; }
+.tl-art-picker__strip--square .tl-art-picker__face--version { height: 6rem; }
+
+.tl-art-picker__face--version img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.tl-art-picker__face--version.is-preferred {
+    border-color: var(--tl-accent-primary);
+}
+
+.tl-art-picker__face--add {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--tl-space-1);
+    border: 1px dashed var(--tl-border-strong);
+    background: transparent;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+}
+
+.tl-art-picker__chip {
+    position: absolute;
+    left: var(--tl-space-1);
+    bottom: var(--tl-space-1);
+    padding: 0 var(--tl-space-2);
+    border-radius: var(--tl-radius-sm);
+    background: var(--tl-accent-primary);
+    color: var(--tl-on-accent);
+    font-size: var(--tl-font-size-xs);
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+/* ---- Add artwork --------------------------------------------------------------------------------------- */
+
+.tl-art-picker__add-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-3);
+}
+
+.tl-art-picker__add-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-3);
+}
+
+.tl-art-picker__filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--tl-space-3);
+}
+
+.tl-art-picker__filters > * {
+    flex: 0 1 14rem;
+    min-width: 0;
+}
+
+.tl-art-picker__filters > .tl-art-picker__count {
+    flex: 1 1 auto;
+}
+
+.tl-art-picker__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+    gap: var(--tl-space-3);
+}
+
+.tl-art-picker__grid--landscape,
+.tl-art-picker__grid--wide {
+    grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+}
+
+.tl-art-picker__face--tile {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tl-space-1);
+    padding: var(--tl-space-1);
+    border: 2px solid transparent;
+    border-radius: var(--tl-radius-md);
+    background: var(--tl-bg-shell);
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-xs);
+    text-align: left;
+    cursor: pointer;
+}
+
+.tl-art-picker__face--tile .tl-art-picker__thumb {
+    width: 100%;
+    height: auto;
+}
+
+.tl-art-picker__face--tile.is-picked {
+    border-color: var(--tl-accent-primary);
+}
+
+.tl-art-picker__face--tile.is-disabled {
+    opacity: .55;
+    cursor: default;
+}
+
+.tl-art-picker__caption {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--tl-space-2);
+}
+
+.tl-art-picker__small {
+    color: var(--tl-status-warning);
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.tl-art-picker__selected {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-3);
+    padding: var(--tl-space-3);
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-md);
+    background: var(--tl-bg-surface-raised);
+}
+
+.tl-art-picker__selected .tl-art-picker__thumb {
+    height: 3.75rem;
+}
+
+.tl-art-picker__selected-text {
+    display: flex;
+    flex: 1 1 14rem;
+    flex-direction: column;
+    gap: var(--tl-space-1);
+    min-width: 0;
+}
+
+@media (max-width: 840px) {
+    .tl-art-picker__main {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

@@ -303,7 +303,8 @@ public sealed class ArtworkAssetService(
                    asset.height_px AS Height,
                    asset.aspect_class AS Aspect,
                    asset.source_provider AS SourceProvider,
-                   asset.source_url AS SourceUrl
+                   asset.source_url AS SourceUrl,
+                   asset.original_path AS OriginalPath
             FROM entity_artwork_links link
             JOIN artwork_assets asset ON asset.id = link.artwork_asset_id
             WHERE link.entity_id = @entityId AND link.entity_type = @entityType
@@ -869,7 +870,50 @@ public sealed class ArtworkAssetService(
             row.IsPreferred, row.IsUserOverride,
             $"/api/v1/display/artwork/assets/{row.ArtworkAssetId:D}/content?size=l",
             $"/api/v1/display/artwork/assets/{row.ArtworkAssetId:D}/content?size=s",
-            row.Width, row.Height, row.Aspect ?? "UnsupportedRect", row.SourceProvider, row.SourceUrl);
+            row.Width, row.Height, row.Aspect ?? "UnsupportedRect", row.SourceProvider, row.SourceUrl)
+        {
+            FileName = FileNameOf(row.SourceUrl, row.OriginalPath),
+            FileSizeBytes = FileSizeOf(row.OriginalPath),
+            ContentType = ContentTypeOf(row.OriginalPath),
+        };
+
+    private static string? FileNameOf(string? sourceUrl, string? originalPath)
+    {
+        if (Uri.TryCreate(sourceUrl, UriKind.Absolute, out var uri) && Path.GetFileName(uri.AbsolutePath) is { Length: > 0 } fromUrl)
+        {
+            return Uri.UnescapeDataString(fromUrl);
+        }
+
+        return string.IsNullOrWhiteSpace(originalPath) ? null : Path.GetFileName(originalPath);
+    }
+
+    private static long? FileSizeOf(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return null;
+        }
+
+        try
+        {
+            var info = new FileInfo(path);
+            return info.Exists ? info.Length : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            return null;
+        }
+    }
+
+    private static string? ContentTypeOf(string? path) => Path.GetExtension(path ?? string.Empty).ToLowerInvariant() switch
+    {
+        ".jpg" or ".jpeg" => "image/jpeg",
+        ".png" => "image/png",
+        ".webp" => "image/webp",
+        ".gif" => "image/gif",
+        ".avif" => "image/avif",
+        _ => null,
+    };
 
     private static string NormalizeRole(string role) => role.Trim().ToLowerInvariant() switch
     {
@@ -1017,6 +1061,7 @@ public sealed class ArtworkAssetService(
         public string? Aspect { get; init; }
         public string? SourceProvider { get; init; }
         public string? SourceUrl { get; init; }
+        public string? OriginalPath { get; init; }
     }
 
     private sealed class ArtworkPathRow

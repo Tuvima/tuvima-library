@@ -28,6 +28,7 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
     private readonly DeviceContextService _device = new(EngineApiClientStub.CreateDefault());
     private readonly List<(string Name, object?[]? Args)> _writes = [];
     private string? _providerMessage;
+    private IReadOnlyList<ProviderArtworkCandidateDto>? _providerItems;
     private ArtworkEntityWorkspaceDto _workspace = default!;
 
     public ArtworkPickerTests()
@@ -42,7 +43,12 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
     private static ArtworkEntityWorkspaceDto Workspace(params (string Slot, Guid Asset, bool Current)[] pictures) =>
         new(MovieId, "Work", pictures.Select(p => new ArtworkEntityVariantDto(
             Guid.NewGuid(), p.Asset, p.Slot is "Background" or "SeasonThumb" ? "Background" : p.Slot == "Logo" ? "Logo" : "Primary", null, p.Slot, p.Current, false,
-            $"/art/{p.Asset:N}/large", $"/art/{p.Asset:N}/small", 1000, 1500, "Portrait", "tmdb", null)).ToList());
+            $"/art/{p.Asset:N}/large", $"/art/{p.Asset:N}/small", 1000, 1500, "Portrait", "tmdb", null)
+        {
+            FileName = "poster.jpg",
+            FileSizeBytes = 2_400_000,
+            ContentType = "image/jpeg",
+        }).ToList());
 
     private static MediaEditorContextDto SeasonContext() => new()
     {
@@ -112,7 +118,7 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.DiscoverProviderArtworkAsync), _ => Task.FromResult<ProviderArtworkDiscoveryDto?>(
                 _providerMessage is { } message
                     ? new ProviderArtworkDiscoveryDto([], message)
-                    : new ProviderArtworkDiscoveryDto([new ProviderArtworkCandidateDto("tmdb-1", "TMDB", "/thumb/tmdb-1", 1000, 1500, false)], null)));
+                    : new ProviderArtworkDiscoveryDto(_providerItems ?? [new ProviderArtworkCandidateDto("tmdb-1", "TMDB", "/thumb/tmdb-1", 1000, 1500, false)], null)));
             stub.SetHandler(nameof(IEngineApiClient.ImportProviderArtworkAsync), args =>
             {
                 _writes.Add((nameof(IEngineApiClient.ImportProviderArtworkAsync), args));
@@ -135,6 +141,11 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
             {
                 _writes.Add((nameof(IEngineApiClient.LinkArtworkAssetAsync), args));
                 return Task.FromResult<ArtworkEntityWorkspaceDto?>(_workspace);
+            });
+            stub.SetHandler(nameof(IEngineApiClient.RemoveArtworkLinkAsync), args =>
+            {
+                _writes.Add((nameof(IEngineApiClient.RemoveArtworkLinkAsync), args));
+                return Task.FromResult(true);
             });
             stub.SetHandler(nameof(IEngineApiClient.RunEditSessionAsync), args =>
             {
@@ -163,44 +174,70 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
         var cut = Render<EditorArtworkTool>(parameters => parameters
             .Add(picker => picker.Mode, harness.Mode)
             .Add(picker => picker.Picker, harness.Picker));
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-art-picker__tile")));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-art-picker__version")));
         return (harness, cut);
     }
 
-    private static IReadOnlyList<string> Tabs(IRenderedComponent<EditorArtworkTool> cut) =>
-        cut.FindAll(".tl-art-picker__tabs .app-segmented-control__item").Select(tab => tab.TextContent.Trim()).ToList();
+    private static IReadOnlyList<string> Roles(IRenderedComponent<EditorArtworkTool> cut) =>
+        cut.FindAll(".tl-art-picker__role strong").Select(role => role.TextContent.Trim()).ToList();
 
-    // -- Tabs ----------------------------------------------------------------------------------
+    private static AngleSharp.Dom.IElement RoleCard(IRenderedComponent<EditorArtworkTool> cut, string label) =>
+        cut.FindAll(".tl-art-picker__role").Single(card => card.QuerySelector("strong")!.TextContent.Trim() == label);
+
+    private static IReadOnlyList<string> VersionOrder(IRenderedComponent<EditorArtworkTool> cut) =>
+        cut.FindAll(".tl-art-picker__version:not(.tl-art-picker__add-version)")
+            .Select(version => version.QuerySelector("img")!.GetAttribute("src")!)
+            .Select(src => src.Split('/')[2])
+            .ToList();
+
+    private static void OpenAddPanel(IRenderedComponent<EditorArtworkTool> cut) => cut.Find("button.tl-art-picker__add").Click();
+
+    // -- Role cards ----------------------------------------------------------------------------------
 
     [Fact]
-    public async Task ThePicker_IsANamedRegionOfTheWindow_AndNamesItsPictureGroups()
+    public async Task ThePicker_IsANamedRegionOfTheWindow_AndNamesItsVersionStrip()
     {
         var (_, cut) = await OpenPickerAsync();
 
         var root = cut.Find(".tl-art-picker");
         Assert.Equal("region", root.GetAttribute("role"));
         Assert.False(string.IsNullOrWhiteSpace(root.GetAttribute("aria-label")));
-        var grid = cut.Find(".tl-art-picker__grid");
-        Assert.Equal("group", grid.GetAttribute("role"));
-        Assert.False(string.IsNullOrWhiteSpace(grid.GetAttribute("aria-label")));
-        Assert.All(cut.FindAll(".tl-art-picker__tile"), tile => Assert.False(string.IsNullOrWhiteSpace(tile.GetAttribute("aria-label"))));
+        var strip = cut.Find(".tl-art-picker__strip");
+        Assert.Equal("group", strip.GetAttribute("role"));
+        Assert.False(string.IsNullOrWhiteSpace(strip.GetAttribute("aria-label")));
+        Assert.All(cut.FindAll(".tl-art-picker__version"), version => Assert.False(string.IsNullOrWhiteSpace(version.GetAttribute("aria-label"))));
+        Assert.All(cut.FindAll(".tl-art-picker__role"), card => Assert.False(string.IsNullOrWhiteSpace(card.GetAttribute("aria-label"))));
     }
 
     [Fact]
-    public async Task AMovieOffersBackgroundPosterAndLogo()
+    public async Task AMovieHasARoleCardForBackgroundPosterAndLogo()
     {
         var (_, cut) = await OpenPickerAsync();
 
-        Assert.Equal(["Background", "Poster", "Logo"], Tabs(cut));
+        Assert.Equal(["Background", "Poster", "Logo"], Roles(cut));
     }
 
     [Fact]
-    public async Task ASeasonOffersItsSeasonPictures()
+    public async Task ARoleCardSaysWhetherAVersionIsPreferredAndHowManyVersionsThereAre()
+    {
+        var (_, cut) = await OpenPickerAsync();
+
+        var poster = RoleCard(cut, "Poster");
+        Assert.Contains("Preferred", poster.TextContent);
+        Assert.Contains("2 versions", poster.TextContent);
+        var logo = RoleCard(cut, "Logo");
+        Assert.Contains("No artwork", logo.TextContent);
+        Assert.Contains("0 versions", logo.TextContent);
+        Assert.Equal("true", poster.GetAttribute("aria-pressed"));
+    }
+
+    [Fact]
+    public async Task ASeasonHasARoleCardForItsSeasonPictures()
     {
         _workspace = Workspace(("SeasonPoster", FirstPicture, true));
         var (_, cut) = await OpenPickerAsync(SeasonContext());
 
-        Assert.Equal(["Season poster", "Season thumbnail"], Tabs(cut));
+        Assert.Equal(["Season poster", "Season thumbnail"], Roles(cut));
     }
 
     [Theory]
@@ -208,7 +245,7 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
     [InlineData("TV", "Poster")]
     [InlineData("Books", "Cover")]
     [InlineData("Music", "Cover")]
-    public void TheCoverTabIsCalledPosterOrCoverByKindOfMedia(string mediaType, string label) =>
+    public void TheCoverRoleIsCalledPosterOrCoverByKindOfMedia(string mediaType, string label) =>
         Assert.Equal(label, Assert.Single(ArtworkPickerRules.TabsFor(["CoverArt"], mediaType)).Label);
 
     [Fact]
@@ -216,65 +253,151 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
         Assert.Equal(["Background", "Logo"], ArtworkPickerRules.TabsFor(["Logo", "Banner", "Background"], "Movies").Select(tab => tab.Slot));
 
     [Fact]
-    public void APersonsPhotoIsAPickerTabCalledPhoto() =>
+    public void APersonsPhotoIsARoleCalledPhoto() =>
         Assert.Equal("Photo", Assert.Single(ArtworkPickerRules.TabsFor(["Headshot"], "person")).Label);
 
-    // -- Picking previews, Use stages --------------------------------------------------------------
+    [Theory]
+    [InlineData("CoverArt", "Movies", ArtworkRoleShape.Portrait)]
+    [InlineData("Background", "Movies", ArtworkRoleShape.Landscape)]
+    [InlineData("EpisodeStill", "TV", ArtworkRoleShape.Landscape)]
+    [InlineData("Logo", "Movies", ArtworkRoleShape.Wide)]
+    [InlineData("CoverArt", "Music", ArtworkRoleShape.Square)]
+    public void EachRoleKeepsItsRealShape(string slot, string mediaType, ArtworkRoleShape shape) =>
+        Assert.Equal(shape, ArtworkPickerRules.ShapeFor(slot, mediaType));
+
+    [Theory]
+    [InlineData("EpisodeStill", "TV", null, "Only this episode's still changes.")]
+    [InlineData("SeasonPoster", "TV", null, "Only this season's poster changes.")]
+    [InlineData("CoverArt", "TV", null, "This show's poster; seasons without their own poster use it too.")]
+    [InlineData("CoverArt", "Movies", null, "Only this film's poster changes.")]
+    [InlineData("CoverArt", "Music", null, "Only this album's cover changes.")]
+    [InlineData("Logo", "TV", null, "Only this show's logo changes.")]
+    public void TheReachLineSaysWhatTheChangeReaches(string slot, string mediaType, string? subject, string expected) =>
+        Assert.Equal(expected, ArtworkPickerRules.ReachFor(slot, mediaType, subject));
 
     [Fact]
-    public async Task PickingASavedPicture_PreviewsItOnThePageAndWritesAndStagesNothing()
-    {
-        var (harness, cut) = await OpenPickerAsync();
-        Assert.Equal("CoverArt", harness.Picker.ActiveSlot);
-
-        cut.FindAll(".tl-art-picker__tile").Last().Click();
-
-        cut.WaitForAssertion(() => Assert.Equal($"/art/{SecondPicture:N}/large", harness.Preview.Url("CoverArt")));
-        Assert.True(harness.Session.Pending.IsEmpty);
-        Assert.Empty(_writes);
-        Assert.Contains("Previewing on the page", cut.Find(".tl-art-picker__status").TextContent);
-    }
-
-    [Fact]
-    public async Task UseThisArtwork_StagesTheChoiceAndStillWritesNothing()
-    {
-        var (harness, cut) = await OpenPickerAsync();
-        cut.FindAll(".tl-art-picker__tile").Last().Click();
-        cut.WaitForAssertion(() => Assert.False(cut.Find("button.tl-art-picker__use").HasAttribute("disabled")));
-
-        cut.Find("button.tl-art-picker__use").Click();
-
-        cut.WaitForAssertion(() =>
-        {
-            var change = Assert.Single(harness.Session.Pending.Changes);
-            Assert.Equal(EditSessionChangeKinds.Artwork, change.Kind);
-            Assert.Equal("CoverArt", change.Slot);
-            Assert.Equal(MovieId, change.EntityId);
-            Assert.Equal(SecondPicture.ToString("D"), change.TargetId);
-        });
-        Assert.Empty(_writes);
-        Assert.Equal($"/art/{SecondPicture:N}/large", harness.Preview.Url("CoverArt"));
-    }
-
-    [Fact]
-    public async Task UseThisArtwork_IsOffUntilAPictureIsPicked()
+    public async Task ThePreviewShowsTheReachLine_AndZoomAndFullScreenChangeIt()
     {
         var (_, cut) = await OpenPickerAsync();
 
-        Assert.True(cut.Find("button.tl-art-picker__use").HasAttribute("disabled"));
+        Assert.Contains("Only this film's poster changes.", cut.Find(".tl-art-picker__reach").TextContent);
+        Assert.Equal("100%", cut.Find(".tl-art-picker__zoom").TextContent.Trim());
+        cut.Find("button[aria-label='Zoom in']").Click();
+        Assert.Equal("150%", cut.Find(".tl-art-picker__zoom").TextContent.Trim());
+        cut.Find("button[aria-label='Zoom out']").Click();
+        Assert.Equal("100%", cut.Find(".tl-art-picker__zoom").TextContent.Trim());
+        Assert.Empty(cut.FindAll(".tl-art-picker__preview.is-full"));
+        cut.Find("button[aria-label='Full screen']").Click();
+        Assert.Single(cut.FindAll(".tl-art-picker__preview.is-full"));
     }
 
     [Fact]
-    public async Task ChangingTabWithoutUsingThePick_DropsThePreviewAndStagesNothing()
+    public async Task TheFileFactsNameTheSizeTypeAndSourceOfThePreferredVersion()
+    {
+        var (_, cut) = await OpenPickerAsync();
+
+        var facts = cut.Find(".tl-art-picker__facts").TextContent;
+        Assert.Contains("poster.jpg", facts);
+        Assert.Contains("1000 × 1500", facts);
+        Assert.Contains("JPEG", facts);
+        Assert.Contains("tmdb", facts);
+        Assert.Contains("MB", facts);
+    }
+
+    // -- Clicking a version makes it Preferred; Save writes ---------------------------------------------------
+
+    [Fact]
+    public async Task ClickingAVersion_MakesItPreferredAndMovesItToTheFront_AndWritesNothing()
     {
         var (harness, cut) = await OpenPickerAsync();
-        cut.FindAll(".tl-art-picker__tile").Last().Click();
+        Assert.Equal("CoverArt", harness.Picker.ActiveSlot);
+        Assert.Equal([FirstPicture.ToString("N"), SecondPicture.ToString("N")], VersionOrder(cut));
+
+        cut.FindAll(".tl-art-picker__version:not(.tl-art-picker__add-version)").Last().Click();
+
+        cut.WaitForAssertion(() => Assert.Equal([SecondPicture.ToString("N"), FirstPicture.ToString("N")], VersionOrder(cut)));
+        var change = Assert.Single(harness.Session.Pending.Changes);
+        Assert.Equal(EditSessionChangeKinds.Artwork, change.Kind);
+        Assert.Equal("CoverArt", change.Slot);
+        Assert.Equal(MovieId, change.EntityId);
+        Assert.Equal(SecondPicture.ToString("D"), change.TargetId);
+        Assert.Equal($"/art/{SecondPicture:N}/large", harness.Preview.Url("CoverArt"));
+        Assert.Empty(_writes);
+        Assert.Equal("true", cut.FindAll(".tl-art-picker__version").First().GetAttribute("aria-pressed"));
+        Assert.Contains("Preferred", cut.FindAll(".tl-art-picker__version").First().TextContent);
+        Assert.DoesNotContain(cut.FindAll("button"), button => button.TextContent.Contains("Set preferred", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task TheOtherVersions_KeepTheOrderTheyWereAdded()
+    {
+        _workspace = Workspace(("CoverArt", FirstPicture, true), ("CoverArt", SecondPicture, false), ("CoverArt", ProviderPicture, false));
+        var (_, cut) = await OpenPickerAsync();
+        string Id(Guid asset) => asset.ToString("N");
+
+        cut.FindAll(".tl-art-picker__version:not(.tl-art-picker__add-version)").Last().Click();
+        cut.WaitForAssertion(() => Assert.Equal([Id(ProviderPicture), Id(FirstPicture), Id(SecondPicture)], VersionOrder(cut)));
+
+        cut.FindAll(".tl-art-picker__version:not(.tl-art-picker__add-version)")[2].Click();
+        cut.WaitForAssertion(() => Assert.Equal([Id(SecondPicture), Id(FirstPicture), Id(ProviderPicture)], VersionOrder(cut)));
+    }
+
+    [Fact]
+    public async Task ClickingTheSavedPreferredVersionAgain_TakesTheStagedChoiceBack()
+    {
+        var (harness, cut) = await OpenPickerAsync();
+        cut.FindAll(".tl-art-picker__version:not(.tl-art-picker__add-version)").Last().Click();
+        cut.WaitForAssertion(() => Assert.False(harness.Session.Pending.IsEmpty));
+
+        cut.FindAll(".tl-art-picker__version:not(.tl-art-picker__add-version)").Last().Click();
+
+        cut.WaitForAssertion(() => Assert.True(harness.Session.Pending.IsEmpty));
+        Assert.Equal([FirstPicture.ToString("N"), SecondPicture.ToString("N")], VersionOrder(cut));
+    }
+
+    [Fact]
+    public async Task UndoThisChoice_TakesTheStagedChangeBackOut()
+    {
+        var (harness, cut) = await OpenPickerAsync();
+        cut.FindAll(".tl-art-picker__version:not(.tl-art-picker__add-version)").Last().Click();
+        cut.WaitForAssertion(() => Assert.False(harness.Session.Pending.IsEmpty));
+
+        cut.Find("button.tl-art-picker__undo").Click();
+
+        cut.WaitForAssertion(() => Assert.True(harness.Session.Pending.IsEmpty));
+        Assert.Null(harness.Preview.Url("CoverArt"));
+    }
+
+    [Fact]
+    public async Task ChangingRoleWithoutAddingThePick_DropsThePreviewAndStagesNothing()
+    {
+        var (harness, cut) = await OpenPickerAsync();
+        OpenAddPanel(cut);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-art-picker__tile")));
+        cut.Find(".tl-art-picker__tile").Click();
         cut.WaitForAssertion(() => Assert.NotNull(harness.Preview.Url("CoverArt")));
 
-        cut.FindAll(".tl-art-picker__tabs .app-segmented-control__item").Single(tab => tab.TextContent.Trim() == "Logo").Click();
+        RoleCard(cut, "Logo").Click();
 
         cut.WaitForAssertion(() => Assert.Null(harness.Preview.Url("CoverArt")));
         Assert.True(harness.Session.Pending.IsEmpty);
+        Assert.Empty(cut.FindAll(".tl-art-picker__add-panel"));
+    }
+
+    // -- Add artwork: Provider, Upload, Link --------------------------------------------------------------------
+
+    [Fact]
+    public async Task AddArtwork_OpensProviderUploadAndLink_InPlaceOfThePreview()
+    {
+        var (_, cut) = await OpenPickerAsync();
+
+        OpenAddPanel(cut);
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-art-picker__add-panel")));
+        Assert.Empty(cut.FindAll(".tl-art-picker__preview"));
+        Assert.Equal(["Provider", "Upload", "Link"], cut.FindAll(".tl-art-picker__sources .app-segmented-control__item").Select(item => item.TextContent.Trim()));
+        cut.Find("button.tl-art-picker__back").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-art-picker__preview")));
     }
 
     [Fact]
@@ -283,7 +406,7 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
         _providerMessage = ProviderArtworkDiscoveryDto.UnmatchedTvShowMessage;
         _workspace = Workspace(("SeasonPoster", FirstPicture, true));
         var (harness, cut) = await OpenPickerAsync(SeasonContext());
-        cut.FindAll(".app-segmented-control__item").Single(item => item.TextContent.Trim() == "Providers").Click();
+        OpenAddPanel(cut);
         cut.WaitForAssertion(() => Assert.Contains("not matched to TheTVDB", cut.Find(".tl-art-picker__hint").TextContent));
 
         cut.FindAll("button").Single(button => button.TextContent.Trim() == "Open Match and Identity").Click();
@@ -292,20 +415,58 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task APickedProviderPicture_IsOnlyAddedWhenItIsUsed()
+    public async Task AProviderTile_ShowsItsSizeAndLanguage_AndASmallMarkBelowTheRolesUsefulSize()
+    {
+        _providerItems =
+        [
+            new("big", "TMDB", "/thumb/big", 2000, 3000, false, "eng"),
+            new("little", "TMDB", "/thumb/little", 600, 900, false, "eng"),
+        ];
+        var (_, cut) = await OpenPickerAsync();
+
+        OpenAddPanel(cut);
+
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll(".tl-art-picker__tile").Count));
+        var tiles = cut.FindAll(".tl-art-picker__tile");
+        Assert.Contains("2000 × 3000", tiles[0].TextContent);
+        Assert.Contains("English", tiles[0].TextContent);
+        Assert.Empty(tiles[0].QuerySelectorAll(".tl-art-picker__small"));
+        Assert.Contains("600 × 900", tiles[1].TextContent);
+        Assert.Equal("Small", tiles[1].QuerySelector(".tl-art-picker__small")!.TextContent.Trim());
+    }
+
+    [Fact]
+    public async Task APickedProviderPicture_IsOnlyAddedWhenAddVersionIsPressed_ThenBecomesPreferred()
     {
         var (harness, cut) = await OpenPickerAsync();
-        cut.FindAll(".app-segmented-control__item").Single(item => item.TextContent.Trim() == "Providers").Click();
-        cut.WaitForAssertion(() => Assert.Contains("TMDB", cut.Find(".tl-art-picker__tile").TextContent));
+        OpenAddPanel(cut);
+        cut.WaitForAssertion(() => Assert.Contains("1000 × 1500", cut.Find(".tl-art-picker__tile").TextContent));
 
         cut.Find(".tl-art-picker__tile").Click();
         cut.WaitForAssertion(() => Assert.Equal("/thumb/tmdb-1", harness.Preview.Url("CoverArt")));
         Assert.Empty(_writes);
+        Assert.Contains("Only this film's poster changes.", cut.Find(".tl-art-picker__selected").TextContent);
 
         cut.Find("button.tl-art-picker__use").Click();
 
         cut.WaitForAssertion(() => Assert.Equal(ProviderPicture.ToString("D"), Assert.Single(harness.Session.Pending.Changes).TargetId));
         Assert.Equal([nameof(IEngineApiClient.ImportProviderArtworkAsync)], _writes.Select(write => write.Name));
+    }
+
+    [Fact]
+    public async Task AddingAProviderPictureWithoutMakingItPreferred_StagesNothing()
+    {
+        var (harness, cut) = await OpenPickerAsync();
+        OpenAddPanel(cut);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-art-picker__tile")));
+        cut.Find(".tl-art-picker__tile").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-art-picker__selected input[type='checkbox']")));
+        cut.Find(".tl-art-picker__selected input[type='checkbox']").Change(false);
+
+        cut.Find("button.tl-art-picker__use").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains(_writes, write => write.Name == nameof(IEngineApiClient.ImportProviderArtworkAsync)));
+        Assert.True(harness.Session.Pending.IsEmpty);
     }
 
     [Fact]
@@ -338,47 +499,41 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
         Assert.True(harness.Session.Pending.IsEmpty);
     }
 
-    // -- Remove artwork asks first ---------------------------------------------------------------------
+    // -- Delete is the one action that happens at once, after asking ---------------------------------------------
 
     [Fact]
-    public async Task RemoveArtwork_AsksFirst_AndStagesNothingUntilTheyAgree()
+    public async Task DeleteThisVersion_AsksFirst_ThenRemovesItAtOnce()
     {
         var host = Render<AppDialogHost>();
         var (harness, cut) = await OpenPickerAsync();
 
-        cut.Find("button.tl-art-picker__remove").Click();
+        cut.Find("button.tl-art-picker__delete").Click();
 
         host.WaitForElement(".app-confirm");
-        Assert.True(harness.Session.Pending.IsEmpty);
+        Assert.Empty(_writes);
         host.FindAll(".app-dialog-shell__footer button").Single(button => button.TextContent.Trim() == "Keep").Click();
-        cut.WaitForAssertion(() => Assert.True(harness.Session.Pending.IsEmpty));
+        cut.WaitForAssertion(() => Assert.Empty(_writes));
 
-        cut.Find("button.tl-art-picker__remove").Click();
+        cut.Find("button.tl-art-picker__delete").Click();
         host.WaitForElement(".app-confirm");
         host.FindAll(".app-dialog-shell__footer button").Single(button => button.TextContent.Trim() == "Remove").Click();
 
-        cut.WaitForAssertion(() =>
-        {
-            var change = Assert.Single(harness.Session.Pending.Changes);
-            Assert.Equal(EditSessionArtworkTargets.None, change.TargetId);
-            Assert.Equal("CoverArt", change.Slot);
-        });
-        Assert.Empty(_writes);
+        cut.WaitForAssertion(() => Assert.Equal([nameof(IEngineApiClient.RemoveArtworkLinkAsync)], _writes.Select(write => write.Name)));
+        Assert.True(harness.Session.Pending.IsEmpty);
     }
 
     [Fact]
-    public async Task UndoThisChoice_TakesTheStagedChangeBackOut()
+    public async Task Replace_OpensAddArtwork_AndTheNewPictureBecomesPreferred()
     {
         var (harness, cut) = await OpenPickerAsync();
-        cut.FindAll(".tl-art-picker__tile").Last().Click();
-        cut.WaitForAssertion(() => Assert.False(cut.Find("button.tl-art-picker__use").HasAttribute("disabled")));
+
+        cut.Find("button.tl-art-picker__replace").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-art-picker__tile")));
+        cut.Find(".tl-art-picker__tile").Click();
+        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-art-picker__selected input[type='checkbox']")));
         cut.Find("button.tl-art-picker__use").Click();
-        cut.WaitForAssertion(() => Assert.False(harness.Session.Pending.IsEmpty));
 
-        cut.Find("button.tl-art-picker__undo").Click();
-
-        cut.WaitForAssertion(() => Assert.True(harness.Session.Pending.IsEmpty));
-        Assert.Null(harness.Preview.Url("CoverArt"));
+        cut.WaitForAssertion(() => Assert.Equal(ProviderPicture.ToString("D"), Assert.Single(harness.Session.Pending.Changes).TargetId));
     }
 
     // -- What the tool shows ----------------------------------------------------------------------------
