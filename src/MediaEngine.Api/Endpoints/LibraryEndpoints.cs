@@ -239,7 +239,8 @@ public static class LibraryEndpoints
             // handlers refuse without it. A session with no such change never needs it.
             EditSessionCaller? caller = null;
             if (request.Changes.Any(change => change.Kind is EditSessionChangeKinds.Relationship
-                    or EditSessionChangeKinds.SiblingMatch or EditSessionChangeKinds.ChildRematch))
+                    or EditSessionChangeKinds.SiblingMatch or EditSessionChangeKinds.ChildRematch)
+                || request.Changes.Any(change => change.Kind == EditSessionChangeKinds.ExtraMove && EditSessionExtraMove.IsFileChoice(change.Token)))
             {
                 var actor = await LibraryItemEndpoints.ResolveMoveActorAsync(http, authorityResolver, profiles, ct);
                 if (actor is null)
@@ -247,7 +248,11 @@ public static class LibraryEndpoints
                     return ApiErrors.NotFound("The editing session is unavailable.");
                 }
 
-                caller = new EditSessionCaller(actor, LibraryItemEndpoints.CanEdit(http, resources));
+                caller = new EditSessionCaller(actor, LibraryItemEndpoints.CanEdit(http, resources))
+                {
+                    TargetRefusal = async (id, token) =>
+                        (await access.FindRefusalsAsync(http, [id], token)).TryGetValue(id, out var reason) ? reason : null,
+                };
             }
 
             var refusals = await access.FindRefusalsAsync(http, request.Changes.Select(change => change.EntityId).ToList(), ct);
@@ -379,15 +384,15 @@ public static class LibraryEndpoints
                 return ApiErrors.NotFound(EditSessionReasons.Gone);
             }
 
-            if (!thing.AddedByUser)
-            {
-                return ApiErrors.BadRequest("Only something you added yourself can be deleted. Hide it from the Universe page instead.");
-            }
-
             var refusals = await access.FindRefusalsAsync(http, [id], ct);
             if (refusals.TryGetValue(id, out var refusal))
             {
                 return ApiErrors.Forbidden(refusal);
+            }
+
+            if (!thing.AddedByUser)
+            {
+                return ApiErrors.BadRequest("Only something you added yourself can be deleted. Hide it from the Universe page instead.");
             }
 
             if (!await entities.DeleteUserEntityAsync(id, ct))

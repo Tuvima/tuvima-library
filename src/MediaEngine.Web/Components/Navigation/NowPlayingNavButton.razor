@@ -1,0 +1,48 @@
+@namespace MediaEngine.Web.Components.Navigation
+@implements IDisposable
+@inject PlaybackSessionController Playback
+@inject NavigationManager Nav
+@inject IStringLocalizer<SharedStrings> L
+@using MediaEngine.Web.Services.Playback
+
+@* Unified player D7a: while something is playing, a small animated sound-bars mark sits in the top bar. For audio it opens or
+   closes the Now Playing page over the current page; for video it returns to the player page. Playback never stops either way. *@
+@if (Playback.HasQueue && Playback.CurrentItem is not null && !Playback.IsDismissed)
+{
+    <span class="now-playing-nav-button" data-now-playing-nav>
+        <AppTooltip Text="@L["NowPlayingNavButton_NowPlaying"].Value" Placement="AppPlacement.Bottom">
+            <AppButton ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Normal" OnClick="OpenAsync" UserAttributes="@_labelAttributes">
+                <PlaybackActivityMark IsPlaying="@Playback.IsPlaying" AriaLabel="@L["NowPlayingNavButton_NowPlaying"].Value" />
+            </AppButton>
+        </AppTooltip>
+    </span>
+}
+
+@code {
+    private readonly Dictionary<string, object> _labelAttributes = new() { ["aria-label"] = "Now playing" };
+
+    protected override void OnInitialized() => Playback.Changed += OnPlaybackChanged;
+
+    private void OnPlaybackChanged(PlaybackChangeKind kind)
+    {
+        if (kind is PlaybackChangeKind.TransportTick) return;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void Open()
+    {
+        if (Playback.IsVideoMode)
+        {
+            if (Playback.CurrentItem?.WorkId is Guid workId && workId != Guid.Empty)
+                Nav.NavigateTo($"/watch/player/{workId:D}");
+            return;
+        }
+        Playback.SetPresentationSurface(Playback.PresentationSurface == PlaybackPresentationSurface.NowPlaying
+            ? PlaybackPresentationSurface.Docked
+            : PlaybackPresentationSurface.NowPlaying);
+    }
+
+    private Task OpenAsync() { Open(); return Task.CompletedTask; }
+
+    public void Dispose() => Playback.Changed -= OnPlaybackChanged;
+}

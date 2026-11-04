@@ -126,6 +126,8 @@ public sealed partial class PlaybackSessionController
     public double DurationSeconds { get; private set; }
     public double Volume { get; private set; }
     public bool IsMuted { get; private set; }
+    /// <summary>True once the player has reported its real volume; until then a zero level is not shown as muted.</summary>
+    public bool VolumeReported { get; private set; }
     public double LastAudibleVolume => _lastAudibleVolume;
 
     public double GetMuteToggleTargetVolume() => IsMuted || Volume <= 0
@@ -1423,6 +1425,7 @@ public sealed partial class PlaybackSessionController
         if (volume.HasValue)
         {
             var next = Math.Clamp(volume.Value, 0d, 1d);
+            VolumeReported = true;
             if (double.IsFinite(next) && next > 0d)
             {
                 _lastAudibleVolume = next;

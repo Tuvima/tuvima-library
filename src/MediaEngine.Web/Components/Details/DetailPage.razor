@@ -781,8 +781,9 @@ else if (Model is not null)
             return;
         }
 
-        if (_deleting)
+        if (_deleting || (ReferenceEquals(Editor.Binding, _binding) && Editor.IsDeleting))
         {
+            // This page's own delete, or one started from the editor open on it: the editor moves to the parent when it is done.
             _removedWhileDeleting = true;
             return;
         }

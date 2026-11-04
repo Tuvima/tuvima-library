@@ -509,6 +509,19 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
         Assert.Null(EditorMatchFacts.ParseProviderReference("not an id"));
     }
 
+    [Fact]
+    public void ATmdbLink_IsReadAsTmdb_AndABareNumberFollowsTheKindOfItem()
+    {
+        Assert.Equal(new EditorProviderReference("tmdb", "603"), EditorMatchFacts.ParseProviderReference("https://www.themoviedb.org/movie/603-the-matrix", "Movies"));
+        Assert.Equal(new EditorProviderReference("tmdb", "1399"), EditorMatchFacts.ParseProviderReference("https://www.themoviedb.org/tv/1399-game-of-thrones", "TV"));
+        Assert.Equal(new EditorProviderReference("tmdb", "603"), EditorMatchFacts.ParseProviderReference("603", "Movies"));
+        Assert.Equal(new EditorProviderReference("tvdb", "354627"), EditorMatchFacts.ParseProviderReference("354627", "TV"));
+        Assert.Null(EditorMatchFacts.ParseProviderReference("603", "Music"));
+        Assert.Null(EditorMatchFacts.ParseProviderReference("603", "Books"));
+        Assert.Contains("TMDB", EditorMatchFacts.AcceptedProviderForms("Movies"), StringComparison.Ordinal);
+        Assert.Contains("TheTVDB", EditorMatchFacts.AcceptedProviderForms("TV"), StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("Godspeed", true)]
     [InlineData("good god", false)]

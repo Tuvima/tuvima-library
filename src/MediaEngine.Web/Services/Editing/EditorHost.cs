@@ -130,6 +130,7 @@ public sealed class EditorHost : IDisposable
     private bool _disposed;
     private bool _wasOpen;
     private bool _changedWhileOpen;
+    private int _deleting;
     private readonly HashSet<Guid> _touched = [];
 
     public EditorHost(
@@ -206,6 +207,33 @@ public sealed class EditorHost : IDisposable
 
     /// <summary>The page the editor currently belongs to; null when no page has bound itself.</summary>
     public EditorBinding? Binding => _binding;
+
+    /// <summary>
+    /// True while a delete started from the editor is running, from the question to the end of <see cref="ItemsDeletedAsync"/>. The page
+    /// behind hears the Engine's "removed" event during that time and must leave it to the editor, which moves to the item's parent, rather
+    /// than tell the person someone else deleted it.
+    /// </summary>
+    public bool IsDeleting => _deleting > 0;
+
+    /// <summary>Marks a delete started from the editor as running until the returned scope is disposed (nests; always dispose in a finally or <c>using</c>).</summary>
+    public IDisposable MarkDeleting()
+    {
+        _deleting++;
+        var ended = false;
+        return new DeletingScope(() =>
+        {
+            if (!ended)
+            {
+                ended = true;
+                _deleting--;
+            }
+        });
+    }
+
+    private sealed class DeletingScope(Action end) : IDisposable
+    {
+        public void Dispose() => end();
+    }
 
     /// <summary>True while the pop-over is showing.</summary>
     public bool IsOpen => Mode.IsOn;
