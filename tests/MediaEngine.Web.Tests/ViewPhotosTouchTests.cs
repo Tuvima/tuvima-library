@@ -56,6 +56,30 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
             .Add(timeline => timeline.OnOpen, EventCallback.Factory.Create<LocalAssetDto>(this, item => opened?.Invoke(item))));
 
     [Fact]
+    public async Task ATileMenuAppearsOnlyWhenThePageOffersEditOrTrash()
+    {
+        await UseAsync("desktop", touch: false);
+
+        var without = RenderTimeline([Photo("one")]);
+        Assert.Empty(without.FindAll(".view-tile__menu"));
+
+        var with = Render<ViewPhotoTimeline>(parameters => parameters
+            .Add(timeline => timeline.Items, [Photo("one"), Photo("two")])
+            .Add(timeline => timeline.Selected, new HashSet<Guid>())
+            .Add(timeline => timeline.ThumbnailUrl, _ => "/thumb")
+            .Add(timeline => timeline.OnEditItem, EventCallback.Factory.Create<LocalAssetDto>(this, _ => { })));
+        Assert.Equal(2, with.FindAll(".view-tile__menu").Count);
+
+        var picking = Render<ViewPhotoTimeline>(parameters => parameters
+            .Add(timeline => timeline.Items, [Photo("one")])
+            .Add(timeline => timeline.Selected, new HashSet<Guid>())
+            .Add(timeline => timeline.SelectMode, true)
+            .Add(timeline => timeline.ThumbnailUrl, _ => "/thumb")
+            .Add(timeline => timeline.OnEditItem, EventCallback.Factory.Create<LocalAssetDto>(this, _ => { })));
+        Assert.Empty(picking.FindAll(".view-tile__menu"));
+    }
+
+    [Fact]
     public async Task TouchTilesCarryNoDraggableAttribute()
     {
         await UseAsync("phone", touch: true);

@@ -33,6 +33,20 @@
                     @TileFace(item)
                 </AppNativeButton>
                 }
+                @if (!SelectMode && (OnEditItem.HasDelegate || (OnTrashItem.HasDelegate && item.CanTrash && !item.FileMissing)))
+                {
+                    @* The tile's own menu: the same Edit and Trash as the selection bar, for one photo, without selecting it first. *@
+                    <AppOverflowMenu Class="view-tile__menu" AriaLabel="@($"More for {Title(item)}")" AnchorOrigin="AppOrigin.BottomRight" TransformOrigin="AppOrigin.TopRight">
+                        @if (OnEditItem.HasDelegate)
+                        {
+                            <AppMenuItem Label="@L["Common_Edit"].Value" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="@(() => OnEditItem.InvokeAsync(item))" />
+                        }
+                        @if (OnTrashItem.HasDelegate && item.CanTrash && !item.FileMissing)
+                        {
+                            <AppMenuItem Label="@L["Common_Trash"].Value" Icon="@AppMaterialIcons.Outlined.DeleteOutline" Destructive="true" OnClick="@(() => OnTrashItem.InvokeAsync(item))" />
+                        }
+                    </AppOverflowMenu>
+                }
                 @if (NoteFor(item) is { Length: > 0 } note)
                 {
                     <small class="view-tile__note" role="note">@note</small>
@@ -59,6 +73,12 @@
     [Parameter] public bool SelectEntireDate { get; set; }
     [Parameter, EditorRequired] public Func<LocalAssetDto, string> ThumbnailUrl { get; set; } = _ => string.Empty;
     [Parameter] public EventCallback<LocalAssetDto> OnOpen { get; set; }
+
+    /// <summary>Opens the editor on one photo from its tile menu; left unset (phones, tablets, Trash) the menu offers no Edit.</summary>
+    [Parameter] public EventCallback<LocalAssetDto> OnEditItem { get; set; }
+
+    /// <summary>Moves one photo to Trash from its tile menu; left unset the menu offers no Trash.</summary>
+    [Parameter] public EventCallback<LocalAssetDto> OnTrashItem { get; set; }
     [Parameter] public EventCallback<Guid> OnToggleSelection { get; set; }
     [Parameter] public EventCallback<SelectionRequest> OnToggleSelectionRequested { get; set; }
     [Parameter] public EventCallback<IReadOnlyCollection<Guid>> OnSelectDateGroup { get; set; }

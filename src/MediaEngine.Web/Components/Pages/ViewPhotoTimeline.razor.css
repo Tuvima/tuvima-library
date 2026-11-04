@@ -22,6 +22,8 @@
 ::deep .view-tile__surface img{display:block;width:100%;height:100%;object-fit: cover}
 ::deep .view-tile__select-control{position:absolute;z-index:3;top:.3rem;left:.3rem;display:grid;width:2.5rem;height:2.5rem;padding:0;place-items:start;opacity:0;border:0;background:transparent;cursor:pointer;transition:opacity .14s ease}
 ::deep .view-tile__select-control span{display:block;width:1.28rem;height:1.28rem;border:2px solid rgba(255,255,255,.86);border-radius:.34rem;background:rgba(6,10,18,.42);box-shadow:0 1px 5px rgba(0,0,0,.32);backdrop-filter:blur(4px)}
+::deep .view-tile__menu{position:absolute;z-index:3;top:.3rem;right:.3rem;opacity:0;transition:opacity .14s ease}
+.view-tile:hover ::deep .view-tile__menu,.view-tile:focus-within ::deep .view-tile__menu{opacity:1}
 .view-tile:hover ::deep .view-tile__select-control,.view-tile:focus-within ::deep .view-tile__select-control,.view-tile.is-selected ::deep .view-tile__select-control{opacity:1}
 ::deep .view-tile__select-control[aria-checked="true"] span{border-color:#c4b5fd;background:linear-gradient(135deg,#8852FC,#6d28d9)}
 ::deep .view-tile__select-control[aria-checked="true"] span::after{content:"";display:block;width:.36rem;height:.64rem;margin:.14rem auto 0;border:solid white;border-width:0 .14rem .14rem 0;transform:rotate(45deg)}
@@ -31,7 +33,7 @@
 .view-tile__note{position:absolute;z-index:2;right:4.1rem;bottom:0;left:0;padding:.3rem .45rem;background:rgba(2,6,23,.88);color:var(--tl-text-primary);font-size:var(--tl-font-size-xs);line-height:1.3;pointer-events:none}
 .view-tile__check{position:absolute;z-index:3;top:.4rem;left:.4rem;display:grid;width:1.6rem;height:1.6rem;place-items:center;border:2px solid var(--tl-text-primary);border-radius:50%;background:var(--tl-bg-overlay);color:transparent;pointer-events:none}
 .view-tile.is-selected .view-tile__check{border-color:var(--tl-accent-primary);background:var(--tl-accent-primary);color:var(--tl-text-primary)}
-@media (hover:none){::deep .view-date-group__select,::deep .view-tile__select-control{opacity:1}}
+@media (hover:none){::deep .view-date-group__select,::deep .view-tile__select-control,::deep .view-tile__menu{opacity:1}}
 @media (max-width:900px){.view-timeline{padding-right:0}}
 @media (max-width:640px){.view-timeline{--target-row-height:7.5rem;--gallery-gap:.32rem;gap:1.5rem}.view-density--relaxed{--target-row-height:9rem}.view-date-group__heading{padding-left:1.6rem}::deep .view-date-group__select{right:auto;left:-.12rem}}
 @media (hover:none),(max-width:1023px){.view-date-group__heading{padding-left:0}}

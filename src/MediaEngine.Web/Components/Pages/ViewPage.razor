@@ -85,7 +85,7 @@ else
     {
         @if (_olderWindow) { <AppButton Label="@L["ViewPage_BackToNewestPhotos"].Value" OnClick="@(() => LoadAsync(preserveSelection: true))" /> }
         <div class="view-timeline-layout">
-            <ViewPhotoTimeline Items="@_page.Items" NoteFor="@ItemNote" Selected="@_selected" SelectMode="@_selectMode" SelectEntireDate="true" Density="@Workspace.Density" ThumbnailUrl="@(item => AssetUrl(item, ViewMediaResourceKind.Thumbnail))" OnOpen="OpenItem" OnToggleSelection="ToggleSelection" OnToggleSelectionRequested="ToggleSelectionRequested" OnSelectDateGroup="SelectDateGroup" OnDragStarted="BeginDrag" OnDragEnded="EndDrag" />
+            <ViewPhotoTimeline Items="@_page.Items" NoteFor="@ItemNote" Selected="@_selected" SelectMode="@_selectMode" SelectEntireDate="true" Density="@Workspace.Density" ThumbnailUrl="@(item => AssetUrl(item, ViewMediaResourceKind.Thumbnail))" OnOpen="OpenItem" OnEditItem="EditItemCallback" OnTrashItem="TrashItemCallback" OnToggleSelection="ToggleSelection" OnToggleSelectionRequested="ToggleSelectionRequested" OnSelectDateGroup="SelectDateGroup" OnDragStarted="BeginDrag" OnDragEnded="EndDrag" />
             <ViewTimelineScrubber Buckets="@(_timelineIndex?.Buckets ?? [])" ActiveYear="@_activeYear" ActiveMonth="@_activeMonth" OnJump="JumpToBucketAsync" />
         </div>
         <span class="view-timeline-observer-anchor" @ref="_timelineSentinel" aria-hidden="true"></span>
@@ -340,6 +340,22 @@ else
             Snackbar.Add(failed.Count == 0 ? message : $"{failed.Count} items could not be updated and remain selected. Please retry.", failed.Count == 0 ? AppSeverity.Success : AppSeverity.Error);
         }
         finally { _mutatingSelection = false; }
+    }
+    // The tile menu offers Edit on a computer and Trash on someone's own photos; the Trash list and Shared views keep only their own actions.
+    private EventCallback<LocalAssetDto> EditItemCallback => EditorHost.CanEdit && _filter != "trash" && Workspace.ScopeKind == ViewScopeKind.Mine
+        ? EventCallback.Factory.Create<LocalAssetDto>(this, EditItemAsync) : default;
+    private EventCallback<LocalAssetDto> TrashItemCallback => _filter != "trash" && Workspace.ScopeKind == ViewScopeKind.Mine && DeviceContext.CanEdit
+        ? EventCallback.Factory.Create<LocalAssetDto>(this, TrashItemAsync) : default;
+    private async Task EditItemAsync(LocalAssetDto item)
+    {
+        if (!await EditorHost.OpenItemsAsync([item])) return;
+        var closed = await EditorHost.WhenClosedAsync();
+        if (closed.Changed) { ClearSelection(); await LoadAsync(preserveSelection: false); }
+    }
+    private async Task TrashItemAsync(LocalAssetDto item)
+    {
+        if (await ApiClient.TrashViewItemAsync(item.Id, default)) { await LoadAsync(); Snackbar.Add("Moved to Trash.", AppSeverity.Success); }
+        else Snackbar.Add("That item could not be moved to Trash.", AppSeverity.Error);
     }
     private EventCallback EditCallback => EditorHost.CanEdit && _filter != "trash" ? EventCallback.Factory.Create(this, EditSelectionAsync) : default;
 
