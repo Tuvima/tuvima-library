@@ -43,6 +43,18 @@ public sealed class TokenResolutionGuardrailTests
         Assert.DoesNotContain("#8b5cf6", intro, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void MenuRowsUseTheOneMenuSizeTokens()
+    {
+        var web = Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web");
+        var tokens = File.ReadAllText(Path.Combine(web, "wwwroot", "tuvima.tokens.css"));
+        Assert.Contains("--tl-menu-row-height: 44px;", tokens);
+        Assert.Contains("--tl-menu-width: 272px;", tokens);
+        var app = File.ReadAllText(Path.Combine(web, "wwwroot", "app.css"));
+        Assert.DoesNotContain("min-height: 34px !important;\r\n    border-radius: var(--tl-radius-md);\r\n    color: var(--tl-text-secondary)", app);
+        Assert.Contains("min-height: var(--tl-menu-row-height) !important;", app);
+    }
+
     private static string FindRepoRoot()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);

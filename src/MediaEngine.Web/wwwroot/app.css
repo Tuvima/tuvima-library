@@ -2213,7 +2213,8 @@ input.app-control.tl-input-slot,
 
 .app-select__popover .tl-list-item,
 .app-overflow-menu__popover .tl-list-item {
-    min-height: 34px !important;
+    min-height: var(--tl-menu-row-height) !important;
+    font-size: var(--tl-menu-row-font-size) !important;
     border-radius: var(--tl-radius-md);
     color: var(--tl-text-secondary) !important;
 }
@@ -3313,7 +3314,7 @@ input.app-control.tl-input-slot,
 
 .app-menu-popover.tl-popover:not(.app-overflow-menu__popover--match-anchor),
 .app-select__popover.tl-popover {
-    max-width: min(20rem, calc(100vw - 1.5rem)) !important;
+    max-width: min(var(--tl-menu-width), calc(100vw - 1.5rem)) !important;
 }
 
 /* AppPopover maintains an inline max-width from the full anchor, including
@@ -3339,9 +3340,9 @@ input.app-control.tl-input-slot,
 }
 
 .app-overflow-menu__popover {
-    width: max-content;
+    width: var(--tl-menu-width);
     min-width: 8.75rem;
-    max-width: min(16rem, calc(100vw - 1rem));
+    max-width: min(var(--tl-menu-width), calc(100vw - 1rem));
     padding: 0.16rem;
     color: var(--tl-text-primary);
     background: var(--tl-menu-surface);
@@ -3388,7 +3389,7 @@ input.app-control.tl-input-slot,
     color: var(--tl-text-secondary) !important;
     background: transparent !important;
     font-family: var(--font-ui) !important;
-    font-size: var(--tl-control-font-size-md) !important;
+    font-size: var(--tl-menu-row-font-size) !important;
     font-weight: 600 !important;
     line-height: 1.25 !important;
     box-shadow: none !important;
@@ -3409,9 +3410,9 @@ button.app-menu-item {
 .app-menu-popover .tl-list-item .tl-icon-root,
 .app-menu-item .tl-icon-root,
 .app-select__popover .app-select__option-icon {
-    flex: 0 0 1.35rem;
+    flex: 0 0 var(--tl-menu-icon-size);
     color: var(--tl-menu-icon) !important;
-    font-size: 1.28rem !important;
+    font-size: var(--tl-menu-icon-size) !important;
 }
 
 .app-menu-popover .tl-list-item:hover,
@@ -3451,7 +3452,7 @@ button.app-menu-item {
 
 .app-menu-item.app-tone--error,
 .app-menu-item.app-tone--error .tl-icon-root {
-    color: #fb7185 !important;
+    color: var(--tl-status-danger) !important;
 }
 
 .app-menu-item.app-tone--error:hover,
