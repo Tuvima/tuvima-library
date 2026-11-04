@@ -36,11 +36,11 @@
             @if (hiddenCount > 0)
             {
                 <div class="tl-rail__fold">
-                    <AppNativeButton Type="button" Class="tl-rail__crumb tl-rail__crumb--fold" aria-haspopup="listbox"
+                    <AppButton ButtonStyle="AppButtonStyle.Text" Class="tl-rail__crumb tl-rail__crumb--fold" aria-haspopup="listbox"
                             aria-expanded="@(_foldOpen ? "true" : "false")" aria-label="@L["EditorRail_EarlierLevels"]"
                             OnClick="ToggleFold">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoreHoriz" Size="AppSize.Small" />
-                    </AppNativeButton>
+                    </AppButton>
                     @if (_foldOpen)
                     {
                         <div class="tl-rail__panel tl-popover-open" role="listbox" aria-label="@L["EditorRail_EarlierLevels"]" @onkeydown="OnKeyDown">
@@ -48,10 +48,10 @@
                                 @foreach (var level in levels.Take(hiddenCount))
                                 {
                                     <li>
-                                        <AppNativeButton Type="button" role="option" aria-selected="false" Class="tl-rail__option"
+                                        <AppButton ButtonStyle="AppButtonStyle.Text" role="option" aria-selected="false" Class="tl-rail__option"
                                                          OnClick="() => PickAsync(level.CurrentId, true, true)">
                                             <span class="tl-rail__text"><small>@level.Label</small><span>@level.CurrentTitle</span></span>
-                                        </AppNativeButton>
+                                        </AppButton>
                                     </li>
                                 }
                             </ul>
@@ -70,7 +70,7 @@
                 var waiting = pending.GetValueOrDefault(level.CurrentId);
                 var early = index < hiddenCount;
                 <div class="@(early ? "tl-rail__level tl-rail__level--early" : "tl-rail__level")" @key="@($"level{index}")">
-                    <AppNativeButton Type="button"
+                    <AppButton ButtonStyle="AppButtonStyle.Text"
                             id="@CrumbId(index)"
                             Class="@CrumbClass(isCurrent && !placeholder, placeholder)"
                             aria-haspopup="@(hasChoices ? "listbox" : null)"
@@ -93,7 +93,7 @@
                         {
                             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ExpandMore" Size="AppSize.Small" />
                         }
-                    </AppNativeButton>
+                    </AppButton>
                     @if (isOpen)
                     {
                         @RenderPanel(index, level, activeId, pending)
@@ -165,7 +165,7 @@
                     var selected = option.EntityId == level.CurrentId;
                     var waiting = pending.GetValueOrDefault(option.EntityId);
                     <li @key="@($"option{option.EntityId:N}")">
-                        <AppNativeButton Type="button"
+                        <AppButton ButtonStyle="AppButtonStyle.Text"
                                 id="@OptionId(option.EntityId)"
                                 role="option"
                                 Class="@(selected ? "tl-rail__option is-selected" : "tl-rail__option")"
@@ -197,7 +197,7 @@
                             {
                                 <span class="tl-rail__mark tl-rail__mark--warn" aria-hidden="true">&#9888;</span>
                             }
-                        </AppNativeButton>
+                        </AppButton>
                     </li>
                 }
                 @if (level.Loading)
