@@ -6,7 +6,7 @@
 @if (Current is { } item)
 {
     <div class="playback-desktop-owner">
-    <AppCssElement Tag="section" Class="@($"playback-desktop {(IsBook ? "playback-desktop--book" : "playback-desktop--music")}")"
+    <AppCssElement Tag="section" Class="@($"playback-desktop {(IsBook ? "playback-desktop--book" : "playback-desktop--music")} {(Snapshot.IsPlaying ? null : "playback-desktop--paused")}")"
                    Css="@Atmosphere" aria-label="@L["PlaybackDesktopScene_NowPlaying"].Value" tabindex="-1">
         <AppNativeButton Type="button" Class="playback-desktop__collapse" AriaLabel="@L["PlaybackDesktopScene_CollapseNowPlaying"].Value" OnClick="OnCollapse"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronLeft" /></AppNativeButton>
         <div class="playback-desktop__stage">
@@ -35,6 +35,7 @@
                         { <p class="playback-desktop__secondary">Narrated by @if (item.Narrators.Count > 0)
                             { @for (var index = 0; index < item.Narrators.Count; index++) { var narrator = item.Narrators[index]; @if (index > 0) { <text>; </text> } @if (ListenPlaybackIdentityRoutes.Contributor(narrator) is { } route) { <PlaybackIdentityLink Snapshot="Snapshot" Commands="Commands" Kind="person" Id="narrator.PersonId" Text="@narrator.Name" /> } else { @narrator.Name } } }
                             else { @item.NarratorName }</p> }
+                        @if (ChapterNow is { } chapterNow) { <p class="playback-desktop__progress playback-desktop__chapter">@chapterNow.Label@if (!string.IsNullOrWhiteSpace(chapterNow.Title)) { <text> · @chapterNow.Title</text> }</p> }
                         @if (!string.IsNullOrWhiteSpace(OverallProgress)) { <p class="playback-desktop__progress">@OverallProgress</p> }
                         @if (ListenPlaybackIdentityRoutes.Audiobook(item) is { } bookRoute) { <PlaybackIdentityLink Snapshot="Snapshot" Commands="Commands" Kind="audiobook" Id="@(item.AudiobookWorkId ?? item.WorkId)" Text="@L["PlaybackDesktopScene_OpenAudiobook"].Value" /> }
                     }
@@ -82,6 +83,10 @@
     [Parameter] public RenderFragment? ActionsContent { get; set; }
     [Parameter] public string? OverallProgress { get; set; }
     private ListenQueueItem? Current => Snapshot.CurrentIndex >= 0 && Snapshot.CurrentIndex < Snapshot.Queue.Count ? Snapshot.Queue[Snapshot.CurrentIndex] : null;
+    // Unified player D7: the details line for an audiobook names the chapter, "Chapter 4 of 21 · chapter title".
+    private AudiobookChapterWindow? ChapterNow => IsBook && Current is { } now
+        ? AudiobookChapterWindow.Find(now.Chapters, Snapshot.CurrentTimeSeconds, Snapshot.DurationSeconds)
+        : null;
     private bool IsBook => Current?.PlaybackExperience == PlaybackExperience.Audiobook;
     private IReadOnlyList<(string Key, string Title)> Tabs => IsBook
         ? Current?.Chapters.Count > 1 ? [("chapters", "Chapters"), ("history", "History")] : [("history", "History")]
