@@ -291,3 +291,7 @@ Waves follow "Depends on"; at most two packets at once. After every wave the usu
 ## Plain English summary
 
 The editor gets a clean rebuild. It always opens on the item you clicked, which fixes the wrong-title bug first. Across the top, a row of dropdowns lets you move between a show, its seasons and episodes (or an album and its songs) without leaving. Each item gets a clear form, a few quick facts, and an artwork section that shows pictures large, at their real shape, with all their versions. Matching shows only what matters, such as episode number, title, air date and runtime, with a confidence bar and a before-and-after. A whole season can be lined up in one table. Ticking several items edits them together, offering only the changes that make sense. Delete asks once and happens straight away. Universes use the same editor, so characters and factions can finally get pictures and logos. Fable reviews the finished build before it merges.
+
+## Look pass addendum (2026-11-04)
+
+Discard, Save, Review and delete dialogs use the look pass dialog exactly (icon tile, bold title, close X, destructive outlined red on the left, safe filled button last and focused). The editor layout is unchanged. Source: [look pass spec](look-pass.md) section 6. This is a version note; the Locked body above is unchanged.

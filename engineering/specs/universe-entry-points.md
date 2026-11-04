@@ -73,3 +73,7 @@ Q1 to Q4 are in the message to Shy. Risk: a Universe page with one Series looks 
 
 ## Plain English summary
 Universes exist behind the scenes but only become a page when you own two Series from them, and the only link is a small line of text. This plan adds a small Universe icon at the top right of any title that has Universe data, lets a Universe open even with one Series, shows Universes at the top of Collections, and adds an "Open Universe" row in the editor.
+
+## Look pass addendum (2026-11-04)
+
+The Universe icon and its hover card use the shared icon tone (Area or Accent) and the one menu part. Source: [look pass spec](look-pass.md) section 6. This is a version note; the Locked body above is unchanged.

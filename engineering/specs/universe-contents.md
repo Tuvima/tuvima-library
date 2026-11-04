@@ -166,3 +166,7 @@ Most Wikidata coverage is strong for Characters, Places and Factions and thin fo
 ## Plain English summary
 
 A Universe today knows about characters, places, factions, events and objects, mostly as text with one picture each. This plan adds species and concepts, a timeline, and proper pictures and logos for every kind, so a faction can have its emblem and a character a portrait. Information comes from Wikidata first, optionally Fandom Lore (off unless you turn it on), and from you: you can add things the sources miss, and your own pictures and wording always win. Editing is always available on the Universe's own page through the same pop-over editor, and nothing is saved until you review the changes.
+
+## Look pass addendum (2026-11-04)
+
+The dropdowns across the top use the one menu part (44 px rows, 16 px text) and the shared icon tones. Source: [look pass spec](look-pass.md) section 6. This is a version note; the Locked body above is unchanged.
