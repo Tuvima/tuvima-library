@@ -84,6 +84,8 @@ public sealed class DisplayWorkRow : IDisplayArtworkRow
     public string? SearchNetwork { get; set; }
     public string? CountryOfOrigin { get; set; }
     public string? Franchise { get; set; }
+    /// <summary>The Universe the work's Series names, only when a Universe page can open for it (see the reader); null otherwise.</summary>
+    public string? UniverseQid { get; set; }
     public string? Source { get; set; }
     public string? Quality { get; set; }
     public string? EpisodeStillUrl { get; set; }

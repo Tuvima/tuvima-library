@@ -45,6 +45,8 @@
     /// <summary>Raised after the title was deleted, so the cover can leave the row.</summary>
     [Parameter] public EventCallback OnDeleted { get; set; }
 
+    private const string OpenUniverseKey = "open-universe";
+
     private string ListLabel => _isSaved ? L["MediaTile_RemoveFromMyList"].Value : L["MediaTile_AddToMyList"].Value;
 
     private IReadOnlyList<DetailAction> MenuActions
@@ -55,6 +57,12 @@
             if (MediaTileActionTarget.IsStarted(Item))
             {
                 actions.Add(new DetailAction { Key = "restart", Label = L["MediaTile_Restart"].Value, Icon = "restart_alt" });
+            }
+
+            // Only when the Engine says this title's Universe page can open, so the row is never a dead link (Universe entry points spec).
+            if (!string.IsNullOrWhiteSpace(Item.UniverseQid))
+            {
+                actions.Add(new DetailAction { Key = OpenUniverseKey, Label = L["MediaTile_OpenUniverse"].Value, Icon = "open_in_new" });
             }
 
             // Editing is desktop-only (EditorDeviceRule); the Engine's own answer for this item is read when Edit is chosen.
@@ -152,6 +160,13 @@
         {
             case "restart":
                 Nav.NavigateTo(MediaTileActionTarget.RestartUrl(Item));
+                break;
+            case OpenUniverseKey:
+                if (!string.IsNullOrWhiteSpace(Item.UniverseQid))
+                {
+                    Nav.NavigateTo($"/universe/{Uri.EscapeDataString(Item.UniverseQid)}");
+                }
+
                 break;
             case DetailActionKeys.Edit:
                 if (Services.GetService<ListEditLauncher>() is { } launcher)

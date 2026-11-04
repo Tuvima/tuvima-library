@@ -139,6 +139,26 @@ public sealed class MediaTileActionsTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task OpenUniverse_IsOnlyOfferedWhenTheEngineNamedAUniverse_AndOpensItsPage()
+    {
+        await UseDevice("phone");
+        var navigation = Services.GetRequiredService<NavigationManager>();
+
+        var without = RenderTile(Movie());
+        Assert.DoesNotContain("Open Universe", MenuLabels(without));
+
+        var withUniverse = RenderTile(new MediaTileViewModel
+        {
+            Id = MovieId, WorkId = MovieId, Title = "John Wick", MediaKind = "Movie", UniverseQid = "Q1234",
+            DetailsNavigationUrl = "/details/movie/wick", NavigationUrl = "/details/movie/wick",
+        });
+        Assert.Equal(["Open Universe"], MenuLabels(withUniverse));
+        withUniverse.FindAll("[role='menuitem']").Single().Click();
+
+        withUniverse.WaitForAssertion(() => Assert.EndsWith("/universe/Q1234", navigation.Uri, StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task Restart_OpensTheTitleFromTheBeginning()
     {
         await UseDevice("desktop");

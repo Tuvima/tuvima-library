@@ -29,8 +29,8 @@ public sealed class DetailPageViewModel
     public SequencePlacementViewModel? SequencePlacement { get; init; }
 
     /// <summary>
-    /// The Universe this item belongs to, set only when the Library holds at least two Series or two formats in it that
-    /// the requesting profile can see. Null otherwise, and on every page that is not a single work.
+    /// The Universe this item belongs to, set whenever the requesting profile can open that Universe's page, including a
+    /// Universe the Library holds a single Series of. Null otherwise, and on every page that is not a single work.
     /// </summary>
     public UniverseLinkViewModel? UniverseLink { get; init; }
 

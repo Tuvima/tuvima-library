@@ -112,6 +112,13 @@ test('a detail missing the new fields still produces a page view', () => {
   assert.doesNotThrow(() => universe.view({}));
 });
 
+test('a title page offers the Universe button only when the Engine sent a Universe link', () => {
+  assert.deepStrictEqual(universe.linkFor({ universeLink: { qid: 'Q1234', name: 'The Expanse' } }), { qid: 'Q1234', title: 'The Expanse' });
+  assert.strictEqual(universe.linkFor({ universeLink: null }), null);
+  assert.strictEqual(universe.linkFor({ universeLink: { qid: '  ', name: 'x' } }), null);
+  assert.strictEqual(universe.linkFor(undefined), null);
+});
+
 (async () => {
   let failed = 0;
   for (const [name, fn] of tests) {

@@ -10263,6 +10263,9 @@
   <data name="MediaTile_Restart" xml:space="preserve">
     <value>Restart</value>
   </data>
+  <data name="MediaTile_OpenUniverse" xml:space="preserve">
+    <value>Open Universe</value>
+  </data>
   <data name="MediaTile_Edit" xml:space="preserve">
     <value>Edit</value>
   </data>
