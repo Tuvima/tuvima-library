@@ -60,10 +60,25 @@
             <div class="video-playback-host__status" role="status">@(Playback.CurrentError ?? "Preparing video… Playback will begin automatically.")</div>
         }
         @if (_switchingAudio) { <div class="video-playback-host__status" role="status">@L["VideoPlaybackHost_SwitchingAudio"]</div> }
+        @* Unified player D7: after a short pause the picture dims and left-aligned details appear, with a rating card on top
+           (and for the first few seconds of playback). A title with no rating shows no card. *@
+        @if (!string.IsNullOrWhiteSpace(Playback.CurrentItem.ContentRating))
+        {
+            <div class="video-playback-host__rating-card" data-paused="@(VideoIsPlaying ? "false" : "true")" aria-hidden="true" @key="@VideoInstanceKey"><i></i><strong>@L["VideoPlaybackHost_Rated", Playback.CurrentItem.ContentRating.Trim().ToUpperInvariant()]</strong></div>
+        }
         <div class="video-playback-host__paused-title" data-paused="@(VideoIsPlaying ? "false" : "true")" aria-hidden="true">
-            @if (!string.IsNullOrWhiteSpace(_presentationContext?.ShowTitle)) { <small>@_presentationContext!.ShowTitle</small> }
-            @if (VideoEpisodeMetadata is { } pausedEpisode) { <span>@pausedEpisode</span> }
-            <strong>@(Playback.CurrentItem.EpisodeTitle ?? Playback.CurrentItem.Title)</strong>
+            @if (IsTvEpisodeNow)
+            {
+                @if (!string.IsNullOrWhiteSpace(_presentationContext?.ShowTitle)) { <h2>@_presentationContext!.ShowTitle</h2> }
+                @if (Playback.CurrentItem.SeasonNumber is { Length: > 0 } seasonNumber) { <span>@L["VideoPlaybackHost_SeasonN", seasonNumber]</span> }
+                <strong>@PausedEpisodeLine</strong>
+                @if (!string.IsNullOrWhiteSpace(PausedSynopsis)) { <p>@PausedSynopsis</p> }
+            }
+            else
+            {
+                <h2>@Playback.CurrentItem.Title</h2>
+                @if (PausedFilmFacts is { Length: > 0 } facts) { <span>@facts</span> }
+            }
         </div>
         <PlaybackVideoChrome>
             <HeaderContent>            <AppTooltip Text="@L["Common_Close"].Value">
@@ -85,18 +100,18 @@
             <PlaybackSeekRail Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds" ValueChanged="SeekOnHostAsync" ChapterTicks="@ShownChapterTicks" ChapterLabel="ChapterTickLabel" Surface="video"
                                Bookmarks="@ShownRailBookmarks" BookmarkJump="JumpToRailBookmarkAsync" BookmarkDelete="DeleteBookmarkAsync" Notice="@_bookmarkNotice" />
             <div class="playback-video-controls">
-                <div class="playback-video-controls__left">
-            <PlaybackPrimaryButton Appearance="video" IsPlaying="@VideoIsPlaying" NeedsUserGestureToStart="@Playback.NeedsUserGestureToStart"
-                                   disabled="@(Playback.Phase is PlaybackPhase.Loading or PlaybackPhase.Error)"
-                                   Size="compact" OnClick="TogglePlayPauseAsync" />
-            <PlaybackRelativeSkipButton Seconds="@Playback.SkipBackSeconds" Direction="back" Size="compact" OnClick="SkipBackAsync" />
-            <PlaybackRelativeSkipButton Seconds="@Playback.SkipForwardSeconds" Direction="forward" Size="compact" OnClick="SkipForwardAsync" />
-
-                <PlaybackVolumeControl Surface="video" Volume="@Playback.Volume" IsMuted="@(Playback.IsMuted || Playback.Volume <= 0)" OnToggleMute="ToggleMuteAsync" OnVolumeChanged="SetVolumeOnHostAsync" />
-                </div>
                 <div class="playback-video-controls__identity" title="@VideoBarTitle">@VideoBarTitle</div>
-                <div class="playback-video-controls__right">
+                <div class="playback-video-controls__centre">
+                    @if (CanGoToPreviousEpisode) { <AppTooltip Text="@L["VideoPlaybackHost_PreviousEpisode"].Value"><AppNativeButton AriaLabel="@L["VideoPlaybackHost_PreviousEpisode"].Value" OnClick="@(() => Playback.SkipPreviousAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SkipPrevious" /></AppNativeButton></AppTooltip> }
+                    <PlaybackRelativeSkipButton Seconds="@Playback.SkipBackSeconds" Direction="back" Size="compact" OnClick="SkipBackAsync" />
+                    <PlaybackPrimaryButton Appearance="video" IsPlaying="@VideoIsPlaying" NeedsUserGestureToStart="@Playback.NeedsUserGestureToStart"
+                                           disabled="@(Playback.Phase is PlaybackPhase.Loading or PlaybackPhase.Error)"
+                                           Size="compact" OnClick="TogglePlayPauseAsync" />
+                    <PlaybackRelativeSkipButton Seconds="@Playback.SkipForwardSeconds" Direction="forward" Size="compact" OnClick="SkipForwardAsync" />
                     @if (EligibleNextEpisode is not null) { <AppTooltip Text="@L["VideoPlaybackHost_NextEpisode"].Value"><AppNativeButton AriaLabel="@L["VideoPlaybackHost_NextEpisode"].Value" OnClick="AdvanceCurrentVideoAsync"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SkipNext" /></AppNativeButton></AppTooltip> }
+                </div>
+                <div class="playback-video-controls__right">
+                    <PlaybackVolumeControl Surface="video" Volume="@Playback.Volume" IsMuted="@(PlaybackMuteDisplay.ShowsMuted(Playback.IsMuted, Playback.Volume, Playback.VolumeReported))" OnToggleMute="ToggleMuteAsync" OnVolumeChanged="SetVolumeOnHostAsync" />
                     @if (ContextKind is not null)
                     {
                         <PlaybackPopover Title="@ContextTitle" ToolId="video-context" Kind="video" Surface="video" ItemKey="@VideoInstanceKey">
@@ -127,6 +142,15 @@
                                         }
                                     </FindView>
                                 </VideoBookmarkPane>
+                            </ChildContent>
+                        </PlaybackPopover>
+                    }
+                    @if (VideoControlState.HasCaptions)
+                    {
+                        <PlaybackPopover Title="@L["PlayerSettings_StylingTitle"].Value" ToolId="video-subtitle-style" Kind="settings" Surface="video" ShowHeading="false" ItemKey="@VideoInstanceKey">
+                            <TriggerContent><span class="video-playback-host__aa" aria-hidden="true">@L["PlayerSettings_AaGlyph"]</span></TriggerContent>
+                            <ChildContent>
+                                <VideoSettingsMenu StylingOnly="true" Look="@_profileSubtitles" StyleChanged="ChangeSubtitleStyleAsync" OnClose="CloseSettingsAsync" />
                             </ChildContent>
                         </PlaybackPopover>
                     }
@@ -286,6 +310,14 @@
             : "video-playback-host";
     private double ProgressMax => Playback.DurationSeconds > 0 ? Playback.DurationSeconds : 1d;
     private string ProgressValueText => Playback.DurationSeconds > 0 ? $"{FormatTimestamp(Playback.CurrentTimeSeconds)} of {FormatTimestamp(ProgressMax)}" : "Duration unavailable";
+    private bool IsTvEpisodeNow => VideoPresentationResolver.IsTvEpisode(Playback.CurrentItem);
+    private string PausedEpisodeLine => Playback.CurrentItem is { } item
+        ? item.EpisodeNumber is { Length: > 0 } number ? $"{number}. {item.EpisodeTitle ?? item.Title}" : item.EpisodeTitle ?? item.Title
+        : string.Empty;
+    private string? PausedSynopsis => _presentationContext?.Episodes.FirstOrDefault(episode => episode.WorkId == Playback.CurrentItem?.WorkId)?.Synopsis;
+    private string PausedFilmFacts => Playback.CurrentItem is { } item
+        ? string.Join(" · ", new[] { item.Year, Playback.DurationSeconds > 0 ? $"{(int)(Playback.DurationSeconds / 3600)}h {(int)(Playback.DurationSeconds / 60 % 60)}m" : null }.Where(part => !string.IsNullOrWhiteSpace(part)))
+        : string.Empty;
     private string VideoInstanceKey => $"{Playback.ActiveProfileId}:{Playback.CurrentItem?.AssetId}:{Playback.PlaybackRequestVersion}";
     private IReadOnlyList<ListenQueueItem> UpcomingVideo => Playback.Queue.Skip(Playback.CurrentIndex + 1).Where(item => MediaKindClassifier.IsVideo(item.MediaType)).ToList();
     private string? ContextKind => VideoPresentationResolver.ContextKind(VideoPresentationResolver.IsTvEpisode(Playback.CurrentItem),
@@ -309,6 +341,7 @@
     private IReadOnlyList<PlaybackSegmentDto> VerifiedSegments => (Playback.CurrentManifest?.Segments ?? [])
         .Where(segment => segment.Kind.ToLowerInvariant() is "intro" or "recap" or "credits" && VideoEndCardState.IsVerifiedRange(segment, Playback.DurationSeconds)).ToList();
     private string SegmentStyle(PlaybackSegmentDto segment) => $"left:{(segment.StartSeconds / ProgressMax * 100).ToString("0.###", CultureInfo.InvariantCulture)}%;width:{((segment.EndSeconds!.Value - segment.StartSeconds) / ProgressMax * 100).ToString("0.###", CultureInfo.InvariantCulture)}%;";
+    private bool CanGoToPreviousEpisode => Playback.CurrentIndex > 0 && VideoPresentationResolver.IsTvEpisode(Playback.CurrentItem);
     private VideoOwnedEpisode? EligibleNextEpisode => _presentationContext is { NextEpisode: { } next } context
         && context.Identity.IsCurrent(Playback) && Playback.Queue.Skip(Playback.CurrentIndex + 1).FirstOrDefault()?.WorkId == next.WorkId ? next : null;
     private PlaybackControlDefinition FullscreenControl => VideoUtilityControls.First(control => control.Key == PlaybackControlKey.Fullscreen)
@@ -397,7 +430,7 @@
                 CanFindCaptions: Playback.CurrentItem?.AssetId is not null,
                 CanPictureInPicture: _canPictureInPicture,
                 CanFullscreen: true,
-                IsMuted: Playback.IsMuted || Playback.Volume <= 0);
+                IsMuted: PlaybackMuteDisplay.ShowsMuted(Playback.IsMuted, Playback.Volume, Playback.VolumeReported));
     private IReadOnlyList<PlaybackControlDefinition> VideoUtilityControls =>
         PlaybackControlCatalog.BuildUtilityControls(
                 PlaybackExperience.Video,
@@ -755,7 +788,7 @@
             }
         }
 
-        // The B, Space and arrow shortcuts only reach the player once it holds the keyboard, so take it when the video opens.
+        // The Space and arrow keys only reach the player once it holds the keyboard, so take it when the video opens.
         if (Playback.IsVideoMode && !_keyboardFocused)
         {
             _keyboardFocused = true;

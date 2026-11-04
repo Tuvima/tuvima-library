@@ -71,8 +71,26 @@
          @ondrop:preventDefault="true"
          @ondrop="QueueDraggedItemsAsync">
         <PlaybackMiniPlayer Experience="@CurrentMiniPlayerExperience" Class="@($"listen-player {(Playback.IsAudiobookMode ? "listen-player--audiobook" : "listen-player--music")}")" AriaLabel="@L["ListenNowPlayingBar_NowPlayingMiniPlayer"].Value">
-                <PlaybackSeekRail Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds" ValueChanged="SeekOnHostAsync" Surface="dock" ChapterTicks="@ChapterTicks"
-                                  ShowRemaining="@_showRemainingTime" ShowRemainingChanged="@(value => _showRemainingTime = value)" />
+                @if (ChapterScope is { } scope)
+                {
+                    <PlaybackSeekRail Position="@scope.Elapsed(Playback.CurrentTimeSeconds)" Duration="@scope.Length" ValueChanged="@(seconds => SeekOnHostAsync(scope.ToAbsolute(seconds)))" Surface="dock"
+                                      ShowRemaining="@_showRemainingTime" ShowRemainingChanged="@(value => _showRemainingTime = value)" />
+                }
+                else
+                {
+                    <PlaybackSeekRail Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds" ValueChanged="SeekOnHostAsync" Surface="dock"
+                                      ShowRemaining="@_showRemainingTime" ShowRemainingChanged="@(value => _showRemainingTime = value)" />
+                }
+                @if (Playback.IsAudiobookMode && AudiobookWindow is { } window)
+                {
+                    <div class="listen-player__scope" role="group" aria-label="@L["ListenNowPlayingBar_BarShows"].Value">
+                        <span class="listen-player__scope-label" title="@window.Title">@window.Label<small>@L["ListenNowPlayingBar_ChapterTimes", PlaybackSeekRail.Time(window.Elapsed(Playback.CurrentTimeSeconds)), PlaybackSeekRail.Time(Math.Max(0, Playback.DurationSeconds - Playback.CurrentTimeSeconds))]</small></span>
+                        <span class="listen-player__scope-switch">
+                            <AppButton Size="AppControlSize.Compact" ButtonStyle="@(!_bookView ? AppButtonStyle.Filled : AppButtonStyle.Text)" Tone="@(!_bookView ? AppUiTone.Primary : AppUiTone.Neutral)" Label="@L["ListenNowPlayingBar_Chapter"].Value" OnClick="@(() => SetBookViewAsync(false))" />
+                            <AppButton Size="AppControlSize.Compact" ButtonStyle="@(_bookView ? AppButtonStyle.Filled : AppButtonStyle.Text)" Tone="@(_bookView ? AppUiTone.Primary : AppUiTone.Neutral)" Label="@L["ListenNowPlayingBar_Book"].Value" OnClick="@(() => SetBookViewAsync(true))" />
+                        </span>
+                    </div>
+                }
 
             <div class="listen-player__meta">
                 <AppNativeButton Type="button" Class="listen-player__thumb" @ref="_artButton" OnClick="OpenNowPlaying" AriaLabel="@(IsDesktopNowPlaying ? "Close Now Playing" : "Open Now Playing")">
@@ -226,7 +244,7 @@
                     }
                     @if (!IsPhonePresentation) {
                     <PlaybackVolumeControl Surface="dock" Size="standard" Appearance="bare" CommitOnChange="true" Step="@VolumeStep"
-                                           Volume="@Playback.Volume" IsMuted="@(Playback.IsMuted || Playback.Volume <= 0)" Supported="@Playback.SoftwareVolumeSupported"
+                                           Volume="@Playback.Volume" IsMuted="@(PlaybackMuteDisplay.ShowsMuted(Playback.IsMuted, Playback.Volume, Playback.VolumeReported))" Supported="@Playback.SoftwareVolumeSupported"
                                            OnToggleMute="ToggleMuteAsync" OnVolumeChanged="SetVolumeOnHostAsync" />
                     }
                 </div>
@@ -256,7 +274,7 @@
                             }
                             @if (!IsPhonePresentation) {
                             <PlaybackVolumeControl Surface="panel" Size="standard" CommitOnChange="true" Step="@VolumeStep"
-                                                   Volume="@Playback.Volume" IsMuted="@(Playback.IsMuted || Playback.Volume <= 0)" Supported="@Playback.SoftwareVolumeSupported"
+                                                   Volume="@Playback.Volume" IsMuted="@(PlaybackMuteDisplay.ShowsMuted(Playback.IsMuted, Playback.Volume, Playback.VolumeReported))" Supported="@Playback.SoftwareVolumeSupported"
                                                    OnToggleMute="ToggleMuteAsync" OnVolumeChanged="SetVolumeOnHostAsync" />
                             }
                         </div>
@@ -583,27 +601,37 @@
 
     private void ReactionChanged() => _ = InvokeAsync(async () => { await LoadFavoriteAsync(); StateHasChanged(); });
 
-    // Chapter ticks on an audiobook's bar follow the profile setting, which is on unless the person turned it off (player-controls-v3 D8).
-    private bool _chapterMarks = true;
-    private IReadOnlyList<double> ChapterTicks => Playback.IsAudiobookMode && _chapterMarks && Playback.DurationSeconds > 0
-        ? CurrentChapters.Select(chapter => chapter.StartSeconds).Where(time => time > 0 && time < Playback.DurationSeconds).Distinct().Order().ToList()
-        : [];
+    // Unified player D5: an audiobook's bar never draws chapter ticks (ticks are for bookmarks). It shows the current chapter by default,
+    // or the whole book when the person picks "Book"; the Chapters list is the way to jump around.
+    private bool _bookView;
+    private AudiobookChapterWindow? AudiobookWindow => Playback.IsAudiobookMode
+        ? AudiobookChapterWindow.Find(CurrentChapters, Playback.CurrentTimeSeconds, Playback.DurationSeconds)
+        : null;
+    private AudiobookChapterWindow? ChapterScope => _bookView ? null : AudiobookWindow;
+    private string BookViewStorageKey => $"tuvima.player.bookView.{Playback.ActiveProfileId:D}";
 
-    private async Task LoadChapterMarksAsync()
+    private async Task SetBookViewAsync(bool book)
+    {
+        _bookView = book;
+        try { await JS.InvokeVoidAsync("localStorage.setItem", BookViewStorageKey, book ? "book" : "chapter"); }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or JSDisconnectedException) { Logger.LogDebug(ex, "The Chapter or Book choice could not be remembered."); }
+    }
+
+    private async Task LoadBookViewAsync()
     {
         try
         {
-            var settings = await PlaybackPreferences.GetAsync();
-            _chapterMarks = MediaEngine.Web.Services.Playback.PlayerPreferenceService.ShowChapterMarks(settings, audiobook: true);
-            await InvokeAsync(StateHasChanged);
+            var stored = await JS.InvokeAsync<string?>("localStorage.getItem", BookViewStorageKey);
+            var book = string.Equals(stored, "book", StringComparison.Ordinal);
+            if (book != _bookView) { _bookView = book; await InvokeAsync(StateHasChanged); }
         }
-        catch (Exception ex) { Logger.LogDebug(ex, "The chapter marks setting could not be read; the bar keeps the default."); }
+        catch (Exception ex) when (ex is JSException or InvalidOperationException or JSDisconnectedException) { Logger.LogDebug(ex, "The Chapter or Book choice could not be read; the bar shows the chapter."); }
     }
 
     protected override void OnInitialized()
     {
         Reactions.Changed += ReactionChanged;
-        _ = LoadChapterMarksAsync();
+        _ = LoadBookViewAsync();
         Playback.SetTransportHostNotReady();
         Playback.Changed += HandlePlaybackChanged;
         AudioSidebar.Changed += HandleAudioPanelChanged;

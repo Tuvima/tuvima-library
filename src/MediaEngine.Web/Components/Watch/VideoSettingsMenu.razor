@@ -6,24 +6,29 @@
 @* The video player's one Settings menu (player-controls-v3 D3, D4, D5). It replaces the old "CC" button. The main page shows Audio and
    Subtitles side by side, each as wide as its longest line and with no descriptions. "Styling…" opens a second page (size, font,
    shadow, colour, background) with a back arrow and a close. *@
-<div class="video-settings-menu" data-settings-page="@(_styling ? "styling" : "main")">
-    @if (_styling)
+<div class="video-settings-menu" data-settings-page="@(ShowStyling ? "styling" : "main")">
+    @if (ShowStyling)
     {
         <header class="video-settings-menu__header">
-            <AppNativeButton Type="button" Class="video-settings-menu__nav" AriaLabel="@L["Common_Back"].Value" OnClick="@(() => _styling = false)">
-                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowBack" />
-            </AppNativeButton>
+            @if (!StylingOnly)
+            {
+                <AppNativeButton Type="button" Class="video-settings-menu__nav" AriaLabel="@L["Common_Back"].Value" OnClick="@(() => _styling = false)">
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowBack" />
+                </AppNativeButton>
+            }
             <h3>@L["PlayerSettings_StylingTitle"]</h3>
             <AppNativeButton Type="button" Class="video-settings-menu__nav" AriaLabel="@L["Common_Close"].Value" OnClick="OnClose">
                 <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Close" />
             </AppNativeButton>
         </header>
         <div class="video-settings-menu__styling">
+            <AppCssElement Tag="p" Class="video-settings-menu__preview" Css="@PreviewStyle" aria-live="polite"><span>@L["PlayerSettings_PreviewLine"]</span></AppCssElement>
             <VideoSettingsChoiceGroup Title="@L["PlayerSettings_Size"].Value" Options="@SizeOptions" Current="@NormalizedSize" ValueSelected="@(value => Change(s => s.SubtitleSize = value))" />
             <VideoSettingsChoiceGroup Title="@L["PlayerSettings_Font"].Value" Options="@FontOptions" Current="@(Look?.SubtitleFont ?? PlaybackPreferenceValues.FontDefault)" ValueSelected="@(value => Change(s => s.SubtitleFont = value))" />
             <VideoSettingsChoiceGroup Title="@L["PlayerSettings_Shadow"].Value" Options="@OnOffOptions" Current="@(Look?.SubtitleShadow == true ? "on" : "off")" ValueSelected="@(value => Change(s => s.SubtitleShadow = value == "on"))" />
             <VideoSettingsChoiceGroup Title="@L["PlayerSettings_Colour"].Value" Options="@ColourOptions" Current="@(Look?.SubtitleColor ?? PlaybackPreferenceValues.ColorWhite)" ValueSelected="@(value => Change(s => s.SubtitleColor = value))" />
             <VideoSettingsChoiceGroup Title="@L["PlayerSettings_Background"].Value" Options="@OnOffOptions" Current="@(Look?.SubtitleBackground == false ? "off" : "on")" ValueSelected="@(value => Change(s => s.SubtitleBackground = value == "on"))" />
+            <AppButton ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" Label="@L["PlayerSettings_Reset"].Value" OnClick="ResetAsync" />
         </div>
     }
     else
@@ -70,6 +75,39 @@
     [Parameter] public EventCallback OnClose { get; set; }
 
     private bool _styling;
+
+    /// <summary>Unified player D12: the style page as its own menu (the "Aa" button), with no back arrow.</summary>
+    [Parameter] public bool StylingOnly { get; set; }
+
+    private bool ShowStyling => StylingOnly || _styling;
+
+    private Task ResetAsync() => Change(s =>
+    {
+        s.SubtitleSize = PlaybackPreferenceValues.Medium;
+        s.SubtitleFont = PlaybackPreferenceValues.FontDefault;
+        s.SubtitleShadow = false;
+        s.SubtitleColor = PlaybackPreferenceValues.ColorWhite;
+        s.SubtitleBackground = true;
+    });
+
+    // The live preview line changes as each choice changes, so the person sees the result before closing the menu.
+    private string PreviewStyle
+    {
+        get
+        {
+            var size = NormalizedSize == PlaybackPreferenceValues.Small ? "0.9rem" : NormalizedSize == PlaybackPreferenceValues.Large ? "1.5rem" : "1.15rem";
+            var family = (Look?.SubtitleFont ?? PlaybackPreferenceValues.FontDefault) switch
+            {
+                var f when string.Equals(f, PlaybackPreferenceValues.FontSerif, StringComparison.OrdinalIgnoreCase) => "serif",
+                var f when string.Equals(f, PlaybackPreferenceValues.FontMono, StringComparison.OrdinalIgnoreCase) => "monospace",
+                _ => "inherit",
+            };
+            var color = (Look?.SubtitleColor ?? PlaybackPreferenceValues.ColorWhite).ToLowerInvariant();
+            var shadow = Look?.SubtitleShadow == true ? "0 2px 4px #000" : "none";
+            var background = Look?.SubtitleBackground == false ? "transparent" : "rgba(0,0,0,.7)";
+            return $"font-size:{size};font-family:{family};color:{color};text-shadow:{shadow};--preview-bg:{background}";
+        }
+    }
 
     private string NormalizedSize => Look?.SubtitleSize switch
     {
