@@ -14,10 +14,10 @@
    video be dragged from one section to another. Everything here only stages a change: Save changes shows it in Review first, and none of it
    moves a file. The one exception is the "Rename the files to match this order" switch, off by default and offered only when every video is
    in a Managed folder. *@
-@if (Subject is not null && IsVideo && (_series is { Supported: true } || _editor.HasSomethingToOrder))
+@if (Subject is not null && IsVideo && (ShowSeriesChooser && _series is { Supported: true } || ShowOrder && _editor.HasSomethingToOrder))
 {
     <section class="tl-vseries" data-testid="video-series" @ref="_root">
-        @if (_series is { Supported: true })
+        @if (ShowSeriesChooser && _series is { Supported: true })
         {
             <h3 class="tl-vseries__heading">
                 @L["EditorVideoSeries_Series"]
@@ -50,7 +50,7 @@
             }
         }
 
-        @if (_editor.HasSomethingToOrder)
+        @if (ShowOrder && _editor.HasSomethingToOrder)
         {
             <h3 class="tl-vseries__heading">@L["EditorVideoSeries_OrderHeading"]</h3>
             @for (var listIndex = 0; listIndex < _editor.Lists.Count; listIndex++)
@@ -138,6 +138,12 @@
     [Parameter] public EditorFamilyState? Family { get; set; }
 
     [Parameter] public bool CanEdit { get; set; }
+
+    /// <summary>Shows the series chooser (Match & Identity). The Contents tab turns it off and shows only the order.</summary>
+    [Parameter] public bool ShowSeriesChooser { get; set; } = true;
+
+    /// <summary>Shows the order list (Contents). Match & Identity keeps it until its own packet narrows the panel to the series chooser.</summary>
+    [Parameter] public bool ShowOrder { get; set; } = true;
 
     private PendingEditList? Pending => Session?.Pending;
 

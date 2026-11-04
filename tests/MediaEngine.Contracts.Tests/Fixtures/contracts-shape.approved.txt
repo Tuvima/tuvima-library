@@ -5685,6 +5685,8 @@ MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorAssetSe
   Container: System.String | nullability=nullable | accessors=get,set
   AudioTracks: System.Collections.Generic.List<MediaEngine.Contracts.Metadata.MediaEditorAssetAudioTrackDto> | nullability=not-null | accessors=get,set
   SubtitleLanguages: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  Folder: System.String | nullability=nullable | accessors=get,set
+  ReadOnly: System.Boolean | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorContextDto
   LaunchEntityId: System.Guid | nullability=not-null | accessors=get,set
@@ -5869,6 +5871,7 @@ MediaEngine.Contracts.Metadata.MediaEngine.Contracts.Metadata.MediaEditorOwnedCh
   SourceFilePath: System.String | nullability=not-null | accessors=get,set
   MatchState: System.String | nullability=not-null | accessors=get,set
   MatchReason: System.String | nullability=nullable | accessors=get,set
+  FileSizeBytes: System.Int64? | nullability=nullable | accessors=get,set
   FileState: System.String | nullability=not-null | accessors=get,set
   SeasonNumber: System.Int32? | nullability=nullable | accessors=get,set
   DiscNumber: System.Int32? | nullability=nullable | accessors=get,set

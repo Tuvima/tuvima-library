@@ -10359,16 +10359,97 @@
   <data name="EditorFooter_WriteBack" xml:space="preserve">
     <value>File write-back {0}</value>
   </data>
-  <data name="EditorTab_ContentsTitle" xml:space="preserve">
-    <value>Contents</value>
+  <data name="EditorContents_TickedRows" xml:space="preserve">
+    <value>Ticked rows</value>
   </data>
-  <data name="EditorTab_ContentsSoon" xml:space="preserve">
-    <value>The seasons, episodes or tracks of this item will be listed here. Use the rail above to move between them for now.</value>
+  <data name="EditorContents_ChooseWhatToChange" xml:space="preserve">
+    <value>Choose what to change</value>
   </data>
-  <data name="EditorTab_FilesTitle" xml:space="preserve">
-    <value>Files</value>
+  <data name="EditorContents_MatchN" xml:space="preserve">
+    <value>Match {0} {1}</value>
   </data>
-  <data name="EditorTab_FilesSoon" xml:space="preserve">
-    <value>The files of this item will be listed here.</value>
+  <data name="EditorContents_Loading" xml:space="preserve">
+    <value>Loading the contents</value>
+  </data>
+  <data name="EditorContents_LoadingMore" xml:space="preserve">
+    <value>Loading more</value>
+  </data>
+  <data name="EditorContents_CouldNotRead" xml:space="preserve">
+    <value>These could not be read.</value>
+  </data>
+  <data name="EditorContents_RestCouldNotRead" xml:space="preserve">
+    <value>The rest could not be read.</value>
+  </data>
+  <data name="EditorContents_Empty" xml:space="preserve">
+    <value>There is nothing in your library under this yet.</value>
+  </data>
+  <data name="EditorContents_Select" xml:space="preserve">
+    <value>Select</value>
+  </data>
+  <data name="EditorContents_Picture" xml:space="preserve">
+    <value>Picture</value>
+  </data>
+  <data name="EditorContents_Title" xml:space="preserve">
+    <value>Title</value>
+  </data>
+  <data name="EditorContents_Status" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="EditorContents_Size" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="EditorContents_Matched" xml:space="preserve">
+    <value>Matched</value>
+  </data>
+  <data name="EditorContents_NotMatched" xml:space="preserve">
+    <value>Not matched</value>
+  </data>
+  <data name="EditorContents_HeadingShow" xml:space="preserve">
+    <value>Seasons and episodes</value>
+  </data>
+  <data name="EditorContents_HeadingAlbum" xml:space="preserve">
+    <value>Songs</value>
+  </data>
+  <data name="EditorContents_HeadingSeries" xml:space="preserve">
+    <value>Books and issues</value>
+  </data>
+  <data name="EditorContents_Back" xml:space="preserve">
+    <value>Back to Contents</value>
+  </data>
+  <data name="EditorFiles_Loading" xml:space="preserve">
+    <value>Loading the files</value>
+  </data>
+  <data name="EditorFiles_CouldNotRead" xml:space="preserve">
+    <value>The files could not be read.</value>
+  </data>
+  <data name="EditorFiles_EmptyGrouping" xml:space="preserve">
+    <value>The files are on the episodes, songs and books inside. Open one from Contents to see its file.</value>
+  </data>
+  <data name="EditorFiles_Empty" xml:space="preserve">
+    <value>No files are stored for this item.</value>
+  </data>
+  <data name="EditorFiles_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="EditorFiles_Folder" xml:space="preserve">
+    <value>Folder</value>
+  </data>
+  <data name="EditorFiles_Size" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="EditorFiles_Quality" xml:space="preserve">
+    <value>Quality</value>
+  </data>
+  <data name="EditorFiles_Access" xml:space="preserve">
+    <value>Access</value>
+  </data>
+  <data name="EditorFiles_ReadOnly" xml:space="preserve">
+    <value>Read-only</value>
+  </data>
+  <data name="EditorFiles_ReadOnlyTip" xml:space="preserve">
+    <value>Library only reads this file and never changes or deletes it.</value>
+  </data>
+  <data name="EditorFiles_OnlyFirst" xml:space="preserve">
+    <value>Only the first files are listed.</value>
   </data>
 </root>
