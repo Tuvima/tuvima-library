@@ -109,13 +109,13 @@ public sealed class ViewDocumentOrganisationUiTests : AsyncBunitContext
         var cut = RenderDialog(dialog);
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("input[aria-label='Document date']")));
-        cut.Find("input[aria-label='Document date']").Change("2026-03-01");
+        cut.Find("input[aria-label='Document date']").Input("2026-03-01");
         cut.Find("textarea").Input("Pay by April");
         cut.Find("input[aria-label='Tag to add']").Input("Utilities");
         cut.Find("form.app-tag-input").Submit();
         cut.Find("select[aria-label='Status']").Change("Open");
-        cut.Find("input[aria-label='Amount amount']").Change("120.50");
-        cut.Find("input[aria-label='Amount currency']").Change("eur");
+        cut.Find("input[aria-label='Amount amount']").Input("120.50");
+        cut.Find("input[aria-label='Amount currency']").Input("eur");
         var comboboxes = cut.FindAll("input[role=combobox]");
         comboboxes[0].Input("City Water");
         comboboxes[1].Input("Bill");
@@ -180,7 +180,7 @@ public sealed class ViewDocumentOrganisationUiTests : AsyncBunitContext
         var cut = RenderDialog(dialog);
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("input[aria-label='Amount amount']")));
-        cut.Find("input[aria-label='Amount amount']").Change("abc");
+        cut.Find("input[aria-label='Amount amount']").Input("abc");
         cut.Find(".app-dialog-shell__footer button:last-child").Click();
 
         cut.WaitForAssertion(() => Assert.Contains("as a number", cut.Markup, StringComparison.Ordinal));

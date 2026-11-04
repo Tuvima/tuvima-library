@@ -109,7 +109,7 @@ else
                                                 <span class="profiles-tab__badge">@L["Common_PIN"]</span>
                                             }
                                         </span>
-                                        <AppNativeButton Type="button" Class="who-button profiles-tab__edit" aria-label="@($"Edit {person.DisplayName}")" OnClick="@(() => OpenProfile(person.Id))">@L["Common_Edit"]</AppNativeButton>
+                                        <AppButton ButtonStyle="AppButtonStyle.Outlined" Class="profiles-tab__edit" aria-label="@($"Edit {person.DisplayName}")" OnClick="@(() => OpenProfile(person.Id))" Label="@L["Common_Edit"].Value" />
                                     </div>
                                 </li>
                             }

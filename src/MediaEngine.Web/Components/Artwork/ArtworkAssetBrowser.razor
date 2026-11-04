@@ -33,15 +33,15 @@
             }
         </QuickFilters>
         <AdvancedFilters>
-            <label><span>@L["ArtworkAssetBrowser_RelatedTo"]</span><AppNativeSelect Value="@_entityType" OnChange="EntityTypeChangedAsync" aria-label="@L["ArtworkAssetBrowser_FilterByRelatedEntityType"].Value">@foreach (var option in EntityTypeOptions) { <option value="@option.Value">@option.Label</option> }</AppNativeSelect></label>
-            <label><span>@L["Common_MediaType"]</span><AppNativeSelect Value="@_mediaType" OnChange="MediaTypeChangedAsync" aria-label="@L["ArtworkAssetBrowser_FilterByMediaType"].Value">@foreach (var option in MediaTypeOptions) { <option value="@option.Value">@option.Label</option> }</AppNativeSelect></label>
-            <label><span>@L["ArtworkAssetBrowser_ArtworkRole"]</span><AppNativeSelect Value="@_role" OnChange="RoleChangedAsync" aria-label="@L["ArtworkAssetBrowser_FilterByArtworkRole"].Value">@foreach (var option in RoleOptions) { <option value="@option.Value">@option.Label</option> }</AppNativeSelect></label>
-            <label><span>@L["ArtworkAssetBrowser_Orientation"]</span><AppNativeSelect Value="@_aspect" OnChange="AspectChangedAsync" aria-label="@L["ArtworkAssetBrowser_FilterByImageOrientation"].Value">@foreach (var option in AspectOptions) { <option value="@option.Value">@option.Label</option> }</AppNativeSelect></label>
-            <label><span>@L["ArtworkAssetBrowser_SourceProvider"]</span><AppNativeSelect Value="@_source" OnChange="SourceChangedAsync" aria-label="@L["ArtworkAssetBrowser_FilterBySourceProvider"].Value">@foreach (var option in SourceOptions) { <option value="@option.Value">@option.Label</option> }</AppNativeSelect></label>
+            <label><span>@L["ArtworkAssetBrowser_RelatedTo"]</span><AppSelect Native="true" Value="@_entityType" ValueChanged="EntityTypeChangedAsync" aria-label="@L["ArtworkAssetBrowser_FilterByRelatedEntityType"].Value">@foreach (var option in EntityTypeOptions) { <option value="@option.Value">@option.Label</option> }</AppSelect></label>
+            <label><span>@L["Common_MediaType"]</span><AppSelect Native="true" Value="@_mediaType" ValueChanged="MediaTypeChangedAsync" aria-label="@L["ArtworkAssetBrowser_FilterByMediaType"].Value">@foreach (var option in MediaTypeOptions) { <option value="@option.Value">@option.Label</option> }</AppSelect></label>
+            <label><span>@L["ArtworkAssetBrowser_ArtworkRole"]</span><AppSelect Native="true" Value="@_role" ValueChanged="RoleChangedAsync" aria-label="@L["ArtworkAssetBrowser_FilterByArtworkRole"].Value">@foreach (var option in RoleOptions) { <option value="@option.Value">@option.Label</option> }</AppSelect></label>
+            <label><span>@L["ArtworkAssetBrowser_Orientation"]</span><AppSelect Native="true" Value="@_aspect" ValueChanged="AspectChangedAsync" aria-label="@L["ArtworkAssetBrowser_FilterByImageOrientation"].Value">@foreach (var option in AspectOptions) { <option value="@option.Value">@option.Label</option> }</AppSelect></label>
+            <label><span>@L["ArtworkAssetBrowser_SourceProvider"]</span><AppSelect Native="true" Value="@_source" ValueChanged="SourceChangedAsync" aria-label="@L["ArtworkAssetBrowser_FilterBySourceProvider"].Value">@foreach (var option in SourceOptions) { <option value="@option.Value">@option.Label</option> }</AppSelect></label>
             <label><span>@L["Common_Year"]</span><AppNativeInput Type="search" Value="@_year" OnInput="YearChanged" Placeholder="@L["Common_Any"].Value" AriaLabel="@L["ArtworkAssetBrowser_FilterArtworkByYear"].Value" /></label>
             @if (HasActiveFilters)
             {
-                <AppNativeButton Type="button" Class="app-discovery-filter__clear" OnClick="ClearFiltersAsync">@L["Common_ClearAll"]</AppNativeButton>
+                <AppButton ButtonStyle="AppButtonStyle.Text" OnClick="ClearFiltersAsync" Label="@L["Common_ClearAll"].Value" />
             }
         </AdvancedFilters>
     </AppDiscoveryFilterBar>
@@ -50,7 +50,7 @@
         <div class="artwork-asset-browser__results">
             <div class="artwork-asset-browser__results-toolbar">
                 <div class="artwork-asset-browser__summary"><strong>@((_page?.Total ?? 0).ToString("N0"))</strong><span>result@((_page?.Total ?? 0) == 1 ? string.Empty : "s")</span></div>
-                <label class="artwork-asset-browser__sort"><span>@L["Common_SortBy"]</span><AppNativeSelect Value="@_sort.ToString()" OnChange="SortChangedAsync" aria-label="@L["ArtworkAssetBrowser_SortArtwork"].Value">@foreach (var option in SortOptions) { <option value="@option.Value">@option.Label</option> }</AppNativeSelect></label>
+                <label class="artwork-asset-browser__sort"><span>@L["Common_SortBy"]</span><AppSelect Native="true" Value="@_sort.ToString()" ValueChanged="SortChangedAsync" aria-label="@L["ArtworkAssetBrowser_SortArtwork"].Value">@foreach (var option in SortOptions) { <option value="@option.Value">@option.Label</option> }</AppSelect></label>
             </div>
             @if (_loading && _page is null)
             {
@@ -249,14 +249,14 @@
     }
 
     private async Task SetScopeAsync(ArtworkPickerScope value) { if (_scope == value) return; _scope = value; await LoadAsync(); }
-    private async Task RoleChangedAsync(ChangeEventArgs args) { _role = args.Value?.ToString() ?? string.Empty; await LoadAsync(); }
-    private async Task AspectChangedAsync(ChangeEventArgs args) { _aspect = args.Value?.ToString() ?? string.Empty; await LoadAsync(); }
-    private async Task MediaTypeChangedAsync(ChangeEventArgs args) { _mediaType = args.Value?.ToString() ?? string.Empty; await LoadAsync(); }
-    private async Task EntityTypeChangedAsync(ChangeEventArgs args) { _entityType = args.Value?.ToString() ?? string.Empty; await LoadAsync(); }
-    private async Task SourceChangedAsync(ChangeEventArgs args) { _source = args.Value?.ToString() ?? string.Empty; await LoadAsync(); }
+    private async Task RoleChangedAsync(string? selected) { _role = selected ?? string.Empty; await LoadAsync(); }
+    private async Task AspectChangedAsync(string? selected) { _aspect = selected ?? string.Empty; await LoadAsync(); }
+    private async Task MediaTypeChangedAsync(string? selected) { _mediaType = selected ?? string.Empty; await LoadAsync(); }
+    private async Task EntityTypeChangedAsync(string? selected) { _entityType = selected ?? string.Empty; await LoadAsync(); }
+    private async Task SourceChangedAsync(string? selected) { _source = selected ?? string.Empty; await LoadAsync(); }
     private Task SearchChangedValue(object? value) { SearchChanged(new ChangeEventArgs { Value = value }); return Task.CompletedTask; }
     private async Task SetUsageAsync(ArtworkUsageFilter usage) { _usage = usage; await LoadAsync(); }
-    private async Task SortChangedAsync(ChangeEventArgs args) { if (Enum.TryParse<ArtworkAssetSort>(args.Value?.ToString(), out var sort)) _sort = sort; await LoadAsync(); }
+    private async Task SortChangedAsync(string? selected) { if (Enum.TryParse<ArtworkAssetSort>(selected, out var sort)) _sort = sort; await LoadAsync(); }
     private void SearchChanged(ChangeEventArgs args) { _search = args.Value?.ToString() ?? string.Empty; _searchCts?.Cancel(); _searchCts?.Dispose(); _searchCts = new CancellationTokenSource(); _ = DebouncedSearchAsync(_searchCts.Token); }
     private void YearChanged(ChangeEventArgs args) { _year = args.Value?.ToString() ?? string.Empty; _searchCts?.Cancel(); _searchCts?.Dispose(); _searchCts = new CancellationTokenSource(); _ = DebouncedSearchAsync(_searchCts.Token); }
     private bool HasActiveFilters => !string.IsNullOrWhiteSpace(_role) || !string.IsNullOrWhiteSpace(_aspect) || !string.IsNullOrWhiteSpace(_mediaType) || !string.IsNullOrWhiteSpace(_entityType) || !string.IsNullOrWhiteSpace(_source) || !string.IsNullOrWhiteSpace(_year) || _usage != ArtworkUsageFilter.All;

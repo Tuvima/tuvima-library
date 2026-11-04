@@ -7,22 +7,22 @@
 @* Language, then Region. Region appears only when the chosen language has regional spellings (English, French). *@
 <div class="display-language-picker" data-testid="display-language-picker">
     <label>@L["Settings_Language"]
-        <AppNativeSelect Value="@LanguagePart" OnChange="@(args => LanguageChanged(args.Value?.ToString()))">
+        <AppSelect Native="true" Value="@LanguagePart" ValueChanged="@(selected => LanguageChanged(selected))">
             @foreach (var tag in AppCultures.LanguageTags)
             {
                 <option value="@AppCultures.LanguageOf(tag)">@AppCultures.NativeName(AppCultures.LanguageOf(tag) == "en" ? "en" : tag)</option>
             }
-        </AppNativeSelect>
+        </AppSelect>
     </label>
     @if (Regions.Count > 0)
     {
         <label>@L["Settings_Region"]
-            <AppNativeSelect Value="@Resolved" OnChange="@(args => RegionChanged(args.Value?.ToString()))">
+            <AppSelect Native="true" Value="@Resolved" ValueChanged="@(selected => RegionChanged(selected))">
                 @foreach (var tag in Regions)
                 {
                     <option value="@tag">@RegionName(tag)</option>
                 }
-            </AppNativeSelect>
+            </AppSelect>
         </label>
     }
 </div>

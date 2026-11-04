@@ -40,13 +40,13 @@
                         <span class="kid-settings__label">
                             <AppMaterialIcon Icon="@area.Icon" Size="AppSize.Small" Color="@area.Color" />@area.Label
                         </span>
-                        <AppNativeSelect Value="@LevelOf(area.Key)" OnChange="@(value => SetLevel(area.Key, value.Value?.ToString()))"
+                        <AppSelect Native="true" Value="@LevelOf(area.Key)" ValueChanged="@(selected => SetLevel(area.Key, selected))"
                                          Disabled="@Disabled" aria-label="@($"{area.Label} level")">
                             @foreach (var level in _choices)
                             {
                                 <option value="@level" selected="@(level == LevelOf(area.Key))">@LevelText(level)</option>
                             }
-                        </AppNativeSelect>
+                        </AppSelect>
                     </div>
                 }
                 <div class="kid-settings__row kid-settings__row--switch" data-kid-unrated>

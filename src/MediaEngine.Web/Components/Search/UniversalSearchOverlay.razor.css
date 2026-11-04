@@ -62,29 +62,6 @@
     font-size: var(--tl-font-size-xs);
 }
 
-.universal-search-overlay ::deep .universal-search-overlay__close,
-.universal-search-overlay ::deep .universal-search-overlay__clear {
-    display: grid;
-    place-items: center;
-    border: 0;
-    background: transparent;
-    color: var(--tl-text-secondary);
-    cursor: pointer;
-}
-
-.universal-search-overlay ::deep .universal-search-overlay__close {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-}
-
-.universal-search-overlay ::deep .universal-search-overlay__close:hover,
-.universal-search-overlay ::deep .universal-search-overlay__close:focus-visible {
-    background: rgba(255, 255, 255, 0.07);
-    color: #fff;
-    outline: none;
-}
-
 .universal-search-overlay__input-shell {
     display: grid;
     min-height: 58px;

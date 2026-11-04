@@ -30,13 +30,13 @@
                     <div class="vault-library-settings__row">
                         <label>
                             <span>@L["VaultLibrarySettings_WhereDetailsComeFrom"]</span>
-                            <AppNativeSelect Value="@SourceFor(library)"
-                                             OnChange="@(e => _sources[library.Id] = e.Value?.ToString() ?? "none")"
+                            <AppSelect Native="true" Value="@SourceFor(library)"
+                                             ValueChanged="@(selected => _sources[library.Id] = selected ?? "none")"
                                              Disabled="@_busy"
                                              aria-label="@L["VaultLibrarySettings_WhereDetailsForThisLibrary"].Value">
                                 <option value="none">@L["VaultLibrarySettings_NowhereFileNamesOnly"]</option>
                                 <option value="stash_box">@L["VaultLibrarySettings_AStashBoxServer"]</option>
-                            </AppNativeSelect>
+                            </AppSelect>
                         </label>
                         <div class="vault-library-settings__actions">
                             <AppButton Label="@L["Common_Save"].Value" Size="AppControlSize.Compact" Disabled="@_busy" OnClick="@(() => SaveAsync(library))" />

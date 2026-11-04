@@ -90,19 +90,6 @@
     color: rgba(181, 193, 214, 0.58);
 }
 
-.search-page ::deep .search-page__more-filters {
-    display: inline-flex;
-    min-height: 42px;
-    align-items: center;
-    gap: 8px;
-    padding: 0 13px;
-    border: 1px solid rgba(128, 146, 180, 0.22);
-    border-radius: 9px;
-    background: rgba(8, 16, 31, 0.5);
-    color: var(--tl-text-muted);
-    font: inherit;
-}
-
 .search-page__body {
     position: relative;
     min-height: 420px;

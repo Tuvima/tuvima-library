@@ -54,10 +54,10 @@
             case 1:
                 <section class="integration-wizard__section" aria-label="@L["NewIntegrationWizard_Application"].Value">
                     <label for="wizard-kind">@L["NewIntegrationWizard_WhatAreYouConnecting"]</label>
-                    <AppNativeSelect id="wizard-kind" Value="@_kind" OnChange="@(args => _kind = args.Value?.ToString() ?? KindApplication)" aria-label="@L["NewIntegrationWizard_WhatAreYouConnecting"].Value">
+                    <AppSelect Native="true" id="wizard-kind" Value="@_kind" ValueChanged="@(selected => _kind = selected ?? KindApplication)" aria-label="@L["NewIntegrationWizard_WhatAreYouConnecting"].Value">
                         <option value="@KindApplication">@L["NewIntegrationWizard_Application"]</option>
                         <option value="@KindWebhook">@L["NewIntegrationWizard_Webhook"]</option>
-                    </AppNativeSelect>
+                    </AppSelect>
                     <AppTextField @bind-Value="_name" Label="@L["Users_ColName"].Value" FullWidth="true" />
                     <AppTextField @bind-Value="_description" Label="@L["Common_DescriptionOptional"].Value" FullWidth="true" />
                     @if (_kind == KindWebhook)
@@ -67,9 +67,9 @@
                     else
                     {
                         <label for="wizard-type">@L["NewIntegrationWizard_ApplicationType"]</label>
-                        <AppNativeSelect id="wizard-type" Value="@_type.ToString()" OnChange="SetType" aria-label="@L["NewIntegrationWizard_ApplicationType"].Value">
+                        <AppSelect Native="true" id="wizard-type" Value="@_type.ToString()" ValueChanged="SetType" aria-label="@L["NewIntegrationWizard_ApplicationType"].Value">
                             @foreach (var type in Enum.GetValues<ApplicationTypeDto>()) { <option value="@type">@TypeLabel(type)</option> }
-                        </AppNativeSelect>
+                        </AppSelect>
                         @if (_type == ApplicationTypeDto.UserClient)
                         {
                             <AppTextField @bind-Value="_clientIds" Label="@L["NewIntegrationWizard_NativeClientIDs"].Value" HelpText="Comma-separated registered client IDs allowed to use this application." FullWidth="true" />
@@ -239,9 +239,9 @@
         _step++;
     }
 
-    private void SetType(ChangeEventArgs args)
+    private void SetType(string? selected)
     {
-        if (!Enum.TryParse<ApplicationTypeDto>(args.Value?.ToString(), out var type))
+        if (!Enum.TryParse<ApplicationTypeDto>(selected, out var type))
             return;
         _type = type;
         _selected.RemoveWhere(id => !Permissions.Any(permission => permission.Id == id && permission.IsAvailable && permission.ApplicationTypes.Contains(type)));

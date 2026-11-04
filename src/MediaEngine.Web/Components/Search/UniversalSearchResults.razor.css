@@ -253,15 +253,6 @@
     z-index: 1;
     top: 7px;
     right: 7px;
-    display: grid;
-    width: 34px;
-    height: 34px;
-    place-items: center;
-    border: 0;
-    border-radius: 50%;
-    background: rgba(5, 9, 18, 0.76);
-    color: #fff;
-    cursor: pointer;
 }
 
 .universal-results__preview-art {

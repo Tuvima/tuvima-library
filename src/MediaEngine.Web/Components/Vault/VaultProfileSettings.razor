@@ -41,13 +41,13 @@
                               ValueChanged="QuickCheckAsync" />
                 <div data-vault-idle>
                     <span>@L["VaultProfileSettings_TurnVaultModeOffAfter"]</span>
-                    <AppNativeSelect Value="@IdleValue" OnChange="IdleChangedAsync" Disabled="@_busy"
+                    <AppSelect Native="true" Value="@IdleValue" ValueChanged="IdleChangedAsync" Disabled="@_busy"
                                      aria-label="@L["VaultProfileSettings_TurnVaultModeOffAfter"].Value">
                         @foreach (var minutes in IdleChoices.Where(minutes => minutes != 0 || !Nsfw.NeedsPin))
                         {
                             <option value="@minutes">@IdleLabel(minutes)</option>
                         }
-                    </AppNativeSelect>
+                    </AppSelect>
                 </div>
                 @if (Nsfw.NeedsPin)
                 {
@@ -289,9 +289,9 @@
         _ => $"{minutes} minutes",
     };
 
-    private async Task IdleChangedAsync(ChangeEventArgs e)
+    private async Task IdleChangedAsync(string? selected)
     {
-        if (!int.TryParse(e.Value?.ToString(), out var minutes) || _busy)
+        if (!int.TryParse(selected, out var minutes) || _busy)
         {
             return;
         }
