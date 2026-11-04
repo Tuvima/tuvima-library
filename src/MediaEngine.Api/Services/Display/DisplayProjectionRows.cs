@@ -86,6 +86,14 @@ public sealed class DisplayWorkRow : IDisplayArtworkRow
     public string? Franchise { get; set; }
     /// <summary>The Universe the work's Series names, only when a Universe page can open for it (see the reader); null otherwise.</summary>
     public string? UniverseQid { get; set; }
+
+    /// <summary>A copy of this row without its Universe, for a profile that cannot open it. Rows are shared and cached, so the original is never edited.</summary>
+    public DisplayWorkRow WithoutUniverse()
+    {
+        var copy = (DisplayWorkRow)MemberwiseClone();
+        copy.UniverseQid = null;
+        return copy;
+    }
     public string? Source { get; set; }
     public string? Quality { get; set; }
     public string? EpisodeStillUrl { get; set; }

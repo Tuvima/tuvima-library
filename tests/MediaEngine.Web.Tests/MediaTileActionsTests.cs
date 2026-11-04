@@ -149,8 +149,13 @@ public sealed class MediaTileActionsTests : AsyncBunitContext
 
         var withUniverse = RenderTile(new MediaTileViewModel
         {
-            Id = MovieId, WorkId = MovieId, Title = "John Wick", MediaKind = "Movie", UniverseQid = "Q1234",
-            DetailsNavigationUrl = "/details/movie/wick", NavigationUrl = "/details/movie/wick",
+            Id = MovieId,
+            WorkId = MovieId,
+            Title = "John Wick",
+            MediaKind = "Movie",
+            UniverseQid = "Q1234",
+            DetailsNavigationUrl = "/details/movie/wick",
+            NavigationUrl = "/details/movie/wick",
         });
         Assert.Equal(["Open Universe"], MenuLabels(withUniverse));
         withUniverse.FindAll("[role='menuitem']").Single().Click();
