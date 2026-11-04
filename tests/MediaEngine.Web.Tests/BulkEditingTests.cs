@@ -36,6 +36,7 @@ public sealed class BulkEditingTests : AsyncBunitContext
     private readonly List<EditSessionRequest> _sessions = [];
     private readonly List<IReadOnlyList<Guid>> _deletionPreviews = [];
     private int _previewReads;
+    private bool _richFields;
 
     // What each song holds before anything is edited: the four songs disagree on genres and share one year.
     private readonly Dictionary<Guid, (string Year, string[] Genres)> _songs = new()
@@ -105,8 +106,10 @@ public sealed class BulkEditingTests : AsyncBunitContext
         return new LibraryBatchEditPreview
         {
             AffectedCount = 1,
+            UnavailableItems = id == UnavailableId ? [new LibraryBatchLockedItem { EntityId = id, Reason = "This library is read-only." }] : [],
             Fields =
             [
+                .. _richFields ? RichFields(id) : [],
                 new LibraryBatchFieldState
                 {
                     Key = "genre",
@@ -137,6 +140,18 @@ public sealed class BulkEditingTests : AsyncBunitContext
             ],
         };
     }
+
+    // Fields the Engine may report that the several-items rules must hold back or let through.
+    private static IEnumerable<LibraryBatchFieldState> RichFields(Guid id) =>
+        new[] { "title", "track_number", "album_artist", "disc_number", "explicit", "series", "isbn" }.Select(key => new LibraryBatchFieldState
+        {
+            Key = key,
+            Label = key,
+            Kind = LibraryBatchFieldKinds.Scalar,
+            Operations = [LibraryBatchEditOps.Set, LibraryBatchEditOps.Clear],
+            Editable = true,
+            Value = key + "-" + id.ToString()[^1],
+        });
 
     private static BulkEditRow Song(Guid id, string title, Guid? album = null) =>
         new(id, title, DetailEntityType.Work, album ?? Album, "Music");
@@ -513,6 +528,99 @@ public sealed class BulkEditingTests : AsyncBunitContext
         Assert.False(BulkEditRules.CanMatch([new BulkEditRow(EpisodeOne, "Pilot", DetailEntityType.TvEpisode)]));
         Assert.True(BulkEditRules.CanMatch([Episode(EpisodeOne, "Pilot")]));
     }
+
+    // -- Several items by rules (spec 3c) ------------------------------------------------------
+
+    private static IReadOnlyList<BulkEditRow> TwelveSongs() =>
+        [.. Enumerable.Range(1, 12).Select(index => Song(Guid.Parse($"50000000-0000-0000-0000-0000000001{index:00}"), $"Song {index}"))];
+
+    [Fact]
+    public async Task A7_TickingTwelveSongs_OffersAlbumArtistGenreYearAndDisc_ButNotTitleOrTrackNumber_AndSavingChangesAll()
+    {
+        _richFields = true;
+        var songs = TwelveSongs();
+        var (panel, pending, _) = await OpenPanelAsync(songs);
+
+        Assert.Contains("Editing 12 songs", panel.Find("[data-bulk-heading]").TextContent, StringComparison.Ordinal);
+        foreach (var offered in new[] { "album_artist", "genre", "year", "disc_number", "explicit" })
+        {
+            Assert.NotEmpty(panel.FindAll($"[data-field-key='{offered}']"));
+        }
+
+        foreach (var held in new[] { "title", "track_number", "isbn", "series" })
+        {
+            Assert.Empty(panel.FindAll($"[data-field-key='{held}']"));
+        }
+
+        TypeScalar(panel, "disc_number", "2");
+        panel.WaitForAssertion(() => Assert.Equal(12, songs.Count(song => FieldValue(pending, song.Id, "disc_number") == "2")));
+        Assert.Equal(12, pending.ChangeCount);
+    }
+
+    [Fact]
+    public void Rules_KindDecidesWhichGroupFieldsAreOffered()
+    {
+        Assert.Equal(BulkItemKind.Song, BulkEditRules.KindOf(FourSongs(), "Music"));
+        Assert.Equal(BulkItemKind.Episode, BulkEditRules.KindOf([Episode(EpisodeOne, "A"), Episode(EpisodeTwo, "B")]));
+        Assert.Equal(BulkItemKind.Mixed, BulkEditRules.KindOf([Song(SongOne, "A"), Episode(EpisodeOne, "B")]));
+        var books = new[] { new BulkEditRow(SongOne, "A", DetailEntityType.Work, null, "Books"), new BulkEditRow(SongTwo, "B", DetailEntityType.Work, null, "Books") };
+        Assert.Equal(BulkItemKind.Book, BulkEditRules.KindOf(books));
+
+        Assert.True(BulkEditRules.IsOffered("disc_number", BulkItemKind.Song));
+        Assert.True(BulkEditRules.IsOffered("explicit", BulkItemKind.Song));
+        Assert.True(BulkEditRules.IsOffered("explicit", BulkItemKind.Video));
+        Assert.False(BulkEditRules.IsOffered("explicit", BulkItemKind.Book));
+        Assert.True(BulkEditRules.IsOffered("series", BulkItemKind.Book));
+        Assert.True(BulkEditRules.IsOffered("author", BulkItemKind.Book));
+        Assert.False(BulkEditRules.IsOffered("series", BulkItemKind.Song));
+        Assert.False(BulkEditRules.IsOffered("album", BulkItemKind.Mixed));
+        Assert.True(BulkEditRules.IsOffered("custom_tags", BulkItemKind.Mixed));
+        foreach (var kind in new[] { BulkItemKind.Song, BulkItemKind.Book, BulkItemKind.Episode, BulkItemKind.Video, BulkItemKind.Mixed })
+        {
+            foreach (var identifying in new[] { "title", "track_number", "episode_number", "isbn", "file_name" })
+            {
+                Assert.False(BulkEditRules.IsOffered(identifying, kind));
+            }
+        }
+    }
+
+    [Fact]
+    public void Rules_AFieldThatWouldMakeItemsCollide_IsBlockedWithTheReason()
+    {
+        Assert.Equal("These 3 songs would all be track 4.", BulkEditRules.CollisionReason("track_number", 3, "songs", "4"));
+        Assert.Null(BulkEditRules.CollisionReason("track_number", 1, "songs", "4"));
+        Assert.Null(BulkEditRules.CollisionReason("year", 3, "songs", "2001"));
+
+        var reads = new[] { SongOne, SongTwo, SongThree }
+            .ToDictionary(id => id, id => (IReadOnlyList<LibraryBatchFieldState>)[.. RichFields(id)]);
+        var view = BulkEditFields.Build([SongOne, SongTwo, SongThree], reads).Single(field => field.Key == "track_number");
+        var pending = new PendingEditList();
+
+        var result = BulkEditStager.StageScalar(pending, view, "4", "songs");
+
+        Assert.Equal(0, result.Staged);
+        Assert.Equal("These 3 songs would all be track 4.", result.Note);
+        Assert.Equal(0, pending.ChangeCount);
+    }
+
+    [Fact]
+    public void Rules_ArtworkForSeveralIsSaidInWords()
+    {
+        Assert.Contains("Set one cover for these 12 songs", BulkEditRules.ArtworkSentence(BulkItemKind.Song, 12), StringComparison.Ordinal);
+        Assert.Null(BulkEditRules.ArtworkSentence(BulkItemKind.Mixed, 3));
+    }
+
+    [Fact]
+    public async Task Panel_AnItemTheEngineWillNotEdit_StaysTickedGreyedWithItsReason()
+    {
+        UnavailableId = SongThree;
+        var (panel, _, _) = await OpenPanelAsync();
+
+        panel.WaitForAssertion(() => Assert.Contains("can't be edited and will be skipped", panel.Markup, StringComparison.Ordinal));
+        Assert.Contains("Subterranean Homesick Alien", panel.Markup, StringComparison.Ordinal);
+    }
+
+    private Guid? UnavailableId { get; set; }
 
     // -- Mixed detection -----------------------------------------------------------------------
 
