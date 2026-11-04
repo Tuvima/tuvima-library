@@ -32,10 +32,11 @@ internal static class UniverseTimelineBuilder
         var storyCount = dated.Count(candidate => candidate.StoryYear is not null);
         var storyAvailable = storyCount >= MinimumStops;
 
-        // A stop without a story year cannot be placed in story order, so story order lists only the placed ones.
+        // Every dated stop is returned so the reader can switch order; in story order the stops with a story year come first
+        // (earliest first) and the rest follow by release year, and the screen shows only the placed ones for story order.
         IEnumerable<Candidate> ordered = storyAvailable
-            ? dated.Where(candidate => candidate.StoryYear is not null)
-                .OrderBy(candidate => candidate.StoryYear)
+            ? dated.OrderBy(candidate => candidate.StoryYear is null)
+                .ThenBy(candidate => candidate.StoryYear)
                 .ThenBy(candidate => candidate.ReleaseYear ?? int.MaxValue)
                 .ThenBy(candidate => candidate.Label, StringComparer.OrdinalIgnoreCase)
             : dated.OrderBy(candidate => candidate.ReleaseYear ?? int.MaxValue)

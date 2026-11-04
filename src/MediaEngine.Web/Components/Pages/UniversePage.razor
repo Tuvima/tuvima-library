@@ -82,6 +82,10 @@
                     <MediaTileShelf Shelf="@standalone" ShowCompactCaptions="true" KeepCurrentTileSize="true" />
                 }
 
+                <UniverseContents Contents="@overview.Contents"
+                                  Gathering="@(overview.Enrichment.State == UniverseEnrichmentStateDto.Running)"
+                                  CanEdit="@CanShowEdit" />
+
                 <UniverseConnections Page="@overview"
                                      FandomLine="@_showFandomLine"
                                      OnCastMemberSelected="OpenAlsoAppearsInAsync"

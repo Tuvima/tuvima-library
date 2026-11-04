@@ -88,7 +88,7 @@ public sealed class UniverseTimelineDto
     [JsonPropertyName("story_order_available")]
     public bool StoryOrderAvailable { get; init; }
 
-    /// <summary>All stops, listed in <see cref="DefaultOrder"/>.</summary>
+    /// <summary>All dated stops, listed in <see cref="DefaultOrder"/>. Story order shows only the stops that have a <see cref="UniverseTimelineStopDto.StoryYear"/>.</summary>
     [JsonPropertyName("stops")]
     public IReadOnlyList<UniverseTimelineStopDto> Stops { get; init; } = [];
 }

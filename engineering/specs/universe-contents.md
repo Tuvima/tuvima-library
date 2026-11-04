@@ -1,6 +1,6 @@
 # Spec: Universe contents (more kinds of things, with pictures and logos)
 
-> **Status:** Locked · **Version:** 2 · **Last updated:** 2026-11-04 · **Related docs:** [Product overview](../product/overview.md) · [Universes spec (v4, In progress)](universe.md) · [Universal editor v3](universal-editor-v3.md) · [Plugin architecture](plugin-architecture.md) · [Universe Graph architecture](../../docs/architecture/universe-graph.md)
+> **Status:** In progress · **Version:** 2 · **Last updated:** 2026-11-04 · **Related docs:** [Product overview](../product/overview.md) · [Universes spec (v4, In progress)](universe.md) · [Universal editor v3](universal-editor-v3.md) · [Plugin architecture](plugin-architecture.md) · [Universe Graph architecture](../../docs/architecture/universe-graph.md)
 
 ## 0. Where we are today (read from the code; nothing was run)
 

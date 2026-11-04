@@ -42,13 +42,13 @@ public sealed class UniverseTimelineBuilderTests
     }
 
     [Fact]
-    public void Build_UsesStoryOrder_WhenThreeStopsHaveAStoryYear_AndListsOnlyThePlacedOnes()
+    public void Build_UsesStoryOrder_WhenThreeStopsHaveAStoryYear_AndListsUnplacedStopsLast()
     {
         var timeline = UniverseTimelineBuilder.Build([Stop("c", 300, 2000), Stop("a", -50, 2005), Stop("b", 100, 1990), Stop("undated", null, 1980)]);
 
         Assert.NotNull(timeline);
         Assert.Equal(UniverseTimelineDto.StoryOrder, timeline.DefaultOrder);
-        Assert.Equal(["a", "b", "c"], timeline.Stops.Select(stop => stop.Label));
+        Assert.Equal(["a", "b", "c", "undated"], timeline.Stops.Select(stop => stop.Label));
     }
 
     private static UniverseTimelineBuilder.Candidate Stop(string label, double? storyYear, int? releaseYear) =>
