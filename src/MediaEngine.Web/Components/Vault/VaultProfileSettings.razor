@@ -359,7 +359,7 @@
         // Turning the question off lets anyone using the profile in: say so before it can be saved.
         if (await Dialogs.ShowMessageBoxAsync("Open Vault mode without a PIN?",
                 "Anyone using this profile will be able to open the Vault. You can turn the PIN question back on at any time.",
-                yesText: "Turn off", cancelText: "Keep asking") != true)
+                yesText: "Turn off", cancelText: "Keep asking", options: AppDialogOptions.DestructiveConfirm) != true)
         {
             return;
         }

@@ -144,7 +144,7 @@
         var confirmed = await DialogService.ShowMessageBoxAsync(
             $"Delete {rule.Name}?",
             "Documents it already filed stay as they are. It just stops running.",
-            "Delete", "Keep");
+            "Delete", "Keep", options: AppDialogOptions.DestructiveConfirm);
         if (confirmed != true)
         {
             return;

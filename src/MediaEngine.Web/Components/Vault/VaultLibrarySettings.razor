@@ -102,7 +102,7 @@
     {
         if (await Dialogs.ShowMessageBoxAsync("Remove the Vault library?",
                 "Your files stay where they are. The Vault library is removed from the Library.",
-                yesText: "Remove", noText: "Cancel") != true)
+                yesText: "Remove", noText: "Cancel", options: AppDialogOptions.DestructiveConfirm) != true)
         {
             return;
         }

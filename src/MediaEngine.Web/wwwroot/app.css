@@ -1028,10 +1028,11 @@ code,
     color: var(--tl-text-secondary) !important;
 }
 
-/* The cover's "+" and "..." buttons (Home, detail and tiles spec D6, D8): square, over the top right of the cover, on hover or focus (always on touch). */
-.media-tile-actions { position: absolute; top: 8px; right: 8px; z-index: 8; display: flex; gap: 6px; opacity: 0; transition: opacity var(--tl-motion-duration-fast, 120ms) ease; }
-.media-tile:is(:hover, :focus-within) .media-tile-actions, .media-tile-actions:has([aria-expanded="true"]) { opacity: 1; }
-@media (hover: none) { .media-tile-actions { opacity: 1; } }
+/* The cover's "..." button (Look pass 4.5): always visible, bottom right of the cover. The "+" beside it shows on hover or focus (always on touch). */
+.media-tile-actions { position: absolute; bottom: 8px; right: 8px; z-index: 8; display: flex; gap: 6px; }
+.media-tile-actions .media-tile-action { opacity: 0; transition: opacity var(--tl-motion-duration-fast, 120ms) ease; }
+.media-tile:is(:hover, :focus-within) .media-tile-actions .media-tile-action, .media-tile-actions:has([aria-expanded="true"]) .media-tile-action { opacity: 1; }
+@media (hover: none) { .media-tile-actions .media-tile-action { opacity: 1; } }
 .media-tile-actions .media-tile-action { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: var(--tl-radius-pill); background: rgba(5, 8, 14, .78); color: #fff; cursor: pointer; }
 .media-tile-actions .media-tile-action:is(:hover, :focus-visible) { outline: 3px solid #fff; outline-offset: 0; box-shadow: 0 0 0 6px color-mix(in srgb, var(--tl-accent-primary) 90%, transparent); }
 .media-tile-actions .media-tile-action.is-saved { background: var(--tl-accent-primary, #8852FC); }

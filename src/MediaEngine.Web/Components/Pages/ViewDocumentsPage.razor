@@ -522,7 +522,7 @@
             $"Delete “{view.Name}”?",
             "Only the saved view is removed. Your documents and their details stay exactly as they are.",
             yesText: "Delete view",
-            cancelText: "Keep it");
+            cancelText: "Keep it", options: AppDialogOptions.DestructiveConfirm);
         if (confirmed != true)
         {
             return;

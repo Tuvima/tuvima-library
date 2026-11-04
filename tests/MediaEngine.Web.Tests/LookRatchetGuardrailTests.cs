@@ -35,6 +35,24 @@ public sealed class LookRatchetGuardrailTests
     }
 
     [Fact]
+    public void TheTileMenuButtonIsAlwaysVisibleAtTheBottomRightOfTheCover()
+    {
+        var css = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web", "wwwroot", "app.css"));
+        var rule = Regex.Match(css, @"\.media-tile-actions \{[^}]*\}").Value;
+        Assert.Contains("bottom: 8px", rule);
+        Assert.Contains("right: 8px", rule);
+        Assert.DoesNotContain("opacity: 0", rule);
+    }
+
+    [Fact]
+    public void TheMessageBoxNeverGuessesDestructiveStylingFromTheButtonLabel()
+    {
+        var box = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web", "Components", "Shared", "AppMessageBox.razor"));
+        Assert.DoesNotContain("Regex", box);
+        Assert.Contains("Destructive", box);
+    }
+
+    [Fact]
     public void NoTextSmallerThanTwelvePixels()
     {
         var offenders = WebFiles(".css", ".razor")
