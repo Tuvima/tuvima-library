@@ -10653,4 +10653,205 @@
   <data name="PluginConnect_RemoveKey" xml:space="preserve">
     <value>Remove key</value>
   </data>
+  <data name="ViewEdit_AddToGallery" xml:space="preserve">
+    <value>Add to a gallery</value>
+  </data>
+  <data name="ViewEdit_CoverHint" xml:space="preserve">
+    <value>Click a photo to make it the cover, or choose Automatic and Library picks one.</value>
+  </data>
+  <data name="ViewEdit_DateSet" xml:space="preserve">
+    <value>Set to one date</value>
+  </data>
+  <data name="ViewEdit_DateShift" xml:space="preserve">
+    <value>Shift by an amount</value>
+  </data>
+  <data name="ViewEdit_DateTaken" xml:space="preserve">
+    <value>Date taken</value>
+  </data>
+  <data name="ViewEdit_Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="ViewEdit_DeleteFailed" xml:space="preserve">
+    <value>Nothing was deleted. Try again.</value>
+  </data>
+  <data name="ViewEdit_DeleteGalleryMessage" xml:space="preserve">
+    <value>The gallery goes away. Its photos and videos stay in your library.</value>
+  </data>
+  <data name="ViewEdit_DeleteGalleryTitle" xml:space="preserve">
+    <value>Delete this gallery?</value>
+  </data>
+  <data name="ViewEdit_DeleteItemMessage" xml:space="preserve">
+    <value>It moves to the Recycle bin, where you can bring it back.</value>
+  </data>
+  <data name="ViewEdit_DeleteItemTitle" xml:space="preserve">
+    <value>Delete this item?</value>
+  </data>
+  <data name="ViewEdit_DeleteItemsTitle" xml:space="preserve">
+    <value>Delete {0} items?</value>
+  </data>
+  <data name="ViewEdit_Deleted" xml:space="preserve">
+    <value>Deleted {0}.</value>
+  </data>
+  <data name="ViewEdit_DeletedSome" xml:space="preserve">
+    <value>{0} moved to the Recycle bin, {1} stayed.</value>
+  </data>
+  <data name="ViewEdit_Description" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="ViewEdit_EditingGallery" xml:space="preserve">
+    <value>Editing gallery</value>
+  </data>
+  <data name="ViewEdit_EditingItem" xml:space="preserve">
+    <value>Editing {0}</value>
+  </data>
+  <data name="ViewEdit_EditingItems" xml:space="preserve">
+    <value>Editing {0} items</value>
+  </data>
+  <data name="ViewEdit_FactCamera" xml:space="preserve">
+    <value>Camera</value>
+  </data>
+  <data name="ViewEdit_FactDimensions" xml:space="preserve">
+    <value>Size in pixels</value>
+  </data>
+  <data name="ViewEdit_FactLength" xml:space="preserve">
+    <value>Length</value>
+  </data>
+  <data name="ViewEdit_FactPages" xml:space="preserve">
+    <value>Pages</value>
+  </data>
+  <data name="ViewEdit_FactSize" xml:space="preserve">
+    <value>File size</value>
+  </data>
+  <data name="ViewEdit_FactType" xml:space="preserve">
+    <value>File type</value>
+  </data>
+  <data name="ViewEdit_FactWhere" xml:space="preserve">
+    <value>Kept in</value>
+  </data>
+  <data name="ViewEdit_Galleries" xml:space="preserve">
+    <value>Galleries</value>
+  </data>
+  <data name="ViewEdit_GalleryContentsHint" xml:space="preserve">
+    <value>Removing a photo here takes it out of the gallery only. The photo stays in your library.</value>
+  </data>
+  <data name="ViewEdit_GalleryDeleted" xml:space="preserve">
+    <value>Deleted gallery {0}.</value>
+  </data>
+  <data name="ViewEdit_GalleryEmpty" xml:space="preserve">
+    <value>There are no photos in this gallery yet.</value>
+  </data>
+  <data name="ViewEdit_HistoryAdded" xml:space="preserve">
+    <value>Added to Library on {0}</value>
+  </data>
+  <data name="ViewEdit_HistoryArchived" xml:space="preserve">
+    <value>Archived on {0}</value>
+  </data>
+  <data name="ViewEdit_HistoryFavorite" xml:space="preserve">
+    <value>Marked as a favorite</value>
+  </data>
+  <data name="ViewEdit_HistoryGroup" xml:space="preserve">
+    <value>Open one item to see its history.</value>
+  </data>
+  <data name="ViewEdit_HistoryHidden" xml:space="preserve">
+    <value>Hidden from the timeline</value>
+  </data>
+  <data name="ViewEdit_HistoryTaken" xml:space="preserve">
+    <value>Taken on {0}</value>
+  </data>
+  <data name="ViewEdit_Keep" xml:space="preserve">
+    <value>Keep</value>
+  </data>
+  <data name="ViewEdit_KeepAgain" xml:space="preserve">
+    <value>Keep it</value>
+  </data>
+  <data name="ViewEdit_KindDocument" xml:space="preserve">
+    <value>Document</value>
+  </data>
+  <data name="ViewEdit_KindGallery" xml:space="preserve">
+    <value>Gallery</value>
+  </data>
+  <data name="ViewEdit_KindPhoto" xml:space="preserve">
+    <value>Photo</value>
+  </data>
+  <data name="ViewEdit_KindPhotos" xml:space="preserve">
+    <value>Photos</value>
+  </data>
+  <data name="ViewEdit_KindSelection" xml:space="preserve">
+    <value>Selection</value>
+  </data>
+  <data name="ViewEdit_KindVideo" xml:space="preserve">
+    <value>Video</value>
+  </data>
+  <data name="ViewEdit_Latitude" xml:space="preserve">
+    <value>Latitude</value>
+  </data>
+  <data name="ViewEdit_Longitude" xml:space="preserve">
+    <value>Longitude</value>
+  </data>
+  <data name="ViewEdit_ManualGalleryHint" xml:space="preserve">
+    <value>Add photos from any photo's menu, or with New gallery in the selection bar.</value>
+  </data>
+  <data name="ViewEdit_Mixed" xml:space="preserve">
+    <value>Mixed, leave unchanged</value>
+  </data>
+  <data name="ViewEdit_NewGallery" xml:space="preserve">
+    <value>New gallery</value>
+  </data>
+  <data name="ViewEdit_NewGalleryName" xml:space="preserve">
+    <value>Or create a new gallery</value>
+  </data>
+  <data name="ViewEdit_NoteReadOnlyFolder" xml:space="preserve">
+    <value>This file is in a Read-only folder, so Library cannot move it.</value>
+  </data>
+  <data name="ViewEdit_NoteStaysInLibrary" xml:space="preserve">
+    <value>Changes stay in Library. Your files are never rewritten.</value>
+  </data>
+  <data name="ViewEdit_People" xml:space="preserve">
+    <value>People</value>
+  </data>
+  <data name="ViewEdit_Place" xml:space="preserve">
+    <value>Place</value>
+  </data>
+  <data name="ViewEdit_PlaceName" xml:space="preserve">
+    <value>Place name</value>
+  </data>
+  <data name="ViewEdit_Preferred" xml:space="preserve">
+    <value>Preferred</value>
+  </data>
+  <data name="ViewEdit_RemoveFromGallery" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="ViewEdit_ReviewChanges" xml:space="preserve">
+    <value>Review changes</value>
+  </data>
+  <data name="ViewEdit_ShiftDays" xml:space="preserve">
+    <value>Days</value>
+  </data>
+  <data name="ViewEdit_ShiftHint" xml:space="preserve">
+    <value>Moves every date by the same amount. Use it when a camera's clock was wrong.</value>
+  </data>
+  <data name="ViewEdit_ShiftHours" xml:space="preserve">
+    <value>Hours</value>
+  </data>
+  <data name="ViewEdit_TabArtwork" xml:space="preserve">
+    <value>Artwork</value>
+  </data>
+  <data name="ViewEdit_TabContents" xml:space="preserve">
+    <value>Contents</value>
+  </data>
+  <data name="ViewEdit_TabDetails" xml:space="preserve">
+    <value>Details</value>
+  </data>
+  <data name="ViewEdit_TabFiles" xml:space="preserve">
+    <value>Files</value>
+  </data>
+  <data name="ViewEdit_TabHistory" xml:space="preserve">
+    <value>History</value>
+  </data>
+  <data name="ViewEdit_UseOriginal" xml:space="preserve">
+    <value>Use original</value>
+  </data>
+  <data name="ViewEdit_WhereChangesSave" xml:space="preserve">
+    <value>Changes save in Library</value>
+  </data>
 </root>

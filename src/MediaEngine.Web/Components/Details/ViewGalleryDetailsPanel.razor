@@ -1,0 +1,90 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Collections
+@using MediaEngine.Web.Components.Rules
+@using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient Api
+@inject UIOrchestratorService Orchestrator
+@inject IStringLocalizer<SharedStrings> L
+
+@* Details of a gallery in the View editor (spec photos-documents-editor D4): name, description, how photos join it (by hand or by rule) and an
+   optional soundtrack. Staged on the gallery stage; written by Save changes. *@
+<div class="tl-editor-details view-edit-details">
+    <div class="tl-editor-field">
+        <AppTextField Label="@L["Users_ColName"].Value" MaxLength="120" Value="@Gallery.Name" ValueChanged="@(value => Gallery.SetName(value?.ToString()))" />
+    </div>
+    <div class="tl-editor-field">
+        <AppTextarea Label="@L["Common_DescriptionOptional"].Value" Lines="4" Value="@(Gallery.Description ?? string.Empty)" ValueChanged="@(value => Gallery.SetDescription(value))" />
+    </div>
+
+    @if (!(Gallery.IsVault && !Gallery.IsNew))
+    {
+        <div class="tl-editor-field">
+            <span class="tl-editor-field__label">@L["Common_Membership"]</span>
+            <div class="view-edit-details__row">
+                <AppButton ButtonStyle="@(!Gallery.IsSmart ? AppButtonStyle.Filled : AppButtonStyle.Outlined)" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="@(() => SetSmart(false))">@L["GalleryEditorShell_Manual"]</AppButton>
+                <AppButton ButtonStyle="@(Gallery.IsSmart ? AppButtonStyle.Filled : AppButtonStyle.Outlined)" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="@(() => SetSmart(true))">@L["Common_Smart"]</AppButton>
+            </div>
+            @if (Gallery.IsSmart)
+            {
+                <ViewRuleBuilder Catalog="@(Gallery.IsVault ? VaultRuleCatalog.Instance : null)" Definition="@_rules" DefinitionChanged="RulesChanged" />
+            }
+            else
+            {
+                <small class="tl-editor-field__hint">@L["ViewEdit_ManualGalleryHint"]</small>
+            }
+        </div>
+    }
+
+    @if (!Gallery.IsVault)
+    {
+        <div class="tl-editor-field">
+            <AppSelect T="string" Value="@(Gallery.Soundtrack ?? string.Empty)" ValueChanged="@(value => Gallery.SetSoundtrack(value))" Label="@L["GalleryEditorShell_Playlist"].Value" Variant="AppVariant.Outlined">
+                <AppSelectItem T="string" Value="@(string.Empty)">@L["GalleryEditorShell_NoSoundtrack"]</AppSelectItem>
+                @foreach (var playlist in _playlists)
+                {
+                    <AppSelectItem T="string" Value="@(playlist.Id.ToString("D"))">@playlist.Name</AppSelectItem>
+                }
+            </AppSelect>
+        </div>
+    }
+</div>
+
+@code {
+    private List<ManagedCollectionViewModel> _playlists = [];
+    private CollectionRuleDefinitionViewModel _rules = ViewGalleryRuleJson.Empty();
+
+    [Parameter, EditorRequired] public ViewGalleryEditStage Gallery { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _rules = ViewGalleryRuleJson.Parse(Gallery.RuleJson);
+        if (Gallery.IsVault)
+        {
+            return;
+        }
+
+        var profile = await Orchestrator.GetActiveProfileAsync();
+        _playlists = (await Api.GetManagedCollectionsAsync(profile?.Id))
+            .Where(c => c.IsEnabled && (string.Equals(c.CollectionType, "Playlist", StringComparison.OrdinalIgnoreCase) || string.Equals(c.CollectionType, "Smart", StringComparison.OrdinalIgnoreCase)))
+            .OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private void SetSmart(bool value)
+    {
+        Gallery.SetSmart(value);
+        if (value)
+        {
+            Gallery.SetRule(ViewGalleryRuleJson.Serialize(_rules));
+        }
+    }
+
+    private Task RulesChanged(CollectionRuleDefinitionViewModel value)
+    {
+        _rules = value;
+        Gallery.SetRule(ViewGalleryRuleJson.Serialize(value));
+        return Task.CompletedTask;
+    }
+}
