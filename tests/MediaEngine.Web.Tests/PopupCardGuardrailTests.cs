@@ -3,7 +3,7 @@ namespace MediaEngine.Web.Tests;
 /// <summary>
 /// One popup style (one-look spec D7, WP1b): a Razor file that draws a popup (<c>&lt;dialog&gt;</c>, <c>AppDialogFrame</c> or
 /// <c>role="dialog"</c>) must draw its card with the shared popup components (<c>AppDialogShell</c>, <c>AppDialog</c> or
-/// <c>AppHostedDialog</c>). The listed files are the exceptions, each with the reason it is not a plain popup card.
+/// <c>AppDialog</c>). The listed files are the exceptions, each with the reason it is not a plain popup card.
 /// </summary>
 public sealed class PopupCardGuardrailTests
 {
@@ -38,7 +38,7 @@ public sealed class PopupCardGuardrailTests
         ["Components/Search/UniversalSearchOverlay.razor"] = "Large search overlay; keeps its search layout.",
     };
 
-    private static readonly string[] CardMarkers = ["<AppDialogShell", "<AppDialog ", "<AppHostedDialog"];
+    private static readonly string[] CardMarkers = ["<AppDialogShell", "<AppDialog "];
 
     [Fact]
     public void EveryPopupIsDrawnWithTheSharedCardOrIsListedAsAnException()
@@ -50,7 +50,7 @@ public sealed class PopupCardGuardrailTests
             .ToList();
 
         Assert.True(offenders.Count == 0,
-            "Draw this popup with AppDialogShell, AppDialog or AppHostedDialog (one-look spec D7), or list it with a reason: " + string.Join(", ", offenders));
+            "Draw this popup with AppDialogShell or AppDialog (one-look spec D7), or list it with a reason: " + string.Join(", ", offenders));
     }
 
     [Fact]

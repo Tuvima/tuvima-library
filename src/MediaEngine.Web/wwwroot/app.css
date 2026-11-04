@@ -1096,10 +1096,6 @@ code,
 
 :root {
     /* One colour per area (Library setup D39): the Libraries screens and Add folder tiles read these. */
-    --area-colour-watch: #a16dff;
-    --area-colour-listen: #e76fce;
-    --area-colour-read: #61a8ff;
-    --area-colour-view: #2dd4bf;
     --app-font-sans: var(--font-ui);
     --app-font-brand: var(--font-brand);
     --app-bg: var(--tl-bg-root);
@@ -2217,7 +2213,8 @@ input.app-control.tl-input-slot,
 
 .app-select__popover .tl-list-item,
 .app-overflow-menu__popover .tl-list-item {
-    min-height: 34px !important;
+    min-height: var(--tl-menu-row-height) !important;
+    font-size: var(--tl-menu-row-font-size) !important;
     border-radius: var(--tl-radius-md);
     color: var(--tl-text-secondary) !important;
 }
@@ -2278,6 +2275,13 @@ input.app-control.tl-input-slot,
     color: var(--tl-text-primary) !important;
     background: var(--tl-bg-surface-raised) !important;
     border-color: var(--tl-border-strong) !important;
+}
+
+/* Destructive (Look pass 4.2): outlined red, never filled. */
+.app-button--outlined.app-tone--error {
+    color: var(--tl-status-danger) !important;
+    background: transparent !important;
+    border-color: var(--tl-status-danger) !important;
 }
 
 .app-button.tl-button {
@@ -3310,7 +3314,7 @@ input.app-control.tl-input-slot,
 
 .app-menu-popover.tl-popover:not(.app-overflow-menu__popover--match-anchor),
 .app-select__popover.tl-popover {
-    max-width: min(20rem, calc(100vw - 1.5rem)) !important;
+    max-width: min(var(--tl-menu-width), calc(100vw - 1.5rem)) !important;
 }
 
 /* AppPopover maintains an inline max-width from the full anchor, including
@@ -3336,9 +3340,9 @@ input.app-control.tl-input-slot,
 }
 
 .app-overflow-menu__popover {
-    width: max-content;
+    width: var(--tl-menu-width);
     min-width: 8.75rem;
-    max-width: min(16rem, calc(100vw - 1rem));
+    max-width: min(var(--tl-menu-width), calc(100vw - 1rem));
     padding: 0.16rem;
     color: var(--tl-text-primary);
     background: var(--tl-menu-surface);
@@ -3385,7 +3389,7 @@ input.app-control.tl-input-slot,
     color: var(--tl-text-secondary) !important;
     background: transparent !important;
     font-family: var(--font-ui) !important;
-    font-size: var(--tl-control-font-size-md) !important;
+    font-size: var(--tl-menu-row-font-size) !important;
     font-weight: 600 !important;
     line-height: 1.25 !important;
     box-shadow: none !important;
@@ -3406,9 +3410,9 @@ button.app-menu-item {
 .app-menu-popover .tl-list-item .tl-icon-root,
 .app-menu-item .tl-icon-root,
 .app-select__popover .app-select__option-icon {
-    flex: 0 0 1.35rem;
+    flex: 0 0 var(--tl-menu-icon-size);
     color: var(--tl-menu-icon) !important;
-    font-size: 1.28rem !important;
+    font-size: var(--tl-menu-icon-size) !important;
 }
 
 .app-menu-popover .tl-list-item:hover,
@@ -3448,7 +3452,7 @@ button.app-menu-item {
 
 .app-menu-item.app-tone--error,
 .app-menu-item.app-tone--error .tl-icon-root {
-    color: #fb7185 !important;
+    color: var(--tl-status-danger) !important;
 }
 
 .app-menu-item.app-tone--error:hover,
@@ -5647,10 +5651,10 @@ input[type="reset"],
 
 /* Library kinds (Library setup D22, D39): one colour per area. A kind that looks details up fills its icon tile with its area's colour, a plain
    kind has a quiet grey tile, so a kind a plugin adds needs no style of its own. The Metadata icons and the Unmatched count sit beside the tile. */
-.lib-area--watch { --lib-area-colour: var(--area-colour-watch); }
-.lib-area--listen { --lib-area-colour: var(--area-colour-listen); }
-.lib-area--read { --lib-area-colour: var(--area-colour-read); }
-.lib-area--view { --lib-area-colour: var(--area-colour-view); }
+.lib-area--watch { --lib-area-colour: var(--tl-area-watch); }
+.lib-area--listen { --lib-area-colour: var(--tl-area-listen); }
+.lib-area--read { --lib-area-colour: var(--tl-area-read); }
+.lib-area--view { --lib-area-colour: var(--tl-area-view); }
 .lib-kind-tile { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 10px; font-size: 1.4rem; color: var(--tl-text-muted); background: var(--tl-bg-surface-raised); }
 .lib-kind-tile--lookup { color: var(--lib-area-colour, var(--tl-accent-primary)); background: color-mix(in srgb, var(--lib-area-colour, var(--tl-accent-primary)) 16%, transparent); }
 .lib-meta { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }

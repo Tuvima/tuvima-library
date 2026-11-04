@@ -2,12 +2,12 @@
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
-    width: min(100%, 980px);
+    width: min(100%, 960px);
     max-height: min(86vh, 900px);
     overflow: hidden;
     border-radius: var(--app-radius-md, 8px);
     border: 1px solid var(--tl-border-subtle);
-    background: linear-gradient(180deg, rgba(24, 26, 32, 0.98), rgba(15, 17, 22, 0.98));
+    background: var(--tl-bg-surface-raised);
     color: var(--app-text-primary, rgba(255, 255, 255, 0.92));
 }
 
@@ -16,13 +16,13 @@
 }
 
 .app-dialog-shell--medium {
-    width: min(100%, 760px);
+    width: min(100%, 640px);
 }
 
 .app-dialog-shell--provider {
     width: min(calc(100vw - 32px), 1440px);
     max-height: min(94dvh, 1000px);
-    background: linear-gradient(135deg, #111d31, #0e1727 68%, #101a2d);
+    background: var(--tl-bg-surface);
 }
 
 .app-dialog-shell--provider .app-dialog-shell__header {
@@ -126,7 +126,7 @@
 
 .app-dialog-shell__title {
     margin: 0;
-    font-size: 1.4rem;
+    font-size: var(--tl-dialog-title-size, 1.25rem);
     line-height: 1.2;
     font-weight: 700;
     letter-spacing: 0;
@@ -149,6 +149,7 @@
     min-height: 0;
     overflow-x: hidden;
     overflow-y: auto;
+    font-size: 1rem;
 }
 
 .app-dialog-shell__footer {
@@ -175,7 +176,7 @@
     }
 
     .app-dialog-shell__title {
-        font-size: 1.3rem;
+        font-size: 1.25rem;
     }
 
     .app-dialog-shell--provider .app-dialog-shell__header {
