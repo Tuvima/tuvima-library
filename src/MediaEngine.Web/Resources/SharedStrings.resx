@@ -8118,6 +8118,15 @@
   <data name="VideoPlaybackHost_SeasonN" xml:space="preserve">
     <value>Season {0}</value>
   </data>
+  <data name="PlayerSettings_PreviewLine" xml:space="preserve">
+    <value>Subtitles will appear like this</value>
+  </data>
+  <data name="PlayerSettings_AaGlyph" xml:space="preserve">
+    <value>Aa</value>
+  </data>
+  <data name="PlayerSettings_Reset" xml:space="preserve">
+    <value>Reset</value>
+  </data>
   <data name="VideoPlaybackHost_TurnSubtitlesOff" xml:space="preserve">
     <value>Turn subtitles off</value>
   </data>
