@@ -151,7 +151,17 @@ public sealed record ArtworkEntityVariantDto(
     int? Height,
     string Aspect,
     string? SourceProvider,
-    string? SourceUrl);
+    string? SourceUrl)
+{
+    /// <summary>Size of the saved original file in bytes, when the Engine can read it.</summary>
+    public long? FileSizeBytes { get; init; }
+
+    /// <summary>File name of the picture: the name it had where it came from, else the saved file's name.</summary>
+    public string? FileName { get; init; }
+
+    /// <summary>Image type of the saved original, such as <c>image/jpeg</c>, when the Engine can tell.</summary>
+    public string? ContentType { get; init; }
+}
 
 public sealed record ArtworkRoleDescriptorDto(
     string Role,

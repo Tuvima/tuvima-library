@@ -410,6 +410,9 @@ MediaEngine.Contracts.Artwork.MediaEngine.Contracts.Artwork.ArtworkEntityVariant
   Aspect: System.String | nullability=not-null | accessors=get,init
   SourceProvider: System.String | nullability=nullable | accessors=get,init
   SourceUrl: System.String | nullability=nullable | accessors=get,init
+  FileSizeBytes: System.Int64? | nullability=nullable | accessors=get,init
+  FileName: System.String | nullability=nullable | accessors=get,init
+  ContentType: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Artwork.MediaEngine.Contracts.Artwork.ArtworkEntityWorkspaceDto
   EntityId: System.Guid | nullability=not-null | accessors=get,init

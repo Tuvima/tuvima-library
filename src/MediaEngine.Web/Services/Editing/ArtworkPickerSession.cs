@@ -12,8 +12,29 @@ public sealed record ArtworkPickerTab(string Slot, string Label, string Level = 
 /// <summary>The tabs of one level of the Artwork tool (the item's own pictures, its seasons' pictures, its episodes' stills).</summary>
 public sealed record ArtworkPickerGroup(string Level, IReadOnlyList<ArtworkPickerTab> Tabs);
 
-/// <summary>A picture already saved for the item and slot, as the picker lists it.</summary>
-public sealed record ArtworkPickerPicture(Guid AssetId, string ThumbnailUrl, string ContentUrl, string Caption, bool IsCurrent);
+/// <summary>A picture already saved for the item and slot (one version), as the picker lists it, with the facts the Artwork tool shows.</summary>
+public sealed record ArtworkPickerPicture(
+    Guid AssetId,
+    string ThumbnailUrl,
+    string ContentUrl,
+    string Caption,
+    bool IsCurrent,
+    Guid LinkId = default,
+    int? Width = null,
+    int? Height = null,
+    long? FileSizeBytes = null,
+    string? ContentType = null,
+    string Source = "Saved",
+    string? FileName = null);
+
+/// <summary>The shape a role's pictures have; the tool draws thumbnails and the preview at it.</summary>
+public enum ArtworkRoleShape
+{
+    Portrait,
+    Landscape,
+    Wide,
+    Square,
+}
 
 /// <summary>Which tabs the picker offers and how a slot maps to the Engine's artwork roles.</summary>
 public static class ArtworkPickerRules
@@ -76,6 +97,78 @@ public static class ArtworkPickerRules
         "episodestill" => "Episode still",
         _ => slot,
     };
+
+    /// <summary>The real shape of a role's pictures, so thumbnails and the preview are never cropped to something else.</summary>
+    public static ArtworkRoleShape ShapeFor(string? slot, string? mediaType) => slot?.Trim().ToLowerInvariant() switch
+    {
+        "background" or "seasonthumb" or "episodestill" => ArtworkRoleShape.Landscape,
+        "logo" => ArtworkRoleShape.Wide,
+        "coverart" when mediaType is not null
+            && (mediaType.Contains("music", StringComparison.OrdinalIgnoreCase) || mediaType.Contains("audio", StringComparison.OrdinalIgnoreCase)) => ArtworkRoleShape.Square,
+        _ => ArtworkRoleShape.Portrait,
+    };
+
+    /// <summary>A picture counts as useful for a role from this many pixels on its longer side; below it the tool marks it "Small".</summary>
+    public static int UsefulLongSide(string? slot) => slot?.Trim().ToLowerInvariant() switch
+    {
+        "background" or "seasonthumb" or "episodestill" => 1280,
+        "logo" => 500,
+        _ => 1200,
+    };
+
+    /// <summary>Whether a picture of these dimensions is below the role's useful size. Unknown dimensions are never marked.</summary>
+    public static bool IsSmall(string? slot, int? width, int? height)
+    {
+        var longSide = Math.Max(width ?? 0, height ?? 0);
+        return longSide > 0 && longSide < UsefulLongSide(slot);
+    }
+
+    /// <summary>The sentence that says which items a change reaches ("Only this episode's still changes").</summary>
+    public static string ReachFor(string slot, string? mediaType, string? subjectKind)
+    {
+        var label = LabelFor(slot, IsCoverMedia(mediaType) ? "Cover" : "Poster").ToLowerInvariant();
+        var level = LevelOf(slot);
+        if (level == EpisodesLevel)
+        {
+            return "Only this episode's still changes.";
+        }
+
+        if (level == SeasonsLevel)
+        {
+            return $"Only this season's {label.Replace("season ", string.Empty, StringComparison.Ordinal)} changes.";
+        }
+
+        var isShow = subjectKind is null && string.Equals(mediaType, "TV", StringComparison.OrdinalIgnoreCase);
+        if (isShow && slot.Equals("CoverArt", StringComparison.OrdinalIgnoreCase))
+        {
+            return "This show's poster; seasons without their own poster use it too.";
+        }
+
+        if (isShow && slot.Equals("Background", StringComparison.OrdinalIgnoreCase))
+        {
+            return "This show's background; seasons without their own background use it too.";
+        }
+
+        return $"Only this {NounFor(mediaType, subjectKind)}'s {label} changes.";
+    }
+
+    private static string NounFor(string? mediaType, string? subjectKind)
+    {
+        if (subjectKind is not null)
+        {
+            return subjectKind.ToLowerInvariant();
+        }
+
+        var media = mediaType ?? string.Empty;
+        return media.Contains("movie", StringComparison.OrdinalIgnoreCase) ? "film"
+            : media.Equals("TV", StringComparison.OrdinalIgnoreCase) ? "show"
+            : media.Contains("audiobook", StringComparison.OrdinalIgnoreCase) ? "audiobook"
+            : media.Contains("book", StringComparison.OrdinalIgnoreCase) ? "book"
+            : media.Contains("comic", StringComparison.OrdinalIgnoreCase) ? "comic"
+            : media.Contains("music", StringComparison.OrdinalIgnoreCase) ? "album"
+            : media.Contains("person", StringComparison.OrdinalIgnoreCase) ? "person"
+            : "item";
+    }
 
     private static bool IsCoverMedia(string? mediaType) =>
         mediaType is not null
@@ -142,6 +235,53 @@ public sealed class ArtworkPickerSession
 
     public IReadOnlyList<ArtworkPickerPicture> Saved { get; private set; } = [];
 
+    private readonly Dictionary<string, IReadOnlyList<ArtworkPickerPicture>> _bySlot = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>The subject kind for the sentence that says what a change reaches (null for a title).</summary>
+    public string? SubjectKind => _fields.SubjectKind;
+
+    public string? MediaType => _fields.MediaType;
+
+    /// <summary>How many versions the item has saved for a role (zero until the roles have loaded).</summary>
+    public int VersionCount(string slot) => _bySlot.TryGetValue(slot, out var versions) ? versions.Count : 0;
+
+    /// <summary>The asset that is Preferred for a role now: the staged choice if there is one, else the saved one. Null when none.</summary>
+    public Guid? PreferredAssetId(string slot)
+    {
+        if (_preview.StagedTargetId(slot) is { } staged)
+        {
+            return Guid.TryParse(staged, out var asset) ? asset : null;
+        }
+
+        return _bySlot.TryGetValue(slot, out var versions) ? versions.FirstOrDefault(version => version.IsCurrent)?.AssetId : null;
+    }
+
+    /// <summary>The Preferred version of a role, or null (no artwork, or a removal is staged).</summary>
+    public ArtworkPickerPicture? PreferredVersion(string slot) =>
+        PreferredAssetId(slot) is { } id && _bySlot.TryGetValue(slot, out var versions)
+            ? versions.FirstOrDefault(version => version.AssetId == id)
+            : null;
+
+    /// <summary>
+    /// The versions of a role for the strip: the Preferred one first, the others in the order they were added (the order the Engine lists them).
+    /// Clicking one makes it Preferred and moves it to the front (spec D19).
+    /// </summary>
+    public IReadOnlyList<ArtworkPickerPicture> Versions(string slot)
+    {
+        if (!_bySlot.TryGetValue(slot, out var versions))
+        {
+            return [];
+        }
+
+        var preferred = PreferredAssetId(slot);
+        return preferred is null
+            ? versions
+            : versions.Where(version => version.AssetId == preferred).Concat(versions.Where(version => version.AssetId != preferred)).ToList();
+    }
+
+    /// <summary>The picture a role card shows: the staged or picked picture, else the saved Preferred one.</summary>
+    public string? RolePictureUrl(string slot) => _preview.ShownUrl(slot);
+
     public bool ProviderLoading { get; private set; }
 
     public ProviderArtworkDiscoveryDto? Provider { get; private set; }
@@ -190,6 +330,20 @@ public sealed class ArtworkPickerSession
         }
     }
 
+    /// <summary>Whether a change is staged for a role (it shows "Changed, not saved" on its card).</summary>
+    public bool IsSlotStaged(string slot) => _preview.IsStaged(slot);
+
+    /// <summary>Drops the picture picked in the Add artwork panel without adding it (Back to the role).</summary>
+    public void DiscardPick()
+    {
+        if (ActiveSlot is { } slot)
+        {
+            _preview.ClearPick(slot);
+            _pickedProviderId = null;
+            Changed?.Invoke();
+        }
+    }
+
     /// <summary>Closes the picker: unused picks go away.</summary>
     public void Close()
     {
@@ -235,19 +389,14 @@ public sealed class ArtworkPickerSession
                 return;
             }
 
-            Saved = (workspace?.Variants ?? [])
-                .Where(variant => string.Equals(variant.Role, role, StringComparison.OrdinalIgnoreCase)
-                    && (string.IsNullOrWhiteSpace(variant.SourceAssetType)
-                        || string.Equals(variant.SourceAssetType, slot, StringComparison.OrdinalIgnoreCase)))
-                .DistinctBy(variant => variant.ArtworkAssetId)
-                .Select(variant => new ArtworkPickerPicture(
-                    variant.ArtworkAssetId,
-                    variant.ThumbnailUrl,
-                    variant.ContentUrl,
-                    Caption(variant),
-                    variant.IsPreferred))
-                .ToList();
-            _preview.SetCurrent(slot, Saved.FirstOrDefault(picture => picture.IsCurrent)?.ContentUrl);
+            foreach (var tab in Tabs)
+            {
+                var versions = VersionsOf(workspace, tab.Slot);
+                _bySlot[tab.Slot] = versions;
+                _preview.SetCurrent(tab.Slot, versions.FirstOrDefault(picture => picture.IsCurrent)?.ContentUrl);
+            }
+
+            Saved = VersionsOf(workspace, slot);
             if (workspace is null)
             {
                 Message = "Saved pictures could not be loaded.";
@@ -261,6 +410,100 @@ public sealed class ArtworkPickerSession
         finally
         {
             SavedLoading = false;
+            Changed?.Invoke();
+        }
+    }
+
+    private static IReadOnlyList<ArtworkPickerPicture> VersionsOf(ArtworkEntityWorkspaceDto? workspace, string slot)
+    {
+        var role = ArtworkPickerRules.RoleFor(slot);
+        return (workspace?.Variants ?? [])
+            .Where(variant => string.Equals(variant.Role, role, StringComparison.OrdinalIgnoreCase)
+                && (string.IsNullOrWhiteSpace(variant.SourceAssetType)
+                    || string.Equals(variant.SourceAssetType, slot, StringComparison.OrdinalIgnoreCase)))
+            .DistinctBy(variant => variant.ArtworkAssetId)
+            .Select(variant => new ArtworkPickerPicture(
+                variant.ArtworkAssetId,
+                variant.ThumbnailUrl,
+                variant.ContentUrl,
+                Caption(variant),
+                variant.IsPreferred,
+                variant.LinkId,
+                variant.Width,
+                variant.Height,
+                variant.FileSizeBytes,
+                variant.ContentType,
+                SourceOf(variant),
+                variant.FileName))
+            .ToList();
+    }
+
+    /// <summary>
+    /// Clicking a version makes it Preferred (spec D19): it is staged for Save changes and moves to the front of the strip.
+    /// Clicking the version that is saved as Preferred while another is staged takes the staged choice back.
+    /// </summary>
+    public void MakePreferred(ArtworkPickerPicture version)
+    {
+        var slot = ActiveSlot;
+        if (slot is null || _fields.ArtworkEntityId == Guid.Empty || PreferredAssetId(slot) == version.AssetId)
+        {
+            return;
+        }
+
+        _pickedProviderId = null;
+        _preview.ClearPick(slot);
+        if (version.IsCurrent)
+        {
+            UndoStaged();
+            return;
+        }
+
+        var assetId = version.AssetId.ToString("D");
+        _session.Pending.SetArtwork(_fields.ArtworkEntityId, slot, assetId, before: BeforeText(slot));
+        _preview.RememberStaged(slot, assetId, version.ContentUrl);
+        Changed?.Invoke();
+    }
+
+    /// <summary>
+    /// "Delete this version" (after the person agreed): removes the picture from this item at once. Delete is the one artwork action that
+    /// does not wait for Save changes (spec 3b). A staged choice of the deleted picture is taken back.
+    /// </summary>
+    public async Task<bool> DeleteVersionAsync(ArtworkPickerPicture version)
+    {
+        if (ActiveSlot is not { } slot || Busy || version.LinkId == Guid.Empty)
+        {
+            return false;
+        }
+
+        Busy = true;
+        Message = null;
+        Changed?.Invoke();
+        try
+        {
+            if (!await _api.RemoveArtworkLinkAsync(version.LinkId))
+            {
+                Message = "That picture could not be deleted. Try again.";
+                return false;
+            }
+
+            if (_preview.StagedTargetId(slot) == version.AssetId.ToString("D"))
+            {
+                UndoStaged();
+            }
+
+            _preview.ClearPick(slot);
+            await LoadSavedAsync();
+            return true;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            _logger?.LogWarning(ex, "A picture for {Slot} could not be deleted", slot);
+            Message = "That picture could not be deleted. Try again.";
+            return false;
+        }
+        finally
+        {
+            Busy = false;
             Changed?.Invoke();
         }
     }
@@ -381,7 +624,7 @@ public sealed class ArtworkPickerSession
     }
 
     /// <summary>"Use this artwork": stages the picked picture. Nothing is saved until Save changes.</summary>
-    public async Task<bool> UseAsync()
+    public async Task<bool> UseAsync(bool makePreferred = true)
     {
         var slot = ActiveSlot;
         var target = PickedTarget;
@@ -415,9 +658,16 @@ public sealed class ArtworkPickerSession
                 url = Saved.FirstOrDefault(picture => picture.AssetId.ToString("D") == target)?.ContentUrl;
             }
 
+            _pickedProviderId = null;
+            if (!makePreferred)
+            {
+                // Added as one more version only: it is saved with the item but nothing becomes Preferred.
+                _preview.ClearPick(slot);
+                return true;
+            }
+
             _session.Pending.SetArtwork(_fields.ArtworkEntityId, slot, assetId, before: BeforeText(slot));
             _preview.RememberStaged(slot, assetId, url);
-            _pickedProviderId = null;
             return true;
         }
         finally
@@ -615,11 +865,14 @@ public sealed class ArtworkPickerSession
         return false;
     }
 
-    private static string Caption(ArtworkEntityVariantDto variant)
-    {
-        var source = string.Equals(variant.SourceProvider, "user_upload", StringComparison.OrdinalIgnoreCase)
+    private static string SourceOf(ArtworkEntityVariantDto variant) =>
+        string.Equals(variant.SourceProvider, "user_upload", StringComparison.OrdinalIgnoreCase)
             ? "Uploaded"
             : string.IsNullOrWhiteSpace(variant.SourceProvider) ? "Saved" : variant.SourceProvider!;
+
+    private static string Caption(ArtworkEntityVariantDto variant)
+    {
+        var source = SourceOf(variant);
         return variant.Width is > 0 && variant.Height is > 0 ? $"{source} · {variant.Width} × {variant.Height}" : source;
     }
 }

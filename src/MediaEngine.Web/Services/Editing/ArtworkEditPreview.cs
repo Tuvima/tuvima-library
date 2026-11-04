@@ -71,6 +71,9 @@ public sealed class ArtworkEditPreview
     public bool IsRemoval(string slot) =>
         string.Equals(FindStaged(slot)?.TargetId, EditSessionArtworkTargets.None, StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>The target of the staged choice for the slot (an asset id, or the "no artwork" target), or null when nothing is staged.</summary>
+    public string? StagedTargetId(string slot) => FindStaged(slot)?.TargetId;
+
     /// <summary>The id of the pending change for the slot, so it can be taken back.</summary>
     public string? StagedChangeId(string slot) => FindStaged(slot)?.Id;
 

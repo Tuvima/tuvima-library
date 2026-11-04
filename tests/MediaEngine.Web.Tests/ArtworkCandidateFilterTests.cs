@@ -46,6 +46,45 @@ public sealed class ArtworkCandidateFilterTests
     }
 
     [Fact]
+    public void MediumOnly_KeepsPicturesBetweenFiveHundredAndAThousandPixels()
+    {
+        Assert.Equal(["fr", "plain"], ArtworkCandidateFilter.Apply(Items, ArtworkCandidateFilter.All, ArtworkCandidateFilter.MediumOnly).Select(item => item.Id));
+    }
+
+    [Fact]
+    public void TheAppsLanguageComesFirst_AndIsWhereTheListOpens()
+    {
+        var languages = ArtworkCandidateFilter.Languages(Items, "fr");
+
+        Assert.Equal(["French", "English", "No text"], languages.Select(entry => entry.Label));
+        Assert.Equal("fra", ArtworkCandidateFilter.DefaultLanguage(Items, "fr"));
+        Assert.Equal("eng", ArtworkCandidateFilter.DefaultLanguage(Items, "en-US"));
+    }
+
+    [Fact]
+    public void WhenTheProviderHasNothingInTheAppsLanguage_TheListOpensOnEverything()
+    {
+        Assert.Equal(ArtworkCandidateFilter.All, ArtworkCandidateFilter.DefaultLanguage(Items, "de"));
+        Assert.Equal(ArtworkCandidateFilter.All, ArtworkCandidateFilter.DefaultLanguage(Items, null));
+    }
+
+    [Fact]
+    public void SortBySize_PutsTheLargestFirst_AndKeepsTheProvidersOrderForTies()
+    {
+        Assert.Equal(["en", "fr", "plain", "en-small"], ArtworkCandidateFilter.SortBySize(Items).Select(item => item.Id));
+    }
+
+    [Theory]
+    [InlineData("CoverArt", 680, 1000, true)]
+    [InlineData("CoverArt", 2000, 3000, false)]
+    [InlineData("Background", 1000, 562, true)]
+    [InlineData("Background", 1920, 1080, false)]
+    [InlineData("Logo", 300, 120, true)]
+    [InlineData("CoverArt", null, null, false)]
+    public void APictureBelowTheRolesUsefulSizeIsMarkedSmall(string slot, int? width, int? height, bool small) =>
+        Assert.Equal(small, ArtworkPickerRules.IsSmall(slot, width, height));
+
+    [Fact]
     public void ATileSaysItsLanguage_ButNotForAPictureWithNoWords()
     {
         Assert.Equal("English", ArtworkCandidateFilter.LabelFor("eng"));

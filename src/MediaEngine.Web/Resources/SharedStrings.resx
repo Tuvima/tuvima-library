@@ -1302,12 +1302,6 @@
   <data name="EditorArtworkTool_FetchAllStills" xml:space="preserve">
     <value>Fetch all stills</value>
   </data>
-  <data name="EditorArtworkTool_UseThisArtwork" xml:space="preserve">
-    <value>Use this artwork</value>
-  </data>
-  <data name="EditorArtworkTool_OpenFullSize" xml:space="preserve">
-    <value>Open full size</value>
-  </data>
   <data name="EditorArtworkTool_UndoThisChoice" xml:space="preserve">
     <value>Undo this choice</value>
   </data>

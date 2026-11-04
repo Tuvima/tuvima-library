@@ -138,32 +138,30 @@ public sealed class DetailArtworkPickerPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task APickedBackground_NeverChangesThePageBehindTheWindow_AndWritesNothing()
+    public async Task AClickedBackgroundVersion_NeverChangesThePageBehindTheWindow_AndWritesNothing()
     {
         var cut = await StartEditingAsync();
         OpenArtworkTool(cut);
         Assert.Contains("stored-backdrop", cut.Find(".tl-detail-hero").InnerHtml);
 
-        _editor.FindAll(".tl-art-picker__tabs .app-segmented-control__item").Single(tab => tab.TextContent.Trim() == "Background").Click();
-        _editor.WaitForAssertion(() => Assert.NotEmpty(_editor.FindAll(".tl-art-picker__tile")));
-        _editor.FindAll(".tl-art-picker__tile").Last().Click();
+        _editor.FindAll(".tl-art-picker__role").Single(card => card.QuerySelector("strong")!.TextContent.Trim() == "Background").Click();
+        _editor.WaitForAssertion(() => Assert.NotEmpty(_editor.FindAll(".tl-art-picker__version:not(.tl-art-picker__add-version)")));
+        _editor.FindAll(".tl-art-picker__version:not(.tl-art-picker__add-version)").Last().Click();
 
-        _editor.WaitForAssertion(() => Assert.False(_editor.Find("button.tl-art-picker__use").HasAttribute("disabled")));
+        _editor.WaitForAssertion(() => Assert.Equal("Save 1 change", _editor.Find("button.tl-editor-window__save").TextContent.Trim()));
         Assert.Contains("stored-backdrop", cut.Find(".tl-detail-hero").InnerHtml);
         Assert.DoesNotContain("preview-backdrop", cut.Find(".tl-detail-hero").InnerHtml);
         Assert.Empty(_writes);
     }
 
     [Fact]
-    public async Task AUsedBackground_CountsAsAChange_WithoutTouchingThePageOrWritingAnything()
+    public async Task APreferredBackground_CountsAsAChange_WithoutTouchingThePageOrWritingAnything()
     {
         var cut = await StartEditingAsync();
         OpenArtworkTool(cut);
-        _editor.FindAll(".tl-art-picker__tabs .app-segmented-control__item").Single(tab => tab.TextContent.Trim() == "Background").Click();
-        _editor.WaitForAssertion(() => Assert.NotEmpty(_editor.FindAll(".tl-art-picker__tile")));
-        _editor.FindAll(".tl-art-picker__tile").Last().Click();
-        _editor.WaitForAssertion(() => Assert.False(_editor.Find("button.tl-art-picker__use").HasAttribute("disabled")));
-        _editor.Find("button.tl-art-picker__use").Click();
+        _editor.FindAll(".tl-art-picker__role").Single(card => card.QuerySelector("strong")!.TextContent.Trim() == "Background").Click();
+        _editor.WaitForAssertion(() => Assert.NotEmpty(_editor.FindAll(".tl-art-picker__version:not(.tl-art-picker__add-version)")));
+        _editor.FindAll(".tl-art-picker__version:not(.tl-art-picker__add-version)").Last().Click();
 
         _editor.WaitForAssertion(() => Assert.Equal("Save 1 change", _editor.Find("button.tl-editor-window__save").TextContent.Trim()));
         Assert.Contains("stored-backdrop", cut.Find(".tl-detail-hero").InnerHtml);
