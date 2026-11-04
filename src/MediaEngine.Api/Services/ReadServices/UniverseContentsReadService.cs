@@ -1,7 +1,7 @@
 using MediaEngine.Contracts.Universe;
+using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
-using MediaEngine.Domain.Aggregates;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Models;
 
