@@ -3,7 +3,9 @@ using System.Net.Http.Json;
 using MediaEngine.Api.Services.View;
 using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Models;
 using MediaEngine.Domain.PersonalMedia;
+using MediaEngine.Domain.Services;
 using MediaEngine.Storage;
 using MediaEngine.Storage.Contracts;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -85,9 +87,44 @@ public sealed partial class ViewDocumentOrganisationEndpointTests
 
         using var response = await _client.PostAsJsonAsync("/view/items/edit",
             new ViewItemsEditSetRequest([new ViewItemsEditRequest([document], TagsAdd: ["Sneaky"], Document: new ViewItemsDocumentEdit(SetCorrespondent: true, Correspondent: "Someone"))]));
+        var result = (await response.Content.ReadFromJsonAsync<ViewItemsEditResultDto>())!;
 
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        // Answered like any other item the person may not change, so the answer never says what kind of item it is.
+        Assert.False(result.Saved);
+        Assert.Single(result.Refusals);
         Assert.Empty(_assets.Find(document)!.Tags);
+    }
+
+    [Fact]
+    public async Task AnotherPersonsPhoto_IsRefusedPlainlyAndTheAnswerNeverSaysWhenItWasTaken()
+    {
+        var mine = await CreatePerson("StandardUser");
+        var theirs = await CreatePerson("StandardUser");
+        var other = await AddPhoto(theirs, 'b', new DateTimeOffset(2026, 5, 1, 23, 30, 0, TimeSpan.Zero));
+        _actor.Current = mine.Authority;
+
+        var result = await SaveEdit(new ViewItemsEditRequest([other, Guid.NewGuid()], CapturedShiftSeconds: 3600));
+
+        Assert.False(result.Saved);
+        Assert.Equal(0, result.DayMoves);
+        Assert.All(result.Refusals, refusal => Assert.Equal("You can't change this item.", refusal.Reason));
+    }
+
+    [Fact]
+    public async Task ASmartGalleryCannotTakePhotos_AndNothingIsWritten()
+    {
+        var person = await CreatePerson("StandardUser");
+        var photo = await AddPhoto(person, 'a');
+        var space = (await _spaces.GetByOwnerAsync(person.ProfileId))!;
+        var smart = await new ViewGalleryRepository(_database).CreateAsync(
+            new CreateViewGalleryCommand(person.ProfileId, space.Id, "Smart", ViewGalleryKind.Smart, SmartRuleJson: ViewSmartGalleryRules.Serialize(CollectionRuleDefinition.SingleGroup([new CollectionRulePredicate { Field = "media_type", Op = "eq", Value = "image" }]))));
+        _actor.Current = person.Authority;
+
+        using var response = await _client.PostAsJsonAsync("/view/items/edit",
+            new ViewItemsEditSetRequest([new ViewItemsEditRequest([photo], TagsAdd: ["Temp"], GalleryAddIds: [smart.Id])]));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty(_assets.Find(photo)!.Tags);
     }
 
     [Fact]

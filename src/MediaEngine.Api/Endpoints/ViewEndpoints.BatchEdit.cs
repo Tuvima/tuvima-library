@@ -32,6 +32,11 @@ public static partial class ViewEndpoints
                 }
 
                 var requests = set.Edits ?? [];
+                if (requests.Any(request => request is null))
+                {
+                    throw new ArgumentException("Every edit needs its items.");
+                }
+
                 if (requests.Count > ViewItemsEditLimits.MaximumItems
                     || requests.Sum(request => request?.ItemIds?.Count ?? 0) > ViewItemsEditLimits.MaximumItems)
                 {
@@ -42,7 +47,7 @@ public static partial class ViewEndpoints
                 // (description, people, date, place, galleries) belongs to the item's owner.
                 var ownerOnlyIds = new HashSet<Guid>();
                 var ids = new List<Guid>();
-                foreach (var request in requests.Where(request => request is not null))
+                foreach (var request in requests)
                 {
                     var ownerOnly = request.SetDescription || request.PeopleAdd is { Count: > 0 } || request.PeopleRemove is { Count: > 0 }
                         || request.CapturedAt is not null || request.CapturedShiftSeconds is not null || request.CapturedReset
@@ -60,11 +65,9 @@ public static partial class ViewEndpoints
 
                 ids = ids.Distinct().ToList();
                 var refusals = new List<ViewItemsEditRefusalDto>();
-                var hasDocuments = false;
                 foreach (var id in ids)
                 {
                     var isDocument = string.Equals(assets.GetContentKind(id), ViewContentKinds.Documents, StringComparison.Ordinal);
-                    hasDocuments |= isDocument;
                     var decision = isDocument && !ownerOnlyIds.Contains(id)
                         ? await AuthorizeDocumentEditAsync(id, identity, preferences, authorization, assets, ct)
                         : await AuthorizeOwnedItemAsync(id, identity, authorization, ct);
@@ -76,7 +79,15 @@ public static partial class ViewEndpoints
                     }
                 }
 
-                var (access, refusal) = await ResolveCatalogueChangeAccessAsync(hasDocuments, identity, preferences, resolver, authorization, ct);
+                // Anything refused (or not theirs) answers the same plain way before any item is read, so nothing about another
+                // person's items can be learned from the answer.
+                if (refusals.Count > 0)
+                {
+                    return Results.Ok(new ViewItemsEditResultDto(false, false, 0, refusals,
+                        "Nothing was saved: some items can't be changed this way."));
+                }
+
+                var (access, refusal) = await ResolveCatalogueChangeAccessAsync(false, identity, preferences, resolver, authorization, ct);
                 if (access is null)
                 {
                     return refusal!;

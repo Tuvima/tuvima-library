@@ -92,7 +92,8 @@ public sealed class ViewItemsEditService(
 
                 foreach (var galleryId in (request.GalleryAddIds ?? []).Concat(request.GalleryRemoveIds ?? []).Where(id => id != Guid.Empty).Distinct())
                 {
-                    if (!await context.CanContributeToGallery(galleryId))
+                    if (!await context.CanContributeToGallery(galleryId)
+                        || await galleries.GetAsync(galleryId, true, ct, context.BlockedKinds).ConfigureAwait(false) is not { Kind: ViewGalleryKind.Manual })
                     {
                         throw new ArgumentException("One of the galleries is not available.");
                     }
@@ -107,7 +108,7 @@ public sealed class ViewItemsEditService(
 
         if (refusals.Count > 0)
         {
-            return new ViewItemsEditResultDto(false, false, 0, refusals, "Nothing was saved: some items can't be changed this way.", DayMoves: dayMoves);
+            return new ViewItemsEditResultDto(false, false, 0, refusals, "Nothing was saved: some items can't be changed this way.");
         }
 
         var total = planned.Sum(entry => entry.Snapshots.Count);
@@ -116,7 +117,7 @@ public sealed class ViewItemsEditService(
             return new ViewItemsEditResultDto(false, true, total, [], DayMoves: dayMoves);
         }
 
-        var applied = new List<LocalAssetDto>();
+        var applied = new List<(LocalAssetDto Item, ViewItemsEditRequest Request)>();
         var createdGalleries = new List<Guid>();
         var membership = new List<(Guid GalleryId, List<Guid> Added, List<Guid> Removed)>();
         Guid? firstCreated = null;
@@ -127,7 +128,7 @@ public sealed class ViewItemsEditService(
                 foreach (var (_, item) in snapshots)
                 {
                     ct.ThrowIfCancellationRequested();
-                    applied.Add(item);
+                    applied.Add((item, request));
                     await ApplyAsync(context, item, request, ct).ConfigureAwait(false);
                 }
 
@@ -160,10 +161,16 @@ public sealed class ViewItemsEditService(
         {
             logger.LogWarning(exception, "A View save failed part-way; putting {Count} item(s) back.", applied.Count);
             // Putting things back must finish even when the person closed the page, so it never uses the request's token.
-            await PutBackAsync(context, applied, createdGalleries, membership).ConfigureAwait(false);
+            var notPutBack = await PutBackAsync(context, applied, createdGalleries, membership).ConfigureAwait(false);
             if (exception is OperationCanceledException)
             {
                 throw;
+            }
+
+            if (notPutBack > 0)
+            {
+                logger.LogError("A View save could not put {Count} step(s) back; the items need a look.", notPutBack);
+                return new ViewItemsEditResultDto(false, false, 0, [], "Nothing was saved, but some changes could not be put back. Check the items you were editing.");
             }
 
             return exception is ArgumentException or InvalidOperationException or ViewCatalogueAccessException or ViewCatalogueConflictException
@@ -189,6 +196,15 @@ public sealed class ViewItemsEditService(
         if (request.ItemIds.Any(id => id == Guid.Empty))
         {
             throw new ArgumentException("Every item needs an id.");
+        }
+
+        const int MaximumNames = 50;
+        if ((request.TagsAdd?.Count ?? 0) > MaximumNames || (request.TagsRemove?.Count ?? 0) > MaximumNames
+            || (request.PeopleAdd?.Count ?? 0) > MaximumNames || (request.PeopleRemove?.Count ?? 0) > MaximumNames
+            || (request.Document?.FieldValues?.Count ?? 0) > MaximumNames
+            || (request.GalleryAddIds?.Count ?? 0) > MaximumNames || (request.GalleryRemoveIds?.Count ?? 0) > MaximumNames)
+        {
+            throw new ArgumentException($"One edit can name at most {MaximumNames} tags, people, fields or galleries.");
         }
 
         if (request.CapturedAt is not null && request.CapturedShiftSeconds is not null)
@@ -265,7 +281,7 @@ public sealed class ViewItemsEditService(
             await assets.ReplacePeopleAsync(id, Merge(item.People, request.PeopleAdd, request.PeopleRemove), ct).ConfigureAwait(false);
         }
 
-        if (request.Document is { } document)
+        if (request.Document is { } document && ChangesDocument(document))
         {
             await catalogue.UpdateDocumentDetailsAsync(context.Viewer, id, DocumentWrite(item, document), ct).ConfigureAwait(false);
         }
@@ -276,12 +292,17 @@ public sealed class ViewItemsEditService(
         }
     }
 
+    private static bool ChangesDocument(ViewItemsDocumentEdit edit) =>
+        edit.SetTitle || edit.SetCorrespondent || edit.SetDocumentType || edit.SetDocumentDate || edit.SetArchiveNumber || edit.SetNotes
+        || edit.FieldValues is { Count: > 0 };
+
     private static List<string> Merge(IReadOnlyList<string>? current, IReadOnlyList<string>? add, IReadOnlyList<string>? remove)
     {
         var result = (current ?? []).ToList();
+        var present = result.ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var name in (add ?? []).Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value.Trim()))
         {
-            if (!result.Contains(name, StringComparer.OrdinalIgnoreCase))
+            if (present.Add(name))
             {
                 result.Add(name);
             }
@@ -322,61 +343,80 @@ public sealed class ViewItemsEditService(
     }
 
     // Puts every touched item back to what it said before, in reverse; a gallery made by this Save is removed and its additions undone.
-    private async Task PutBackAsync(Context context, IReadOnlyList<LocalAssetDto> touchedItems, IReadOnlyList<Guid> createdGalleries,
+    private async Task<int> PutBackAsync(Context context, IReadOnlyList<(LocalAssetDto Item, ViewItemsEditRequest Request)> touchedItems, IReadOnlyList<Guid> createdGalleries,
         IReadOnlyList<(Guid GalleryId, List<Guid> Added, List<Guid> Removed)> membership)
     {
         var ct = CancellationToken.None;
+        var failed = 0;
         foreach (var (galleryId, added, removed) in membership.Reverse())
         {
             var gallery = galleryId;
-            if (added.Count > 0)
+            if (added.Count > 0 && !await Try(() => galleries.RemoveItemsAsync(gallery, added, true, ct)).ConfigureAwait(false))
             {
-                await Try(() => galleries.RemoveItemsAsync(gallery, added, true, ct)).ConfigureAwait(false);
+                failed++;
             }
 
-            if (removed.Count > 0)
+            if (removed.Count > 0 && !await Try(() => galleries.AddItemsAsync(gallery, removed, context.BlockedKinds, ct)).ConfigureAwait(false))
             {
-                await Try(() => galleries.AddItemsAsync(gallery, removed, context.BlockedKinds, ct)).ConfigureAwait(false);
+                failed++;
             }
         }
 
         foreach (var made in createdGalleries)
         {
             var gallery = made;
-            await Try(() => galleries.DeleteAsync(gallery, ct)).ConfigureAwait(false);
+            if (!await Try(() => galleries.DeleteAsync(gallery, ct)).ConfigureAwait(false))
+            {
+                failed++;
+            }
         }
 
-        // Membership of existing galleries is put back from what it was before each step; a gallery this Save made is removed whole.
-        foreach (var item in touchedItems.Reverse())
+        // Only what the Save itself changed is put back, so a failed Save never touches anything else about an item.
+        foreach (var (item, request) in touchedItems.Reverse())
         {
             var id = item.Id;
-            await Try(() => assets.UpdateDescriptionAsync(id, item.Description, ct)).ConfigureAwait(false);
-            if (item.CapturedAtUserOverride && item.CapturedAt is { } was)
+            if (request.SetDescription && !await Try(() => assets.UpdateDescriptionAsync(id, item.Description, ct)).ConfigureAwait(false))
             {
-                await Try(() => assets.UpdateCapturedAtAsync(id, was, false, ct)).ConfigureAwait(false);
-            }
-            else
-            {
-                await Try(() => assets.UpdateCapturedAtAsync(id, null, true, ct)).ConfigureAwait(false);
+                failed++;
             }
 
-            if (item.LocationUserOverride)
+            if (request.CapturedAt is not null || request.CapturedShiftSeconds is not null || request.CapturedReset)
             {
-                await Try(() => assets.UpdateLocationAsync(id, new LocalAssetLocationUpdate(item.Latitude, item.Longitude, item.LocationName,
-                    item.LocationCity, item.LocationRegion, item.LocationCountry, item.LocationCountryCode, false), ct)).ConfigureAwait(false);
-            }
-            else
-            {
-                await Try(() => assets.UpdateLocationAsync(id, new LocalAssetLocationUpdate(null, null, null, null, null, null, null, true), ct)).ConfigureAwait(false);
+                var restored = item.CapturedAtUserOverride && item.CapturedAt is { } was
+                    ? await Try(() => assets.UpdateCapturedAtAsync(id, was, false, ct)).ConfigureAwait(false)
+                    : await Try(() => assets.UpdateCapturedAtAsync(id, null, true, ct)).ConfigureAwait(false);
+                failed += restored ? 0 : 1;
             }
 
-            await Try(() => assets.ReplacePeopleAsync(id, item.People ?? [], ct)).ConfigureAwait(false);
-            await Try(() => catalogue.ReplaceItemTagsAsync(context.Viewer, id, item.Tags, [], ct)).ConfigureAwait(false);
-            if (item.DocumentInfo is not null)
+            if (request.Location is not null)
             {
-                await Try(() => catalogue.UpdateDocumentDetailsAsync(context.Viewer, id, DocumentWrite(item, new ViewItemsDocumentEdit()), ct)).ConfigureAwait(false);
+                var restored = item.LocationUserOverride
+                    ? await Try(() => assets.UpdateLocationAsync(id, new LocalAssetLocationUpdate(item.Latitude, item.Longitude, item.LocationName,
+                        item.LocationCity, item.LocationRegion, item.LocationCountry, item.LocationCountryCode, false), ct)).ConfigureAwait(false)
+                    : await Try(() => assets.UpdateLocationAsync(id, new LocalAssetLocationUpdate(null, null, null, null, null, null, null, true), ct)).ConfigureAwait(false);
+                failed += restored ? 0 : 1;
+            }
+
+            if ((request.PeopleAdd is { Count: > 0 } || request.PeopleRemove is { Count: > 0 })
+                && !await Try(() => assets.ReplacePeopleAsync(id, item.People ?? [], ct)).ConfigureAwait(false))
+            {
+                failed++;
+            }
+
+            if ((request.TagsAdd is { Count: > 0 } || request.TagsRemove is { Count: > 0 })
+                && !await Try(() => catalogue.ReplaceItemTagsAsync(context.Viewer, id, item.Tags, [], ct)).ConfigureAwait(false))
+            {
+                failed++;
+            }
+
+            if (request.Document is { } document && ChangesDocument(document) && item.DocumentInfo is not null
+                && !await Try(() => catalogue.UpdateDocumentDetailsAsync(context.Viewer, id, DocumentWrite(item, new ViewItemsDocumentEdit()), ct)).ConfigureAwait(false))
+            {
+                failed++;
             }
         }
+
+        return failed;
     }
 
     // Which of the given items a gallery holds now (so a failed Save can put exactly that back).
@@ -404,15 +444,17 @@ public sealed class ViewItemsEditService(
         }
     }
 
-    private async Task Try(Func<Task> step)
+    private async Task<bool> Try(Func<Task> step)
     {
         try
         {
             await step().ConfigureAwait(false);
+            return true;
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             logger.LogError(exception, "Putting an item back after a failed View save did not finish.");
+            return false;
         }
     }
 }
