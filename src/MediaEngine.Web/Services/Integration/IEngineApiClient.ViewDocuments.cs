@@ -26,6 +26,9 @@ public partial interface IEngineApiClient
     Task<ViewCatalogueResult<bool>> DeleteViewDocumentFieldAsync(Guid id, CancellationToken ct = default);
 
     /// <summary>Applies one bulk edit to the selected documents and returns what happened to each.</summary>
+    /// <summary>The one Save of the photos, videos and documents editor: checks everything first, then changes every item or none (spec photos-documents-editor, WP1).</summary>
+    Task<ViewCatalogueResult<ViewItemsEditResultDto>> EditViewItemsAsync(ViewItemsEditRequest request, CancellationToken ct = default);
+
     Task<ViewCatalogueResult<ViewDocumentBulkResultDto>> BulkEditViewDocumentsAsync(ViewDocumentBulkRequest request, CancellationToken ct = default);
 
     /// <summary>The CSV of the list the options describe (at most 10,000 rows), or the reason it could not be made.</summary>

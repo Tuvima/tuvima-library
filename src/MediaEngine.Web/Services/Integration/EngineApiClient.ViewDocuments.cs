@@ -61,6 +61,9 @@ public sealed partial class EngineApiClient
     public Task<ViewCatalogueResult<bool>> DeleteViewDocumentFieldAsync(Guid id, CancellationToken ct = default) =>
         DeleteCatalogueAsync("DELETE /view/document-fields/{id}", $"/view/document-fields/{id:D}", ct);
 
+    public Task<ViewCatalogueResult<ViewItemsEditResultDto>> EditViewItemsAsync(ViewItemsEditRequest request, CancellationToken ct = default) =>
+        SendCatalogueAsync<ViewItemsEditResultDto>(HttpMethod.Post, "POST /view/items/edit", "/view/items/edit", request, ct);
+
     public Task<ViewCatalogueResult<ViewDocumentBulkResultDto>> BulkEditViewDocumentsAsync(
         ViewDocumentBulkRequest request, CancellationToken ct = default) =>
         SendCatalogueAsync<ViewDocumentBulkResultDto>(HttpMethod.Post, "POST /view/documents/bulk", "/view/documents/bulk", request, ct);
