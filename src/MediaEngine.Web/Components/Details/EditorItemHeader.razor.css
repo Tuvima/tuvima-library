@@ -55,7 +55,7 @@
 .tl-editor-header__title {
     margin: 0;
     overflow: hidden;
-    font-size: var(--tl-font-size-2xl, 1.5rem);
+    font-size: var(--tl-font-size-xl, 1.5rem);
     font-weight: var(--tl-font-weight-semibold);
     text-overflow: ellipsis;
     white-space: nowrap;
