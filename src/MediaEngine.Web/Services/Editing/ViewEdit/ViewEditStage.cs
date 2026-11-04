@@ -126,6 +126,13 @@ public sealed class ViewEditStage
 
     public void RemovePerson(string name) => Remove(name, PeopleAdd, PeopleRemove, CurrentPeople());
 
+    public void RevertDescription()
+    {
+        DescriptionStaged = false;
+        Description = null;
+        Raise();
+    }
+
     public void RevertTags()
     {
         TagsAdd.Clear();

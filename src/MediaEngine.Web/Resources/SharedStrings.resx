@@ -10713,6 +10713,9 @@
   <data name="ViewEdit_TabHistory" xml:space="preserve">
     <value>History</value>
   </data>
+  <data name="ViewEdit_Revert" xml:space="preserve">
+    <value>Put back what it was</value>
+  </data>
   <data name="ViewEdit_UseOriginal" xml:space="preserve">
     <value>Use original</value>
   </data>

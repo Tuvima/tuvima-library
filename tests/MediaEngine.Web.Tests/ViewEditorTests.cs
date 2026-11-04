@@ -37,6 +37,25 @@ public sealed class ViewEditorTests
     }
 
     [Fact]
+    public void TheRevertArrowPutsEachChangedFieldBackWithoutSavingAnything()
+    {
+        var stage = new ViewEditStage([Photo()]);
+        stage.SetDescription("At the harbor");
+        stage.AddTag("Summer");
+        stage.AddPerson("Ana");
+        stage.ShiftDate(TimeSpan.FromHours(2));
+        Assert.True(stage.DescriptionStaged);
+
+        stage.RevertDescription();
+        stage.RevertTags();
+        stage.RevertPeople();
+        stage.RevertDate();
+
+        Assert.False(stage.DescriptionStaged);
+        Assert.Equal(0, stage.ChangeCount);
+    }
+
+    [Fact]
     public void AGroupOfDocumentsNeverOffersTitleArchiveNumberOrNotes()
     {
         var group = new ViewEditStage([Document(), Document()]);
