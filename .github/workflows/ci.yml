@@ -52,7 +52,7 @@ jobs:
 
       - name: Cache NuGet packages
         if: steps.scope.outputs.code == 'true'
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Packages.props', 'global.json') }}
@@ -155,7 +155,7 @@ jobs:
 
       - name: Cache NuGet packages
         if: steps.scope.outputs.code == 'true'
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Packages.props', 'global.json') }}
