@@ -1,6 +1,6 @@
 # Spec: Universe contents (more kinds of things, with pictures and logos)
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-11-04 · **Related docs:** [Product overview](../product/overview.md) · [Universes spec (v4, In progress)](universe.md) · [Universal editor v3](universal-editor-v3.md) · [Plugin architecture](plugin-architecture.md) · [Universe Graph architecture](../../docs/architecture/universe-graph.md)
+> **Status:** Locked · **Version:** 2 · **Last updated:** 2026-11-04 · **Related docs:** [Product overview](../product/overview.md) · [Universes spec (v4, In progress)](universe.md) · [Universal editor v3](universal-editor-v3.md) · [Plugin architecture](plugin-architecture.md) · [Universe Graph architecture](../../docs/architecture/universe-graph.md)
 
 ## 0. Where we are today (read from the code; nothing was run)
 
@@ -41,6 +41,7 @@ Shy answered all open questions on 2026-11-04 (Q1 to Q6 below, resolved). Items 
 - **P4.** **A thing may exist without a Wikidata ID** only when a person adds it by hand to a Universe that already has a Wikidata identity. It carries a local ID and a "Added by you" label, is never overwritten by a provider, and is never sent anywhere (Privacy). Reason: a faction that Wikidata lacks is exactly what a collector wants to add.
 - **P5.** **Pictures follow one rule everywhere:** a person's own picture beats a provider picture, a Fandom picture never replaces a Wikidata/Commons picture unless the person chooses it, and nothing is downloaded from a source that is switched off.
 - **P6.** **Fandom Lore stays off by default** and only looks up Wikidata IDs the Library already holds (universe.md D5). It may supply descriptions, pictures and relationships for any of the seven kinds, always labelled "Fandom".
+- **P9 (Shy override, 2026-11-04, v2).** The Universe editor navigates with searchable kind dropdowns across the top, not a family tree on the left, matching the rest of the editor overhaul. This replaces the tree in section 4.4.
 - **P8 (Shy, 2026-11-04).** Concepts appear only when Fandom Lore is on, including hand-added ones. No gallery now: each thing has a main picture, a logo and a background. Timeline defaults to story order when enough dates exist, otherwise release order. Phone and TV show all seven kinds read-only. Fandom pictures are saved locally only when the person chooses them.
 - **P7.** **Spoiler respect extends to every kind.** An Event, Character or Object whose first appearance is in something you have not reached is hidden or blurred, using the existing spoiler rules (`CharacterSpoilerService` logic generalised, U-WP11).
 
@@ -67,12 +68,12 @@ A horizontal, scrollable strip grouped by era or year. Each stop is an Event or 
 ### 4.4 Editing (desktop only)
 
 Edit in the Universe's "..." menu opens the pop-over editor over the page. For Universe contents it adds:
-- A **family tree on the left** with Universe at the top and the seven kinds as branches, so any thing is one click away.
+- **Searchable dropdowns across the top** (one per kind, plus the Universe itself), so any thing is a few keystrokes away. There is no tree on the left (Shy override, v2: the shared editor uses top dropdowns).
 - **Details:** name, kind, description, aliases, and a "belongs to" link (a character to a faction, a faction to a place).
 - **Pictures:** main picture, logo, background and gallery. Each slot shows the current picture large, with Replace (from a file, a web address, or provider choices) and Remove. A person's own picture is marked "Yours".
 - **Match:** the Wikidata match (or "Not on Wikidata, added by you"), with the usual side-by-side before and after.
 - **History:** what changed and from where.
-- **Add** at the top of any kind branch: "Add faction" and so on, giving a name and kind; the rest is optional.
+- **Add** inside any kind's dropdown: "Add faction" and so on, giving a name and kind; the rest is optional.
 - Nothing saves until **Save changes**, which shows **Review changes** first. Provider facts stay read-only; your edits are layered on top.
 
 ## 5. Data / model changes
