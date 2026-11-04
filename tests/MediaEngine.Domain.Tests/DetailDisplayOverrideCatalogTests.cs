@@ -11,7 +11,13 @@ public sealed class DetailDisplayOverrideCatalogTests
         Assert.Contains("air_date", DetailDisplayOverrideCatalog.AllowedKeys);
         Assert.Contains("runtime", DetailDisplayOverrideCatalog.AllowedKeys);
         Assert.Contains("custom_tags", DetailDisplayOverrideCatalog.AllowedKeys);
-        Assert.DoesNotContain("author", DetailDisplayOverrideCatalog.AllowedKeys);
+        Assert.DoesNotContain("narrator", DetailDisplayOverrideCatalog.AllowedKeys);
+        Assert.DoesNotContain("director", DetailDisplayOverrideCatalog.AllowedKeys);
+        // Spec universal-editor-v4 3c: these are local fields (overrides beside the provider's facts), so several items can take them.
+        Assert.Contains("album_artist", DetailDisplayOverrideCatalog.AllowedKeys);
+        Assert.Contains("disc_number", DetailDisplayOverrideCatalog.AllowedKeys);
+        Assert.Contains("series", DetailDisplayOverrideCatalog.AllowedKeys);
+        Assert.Contains("author", DetailDisplayOverrideCatalog.AllowedKeys);
         Assert.DoesNotContain("series_position", DetailDisplayOverrideCatalog.AllowedKeys);
         Assert.DoesNotContain("wikidata_qid", DetailDisplayOverrideCatalog.AllowedKeys);
         Assert.DoesNotContain("episode_count", DetailDisplayOverrideCatalog.AllowedKeys);
@@ -26,7 +32,12 @@ public sealed class DetailDisplayOverrideCatalogTests
     [InlineData("air_date", "2026-15-40", false, "2026-15-40")]
     [InlineData("runtime", "-1", false, "-1")]
     [InlineData("rating", "11", false, "11")]
-    [InlineData("author", "A Person", false, "A Person")]
+    [InlineData("narrator", "A Person", false, "A Person")]
+    [InlineData("author", "A Person", true, "A Person")]
+    [InlineData("disc_number", "2", true, "2")]
+    [InlineData("disc_number", "0", false, "0")]
+    [InlineData("disc_number", "two", false, "two")]
+    [InlineData("disc_number", "1000", false, "1000")]
     public void TryValidateValue_EnforcesScalarValueShape(
         string key,
         string value,

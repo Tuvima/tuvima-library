@@ -181,7 +181,7 @@ public sealed class ApprovalFlowTests : AsyncBunitContext
         cut.WaitForAssertion(() =>
         {
             var line = cut.Find("[data-testid=plugin-approval]").TextContent;
-            Assert.Contains("Turned on by Avery on", line, StringComparison.Ordinal);
+            Assert.Contains("By Avery on", line, StringComparison.Ordinal);
             Assert.Contains("2026", line, StringComparison.Ordinal);
         });
     }

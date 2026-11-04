@@ -52,6 +52,14 @@ public sealed class EditSessionExplicitMarkTests : IDisposable
     }
 
     [Fact]
+    public async Task Check_AcceptsTheMarkOnASong()
+    {
+        var song = SeedWork("Music");
+
+        Assert.Null(await _handler.CheckAsync(Change(song, "true"), CancellationToken.None));
+    }
+
+    [Fact]
     public async Task Save_MarksTheVideoExplicit_AsAUserLockedWinningValue_AndUndoRestoresIt()
     {
         var video = SeedWork("Videos");

@@ -1,0 +1,54 @@
+@namespace MediaEngine.Web.Components.Shared
+
+@* The one frame every plugin page and every integration page is drawn in (Plugins and Integrations screens v6 D60, D69): a header
+   (logo, name, the 22 px tick, one status sentence, the switch), the tab bar and then the page. The pages never draw their own header
+   or status row; a guardrail test keeps it that way. Put the main column and the quiet side column inside <AppDetailColumns>. *@
+<div class="@RootClass" data-testid="@RootTestId" @attributes="AdditionalAttributes">
+    <header class="app-detail-frame__header" data-testid="app-detail-header">
+        <span class="app-detail-frame__logo">@Logo</span>
+        <div class="app-detail-frame__title">
+            <h2>@Title <AppStatusDot Tick="true" Tone="@StatusTone" Sentence="@StatusSentence" /></h2>
+            <p data-testid="@StatusTestId">@StatusSentence</p>
+        </div>
+        @if (Actions is not null)
+        {
+            <div class="app-detail-frame__actions">@Actions</div>
+        }
+    </header>
+    @if (Tabs.Count > 0)
+    {
+        <AppCountTabs Tabs="@Tabs" Selected="@SelectedTab" AriaLabel="@($"{Title} sections")" />
+    }
+    @ChildContent
+</div>
+
+@code {
+    /// <summary>The name of the plugin or integration.</summary>
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+
+    /// <summary>The 52 px logo or icon.</summary>
+    [Parameter] public RenderFragment? Logo { get; set; }
+
+    /// <summary>The colour of the tick beside the name.</summary>
+    [Parameter] public AppStatusDotTone StatusTone { get; set; } = AppStatusDotTone.Off;
+
+    /// <summary>The one sentence that says whether it works.</summary>
+    [Parameter] public string StatusSentence { get; set; } = string.Empty;
+
+    /// <summary>The switch (and any menu) at the right of the header.</summary>
+    [Parameter] public RenderFragment? Actions { get; set; }
+
+    [Parameter] public IReadOnlyList<AppCountTab> Tabs { get; set; } = [];
+    [Parameter] public string SelectedTab { get; set; } = string.Empty;
+
+    /// <summary>Test id of the frame itself (<c>plugin-page</c>, <c>integration-page</c>).</summary>
+    [Parameter] public string RootTestId { get; set; } = "app-detail-page";
+
+    /// <summary>Test id of the status sentence.</summary>
+    [Parameter] public string StatusTestId { get; set; } = "app-detail-status-sentence";
+
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string RootClass => "app-detail-frame" + (AdditionalAttributes?.TryGetValue("class", out var extra) == true ? " " + extra : string.Empty);
+}

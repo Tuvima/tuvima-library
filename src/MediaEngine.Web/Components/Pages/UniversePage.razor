@@ -147,9 +147,9 @@
         _flow = Editor.Flow;
         _binding = new EditorBinding(DeviceContext)
         {
-            LoadFields = LoadEditingFieldsAsync,
             Saved = RefreshAfterEditSavedAsync,
             Trail = EditTrail,
+            ShowHistory = true,
             DetailsExtra = SeriesInThisUniverse,
         };
         State.OnStateChanged += OnEngineStateChanged;
@@ -176,6 +176,7 @@
 
         // A different Universe in the same circuit starts over: close any editor and show the loading state.
         _loadedQid = Qid;
+        _binding.UniverseQid = Qid;
         _canEditUniverse = false;
         _showFandomLine = false;
         if (ReferenceEquals(Editor.Binding, _binding))
@@ -289,18 +290,13 @@
         }
     };
 
-    // The Universe is a subject of its own: the Engine describes its fields, artwork slots and permissions by its Wikidata id.
-    private Task LoadEditingFieldsAsync() => _editing.Fields.LoadUniverseSubjectAsync(CurrentQid);
-
+    // The Universe is a subject of its own: the Engine describes its fields, artwork slots and permissions by its Wikidata id. The pop-over
+    // loads it (and any character, place or faction chosen in its rail) itself, because the binding names the Universe.
     private IReadOnlyList<EditTrailItem> EditTrail() =>
-        [new EditTrailItem(_editing.Fields.EntityId, _state.Page?.Detail.Name ?? "Universe", "Universe")];
+        [new EditTrailItem(_editing.Fields.EntityId, _state.Page?.Detail.Name ?? "Universe", EditTrailKinds.Universe)];
 
-    // Save changes went through: show the page's new values and reload the editor's fields so the next edit starts from them.
-    private async Task RefreshAfterEditSavedAsync()
-    {
-        await ReloadAfterEditAsync();
-        await LoadEditingFieldsAsync();
-    }
+    // Save changes went through: show the page's new values. The pop-over has already reloaded what it is editing.
+    private Task RefreshAfterEditSavedAsync() => ReloadAfterEditAsync();
 
     // The editor saved something: read the page again without blanking it.
     private async Task ReloadAfterEditAsync()

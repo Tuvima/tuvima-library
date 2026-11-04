@@ -1056,9 +1056,6 @@
   <data name="BulkEditPanel_TickSomeRowsToEdit" xml:space="preserve">
     <value>Tick some rows to edit them together.</value>
   </data>
-  <data name="BulkEditPanel_StageMatching" xml:space="preserve">
-    <value>Stage matching</value>
-  </data>
   <data name="Common_YouCanLookAtThese" xml:space="preserve">
     <value>You can look at these details but not change them.</value>
   </data>
@@ -1214,12 +1211,6 @@
   </data>
   <data name="Common_Saved" xml:space="preserve">
     <value>Saved</value>
-  </data>
-  <data name="Common_SaveThisField" xml:space="preserve">
-    <value>Save this field</value>
-  </data>
-  <data name="Common_CancelThisField" xml:space="preserve">
-    <value>Cancel this field</value>
   </data>
   <data name="EditorPopover_EditingIsNotReady" xml:space="preserve">
     <value>Editing is not ready.</value>
@@ -1841,15 +1832,6 @@
   </data>
   <data name="Common_NotSet" xml:space="preserve">
     <value>Not set</value>
-  </data>
-  <data name="EditorDetailsInlineField_LocalOverride" xml:space="preserve">
-    <value>Local override</value>
-  </data>
-  <data name="EditorDetailsInlineField_AddValue" xml:space="preserve">
-    <value>Add value</value>
-  </data>
-  <data name="EditorDetailsInlineField_RevertThisOverride" xml:space="preserve">
-    <value>Revert this override</value>
   </data>
   <data name="MediaEditorSurface_MediaEditor" xml:space="preserve">
     <value>Media editor</value>
@@ -5762,9 +5744,6 @@
   </data>
   <data name="Common_NewIntegration" xml:space="preserve">
     <value>New integration</value>
-  </data>
-  <data name="ManagedAccessApplications_IntegrationSummary" xml:space="preserve">
-    <value>Integration summary</value>
   </data>
   <data name="ManagedAccessApplications_LoadingApplications" xml:space="preserve">
     <value>Loading applications</value>
@@ -9753,9 +9732,6 @@
   <data name="PluginPage_NothingAdded" xml:space="preserve">
     <value>Nothing added yet.</value>
   </data>
-  <data name="PluginPage_KeyMissing" xml:space="preserve">
-    <value>Key missing</value>
-  </data>
   <data name="PluginPage_TestConnection" xml:space="preserve">
     <value>Test connection</value>
   </data>
@@ -9767,9 +9743,6 @@
   </data>
   <data name="PluginPage_Remove" xml:space="preserve">
     <value>Remove</value>
-  </data>
-  <data name="PluginPage_SaveKey" xml:space="preserve">
-    <value>Save key</value>
   </data>
   <data name="PluginPage_Cancel" xml:space="preserve">
     <value>Cancel</value>
@@ -9875,9 +9848,6 @@
   </data>
   <data name="PluginPage_Unavailable" xml:space="preserve">
     <value>This plugin's page is unavailable</value>
-  </data>
-  <data name="PluginPage_Settings" xml:space="preserve">
-    <value>Settings</value>
   </data>
   <data name="RestorePlugins_Title" xml:space="preserve">
     <value>Restore official plugins</value>
@@ -10419,8 +10389,14 @@
   <data name="EditorContents_ChooseWhatToChange" xml:space="preserve">
     <value>Choose what to change</value>
   </data>
+  <data name="EditorLineUp_ApplyTo" xml:space="preserve">
+    <value>Apply to</value>
+  </data>
+  <data name="EditorLineUp_ReadOnly" xml:space="preserve">
+    <value>You can look at these matches, but you can't change them.</value>
+  </data>
   <data name="EditorContents_MatchN" xml:space="preserve">
-    <value>Match {0} {1}</value>
+    <value>Match these {0} {1}</value>
   </data>
   <data name="EditorContents_Loading" xml:space="preserve">
     <value>Loading the contents</value>
@@ -10601,5 +10577,80 @@
   </data>
   <data name="ExcludedFilesSection_IgnoredByYou" xml:space="preserve">
     <value>Ignored by you</value>
+  </data>
+  <data name="EditorUniverse_Universe" xml:space="preserve">
+    <value>Universe</value>
+  </data>
+  <data name="EditorUniverseAdd_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="EditorUniverseAdd_DescriptionOptional" xml:space="preserve">
+    <value>Description (optional)</value>
+  </data>
+  <data name="EditorUniverseAdd_Note" xml:space="preserve">
+    <value>Added by you. It is not on Wikidata, and nothing about it is sent anywhere.</value>
+  </data>
+  <data name="EditorUniverseMatch_Heading" xml:space="preserve">
+    <value>Match</value>
+  </data>
+  <data name="EditorUniverseMatch_Wikidata" xml:space="preserve">
+    <value>Wikidata</value>
+  </data>
+  <data name="EditorUniverseMatch_AddedByYou" xml:space="preserve">
+    <value>Not on Wikidata, added by you</value>
+  </data>
+  <data name="EditorUniverseMatch_NotMatched" xml:space="preserve">
+    <value>Not matched</value>
+  </data>
+  <data name="IntegrationKey_Name" xml:space="preserve">
+    <value>Key name</value>
+  </data>
+  <data name="IntegrationKey_Expires" xml:space="preserve">
+    <value>Expires</value>
+  </data>
+  <data name="IntegrationKey_Generate" xml:space="preserve">
+    <value>Generate key</value>
+  </data>
+  <data name="ManagedAccessApplications_Rotate" xml:space="preserve">
+    <value>Rotate</value>
+  </data>
+  <data name="ManagedAccessApplications_Revoke" xml:space="preserve">
+    <value>Revoke</value>
+  </data>
+  <data name="PluginFileEditor_Review" xml:space="preserve">
+    <value>Review changes</value>
+  </data>
+  <data name="PluginFileEditor_JumpToLine" xml:space="preserve">
+    <value>Go to line</value>
+  </data>
+  <data name="PluginGroup_Status" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="PluginGroup_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="PluginGroup_Address" xml:space="preserve">
+    <value>Address</value>
+  </data>
+  <data name="PluginGroup_Key" xml:space="preserve">
+    <value>Key</value>
+  </data>
+  <data name="PluginGroup_Actions" xml:space="preserve">
+    <value>Actions</value>
+  </data>
+  <data name="PluginGroup_BuiltIn" xml:space="preserve">
+    <value>Built in: it cannot be removed</value>
+  </data>
+  <data name="PluginGroup_AddKey" xml:space="preserve">
+    <value>+ Add key</value>
+  </data>
+  <data name="PluginGroup_NoKey" xml:space="preserve">
+    <value>No key</value>
+  </data>
+  <data name="PluginConnect_ReplaceKey" xml:space="preserve">
+    <value>Replace key</value>
+  </data>
+  <data name="PluginConnect_RemoveKey" xml:space="preserve">
+    <value>Remove key</value>
   </data>
 </root>

@@ -80,7 +80,7 @@ public static class ArtworkPickerRules
     {
         "coverart" or "seasonposter" or "episodestill" => "Primary",
         "background" or "seasonthumb" => "Background",
-        "headshot" or "characterportrait" => "Portrait",
+        "headshot" or "characterportrait" => "Main picture",
         "logo" => "Logo",
         _ => null,
     };
@@ -89,7 +89,7 @@ public static class ArtworkPickerRules
     {
         "coverart" => coverLabel,
         "headshot" => "Photo",
-        "characterportrait" => "Portrait",
+        "characterportrait" => "Main picture",
         "background" => "Background",
         "logo" => "Logo",
         "seasonposter" => "Season poster",
@@ -414,7 +414,7 @@ public sealed class ArtworkPickerSession
         }
     }
 
-    private static IReadOnlyList<ArtworkPickerPicture> VersionsOf(ArtworkEntityWorkspaceDto? workspace, string slot)
+    internal static IReadOnlyList<ArtworkPickerPicture> VersionsOf(ArtworkEntityWorkspaceDto? workspace, string slot)
     {
         var role = ArtworkPickerRules.RoleFor(slot);
         return (workspace?.Variants ?? [])
@@ -544,19 +544,6 @@ public sealed class ArtworkPickerSession
             ProviderLoading = false;
             Changed?.Invoke();
         }
-    }
-
-    /// <summary>Picks a saved picture: the page previews it, nothing is written.</summary>
-    public void PickSaved(ArtworkPickerPicture picture)
-    {
-        if (ActiveSlot is null)
-        {
-            return;
-        }
-
-        _pickedProviderId = null;
-        _preview.Pick(ActiveSlot, picture.AssetId.ToString("D"), picture.ContentUrl);
-        Changed?.Invoke();
     }
 
     /// <summary>Picks a provider picture: the page previews its thumbnail, nothing is written until it is used.</summary>

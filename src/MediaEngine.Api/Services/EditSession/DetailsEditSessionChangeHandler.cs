@@ -19,7 +19,8 @@ public sealed class DetailsEditSessionChangeHandler(
     ISystemActivityRepository activityRepository,
     EditSubjectDirectory? subjects = null,
     IMetadataClaimRepository? claimRepository = null,
-    ICanonicalValueRepository? canonicalRepository = null) : IEditSessionChangeHandler
+    ICanonicalValueRepository? canonicalRepository = null,
+    IEntityTimelineRepository? timeline = null) : IEditSessionChangeHandler
 {
     /// <summary>
     /// The Explicit mark (hides a video or a series of videos from every content-limited profile) rides on a details change under this
@@ -139,7 +140,7 @@ public sealed class DetailsEditSessionChangeHandler(
         };
     }
 
-    // Only a video or a series of videos can be marked; the id may be a file, so it is resolved to its work first.
+    // Only a song, a video or a series of videos can be marked; the id may be a file, so it is resolved to its work first.
     private async Task<string?> CheckExplicitAsync(Guid entityId, string? value, CancellationToken ct)
     {
         if (claimRepository is null || canonicalRepository is null)
@@ -153,9 +154,11 @@ public sealed class DetailsEditSessionChangeHandler(
         }
 
         var workId = await itemCanonicalRepository.ResolveWorkIdForAssetAsync(entityId, ct).ConfigureAwait(false) ?? entityId;
-        if (!string.Equals(await itemCanonicalRepository.GetWorkMediaTypeAsync(workId, ct).ConfigureAwait(false), nameof(MediaType.Videos), StringComparison.OrdinalIgnoreCase))
+        var mediaType = await itemCanonicalRepository.GetWorkMediaTypeAsync(workId, ct).ConfigureAwait(false);
+        if (!string.Equals(mediaType, nameof(MediaType.Videos), StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(mediaType, nameof(MediaType.Music), StringComparison.OrdinalIgnoreCase))
         {
-            return "Only a video or a series of videos can be marked Explicit.";
+            return "Only a song, a video or a series of videos can be marked Explicit.";
         }
 
         return null;
@@ -254,6 +257,17 @@ public sealed class DetailsEditSessionChangeHandler(
             EntityType = subject.ArtworkEntityType,
             Detail = $"Edit session saved {change.Fields.Count} {subject.Kind} field(s): {string.Join(", ", change.Fields.Select(field => field.Key.Trim()).Distinct(StringComparer.OrdinalIgnoreCase))}.",
         }, ct).ConfigureAwait(false);
+        if (timeline is not null && EditorUniverseHistory.Keeps(subject.Kind))
+        {
+            await EditorUniverseHistory.Record(
+                timeline,
+                change.EntityId,
+                subject.Kind,
+                EditorUniverseHistory.FieldEvent,
+                $"Changed {string.Join(", ", change.Fields.Select(field => field.Key.Trim()).Distinct(StringComparer.OrdinalIgnoreCase))}.",
+                ct).ConfigureAwait(false);
+        }
+
         return undo;
     }
 }

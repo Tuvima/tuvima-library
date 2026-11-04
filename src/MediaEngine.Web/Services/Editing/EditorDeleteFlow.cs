@@ -27,6 +27,62 @@ public static class EditorDeleteFlow
             && LibraryItemDeletionFlow.CanDelete(device, session);
     }
 
+    /// <summary>
+    /// True when the header offers Delete for a character, place or faction that someone added by hand to a Universe (universal editor v4,
+    /// WP11). A thing that came from Wikidata is hidden on its page instead, never deleted.
+    /// </summary>
+    public static bool CanDeleteThing(EditorHost editor, DeviceContextService? device, DashboardSessionAccessor? session)
+    {
+        ArgumentNullException.ThrowIfNull(editor);
+        return editor.Batch.Panel == BulkPanelKind.None
+            && editor.Mode.Fields.Loaded
+            && editor.Mode.Fields.SubjectKind == MediaEngine.Contracts.Editing.EditorSubjectKinds.FictionalEntity
+            && EditorUniverseRules.IsAddedByUser(editor.Mode.Fields.Find("wikidata")?.DisplayValue ?? editor.Mode.Fields.Find("wikidata")?.Value)
+            && editor.Session.ActiveItem is { } active
+            && active.Kind == EditTrailKinds.Thing
+            && LibraryItemDeletionFlow.CanDelete(device, session);
+    }
+
+    /// <summary>
+    /// Asks once, then deletes the hand-added thing being edited at once, without waiting for Save. False means nothing was deleted.
+    /// </summary>
+    public static async Task<bool> DeleteThingAsync(
+        EditorHost editor,
+        IAppDialogService dialogs,
+        IAppToastService toasts,
+        DeviceContextService? device,
+        DashboardSessionAccessor? session)
+    {
+        ArgumentNullException.ThrowIfNull(editor);
+        ArgumentNullException.ThrowIfNull(dialogs);
+        ArgumentNullException.ThrowIfNull(toasts);
+        if (editor.Session.ActiveItem is not { } active || LibraryItemDeletionFlow.TryRefuse(device, session, toasts))
+        {
+            return false;
+        }
+
+        var answer = await AppConfirmDialog.ShowAsync(
+            dialogs,
+            $"Delete {active.Title}?",
+            "This removes it from the Universe for good. Anything you changed on it goes too. It was added by you, so nothing on Wikidata is touched.",
+            "Delete",
+            "Keep",
+            primaryDestructive: true);
+        if (answer != AppConfirmResult.Primary)
+        {
+            return false;
+        }
+
+        if (!await editor.DeleteUniverseThingAsync(active.EntityId))
+        {
+            toasts.Add($"{active.Title} could not be deleted. Nothing was changed.", AppSeverity.Error);
+            return false;
+        }
+
+        toasts.Add($"Deleted {active.Title}.", AppSeverity.Success);
+        return true;
+    }
+
     /// <summary>The whole show, season, album or Series the editor is on; null for a single title.</summary>
     public static LibraryGroupTarget? ActiveGroup(EditorHost editor)
     {

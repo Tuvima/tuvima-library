@@ -43,6 +43,13 @@ public sealed class EditorBinding
     /// <summary>The editor media type used when rows are ticked (Renumber and Match need it).</summary>
     public string? BulkMediaType { get; set; }
 
+    /// <summary>
+    /// The Wikidata ID of the Universe the page shows, or of the Universe a character, place or faction on the page belongs to (universal editor v4,
+    /// WP11). When set, the pop-over draws the Universe rail (the Universe and its kinds as dropdowns) and loads whichever of them the person
+    /// picks, so the page needs no loader of its own.
+    /// </summary>
+    public string? UniverseQid { get; set; }
+
     /// <summary>The Universe the page's item belongs to, for "Open Universe" in the Match tab (v4 D17); null when the item has none.</summary>
     public Func<EditorUniverseLink?>? UniverseLink { get; set; }
 
@@ -111,6 +118,7 @@ public sealed record EditorClosedEventArgs(bool Changed, IReadOnlyList<Guid> Ite
 /// </remarks>
 public sealed class EditorHost : IDisposable
 {
+    private readonly IEngineApiClient _api;
     private readonly IServiceProvider _services;
     private readonly ILogger<EditorHost> _logger;
     private EditorBinding? _binding;
@@ -130,11 +138,12 @@ public sealed class EditorHost : IDisposable
         IServiceProvider services,
         ILogger<EditorHost> logger)
     {
+        _api = api;
         _services = services;
         _logger = logger;
         Mode = new EditingModeContext(device, new ItemFieldEditSession(api, logger))
         {
-            Loader = () => _binding?.LoadFields?.Invoke() ?? Task.CompletedTask,
+            Loader = LoadActiveAsync,
             AskSaveOrDiscard = () => AskSaveOrDiscard?.Invoke() ?? Task.FromResult(SaveOrDiscardChoice.Cancel),
         };
         Session = new EditSessionState(new PendingEditList());
@@ -147,12 +156,13 @@ public sealed class EditorHost : IDisposable
         {
             Saved = OnSavedAsync,
             MediaTypes = () => _binding?.MediaTypes?.Invoke() ?? [],
-            OpenItem = item => _binding?.OpenItem?.Invoke(item) ?? Task.FromResult(false),
+            OpenItem = OpenItemAsync,
             ItemSwitched = () => _binding?.ItemSwitched?.Invoke() ?? Task.CompletedTask,
         };
         Picker = new ArtworkPickerSession(api, Session, Mode.Fields, new ArtworkEditPreview(Session, Mode.Fields), logger);
         Batch = new BulkEditSelection { RefreshAsync = () => _binding?.SectionCommitted?.Invoke() ?? Task.CompletedTask };
         Family = new EditorFamilyState(api, logger);
+        Universe = new EditorUniverseState(api, logger);
         Picker.EpisodeSource = async () => Session.ActiveItem is { } active
             ? (await Family.LeavesUnderAsync(active.EntityId)).Select(row => row.EntityId).ToList()
             : [];
@@ -163,6 +173,7 @@ public sealed class EditorHost : IDisposable
         Flow.Changed += RaiseChanged;
         Batch.Changed += OnBatchChanged;
         Family.Changed += RaiseChanged;
+        Universe.Changed += RaiseChanged;
         Mode.Fields.Changed += SyncFamily;
     }
 
@@ -181,8 +192,11 @@ public sealed class EditorHost : IDisposable
     /// <summary>The rows ticked for the bulk panel; what it stages goes into the same pending list as one item's edits.</summary>
     public BulkEditSelection Batch { get; }
 
-    /// <summary>The family tree in the left column: this show, album or series and its seasons, episodes or tracks (universal editor v3 D3).</summary>
+    /// <summary>The family behind the rail of dropdowns and the Contents tab: this show, album or series and its seasons, episodes or tracks (universal editor v4 D2).</summary>
     public EditorFamilyState Family { get; }
+
+    /// <summary>The rail of the Universe editor: the Universe, its kinds with counts, and the things of each kind (universal editor v4, WP11).</summary>
+    public EditorUniverseState Universe { get; }
 
     /// <summary>How the window asks "Save or discard?" (set by the layout's pop-over, which owns the dialogs). Unset, unsaved input keeps the person where they are.</summary>
     public Func<Task<SaveOrDiscardChoice>>? AskSaveOrDiscard { get; set; }
@@ -275,6 +289,27 @@ public sealed class EditorHost : IDisposable
         }
 
         await Flow.LeaveAsync();
+    }
+
+    /// <summary>
+    /// Deletes a character, place or faction that someone added by hand, at once (universal editor v4, WP11): the Engine removes it, the staged
+    /// changes for it go, the editor moves to the Universe and the rail counts again. False when the Engine refused.
+    /// </summary>
+    public async Task<bool> DeleteUniverseThingAsync(Guid id, CancellationToken ct = default)
+    {
+        if (id == Guid.Empty || !await _api.DeleteEditorUniverseThingAsync(id, ct))
+        {
+            return false;
+        }
+
+        await ItemsDeletedAsync([id]);
+        await UniverseAsync(Universe.RefreshAsync(ct));
+        if (_binding?.Saved is { } saved)
+        {
+            await saved();
+        }
+
+        return true;
     }
 
     /// <summary>Makes <paramref name="binding"/> the page the editor serves. A page binds right before it opens the editor.</summary>
@@ -385,12 +420,12 @@ public sealed class EditorHost : IDisposable
     /// <summary>Loads the item again after the Engine could not be reached (the window's "Try again").</summary>
     public async Task RetryLoadAsync()
     {
-        if (!Mode.IsOn || Mode.Fields.Loading || _binding?.LoadFields is not { } load)
+        if (!Mode.IsOn || Mode.Fields.Loading || (_binding?.LoadFields is null && _binding?.UniverseQid is null))
         {
             return;
         }
 
-        await load();
+        await LoadActiveAsync();
         if (Mode.Fields.Loaded && Session.IsActive && Session.ActiveTool == EditTool.Details && !Mode.SectionOpen)
         {
             Mode.OpenSection(EditingSection.Details);
@@ -433,6 +468,7 @@ public sealed class EditorHost : IDisposable
         Flow.Changed -= RaiseChanged;
         Batch.Changed -= OnBatchChanged;
         Family.Changed -= RaiseChanged;
+        Universe.Changed -= RaiseChanged;
         Mode.Fields.Changed -= SyncFamily;
         if (_binding is not null)
         {
@@ -508,7 +544,82 @@ public sealed class EditorHost : IDisposable
             _ = FamilyAsync(Family.RefreshAsync(active.EntityId));
         }
 
-        return _binding?.Saved?.Invoke() ?? Task.CompletedTask;
+        return OnSavedForPageAsync();
+    }
+
+    private async Task OnSavedForPageAsync()
+    {
+        if (_binding?.UniverseQid is not null)
+        {
+            // The Universe's counts and lists follow what was saved (a thing added, hidden or renamed), and the item being edited starts its
+            // next edit from the saved values.
+            await UniverseAsync(Universe.RefreshAsync());
+            await LoadActiveAsync();
+        }
+
+        if (_binding?.Saved is { } saved)
+        {
+            await saved();
+        }
+    }
+
+    private async Task UniverseAsync(Task work)
+    {
+        try
+        {
+            await work;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // The rail is a convenience; the right side keeps working without it.
+            _logger.LogWarning(ex, "The editor's Universe rail could not be updated");
+        }
+    }
+
+    // What the pop-over loads: the item the page bound itself to, or on a Universe page the Universe or the thing the person is on.
+    private Task LoadActiveAsync()
+    {
+        if (_binding?.UniverseQid is { } qid)
+        {
+            return LoadUniverseItemAsync(qid, Session.ActiveItem);
+        }
+
+        return _binding?.LoadFields?.Invoke() ?? Task.CompletedTask;
+    }
+
+    private async Task LoadUniverseItemAsync(string qid, EditTrailItem? item)
+    {
+        if (item is not null && item.Kind != EditTrailKinds.Universe && item.EntityId != Guid.Empty)
+        {
+            await Mode.Fields.LoadSubjectAsync(item.EntityId);
+        }
+        else
+        {
+            await Mode.Fields.LoadUniverseSubjectAsync(qid);
+        }
+
+        // The Universe is first named before its fields arrive, without an id; once they have, the session knows it by the id its changes use.
+        if (Mode.Fields.Loaded && Session.IsActive && Session.ActiveItem is { } active
+            && active.EntityId == Guid.Empty && Mode.Fields.EntityId != Guid.Empty)
+        {
+            Session.SwitchItem([.. Session.Trail.Take(Math.Max(0, Session.Trail.Count - 1)), active with { EntityId = Mode.Fields.EntityId }]);
+        }
+    }
+
+    private Task<bool> OpenItemAsync(EditTrailItem item)
+    {
+        if (_binding?.UniverseQid is { } qid)
+        {
+            return OpenUniverseItemAsync(qid, item);
+        }
+
+        return _binding?.OpenItem?.Invoke(item) ?? Task.FromResult(false);
+    }
+
+    private async Task<bool> OpenUniverseItemAsync(string qid, EditTrailItem item)
+    {
+        await LoadUniverseItemAsync(qid, item);
+        return Mode.Fields.Loaded;
     }
 
     private void OnModeChanged()
@@ -530,6 +641,7 @@ public sealed class EditorHost : IDisposable
             _lastTool = null;
             FocusField = null;
             Family.Reset();
+            Universe.Reset();
             SyncOverlayGuard();
             RaiseChanged();
             RaiseClosed(closed);
@@ -609,13 +721,30 @@ public sealed class EditorHost : IDisposable
         RaiseChanged();
     }
 
-    // The left column follows the item being edited: a new family is read when the item is not in the tree, and the parents above the item
+    // The rail follows the item being edited: a new family is read when the item is not in the tree, and the parents above the item
     // (the page's trail, the Engine's scope chain) are opened so the item is in view. Films, standalone items, people and the like get none.
     private void SyncFamily()
     {
         if (_disposed)
         {
             return;
+        }
+
+        if (Mode.IsOn && Session.IsActive && _binding?.UniverseQid is { } universeQid)
+        {
+            // A Universe, or a character, place or faction of one: the rail of kinds replaces the family rail.
+            if (Family.Visible)
+            {
+                _ = FamilyAsync(Family.EnsureAsync(Guid.Empty));
+            }
+
+            _ = UniverseAsync(Universe.EnsureAsync(universeQid));
+            return;
+        }
+
+        if (Universe.Visible)
+        {
+            Universe.Reset();
         }
 
         var active = Session.ActiveItem?.EntityId ?? Guid.Empty;

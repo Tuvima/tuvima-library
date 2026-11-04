@@ -42,6 +42,8 @@ public static class ApiReadServiceCollectionExtensions
         services.AddSingleton<IEditSubject, FictionalEntityEditSubject>();
         services.AddSingleton<EditSubjectDirectory>();
         services.AddSingleton<IEditSessionChangeHandler, DetailsEditSessionChangeHandler>();
+        services.AddSingleton<IEditSessionChangeHandler, ThingAddEditSessionChangeHandler>();
+        services.AddScoped<EditorUniverseThingsService>();
         services.AddScoped<RetailMatchWriter>();
         services.AddScoped<IRetailMatchWriter>(sp => sp.GetRequiredService<RetailMatchWriter>());
         services.AddSingleton<EditSessionCallerAccessor>();

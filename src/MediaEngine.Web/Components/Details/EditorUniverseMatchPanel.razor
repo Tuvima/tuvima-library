@@ -1,0 +1,63 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Services.Editing
+@inject IStringLocalizer<SharedStrings> L
+
+@* The Match tab of a Universe or one of its characters, places and factions (universal editor v4, WP11). A Universe is made from a Wikidata
+   item, so there is nothing to search for here: the tab says which item it is and links to it, or says that a thing was added by hand and is
+   not on Wikidata. Read-only; the name and description kept on Details sit on top of it and never change the Wikidata record. *@
+<div class="tl-editor-details">
+    @if (!Fields.Loaded)
+    {
+        <EditorPanelBusy Label="@L["DetailPage_LoadingThisItemSMatch"].Value" />
+    }
+    else
+    {
+        <section class="tl-editor-details__group" aria-label="@L["EditorUniverseMatch_Heading"].Value">
+            <h3 class="tl-editor-details__heading">@L["EditorUniverseMatch_Heading"]</h3>
+            <div class="tl-editor-field tl-editor-field--locked">
+                <div class="tl-editor-field__label"><span>@L["EditorUniverseMatch_Wikidata"]</span></div>
+                <div class="tl-editor-field__value">
+                    @if (IsAddedByYou)
+                    {
+                        <span>@L["EditorUniverseMatch_AddedByYou"]</span>
+                    }
+                    else if (Qid is { } qid)
+                    {
+                        <AppLink Href="@($"https://www.wikidata.org/wiki/{qid}")" Target="_blank" Underline="AppUnderline.None">
+                            <span>@qid</span>
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppSize.Small" />
+                        </AppLink>
+                    }
+                    else
+                    {
+                        <span>@L["EditorUniverseMatch_NotMatched"]</span>
+                    }
+                </div>
+            </div>
+            <small class="tl-editor-field__count">@Note</small>
+        </section>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public ItemFieldEditSession Fields { get; set; } = default!;
+
+    /// <summary>The Wikidata ID of the Universe being edited; a thing of it is told apart by its own "Wikidata" fact.</summary>
+    [Parameter] public string? UniverseQid { get; set; }
+
+    private bool IsThing => Fields.SubjectKind == MediaEngine.Contracts.Editing.EditorSubjectKinds.FictionalEntity;
+
+    private string? FactText => Fields.Find("wikidata") is { } row ? (row.DisplayValue ?? row.Value) : null;
+
+    private bool IsAddedByYou => IsThing && FactText is { } text && text.Contains("added by you", StringComparison.OrdinalIgnoreCase);
+
+    private string? Qid => IsThing
+        ? (FactText is { } text && EditorUniverseRules.LooksLikeQid(text) ? text.Trim() : null)
+        : (EditorUniverseRules.LooksLikeQid(UniverseQid) ? UniverseQid!.Trim() : null);
+
+    private string Note => IsThing
+        ? (IsAddedByYou
+            ? "You added this yourself, so there is no Wikidata record to match. Its name, description and pictures are yours to change on the other tabs."
+            : "Matched by Wikidata when the Universe was built. The name and description you set on Details are kept on top of it; the Wikidata record is never changed.")
+        : "This Universe is built from the Wikidata item above. The name and description you set on Details are kept on top of it; the Wikidata record is never changed.";
+}

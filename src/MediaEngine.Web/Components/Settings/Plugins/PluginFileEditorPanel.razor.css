@@ -14,3 +14,6 @@
 .plugin-file-editor__problem--error strong { color: var(--tl-status-error); }
 .plugin-file-editor__problem--note strong { color: var(--tl-status-warning); }
 @media (max-width: 840px) { .plugin-file-editor__body { grid-template-columns: minmax(0, 1fr); } }
+.plugin-file-editor__footer { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tl-space-2, 8px); width: 100%; }
+.plugin-file-editor__checks-title { color: var(--tl-text-primary); }
+.plugin-file-editor__locked { margin: var(--tl-space-2, 8px) 0 0; color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }

@@ -8,3 +8,4 @@
 .plugin-file__result--problem { border-inline-start-color: var(--tl-status-error); }
 @keyframes plugin-file-glow { from { background: color-mix(in srgb, var(--tl-status-success) 30%, transparent); } to { background: transparent; } }
 @media (prefers-reduced-motion: reduce) { .plugin-file__result--saved { animation: none; } }
+.plugin-file__spacer { flex: 1 1 auto; }

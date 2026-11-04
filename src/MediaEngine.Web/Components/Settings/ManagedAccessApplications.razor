@@ -6,6 +6,10 @@
 @inject ApprovalFlow Approvals
 @inject DashboardSessionAccessor Session
 @inject DeviceContextService DeviceContext
+@inject IServiceProvider Services
+@inject IAppDialogService DialogService
+@inject IJSRuntime JS
+@inject ILogger<ManagedAccessApplications> Logger
 @inject NavigationManager Navigation
 @implements IDisposable
 @inject IStringLocalizer<SharedStrings> L
@@ -38,7 +42,6 @@
             <p class="access-phone-note" role="note">@L["Common_ManageOnAComputerOr"]</p>
         }
         @if (!string.IsNullOrWhiteSpace(_notice)) { <AppAlert Severity="AppSeverity.Success" Class="access-notice">@_notice</AppAlert> }
-        <AppSummaryStrip AriaLabel="@L["ManagedAccessApplications_IntegrationSummary"].Value" Loading="@_loading" Items="@SummaryItems()" />
         @if (_loading) { <AppProgressBar Indeterminate="true" aria-label="@L["ManagedAccessApplications_LoadingApplications"].Value" /> }
         else if (_applications.Count == 0)
         {
@@ -148,34 +151,65 @@
         _ => now.AddDays(IntegrationHealthRules.SuggestedKeyLifetimeDays),
     };
 
-    // Integration tiles follow the Plugins rules (v4 D39): a dot with one sentence, name, one line, keys and last used, one button.
-    private RenderFragment IntegrationCard(ApplicationResponse app) => @<AppListCard Title="@app.Name" Description="@app.Description"
+    // Integration tiles are the plugin tile family (v6 D67, D71): logo, name and switch; one sentence; plain-word access chips and
+    // "Last used"; the tick bottom left and the gear bottom right (amber, with a pill, when something needs you).
+    private RenderFragment IntegrationCard(ApplicationResponse app) => @<AppListCard Title="@app.Name"
+                                                                       Description="@(string.IsNullOrWhiteSpace(app.Description) ? KindSentence(app) : app.Description)"
                                                                        data-integration-card="@app.Id" data-health="@DotWord(app)">
-        <Logo><AppStatusDot Tone="@DotTone(app)" Sentence="@DotSentence(app)"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Apps" /></AppStatusDot></Logo>
-        <ChildContent>
-            <p class="access-card__meta">
-                <span>@app.Credentials.Count(credential => credential.RevokedAt is null) active keys@(CredentialExpirySummary(app) is { } expiry ? $" · {expiry}" : null)</span>
-                <span>@(app.LastUsedAt is null ? "Never used" : $"Last used {app.LastUsedAt.Value.ToLocalTime():g}")</span>
-            </p>
-            @if (FailingWebhook(app) is { } failing)
-            {
-                <p class="access-card__failure" role="status"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ErrorOutline" /> Delivery failed@(failing.LastAttemptAt is { } at ? $" · last attempt {at.ToLocalTime():g}" : null)</p>
-            }
-            else if (HealthOf(app) is { Word: HealthWord.NeedsAttention or HealthWord.Broken } health)
-            {
-                <p class="access-card__failure" role="status"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ErrorOutline" /> @health.LastProblem</p>
-            }
-        </ChildContent>
-        <Footer>
+        <Logo>@IntegrationLogo(app)</Logo>
+        <Aside>
             @if (!DeviceContext.IsPhone)
             {
-                <AppButton Label="@ButtonLabel(app)" Size="AppControlSize.Compact" aria-label="@($"{ButtonLabel(app)} for {app.Name}")" OnClick="@(() => OpenPage(app))" />
+                <AppSwitchRow Value="@app.IsEnabled" ValueChanged="@(value => SetEnabledAsync(app, value))" AriaLabel="@($"Switch {app.Name} on or off")" StopClickPropagation="true" />
+            }
+        </Aside>
+        <ChildContent>
+            <div class="access-card__chips" data-testid="integration-access-chips">
+                @foreach (var chip in AccessChips(app))
+                {
+                    <AppStatusBadge Text="@chip" Tone="AppUiTone.Neutral" />
+                }
+            </div>
+            <p class="access-card__meta">
+                <span>@(app.LastUsedAt is null ? "Never used" : $"Last used {StateCardHealth.RelativeTime(app.LastUsedAt.Value, DateTimeOffset.UtcNow).ToLowerInvariant()}")</span>
+            </p>
+        </ChildContent>
+        <Footer>
+            <span class="access-foot__health">
+                <AppStatusDot Tick="true" Tone="@DotTone(app)" Sentence="@DotSentence(app)" />
+                @if (FailingWebhook(app) is not null)
+                {
+                    <span class="access-foot__pill" role="status" data-testid="integration-failing-pill">Deliveries failing</span>
+                }
+            </span>
+            @if (!DeviceContext.IsPhone)
+            {
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.Settings"
+                               Tooltip="@($"{ButtonLabel(app)} {app.Name}")"
+                               AriaLabel="@($"{ButtonLabel(app)} for {app.Name}")"
+                               Href="@PageHref(app.Id, "overview")"
+                               Tone="@(DotTone(app) is AppStatusDotTone.Attention or AppStatusDotTone.Broken ? AppUiTone.Warning : AppUiTone.Neutral)"
+                               data-testid="integration-gear" />
             }
         </Footer>
     </AppListCard>;
 
+    // Applications and webhooks get distinct icon colours from the tone tokens (v6 D67).
+    private RenderFragment IntegrationLogo(ApplicationResponse app) => @<AppIconTile MaterialIcon="@(IsWebhook(app) ? AppMaterialIcons.Outlined.Sync : AppMaterialIcons.Outlined.Apps)"
+                                                                          Tone="@(IsWebhook(app) ? AppIconTone.Info : AppIconTone.Accent)" Size="AppControlSize.Large" />;
 
-    // The integration's own page (Plugins and Integrations screens v3 D24): the side drawer's forms, split over tabs.
+    private string KindSentence(ApplicationResponse app) => IsWebhook(app) ? "Sends events to another service." : $"A {TypeLabel(app.ApplicationType).ToLowerInvariant()} that connects to your Library.";
+
+    // The plain-word areas the integration can reach ("Library", "Playback"): the categories of its permissions, at most three.
+    private IReadOnlyList<string> AccessChips(ApplicationResponse app)
+    {
+        if (app.IsAdministrator)
+            return ["Everything"];
+        var areas = _permissions.Where(permission => app.PermissionIds.Contains(permission.Id)).Select(permission => permission.Category).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        return areas.Count <= 3 ? areas : [.. areas.Take(3), $"+{areas.Count - 3}"];
+    }
+
+    // The integration's own page (v6 D68), in the one frame every plugin and integration page shares.
     private RenderFragment IntegrationPage()
     {
         if (_editing is not { } app)
@@ -205,67 +239,102 @@
         tabs.Add(new("activity", "Activity", null, PageHref(app.Id, "activity")));
         var failing = FailingWebhook(app);
 
-        return @<div class="integration-page" data-testid="integration-page">
-            <header class="integration-page__header">
-                <AppStatusDot Tone="@DotTone(app)" Sentence="@DotSentence(app)"><span class="integration-page__logo"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Apps" /></span></AppStatusDot>
-                <div class="integration-page__title">
-                    <h2>@app.Name</h2>
-                    @if (!string.IsNullOrWhiteSpace(app.Description)) { <p>@app.Description</p> }
-                    <p data-testid="integration-status-sentence">@DotSentence(app)</p>
-                </div>
+        return @<AppDetailPageFrame Title="@app.Name"
+                                    Logo="@IntegrationLogo(app)"
+                                    StatusTone="@DotTone(app)"
+                                    StatusSentence="@DotSentence(app)"
+                                    Tabs="@tabs"
+                                    SelectedTab="@tab"
+                                    RootTestId="integration-page"
+                                    StatusTestId="integration-status-sentence">
+            <Actions>
                 @if (!DeviceContext.IsPhone)
                 {
-                    <div class="integration-page__actions">
-                        <AppSwitchRow Value="@app.IsEnabled" ValueChanged="@(value => SetEnabledAsync(app, value))" AriaLabel="@($"Switch {app.Name} on or off")" />
-                        <AppRowMenu AriaLabel="@($"Actions for {app.Name}")" Items="@MenuItems(app)" />
-                    </div>
+                    <AppSwitchRow Value="@app.IsEnabled" ValueChanged="@(value => SetEnabledAsync(app, value))" AriaLabel="@($"Switch {app.Name} on or off")" />
+                    <AppRowMenu AriaLabel="@($"Actions for {app.Name}")" Items="@MenuItems(app)" />
                 }
-            </header>
-            @if (!string.IsNullOrWhiteSpace(_notice)) { <AppAlert Severity="AppSeverity.Success" Class="access-notice">@_notice</AppAlert> }
-            @if (!string.IsNullOrWhiteSpace(_error)) { <AppAlert Severity="AppSeverity.Error">@_error</AppAlert> }
-            @if (!string.IsNullOrWhiteSpace(_message)) { <AppAlert Severity="AppSeverity.Info">@_message</AppAlert> }
-            <AppCountTabs Tabs="@tabs" Selected="@tab" AriaLabel="@($"{app.Name} sections")" />
-            <div class="integration-page__body">
-                @if (_deleteMode && !IsProtected(app))
-                {
-                    <AppAlert Severity="AppSeverity.Warning">Delete @app.Name? Its credentials will stop authenticating immediately.</AppAlert>
-                    <p>This does not delete any media or account data.</p>
-                    <AppActionBar Align="AppHorizontalAlignment.Start">
-                        <AppButton Label="Delete application" Tone="AppUiTone.Error" ButtonStyle="AppButtonStyle.Filled" Disabled="@_saving" OnClick="DeleteApplication" />
-                        <AppButton Label="Cancel" OnClick="@(() => _deleteMode = false)" />
-                    </AppActionBar>
-                }
-                else
-                {
-                    @switch (tab)
+            </Actions>
+            <ChildContent>
+                @if (!string.IsNullOrWhiteSpace(_notice)) { <AppAlert Severity="AppSeverity.Success" Class="access-notice">@_notice</AppAlert> }
+                @if (!string.IsNullOrWhiteSpace(_error)) { <AppAlert Severity="AppSeverity.Error">@_error</AppAlert> }
+                @if (!string.IsNullOrWhiteSpace(_message)) { <AppAlert Severity="AppSeverity.Info">@_message</AppAlert> }
+                <AppDetailColumns Side="@IntegrationSide(app)" SideLabel="About this integration">
+                    @if (_deleteMode && !IsProtected(app))
                     {
-                        case "access":
-                            @AccessTab()
-                            break;
-                        case "keys":
-                            @KeysTab(app)
-                            break;
-                        case "deliveries":
-                            <ManagedApplicationWebhooks Application="@app" />
-                            break;
-                        case "activity":
-                            @ActivityTab(app)
-                            break;
-                        default:
-                            @OverviewTab(app, failing)
-                            break;
+                        <AppAlert Severity="AppSeverity.Warning">Delete @app.Name? Its credentials will stop authenticating immediately.</AppAlert>
+                        <p>This does not delete any media or account data.</p>
+                        <AppActionBar Align="AppHorizontalAlignment.Start">
+                            <AppButton Label="Delete application" Tone="AppUiTone.Error" ButtonStyle="AppButtonStyle.Filled" Disabled="@_saving" OnClick="DeleteApplication" />
+                            <AppButton Label="Cancel" OnClick="@(() => _deleteMode = false)" />
+                        </AppActionBar>
                     }
-                }
-            </div>
-            @if (!_deleteMode && tab is "overview" or "access")
-            {
-                <footer class="integration-page__savebar">
-                    <AppButton Label="Cancel" OnClick="Close" />
-                    <AppButton Label="Save application" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@(_saving || string.IsNullOrWhiteSpace(_name))" OnClick="Save" />
-                </footer>
-            }
-        </div>;
+                    else
+                    {
+                        @switch (tab)
+                        {
+                            case "access":
+                                @AccessTab()
+                                break;
+                            case "keys":
+                                @KeysTab(app)
+                                break;
+                            case "deliveries":
+                                <ManagedApplicationWebhooks Application="@app" />
+                                break;
+                            case "activity":
+                                @ActivityTab(app)
+                                break;
+                            default:
+                                @OverviewTab(app, failing)
+                                break;
+                        }
+                    }
+                    @if (!_deleteMode && tab is "overview" or "access")
+                    {
+                        <footer class="integration-page__savebar">
+                            <AppButton Label="Cancel" OnClick="Close" />
+                            <AppButton Label="Save application" Tone="AppUiTone.Primary" ButtonStyle="AppButtonStyle.Filled" Disabled="@(_saving || string.IsNullOrWhiteSpace(_name))" OnClick="Save" />
+                        </footer>
+                    }
+                </AppDetailColumns>
+            </ChildContent>
+        </AppDetailPageFrame>;
     }
+
+    // The quiet facts (v6 D60, D68): how to connect to it, what kind it is, and deleting it.
+    private RenderFragment IntegrationSide(ApplicationResponse app) => @<text>
+        <dl data-testid="integration-side-facts">
+            <dt>Connect it with</dt>
+            <dd class="integration-side__address">
+                <code data-testid="integration-address">@EngineAddress</code>
+                <AppButton Label="@(_addressCopied ? "Copied" : "Copy")" StartIcon="@AppMaterialIcons.Outlined.ContentCopy" Size="AppControlSize.Compact" OnClick="CopyAddressAsync" data-testid="integration-copy-address" />
+            </dd>
+            <dt>Kind</dt>
+            <dd>@KindLabel(app)</dd>
+            <dt>Keys</dt>
+            <dd>@app.Credentials.Count(credential => credential.RevokedAt is null) active@(CredentialExpirySummary(app) is { } expiry ? $" · {expiry}" : null)</dd>
+            @if (!DeviceContext.IsPhone)
+            {
+                <dt>Delete</dt>
+                <dd>
+                    @if (IsProtected(app))
+                    {
+                        <small>@L["ManagedAccessApplications_ProtectedNote"].Value</small>
+                    }
+                    else
+                    {
+                        <small>Its credentials stop working at once. No media or account data is deleted.</small>
+                        <AppButton Label="Delete integration" Tone="AppUiTone.Error" StartIcon="@AppMaterialIcons.Outlined.Delete" Size="AppControlSize.Compact" OnClick="@(() => _deleteMode = true)" data-testid="integration-delete" />
+                    }
+                </dd>
+            }
+        </dl>
+    </text>;
+
+    private bool _addressCopied;
+    private string EngineAddress => Services.GetService<IEngineApiClient>()?.ToAbsoluteEngineUrl("/").TrimEnd('/') ?? Navigation.BaseUri.TrimEnd('/');
+
+    private async Task CopyAddressAsync() => _addressCopied = await JS.TryCopyAsync(EngineAddress, Logger) == ClipboardCopyResult.Copied;
 
     private RenderFragment OverviewTab(ApplicationResponse app, ApplicationWebhookResponse? failing) => @<text>
         @if (failing is not null)
@@ -279,90 +348,152 @@
         {
             <AppAlert Severity="AppSeverity.Warning">@health.LastProblem</AppAlert>
         }
-        <section class="access-form-section">
-            <AppText Typo="AppTypo.subtitle1">Application</AppText>
-            <AppTextField @bind-Value="_name" Label="Name" FullWidth="true" />
-            <AppTextField @bind-Value="_description" Label="Description" FullWidth="true" />
-            <label class="access-native-label" for="application-type">Application type</label>
-            <AppSelect Native="true" id="application-type" Value="@_type.ToString()" ValueChanged="SetType" Disabled="@_saving" aria-label="Application type">
-                @foreach (var type in Enum.GetValues<ApplicationTypeDto>()) { <option value="@type">@TypeLabel(type)</option> }
-            </AppSelect>
-            <AppSwitchRow @bind-Value="_enabled" Disabled="@_saving" Label="Application enabled" Description="Disabling an application rejects every credential attached to it." />
-            @if (_type == ApplicationTypeDto.UserClient)
-            {
-                <AppTextField @bind-Value="_clientIds" Label="Native client IDs" HelpText="Comma-separated registered client IDs allowed to use this application." FullWidth="true" />
-            }
-        </section>
-        @if (_editing is { } editing && IsProtected(editing))
-        {
-            <section class="access-form-section"><small>@L["ManagedAccessApplications_ProtectedNote"].Value</small></section>
-        }
-        else
-        {
+        <AppCard Title="Application" Class="plugin-page__card">
             <section class="access-form-section">
-            <AppText Typo="AppTypo.subtitle1">Delete this integration</AppText>
-            <small>Its credentials stop working at once. No media or account data is deleted.</small>
-            <AppActionBar Align="AppHorizontalAlignment.Start">
-                <AppButton Label="Delete integration" Tone="AppUiTone.Error" StartIcon="@AppMaterialIcons.Outlined.Delete" OnClick="@(() => _deleteMode = true)" />
-            </AppActionBar>
-        </section>
-        }
+                @if (!string.IsNullOrWhiteSpace(app.Description)) { <p data-testid="integration-description">@app.Description</p> }
+                <AppTextField @bind-Value="_name" Label="Name" FullWidth="true" />
+                <AppTextField @bind-Value="_description" Label="Description" FullWidth="true" />
+                <label class="access-native-label" for="application-type">Application type</label>
+                <AppSelect Native="true" id="application-type" Value="@_type.ToString()" ValueChanged="SetType" Disabled="@_saving" aria-label="Application type">
+                    @foreach (var type in Enum.GetValues<ApplicationTypeDto>()) { <option value="@type">@TypeLabel(type)</option> }
+                </AppSelect>
+                <AppSwitchRow @bind-Value="_enabled" Disabled="@_saving" Label="Application enabled" Description="Disabling an application rejects every credential attached to it." />
+                @if (_type == ApplicationTypeDto.UserClient)
+                {
+                    <AppTextField @bind-Value="_clientIds" Label="Native client IDs" HelpText="Comma-separated registered client IDs allowed to use this application." FullWidth="true" />
+                }
+            </section>
+        </AppCard>
     </text>;
 
+    private static readonly AppIconTone[] GroupTones = [AppIconTone.Accent, AppIconTone.Info, AppIconTone.Watch, AppIconTone.Listen, AppIconTone.Read, AppIconTone.View];
+
+    // Permissions by area, as switches with one plain line each and a coloured icon (v6 D68).
     private RenderFragment AccessTab() => @<text>
-        <section class="access-form-section">
-            <AppText Typo="AppTypo.subtitle1">Permission preset</AppText>
-            <AppSelect Native="true" Value="@_presetId" ValueChanged="ApplyPreset" Disabled="@_saving" aria-label="Permission preset">
-                <option value="custom">Custom</option>
-                @foreach (var preset in _presets.Where(value => !value.Id.Equals("custom", StringComparison.OrdinalIgnoreCase))) { <option value="@preset.Id">@preset.DisplayName</option> }
-            </AppSelect>
-            @if (_administrator)
-            {
-                <AppAlert Severity="AppSeverity.Warning">Administrator applications receive every currently available registered permission and automatically include newly available permissions.</AppAlert>
-            }
-        </section>
-        <section class="access-form-section">
-            <AppText Typo="AppTypo.subtitle1">Permissions</AppText>
-            @foreach (var group in CompatiblePermissions.GroupBy(permission => permission.Category))
-            {
-                <div class="access-permission-group">
-                    <strong>@group.Key</strong>
+        <AppCard Title="Permission preset" Class="plugin-page__card">
+            <section class="access-form-section">
+                <AppSelect Native="true" Value="@_presetId" ValueChanged="ApplyPreset" Disabled="@_saving" aria-label="Permission preset">
+                    <option value="custom">Custom</option>
+                    @foreach (var preset in _presets.Where(value => !value.Id.Equals("custom", StringComparison.OrdinalIgnoreCase))) { <option value="@preset.Id">@preset.DisplayName</option> }
+                </AppSelect>
+                @if (_administrator)
+                {
+                    <AppAlert Severity="AppSeverity.Warning">Administrator applications receive every currently available registered permission and automatically include newly available permissions.</AppAlert>
+                }
+            </section>
+        </AppCard>
+        @{ var groupIndex = 0; }
+        @foreach (var group in CompatiblePermissions.GroupBy(permission => permission.Category))
+        {
+            var tone = GroupTones[groupIndex++ % GroupTones.Length];
+            <AppCard Class="plugin-page__card">
+                <div class="access-permission-group" data-testid="integration-permission-group">
+                    <div class="access-permission-group__head"><AppIconTile MaterialIcon="@AppMaterialIcons.Outlined.Lock" Tone="@tone" /><strong>@group.Key</strong></div>
                     @foreach (var permission in group)
                     {
                         <div class="access-permission-row @(permission.IsAvailable ? null : "is-unavailable")">
-                            <AppCheckbox Value="@_selected.Contains(permission.Id)" ValueChanged="@((bool value) => TogglePermission(permission, value))" Disabled="@(_saving || _administrator || !permission.IsAvailable)" Label="@permission.DisplayName" />
-                            <small>@permission.Description</small>
-                            <div><AppStatusBadge Text="@permission.Risk" Tone="@RiskTone(permission.Risk)" />@if (!permission.IsAvailable) { <AppStatusBadge Text="Unavailable" Tone="AppUiTone.Warning" /> }</div>
-                            @if (!permission.IsAvailable) { <small>@(permission.UnavailableReason ?? "This service is not available.")</small> }
+                            <AppSwitchRow Value="@_selected.Contains(permission.Id)" ValueChanged="@((bool value) => TogglePermission(permission, value))" Disabled="@(_saving || _administrator || !permission.IsAvailable)"
+                                          Label="@permission.DisplayName" Description="@(permission.IsAvailable ? permission.Description : permission.UnavailableReason ?? "This service is not available.")" />
+                            @if (RiskTone(permission.Risk) == AppUiTone.Warning) { <div><AppStatusBadge Text="@permission.Risk" Tone="AppUiTone.Warning" /></div> }
                         </div>
                     }
                 </div>
-            }
-        </section>
-    </text>;
-
-    private RenderFragment KeysTab(ApplicationResponse app) => @<text>
-        <section class="access-form-section">
-            <AppText Typo="AppTypo.subtitle1">Credentials</AppText>
-            @if (app.Credentials.Count == 0) { <small>No credentials issued.</small> }
-            @foreach (var credential in app.Credentials)
-            {
-                <div class="access-credential-row">
-                    <div><strong>@credential.Name</strong><small>Created @credential.CreatedAt.ToLocalTime().ToString("g") · @ExpiryText(credential)</small><small>@LastUsedText(credential)</small></div>
-                    <div><AppButton Label="Rotate" Size="AppControlSize.Compact" Disabled="@(_saving || credential.RevokedAt is not null)" OnClick="@(() => RotateCredential(credential))" /><AppButton Label="Revoke" Size="AppControlSize.Compact" Tone="AppUiTone.Error" Disabled="@(_saving || credential.RevokedAt is not null)" OnClick="@(() => RevokeCredential(credential))" /></div>
-                </div>
-            }
-            <div class="access-credential-issue"><AppTextField @bind-Value="_credentialName" Label="Credential name" FullWidth="true" /><AppSelect Native="true" Label="Expires" Value="@_credentialExpiry" Options="@ExpiryOptions" ValueChanged="@(value => _credentialExpiry = value ?? SuggestedExpiry)" /><AppButton Label="Generate credential" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_saving || string.IsNullOrWhiteSpace(_credentialName))" OnClick="IssueCredential" /></div>
-        </section>
-        @if (_plaintext is not null)
-        {
-            <AppAlert Severity="AppSeverity.Success" Class="access-credential-secret"><strong>Copy this credential now. It will not be shown again.</strong><code>@_plaintext</code></AppAlert>
+            </AppCard>
         }
     </text>;
 
-    private RenderFragment ActivityTab(ApplicationResponse app) => @<text>
+    // Keys are a table: tick, name, created, last used, and a menu with Rotate and Revoke (each asks first).
+    private RenderFragment KeysTab(ApplicationResponse app) => @<AppCard Title="Keys" Class="plugin-page__card">
+        <div class="access-keys-head">
+            <small>A key lets an app or service use this integration. A new key is shown once.</small>
+            @if (!DeviceContext.IsPhone)
+            {
+                <AppButton Label="Generate key" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_saving" OnClick="GenerateKeyAsync" data-testid="integration-generate-key" />
+            }
+        </div>
+        @if (app.Credentials.Count == 0)
+        {
+            <small data-testid="integration-no-keys">No keys issued yet.</small>
+        }
+        else
+        {
+            <AppTable Class="access-keys" data-testid="integration-keys-table">
+                <thead>
+                    <tr><th scope="col" class="access-keys__narrow"><span class="access-rows__sr">Status</span></th><th scope="col">Name</th><th scope="col">Created</th><th scope="col">Last used</th><th scope="col">Expires</th><th scope="col"><span class="access-rows__sr">Actions</span></th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var credential in app.Credentials)
+                    {
+                        var live = credential.RevokedAt is null;
+                        <tr @key="credential.Id" class="access-key-row" data-credential-row="@credential.Id">
+                            <td><AppStatusDot Tick="true" Tone="@(live ? AppStatusDotTone.Working : AppStatusDotTone.Off)" Sentence="@(live ? "Active" : "Revoked")" /></td>
+                            <td><strong>@credential.Name</strong></td>
+                            <td>@credential.CreatedAt.ToLocalTime().ToString("g")</td>
+                            <td>@(credential.LastUsedAt is { } used ? used.ToLocalTime().ToString("g") : "Never")</td>
+                            <td>@ExpiryText(credential)</td>
+                            <td>
+                                @if (live && !DeviceContext.IsPhone)
+                                {
+                                    <AppRowMenu AriaLabel="@($"Actions for {credential.Name}")" Items="@KeyActions(credential)" />
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </AppTable>
+        }
+    </AppCard>;
+
+    private IReadOnlyList<AppRowMenuItem> KeyActions(ApplicationCredentialResponse credential) =>
+    [
+        new() { Label = L["ManagedAccessApplications_Rotate"].Value, Icon = AppMaterialIcons.Outlined.Refresh, Disabled = _saving, OnClick = EventCallback.Factory.Create(this, () => RotateWithConfirmAsync(credential)) },
+        new() { Label = L["ManagedAccessApplications_Revoke"].Value, Icon = AppMaterialIcons.Outlined.Block, Destructive = true, Disabled = _saving, OnClick = EventCallback.Factory.Create(this, () => RevokeWithConfirmAsync(credential)) },
+    ];
+
+    private async Task GenerateKeyAsync()
+    {
+        var dialog = await DialogService.ShowAsync<IntegrationKeyDialogs>(string.Empty, new AppDialogParameters<IntegrationKeyDialogs>(), new AppDialogOptions { MaxWidth = AppMaxWidth.Small, FullWidth = true, CloseButton = false, CloseOnEscapeKey = true });
+        var result = await dialog.Result;
+        if (result is not { Canceled: false, Data: IntegrationKeyRequest request })
+            return;
+
+        _credentialName = request.Name;
+        _credentialExpiry = request.Expiry;
+        await IssueCredential();
+        await RevealKeyAsync();
+    }
+
+    private async Task RotateWithConfirmAsync(ApplicationCredentialResponse credential)
+    {
+        var answer = await AppConfirmDialog.ShowAsync(DialogService, $"Rotate {credential.Name}?", "A new key is made and the old one stops working at once.", primaryLabel: "Rotate", secondaryLabel: "Keep", primaryDestructive: true);
+        if (answer != AppConfirmResult.Primary)
+            return;
+
+        await RotateCredential(credential);
+        await RevealKeyAsync();
+    }
+
+    private async Task RevokeWithConfirmAsync(ApplicationCredentialResponse credential)
+    {
+        var answer = await AppConfirmDialog.ShowAsync(DialogService, $"Revoke {credential.Name}?", "It stops working at once. This cannot be undone.", primaryLabel: "Revoke", secondaryLabel: "Keep", primaryDestructive: true);
+        if (answer == AppConfirmResult.Primary)
+            await RevokeCredential(credential);
+    }
+
+    // A new key is shown once, in its own window; closing it forgets the key.
+    private async Task RevealKeyAsync()
+    {
+        if (_plaintext is not { } secret)
+            return;
+
+        _plaintext = null;
+        var parameters = new AppDialogParameters<IntegrationKeyDialogs> { { component => component.Secret, secret } };
+        var dialog = await DialogService.ShowAsync<IntegrationKeyDialogs>(string.Empty, parameters, new AppDialogOptions { MaxWidth = AppMaxWidth.Small, FullWidth = true, CloseButton = false, CloseOnEscapeKey = false });
+        await dialog.Result;
+    }
+
+    private RenderFragment ActivityTab(ApplicationResponse app) => @<AppCard Title="Activity" Class="plugin-page__card">
         <section class="access-form-section">
-            <AppText Typo="AppTypo.subtitle1">Activity</AppText>
             <small>@(app.LastUsedAt is null ? "Never used." : $"Last used {app.LastUsedAt.Value.ToLocalTime():g}.")</small>
             <small>@app.Credentials.Count(credential => credential.RevokedAt is null) active keys@(CredentialExpirySummary(app) is { } expiry ? $" · {expiry}" : null)</small>
             @if (HealthOf(app) is { Word: HealthWord.NeedsAttention or HealthWord.Broken } health)
@@ -370,7 +501,7 @@
                 <AppAlert Severity="AppSeverity.Warning">@health.LastProblem</AppAlert>
             }
         </section>
-    </text>;
+    </AppCard>;
 
     // The List view (Plugins and Integrations screens v3 D27): status, kind, access, keys, last used and Manage on one 56 px row.
     private RenderFragment IntegrationRows(IReadOnlyList<ApplicationResponse> apps) => @<AppTable Class="access-rows" data-testid="integration-rows">
@@ -468,13 +599,6 @@
             new("webhooks", "Webhooks", matching.Count(IsWebhook)),
         ];
     }
-
-    private IReadOnlyList<AppSummaryItem> SummaryItems() =>
-    [
-        new("integrations", _applications.Count.ToString(), AppMaterialIcons.Outlined.Apps, AppSummaryTone.Accent),
-        new("active", _applications.Count(app => app.IsEnabled).ToString(), AppMaterialIcons.Outlined.CheckCircle, AppSummaryTone.Ok),
-        new("need attention", _applications.Count(NeedsAttention).ToString(), AppMaterialIcons.Outlined.ErrorOutline, _applications.Count(NeedsAttention) == 0 ? AppSummaryTone.Mute : AppSummaryTone.Warn),
-    ];
 
     private async Task SetEnabledAsync(ApplicationResponse app, bool enabled)
     {
@@ -773,6 +897,8 @@
     private async Task IssueCredential()
     {
         if (_editing is null || !Begin(out var generation)) return;
+        // This runs after a window closed, outside a click, so the page is told to show Generate key as busy.
+        StateHasChanged();
         try
         {
             ClearMessages();

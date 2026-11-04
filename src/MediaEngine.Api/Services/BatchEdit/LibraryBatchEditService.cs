@@ -1,9 +1,11 @@
 using MediaEngine.Application.ReadModels;
 using MediaEngine.Application.Services;
 using MediaEngine.Contracts.Library;
+using MediaEngine.Domain;
 using MediaEngine.Domain.Constants;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
+using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Services;
 
 namespace MediaEngine.Api.Services.BatchEdit;
@@ -26,7 +28,9 @@ public sealed class LibraryBatchEditService(
     IItemCanonicalRepository itemCanonicalRepository,
     IReviewQueueRepository reviewQueueRepository,
     ISystemActivityRepository activityRepository,
-    ILogger<LibraryBatchEditService> logger) : ILibraryBatchEditService
+    ILogger<LibraryBatchEditService> logger,
+    IMetadataClaimRepository? claimRepository = null,
+    ICanonicalValueRepository? canonicalRepository = null) : ILibraryBatchEditService
 {
     private const int MaxDistinctValuesShown = 5;
     private const string InheritedReason = "This value comes from its parent (show, season or album). Change it there.";
@@ -206,8 +210,24 @@ public sealed class LibraryBatchEditService(
             var before = Snapshot(current);
             var updates = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var emptied = new List<BatchEditField>();
+            bool? explicitToWrite = null;
             foreach (var change in changes)
             {
+                if (change.Field.Store == BatchEditFieldStore.ExplicitMark)
+                {
+                    if (claimRepository is null || canonicalRepository is null)
+                    {
+                        blocked.Add((change.Field, "The Explicit mark cannot be saved here."));
+                        continue;
+                    }
+
+                    var wanted = string.Equals(change.Value, "true", StringComparison.OrdinalIgnoreCase);
+                    var isMarked = item.Fields.TryGetValue(change.Field.Key, out var markRead)
+                        && markRead.OwnValues.Any(value => string.Equals(value, "true", StringComparison.OrdinalIgnoreCase));
+                    explicitToWrite = wanted == isMarked ? null : wanted;
+                    continue;
+                }
+
                 var stored = ValueToStore(item, current, change, blocked, emptied);
                 if (stored is null)
                 {
@@ -241,7 +261,8 @@ public sealed class LibraryBatchEditService(
             }
 
             updatedKeys = updates.Count == 0 ? [] : DetailDisplayOverrideCatalog.ApplyChanges(current, updates);
-            if (string.Equals(before, Snapshot(current), StringComparison.Ordinal))
+            var overridesChanged = !string.Equals(before, Snapshot(current), StringComparison.Ordinal);
+            if (!overridesChanged && explicitToWrite is null)
             {
                 return new LibraryBatchItemResult
                 {
@@ -250,9 +271,16 @@ public sealed class LibraryBatchEditService(
                 };
             }
 
-            if (!await itemCanonicalRepository.SaveDisplayOverridesAsync(item.WorkId, current, ct).ConfigureAwait(false))
+            if (overridesChanged
+                && !await itemCanonicalRepository.SaveDisplayOverridesAsync(item.WorkId, current, ct).ConfigureAwait(false))
             {
                 return Refused(item.RequestedEntityId, LibraryBatchEditReasons.Gone);
+            }
+
+            if (explicitToWrite is { } mark)
+            {
+                await WriteExplicitAsync(item.WorkId, mark, ct).ConfigureAwait(false);
+                updatedKeys = [.. updatedKeys, BatchEditFieldCatalog.ExplicitKey];
             }
         }
         catch (Exception ex)
@@ -271,6 +299,38 @@ public sealed class LibraryBatchEditService(
             EntityId = item.RequestedEntityId,
             Outcome = LibraryBatchItemOutcomes.Updated,
         };
+    }
+
+    // The same user-locked claim and canonical value the Explicit action has always saved.
+    private async Task WriteExplicitAsync(Guid workId, bool isExplicit, CancellationToken ct)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var text = isExplicit ? "true" : "false";
+        await claimRepository!.InsertBatchAsync(
+        [
+            new MetadataClaim
+            {
+                Id = Guid.NewGuid(),
+                EntityId = workId,
+                ProviderId = WellKnownProviders.UserManual,
+                ClaimKey = BatchEditFieldCatalog.ExplicitKey,
+                ClaimValue = text,
+                ClaimedAt = now,
+                Confidence = 1.0,
+                IsUserLocked = true,
+            },
+        ], ct).ConfigureAwait(false);
+        await canonicalRepository!.UpsertBatchAsync(
+        [
+            new CanonicalValue
+            {
+                EntityId = workId,
+                Key = BatchEditFieldCatalog.ExplicitKey,
+                Value = text,
+                LastScoredAt = now,
+                WinningProviderId = WellKnownProviders.UserManual,
+            },
+        ], ct).ConfigureAwait(false);
     }
 
     /// <summary>The override map as one comparable string, so an item that needs no change is not written or logged.</summary>
@@ -327,6 +387,13 @@ public sealed class LibraryBatchEditService(
         if (!field.IsEditable)
         {
             return field.LockedReason;
+        }
+
+        if (field.Store == BatchEditFieldStore.ExplicitMark
+            && !string.Equals(item.MediaType, nameof(MediaType.Music), StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(item.MediaType, nameof(MediaType.Videos), StringComparison.OrdinalIgnoreCase))
+        {
+            return BatchEditFieldCatalog.ExplicitNotForThisReason;
         }
 
         if (!item.Fields.TryGetValue(field.Key, out var read))

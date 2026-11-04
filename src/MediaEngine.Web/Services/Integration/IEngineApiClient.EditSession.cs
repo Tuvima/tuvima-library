@@ -1,4 +1,5 @@
 using MediaEngine.Contracts.Editing;
+using MediaEngine.Web.Models.ViewDTOs;
 
 namespace MediaEngine.Web.Services.Integration;
 
@@ -27,4 +28,17 @@ public partial interface IEngineApiClient
     /// fails; the panel then shows only what the item's own fields say.
     /// </summary>
     Task<ItemQuickFactsDto?> GetEditorQuickFactsAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>
+    /// GET /library/editor-subjects/universes/{qid}/things - the rail of the Universe editor: the kinds of thing a Universe holds with their
+    /// counts and, when <paramref name="kindKey"/> is given, that kind's things searched and paged. Null when the read fails.
+    /// </summary>
+    Task<EditorUniverseThingsDto?> GetEditorUniverseThingsAsync(
+        string qid, string? kindKey, string? search, int offset, int limit, CancellationToken ct = default);
+
+    /// <summary>DELETE /library/editor-subjects/things/{id} - deletes a character, place or faction someone added by hand to a Universe, at once. False when it did not go through.</summary>
+    Task<bool> DeleteEditorUniverseThingAsync(Guid id, CancellationToken ct = default);
+
+    /// <summary>GET /library/editor-subjects/{id}/history - what was changed in the editor on a Universe or one of its things, newest first.</summary>
+    Task<(List<LibraryItemHistoryDto> Items, string? Error)> GetEditorSubjectHistoryAsync(Guid id, CancellationToken ct = default);
 }

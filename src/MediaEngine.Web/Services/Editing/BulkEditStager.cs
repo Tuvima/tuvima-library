@@ -41,7 +41,7 @@ public static class BulkEditStager
         var staged = 0;
         foreach (var item in field.Eligible)
         {
-            var current = item.Text.Trim();
+            var current = BulkEditRules.NormalizeForCompare(field.Key, item.Text.Trim());
             var leaveAlone = string.Equals(value, current, StringComparison.Ordinal) || (value.Length == 0 && (field.IsMixed || current.Length == 0));
             if (leaveAlone)
             {

@@ -7,12 +7,23 @@ public enum BatchEditFieldKind
     List,
 }
 
+/// <summary>Where a batch field's value is written.</summary>
+public enum BatchEditFieldStore
+{
+    /// <summary>The item's presentation overrides (<c>works.display_overrides_json</c>), the same place the pencil writes.</summary>
+    DisplayOverride,
+
+    /// <summary>The Explicit mark: the item's own user-locked claim, as the Explicit action has always saved it.</summary>
+    ExplicitMark,
+}
+
 /// <summary>One field a batch edit knows about. Locked fields are shown, with the reason, but never written.</summary>
 public sealed record BatchEditField(
     string Key,
     string Label,
     BatchEditFieldKind Kind,
-    string? LockedReason)
+    string? LockedReason,
+    BatchEditFieldStore Store = BatchEditFieldStore.DisplayOverride)
 {
     public bool IsEditable => LockedReason is null;
 
@@ -21,7 +32,9 @@ public sealed record BatchEditField(
         ? []
         : Kind == BatchEditFieldKind.List
             ? [BatchEditFieldCatalog.OpAdd, BatchEditFieldCatalog.OpReplace, BatchEditFieldCatalog.OpRemove]
-            : [BatchEditFieldCatalog.OpSet, BatchEditFieldCatalog.OpClear];
+            : Store == BatchEditFieldStore.ExplicitMark
+                ? [BatchEditFieldCatalog.OpSet]
+                : [BatchEditFieldCatalog.OpSet, BatchEditFieldCatalog.OpClear];
 }
 
 /// <summary>A validated batch field operation, ready to apply to one item.</summary>
@@ -40,6 +53,12 @@ public static class BatchEditFieldCatalog
     public const string OpReplace = "replace";
     public const string OpRemove = "remove";
 
+    /// <summary>The Explicit mark's key. Only songs and videos can carry it.</summary>
+    public const string ExplicitKey = "explicit";
+
+    /// <summary>Why a title that is neither a song nor a video cannot take the Explicit mark.</summary>
+    public const string ExplicitNotForThisReason = "Only songs and videos can be marked Explicit.";
+
     public const int MaximumGenres = 30;
     public const int MaximumGenreLength = 100;
 
@@ -56,14 +75,17 @@ public static class BatchEditFieldCatalog
         new("content_rating", "Content rating", BatchEditFieldKind.Scalar, null),
         new("language", "Language", BatchEditFieldKind.Scalar, null),
         new("tagline", "Tagline", BatchEditFieldKind.Scalar, null),
+        new("album_artist", "Album artist", BatchEditFieldKind.List, null),
+        new("disc_number", "Disc", BatchEditFieldKind.Scalar, null),
+        new("series", "Series", BatchEditFieldKind.Scalar, null),
+        new("author", "Author", BatchEditFieldKind.List, null),
+        new(ExplicitKey, "Explicit", BatchEditFieldKind.Scalar, null, BatchEditFieldStore.ExplicitMark),
         new("director", "Directors", BatchEditFieldKind.List, ProviderFactReason),
         new("screenwriter", "Writers", BatchEditFieldKind.List, ProviderFactReason),
         new("cast_member", "Cast", BatchEditFieldKind.List, ProviderFactReason),
-        new("author", "Authors", BatchEditFieldKind.List, ProviderFactReason),
         new("narrator", "Narrators", BatchEditFieldKind.List, ProviderFactReason),
         new("creator", "Creators", BatchEditFieldKind.List, ProviderFactReason),
         new("artist", "Artists", BatchEditFieldKind.List, ProviderFactReason),
-        new("album_artist", "Album artists", BatchEditFieldKind.List, ProviderFactReason),
         new("composer", "Composers", BatchEditFieldKind.List, ProviderFactReason),
         new("illustrator", "Illustrators", BatchEditFieldKind.List, ProviderFactReason),
     ];
@@ -160,6 +182,19 @@ public static class BatchEditFieldCatalog
                 return false;
             }
 
+            if (field.Store == BatchEditFieldStore.ExplicitMark)
+            {
+                if (!bool.TryParse(value.Trim(), out var mark))
+                {
+                    error = "Explicit must be on or off.";
+                    return false;
+                }
+
+                change = new BatchEditChange(field, operation, mark ? "true" : "false", []);
+                error = null;
+                return true;
+            }
+
             if (!DetailDisplayOverrideCatalog.TryValidateValue(field.Key, value, out var normalized, out error))
             {
                 return false;
@@ -209,6 +244,7 @@ public static class BatchEditFieldCatalog
             return LibraryTagCatalog.TryNormalize(values, out normalized, out error);
         }
 
+        var noun = ItemNoun(field);
         var items = values
             .Where(value => !string.IsNullOrWhiteSpace(value))
             .Select(value => value.Trim())
@@ -217,19 +253,19 @@ public static class BatchEditFieldCatalog
         normalized = [];
         if (items.Count > MaximumGenres)
         {
-            error = $"Use at most {MaximumGenres} genres.";
+            error = $"Use at most {MaximumGenres} {noun}s.";
             return false;
         }
 
         if (items.Any(item => item.Length > MaximumGenreLength))
         {
-            error = $"Each genre must be {MaximumGenreLength} characters or fewer.";
+            error = $"Each {noun} must be {MaximumGenreLength} characters or fewer.";
             return false;
         }
 
         if (items.Any(item => item.IndexOfAny(ListSeparators) >= 0))
         {
-            error = "A genre cannot contain a comma, semicolon, pipe or line break.";
+            error = $"A {noun} cannot contain a comma, semicolon, pipe or line break.";
             return false;
         }
 
@@ -237,6 +273,13 @@ public static class BatchEditFieldCatalog
         error = null;
         return true;
     }
+
+    private static string ItemNoun(BatchEditField field) => field.Key.ToLowerInvariant() switch
+    {
+        "album_artist" => "album artist",
+        "author" => "author",
+        _ => "genre",
+    };
 
     /// <summary>Reads a stored list value (an override, or a packed canonical scalar) into its items.</summary>
     public static IReadOnlyList<string> ParseList(string? stored) =>
@@ -256,9 +299,9 @@ public static class BatchEditFieldCatalog
             _ => values.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
         };
 
-    /// <summary>The override string a list is stored as: tags use "; ", genres use ", " (as the pencil does). An empty list is an empty string.</summary>
+    /// <summary>The override string a list is stored as: tags and people use "; ", genres use ", " (as the pencil does). An empty list is an empty string.</summary>
     public static string ToOverrideValue(BatchEditField field, IReadOnlyList<string> items) =>
-        string.Join(string.Equals(field.Key, "custom_tags", StringComparison.OrdinalIgnoreCase) ? "; " : ", ", items);
+        string.Join(field.Key.ToLowerInvariant() is "custom_tags" or "album_artist" or "author" ? "; " : ", ", items);
 
     /// <summary>Compares two lists as sets, ignoring order and case.</summary>
     public static bool SameItems(IReadOnlyList<string> left, IReadOnlyList<string> right) =>
