@@ -18,7 +18,8 @@ public sealed class ArtworkEditSessionChangeHandler(
     ArtworkAssetService artwork,
     IItemCanonicalRepository itemCanonicalRepository,
     ISystemActivityRepository activityRepository,
-    EditSubjectDirectory? subjects = null) : IEditSessionChangeHandler
+    EditSubjectDirectory? subjects = null,
+    IEntityTimelineRepository? timeline = null) : IEditSessionChangeHandler
 {
     public const string UnknownSlot = "That kind of artwork cannot be changed here.";
     public const string NoTargetPicture = "No picture was chosen.";
@@ -100,6 +101,19 @@ public sealed class ArtworkEditSessionChangeHandler(
                 ? $"Edit session removed the chosen {change.Slot} artwork."
                 : $"Edit session chose new {change.Slot} artwork.",
         }, ct).ConfigureAwait(false);
+
+        if (timeline is not null && subjects is not null
+            && await subjects.FindAsync(change.EntityId, ct).ConfigureAwait(false) is { } subject
+            && EditorUniverseHistory.Keeps(subject.Kind))
+        {
+            await EditorUniverseHistory.Record(
+                timeline,
+                change.EntityId,
+                subject.Kind,
+                EditorUniverseHistory.ArtworkEvent,
+                IsNone(change.TargetId) ? $"Removed the chosen {change.Slot} picture." : $"Chose a new {change.Slot} picture.",
+                ct).ConfigureAwait(false);
+        }
 
         return async undoCt =>
         {

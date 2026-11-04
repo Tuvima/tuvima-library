@@ -40,7 +40,7 @@
                          ShowHistory="@(binding?.ShowHistory == true)"
                          ShowContents="@EditorHeaderRules.HasContents(mode.Fields.ScopeId, Editor.Family.Kind != EditorFamilyKind.None)"
                          ShowFiles="@(binding?.ShowHistory == true && mode.Fields.SubjectKind is null)"
-                         RailVisible="@Editor.Family.Visible"
+                         RailVisible="@(Editor.Family.Visible || Editor.Universe.Visible)"
                          ItemHeader="@(Editor.Batch.Panel == BulkPanelKind.None ? ItemHeaderFragment(flow, mode) : null)">
             <HeaderContent>
                 @if (Editor.Batch.Panel == BulkPanelKind.None && Editor.Session.ActiveItem is { } editing)
@@ -49,7 +49,14 @@
                 }
             </HeaderContent>
             <RailContent>
-                <EditorFamilyRail Family="Editor.Family" Flow="flow" CanMatch="@mode.Fields.CanMatch" />
+                @if (Editor.Universe.Visible)
+                {
+                    <EditorUniverseRail State="Editor.Universe" Flow="flow" />
+                }
+                else
+                {
+                    <EditorFamilyRail Family="Editor.Family" Flow="flow" CanMatch="@mode.Fields.CanMatch" />
+                }
             </RailContent>
             <ChildContent Context="tool">
                 @if (Editor.Batch.Panel != BulkPanelKind.None && tool == EditTool.Details)
@@ -79,6 +86,10 @@
                 {
                     <EditorDetailsPanel Mode="mode" Session="flow.Session">@binding?.DetailsExtra</EditorDetailsPanel>
                 }
+                else if (tool == EditTool.Match && EditorUniverseRules.IsUniverseSubject(mode.Fields.SubjectKind))
+                {
+                    <EditorUniverseMatchPanel Fields="mode.Fields" UniverseQid="@binding?.UniverseQid" />
+                }
                 else if (tool == EditTool.Match)
                 {
                     @if (mode.Fields.Loading)
@@ -105,7 +116,7 @@
                 }
                 else if (tool == EditTool.History)
                 {
-                    <EditorHistoryTool EntityId="@(flow.Session.ActiveItem?.EntityId ?? Guid.Empty)" />
+                    <EditorHistoryTool EntityId="@(flow.Session.ActiveItem?.EntityId ?? Guid.Empty)" ForUniverse="@EditorUniverseRules.IsUniverseSubject(mode.Fields.SubjectKind)" />
                 }
                 else if (tool == EditTool.Contents)
                 {
@@ -141,12 +152,34 @@
     private RenderFragment ItemHeaderFragment(EditSessionFlow flow, EditingModeContext mode) => __builder =>
     {
         <EditorItemHeader Flow="flow" Fields="mode.Fields" Family="Editor.Family" Unmatched="@IsActiveUnmatched"
-                          CanDelete="@CanDeleteActive"
-                          DeleteLabel="@EditorDeleteRules.MenuLabel(EditorDeleteFlow.ActiveGroup(Editor), mode.Fields.ScopeId)"
-                          OnDelete="DeleteActiveAsync" />
+                          UniverseName="@Editor.Universe.UniverseName"
+                          CanDelete="@(CanDeleteActive || CanDeleteThing)"
+                          DeleteLabel="@(CanDeleteThing ? "Delete from this Universe…" : EditorDeleteRules.MenuLabel(EditorDeleteFlow.ActiveGroup(Editor), mode.Fields.ScopeId))"
+                          OnDelete="@(CanDeleteThing ? DeleteThingAsync : DeleteActiveAsync)" />
     };
 
     private bool _deleting;
+
+    private bool CanDeleteThing => EditorDeleteFlow.CanDeleteThing(Editor, Device, Services.GetService<DashboardSessionAccessor>());
+
+    // Delete from the "..." of a character, place or faction someone added by hand (WP11): asks once, then happens at once.
+    private async Task DeleteThingAsync()
+    {
+        if (_deleting)
+        {
+            return;
+        }
+
+        _deleting = true;
+        try
+        {
+            await EditorDeleteFlow.DeleteThingAsync(Editor, Dialogs, Toasts, Device, Services.GetService<DashboardSessionAccessor>());
+        }
+        finally
+        {
+            _deleting = false;
+        }
+    }
 
     // Delete from the header's "..." (v4 D13): the item being edited, including a whole show, season, album or Series. It asks once and happens
     // at once, without waiting for Save; the pop-over then moves to the item's parent, or closes when there is none.

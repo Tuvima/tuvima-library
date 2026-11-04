@@ -42,12 +42,13 @@
         @if (CanEdit)
         {
             <div class="universe-hero__actions">
-                <AppButton Label="@L["Common_Edit"].Value"
-                           StartIcon="@AppMaterialIcons.Outlined.Edit"
-                           ButtonStyle="AppButtonStyle.Outlined"
-                           Disabled="@EditBusy"
-                           OnClick="OnEdit"
-                           Class="universe-hero__edit" />
+                @* Edit is in the "..." menu (universal editor v4): it opens the pop-over editor over this page. *@
+                <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.MoreHoriz"
+                                 AriaLabel="@L["Common_MoreActions"].Value"
+                                 Class="universe-hero__more"
+                                 Disabled="@EditBusy">
+                    <AppMenuItem Label="@L["Common_Edit"].Value" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="OnEdit" />
+                </AppOverflowMenu>
             </div>
         }
     </div>
