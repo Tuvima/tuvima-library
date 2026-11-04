@@ -10377,4 +10377,7 @@
   <data name="EditorTab_FilesSoon" xml:space="preserve">
     <value>The files of this item will be listed here.</value>
   </data>
+  <data name="EditorQuickFacts_Title" xml:space="preserve">
+    <value>Quick Facts</value>
+  </data>
 </root>

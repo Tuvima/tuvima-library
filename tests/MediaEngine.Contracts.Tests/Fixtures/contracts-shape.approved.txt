@@ -3436,6 +3436,29 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EpisodeSiblingMatchT
   SeriesId: System.String | nullability=not-null | accessors=get,set
   SeasonNumber: System.Int32 | nullability=not-null | accessors=get,set
 
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.ItemQuickFactCountDto
+  Label: System.String | nullability=not-null | accessors=get,init
+  Count: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.ItemQuickFactsDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  FileCount: System.Int32 | nullability=not-null | accessors=get,init
+  SizeBytes: System.Int64? | nullability=nullable | accessors=get,init
+  RuntimeSeconds: System.Double? | nullability=nullable | accessors=get,init
+  BestQuality: System.String | nullability=nullable | accessors=get,init
+  DirectOwned: System.Int32 | nullability=not-null | accessors=get,init
+  DirectTotal: System.Int32 | nullability=not-null | accessors=get,init
+  LeafOwned: System.Int32 | nullability=not-null | accessors=get,init
+  LeafTotal: System.Int32 | nullability=not-null | accessors=get,init
+  ReadOnlyLibrary: System.Boolean | nullability=not-null | accessors=get,set
+  ItemCount: System.Int32? | nullability=nullable | accessors=get,init
+  Owner: System.String | nullability=nullable | accessors=get,init
+  Roles: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,init
+  CountsByKind: System.Collections.Generic.List<MediaEngine.Contracts.Editing.ItemQuickFactCountDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.ItemQuickFactsKinds
+
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.ShowChildRematchPreviewDto
   EntityId: System.Guid | nullability=not-null | accessors=get,set
   SeriesId: System.String | nullability=not-null | accessors=get,set

@@ -92,6 +92,8 @@ public static class ApiReadServiceCollectionExtensions
         services.AddSingleton<IMediaEditorMembershipReadService>(sp => sp.GetRequiredService<MediaEditorNavigationReadService>());
         services.AddSingleton<IMediaEditorOwnedChildReadService, MediaEditorOwnedChildReadService>();
         services.AddSingleton<MediaEditorWorkVersionReadRepository>();
+        services.AddSingleton<ItemQuickFactsRepository>();
+        services.AddSingleton<ItemQuickFactsService>();
         services.AddSingleton<MediaEditorFileCoverageRepository>();
         services.AddSingleton<MediaEditorSelectionHistoryReadService>();
         services.AddSingleton<PairingAssetReadService>();

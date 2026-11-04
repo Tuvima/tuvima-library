@@ -34,4 +34,7 @@ public sealed partial class EngineApiClient
             "GET /library/editor-subjects/universes/{qid}",
             $"/library/editor-subjects/universes/{Uri.EscapeDataString(qid)}",
             ct: ct);
+
+    public Task<ItemQuickFactsDto?> GetEditorQuickFactsAsync(Guid id, CancellationToken ct = default) =>
+        GetAsync<ItemQuickFactsDto>("GET /library/editor-quick-facts/{id}", $"/library/editor-quick-facts/{id:D}", ct: ct);
 }

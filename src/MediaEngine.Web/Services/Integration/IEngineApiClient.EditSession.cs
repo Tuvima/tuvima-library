@@ -20,4 +20,11 @@ public partial interface IEngineApiClient
 
     /// <summary>GET /library/editor-subjects/universes/{qid} - the same for a Universe, found by its Wikidata ID (spec D17a). Null when it cannot be opened.</summary>
     Task<EditorSubjectDto?> GetUniverseEditorSubjectAsync(string qid, CancellationToken ct = default);
+
+    /// <summary>
+    /// GET /library/editor-quick-facts/{id} - the totals behind the editor's Quick Facts (children owned of total, files, size, runtime, best
+    /// quality, read-only library folder) for a title at any level, a person, a Series, a curated collection or a Universe. Null when the read
+    /// fails; the panel then shows only what the item's own fields say.
+    /// </summary>
+    Task<ItemQuickFactsDto?> GetEditorQuickFactsAsync(Guid id, CancellationToken ct = default);
 }
