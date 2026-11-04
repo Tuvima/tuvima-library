@@ -1,0 +1,466 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Editing
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject IStringLocalizer<SharedStrings> L
+
+@* The rail across the top of the pop-over (universal editor v4 D2): one dropdown per level of the item's family, such as Show > Season >
+   Episode. Each dropdown lists that level's siblings with a small picture, a tick when matched, an amber mark when not and a purple dot when
+   changes are waiting; a long list is searched and paged in as the end scrolls into view. Choosing an item switches the editor to it and
+   keeps every item's staged changes in the one list. The rail is drawn only when the item has a family: a film, a standalone book and a
+   person show nothing. Below 1280px the earlier levels fold into one "..." menu. Nothing is saved here. *@
+@if (Family.Visible && Flow is not null)
+{
+    var active = Flow.Session.ActiveItem;
+    var activeId = active?.EntityId ?? Guid.Empty;
+    var levels = Family.Levels(activeId, Flow.Session.Trail);
+    var pending = Flow.Session.Pending.Changes.GroupBy(change => change.EntityId).ToDictionary(group => group.Key, group => group.Count());
+    var busy = Family.Loading || Flow.Switching;
+    var hiddenCount = Math.Max(0, levels.Count - 2);
+    <nav class="tl-rail" aria-label="@L["EditorRail_Label"]" aria-busy="@(busy ? "true" : null)">
+        @if (_open >= 0 || _foldOpen)
+        {
+            @* A click anywhere else closes the open list. *@
+            <div class="tl-rail__scrim" @onclick="CloseAll"></div>
+        }
+        @if (levels.Count == 0)
+        {
+            @* The family is still being read: grey crumbs hold the place while the right side is already usable. *@
+            <span class="tl-rail__skeleton"><AppSkeleton Height="2.6rem" Width="13rem" /></span>
+            <span class="tl-rail__sep" aria-hidden="true">&rsaquo;</span>
+            <span class="tl-rail__skeleton"><AppSkeleton Height="2.6rem" Width="13rem" /></span>
+        }
+        else
+        {
+            @if (hiddenCount > 0)
+            {
+                <div class="tl-rail__fold">
+                    <AppNativeButton Type="button" Class="tl-rail__crumb tl-rail__crumb--fold" aria-haspopup="listbox"
+                            aria-expanded="@(_foldOpen ? "true" : "false")" aria-label="@L["EditorRail_EarlierLevels"]"
+                            OnClick="ToggleFold">
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoreHoriz" Size="AppSize.Small" />
+                    </AppNativeButton>
+                    @if (_foldOpen)
+                    {
+                        <div class="tl-rail__panel tl-popover-open" role="listbox" aria-label="@L["EditorRail_EarlierLevels"]" @onkeydown="OnKeyDown">
+                            <ul class="tl-rail__options">
+                                @foreach (var level in levels.Take(hiddenCount))
+                                {
+                                    <li>
+                                        <AppNativeButton Type="button" role="option" aria-selected="false" Class="tl-rail__option"
+                                                         OnClick="() => PickAsync(level.CurrentId, true, true)">
+                                            <span class="tl-rail__text"><small>@level.Label</small><span>@level.CurrentTitle</span></span>
+                                        </AppNativeButton>
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    }
+                </div>
+                <span class="tl-rail__sep tl-rail__sep--fold" aria-hidden="true">&rsaquo;</span>
+            }
+
+            @foreach (var (level, index) in levels.Select((level, index) => (level, index)))
+            {
+                var isCurrent = index == levels.Count - 1 || (index == levels.Count - 2 && levels[^1].CurrentId == Guid.Empty);
+                var placeholder = level.CurrentId == Guid.Empty;
+                var hasChoices = level.Options.Count > 1 || level.HasMore || level.Loading || placeholder;
+                var isOpen = _open == index;
+                var waiting = pending.GetValueOrDefault(level.CurrentId);
+                var early = index < hiddenCount;
+                <div class="@(early ? "tl-rail__level tl-rail__level--early" : "tl-rail__level")" @key="@($"level{index}")">
+                    <AppNativeButton Type="button"
+                            id="@CrumbId(index)"
+                            Class="@CrumbClass(isCurrent && !placeholder, placeholder)"
+                            aria-haspopup="@(hasChoices ? "listbox" : null)"
+                            aria-expanded="@(hasChoices ? (isOpen ? "true" : "false") : null)"
+                            aria-current="@(isCurrent && !placeholder ? "true" : null)"
+                            data-level="@level.Label"
+                            OnClick="() => ClickCrumbAsync(index, level, hasChoices)">
+                        <span class="tl-rail__thumb" data-kind="@level.Label" aria-hidden="true">
+                            @if (!string.IsNullOrWhiteSpace(level.CurrentImageUrl))
+                            {
+                                <AppImage Src="@level.CurrentImageUrl" Alt="" Width="32" Height="32" ObjectFit="AppObjectFit.Cover" Class="tl-rail__img" />
+                            }
+                        </span>
+                        <span class="tl-rail__text"><small>@level.Label</small><span>@level.CurrentTitle</span></span>
+                        @if (waiting > 0)
+                        {
+                            <span class="tl-rail__dot" role="img" aria-label="@L["EditorRail_ChangesWaiting"]" title="@L["EditorRail_ChangesWaiting"]"></span>
+                        }
+                        @if (hasChoices)
+                        {
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ExpandMore" Size="AppSize.Small" />
+                        }
+                    </AppNativeButton>
+                    @if (isOpen)
+                    {
+                        @RenderPanel(index, level, activeId, pending)
+                    }
+                </div>
+                @if (index < levels.Count - 1)
+                {
+                    <span class="@(early ? "tl-rail__sep tl-rail__sep--early" : "tl-rail__sep")" aria-hidden="true">&rsaquo;</span>
+                }
+            }
+        }
+    </nav>
+}
+
+@code {
+    private const string ObserverModule = "./js/load-more-observer.js";
+
+    private readonly Dictionary<Guid, (DotNetObjectReference<MoreCallback> Reference, string ElementId)> _observed = [];
+    private IJSObjectReference? _module;
+    private EditorFamilyState? _family;
+    private EditSessionFlow? _flow;
+    private int _open = -1;
+    private bool _foldOpen;
+    private string? _search;
+    private bool _focusPending;
+    private string? _focusId;
+    private bool _disposed;
+
+    [Parameter, EditorRequired] public EditorFamilyState Family { get; set; } = default!;
+
+    [Parameter, EditorRequired] public EditSessionFlow? Flow { get; set; }
+
+    /// <summary>Opens Match for an item that is not matched yet (the editor opens on Match when the item is not matched, v3 D4).</summary>
+    [Parameter] public bool CanMatch { get; set; }
+
+    private static string CrumbId(int index) => $"tl-rail-crumb-{index}";
+
+    private static string OptionId(Guid id) => $"tl-rail-option-{id:N}";
+
+    private static string MoreId(Guid parentId) => $"tl-rail-more-{parentId:N}";
+
+    private static string CrumbClass(bool current, bool placeholder) =>
+        "tl-rail__crumb" + (current ? " is-current" : string.Empty) + (placeholder ? " is-placeholder" : string.Empty);
+
+    private RenderFragment RenderPanel(int index, RailLevel level, Guid activeId, Dictionary<Guid, int> pending) => __builder =>
+    {
+        var options = level.Options
+            .Where(option => string.IsNullOrWhiteSpace(_search)
+                || option.Title.Contains(_search, StringComparison.OrdinalIgnoreCase)
+                || (option.Number?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false))
+            .ToList();
+        var searchable = level.Options.Count > 6 || level.HasMore;
+        <div class="tl-rail__panel tl-popover-open" role="listbox" aria-label="@level.Label" @onkeydown="OnKeyDown">
+            @if (searchable)
+            {
+                <div class="tl-rail__search">
+                <AppSearchField Value="@_search"
+                                ValueChanged="OnSearchChanged"
+                                Placeholder="@($"Find {(level.Label is "Episode" ? "an" : "a")} {level.Label.ToLowerInvariant()}")"
+                                Label="@($"Find {level.Label.ToLowerInvariant()}")"
+                                HideLabel="true"
+                                Size="AppControlSize.Compact"
+                                DebounceInterval="150" />
+                </div>
+            }
+            <ul class="tl-rail__options">
+                @foreach (var option in options)
+                {
+                    var selected = option.EntityId == level.CurrentId;
+                    var waiting = pending.GetValueOrDefault(option.EntityId);
+                    <li @key="@($"option{option.EntityId:N}")">
+                        <AppNativeButton Type="button"
+                                id="@OptionId(option.EntityId)"
+                                role="option"
+                                Class="@(selected ? "tl-rail__option is-selected" : "tl-rail__option")"
+                                aria-selected="@(selected ? "true" : "false")"
+                                data-matched="@(option.Matched ? "true" : "false")"
+                                OnClick="() => PickAsync(option.EntityId, option.Matched, level.CurrentId != option.EntityId && Family.IsParentOf(option.EntityId))">
+                            <span class="tl-rail__thumb tl-rail__thumb--option" data-kind="@level.Label" aria-hidden="true">
+                                @if (!string.IsNullOrWhiteSpace(option.ImageUrl))
+                                {
+                                    <AppImage Src="@option.ImageUrl" Alt="" Width="52" Height="30" ObjectFit="AppObjectFit.Cover" Class="tl-rail__img" />
+                                }
+                            </span>
+                            <span class="tl-rail__text">
+                                <span>@(string.IsNullOrWhiteSpace(option.Number) ? option.Title : $"{option.Number} · {option.Title}")</span>
+                                @if (!option.Matched)
+                                {
+                                    <small title="@option.Reason">@L["EditorRail_NotMatched"]</small>
+                                }
+                            </span>
+                            @if (waiting > 0)
+                            {
+                                <span class="tl-rail__waiting">@(waiting == 1 ? L["EditorRail_OneChange"].Value : string.Format(L["EditorRail_ManyChanges"].Value, waiting))</span>
+                            }
+                            @if (option.Matched)
+                            {
+                                <span class="tl-rail__mark tl-rail__mark--ok" title="@L["EditorFamily_Matched"]"><span aria-hidden="true">&#10003;</span><span class="sr-only">@L["EditorFamily_Matched"]</span></span>
+                            }
+                            else
+                            {
+                                <span class="tl-rail__mark tl-rail__mark--warn" aria-hidden="true">&#9888;</span>
+                            }
+                        </AppNativeButton>
+                    </li>
+                }
+                @if (level.Loading)
+                {
+                    <li class="tl-rail__note"><AppSkeleton Height="1.5rem" Width="70%" /></li>
+                }
+                else if (options.Count == 0 && !level.HasMore)
+                {
+                    <li class="tl-rail__note">@(string.IsNullOrWhiteSpace(_search) ? L["EditorRail_NothingHere"] : L["EditorRail_NothingMatches"])</li>
+                }
+
+                @if (level.HasMore)
+                {
+                    <li class="tl-rail__more" role="none">
+                        <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
+                                   id="@MoreId(level.ParentId)"
+                                   OnClick="() => Family.LoadMoreAsync(level.ParentId)">@string.Format(L["EditorRail_ShowMore"].Value, level.Remaining)</AppButton>
+                    </li>
+                }
+            </ul>
+        </div>
+    };
+
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_family, Family))
+        {
+            if (_family is not null)
+            {
+                _family.Changed -= OnChanged;
+            }
+
+            _family = Family;
+            _family.Changed += OnChanged;
+        }
+
+        if (!ReferenceEquals(_flow, Flow))
+        {
+            if (_flow is not null)
+            {
+                _flow.Changed -= OnChanged;
+                _flow.Session.Changed -= OnChanged;
+            }
+
+            _flow = Flow;
+            if (_flow is not null)
+            {
+                _flow.Changed += OnChanged;
+                _flow.Session.Changed += OnChanged;
+            }
+        }
+    }
+
+    private void OnChanged()
+    {
+        if (!_disposed)
+        {
+            _ = InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void ToggleFold()
+    {
+        _foldOpen = !_foldOpen;
+        _open = -1;
+        _search = null;
+    }
+
+    private void OnSearchChanged(string? value) => _search = value;
+
+    private void CloseAll()
+    {
+        _open = -1;
+        _foldOpen = false;
+        _search = null;
+    }
+
+    // Escape closes the open list and puts the cursor back on its button; the pop-over itself stays open (its Escape is left alone while a list is open).
+    private void OnKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape")
+        {
+            _focusId = _open >= 0 ? CrumbId(_open) : null;
+            CloseAll();
+            _focusPending = _focusId is not null;
+        }
+    }
+
+    private async Task ClickCrumbAsync(int index, RailLevel level, bool hasChoices)
+    {
+        _foldOpen = false;
+        _search = null;
+        if (!hasChoices)
+        {
+            // A level with nothing to choose from (the only show) simply goes to that item.
+            _open = -1;
+            await PickAsync(level.CurrentId, true, false);
+            return;
+        }
+
+        if (_open == index)
+        {
+            _open = -1;
+            return;
+        }
+
+        _open = index;
+        if (level.ParentId != Guid.Empty && level.Options.Count == 0 && !level.Loading)
+        {
+            // A season or album whose files have not been read yet: opening its list reads the first page.
+            await Family.OpenAsync(level.ParentId);
+        }
+
+        // The cursor goes to the current item in the list (else its first item), so the keyboard works in it and Escape is heard.
+        var fresh = Family.Levels(Flow?.Session.ActiveItem?.EntityId ?? Guid.Empty, Flow?.Session.Trail).ElementAtOrDefault(index);
+        var target = fresh?.Options.FirstOrDefault(option => option.EntityId == fresh.CurrentId) ?? fresh?.Options.FirstOrDefault();
+        _focusId = target is null ? null : OptionId(target.EntityId);
+        _focusPending = _focusId is not null;
+    }
+
+    private async Task PickAsync(Guid id, bool matched, bool isParent)
+    {
+        _open = -1;
+        _foldOpen = false;
+        _search = null;
+        if (Flow is null || id == Guid.Empty)
+        {
+            return;
+        }
+
+        if (isParent)
+        {
+            // The item's own files are read as it opens, so its "Choose an episode" list is ready.
+            await Family.OpenAsync(id);
+        }
+
+        if (Family.TrailTo(id) is { Count: > 0 } trail
+            && await Flow.SwitchToAsync(trail)
+            && !matched && CanMatch && Flow.Session.ActiveTool == EditTool.Details)
+        {
+            // Nothing matches this item yet: it opens on Match, where the search is already filled in.
+            await Flow.SelectToolAsync(EditTool.Match);
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        try
+        {
+            if (_focusPending && _focusId is { } focus)
+            {
+                _focusPending = false;
+                await JS.InvokeVoidAsync("tuvimaFocusById", focus);
+            }
+
+            await SyncObserversAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit ended; there is nothing left to focus or observe.
+        }
+    }
+
+    // A "Show more" row is watched so the next page comes in as it scrolls near; the button stays for keyboards and when scripts are off.
+    private async Task SyncObserversAsync()
+    {
+        var wanted = new HashSet<Guid>();
+        if (_open >= 0 && Family.Visible && Flow is not null)
+        {
+            var levels = Family.Levels(Flow.Session.ActiveItem?.EntityId ?? Guid.Empty, Flow.Session.Trail);
+            if (_open < levels.Count && levels[_open] is { HasMore: true, ParentId: var parent } && parent != Guid.Empty)
+            {
+                wanted.Add(parent);
+            }
+        }
+
+        foreach (var gone in _observed.Keys.Where(id => !wanted.Contains(id)).ToList())
+        {
+            await StopObservingAsync(gone);
+        }
+
+        if (wanted.Count == 0)
+        {
+            return;
+        }
+
+        _module ??= await JS.InvokeAsync<IJSObjectReference>("import", ObserverModule);
+        foreach (var parentId in wanted)
+        {
+            if (!_observed.TryGetValue(parentId, out var entry))
+            {
+                entry = (DotNetObjectReference.Create(new MoreCallback(() => InvokeAsync(() => Family.LoadMoreAsync(parentId)))), MoreId(parentId));
+                _observed[parentId] = entry;
+            }
+
+            // Observing again replaces the old observer and reports the sentinel's current state, so a row still in view asks again.
+            await _module.InvokeVoidAsync("observeById", entry.ElementId, entry.Reference, new { rootMargin = "120px 0px" });
+        }
+    }
+
+    private async Task StopObservingAsync(Guid parentId)
+    {
+        if (!_observed.Remove(parentId, out var entry))
+        {
+            return;
+        }
+
+        try
+        {
+            if (_module is not null)
+            {
+                await _module.InvokeVoidAsync("disconnectById", entry.ElementId);
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // Nothing left to disconnect.
+        }
+
+        entry.Reference.Dispose();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        if (_family is not null)
+        {
+            _family.Changed -= OnChanged;
+        }
+
+        if (_flow is not null)
+        {
+            _flow.Changed -= OnChanged;
+            _flow.Session.Changed -= OnChanged;
+        }
+
+        foreach (var id in _observed.Keys.ToList())
+        {
+            await StopObservingAsync(id);
+        }
+
+        if (_module is not null)
+        {
+            try
+            {
+                await _module.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+                // The circuit ended first.
+            }
+        }
+    }
+
+    /// <summary>What the page-in observer calls when a "Show more" row nears the screen.</summary>
+    public sealed class MoreCallback(Func<Task> loadMore)
+    {
+        [JSInvokable]
+        public Task LoadMoreFromObserverAsync() => loadMore();
+    }
+}

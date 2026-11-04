@@ -87,6 +87,12 @@ public sealed class ItemFieldEditSession
         }
     }
 
+    /// <summary>What the Engine reports about the active item's match (provider, provider id, Wikidata id); null when it reports nothing.</summary>
+    public MediaEditorIdentitySummaryDto? Identity => _subject is null ? _scope?.IdentitySummary ?? _context?.IdentitySummary : null;
+
+    /// <summary>The scope's own name for the item ("Season 2"), used when nothing better names its kind.</summary>
+    public string ScopeLabel => _scope?.Label ?? string.Empty;
+
     /// <summary>The id of the active scope (movie, series, season, episode, album...), which names the kind of item being edited.</summary>
     public string ScopeId => _scope?.ScopeId ?? string.Empty;
 

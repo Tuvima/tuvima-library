@@ -158,6 +158,8 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
             EditTool.History => await _mode.ShowSectionAsync(EditingSection.History),
             EditTool.Artwork => _mode.Fields.CanEditArtwork && await _mode.ShowSectionAsync(EditingSection.Artwork),
             EditTool.Match => _mode.Fields.CanMatch && await _mode.ShowSectionAsync(EditingSection.Match),
+            // Files and Contents host no section of their own yet: opening one closes whichever section was open (asking about unsaved input).
+            EditTool.Files or EditTool.Contents => await _mode.CloseSectionAsync(),
             _ => false,
         };
         if (opened && _session.IsActive)

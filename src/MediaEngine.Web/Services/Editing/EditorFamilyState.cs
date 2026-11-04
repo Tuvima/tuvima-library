@@ -51,8 +51,29 @@ public sealed record FamilyRow(
     bool Expanded,
     string? Variant);
 
+/// <summary>One sibling listed in a rail dropdown (universal editor v4 D2): a small picture, a number, a matched mark.</summary>
+/// <param name="Number">The item's number among its siblings ("3", "1·4"); null for a show, album or series.</param>
+/// <param name="Reason">Why the item is not matched, in plain words; null when it is matched.</param>
+public sealed record RailOption(Guid EntityId, string Title, string? Number, string? ImageUrl, bool Matched, string? Reason);
+
 /// <summary>
-/// The family tree in the editor's left column (universal editor v3 WP2, D3): this show, album or series and only that, as show &gt; seasons
+/// One dropdown of the editor's rail (universal editor v4 D2): "Show", "Season" or "Episode 3" with the item that is current at that level
+/// and every sibling that can be switched to. <paramref name="ParentId"/> is the item whose list this is, so the next page of a long
+/// list can be read from it.
+/// </summary>
+public sealed record RailLevel(
+    string Label,
+    Guid CurrentId,
+    string CurrentTitle,
+    string? CurrentImageUrl,
+    IReadOnlyList<RailOption> Options,
+    Guid ParentId,
+    bool HasMore,
+    bool Loading,
+    int Remaining);
+
+/// <summary>
+/// The family of the item being edited (universal editor v3 WP2, D3; v4 D2 draws it as a rail of dropdowns): this show, album or series and only that, as show &gt; seasons
 /// &gt; episodes (plus files with no episode), album &gt; tracks, or series &gt; books or issues. The shape (the root and its seasons, albums
 /// or series) comes from the Engine's navigator read; the files under each parent are paged in as they are opened or scrolled to, from the
 /// Engine's owned-children read, each with its matched state and the reason it is not matched. Nothing here is saved or staged: switching is
@@ -290,6 +311,109 @@ public sealed class EditorFamilyState
         return rows;
     }
 
+    /// <summary>
+    /// The levels of the rail for the item being edited, outermost first: the show, then the season, then the episode; the album, then the
+    /// song; the series, then the book or issue. Each level lists the siblings that can be switched to. The chain follows the tree when it
+    /// knows the item, else the editor's own trail (an episode far down a long show is not in the first page yet). Empty when the item has
+    /// no family.
+    /// </summary>
+    public IReadOnlyList<RailLevel> Levels(Guid activeId, IReadOnlyList<EditTrailItem>? trail = null)
+    {
+        if (Kind == EditorFamilyKind.None || !_nodes.TryGetValue(_rootId, out var root))
+        {
+            return [];
+        }
+
+        var chain = new List<(Guid Id, string Title, string Kind, string? Image, Node? Node)>();
+        if (_nodes.TryGetValue(activeId, out var active))
+        {
+            for (Node? current = active; current is not null; current = current.ParentId is { } up && _nodes.TryGetValue(up, out var found) ? found : null)
+            {
+                chain.Insert(0, (current.Id, current.Title, current.Kind, current.ImageUrl, current));
+            }
+        }
+        else if (trail is { Count: > 0 })
+        {
+            chain.AddRange(trail.Select(step => (step.EntityId, step.Title, step.Kind, step.ImageUrl, _nodes.GetValueOrDefault(step.EntityId))));
+        }
+
+        if (chain.Count == 0 || chain[0].Id != _rootId)
+        {
+            chain.Insert(0, (root.Id, root.Title, root.Kind, root.ImageUrl, root));
+        }
+
+        var levels = new List<RailLevel>();
+        for (var index = 0; index < chain.Count; index++)
+        {
+            var step = chain[index];
+            var label = LabelOf(step.Kind, index == 0, step.Node?.Detail);
+            if (index == 0)
+            {
+                levels.Add(new RailLevel(label, step.Id, step.Title, step.Image, [ToOption(root)], Guid.Empty, false, false, 0));
+                continue;
+            }
+
+            var parent = chain[index - 1].Node;
+            if (parent is null)
+            {
+                levels.Add(new RailLevel(label, step.Id, step.Title, step.Image, [], Guid.Empty, false, false, 0));
+                continue;
+            }
+
+            var isParent = step.Node?.IsParent ?? false;
+            var siblings = (isParent ? parent.Parents : parent.Leaves).Select(id => ToOption(_nodes[id])).ToList();
+            var more = !isParent && parent.HasMore;
+            levels.Add(new RailLevel(
+                label, step.Id, step.Title, step.Image, siblings, parent.Id, more, !isParent && parent.Loading, more ? parent.Total - parent.Leaves.Count : 0));
+        }
+
+        // On a show, season or album the next level is offered empty ("Choose an episode") so the rail reaches down as well as up.
+        if (chain[^1].Node is { IsParent: true } tail)
+        {
+            var childrenAreParents = tail.Parents.Count > 0;
+            var childKind = childrenAreParents
+                ? _nodes[tail.Parents[0]].Kind
+                : Kind switch
+                {
+                    EditorFamilyKind.Show => EditTrailKinds.Episode,
+                    EditorFamilyKind.Album => EditTrailKinds.Track,
+                    _ => "Item",
+                };
+            var childLabel = LabelOf(childKind, false, null);
+            var children = (childrenAreParents ? tail.Parents : tail.Leaves).Select(id => ToOption(_nodes[id])).ToList();
+            var more = !childrenAreParents && tail.HasMore;
+            levels.Add(new RailLevel(
+                childLabel,
+                Guid.Empty,
+                $"Choose {(childLabel is "Episode" ? "an" : "a")} {childLabel.ToLowerInvariant()}",
+                null,
+                children,
+                tail.Id,
+                more,
+                tail.Loading,
+                more ? tail.Total - tail.Leaves.Count : 0));
+        }
+
+        return levels;
+    }
+
+    // "Show", "Season", "Episode 3": the kind in small type above the item's name in the rail.
+    private static string LabelOf(string kind, bool isRoot, string? number)
+    {
+        var name = kind switch
+        {
+            EditTrailKinds.Show => "Show",
+            EditTrailKinds.Season => "Season",
+            EditTrailKinds.Episode => "Episode",
+            EditTrailKinds.Album => "Album",
+            EditTrailKinds.Track => "Song",
+            _ => isRoot ? "Series" : "Book",
+        };
+        return string.IsNullOrWhiteSpace(number) || isRoot || kind == EditTrailKinds.Season ? name : $"{name} {number}";
+    }
+
+    private static RailOption ToOption(Node node) => new(node.Id, node.Title, node.Detail, node.ImageUrl, node.Matched, node.Reason);
+
     /// <summary>The trail that ends at an item in the tree, outermost first, for switching to it; null when the item is not in the tree.</summary>
     public IReadOnlyList<EditTrailItem>? TrailTo(Guid entityId)
     {
@@ -309,6 +433,9 @@ public sealed class EditorFamilyState
 
     /// <summary>Whether the tree says an item is matched: true or false for an item it lists, null for one it does not know.</summary>
     public bool? IsMatched(Guid entityId) => _nodes.TryGetValue(entityId, out var node) ? node.Matched : null;
+
+    /// <summary>True when the tree lists the item as a parent (a season, an album, the show itself), whose own files can be opened.</summary>
+    public bool IsParentOf(Guid entityId) => _nodes.TryGetValue(entityId, out var node) && node.IsParent;
 
     /// <summary>The name of an item in the tree, or null.</summary>
     public string? NameOf(Guid entityId) => _nodes.TryGetValue(entityId, out var node) ? node.Title : null;

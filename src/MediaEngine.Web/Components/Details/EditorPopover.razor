@@ -11,7 +11,8 @@
 
 @* The universal editor's pop-over (v3 D1, D6), drawn once by the app layout so it can open over any page or list. It is a native modal
    dialog (opened with showModal by app-dialog.js), so it stacks above the details overlay, makes everything behind it inert, traps focus
-   and keeps the page where it was. The page behind is never put into an "editing" state. After Save the slim ribbon proves the save. *@
+   and keeps the page where it was. The page behind is never put into an "editing" state. After Save the slim ribbon proves the save.
+   Its frame is the v4 one (D2, D3, D16): a rail of dropdowns for the item's family, the item's header, the tab bar and a fixed footer. *@
 <EditSavedRibbon Flow="Editor.Flow" />
 @if (Editor.IsOpen)
 {
@@ -30,16 +31,20 @@
                          Flow="flow"
                          Picker="Editor.Picker"
                          TitleOverride="@BulkPanelTitle"
-                         ShowHistory="@(binding?.ShowHistory == true)">
+                         ShowHistory="@(binding?.ShowHistory == true)"
+                         ShowContents="@EditorHeaderRules.HasContents(mode.Fields.ScopeId, Editor.Family.Kind != EditorFamilyKind.None)"
+                         ShowFiles="@(binding?.ShowHistory == true && mode.Fields.SubjectKind is null)"
+                         RailVisible="@Editor.Family.Visible"
+                         ItemHeader="@(Editor.Batch.Panel == BulkPanelKind.None ? ItemHeaderFragment(flow, mode) : null)">
             <HeaderContent>
                 @if (Editor.Batch.Panel == BulkPanelKind.None && Editor.Session.ActiveItem is { } editing)
                 {
                     <span class="tl-editor-popover__editing" title="@editing.Title">@L["EditorPopover_EditingItem", editing.Title]</span>
                 }
             </HeaderContent>
-            <TreeContent>
-                <EditorFamilyTree Family="Editor.Family" Flow="flow" CanMatch="@mode.Fields.CanMatch" />
-            </TreeContent>
+            <RailContent>
+                <EditorFamilyRail Family="Editor.Family" Flow="flow" CanMatch="@mode.Fields.CanMatch" />
+            </RailContent>
             <ChildContent Context="tool">
                 @if (Editor.Batch.Panel != BulkPanelKind.None && tool == EditTool.Details)
                 {
@@ -86,12 +91,26 @@
                 {
                     <EditorHistoryTool EntityId="@(flow.Session.ActiveItem?.EntityId ?? Guid.Empty)" />
                 }
+                else if (tool == EditTool.Contents)
+                {
+                    @* Built in a later packet (v4 WP5); until then the tab says so plainly instead of looking broken. *@
+                    <AppEmptyState Title="@L["EditorTab_ContentsTitle"].Value" Message="@L["EditorTab_ContentsSoon"].Value" Class="tl-editor-tab-placeholder" />
+                }
+                else if (tool == EditTool.Files)
+                {
+                    <AppEmptyState Title="@L["EditorTab_FilesTitle"].Value" Message="@L["EditorTab_FilesSoon"].Value" Class="tl-editor-tab-placeholder" />
+                }
             </ChildContent>
         </EditorPanelHost>
     </AppDialogFrame>
 }
 
 @code {
+    private RenderFragment ItemHeaderFragment(EditSessionFlow flow, EditingModeContext mode) => __builder =>
+    {
+        <EditorItemHeader Flow="flow" Fields="mode.Fields" Family="Editor.Family" Unmatched="@IsActiveUnmatched" />
+    };
+
     private static readonly AppDialogOptions _options = new()
     {
         NoHeader = true,

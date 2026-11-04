@@ -1,0 +1,148 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Editing
+@implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
+
+@* The header of the pop-over (universal editor v4 D3, section 1a): the item's picture, its kind line ("The Expanse - TV episode"), its title, one
+   line of facts and links to its provider records where they are known. It names the item at once from the editor's own trail and fills the
+   facts in when the fields have loaded. Read-only: nothing here is edited or saved. *@
+@if (Flow?.Session.ActiveItem is { } active)
+{
+    var fields = Fields;
+    var subject = fields.Loaded ? fields.MatchSubject() : null;
+    var title = string.IsNullOrWhiteSpace(subject?.Title) ? active.Title : subject!.Title;
+    var kind = EditorHeaderRules.KindLabel(fields.MediaType, fields.ScopeId, fields.ScopeLabel);
+    var trail = Flow.Session.Trail;
+    var parent = subject?.ParentLabel ?? (trail.Count > 1 && trail[0].EntityId != active.EntityId ? trail[0].Title : null);
+    var kicker = EditorHeaderRules.FactsLine(parent, kind);
+    var facts = fields.Loaded
+        ? EditorHeaderRules.FactsLine(FieldText("air_date", "release_date", "premiere_date") ?? subject?.Year, FieldText("runtime", "duration"), subject?.Creator)
+        : string.Empty;
+    var image = !string.IsNullOrWhiteSpace(active.ImageUrl) ? active.ImageUrl : Family.TrailTo(active.EntityId)?[^1].ImageUrl;
+    var links = fields.Loaded ? EditorHeaderRules.Links(fields.Identity, fields.MediaType, fields.ScopeId) : [];
+    <header class="tl-editor-header" aria-busy="@(fields.Loading ? "true" : null)">
+        <div class="@(IsLandscape(fields.ScopeId) ? "tl-editor-header__cover tl-editor-header__cover--landscape" : "tl-editor-header__cover")" aria-hidden="true">
+            @if (!string.IsNullOrWhiteSpace(image))
+            {
+                <AppImage Src="@image" Alt="" DrawnPx="200" ObjectFit="AppObjectFit.Cover" Class="tl-editor-header__img" />
+            }
+            else
+            {
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" Size="AppSize.Large" />
+            }
+        </div>
+        <div class="tl-editor-header__body">
+            <div class="tl-editor-header__kicker">@kicker</div>
+            <h2 id="tl-editor-panel-title" class="tl-editor-header__title" tabindex="-1" title="@title">@title</h2>
+            @if (fields.Loading && !fields.Loaded)
+            {
+                <AppSkeleton Height="1rem" Width="12rem" />
+            }
+            else if (!string.IsNullOrWhiteSpace(facts))
+            {
+                <div class="tl-editor-header__facts">@facts</div>
+            }
+
+            @if (fields.Loaded && FamilyHasState)
+            {
+                <div class="tl-editor-header__chips">
+                    @if (Unmatched)
+                    {
+                        <AppStatusBadge Tone="AppUiTone.Warning" Text="@L["EditorFamily_NotMatched"].Value" />
+                    }
+                    else
+                    {
+                        <AppStatusBadge Tone="AppUiTone.Success" Text="@L["EditorFamily_Matched"].Value" Icon="@AppMaterialIcons.Outlined.Check" />
+                    }
+                </div>
+            }
+        </div>
+        @if (links.Count > 0)
+        {
+            <div class="tl-editor-header__links">
+                @foreach (var link in links)
+                {
+                    <AppLink Href="@link.Url" Target="_blank" Underline="AppUnderline.None" Class="tl-editor-header__link"
+                             aria-label="@(string.Format(L["EditorHeader_OpenAt"].Value, link.Name))">
+                        <span>@link.Name</span>
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppSize.Small" />
+                    </AppLink>
+                }
+            </div>
+        }
+    </header>
+}
+
+@code {
+    private EditSessionFlow? _flow;
+    private ItemFieldEditSession? _fields;
+
+    [Parameter, EditorRequired] public EditSessionFlow? Flow { get; set; }
+
+    [Parameter, EditorRequired] public ItemFieldEditSession Fields { get; set; } = default!;
+
+    [Parameter, EditorRequired] public EditorFamilyState Family { get; set; } = default!;
+
+    /// <summary>The item has no match yet (the pop-over knows, from the family and the page).</summary>
+    [Parameter] public bool Unmatched { get; set; }
+
+    // The matched mark is only said for an item that can be matched at all (a person or a collection is neither).
+    private bool FamilyHasState => Fields.CanMatch;
+
+    // Episodes and stills are wide; everything else is a portrait cover.
+    private static bool IsLandscape(string scopeId) => string.Equals(scopeId, "episode", StringComparison.OrdinalIgnoreCase);
+
+    private string? FieldText(params string[] keys)
+    {
+        var field = Fields.Find(keys);
+        var text = field?.DisplayValue ?? field?.Value;
+        return string.IsNullOrWhiteSpace(text) ? null : text;
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (!ReferenceEquals(_flow, Flow))
+        {
+            if (_flow is not null)
+            {
+                _flow.Changed -= OnChanged;
+                _flow.Session.Changed -= OnChanged;
+            }
+
+            _flow = Flow;
+            if (_flow is not null)
+            {
+                _flow.Changed += OnChanged;
+                _flow.Session.Changed += OnChanged;
+            }
+        }
+
+        if (!ReferenceEquals(_fields, Fields))
+        {
+            if (_fields is not null)
+            {
+                _fields.Changed -= OnChanged;
+            }
+
+            _fields = Fields;
+            _fields.Changed += OnChanged;
+        }
+    }
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        if (_flow is not null)
+        {
+            _flow.Changed -= OnChanged;
+            _flow.Session.Changed -= OnChanged;
+        }
+
+        if (_fields is not null)
+        {
+            _fields.Changed -= OnChanged;
+        }
+    }
+}

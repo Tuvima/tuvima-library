@@ -272,7 +272,7 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
 
         var cut = RenderBar(editor);
 
-        Assert.Equal(["Details", "Artwork", "Match", "History"], cut.FindAll(".tl-editor-window__tabs [role='tab']").Select(tool => tool.TextContent.Trim()));
+        Assert.Equal(["Details", "Artwork", "Match & Identity", "History"], cut.FindAll(".tl-editor-window__tabs [role='tab']").Select(tool => tool.TextContent.Trim()));
     }
 
     [Fact]
@@ -285,7 +285,7 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
         var noArtwork = EditingModeTestData.MovieContext();
         noArtwork.Scopes[0].CanEditArtwork = false;
         var second = await StartEditorAsync(noArtwork);
-        Assert.Equal(["Details", "Match", "History"], RenderBar(second).FindAll(".tl-editor-window__tabs [role='tab']").Select(tool => tool.TextContent.Trim()));
+        Assert.Equal(["Details", "Match & Identity", "History"], RenderBar(second).FindAll(".tl-editor-window__tabs [role='tab']").Select(tool => tool.TextContent.Trim()));
     }
 
     [Fact]
