@@ -23,6 +23,9 @@
         </div>
     }
 
+    @* The Universe icon: top right of the hero, only when the Engine says the Universe can be opened. *@
+    <UniverseGalaxyLink Link="Model.UniverseLink" />
+
     @if (Model.EntityType == DetailEntityType.Person && Model.PersonDetails is not null)
     {
         <div class="tl-detail-person-portrait" aria-label="@Model.Title portrait">
@@ -130,13 +133,6 @@
                 @if (Model.IsUnmatched)
                 {
                     <p class="tl-detail-hero__not-matched"><NotMatchedTag /></p>
-                }
-                @if (Model.UniverseLink is { } universeLink && !string.IsNullOrWhiteSpace(universeLink.Qid))
-                {
-                    @* One quiet line under the secondary line; the Universe page is its own destination, never a tab. *@
-                    <p class="tl-detail-hero__universe-link">
-                        <a href="@($"/universe/{Uri.EscapeDataString(universeLink.Qid)}")">@MediaEngine.Web.Components.Universe.UniversePageText.PartOfLine(universeLink.Name)</a>
-                    </p>
                 }
                 @if (HeroCreditLines.Count > 0)
                 {

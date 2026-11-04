@@ -2844,6 +2844,15 @@
   <data name="UniversePage_ItMayHaveBeenRemoved" xml:space="preserve">
     <value>It may have been removed, or it may not be part of what this profile can see.</value>
   </data>
+  <data name="CollectionsPage_UniversesSubtitle" xml:space="preserve">
+    <value>Whole worlds your Library holds more than one Series of</value>
+  </data>
+  <data name="UniverseIcon_Open" xml:space="preserve">
+    <value>Open the {0} Universe</value>
+  </data>
+  <data name="UniverseIcon_Offers" xml:space="preserve">
+    <value>Cast, adaptations and everything in this world</value>
+  </data>
   <data name="UniversePage_BackToCollections" xml:space="preserve">
     <value>Back to Collections</value>
   </data>

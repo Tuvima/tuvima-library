@@ -124,11 +124,16 @@ public sealed class DetailUnmatchedAssetViewModel
     public bool KeptAsIs { get; init; }
 }
 
-/// <summary>A link from an item page to the Universe page: the Universe's Wikidata QID and its name.</summary>
+/// <summary>
+/// A link from an item page to the Universe page (the Universe icon): the Universe's Wikidata QID and its name, plus the
+/// two counts its hover card shows (Series and Works the profile can see).
+/// </summary>
 public sealed class UniverseLinkViewModel
 {
     public string Qid { get; init; } = string.Empty;
     public string Name { get; init; } = string.Empty;
+    public int SeriesCount { get; init; }
+    public int WorkCount { get; init; }
 }
 
 public sealed class MusicAlbumCompanionViewModel

@@ -305,9 +305,9 @@ public sealed partial class CollectionClientEndpointsTests
     }
 
     [Fact]
-    public async Task PartOfLine_Appears_OnlyWithTwoSeriesOrTwoFormats()
+    public async Task UniverseLink_Appears_ForEveryUniverseTheProfileCanOpen()
     {
-        // One Series in one format: not enough to call it a Universe worth a link.
+        // One Series in one format: the Universe icon still shows, because the page opens.
         SeedUniverse("Q7001", "Lonely World", [("Movies", "Lonely One")]);
         // Two Series in one format.
         SeedUniverse("Q7002", "Paired World", [("Movies", "Paired One"), ("Movies", "Paired Two")]);
@@ -317,7 +317,7 @@ public sealed partial class CollectionClientEndpointsTests
         SeedUniverse("Q7004", "Spread World", [("Movies", "Spread One")], standalone: [("Books", "Spread Novel")]);
         await using var app = await StartAsync(mapGraphActions: true);
 
-        Assert.Null((await GetJsonAsync(app, "/test/universe-link/Q7001"))["link"]);
+        Assert.Equal("Lonely World", (await GetJsonAsync(app, "/test/universe-link/Q7001"))["link"]!["name"]!.GetValue<string>());
         Assert.Equal("Spread World", (await GetJsonAsync(app, "/test/universe-link/Q7004"))["link"]!["name"]!.GetValue<string>());
         var paired = (await GetJsonAsync(app, "/test/universe-link/Q7002"))["link"]!;
         Assert.Equal("Q7002", paired["qid"]!.GetValue<string>());
@@ -344,21 +344,43 @@ public sealed partial class CollectionClientEndpointsTests
         Assert.True(loadsAfterTheFirstPage > 0, "The first page has to read the library to decide.");
         Assert.Equal(loadsAfterTheFirstPage, Volatile.Read(ref _projectionLoads));
         Assert.Equal(first.ToJsonString(), second.ToJsonString());
-        // Another Universe is a different question, and "no link" is remembered too.
+        // Another Universe is a different question, and its answer is remembered too.
         SeedUniverse("Q7001", "Lonely World", [("Movies", "Lonely One")]);
         await GetJsonAsync(app, "/test/universe-link/Q7001?onlyLink=true");
         var loadsAfterTheOtherUniverse = Volatile.Read(ref _projectionLoads);
         Assert.True(loadsAfterTheOtherUniverse > loadsAfterTheFirstPage);
-        Assert.Null((await GetJsonAsync(app, "/test/universe-link/Q7001?onlyLink=true"))["link"]);
+        Assert.Equal("Lonely World", (await GetJsonAsync(app, "/test/universe-link/Q7001?onlyLink=true"))["link"]!["name"]!.GetValue<string>());
         Assert.Equal(loadsAfterTheOtherUniverse, Volatile.Read(ref _projectionLoads));
     }
 
     [Fact]
-    public void PartOfRule_NeedsTwoOfEither()
+    public async Task ASingleSeries_OfABroaderUniverse_OpensAUniversePage_WithoutAStoredUniverseShelf()
     {
-        Assert.False(UniverseClientReadService.ShowsPartOfLine(seriesCount: 1, formatCount: 1));
-        Assert.True(UniverseClientReadService.ShowsPartOfLine(seriesCount: 2, formatCount: 1));
-        Assert.True(UniverseClientReadService.ShowsPartOfLine(seriesCount: 1, formatCount: 2));
+        SeedShelflessSeries("Q8800", "Lone Universe", "Q8801", "Lone Series");
+        await using var app = await StartAsync(mapGraphActions: true);
+
+        var link = (await GetJsonAsync(app, "/test/universe-link/Q8800"))["link"]!;
+        Assert.Equal("Lone Universe", link["name"]!.GetValue<string>());
+
+        var detail = await GetJsonAsync(app, "/api/v1/universe/Q8800");
+        Assert.Equal("Lone Universe", detail["name"]!.GetValue<string>());
+        Assert.Equal(1, detail["series_count"]!.GetValue<int>());
+        Assert.Equal("Lone Series Film", detail["shelves"]![0]!["shelf"]!["items"]![0]!["title"]!.GetValue<string>());
+
+        // Nothing is written: Collections does not gain a Universe for it.
+        using var connection = _database.CreateConnection();
+        Assert.Equal(0, connection.ExecuteScalar<int>(
+            "SELECT COUNT(*) FROM collections WHERE collection_type = 'Universe' AND wikidata_qid = 'Q8800';"));
+    }
+
+    [Fact]
+    public async Task ASeries_ThatIsItsOwnUniverse_GetsNoUniversePage()
+    {
+        // The Series' own QID is the Universe's QID: nothing wider named it, so it is just a Series.
+        SeedShelflessSeries("Q8810", "Own Series", "Q8810", "Own Series");
+        await using var app = await StartAsync(mapGraphActions: true);
+
+        Assert.Null((await GetJsonAsync(app, "/test/universe-link/Q8810"))["link"]);
     }
 
     [Fact]
@@ -511,6 +533,25 @@ public sealed partial class CollectionClientEndpointsTests
         }
 
         return qid;
+    }
+
+    /// <summary>A Series shelf that names a Universe (by <c>universe_qid</c>) while no Universe shelf exists for it.</summary>
+    private void SeedShelflessSeries(string universeQid, string universeName, string seriesQid, string title)
+    {
+        var series = Guid.NewGuid();
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute(
+                """
+                INSERT OR IGNORE INTO narrative_roots (qid, label, level, parent_qid, created_at)
+                VALUES (@universeQid, @universeName, 'Universe', NULL, '2026-01-01T00:00:00Z');
+                INSERT INTO collections (id, display_name, collection_type, scope, resolution, is_enabled, wikidata_qid, universe_qid, parent_collection_id)
+                VALUES (@series, @title, 'Series', 'library', 'query', 1, @seriesQid, @universeQid, NULL);
+                """,
+                new { series, title, seriesQid, universeQid, universeName });
+        }
+
+        AddWork("Movies", $"{title} Film", "G", series, ".mkv");
     }
 
     /// <summary>Counts how often the authorised projection is read, to prove a repeated question is answered from memory.</summary>

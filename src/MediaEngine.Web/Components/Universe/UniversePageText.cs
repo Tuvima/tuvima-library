@@ -8,10 +8,10 @@ namespace MediaEngine.Web.Components.Universe;
 public static class UniversePageText
 {
     /// <summary>
-    /// "Part of the Dune Universe"; a name that already ends in "Universe" is not given a second one, and a name that
-    /// starts with "The" ("The Expanse") does not get a second "the".
+    /// "Dune Universe"; a name that already ends in "Universe" is not given a second one, and a leading "The" is dropped
+    /// ("The Expanse" becomes "Expanse Universe" in "Open the Expanse Universe").
     /// </summary>
-    public static string PartOfLine(string name)
+    public static string UniverseName(string name)
     {
         var trimmed = name.Trim();
         if (trimmed.StartsWith("The ", StringComparison.OrdinalIgnoreCase) && trimmed.Length > 4)
@@ -19,10 +19,29 @@ public static class UniversePageText
             trimmed = trimmed[4..].TrimStart();
         }
 
-        return trimmed.EndsWith("Universe", StringComparison.OrdinalIgnoreCase)
-            ? $"Part of the {trimmed}"
-            : $"Part of the {trimmed} Universe";
+        return trimmed.EndsWith("Universe", StringComparison.OrdinalIgnoreCase) ? trimmed : $"{trimmed} Universe";
     }
+
+    /// <summary>The Universe icon's hover line, for example "3 Series · 14 Works". Zero parts are left out.</summary>
+    public static string CardCounts(int seriesCount, int workCount)
+    {
+        var parts = new List<string>();
+        if (seriesCount > 0)
+        {
+            parts.Add(string.Create(CultureInfo.CurrentCulture, $"{seriesCount} Series"));
+        }
+
+        if (workCount > 0)
+        {
+            parts.Add(string.Create(CultureInfo.CurrentCulture, $"{workCount} {(workCount == 1 ? "Work" : "Works")} in your Library"));
+        }
+
+        return string.Join(" · ", parts);
+    }
+
+    /// <summary>A QID reduced to letters and digits, for an element id.</summary>
+    public static string SafeId(string? value) =>
+        new(string.IsNullOrEmpty(value) ? ['x'] : value.Where(char.IsAsciiLetterOrDigit).ToArray());
 
     /// <summary>
     /// The hero's one line of totals, for example "3 Series · 14 Works · 2 formats". A Universe whose lines are all TV
