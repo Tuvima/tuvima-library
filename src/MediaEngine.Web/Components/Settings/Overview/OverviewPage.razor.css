@@ -49,7 +49,7 @@
     margin: 0;
     overflow: hidden;
     color: var(--tl-text-primary);
-    font-size: 1.75rem;
+    font-size: var(--tl-font-size-xl);
     font-weight: var(--tl-font-weight-semibold);
     text-overflow: ellipsis;
     white-space: nowrap;

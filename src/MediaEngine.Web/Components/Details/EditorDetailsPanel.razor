@@ -128,6 +128,11 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
                                       ValueChanged="@(value => Stage(fields, session, field, value))"
                                       Suggestions="@(isTags ? fields.TagSuggestions : fields.GenreSuggestions)" />
             }
+            else if (string.Equals(field.InputKind, "choice", StringComparison.OrdinalIgnoreCase))
+            {
+                <AppSelect T="string" Value="@shown" ValueChanged="@(value => Stage(fields, session, field, value))"
+                           Options="@ChoiceOptions(field)" AriaLabel="@field.Label" />
+            }
             else if (string.Equals(field.InputKind, "textarea", StringComparison.OrdinalIgnoreCase))
             {
                 <AppTextarea Value="@shown" ValueChanged="@(value => Stage(fields, session, field, value))"
@@ -285,6 +290,9 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
 
     private static string StageKey(MediaEditorDetailsFieldPresentation field) =>
         string.IsNullOrWhiteSpace(field.OverrideKey) ? field.Key : field.OverrideKey;
+
+    private static IReadOnlyList<AppSelectOption> ChoiceOptions(MediaEditorDetailsFieldPresentation field) =>
+        (field.Options ?? []).Select(option => new AppSelectOption(option.Value, option.Label)).ToList();
 
     private static string Baseline(MediaEditorDetailsFieldPresentation field) => field.RawValue ?? field.Value ?? string.Empty;
 

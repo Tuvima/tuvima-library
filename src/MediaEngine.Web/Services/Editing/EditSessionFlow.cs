@@ -488,6 +488,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
                 EditSessionChangeKinds.VideoRename => "File names",
                 EditSessionChangeKinds.SiblingMatch => "Other episodes",
                 EditSessionChangeKinds.ChildRematch => "Seasons and episodes",
+                EditSessionChangeKinds.ThingAdd => "New item",
                 _ => "Details",
             };
         }

@@ -33,7 +33,9 @@ public sealed class EngineApiClientEnvelopeGuardrailTests
         // The pack reads (the starter packs, and a set written out as a pack file) are manual GETs: a failure carries the Engine's plain-English reason into LastError, which the pack step shows; EngineApiClientCollectionPackTests cover the outcomes.
         // The administrator bookmark calls (Everyone's list, Promote, edit a Global bookmark) share one typed-outcome helper whose
         // single raw GET keeps definite refusals (403, 404) apart from "could not confirm"; EngineApiClientAudiobookBookmarkOutcomeTests cover each.
-        AssertAtOrBelow(source, "_http.GetAsync", 32);
+        // The Universe thing read is one more manual GET with the same two outcomes as the Universe page read (404 means the
+        // thing is not available to this profile, anything else means the Engine could not be reached); EngineApiClientUniversePageTests cover both.
+        AssertAtOrBelow(source, "_http.GetAsync", 33);
         // One additional raw POST is the typed bookmark-create outcome path. Its focused tests
         // cover success classification, definite 4xx vs unknown 5xx/malformed results, and one
         // send per attempt with no automatic retry.

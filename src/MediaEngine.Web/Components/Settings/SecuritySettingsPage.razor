@@ -584,7 +584,7 @@
 
     private async Task RemovePasskeyAsync(PasskeyCredentialResponse passkey)
     {
-        if (!await ConfirmAsync("Remove passkey?", $"Remove {passkey.Name} from your sign-in methods?", "Remove passkey")) return;
+        if (!await ConfirmAsync("Remove passkey?", $"Remove {passkey.Name} from your sign-in methods?", "Remove passkey", destructive: true)) return;
         _busy = true;
         try
         {
@@ -603,7 +603,7 @@
 
     private async Task UnlinkExternalLoginAsync(AccountExternalLoginDto login)
     {
-        if (!await ConfirmAsync("Disconnect linked account?", "You will no longer be able to use this account to sign in to Library.", "Disconnect")) return;
+        if (!await ConfirmAsync("Disconnect linked account?", "You will no longer be able to use this account to sign in to Library.", "Disconnect", destructive: true)) return;
         _busy = true;
         try
         {
@@ -675,8 +675,8 @@
     private static string NotChangedMessage<T>(DashboardAccessMutationResult<T> result, string fallback) =>
         result.Failure == DashboardAccessMutationFailure.ConfirmItsYou ? "Nothing was changed. Confirm it's you to continue." : fallback;
 
-    private async Task<bool> ConfirmAsync(string title, string message, string confirmLabel) =>
-        await DialogService.ShowMessageBoxAsync(title, message, yesText: confirmLabel, cancelText: "Cancel") == true;
+    private async Task<bool> ConfirmAsync(string title, string message, string confirmLabel, bool destructive = false) =>
+        await DialogService.ShowMessageBoxAsync(title, message, yesText: confirmLabel, cancelText: "Cancel", options: destructive ? AppDialogOptions.DestructiveConfirm : null) == true;
     private bool IsCurrent(DeviceSessionResponse session) => Session.SessionId == session.Id;
     private AccountExternalLoginDto? FindLogin(string providerId) => _externalLogins.FirstOrDefault(login =>
         login.Provider.Equals(providerId, StringComparison.OrdinalIgnoreCase));

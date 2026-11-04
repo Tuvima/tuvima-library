@@ -93,10 +93,10 @@
                 </div>
                 <label class="for-me-page__sort">
                     <span>@L["Common_Sort"]</span>
-                    <AppNativeSelect Value="@Sort" OnChange="SortChangedAsync" aria-label="@L["ForMe_SortForMeItems"].Value">
+                    <AppSelect Native="true" Value="@Sort" ValueChanged="SortChangedAsync" aria-label="@L["ForMe_SortForMeItems"].Value">
                         <option value="recent">@L["Nav_RecentlyAdded"]</option>
                         <option value="title">@L["Common_Title"]</option>
-                    </AppNativeSelect>
+                    </AppSelect>
                 </label>
             </div>
         }
@@ -481,9 +481,9 @@
     private void NavigateArea(string area) =>
         Nav.NavigateTo($"/for-me?view={ActiveView}&area={area}&sort={Sort}");
 
-    private Task SortChangedAsync(ChangeEventArgs args)
+    private Task SortChangedAsync(string? selected)
     {
-        var sort = args.Value?.ToString() == "title" ? "title" : "recent";
+        var sort = selected == "title" ? "title" : "recent";
         Nav.NavigateTo($"/for-me?view={ActiveView}&area={Area}&sort={sort}");
         return Task.CompletedTask;
     }

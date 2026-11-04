@@ -300,7 +300,7 @@ else
         ClearMessages();
         if (await Dialogs.ShowMessageBoxAsync($"Remove {household.Name}?",
                 "The household is removed for good. It can only be removed while it has no people, sign-ins or shared photos.",
-                yesText: "Remove", cancelText: "Cancel") != true)
+                yesText: "Remove", cancelText: "Cancel", options: AppDialogOptions.DestructiveConfirm) != true)
         {
             return;
         }

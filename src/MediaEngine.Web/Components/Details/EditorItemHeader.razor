@@ -12,15 +12,18 @@
     var fields = Fields;
     var subject = fields.Loaded ? fields.MatchSubject() : null;
     var title = string.IsNullOrWhiteSpace(subject?.Title) ? active.Title : subject!.Title;
-    var kind = EditorHeaderRules.KindLabel(fields.MediaType, fields.ScopeId, fields.ScopeLabel);
+    var isUniverse = EditorUniverseRules.IsUniverseSubject(fields.SubjectKind);
+    var kind = isUniverse
+        ? EditorUniverseRules.KindLine(fields.SubjectKind, fields.Find("kind")?.DisplayValue ?? fields.Find("kind")?.Value, UniverseName)
+        : EditorHeaderRules.KindLabel(fields.MediaType, fields.ScopeId, fields.ScopeLabel);
     var trail = Flow.Session.Trail;
     var parent = subject?.ParentLabel ?? (trail.Count > 1 && trail[0].EntityId != active.EntityId ? trail[0].Title : null);
-    var kicker = EditorHeaderRules.FactsLine(parent, kind);
+    var kicker = isUniverse ? kind : EditorHeaderRules.FactsLine(parent, kind);
     var facts = fields.Loaded
         ? EditorHeaderRules.FactsLine(FieldText("air_date", "release_date", "premiere_date") ?? subject?.Year, FieldText("runtime", "duration"), subject?.Creator)
         : string.Empty;
     var image = !string.IsNullOrWhiteSpace(active.ImageUrl) ? active.ImageUrl : Family.TrailTo(active.EntityId)?[^1].ImageUrl;
-    var links = fields.Loaded ? EditorHeaderRules.Links(fields.Identity, fields.MediaType, fields.ScopeId) : [];
+    var links = fields.Loaded && !isUniverse ? EditorHeaderRules.Links(fields.Identity, fields.MediaType, fields.ScopeId) : [];
     <header class="tl-editor-header" aria-busy="@(fields.Loading ? "true" : null)">
         <div class="@(IsLandscape(fields.ScopeId) ? "tl-editor-header__cover tl-editor-header__cover--landscape" : "tl-editor-header__cover")" aria-hidden="true">
             @if (!string.IsNullOrWhiteSpace(image))
@@ -58,7 +61,7 @@
                 </div>
             }
         </div>
-        @if (links.Count > 0)
+        @if (links.Count > 0 || CanDelete)
         {
             <div class="tl-editor-header__links">
                 @foreach (var link in links)
@@ -68,6 +71,14 @@
                         <span>@link.Name</span>
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppSize.Small" />
                     </AppLink>
+                }
+
+                @if (CanDelete)
+                {
+                    @* The "..." of the item being edited (v4 D13). Delete asks once and then happens at once; it does not wait for Save. *@
+                    <AppOverflowMenu AriaLabel="@L["EditorHeader_MoreActions"].Value" Class="tl-editor-header__menu" Disabled="@(Flow?.Saving == true || Flow?.Switching == true)">
+                        <AppMenuItem Label="@DeleteLabel" Icon="@AppMaterialIcons.Outlined.Delete" Tone="AppUiTone.Error" OnClick="OnDelete" />
+                    </AppOverflowMenu>
                 }
             </div>
         }
@@ -84,11 +95,23 @@
 
     [Parameter, EditorRequired] public EditorFamilyState Family { get; set; } = default!;
 
+    /// <summary>The name of the Universe being edited, for the kind line of a character, place or faction ("Faction in Dune").</summary>
+    [Parameter] public string? UniverseName { get; set; }
+
     /// <summary>The item has no match yet (the pop-over knows, from the family and the page).</summary>
     [Parameter] public bool Unmatched { get; set; }
 
+    /// <summary>The item can be deleted from here: the "..." menu shows with its Delete entry. The caller checks the person and the device.</summary>
+    [Parameter] public bool CanDelete { get; set; }
+
+    /// <summary>The Delete entry's words ("Delete episode…", "Delete show…").</summary>
+    [Parameter] public string DeleteLabel { get; set; } = "Delete from library…";
+
+    /// <summary>Delete was chosen in the menu.</summary>
+    [Parameter] public EventCallback OnDelete { get; set; }
+
     // The matched mark is only said for an item that can be matched at all (a person or a collection is neither).
-    private bool FamilyHasState => Fields.CanMatch;
+    private bool FamilyHasState => Fields.CanMatch && !EditorUniverseRules.IsUniverseSubject(Fields.SubjectKind);
 
     // Episodes and stills are wide; everything else is a portrait cover.
     private static bool IsLandscape(string scopeId) => string.Equals(scopeId, "episode", StringComparison.OrdinalIgnoreCase);

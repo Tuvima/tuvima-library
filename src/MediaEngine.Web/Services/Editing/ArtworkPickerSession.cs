@@ -80,7 +80,7 @@ public static class ArtworkPickerRules
     {
         "coverart" or "seasonposter" or "episodestill" => "Primary",
         "background" or "seasonthumb" => "Background",
-        "headshot" or "characterportrait" => "Portrait",
+        "headshot" or "characterportrait" => "Main picture",
         "logo" => "Logo",
         _ => null,
     };
@@ -89,7 +89,7 @@ public static class ArtworkPickerRules
     {
         "coverart" => coverLabel,
         "headshot" => "Photo",
-        "characterportrait" => "Portrait",
+        "characterportrait" => "Main picture",
         "background" => "Background",
         "logo" => "Logo",
         "seasonposter" => "Season poster",

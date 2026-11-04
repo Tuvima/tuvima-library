@@ -226,7 +226,7 @@
                                                             <span>@child.Label</span>
                                                             @if (management.IsSmart)
                                                             {
-                                                                <span class="media-section-shell__smart-badge" title="@L["MediaSectionShell_SmartMembershipIsControlledBy"].Value">@L["Common_Smart"]</span>
+                                                                <AppChip Text="@L["Common_Smart"].Value" Title="@L["MediaSectionShell_SmartMembershipIsControlledBy"].Value" />
                                                             }
                                                             else if (!string.IsNullOrWhiteSpace(child.Meta))
                                                             {
@@ -340,7 +340,7 @@
                                         <span>@item.Label</span>
                                         @if (management.IsSmart)
                                         {
-                                            <span class="media-section-shell__smart-badge" title="@L["MediaSectionShell_SmartMembershipIsControlledBy"].Value">@L["Common_Smart"]</span>
+                                            <AppChip Text="@L["Common_Smart"].Value" Title="@L["MediaSectionShell_SmartMembershipIsControlledBy"].Value" />
                                         }
                                         else if (!string.IsNullOrWhiteSpace(item.Meta))
                                         {

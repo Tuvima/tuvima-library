@@ -39,14 +39,15 @@
     else if (Selection.Panel == BulkPanelKind.Match)
     {
         <section class="tl-bulk__group" aria-label="@L["Common_Match"].Value">
-            <p class="tl-bulk__note">
-                Match each of the @Selection.Count @Noun with the entry of its own @(IsEpisodes ? "season" : "album") that it fits best by title.
-                Nothing changes until you save, and the review lists every one.
-            </p>
-            <div class="tl-bulk__actions">
-                <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!CanChange)" OnClick="StageMatch">@L["BulkEditPanel_StageMatching"]</AppButton>
-                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="BackToEdit">@L["Search_Cancel"]</AppButton>
-            </div>
+            <EditorLineUpPanel ParentId="@(Selection.Rows[0].ParentId ?? Guid.Empty)"
+                               MediaType="@(IsEpisodes ? "TV" : "Music")"
+                               ParentScope="@(IsEpisodes ? "season" : "album")"
+                               ParentName="@MatchParentName"
+                               Rows="@Selection.Rows"
+                               Pending="Pending"
+                               CanEdit="@CanChange"
+                               OnStaged="@(_ => BackToEdit())"
+                               OnCancel="BackToEdit" />
         </section>
     }
     else
@@ -177,6 +178,9 @@
 
     /// <summary>False shows the fields read-only (a library or person that cannot edit); the device rule is checked as well.</summary>
     [Parameter] public bool CanEdit { get; set; } = true;
+
+    /// <summary>What the show or album the ticked rows sit in is called; the Match step starts its search from it. Null when the list does not know.</summary>
+    [Parameter] public string? MatchParentName { get; set; }
 
     private bool CanChange => CanEdit && EditorDeviceRule.CanEdit(Device) && !_fields.Forbidden;
 
@@ -684,17 +688,6 @@
         {
             Selection.ClosePanel();
         }
-    }
-
-    private void StageMatch()
-    {
-        if (!CanChange || !BulkEditRules.CanMatch(Selection.Rows, Selection.MediaType))
-        {
-            return;
-        }
-
-        BulkEditStager.MatchInPlace(Pending, Selection.Rows);
-        BackToEdit();
     }
 
     // -- Move to album or season ---------------------------------------------------------------------

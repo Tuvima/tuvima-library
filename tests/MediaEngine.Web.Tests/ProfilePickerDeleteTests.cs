@@ -107,7 +107,7 @@ public sealed class ProfilePickerDeleteTests : AsyncBunitContext
         cut.Find(".who-card--add").Click();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("input.profile-editor__name")));
         cut.Find("input.profile-editor__name").Input("Robin");
-        cut.FindAll(".who-button--primary").Single(button => button.TextContent.Trim() == "Add profile").Click();
+        cut.FindAll(".profile-editor__save").Single(button => button.TextContent.Trim() == "Add profile").Click();
 
         cut.WaitForAssertion(() => Assert.Equal(_addRefusal, cut.Find(".who-page__error").TextContent.Trim()));
     }

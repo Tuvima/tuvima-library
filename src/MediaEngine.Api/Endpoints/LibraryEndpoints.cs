@@ -317,6 +317,122 @@ public static class LibraryEndpoints
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireEffectiveAdministrator();
 
+        // ── GET /library/editor-subjects/universes/{qid}/things ─────
+        // The rail of the Universe editor (universal editor v4, D10): the kinds of thing a Universe holds with how many of each, and for one
+        // kind its things, searched and paged. Unlike the Universe page it lists every thing, hidden ones included.
+        group.MapGet("/editor-subjects/universes/{qid}/things", async (
+            string qid,
+            string? kind,
+            string? search,
+            int? offset,
+            int? limit,
+            ICollectionRepository collections,
+            [FromServices] EditorUniverseThingsService things,
+            EditSessionAccessService access,
+            HttpContext http,
+            CancellationToken ct) =>
+        {
+            var normalized = UniverseClientReadService.NormalizeQid(qid);
+            var universe = normalized is null ? null : await collections.FindUniverseByQidAsync(normalized, ct);
+            if (universe is null)
+            {
+                return ApiErrors.NotFound(EditSessionReasons.SubjectUnavailable);
+            }
+
+            var refusals = await access.FindRefusalsAsync(http, [universe.Id], ct);
+            if (refusals.TryGetValue(universe.Id, out var refusal))
+            {
+                return ApiErrors.Forbidden(refusal);
+            }
+
+            var page = PagedRequest.From(offset, limit, EditorUniverseThingsService.DefaultPageSize, EditorUniverseThingsService.MaxPageSize);
+            return Results.Ok(await things.GetAsync(
+                universe.Id,
+                normalized!,
+                universe.DisplayName ?? normalized!,
+                kind,
+                search,
+                page.Offset,
+                page.Limit,
+                ct));
+        })
+        .WithName("GetEditorUniverseThings")
+        .WithSummary("The kinds of thing a Universe holds with their counts, and one kind's things searched and paged, for the universal editor's rail.")
+        .Produces<EditorUniverseThingsDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireEffectiveAdministrator();
+
+        // ── DELETE /library/editor-subjects/things/{id} ─────
+        // Removes a thing someone added by hand to a Universe, at once (universal editor v4 D13: Delete does not wait for Save). A thing that
+        // came from a provider is never deleted here; it can be hidden from the Universe page in the editor instead.
+        group.MapDelete("/editor-subjects/things/{id:guid}", async (
+            Guid id,
+            [FromServices] IFictionalEntityRepository entities,
+            [FromServices] IEntityAssetRepository assets,
+            EditSessionAccessService access,
+            HttpContext http,
+            CancellationToken ct) =>
+        {
+            var thing = await entities.FindByIdAsync(id, ct);
+            if (thing is null)
+            {
+                return ApiErrors.NotFound(EditSessionReasons.Gone);
+            }
+
+            if (!thing.AddedByUser)
+            {
+                return ApiErrors.BadRequest("Only something you added yourself can be deleted. Hide it from the Universe page instead.");
+            }
+
+            var refusals = await access.FindRefusalsAsync(http, [id], ct);
+            if (refusals.TryGetValue(id, out var refusal))
+            {
+                return ApiErrors.Forbidden(refusal);
+            }
+
+            if (!await entities.DeleteUserEntityAsync(id, ct))
+            {
+                return ApiErrors.NotFound(EditSessionReasons.Gone);
+            }
+
+            await assets.DeleteByEntityAsync(id.ToString(), ct);
+            return Results.NoContent();
+        })
+        .WithName("DeleteEditorUniverseThing")
+        .WithSummary("Delete a character, place, faction or other thing that was added by hand to a Universe.")
+        .Produces(StatusCodes.Status204NoContent)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireEffectiveAdministrator();
+
+        // ── GET /library/editor-subjects/{id}/history ─────
+        // The History tab of a Universe and of its characters, places and factions (universal editor v4, D10): what was changed in the editor
+        // and when, as the same rows a library title's history uses.
+        group.MapGet("/editor-subjects/{id:guid}/history", async (
+            Guid id,
+            EditSubjectDirectory subjects,
+            [FromServices] IEntityTimelineRepository timeline,
+            EditSessionAccessService access,
+            HttpContext http,
+            CancellationToken ct) =>
+        {
+            var refusals = await access.FindRefusalsAsync(http, [id], ct);
+            if (refusals.TryGetValue(id, out var refusal))
+            {
+                return ApiErrors.Forbidden(refusal);
+            }
+
+            var subject = await subjects.FindAsync(id, ct);
+            return subject is null || !EditorUniverseHistory.Keeps(subject.Kind)
+                ? ApiErrors.NotFound(EditSessionReasons.SubjectUnavailable)
+                : Results.Ok(await EditorUniverseHistory.Read(timeline, id, ct));
+        })
+        .WithName("GetEditorSubjectHistory")
+        .WithSummary("What was changed in the editor on a Universe or one of its characters, places or factions, newest first.")
+        .Produces<IReadOnlyList<MediaEngine.Contracts.Items.LibraryItemHistoryDto>>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireEffectiveAdministrator();
+
         // ── GET /library/editor-quick-facts/{id} ─────
         // The totals the editor's Quick Facts panel needs beyond the fields (universal editor v4, D4): children owned of total, files, size,
         // runtime, best quality, and whether the files sit in a read-only library folder. Works for any title, person, Series, collection or Universe.

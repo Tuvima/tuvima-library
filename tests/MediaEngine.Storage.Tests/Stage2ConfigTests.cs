@@ -170,6 +170,12 @@ public sealed class Stage2ConfigTests
         Assert.Contains("P828", extension.EventProperties.Core);
         Assert.Contains("P1542", extension.EventProperties.Core);
         Assert.Contains("P5800", extension.ObjectProperties.Core);
+        // Species is a first-class kind with its own fetch settings; P793 stays out because it names real-world events, not story events.
+        Assert.Contains("P31", extension.SpeciesProperties.Core);
+        Assert.Contains("P1441", extension.SpeciesProperties.Core);
+        Assert.Contains("P4584", extension.SpeciesProperties.Core);
+        Assert.Contains("P18", extension.SpeciesProperties.Core);
+        Assert.DoesNotContain("P793", extension.SpeciesProperties.Core);
         Assert.Equal("narrative_universe", extension.PropertyLabels["P1080"]);
         Assert.Equal("narrative_event", extension.PropertyLabels["P793"]);
         Assert.Equal("spoiler_for_work", extension.PropertyLabels["P7528"]);

@@ -1,0 +1,240 @@
+@page "/universe/{Qid}/things/{ThingId:guid}"
+@namespace MediaEngine.Web.Components.Pages
+@using MediaEngine.Contracts.Universe
+@using MediaEngine.Web.Components.Universe
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Theming
+@implements IDisposable
+@inject IEngineApiClient ApiClient
+@inject EditorHost Editor
+@inject DeviceContextService DeviceContext
+@inject DashboardSessionAccessor Session
+@inject DashboardIdentityClient Identity
+@inject IAdministratorSurfaceAccessService AdministratorAccess
+@inject IAppToastService Snackbar
+@inject ILogger<UniverseThingPage> Logger
+@inject IStringLocalizer<SharedStrings> L
+
+<PageTitle>@L["Common_Library", PageTitleText]</PageTitle>
+
+@* One character, faction, place, event, object, species or concept of a Universe as a page to read. Editing uses the same
+   pop-over editor as every other page, for desktop administrators only; a deep link never opens it. *@
+<div class="universe-thing-page">
+    @switch (_status)
+    {
+        case UniverseThingLoadStatus.Unavailable when _thing is null:
+            <AppErrorState Title="@L["Common_CanTReachTheEngine"].Value"
+                           Message="@L["UniverseThing_CouldNotBeLoaded"].Value"
+                           Retry="RetryAsync" />
+            break;
+
+        case UniverseThingLoadStatus.NotFound:
+            <AppEmptyState Title="@L["UniverseThing_NotAvailable"].Value"
+                           Message="@L["UniverseThing_MayBeHidden"].Value">
+                <Action>
+                    <AppButton Label="@L["UniverseThing_BackToUniverse"].Value" Href="@UniverseHref" ButtonStyle="AppButtonStyle.Outlined" />
+                </Action>
+            </AppEmptyState>
+            break;
+
+        default:
+            if (_thing is { } thing)
+            {
+                <UniverseThingView Thing="@thing" CanEdit="@CanShowEdit" EditBusy="@_openingEditor" OnEdit="EditThingAsync" />
+            }
+            else
+            {
+                <div class="universe-thing-page__loading" aria-busy="true">
+                    <AppSkeleton Height="12rem" Width="100%" />
+                    <AppSkeleton Height="10rem" Width="100%" />
+                </div>
+            }
+            break;
+    }
+</div>
+
+@code {
+    [Parameter] public string Qid { get; set; } = string.Empty;
+
+    [Parameter] public Guid ThingId { get; set; }
+
+    private readonly CancellationTokenSource _lifetime = new();
+    private EditingModeContext _editing = default!;
+    private EditorBinding _binding = default!;
+    private UniverseThingDto? _thing;
+    private UniverseThingLoadStatus _status = UniverseThingLoadStatus.Loaded;
+    private string? _loadedKey;
+    private bool _isAdministrator;
+    private bool _openingEditor;
+    private bool _disposed;
+
+    private string PageTitleText => _thing?.Label is { Length: > 0 } label ? label : "Universe";
+
+    private string UniverseHref => $"/universe/{Uri.EscapeDataString(Qid)}";
+
+    // Desktop administrators may edit; the Engine decides again when the editor loads and for every save.
+    private bool CanShowEdit => _isAdministrator && DeviceContext.CanEdit;
+
+    protected override void OnInitialized()
+    {
+        _editing = Editor.Mode;
+        _binding = new EditorBinding(DeviceContext)
+        {
+            Saved = RefreshAfterEditSavedAsync,
+            Trail = () =>
+            [
+                new EditTrailItem(Guid.Empty, _thing?.UniverseLabel ?? "Universe", EditTrailKinds.Universe),
+                new EditTrailItem(ThingId, _thing?.Label ?? "Universe", EditTrailKinds.Thing),
+            ],
+            ShowHistory = true,
+        };
+        DeviceContext.OnChanged += OnAccessContextChanged;
+        Session.OnAuthorityChanged += OnAccessContextChanged;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var key = $"{Qid}|{ThingId:D}";
+        if (string.Equals(_loadedKey, key, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        // A different thing in the same circuit starts over: close any editor and show the loading state.
+        _loadedKey = key;
+        _binding.UniverseQid = Qid;
+        _thing = null;
+        _status = UniverseThingLoadStatus.Loaded;
+        if (ReferenceEquals(Editor.Binding, _binding))
+        {
+            _editing.Leave();
+        }
+
+        await LoadAsync();
+        await LoadAdministratorAsync(confirmWithEngine: true);
+    }
+
+    private async Task LoadAsync()
+    {
+        var result = await ApiClient.GetUniverseThingAsync(Qid, ThingId, _lifetime.Token);
+        if (_disposed)
+        {
+            return;
+        }
+
+        _status = result.Status;
+        if (result.Thing is not null)
+        {
+            _thing = result.Thing;
+        }
+        else if (result.Status == UniverseThingLoadStatus.NotFound)
+        {
+            _thing = null;
+        }
+    }
+
+    private Task RetryAsync()
+    {
+        _thing = null;
+        _status = UniverseThingLoadStatus.Loaded;
+        return LoadAsync();
+    }
+
+    private async Task LoadAdministratorAsync(bool confirmWithEngine)
+    {
+        _isAdministrator = Session.Authority?.EffectiveAdministrator == true
+            || (confirmWithEngine
+                && (await Identity.RevalidateAuthorityAsync(Session, _lifetime.Token))?.EffectiveAdministrator == true);
+        _binding.HasPermission = CanShowEdit;
+    }
+
+    private void OnAccessContextChanged() => _ = InvokeAsync(async () =>
+    {
+        if (_disposed || _thing is null || CanShowEdit)
+        {
+            return;
+        }
+
+        try
+        {
+            await LoadAdministratorAsync(confirmWithEngine: false);
+            StateHasChanged();
+        }
+        catch (OperationCanceledException)
+        {
+            // The page was left before the check finished.
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "The Universe thing page could not check whether {ThingId} is editable", ThingId);
+        }
+    });
+
+    private async Task EditThingAsync()
+    {
+        if (_openingEditor || !CanShowEdit || _editing.IsOn)
+        {
+            return;
+        }
+
+        // Every edit handler asks the device rule again; a hidden button is never the only protection.
+        if (EditorDeviceRule.TryRefuse(DeviceContext, Snackbar))
+        {
+            return;
+        }
+
+        _openingEditor = true;
+        try
+        {
+            if (!await AdministratorAccess.EnsureUnlockedAsync(_lifetime.Token))
+            {
+                return;
+            }
+
+            _binding.HasPermission = true;
+            await Editor.OpenAsync(_binding, ThingId, EditTool.Details);
+        }
+        catch (OperationCanceledException)
+        {
+            // The page was left while the unlock prompt was open.
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Could not open the editor for Universe thing {ThingId}", ThingId);
+            Snackbar.Add(L["Common_UniverseEditingIsUnavailablePlease"].Value, AppSeverity.Error);
+        }
+        finally
+        {
+            _openingEditor = false;
+        }
+    }
+
+    // Save changes went through: show the new values and reload the editor's fields so the next edit starts from them.
+    private async Task RefreshAfterEditSavedAsync()
+    {
+        try
+        {
+            await LoadAsync();
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (OperationCanceledException)
+        {
+            // The page was left while the read was running.
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "The Universe thing page could not refresh after an edit for {ThingId}", ThingId);
+            Snackbar.Add(L["Common_SavedButThePageCould"].Value, AppSeverity.Warning);
+        }
+    }
+
+    public void Dispose()
+    {
+        _disposed = true;
+        DeviceContext.OnChanged -= OnAccessContextChanged;
+        Session.OnAuthorityChanged -= OnAccessContextChanged;
+        Editor.Unbind(_binding);
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+    }
+}

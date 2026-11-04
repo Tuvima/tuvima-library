@@ -4,6 +4,7 @@ using MediaEngine.Api.Services.EditSession;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Domain.Aggregates;
+using MediaEngine.Domain.Contracts;
 using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 using MediaEngine.Domain.Services;
@@ -317,7 +318,7 @@ public sealed class EditSubjectEditSessionTests : IDisposable
 
         Assert.NotNull(subject);
         Assert.Equal(EditorSubjectKinds.FictionalEntity, subject.Kind);
-        Assert.Equal(["name", "description", "aliases"], subject.Fields.Select(field => field.Key));
+        Assert.Equal(["name", "description", "aliases", "belongs_to", "visibility"], subject.Fields.Select(field => field.Key));
         Assert.Equal(["CharacterPortrait", "Background"], subject.ArtworkSlots);
         Assert.Contains(subject.Facts, fact => fact.Label == "Kind" && fact.Value == "Character");
     }
@@ -346,6 +347,76 @@ public sealed class EditSubjectEditSessionTests : IDisposable
         Assert.Equal(["Muad'Dib", "Usul"], (await _entities.GetUserLinksAsync(entity))?.Aliases);
         var subject = (await _subjects.LoadAsync(entity))!;
         Assert.Equal("Muad'Dib\nUsul", subject.Fields.Single(field => field.Key == "aliases").Value);
+    }
+
+    [Fact]
+    public async Task FictionalEntity_Opens_WithBelongsToAndVisibilityChoices_ListingOnlyFactionsPlacesAndSpecies()
+    {
+        var hero = await SeedEntityAsync("Paul Atreides", null);
+        var faction = await _entities.CreateUserEntityAsync("House Atreides", "Organization", "Q3041974", "Dune universe", null);
+        var place = await _entities.CreateUserEntityAsync("Caladan", "Location", "Q3041974", "Dune universe", null);
+        await _entities.CreateUserEntityAsync("Stilgar", "Character", "Q3041974", "Dune universe", null);
+
+        var subject = (await _subjects.LoadAsync(hero))!;
+
+        var belongsTo = subject.Fields.Single(field => field.Key == "belongs_to");
+        Assert.Equal(EditorSubjectInputKinds.Choice, belongsTo.InputKind);
+        Assert.Equal("none", belongsTo.Value);
+        Assert.Equal(["none", place.Id.ToString("D"), faction.Id.ToString("D")], belongsTo.Options.Select(option => option.Value));
+        Assert.Equal(["Nothing", "Caladan (Place)", "House Atreides (Faction)"], belongsTo.Options.Select(option => option.Label));
+        var visibility = subject.Fields.Single(field => field.Key == "visibility");
+        Assert.Equal("shown", visibility.Value);
+        Assert.Equal(["shown", "hidden"], visibility.Options.Select(option => option.Value));
+    }
+
+    [Fact]
+    public async Task FictionalEntity_Apply_SavesBelongsToAndHidden_AndUndoPutsThemBack()
+    {
+        var hero = await SeedEntityAsync("Paul Atreides", null);
+        var faction = await _entities.CreateUserEntityAsync("House Atreides", "Organization", "Q3041974", "Dune universe", null);
+
+        var result = await CreateService().RunAsync(
+            Request(previewOnly: false, DetailsChange("d1", hero, ("belongs_to", faction.Id.ToString("D")), ("visibility", "hidden"))), NoRefusals);
+
+        Assert.True(result.DataSaved);
+        var saved = await _entities.GetUserLinksAsync(hero);
+        Assert.Equal(faction.Id, saved?.BelongsToEntityId);
+        Assert.True(saved?.IsHidden);
+        var subject = (await _subjects.LoadAsync(hero))!;
+        Assert.Equal(faction.Id.ToString("D"), subject.Fields.Single(field => field.Key == "belongs_to").Value);
+        Assert.Equal("hidden", subject.Fields.Single(field => field.Key == "visibility").Value);
+    }
+
+    [Fact]
+    public async Task FictionalEntity_BelongsTo_CannotMakeACircle_OrPointAtAThingOfAnotherUniverse()
+    {
+        var guild = await _entities.CreateUserEntityAsync("Guild", "Organization", "Q3041974", "Dune universe", null);
+        var branch = await _entities.CreateUserEntityAsync("Guild Branch", "Organization", "Q3041974", "Dune universe", null);
+        var elsewhere = await _entities.CreateUserEntityAsync("Elsewhere Order", "Organization", "Q999", "Other universe", null);
+        await _entities.UpdateUserLinksAsync(branch.Id, new FictionalEntityUserLinks([], guild.Id, false));
+
+        var circle = await CreateService().RunAsync(
+            Request(previewOnly: false, DetailsChange("d1", guild.Id, ("belongs_to", branch.Id.ToString("D")))), NoRefusals);
+        var other = await CreateService().RunAsync(
+            Request(previewOnly: false, DetailsChange("d2", guild.Id, ("belongs_to", elsewhere.Id.ToString("D")))), NoRefusals);
+
+        Assert.False(circle.DataSaved);
+        Assert.False(other.DataSaved);
+        Assert.Null((await _entities.GetUserLinksAsync(guild.Id))?.BelongsToEntityId);
+        // The guild's own options never offer its own branch.
+        var options = (await _subjects.LoadAsync(guild.Id))!.Fields.Single(field => field.Key == "belongs_to").Options;
+        Assert.DoesNotContain(options, option => option.Value == branch.Id.ToString("D"));
+    }
+
+    [Fact]
+    public async Task FictionalEntity_Check_RefusesABelongsToThatIsNotAChoice()
+    {
+        var hero = await SeedEntityAsync("Paul Atreides", null);
+
+        var result = await CreateService().RunAsync(
+            Request(previewOnly: false, DetailsChange("d1", hero, ("belongs_to", "somewhere"))), NoRefusals);
+
+        Assert.False(result.DataSaved);
     }
 
     [Fact]

@@ -34,7 +34,7 @@
     align-items: center;
     background: transparent !important;
     border: 2.5px solid var(--playback-accent);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
     box-shadow: var(--playback-primary-shadow);
     color: var(--playback-primary-glyph, #fff) !important;
     cursor: pointer;
@@ -65,7 +65,7 @@
     background:transparent;
     border:2.5px solid var(--playback-accent);
     box-sizing:border-box;
-    border-radius:999px;
+    border-radius:var(--tl-radius-round);
     box-shadow: var(--playback-primary-shadow);
     content: "";
     height: var(--playback-primary-visual-size);

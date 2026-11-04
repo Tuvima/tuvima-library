@@ -25,13 +25,11 @@
     <h2 id="@TitleId" class="tl-details-overlay__title">@(string.IsNullOrWhiteSpace(Overlay.Title) ? "Details" : Overlay.Title)</h2>
     <div class="tl-details-overlay__frame">
         @* AppNativeButton renders the element, so its 44px top-right style lives in app.css (scoped styles cannot reach it). *@
-        <AppNativeButton Type="button"
-                         Class="tl-details-overlay__close"
-                         AriaLabel="@L["Common_Close"].Value"
-                         Title="@L["Common_Close"].Value"
-                         OnClick="CloseAsync">
-            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" />
-        </AppNativeButton>
+        <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
+                       Class="tl-details-overlay__close"
+                       AriaLabel="@L["Common_Close"].Value"
+                       title="@L["Common_Close"].Value"
+                       OnClick="CloseAsync" />
         <div class="tl-details-overlay__scroller" data-detail-origin-scroll="details-overlay" tabindex="-1" autofocus>
             @ChildContent
         </div>

@@ -100,9 +100,9 @@ public sealed class PendingEditList
     /// </summary>
     public void SetTarget(string kind, Guid entityId, string? targetId, string? token = null, string? label = null, string? note = null, string? before = null)
     {
-        if (kind is EditSessionChangeKinds.Details or EditSessionChangeKinds.Artwork or EditSessionChangeKinds.ExtraMove or EditSessionChangeKinds.VideoOrder || !EditSessionChangeKinds.IsKnown(kind))
+        if (kind is EditSessionChangeKinds.Details or EditSessionChangeKinds.Artwork or EditSessionChangeKinds.ExtraMove or EditSessionChangeKinds.VideoOrder or EditSessionChangeKinds.ThingAdd || !EditSessionChangeKinds.IsKnown(kind))
         {
-            throw new ArgumentException("Use SetField, SetArtwork, SetExtraMove or SetVideoOrder for details, artwork, Extras and video-order changes.", nameof(kind));
+            throw new ArgumentException("Use SetField, SetArtwork, SetExtraMove, SetVideoOrder or AddThing for details, artwork, Extras, video-order and added-thing changes.", nameof(kind));
         }
 
         var existing = Find(kind, entityId);
@@ -121,7 +121,7 @@ public sealed class PendingEditList
     /// episode to Extras (<paramref name="extraId"/> null, token <see cref="EditSessionExtraMove.ToExtrasToken"/>). Unlike the other
     /// kinds there can be several per item, one for each Extra, so they are told apart by <see cref="EditSessionChange.TargetId"/>.
     /// </summary>
-    public void SetExtraMove(Guid entityId, string? extraId, string token, string? label = null)
+    public void SetExtraMove(Guid entityId, string? extraId, string token, string? label = null, string? before = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(token);
         var existing = FindExtraMove(entityId, extraId);
@@ -132,8 +132,23 @@ public sealed class PendingEditList
             EntityId = entityId,
             TargetId = extraId,
             Token = token,
-        }, label);
+        }, label, before: before);
     }
+
+    /// <summary>
+    /// Stages what a person chose for one file in "What is this file?" (universal editor v4 D20): an Extra of its own title, an Extra of
+    /// another title, or ignore. One per item: choosing again replaces the earlier choice. <paramref name="label"/> says what it becomes
+    /// ("Trailer · Season 1") and <paramref name="before"/> names the file, both for Review changes only.
+    /// </summary>
+    public void SetFileChoice(Guid entityId, ExtraFileChoice choice, string label, string? before = null)
+    {
+        ArgumentNullException.ThrowIfNull(choice);
+        SetExtraMove(entityId, null, EditSessionExtraMove.ToFileToken(choice), label, before);
+    }
+
+    /// <summary>The staged "What is this file?" choice of one item, or null.</summary>
+    public EditSessionChange? FindFileChoice(Guid entityId) =>
+        FindExtraMove(entityId, null) is { } change && EditSessionExtraMove.IsFileChoice(change.Token) ? change : null;
 
     /// <summary>
     /// Stages the order of the videos of one series or section (universal editor v3.1), replacing an earlier order staged for it.
@@ -151,6 +166,41 @@ public sealed class PendingEditList
             OrderedIds = [.. orderedIds],
         }, label, before: before);
     }
+
+    /// <summary>
+    /// Stages adding a character, place, faction or other thing by hand to a Universe (universal editor v4, WP11). Unlike the other kinds
+    /// there can be several for one Universe, told apart by an id made up here. <paramref name="label"/> names the kind ("Faction") for Review
+    /// and is never sent to the Engine.
+    /// </summary>
+    public EditSessionChange AddThing(Guid universeId, string name, string kindKey, string? description, string? label = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(kindKey);
+        var fields = new List<EditSessionFieldChange>
+        {
+            new() { Key = EditSessionThingAdd.NameKey, Value = name.Trim() },
+            new() { Key = EditSessionThingAdd.KindKey, Value = kindKey.Trim() },
+        };
+        if (!string.IsNullOrWhiteSpace(description))
+        {
+            fields.Add(new EditSessionFieldChange { Key = EditSessionThingAdd.DescriptionKey, Value = description.Trim() });
+        }
+
+        var change = new EditSessionChange
+        {
+            Id = NewId(),
+            Kind = EditSessionChangeKinds.ThingAdd,
+            EntityId = universeId,
+            TargetId = Guid.NewGuid().ToString("N"),
+            Fields = fields,
+        };
+        Replace(null, change, label);
+        return change;
+    }
+
+    /// <summary>The things staged to be added to a Universe, in the order they were staged.</summary>
+    public IReadOnlyList<EditSessionChange> ThingAdds(Guid universeId) =>
+        [.. _changes.Where(change => change.Kind == EditSessionChangeKinds.ThingAdd && change.EntityId == universeId)];
 
     /// <summary>The staged order of one series or section, or null.</summary>
     public EditSessionChange? FindVideoOrder(Guid parentId) => Find(EditSessionChangeKinds.VideoOrder, parentId);

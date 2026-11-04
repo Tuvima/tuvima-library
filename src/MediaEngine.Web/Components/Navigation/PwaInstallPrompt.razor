@@ -13,19 +13,18 @@
         </div>
         @if (_state == "available")
         {
-            <AppNativeButton Type="button"
-                             Class="pwa-install-prompt__install"
-                             AriaLabel="@L["PwaInstallPrompt_InstallLibrary"].Value"
-                             OnClick="InstallAsync">
+            <AppButton ButtonStyle="AppButtonStyle.Filled"
+                       Tone="AppUiTone.Primary"
+                       Class="pwa-install-prompt__install"
+                       aria-label="@L["PwaInstallPrompt_InstallLibrary"].Value"
+                       OnClick="InstallAsync">
                 @L["PwaInstallPrompt_Install"]
-            </AppNativeButton>
+            </AppButton>
         }
-        <AppNativeButton Type="button"
-                         Class="pwa-install-prompt__dismiss"
-                         AriaLabel="@L["PwaInstallPrompt_DismissInstallPrompt"].Value"
-                         OnClick="Dismiss">
-            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" />
-        </AppNativeButton>
+        <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
+                       Class="pwa-install-prompt__dismiss"
+                       AriaLabel="@L["PwaInstallPrompt_DismissInstallPrompt"].Value"
+                       OnClick="Dismiss" />
     </aside>
 }
 
@@ -55,12 +54,12 @@
         return InvokeAsync(StateHasChanged);
     }
 
-    private async Task InstallAsync(MouseEventArgs _)
+    private async Task InstallAsync()
     {
         _state = await JS.InvokeAsync<string>("tuvimaPwa.install");
     }
 
-    private async Task Dismiss(MouseEventArgs _) => _state = await JS.InvokeAsync<string>("tuvimaPwa.dismiss");
+    private async Task Dismiss() => _state = await JS.InvokeAsync<string>("tuvimaPwa.dismiss");
 
     public async ValueTask DisposeAsync()
     {

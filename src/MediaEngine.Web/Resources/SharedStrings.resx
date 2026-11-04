@@ -310,6 +310,42 @@
   <data name="UniverseContents_TimelineOrder" xml:space="preserve">
     <value>Timeline order</value>
   </data>
+  <data name="UniverseThing_Back" xml:space="preserve">
+    <value>Back to {0}</value>
+  </data>
+  <data name="UniverseThing_Hidden" xml:space="preserve">
+    <value>Hidden until you reach it</value>
+  </data>
+  <data name="UniverseThing_NoDescription" xml:space="preserve">
+    <value>Nothing is known about this yet.</value>
+  </data>
+  <data name="UniverseThing_AlsoKnownAs" xml:space="preserve">
+    <value>Also known as</value>
+  </data>
+  <data name="UniverseThing_AppearsIn" xml:space="preserve">
+    <value>Appears in</value>
+  </data>
+  <data name="UniverseThing_FromWikidata" xml:space="preserve">
+    <value>From Wikidata</value>
+  </data>
+  <data name="UniverseThing_FromFandom" xml:space="preserve">
+    <value>From Fandom</value>
+  </data>
+  <data name="UniverseThing_Yours" xml:space="preserve">
+    <value>Written by you</value>
+  </data>
+  <data name="UniverseThing_CouldNotBeLoaded" xml:space="preserve">
+    <value>This page could not be loaded. Please try again.</value>
+  </data>
+  <data name="UniverseThing_NotAvailable" xml:space="preserve">
+    <value>This page isn't available</value>
+  </data>
+  <data name="UniverseThing_MayBeHidden" xml:space="preserve">
+    <value>It may have been removed, or it may not be ready to show yet.</value>
+  </data>
+  <data name="UniverseThing_BackToUniverse" xml:space="preserve">
+    <value>Back to the Universe</value>
+  </data>
   <data name="Universe_ModeWeb" xml:space="preserve">
     <value>Web</value>
   </data>
@@ -1020,9 +1056,6 @@
   <data name="BulkEditPanel_TickSomeRowsToEdit" xml:space="preserve">
     <value>Tick some rows to edit them together.</value>
   </data>
-  <data name="BulkEditPanel_StageMatching" xml:space="preserve">
-    <value>Stage matching</value>
-  </data>
   <data name="Common_YouCanLookAtThese" xml:space="preserve">
     <value>You can look at these details but not change them.</value>
   </data>
@@ -1230,23 +1263,11 @@
   <data name="Common_Extras" xml:space="preserve">
     <value>Extras</value>
   </data>
-  <data name="EditorExtrasMovePanel_MovesToExtrasWhenYou" xml:space="preserve">
-    <value>Moves to Extras when you save.</value>
-  </data>
-  <data name="EditorExtrasMovePanel_ThisIsNotAnEpisode" xml:space="preserve">
-    <value>This is not an episode. Keep the file, but show it under Extras instead.</value>
-  </data>
   <data name="Common_Season" xml:space="preserve">
     <value>Season</value>
   </data>
   <data name="Common_Episode" xml:space="preserve">
     <value>Episode</value>
-  </data>
-  <data name="EditorExtrasMovePanel_Undo" xml:space="preserve">
-    <value>Undo</value>
-  </data>
-  <data name="EditorExtrasMovePanel_MoveToExtras" xml:space="preserve">
-    <value>Move to Extras</value>
   </data>
   <data name="EditorExtrasMovePanel_Move" xml:space="preserve">
     <value>Move</value>
@@ -4549,7 +4570,7 @@
     <value>Excluded files</value>
   </data>
   <data name="ExcludedFilesSection_TheseFilesStayedOnDisk" xml:space="preserve">
-    <value>These files stayed on disk when their title was deleted. Scans skip them until you add them back.</value>
+    <value>These files stayed on disk, either because their title was deleted or because you ignored them. Scans skip them until you add them back.</value>
   </data>
   <data name="Common_Folder" xml:space="preserve">
     <value>Folder</value>
@@ -7731,9 +7752,6 @@
   <data name="PathFinderPanel_MaxHops" xml:space="preserve">
     <value>Max hops</value>
   </data>
-  <data name="UniverseCharacterList_ShowingTheCharactersSeenIn" xml:space="preserve">
-    <value>Showing the {0} characters seen in the most works</value>
-  </data>
   <data name="UniverseConnections_Connections" xml:space="preserve">
     <value>Connections</value>
   </data>
@@ -7744,7 +7762,7 @@
     <value>Still learning about this Universe</value>
   </data>
   <data name="UniverseConnections_NoCharactersCastOrAdaptations" xml:space="preserve">
-    <value>No characters, cast or adaptations recorded for this Universe yet.</value>
+    <value>No cast or adaptations recorded for this Universe yet.</value>
   </data>
   <data name="UniverseConnections_AddFandomDetails" xml:space="preserve">
     <value>Add Fandom details</value>
@@ -10365,8 +10383,14 @@
   <data name="EditorContents_ChooseWhatToChange" xml:space="preserve">
     <value>Choose what to change</value>
   </data>
+  <data name="EditorLineUp_ApplyTo" xml:space="preserve">
+    <value>Apply to</value>
+  </data>
+  <data name="EditorLineUp_ReadOnly" xml:space="preserve">
+    <value>You can look at these matches, but you can't change them.</value>
+  </data>
   <data name="EditorContents_MatchN" xml:space="preserve">
-    <value>Match {0} {1}</value>
+    <value>Match these {0} {1}</value>
   </data>
   <data name="EditorContents_Loading" xml:space="preserve">
     <value>Loading the contents</value>
@@ -10454,5 +10478,122 @@
   </data>
   <data name="EditorQuickFacts_Title" xml:space="preserve">
     <value>Quick Facts</value>
+  </data>
+  <data name="EditorFiles_Actions" xml:space="preserve">
+    <value>Actions</value>
+  </data>
+  <data name="EditorFiles_DeleteFile" xml:space="preserve">
+    <value>Delete {0}…</value>
+  </data>
+  <data name="EditorHeader_MoreActions" xml:space="preserve">
+    <value>More actions for this item</value>
+  </data>
+  <data name="EditorFileSort_Heading" xml:space="preserve">
+    <value>What is this file?</value>
+  </data>
+  <data name="EditorFileSort_MainFileHint" xml:space="preserve">
+    <value>Use Match above to find which one it is.</value>
+  </data>
+  <data name="EditorFileSort_MatchAbove" xml:space="preserve">
+    <value>Use the search above to find the match, then choose Use this match.</value>
+  </data>
+  <data name="EditorFileSort_Extra" xml:space="preserve">
+    <value>An Extra</value>
+  </data>
+  <data name="EditorFileSort_ExtraHint" xml:space="preserve">
+    <value>A trailer, featurette, document, pictures or another clip that goes with a title.</value>
+  </data>
+  <data name="EditorFileSort_OnlyFilesCanBeExtras" xml:space="preserve">
+    <value>Only documents, pictures and video or audio clips can be Extras.</value>
+  </data>
+  <data name="EditorFileSort_Another" xml:space="preserve">
+    <value>It belongs to another title</value>
+  </data>
+  <data name="EditorFileSort_AnotherHint" xml:space="preserve">
+    <value>Search your Library and file it there as an Extra.</value>
+  </data>
+  <data name="EditorFileSort_Ignore" xml:space="preserve">
+    <value>Ignore it</value>
+  </data>
+  <data name="EditorFileSort_IgnoreHint" xml:space="preserve">
+    <value>Hide it from your Library and future scans. The file stays on disk.</value>
+  </data>
+  <data name="EditorFileSort_IgnoreExplained" xml:space="preserve">
+    <value>Library hides this file and skips it in future scans. Nothing is deleted. You can add it back in Settings.</value>
+  </data>
+  <data name="EditorFileSort_IgnoreThisFile" xml:space="preserve">
+    <value>Ignore this file</value>
+  </data>
+  <data name="EditorFileSort_Kind" xml:space="preserve">
+    <value>Kind</value>
+  </data>
+  <data name="EditorFileSort_Where" xml:space="preserve">
+    <value>Belongs to</value>
+  </data>
+  <data name="EditorFileSort_Track" xml:space="preserve">
+    <value>Track</value>
+  </data>
+  <data name="EditorFileSort_MakeExtra" xml:space="preserve">
+    <value>Make it an Extra</value>
+  </data>
+  <data name="EditorFileSort_NotInTitleFolder" xml:space="preserve">
+    <value>This file is not inside a title's folder. File it under another title instead.</value>
+  </data>
+  <data name="EditorFileSort_SearchTitles" xml:space="preserve">
+    <value>Search your Library</value>
+  </data>
+  <data name="EditorFileSort_NothingMatches" xml:space="preserve">
+    <value>Nothing in your Library matches.</value>
+  </data>
+  <data name="EditorFileSort_SearchFailed" xml:space="preserve">
+    <value>The search did not work. Try again.</value>
+  </data>
+  <data name="EditorFileSort_AttachTo" xml:space="preserve">
+    <value>Attach to {0}</value>
+  </data>
+  <data name="EditorFileSort_StagedAs" xml:space="preserve">
+    <value>Will be saved as {0}.</value>
+  </data>
+  <data name="EditorFileSort_Undo" xml:space="preserve">
+    <value>Undo</value>
+  </data>
+  <data name="EditorFileSort_FolderFiles" xml:space="preserve">
+    <value>Other files in this folder that are not sorted yet</value>
+  </data>
+  <data name="EditorFileSort_SortAs" xml:space="preserve">
+    <value>Sort as {0}</value>
+  </data>
+  <data name="EditorFileSort_SortAllGuessed" xml:space="preserve">
+    <value>Sort them all as guessed</value>
+  </data>
+  <data name="EditorFileSort_ShowExtras" xml:space="preserve">
+    <value>This show's Extras</value>
+  </data>
+  <data name="ExcludedFilesSection_IgnoredByYou" xml:space="preserve">
+    <value>Ignored by you</value>
+  </data>
+  <data name="EditorUniverse_Universe" xml:space="preserve">
+    <value>Universe</value>
+  </data>
+  <data name="EditorUniverseAdd_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="EditorUniverseAdd_DescriptionOptional" xml:space="preserve">
+    <value>Description (optional)</value>
+  </data>
+  <data name="EditorUniverseAdd_Note" xml:space="preserve">
+    <value>Added by you. It is not on Wikidata, and nothing about it is sent anywhere.</value>
+  </data>
+  <data name="EditorUniverseMatch_Heading" xml:space="preserve">
+    <value>Match</value>
+  </data>
+  <data name="EditorUniverseMatch_Wikidata" xml:space="preserve">
+    <value>Wikidata</value>
+  </data>
+  <data name="EditorUniverseMatch_AddedByYou" xml:space="preserve">
+    <value>Not on Wikidata, added by you</value>
+  </data>
+  <data name="EditorUniverseMatch_NotMatched" xml:space="preserve">
+    <value>Not matched</value>
   </data>
 </root>

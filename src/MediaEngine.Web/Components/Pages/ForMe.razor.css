@@ -11,7 +11,7 @@
 
 .for-me-page__eyebrow {
     color: var(--tl-accent-primary);
-    font-size: .75rem;
+    font-size: var(--tl-font-size-xs);
     font-weight: 800;
     letter-spacing: .12em;
     text-transform: uppercase;
@@ -47,7 +47,7 @@
 
 .for-me-page__view-heading h2 {
     margin: 0 0 .35rem;
-    font-size: 1.75rem;
+    font-size: var(--tl-font-size-xl);
 }
 
 .for-me-page__count {

@@ -42,7 +42,7 @@
                                  SearchFunc="SearchTypesAsync" CoerceValue="true" ResetValueOnEmptyText="true" Placeholder="@L["Common_InvoiceLetterContract"].Value" />
 
                 <div class="view-document-details__row">
-                    <label class="view-document-details__field"><span>@L["Common_Date"]</span><AppNativeInput Type="date" Class="view-document-details__input" AriaLabel="@L["Common_DocumentDate"].Value" Value="@_date" ValueChanged="@(value => _date = value?.ToString() ?? string.Empty)" /></label>
+                    <label class="view-document-details__field"><span>@L["Common_Date"]</span><AppTextField InputType="AppInputType.Date" Label="@L["Common_DocumentDate"].Value" HideLabel="true" Value="@_date" ValueChanged="@(value => _date = value?.ToString() ?? string.Empty)" /></label>
                     <AppTextField Label="@L["ViewDocumentDetailsDialog_ArchiveNumber"].Value" Value="@_archive" ValueChanged="@(value => _archive = value ?? string.Empty)" MaxLength="120" />
                 </div>
 
@@ -60,39 +60,39 @@
                                 {
                                     case ViewDocumentFieldKinds.Choice:
                                         <label class="view-document-details__field"><span>@field.Name</span>
-                                            <AppNativeSelect aria-label="@field.Name" Value="@(draft.Text ?? string.Empty)" OnChange="@(args => draft.Text = args.Value?.ToString())">
+                                            <AppSelect Native="true" aria-label="@field.Name" Value="@(draft.Text ?? string.Empty)" ValueChanged="@(selected => draft.Text = selected)">
                                                 <option value="">@L["Common_NotSet"]</option>
                                                 @foreach (var choice in field.Choices)
                                                 {
                                                     <option value="@choice">@choice</option>
                                                 }
-                                            </AppNativeSelect>
+                                            </AppSelect>
                                         </label>
                                         break;
                                     case ViewDocumentFieldKinds.Bool:
                                         <label class="view-document-details__field"><span>@field.Name</span>
-                                            <AppNativeSelect aria-label="@field.Name" Value="@(draft.Flag is { } flag ? (flag ? "true" : "false") : string.Empty)" OnChange="@(args => draft.Flag = args.Value?.ToString() switch { "true" => true, "false" => false, _ => null })">
+                                            <AppSelect Native="true" aria-label="@field.Name" Value="@(draft.Flag is { } flag ? (flag ? "true" : "false") : string.Empty)" ValueChanged="@(selected => draft.Flag = selected switch { "true" => true, "false" => false, _ => null })">
                                                 <option value="">@L["Common_NotSet"]</option>
                                                 <option value="true">@L["Common_Yes"]</option>
                                                 <option value="false">@L["Common_No"]</option>
-                                            </AppNativeSelect>
+                                            </AppSelect>
                                         </label>
                                         break;
                                     case ViewDocumentFieldKinds.Date:
                                         <label class="view-document-details__field"><span>@field.Name</span>
-                                            <AppNativeInput Type="date" Class="view-document-details__input" AriaLabel="@field.Name" Value="@draft.Date" ValueChanged="@(value => draft.Date = value?.ToString())" />
+                                            <AppTextField InputType="AppInputType.Date" Label="@field.Name" HideLabel="true" Value="@draft.Date" ValueChanged="@(value => draft.Date = value?.ToString())" />
                                         </label>
                                         break;
                                     case ViewDocumentFieldKinds.Number:
                                         <label class="view-document-details__field"><span>@field.Name</span>
-                                            <AppNativeInput Type="text" Class="view-document-details__input" inputmode="decimal" AriaLabel="@field.Name" Value="@draft.Number" ValueChanged="@(value => draft.Number = value?.ToString())" />
+                                            <AppTextField InputMode="@(AppInputMode.@decimal)" Label="@field.Name" HideLabel="true" Value="@draft.Number" ValueChanged="@(value => draft.Number = value?.ToString())" />
                                         </label>
                                         break;
                                     case ViewDocumentFieldKinds.Money:
                                         <div class="view-document-details__field"><span>@field.Name</span>
                                             <div class="view-document-details__money">
-                                                <AppNativeInput Type="text" Class="view-document-details__input" inputmode="decimal" AriaLabel="@($"{field.Name} amount")" Placeholder="@L["ViewDocumentDetailsDialog_Amount"].Value" Value="@draft.Number" ValueChanged="@(value => draft.Number = value?.ToString())" />
-                                                <AppNativeInput Type="text" Class="view-document-details__input" AriaLabel="@($"{field.Name} currency")" Placeholder="@L["ViewDocumentDetailsDialog_USD"].Value" maxlength="3" Value="@draft.Currency" ValueChanged="@(value => draft.Currency = value?.ToString())" />
+                                                <AppTextField InputMode="@(AppInputMode.@decimal)" Label="@($"{field.Name} amount")" HideLabel="true" Placeholder="@L["ViewDocumentDetailsDialog_Amount"].Value" Value="@draft.Number" ValueChanged="@(value => draft.Number = value?.ToString())" />
+                                                <AppTextField Label="@($"{field.Name} currency")" HideLabel="true" Placeholder="@L["ViewDocumentDetailsDialog_USD"].Value" MaxLength="3" Value="@draft.Currency" ValueChanged="@(value => draft.Currency = value?.ToString())" />
                                             </div>
                                         </div>
                                         break;

@@ -24,8 +24,8 @@
 <HeaderActions>
     @if (!_initializing && Workspace.Scopes is not null && Workspace.CanViewPhotoTimeline)
     {
-        <label><span>@L["Common_Scope"]</span><AppNativeSelect Value="@SelectedScopeValue" OnChange="ScopeChangedAsync" aria-label="@L["ViewPage_AuthorizedPhotoScope"].Value"><ViewScopeOptions Scopes="@Workspace.Scopes.AvailableScopes" OtherPeople="@Workspace.OtherPeople" /></AppNativeSelect></label>
-        <label><span>@L["ViewPage_Density"]</span><AppNativeSelect Value="@Workspace.Density.ToString()" OnChange="DensityChangedAsync" aria-label="@L["ViewPage_TimelineDensity"].Value">@foreach (var density in Enum.GetValues<ViewTimelineDensity>()) { <option value="@density">@density</option> }</AppNativeSelect></label>
+        <label><span>@L["Common_Scope"]</span><AppSelect Native="true" Value="@SelectedScopeValue" ValueChanged="ScopeChangedAsync" aria-label="@L["ViewPage_AuthorizedPhotoScope"].Value"><ViewScopeOptions Scopes="@Workspace.Scopes.AvailableScopes" OtherPeople="@Workspace.OtherPeople" /></AppSelect></label>
+        <label><span>@L["ViewPage_Density"]</span><AppSelect Native="true" Value="@Workspace.Density.ToString()" ValueChanged="DensityChangedAsync" aria-label="@L["ViewPage_TimelineDensity"].Value">@foreach (var density in Enum.GetValues<ViewTimelineDensity>()) { <option value="@density">@density</option> }</AppSelect></label>
         <AppButton Href="/view/contributions" Label="@L["Common_Contributions"].Value" StartIcon="@AppMaterialIcons.Outlined.MoveToInbox" ButtonStyle="AppButtonStyle.Text" />
         @if (DeviceContext.IsTouch) { <AppButton Class="view-select-toggle" ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.CheckCircleOutline" Label="@(_selectMode ? "Done" : "Select")" aria-pressed="@(_selectMode ? "true" : "false")" OnClick="ToggleSelectMode" /> }
         @if (!Workspace.ScopeKind.CarriesProfileId()) { <label class="view-add-media@(_uploading ? " is-busy" : string.Empty)" aria-disabled="@_uploading"><InputFile class="view-add-media__input" OnChange="UploadMediaAsync" disabled="@_uploading" accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" /><span class="view-add-media__label"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" />@(_uploading ? "Uploading…" : "Add media")</span></label> }
@@ -184,8 +184,8 @@ else
         _loadingMore = false;
         _observeTimeline = _page.Items.Count > 0;
     }
-    private async Task ScopeChangedAsync(ChangeEventArgs args) { var parts = args.Value?.ToString()?.Split(':', 2) ?? []; if (parts.Length == 0 || !Enum.TryParse<ViewScopeKind>(parts[0], true, out var kind)) return; Guid? profile = parts.Length == 2 && Guid.TryParse(parts[1], out var parsed) ? parsed : null; if (await Workspace.SelectScopeAsync(kind, profile)) { _addedBy.Clear(); _tags.Clear(); _addedByChoices = []; _tagChoices = []; await Task.WhenAll(LoadAsync(), LoadFilterChoicesAsync()); } }
-    private async Task DensityChangedAsync(ChangeEventArgs args) { if (Enum.TryParse<ViewTimelineDensity>(args.Value?.ToString(), out var density) && !await Workspace.SetDensityAsync(density)) Snackbar.Add(L["ViewPage_TimelineDensityCouldNotBe"].Value, AppSeverity.Error); }
+    private async Task ScopeChangedAsync(string? selected) { var parts = selected?.Split(':', 2) ?? []; if (parts.Length == 0 || !Enum.TryParse<ViewScopeKind>(parts[0], true, out var kind)) return; Guid? profile = parts.Length == 2 && Guid.TryParse(parts[1], out var parsed) ? parsed : null; if (await Workspace.SelectScopeAsync(kind, profile)) { _addedBy.Clear(); _tags.Clear(); _addedByChoices = []; _tagChoices = []; await Task.WhenAll(LoadAsync(), LoadFilterChoicesAsync()); } }
+    private async Task DensityChangedAsync(string? selected) { if (Enum.TryParse<ViewTimelineDensity>(selected, out var density) && !await Workspace.SetDensityAsync(density)) Snackbar.Add(L["ViewPage_TimelineDensityCouldNotBe"].Value, AppSeverity.Error); }
     private async Task SearchChanged(object? value)
     {
         _search = value?.ToString() ?? "";

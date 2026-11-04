@@ -25,6 +25,9 @@ public enum QuickFactsKind
     Person,
     CuratedCollection,
     Universe,
+
+    /// <summary>A character, place, faction or other thing of a Universe.</summary>
+    Thing,
 }
 
 /// <summary>One read-only fact: a short value with the label that says what it is.</summary>
@@ -75,6 +78,7 @@ public static class EditorQuickFactsBuilder
                 EditorSubjectKinds.Person => QuickFactsKind.Person,
                 EditorSubjectKinds.Collection => QuickFactsKind.CuratedCollection,
                 EditorSubjectKinds.Universe => QuickFactsKind.Universe,
+                EditorSubjectKinds.FictionalEntity => QuickFactsKind.Thing,
                 EditorSubjectKinds.Series => totals is { CountsByKind.Count: > 0 } && totals.CountsByKind.All(count => count.Label == "Films")
                     ? QuickFactsKind.FilmSeries
                     : QuickFactsKind.Series,
@@ -240,6 +244,12 @@ public static class EditorQuickFactsBuilder
             case QuickFactsKind.CuratedCollection:
                 Add("items", Folder, totals?.ItemCount is { } items ? Count(items) : null, "Items");
                 Add("owner", People, totals?.Owner, "Owner");
+                break;
+
+            case QuickFactsKind.Thing:
+                Add("kind", Hub, FieldValue("kind"), "Kind");
+                Add("appears_in", Library, totals?.ItemCount is { } appearsIn and > 0 ? Count(appearsIn) : null, "Works it appears in");
+                Add("wikidata", Hub, FieldValue("wikidata"), "Wikidata");
                 break;
 
             case QuickFactsKind.Universe:

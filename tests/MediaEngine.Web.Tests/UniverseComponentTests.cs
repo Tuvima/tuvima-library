@@ -271,151 +271,6 @@ public sealed class UniverseComponentTests : AsyncBunitContext
         Assert.Null(UniversePageText.SourcesLine([]));
     }
 
-    [Theory]
-    [InlineData(0, null)]
-    [InlineData(1, "In 1 of your works")]
-    [InlineData(3, "In 3 of your works")]
-    public void TheCharacterWorksLine_CountsTheOwnedWorks_AndIsNullForNone(int count, string? expected) =>
-        Assert.Equal(expected, UniversePageText.CharacterWorksLine(count));
-
-    // The character list --------------------------------------------------------------------------------------------
-
-    [Fact]
-    public void ACharacterRowWithoutAListener_IsPlainText_WithItsWorksAndSource()
-    {
-        var cut = Render<UniverseCharacterList>(parameters => parameters
-            .Add(p => p.Characters, [Character("Q1", "Paul", 3)])
-            .Add(p => p.CharacterCount, 1));
-
-        Assert.Empty(cut.FindAll("button"));
-        Assert.Empty(cut.FindAll("a"));
-        Assert.Equal("Paul", cut.Find(".universe-characters__name").TextContent);
-        Assert.Equal("In 3 of your works", cut.Find(".universe-characters__works").TextContent);
-        Assert.Equal("Source: Wikidata", cut.Find(".universe-characters__source").TextContent);
-        Assert.Empty(cut.FindAll(".universe-characters__note"));
-    }
-
-    [Fact]
-    public void ACharacterRowWithAListener_IsAButtonThatRaisesTheCharacter()
-    {
-        UniverseCharacterDto? chosen = null;
-
-        var cut = Render<UniverseCharacterList>(parameters => parameters
-            .Add(p => p.Characters, [Character("Q1", "Paul", 3)])
-            .Add(p => p.OnCharacterSelected, character => chosen = character));
-        var button = cut.Find("button.universe-characters__row");
-        Assert.Contains("tl-list-item-button", button.ClassName);
-        Assert.Contains("universe-characters__item", button.ParentElement!.ClassName);
-        button.Click();
-
-        Assert.Equal("Q1", chosen!.Qid);
-    }
-
-    [Fact]
-    public void ACharacterWithNoPlotDetails_ShowsNameTagAndSourceOnly_ButStillOpensAlsoAppearsIn()
-    {
-        var chosen = new List<UniverseCharacterDto>();
-
-        var cut = Render<UniverseCharacterList>(parameters => parameters
-            .Add(p => p.Characters, [Character("Q1", "Stilgar", 4, noPlotDetails: true), Character("Q2", "Paul", 2)])
-            .Add(p => p.OnCharacterSelected, character => chosen.Add(character)));
-
-        var spoilerItem = cut.FindAll(".universe-characters__item")[0];
-        Assert.Equal("Stilgar", spoilerItem.QuerySelector(".universe-characters__name")!.TextContent);
-        Assert.Contains("No plot details", spoilerItem.TextContent);
-        Assert.Equal("Source: Wikidata", spoilerItem.QuerySelector(".universe-characters__source")!.TextContent);
-        Assert.Null(spoilerItem.QuerySelector(".universe-characters__works"));
-        Assert.DoesNotContain("of your work", spoilerItem.TextContent);
-        // "Also appears in" lists Works, not plot, so both rows can be chosen.
-        Assert.Equal(2, cut.FindAll("button.universe-characters__row").Count);
-        cut.FindAll("button.universe-characters__row")[0].Click();
-        cut.FindAll("button.universe-characters__row")[1].Click();
-        Assert.Equal(["Q1", "Q2"], chosen.Select(character => character.Qid));
-    }
-
-    [Theory]
-    [InlineData(1, "1 character hidden to avoid spoilers")]
-    [InlineData(3, "3 characters hidden to avoid spoilers")]
-    public void CharactersLeftOutToAvoidSpoilers_AreCountedInOneHonestLine(int hidden, string expected)
-    {
-        var cut = Render<UniverseCharacterList>(parameters => parameters
-            .Add(p => p.Characters, [Character("Q1", "Paul", 2)])
-            .Add(p => p.CharacterCount, 1)
-            .Add(p => p.HiddenCount, hidden));
-
-        Assert.Equal(expected, cut.Find("[data-hidden-characters]").TextContent);
-        Assert.Single(cut.FindAll(".universe-characters__item"));
-    }
-
-    [Fact]
-    public void WhenEveryCharacterIsHeldBack_TheListShowsOnlyTheHiddenLine()
-    {
-        var cut = Render<UniverseCharacterList>(parameters => parameters
-            .Add(p => p.Characters, [])
-            .Add(p => p.HiddenCount, 4));
-
-        Assert.Empty(cut.FindAll(".universe-characters"));
-        Assert.Equal("4 characters hidden to avoid spoilers", cut.Find("[data-hidden-characters]").TextContent);
-    }
-
-    [Fact]
-    public void NoHiddenLine_IsShown_WhenNothingIsHeldBack()
-    {
-        var cut = Render<UniverseCharacterList>(parameters => parameters
-            .Add(p => p.Characters, [Character("Q1", "Paul", 2)])
-            .Add(p => p.HiddenCount, 0));
-
-        Assert.Empty(cut.FindAll("[data-hidden-characters]"));
-    }
-
-    [Fact]
-    public void MoreThanTwelveCharacters_ShowTwelveFirst_AndOneToggleShowsAllThenFewer()
-    {
-        var characters = Enumerable.Range(1, 15).Select(index => Character($"Q{index}", $"Character {index}", 1)).ToList();
-
-        var cut = Render<UniverseCharacterList>(parameters => parameters
-            .Add(p => p.Characters, characters)
-            .Add(p => p.CharacterCount, 15));
-
-        Assert.Equal(12, cut.FindAll(".universe-characters__item").Count);
-        var showAll = cut.Find(".universe-characters__more button");
-        Assert.Equal("Show all 15 characters", showAll.TextContent.Trim());
-        showAll.Click();
-
-        Assert.Equal(15, cut.FindAll(".universe-characters__item").Count);
-        Assert.Equal("Character 15", cut.FindAll(".universe-characters__name")[14].TextContent);
-
-        // The same button stays in place (focus is never lost) and folds the list back.
-        var showFewer = cut.Find(".universe-characters__more button");
-        Assert.Equal("Show fewer characters", showFewer.TextContent.Trim());
-        Assert.Equal("true", showFewer.GetAttribute("aria-expanded"));
-        showFewer.Click();
-        Assert.Equal(12, cut.FindAll(".universe-characters__item").Count);
-    }
-
-    [Fact]
-    public void TwelveOrFewerCharacters_HaveNoShowAllButton()
-    {
-        var characters = Enumerable.Range(1, 12).Select(index => Character($"Q{index}", $"Character {index}", 1)).ToList();
-
-        var cut = Render<UniverseCharacterList>(parameters => parameters.Add(p => p.Characters, characters).Add(p => p.CharacterCount, 12));
-
-        Assert.Equal(12, cut.FindAll(".universe-characters__item").Count);
-        Assert.Empty(cut.FindAll(".universe-characters__more"));
-    }
-
-    [Fact]
-    public void TheCappedNote_AppearsOnlyWhenMoreCharactersExistThanAreListed()
-    {
-        var characters = new[] { Character("Q1", "Paul", 2), Character("Q2", "Chani", 1) };
-
-        var capped = Render<UniverseCharacterList>(parameters => parameters.Add(p => p.Characters, characters).Add(p => p.CharacterCount, 90));
-        Assert.Equal("Showing the 2 characters seen in the most works", capped.Find(".universe-characters__note").TextContent);
-
-        var complete = Render<UniverseCharacterList>(parameters => parameters.Add(p => p.Characters, characters).Add(p => p.CharacterCount, 2));
-        Assert.Empty(complete.FindAll(".universe-characters__note"));
-    }
-
     // The explorer's adaptation tree --------------------------------------------------------------------------------
 
     [Fact]
@@ -458,19 +313,26 @@ public sealed class UniverseComponentTests : AsyncBunitContext
     }
 
     [Fact]
-    public void TheConnections_StillShowTheCharactersColumn_WhenEveryCharacterIsHeldBack()
+    public void TheConnections_NoLongerListCharacters_BecauseTheCharactersRailOwnsThem()
     {
         var page = new UniversePageDto
         {
             Detail = new UniverseClientDetailDto { Qid = "Q1", Name = "Test World" },
-            Connections = new UniverseConnectionsDto { HiddenCharacterCount = 2 },
+            Connections = new UniverseConnectionsDto
+            {
+                Characters = [Character("Q2", "Paul", 2)],
+                CharacterCount = 1,
+                HiddenCharacterCount = 2,
+                Cast = [],
+            },
             Enrichment = new UniverseEnrichmentStateDto { State = UniverseEnrichmentStateDto.Ready },
         };
 
         var cut = Render<UniverseConnections>(parameters => parameters.Add(p => p.Page, page));
 
-        Assert.Equal("2 characters hidden to avoid spoilers", cut.Find("[data-hidden-characters]").TextContent);
-        Assert.DoesNotContain("No characters, cast or adaptations recorded", cut.Markup);
+        Assert.Empty(cut.FindAll("[data-hidden-characters]"));
+        Assert.DoesNotContain("Paul", cut.Markup);
+        Assert.Contains("No cast or adaptations recorded", cut.Markup);
     }
 
     // Helpers -------------------------------------------------------------------------------------------------------

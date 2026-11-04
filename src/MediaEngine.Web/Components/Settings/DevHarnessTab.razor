@@ -251,7 +251,7 @@
             "Reset and seed test library?",
             "This will remove current ingested library data and recreate the selected development fixtures. Application settings, users, configured libraries, and provider credentials will be preserved.",
             yesText: "Reset & Seed",
-            cancelText: "Cancel");
+            cancelText: "Cancel", options: AppDialogOptions.DestructiveConfirm);
         if (confirmed != true)
         {
             return;
@@ -303,7 +303,7 @@
             "Reset library data?",
             "This clears ingested media, relationships, enrichment, generated artwork, and ingestion history. Application configuration and source media will be preserved.",
             yesText: "Reset Library Data",
-            cancelText: "Cancel");
+            cancelText: "Cancel", options: AppDialogOptions.DestructiveConfirm);
         if (confirmed != true)
         {
             return;

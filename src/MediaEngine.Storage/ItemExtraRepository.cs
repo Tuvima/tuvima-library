@@ -27,6 +27,10 @@ public sealed class ItemExtraRepository(IDatabaseConnection db) : IItemExtraRepo
                page_count AS PageCount,
                target_season AS TargetSeason,
                target_episode AS TargetEpisode,
+               extra_kind AS ExtraKind,
+               place_season AS PlaceSeason,
+               place_episode AS PlaceEpisode,
+               place_track AS PlaceTrack,
                found_at AS FoundAt
         FROM item_extras
         """;
@@ -184,10 +188,12 @@ public sealed class ItemExtraRepository(IDatabaseConnection db) : IItemExtraRepo
         return db.ExecuteWriteAsync((connection, transaction, token) => connection.Execute(new CommandDefinition("""
             INSERT INTO item_extras
                 (id, library_id, item_folder, file_path, kind, origin, title, group_key, sort_order, size_bytes,
-                 duration_seconds, page_count, target_season, target_episode, found_at)
+                 duration_seconds, page_count, target_season, target_episode, extra_kind, place_season, place_episode,
+                 place_track, found_at)
             VALUES
                 (@id, @libraryId, @itemFolder, @filePath, @kind, @origin, @title, @groupKey, @sortOrder, @sizeBytes,
-                 @durationSeconds, @pageCount, @targetSeason, @targetEpisode, @foundAt)
+                 @durationSeconds, @pageCount, @targetSeason, @targetEpisode, @extraKind, @placeSeason, @placeEpisode,
+                 @placeTrack, @foundAt)
             ON CONFLICT(file_path) DO UPDATE SET
                 library_id = excluded.library_id,
                 item_folder = excluded.item_folder,
@@ -200,7 +206,11 @@ public sealed class ItemExtraRepository(IDatabaseConnection db) : IItemExtraRepo
                 duration_seconds = excluded.duration_seconds,
                 page_count = excluded.page_count,
                 target_season = excluded.target_season,
-                target_episode = excluded.target_episode;
+                target_episode = excluded.target_episode,
+                extra_kind = excluded.extra_kind,
+                place_season = excluded.place_season,
+                place_episode = excluded.place_episode,
+                place_track = excluded.place_track;
             """,
             new
             {
@@ -218,6 +228,10 @@ public sealed class ItemExtraRepository(IDatabaseConnection db) : IItemExtraRepo
                 pageCount = extra.PageCount,
                 targetSeason = extra.TargetSeason,
                 targetEpisode = extra.TargetEpisode,
+                extraKind = extra.ExtraKind,
+                placeSeason = extra.PlaceSeason,
+                placeEpisode = extra.PlaceEpisode,
+                placeTrack = extra.PlaceTrack,
                 foundAt = extra.FoundAt.UtcDateTime.ToString("o", CultureInfo.InvariantCulture),
             },
             transaction,
@@ -280,7 +294,11 @@ public sealed class ItemExtraRepository(IDatabaseConnection db) : IItemExtraRepo
             ? found
             : DateTimeOffset.MinValue,
         row.TargetSeason,
-        row.TargetEpisode);
+        row.TargetEpisode,
+        row.ExtraKind,
+        row.PlaceSeason,
+        row.PlaceEpisode,
+        row.PlaceTrack);
 
     private sealed class Row
     {
@@ -298,6 +316,10 @@ public sealed class ItemExtraRepository(IDatabaseConnection db) : IItemExtraRepo
         public int? PageCount { get; init; }
         public int? TargetSeason { get; init; }
         public int? TargetEpisode { get; init; }
+        public string? ExtraKind { get; init; }
+        public int? PlaceSeason { get; init; }
+        public int? PlaceEpisode { get; init; }
+        public int? PlaceTrack { get; init; }
         public string? FoundAt { get; init; }
     }
 }

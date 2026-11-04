@@ -17,14 +17,14 @@
 .design-system-preview__eyebrow {
     margin: 0 0 var(--tl-space-1);
     color: var(--tl-accent-secondary);
-    font-size: 0.75rem;
+    font-size: var(--tl-font-size-xs);
     font-weight: 700;
     text-transform: uppercase;
 }
 
 .design-system-preview__title {
     margin: 0;
-    font-size: 1.7rem;
+    font-size: var(--tl-font-size-xl);
     line-height: 1.15;
 }
 
@@ -131,7 +131,7 @@
 .design-system-preview__group-card-preview > header > p {
     max-width: 38rem;
     color: var(--tl-text-secondary);
-    font-size: 0.9rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 .design-system-preview__group-card-grid {

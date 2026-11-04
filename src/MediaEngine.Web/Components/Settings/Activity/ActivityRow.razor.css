@@ -32,7 +32,7 @@
     min-width: 0;
     overflow: hidden;
     color: var(--tl-text-secondary);
-    font-size: 0.9rem;
+    font-size: var(--tl-font-size-sm);
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -146,7 +146,7 @@
 .activity-row__attempts {
     overflow: hidden;
     color: var(--tl-text-secondary);
-    font-size: 0.85rem;
+    font-size: var(--tl-font-size-sm);
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -195,7 +195,7 @@
     grid-template-columns: 5.5rem minmax(0, 2fr) minmax(0, 2fr) 5.5rem;
     padding: var(--tl-space-1, 4px) var(--tl-space-3, 12px);
     color: var(--tl-text-secondary);
-    font-size: 0.9rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 .activity-song__title {

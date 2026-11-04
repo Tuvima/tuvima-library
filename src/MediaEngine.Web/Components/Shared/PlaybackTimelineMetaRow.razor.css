@@ -2,7 +2,7 @@
     align-items: center;
     color: var(--playback-text);
     display: flex;
-    font-size: 0.92rem;
+    font-size: var(--tl-font-size-sm);
     font-weight: 700;
     gap: 14px;
     justify-content: space-between;
@@ -11,7 +11,7 @@
 }
 
 .playback-timeline-meta-row--compact {
-    font-size: 0.86rem;
+    font-size: var(--tl-font-size-sm);
     gap: 10px;
 }
 

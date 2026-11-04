@@ -22,9 +22,9 @@
 ::deep .collection-rule-value-picker__option span { display: flex; min-width: 0; flex-direction: column; }
 ::deep .collection-rule-value-picker__option strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 ::deep .collection-rule-value-picker__option small { color: var(--tl-text-muted); font-size: var(--tl-font-size-xs); }
-::deep .collection-rule-value-picker__option em { color: var(--tl-text-muted); font-size: .75rem; font-style: normal; }
+::deep .collection-rule-value-picker__option em { color: var(--tl-text-muted); font-size: var(--tl-font-size-xs); font-style: normal; }
 
-.collection-rule-value-picker__panel footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px; padding: 8px 4px 0; border-top: 1px solid var(--tl-divider); color: var(--tl-text-secondary); font-size: .78rem; }
+.collection-rule-value-picker__panel footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px; padding: 8px 4px 0; border-top: 1px solid var(--tl-divider); color: var(--tl-text-secondary); font-size: var(--tl-font-size-xs); }
 
 @media (max-width: 700px) {
     .collection-rule-value-picker__panel { position: fixed; inset: auto 12px 82px; width: auto; }

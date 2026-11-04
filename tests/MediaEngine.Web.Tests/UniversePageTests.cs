@@ -25,6 +25,14 @@ namespace MediaEngine.Web.Tests;
 /// </summary>
 public sealed class UniversePageTests : AsyncBunitContext
 {
+    // Edit is in the "..." menu of the hero (universal editor v4): open the menu, then choose Edit.
+    private static void OpenEditFromMenu(IRenderedComponent<UniversePage> cut)
+    {
+        cut.Find(".universe-hero__more button[aria-haspopup='menu']").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[role='menuitem']")));
+        cut.Find("[role='menuitem']").Click();
+    }
+
     private const string Qid = "Q4242";
 
     private readonly IEngineApiClient _api;
@@ -55,6 +63,24 @@ public sealed class UniversePageTests : AsyncBunitContext
             {
                 _calls.Add("subject");
                 return Task.FromResult(_subject);
+            });
+            stub.SetHandler(nameof(IEngineApiClient.GetEditorUniverseThingsAsync), args =>
+            {
+                var kind = (string?)args![1];
+                return Task.FromResult<EditorUniverseThingsDto?>(new EditorUniverseThingsDto
+                {
+                    UniverseId = Guid.Parse("aaaaaaaa-0000-0000-0000-000000000001"),
+                    UniverseQid = Qid,
+                    UniverseName = "Dune",
+                    Kinds =
+                    [
+                        new EditorUniverseKindDto { Key = "characters", Label = "Characters", Singular = "Character", Count = 2, Available = true },
+                        new EditorUniverseKindDto { Key = "factions", Label = "Factions", Singular = "Faction", Count = 1, Available = true },
+                    ],
+                    KindKey = kind,
+                    Total = kind is null ? 0 : 1,
+                    Things = kind is null ? [] : [new EditorUniverseThingDto { Id = Guid.NewGuid(), Label = "Paul Atreides", KindKey = kind }],
+                });
             });
             stub.SetHandler(nameof(IEngineApiClient.RunEditSessionAsync), args =>
             {
@@ -191,7 +217,7 @@ public sealed class UniversePageTests : AsyncBunitContext
 
         cut.WaitForAssertion(() =>
         {
-            Assert.Contains("No characters, cast or adaptations recorded for this Universe yet.", cut.Markup);
+            Assert.Contains("No cast or adaptations recorded for this Universe yet.", cut.Markup);
             Assert.DoesNotContain("Still learning", cut.Markup);
         });
     }
@@ -251,7 +277,7 @@ public sealed class UniversePageTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task Connections_ListCastThenAdaptationsThenCharacters_AndCharactersKeepTheEngineOrderWithTheirSource()
+    public async Task Connections_ListCastThenAdaptations_AndLeaveCharactersToTheirOwnRail()
     {
         _overview = () => UniversePageLoadResult.Loaded(Overview(
             cast: [Cast(Guid.NewGuid(), "Ann", ("Q1", "Hero"))],
@@ -263,49 +289,9 @@ public sealed class UniversePageTests : AsyncBunitContext
 
         cut.WaitForAssertion(() =>
         {
-            Assert.Equal(["Cast", "Adaptations", "Characters"], cut.FindAll(".universe-connections__subtitle").Select(h => h.TextContent).ToArray());
-            Assert.Equal(["Paul", "Chani", "Jessica"], cut.FindAll(".universe-characters__name").Select(n => n.TextContent).ToArray());
-            Assert.Equal(["In 3 of your works", "In 1 of your works"], cut.FindAll(".universe-characters__works").Select(n => n.TextContent).ToArray());
-            Assert.All(cut.FindAll(".universe-characters__source"), source => Assert.Equal("Source: Wikidata", source.TextContent));
-            Assert.Equal(3, cut.FindAll(".universe-characters__source").Count);
+            Assert.Equal(["Cast", "Adaptations"], cut.FindAll(".universe-connections__subtitle").Select(h => h.TextContent).ToArray());
+            Assert.Empty(cut.FindAll(".universe-characters__name"));
             Assert.DoesNotContain("Still learning", cut.Markup);
-        });
-    }
-
-    [Fact]
-    public async Task ChoosingACharacter_OpensAlsoAppearsIn_ForThatOneCharacterAndNoPerson()
-    {
-        _overview = () => UniversePageLoadResult.Loaded(Overview(characters: [Character("Q10", "Paul", 3), Character("Q11", "Chani", 1)]));
-        await UseDeviceAsync("web", "desktop");
-        var dialogs = (AppDialogService)Services.GetRequiredService<IAppDialogService>();
-
-        var cut = RenderPage();
-        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("button.universe-characters__row").Count));
-        cut.FindAll("button.universe-characters__row")[1].Click();
-
-        var dialog = Assert.Single(dialogs.Dialogs);
-        Assert.Equal(typeof(AlsoAppearsInPanel), dialog.ComponentType);
-        Assert.Equal(Qid, dialog.Parameters[nameof(AlsoAppearsInPanel.UniverseQid)]);
-        var characters = Assert.IsAssignableFrom<IReadOnlyList<(string Qid, string Label)>>(dialog.Parameters[nameof(AlsoAppearsInPanel.Characters)]);
-        Assert.Equal(("Q11", "Chani"), Assert.Single(characters));
-        Assert.False(dialog.Parameters.ContainsKey(nameof(AlsoAppearsInPanel.PersonId)) && dialog.Parameters[nameof(AlsoAppearsInPanel.PersonId)] is not null);
-    }
-
-    [Fact]
-    public async Task AUniverseWithOnlyCharacters_IsNotEmptyAndNotStillLearning()
-    {
-        _overview = () => UniversePageLoadResult.Loaded(Overview(characters: [Character("Q10", "Paul", 3)]));
-        await UseDeviceAsync("web", "desktop");
-
-        var cut = RenderPage();
-
-        cut.WaitForAssertion(() =>
-        {
-            Assert.Single(cut.FindAll(".universe-characters__item"));
-            Assert.DoesNotContain("Still learning", cut.Markup);
-            Assert.DoesNotContain("recorded for this Universe yet", cut.Markup);
-            Assert.Empty(cut.FindAll(".universe-cast"));
-            Assert.Empty(cut.FindAll(".universe-adaptations"));
         });
     }
 
@@ -348,7 +334,7 @@ public sealed class UniversePageTests : AsyncBunitContext
         var cut = RenderPage();
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".universe-hero")));
-        cut.WaitForAssertion(() => Assert.Equal(expected, cut.FindAll("button.universe-hero__edit").Count == 1));
+        cut.WaitForAssertion(() => Assert.Equal(expected, cut.FindAll(".universe-hero__more").Count == 1));
     }
 
     [Fact]
@@ -359,11 +345,11 @@ public sealed class UniversePageTests : AsyncBunitContext
 
         var cut = RenderPage();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".universe-hero")));
-        Assert.Empty(cut.FindAll("button.universe-hero__edit"));
+        Assert.Empty(cut.FindAll(".universe-hero__more"));
 
         await cut.InvokeAsync(() => UseDeviceAsync("web", "desktop"));
 
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("button.universe-hero__edit")));
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".universe-hero__more")));
     }
 
     [Fact]
@@ -375,8 +361,8 @@ public sealed class UniversePageTests : AsyncBunitContext
 
         var cut = RenderPage();
         var editor = Render<EditorPopover>();
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("button.universe-hero__edit")));
-        cut.Find("button.universe-hero__edit").Click();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".universe-hero__more")));
+        OpenEditFromMenu(cut);
 
         cut.WaitForAssertion(() => Assert.Equal(1, _access.Requests));
         Assert.Empty(cut.FindAll(".tl-editing-bar"));
@@ -385,7 +371,7 @@ public sealed class UniversePageTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task ChoosingEdit_AfterTheUnlock_OpensTheSharedPopOver_WithDetailsAndArtworkButNoMatchOrHistory()
+    public async Task ChoosingEdit_AfterTheUnlock_OpensTheSharedPopOver_WithDetailsPicturesMatchAndHistory()
     {
         var cut = await StartEditingAsync();
 
@@ -401,10 +387,23 @@ public sealed class UniversePageTests : AsyncBunitContext
         Assert.Empty(cut.FindAll(".tl-editing-slot"));
         Assert.Empty(cut.FindAll(".tl-dialog"));
         Assert.DoesNotContain("tl-editing-drawer", cut.Markup, StringComparison.Ordinal);
-        Assert.Equal(["Details", "Artwork"], _editor.FindAll(".tl-editor-window__tabs [role='tab']").Select(button => button.TextContent.Trim()));
-        // A Universe has no rail yet (WP11); the header just names what is being edited.
+        Assert.Equal(["Details", "Pictures", "Match", "History"], _editor.FindAll(".tl-editor-window__tabs [role='tab']").Select(button => button.TextContent.Trim()));
+        // A Universe draws its own rail of kinds, never the family rail of a show or an album.
+        _editor.WaitForAssertion(() => Assert.Single(_editor.FindAll(".tl-urail")));
         Assert.Empty(_editor.FindAll(".tl-rail"));
         Assert.Contains("Dune", _editor.Find(".tl-editor-header__title").TextContent);
+    }
+
+    [Fact]
+    public async Task TheUniverseRail_ListsTheKindsWithTheirCounts_AndOpeningOneListsItsThings()
+    {
+        await StartEditingAsync();
+
+        _editor.WaitForAssertion(() => Assert.Equal(["Characters", "Factions"], _editor.FindAll(".tl-urail button[data-level]").Select(button => button.GetAttribute("data-level")).Where(level => level != "Universe")));
+        _editor.Find(".tl-urail button[data-level='Characters']").Click();
+
+        _editor.WaitForAssertion(() => Assert.Contains("Paul Atreides", _editor.Find(".tl-urail__panel").TextContent, StringComparison.Ordinal));
+        Assert.Contains("Add character", _editor.Find(".tl-urail__panel").TextContent, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -479,8 +478,8 @@ public sealed class UniversePageTests : AsyncBunitContext
 
         var cut = RenderPage();
         _editor = Render<EditorPopover>();
-        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("button.universe-hero__edit")));
-        cut.Find("button.universe-hero__edit").Click();
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll(".universe-hero__more")));
+        OpenEditFromMenu(cut);
         _editor.WaitForAssertion(() => Assert.Single(_editor.FindAll(".tl-editor-window")));
         if (expectPanel)
         {
@@ -515,14 +514,14 @@ public sealed class UniversePageTests : AsyncBunitContext
 
         var cut = RenderPage();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".universe-connections")));
-        Assert.Empty(cut.FindAll("button.universe-hero__edit"));
+        Assert.Empty(cut.FindAll(".universe-hero__more"));
         Assert.Empty(cut.FindAll(".universe-connections__fandom a"));
 
         await cut.InvokeAsync(() => SignIn(administrator: true));
 
         cut.WaitForAssertion(() =>
         {
-            Assert.Single(cut.FindAll("button.universe-hero__edit"));
+            Assert.Single(cut.FindAll(".universe-hero__more"));
             Assert.Single(cut.FindAll(".universe-connections__fandom a"));
         });
     }

@@ -94,7 +94,7 @@ public sealed class ResponsivePwaGuardrailTests
         // The dock is a floating pill that keeps its own grid row, so it never covers the last row of the page.
         var dock = layout[layout.IndexOf("html[data-form-factor=\"phone\"] .layout-shell__intent-dock {\n    display: flex;", StringComparison.Ordinal)..];
         dock = dock[..dock.IndexOf('}', StringComparison.Ordinal)];
-        Assert.Contains("border-radius: 999px;", dock, StringComparison.Ordinal);
+        Assert.Contains("border-radius: var(--tl-radius-round);", dock, StringComparison.Ordinal);
         Assert.Contains("var(--tl-safe-area-bottom)", dock, StringComparison.Ordinal);
         Assert.Contains("height: var(--tl-phone-dock-height);", dock, StringComparison.Ordinal);
         Assert.Contains("grid-row: 4;", layout, StringComparison.Ordinal);

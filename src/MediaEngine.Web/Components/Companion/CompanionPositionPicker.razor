@@ -34,20 +34,9 @@
     else if (SupportsChapterNumber)
     {
         <div class="companion-picker__stepper" role="group" aria-label="@L["CompanionPositionPicker_ChapterNumber"].Value">
-            <AppNativeButton Type="button"
-                             Class="companion-picker__step"
-                             AriaLabel="@L["Common_PreviousChapter"].Value"
-                             Disabled="@(CurrentChapterIndex is null or <= 0)"
-                             OnClick="@(() => StepAsync(-1))">
-                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Remove" />
-            </AppNativeButton>
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Remove" Class="companion-picker__step" AriaLabel="@L["Common_PreviousChapter"].Value" Tooltip="@L["Common_PreviousChapter"].Value" Disabled="@(CurrentChapterIndex is null or <= 0)" OnClick="@(() => StepAsync(-1))" />
             <span class="companion-picker__number" aria-live="polite">@(CurrentChapterIndex is { } index ? $"Chapter {index + 1}" : "No chapter chosen")</span>
-            <AppNativeButton Type="button"
-                             Class="companion-picker__step"
-                             AriaLabel="@L["Common_NextChapter"].Value"
-                             OnClick="@(() => StepAsync(1))">
-                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" />
-            </AppNativeButton>
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Add" Class="companion-picker__step" AriaLabel="@L["Common_NextChapter"].Value" Tooltip="@L["Common_NextChapter"].Value" OnClick="@(() => StepAsync(1))" />
         </div>
         <p class="companion-picker__note">@L["CompanionPositionPicker_ThisFileHasNoList"]</p>
     }
