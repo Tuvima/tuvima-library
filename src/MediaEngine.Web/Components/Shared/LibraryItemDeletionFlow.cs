@@ -113,6 +113,27 @@ public static class LibraryItemDeletionFlow
         IReadOnlyList<Guid> workIds,
         string? title = null)
     {
+        var answer = await RunForResultAsync(dialogs, toasts, workIds, title);
+        if (answer is null)
+        {
+            return LibraryItemDeletionFlowOutcome.Canceled;
+        }
+
+        return answer.NoLongerInLibrary || answer.Deleted is null
+            ? LibraryItemDeletionFlowOutcome.NoLongerInLibrary
+            : LibraryItemDeletionFlowOutcome.Deleted;
+    }
+
+    /// <summary>
+    /// <see cref="RunAsync"/> that also hands back what the Engine answered (which titles went), for a caller that has to take them off
+    /// its own screen. Null means the person cancelled; nothing was deleted.
+    /// </summary>
+    public static async Task<LibraryItemDeletionDialogResult?> RunForResultAsync(
+        IAppDialogService dialogs,
+        IAppToastService toasts,
+        IReadOnlyList<Guid> workIds,
+        string? title = null)
+    {
         var dialog = await dialogs.ShowAsync<DeleteFromLibraryDialog>(
             string.Empty,
             new AppDialogParameters<DeleteFromLibraryDialog>
@@ -120,24 +141,17 @@ public static class LibraryItemDeletionFlow
                 { component => component.WorkIds, workIds },
                 { component => component.ItemTitle, title },
             },
-            new AppDialogOptions
-            {
-                MaxWidth = AppMaxWidth.Medium,
-                FullWidth = true,
-                CloseButton = false,
-                NoHeader = true,
-                CloseOnEscapeKey = true,
-            });
+            DialogOptions);
 
         if (await dialog.Result is not { Canceled: false, Data: LibraryItemDeletionDialogResult answer })
         {
-            return LibraryItemDeletionFlowOutcome.Canceled;
+            return null;
         }
 
         if (answer.NoLongerInLibrary || answer.Deleted is null)
         {
             toasts.Add(LibraryItemDeletionText.NoLongerInLibrary, AppSeverity.Info);
-            return LibraryItemDeletionFlowOutcome.NoLongerInLibrary;
+            return answer;
         }
 
         toasts.Add(LibraryItemDeletionText.Success(answer.Deleted, title, answer.Noun), AppSeverity.Success);
@@ -146,6 +160,53 @@ public static class LibraryItemDeletionFlow
             toasts.Add(warning, AppSeverity.Warning);
         }
 
-        return LibraryItemDeletionFlowOutcome.Deleted;
+        return answer;
     }
+
+    /// <summary>
+    /// Opens the confirmation for one file of an item (the editor's Files tab) and shows the toasts that follow. When the file was the
+    /// item's last, the answer lists the item among the deleted titles. Null means the person cancelled; nothing was deleted.
+    /// </summary>
+    public static async Task<LibraryItemDeletionDialogResult?> RunFileAsync(
+        IAppDialogService dialogs,
+        IAppToastService toasts,
+        LibraryFileTarget target)
+    {
+        var dialog = await dialogs.ShowAsync<DeleteFromLibraryDialog>(
+            string.Empty,
+            new AppDialogParameters<DeleteFromLibraryDialog>
+            {
+                { component => component.WorkIds, (IReadOnlyList<Guid>)[] },
+                { component => component.File, target },
+            },
+            DialogOptions);
+
+        if (await dialog.Result is not { Canceled: false, Data: LibraryItemDeletionDialogResult answer })
+        {
+            return null;
+        }
+
+        if (answer.NoLongerInLibrary || answer.Deleted is null)
+        {
+            toasts.Add(LibraryItemDeletionText.NoLongerInLibrary, AppSeverity.Info);
+            return answer;
+        }
+
+        toasts.Add(LibraryItemDeletionText.FileSuccess(answer.Deleted, target.FileName), AppSeverity.Success);
+        if (LibraryItemDeletionText.FailedFiles(answer.Deleted) is { } warning)
+        {
+            toasts.Add(warning, AppSeverity.Warning);
+        }
+
+        return answer;
+    }
+
+    private static AppDialogOptions DialogOptions => new()
+    {
+        MaxWidth = AppMaxWidth.Medium,
+        FullWidth = true,
+        CloseButton = false,
+        NoHeader = true,
+        CloseOnEscapeKey = true,
+    };
 }

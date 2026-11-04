@@ -10488,4 +10488,13 @@
   <data name="EditorQuickFacts_Title" xml:space="preserve">
     <value>Quick Facts</value>
   </data>
+  <data name="EditorFiles_Actions" xml:space="preserve">
+    <value>Actions</value>
+  </data>
+  <data name="EditorFiles_DeleteFile" xml:space="preserve">
+    <value>Delete {0}…</value>
+  </data>
+  <data name="EditorHeader_MoreActions" xml:space="preserve">
+    <value>More actions for this item</value>
+  </data>
 </root>
