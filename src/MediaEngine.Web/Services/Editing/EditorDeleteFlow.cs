@@ -1,0 +1,70 @@
+using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Integration;
+using MediaEngine.Web.Services.Theming;
+using MediaEngine.Web.Services.Ui;
+
+namespace MediaEngine.Web.Services.Editing;
+
+/// <summary>
+/// Delete from the universal editor's header "..." (v4 D13): asks once with the shared Delete from library box, deletes at once (it does
+/// not wait for Save), and then lets the editor drop what went and move to the parent. Contents and Files run their own deletes through the
+/// same box and the same <see cref="EditorHost.ItemsDeletedAsync"/>.
+/// </summary>
+public static class EditorDeleteFlow
+{
+    /// <summary>
+    /// True when the header offers Delete: a library item (not a person, collection or Universe) with its fields loaded, no several-items panel
+    /// open, for an administrator on a desktop. The Engine still decides on every call.
+    /// </summary>
+    public static bool CanDeleteActive(EditorHost editor, DeviceContextService? device, DashboardSessionAccessor? session)
+    {
+        ArgumentNullException.ThrowIfNull(editor);
+        return editor.Batch.Panel == BulkPanelKind.None
+            && editor.Binding?.ShowHistory == true
+            && editor.Mode.Fields.Loaded
+            && editor.Mode.Fields.SubjectKind is null
+            && editor.Session.ActiveItem is not null
+            && LibraryItemDeletionFlow.CanDelete(device, session);
+    }
+
+    /// <summary>The whole show, season, album or Series the editor is on; null for a single title.</summary>
+    public static LibraryGroupTarget? ActiveGroup(EditorHost editor)
+    {
+        ArgumentNullException.ThrowIfNull(editor);
+        return editor.Session.ActiveItem is { } active
+            ? EditorDeleteRules.GroupFor(active.EntityId, active.Title, editor.Mode.Fields.ScopeId, editor.Mode.Fields.MediaType)
+            : null;
+    }
+
+    /// <summary>
+    /// Deletes the item being edited, including a whole show, season, album or Series. False means nothing was deleted (the person said no,
+    /// or this device or person may not delete). On success the editor has moved to the item's parent, or closed when it has none.
+    /// </summary>
+    public static async Task<bool> DeleteActiveAsync(
+        EditorHost editor,
+        IAppDialogService dialogs,
+        IAppToastService toasts,
+        DeviceContextService? device,
+        DashboardSessionAccessor? session)
+    {
+        ArgumentNullException.ThrowIfNull(editor);
+        ArgumentNullException.ThrowIfNull(dialogs);
+        ArgumentNullException.ThrowIfNull(toasts);
+        if (editor.Session.ActiveItem is not { } active || LibraryItemDeletionFlow.TryRefuse(device, session, toasts))
+        {
+            return false;
+        }
+
+        var group = ActiveGroup(editor);
+        var answer = group is null
+            ? await LibraryItemDeletionFlow.RunForResultAsync(dialogs, toasts, [active.EntityId], active.Title)
+            : await LibraryItemDeletionFlow.RunGroupAsync(dialogs, toasts, group);
+        if (answer is null)
+        {
+            return false;
+        }
+
+        await editor.ItemsDeletedAsync(EditorDeleteRules.Removed(answer, [active.EntityId], group, editor.Family.ParentOf));
+        return true;
+    }
+}

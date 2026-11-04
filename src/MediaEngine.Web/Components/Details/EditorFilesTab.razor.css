@@ -54,6 +54,20 @@
     font-variant-numeric: tabular-nums;
 }
 
+.tl-files__actions {
+    width: 3rem;
+    text-align: right;
+}
+
+.tl-files__visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
 .tl-files__folder {
     color: var(--tl-text-muted);
 }
