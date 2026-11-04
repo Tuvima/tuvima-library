@@ -99,7 +99,7 @@
 
 /* The fixed tile footer and list columns (Plugins and Integrations screens v5 D43 to D45). */
 .plugin-foot__health { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
-.plugin-foot__pill { padding: 2px 8px; border: 1px solid var(--tl-status-warning); border-radius: 999px; color: var(--tl-status-warning); font-size: var(--tl-font-size-sm); white-space: nowrap; }
+.plugin-foot__pill { padding: 2px 8px; border: 1px solid var(--tl-status-warning); border-radius: var(--tl-radius-pill); color: var(--tl-status-warning); font-size: var(--tl-font-size-sm); white-space: nowrap; }
 .settings-plugin-rows__narrow { width: 64px; text-align: center; }
 .plugin-section { display: grid; gap: 12px; }
 .plugin-section + .plugin-section { margin-top: 8px; }

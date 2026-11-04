@@ -86,3 +86,7 @@ Subtitle style on desktop, a tablet, a phone and a TV with the remote only; a TV
 ## Plain English summary
 
 All three players get the same layout, with Play in the middle and every button behaving the same on hover. Audiobooks get a chapter list instead of ticks across the whole book, and they open above the detail page instead of underneath it. Pausing a show shows what you are watching and its rating, volume becomes a neat box that no longer wrongly shows "muted", and Settings and the other menus are wider, cleaner and free of scroll bars.
+
+## Look pass addendum (2026-11-04)
+
+The shared panel, menu rows (44 px, 16 px text), button heights (36 / 44 / 48; transport keeps its 56 px targets) and hover rules from the look pass apply to the bookmarks, subtitles, speed and gear panels and the volume control. Dialogs follow the one dialog build. Source: [look pass spec](look-pass.md) section 6. This is a version note; the Locked body above is unchanged.

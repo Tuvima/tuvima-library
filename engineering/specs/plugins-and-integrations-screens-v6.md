@@ -146,3 +146,7 @@ Waves: **A** = WP32 ∥ WP36; **B** = WP33 ∥ WP34; **C** = WP35 ∥ WP37; **D*
 ## Plain English summary
 
 Plugin and integration pages get one shared look. At the top you see whether it works, in a sentence. Connecting TMDB becomes two steps and one button that saves and tests your key at once. Settings become tidy rows, StashDB servers become a table, and the plugin's file moves to its own tab and edits in a window like editing an item. Integrations use the same tiles and page as plugins, with keys in a table and a new key shown once. Nothing about what plugins do changes.
+
+## Look pass addendum (2026-11-04)
+
+Tile icons and status ticks use the icon tone rules (`AppIconTone`); green means healthy or done only, so there is no stray green. Source: [look pass spec](look-pass.md) section 6. This is a version note; the Locked body above is unchanged.
