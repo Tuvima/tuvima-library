@@ -426,15 +426,33 @@ public sealed partial class LibraryItemDeletionRepository(
             ct).ConfigureAwait(false);
     }
 
+    public async Task<LibraryItemDeletionDataResult> DeleteAssetAsync(
+        Guid assetId,
+        bool keepPersonalState = false,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (assetId == Guid.Empty)
+        {
+            return new LibraryItemDeletionDataResult([], [], [], [], []);
+        }
+
+        return await db.ExecuteWriteAsync(
+            (connection, transaction, _) => DeleteWorksCore(connection, transaction, [], keepPersonalState, assetId),
+            ct).ConfigureAwait(false);
+    }
+
     /// <summary>
     /// The removal itself, on the caller's connection and transaction, so another write (a move that merges a title into another)
-    /// can remove titles inside its own transaction. <paramref name="distinct"/> must be non-empty.
+    /// can remove titles inside its own transaction. <paramref name="distinct"/> must be non-empty, unless
+    /// <paramref name="onlyAssetId"/> is set: then the one media file's records go and its edition and Work stay.
     /// </summary>
     internal static LibraryItemDeletionDataResult DeleteWorksCore(
         Microsoft.Data.Sqlite.SqliteConnection connection,
         Microsoft.Data.Sqlite.SqliteTransaction transaction,
         IReadOnlyList<Guid> distinct,
-        bool keepPersonalState = false)
+        bool keepPersonalState = false,
+        Guid? onlyAssetId = null)
     {
         // The ids of everything that goes live in connection-private scratch tables for the length of this transaction, so no
         // statement carries a long parameter list. They are emptied before the commit (and a rollback takes the rows away too).
@@ -450,9 +468,23 @@ public sealed partial class LibraryItemDeletionRepository(
             "INSERT OR IGNORE INTO deletion_works (id) VALUES (@id);",
             distinct.Select(id => new { id }),
             transaction);
+        if (onlyAssetId is { } single)
+        {
+            // One file of an item: only the file's own records are collected; its edition and Work are left alone.
+            connection.Execute(
+                "INSERT OR IGNORE INTO deletion_assets (id) VALUES (@id);",
+                new { id = single },
+                transaction);
+        }
+        else
+        {
+            connection.Execute("""
+                INSERT OR IGNORE INTO deletion_editions (id) SELECT e.id FROM editions e WHERE e.work_id IN (SELECT id FROM deletion_works);
+                INSERT OR IGNORE INTO deletion_assets (id) SELECT ma.id FROM media_assets ma WHERE ma.edition_id IN (SELECT id FROM deletion_editions);
+                """, transaction: transaction);
+        }
+
         connection.Execute("""
-            INSERT OR IGNORE INTO deletion_editions (id) SELECT e.id FROM editions e WHERE e.work_id IN (SELECT id FROM deletion_works);
-            INSERT OR IGNORE INTO deletion_assets (id) SELECT ma.id FROM media_assets ma WHERE ma.edition_id IN (SELECT id FROM deletion_editions);
             INSERT OR IGNORE INTO deletion_ids (id) SELECT id FROM deletion_works;
             INSERT OR IGNORE INTO deletion_ids (id) SELECT id FROM deletion_editions;
             INSERT OR IGNORE INTO deletion_ids (id) SELECT id FROM deletion_assets;

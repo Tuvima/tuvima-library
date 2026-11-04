@@ -24,7 +24,8 @@ public sealed record MediaEditorPairingCandidateDto(
     IReadOnlyList<string> Reasons,
     IReadOnlyList<string> Conflicts,
     bool CanSave = false,
-    string? SaveLimitation = null);
+    string? SaveLimitation = null,
+    string? ReasonText = null);
 
 public sealed record MediaEditorPairingRowDto(
     Guid AssetId,
