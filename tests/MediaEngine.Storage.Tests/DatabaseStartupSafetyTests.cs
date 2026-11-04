@@ -419,6 +419,7 @@ public sealed class DatabaseStartupSafetyTests
             ("entity_relationship_qualifiers", "relationship_id"),
             ("fictional_entities", "id"),
             ("fictional_entity_user_overrides", "entity_id"),
+            ("fictional_entity_user_overrides", "belongs_to_entity_id"),
             ("fictional_entity_work_links", "id"),
             ("fictional_entity_work_links", "entity_id"),
             ("plugin_lore_sources", "id"),
