@@ -85,7 +85,7 @@ else
     {
         @if (_olderWindow) { <AppButton Label="@L["ViewPage_BackToNewestPhotos"].Value" OnClick="@(() => LoadAsync(preserveSelection: true))" /> }
         <div class="view-timeline-layout">
-            <ViewPhotoTimeline Items="@_page.Items" NoteFor="@ItemNote" Selected="@_selected" SelectMode="@_selectMode" SelectEntireDate="true" Density="@Workspace.Density" ThumbnailUrl="@(item => AssetUrl(item, ViewMediaResourceKind.Thumbnail))" OnOpen="OpenItem" OnToggleSelection="ToggleSelection" OnToggleSelectionRequested="ToggleSelectionRequested" OnSelectDateGroup="SelectDateGroup" OnDragStarted="BeginDrag" OnDragEnded="EndDrag" />
+            <ViewPhotoTimeline Items="@_page.Items" NoteFor="@ItemNote" Selected="@_selected" SelectMode="@_selectMode" SelectEntireDate="true" Density="@Workspace.Density" ThumbnailUrl="@(item => AssetUrl(item, ViewMediaResourceKind.Thumbnail))" OnOpen="OpenItem" OnEditItem="EditItemCallback" OnTrashItem="TrashItemCallback" OnToggleSelection="ToggleSelection" OnToggleSelectionRequested="ToggleSelectionRequested" OnSelectDateGroup="SelectDateGroup" OnDragStarted="BeginDrag" OnDragEnded="EndDrag" />
             <ViewTimelineScrubber Buckets="@(_timelineIndex?.Buckets ?? [])" ActiveYear="@_activeYear" ActiveMonth="@_activeMonth" OnJump="JumpToBucketAsync" />
         </div>
         <span class="view-timeline-observer-anchor" @ref="_timelineSentinel" aria-hidden="true"></span>
@@ -98,7 +98,7 @@ else
 </ChildContent>
 </ViewContentPage>
 </ViewSectionShell>
-@if (_activeItem is not null) { <ViewImmersiveViewer Item="@_activeItem" HasPrevious="@HasPrevious" HasNext="@HasNext" PositionLabel="@ViewerPosition" ContentUrl="@AssetUrl(_activeItem, ViewMediaResourceKind.Preview)" OriginalUrl="@AssetUrl(_activeItem, ViewMediaResourceKind.Content)" MotionUrl="@MotionUrl(_activeItem)" ThumbnailUrl="@AssetUrl(_activeItem, ViewMediaResourceKind.Thumbnail)" OnClose="CloseItem" OnPrevious="PreviousItem" OnNext="NextItem" OnFavorite="ToggleFavoriteAsync" OnArchive="ArchiveActiveAsync" OnRestore="RestoreActiveAsync" OnTrash="TrashActiveAsync" ManualGalleries="@Workspace.OwnedGalleries.Where(g => g.Kind == ViewGalleryKind.Manual).ToList()" OnAddToGallery="AddActiveToGalleryAsync" CanEdit="@(Workspace.ScopeKind == ViewScopeKind.Mine)" CanManage="@(ItemScope(_activeItem).Kind == ViewScopeKind.Mine)" OnItemUpdated="Replace" /> }
+@if (_activeItem is not null) { <ViewImmersiveViewer Item="@_activeItem" HasPrevious="@HasPrevious" HasNext="@HasNext" PositionLabel="@ViewerPosition" ContentUrl="@AssetUrl(_activeItem, ViewMediaResourceKind.Preview)" OriginalUrl="@AssetUrl(_activeItem, ViewMediaResourceKind.Content)" MotionUrl="@MotionUrl(_activeItem)" ThumbnailUrl="@AssetUrl(_activeItem, ViewMediaResourceKind.Thumbnail)" OnClose="CloseItem" OnPrevious="PreviousItem" OnNext="NextItem" OnFavorite="ToggleFavoriteAsync" OnArchive="ArchiveActiveAsync" OnRestore="RestoreActiveAsync" OnTrash="TrashActiveAsync" ManualGalleries="@Workspace.OwnedGalleries.Where(g => g.Kind == ViewGalleryKind.Manual).ToList()" OnAddToGallery="AddActiveToGalleryAsync" OnCreateGallery="@CreateActiveGalleryCallback" CanEdit="@(Workspace.ScopeKind == ViewScopeKind.Mine)" CanManage="@(ItemScope(_activeItem).Kind == ViewScopeKind.Mine)" OnItemUpdated="Replace" /> }
 
 @code {
     // Videos is offered only while personal videos are allowed for this profile.
@@ -276,6 +276,9 @@ else
     }
     private void CancelSelection() { ClearSelection(); _selectMode = false; }
     // Only computers open the Gallery editor, so the bar's "New Gallery" item is withheld elsewhere; adding to an existing Gallery stays.
+    // The viewer's Gallery list offers New gallery on a computer, starting with the photo on screen; it closes the viewer so the new Gallery's name can be typed.
+    private EventCallback CreateActiveGalleryCallback => DeviceContext.CanEdit && Workspace.ScopeKind == ViewScopeKind.Mine ? EventCallback.Factory.Create(this, CreateActiveGalleryAsync) : default;
+    private async Task CreateActiveGalleryAsync() { if (_viewSectionShell is null || _activeItem is null) return; var id = _activeItem.Id; CloseItem(); await _viewSectionShell.BeginManualGalleryCreateAsync([id]); }
     private EventCallback CreateGalleryCallback => DeviceContext.CanEdit ? EventCallback.Factory.Create(this, CreateGalleryFromSelectionAsync) : default;
     // Download is part of the phone bar only; desktop and tablet bars keep their existing actions.
     private EventCallback DownloadCallback => DeviceContext.IsPhone ? EventCallback.Factory.Create(this, DownloadSelectionAsync) : default;
@@ -340,6 +343,22 @@ else
             Snackbar.Add(failed.Count == 0 ? message : $"{failed.Count} items could not be updated and remain selected. Please retry.", failed.Count == 0 ? AppSeverity.Success : AppSeverity.Error);
         }
         finally { _mutatingSelection = false; }
+    }
+    // The tile menu offers Edit on a computer and Trash on someone's own photos; the Trash list and Shared views keep only their own actions.
+    private EventCallback<LocalAssetDto> EditItemCallback => EditorHost.CanEdit && _filter != "trash" && Workspace.ScopeKind == ViewScopeKind.Mine
+        ? EventCallback.Factory.Create<LocalAssetDto>(this, EditItemAsync) : default;
+    private EventCallback<LocalAssetDto> TrashItemCallback => _filter != "trash" && Workspace.ScopeKind == ViewScopeKind.Mine && DeviceContext.CanEdit
+        ? EventCallback.Factory.Create<LocalAssetDto>(this, TrashItemAsync) : default;
+    private async Task EditItemAsync(LocalAssetDto item)
+    {
+        if (!await EditorHost.OpenItemsAsync([item])) return;
+        var closed = await EditorHost.WhenClosedAsync();
+        if (closed.Changed) { ClearSelection(); await LoadAsync(preserveSelection: false); }
+    }
+    private async Task TrashItemAsync(LocalAssetDto item)
+    {
+        if (await ApiClient.TrashViewItemAsync(item.Id, default)) { await LoadAsync(); Snackbar.Add(L["ViewPage_MovedToTrash"].Value, AppSeverity.Success); }
+        else Snackbar.Add(L["ViewPage_ItemCouldNotBeMovedToTrash"].Value, AppSeverity.Error);
     }
     private EventCallback EditCallback => EditorHost.CanEdit && _filter != "trash" ? EventCallback.Factory.Create(this, EditSelectionAsync) : default;
 

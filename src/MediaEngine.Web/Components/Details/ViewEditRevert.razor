@@ -1,0 +1,18 @@
+@namespace MediaEngine.Web.Components.Details
+@inject IStringLocalizer<SharedStrings> L
+
+@* The revert arrow of the photos, videos and documents editor (spec photos-documents-editor, D3): shown beside a field only once it has a staged
+   change, and puts the field back to what it said when the editor opened. Nothing is saved either way; the change list in Review shows it. *@
+@if (Show)
+{
+    <AppIconButton Icon="@AppMaterialIcons.Outlined.Replay" Tooltip="@L["ViewEdit_Revert"].Value" AriaLabel="@($"{L["ViewEdit_Revert"].Value}: {Field}")" OnClick="OnRevert" />
+}
+
+@code {
+    [Parameter] public bool Show { get; set; }
+
+    /// <summary>The field's name, read out to screen readers with the arrow.</summary>
+    [Parameter, EditorRequired] public string Field { get; set; } = string.Empty;
+
+    [Parameter] public EventCallback OnRevert { get; set; }
+}

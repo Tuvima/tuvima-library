@@ -554,6 +554,24 @@ public sealed class VideoSubtitleCloseRegressionTests : AsyncBunitContext
         Assert.True(_playback.HasQueue);
     }
 
+    [Fact]
+    public async Task TheViewersGalleryListOffersNewGalleryOnlyWhenThePageAllowsIt()
+    {
+        var item = new MediaViewerItem("fixture", MediaViewerKind.Image, "Fixture", null, "/preview", "/original");
+        var created = 0;
+
+        var offered = Render<MediaViewerShell>(p => p.Add(x => x.Item, item).Add(x => x.Capabilities, new MediaViewerCapabilities(CanAddToGallery: true))
+            .Add(x => x.OnCreateGallery, Microsoft.AspNetCore.Components.EventCallback.Factory.Create(this, () => created++)));
+        var select = offered.Find("select[aria-label='Add item to Gallery']");
+        Assert.Contains(select.QuerySelectorAll("option"), option => option.TextContent.Contains("New gallery", StringComparison.OrdinalIgnoreCase));
+        await select.ChangeAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = "new" });
+        Assert.Equal(1, created);
+
+        var withheld = Render<MediaViewerShell>(p => p.Add(x => x.Item, item).Add(x => x.Capabilities, new MediaViewerCapabilities(CanAddToGallery: true)));
+        Assert.DoesNotContain(withheld.Find("select[aria-label='Add item to Gallery']").QuerySelectorAll("option"),
+            option => option.TextContent.Contains("New gallery", StringComparison.OrdinalIgnoreCase));
+    }
+
     [Theory]
     [InlineData(MediaViewerKind.Image)]
     [InlineData(MediaViewerKind.Video)]

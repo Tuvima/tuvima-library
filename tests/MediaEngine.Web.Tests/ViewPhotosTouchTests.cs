@@ -56,6 +56,30 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
             .Add(timeline => timeline.OnOpen, EventCallback.Factory.Create<LocalAssetDto>(this, item => opened?.Invoke(item))));
 
     [Fact]
+    public async Task ATileMenuAppearsOnlyWhenThePageOffersEditOrTrash()
+    {
+        await UseAsync("desktop", touch: false);
+
+        var without = RenderTimeline([Photo("one")]);
+        Assert.Empty(without.FindAll(".view-tile__menu"));
+
+        var with = Render<ViewPhotoTimeline>(parameters => parameters
+            .Add(timeline => timeline.Items, [Photo("one"), Photo("two")])
+            .Add(timeline => timeline.Selected, new HashSet<Guid>())
+            .Add(timeline => timeline.ThumbnailUrl, _ => "/thumb")
+            .Add(timeline => timeline.OnEditItem, EventCallback.Factory.Create<LocalAssetDto>(this, _ => { })));
+        Assert.Equal(2, with.FindAll(".view-tile__menu").Count);
+
+        var picking = Render<ViewPhotoTimeline>(parameters => parameters
+            .Add(timeline => timeline.Items, [Photo("one")])
+            .Add(timeline => timeline.Selected, new HashSet<Guid>())
+            .Add(timeline => timeline.SelectMode, true)
+            .Add(timeline => timeline.ThumbnailUrl, _ => "/thumb")
+            .Add(timeline => timeline.OnEditItem, EventCallback.Factory.Create<LocalAssetDto>(this, _ => { })));
+        Assert.Empty(picking.FindAll(".view-tile__menu"));
+    }
+
+    [Fact]
     public async Task TouchTilesCarryNoDraggableAttribute()
     {
         await UseAsync("phone", touch: true);
@@ -150,14 +174,14 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
         Assert.Equal("3 selected", cut.Find(".view-selection-toolbar__count").TextContent.Trim());
         Assert.Contains("Add to Gallery", cut.Markup, StringComparison.Ordinal);
         var actions = cut.FindAll(".view-selection-toolbar__action").Select(button => button.TextContent.Trim()).ToList();
-        Assert.Equal(["Share", "Download"], actions);
+        Assert.Equal(["Download", "Share"], actions);
         Assert.Single(cut.FindAll(".app-row-menu__trigger"));
         Assert.Empty(cut.FindAll("[role='menuitem']"));
 
         // The Gallery menu only renders its items while open, so open it before judging what it offers.
         Assert.Equal(["Holidays"], OpenGalleryMenu(cut));
 
-        cut.FindAll(".view-selection-toolbar__action")[1].Click();
+        cut.FindAll(".view-selection-toolbar__action")[0].Click();
         cut.Find(".view-selection-toolbar__close").Click();
 
         Assert.Equal(1, downloaded);
@@ -195,7 +219,7 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
 
         Assert.DoesNotContain("view-selection-toolbar--phone", cut.Markup, StringComparison.Ordinal);
         var actions = cut.FindAll(".view-selection-toolbar__action").Select(button => button.TextContent.Trim()).ToList();
-        Assert.Equal(["Submit to Shared Library", "Favorite", "Trash"], actions);
+        Assert.Equal(["Favorite", "Submit to Shared Library", "Trash"], actions);
         Assert.Empty(cut.FindAll(".app-row-menu__trigger"));
         Assert.Equal("Clear photo selection", cut.Find(".view-selection-toolbar__close").GetAttribute("aria-label"));
         Assert.Equal(["New Gallery"], OpenGalleryMenu(cut));

@@ -8,7 +8,7 @@
     @if (ShowSavedViews)
     {
         <ViewDocumentSavedViewsPanel Views="SavedViews" ActiveId="State.SavedViewId" CanSave="CanSaveView" Busy="SavedViewsBusy"
-                                     OnApply="OnApplyView" OnSave="OnSaveView" OnRename="OnRenameView" OnDelete="OnDeleteView" />
+                                     OnApply="OnApplyView" OnSave="OnSaveView" OnRename="OnRenameView" OnDelete="OnDeleteView" OnEdit="OnEditView" />
     }
 
     <header class="view-documents-filters__header">
@@ -165,6 +165,7 @@
     [Parameter] public EventCallback<string> OnSaveView { get; set; }
     [Parameter] public EventCallback<(Guid Id, string Name)> OnRenameView { get; set; }
     [Parameter] public EventCallback<ViewGalleryDto> OnDeleteView { get; set; }
+    [Parameter] public EventCallback<ViewGalleryDto> OnEditView { get; set; }
 
     /// <summary>Raised when the person picks a different sort; the page remembers it for their profile.</summary>
     [Parameter] public EventCallback<string?> OnSortChanged { get; set; }

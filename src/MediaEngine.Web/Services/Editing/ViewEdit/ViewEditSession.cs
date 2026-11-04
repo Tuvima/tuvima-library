@@ -88,7 +88,9 @@ public sealed class ViewEditSession : IReviewSource
     public bool HasPendingChanges => ChangeCount > 0;
 
     public IReadOnlyList<ViewEditTool> Tools => IsGallery
-        ? [ViewEditTool.Details, ViewEditTool.Contents, ViewEditTool.Artwork, ViewEditTool.History]
+        ? Gallery is { IsDocumentView: true }
+            ? [ViewEditTool.Details, ViewEditTool.History]
+            : [ViewEditTool.Details, ViewEditTool.Contents, ViewEditTool.Artwork, ViewEditTool.History]
         : [ViewEditTool.Details, ViewEditTool.Files, ViewEditTool.History];
 
     public ViewEditStage StageFor(IReadOnlyList<LocalAssetDto> items)

@@ -18,6 +18,7 @@
             <div class="tl-editor-field">
                 <AppTextarea Label="@L["ViewEdit_Description"].Value" Value="@(Stage.DescriptionStaged ? Stage.Description ?? string.Empty : Stage.Items[0].Description ?? string.Empty)"
                              ValueChanged="@(value => Stage.SetDescription(value))" Lines="3" />
+                <ViewEditRevert Show="Stage.DescriptionStaged" Field="@L["ViewEdit_Description"].Value" OnRevert="@(() => Stage.RevertDescription())" />
             </div>
         }
 
@@ -49,6 +50,7 @@
                 }
             }
 
+            <ViewEditRevert Show="Stage.DateMode != ViewDateMode.None" Field="@L["ViewEdit_DateTaken"].Value" OnRevert="@(() => Stage.RevertDate())" />
             <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.Replay" OnClick="@(() => Stage.UseOriginalDate())">@L["ViewEdit_UseOriginal"]</AppButton>
         </div>
 
@@ -66,6 +68,7 @@
                 <small class="tl-editor-field__hint">@L["ViewEdit_Mixed"]</small>
             }
 
+            <ViewEditRevert Show="Stage.PlaceMode != ViewPlaceMode.None" Field="@L["ViewEdit_Place"].Value" OnRevert="@(() => Stage.RevertPlace())" />
             <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" StartIcon="@AppMaterialIcons.Outlined.Replay" OnClick="@(() => Stage.UseOriginalPlace())">@L["ViewEdit_UseOriginal"]</AppButton>
         </div>
     }
@@ -75,6 +78,7 @@
         {
             <div class="tl-editor-field">
                 <AppTextField Label="@L["Common_Title"].Value" MaxLength="300" Value="@Current(ViewDocumentFieldKeys.Title)" ValueChanged="@(value => Stage.SetDocumentField(ViewDocumentFieldKeys.Title, value?.ToString()))" />
+                <ViewEditRevert Show="Stage.IsDocumentFieldStaged(ViewDocumentFieldKeys.Title)" Field="@L["Common_Title"].Value" OnRevert="@(() => Stage.RevertDocumentField(ViewDocumentFieldKeys.Title))" />
             </div>
         }
 
@@ -86,6 +90,7 @@
             {
                 <small class="tl-editor-field__hint">@L["ViewEdit_Mixed"]</small>
             }
+            <ViewEditRevert Show="Stage.IsDocumentFieldStaged(ViewDocumentFieldKeys.Correspondent)" Field="@L["Common_Correspondent"].Value" OnRevert="@(() => Stage.RevertDocumentField(ViewDocumentFieldKeys.Correspondent))" />
         </div>
         <div class="tl-editor-field">
             <AppAutocomplete TItem="string" Label="@L["Common_DocumentType"].Value" Value="@Current(ViewDocumentFieldKeys.Type)"
@@ -95,6 +100,7 @@
             {
                 <small class="tl-editor-field__hint">@L["ViewEdit_Mixed"]</small>
             }
+            <ViewEditRevert Show="Stage.IsDocumentFieldStaged(ViewDocumentFieldKeys.Type)" Field="@L["Common_DocumentType"].Value" OnRevert="@(() => Stage.RevertDocumentField(ViewDocumentFieldKeys.Type))" />
         </div>
         <div class="tl-editor-field">
             <AppTextField InputType="AppInputType.Date" Label="@L["Common_DocumentDate"].Value" Value="@Current(ViewDocumentFieldKeys.Date)"
@@ -103,12 +109,14 @@
             {
                 <small class="tl-editor-field__hint">@L["ViewEdit_Mixed"]</small>
             }
+            <ViewEditRevert Show="Stage.IsDocumentFieldStaged(ViewDocumentFieldKeys.Date)" Field="@L["Common_DocumentDate"].Value" OnRevert="@(() => Stage.RevertDocumentField(ViewDocumentFieldKeys.Date))" />
         </div>
         @if (Stage.CanEditDocumentField(ViewDocumentFieldKeys.ArchiveNumber))
         {
             <div class="tl-editor-field">
                 <AppTextField Label="@L["ViewDocumentDetailsDialog_ArchiveNumber"].Value" MaxLength="120" Value="@Current(ViewDocumentFieldKeys.ArchiveNumber)"
                               ValueChanged="@(value => Stage.SetDocumentField(ViewDocumentFieldKeys.ArchiveNumber, value?.ToString()))" />
+                <ViewEditRevert Show="Stage.IsDocumentFieldStaged(ViewDocumentFieldKeys.ArchiveNumber)" Field="@L["ViewDocumentDetailsDialog_ArchiveNumber"].Value" OnRevert="@(() => Stage.RevertDocumentField(ViewDocumentFieldKeys.ArchiveNumber))" />
             </div>
         }
 
@@ -117,6 +125,7 @@
             <div class="tl-editor-field">
                 <AppTextarea Label="@L["ViewDocumentDetailsDialog_Notes"].Value" Lines="4" Value="@Current(ViewDocumentFieldKeys.Notes)"
                              ValueChanged="@(value => Stage.SetDocumentField(ViewDocumentFieldKeys.Notes, value))" />
+                <ViewEditRevert Show="Stage.IsDocumentFieldStaged(ViewDocumentFieldKeys.Notes)" Field="@L["ViewDocumentDetailsDialog_Notes"].Value" OnRevert="@(() => Stage.RevertDocumentField(ViewDocumentFieldKeys.Notes))" />
             </div>
         }
 
@@ -166,6 +175,7 @@
                             break;
                     }
 
+                    <ViewEditRevert Show="Stage.IsCustomFieldStaged(field.Id)" Field="@field.Name" OnRevert="@(() => { Stage.RevertCustomField(field.Id); _drafts.Remove(field.Id); })" />
                     @if (_problems.TryGetValue(field.Id, out var problem))
                     {
                         <small class="tl-editor-field__hint" role="alert">@problem</small>
@@ -178,6 +188,7 @@
     <div class="tl-editor-field">
         <span class="tl-editor-field__label">@L["Common_Tags"]</span>
         <AppTagInput Commit="CommitTagAsync" Search="SearchTagsAsync" />
+        <ViewEditRevert Show="Stage.TagsAdd.Count + Stage.TagsRemove.Count > 0" Field="@L["Common_Tags"].Value" OnRevert="@(() => Stage.RevertTags())" />
         @if (Stage.ShownTags().Count > 0)
         {
             <ul class="view-edit-details__chips" aria-label="@L["ViewDocumentDetailsDialog_TagsOnThisDocument"].Value">
@@ -194,6 +205,7 @@
         <div class="tl-editor-field">
             <span class="tl-editor-field__label">@L["ViewEdit_People"]</span>
             <AppTagInput Commit="CommitPersonAsync" Search="SearchNoneAsync" />
+            <ViewEditRevert Show="Stage.PeopleAdd.Count + Stage.PeopleRemove.Count > 0" Field="@L["ViewEdit_People"].Value" OnRevert="@(() => Stage.RevertPeople())" />
             @if (Stage.ShownPeople().Count > 0)
             {
                 <ul class="view-edit-details__chips">

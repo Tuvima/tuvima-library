@@ -1,3 +1,4 @@
+using MediaEngine.Web.Services.Editing;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
@@ -102,5 +103,46 @@ public sealed class ViewEditorGuardrailTests
         Assert.Contains("FileWriteMediaTypes => []", session, StringComparison.Ordinal);
         Assert.DoesNotContain("File.WriteAllBytes", service, StringComparison.Ordinal);
         Assert.DoesNotContain("File.Move", service, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheSelectionBarTheTileMenuAndTheViewerListTheActionsInOneOrder()
+    {
+        // Each surface names an action by a marker in its own markup; read in file order, the markers must follow the shared order.
+        var surfaces = new Dictionary<string, (string Source, (string Action, string Marker)[] Markers)>
+        {
+            ["selection bar"] = (Web("Components/Pages/ViewSelectionToolbar.razor"), new[]
+            {
+                (ViewItemActions.Favorite, "OnFavorite.InvokeAsync"),
+                (ViewItemActions.AddToGallery, "ViewSelectionToolbar_AddToGallery"),
+                (ViewItemActions.Download, "ViewSelectionToolbar_DownloadSelectedItems"),
+                (ViewItemActions.Share, "Common_SubmitToSharedLibrary"),
+                (ViewItemActions.Archive, "ViewSelectionToolbar_Archive\"]</AppNativeButton>"),
+                (ViewItemActions.Edit, "ViewEdit_Edit"),
+                (ViewItemActions.Trash, "Common_Trash"),
+            }),
+            ["tile menu"] = (Web("Components/Pages/ViewPhotoTimeline.razor"), new[]
+            {
+                (ViewItemActions.Edit, "Common_Edit"),
+                (ViewItemActions.Trash, "Common_Trash"),
+            }),
+            ["viewer"] = (Web("Components/Shared/MediaViewerShell.razor"), new[]
+            {
+                (ViewItemActions.Favorite, "Capabilities.CanFavorite"),
+                (ViewItemActions.AddToGallery, "Capabilities.CanAddToGallery"),
+                (ViewItemActions.Download, "Capabilities.CanDownload"),
+                (ViewItemActions.Archive, "Capabilities.CanArchive"),
+                (ViewItemActions.Edit, "@ContextActions"),
+                (ViewItemActions.Trash, "Capabilities.CanTrash"),
+            }),
+        };
+
+        foreach (var (surface, (source, markers)) in surfaces)
+        {
+            var positions = markers.Select(entry => (entry.Action, At: source.IndexOf(entry.Marker, StringComparison.Ordinal))).ToList();
+            Assert.All(positions, entry => Assert.True(entry.At >= 0, $"The {surface} lost its {entry.Action} action."));
+            var expected = ViewItemActions.Order.Where(action => positions.Any(entry => entry.Action == action)).ToList();
+            Assert.Equal(expected, positions.OrderBy(entry => entry.At).Select(entry => entry.Action).ToList());
+        }
     }
 }
