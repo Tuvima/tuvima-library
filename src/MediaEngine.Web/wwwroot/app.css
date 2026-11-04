@@ -4949,14 +4949,36 @@ input[type="reset"],
 
 /* Player subtitles. ::cue cannot be scoped, so the cue rules live here. VideoPlaybackHost sets data-subtitle-size and
    data-subtitle-background from the profile; they become --tl-subtitle-size and --tl-subtitle-bg, which the cues read. */
-.video-playback-host { --tl-subtitle-size: max(14px, 2.8vh); --tl-subtitle-bg: rgb(0 0 0 / 60%); --tl-subtitle-shadow: none; }
+.video-playback-host { --tl-subtitle-size: max(14px, 2.8vh); --tl-subtitle-shadow: none; --tl-sub-text: #fff; --tl-sub-text-o: 100%; --tl-sub-bg: var(--tl-subtitle-swatch-black); --tl-sub-bg-o: 60%;
+    --tl-subtitle-bg: color-mix(in srgb, var(--tl-sub-bg) var(--tl-sub-bg-o), transparent); }
 .video-playback-host[data-subtitle-size="Small"] { --tl-subtitle-size: max(14px, 2.2vh); }
 .video-playback-host[data-subtitle-size="Large"] { --tl-subtitle-size: max(14px, 3.6vh); }
 .video-playback-host[data-subtitle-background="false"] { --tl-subtitle-bg: transparent; --tl-subtitle-shadow: 0 1px 3px black, 0 0 6px black; }
-.video-playback-host { --tl-subtitle-color: #fff; --tl-subtitle-font: inherit; }
-.video-playback-host[data-subtitle-color="Yellow"] { --tl-subtitle-color: #ffe066; }
-.video-playback-host[data-subtitle-color="Cyan"] { --tl-subtitle-color: #67e8f9; }
-.video-playback-host[data-subtitle-color="Green"] { --tl-subtitle-color: #86efac; }
+.video-playback-host { --tl-subtitle-color: color-mix(in srgb, var(--tl-sub-text) var(--tl-sub-text-o), transparent); --tl-subtitle-font: inherit; }
+/* Unified player D12: the eight subtitle colours and the opacity stops, for the text and for the background behind it. */
+.video-playback-host[data-subtitle-color="Black"] { --tl-sub-text: var(--tl-subtitle-swatch-black); }
+.video-playback-host[data-subtitle-color="Blue"] { --tl-sub-text: var(--tl-subtitle-swatch-blue); }
+.video-playback-host[data-subtitle-color="Teal"] { --tl-sub-text: var(--tl-subtitle-swatch-teal); }
+.video-playback-host[data-subtitle-color="Green"] { --tl-sub-text: var(--tl-subtitle-swatch-green); }
+.video-playback-host[data-subtitle-color="Yellow"] { --tl-sub-text: var(--tl-subtitle-swatch-yellow); }
+.video-playback-host[data-subtitle-color="Red"] { --tl-sub-text: var(--tl-subtitle-swatch-red); }
+.video-playback-host[data-subtitle-color="Magenta"] { --tl-sub-text: var(--tl-subtitle-swatch-magenta); }
+.video-playback-host[data-subtitle-bg-color="White"] { --tl-sub-bg: var(--tl-subtitle-swatch-white); }
+.video-playback-host[data-subtitle-bg-color="Blue"] { --tl-sub-bg: var(--tl-subtitle-swatch-blue); }
+.video-playback-host[data-subtitle-bg-color="Teal"] { --tl-sub-bg: var(--tl-subtitle-swatch-teal); }
+.video-playback-host[data-subtitle-bg-color="Green"] { --tl-sub-bg: var(--tl-subtitle-swatch-green); }
+.video-playback-host[data-subtitle-bg-color="Yellow"] { --tl-sub-bg: var(--tl-subtitle-swatch-yellow); }
+.video-playback-host[data-subtitle-bg-color="Red"] { --tl-sub-bg: var(--tl-subtitle-swatch-red); }
+.video-playback-host[data-subtitle-bg-color="Magenta"] { --tl-sub-bg: var(--tl-subtitle-swatch-magenta); }
+.video-playback-host[data-subtitle-text-opacity="20"] { --tl-sub-text-o: 20%; }
+.video-playback-host[data-subtitle-text-opacity="40"] { --tl-sub-text-o: 40%; }
+.video-playback-host[data-subtitle-text-opacity="60"] { --tl-sub-text-o: 60%; }
+.video-playback-host[data-subtitle-text-opacity="80"] { --tl-sub-text-o: 80%; }
+.video-playback-host[data-subtitle-bg-opacity="0"] { --tl-sub-bg-o: 0%; }
+.video-playback-host[data-subtitle-bg-opacity="20"] { --tl-sub-bg-o: 20%; }
+.video-playback-host[data-subtitle-bg-opacity="40"] { --tl-sub-bg-o: 40%; }
+.video-playback-host[data-subtitle-bg-opacity="80"] { --tl-sub-bg-o: 80%; }
+.video-playback-host[data-subtitle-bg-opacity="100"] { --tl-sub-bg-o: 100%; }
 .video-playback-host[data-subtitle-font="Serif"] { --tl-subtitle-font: Georgia, "Times New Roman", serif; }
 .video-playback-host[data-subtitle-font="Mono"] { --tl-subtitle-font: ui-monospace, Consolas, "Courier New", monospace; }
 .video-playback-host[data-subtitle-shadow="true"] { --tl-subtitle-shadow: 0 1px 3px black, 0 0 6px black; }
@@ -4979,6 +5001,14 @@ input[type="reset"],
 .video-settings-menu__styling { display: grid; }
 .video-settings-menu__preview { margin: 0; padding: 18px 20px; display: grid; place-items: center; background: #05070d; text-align: center; }
 .video-settings-menu__preview span { padding: 2px 10px; border-radius: 4px; background: var(--preview-bg, transparent); }
+/* Unified player D12: colour swatches and opacity sliders on the style menu. */
+.video-settings-menu__choices { display: contents; }
+.video-settings-menu__swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.video-settings-menu .video-settings-menu__swatch { inline-size: 32px; block-size: 32px; padding: 0; border: 2px solid rgba(255, 255, 255, .25); border-radius: 50%; background: var(--swatch); cursor: pointer; }
+.video-settings-menu .video-settings-menu__swatch.is-selected { border-color: var(--tl-accent-primary); box-shadow: 0 0 0 3px var(--tl-accent-primary); }
+.video-settings-menu__group--slider { align-items: flex-start; }
+.video-settings-menu__group--slider .app-field__label { display: none; }
+.video-settings-menu__slider { flex: 1; min-width: 0; }
 .video-playback-host__aa { font-weight: 700; font-size: var(--tl-font-size-lg); }
 .video-settings-menu__group { display: flex; align-items: center; gap: 8px; padding: 10px 20px; }
 .video-settings-menu__group > h4 { min-width: 6.5em; font-weight: 500; color: var(--playback-text-secondary); }
@@ -4997,7 +5027,7 @@ input[type="reset"],
 .playback-sheet-list { overflow-x: hidden; max-height: min(80vh, 640px); scrollbar-width: thin; }
 
 /* Unified player D12: on touch the style menu uses 48 px rows and choices, with nothing that depends on hover. */
-@media (pointer: coarse) { .video-settings-menu .video-settings-menu__choice, .video-settings-menu .video-settings-menu__row { min-height: 48px; } .video-settings-menu__group { flex-wrap: wrap; } }
+@media (pointer: coarse) { .video-settings-menu .video-settings-menu__swatch { inline-size: 48px; block-size: 48px; } .video-settings-menu .video-settings-menu__choice, .video-settings-menu .video-settings-menu__row { min-height: 48px; } .video-settings-menu__group { flex-wrap: wrap; } }
 
 /* Unified player D7: a paused Now Playing page dims its backdrop after a short pause. */
 .playback-desktop--paused::before { filter: blur(34px) brightness(.28); transition: filter .4s ease 1.2s; }

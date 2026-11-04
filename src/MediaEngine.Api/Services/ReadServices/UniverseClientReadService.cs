@@ -339,6 +339,29 @@ public sealed partial class UniverseClientReadService(
             .ToList();
     }
 
+    /// <summary>
+    /// The ids of the Series (or shows) of one Universe that the profile may open it through, or null when the profile cannot open
+    /// that Universe at all. It reads only collection records, never works, so a catalogue read can call it while it is filtering
+    /// rows. A tile shows "Open Universe" only for a title in one of these Series (Kids and private profiles never see a way in).
+    /// </summary>
+    public async Task<IReadOnlySet<Guid>?> OpenUniverseMemberIdsAsync(string qid, Profile? profile, CancellationToken ct = default)
+    {
+        var normalized = NormalizeQid(qid);
+        if (normalized is null)
+        {
+            return null;
+        }
+
+        var open = await FindOpenUniverseAsync(normalized, profile, ct).ConfigureAwait(false);
+        if (open is null)
+        {
+            return null;
+        }
+
+        var members = open.OneSeriesMembers ?? await LoadMemberCollectionsAsync(open.Universe, profile, ct).ConfigureAwait(false);
+        return members.Select(member => member.Id).ToHashSet();
+    }
+
     /// <summary>A Universe the profile may open. <see cref="OneSeriesMembers"/> is set only for a Universe with no stored shelf.</summary>
     private sealed record OpenUniverse(Collection Universe, IReadOnlyList<Collection>? OneSeriesMembers);
 

@@ -508,6 +508,14 @@ public sealed class DisplayWorkProjectionReader
                 r.Value(Slot.Work, "issue_number"),
                 r.Value(Slot.Asset, "series_position"),
             ])),
+            // The Universe icon's rule (UniverseIdentityRule.CanOpenUniversePage for one Series): a Series shelf names a Universe other
+            // than itself. A Series that is its own Universe gets no page, so no "Open Universe" row. Read from the shelf row already joined.
+            Column("UniverseQid", _ => """
+                CASE WHEN own_collection.collection_type IN ('ContentGroup', 'Series')
+                      AND NULLIF(TRIM(own_collection.universe_qid), '') IS NOT NULL
+                      AND UPPER(TRIM(own_collection.universe_qid)) IS NOT UPPER(TRIM(COALESCE(own_collection.wikidata_qid, '')))
+                     THEN UPPER(TRIM(own_collection.universe_qid)) END
+                """),
             Column("CollectionTitle", _ => "own_collection.display_name"),
             Column("CollectionDescription", _ => "own_collection.description"),
             Column("CollectionType", _ => "own_collection.collection_type"),

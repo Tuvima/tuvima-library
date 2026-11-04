@@ -854,6 +854,37 @@ public sealed class DisplayWorkProjectionReaderTests : IDisposable
     }
 
     [Fact]
+    public async Task LoadAsync_CarriesTheUniverseOfTheWorksSeries_OnlyWhenThatUniversePageCanOpen()
+    {
+        Guid inUniverse, ownUniverse, noUniverse;
+        using (var conn = _db.CreateConnection())
+        {
+            var namingUniverse = Guid.NewGuid();
+            var itsOwnUniverse = Guid.NewGuid();
+            await conn.ExecuteAsync(
+                """
+                INSERT INTO narrative_roots (qid, label, level, created_at)
+                VALUES ('Q222', 'The Expanse', 'Universe', '2026-01-01 00:00:00'), ('Q333', 'Dune', 'Universe', '2026-01-01 00:00:00');
+                INSERT INTO collections (id, display_name, collection_type, scope, resolution, is_enabled, wikidata_qid, universe_qid)
+                VALUES (@namingUniverse, 'The Expanse (novels)', 'Series', 'Library', 'Materialized', 1, 'Q111', 'Q222'),
+                       (@itsOwnUniverse, 'Dune', 'Series', 'Library', 'Materialized', 1, 'Q333', 'Q333');
+                """,
+                new { namingUniverse, itsOwnUniverse });
+            (inUniverse, _, _) = await InsertFileAsync(conn, "Movies", "standalone");
+            (ownUniverse, _, _) = await InsertFileAsync(conn, "Movies", "standalone");
+            (noUniverse, _, _) = await InsertFileAsync(conn, "Movies", "standalone");
+            await conn.ExecuteAsync("UPDATE works SET collection_id = @namingUniverse WHERE id = @inUniverse;", new { namingUniverse, inUniverse });
+            await conn.ExecuteAsync("UPDATE works SET collection_id = @itsOwnUniverse WHERE id = @ownUniverse;", new { itsOwnUniverse, ownUniverse });
+        }
+
+        var rows = await new DisplayWorkProjectionReader(_db).LoadAsync(CancellationToken.None);
+
+        Assert.Equal("Q222", rows.Single(row => row.WorkId == inUniverse).UniverseQid);
+        Assert.Null(rows.Single(row => row.WorkId == ownUniverse).UniverseQid);
+        Assert.Null(rows.Single(row => row.WorkId == noUniverse).UniverseQid);
+    }
+
+    [Fact]
     public async Task LoadAsync_LeanReadReturnsNullForSearchOnlyColumnsAndFullReadFillsThem()
     {
         using (var conn = _db.CreateConnection())

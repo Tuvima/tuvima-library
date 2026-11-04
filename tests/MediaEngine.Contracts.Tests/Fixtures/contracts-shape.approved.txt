@@ -3028,6 +3028,7 @@ MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayCardDto
   SortYear: System.Int32 | nullability=not-null | accessors=get,init
   ListMetadata: MediaEngine.Contracts.Display.DisplayCardListMetadataDto | nullability=nullable | accessors=get,init
   IsSettling: System.Boolean | nullability=not-null | accessors=get,init
+  UniverseQid: System.String | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayCardFlagsDto
   IsPlayable: System.Boolean | nullability=not-null | accessors=get,init
@@ -7761,6 +7762,9 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.SubtitleLanguageSe
   SubtitleFont: System.String | nullability=not-null | accessors=get,set
   SubtitleShadow: System.Boolean | nullability=not-null | accessors=get,set
   SubtitleColor: System.String | nullability=not-null | accessors=get,set
+  SubtitleTextOpacity: System.Int32 | nullability=not-null | accessors=get,set
+  SubtitleBackgroundColor: System.String | nullability=not-null | accessors=get,set
+  SubtitleBackgroundOpacity: System.Int32 | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.TextTrackAlternativeDto
   provider: System.String | nullability=not-null | accessors=get,init
