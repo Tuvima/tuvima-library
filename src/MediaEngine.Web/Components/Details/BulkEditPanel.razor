@@ -4,6 +4,8 @@
 @using MediaEngine.Web.Components.MediaEditor.Moves
 @using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.MediaTiles
+@using Microsoft.AspNetCore.Components.Forms
 @implements IDisposable
 @inject IEngineApiClient Api
 @inject DeviceContextService Device
@@ -51,6 +53,20 @@
     else
     {
         <h3 class="tl-editor-details__heading" data-bulk-heading>@BulkEditRules.EditingTitle(Selection.Rows, Selection.MediaType)</h3>
+        var faces = Selection.OrderedRows().Where(row => !string.IsNullOrWhiteSpace(row.ImageUrl)).ToList();
+        @if (faces.Count > 0)
+        {
+            <div class="tl-bulk__faces" data-bulk-faces>
+                @foreach (var row in faces.Take(MaxFaces))
+                {
+                    <AppImage Src="@row.ImageUrl" Alt="" Width="28" Height="28" ObjectFit="AppObjectFit.Cover" Class="tl-bulk__face" />
+                }
+                @if (faces.Count > MaxFaces)
+                {
+                    <span class="tl-bulk__faces-more">+@(faces.Count - MaxFaces)</span>
+                }
+            </div>
+        }
         <div class="tl-bulk__items" role="list" aria-label="@L["BulkEditPanel_ItemsBeingEditedTogether"].Value">
             @foreach (var row in Selection.OrderedRows())
             {
@@ -93,6 +109,11 @@
                 @SongTools()
             }
 
+            @if (_artworkTarget is not null && BulkEditRules.ArtworkSentence(Kind, Selection.Count) is { } artworkSentence)
+            {
+                @ArtworkSection(artworkSentence)
+            }
+
             var effective = BulkEditRules.OfferedFields(_fields.Fields, Kind).Select(field => (Engine: field, Shown: field.WithStaged(Pending))).ToList();
             var editable = effective.Where(pair => !pair.Engine.IsProviderFact).ToList();
             var facts = effective.Where(pair => pair.Engine.IsProviderFact).ToList();
@@ -121,6 +142,12 @@
 </div>
 
 @code {
+    private const int MaxFaces = 8;
+
+    private static readonly IReadOnlyList<AppSelectOption> ExplicitOptions = [new("true", "Explicit"), new("false", "Not explicit")];
+
+    private BulkArtworkPicker _artwork = default!;
+    private Guid? _artworkTarget;
     private readonly Dictionary<string, ListDraft> _drafts = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<Guid, string> _movedLabels = [];
     private BulkEditFields _fields = default!;
@@ -203,8 +230,35 @@
             Pending.Changed += OnPendingChanged;
         }
 
+        if (_artwork is null || !ReferenceEquals(_artworkPending, Pending))
+        {
+            if (_artwork is not null)
+            {
+                _artwork.Changed -= OnArtworkChanged;
+            }
+
+            _artworkPending = Pending;
+            _artwork = new BulkArtworkPicker(Api, Pending);
+            _artwork.Changed += OnArtworkChanged;
+            _artworkTarget = null;
+        }
+
         await SyncAsync();
     }
+
+    private PendingEditList? _artworkPending;
+
+    private void OnArtworkChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private async Task UploadCoverAsync(IBrowserFile? file)
+    {
+        if (file is not null && CanChange)
+        {
+            await _artwork.UploadAsync(file);
+        }
+    }
+
+    private void UndoCover() => _artwork.Undo();
 
     // The ticked rows or the panel changed: read the fields of rows not read yet, and fetch the places when Move opens.
     private async Task SyncAsync()
@@ -224,6 +278,20 @@
             _drafts.Clear();
             _songNote = null;
             await _fields.LoadAsync(ids);
+        }
+
+        if (Selection.Panel == BulkPanelKind.Edit)
+        {
+            // One shared picture role: songs of one album set the album's cover. Anything else offers none.
+            var target = BulkEditRules.SharedArtworkTarget(Selection.Rows, Selection.MediaType);
+            if (target != _artworkTarget)
+            {
+                _artworkTarget = target;
+                if (target is { } album)
+                {
+                    await _artwork.LoadAsync(album);
+                }
+            }
         }
 
         if (Selection.Panel == BulkPanelKind.Move && _lastPanel != BulkPanelKind.Move && ids.Count > 0)
@@ -268,6 +336,14 @@
             @if (field.IsList)
             {
                 @ListControl(field)
+            }
+            else if (string.Equals(field.Key, BulkEditRules.ExplicitKey, StringComparison.OrdinalIgnoreCase))
+            {
+                <AppSegmentedControl Options="@ExplicitOptions"
+                                     Value="@(shown.IsMixed ? string.Empty : (string.Equals(shown.SharedText, "true", StringComparison.OrdinalIgnoreCase) ? "true" : "false"))"
+                                     ValueChanged="@(value => StageScalar(field, value))"
+                                     Disabled="@(!CanChange)"
+                                     AriaLabel="@field.Label" />
             }
             else
             {
@@ -314,6 +390,61 @@
                 </div>
             }
         </div>
+    };
+
+    // "Set one cover for these 12 songs. It sets the album's cover." The choice is staged once, on the album.
+    private RenderFragment ArtworkSection(string sentence) => __builder =>
+    {
+        <section class="tl-editor-details__group tl-bulk__group" aria-label="Artwork" data-bulk-artwork>
+            <h3 class="tl-editor-details__heading">Artwork</h3>
+            <p class="tl-bulk__note">@sentence</p>
+            @if (_artwork.Loading)
+            {
+                <AppPageState Kind="AppPageStateKind.Loading" Title="Loading the album's covers" />
+            }
+            else
+            {
+                <div class="tl-bulk__covers" role="group" aria-label="Covers for the album">
+                    @foreach (var picture in _artwork.Pictures)
+                    {
+                        var current = picture;
+                        var chosen = _artwork.StagedAssetId is { } staged ? staged == current.AssetId : current.IsCurrent;
+                        <AppButton ButtonStyle="AppButtonStyle.Text"
+                                   Tone="AppUiTone.Neutral"
+                                   Class="tl-bulk__cover"
+                                   Disabled="@(!CanChange)"
+                                   aria-label="@(string.IsNullOrWhiteSpace(current.Caption) ? "Album cover" : current.Caption)"
+                                   aria-pressed="@(chosen ? "true" : "false")"
+                                   OnClick="@(() => _artwork.Pick(current))">
+                            <img class="tl-bulk__cover-face"
+                                 src="@MediaTileArtworkUrl.ForDrawnSize(current.ThumbnailUrl, 72)"
+                                 srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(current.ThumbnailUrl, 72)"
+                                 alt=""
+                                 loading="lazy"
+                                 decoding="async" />
+                        </AppButton>
+                    }
+                </div>
+                @if (_artwork.Pictures.Count == 0)
+                {
+                    <span class="tl-editor-field__note">The album has no saved covers yet. Add one from your computer.</span>
+                }
+
+                <AppFileUpload T="IBrowserFile" Accept="image/jpeg,image/png" FilesChanged="UploadCoverAsync" Disabled="@(!CanChange || _artwork.Busy)" />
+            }
+
+            @if (!string.IsNullOrWhiteSpace(_artwork.Message))
+            {
+                <AppAlert Severity="AppSeverity.Warning" Dense="true">@_artwork.Message</AppAlert>
+            }
+
+            @if (_artwork.HasStaged)
+            {
+                <span class="tl-editor-field__note tl-bulk__staged" role="status">The album's cover will change when you save.</span>
+                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                           Class="tl-editor-field__reset" OnClick="UndoCover">Undo cover change</AppButton>
+            }
+        </section>
     };
 
     private RenderFragment FactRow(BulkFieldView shown) => __builder =>
@@ -432,7 +563,7 @@
 
     private static AppInputType InputTypeOf(BulkFieldView field) => field.Key.ToLowerInvariant() switch
     {
-        "year" or "rating" => AppInputType.Number,
+        "year" or "rating" or "disc_number" => AppInputType.Number,
         _ => AppInputType.Text,
     };
 
@@ -632,5 +763,9 @@
         }
 
         _fields.Changed -= OnFieldsChanged;
+        if (_artwork is not null)
+        {
+            _artwork.Changed -= OnArtworkChanged;
+        }
     }
 }

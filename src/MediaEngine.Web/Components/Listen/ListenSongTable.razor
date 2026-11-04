@@ -426,7 +426,8 @@ else
                 DisplayTrackTitle(track),
                 DetailEntityType.Work,
                 track.RootWorkId is { } album && album != track.Id && album != Guid.Empty ? album : null,
-                "Music"))];
+                "Music",
+                track.CoverUrl is { Length: > 0 } cover ? MediaTileArtworkUrl.ForDrawnSize(cover, 56) : null))];
 
     private Task ClearSelectionAsync()
     {

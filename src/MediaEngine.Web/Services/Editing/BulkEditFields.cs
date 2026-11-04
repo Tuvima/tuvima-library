@@ -263,6 +263,12 @@ public sealed class BulkEditFields
                 var values = isList
                     ? (IReadOnlyList<string>)state.Values
                     : string.IsNullOrWhiteSpace(state.Value) ? [] : [state.Value.Trim()];
+                if (values.Count == 0 && string.Equals(field.Key, BulkEditRules.ExplicitKey, StringComparison.OrdinalIgnoreCase))
+                {
+                    // An item never marked is simply not Explicit: it agrees with one marked Off.
+                    values = ["false"];
+                }
+
                 var locked = state.Operations.Count == 0
                     ? state.LockedItems.Select(item => item.Reason).FirstOrDefault(reason => !string.IsNullOrWhiteSpace(reason)) ?? "This can't be changed here."
                     : state.LockedItems.FirstOrDefault(item => item.EntityId == id)?.Reason;
