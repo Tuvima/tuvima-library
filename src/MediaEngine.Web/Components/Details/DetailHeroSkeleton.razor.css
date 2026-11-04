@@ -77,7 +77,7 @@
     width: 8rem;
     height: 2.75rem;
     min-height: 0;
-    border-radius: 999px;
+    border-radius: var(--tl-control-radius);
 }
 
 .tl-detail-skeleton__button--secondary {

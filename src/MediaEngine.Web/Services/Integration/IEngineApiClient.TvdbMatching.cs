@@ -30,6 +30,9 @@ public partial interface IEngineApiClient
     /// <summary>The Match tool's starting point: what the item's file name says (show, season, episode) and the provider's best guess for it.</summary>
     Task<EditorMatchContextDto?> GetEditorMatchContextAsync(Guid entityId, CancellationToken ct = default);
 
+    /// <summary>"What is this file?": whether the item is one file, the guess its name gives for an Extra's kind and place, and the other unsorted files in its folder. A read; null when the Engine could not be reached.</summary>
+    Task<EditorFileSortingDto?> GetEditorFileSortingAsync(Guid entityId, CancellationToken ct = default);
+
     /// <summary>"Match the other episodes in this season by number": which other episodes of the folder season the chosen season would take. A read.</summary>
     Task<EpisodeSiblingMatchPreviewDto?> PreviewEpisodeSiblingMatchAsync(Guid entityId, string seriesId, int seasonNumber, CancellationToken ct = default);
 

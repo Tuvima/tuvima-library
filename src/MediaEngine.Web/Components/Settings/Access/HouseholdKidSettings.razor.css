@@ -5,7 +5,7 @@
 .kid-settings__row--switch { flex-direction: row; align-items: center; gap: 8px; }
 .kid-settings__row--switch > :first-child { flex: 1; min-width: 0; }
 .kid-settings__label { display: inline-flex; align-items: center; gap: 6px; font-family: 'Tuvima Sans', var(--tl-font-sans, system-ui, sans-serif); color: var(--tl-text-secondary); }
-.kid-settings__error { margin: 0; color: var(--tl-status-error, var(--tl-text-primary)); font-size: .9rem; }
+.kid-settings__error { margin: 0; color: var(--tl-status-error, var(--tl-text-primary)); font-size: var(--tl-font-size-sm); }
 
 @media (min-width: 600px) {
     .kid-settings__row:not(.kid-settings__row--switch) { flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; }

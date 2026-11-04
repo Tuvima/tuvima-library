@@ -12,7 +12,8 @@ namespace MediaEngine.Api.Tests;
 /// <summary>
 /// Moving a file between a show's Extras and its episodes in the editor (Extras spec WP4): the check says why a move cannot happen, an
 /// Extra moved to an episode stops being an Extra and is queued for ingestion as that episode, and an episode moved to Extras keeps its
-/// file and loses only its library records.
+/// file and loses only its library records. Also "What is this file?" (universal editor v4 D20): a file the Engine could not place becomes
+/// an Extra with a kind and a place, is filed under another title, or is ignored (hidden, left on disk, listed in the excluded files).
 /// </summary>
 public sealed class ExtraMoveEditSessionChangeHandlerTests : IDisposable
 {
@@ -29,6 +30,11 @@ public sealed class ExtraMoveEditSessionChangeHandlerTests : IDisposable
     private readonly ExtraMoveEditSessionChangeHandler _handler;
     private readonly Guid _showId = Guid.NewGuid();
     private readonly Guid _episodeId = Guid.NewGuid();
+    private readonly Guid _looseId = Guid.NewGuid();
+    private readonly string _trailer;
+    private readonly string _stray;
+    private readonly ExcludedSourceFileRepository _excluded;
+    private readonly FilterSpy _filter = new();
 
     public ExtraMoveEditSessionChangeHandlerTests()
     {
@@ -38,7 +44,9 @@ public sealed class ExtraMoveEditSessionChangeHandlerTests : IDisposable
         _clip = Path.Combine(_show, "Behind the scenes.mp4");
         _guide = Path.Combine(_show, "Workbook.pdf");
         _episodeFile = Path.Combine(_show, "Season 01", "Lesson 1.mkv");
-        foreach (var file in new[] { _clip, _guide, _episodeFile })
+        _trailer = Path.Combine(_show, "Season 1 trailer.mkv");
+        _stray = Path.Combine(_show, "sample.mkv");
+        foreach (var file in new[] { _clip, _guide, _episodeFile, _trailer, _stray })
         {
             File.WriteAllText(file, "x");
         }
@@ -49,9 +57,138 @@ public sealed class ExtraMoveEditSessionChangeHandlerTests : IDisposable
         _extras = new ItemExtraRepository(_database);
         _titles = new DeletionSpy(_showId, _episodeId, _episodeFile);
         _scanner.Described = Extra(_episodeFile, ItemExtraKinds.Clip, ItemExtraOrigins.UserExtra);
+        _excluded = new ExcludedSourceFileRepository(_database);
         _handler = new ExtraMoveEditSessionChangeHandler(
-            _extras, _scanner, _titles, _ingestion, NullLogger<ExtraMoveEditSessionChangeHandler>.Instance);
+            _extras, _scanner, _titles, _ingestion, new OneLibrary(_root), _excluded, _filter,
+            new EditSessionCallerAccessor(), NullLogger<ExtraMoveEditSessionChangeHandler>.Instance);
     }
+
+    [Fact]
+    public async Task ASeasonTrailer_BecomesATrailerOfThatSeason_InOneStagedChange()
+    {
+        _titles.AddWork(_looseId, _trailer);
+        _scanner.Described = Extra(_trailer, ItemExtraKinds.Clip, ItemExtraOrigins.UserExtra);
+        var change = Sort(_looseId, new ExtraFileChoice(EditSessionExtraMove.ActionExtra, ExtraKinds.Trailer, 1, null, null, null));
+
+        Assert.Null(await _handler.CheckAsync(change));
+        Assert.Null(await _handler.ApplyAsync(change));
+
+        var saved = await _extras.GetByPathAsync(Path.GetFullPath(_trailer));
+        Assert.Equal(ItemExtraOrigins.UserExtra, saved!.Origin);
+        Assert.Equal((ExtraKinds.Trailer, 1, (int?)null, (int?)null), (saved.ExtraKind, saved.PlaceSeason, saved.PlaceEpisode, saved.PlaceTrack));
+        Assert.Equal([_looseId], _titles.Deleted);
+        Assert.True(File.Exists(_trailer));
+        Assert.Contains(Path.GetFullPath(_show), _scanner.Synced);
+    }
+
+    [Fact]
+    public async Task AWorkbookPdf_BecomesADocument_OfTheWholeShow()
+    {
+        _titles.AddWork(_looseId, _guide);
+        _scanner.Described = Extra(_guide, ItemExtraKinds.Document, ItemExtraOrigins.UserExtra);
+        var change = Sort(_looseId, new ExtraFileChoice(EditSessionExtraMove.ActionExtra, ExtraKinds.Document, null, null, null, null));
+
+        Assert.Null(await _handler.CheckAsync(change));
+        await _handler.ApplyAsync(change);
+
+        var saved = await _extras.GetByPathAsync(Path.GetFullPath(_guide));
+        Assert.Equal((ExtraKinds.Document, (int?)null), (saved!.ExtraKind, saved.PlaceSeason));
+    }
+
+    [Fact]
+    public async Task ASortingChoice_IsRefused_WhenTheKindDoesNotFitTheFile_OrTheItemIsNotOneFile()
+    {
+        _titles.AddWork(_looseId, _guide);
+        Assert.Equal(
+            ExtraMoveEditSessionChangeHandler.KindDoesNotFit,
+            await _handler.CheckAsync(Sort(_looseId, new ExtraFileChoice(EditSessionExtraMove.ActionExtra, ExtraKinds.Trailer, null, null, null, null))));
+
+        _titles.AssetCount = 2;
+        Assert.Equal(
+            ExtraMoveEditSessionChangeHandler.OneFileToSort,
+            await _handler.CheckAsync(Sort(_episodeId, EditorChoiceIgnore)));
+
+        Assert.Equal(
+            ExtraMoveEditSessionChangeHandler.BadChoice,
+            await _handler.CheckAsync(new EditSessionChange { Id = "x", Kind = EditSessionChangeKinds.ExtraMove, EntityId = _looseId, Token = "file:extra;kind=nonsense" }));
+    }
+
+    [Fact]
+    public async Task AFileThatBelongsToAnotherTitle_IsFiledUnderThatTitle()
+    {
+        var otherFolder = Path.Combine(_root, "Other Show");
+        Directory.CreateDirectory(otherFolder);
+        _titles.AddWork(_looseId, _guide);
+        _scanner.Described = Extra(_guide, ItemExtraKinds.Document, ItemExtraOrigins.UserExtra);
+        _scanner.TitleFolder = new ExtraTitleFolder("lib", Path.GetFullPath(otherFolder));
+        var change = Sort(_looseId, new ExtraFileChoice(EditSessionExtraMove.ActionAttach, ExtraKinds.Document, null, null, null, _showId));
+
+        Assert.Null(await _handler.CheckAsync(change));
+        await _handler.ApplyAsync(change);
+
+        var saved = await _extras.GetByPathAsync(Path.GetFullPath(_guide));
+        Assert.Equal(Path.GetFullPath(otherFolder), saved!.ItemFolder);
+        Assert.Equal(ExtraKinds.Document, saved.ExtraKind);
+        Assert.Equal([_looseId], _titles.Deleted);
+    }
+
+    [Fact]
+    public async Task AnAttachTarget_ThatHasNoFolder_IsRefused()
+    {
+        _titles.AddWork(_looseId, _guide);
+        _scanner.TitleFolder = null;
+
+        Assert.Equal(
+            ExtraMoveEditSessionChangeHandler.TitleGone,
+            await _handler.CheckAsync(Sort(_looseId, new ExtraFileChoice(EditSessionExtraMove.ActionAttach, ExtraKinds.Document, null, null, null, _showId))));
+    }
+
+    [Fact]
+    public async Task AnIgnoredFile_StaysOnDisk_IsHiddenFromScans_AndCanBeAddedBack()
+    {
+        _titles.AddWork(_looseId, _stray);
+
+        var change = Sort(_looseId, EditorChoiceIgnore);
+        Assert.Null(await _handler.CheckAsync(change));
+        await _handler.ApplyAsync(change);
+
+        Assert.True(File.Exists(_stray));
+        Assert.Equal([_looseId], _titles.Deleted);
+        Assert.Equal(1, _filter.Invalidated);
+        var excluded = await _excluded.GetAsync("src", "Masterclass/sample.mkv");
+        Assert.NotNull(excluded);
+        Assert.Equal(ExcludedSourceFileReasons.IgnoredByYou, excluded!.Reason);
+        Assert.Equal("lib", excluded.LibraryId);
+        Assert.Equal("sample", Path.GetFileNameWithoutExtension(excluded.RelativePath));
+        Assert.Null(await _extras.GetByPathAsync(Path.GetFullPath(_stray)));
+    }
+
+    [Fact]
+    public async Task AnIgnoredFile_OutsideEveryLibraryFolder_IsRefused()
+    {
+        var outside = Path.Combine(Path.GetTempPath(), $"tuvima_outside_{Guid.NewGuid():N}.mkv");
+        File.WriteAllText(outside, "x");
+        try
+        {
+            _titles.AddWork(_looseId, outside);
+
+            Assert.Equal(ExtraMoveEditSessionChangeHandler.NotInALibraryFolder, await _handler.CheckAsync(Sort(_looseId, EditorChoiceIgnore)));
+        }
+        finally
+        {
+            File.Delete(outside);
+        }
+    }
+
+    private static ExtraFileChoice EditorChoiceIgnore { get; } = new(EditSessionExtraMove.ActionIgnore, null, null, null, null, null);
+
+    private static EditSessionChange Sort(Guid entityId, ExtraFileChoice choice) => new()
+    {
+        Id = "sort-" + entityId.ToString("N"),
+        Kind = EditSessionChangeKinds.ExtraMove,
+        EntityId = entityId,
+        Token = EditSessionExtraMove.ToFileToken(choice),
+    };
 
     public void Dispose()
     {
@@ -150,7 +287,23 @@ public sealed class ExtraMoveEditSessionChangeHandlerTests : IDisposable
     private sealed class ScannerSpy : IItemExtrasScanner
     {
         public ItemExtra? Described { get; set; }
+        public ExtraTitleFolder? TitleFolder { get; set; }
         public List<string> Synced { get; } = [];
+
+        public Task<ItemExtra?> DescribeAsync(string filePath, string origin, ExtraDecision decision, CancellationToken ct = default) =>
+            Task.FromResult(Described is null
+                ? null
+                : Described with
+                {
+                    Origin = origin,
+                    ItemFolder = decision.Title?.ItemFolder ?? Described.ItemFolder,
+                    ExtraKind = decision.ExtraKind,
+                    PlaceSeason = decision.PlaceSeason,
+                    PlaceEpisode = decision.PlaceEpisode,
+                    PlaceTrack = decision.PlaceTrack,
+                });
+
+        public Task<ExtraTitleFolder?> ResolveTitleFolderAsync(string titleFilePath, CancellationToken ct = default) => Task.FromResult(TitleFolder);
 
         public Task<ItemExtra?> DescribeAsync(string filePath, string origin, int? targetSeason, int? targetEpisode, CancellationToken ct = default) =>
             Task.FromResult(Described is null ? null : Described with { Origin = origin });
@@ -170,14 +323,18 @@ public sealed class ExtraMoveEditSessionChangeHandlerTests : IDisposable
 
     private sealed class DeletionSpy(Guid showId, Guid episodeId, string episodeFile) : ILibraryItemDeletionRepository
     {
+        private readonly Dictionary<Guid, string> _files = new() { [episodeId] = episodeFile };
+
         public int AssetCount { get; set; } = 1;
         public List<Guid> Deleted { get; } = [];
 
+        public void AddWork(Guid id, string file) => _files[id] = file;
+
         public Task<IReadOnlyList<LibraryItemDeletionWork>> GetWorksAsync(IReadOnlyList<Guid> workIds, CancellationToken ct = default, bool vaultItems = false)
         {
-            var works = workIds.Where(id => id == episodeId).Select(id => new LibraryItemDeletionWork(
+            var works = workIds.Where(_files.ContainsKey).Select(id => new LibraryItemDeletionWork(
                 id, "episode", false, "TV", "Lesson 1",
-                [.. Enumerable.Range(0, AssetCount).Select(_ => new LibraryItemDeletionAsset(Guid.NewGuid(), episodeFile, "hash"))])).ToList();
+                [.. Enumerable.Range(0, AssetCount).Select(_ => new LibraryItemDeletionAsset(Guid.NewGuid(), _files[id], "hash"))])).ToList();
             return Task.FromResult<IReadOnlyList<LibraryItemDeletionWork>>(works);
         }
 
@@ -198,6 +355,33 @@ public sealed class ExtraMoveEditSessionChangeHandlerTests : IDisposable
         public Task<LibraryItemDeletionRelatedFacts> GetRelatedFactsAsync(IReadOnlyList<Guid> workIds, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<IReadOnlySet<string>> FindPathsUsedOutsideRequestAsync(IReadOnlyList<Guid> workIds, IReadOnlyCollection<string> paths, CancellationToken ct = default) => throw new NotSupportedException();
         public Task<int> DiscardKeptProgressAsync(DateTimeOffset? olderThan, CancellationToken ct = default) => throw new NotSupportedException();
+    }
+
+    private sealed class FilterSpy : IExcludedSourceFileFilter
+    {
+        public int Invalidated { get; private set; }
+
+        public Task<bool> ShouldSkipAsync(string fullPath, CancellationToken ct = default) => Task.FromResult(false);
+
+        public void Invalidate() => Invalidated++;
+    }
+
+    // One library ("lib") with one source folder ("src") at the test root.
+    private sealed class OneLibrary(string root) : ILibraryFolderResolver
+    {
+        private readonly LibraryFolderEntry _library = new() { Id = "lib", Name = "Shows" };
+        private readonly LibrarySourceEntry _source = new() { Id = "src", Path = root };
+
+        public LibraryFolderEntry? ResolveById(string libraryId) => libraryId == "lib" ? _library : null;
+
+        public LibraryFolderEntry? ResolveForPath(string absolutePath) => ResolveSourceForPath(absolutePath)?.Library;
+
+        public ResolvedLibrarySource? ResolveSourceForPath(string absolutePath) =>
+            Path.GetFullPath(absolutePath).StartsWith(Path.GetFullPath(root), StringComparison.OrdinalIgnoreCase)
+                ? new ResolvedLibrarySource(_library, _source)
+                : null;
+
+        public string? ResolveSourcePath(string absolutePath) => ResolveSourceForPath(absolutePath)?.Source.Path;
     }
 
     private sealed class IngestionSpy : IIngestionEngine

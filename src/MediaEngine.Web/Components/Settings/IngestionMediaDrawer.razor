@@ -13,7 +13,7 @@
             <aside class="ingestion-drawer__surface">
                 <header>
                     <span><AppMaterialIcon Icon="@IngestionMediaCard.MediaIcon(Item.MediaType)" />@IngestionMediaCard.FriendlyType(Item.MediaType)</span>
-                    <AppNativeButton Type="button" Class="ingestion-drawer__close" AriaLabel="@L["IngestionMediaDrawer_CloseIngestionDetails"].Value" OnClick="@(_ => Close.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" /></AppNativeButton>
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" AriaLabel="@L["IngestionMediaDrawer_CloseIngestionDetails"].Value" Tooltip="@L["IngestionMediaDrawer_CloseIngestionDetails"].Value" OnClick="@(() => Close.InvokeAsync())" />
                 </header>
 
                 <AppRowErrorBoundary ItemTitle="@IngestionMediaCard.DisplayTitleFor(Item.Title)" ResetKey="@Item">

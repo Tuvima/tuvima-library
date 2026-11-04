@@ -14,9 +14,7 @@
     <div class="phone-nav-menu">
         <header class="phone-nav-menu__header">
             <h2 id="phone-nav-menu-title" class="phone-nav-menu__title">@L["Nav_Menu"]</h2>
-            <AppNativeButton Type="button" Class="phone-nav-menu__close" AriaLabel="@L["Nav_CloseNavigation"]" OnClick="RequestCloseAsync">
-                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" />
-            </AppNativeButton>
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Class="phone-nav-menu__close" AriaLabel="@L["Nav_CloseNavigation"]" OnClick="RequestCloseAsync" />
         </header>
 
         <nav class="phone-nav-menu__nav" aria-label="@L["Nav_Menu"]">

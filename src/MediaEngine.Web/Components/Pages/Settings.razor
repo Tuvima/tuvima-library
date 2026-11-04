@@ -58,10 +58,10 @@ else
             <label class="settings-mobile-navigation__label" for="settings-mobile-page">@L["Settings_SettingsPage"]</label>
             <div class="settings-mobile-navigation__control">
                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Tune" aria-hidden="true" />
-                <AppNativeSelect @key="MobileNavigationValue"
+                <AppSelect Native="true" @key="MobileNavigationValue"
                                  id="settings-mobile-page"
                                  Value="@MobileNavigationValue"
-                                 OnChange="@OnMobilePageChanged"
+                                 ValueChanged="@OnMobilePageChanged"
                                  aria-label="@L["Settings_SettingsPage"].Value">
                     @foreach (var group in PhoneMenuGroups)
                     {
@@ -72,7 +72,7 @@ else
                             }
                         </optgroup>
                     }
-                </AppNativeSelect>
+                </AppSelect>
             </div>
         </nav>
 
@@ -885,9 +885,8 @@ else
         builder.CloseComponent();
     };
 
-    private void OnMobilePageChanged(ChangeEventArgs args)
+    private void OnMobilePageChanged(string? route)
     {
-        var route = args.Value?.ToString();
         if (!string.IsNullOrWhiteSpace(route))
         {
             Nav.NavigateTo(route);

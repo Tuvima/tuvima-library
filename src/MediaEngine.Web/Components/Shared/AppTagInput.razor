@@ -9,7 +9,7 @@
     <datalist id="@_suggestionId">
         @foreach (var suggestion in _suggestions) { <option value="@suggestion"></option> }
     </datalist>
-    <AppNativeButton Type="submit" Disabled="@(_committing || string.IsNullOrWhiteSpace(_draft))" AriaLabel="@L["Common_AddTag"].Value">@L["Vibes_Add"]</AppNativeButton>
+    <AppButton ButtonType="AppButtonType.Submit" ButtonStyle="AppButtonStyle.Outlined" Disabled="@(_committing || string.IsNullOrWhiteSpace(_draft))" aria-label="@L["Common_AddTag"].Value">@L["Vibes_Add"]</AppButton>
 </form>
 
 @code {

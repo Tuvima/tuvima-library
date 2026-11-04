@@ -257,3 +257,7 @@ v4 has Fable review its implementation; the same applies here for WP1 (all-or-no
 ## Plain English summary
 
 Today, editing a photo, a document or a gallery means three different kinds of window, each saving in its own way, and you cannot edit many photos at once. This plan gives them all the same editor as the rest of Library: open it, change things, see a clear list of what will change, and only then save. Ticking 40 photos lets you tag, date or place them together, and offers only what makes sense for all of them. Your original files are never touched, and deleting asks "are you sure" and then happens at once. A few choices, like whether to offer a shared caption or arrows between photos, are yours to make before this is locked.
+
+## Look pass addendum (2026-11-04)
+
+The editor's Discard, Save, Review and delete dialogs use the one dialog build exactly (icon tile, bold title, close X, destructive outlined red on the left, safe filled button last and focused). Buttons use the three heights (36 / 44 / 48), chips are the one square chip, and icon tones follow the tone rules. The editor's own layout is unchanged. Source: [look pass spec](look-pass.md).

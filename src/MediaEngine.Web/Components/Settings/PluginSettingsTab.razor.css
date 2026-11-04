@@ -14,12 +14,10 @@
 
 .settings-plugin-detail-header__description {
     color: var(--tl-text-muted);
-    font-size: 14px;
+    font-size: var(--tl-font-size-sm);
 }
 
-.settings-plugin-configure-panel {
-    scroll-margin-top: 96px;
-}
+
 
 /* The card a /settings/plugins?plugin={id} link points at: scrolled into view and ringed in the accent colour. */
 .settings-plugin-card-focus {
@@ -72,7 +70,7 @@
 
 .settings-plugin-detail-header__title {
     color: var(--tl-text-primary);
-    font-size: 18px;
+    font-size: var(--tl-font-size-lg);
 }
 .settings-plugin-breadcrumb { display: flex; align-items: center; gap: .4rem; margin-bottom: .75rem; }
 

@@ -268,10 +268,10 @@ public sealed class ViewDocumentInboxUiTests : AsyncBunitContext
     {
         await Services.GetRequiredService<DeviceContextService>().InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", true));
         var cut = Render<ViewDocumentsPage>();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".view-documents-sheet-button")));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-view-options]")));
         Assert.Empty(cut.FindAll(".view-documents-rail"));
 
-        cut.Find(".view-documents-sheet-button").Click();
+        cut.Find("[data-view-options]").Click();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[role=radio]")));
         cut.FindAll("[role=radio]")[0].Click();
 

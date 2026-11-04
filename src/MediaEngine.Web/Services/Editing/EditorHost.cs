@@ -224,6 +224,59 @@ public sealed class EditorHost : IDisposable
         }
     }
 
+    /// <summary>
+    /// Items were deleted from the editor (universal editor v4 D13); the Engine has already done it. Unsaved changes on them are dropped, they
+    /// leave the ticked rows and the family tree, and changes on every other item stay staged. When the item being edited, or one above it,
+    /// is among them the editor moves to the nearest item above that is still there, or closes when there is none.
+    /// </summary>
+    public async Task ItemsDeletedAsync(IReadOnlyCollection<Guid> removed)
+    {
+        ArgumentNullException.ThrowIfNull(removed);
+        if (removed.Count == 0)
+        {
+            return;
+        }
+
+        _changedWhileOpen = true;
+        foreach (var id in removed)
+        {
+            _touched.Add(id);
+            Session.Pending.RemoveForItem(id);
+        }
+
+        Batch.Replace(Batch.Rows.Where(row => !removed.Contains(row.Id)));
+        Family.Remove(removed);
+        if (!Mode.IsOn || !Session.IsActive)
+        {
+            return;
+        }
+
+        var trail = Session.Trail;
+        var gone = -1;
+        for (var index = 0; index < trail.Count; index++)
+        {
+            if (removed.Contains(trail[index].EntityId))
+            {
+                gone = index;
+                break;
+            }
+        }
+
+        if (gone < 0)
+        {
+            return;
+        }
+
+        // Whatever the person had typed into the deleted item goes with it, without a question.
+        Mode.CloseSection();
+        if (gone > 0 && await Flow.SwitchToAsync([.. trail.Take(gone)]))
+        {
+            return;
+        }
+
+        await Flow.LeaveAsync();
+    }
+
     /// <summary>Makes <paramref name="binding"/> the page the editor serves. A page binds right before it opens the editor.</summary>
     public void Bind(EditorBinding binding)
     {

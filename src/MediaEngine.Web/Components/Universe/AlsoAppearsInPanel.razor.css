@@ -12,14 +12,14 @@
 
 .also-appears-in__heading {
     margin: 0;
-    font-size: 1rem;
+    font-size: var(--tl-font-size-md);
     font-weight: 600;
     color: var(--tl-text-primary);
 }
 
 .also-appears-in__group {
     margin: var(--tl-space-2) 0 0;
-    font-size: 0.8125rem;
+    font-size: var(--tl-font-size-secondary);
     font-weight: 600;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -95,14 +95,14 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.8125rem;
+    font-size: var(--tl-font-size-secondary);
     color: var(--tl-text-secondary);
 }
 
 .also-appears-in__empty,
 .also-appears-in__note {
     margin: 0;
-    font-size: 0.875rem;
+    font-size: var(--tl-font-size-sm);
     color: var(--tl-text-secondary);
 }
 

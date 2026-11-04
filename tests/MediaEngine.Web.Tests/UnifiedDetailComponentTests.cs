@@ -1348,7 +1348,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains(".Concat(SecondaryActions)", actions);
         Assert.DoesNotContain("watch-party", actions, StringComparison.Ordinal);
         Assert.Contains("<MediaRateControl", actions);
-        Assert.Contains("border-radius: 999px", styles);
+        Assert.Contains("border-radius: var(--tl-control-radius)", styles);
         Assert.Contains("AppMaterialIcons.Filled.Favorite", songTable);
         Assert.Contains("AppMaterialIcons.Outlined.FavoriteBorder", songTable);
         Assert.Contains("AppMaterialIcons.Filled.Favorite", libraryTable);

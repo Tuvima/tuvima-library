@@ -52,7 +52,7 @@
                     <QuickFilters>
                         @if (Device.IsPhone)
                         {
-                            <AppNativeButton Type="button" Class="view-documents-sheet-button" aria-haspopup="dialog" OnClick="@(_ => _sheetOpen = true)"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Tune" />View options@(_filter.IsActive ? $" ({_filter.ActiveCount})" : string.Empty)</AppNativeButton>
+                            <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.Tune" data-view-options="true" aria-haspopup="dialog" OnClick="@(() => _sheetOpen = true)" Label="@("View options" + (_filter.IsActive ? $" ({_filter.ActiveCount})" : string.Empty))" />
                         }
                     </QuickFilters>
                 </AppDiscoveryFilterBar>
@@ -337,7 +337,7 @@
     private string ListClass => $"view-documents-grid{(_list ? " view-documents-grid--list" : string.Empty)}";
     private int ActiveIndex => _active is null ? -1 : _items.FindIndex(item => item.Id == _active.Id);
 
-    private RenderFragment ScopePicker => @<label class="view-documents-scope"><span>Scope</span><AppNativeSelect Value="@SelectedScopeValue" OnChange="ScopeChangedAsync" aria-label="Documents scope"><ViewScopeOptions Scopes="@(Workspace.Scopes?.AvailableScopes ?? [])" OtherPeople="@Workspace.OtherPeople" /></AppNativeSelect></label>;
+    private RenderFragment ScopePicker => @<label class="view-documents-scope"><span>Scope</span><AppSelect Native="true" Value="@SelectedScopeValue" ValueChanged="ScopeChangedAsync" aria-label="Documents scope"><ViewScopeOptions Scopes="@(Workspace.Scopes?.AvailableScopes ?? [])" OtherPeople="@Workspace.OtherPeople" /></AppSelect></label>;
     private RenderFragment LayoutPicker => @<AppSegmentedControl Options="LayoutOptions" Value="@(_list ? "list" : "grid")" ValueChanged="LayoutChanged" AriaLabel="Documents layout" Class="view-documents-layout" />;
 
     protected override async Task OnInitializedAsync()
@@ -522,7 +522,7 @@
             $"Delete “{view.Name}”?",
             "Only the saved view is removed. Your documents and their details stay exactly as they are.",
             yesText: "Delete view",
-            cancelText: "Keep it");
+            cancelText: "Keep it", options: AppDialogOptions.DestructiveConfirm);
         if (confirmed != true)
         {
             return;
@@ -731,9 +731,9 @@
         }
     }
 
-    private async Task ScopeChangedAsync(ChangeEventArgs args)
+    private async Task ScopeChangedAsync(string? selected)
     {
-        var parts = args.Value?.ToString()?.Split(':', 2) ?? [];
+        var parts = selected?.Split(':', 2) ?? [];
         if (parts.Length == 0 || !Enum.TryParse<ViewScopeKind>(parts[0], true, out var kind))
         {
             return;

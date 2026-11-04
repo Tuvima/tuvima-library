@@ -24,6 +24,9 @@ public static class ExtraCardBuilder
                 Kind = DetailExtraCardKinds.Document,
                 Title = document.Title,
                 Subtitle = DocumentSubtitle(document),
+                ExtraKind = KindOf(document),
+                Place = PlaceOf(document),
+                Badge = BadgeOf(document),
                 IsMissing = !fileExists(document.FilePath),
             });
         }
@@ -41,6 +44,9 @@ public static class ExtraCardBuilder
                 Kind = DetailExtraCardKinds.Pictures,
                 Title = title,
                 Subtitle = pictures.Count == 1 ? "1 picture" : $"{pictures.Count.ToString(CultureInfo.InvariantCulture)} pictures",
+                ExtraKind = KindOf(pictures[0]),
+                Place = PlaceOf(pictures[0]),
+                Badge = BadgeOf(pictures[0]),
                 ItemCount = pictures.Count,
                 PreviewIds = [.. pictures.Take(MosaicSize).Select(picture => picture.Id.ToString("D"))],
                 IsMissing = pictures.All(picture => !fileExists(picture.FilePath)),
@@ -55,12 +61,26 @@ public static class ExtraCardBuilder
                 Kind = DetailExtraCardKinds.Clip,
                 Title = clip.Title,
                 Subtitle = ClipSubtitle(clip),
+                ExtraKind = KindOf(clip),
+                Place = PlaceOf(clip),
+                Badge = BadgeOf(clip),
                 IsMissing = !fileExists(clip.FilePath),
             });
         }
 
         return cards;
     }
+
+    /// <summary>What the Extra is: the kind a person gave it, else the default for its file type (a rule-found Extra has none stored).</summary>
+    private static string KindOf(ItemExtra extra) =>
+        ExtraKinds.IsKnown(extra.ExtraKind) ? extra.ExtraKind! : ExtraKinds.DefaultFor(extra.Kind);
+
+    /// <summary>Where in its title the Extra belongs ("Season 1"); null for the whole title.</summary>
+    private static string? PlaceOf(ItemExtra extra) =>
+        ExtraPlaces.Label(extra.PlaceSeason, extra.PlaceEpisode, extra.PlaceTrack) is { Length: > 0 } place ? place : null;
+
+    private static string BadgeOf(ItemExtra extra) =>
+        PlaceOf(extra) is { } place ? $"{ExtraKinds.Label(KindOf(extra))} · {place}" : ExtraKinds.Label(KindOf(extra));
 
     public static string MimeTypeOf(string filePath) =>
         Path.GetExtension(filePath).ToLowerInvariant() switch

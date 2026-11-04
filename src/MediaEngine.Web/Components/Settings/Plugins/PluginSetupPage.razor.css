@@ -42,21 +42,10 @@
     gap: var(--tl-space-2, 8px);
 }
 
-/* A saved key glows for a moment instead of raising a toast. */
-.plugin-access__row--saved {
-    animation: plugin-access-glow 2.4s ease-out;
-}
-
+/* A saved key glows for a moment instead of raising a toast (used by the Connection card). */
 @keyframes plugin-access-glow {
     0% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--tl-accent-primary) 55%, transparent); }
     100% { box-shadow: 0 0 0 3px transparent; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .plugin-access__row--saved {
-        animation: none;
-        outline: 2px solid color-mix(in srgb, var(--tl-accent-primary) 55%, transparent);
-    }
 }
 
 .plugin-card__line {

@@ -12,13 +12,9 @@
 .plugin-provides-kind--details { --provides-accent: var(--tl-provides-details); }
 .plugin-provides-kind--artwork { --provides-accent: var(--tl-provides-artwork); }
 .plugin-provides-kind--people { --provides-accent: var(--tl-provides-people); }
-.plugin-provides-kind--series-order { --provides-accent: var(--tl-provides-series-order); }
 .plugin-provides-kind--lyrics { --provides-accent: var(--tl-provides-lyrics); }
 .plugin-provides-kind--subtitles { --provides-accent: var(--tl-provides-subtitles); }
-.plugin-provides-kind--skip-markers { --provides-accent: var(--tl-provides-skip-markers); }
 .plugin-provides-kind--insights { --provides-accent: var(--tl-provides-insights); }
-.plugin-provides-kind--lists-and-ratings { --provides-accent: var(--tl-provides-lists-and-ratings); }
-.plugin-provides-kind--account-sync { --provides-accent: var(--tl-provides-account-sync); }
 
 /* The coloured "what it does" icons are never small glyphs: 34 px in a coloured rounded square on tiles, 40 px on the plugin page (v6 D72). */
 .plugin-provides--icons { gap: 8px; }

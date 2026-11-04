@@ -1,5 +1,5 @@
 .libs { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-.libs__note { margin: 0; color: var(--tl-text-muted); font-size: 0.9rem; }
+.libs__note { margin: 0; color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
 .libs__toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 12px; }
 .libs__search { flex: 1 1 220px; min-width: 0; }
 .libs__filter { flex: 0 0 200px; }
@@ -11,10 +11,10 @@
 .libs__counts { color: var(--tl-text-secondary, var(--tl-text-muted)); }
 .libs__chevron { color: var(--tl-text-muted); text-align: end; }
 @media (max-width: 600px) { .libs__filter { flex-basis: 100%; } }
-.libs__lock { color: var(--tl-text-muted); font-size: 1rem; }
+.libs__lock { color: var(--tl-text-muted); font-size: var(--tl-font-size-md); }
 .libs__group { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.libs__group-heading { display: flex; align-items: center; gap: 8px; margin: 8px 0 0; font-size: 1rem; font-weight: 600; }
-.libs__group-count { color: var(--tl-text-muted); font-weight: 400; font-size: 0.9rem; }
+.libs__group-heading { display: flex; align-items: center; gap: 8px; margin: 8px 0 0; font-size: var(--tl-font-size-md); font-weight: 600; }
+.libs__group-count { color: var(--tl-text-muted); font-weight: 400; font-size: var(--tl-font-size-sm); }
 .libs__row:hover { cursor: pointer; }
 /* A library that was just added: the row glows for about two seconds, then settles. */
 @keyframes libs-row-glow { from { background: color-mix(in srgb, var(--tl-accent-primary) 38%, transparent); } to { background: transparent; } }

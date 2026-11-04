@@ -159,7 +159,7 @@
 }
 
 .media-section-shell__rail-chevron {
-    font-size: 1rem !important;
+    font-size: var(--tl-font-size-md) !important;
     color: currentColor;
 }
 
@@ -178,13 +178,13 @@
     padding: 6px 10px;
     border-radius: calc(var(--tl-radius-md) - 2px);
     color: rgba(203, 213, 225, 0.68);
-    font-size: 0.84rem;
+    font-size: var(--tl-font-size-secondary);
 }
 
 .media-section-shell__rail-child-marker {
     width: 5px;
     height: 5px;
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
     background: currentColor;
 }
 
@@ -282,20 +282,10 @@
     grid-template-columns: 20px minmax(0, 1fr) auto;
     min-height: 38px;
     padding: 6px 7px;
-    font-size: 0.84rem;
+    font-size: var(--tl-font-size-secondary);
 }
 
-.media-section-shell__smart-badge {
-    padding: 2px 5px;
-    color: rgba(216, 180, 254, 0.95);
-    border: 1px solid rgba(136, 82, 252, 0.3);
-    border-radius: var(--tl-radius-pill);
-    background: rgba(126, 34, 206, 0.14);
-    font-size: var(--tl-font-size-xs);
-    font-weight: 800;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-}
+
 
 ::deep .media-section-shell__manage-menu .app-overflow-menu__trigger {
     width: 28px;
@@ -334,7 +324,7 @@
     border: 1px solid rgba(248, 113, 113, 0.42);
     border-radius: inherit;
     background: rgba(127, 29, 29, 0.28);
-    font-size: 0.76rem;
+    font-size: var(--tl-font-size-xs);
     font-weight: 700;
 }
 
@@ -376,7 +366,7 @@
     justify-self: end;
     width: 0.5rem;
     height: 0.5rem;
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
     background: var(--tl-accent-primary);
 }
 
@@ -456,7 +446,7 @@
 
 .media-section-shell__tree-label {
     overflow: hidden;
-    font-size: 0.9rem;
+    font-size: var(--tl-font-size-sm);
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -647,7 +637,7 @@
         width: 0.35rem;
         height: 0.35rem;
         justify-self: center;
-        border-radius: 999px;
+        border-radius: var(--tl-radius-round);
         background: currentColor;
     }
 

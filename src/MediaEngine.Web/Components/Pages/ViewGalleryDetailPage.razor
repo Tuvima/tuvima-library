@@ -136,13 +136,13 @@
                         <AppCheckbox Value="@IsShareSelected(target.ProfileId)"
                                      ValueChanged="@(value => SetShareSelected(target.ProfileId, value))"
                                      Label="@target.DisplayName" />
-                        <AppNativeSelect Value="@PermissionValue(target.ProfileId)"
-                                         OnChange="@(args => SharePermissionChanged(target.ProfileId, args))"
+                        <AppSelect Native="true" Value="@PermissionValue(target.ProfileId)"
+                                         ValueChanged="@(selected => SharePermissionChanged(target.ProfileId, selected))"
                                          Disabled="@(!IsShareSelected(target.ProfileId))"
                                          aria-label="@($"Permission for {target.DisplayName}")">
                             <option value="view">@L["ViewGalleryDetailPage_CanView"]</option>
                             <option value="contribute">@L["ViewGalleryDetailPage_CanContribute"]</option>
-                        </AppNativeSelect>
+                        </AppSelect>
                     </div>
                 }
             </div>
@@ -326,10 +326,10 @@
             _shareDraft.Remove(profileId);
     }
 
-    private void SharePermissionChanged(Guid profileId, ChangeEventArgs args)
+    private void SharePermissionChanged(Guid profileId, string? selected)
     {
         if (!_shareDraft.ContainsKey(profileId)) return;
-        _shareDraft[profileId] = string.Equals(args.Value?.ToString(), "contribute", StringComparison.Ordinal)
+        _shareDraft[profileId] = string.Equals(selected, "contribute", StringComparison.Ordinal)
             ? ViewGallerySharePermission.Contribute
             : ViewGallerySharePermission.View;
     }

@@ -20,8 +20,8 @@ public sealed class TvFormFactorTests
         AssertRule(css, "html[data-form-factor=\"tv\"]", "--media-shelf-gutter: 48px;");
         AssertRule(css, "html[data-form-factor=\"tv\"] .layout-shell__intent-dock-link", "min-height: 56px;");
         AssertRule(css, "html[data-form-factor=\"tv\"] .layout-shell__intent-dock-link", "min-width: 56px;");
-        AssertRule(css, "html[data-form-factor=\"tv\"] .layout-shell__intent-dock-link span", "font-size: 14px;");
-        AssertRule(css, "html[data-form-factor=\"tv\"] .media-tile-caption__title", "font-size: 0.9rem;");
+        AssertRule(css, "html[data-form-factor=\"tv\"] .layout-shell__intent-dock-link span", "font-size: var(--tl-font-size-sm);");
+        AssertRule(css, "html[data-form-factor=\"tv\"] .media-tile-caption__title", "font-size: var(--tl-font-size-sm);");
         AssertRule(css, "html[data-form-factor=\"tv\"] .tl-detail-hero__synopsis", "max-width: 60ch;");
     }
 

@@ -1,11 +1,16 @@
 @namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Theming
 @using MediaEngine.Web.Services.Ui
 @using Microsoft.AspNetCore.Components.Routing
 @implements IDisposable
 @inject EditorHost Editor
 @inject IAppDialogService Dialogs
+@inject IAppToastService Toasts
+@inject DeviceContextService Device
+@inject IServiceProvider Services
 @inject IStringLocalizer<SharedStrings> L
 @inject IJSRuntime JS
 @inject NavigationManager Nav
@@ -93,10 +98,10 @@
                                             Session="flow.Session"
                                             Family="Editor.Family"
                                             CanEdit="@mode.CanEdit" />
-                    <EditorExtrasMovePanel Subject="@(mode.Fields.Loading ? null : mode.Fields.MatchSubject())"
-                                           Extras="binding?.Extras"
-                                           Session="flow.Session"
-                                           CanEdit="@mode.CanEdit" />
+                    <EditorFileSortPanel Subject="@(mode.Fields.Loading ? null : mode.Fields.MatchSubject())"
+                                         Extras="binding?.Extras"
+                                         Session="flow.Session"
+                                         CanEdit="@mode.CanEdit" />
                 }
                 else if (tool == EditTool.History)
                 {
@@ -107,6 +112,7 @@
                     <EditorContentsTab Flow="flow"
                                        Family="Editor.Family"
                                        Batch="Editor.Batch"
+                                       OnDeleted="Editor.ItemsDeletedAsync"
                                        ParentId="@(flow.Session.ActiveItem?.EntityId ?? Guid.Empty)"
                                        CanEdit="@mode.CanEdit">
                         <OrderContent>
@@ -122,6 +128,8 @@
                 else if (tool == EditTool.Files)
                 {
                     <EditorFilesTab EntityId="@(flow.Session.ActiveItem?.EntityId ?? Guid.Empty)"
+                                    CanDelete="@mode.CanEdit"
+                                    OnDeleted="Editor.ItemsDeletedAsync"
                                     IsGrouping="@Editor.Family.IsParentOf(flow.Session.ActiveItem?.EntityId ?? Guid.Empty)" />
                 }
             </ChildContent>
@@ -132,8 +140,35 @@
 @code {
     private RenderFragment ItemHeaderFragment(EditSessionFlow flow, EditingModeContext mode) => __builder =>
     {
-        <EditorItemHeader Flow="flow" Fields="mode.Fields" Family="Editor.Family" Unmatched="@IsActiveUnmatched" />
+        <EditorItemHeader Flow="flow" Fields="mode.Fields" Family="Editor.Family" Unmatched="@IsActiveUnmatched"
+                          CanDelete="@CanDeleteActive"
+                          DeleteLabel="@EditorDeleteRules.MenuLabel(EditorDeleteFlow.ActiveGroup(Editor), mode.Fields.ScopeId)"
+                          OnDelete="DeleteActiveAsync" />
     };
+
+    private bool _deleting;
+
+    // Delete from the header's "..." (v4 D13): the item being edited, including a whole show, season, album or Series. It asks once and happens
+    // at once, without waiting for Save; the pop-over then moves to the item's parent, or closes when there is none.
+    private bool CanDeleteActive => EditorDeleteFlow.CanDeleteActive(Editor, Device, Services.GetService<DashboardSessionAccessor>());
+
+    private async Task DeleteActiveAsync()
+    {
+        if (_deleting)
+        {
+            return;
+        }
+
+        _deleting = true;
+        try
+        {
+            await EditorDeleteFlow.DeleteActiveAsync(Editor, Dialogs, Toasts, Device, Services.GetService<DashboardSessionAccessor>());
+        }
+        finally
+        {
+            _deleting = false;
+        }
+    }
 
     private static readonly AppDialogOptions _options = new()
     {

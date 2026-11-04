@@ -65,7 +65,7 @@
     gap: 7px;
     min-width: 164px;
     color: var(--tl-text-primary, rgba(241, 245, 249, 0.92));
-    font-size: 0.78rem;
+    font-size: var(--tl-font-size-xs);
 }
 
 @media (max-width: 900px) {

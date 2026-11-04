@@ -33,13 +33,13 @@
 
     <div class="view-documents-filters__group">
         <span class="view-documents-filters__label">@L["Common_SortBy"]</span>
-        <AppNativeSelect aria-label="@L["ViewDocumentFilterRail_SortDocuments"].Value" Value="@(State.Sort ?? string.Empty)" OnChange="SortChangedAsync">
+        <AppSelect Native="true" aria-label="@L["ViewDocumentFilterRail_SortDocuments"].Value" Value="@(State.Sort ?? string.Empty)" ValueChanged="SortChangedAsync">
             <option value="">@L["ViewDocumentFilterRail_NewestDateFirst"]</option>
             <option value="@ViewDocumentSorts.Added">@L["ViewDocumentFilterRail_DateAdded"]</option>
             <option value="@ViewDocumentSorts.DocumentDate">@L["Common_DocumentDate"]</option>
             <option value="@ViewDocumentSorts.Title">@L["ViewDocumentFilterRail_TitleAToZ"]</option>
             <option value="@ViewDocumentSorts.Correspondent">@L["ViewDocumentFilterRail_CorrespondentAToZ"]</option>
-        </AppNativeSelect>
+        </AppSelect>
     </div>
 
     @if (Catalogue is null)
@@ -68,13 +68,13 @@
         {
             <div class="view-documents-filters__group">
                 <span class="view-documents-filters__label">@L["Common_Correspondent"]</span>
-                <AppNativeSelect aria-label="@L["ViewDocumentFilterRail_FilterByCorrespondent"].Value" Value="@(State.CorrespondentId?.ToString("D") ?? string.Empty)" OnChange="CorrespondentChangedAsync">
+                <AppSelect Native="true" aria-label="@L["ViewDocumentFilterRail_FilterByCorrespondent"].Value" Value="@(State.CorrespondentId?.ToString("D") ?? string.Empty)" ValueChanged="CorrespondentChangedAsync">
                     <option value="">@L["ViewDocumentFilterRail_AnyCorrespondent"]</option>
                     @foreach (var correspondent in VisibleCorrespondents)
                     {
                         <option value="@correspondent.Id.ToString("D")">@($"{correspondent.Name} ({correspondent.UsageCount})")</option>
                     }
-                </AppNativeSelect>
+                </AppSelect>
             </div>
         }
 
@@ -82,13 +82,13 @@
         {
             <div class="view-documents-filters__group">
                 <span class="view-documents-filters__label">@L["Common_Type"]</span>
-                <AppNativeSelect aria-label="@L["ViewDocumentFilterRail_FilterByDocumentType"].Value" Value="@(State.DocumentTypeId?.ToString("D") ?? string.Empty)" OnChange="TypeChangedAsync">
+                <AppSelect Native="true" aria-label="@L["ViewDocumentFilterRail_FilterByDocumentType"].Value" Value="@(State.DocumentTypeId?.ToString("D") ?? string.Empty)" ValueChanged="TypeChangedAsync">
                     <option value="">@L["ViewDocumentFilterRail_AnyType"]</option>
                     @foreach (var type in VisibleTypes)
                     {
                         <option value="@type.Id.ToString("D")">@($"{type.Name} ({type.UsageCount})")</option>
                     }
-                </AppNativeSelect>
+                </AppSelect>
             </div>
         }
 
@@ -96,7 +96,7 @@
         {
             <div class="view-documents-filters__group" @key="field.Id">
                 <span class="view-documents-filters__label">@field.Name</span>
-                <AppNativeSelect aria-label="@($"Filter by {field.Name}")" Value="@(State.Fields.GetValueOrDefault(field.Id) ?? string.Empty)" OnChange="@(args => FieldChangedAsync(field, args))">
+                <AppSelect Native="true" aria-label="@($"Filter by {field.Name}")" Value="@(State.Fields.GetValueOrDefault(field.Id) ?? string.Empty)" ValueChanged="@(selected => FieldChangedAsync(field, selected))">
                     <option value="">@L["Common_Any"]</option>
                     @if (field.Kind == ViewDocumentFieldKinds.Bool)
                     {
@@ -110,20 +110,20 @@
                             <option value="@choice">@choice</option>
                         }
                     }
-                </AppNativeSelect>
+                </AppSelect>
             </div>
         }
     }
 
     <fieldset class="view-documents-filters__group view-documents-filters__dates">
         <legend>@L["Common_Date"]</legend>
-        <AppNativeSelect aria-label="@L["ViewDocumentFilterRail_DocumentDateRange"].Value" Value="@(State.DatePreset ?? string.Empty)" OnChange="DatePresetChangedAsync">
+        <AppSelect Native="true" aria-label="@L["ViewDocumentFilterRail_DocumentDateRange"].Value" Value="@(State.DatePreset ?? string.Empty)" ValueChanged="DatePresetChangedAsync">
             <option value="">@L["ViewDocumentFilterRail_AnyTimeOrCustomDates"]</option>
             @foreach (var preset in ViewDocumentSavedViews.DatePresets)
             {
                 <option value="@preset.Value">@preset.Label</option>
             }
-        </AppNativeSelect>
+        </AppSelect>
         <span class="view-documents-filters__label">@L["Common_From"]</span>
         <AppNativeInput Type="date" Class="view-documents-filters__input" AriaLabel="@L["ViewDocumentFilterRail_DocumentsDatedFrom"].Value" Value="@DateText(State.DateFrom)" ValueChanged="@(value => DateChangedAsync(value, true))" />
         <span class="view-documents-filters__label">@L["Common_To"]</span>
@@ -192,17 +192,17 @@
         await OnChanged.InvokeAsync();
     }
 
-    private async Task SortChangedAsync(ChangeEventArgs args)
+    private async Task SortChangedAsync(string? selected)
     {
-        var sort = string.IsNullOrWhiteSpace(args.Value?.ToString()) ? null : args.Value!.ToString();
+        var sort = string.IsNullOrWhiteSpace(selected) ? null : selected;
         State.Sort = sort;
         await OnSortChanged.InvokeAsync(sort);
         await OnChanged.InvokeAsync();
     }
 
-    private async Task DatePresetChangedAsync(ChangeEventArgs args)
+    private async Task DatePresetChangedAsync(string? selected)
     {
-        var preset = string.IsNullOrWhiteSpace(args.Value?.ToString()) ? null : args.Value!.ToString();
+        var preset = string.IsNullOrWhiteSpace(selected) ? null : selected;
         State.DatePreset = preset;
         if (preset is not null)
         {
@@ -245,21 +245,21 @@
         await OnChanged.InvokeAsync();
     }
 
-    private async Task CorrespondentChangedAsync(ChangeEventArgs args)
+    private async Task CorrespondentChangedAsync(string? selected)
     {
-        State.CorrespondentId = Guid.TryParse(args.Value?.ToString(), out var id) ? id : null;
+        State.CorrespondentId = Guid.TryParse(selected, out var id) ? id : null;
         await OnChanged.InvokeAsync();
     }
 
-    private async Task TypeChangedAsync(ChangeEventArgs args)
+    private async Task TypeChangedAsync(string? selected)
     {
-        State.DocumentTypeId = Guid.TryParse(args.Value?.ToString(), out var id) ? id : null;
+        State.DocumentTypeId = Guid.TryParse(selected, out var id) ? id : null;
         await OnChanged.InvokeAsync();
     }
 
-    private async Task FieldChangedAsync(ViewDocumentFieldDto field, ChangeEventArgs args)
+    private async Task FieldChangedAsync(ViewDocumentFieldDto field, string? selected)
     {
-        State.SetField(field.Id, args.Value?.ToString());
+        State.SetField(field.Id, selected);
         await OnChanged.InvokeAsync();
     }
 

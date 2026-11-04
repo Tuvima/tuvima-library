@@ -18,7 +18,7 @@
 
 .compact-continue__heading strong {
     color: rgba(248, 250, 252, 0.96);
-    font-size: 0.95rem;
+    font-size: var(--tl-font-size-md);
     white-space: nowrap;
 }
 
@@ -109,7 +109,7 @@
 
 .compact-continue__copy strong {
     color: rgba(248, 250, 252, 0.96);
-    font-size: 0.78rem;
+    font-size: var(--tl-font-size-xs);
 }
 
 .compact-continue__copy span {

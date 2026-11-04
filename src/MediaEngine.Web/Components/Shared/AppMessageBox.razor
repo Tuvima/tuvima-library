@@ -14,9 +14,10 @@
     [Parameter] public string YesText { get; set; } = "OK";
     [Parameter] public string? NoText { get; set; }
     [Parameter] public string? CancelText { get; set; }
-    // A message box whose main button removes or discards something is drawn as a destructive confirmation: outlined red,
-    // not focused, with the safe button filled and focused (Look pass 4.3). The button label is how the caller says so.
-    private bool IsDestructive => System.Text.RegularExpressions.Regex.IsMatch(YesText, @"^(Remove|Delete|Discard|Detach|Erase|Empty|Disconnect|Reset|Turn off|Stop)\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase) && !string.IsNullOrEmpty(CancelText ?? NoText);
+    [Parameter] public bool Destructive { get; set; }
+    // The caller says when the main button removes or discards something (AppDialogOptions.DestructiveConfirm): drawn outlined red,
+    // not focused, with the safe button filled and focused (Look pass 4.3).
+    private bool IsDestructive => Destructive && !string.IsNullOrEmpty(CancelText ?? NoText);
     private string Title => Dialog.Title ?? string.Empty;
     private RenderFragment MessageContent => builder =>
     {

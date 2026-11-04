@@ -33,7 +33,7 @@
 .tl-music-album-overview__heading span,
 .tl-music-album-overview__empty {
     color: rgba(225, 231, 242, 0.64);
-    font-size: 0.86rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 .tl-music-album-overview ::deep .tl-embedded-audio {

@@ -552,7 +552,7 @@
         var confirmed = await DialogService.ShowMessageBoxAsync(
             "Remove the import folder?",
             "Library stops importing from it. Files in the folder stay on disk.",
-            yesText: "Remove", cancelText: "Keep");
+            yesText: "Remove", cancelText: "Keep", options: AppDialogOptions.DestructiveConfirm);
         if (confirmed == true) await SaveImportFolderAsync(null, "Import folder removed.");
     }
 
@@ -609,7 +609,7 @@
             "Remove this folder?",
             $"{source.DisplayName()} stops being part of {NameOf(library)}. Your files stay on disk."
                 + (IsVideosSelected ? " To move it to Photos and personal videos, remove it here and add it again there; folders are never moved automatically." : string.Empty),
-            yesText: "Remove", cancelText: "Keep");
+            yesText: "Remove", cancelText: "Keep", options: AppDialogOptions.DestructiveConfirm);
         if (confirmed != true) return;
         library.Sources.RemoveAll(item => item.Id == source.Id);
         await SaveAsync(library, "Folder removed.");
@@ -810,11 +810,11 @@
                 ? await DialogService.ShowMessageBoxAsync(
                     $"Stop merging {request.Source.DisplayName()}?",
                     "What was already copied stays in the target folder, and the rest stays in this folder. Nothing is undone. The log lists what remains.",
-                    yesText: "Stop merging", cancelText: "Keep going")
+                    yesText: "Stop merging", cancelText: "Keep going", options: AppDialogOptions.DestructiveConfirm)
                 : await DialogService.ShowMessageBoxAsync(
                     $"Stop organising {request.Source.DisplayName()}?",
                     "The folder stays Managed with the work done so far. Files already renamed keep their new names, and the rest will be tidied gradually by normal scans.",
-                    yesText: "Stop organising", cancelText: "Keep going");
+                    yesText: "Stop organising", cancelText: "Keep going", options: AppDialogOptions.DestructiveConfirm);
             if (confirmed != true) return;
         }
 

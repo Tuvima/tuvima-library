@@ -258,7 +258,7 @@
         var question = turnOn
             ? $"Tidy {source.Name} every night at {hour}? New files for this library wait while it runs."
             : $"Stop tidying {source.Name} every night?";
-        if (await DialogService.ShowMessageBoxAsync(turnOn ? "Tidy every night?" : "Stop tidying every night?", question, yesText: turnOn ? "Tidy every night" : "Stop", cancelText: "Cancel") != true) return;
+        if (await DialogService.ShowMessageBoxAsync(turnOn ? "Tidy every night?" : "Stop tidying every night?", question, yesText: turnOn ? "Tidy every night" : "Stop", cancelText: "Cancel", options: turnOn ? null : AppDialogOptions.DestructiveConfirm) != true) return;
         _busy = true;
         try
         {
@@ -270,7 +270,7 @@
 
     private async Task DetachAsync(Guid owner, ViewSourceAdminDto source)
     {
-        if (await DialogService.ShowMessageBoxAsync("Detach folder?", $"Detach {source.Name}? Original files remain at {source.Location}.", yesText: "Detach folder", cancelText: "Cancel") != true) return;
+        if (await DialogService.ShowMessageBoxAsync("Detach folder?", $"Detach {source.Name}? Original files remain at {source.Location}.", yesText: "Detach folder", cancelText: "Cancel", options: AppDialogOptions.DestructiveConfirm) != true) return;
         _busy = true;
         try
         {

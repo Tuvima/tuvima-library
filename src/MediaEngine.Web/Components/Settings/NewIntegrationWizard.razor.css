@@ -1,12 +1,12 @@
 /* Same calm spacing and square badges as the plugin and integration pages (v6 D71). */
 .integration-wizard { display: grid; gap: var(--tl-space-4, 1rem); }
-.integration-wizard__steps { display: flex; flex-wrap: wrap; gap: 1rem; margin: 0; padding: 0; list-style: none; color: var(--app-text-muted); }
+.integration-wizard__steps { display: flex; flex-wrap: wrap; gap: 1rem; margin: 0; padding: 0; list-style: none; color: var(--tl-text-muted); }
 .integration-wizard__steps li { display: flex; align-items: center; gap: .5rem; }
 .integration-wizard__steps .is-current { color: var(--app-text); font-weight: 600; }
-.integration-wizard__step-number { display: inline-grid; place-items: center; width: 1.6rem; height: 1.6rem; border: 1px solid var(--app-border); border-radius: var(--tl-radius-sm, 6px); }
+.integration-wizard__step-number { display: inline-grid; place-items: center; width: 1.6rem; height: 1.6rem; border: 1px solid var(--tl-border-default); border-radius: var(--tl-radius-sm, 6px); }
 .integration-wizard__steps .is-current .integration-wizard__step-number { background: var(--tl-accent-primary); border-color: var(--tl-accent-primary); color: var(--tl-text-on-accent); }
 .integration-wizard__steps .is-done .integration-wizard__step-number { border-color: var(--tl-accent-primary); color: var(--tl-accent-primary); }
-.integration-wizard__section, .integration-wizard__summary { display: grid; align-content: start; gap: .75rem; padding: 1rem; border: 1px solid var(--app-border); border-radius: var(--app-radius-lg); }
+.integration-wizard__section, .integration-wizard__summary { display: grid; align-content: start; gap: .75rem; padding: 1rem; border: 1px solid var(--tl-border-default); border-radius: var(--tl-radius-lg); }
 .integration-wizard__access { display: grid; grid-template-columns: minmax(0, 1fr) 16rem; gap: 1rem; }
 .integration-wizard__presets { display: flex; flex-wrap: wrap; gap: .5rem; }
 .integration-wizard__review { display: grid; grid-template-columns: max-content 1fr; gap: .4rem 1rem; margin: 0; }

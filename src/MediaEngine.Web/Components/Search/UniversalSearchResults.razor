@@ -127,12 +127,7 @@
         @if (!Compact && ActiveResult is not null)
         {
             <aside class="universal-results__preview" aria-label="@L["UniversalSearchResults_SearchResultPreview"].Value">
-                <AppNativeButton Type="button"
-                                 Class="universal-results__preview-close"
-                                 AriaLabel="@L["UniversalSearchResults_ClosePreview"].Value"
-                                 OnClick="@(() => ClearSelectionAsync())">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" />
-                </AppNativeButton>
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Size="AppControlSize.Compact" Class="universal-results__preview-close" AriaLabel="@L["UniversalSearchResults_ClosePreview"].Value" Tooltip="@L["UniversalSearchResults_ClosePreview"].Value" OnClick="@(() => ClearSelectionAsync())" />
                 <div class="@ArtworkClass("universal-results__preview-art", ActiveResult)">
                     @if (!string.IsNullOrWhiteSpace(ActiveResult.ArtworkUrl))
                     {

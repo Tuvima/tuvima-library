@@ -15,11 +15,11 @@
                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" />
             </AppNativeButton>
         }
-        <AppNativeButton Type="button"
-                         Class="app-active-filter-summary__clear"
-                         OnClick="@(() => ClearAll.InvokeAsync())">
+        <AppButton ButtonStyle="AppButtonStyle.Text"
+                   Class="app-active-filter-summary__clear"
+                   OnClick="@(() => ClearAll.InvokeAsync())">
             @L["Common_ClearAll"]
-        </AppNativeButton>
+        </AppButton>
     </div>
 }
 

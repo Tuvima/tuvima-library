@@ -18,10 +18,10 @@
             @if (Rule is null && CanManageShared)
             {
                 <label class="view-rule-editor__field"><span>@L["DocumentRuleEditorDialog_AppliesTo"]</span>
-                    <AppNativeSelect aria-label="@L["DocumentRuleEditorDialog_AppliesTo"].Value" Value="@_scope" OnChange="@(args => ScopeChanged(args.Value?.ToString()))">
+                    <AppSelect Native="true" aria-label="@L["DocumentRuleEditorDialog_AppliesTo"].Value" Value="@_scope" ValueChanged="@(selected => ScopeChanged(selected))">
                         <option value="@ViewDocumentRuleScopes.Mine">@L["DocumentRuleEditorDialog_MyDocuments"]</option>
                         <option value="@ViewDocumentRuleScopes.Shared">@L["DocumentRuleEditorDialog_TheSharedLibraryHousehold"]</option>
-                    </AppNativeSelect>
+                    </AppSelect>
                 </label>
             }
             else if (_scope == ViewDocumentRuleScopes.Shared)
@@ -32,42 +32,42 @@
             <section class="view-rule-editor__group" aria-label="@L["DocumentRuleEditorDialog_Conditions"].Value">
                 <h3>@L["DocumentRuleEditorDialog_WhenADocumentMatches"]</h3>
                 <label class="view-rule-editor__field"><span>@L["Common_Match"]</span>
-                    <AppNativeSelect aria-label="@L["DocumentRuleEditorDialog_MatchMode"].Value" Value="@_matchMode" OnChange="@(args => _matchMode = args.Value?.ToString() ?? ViewDocumentRuleMatchModes.All)">
+                    <AppSelect Native="true" aria-label="@L["DocumentRuleEditorDialog_MatchMode"].Value" Value="@_matchMode" ValueChanged="@(selected => _matchMode = selected ?? ViewDocumentRuleMatchModes.All)">
                         <option value="@ViewDocumentRuleMatchModes.All">@L["DocumentRuleEditorDialog_AllOfThese"]</option>
                         <option value="@ViewDocumentRuleMatchModes.Any">@L["DocumentRuleEditorDialog_AnyOfThese"]</option>
-                    </AppNativeSelect>
+                    </AppSelect>
                 </label>
                 <ul class="view-rule-editor__list">
                     @foreach (var condition in _conditions)
                     {
                         <li class="view-rule-editor__row" @key="condition">
-                            <AppNativeSelect aria-label="@L["Common_Condition"].Value" Value="@condition.Kind" OnChange="@(args => ConditionKindChanged(condition, args.Value?.ToString()))">
+                            <AppSelect Native="true" aria-label="@L["Common_Condition"].Value" Value="@condition.Kind" ValueChanged="@(selected => ConditionKindChanged(condition, selected))">
                                 @foreach (var option in ConditionKinds)
                                 {
                                     <option value="@option.Value">@option.Label</option>
                                 }
-                            </AppNativeSelect>
+                            </AppSelect>
                             @switch (condition.Kind)
                             {
                                 case ViewDocumentRuleConditionKinds.Source:
-                                    <AppNativeSelect aria-label="@L["Common_Source"].Value" Value="@condition.Value" OnChange="@(args => condition.Value = args.Value?.ToString() ?? string.Empty)">
+                                    <AppSelect Native="true" aria-label="@L["Common_Source"].Value" Value="@condition.Value" ValueChanged="@(selected => condition.Value = selected ?? string.Empty)">
                                         <option value="">@L["DocumentRuleEditorDialog_ChooseASource"]</option>
                                         @foreach (var source in ScopedSources)
                                         {
                                             <option value="@source.Id.ToString("D")">@source.Name</option>
                                         }
-                                    </AppNativeSelect>
+                                    </AppSelect>
                                     break;
                                 case ViewDocumentRuleConditionKinds.FileKind:
-                                    <AppNativeSelect aria-label="@L["DocumentRuleEditorDialog_FileKind"].Value" Value="@condition.Value" OnChange="@(args => condition.Value = args.Value?.ToString() ?? string.Empty)">
+                                    <AppSelect Native="true" aria-label="@L["DocumentRuleEditorDialog_FileKind"].Value" Value="@condition.Value" ValueChanged="@(selected => condition.Value = selected ?? string.Empty)">
                                         <option value="">@L["DocumentRuleEditorDialog_ChooseAKind"]</option>
                                         <option value="@ViewDocumentFileKinds.Pdf">@L["DocumentRuleEditorDialog_PDF"]</option>
                                         <option value="@ViewDocumentFileKinds.Image">@L["DocumentRuleEditorDialog_Image"]</option>
                                         <option value="@ViewDocumentFileKinds.Office">@L["DocumentRuleEditorDialog_OfficeDocument"]</option>
-                                    </AppNativeSelect>
+                                    </AppSelect>
                                     break;
                                 default:
-                                    <AppNativeInput Type="text" Class="view-document-details__input" AriaLabel="@L["DocumentRuleEditorDialog_TextToLookFor"].Value" Placeholder="@L["DocumentRuleEditorDialog_WordOrPhrase"].Value" Value="@condition.Value" ValueChanged="@(value => condition.Value = value?.ToString() ?? string.Empty)" maxlength="200" />
+                                    <AppTextField Label="@L["DocumentRuleEditorDialog_TextToLookFor"].Value" HideLabel="true" Placeholder="@L["DocumentRuleEditorDialog_WordOrPhrase"].Value" Value="@condition.Value" ValueChanged="@(value => condition.Value = value?.ToString() ?? string.Empty)" MaxLength="200" />
                                     break;
                             }
                             <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="@L["Common_RemoveCondition"].Value" AriaLabel="@L["Common_RemoveCondition"].Value" Disabled="@(_conditions.Count <= 1)" OnClick="@(() => _conditions.Remove(condition))" />
@@ -87,12 +87,12 @@
                     @foreach (var action in _actions)
                     {
                         <li class="view-rule-editor__row" @key="action">
-                            <AppNativeSelect aria-label="@L["DocumentRuleEditorDialog_Action"].Value" Value="@action.Kind" OnChange="@(args => ActionKindChanged(action, args.Value?.ToString()))">
+                            <AppSelect Native="true" aria-label="@L["DocumentRuleEditorDialog_Action"].Value" Value="@action.Kind" ValueChanged="@(selected => ActionKindChanged(action, selected))">
                                 @foreach (var option in ActionKinds)
                                 {
                                     <option value="@option.Value">@option.Label</option>
                                 }
-                            </AppNativeSelect>
+                            </AppSelect>
                             @switch (action.Kind)
                             {
                                 case ViewDocumentRuleActionKinds.AddTag:
@@ -224,13 +224,13 @@
     }
 
     private RenderFragment NameSelect(string label, ActionDraft action, IEnumerable<(Guid Id, string Name)> names) =>
-        @<AppNativeSelect aria-label="@label" Value="@action.RefId" OnChange="@(args => action.RefId = args.Value?.ToString() ?? string.Empty)">
+        @<AppSelect Native="true" aria-label="@label" Value="@action.RefId" ValueChanged="@(selected => action.RefId = selected ?? string.Empty)">
             <option value="">@($"Choose a {label.ToLowerInvariant()}")</option>
             @foreach (var (id, name) in names)
             {
                 <option value="@id.ToString("D")">@name</option>
             }
-        </AppNativeSelect>;
+        </AppSelect>;
 
     private RenderFragment FieldValueInput(ActionDraft action)
     {
@@ -238,25 +238,25 @@
         return field?.Kind switch
         {
             ViewDocumentFieldKinds.Choice =>
-                @<AppNativeSelect aria-label="Value" Value="@action.Text" OnChange="@(args => action.Text = args.Value?.ToString() ?? string.Empty)">
+                @<AppSelect Native="true" aria-label="Value" Value="@action.Text" ValueChanged="@(selected => action.Text = selected ?? string.Empty)">
                     <option value="">Choose a value</option>
                     @foreach (var choice in field.Choices)
                     {
                         <option value="@choice">@choice</option>
                     }
-                </AppNativeSelect>,
+                </AppSelect>,
             ViewDocumentFieldKinds.Bool =>
-                @<AppNativeSelect aria-label="Value" Value="@action.Text" OnChange="@(args => action.Text = args.Value?.ToString() ?? string.Empty)">
+                @<AppSelect Native="true" aria-label="Value" Value="@action.Text" ValueChanged="@(selected => action.Text = selected ?? string.Empty)">
                     <option value="">Choose a value</option>
                     <option value="true">Yes</option>
                     <option value="false">No</option>
-                </AppNativeSelect>,
+                </AppSelect>,
             ViewDocumentFieldKinds.Date =>
-                @<AppNativeInput Type="date" Class="view-document-details__input" AriaLabel="Value" Value="@action.Text" ValueChanged="@(value => action.Text = value?.ToString() ?? string.Empty)" />,
+                @<AppTextField InputType="AppInputType.Date" Label="Value" HideLabel="true" Value="@action.Text" ValueChanged="@(value => action.Text = value?.ToString() ?? string.Empty)" />,
             _ =>
-                @<AppNativeInput Type="text" Class="view-document-details__input" AriaLabel="Value"
+                @<AppTextField Label="Value" HideLabel="true"
                                  Placeholder="@(field?.Kind == ViewDocumentFieldKinds.Money ? "12.50 EUR" : field?.Kind == ViewDocumentFieldKinds.Number ? "12.5" : "Value")"
-                                 Value="@action.Text" ValueChanged="@(value => action.Text = value?.ToString() ?? string.Empty)" maxlength="200" />,
+                                 Value="@action.Text" ValueChanged="@(value => action.Text = value?.ToString() ?? string.Empty)" MaxLength="200" />,
         };
     }
 

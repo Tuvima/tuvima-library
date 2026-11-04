@@ -121,7 +121,7 @@ public sealed class PendingEditList
     /// episode to Extras (<paramref name="extraId"/> null, token <see cref="EditSessionExtraMove.ToExtrasToken"/>). Unlike the other
     /// kinds there can be several per item, one for each Extra, so they are told apart by <see cref="EditSessionChange.TargetId"/>.
     /// </summary>
-    public void SetExtraMove(Guid entityId, string? extraId, string token, string? label = null)
+    public void SetExtraMove(Guid entityId, string? extraId, string token, string? label = null, string? before = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(token);
         var existing = FindExtraMove(entityId, extraId);
@@ -132,8 +132,23 @@ public sealed class PendingEditList
             EntityId = entityId,
             TargetId = extraId,
             Token = token,
-        }, label);
+        }, label, before: before);
     }
+
+    /// <summary>
+    /// Stages what a person chose for one file in "What is this file?" (universal editor v4 D20): an Extra of its own title, an Extra of
+    /// another title, or ignore. One per item: choosing again replaces the earlier choice. <paramref name="label"/> says what it becomes
+    /// ("Trailer · Season 1") and <paramref name="before"/> names the file, both for Review changes only.
+    /// </summary>
+    public void SetFileChoice(Guid entityId, ExtraFileChoice choice, string label, string? before = null)
+    {
+        ArgumentNullException.ThrowIfNull(choice);
+        SetExtraMove(entityId, null, EditSessionExtraMove.ToFileToken(choice), label, before);
+    }
+
+    /// <summary>The staged "What is this file?" choice of one item, or null.</summary>
+    public EditSessionChange? FindFileChoice(Guid entityId) =>
+        FindExtraMove(entityId, null) is { } change && EditSessionExtraMove.IsFileChoice(change.Token) ? change : null;
 
     /// <summary>
     /// Stages the order of the videos of one series or section (universal editor v3.1), replacing an earlier order staged for it.

@@ -266,14 +266,14 @@
                                   Disabled="@_protectionBusy" />
                     @if (_protection?.Enabled == true)
                     {
-                        <AppNativeSelect Value="@ProtectionOption()" OnChange="@(value => ProtectionDurationChangedAsync(value.Value?.ToString() ?? "FixedDuration:30"))"
+                        <AppSelect Native="true" Value="@ProtectionOption()" ValueChanged="@(selected => ProtectionDurationChangedAsync(selected ?? "FixedDuration:30"))"
                                          Disabled="@_protectionBusy" aria-label="@($"How long the PIN unlocks administrator settings for {PersonName}")">
                             <option value="FixedDuration:15">@L["ProfileDetailPage_For15Minutes"]</option>
                             <option value="FixedDuration:30">@L["ProfileDetailPage_For30Minutes"]</option>
                             <option value="FixedDuration:60">@L["ProfileDetailPage_For1Hour"]</option>
                             <option value="UntilProfileSwitch">@L["ProfileDetailPage_UntilProfileSwitch"]</option>
                             <option value="LockOnLeave">@L["ProfileDetailPage_LockWhenLeavingSettings"]</option>
-                        </AppNativeSelect>
+                        </AppSelect>
                     }
                 </div>
             </SettingsSectionPanel>

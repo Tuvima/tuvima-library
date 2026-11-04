@@ -13,7 +13,7 @@
 .browse-multi-select__label {
     margin-left: 2px;
     color: rgba(215, 224, 240, 0.78);
-    font-size: 0.88rem;
+    font-size: var(--tl-font-size-sm);
     font-weight: 600;
     line-height: 1;
 }
@@ -46,7 +46,7 @@
     background: rgba(8, 16, 31, 0.68);
     color: rgba(245, 247, 252, 0.95);
     font: inherit;
-    font-size: 0.98rem;
+    font-size: var(--tl-font-size-md);
     font-weight: 600;
     text-align: left;
     cursor: pointer;
@@ -101,7 +101,7 @@
     background: transparent;
     color: rgba(244, 247, 252, 0.96);
     font: inherit;
-    font-size: 0.95rem;
+    font-size: var(--tl-font-size-md);
 }
 
 .browse-multi-select__options {
@@ -124,7 +124,7 @@
     background: transparent;
     color: rgba(232, 237, 247, 0.92);
     font: inherit;
-    font-size: 0.94rem;
+    font-size: var(--tl-font-size-md);
     line-height: 1.2;
     cursor: pointer;
     text-align: left;
@@ -150,13 +150,13 @@
     display: block;
     margin-top: 3px;
     color: rgba(166, 179, 201, 0.78);
-    font-size: 0.76rem;
+    font-size: var(--tl-font-size-xs);
 }
 
 .browse-multi-select__empty,
 .browse-multi-select__help {
     color: rgba(160, 174, 198, 0.78);
-    font-size: 0.76rem;
+    font-size: var(--tl-font-size-xs);
 }
 
 .browse-multi-select__empty {

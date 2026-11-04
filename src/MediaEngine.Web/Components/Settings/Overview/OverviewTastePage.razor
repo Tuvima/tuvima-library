@@ -21,7 +21,7 @@
         <div class="taste-page__filter" data-taste-scope>
             <label class="taste-page__scope">
                 <span class="taste-page__scope-label">@L["Common_Scope"]</span>
-                <AppNativeSelect Value="@_scope"
+                <AppSelect Native="true" Value="@_scope"
                                  ValueChanged="@OnScopeChangedAsync"
                                  Disabled="@_loading"
                                  data-taste-scope-select
@@ -30,7 +30,7 @@
                     {
                         <option value="@option.Value">@option.Label</option>
                     }
-                </AppNativeSelect>
+                </AppSelect>
             </label>
         </div>
     }
