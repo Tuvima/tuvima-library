@@ -23,6 +23,7 @@
                   OnRestore="@OnRestore"
                   OnTrash="@OnTrash"
                   OnAddToGallery="@OnAddToGallery"
+                  OnCreateGallery="@OnCreateGallery"
                   InfoInitiallyOpen="@(Workspace.ViewerInfoOpen || Item.FileMissing)"
                   InfoOpenChanged="InfoOpenChangedAsync">
     <ContextActions>
@@ -104,6 +105,9 @@
     [Parameter] public EventCallback OnRestore { get; set; }
     [Parameter] public EventCallback OnTrash { get; set; }
     [Parameter] public EventCallback<Guid> OnAddToGallery { get; set; }
+
+    /// <summary>Starts a new Gallery with this photo in it (computers only; the page leaves it unset elsewhere).</summary>
+    [Parameter] public EventCallback OnCreateGallery { get; set; }
     [Parameter] public EventCallback<LocalAssetDto> OnItemUpdated { get; set; }
     [Parameter] public bool CanEdit { get; set; }
 
@@ -188,7 +192,7 @@
     private MediaViewerCapabilities ViewerCapabilities => new(
         CanFavorite: CanManage && !Item.FileMissing,
         IsFavorite: Item.Favorite,
-        CanAddToGallery: ManualGalleries.Count > 0 && !Item.FileMissing,
+        CanAddToGallery: (ManualGalleries.Count > 0 || OnCreateGallery.HasDelegate) && !Item.FileMissing,
         CanDownload: !Item.FileMissing,
         CanArchive: CanManage && !Item.FileMissing && !Item.ArchivedAt.HasValue && !Item.TrashedAt.HasValue,
         CanRestore: CanManage && (Item.ArchivedAt.HasValue || Item.TrashedAt.HasValue),

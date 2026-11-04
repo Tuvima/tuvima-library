@@ -98,7 +98,7 @@ else
 </ChildContent>
 </ViewContentPage>
 </ViewSectionShell>
-@if (_activeItem is not null) { <ViewImmersiveViewer Item="@_activeItem" HasPrevious="@HasPrevious" HasNext="@HasNext" PositionLabel="@ViewerPosition" ContentUrl="@AssetUrl(_activeItem, ViewMediaResourceKind.Preview)" OriginalUrl="@AssetUrl(_activeItem, ViewMediaResourceKind.Content)" MotionUrl="@MotionUrl(_activeItem)" ThumbnailUrl="@AssetUrl(_activeItem, ViewMediaResourceKind.Thumbnail)" OnClose="CloseItem" OnPrevious="PreviousItem" OnNext="NextItem" OnFavorite="ToggleFavoriteAsync" OnArchive="ArchiveActiveAsync" OnRestore="RestoreActiveAsync" OnTrash="TrashActiveAsync" ManualGalleries="@Workspace.OwnedGalleries.Where(g => g.Kind == ViewGalleryKind.Manual).ToList()" OnAddToGallery="AddActiveToGalleryAsync" CanEdit="@(Workspace.ScopeKind == ViewScopeKind.Mine)" CanManage="@(ItemScope(_activeItem).Kind == ViewScopeKind.Mine)" OnItemUpdated="Replace" /> }
+@if (_activeItem is not null) { <ViewImmersiveViewer Item="@_activeItem" HasPrevious="@HasPrevious" HasNext="@HasNext" PositionLabel="@ViewerPosition" ContentUrl="@AssetUrl(_activeItem, ViewMediaResourceKind.Preview)" OriginalUrl="@AssetUrl(_activeItem, ViewMediaResourceKind.Content)" MotionUrl="@MotionUrl(_activeItem)" ThumbnailUrl="@AssetUrl(_activeItem, ViewMediaResourceKind.Thumbnail)" OnClose="CloseItem" OnPrevious="PreviousItem" OnNext="NextItem" OnFavorite="ToggleFavoriteAsync" OnArchive="ArchiveActiveAsync" OnRestore="RestoreActiveAsync" OnTrash="TrashActiveAsync" ManualGalleries="@Workspace.OwnedGalleries.Where(g => g.Kind == ViewGalleryKind.Manual).ToList()" OnAddToGallery="AddActiveToGalleryAsync" OnCreateGallery="@CreateActiveGalleryCallback" CanEdit="@(Workspace.ScopeKind == ViewScopeKind.Mine)" CanManage="@(ItemScope(_activeItem).Kind == ViewScopeKind.Mine)" OnItemUpdated="Replace" /> }
 
 @code {
     // Videos is offered only while personal videos are allowed for this profile.
@@ -276,6 +276,9 @@ else
     }
     private void CancelSelection() { ClearSelection(); _selectMode = false; }
     // Only computers open the Gallery editor, so the bar's "New Gallery" item is withheld elsewhere; adding to an existing Gallery stays.
+    // The viewer's Gallery list offers New gallery on a computer, starting with the photo on screen; it closes the viewer so the new Gallery's name can be typed.
+    private EventCallback CreateActiveGalleryCallback => DeviceContext.CanEdit && Workspace.ScopeKind == ViewScopeKind.Mine ? EventCallback.Factory.Create(this, CreateActiveGalleryAsync) : default;
+    private async Task CreateActiveGalleryAsync() { if (_viewSectionShell is null || _activeItem is null) return; var id = _activeItem.Id; CloseItem(); await _viewSectionShell.BeginManualGalleryCreateAsync([id]); }
     private EventCallback CreateGalleryCallback => DeviceContext.CanEdit ? EventCallback.Factory.Create(this, CreateGalleryFromSelectionAsync) : default;
     // Download is part of the phone bar only; desktop and tablet bars keep their existing actions.
     private EventCallback DownloadCallback => DeviceContext.IsPhone ? EventCallback.Factory.Create(this, DownloadSelectionAsync) : default;

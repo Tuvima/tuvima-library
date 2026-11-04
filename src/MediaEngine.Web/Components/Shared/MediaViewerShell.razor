@@ -106,7 +106,7 @@
 @code {
     private RenderFragment ViewerActions => @<div class="media-viewer__actions" role="toolbar" aria-label="Media actions">
             @if (Capabilities.CanFavorite) { <AppIconButton Icon="@(Capabilities.IsFavorite ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)" Tooltip="Favorite" AriaLabel="Toggle favorite" OnClick="OnFavorite" /> }
-            @if (Capabilities.CanAddToGallery) { <AppNativeSelect Value="@string.Empty" OnChange="GalleryChanged" aria-label="Add item to Gallery"><option value="">Gallery…</option>@foreach (var gallery in Galleries) { <option value="@gallery.Id">@gallery.Name</option> }</AppNativeSelect> }
+            @if (Capabilities.CanAddToGallery) { <AppNativeSelect Value="@string.Empty" OnChange="GalleryChanged" aria-label="Add item to Gallery"><option value="">Gallery…</option>@foreach (var gallery in Galleries) { <option value="@gallery.Id">@gallery.Name</option> }@if (OnCreateGallery.HasDelegate) { <option value="@NewGalleryChoice">@L["Common_NewGallery"]</option> }</AppNativeSelect> }
             @ContextActions
             @if (Capabilities.CanSlideshow) { <AppIconButton Icon="@(_slideshow ? AppMaterialIcons.Filled.PauseCircle : AppMaterialIcons.Outlined.Slideshow)" Tooltip="@(_slideshow ? "Pause slideshow" : "Start slideshow")" AriaLabel="@(_slideshow ? "Pause slideshow" : "Start slideshow")" OnClick="ToggleSlideshow" /> }
             @if (Capabilities.CanDownload) { <a class="media-viewer__icon-action" href="@Item.OriginalUrl" download aria-label="Download original" title="Download original"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Download" /></a> }
@@ -135,6 +135,11 @@
     [Parameter] public EventCallback OnRestore { get; set; }
     [Parameter] public EventCallback OnTrash { get; set; }
     [Parameter] public EventCallback<Guid> OnAddToGallery { get; set; }
+
+    /// <summary>Starts a new Gallery holding this item. Left unset (phones, tablets) the Gallery list offers only the existing ones.</summary>
+    [Parameter] public EventCallback OnCreateGallery { get; set; }
+
+    private const string NewGalleryChoice = "new";
     private IJSObjectReference? _chromeModule;
     private ElementReference _root, _stage, _video, _audio; private IJSObjectReference? _module; private DotNetObjectReference<MediaViewerShell>? _videoPresentationReference; private bool _initialized, _showInfo, _slideshow; private double _zoom = 1; private CancellationTokenSource? _slideshowCts;
     private string? _observedVideoUrl; private double _videoPosition, _videoDuration, _videoVolume = 1, _videoSpeed = 1; private bool _videoIsPlaying, _videoIsMuted, _videoCanPiP, _videoCanFullscreen;
@@ -231,7 +236,8 @@
         if (InfoOpenChanged.HasDelegate)
             await InfoOpenChanged.InvokeAsync(_showInfo);
     }
-    private Task GalleryChanged(ChangeEventArgs args) => Guid.TryParse(args.Value?.ToString(), out var id) ? OnAddToGallery.InvokeAsync(id) : Task.CompletedTask;
+    private Task GalleryChanged(ChangeEventArgs args) => args.Value?.ToString() == NewGalleryChoice ? OnCreateGallery.InvokeAsync()
+        : Guid.TryParse(args.Value?.ToString(), out var id) ? OnAddToGallery.InvokeAsync(id) : Task.CompletedTask;
     private async Task PreviousAsync() { await FitAsync(); await OnPrevious.InvokeAsync(); }
     private async Task NextAsync() { await FitAsync(); await OnNext.InvokeAsync(); }
     private async Task ZoomInAsync() { _zoom = Math.Min(4, _zoom <= 1 ? 1.25 : _zoom + .25); if (_module is not null) await _module.InvokeVoidAsync("setZoom", _stage, _zoom); }
