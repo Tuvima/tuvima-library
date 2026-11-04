@@ -35,7 +35,7 @@
 
 .app-dialog-shell--provider .app-dialog-shell__subtitle {
     max-width: none;
-    font-size: 1rem;
+    font-size: var(--tl-font-size-md);
 }
 
 .app-dialog-shell--provider .app-dialog-shell__icon {
@@ -136,7 +136,7 @@
     margin-top: 5px;
     max-width: 700px;
     color: rgba(255, 255, 255, 0.58);
-    font-size: 0.9rem;
+    font-size: var(--tl-font-size-sm);
     line-height: 1.4;
 }
 
@@ -149,7 +149,7 @@
     min-height: 0;
     overflow-x: hidden;
     overflow-y: auto;
-    font-size: 1rem;
+    font-size: var(--tl-font-size-md);
 }
 
 .app-dialog-shell__footer {
@@ -176,7 +176,7 @@
     }
 
     .app-dialog-shell__title {
-        font-size: 1.25rem;
+        font-size: var(--tl-font-size-dialog-title);
     }
 
     .app-dialog-shell--provider .app-dialog-shell__header {

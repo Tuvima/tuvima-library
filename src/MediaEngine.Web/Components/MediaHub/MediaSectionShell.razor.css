@@ -159,7 +159,7 @@
 }
 
 .media-section-shell__rail-chevron {
-    font-size: 1rem !important;
+    font-size: var(--tl-font-size-md) !important;
     color: currentColor;
 }
 
@@ -178,7 +178,7 @@
     padding: 6px 10px;
     border-radius: calc(var(--tl-radius-md) - 2px);
     color: rgba(203, 213, 225, 0.68);
-    font-size: 0.84rem;
+    font-size: var(--tl-font-size-secondary);
 }
 
 .media-section-shell__rail-child-marker {
@@ -282,7 +282,7 @@
     grid-template-columns: 20px minmax(0, 1fr) auto;
     min-height: 38px;
     padding: 6px 7px;
-    font-size: 0.84rem;
+    font-size: var(--tl-font-size-secondary);
 }
 
 .media-section-shell__smart-badge {
@@ -334,7 +334,7 @@
     border: 1px solid rgba(248, 113, 113, 0.42);
     border-radius: inherit;
     background: rgba(127, 29, 29, 0.28);
-    font-size: 0.76rem;
+    font-size: var(--tl-font-size-xs);
     font-weight: 700;
 }
 
@@ -456,7 +456,7 @@
 
 .media-section-shell__tree-label {
     overflow: hidden;
-    font-size: 0.9rem;
+    font-size: var(--tl-font-size-sm);
     text-overflow: ellipsis;
     white-space: nowrap;
 }

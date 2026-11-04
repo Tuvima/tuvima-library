@@ -242,7 +242,7 @@
     align-items: center;
     justify-content: space-between;
     color: rgba(248, 250, 252, 0.9);
-    font-size: 0.8rem;
+    font-size: var(--tl-font-size-secondary);
     font-weight: 700;
 }
 
@@ -265,7 +265,7 @@
     grid-template-columns: 1.5rem minmax(0, 1fr);
     gap: 0.45rem;
     color: rgba(226, 232, 240, 0.74);
-    font-size: 0.76rem;
+    font-size: var(--tl-font-size-xs);
 }
 
 ::deep .cinematic-hero__track-preview a,

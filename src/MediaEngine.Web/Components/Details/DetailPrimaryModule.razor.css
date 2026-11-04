@@ -110,7 +110,7 @@
 }
 
 .tl-detail-primary-module--works .tl-detail-primary-module__copy strong {
-    font-size: 0.76rem;
+    font-size: var(--tl-font-size-xs);
 }
 
 .tl-detail-primary-module--works .tl-detail-primary-module__copy small {
@@ -132,7 +132,7 @@
     padding: 0.4rem 0.7rem;
 
     color: rgba(255, 255, 255, 0.68);
-    font-size: 0.76rem;
+    font-size: var(--tl-font-size-xs);
 
 }
 
@@ -249,7 +249,7 @@
 }
 
 .tl-detail-primary-module__copy strong {
-    font-size: 0.82rem;
+    font-size: var(--tl-font-size-secondary);
     font-weight: 600;
 }
 
@@ -439,7 +439,7 @@
     border-radius: 0;
     background: transparent;
     color: rgba(244, 247, 252, 0.74);
-    font-size: 0.82rem;
+    font-size: var(--tl-font-size-secondary);
     font-weight: 600;
     white-space: nowrap;
 }

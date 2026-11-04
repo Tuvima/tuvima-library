@@ -54,7 +54,7 @@
 }
 
 .audiobook-bookmark-dialog-layer ::deep .playback-tool-sheet__header h2 {
-    font-size: 1.15rem;
+    font-size: var(--tl-font-size-lg);
 }
 
 .audiobook-bookmark-dialog__tabs {
@@ -72,7 +72,7 @@
     color: var(--playback-text-secondary);
     cursor: pointer;
     font: inherit;
-    font-size: .9rem;
+    font-size: var(--tl-font-size-sm);
     font-weight: 600;
     min-height: 44px;
 }
@@ -140,7 +140,7 @@
 .audiobook-bookmark-dialog__capture-copy strong,
 .audiobook-bookmark-dialog__saved-copy strong {
     color: var(--playback-text);
-    font-size: .9rem;
+    font-size: var(--tl-font-size-sm);
     font-weight: 600;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -150,7 +150,7 @@
 .audiobook-bookmark-dialog__capture-copy span,
 .audiobook-bookmark-dialog__saved-copy span {
     color: var(--playback-text-secondary);
-    font-size: .82rem;
+    font-size: var(--tl-font-size-secondary);
     font-variant-numeric: tabular-nums;
 }
 
@@ -194,7 +194,7 @@
 .audiobook-bookmark-dialog__note-label {
     color: var(--playback-text);
     display: flex;
-    font-size: .84rem;
+    font-size: var(--tl-font-size-secondary);
     font-weight: 600;
     gap: 6px;
     margin: 16px 0 6px;
@@ -228,7 +228,7 @@
 
 .audiobook-bookmark-dialog__counter {
     color: var(--playback-text-muted);
-    font-size: .75rem;
+    font-size: var(--tl-font-size-xs);
     margin-top: 4px;
     text-align: right;
 }
@@ -237,7 +237,7 @@
 .audiobook-bookmark-dialog__message,
 .audiobook-bookmark-dialog__unknown {
     color: var(--playback-text-secondary);
-    font-size: .8rem;
+    font-size: var(--tl-font-size-secondary);
     line-height: 1.4;
     margin-top: 10px;
 }
@@ -268,7 +268,7 @@
     color: #fff;
     cursor: pointer;
     font: inherit;
-    font-size: .84rem;
+    font-size: var(--tl-font-size-secondary);
     font-weight: 600;
     min-height: 44px;
     padding: 0 14px;
@@ -281,7 +281,7 @@
     color: var(--playback-text-secondary);
     display: flex;
     flex: 0 0 auto;
-    font-size: .8rem;
+    font-size: var(--tl-font-size-secondary);
     justify-content: space-between;
     margin-bottom: 8px;
 }
@@ -373,13 +373,13 @@
 }
 
 .audiobook-bookmark-dialog__saved-actions ::deep button:hover { color: var(--tl-accent-primary); }
-.audiobook-bookmark-dialog__saved-actions ::deep .audiobook-bookmark-dialog__note-toggle { font-size: .75rem; }
+.audiobook-bookmark-dialog__saved-actions ::deep .audiobook-bookmark-dialog__note-toggle { font-size: var(--tl-font-size-xs); }
 
 .audiobook-bookmark-dialog__saved-note {
     background: rgba(255,255,255,.035);
     border-radius: 6px;
     color: var(--playback-text-secondary);
-    font-size: .82rem;
+    font-size: var(--tl-font-size-secondary);
     line-height: 1.45;
     margin: 0 0 8px;
     overflow-wrap: anywhere;
@@ -401,10 +401,10 @@
     z-index: 2;
 }
 
-.audiobook-bookmark-dialog__confirm span { color: var(--playback-text-secondary); font-size: .78rem; margin-right: auto; }
+.audiobook-bookmark-dialog__confirm span { color: var(--playback-text-secondary); font-size: var(--tl-font-size-xs); margin-right: auto; }
 .audiobook-bookmark-dialog__confirm ::deep button { border-radius: 6px; cursor: pointer; font: inherit; min-height: 44px; padding: 0 10px; }
 .audiobook-bookmark-dialog__confirm ::deep .audiobook-bookmark-dialog__cancel-delete { background: transparent; border: 1px solid var(--playback-border); color: var(--playback-text); }
-.audiobook-bookmark-dialog__state { color: var(--playback-text-secondary); font-size: .84rem; padding: 18px 4px; }
+.audiobook-bookmark-dialog__state { color: var(--playback-text-secondary); font-size: var(--tl-font-size-secondary); padding: 18px 4px; }
 
 .audiobook-bookmark-dialog__saved-actions ::deep .audiobook-bookmark-dialog__delete-request:focus-visible {
     outline: 2px solid var(--playback-focus-ring);

@@ -19,7 +19,7 @@
 .empty-shelf-state h2 {
     margin: 0;
     font-family: var(--font-ui);
-    font-size: 1.05rem;
+    font-size: var(--tl-font-size-md);
     font-weight: 600;
 }
 

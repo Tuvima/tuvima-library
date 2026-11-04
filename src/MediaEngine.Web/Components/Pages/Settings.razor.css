@@ -17,7 +17,7 @@
     --settings-section-icon-size: 28px;
     min-width: 0;
     font-family: var(--font-ui, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif);
-    font-size: 16px;
+    font-size: var(--tl-font-size-md);
     line-height: 1.5;
 }
 
@@ -30,7 +30,7 @@
     display: block;
     margin-bottom: 6px;
     color: var(--tl-text-secondary);
-    font-size: 14px;
+    font-size: var(--tl-font-size-sm);
     font-weight: 600;
 }
 
@@ -59,7 +59,7 @@
     border: 1px solid var(--tl-border-default);
     border-radius: var(--tl-radius-lg);
     background-color: var(--tl-bg-surface-raised);
-    font-size: 16px;
+    font-size: var(--tl-font-size-md);
     font-weight: 700;
 }
 
@@ -74,13 +74,13 @@
 
 .settings-page-canvas ::deep .tl-table-root,
 .settings-page-canvas ::deep table {
-    font-size: 15px;
+    font-size: var(--tl-font-size-sm);
 }
 
 .settings-page-canvas ::deep .app-table th,
 .settings-page-canvas ::deep .tl-table-head .tl-table-cell {
     color: var(--tl-text-muted);
-    font-size: 13px;
+    font-size: var(--tl-font-size-secondary);
     font-weight: 700;
     line-height: 1.35;
     letter-spacing: .045em;
@@ -90,7 +90,7 @@
 .settings-page-canvas ::deep .app-table td,
 .settings-page-canvas ::deep .tl-table-body .tl-table-cell {
     min-height: 52px;
-    font-size: 15px;
+    font-size: var(--tl-font-size-sm);
     line-height: 1.45;
 }
 
@@ -115,7 +115,7 @@
 .settings-page-canvas ::deep .app-control .tl-input-slot,
 .settings-page-canvas ::deep .app-control .tl-select-input,
 .settings-page-canvas ::deep .app-native-select {
-    font-size: 15px !important;
+    font-size: var(--tl-font-size-sm) !important;
 }
 
 .settings-page-canvas ::deep .app-select .tl-input-slot,
@@ -130,7 +130,7 @@
 }
 
 .settings-page-canvas ::deep .settings-select-row__label {
-    font-size: 15px !important;
+    font-size: var(--tl-font-size-sm) !important;
     line-height: 1.35 !important;
 }
 
@@ -202,7 +202,7 @@
 
 .settings-page-canvas ::deep .settings-section-card__title {
     color: var(--tl-text-primary);
-    font-size: 18px;
+    font-size: var(--tl-font-size-lg);
     font-weight: 700;
     line-height: 1.3;
 }
@@ -210,7 +210,7 @@
 .settings-page-canvas ::deep .settings-section-card__description {
     margin-top: 3px;
     color: var(--tl-text-muted);
-    font-size: 14px;
+    font-size: var(--tl-font-size-sm);
     font-weight: 400;
     line-height: 1.45;
 }
@@ -270,7 +270,7 @@
 
 .settings-page-canvas ::deep .settings-interval-action__value {
     color: var(--tl-text-primary);
-    font-size: 15px;
+    font-size: var(--tl-font-size-sm);
     font-weight: 700;
     line-height: 1.2;
     white-space: nowrap;
@@ -279,7 +279,7 @@
 .settings-page-canvas ::deep .settings-interval-action__label {
     margin-top: 1px;
     color: var(--tl-text-secondary);
-    font-size: 13px;
+    font-size: var(--tl-font-size-secondary);
     line-height: 1.25;
 }
 
@@ -295,7 +295,7 @@
 }
 
 .settings-page-canvas ::deep .settings-section-card__header .tl-typography {
-    font-size: 18px;
+    font-size: var(--tl-font-size-lg);
     font-weight: 700;
     line-height: 1.3;
 }
@@ -340,14 +340,14 @@
 
 .settings-page-canvas ::deep .settings-preference-row__text .tl-typography-body1 {
     color: var(--tl-text-primary) !important;
-    font-size: 15px !important;
+    font-size: var(--tl-font-size-sm) !important;
     font-weight: 600 !important;
     line-height: 1.3 !important;
 }
 
 .settings-page-canvas ::deep .settings-preference-row__text .tl-typography-caption {
     color: var(--tl-text-muted) !important;
-    font-size: 14px !important;
+    font-size: var(--tl-font-size-sm) !important;
     line-height: 1.45 !important;
 }
 
@@ -380,7 +380,7 @@
     margin: 2px 10px 0 !important;
     padding: 0 !important;
     color: var(--app-text-muted) !important;
-    font-size: 13px !important;
+    font-size: var(--tl-font-size-secondary) !important;
     line-height: 1.2 !important;
 }
 
@@ -388,7 +388,7 @@
     position: absolute;
     left: var(--settings-slider-position);
     color: var(--app-text-muted);
-    font-size: 13px;
+    font-size: var(--tl-font-size-secondary);
     line-height: 1.2;
     white-space: nowrap;
     transform: translateX(-50%);
@@ -425,12 +425,12 @@
 
 .settings-page-canvas ::deep .tl-card .app-page-state--empty .app-page-state__title,
 .settings-page-canvas ::deep .app-card .app-page-state--empty .app-page-state__title {
-    font-size: 15px;
+    font-size: var(--tl-font-size-sm);
 }
 
 .settings-page-canvas ::deep .tl-card .app-page-state--empty .app-page-state__message,
 .settings-page-canvas ::deep .app-card .app-page-state--empty .app-page-state__message {
-    font-size: 14px;
+    font-size: var(--tl-font-size-sm);
 }
 
 @media (max-width: 1100px) {
@@ -451,7 +451,7 @@
     .settings-page-canvas ::deep small,
     .settings-page-canvas ::deep .tl-typography-caption,
     .settings-page-canvas ::deep .settings-helper-text {
-        font-size: 14px !important;
+        font-size: var(--tl-font-size-sm) !important;
         line-height: 1.45 !important;
     }
 
@@ -459,7 +459,7 @@
     .settings-page-canvas ::deep textarea,
     .settings-page-canvas ::deep select,
     .settings-page-canvas ::deep .tl-input-slot {
-        font-size: 16px !important;
+        font-size: var(--tl-font-size-md) !important;
     }
 
     .settings-mobile-navigation {
@@ -506,7 +506,7 @@
 }
 
 :where(.settings-admin-panel) ::deep .settings-section-card__header .tl-typography {
-    font-size: 1.08rem !important;
+    font-size: var(--tl-font-size-lg) !important;
     font-family: var(--font-ui) !important;
     font-size: var(--tl-control-font-size-md) !important;
     font-weight: var(--tl-control-font-weight) !important;
@@ -545,7 +545,7 @@
 :where(.settings-admin-panel) ::deep .settings-experience-profile .tl-avatar {
     width: 68px !important;
     height: 68px !important;
-    font-size: 1.35rem !important;
+    font-size: var(--tl-font-size-dialog-title) !important;
 }
 
 :where(.settings-admin-panel) ::deep .settings-summary-metric {
@@ -569,7 +569,7 @@
 
 :where(.settings-admin-panel) ::deep .settings-summary-metric .tl-typography-subtitle1 {
     margin-top: 2px !important;
-    font-size: 1.18rem !important;
+    font-size: var(--tl-font-size-lg) !important;
     line-height: 1.25 !important;
     font-weight: 700 !important;
 }
@@ -648,13 +648,13 @@
 }
 
 :where(.settings-admin-panel) ::deep .settings-preference-row__text .tl-typography-body1 {
-    font-size: 0.96rem !important;
+    font-size: var(--tl-font-size-md) !important;
     font-weight: 600 !important;
     line-height: 1.2 !important;
 }
 
 :where(.settings-admin-panel) ::deep .settings-preference-row__text .tl-typography-caption {
-    font-size: 0.84rem !important;
+    font-size: var(--tl-font-size-secondary) !important;
     line-height: 1.22 !important;
 }
 
@@ -680,7 +680,7 @@
 :where(.settings-admin-panel) ::deep .settings-select-row__label {
     min-width: 0;
     color: var(--app-text-secondary) !important;
-    font-size: 0.84rem !important;
+    font-size: var(--tl-font-size-secondary) !important;
     font-weight: 600 !important;
     line-height: 1.2 !important;
 }
@@ -839,7 +839,7 @@
 :where(.settings-admin-panel) ::deep .settings-plugin-list-item__meta {
     overflow: hidden;
     color: var(--app-text-muted);
-    font-size: 0.8rem;
+    font-size: var(--tl-font-size-secondary);
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -907,7 +907,7 @@
 
 :where(.settings-admin-panel) ::deep .settings-plugin-json-editor textarea {
     font-family: Consolas, "Courier New", monospace !important;
-    font-size: 0.86rem !important;
+    font-size: var(--tl-font-size-sm) !important;
     line-height: 1.45 !important;
 }
 

@@ -191,5 +191,5 @@
 .access-phone-note {
     margin: 0 0 1rem;
     color: var(--app-text-muted);
-    font-size: .9rem;
+    font-size: var(--tl-font-size-sm);
 }

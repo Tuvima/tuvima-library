@@ -35,7 +35,7 @@
 .sidebar-page-header__metadata {
     margin-top: 8px;
     color: var(--tl-text-muted);
-    font-size: 0.84rem;
+    font-size: var(--tl-font-size-secondary);
     line-height: 1.4;
 }
 
@@ -56,7 +56,7 @@
     border: 1px solid var(--tl-border-subtle);
     background: var(--tl-bg-surface-raised);
     color: var(--tl-text-secondary);
-    font-size: 0.84rem;
+    font-size: var(--tl-font-size-secondary);
     font-weight: 700;
 }
 

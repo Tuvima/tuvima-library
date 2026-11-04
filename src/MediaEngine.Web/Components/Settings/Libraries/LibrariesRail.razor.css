@@ -5,19 +5,19 @@
 .librail__overview:focus-visible, .librail__lib:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
 .librail__on, .librail__on:hover { background: color-mix(in srgb, var(--tl-accent-primary) 16%, transparent); color: var(--tl-text-primary, inherit); }
 .librail__group { display: flex; flex-direction: column; }
-.librail__heading { margin: 12px 10px 4px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--tl-text-muted); font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
-.librail__add { background: none; border: 0; padding: 2px 4px; cursor: pointer; font: inherit; font-size: 12px; letter-spacing: 0; text-transform: none; font-weight: 500; color: var(--tl-accent-primary); border-radius: 4px; }
+.librail__heading { margin: 12px 10px 4px; font-size: var(--tl-font-size-xs); letter-spacing: .08em; text-transform: uppercase; color: var(--tl-text-muted); font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+.librail__add { background: none; border: 0; padding: 2px 4px; cursor: pointer; font: inherit; font-size: var(--tl-font-size-xs); letter-spacing: 0; text-transform: none; font-weight: 500; color: var(--tl-accent-primary); border-radius: 4px; }
 .librail__add:hover { text-decoration: underline; }
-.librail__tile { width: 28px; height: 28px; border-radius: 8px; font-size: 1.1rem; }
+.librail__tile { width: 28px; height: 28px; border-radius: 8px; font-size: var(--tl-font-size-lg); }
 .librail__name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.librail__count { font-size: 12px; color: var(--tl-status-warning); font-variant-numeric: tabular-nums; }
+.librail__count { font-size: var(--tl-font-size-xs); color: var(--tl-status-warning); font-variant-numeric: tabular-nums; }
 .librail__dot { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; background: var(--tl-status-success); }
 .librail__dot--warn { background: var(--tl-status-warning); }
 .librail__dot--off { background: var(--tl-status-danger); }
 .librail__dot--idle { background: var(--tl-text-muted); opacity: .6; }
 .librail__dot--scan { background: var(--tl-accent-primary); }
 .librail__rule { border: 0; border-top: 1px solid var(--tl-border-subtle); margin: 10px 6px; width: calc(100% - 12px); }
-.librail__quiet { padding: 6px 10px; color: var(--tl-text-muted); font-size: 13px; }
+.librail__quiet { padding: 6px 10px; color: var(--tl-text-muted); font-size: var(--tl-font-size-secondary); }
 
 /* Below 1180 px the rail is a strip of chips above the pane, still grouped by area. */
 @media (max-width: 1180px) {

@@ -29,7 +29,7 @@
 
 .pwa-install-prompt__copy span {
     color: var(--tl-text-muted);
-    font-size: .78rem;
+    font-size: var(--tl-font-size-xs);
     line-height: 1.35;
 }
 

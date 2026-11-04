@@ -8,7 +8,7 @@
 .vault-scene__list dd { margin: 0; overflow-wrap: anywhere; }
 .vault-scene__description, .vault-scene__note { margin: 0; max-width: 70ch; }
 .vault-scene__note { color: var(--tl-text-muted); }
-.vault-scene__names h2 { margin: 0 0 4px; font-size: 1rem; }
+.vault-scene__names h2 { margin: 0 0 4px; font-size: var(--tl-font-size-md); }
 .vault-scene__names p { margin: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .vault-scene__name { display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; border-radius: var(--tl-radius-pill); border: 1px solid currentColor; color: inherit; text-decoration: none; }
 @media (min-width: 840px) { .vault-scene__top { grid-template-columns: minmax(0, 480px) minmax(0, 1fr); } }

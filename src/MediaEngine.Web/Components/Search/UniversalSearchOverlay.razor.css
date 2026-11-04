@@ -50,7 +50,7 @@
     margin: 0;
     color: var(--tl-text-primary);
     font-family: var(--font-display, var(--font-ui));
-    font-size: 1.8rem;
+    font-size: var(--tl-font-size-hero);
     font-weight: 500;
 }
 
@@ -59,7 +59,7 @@
     align-items: center;
     gap: 5px;
     color: #c4b5fd;
-    font-size: 0.75rem;
+    font-size: var(--tl-font-size-xs);
 }
 
 .universal-search-overlay ::deep .universal-search-overlay__close,
@@ -109,7 +109,7 @@
     background: transparent;
     color: #fff;
     font: inherit;
-    font-size: 1.12rem;
+    font-size: var(--tl-font-size-lg);
 }
 
 .universal-search-overlay__input-shell ::deep input::placeholder {
@@ -181,7 +181,7 @@
     gap: 18px;
     margin-top: 30px;
     color: var(--tl-text-muted);
-    font-size: 0.76rem;
+    font-size: var(--tl-font-size-xs);
 }
 
 .universal-search-overlay__shortcuts kbd {

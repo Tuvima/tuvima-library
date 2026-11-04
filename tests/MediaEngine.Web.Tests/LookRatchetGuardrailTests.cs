@@ -12,6 +12,7 @@ public sealed class LookRatchetGuardrailTests
     private const int RoundedEndCeiling = 0;
     private const int RoundTokenCeiling = 47;
     private const int NativeControlCeiling = 501;
+    private const int AdHocFontSizeCeiling = 150;
 
     private static IEnumerable<(string Relative, string Text)> WebFiles(params string[] extensions)
     {
@@ -46,6 +47,13 @@ public sealed class LookRatchetGuardrailTests
             .Select(x => x.Relative + ": " + x.m.Value)
             .ToList();
         Assert.True(offenders.Count == 0, "Type scale starts at 12 px: " + string.Join("; ", offenders.Take(10)));
+    }
+
+    [Fact]
+    public void HandTypedTextSizesOnlyGoDown()
+    {
+        var count = WebFiles(".css", ".razor").Sum(f => Regex.Matches(f.Text, @"font-size:\s*[0-9.]+(?:px|rem)").Count);
+        Assert.True(count <= AdHocFontSizeCeiling, $"Hand-typed text sizes rose to {count} (ceiling {AdHocFontSizeCeiling}). Use the ladder tokens: --tl-font-size-xs, -secondary, -sm, -md, -lg, -dialog-title, -xl, -hero.");
     }
 
     [Fact]

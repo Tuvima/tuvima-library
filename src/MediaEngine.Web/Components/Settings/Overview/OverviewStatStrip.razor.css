@@ -43,7 +43,7 @@
 
 .overview-stats__value {
     color: var(--tl-text-primary);
-    font-size: 1.75rem;
+    font-size: var(--tl-font-size-xl);
     font-variant-numeric: tabular-nums;
     font-weight: var(--tl-font-weight-semibold);
     line-height: 1.1;
@@ -51,13 +51,13 @@
 
 .overview-stats__label {
     color: var(--tl-text-primary);
-    font-size: 0.9rem;
+    font-size: var(--tl-font-size-sm);
     font-weight: var(--tl-font-weight-medium, 500);
 }
 
 .overview-stats__note {
     color: var(--tl-text-muted);
-    font-size: 0.8rem;
+    font-size: var(--tl-font-size-secondary);
 }
 
 @media (max-width: 840px) {
@@ -77,6 +77,6 @@
     }
 
     .overview-stats__value {
-        font-size: 1.4rem;
+        font-size: var(--tl-font-size-xl);
     }
 }

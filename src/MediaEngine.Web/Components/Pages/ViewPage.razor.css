@@ -45,7 +45,7 @@
     align-items: center;
     gap: 7px;
     padding: 8px 14px;
-    font-size: 0.84rem;
+    font-size: var(--tl-font-size-secondary);
     font-weight: 700;
     pointer-events: none;
 }
@@ -63,7 +63,7 @@
     border: 1px solid rgba(167, 139, 250, 0.22);
     border-radius: var(--tl-radius-md);
     background: rgba(76, 29, 149, 0.16);
-    font-size: 0.8rem;
+    font-size: var(--tl-font-size-secondary);
 }
 
 .view-upload-status.is-error {
@@ -226,12 +226,12 @@
 
 .view-date-group__heading h2 {
     margin: 0;
-    font-size: 1.08rem;
+    font-size: var(--tl-font-size-lg);
 }
 
 .view-date-group__heading span {
     color: rgba(203, 213, 225, 0.48);
-    font-size: 0.78rem;
+    font-size: var(--tl-font-size-xs);
 }
 
 .view-grid {
@@ -345,7 +345,7 @@
 }
 
 .view-tile__copy strong {
-    font-size: 0.84rem;
+    font-size: var(--tl-font-size-secondary);
 }
 
 .view-tile__copy small {

@@ -53,12 +53,12 @@
 
 .universe-characters__works {
     color: var(--tl-text-secondary);
-    font-size: 0.88rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 .universe-characters__source {
     color: var(--tl-text-muted);
-    font-size: 0.78rem;
+    font-size: var(--tl-font-size-xs);
     overflow-wrap: anywhere;
 }
 
@@ -71,5 +71,5 @@
     margin: var(--tl-space-2, 0.5rem) 0 0;
     color: var(--tl-text-muted);
     font-family: var(--font-ui);
-    font-size: 0.82rem;
+    font-size: var(--tl-font-size-secondary);
 }

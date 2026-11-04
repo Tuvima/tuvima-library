@@ -44,7 +44,7 @@
     margin: 0;
     min-height: 1.25rem;
     color: var(--tl-text-muted);
-    font-size: 0.875rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 .shelf-grid-page__filters {
@@ -121,7 +121,7 @@
 .shelf-grid-page__more-error {
     margin: 0;
     color: var(--tl-text-muted);
-    font-size: 0.875rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 /* The scroll trigger: no height of its own, it only marks where the grid ends. */

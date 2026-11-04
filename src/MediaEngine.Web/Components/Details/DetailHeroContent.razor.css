@@ -89,7 +89,7 @@
     margin: 0 0 0.42rem;
     color: rgba(255, 255, 255, 0.94);
     font-family: var(--font-ui);
-    font-size: 0.92rem;
+    font-size: var(--tl-font-size-sm);
     font-weight: 600;
     line-height: 1.35;
     letter-spacing: 0.01em;
@@ -185,7 +185,7 @@
 
 ::deep .tl-detail-hero-progress__label {
     color: rgba(255, 255, 255, 0.86);
-    font-size: 0.92rem;
+    font-size: var(--tl-font-size-sm);
     font-weight: 600;
 }
 
@@ -342,7 +342,7 @@
 :where(.tl-detail-page) .tl-detail-hero__subtitle,
 :where(.tl-detail-page) .tl-detail-hero__tagline {
     color: rgba(246, 240, 232, 0.78);
-    font-size: 1rem;
+    font-size: var(--tl-font-size-md);
     line-height: 1.6;
     max-width: 42rem;
 }
@@ -478,7 +478,7 @@
 
 @media (width < 840px) {
 :where(.tl-detail-page) .tl-detail-hero__subtitle {
-        font-size: 1.02rem;
+        font-size: var(--tl-font-size-md);
     }
 }
 
@@ -635,7 +635,7 @@
     margin: 0 0 0.42rem;
     color: rgba(255, 255, 255, 0.94);
     font-family: var(--font-ui);
-    font-size: 0.92rem;
+    font-size: var(--tl-font-size-sm);
     font-weight: 600;
     line-height: 1.35;
     letter-spacing: 0.01em;

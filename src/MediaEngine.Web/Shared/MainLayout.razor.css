@@ -325,7 +325,7 @@
 
 .layout-shell__brand-wordmark {
     font-family: var(--font-brand);
-    font-size: 1.35rem;
+    font-size: var(--tl-font-size-dialog-title);
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -371,7 +371,7 @@
 .layout-shell__nav-link .layout-shell__nav-link-label {
     display: inline-block;
     font-family: var(--font-brand);
-    font-size: 1.02rem;
+    font-size: var(--tl-font-size-md);
     font-weight: 600;
     letter-spacing: 0.04em;
     line-height: 1;
@@ -491,7 +491,7 @@
     }
 
     .layout-shell__nav-link .layout-shell__nav-link-label {
-        font-size: 0.82rem;
+        font-size: var(--tl-font-size-secondary);
         letter-spacing: 0.025em;
     }
 
@@ -594,7 +594,7 @@ html[data-form-factor="phone"] .layout-shell__intent-dock-link ::deep .tl-icon-r
 
 html[data-form-factor="phone"] .layout-shell__intent-dock-link span {
     min-width: 0;
-    font-size: 12px;
+    font-size: var(--tl-font-size-xs);
     overflow: visible;
     white-space: normal;
     overflow-wrap: anywhere;
@@ -709,6 +709,6 @@ html[data-form-factor="phone"] .layout-shell__activity-slot ::deep .tl-icon-root
 
     .layout-shell__intent-dock--oversized .layout-shell__intent-dock-link {
         min-height: 4.5rem;
-        font-size: 1.25rem;
+        font-size: var(--tl-font-size-dialog-title);
     }
 }

@@ -4,12 +4,12 @@
 .history-row:last-child { border-bottom: 0; }
 .history-row__identity, .history-row__status { display: flex; align-items: center; gap: .7rem; min-width: 0; }
 .history-row__identity > span:last-child, .history-row__result, .history-row__status > span { display: grid; min-width: 0; }
-.history-row small { overflow: hidden; color: var(--tl-palette-text-secondary); font-size: .77rem; white-space: nowrap; text-overflow: ellipsis; }
+.history-row small { overflow: hidden; color: var(--tl-palette-text-secondary); font-size: var(--tl-font-size-xs); white-space: nowrap; text-overflow: ellipsis; }
 .recent-history { overflow: hidden; border: 1px solid var(--app-border); border-radius: .65rem; background: var(--app-surface); }
 .recent-history > header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .85rem 1rem; border-bottom: 1px solid var(--app-border); }
-.recent-history h2 { margin: 0; font-size: 1.22rem; }
-.recent-history p { margin: .15rem 0 0; color: var(--tl-palette-text-secondary); font-size: .83rem; }
-.recent-history > header > span { color: var(--tl-palette-text-secondary); font-size: .8rem; }
+.recent-history h2 { margin: 0; font-size: var(--tl-font-size-dialog-title); }
+.recent-history p { margin: .15rem 0 0; color: var(--tl-palette-text-secondary); font-size: var(--tl-font-size-secondary); }
+.recent-history > header > span { color: var(--tl-palette-text-secondary); font-size: var(--tl-font-size-secondary); }
 .history-row { grid-template-columns: 6.3rem minmax(16rem, 1.35fr) minmax(14rem, 1fr) minmax(9rem, .62fr) auto; }
 .history-row > time { display: grid; }
 .history-row > time small { margin-top: .12rem; }
@@ -23,4 +23,4 @@
 @media (max-width: 600px) { .history-row { padding-inline: .65rem; } .history-row { grid-template-columns: minmax(0, 1fr) auto; } .history-row > time { grid-column: 1 / -1; display: flex; gap: .45rem; } .history-row__identity { grid-column: 1 / 2; } .history-row__result { grid-column: 1 / -1; } }
 .history-row__identity ::deep .history-row__open { display: block; font: inherit; cursor: pointer; min-width: 0; padding: 0; overflow: hidden; color: inherit; text-align: left; white-space: nowrap; text-overflow: ellipsis; background: transparent; border: 0; }
 .history-row__status.is-adding { color: var(--tl-palette-primary); }
-.recent-history__personal { margin: 0; padding: .55rem 1rem; color: var(--tl-palette-text-secondary); font-size: .83rem; border-bottom: 1px solid var(--app-border); }
+.recent-history__personal { margin: 0; padding: .55rem 1rem; color: var(--tl-palette-text-secondary); font-size: var(--tl-font-size-secondary); border-bottom: 1px solid var(--app-border); }

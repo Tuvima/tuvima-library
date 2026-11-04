@@ -31,7 +31,7 @@
     background: transparent;
     color: var(--tl-text-primary);
     font: inherit;
-    font-size: 1.05rem;
+    font-size: var(--tl-font-size-md);
     font-weight: 700;
     text-align: left;
     cursor: pointer;
@@ -65,7 +65,7 @@
 .app-collapsible-row__summary {
     flex: 0 0 auto;
     color: var(--tl-text-secondary);
-    font-size: 0.82rem;
+    font-size: var(--tl-font-size-secondary);
     font-weight: 500;
     white-space: nowrap;
 }

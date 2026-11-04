@@ -22,7 +22,7 @@
     grid-row: 1;
 }
 
-.app-timeline__decade-heading { margin: 1rem 0 .5rem; font-size: 1.15rem; }
+.app-timeline__decade-heading { margin: 1rem 0 .5rem; font-size: var(--tl-font-size-lg); }
 
 .app-timeline__header {
     display: grid;
@@ -33,7 +33,7 @@
 
 .app-timeline__header small {
     color: var(--tl-text-muted);
-    font-size: 0.84rem;
+    font-size: var(--tl-font-size-secondary);
 }
 
 .app-timeline__groups {
@@ -83,7 +83,7 @@
 
 .app-timeline__year-heading span {
     color: var(--tl-text-muted);
-    font-size: 0.78rem;
+    font-size: var(--tl-font-size-xs);
     white-space: nowrap;
 }
 

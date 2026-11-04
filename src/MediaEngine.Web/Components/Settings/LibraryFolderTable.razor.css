@@ -17,7 +17,7 @@
 .folder-table__head {
     min-height: 40px;
     color: var(--tl-text-muted);
-    font-size: 0.75rem;
+    font-size: var(--tl-font-size-xs);
     font-weight: 700;
     text-transform: uppercase;
 }
@@ -77,12 +77,12 @@
 .folder-table__files,
 .folder-table__none {
     color: var(--tl-text-muted);
-    font-size: 0.85rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 .folder-table__files-hint {
     display: block;
-    font-size: 0.75rem;
+    font-size: var(--tl-font-size-xs);
 }
 
 .folder-table__radio-group {
@@ -90,7 +90,7 @@
 }
 
 .folder-table__status {
-    font-size: 0.8rem;
+    font-size: var(--tl-font-size-secondary);
     color: var(--tl-text-secondary);
 }
 

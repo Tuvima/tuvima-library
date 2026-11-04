@@ -1,7 +1,7 @@
 .view-artwork-header__count {
     flex: 0 0 auto;
     color: rgba(255, 255, 255, .58);
-    font-size: .86rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 .view-artwork-controls {
@@ -29,7 +29,7 @@
 
 .view-artwork-control-group > span {
     color: rgba(255, 255, 255, .58);
-    font-size: .75rem;
+    font-size: var(--tl-font-size-xs);
     font-weight: 700;
     letter-spacing: .06em;
     text-transform: uppercase;
@@ -90,7 +90,7 @@
     display: grid;
     gap: .35rem;
     color: rgba(255, 255, 255, .6);
-    font-size: .75rem;
+    font-size: var(--tl-font-size-xs);
     font-weight: 700;
     letter-spacing: .06em;
     text-transform: uppercase;
@@ -170,7 +170,7 @@
     border-radius: var(--tl-radius-pill);
     background: rgba(13, 10, 24, .82);
     color: rgba(235, 226, 255, .92);
-    font-size: .75rem;
+    font-size: var(--tl-font-size-xs);
     font-weight: 700;
 }
 
@@ -235,7 +235,7 @@
     border-radius: .4rem;
     background: rgba(4, 8, 14, .86);
     color: rgba(255, 255, 255, .9);
-    font-size: .75rem;
+    font-size: var(--tl-font-size-xs);
     font-weight: 700;
 }
 
@@ -251,7 +251,7 @@
 
 .view-artwork-card__body strong {
     overflow: hidden;
-    font-size: .9rem;
+    font-size: var(--tl-font-size-sm);
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -267,7 +267,7 @@
 .view-artwork-card__meta {
     overflow: hidden;
     color: rgba(255, 255, 255, .56);
-    font-size: .75rem;
+    font-size: var(--tl-font-size-xs);
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -285,7 +285,7 @@
     border-radius: .35rem;
     background: rgba(255, 255, 255, .07);
     color: rgba(255, 255, 255, .62);
-    font-size: .75rem;
+    font-size: var(--tl-font-size-xs);
 }
 
 .view-artwork-load-more {

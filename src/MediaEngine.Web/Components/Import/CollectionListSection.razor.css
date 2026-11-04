@@ -14,7 +14,7 @@
 
 .list-section__owned strong {
     color: var(--tl-text-primary);
-    font-size: 1.15rem;
+    font-size: var(--tl-font-size-lg);
     font-variant-numeric: tabular-nums;
 }
 
@@ -22,7 +22,7 @@
 .list-section__hint {
     margin: 0;
     color: var(--tl-text-secondary);
-    font-size: .85rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 .list-section__actions {
@@ -40,6 +40,6 @@
 .list-section__heading {
     margin: 0;
     color: var(--tl-text-primary);
-    font-size: 1rem;
+    font-size: var(--tl-font-size-md);
     font-weight: var(--tl-font-weight-semibold);
 }

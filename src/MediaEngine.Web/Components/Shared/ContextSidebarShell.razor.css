@@ -52,7 +52,7 @@
 
 .context-sidebar-shell__header h2 {
     color: var(--app-text-primary);
-    font-size: 1rem;
+    font-size: var(--tl-font-size-md);
     font-weight: 700;
     line-height: 1.2;
     margin: 0;

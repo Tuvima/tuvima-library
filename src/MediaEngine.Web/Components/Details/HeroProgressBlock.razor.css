@@ -2,7 +2,7 @@
    an existing shared/C# renderer boundary; the page context excludes other uses. */
 :where(.tl-detail-page) .tl-detail-hero-progress__label {
     color: rgba(var(--hero-text-rgb), 0.86);
-    font-size: 0.92rem;
+    font-size: var(--tl-font-size-sm);
     font-weight: 600;
 }
 
@@ -16,7 +16,7 @@
 
 :where(.tl-detail-page) .tl-detail-hero-progress__summary {
     color: rgba(var(--hero-text-rgb), 0.92);
-    font-size: 0.96rem;
+    font-size: var(--tl-font-size-md);
     font-weight: 700;
 }
 
@@ -42,7 +42,7 @@
 
 :where(.tl-detail-page) .tl-detail-hero-progress__meta {
     color: rgba(var(--hero-text-rgb), 0.76);
-    font-size: 0.86rem;
+    font-size: var(--tl-font-size-sm);
     font-weight: 600;
 }
 

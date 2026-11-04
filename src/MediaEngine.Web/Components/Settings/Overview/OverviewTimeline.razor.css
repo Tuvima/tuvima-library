@@ -34,7 +34,7 @@
     position: relative;
     margin: 0;
     color: var(--tl-text-primary);
-    font-size: 1rem;
+    font-size: var(--tl-font-size-md);
     font-weight: var(--tl-font-weight-semibold);
 }
 
@@ -73,7 +73,7 @@
 
 .overview-timeline__time {
     color: var(--tl-text-muted);
-    font-size: 0.85rem;
+    font-size: var(--tl-font-size-sm);
     font-variant-numeric: tabular-nums;
 }
 
@@ -150,7 +150,7 @@
 .overview-timeline__detail {
     overflow: hidden;
     color: var(--tl-text-secondary);
-    font-size: 0.85rem;
+    font-size: var(--tl-font-size-sm);
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -164,7 +164,7 @@
     align-items: center;
     gap: 6px;
     color: var(--tl-status-success, #22C55E);
-    font-size: 0.85rem;
+    font-size: var(--tl-font-size-sm);
     font-weight: var(--tl-font-weight-semibold);
 }
 
@@ -173,7 +173,7 @@
     align-items: center;
     gap: var(--tl-space-2, 8px);
     color: var(--tl-text-muted);
-    font-size: 0.8rem;
+    font-size: var(--tl-font-size-secondary);
     font-variant-numeric: tabular-nums;
 }
 

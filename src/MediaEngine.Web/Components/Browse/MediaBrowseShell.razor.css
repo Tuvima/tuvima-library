@@ -232,7 +232,7 @@
     gap: 7px;
     min-height: 48px;
     padding-inline: 12px;
-    font-size: 0.88rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 .browse-shell__control-group--browse ::deep .app-browse-mode__option .tl-icon-root {
@@ -250,7 +250,7 @@
 
 .browse-shell__control-label {
     color: rgba(215, 224, 240, 0.72);
-    font-size: 0.8rem;
+    font-size: var(--tl-font-size-secondary);
     font-weight: 700;
     letter-spacing: 0.08em;
     line-height: 1;
@@ -269,7 +269,7 @@
 .browse-shell__filter-selects ::deep .app-field__label {
     margin: 0 0 5px 2px;
     color: rgba(215, 224, 240, 0.78);
-    font-size: 0.88rem;
+    font-size: var(--tl-font-size-sm);
     font-weight: 600;
     line-height: 1;
 }
@@ -293,7 +293,7 @@
 .browse-shell__sort ::deep .tl-input-slot {
     color: rgba(245, 247, 252, 0.95);
     font-family: var(--font-ui);
-    font-size: 1rem;
+    font-size: var(--tl-font-size-md);
     font-weight: 500;
 }
 
@@ -339,7 +339,7 @@
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 7px;
     padding-inline: 12px;
-    font-size: 0.92rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 .browse-shell__genre-control {
@@ -364,7 +364,7 @@
     background: rgba(8, 16, 31, 0.8);
     color: rgba(245, 247, 252, 0.95);
     font-family: var(--font-ui);
-    font-size: 0.98rem;
+    font-size: var(--tl-font-size-md);
     font-weight: 600;
     text-align: left;
     cursor: pointer;
@@ -420,7 +420,7 @@
     background: transparent;
     color: rgba(244, 247, 252, 0.96);
     font: inherit;
-    font-size: 0.95rem;
+    font-size: var(--tl-font-size-md);
 }
 
 .browse-shell__genre-search ::deep input::placeholder {
@@ -447,7 +447,7 @@
     background: transparent;
     color: rgba(232, 237, 247, 0.92);
     font: inherit;
-    font-size: 0.94rem;
+    font-size: var(--tl-font-size-md);
     line-height: 1.2;
     text-align: left;
     cursor: pointer;
@@ -469,7 +469,7 @@
     display: block;
     margin-top: 3px;
     color: rgba(166, 179, 201, 0.78);
-    font-size: 0.76rem;
+    font-size: var(--tl-font-size-xs);
 }
 
 .browse-shell__genre-checkbox {
@@ -496,7 +496,7 @@
 .browse-shell__genre-empty,
 .browse-shell__genre-help {
     color: rgba(160, 174, 198, 0.78);
-    font-size: 0.76rem;
+    font-size: var(--tl-font-size-xs);
 }
 
 .browse-shell__genre-empty {
@@ -545,7 +545,7 @@
     min-height: 48px;
     gap: 8px;
     padding-inline: 8px;
-    font-size: 0.9rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 .browse-shell__toggle-row ::deep .app-quick-filter__indicator {
@@ -564,7 +564,7 @@
     background: rgba(8, 16, 31, 0.5);
     color: rgba(234, 239, 248, 0.9);
     font-family: var(--font-ui);
-    font-size: 0.92rem;
+    font-size: var(--tl-font-size-sm);
     font-weight: 600;
     white-space: nowrap;
     cursor: pointer;
@@ -590,7 +590,7 @@
     border: 0;
     background: transparent;
     font: inherit;
-    font-size: 0.87rem;
+    font-size: var(--tl-font-size-sm);
     font-weight: 600;
     cursor: pointer;
 }
@@ -620,7 +620,7 @@
 .browse-shell__display-label {
     color: rgba(215, 224, 240, 0.78);
     font-family: var(--font-ui);
-    font-size: 0.8rem;
+    font-size: var(--tl-font-size-secondary);
     font-weight: 700;
     letter-spacing: 0.08em;
     line-height: 1;
@@ -658,7 +658,7 @@
 
 .browse-shell__result-summary span {
     color: var(--tl-text-muted);
-    font-size: 0.78rem;
+    font-size: var(--tl-font-size-xs);
 }
 
 .browse-shell__active-filters {
@@ -689,7 +689,7 @@
 .browse-shell__sort ::deep .tl-select-input {
     padding-right: 12px !important;
     padding-left: 12px !important;
-    font-size: 0.9rem !important;
+    font-size: var(--tl-font-size-sm) !important;
 }
 
 .browse-shell__groupings {
@@ -708,7 +708,7 @@
     padding: 0 3px;
     color: rgba(215, 224, 240, 0.78);
     font-family: var(--font-ui);
-    font-size: 0.9rem;
+    font-size: var(--tl-font-size-sm);
     font-weight: 600;
     white-space: nowrap;
     flex: 1 1 170px;
@@ -885,7 +885,7 @@
 
 .browse-shell__empty h3 {
     margin: 0;
-    font-size: 1.1rem;
+    font-size: var(--tl-font-size-lg);
     color: var(--tl-text-primary);
 }
 
@@ -1013,7 +1013,7 @@
         min-width: 0;
         gap: 5px;
         padding: 0 0.55rem;
-        font-size: 0.8rem;
+        font-size: var(--tl-font-size-secondary);
     }
 
     .browse-shell__tabs-frame ::deep .tl-tabs-scroll-button {

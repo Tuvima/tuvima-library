@@ -31,11 +31,11 @@
     align-items: center;
     gap: 5px;
     color: #c4b5fd;
-    font-size: 0.76rem;
+    font-size: var(--tl-font-size-xs);
 }
 
 .search-page__input ::deep input {
-    font-size: 1.12rem;
+    font-size: var(--tl-font-size-lg);
 }
 
 .search-page__filters {
@@ -61,7 +61,7 @@
 .search-page__year-filter > span {
     margin-left: 2px;
     color: rgba(215, 224, 240, 0.78);
-    font-size: 0.78rem;
+    font-size: var(--tl-font-size-xs);
     font-weight: 600;
 }
 

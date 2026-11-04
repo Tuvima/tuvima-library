@@ -49,7 +49,7 @@
 
 .playback-tool-sheet__header p {
     color: var(--playback-text-muted);
-    font-size: 0.92rem;
+    font-size: var(--tl-font-size-sm);
     margin: 0;
 }
 

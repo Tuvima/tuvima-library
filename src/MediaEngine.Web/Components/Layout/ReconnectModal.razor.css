@@ -54,7 +54,7 @@
 
 #components-reconnect-title {
     margin: 0;
-    font-size: 1.2rem;
+    font-size: var(--tl-font-size-dialog-title);
     text-align: center;
 }
 

@@ -23,12 +23,12 @@
 
 .app-row-error__copy strong {
     color: var(--tl-text-primary);
-    font-size: .84rem;
+    font-size: var(--tl-font-size-secondary);
 }
 
 .app-row-error__copy small {
     overflow: hidden;
-    font-size: .77rem;
+    font-size: var(--tl-font-size-xs);
     white-space: nowrap;
     text-overflow: ellipsis;
 }

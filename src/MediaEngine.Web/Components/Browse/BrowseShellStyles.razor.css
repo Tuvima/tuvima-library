@@ -257,7 +257,7 @@
 
 .browse-shell__empty h3 {
     margin: 0;
-    font-size: 1.1rem;
+    font-size: var(--tl-font-size-lg);
     color: var(--tl-text-primary);
 }
 
@@ -325,6 +325,6 @@
         min-width: 0;
         gap: 5px;
         padding: 0 0.55rem;
-        font-size: 0.8rem;
+        font-size: var(--tl-font-size-secondary);
     }
 }

@@ -84,7 +84,7 @@
 .playback-relative-skip ::deep .playback-relative-skip__number {
     fill: currentColor;
     font-family: var(--font-ui);
-    font-size: 13.6px;
+    font-size: var(--tl-font-size-sm);
     font-weight: 700;
     font-variant-numeric: tabular-nums;
     letter-spacing: 0;
@@ -94,7 +94,7 @@
 }
 
 .playback-relative-skip ::deep .playback-relative-skip__number--one-digit {
-    font-size: 14.4px;
+    font-size: var(--tl-font-size-sm);
 }
 
 .playback-relative-skip ::deep .playback-relative-skip__number--three-digit {

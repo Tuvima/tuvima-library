@@ -50,7 +50,7 @@
 
 .encode-settings__current strong {
     color: var(--tl-text-primary);
-    font-size: 0.84rem;
+    font-size: var(--tl-font-size-secondary);
 }
 
 .encode-settings__current span {

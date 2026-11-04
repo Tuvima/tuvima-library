@@ -6,7 +6,7 @@
 
 .companion-picker__title {
     margin: 0;
-    font-size: 1rem;
+    font-size: var(--tl-font-size-md);
     font-weight: 600;
     color: var(--tl-text-primary);
 }
@@ -102,6 +102,6 @@
 
 .companion-picker__note {
     margin: 0;
-    font-size: 0.875rem;
+    font-size: var(--tl-font-size-sm);
     color: var(--tl-text-secondary);
 }

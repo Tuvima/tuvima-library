@@ -131,7 +131,7 @@
 
 .playback-range-slider__labels {
     color: var(--playback-text-secondary);
-    font-size: 0.92rem;
+    font-size: var(--tl-font-size-sm);
     font-weight: 700;
     height: 44px;
     line-height: 1.2;

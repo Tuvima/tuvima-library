@@ -14,7 +14,7 @@
 
 .settings-plugin-detail-header__description {
     color: var(--tl-text-muted);
-    font-size: 14px;
+    font-size: var(--tl-font-size-sm);
 }
 
 .settings-plugin-configure-panel {
@@ -72,7 +72,7 @@
 
 .settings-plugin-detail-header__title {
     color: var(--tl-text-primary);
-    font-size: 18px;
+    font-size: var(--tl-font-size-lg);
 }
 .settings-plugin-breadcrumb { display: flex; align-items: center; gap: .4rem; margin-bottom: .75rem; }
 

@@ -76,7 +76,7 @@
 }
 
 .chronicle-node-list__meta {
-    font-size: 0.78rem;
+    font-size: var(--tl-font-size-xs);
     color: var(--tl-text-secondary);
 }
 
@@ -131,7 +131,7 @@
 
 .chronicle-source-table th {
     color: rgba(248, 248, 248, 0.62);
-    font-size: 0.78rem;
+    font-size: var(--tl-font-size-xs);
     font-weight: 700;
 }
 

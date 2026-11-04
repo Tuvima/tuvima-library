@@ -8,11 +8,11 @@
 .vault-cover--studio .vault-cover__art img { object-fit: contain; }
 .vault-cover--blur .vault-cover__art img { filter: blur(18px); }
 .vault-cover--blur:hover .vault-cover__art img, .vault-cover--blur:focus-visible .vault-cover__art img { filter: none; }
-.vault-cover__initials { font-size: 1.5rem; font-weight: 600; color: var(--tl-text-muted); text-align: center; overflow-wrap: anywhere; }
-.vault-cover--studio .vault-cover__initials { font-size: 1rem; }
-.vault-cover__mark { position: absolute; top: 6px; left: 6px; padding: 2px 8px; border-radius: var(--tl-radius-pill); font-size: 0.75rem; background: var(--tl-bg-surface-raised); color: var(--tl-text-muted); border: 1px solid currentColor; }
+.vault-cover__initials { font-size: var(--tl-font-size-xl); font-weight: 600; color: var(--tl-text-muted); text-align: center; overflow-wrap: anywhere; }
+.vault-cover--studio .vault-cover__initials { font-size: var(--tl-font-size-md); }
+.vault-cover__mark { position: absolute; top: 6px; left: 6px; padding: 2px 8px; border-radius: var(--tl-radius-pill); font-size: var(--tl-font-size-xs); background: var(--tl-bg-surface-raised); color: var(--tl-text-muted); border: 1px solid currentColor; }
 .vault-cover__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.vault-cover__subtitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8125rem; color: var(--tl-text-muted); }
+.vault-cover__subtitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--tl-font-size-secondary); color: var(--tl-text-muted); }
 .vault-cover--title-hidden .vault-cover__title, .vault-cover--title-hidden .vault-cover__subtitle { visibility: hidden; }
 .vault-cover--title-hidden:hover .vault-cover__title, .vault-cover--title-hidden:focus-visible .vault-cover__title,
 .vault-cover--title-hidden:hover .vault-cover__subtitle, .vault-cover--title-hidden:focus-visible .vault-cover__subtitle { visibility: visible; }

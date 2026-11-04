@@ -8,7 +8,7 @@
 
 .tl-extras-moves h3 {
     margin: 0;
-    font-size: 0.95rem;
+    font-size: var(--tl-font-size-md);
 }
 
 .tl-extras-moves__row {
@@ -16,7 +16,7 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 0.5rem 0.75rem;
-    font-size: 0.85rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 .tl-extras-moves__row--staged {
@@ -35,5 +35,5 @@
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
-    font-size: 0.8rem;
+    font-size: var(--tl-font-size-secondary);
 }

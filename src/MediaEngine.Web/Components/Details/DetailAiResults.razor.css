@@ -17,7 +17,7 @@
 
 .tl-ai-results__group dt {
     color: var(--tl-text-secondary);
-    font-size: 0.85rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 .tl-ai-results__group dd {
@@ -36,5 +36,5 @@
 .tl-ai-results__note {
     margin: var(--tl-space-3) 0 0;
     color: var(--tl-text-secondary);
-    font-size: 0.85rem;
+    font-size: var(--tl-font-size-sm);
 }

@@ -18,7 +18,7 @@
 
 .system-summary__fact dt {
     color: var(--tl-text-secondary);
-    font-size: 0.85rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 .system-summary__fact dd {
@@ -48,5 +48,5 @@
 .system-summary__note {
     margin: 0;
     color: var(--tl-text-secondary);
-    font-size: 0.9rem;
+    font-size: var(--tl-font-size-sm);
 }

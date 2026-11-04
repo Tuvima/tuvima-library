@@ -73,7 +73,7 @@ input.server-folder-picker__address-field { padding: 0 12px; }
     margin: 8px 0 2px;
     padding: 0 10px;
     color: var(--tl-text-muted);
-    font-size: 0.75rem;
+    font-size: var(--tl-font-size-xs);
     letter-spacing: 0.04em;
     text-transform: uppercase;
 }
@@ -116,7 +116,7 @@ input.server-folder-picker__address-field { padding: 0 12px; }
 
 .server-folder-picker__location small {
     overflow: hidden;
-    font-size: 0.75rem;
+    font-size: var(--tl-font-size-xs);
     line-height: 1.25;
     color: var(--tl-text-muted);
     text-overflow: ellipsis;
@@ -218,7 +218,7 @@ input.server-folder-picker__address-field { padding: 0 12px; }
     top: 0;
     background: rgba(17, 24, 39, 0.98);
     color: var(--tl-text-muted);
-    font-size: 0.8125rem;
+    font-size: var(--tl-font-size-secondary);
     font-weight: 500;
 }
 
@@ -277,7 +277,7 @@ input.server-folder-picker__address-field { padding: 0 12px; }
 
 .server-folder-picker__modified {
     color: var(--tl-text-muted);
-    font-size: 0.8125rem;
+    font-size: var(--tl-font-size-secondary);
     text-align: left;
 }
 
@@ -349,7 +349,7 @@ input.server-folder-picker__address-field { padding: 0 12px; }
 
 .server-folder-picker__selected-label {
     color: var(--tl-text-muted);
-    font-size: 0.875rem;
+    font-size: var(--tl-font-size-sm);
     white-space: nowrap;
 }
 
@@ -363,7 +363,7 @@ input.server-folder-picker__address-field { padding: 0 12px; }
 .server-folder-picker__copied {
     min-width: 3.5rem;
     color: var(--tl-text-muted);
-    font-size: 0.8rem;
+    font-size: var(--tl-font-size-secondary);
 }
 
 /* Under 840px (the one card breakpoint shared with the Libraries panel): a narrower location column, and Modified is hidden. */
