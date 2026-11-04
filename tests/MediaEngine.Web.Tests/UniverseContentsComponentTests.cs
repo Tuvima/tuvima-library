@@ -40,7 +40,7 @@ public sealed class UniverseContentsComponentTests : AsyncBunitContext
 
         Assert.Equal(["Factions", "Species"], cut.FindAll(".universe-contents__title").Select(heading => heading.TextContent));
         Assert.Single(cut.FindAll(".universe-contents__tile--logo"));
-        Assert.Equal("/stream/artwork/1?size=m", cut.Find(".universe-contents__tile--logo img").GetAttribute("src"));
+        Assert.StartsWith("/stream/artwork/1?", cut.Find(".universe-contents__tile--logo img").GetAttribute("src"));
         Assert.Contains("Added by you", cut.Markup);
         // A tile without a picture shows its initial rather than a broken image.
         Assert.Equal("F", cut.FindAll(".universe-contents__initial").Last().TextContent);

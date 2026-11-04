@@ -289,6 +289,27 @@
   <!-- Provider Language Strategy -->
   <!-- Stage 3 Universe Enrichment -->
   <!-- Universe Explorer modes -->
+  <data name="UniverseContents_Gathering" xml:space="preserve">
+    <value>Still gathering details</value>
+  </data>
+  <data name="UniverseContents_NoPlotDetails" xml:space="preserve">
+    <value>No plot details</value>
+  </data>
+  <data name="UniverseContents_AddedByYou" xml:space="preserve">
+    <value>Added by you</value>
+  </data>
+  <data name="UniverseContents_Timeline" xml:space="preserve">
+    <value>Timeline</value>
+  </data>
+  <data name="UniverseContents_StoryOrder" xml:space="preserve">
+    <value>Story order</value>
+  </data>
+  <data name="UniverseContents_ReleaseOrder" xml:space="preserve">
+    <value>Release order</value>
+  </data>
+  <data name="UniverseContents_TimelineOrder" xml:space="preserve">
+    <value>Timeline order</value>
+  </data>
   <data name="Universe_ModeWeb" xml:space="preserve">
     <value>Web</value>
   </data>
