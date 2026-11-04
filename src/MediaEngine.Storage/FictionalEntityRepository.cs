@@ -772,6 +772,37 @@ public sealed class FictionalEntityRepository : IFictionalEntityRepository
         return Task.FromResult<FictionalEntityUserLinks?>(new FictionalEntityUserLinks(aliases, row.Value.BelongsTo, row.Value.Hidden != 0));
     }
 
+    /// <inheritdoc/>
+    public Task<IReadOnlyDictionary<Guid, FictionalEntityUserLinks>> GetUserLinksAsync(IEnumerable<Guid> entityIds, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        ArgumentNullException.ThrowIfNull(entityIds);
+        var ids = entityIds.Distinct().Select(GuidSql.ToBlob).ToArray();
+        var result = new Dictionary<Guid, FictionalEntityUserLinks>();
+        if (ids.Length == 0)
+        {
+            return Task.FromResult<IReadOnlyDictionary<Guid, FictionalEntityUserLinks>>(result);
+        }
+
+        using var conn = _db.CreateConnection();
+        foreach (var batch in ids.Chunk(SqliteBatching.MaxParametersPerQuery))
+        {
+            ct.ThrowIfCancellationRequested();
+            var rows = conn.Query<(Guid EntityId, string? AliasesJson, Guid? BelongsTo, long Hidden)>(
+                "SELECT entity_id AS EntityId, aliases_json AS AliasesJson, belongs_to_entity_id AS BelongsTo, is_hidden AS Hidden FROM fictional_entity_user_overrides WHERE entity_id IN @ids;",
+                new { ids = batch });
+            foreach (var row in rows)
+            {
+                IReadOnlyList<string> aliases = string.IsNullOrWhiteSpace(row.AliasesJson)
+                    ? []
+                    : System.Text.Json.JsonSerializer.Deserialize<string[]>(row.AliasesJson) ?? [];
+                result[row.EntityId] = new FictionalEntityUserLinks(aliases, row.BelongsTo, row.Hidden != 0);
+            }
+        }
+
+        return Task.FromResult<IReadOnlyDictionary<Guid, FictionalEntityUserLinks>>(result);
+    }
+
     // ── Private row types ────────────────────────────────────────────────────
 
     private async Task<IReadOnlyList<FictionalEntityWorkLink>>

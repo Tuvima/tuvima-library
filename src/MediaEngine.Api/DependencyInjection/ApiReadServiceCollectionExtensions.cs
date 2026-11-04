@@ -68,6 +68,7 @@ public static class ApiReadServiceCollectionExtensions
         services.AddScoped<CharacterCreditSpoilerFilter>();
         services.AddScoped<UniverseConnectionsReadService>();
         services.AddScoped<UniverseClientReadService>();
+        services.AddScoped<UniverseContentsReadService>();
         services.AddScoped<UniversePageReadService>();
         services.AddSingleton<UniverseLinkCache>();
         services.AddScoped<EntityAppearanceReadService>();

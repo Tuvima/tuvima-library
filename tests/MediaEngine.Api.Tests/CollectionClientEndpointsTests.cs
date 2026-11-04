@@ -1238,6 +1238,8 @@ public sealed partial class CollectionClientEndpointsTests : IDisposable
         builder.Services.AddSingleton<IProfileSequencePreferencesRepository, ProfileSequencePreferencesRepository>();
         builder.Services.AddSingleton<IUniverseEnrichmentStatusRepository, UniverseEnrichmentStatusRepository>();
         builder.Services.AddSingleton<IConfigurationLoader>(_ => new LibraryPreferencesLoader(() => _libraryPreferences));
+        builder.Services.AddSingleton<IEntityAssetRepository, EntityAssetRepository>();
+        builder.Services.AddScoped<UniverseContentsReadService>();
         builder.Services.AddScoped<UniversePageReadService>();
         builder.Services.AddSingleton<UniverseLinkCache>();
         builder.Services.AddSingleton<DisplayShelfBuilder>();

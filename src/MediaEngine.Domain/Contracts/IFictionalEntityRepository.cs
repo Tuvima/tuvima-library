@@ -190,6 +190,9 @@ public interface IFictionalEntityRepository
     /// <summary>Saves a person's aliases, "belongs to" link and hidden flag for a thing, leaving its name and description overrides alone.</summary>
     Task UpdateUserLinksAsync(Guid entityId, FictionalEntityUserLinks links, CancellationToken ct = default);
 
+    /// <summary>The same as <see cref="GetUserLinksAsync"/> for many things at once; things with no local override row are absent.</summary>
+    Task<IReadOnlyDictionary<Guid, FictionalEntityUserLinks>> GetUserLinksAsync(IEnumerable<Guid> entityIds, CancellationToken ct = default);
+
     /// <summary>The person's aliases, "belongs to" link and hidden flag, or null when the thing has no local override row.</summary>
     Task<FictionalEntityUserLinks?> GetUserLinksAsync(Guid entityId, CancellationToken ct = default);
 }
