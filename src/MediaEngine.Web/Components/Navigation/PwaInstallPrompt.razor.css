@@ -33,7 +33,6 @@
     line-height: 1.35;
 }
 
-.pwa-install-prompt__install,
 .pwa-install-prompt__dismiss {
     min-width: var(--tl-touch-target-min);
     min-height: var(--tl-touch-target-min);
@@ -43,11 +42,6 @@
     cursor: pointer;
 }
 
-.pwa-install-prompt__install {
-    padding-inline: 1rem;
-    background: var(--tl-accent-primary);
-    font-weight: 800;
-}
 
 .pwa-install-prompt__dismiss {
     display: grid;

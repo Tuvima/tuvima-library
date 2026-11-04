@@ -28,17 +28,18 @@
                 @ChildContent?.Invoke(true)
             </div>
             <div class="browse-filter-sheet__footer">
-                <AppNativeButton Type="button"
-                                 Class="browse-filter-sheet__clear"
-                                 Disabled="@(ActiveCount == 0)"
-                                 OnClick="ClearAsync">
+                <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                           Class="browse-filter-sheet__clear"
+                           Disabled="@(ActiveCount == 0)"
+                           OnClick="ClearAsync">
                     @L["Activity_Clear"]
-                </AppNativeButton>
-                <AppNativeButton Type="button"
-                                 Class="browse-filter-sheet__apply"
-                                 OnClick="CloseAsync">
+                </AppButton>
+                <AppButton ButtonStyle="AppButtonStyle.Filled"
+                           Tone="AppUiTone.Primary"
+                           Class="browse-filter-sheet__apply"
+                           OnClick="CloseAsync">
                     @ApplyLabel
-                </AppNativeButton>
+                </AppButton>
             </div>
         </AppDialogFrame>
     }

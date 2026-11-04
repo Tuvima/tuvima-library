@@ -291,11 +291,10 @@
 
     @if (HasMoreConfiguredMissingItems)
     {
-        <AppNativeButton Type="button"
-                         Class="tl-series-load-missing"
-                         OnClick="LoadMoreMissingItems">
+        <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                   OnClick="LoadMoreMissingItems">
             @L["SequencePlacementPanel_LoadMoreMissing", Placement.ItemPluralLabel.ToLowerInvariant()]
-        </AppNativeButton>
+        </AppButton>
     }
 
     <footer class="tl-series-detail__ownership"
@@ -386,10 +385,7 @@ else
                     @if (ShowSetDefault)
                     {
                         <div class="tl-series-default-control">
-                            <AppNativeButton Type="button" Class="tl-series-default-action" Disabled="@_settingDefault" OnClick="SetDefaultSequenceAsync">
-                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.StarOutline" Size="AppSize.Small" />
-                                <span>@L["SequencePlacementPanel_MakeDefault"]</span>
-                            </AppNativeButton>
+                            <AppButton ButtonStyle="AppButtonStyle.Outlined" Class="tl-series-default-action" Disabled="@_settingDefault" StartIcon="@AppMaterialIcons.Outlined.StarOutline" OnClick="SetDefaultSequenceAsync">@L["SequencePlacementPanel_MakeDefault"]</AppButton>
                             <small>@L["SequencePlacementPanel_UseAsYourDefaultSeries"]</small>
                         </div>
                     }
@@ -632,11 +628,10 @@ else
 
         @if (HasMoreConfiguredMissingItems)
         {
-            <AppNativeButton Type="button"
-                             Class="tl-series-load-missing"
-                             OnClick="LoadMoreMissingItems">
+            <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                       OnClick="LoadMoreMissingItems">
                 @L["SequencePlacementPanel_LoadMoreMissing", Placement.ItemPluralLabel.ToLowerInvariant()]
-            </AppNativeButton>
+            </AppButton>
         }
 
     </div>

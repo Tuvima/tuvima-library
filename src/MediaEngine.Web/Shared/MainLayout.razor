@@ -188,12 +188,12 @@
             <span>@GetEngineStatusBannerText()</span>
             @if (Orchestrator.EngineConnectionState == EngineConnectionState.LiveUpdatesDisconnected)
             {
-                <AppNativeButton Type="button"
-                                 Class="layout-shell__engine-banner-retry"
-                                 AriaLabel="@L["MainLayout_RetryLiveUpdates"].Value"
-                                 OnClick="RetryLiveUpdatesAsync">
+                <AppButton ButtonStyle="AppButtonStyle.Filled"
+                           Tone="AppUiTone.Primary"
+                           aria-label="@L["MainLayout_RetryLiveUpdates"].Value"
+                           OnClick="RetryLiveUpdatesAsync">
                     @L["Common_Retry"]
-                </AppNativeButton>
+                </AppButton>
             }
         </div>
     }
@@ -713,7 +713,7 @@
         }
     }
 
-    private async Task RetryLiveUpdatesAsync(MouseEventArgs _)
+    private async Task RetryLiveUpdatesAsync()
     {
         if (_disposed) return;
         await Orchestrator.RetryLiveUpdatesNowAsync();

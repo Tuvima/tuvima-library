@@ -253,18 +253,6 @@
     backdrop-filter: blur(18px);
 }
 
-.layout-shell__engine-banner-retry {
-    min-width: var(--tl-touch-target-min);
-    min-height: var(--tl-touch-target-min);
-    padding-inline: .8rem;
-    border: 0;
-    border-radius: var(--tl-radius-md, 8px);
-    color: var(--tl-text-on-accent);
-    background: var(--tl-accent-primary);
-    font-weight: 800;
-    cursor: pointer;
-}
-
 .layout-shell__appbar--cinematic {
     color: rgba(248, 250, 252, 0.96);
     background:
