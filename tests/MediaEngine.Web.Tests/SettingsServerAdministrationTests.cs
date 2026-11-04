@@ -74,7 +74,9 @@ public sealed class SettingsServerAdministrationTests
         Assert.DoesNotContain("Profile access", users, StringComparison.Ordinal);
         Assert.DoesNotContain("Manage profiles", users, StringComparison.Ordinal);
         Assert.DoesNotContain("pending invite", users, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Copy this credential now", applications, StringComparison.Ordinal);
+        // A new key is shown once, in its own window, with the warning that it cannot be shown again.
+        var keyWindow = ReadRepoFile(@"src/MediaEngine.Web/Components/Settings/IntegrationKeyDialogs.razor");
+        Assert.Contains("It will not be shown again", keyWindow, StringComparison.Ordinal);
         Assert.DoesNotContain("ToggleReveal", applications, StringComparison.Ordinal);
     }
 

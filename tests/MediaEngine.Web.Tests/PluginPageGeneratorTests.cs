@@ -2,6 +2,7 @@ using System.Text.Json;
 using Bunit;
 using MediaEngine.Contracts.Plugins;
 using MediaEngine.Web.Components.Settings;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Tests.Support;
 using Microsoft.Extensions.DependencyInjection;
@@ -137,44 +138,54 @@ public sealed class PluginPageGeneratorTests : AsyncBunitContext
     // ------------------------------------------------------------------------------------------------ Group lists
 
     [Fact]
-    public void AGroupList_DrawsItsRows_AndALockedRowCannotBeRemoved()
+    public async Task AGroupList_DrawsItsRows_AndALockedRowHasALockAndCannotBeRemoved()
     {
         var cut = RenderCard(SettingsCard(Servers()));
 
         Assert.Equal(3, cut.FindAll("[data-testid=plugin-group-row]").Count);
         var locked = cut.Find("[data-item=built-in]");
-        Assert.Empty(locked.QuerySelectorAll("[data-testid=plugin-group-remove]"));
-        Assert.NotEmpty(cut.Find("[data-item=mine]").QuerySelectorAll("[data-testid=plugin-group-remove]"));
-        Assert.Contains("Add server", cut.Markup);
+        Assert.NotEmpty(locked.QuerySelectorAll("[data-testid=plugin-group-lock]"));
+        Assert.Empty(cut.Find("[data-item=mine]").QuerySelectorAll("[data-testid=plugin-group-lock]"));
+        Assert.Contains("Add server", cut.Find("[data-testid=plugin-group-add]").TextContent);
+
+        await cut.ClickAsync("[data-item=built-in] .app-row-menu__trigger");
+        Assert.DoesNotContain(cut.FindAll("[role=menuitem]"), item => item.TextContent.Contains("Remove", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void ARowWithoutAKey_SaysKeyMissingAndOffersAddKey_AndSavingSendsTheKeyToTheEngine()
+    public async Task ARowWithoutAKey_OffersAddKey_AndTheConnectDialogTestsBeforeItSaves()
     {
+        var dialogs = Render<AppDialogHost>();
         var cut = RenderCard(SettingsCard(Servers()));
 
         var row = cut.Find("[data-item=nokey]");
         Assert.NotNull(row.QuerySelector("[data-testid=plugin-group-key-missing]"));
-        Assert.Contains("Key missing", row.TextContent);
         var addKey = row.QuerySelector("[data-testid=plugin-group-add-key]")!;
-        Assert.Equal("Add key", addKey.TextContent.Trim());
+        Assert.Contains("Add key", addKey.TextContent);
         Assert.True(row.QuerySelector("[data-testid=plugin-group-test]")!.HasAttribute("disabled"));
 
-        addKey.Click();
-        cut.Find("[data-item=nokey] input[type=password]").Input("secret-value");
-        cut.FindAll("[data-item=nokey] button").First(button => button.TextContent.Trim() == "Save key").Click();
+        await cut.ClickAsync("[data-item=nokey] [data-testid=plugin-group-add-key]");
+        dialogs.WaitForElement("input[type=password]").Input("secret-value");
+        Assert.True(dialogs.Find("[data-testid=plugin-connect-save]").HasAttribute("disabled"));
+        await dialogs.ClickAsync("[data-testid=plugin-connect-test]");
+        dialogs.WaitForAssertion(() => Assert.False(dialogs.Find("[data-testid=plugin-connect-save]").HasAttribute("disabled")));
+        await dialogs.ClickAsync("[data-testid=plugin-connect-save]");
 
         cut.WaitForAssertion(() => Assert.Equal(["nokey"], _keysSaved));
     }
 
     [Fact]
-    public void RowActions_TestAndRemoveGoToTheEnginesGenericItemActions()
+    public async Task RowActions_TestAndRemoveGoToTheEnginesGenericItemActions()
     {
+        var dialogs = Render<AppDialogHost>();
         var cut = RenderCard(SettingsCard(Servers()));
 
         cut.Find("[data-item=mine] [data-testid=plugin-group-test]").Click();
-        cut.WaitForAssertion(() => Assert.Contains("Connected.", cut.Find("[data-item=mine]").TextContent));
-        cut.Find("[data-item=mine] [data-testid=plugin-group-remove]").Click();
+        cut.WaitForAssertion(() => Assert.Contains("Connected.", cut.Find("[data-testid=plugin-group-message]").TextContent));
+        await cut.ClickAsync("[data-item=mine] .app-row-menu__trigger");
+        cut.FindAll("[role=menuitem]").Single(item => item.TextContent.Trim() == "Remove").Click();
+        dialogs.WaitForElement(".app-confirm");
+        dialogs.FindAll(".app-dialog-shell__footer button").Single(button => button.TextContent.Trim() == "Remove").Click();
 
         cut.WaitForAssertion(() => Assert.Equal(["mine"], _removed));
         Assert.Equal(["mine"], _tested);
@@ -185,13 +196,13 @@ public sealed class PluginPageGeneratorTests : AsyncBunitContext
     [Fact]
     public void TheCardThePageIsOpenedFor_IsHighlightedOnlyWhenAsked()
     {
-        _page = Page(new PluginSetupCardDto { Key = "access", Title = "Access", NeedsAttention = true }, new PluginSetupCardDto { Key = "about", Title = "About" });
+        _page = Page(new PluginSetupCardDto { Key = "access", Title = "Access", NeedsAttention = true }, new PluginSetupCardDto { Key = "privacy", Title = "Privacy" });
 
         var asked = RenderPage(attention: true);
         asked.WaitForAssertion(() => Assert.Equal(2, asked.FindAll("[data-card]").Count));
         Assert.Contains("plugin-card--attention", asked.Find("#plugin-setup-card-access").ClassName);
         Assert.Equal("true", asked.Find("#plugin-setup-card-access").GetAttribute("data-highlighted"));
-        Assert.DoesNotContain("plugin-card--attention", asked.Find("#plugin-setup-card-about").ClassName);
+        Assert.DoesNotContain("plugin-card--attention", asked.Find("#plugin-setup-card-privacy").ClassName);
 
         var plain = RenderPage(attention: false);
         plain.WaitForAssertion(() => Assert.Equal(2, plain.FindAll("[data-card]").Count));
@@ -243,6 +254,57 @@ public sealed class PluginPageGeneratorTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Contains("The song title goes to a lyrics site.", cut.Find("[data-testid=plugin-leaves]").TextContent));
     }
+
+    // ------------------------------------------------------------------------------------------------ Connection card and shared frame (v6 D60, D61, D69)
+
+    [Fact]
+    public void TheConnectionCard_SaysNotConnected_AndOffersConnect_WhenNoKeyIsSet()
+    {
+        _page = Page(AccessCard(configured: false));
+
+        var cut = RenderPage();
+
+        cut.WaitForAssertion(() => Assert.Equal("notconnected", cut.Find("[data-testid=plugin-credential]").GetAttribute("data-state")));
+        Assert.Equal("Not connected", cut.Find("[data-testid=plugin-connection-state]").TextContent);
+        Assert.NotEmpty(cut.FindAll("[data-testid=plugin-connect]"));
+    }
+
+    [Fact]
+    public void TheConnectionCard_SaysConnected_WithNoConnectButton_WhenTheKeyIsSet()
+    {
+        _page = Page(AccessCard(configured: true));
+
+        var cut = RenderPage();
+
+        cut.WaitForAssertion(() => Assert.Equal("connected", cut.Find("[data-testid=plugin-credential]").GetAttribute("data-state")));
+        Assert.Equal("Connected", cut.Find("[data-testid=plugin-connection-state]").TextContent);
+        Assert.Empty(cut.FindAll("[data-testid=plugin-connect]"));
+    }
+
+    [Fact]
+    public void ThePluginPageAndTheIntegrationPage_BothUseTheSharedFrame_AndNeitherDrawsAnAboutCard()
+    {
+        var root = AppContext.BaseDirectory;
+        while (root is not null && !File.Exists(Path.Combine(root, "MediaEngine.slnx")))
+        {
+            root = Path.GetDirectoryName(root);
+        }
+
+        Assert.NotNull(root);
+        foreach (var file in new[] { "PluginSettingsTab.razor", "ManagedAccessApplications.razor" })
+        {
+            var source = File.ReadAllText(Path.Combine(root!, "src", "MediaEngine.Web", "Components", "Settings", file));
+            Assert.Contains("<AppDetailPageFrame", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("plugin-about-card", source, StringComparison.Ordinal);
+        }
+    }
+
+    private static PluginSetupCardDto AccessCard(bool configured) => new()
+    {
+        Key = "access",
+        Title = "Access",
+        Credentials = [new PluginSetupCredentialDto { Name = "api_key", Label = "API key", Configured = configured }],
+    };
 
     // ------------------------------------------------------------------------------------------------ Activity
 

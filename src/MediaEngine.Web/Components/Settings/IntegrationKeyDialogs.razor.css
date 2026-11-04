@@ -1,0 +1,3 @@
+.integration-key { display: grid; min-width: 0; gap: var(--tl-space-3, 12px); }
+.integration-key__value { padding: .65rem; overflow-wrap: anywhere; border-radius: var(--tl-radius-sm, 8px); background: rgb(0 0 0 / 28%); user-select: all; }
+.integration-key__footer { display: flex; justify-content: flex-end; gap: var(--tl-space-3, 12px); width: 100%; }

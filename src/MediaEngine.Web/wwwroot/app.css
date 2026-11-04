@@ -5638,6 +5638,11 @@ body:has(.tl-editor-window) .tl-details-overlay__scroller,body:has(.tl-editor-wi
 .audiobook-global-extras__list li.is-glow { animation:video-bookmark-glow 1.4s ease-out 1; }
 .audiobook-global-extras__list li > span { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; opacity:.75; }
 .audiobook-global-extras__empty { opacity:.75; }
+/* The quiet facts in the side column of a plugin or integration page (Plugins and Integrations screens v6 D60). Global because the
+   facts are drawn by the page that owns them, not by the column component. */
+.app-detail-columns__side dl { margin: 0; }
+.app-detail-columns__side dt { margin-top: 12px; color: var(--tl-text-muted); font-size: var(--tl-font-size-xs, .75rem); letter-spacing: .08em; text-transform: uppercase; }
+.app-detail-columns__side dd { margin: 2px 0 6px; color: var(--tl-text-primary); overflow-wrap: anywhere; }
 /* MapLibre builds these class names itself, so no component names them: keep the controls above the phone docks. */
 html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-left,
 html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-right {

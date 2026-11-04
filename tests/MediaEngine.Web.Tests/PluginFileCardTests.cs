@@ -50,7 +50,6 @@ public sealed class PluginFileCardTests : AsyncBunitContext
         Assert.Equal("example.json", cut.Find("[data-testid=plugin-file-name]").TextContent);
         Assert.Equal("Valid", cut.Find("[data-testid=plugin-file-valid]").TextContent.Trim());
         Assert.Equal("Same as Tuvima's version", cut.Find("[data-testid=plugin-file-differs]").TextContent.Trim());
-        Assert.NotNull(cut.Find("[data-testid=plugin-file-view]"));
     }
 
     [Fact]
@@ -72,12 +71,10 @@ public sealed class PluginFileCardTests : AsyncBunitContext
     }
 
     [Fact]
-    public void ViewFile_OpensTheViewerInPlace_WithLineNumbers_AndColouredPieces()
+    public void TheFile_ShowsInPlace_WithLineNumbers_AndColouredPieces()
     {
         _file = new PluginFileResponse { PluginId = "example", Text = Text, State = State() };
         var cut = RenderCard(State(), canView: true);
-
-        cut.Find("[data-testid=plugin-file-view]").Click();
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=plugin-file-viewer]")));
         var numbers = cut.FindAll(".plugin-file-viewer__number").Select(element => element.TextContent).ToList();
@@ -88,7 +85,6 @@ public sealed class PluginFileCardTests : AsyncBunitContext
         Assert.Equal("3", cut.Find("[data-line='4'] .plugin-json--number").TextContent);
         Assert.Equal("true", cut.Find("[data-line='5'] .plugin-json--literal").TextContent);
         Assert.Equal(1, _fileCalls);
-        Assert.Contains("Hide file", cut.Find("[data-testid=plugin-file-view]").TextContent, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -103,8 +99,6 @@ public sealed class PluginFileCardTests : AsyncBunitContext
         };
         var cut = RenderCard(State(errors: 1), canView: true);
 
-        cut.Find("[data-testid=plugin-file-view]").Click();
-
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=plugin-file-viewer]")));
         Assert.Equal("true", cut.Find("[data-line='4']").GetAttribute("data-problem"));
         Assert.Null(cut.Find("[data-line='2']").GetAttribute("data-problem"));
@@ -112,25 +106,10 @@ public sealed class PluginFileCardTests : AsyncBunitContext
     }
 
     [Fact]
-    public void HideFile_ClosesTheViewer()
-    {
-        _file = new PluginFileResponse { PluginId = "example", Text = Text, State = State() };
-        var cut = RenderCard(State(), canView: true);
-        cut.Find("[data-testid=plugin-file-view]").Click();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=plugin-file-viewer]")));
-
-        cut.Find("[data-testid=plugin-file-view]").Click();
-
-        Assert.Empty(cut.FindAll("[data-testid=plugin-file-viewer]"));
-    }
-
-    [Fact]
     public void WhenTheEngineDoesNotReturnTheFile_TheCardSaysSo()
     {
         _file = null;
         var cut = RenderCard(State(), canView: true);
-
-        cut.Find("[data-testid=plugin-file-view]").Click();
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=plugin-file-unavailable]")));
     }
@@ -143,7 +122,6 @@ public sealed class PluginFileCardTests : AsyncBunitContext
         Assert.Equal("example.json", cut.Find("[data-testid=plugin-file-name]").TextContent);
         Assert.Equal("1 problem", cut.Find("[data-testid=plugin-file-valid]").TextContent.Trim());
         Assert.Equal("Editing is available on a computer.", cut.Find("[data-testid=plugin-file-computer-only]").TextContent);
-        Assert.Empty(cut.FindAll("[data-testid=plugin-file-view]"));
         Assert.Empty(cut.FindAll("[data-testid=plugin-file-viewer]"));
         Assert.Equal(0, _fileCalls);
     }
@@ -157,12 +135,11 @@ public sealed class PluginFileCardTests : AsyncBunitContext
         var desktop = RenderPage();
         desktop.WaitForAssertion(() => Assert.NotEmpty(desktop.FindAll("[data-card=file]")));
         Assert.Equal("file", desktop.FindAll("[data-card]").Last().GetAttribute("data-card"));
-        Assert.NotEmpty(desktop.FindAll("[data-testid=plugin-file-view]"));
+        Assert.NotEmpty(desktop.FindAll("[data-testid=plugin-file-card]"));
 
         await device.InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", Touch: true));
         var phone = RenderPage();
         phone.WaitForAssertion(() => Assert.NotEmpty(phone.FindAll("[data-card=file]")));
-        Assert.Empty(phone.FindAll("[data-testid=plugin-file-view]"));
         Assert.NotEmpty(phone.FindAll("[data-testid=plugin-file-computer-only]"));
     }
 
@@ -211,7 +188,8 @@ public sealed class PluginFileCardTests : AsyncBunitContext
 
     private IRenderedComponent<PluginSetupPage> RenderPage() =>
         Render<PluginSetupPage>(parameters => parameters
-            .Add(component => component.Plugin, new PluginSummaryResponse { Id = "example", Name = "Example", Enabled = true }));
+            .Add(component => component.Plugin, new PluginSummaryResponse { Id = "example", Name = "Example", Enabled = true })
+            .Add(component => component.Section, "file"));
 
     private static PluginSetupCardDto FileCard(PluginFileStateDto state) => new() { Key = "file", Title = "Plugin file", File = state };
 

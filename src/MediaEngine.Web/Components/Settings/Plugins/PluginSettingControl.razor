@@ -19,12 +19,15 @@
             break;
 
         case PluginSetupValues.ChoiceControl:
+            <div class="plugin-setting__row">
+            <span class="plugin-setting__copy"><strong>@Control.Title</strong>@if (!string.IsNullOrWhiteSpace(Control.Description)) { <small>@Control.Description</small> }</span>
             <AppSelect Label="@Control.Title"
-                       HelpText="@Control.Description"
+                       HideLabel="true"
                        Value="@PluginSetupValues.Text(Value)"
                        ValueChanged="@(picked => Changed(PluginSetupValues.FromText(Control, picked)))"
                        Options="@ChoiceOptions"
                        Disabled="@IsDisabled" />
+            </div>
             break;
 
         case PluginSetupValues.NumberControl when UseSlider:
@@ -95,13 +98,16 @@
             break;
 
         default:
+            <div class="plugin-setting__row">
+            <span class="plugin-setting__copy"><strong>@Control.Title</strong>@if (!string.IsNullOrWhiteSpace(Control.Description)) { <small>@Control.Description</small> }</span>
             <AppTextField Label="@Control.Title"
-                          HelpText="@Control.Description"
+                          HideLabel="true"
                           Placeholder="@Control.Placeholder"
                           InputType="@(Control.Control == PluginSetupValues.UrlControl ? AppInputType.Url : AppInputType.Text)"
                           Value="@PluginSetupValues.Text(Value)"
                           ValueChanged="@(typed => Changed(PluginSetupValues.FromText(Control, typed)))"
                           Disabled="@IsDisabled" />
+            </div>
             break;
     }
     @if (!string.IsNullOrWhiteSpace(DisabledReason))
