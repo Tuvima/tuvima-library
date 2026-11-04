@@ -26,6 +26,12 @@ public sealed record FictionalEntityWorkLink(
     double? Confidence = null,
     string? AppearanceKey = null);
 
+/// <summary>
+/// A person's own links for a Universe thing, layered over the provider's facts: extra names, the thing it belongs to
+/// (a character to a faction, a faction to a place) and whether it is hidden.
+/// </summary>
+public sealed record FictionalEntityUserLinks(IReadOnlyList<string> Aliases, Guid? BelongsToEntityId, bool IsHidden);
+
 /// <summary>Database-paged fictional-entity selector result.</summary>
 public sealed record FictionalEntitySearchPage(IReadOnlyList<FictionalEntity> Items, int Total);
 
@@ -165,4 +171,25 @@ public interface IFictionalEntityRepository
     /// <param name="limit">Maximum number of results.</param>
     Task<IReadOnlyList<FictionalEntity>> GetStaleEntitiesAsync(
         int staleAfterDays, int limit, CancellationToken ct = default);
+
+    /// <summary>
+    /// Adds a thing by hand to a Universe that already has a Wikidata identity (Universe contents spec P4). The row gets a
+    /// local ID in place of a Wikidata ID and the "added by you" flag; providers never touch it and nothing is sent anywhere.
+    /// </summary>
+    Task<FictionalEntity> CreateUserEntityAsync(
+        string label,
+        string entitySubType,
+        string universeQid,
+        string? universeLabel,
+        string? description,
+        CancellationToken ct = default);
+
+    /// <summary>Removes a thing a person added by hand. Returns false (and removes nothing) for a thing that came from a provider.</summary>
+    Task<bool> DeleteUserEntityAsync(Guid entityId, CancellationToken ct = default);
+
+    /// <summary>Saves a person's aliases, "belongs to" link and hidden flag for a thing, leaving its name and description overrides alone.</summary>
+    Task UpdateUserLinksAsync(Guid entityId, FictionalEntityUserLinks links, CancellationToken ct = default);
+
+    /// <summary>The person's aliases, "belongs to" link and hidden flag, or null when the thing has no local override row.</summary>
+    Task<FictionalEntityUserLinks?> GetUserLinksAsync(Guid entityId, CancellationToken ct = default);
 }

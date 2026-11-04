@@ -1731,6 +1731,10 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
         public Task<int> CountAsync(CancellationToken ct = default) => Task.FromResult(0);
         public Task UpdateRevisionAsync(Guid entityId, long revisionId, CancellationToken ct = default) => Task.CompletedTask;
         public Task<IReadOnlyList<FictionalEntity>> GetStaleEntitiesAsync(int staleAfterDays, int limit, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<FictionalEntity>>([]);
+        public Task<FictionalEntity> CreateUserEntityAsync(string label, string entitySubType, string universeQid, string? universeLabel, string? description, CancellationToken ct = default) => Task.FromResult(new FictionalEntity { Label = label, EntitySubType = entitySubType });
+        public Task<bool> DeleteUserEntityAsync(Guid entityId, CancellationToken ct = default) => Task.FromResult(false);
+        public Task UpdateUserLinksAsync(Guid entityId, FictionalEntityUserLinks links, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<FictionalEntityUserLinks?> GetUserLinksAsync(Guid entityId, CancellationToken ct = default) => Task.FromResult<FictionalEntityUserLinks?>(null);
     }
 
     private sealed class StubPersonRepository : IPersonRepository
