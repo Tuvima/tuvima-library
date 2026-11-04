@@ -1,9 +1,14 @@
 @namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Contracts.Details
 @using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Services.Formatting
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Theming
+@using MediaEngine.Web.Services.Ui
 @implements IAsyncDisposable
 @inject IJSRuntime JS
+@inject IServiceProvider Services
 @inject IStringLocalizer<SharedStrings> L
 
 @* The Contents tab of the universal editor window (v4 D3, WP5): the children of a show, season, album or series with a picture, a number,
@@ -38,6 +43,19 @@
                                Class="tl-contents__match"
                                Disabled="@Flow.Saving"
                                OnClick="OpenMatch" />
+                }
+
+                @if (CanDeleteRows)
+                {
+                    @* Delete the ticked rows (v4 D13): one question, then it happens at once; it does not wait for Save. *@
+                    <AppButton Label="@EditorDeleteRules.DeleteRowsLabel(Batch.Count, Noun)"
+                               StartIcon="@AppMaterialIcons.Outlined.Delete"
+                               ButtonStyle="AppButtonStyle.Outlined"
+                               Tone="AppUiTone.Error"
+                               Size="AppControlSize.Compact"
+                               Class="tl-contents__delete"
+                               Disabled="@(Flow.Saving || _deleting)"
+                               OnClick="DeleteTickedAsync" />
                 }
 
                 <AppButton Label="@L["Activity_Clear"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="ClearTicks" />
@@ -176,6 +194,9 @@
     /// <summary>The Engine allows editing here; without it the rows are listed with no tick boxes.</summary>
     [Parameter] public bool CanEdit { get; set; }
 
+    /// <summary>Told which items were deleted from the ticked rows, so the editor drops them from its lists (the host's <c>ItemsDeletedAsync</c>).</summary>
+    [Parameter] public EventCallback<IReadOnlyCollection<Guid>> OnDeleted { get; set; }
+
     /// <summary>The order of a video series (drag and arrows), drawn under the list; null for anything whose order is not the person's.</summary>
     [Parameter] public RenderFragment? OrderContent { get; set; }
 
@@ -189,6 +210,13 @@
     };
 
     private string Noun => BulkEditRules.Noun(Batch.Rows, Batch.MediaType);
+
+    private bool _deleting;
+
+    // Delete is for an administrator on a desktop; the Engine still decides on every call.
+    private bool CanDeleteRows => CanEdit
+        && Batch.Count > 0
+        && LibraryItemDeletionFlow.CanDelete(Services.GetService<DeviceContextService>(), Services.GetService<DashboardSessionAccessor>());
 
     protected override async Task OnParametersSetAsync()
     {
@@ -270,6 +298,36 @@
     }
 
     private void ClearTicks() => Batch.Clear();
+
+    // The ticked rows go at once after the one question. A failure shows its reason in the question and nothing leaves the list; a row
+    // leaves it only for a title the Engine deleted.
+    private async Task DeleteTickedAsync()
+    {
+        if (_deleting || Batch.Count == 0 || Services.GetService<IAppDialogService>() is not { } dialogs || Services.GetService<IAppToastService>() is not { } toasts)
+        {
+            return;
+        }
+
+        if (LibraryItemDeletionFlow.TryRefuse(Services.GetService<DeviceContextService>(), Services.GetService<DashboardSessionAccessor>(), toasts))
+        {
+            return;
+        }
+
+        var ids = Batch.Ids;
+        _deleting = true;
+        try
+        {
+            var answer = await LibraryItemDeletionFlow.RunForResultAsync(dialogs, toasts, ids, ids.Count == 1 ? Batch.Rows[0].Title : null);
+            if (answer is not null)
+            {
+                await OnDeleted.InvokeAsync(EditorDeleteRules.Removed(answer, ids, null, Family.ParentOf));
+            }
+        }
+        finally
+        {
+            _deleting = false;
+        }
+    }
 
     private Task LoadMoreAsync() => Family.LoadMoreAsync(ParentId);
 

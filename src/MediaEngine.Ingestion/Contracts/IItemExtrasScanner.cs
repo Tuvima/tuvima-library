@@ -35,11 +35,35 @@ public interface IItemExtrasScanner
     Task<ItemExtra?> DescribeAsync(string filePath, string origin, int? targetSeason, int? targetEpisode, CancellationToken ct = default);
 
     /// <summary>
+    /// Describes one file as an Extra a person sorted in "What is this file?" (universal editor v4 D20): the same facts as above plus the
+    /// kind and place the person chose, filed under <see cref="ExtraDecision.Title"/> when the file belongs to another title. Null when the
+    /// file is not a kind Library opens, is in a Vault library, or is in no title's folder and no other title was given.
+    /// </summary>
+    Task<ItemExtra?> DescribeAsync(string filePath, string origin, ExtraDecision decision, CancellationToken ct = default);
+
+    /// <summary>
+    /// The library and title folder an Extra of the title that owns <paramref name="titleFilePath"/> is filed under, or null when that file
+    /// is in no title's folder of a library Library reads (or is in a Vault library).
+    /// </summary>
+    Task<ExtraTitleFolder?> ResolveTitleFolderAsync(string titleFilePath, CancellationToken ct = default);
+
+    /// <summary>
     /// Where a person put this file when they moved it from Extras to an episode (WP4), or null when they did not. The ingestion
     /// pipeline reads it so the file is identified as that season and episode of its show.
     /// </summary>
     Task<ExtraEpisodePlacement?> GetEpisodePlacementAsync(string filePath, CancellationToken ct = default);
 }
+
+/// <summary>The kind and place a person gave a file in "What is this file?", and the title it is filed under when that is not its own folder's.</summary>
+public sealed record ExtraDecision(
+    string? ExtraKind = null,
+    int? PlaceSeason = null,
+    int? PlaceEpisode = null,
+    int? PlaceTrack = null,
+    ExtraTitleFolder? Title = null);
+
+/// <summary>The library and the title folder an Extra is filed under.</summary>
+public sealed record ExtraTitleFolder(string LibraryId, string ItemFolder);
 
 /// <summary>The show, season and episode a person put a file in when they moved it from Extras to an episode.</summary>
 public sealed record ExtraEpisodePlacement(string ShowName, string? Year, int Season, int Episode);

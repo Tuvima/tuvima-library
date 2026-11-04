@@ -101,3 +101,11 @@
 .tl-editor-header__link:hover {
     background: var(--tl-bg-surface-hover);
 }
+
+.tl-editor-header__links {
+    align-items: center;
+}
+
+.tl-editor-header__menu {
+    flex: 0 0 auto;
+}

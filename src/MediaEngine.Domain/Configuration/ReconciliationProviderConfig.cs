@@ -78,6 +78,7 @@ public sealed class DataExtensionSettings
     [JsonPropertyName("organization_properties")] public DataExtensionPropertyGroup OrganizationProperties { get; set; } = new();
     [JsonPropertyName("event_properties")] public DataExtensionPropertyGroup EventProperties { get; set; } = new();
     [JsonPropertyName("object_properties")] public DataExtensionPropertyGroup ObjectProperties { get; set; } = new();
+    [JsonPropertyName("species_properties")] public DataExtensionPropertyGroup SpeciesProperties { get; set; } = new();
     [JsonPropertyName("property_labels")] public Dictionary<string, string> PropertyLabels { get; set; } = new();
 }
 

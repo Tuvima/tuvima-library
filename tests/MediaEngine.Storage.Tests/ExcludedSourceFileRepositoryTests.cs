@@ -56,6 +56,17 @@ public sealed class ExcludedSourceFileRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task AFileAPersonIgnored_IsStoredWithTheIgnoredByYouReason()
+    {
+        var file = Row("shows", "source-1", "Masterclass/sample.mkv") with { Reason = ExcludedSourceFileReasons.IgnoredByYou };
+
+        await _excluded.AddOrReplaceAsync(file);
+
+        var read = await _excluded.GetAsync("source-1", "Masterclass/sample.mkv");
+        Assert.Equal(ExcludedSourceFileReasons.IgnoredByYou, read!.Reason);
+    }
+
+    [Fact]
     public async Task AddingTheSamePlaceAgain_ReplacesTheRow_AndKeepsItsId()
     {
         var first = Row("movies", "source-1", "Dune.mkv") with { ContentHash = "old", Reason = ExcludedSourceFileReasons.AsIs };

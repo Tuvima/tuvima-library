@@ -50,6 +50,12 @@ public static class EditReviewRows
 
     public const string ExtraToEpisodeNote = "The file stays where it is and is added to your Library as that episode.";
 
+    public const string FileSortExtraNote = "The file stays where it is. It leaves the list of episodes and tracks and shows under Extras.";
+
+    public const string FileSortAttachNote = "The file stays where it is. It is filed as an Extra of the other title.";
+
+    public const string FileSortIgnoreNote = "The file stays on disk. Library hides it and skips it in future scans. Add it back in Settings.";
+
     public const string SiblingMatchNote = "Each other episode in this season takes the episode with its own number. Matching cannot be undone from here.";
 
     /// <summary>The Before of a row whose old value was not recorded when it was staged (a list holds no loaded values); never blank, so every row can be compared.</summary>
@@ -146,6 +152,10 @@ public static class EditReviewRows
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Relationships, item,
                         "Moves to", pending.Before(change.Id) ?? AsItIsNow, label ?? "The chosen place", pending.Note(change.Id)));
                     break;
+                case EditSessionChangeKinds.ExtraMove when EditSessionExtraMove.TryParseFile(change.Token, out var sorted) && sorted is not null:
+                    rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Relationships, item,
+                        "Sorted as", pending.Before(change.Id) ?? AsItIsNow, label ?? EditorFileSortRules.Describe(sorted, null), FileSortNote(sorted)));
+                    break;
                 case EditSessionChangeKinds.ExtraMove:
                     var toExtras = EditSessionExtraMove.IsToExtras(change.Token);
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Relationships, item,
@@ -176,6 +186,13 @@ public static class EditReviewRows
         // Stable: groups in the spec's order, each keeping the order the changes were staged in.
         return rows.OrderBy(row => row.Group).ToList();
     }
+
+    private static string FileSortNote(ExtraFileChoice choice) => choice.Action switch
+    {
+        EditSessionExtraMove.ActionIgnore => FileSortIgnoreNote,
+        EditSessionExtraMove.ActionAttach => FileSortAttachNote,
+        _ => FileSortExtraNote,
+    };
 
     // What the loaded item is matched as now (show, season and episode, title), so a re-match shows its before and after.
     private static string? CurrentMatchText(ItemFieldEditSession? fields, Guid entityId)

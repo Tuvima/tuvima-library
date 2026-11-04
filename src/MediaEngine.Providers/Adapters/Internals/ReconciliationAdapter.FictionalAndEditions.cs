@@ -43,6 +43,7 @@ public sealed partial class ReconciliationAdapter
                 EntityType.Organization => "Organization",
                 EntityType.Event => "Event",
                 EntityType.Object => "Object",
+                EntityType.Species => "Species",
                 _ => "Character",
             };
 
@@ -277,6 +278,7 @@ public sealed partial class ReconciliationAdapter
             "Organization" => _config.DataExtension.OrganizationProperties,
             "Event" => _config.DataExtension.EventProperties,
             "Object" => _config.DataExtension.ObjectProperties,
+            "Species" => _config.DataExtension.SpeciesProperties,
             _ => null,
         };
 

@@ -17,6 +17,12 @@
     font-size: var(--tl-font-size-sm);
 }
 
+.excluded-files__reason {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--tl-text-muted);
+}
+
 .excluded-files__when {
     white-space: nowrap;
 }

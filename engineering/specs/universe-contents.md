@@ -170,3 +170,7 @@ A Universe today knows about characters, places, factions, events and objects, m
 ## Look pass addendum (2026-11-04)
 
 The dropdowns across the top use the one menu part (44 px rows, 16 px text) and the shared icon tones. Source: [look pass spec](look-pass.md) section 6. This is a version note; the Locked body above is unchanged.
+
+## Build note, part 2 (2026-11-04)
+
+This is a version note; the Locked body above is unchanged. Built since part 1: the thing page (section 4.2) at `/universe/{qid}/things/{id}` with "Appears in" limited to Works you own, the description source label, and connection groups read both ways from stored Wikidata and lore links plus the person's own "belongs to"; a thing the profile has not reached is not found, and one that cannot be placed shows only its name. "Belongs to" and "On the Universe page" (Shown or Hidden) are fields in the pop-over editor's Details tab (a new choice field kind); a thing can never belong to something that belongs to it. Species has its own `species_properties` fetch list. The older Connections character list is removed; the Characters rail replaces it. Not built here: adding and deleting hand-added things and the Pictures tab for things (editor overhaul), and species discovery from real Wikidata (no reliable character-to-species property; see the Local checks).

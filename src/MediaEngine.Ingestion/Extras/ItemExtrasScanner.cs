@@ -172,6 +172,26 @@ public sealed class ItemExtrasScanner : IItemExtrasScanner
     public async Task<ItemExtra?> DescribeAsync(
         string filePath, string origin, int? targetSeason, int? targetEpisode, CancellationToken ct = default)
     {
+        var described = await DescribeAsync(filePath, origin, new ExtraDecision(), ct).ConfigureAwait(false);
+        return described is null ? null : described with { TargetSeason = targetSeason, TargetEpisode = targetEpisode };
+    }
+
+    public async Task<ExtraTitleFolder?> ResolveTitleFolderAsync(string titleFilePath, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(titleFilePath))
+        {
+            return null;
+        }
+
+        var context = await ResolveContextAsync(titleFilePath, null, ct).ConfigureAwait(false);
+        var folder = context is null ? null : ExtrasRule.ResolveItemFolder(context, titleFilePath);
+        return context is null || folder is null ? null : new ExtraTitleFolder(context.LibraryId, Path.GetFullPath(folder));
+    }
+
+    public async Task<ItemExtra?> DescribeAsync(
+        string filePath, string origin, ExtraDecision decision, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(decision);
         if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
         {
             return null;
@@ -184,8 +204,9 @@ public sealed class ItemExtrasScanner : IItemExtrasScanner
         }
 
         var context = await ResolveContextAsync(filePath, null, ct).ConfigureAwait(false);
-        var itemFolder = context is null ? null : ExtrasRule.ResolveItemFolder(context, filePath);
-        if (context is null || itemFolder is null)
+        var itemFolder = decision.Title?.ItemFolder ?? (context is null ? null : ExtrasRule.ResolveItemFolder(context, filePath));
+        var libraryId = decision.Title?.LibraryId ?? context?.LibraryId;
+        if (context is null || itemFolder is null || libraryId is null)
         {
             return null;
         }
@@ -201,7 +222,7 @@ public sealed class ItemExtrasScanner : IItemExtrasScanner
                 : await _facts.ReadAsync(full, kind, ct).ConfigureAwait(false);
         return new ItemExtra(
             existing?.Id ?? Guid.NewGuid(),
-            context.LibraryId,
+            libraryId,
             Path.GetFullPath(itemFolder),
             full,
             kind,
@@ -213,8 +234,12 @@ public sealed class ItemExtrasScanner : IItemExtrasScanner
             facts.DurationSeconds,
             facts.PageCount,
             existing?.FoundAt ?? DateTimeOffset.UtcNow,
-            targetSeason,
-            targetEpisode);
+            null,
+            null,
+            decision.ExtraKind,
+            decision.PlaceSeason,
+            decision.PlaceEpisode,
+            decision.PlaceTrack);
     }
 
     public async Task<ExtraEpisodePlacement?> GetEpisodePlacementAsync(string filePath, CancellationToken ct = default)

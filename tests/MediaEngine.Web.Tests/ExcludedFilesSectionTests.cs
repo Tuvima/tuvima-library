@@ -83,7 +83,7 @@ public sealed class ExcludedFilesSectionTests : AsyncBunitContext
 
         cut.WaitForElement(".excluded-files");
         Assert.Contains("Excluded files", cut.Find(".excluded-files__title").TextContent);
-        Assert.Contains("These files stayed on disk when their title was deleted. Scans skip them until you add them back.", cut.Find(".excluded-files__hint").TextContent);
+        Assert.Contains("These files stayed on disk, either because their title was deleted or because you ignored them. Scans skip them until you add them back.", cut.Find(".excluded-files__hint").TextContent);
         var row = Assert.Single(cut.FindAll("tbody tr"));
         var cells = row.QuerySelectorAll("td").Select(cell => cell.TextContent.Trim()).ToList();
         Assert.Equal("Dune.mkv", cells[0]);
@@ -92,6 +92,23 @@ public sealed class ExcludedFilesSectionTests : AsyncBunitContext
         Assert.Equal("Shy", cells[3]);
         Assert.False(string.IsNullOrWhiteSpace(row.QuerySelector(".excluded-files__when")!.GetAttribute("title")));
         Assert.Equal("Add back", row.QuerySelector("button")!.TextContent.Trim());
+    }
+
+    [Fact]
+    public void AFileYouIgnored_IsTaggedIgnoredByYou_AndCanBeAddedBack()
+    {
+        var ignored = File("sample.mkv", "Masterclass", DateTimeOffset.UtcNow);
+        ignored.Reason = ExcludedFileReasons.IgnoredByYou;
+        _files.Add(ignored);
+        _files.Add(File("Dune.mkv", "Movies", DateTimeOffset.UtcNow));
+
+        var cut = Open();
+
+        cut.WaitForElement(".excluded-files");
+        var tag = Assert.Single(cut.FindAll("[data-testid=excluded-reason]"));
+        Assert.Equal("Ignored by you", tag.TextContent.Trim());
+        cut.FindAll("tbody tr").First(row => row.TextContent.Contains("sample.mkv")).QuerySelector("button")!.Click();
+        Assert.Equal([ignored.Id], _addedBack);
     }
 
     [Fact]
