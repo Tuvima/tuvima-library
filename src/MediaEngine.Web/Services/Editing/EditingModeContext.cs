@@ -103,7 +103,7 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
 
     public event Action? Changed;
 
-    /// <summary>Loads the item's editable fields the first time the editor opens (set by the host).</summary>
+    /// <summary>Loads the editable fields of the item the editor opens on, every time it opens (set by the host).</summary>
     public Func<Task>? Loader { get; set; }
 
     /// <summary>Opens the editor. Refused (and false) when the person or the device may not edit.</summary>
@@ -112,6 +112,13 @@ public sealed class EditingModeContext : IDetailsOverlayDismissGuard, IDisposabl
         if (!CanEdit)
         {
             return false;
+        }
+
+        // The field session lives as long as the browser tab, so it still holds the last item the editor showed. Opening always
+        // forgets it and loads the item the editor was opened for (wrong-title fix, universal editor v4 D14).
+        if (Loader is not null)
+        {
+            Fields.Reset();
         }
 
         IsOn = true;

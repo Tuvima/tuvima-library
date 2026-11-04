@@ -53,6 +53,40 @@ public sealed class EditingModeContextTests
         mode.SetSectionDirty(!string.IsNullOrEmpty(value));
     }
 
+    // -- Opening -------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task Enter_OnASecondItemAfterClosing_ShowsTheSecondItemNotTheFirst()
+    {
+        var otherId = Guid.Parse("22222222-aaaa-bbbb-cccc-000000000002");
+        var api = EngineApiClientStub.Create(stub =>
+        {
+            stub.SetHandler(nameof(IEngineApiClient.GetMediaEditorContextAsync), args =>
+            {
+                var id = (Guid)args![0]!;
+                var context = EditingModeTestData.MovieContext();
+                context.LaunchEntityId = id;
+                context.Scopes[0].FieldEntityId = id;
+                return Task.FromResult<MediaEditorContextDto?>(context);
+            });
+            stub.SetHandler(nameof(IEngineApiClient.GetItemEditorSuggestionsAsync), _ => Task.FromResult<IReadOnlyList<string>>([]));
+        });
+        await _device.InitialiseAsync(new DeviceContextSnapshot("web", "desktop", false, FinePointer: true, Hover: true));
+        var session = new ItemFieldEditSession(api);
+        var mode = new EditingModeContext(_device, session) { HasPermission = true };
+        var openOn = MovieId;
+        mode.Loader = () => session.LoadAsync(openOn, "Movies", "movie", null);
+
+        Assert.True(await mode.EnterAsync());
+        Assert.Equal(MovieId, session.EntityId);
+        mode.Leave();
+
+        openOn = otherId;
+        Assert.True(await mode.EnterAsync());
+
+        Assert.Equal(otherId, session.EntityId);
+    }
+
     // -- Done ----------------------------------------------------------------------------------
 
     [Fact]
