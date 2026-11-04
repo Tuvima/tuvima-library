@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1425; api=0; web-client=55
+# scopes: contracts=1430; api=0; web-client=55
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -12986,6 +12986,33 @@
   Adaptations: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseSourcedAdaptationDto> | json=adaptations | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"characters":[],"character_count":7,"hidden_character_count":7,"cast":[],"adaptations":[]}
 
+[contracts] MediaEngine.Contracts.Universe.UniverseContentsDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Sections: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseContentsSectionDto> | json=sections | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Timeline: MediaEngine.Contracts.Universe.UniverseTimelineDto | json=timeline | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  HiddenCount: System.Int32 | json=hidden_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"sections":[],"timeline":null,"hidden_count":7}
+
+[contracts] MediaEngine.Contracts.Universe.UniverseContentsSectionDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Key: System.String | json=key | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Label: System.String | json=label | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Count: System.Int32 | json=count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Tiles: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseContentsTileDto> | json=tiles | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"key":"sample","label":"sample","count":7,"tiles":[]}
+
+[contracts] MediaEngine.Contracts.Universe.UniverseContentsTileDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Id: System.Guid | json=id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Label: System.String | json=label | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Qid: System.String | json=qid | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PictureUrl: System.String | json=picture_url | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  LogoUrl: System.String | json=logo_url | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  AddedByUser: System.Boolean | json=added_by_user | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  NoPlotDetails: System.Boolean | json=no_plot_details | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PictureSource: System.String | json=picture_source | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"11111111-2222-3333-4444-555555555555","label":"sample","qid":"sample","picture_url":"sample","logo_url":"sample","added_by_user":true,"no_plot_details":true,"picture_source":"sample"}
+
 [contracts] MediaEngine.Contracts.Universe.UniverseDetailRef
   kind=class | converter=default | number-handling=default | unmapped=default
   qid: System.String | json=qid | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -13167,9 +13194,10 @@
   Standalone: MediaEngine.Contracts.Display.DisplayShelfDto | json=standalone | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Missing: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseShelfMissingDto> | json=missing | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Enrichment: MediaEngine.Contracts.Universe.UniverseEnrichmentStateDto | json=enrichment | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Contents: MediaEngine.Contracts.Universe.UniverseContentsDto | json=contents | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   GraphEntityCount: System.Int32 | json=graph_entity_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   GraphRelationshipCount: System.Int32 | json=graph_relationship_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"detail":null,"connections":null,"standalone":null,"missing":[],"enrichment":null,"graph_entity_count":7,"graph_relationship_count":7}
+  sample={"detail":null,"connections":null,"standalone":null,"missing":[],"enrichment":null,"contents":null,"graph_entity_count":7,"graph_relationship_count":7}
 
 [contracts] MediaEngine.Contracts.Universe.UniversePathsResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -13203,6 +13231,24 @@
   Member: MediaEngine.Contracts.Universe.UniverseClientCastMemberDto | json=member | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Sources: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseSourceDto> | json=sources | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"member":null,"sources":[]}
+
+[contracts] MediaEngine.Contracts.Universe.UniverseTimelineDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  DefaultOrder: System.String | json=default_order | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  StoryOrderAvailable: System.Boolean | json=story_order_available | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Stops: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Universe.UniverseTimelineStopDto> | json=stops | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"default_order":"sample","story_order_available":true,"stops":[]}
+
+[contracts] MediaEngine.Contracts.Universe.UniverseTimelineStopDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Id: System.Guid | json=id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Label: System.String | json=label | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Kind: System.String | json=kind | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PictureUrl: System.String | json=picture_url | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  StoryYear: System.Double? | json=story_year | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ReleaseYear: System.Int32? | json=release_year | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  WorkLabel: System.String | json=work_label | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"11111111-2222-3333-4444-555555555555","label":"sample","kind":"sample","picture_url":"sample","story_year":7,"release_year":7,"work_label":"sample"}
 
 [contracts] MediaEngine.Contracts.Vault.AttachVaultFolderRequest
   kind=class | converter=default | number-handling=default | unmapped=default

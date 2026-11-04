@@ -30,6 +30,7 @@ public sealed class UniversePageReadService(
     IFictionalEntityRepository entities,
     IEntityRelationshipRepository relationships,
     IUniverseEnrichmentStatusRepository enrichment,
+    UniverseContentsReadService contents,
     ILogger<UniversePageReadService> logger)
 {
     /// <summary>Title of the shelf of works that belong directly to the Universe.</summary>
@@ -74,6 +75,7 @@ public sealed class UniversePageReadService(
             Connections = build.Connections,
             Standalone = standalone?.Shelf,
             Missing = missing,
+            Contents = await contents.BuildAsync(detail.Qid, visibleWorkQids, profile, ct).ConfigureAwait(false),
             Enrichment = await BuildEnrichmentAsync(visibleWorkIds, ct).ConfigureAwait(false),
             GraphEntityCount = scope.Entities.Count,
             GraphRelationshipCount = relationshipCount,

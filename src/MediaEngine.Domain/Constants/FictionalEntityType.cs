@@ -21,6 +21,12 @@ public static class FictionalEntityType
     /// <summary>An important fictional object, artifact, vehicle, device, or document.</summary>
     public const string Object = "Object";
 
+    /// <summary>A fictional species or race (e.g. Fremen, Vulcans, Hobbits).</summary>
+    public const string Species = "Species";
+
+    /// <summary>A lore concept or glossary term (e.g. the Force, the Spice Must Flow). Shown only when Fandom Lore is on, or when added by hand.</summary>
+    public const string Concept = "Concept";
+
     /// <summary>All valid sub-type values for CHECK constraint generation.</summary>
-    public static readonly IReadOnlyList<string> All = [Character, Location, Organization, Event, Object];
+    public static readonly IReadOnlyList<string> All = [Character, Location, Organization, Event, Object, Species, Concept];
 }

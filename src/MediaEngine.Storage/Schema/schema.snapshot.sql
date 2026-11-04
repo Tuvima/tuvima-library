@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0078 book_bookmarks_join_shared_model).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0079 universe_contents_kinds).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -1025,27 +1025,29 @@ CREATE TABLE excluded_source_files (
     UNIQUE (source_id, relative_path)
 );
 
-CREATE TABLE fictional_entities (
+CREATE TABLE "fictional_entities" (
     id                       BLOB NOT NULL PRIMARY KEY,
     wikidata_qid             TEXT NOT NULL UNIQUE,
     label                    TEXT NOT NULL,
     description              TEXT,
     entity_sub_type          TEXT NOT NULL
-                                 CHECK (entity_sub_type IN ('Character', 'Location', 'Organization', 'Event', 'Object')),
+                                 CHECK (entity_sub_type IN ('Character', 'Location', 'Organization', 'Event', 'Object', 'Species', 'Concept')),
     fictional_universe_qid   TEXT,
     fictional_universe_label TEXT,
     image_url                TEXT,
     local_image_path         TEXT,
     created_at               TEXT NOT NULL,
-    enriched_at              TEXT
-, wikidata_revision_id INTEGER);
+    enriched_at              TEXT,
+    wikidata_revision_id     INTEGER,
+    added_by_user            INTEGER NOT NULL DEFAULT 0 CHECK (added_by_user IN (0, 1))
+);
 
 CREATE TABLE "fictional_entity_user_overrides" (
     entity_id      BLOB NOT NULL PRIMARY KEY REFERENCES fictional_entities(id) ON DELETE CASCADE,
     label          TEXT,
     description    TEXT,
     updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
-);
+, aliases_json TEXT, belongs_to_entity_id BLOB REFERENCES fictional_entities(id) ON DELETE SET NULL, is_hidden INTEGER NOT NULL DEFAULT 0 CHECK (is_hidden IN (0, 1)));
 
 CREATE TABLE fictional_entity_work_links (
     id                   BLOB NOT NULL PRIMARY KEY,
@@ -2085,7 +2087,7 @@ CREATE TABLE plugin_library_limits (
     PRIMARY KEY (plugin_id, library_id)
 );
 
-CREATE TABLE plugin_lore_entities (
+CREATE TABLE "plugin_lore_entities" (
     id              BLOB PRIMARY KEY,
     source_id       BLOB NOT NULL REFERENCES plugin_lore_sources(id) ON DELETE CASCADE,
     universe_qid    TEXT NOT NULL,
@@ -2095,7 +2097,7 @@ CREATE TABLE plugin_lore_entities (
     label           TEXT NOT NULL,
     description     TEXT,
     entity_type     TEXT NOT NULL DEFAULT 'Unknown'
-                        CHECK (entity_type IN ('Character', 'Location', 'Organization', 'Event', 'Object', 'Unknown')),
+                        CHECK (entity_type IN ('Character', 'Location', 'Organization', 'Event', 'Object', 'Species', 'Concept', 'Unknown')),
     aliases_json    TEXT NOT NULL DEFAULT '[]',
     source_url      TEXT NOT NULL,
     confidence      REAL NOT NULL DEFAULT 0.0,

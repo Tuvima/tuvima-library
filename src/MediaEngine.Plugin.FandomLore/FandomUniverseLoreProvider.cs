@@ -325,6 +325,21 @@ public sealed class FandomUniverseLoreProvider : IUniverseLoreProvider
             return new("Event", 0.7);
         }
 
+        if (ContainsAny(haystack, "species", "races", "creatures", "animals", "beasts"))
+        {
+            return new("Species", 0.7);
+        }
+
+        if (ContainsAny(haystack, "items", "objects", "weapons", "artifacts", "artefacts", "vehicles", "technology"))
+        {
+            return new("Object", 0.68);
+        }
+
+        if (ContainsAny(haystack, "concepts", "terminology", "religions", "customs", "magic", "abilities"))
+        {
+            return new("Concept", 0.62);
+        }
+
         return new("Unknown", 0.0);
     }
 

@@ -1062,6 +1062,16 @@ _2026-11-02: local check walked with Shy; results and the new issue list are in 
 
 Results and the 61 findings are in `engineering/validation/local-check-2026-11-03.md`. Checked and passed (rows stay Awaiting until each is ticked in the sitting that covers it): Home Pick up, hero lengths, Recently Added and View pill, Continue rows, banner settings and plugin slides; Settings menu, General, Playback, Network, Tools, Libraries status; player bar order and sizes, resume, one-click bookmarks; Plugins tiles and list view, TheTVDB, Restore official plugins. Failed or needs a fix: setup look and Libraries pages (against the target designs), folder picker, Needs Review, tile and button sizing and hover, book reader, player panels and unified player, Universe access, plugin and integration page UI. Not run: Details overlay move and batch checks (editor overhaul replaces them), Universe checks (no Universe reachable), Vault, Devices, ingestion baselines.
 
+## Universe contents (spec universe-contents)
+
+| Item | PR | What to check | Status |
+|---|---|---|---|
+| Universe contents L1: which sections have content from Wikidata alone | (this build) | On a real Universe (Dune, The Expanse) open its page: note which of Characters, Factions, Places, Events, Objects, Species, Concepts and the Timeline appear with Wikidata alone, and which are thin or empty. Species and Concepts are expected to be thin; the Engine could not reach Wikidata from the cloud, so the Wikidata classes for Species and Events are untested against live data. | Awaiting |
+| Universe contents L2: Fandom Lore | (this build) | Turn Fandom Lore on and see whether pictures and descriptions are good and labelled Fandom, and that Concepts only appear with it on. | Awaiting |
+| Universe contents L3: hand-added faction | (this build) | Add a faction with a logo by hand (editor), rescan, and confirm it is still there and never overwritten. | Awaiting |
+| Universe contents L4: look and feel | (this build) | Tiles, logo tiles and the Timeline strip with Story order / Release order toggle, on desktop and phone; spoiler lines. | Awaiting |
+| Universe contents L5: still open in the spec | (this build) | Not yet built: the thing page, belongs-to and hide screens (editor v4), Wikidata fetch for Events, Objects and Species (needs live Wikidata), member-of / located-in links, and the older Connections character list still overlaps the new Characters rail. | Open |
+
 ## Look pass (2026-11-04)
 
 | Item | PR | What to check | Status |

@@ -35,7 +35,7 @@ public sealed class FictionalEntity
     public string? Description { get; set; }
 
     /// <summary>
-    /// Discriminator: <c>"Character"</c>, <c>"Location"</c>, or <c>"Organization"</c>.
+    /// Discriminator: <c>"Character"</c>, <c>"Location"</c>, <c>"Organization"</c>, <c>"Event"</c>, <c>"Object"</c>, <c>"Species"</c> or <c>"Concept"</c>.
     /// Enforced by a CHECK constraint in the database.
     /// </summary>
     public string EntitySubType { get; set; } = string.Empty;
@@ -76,4 +76,16 @@ public sealed class FictionalEntity
 
     /// <summary>Wikidata <c>lastrevid</c> for Lore Delta change detection.</summary>
     public long? WikidataRevisionId { get; set; }
+
+    /// <summary>
+    /// True for a thing a person added by hand (Universe contents spec P4). Its <see cref="WikidataQid"/> is a local ID
+    /// (<see cref="LocalIdPrefix"/> + a GUID); no provider ever overwrites it and it is never sent anywhere.
+    /// </summary>
+    public bool AddedByUser { get; set; }
+
+    /// <summary>Prefix of the local ID given to a hand-added thing in place of a Wikidata ID.</summary>
+    public const string LocalIdPrefix = "local:";
+
+    /// <summary>Builds a fresh local ID for a hand-added thing.</summary>
+    public static string NewLocalId() => LocalIdPrefix + Guid.NewGuid().ToString("N");
 }
