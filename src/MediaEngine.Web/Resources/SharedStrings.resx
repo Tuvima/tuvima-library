@@ -310,6 +310,42 @@
   <data name="UniverseContents_TimelineOrder" xml:space="preserve">
     <value>Timeline order</value>
   </data>
+  <data name="UniverseThing_Back" xml:space="preserve">
+    <value>Back to {0}</value>
+  </data>
+  <data name="UniverseThing_Hidden" xml:space="preserve">
+    <value>Hidden until you reach it</value>
+  </data>
+  <data name="UniverseThing_NoDescription" xml:space="preserve">
+    <value>Nothing is known about this yet.</value>
+  </data>
+  <data name="UniverseThing_AlsoKnownAs" xml:space="preserve">
+    <value>Also known as</value>
+  </data>
+  <data name="UniverseThing_AppearsIn" xml:space="preserve">
+    <value>Appears in</value>
+  </data>
+  <data name="UniverseThing_FromWikidata" xml:space="preserve">
+    <value>From Wikidata</value>
+  </data>
+  <data name="UniverseThing_FromFandom" xml:space="preserve">
+    <value>From Fandom</value>
+  </data>
+  <data name="UniverseThing_Yours" xml:space="preserve">
+    <value>Written by you</value>
+  </data>
+  <data name="UniverseThing_CouldNotBeLoaded" xml:space="preserve">
+    <value>This page could not be loaded. Please try again.</value>
+  </data>
+  <data name="UniverseThing_NotAvailable" xml:space="preserve">
+    <value>This page isn't available</value>
+  </data>
+  <data name="UniverseThing_MayBeHidden" xml:space="preserve">
+    <value>It may have been removed, or it may not be ready to show yet.</value>
+  </data>
+  <data name="UniverseThing_BackToUniverse" xml:space="preserve">
+    <value>Back to the Universe</value>
+  </data>
   <data name="Universe_ModeWeb" xml:space="preserve">
     <value>Web</value>
   </data>
@@ -7731,9 +7767,6 @@
   <data name="PathFinderPanel_MaxHops" xml:space="preserve">
     <value>Max hops</value>
   </data>
-  <data name="UniverseCharacterList_ShowingTheCharactersSeenIn" xml:space="preserve">
-    <value>Showing the {0} characters seen in the most works</value>
-  </data>
   <data name="UniverseConnections_Connections" xml:space="preserve">
     <value>Connections</value>
   </data>
@@ -7744,7 +7777,7 @@
     <value>Still learning about this Universe</value>
   </data>
   <data name="UniverseConnections_NoCharactersCastOrAdaptations" xml:space="preserve">
-    <value>No characters, cast or adaptations recorded for this Universe yet.</value>
+    <value>No cast or adaptations recorded for this Universe yet.</value>
   </data>
   <data name="UniverseConnections_AddFandomDetails" xml:space="preserve">
     <value>Add Fandom details</value>

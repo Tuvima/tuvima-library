@@ -349,7 +349,12 @@ public sealed class ItemFieldEditSession
         field.Label,
         field.Value,
         string.Empty,
-        field.InputKind == EditorSubjectInputKinds.TextArea ? "textarea" : "text",
+        field.InputKind switch
+        {
+            EditorSubjectInputKinds.TextArea => "textarea",
+            EditorSubjectInputKinds.Choice => "choice",
+            _ => "text",
+        },
         field.IsOverridden ? "Override" : "Canonical",
         field.SourceLabel,
         null,
@@ -360,7 +365,10 @@ public sealed class ItemFieldEditSession
         field.Value,
         field.Value,
         false,
-        CanonicalName: canonicalName);
+        CanonicalName: canonicalName,
+        Options: field.InputKind == EditorSubjectInputKinds.Choice
+            ? field.Options.Select(option => new MediaEditorChoiceOption(option.Value, option.Label)).ToList()
+            : null);
 
     // The totals only add to the panel: a failed or missing read leaves the facts the fields give, and never blocks the editor.
     private async Task LoadQuickFactsAsync(Guid id, CancellationToken ct)

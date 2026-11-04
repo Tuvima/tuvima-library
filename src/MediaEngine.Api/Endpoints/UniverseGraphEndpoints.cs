@@ -151,6 +151,30 @@ public static class UniverseGraphEndpoints
         .RequireClientScope(ApplicationPermissionIds.LibraryRead.Value)
         .RequireCatalogueQidAccess(ApplicationPermissionIds.LibraryRead);
 
+        // GET /universe/{qid}/things/{id} — one thing of a Universe on its own page (Universe contents spec 4.2).
+        group.MapGet("/universe/{qid}/things/{id:guid}", async (
+            string qid,
+            Guid id,
+            HttpContext http,
+            IProfileRepository profiles,
+            UniverseClientReadService universes,
+            UniverseContentsReadService contents,
+            CancellationToken ct) =>
+        {
+            var profile = await CollectionClientEndpoints.ResolveActiveProfileAsync(http, profiles, ct);
+            var visibleWorkQids = await universes.LoadVisibleWorkQidsAsync(ct);
+            var thing = await contents.BuildThingAsync(qid, id, visibleWorkQids, profile, ct);
+            return thing is null
+                ? ApiErrors.NotFound(CollectionClientEndpoints.NotFoundDetail)
+                : Results.Ok(thing);
+        })
+        .WithName("GetUniverseThing")
+        .WithSummary("Returns one thing of a Universe (a character, faction, place, event, object, species or concept) with its pictures, where it appears and what it is connected to, limited to what the active profile may see.")
+        .Produces<UniverseThingDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireClientScope(ApplicationPermissionIds.LibraryRead.Value)
+        .RequireCatalogueQidAccess(ApplicationPermissionIds.LibraryRead);
+
         // GET /universe/{qid}/lore-delta — check for Wikidata revision changes.
         group.MapGet("/universe/{qid}/lore-delta", async (
             string qid,

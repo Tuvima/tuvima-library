@@ -31,25 +31,27 @@ else
                     @foreach (var tile in section.Tiles)
                     {
                         <li class="universe-contents__tile @TileClass(section, tile)" @key="tile.Id">
-                            <span class="universe-contents__picture" aria-hidden="true">
-                                @if (PictureFor(section, tile) is { } url)
+                            <a class="universe-contents__link" href="@ThingHref(tile.Id)" data-thing-link>
+                                <span class="universe-contents__picture" aria-hidden="true">
+                                    @if (PictureFor(section, tile) is { } url)
+                                    {
+                                        <img src="@MediaTileArtworkUrl.ForDrawnSize(url, 136)" alt="" loading="lazy" decoding="async" />
+                                    }
+                                    else
+                                    {
+                                        <span class="universe-contents__initial">@Initial(tile.Label)</span>
+                                    }
+                                </span>
+                                <span class="universe-contents__name">@tile.Label</span>
+                                @if (tile.NoPlotDetails)
                                 {
-                                    <img src="@MediaTileArtworkUrl.ForDrawnSize(url, 136)" alt="" loading="lazy" decoding="async" />
+                                    <span class="universe-contents__note">@L["UniverseContents_NoPlotDetails"]</span>
                                 }
-                                else
+                                else if (tile.AddedByUser)
                                 {
-                                    <span class="universe-contents__initial">@Initial(tile.Label)</span>
+                                    <span class="universe-contents__note">@L["UniverseContents_AddedByYou"]</span>
                                 }
-                            </span>
-                            <span class="universe-contents__name">@tile.Label</span>
-                            @if (tile.NoPlotDetails)
-                            {
-                                <span class="universe-contents__note">@L["UniverseContents_NoPlotDetails"]</span>
-                            }
-                            else if (tile.AddedByUser)
-                            {
-                                <span class="universe-contents__note">@L["UniverseContents_AddedByYou"]</span>
-                            }
+                            </a>
                         </li>
                     }
                 </ul>
@@ -82,22 +84,24 @@ else
                     @foreach (var stop in TimelineStops(timeline))
                     {
                         <li class="universe-contents__stop" @key="stop.Id">
-                            <span class="universe-contents__stop-when">@WhenLabel(timeline, stop)</span>
-                            <span class="universe-contents__picture universe-contents__picture--stop" aria-hidden="true">
-                                @if (stop.PictureUrl is { Length: > 0 } stopPicture)
+                            <a class="universe-contents__link" href="@ThingHref(stop.Id)" data-thing-link>
+                                <span class="universe-contents__stop-when">@WhenLabel(timeline, stop)</span>
+                                <span class="universe-contents__picture universe-contents__picture--stop" aria-hidden="true">
+                                    @if (stop.PictureUrl is { Length: > 0 } stopPicture)
+                                    {
+                                        <img src="@MediaTileArtworkUrl.ForDrawnSize(stopPicture, 136)" alt="" loading="lazy" decoding="async" />
+                                    }
+                                    else
+                                    {
+                                        <span class="universe-contents__initial">@Initial(stop.Label)</span>
+                                    }
+                                </span>
+                                <span class="universe-contents__name">@stop.Label</span>
+                                @if (stop.WorkLabel is { Length: > 0 } work)
                                 {
-                                    <img src="@MediaTileArtworkUrl.ForDrawnSize(stopPicture, 136)" alt="" loading="lazy" decoding="async" />
+                                    <span class="universe-contents__note">@work</span>
                                 }
-                                else
-                                {
-                                    <span class="universe-contents__initial">@Initial(stop.Label)</span>
-                                }
-                            </span>
-                            <span class="universe-contents__name">@stop.Label</span>
-                            @if (stop.WorkLabel is { Length: > 0 } work)
-                            {
-                                <span class="universe-contents__note">@work</span>
-                            }
+                            </a>
                         </li>
                     }
                 </ol>
@@ -117,9 +121,15 @@ else
     /// <summary>Whether the person may edit this Universe; only then does the empty line suggest adding things.</summary>
     [Parameter] public bool CanEdit { get; set; }
 
+    /// <summary>The Universe's Wikidata ID; with it every tile opens the thing's own page, without it tiles are plain.</summary>
+    [Parameter] public string? UniverseQid { get; set; }
+
     private string EmptyLine => CanEdit
         ? "Nothing is known about this world yet. Turn on Fandom Lore or add things yourself."
         : "Nothing is known about this world yet.";
+
+    private string? ThingHref(Guid id) =>
+        string.IsNullOrWhiteSpace(UniverseQid) ? null : $"/universe/{Uri.EscapeDataString(UniverseQid)}/things/{id:D}";
 
     private static string SectionId(UniverseContentsSectionDto section) => $"universe-contents-{section.Key}";
 
