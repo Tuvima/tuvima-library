@@ -56,6 +56,18 @@ public sealed class ViewEditorTests
     }
 
     [Fact]
+    public void ASavedDocumentsViewIsEditedByNameAndDescriptionWithItsFiltersLeftAlone()
+    {
+        const string rule = "{\"groups\":[{\"match_mode\":\"all\",\"conditions\":[{\"field\":\"media_type\",\"op\":\"eq\",\"value\":\"document\"}]}]}";
+        var view = new ViewGalleryDto(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), "Bills", null, MediaEngine.Domain.PersonalMedia.ViewGalleryKind.Smart,
+            rule, null, 0, 3, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
+        var plain = view with { Name = "Trip", SmartRuleJson = null, Kind = MediaEngine.Domain.PersonalMedia.ViewGalleryKind.Manual };
+
+        Assert.True(new ViewGalleryEditStage(view, null).IsDocumentView);
+        Assert.False(new ViewGalleryEditStage(plain, null).IsDocumentView);
+    }
+
+    [Fact]
     public void AGroupOfDocumentsNeverOffersTitleArchiveNumberOrNotes()
     {
         var group = new ViewEditStage([Document(), Document()]);

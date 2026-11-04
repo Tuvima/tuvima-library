@@ -18,7 +18,13 @@
         <AppTextarea Label="@L["Common_DescriptionOptional"].Value" Lines="4" Value="@(Gallery.Description ?? string.Empty)" ValueChanged="@(value => Gallery.SetDescription(value))" />
     </div>
 
-    @if (!(Gallery.IsVault && !Gallery.IsNew))
+    @if (Gallery.IsDocumentView)
+    {
+        <div class="tl-editor-field">
+            <small class="tl-editor-field__hint">@L["ViewEdit_DocumentViewHint"]</small>
+        </div>
+    }
+    else if (!(Gallery.IsVault && !Gallery.IsNew))
     {
         <div class="tl-editor-field">
             <span class="tl-editor-field__label">@L["Common_Membership"]</span>

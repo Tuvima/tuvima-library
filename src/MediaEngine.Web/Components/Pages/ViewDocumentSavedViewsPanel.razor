@@ -32,6 +32,10 @@
                             <small class="view-documents-saved__count">@view.ItemCount</small>
                         </AppNativeButton>
                         <AppOverflowMenu AriaLabel="@($"Actions for {view.Name}")" Class="view-documents-saved__menu" AnchorOrigin="AppOrigin.BottomRight" TransformOrigin="AppOrigin.TopRight">
+                            @if (OnEdit.HasDelegate)
+                            {
+                                <AppMenuItem Label="@L["Common_Edit"].Value" Icon="@AppMaterialIcons.Outlined.Tune" OnClick="@(() => OnEdit.InvokeAsync(view))" />
+                            }
                             <AppMenuItem Label="@L["Common_Rename"].Value" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="@(() => BeginRename(view))" />
                             <AppMenuItem Label="@L["Common_Delete"].Value" Icon="@AppMaterialIcons.Outlined.DeleteOutline" Tone="AppUiTone.Error" OnClick="@(() => OnDelete.InvokeAsync(view))" />
                         </AppOverflowMenu>
@@ -73,6 +77,9 @@
     [Parameter] public EventCallback<string> OnSave { get; set; }
     [Parameter] public EventCallback<(Guid Id, string Name)> OnRename { get; set; }
     [Parameter] public EventCallback<ViewGalleryDto> OnDelete { get; set; }
+
+    /// <summary>Opens the saved view in the one editor window (name and description). Left unset off a computer.</summary>
+    [Parameter] public EventCallback<ViewGalleryDto> OnEdit { get; set; }
 
     private Guid? _renamingId;
     private bool _saving;

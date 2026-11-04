@@ -63,6 +63,9 @@ public sealed class ViewGalleryEditStage
 
     public bool IsNew => Original is null && VaultOriginal is null;
 
+    /// <summary>A saved Documents view: a Smart gallery whose rule is the filters set on the Documents page. It is renamed and described here; its filters change on that page.</summary>
+    public bool IsDocumentView => Original is { Kind: ViewGalleryKind.Smart } && ViewSmartGalleryRules.IsDocumentView(Original.SmartRuleJson);
+
     public Guid? Id => Original?.Id ?? VaultOriginal?.Id;
 
     public string OriginalName => Original?.Name ?? VaultOriginal?.Name ?? string.Empty;

@@ -67,7 +67,7 @@
                 {
                     <aside class="view-documents-rail"><ViewDocumentFilterRail Catalogue="_catalogue" State="_filter" InboxCount="_inboxCount" ShowInbox="HasInbox" OnChanged="FilterChangedAsync"
                                                                   ShowSavedViews="CanUseSavedViews" SavedViews="SavedViews" CanSaveView="CanSaveView" SavedViewsBusy="_savedViewsBusy"
-                                                                  OnApplyView="ApplySavedViewAsync" OnSaveView="SaveViewAsync" OnRenameView="RenameViewAsync" OnDeleteView="DeleteViewAsync"
+                                                                  OnApplyView="ApplySavedViewAsync" OnSaveView="SaveViewAsync" OnRenameView="RenameViewAsync" OnDeleteView="DeleteViewAsync" OnEditView="@EditViewCallback"
                                                                   OnSortChanged="SortChangedAsync" OnExport="@ExportCallback" Exporting="_exporting" ShowTrash="CanSelect" /></aside>
                 }
                 <div class="view-documents-results">
@@ -256,7 +256,7 @@
             @LayoutPicker
             <ViewDocumentFilterRail Catalogue="_catalogue" State="_filter" InboxCount="_inboxCount" ShowInbox="HasInbox" OnChanged="FilterChangedAsync"
                                     ShowSavedViews="CanUseSavedViews" SavedViews="SavedViews" CanSaveView="CanSaveView" SavedViewsBusy="_savedViewsBusy"
-                                    OnApplyView="ApplySavedViewAsync" OnSaveView="SaveViewAsync" OnRenameView="RenameViewAsync" OnDeleteView="DeleteViewAsync"
+                                    OnApplyView="ApplySavedViewAsync" OnSaveView="SaveViewAsync" OnRenameView="RenameViewAsync" OnDeleteView="DeleteViewAsync" OnEditView="@EditViewCallback"
                                     OnSortChanged="SortChangedAsync" OnExport="@ExportCallback" Exporting="_exporting" ShowTrash="CanSelect" />
             <AppButton Label="@L["Common_Done"].Value" ButtonStyle="AppButtonStyle.Filled" FullWidth="true" OnClick="@(() => _sheetOpen = false)" />
         </div>
@@ -479,6 +479,15 @@
         {
             _savedViewsBusy = false;
         }
+    }
+
+    // Edit opens a saved view in the one editor window on a computer; its name and description change there, its filters on this page.
+    private EventCallback<ViewGalleryDto> EditViewCallback => EditorHost.CanEdit ? EventCallback.Factory.Create<ViewGalleryDto>(this, EditViewAsync) : default;
+    private async Task EditViewAsync(ViewGalleryDto view)
+    {
+        if (!await EditorHost.OpenGalleryAsync(view)) return;
+        var closed = await EditorHost.WhenClosedAsync();
+        if (closed.Changed) await Workspace.LoadGalleriesAsync(force: true);
     }
 
     private async Task RenameViewAsync((Guid Id, string Name) change)

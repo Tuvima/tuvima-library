@@ -10713,6 +10713,9 @@
   <data name="ViewEdit_TabHistory" xml:space="preserve">
     <value>History</value>
   </data>
+  <data name="ViewEdit_DocumentViewHint" xml:space="preserve">
+    <value>This view keeps the filters you saved on the Documents page. To change them, set the filters there and save the view again.</value>
+  </data>
   <data name="ViewEdit_Revert" xml:space="preserve">
     <value>Put back what it was</value>
   </data>
