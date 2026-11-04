@@ -46,6 +46,7 @@ public sealed class DisplayCardBuilder
             Badges = BuildBadges(mediaKind, row.Quality, StringHelpers.FirstNonBlank(row.Network, row.Source)),
             SortYear = ParseSortYear(row.Year),
             IsSettling = row.IsUpdatingDetails,
+            UniverseQid = row.UniverseQid,
             ListMetadata = new DisplayCardListMetadataDto(
                 row.Author,
                 row.Artist,
@@ -384,6 +385,7 @@ public sealed class DisplayCardBuilder
             },
             SortYear = premiereYear,
             IsSettling = summary.IsSettling,
+            UniverseQid = works.Select(work => work.UniverseQid).FirstOrDefault(qid => !string.IsNullOrWhiteSpace(qid)),
         };
     }
 

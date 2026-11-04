@@ -271,6 +271,25 @@ public sealed class DisplayCardBuilderSeriesPreviewTests
     }
 
     [Fact]
+    public void FromWork_CarriesTheUniverseSoTheTileMenuCanOfferOpenUniverse()
+    {
+        var row = new DisplayWorkRow
+        {
+            WorkId = Guid.NewGuid(),
+            AssetId = Guid.NewGuid(),
+            RootWorkId = Guid.NewGuid(),
+            MediaType = "Movies",
+            Title = "John Wick",
+            UniverseQid = "Q1234",
+            CreatedAt = DateTimeOffset.Parse("2026-07-14T12:00:00Z"),
+        };
+
+        Assert.Equal("Q1234", new DisplayCardBuilder().FromWork(row, "watch", progress: null).UniverseQid);
+        row.UniverseQid = null;
+        Assert.Null(new DisplayCardBuilder().FromWork(row, "watch", progress: null).UniverseQid);
+    }
+
+    [Fact]
     public void FromWork_MusicUsesDirectSongPlaybackRoute()
     {
         var row = new DisplayWorkRow

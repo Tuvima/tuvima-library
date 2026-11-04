@@ -98,6 +98,8 @@ public sealed class MediaTileViewModel
 {
     /// <summary>True while the item is still being matched or enriched; shows the quiet caption marker.</summary>
     public bool IsSettling { get; init; }
+    /// <summary>The Universe this title belongs to when its page can open (Universe entry points spec); drives "Open Universe" in the tile "..." menu. Null draws no row.</summary>
+    public string? UniverseQid { get; init; }
     /// <summary>True for an episode TheTVDB has no picture for: the tile draws a marked stand-in (the show's backdrop, dimmed, with the episode number) instead of artwork.</summary>
     public bool IsStandInPicture { get; init; }
     /// <summary>The episode number drawn over a stand-in, such as "E5" or the special's label.</summary>
