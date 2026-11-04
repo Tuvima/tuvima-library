@@ -1020,9 +1020,6 @@
   <data name="BulkEditPanel_TickSomeRowsToEdit" xml:space="preserve">
     <value>Tick some rows to edit them together.</value>
   </data>
-  <data name="BulkEditPanel_StageMatching" xml:space="preserve">
-    <value>Stage matching</value>
-  </data>
   <data name="Common_YouCanLookAtThese" xml:space="preserve">
     <value>You can look at these details but not change them.</value>
   </data>
@@ -10365,8 +10362,14 @@
   <data name="EditorContents_ChooseWhatToChange" xml:space="preserve">
     <value>Choose what to change</value>
   </data>
+  <data name="EditorLineUp_ApplyTo" xml:space="preserve">
+    <value>Apply to</value>
+  </data>
+  <data name="EditorLineUp_ReadOnly" xml:space="preserve">
+    <value>You can look at these matches, but you can't change them.</value>
+  </data>
   <data name="EditorContents_MatchN" xml:space="preserve">
-    <value>Match {0} {1}</value>
+    <value>Match these {0} {1}</value>
   </data>
   <data name="EditorContents_Loading" xml:space="preserve">
     <value>Loading the contents</value>

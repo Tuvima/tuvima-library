@@ -61,7 +61,7 @@
                                    OnClick="BackToContentsAsync" />
                     }
 
-                    <BulkEditPanel Selection="Editor.Batch" Pending="flow.Session.Pending" CanEdit="@mode.CanEdit" />
+                    <BulkEditPanel Selection="Editor.Batch" Pending="flow.Session.Pending" CanEdit="@mode.CanEdit" MatchParentName="@MatchParentName(mode)" />
                 }
                 else if (!mode.Fields.Loaded && !mode.Fields.Loading && !string.IsNullOrWhiteSpace(mode.Fields.LoadError))
                 {
@@ -89,6 +89,18 @@
                                       Universe="@binding?.UniverseLink?.Invoke()"
                                       OnOpenUniverse="OpenUniverseAsync"
                                       OnMatched="@(() => Editor.NotifyCommittedAsync())" />
+                    @if (LineUpSubject(mode) is { } lineUp)
+                    {
+                        @* A season, show or album with files: line them all up with the provider's episodes or tracks in one table (v4 D5, WP8). *@
+                        <EditorLineUpPanel Entry="true"
+                                           ParentId="@lineUp.EntityId"
+                                           MediaType="@lineUp.MediaType"
+                                           ParentScope="@lineUp.ScopeId"
+                                           ParentName="@LineUpName(lineUp)"
+                                           Pending="flow.Session.Pending"
+                                           CanEdit="@mode.CanEdit" />
+                    }
+
                     <EditorVideoSeriesPanel Subject="@(mode.Fields.Loading ? null : mode.Fields.MatchSubject())"
                                             Session="flow.Session"
                                             Family="Editor.Family"
@@ -153,6 +165,28 @@
 
     private bool IsActiveUnmatched => Editor.Session.ActiveItem is { } active
         && (Editor.Family.IsMatched(active.EntityId) is { } matched ? !matched : Editor.Binding?.IsUnmatched == true);
+
+    // The container whose files can be lined up in one table: a season or show of TV, or an album, that has children in the family.
+    private EditorMatchSubject? LineUpSubject(EditingModeContext mode)
+    {
+        if (mode.Fields.Loading || mode.Fields.MatchSubject() is not { } subject || !Editor.Family.IsParentOf(subject.EntityId))
+        {
+            return null;
+        }
+
+        var tv = string.Equals(subject.MediaType, "TV", StringComparison.OrdinalIgnoreCase) && subject.ScopeId is "season" or "series";
+        var album = string.Equals(subject.MediaType, "Music", StringComparison.OrdinalIgnoreCase) && subject.ScopeId == "album";
+        return tv || album ? subject : null;
+    }
+
+    // The search in step 1 starts from the show (a season's parent, or the show itself) or the album.
+    private static string? LineUpName(EditorMatchSubject subject) => subject.ScopeId == "season" ? subject.ParentLabel : subject.Title;
+
+    private string? MatchParentName(EditingModeContext mode)
+    {
+        var subject = mode.Fields.Loading ? null : mode.Fields.MatchSubject();
+        return subject is null ? null : LineUpName(subject);
+    }
 
     private string DialogLabel => Editor.Batch.Panel == BulkPanelKind.None
         ? $"Editing {Editor.Session.ActiveItem?.Title ?? "item"}"
