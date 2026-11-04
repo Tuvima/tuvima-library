@@ -10323,4 +10323,58 @@
   <data name="EditorVideoSeries_NotInASeriesTip" xml:space="preserve">
     <value>This video is not in a series yet, so Library shows it on its own.</value>
   </data>
+  <data name="EditorRail_Label" xml:space="preserve">
+    <value>Where this item sits</value>
+  </data>
+  <data name="EditorRail_EarlierLevels" xml:space="preserve">
+    <value>Earlier levels</value>
+  </data>
+  <data name="EditorRail_ChangesWaiting" xml:space="preserve">
+    <value>Changes waiting</value>
+  </data>
+  <data name="EditorRail_NotMatched" xml:space="preserve">
+    <value>Not matched</value>
+  </data>
+  <data name="EditorRail_OneChange" xml:space="preserve">
+    <value>1 change</value>
+  </data>
+  <data name="EditorRail_ManyChanges" xml:space="preserve">
+    <value>{0} changes</value>
+  </data>
+  <data name="EditorRail_NothingHere" xml:space="preserve">
+    <value>Nothing to choose here.</value>
+  </data>
+  <data name="EditorRail_NothingMatches" xml:space="preserve">
+    <value>Nothing matches that.</value>
+  </data>
+  <data name="EditorRail_ShowMore" xml:space="preserve">
+    <value>Show more ({0} left)</value>
+  </data>
+  <data name="EditorHeader_OpenAt" xml:space="preserve">
+    <value>Open at {0}</value>
+  </data>
+  <data name="EditorHeader_Close" xml:space="preserve">
+    <value>Close the editor</value>
+  </data>
+  <data name="EditorFooter_Discard" xml:space="preserve">
+    <value>Discard</value>
+  </data>
+  <data name="EditorFooter_SavesToLibrary" xml:space="preserve">
+    <value>Changes save to Library</value>
+  </data>
+  <data name="EditorFooter_WriteBack" xml:space="preserve">
+    <value>File write-back {0}</value>
+  </data>
+  <data name="EditorTab_ContentsTitle" xml:space="preserve">
+    <value>Contents</value>
+  </data>
+  <data name="EditorTab_ContentsSoon" xml:space="preserve">
+    <value>The seasons, episodes or tracks of this item will be listed here. Use the rail above to move between them for now.</value>
+  </data>
+  <data name="EditorTab_FilesTitle" xml:space="preserve">
+    <value>Files</value>
+  </data>
+  <data name="EditorTab_FilesSoon" xml:space="preserve">
+    <value>The files of this item will be listed here.</value>
+  </data>
 </root>

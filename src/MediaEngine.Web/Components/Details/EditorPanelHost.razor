@@ -5,28 +5,55 @@
 @inject IAppDialogService Dialogs
 @inject IStringLocalizer<SharedStrings> L
 
-@* The universal editor's window (v3 spec D1, D2): the content of the pop-over the layout shows in a modal dialog, with one header (title,
-   the item's trail and close), the family tree on the left (where the item has a family) and the tools as tabs across the top of the right side (Details, Artwork, Match, only where the item has them), one scroll area for the
-   tool, and a footer whose Cancel and Save are always in the same place. Closing it with the X, Esc or Cancel asks "Unsaved changes" when
-   something is staged. The native dialog around it makes the page inert and traps focus; what the tool shows is chosen by the pop-over;
-   Artwork is drawn here from the editor's picker session. *@
+@* The universal editor's window (v4 spec D2, D3, D16): the content of the pop-over the layout shows in a modal dialog. Top to bottom: the rail of
+   dropdowns (only where the item has a family), the item's header, the tab bar (Details, Contents, Artwork, Match & Identity, Files, History,
+   only where the item has them), one scroll area for the tool, and a footer that says where changes save, how many are waiting, and holds
+   Discard and Save changes in the same place. The window keeps one size whatever the tab; only the tab's content scrolls. While several
+   ticked items are edited together, or Review changes is open, the plain title bar replaces the rail and header. Closing it with the X, Esc
+   or Discard asks "Unsaved changes" when something is staged. The native dialog around it makes the page inert and traps focus; what the
+   tool shows is chosen by the pop-over; Artwork is drawn here from the editor's picker session. *@
 @if (Mode is { IsOn: true, CanEdit: true } mode && Flow?.Session is { IsActive: true, ActiveTool: { } tool } session)
 {
     var count = session.Pending.ChangeCount;
     var flow = Flow;
-    <div class="tl-editor-panel tl-editor-window"
-         data-tool="@tool.ToString().ToLowerInvariant()">
-        <header class="tl-editor-panel__header">
-            <h2 id="tl-editor-panel-title" class="tl-editor-panel__title" tabindex="-1">@(_reviewing ? "Review changes" : TitleOverride ?? TitleFor(tool))</h2>
-            @HeaderContent
+    var railTools = RailTools(mode, ShowHistory, ShowContents, ShowFiles).ToList();
+    // A tool the item switched to does not have (Contents on an episode) falls back to Details instead of drawing nothing.
+    var shown = railTools.Any(entry => entry.Item1 == tool) ? tool : EditTool.Details;
+    var framed = ItemHeader is not null && TitleOverride is null && !_reviewing;
+    <div class="@(framed ? (RailVisible ? "tl-editor-panel tl-editor-window tl-editor-window--framed tl-editor-window--rail" : "tl-editor-panel tl-editor-window tl-editor-window--framed") : "tl-editor-panel tl-editor-window")"
+         data-tool="@shown.ToString().ToLowerInvariant()">
+        @if (framed)
+        {
+            @if (RailVisible)
+            {
+                <div class="tl-editor-window__top">
+                    @RailContent
+                </div>
+            }
+
+            @ItemHeader
             <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
                            Size="AppControlSize.Large"
                            Tone="AppUiTone.Neutral"
-                           Class="tl-editor-panel__close"
-                           Tooltip="@($"Close {TitleOverride ?? TitleFor(tool)}")"
-                           AriaLabel="@($"Close {TitleOverride ?? TitleFor(tool)}")"
+                           Class="tl-editor-panel__close tl-editor-window__close"
+                           Tooltip="@L["EditorHeader_Close"].Value"
+                           AriaLabel="@L["EditorHeader_Close"].Value"
                            OnClick="@(() => flow.LeaveAsync())" />
-        </header>
+        }
+        else
+        {
+            <header class="tl-editor-panel__header">
+                <h2 id="tl-editor-panel-title" class="tl-editor-panel__title" tabindex="-1">@(_reviewing ? "Review changes" : TitleOverride ?? TitleFor(shown))</h2>
+                @HeaderContent
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
+                               Size="AppControlSize.Large"
+                               Tone="AppUiTone.Neutral"
+                               Class="tl-editor-panel__close"
+                               Tooltip="@($"Close {TitleOverride ?? TitleFor(shown)}")"
+                               AriaLabel="@($"Close {TitleOverride ?? TitleFor(shown)}")"
+                               OnClick="@(() => flow.LeaveAsync())" />
+            </header>
+        }
         @if (!_reviewing && (flow.Failures.Count > 0 || !string.IsNullOrWhiteSpace(flow.Message)))
         {
             @* A save that left changes behind, or an item that could not be opened: the reason stays above the tools until it is dealt with. *@
@@ -46,10 +73,6 @@
             </div>
         }
         <div class="tl-editor-window__main">
-            @if (TitleOverride is null && !_reviewing)
-            {
-                @TreeContent
-            }
             <div class="tl-editor-window__content">
                 @{
                     RenderFragment body = @<div class="tl-editor-panel__body">
@@ -57,32 +80,31 @@
                             {
                                 <ReviewChangesView Source="flow" OnOutcome="OnReviewOutcome" />
                             }
-                            else if (tool == EditTool.Artwork && Picker is not null)
+                            else if (shown == EditTool.Artwork && Picker is not null)
                             {
                                 <EditorArtworkTool Mode="Mode" Picker="Picker" />
                             }
                             else
                             {
-                                @ChildContent?.Invoke(tool)
+                                @ChildContent?.Invoke(shown)
                             }
                         </div>;
                 }
                 @if (TitleOverride is null && !_reviewing)
                 {
                     @* The shared tab strip (the same underline, spacing and arrow keys as the profile and browse pages). The open tool's panel holds the body. *@
-                    var railTools = RailTools(mode, ShowHistory).ToList();
-                    var activeIndex = Math.Max(0, railTools.FindIndex(entry => entry.Item1 == tool));
+                    var activeIndex = Math.Max(0, railTools.FindIndex(entry => entry.Item1 == shown));
                     <AppTabs Class="tl-editor-window__tabs"
                              Label="@L["Common_EditingTools"].Value"
                              Rounded="false"
                              Border="false"
                              Elevation="0"
                              ActivePanelIndex="@activeIndex"
-                             ActivePanelIndexChanged="@(index => index >= 0 && index < railTools.Count && railTools[index].Item1 != tool ? flow.SelectToolAsync(railTools[index].Item1) : Task.CompletedTask)">
+                             ActivePanelIndexChanged="@(index => index >= 0 && index < railTools.Count && railTools[index].Item1 != shown ? flow.SelectToolAsync(railTools[index].Item1) : Task.CompletedTask)">
                         @foreach (var (railTool, label, icon) in railTools)
                         {
                             <AppTabPanel Text="@label" Icon="@icon" Disabled="@(flow.Saving || flow.Switching)">
-                                @if (railTool == tool)
+                                @if (railTool == shown)
                                 {
                                     @body
                                 }
@@ -99,6 +121,11 @@
         @if (!_reviewing)
         {
         <footer class="tl-editor-window__footer">
+            @if (framed)
+            {
+                <EditorWhereLine Source="flow" />
+            }
+
             <span class="tl-editor-window__changes" role="status">@(count == 0 ? "No changes yet" : $"{count} {(count == 1 ? "change" : "changes")} waiting")</span>
             <div class="tl-editor-window__actions">
                 <AppButton ButtonStyle="AppButtonStyle.Outlined"
@@ -107,7 +134,7 @@
                            Class="tl-editor-window__cancel"
                            Disabled="@flow.Saving"
                            OnClick="@(() => flow.LeaveAsync())">
-                    @L["Search_Cancel"]
+                    @(framed ? L["EditorFooter_Discard"] : L["Search_Cancel"])
                 </AppButton>
                 <AppButton ButtonStyle="AppButtonStyle.Filled"
                            Tone="AppUiTone.Primary"
@@ -142,8 +169,20 @@
     /// <summary>Extra content in the header, between the title and the close button.</summary>
     [Parameter] public RenderFragment? HeaderContent { get; set; }
 
-    /// <summary>The left column (the family tree), drawn before the tools and the tool's content so the Tab order is header, tree, tools, content, footer.</summary>
-    [Parameter] public RenderFragment? TreeContent { get; set; }
+    /// <summary>The rail of dropdowns across the top (the item's family), drawn first so the Tab order is rail, header, tools, content, footer.</summary>
+    [Parameter] public RenderFragment? RailContent { get; set; }
+
+    /// <summary>True when the rail has something to show (the item has a family); the rail row is then drawn above the header.</summary>
+    [Parameter] public bool RailVisible { get; set; }
+
+    /// <summary>The item's header (picture, kind, title, facts, provider links). When set, it replaces the plain title bar for a single item.</summary>
+    [Parameter] public RenderFragment? ItemHeader { get; set; }
+
+    /// <summary>The item has children to list (a show, season, album or series), so the Contents tab is offered.</summary>
+    [Parameter] public bool ShowContents { get; set; }
+
+    /// <summary>The item has files to list, so the Files tab is offered.</summary>
+    [Parameter] public bool ShowFiles { get; set; }
 
     /// <summary>The editor's artwork picker session; when set, the Artwork tool is drawn inside the window instead of by the page.</summary>
     [Parameter] public ArtworkPickerSession? Picker { get; set; }
@@ -151,9 +190,14 @@
     /// <summary>True on pages whose items keep a change history (not the Universe pages): the rail then offers the History tool.</summary>
     [Parameter] public bool ShowHistory { get; set; }
 
-    private static IReadOnlyList<(EditTool Tool, string Label, string Icon)> RailTools(EditingModeContext mode, bool showHistory)
+    private static IReadOnlyList<(EditTool Tool, string Label, string Icon)> RailTools(EditingModeContext mode, bool showHistory, bool showContents, bool showFiles)
     {
         var tools = new List<(EditTool, string, string)> { (EditTool.Details, "Details", AppMaterialIcons.Outlined.Description) };
+        if (showContents)
+        {
+            tools.Add((EditTool.Contents, "Contents", AppMaterialIcons.Outlined.List));
+        }
+
         if (mode.Fields.CanEditArtwork)
         {
             tools.Add((EditTool.Artwork, "Artwork", AppMaterialIcons.Outlined.PhotoLibrary));
@@ -161,7 +205,12 @@
 
         if (mode.Fields.CanMatch)
         {
-            tools.Add((EditTool.Match, "Match", AppMaterialIcons.Outlined.TravelExplore));
+            tools.Add((EditTool.Match, "Match & Identity", AppMaterialIcons.Outlined.TravelExplore));
+        }
+
+        if (showFiles)
+        {
+            tools.Add((EditTool.Files, "Files", AppMaterialIcons.Outlined.Folder));
         }
 
         if (showHistory)
@@ -191,6 +240,8 @@
         EditTool.Artwork => "Artwork",
         EditTool.Match => "Match",
         EditTool.History => "History",
+        EditTool.Files => "Files",
+        EditTool.Contents => "Contents",
         _ => "Details",
     };
 

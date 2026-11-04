@@ -1,0 +1,38 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient ApiClient
+@inject ILogger<EditorWhereLine> Logger
+@inject IStringLocalizer<SharedStrings> L
+
+@* The footer's first words (universal editor v4 D3, section 1a): where changes go and whether the files are updated too, for example
+   "Changes save to Library - File write-back off". The setting is only read here (it is changed in Settings); when it cannot be read the
+   second part is left out, so the footer never claims something it does not know. *@
+<div class="tl-editor-window__where">
+    <strong>@L["EditorFooter_SavesToLibrary"]</strong>
+    @if (_setting.Text is { } state)
+    {
+        <small data-write-back="@(_setting.IsOn ? "on" : "off")">@string.Format(L["EditorFooter_WriteBack"].Value, state.ToLowerInvariant())</small>
+    }
+</div>
+
+@code {
+    private FileWriteSetting _setting = FileWriteSetting.Unknown;
+    private string _read = string.Empty;
+
+    /// <summary>The pending list's holder: its media types say which library applies.</summary>
+    [Parameter, EditorRequired] public IReviewSource Source { get; set; } = default!;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var types = Source.FileWriteMediaTypes;
+        var key = string.Join('|', types);
+        if (key == _read)
+        {
+            return;
+        }
+
+        _read = key;
+        _setting = await FileWriteSettingReader.ReadAsync(ApiClient, Logger, types);
+    }
+}

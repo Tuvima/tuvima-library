@@ -1,0 +1,249 @@
+/* The rail of dropdowns across the top of the editor (universal editor v4 D2). The window (.tl-editor-window) is the size container: below 1280px
+   wide only the last two levels stay and the earlier ones fold into the "..." menu. */
+.tl-rail {
+    position: relative;
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: var(--tl-space-2);
+    min-width: 0;
+}
+
+.tl-rail__level {
+    position: relative;
+    flex: 0 1 15rem;
+    min-width: 0;
+}
+
+.tl-rail__fold {
+    position: relative;
+    flex: 0 0 auto;
+    display: none;
+}
+
+.tl-rail__sep {
+    flex: 0 0 auto;
+    color: var(--tl-text-muted);
+}
+
+.tl-rail__sep--fold {
+    display: none;
+}
+
+.tl-rail__skeleton {
+    display: block;
+    flex: 0 1 13rem;
+}
+
+.tl-rail__crumb {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-2);
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    height: 2.75rem;
+    padding: 0 var(--tl-space-3) 0 var(--tl-space-1);
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-md);
+    background: var(--tl-bg-surface-raised, var(--tl-bg-surface));
+    color: var(--tl-text-primary);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.tl-rail__crumb:hover {
+    background: var(--tl-bg-surface-hover);
+}
+
+.tl-rail__crumb:focus-visible,
+.tl-rail__option:focus-visible {
+    outline: var(--tl-focus-ring-width) solid var(--tl-focus-ring);
+    outline-offset: var(--tl-focus-ring-offset);
+}
+
+.tl-rail__crumb.is-current {
+    border-color: var(--tl-accent-primary, #8852FC);
+    background: color-mix(in srgb, var(--tl-accent-primary, #8852FC) 14%, var(--tl-bg-surface));
+}
+
+.tl-rail__crumb.is-placeholder .tl-rail__text > span {
+    color: var(--tl-text-muted);
+    font-weight: normal;
+}
+
+.tl-rail__crumb--fold {
+    width: auto;
+    padding: 0 var(--tl-space-2);
+}
+
+.tl-rail__thumb {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    width: 2rem;
+    height: 2rem;
+    border-radius: var(--tl-radius-xs);
+    background: var(--tl-bg-surface-hover);
+}
+
+.tl-rail__thumb[data-kind="Episode"] {
+    width: 3.25rem;
+    height: 1.875rem;
+}
+
+.tl-rail__thumb--option {
+    width: 2rem;
+    height: 2.5rem;
+}
+
+.tl-rail__thumb--option[data-kind="Episode"] {
+    width: 3.25rem;
+    height: 1.875rem;
+}
+
+.tl-rail__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.tl-rail__text {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+    line-height: 1.2;
+}
+
+.tl-rail__text > small {
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-xs, 0.75rem);
+}
+
+.tl-rail__text > span {
+    overflow: hidden;
+    font-size: var(--tl-font-size-sm);
+    font-weight: var(--tl-font-weight-semibold);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tl-rail__dot {
+    flex: 0 0 auto;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: var(--tl-radius-round);
+    background: var(--tl-accent-primary, #8852FC);
+}
+
+.tl-rail__scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 4;
+}
+
+.tl-rail__panel {
+    position: absolute;
+    top: calc(100% + var(--tl-space-1));
+    left: 0;
+    z-index: 5;
+    box-sizing: border-box;
+    width: 21rem;
+    max-width: calc(100vw - 2rem);
+    padding: var(--tl-space-2);
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-md);
+    background: var(--tl-bg-surface-raised, var(--tl-bg-surface));
+    box-shadow: var(--tl-shadow-lg);
+}
+
+.tl-rail__search {
+    margin-bottom: var(--tl-space-2);
+}
+
+.tl-rail__options {
+    max-height: min(22rem, 45vh);
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    list-style: none;
+}
+
+.tl-rail__option {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-2);
+    box-sizing: border-box;
+    width: 100%;
+    padding: var(--tl-space-1) var(--tl-space-2);
+    border: 0;
+    border-radius: var(--tl-radius-sm);
+    background: transparent;
+    color: var(--tl-text-secondary);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.tl-rail__option:hover {
+    background: var(--tl-bg-surface-hover);
+}
+
+.tl-rail__option.is-selected {
+    background: color-mix(in srgb, var(--tl-accent-primary, #8852FC) 16%, transparent);
+    color: var(--tl-text-primary);
+}
+
+.tl-rail__option .tl-rail__text > span {
+    font-weight: normal;
+}
+
+.tl-rail__option.is-selected .tl-rail__text > span {
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.tl-rail__waiting {
+    flex: 0 0 auto;
+    color: var(--tl-accent-primary, #8852FC);
+    font-size: var(--tl-font-size-xs, 0.75rem);
+}
+
+.tl-rail__mark {
+    flex: 0 0 auto;
+    min-width: 1rem;
+    font-size: var(--tl-font-size-sm);
+    text-align: center;
+}
+
+.tl-rail__mark--ok {
+    color: var(--tl-status-success);
+}
+
+.tl-rail__mark--warn {
+    color: var(--tl-status-warning);
+}
+
+.tl-rail__note,
+.tl-rail__more {
+    padding: var(--tl-space-1) var(--tl-space-2);
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-xs, 0.75rem);
+}
+
+@container tl-editor (max-width: 1279px) {
+    .tl-rail__fold,
+    .tl-rail__sep--fold {
+        display: block;
+    }
+
+    .tl-rail__level--early,
+    .tl-rail__sep--early {
+        display: none;
+    }
+}

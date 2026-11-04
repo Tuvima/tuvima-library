@@ -439,7 +439,7 @@ public sealed class EditingDismissalTests : AsyncBunitContext
     public async Task ThePencilsTheOldBannerAndTheSectionBelowTheHeroStayGoneWhileThePopOverIsOpen()
     {
         var cut = await StartEditingAsync();
-        _editor.FindAll(".tl-editor-window__tabs [role='tab']").Single(tool => tool.TextContent.Trim() == "Match").Click();
+        _editor.FindAll(".tl-editor-window__tabs [role='tab']").Single(tool => tool.TextContent.Trim() == "Match & Identity").Click();
         _editor.WaitForAssertion(() => Assert.Single(_editor.FindAll(".tl-editor-panel")));
 
         Assert.Empty(cut.FindAll(".tl-editing-pencil"));
