@@ -148,6 +148,113 @@ public sealed class LibraryBatchEditServiceTests : IDisposable
         Assert.All(director.LockedItems, item => Assert.Contains("catalogue", item.Reason, StringComparison.Ordinal));
     }
 
+    // ── Several songs: album artist, disc, Explicit (universal editor v4, spec 3c) ──────────────────
+
+    [Fact]
+    public async Task Preview_OffersAlbumArtistDiscAndExplicitForSongs_ButNeverTheTitleOrTrackNumber()
+    {
+        var album = SeedAlbum(songCount: 3);
+
+        var preview = await CreateService().PreviewAsync(album.SongIds, [], NoRefusals);
+
+        var keys = preview.Fields.Select(field => field.Key).ToList();
+        Assert.Contains("album_artist", keys);
+        Assert.Contains("disc_number", keys);
+        Assert.Contains("explicit", keys);
+        Assert.Contains("genre", keys);
+        Assert.Contains("year", keys);
+        Assert.DoesNotContain("title", keys);
+        Assert.DoesNotContain("track_number", keys);
+        Assert.All(
+            preview.Fields.Where(field => field.Key is "album_artist" or "disc_number" or "explicit"),
+            field => Assert.True(field.Editable));
+        Assert.Equal(["set"], preview.Fields.Single(field => field.Key == "explicit").Operations);
+    }
+
+    [Fact]
+    public async Task Apply_AlbumArtistAndDisc_ChangesAll12SongsAndLeavesTheProvidersValuesAlone()
+    {
+        var album = SeedAlbum(songCount: 12);
+        SeedCanonical(album.Songs[0].AssetId, "album_artist", "Provider Artist");
+
+        var result = await CreateService().ApplyAsync(
+            album.SongIds,
+            [ListChange("album_artist", "replace", "Various Artists"), ScalarChange("disc_number", "set", "2")],
+            NoRefusals);
+
+        Assert.Equal(12, result.UpdatedCount);
+        Assert.Equal(0, result.SentToReviewCount);
+        foreach (var song in album.Songs)
+        {
+            var overrides = await OverridesOfAsync(song.WorkId);
+            Assert.Equal("Various Artists", overrides["album_artist"]);
+            Assert.Equal("2", overrides["disc_number"]);
+        }
+
+        using var conn = _db.CreateConnection();
+        Assert.Equal("Provider Artist", conn.ExecuteScalar<string>(
+            "SELECT value FROM canonical_values WHERE entity_id = @id AND key = 'album_artist';",
+            new { id = GuidSql.ToBlob(album.Songs[0].AssetId) }));
+    }
+
+    [Fact]
+    public async Task Apply_AddingAnAuthorToBooks_KeepsEachBooksOwnAuthorsAndUsesSemicolons()
+    {
+        var books = SeedBooks(2);
+        SeedCanonical(books[0].AssetId, "author", "First Author");
+
+        var result = await CreateService().ApplyAsync(
+            books.Select(book => book.WorkId).ToList(), [ListChange("author", "add", "Co Author")], NoRefusals);
+
+        Assert.Equal(2, result.UpdatedCount);
+        Assert.Equal("First Author; Co Author", (await OverridesOfAsync(books[0].WorkId))["author"]);
+        Assert.Equal("Co Author", (await OverridesOfAsync(books[1].WorkId))["author"]);
+    }
+
+    [Fact]
+    public async Task Apply_SeriesOnBooks_SetsALocalSeriesNameOnEach()
+    {
+        var books = SeedBooks(3);
+
+        var result = await CreateService().ApplyAsync(
+            books.Select(book => book.WorkId).ToList(), [ScalarChange("series", "set", "Dune")], NoRefusals);
+
+        Assert.Equal(3, result.UpdatedCount);
+        Assert.All(books, book => Assert.Equal("Dune", OverridesOfSync(book.WorkId)["series"]));
+    }
+
+    [Fact]
+    public async Task Apply_ExplicitOnSongs_WritesTheUserLockedMarkOnEverySong_AndASecondApplyChangesNothing()
+    {
+        var album = SeedAlbum(songCount: 4);
+        var change = ScalarChange("explicit", "set", "true");
+
+        var first = await CreateService().ApplyAsync(album.SongIds, [change], NoRefusals);
+        var second = await CreateService().ApplyAsync(album.SongIds, [change], NoRefusals);
+
+        Assert.Equal(4, first.UpdatedCount);
+        Assert.Equal(4, second.UnchangedCount);
+        using var conn = _db.CreateConnection();
+        Assert.Equal(4, conn.ExecuteScalar<long>(
+            "SELECT COUNT(*) FROM metadata_claims WHERE claim_key = 'explicit' AND is_user_locked = 1 AND claim_value = 'true';"));
+        Assert.Equal(4, conn.ExecuteScalar<long>(
+            "SELECT COUNT(*) FROM canonical_values WHERE key = 'explicit' AND value = 'true';"));
+    }
+
+    [Fact]
+    public async Task Apply_ExplicitOnABook_SendsItToNeedsReviewInsteadOfMarkingIt()
+    {
+        var books = SeedBooks(1);
+
+        var result = await CreateService().ApplyAsync(
+            [books[0].WorkId], [ScalarChange("explicit", "set", "true")], NoRefusals);
+
+        Assert.Equal(1, result.SentToReviewCount);
+        Assert.Contains("songs and videos", result.Items[0].Reason, StringComparison.Ordinal);
+        using var conn = _db.CreateConnection();
+        Assert.Equal(0, conn.ExecuteScalar<long>("SELECT COUNT(*) FROM canonical_values WHERE key = 'explicit';"));
+    }
+
     [Fact]
     public async Task Preview_ListsRefusedAndMissingItemsAsUnavailableAndLeavesThemOutOfTheCount()
     {
@@ -640,7 +747,9 @@ public sealed class LibraryBatchEditServiceTests : IDisposable
         items ?? _items,
         _reviews,
         _activity,
-        NullLogger<LibraryBatchEditService>.Instance);
+        NullLogger<LibraryBatchEditService>.Instance,
+        new MetadataClaimRepository(_db),
+        new CanonicalValueRepository(_db));
 
     private static BatchEditChange ListChange(string key, string op, params string[] values)
     {
@@ -690,6 +799,64 @@ public sealed class LibraryBatchEditServiceTests : IDisposable
         conn.Execute(
             "INSERT INTO canonical_value_arrays (entity_id, key, value, ordinal) VALUES (@ownerId, 'genre', @genre, 0);",
             new { ownerId = GuidSql.ToBlob(ownerId), genre });
+    }
+
+    private void SeedCanonical(Guid ownerId, string key, string value)
+    {
+        using var conn = _db.CreateConnection();
+        conn.Execute(
+            "INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@ownerId, @key, @value, datetime('now'));",
+            new { ownerId = GuidSql.ToBlob(ownerId), key, value });
+    }
+
+    private SeededAlbum SeedAlbum(int songCount)
+    {
+        var albumId = Guid.NewGuid();
+        using (var conn = _db.CreateConnection())
+        {
+            conn.Execute(
+                "INSERT INTO works (id, media_type, work_kind) VALUES (@albumId, 'Music', 'parent');",
+                new { albumId = GuidSql.ToBlob(albumId) });
+        }
+
+        return new SeededAlbum(albumId, SeedChildren("Music", albumId, songCount, "Song"));
+    }
+
+    private IReadOnlyList<SeededEpisode> SeedBooks(int count) => SeedChildren("Books", null, count, "Book");
+
+    private List<SeededEpisode> SeedChildren(string mediaType, Guid? parentId, int count, string titlePrefix)
+    {
+        var items = new List<SeededEpisode>();
+        using var conn = _db.CreateConnection();
+        for (var number = 1; number <= count; number++)
+        {
+            var workId = Guid.NewGuid();
+            var editionId = Guid.NewGuid();
+            var assetId = Guid.NewGuid();
+            conn.Execute(
+                """
+                INSERT INTO works (id, parent_work_id, media_type, work_kind, ordinal) VALUES (@workId, @parentId, @mediaType, @kind, @number);
+                INSERT INTO editions (id, work_id) VALUES (@editionId, @workId);
+                INSERT INTO media_assets (id, edition_id, content_hash, file_path_root) VALUES (@assetId, @editionId, @hash, @path);
+                INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@assetId, 'title', @title, datetime('now'));
+                """,
+                new
+                {
+                    workId = GuidSql.ToBlob(workId),
+                    parentId = parentId is { } parent ? GuidSql.ToBlob(parent) : null,
+                    editionId = GuidSql.ToBlob(editionId),
+                    assetId = GuidSql.ToBlob(assetId),
+                    mediaType,
+                    kind = parentId is null ? "standalone" : "child",
+                    number,
+                    hash = $"hash-{assetId:N}",
+                    path = $"C:/library/{mediaType}/{assetId:N}.file",
+                    title = $"{titlePrefix} {number}",
+                });
+            items.Add(new SeededEpisode(workId, assetId));
+        }
+
+        return items;
     }
 
     private SeededShow SeedShow(int episodeCount)
@@ -765,6 +932,11 @@ public sealed class LibraryBatchEditServiceTests : IDisposable
     }
 
     private sealed record SeededEpisode(Guid WorkId, Guid AssetId);
+
+    private sealed record SeededAlbum(Guid AlbumId, IReadOnlyList<SeededEpisode> Songs)
+    {
+        public List<Guid> SongIds => Songs.Select(song => song.WorkId).ToList();
+    }
 
     private sealed record SeededShow(Guid ShowId, Guid SeasonId, IReadOnlyList<SeededEpisode> Episodes)
     {
