@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Details
 @using System.Net.Http
+@using MediaEngine.Domain.Services
 @using MediaEngine.Contracts.Editing
 @using MediaEngine.Contracts.Metadata
 @using MediaEngine.Web.Services.Editing
@@ -250,7 +251,7 @@
         var reference = EditorMatchFacts.ParseProviderReference(_reference);
         if (reference is null)
         {
-            _referenceProblem = "That is not a TheTVDB link or ID. Paste a link such as thetvdb.com/series/123456, or the number.";
+            _referenceProblem = "That is not a TheTVDB link or ID. Paste the show page link from TheTVDB, or its number.";
             return;
         }
 
@@ -281,7 +282,7 @@
             return;
         }
 
-        var show = new TvMatchBrowserShowDto(reference.Id, seasons.ShowName, null, null, null, $"https://thetvdb.com/dataset/series/{reference.Id}", false);
+        var show = new TvMatchBrowserShowDto(reference.Id, seasons.ShowName, null, null, null, OutsideLinks.TvdbSeries(reference.Id) ?? string.Empty, false);
         _shows = [show, .. _shows.Where(existing => existing.SeriesId != show.SeriesId)];
         _showsProblem = null;
         _searchedByHand = true;
