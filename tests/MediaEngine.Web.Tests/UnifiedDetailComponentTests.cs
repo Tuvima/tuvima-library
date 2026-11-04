@@ -247,9 +247,9 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("flex-wrap: nowrap", ReadSource("src/MediaEngine.Web/Components/Details/HeroGenreList.razor.css"));
         Assert.Contains(".tl-detail-watch-metadata-row--facts", ReadSource("src/MediaEngine.Web/Components/Details/DetailHeroContent.razor.css"));
         Assert.Contains("align-items:center", actions);
-        Assert.Contains("height:2.5rem", actions);
+        Assert.Contains("height:var(--tl-control-height-lg)", actions);
         Assert.Contains("flex:0 0 auto; width:auto", actions);
-        Assert.Contains("var(--tl-font-size-xl)", actions);
+        Assert.Contains("var(--tl-font-size-lg)", actions);
         Assert.Contains("@media (max-width: 600px)", actions);
     }
 
@@ -479,7 +479,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains(".app-menu-item", appStyles);
         Assert.Contains("--tl-secondary-action-border", appStyles);
         var detailStyles = ReadDetailStyles();
-        Assert.Contains("height:2.5rem", ReadSource("src/MediaEngine.Web/Components/Details/HeroActionRow.razor.css"));
+        Assert.Contains("height:var(--tl-control-height-lg)", ReadSource("src/MediaEngine.Web/Components/Details/HeroActionRow.razor.css"));
     }
 
     [Fact]
