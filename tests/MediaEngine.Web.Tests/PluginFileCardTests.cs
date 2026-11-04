@@ -140,7 +140,7 @@ public sealed class PluginFileCardTests : AsyncBunitContext
         await device.InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", Touch: true));
         var phone = RenderPage();
         phone.WaitForAssertion(() => Assert.NotEmpty(phone.FindAll("[data-card=file]")));
-                Assert.NotEmpty(phone.FindAll("[data-testid=plugin-file-computer-only]"));
+        Assert.NotEmpty(phone.FindAll("[data-testid=plugin-file-computer-only]"));
     }
 
     // ------------------------------------------------------------------------------------------------ The tokenizer
