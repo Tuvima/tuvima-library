@@ -173,6 +173,7 @@
 
         var workId = EntityId;
         _deleting = true;
+        using var editorDeleting = Services.GetService<EditorHost>()?.MarkDeleting();
         try
         {
             var answer = await LibraryItemDeletionFlow.RunFileAsync(dialogs, toasts, new LibraryFileTarget(workId, asset.AssetId, asset.FileName));

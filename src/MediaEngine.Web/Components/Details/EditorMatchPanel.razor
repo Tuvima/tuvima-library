@@ -702,6 +702,7 @@
         try
         {
             var typed = _query.Trim();
+            string? providerName = string.IsNullOrEmpty(_provider) ? null : _provider;
             var draft = new Dictionary<string, string>(Subject.Draft, StringComparer.OrdinalIgnoreCase);
             string? queryOverride = typed.Length == 0 || string.Equals(typed, Subject.Title, StringComparison.Ordinal) ? null : typed;
             if (_mode == EditorMatchFacts.SearchYear && _year.Trim() is { Length: > 0 } year)
@@ -711,17 +712,22 @@
             }
             else if (_mode == EditorMatchFacts.SearchProviderId)
             {
-                var reference = EditorMatchFacts.ParseProviderReference(typed);
+                var reference = EditorMatchFacts.ParseProviderReference(typed, Subject.MediaType);
                 if (reference is null)
                 {
                     _loading = false;
                     _searched = true;
                     _results = [];
-                    _problem = "That is not an ID or link I can read. Paste an ISBN, an IMDb or MusicBrainz ID, or a link to one.";
+                    _problem = $"That is not an ID or link I can read. Paste {EditorMatchFacts.AcceptedProviderForms(Subject.MediaType)}.";
                     return;
                 }
 
                 queryOverride = reference.Id;
+                // A TMDB or TheTVDB id is looked up in that provider by its id, not searched for as title text.
+                if (reference.Provider is "tmdb" or "tvdb")
+                {
+                    providerName = reference.Provider;
+                }
             }
 
             response = await Api.SearchItemCanonicalAsync(
@@ -733,7 +739,7 @@
                     TargetFieldGroup = _group,
                     DraftFields = draft,
                     QueryOverride = queryOverride,
-                    ProviderName = string.IsNullOrEmpty(_provider) ? null : _provider,
+                    ProviderName = providerName,
                 },
                 cts.Token);
         }

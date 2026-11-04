@@ -295,3 +295,10 @@ The editor gets a clean rebuild. It always opens on the item you clicked, which 
 ## Look pass addendum (2026-11-04)
 
 Discard, Save, Review and delete dialogs use the look pass dialog exactly (icon tile, bold title, close X, destructive outlined red on the left, safe filled button last and focused). The editor layout is unchanged. Source: [look pass spec](look-pass.md) section 6. This is a version note; the Locked body above is unchanged.
+
+## Known gaps (added after the independent review, 2026-11-04)
+
+Appended notes only; the Locked body above is unchanged.
+
+- Comics and book series have no Line-up table. A comic issue or a book is fixed one item at a time in Match.
+- Absolute episode numbering (episode 213 of a long-running show) is not offered when choosing an episode; the Line-up and the episode filters use season and episode numbers and air dates.

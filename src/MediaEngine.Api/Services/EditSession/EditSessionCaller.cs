@@ -7,7 +7,14 @@ namespace MediaEngine.Api.Services.EditSession;
 /// asked for it, and every item and place is checked against the caller's resource scope), so the edit-session action hands them to the
 /// relationship and physical-files handlers through <see cref="EditSessionCallerAccessor"/>.
 /// </summary>
-public sealed record EditSessionCaller(LibraryMoveActor Actor, LibraryMoveAccess CanEdit);
+public sealed record EditSessionCaller(LibraryMoveActor Actor, LibraryMoveAccess CanEdit)
+{
+    /// <summary>
+    /// Says why the caller may not edit an item a change only points at (the title a file is filed under as an Extra), or null when
+    /// they may. The session's own access check covers just the item each change is about. Null means no title may be pointed at.
+    /// </summary>
+    public Func<Guid, CancellationToken, Task<string?>>? TargetRefusal { get; init; }
+}
 
 /// <summary>
 /// Carries the <see cref="EditSessionCaller"/> of the request being served down to the handlers without changing their signatures

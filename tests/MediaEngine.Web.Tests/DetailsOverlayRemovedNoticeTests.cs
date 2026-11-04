@@ -161,6 +161,21 @@ public sealed class DetailsOverlayRemovedNoticeTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task WhenTheTitleIsRemovedByADeleteStartedFromTheEditor_NoSomeoneElseNoticeShowsAndTheEditorStaysForItsOwnMove()
+    {
+        var cut = await StartEditingAsync();
+
+        using (Services.GetRequiredService<EditorHost>().MarkDeleting())
+        {
+            await RemoveFromElsewhereAsync(cut);
+        }
+
+        Assert.Empty(cut.FindAll(".tl-removed-notice"));
+        Assert.Single(_editor.FindAll(".tl-editor-window"));
+        Assert.Empty(Toasts);
+    }
+
+    [Fact]
     public async Task WhenTheTitleIsRemovedWhileAChangeIsStaged_TheNoticeShowsThatTextReadOnlyWithACopyButton()
     {
         var host = Render<AppDialogHost>();
