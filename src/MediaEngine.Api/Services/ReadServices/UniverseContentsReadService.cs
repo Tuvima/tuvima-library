@@ -15,10 +15,11 @@ namespace MediaEngine.Api.Services.ReadServices;
 /// spoiled by, so it is always shown. Concepts show only when an approved Fandom Lore source exists for the Universe,
 /// or when added by hand (spec P8).
 /// </summary>
-public sealed class UniverseContentsReadService(
+public sealed partial class UniverseContentsReadService(
     IFictionalEntityRepository entities,
     IEntityAssetRepository assets,
     IPluginLoreRepository pluginLore,
+    IEntityRelationshipRepository relationships,
     CharacterSpoilerService spoilers)
 {
     /// <summary>Tiles sent per rail; the section's count still tells the full number.</summary>
@@ -49,53 +50,11 @@ public sealed class UniverseContentsReadService(
             return null;
         }
 
-        var allIds = all.Select(entity => entity.Id).ToList();
-        var links = await entities.GetWorkLinksAsync(allIds, ct).ConfigureAwait(false);
-        var visibleLinks = links.Where(link => visibleWorkQids.Contains(link.WorkQid)).ToLookup(link => link.FictionalEntityId);
-        var userLinks = await entities.GetUserLinksAsync(allIds, ct).ConfigureAwait(false);
-        var view = await spoilers.LoadAsync(profile, ct).ConfigureAwait(false);
-        var story = view.Story;
-        var showConcepts = (await pluginLore.GetApprovedSourcesAsync(universeQid, ct).ConfigureAwait(false)).Count > 0;
-
-        var shown = new List<(FictionalEntity Entity, bool NoPlotDetails)>();
-        var hiddenCount = 0;
-        foreach (var entity in all)
-        {
-            if (userLinks.TryGetValue(entity.Id, out var mine) && mine.IsHidden)
-            {
-                continue;
-            }
-
-            if (entity.EntitySubType == FictionalEntityType.Concept && !showConcepts && !entity.AddedByUser)
-            {
-                continue;
-            }
-
-            if (entity.AddedByUser)
-            {
-                shown.Add((entity, false));
-                continue;
-            }
-
-            var own = view.VisibleAppearances(visibleLinks[entity.Id].ToList(), entity.EntitySubType == FictionalEntityType.Character).ToList();
-            if (own.Count == 0)
-            {
-                continue;
-            }
-
-            switch (view.Evaluate(own))
-            {
-                case CharacterVisibility.Hidden:
-                    hiddenCount++;
-                    break;
-                case CharacterVisibility.NoPlotDetails:
-                    shown.Add((entity, true));
-                    break;
-                default:
-                    shown.Add((entity, false));
-                    break;
-            }
-        }
+        var classified = await ClassifyAsync(universeQid, all, visibleWorkQids, profile, ct).ConfigureAwait(false);
+        var shown = classified.Shown;
+        var hiddenCount = classified.HiddenCount;
+        var visibleLinks = classified.VisibleLinks;
+        var story = classified.View.Story;
 
         if (shown.Count == 0)
         {
@@ -171,6 +130,75 @@ public sealed class UniverseContentsReadService(
             Timeline = UniverseTimelineBuilder.Build(candidates),
             HiddenCount = hiddenCount,
         };
+    }
+
+    /// <summary>What a profile may see of a Universe's things: the ones shown (some by name only), how many are held back, and their visible appearances.</summary>
+    private sealed record Classified(
+        IReadOnlyList<(FictionalEntity Entity, bool NoPlotDetails)> Shown,
+        int HiddenCount,
+        ILookup<Guid, FictionalEntityWorkLink> VisibleLinks,
+        IReadOnlyDictionary<Guid, FictionalEntityUserLinks> UserLinks,
+        CharacterSpoilerView View);
+
+    /// <summary>
+    /// Applies the one visibility rule to every thing of a Universe: hand-hidden things are skipped, Concepts need Fandom Lore
+    /// (unless added by hand), hand-added things are always shown, and everything else follows the spoiler rule.
+    /// </summary>
+    private async Task<Classified> ClassifyAsync(
+        string universeQid,
+        IReadOnlyList<FictionalEntity> all,
+        IReadOnlySet<string> visibleWorkQids,
+        Profile? profile,
+        CancellationToken ct)
+    {
+        var allIds = all.Select(entity => entity.Id).ToList();
+        var links = await entities.GetWorkLinksAsync(allIds, ct).ConfigureAwait(false);
+        var visibleLinks = links.Where(link => visibleWorkQids.Contains(link.WorkQid)).ToLookup(link => link.FictionalEntityId);
+        var userLinks = await entities.GetUserLinksAsync(allIds, ct).ConfigureAwait(false);
+        var view = await spoilers.LoadAsync(profile, ct).ConfigureAwait(false);
+        var showConcepts = (await pluginLore.GetApprovedSourcesAsync(universeQid, ct).ConfigureAwait(false)).Count > 0;
+
+        var shown = new List<(FictionalEntity Entity, bool NoPlotDetails)>();
+        var hiddenCount = 0;
+        foreach (var entity in all)
+        {
+            if (userLinks.TryGetValue(entity.Id, out var mine) && mine.IsHidden)
+            {
+                continue;
+            }
+
+            if (entity.EntitySubType == FictionalEntityType.Concept && !showConcepts && !entity.AddedByUser)
+            {
+                continue;
+            }
+
+            if (entity.AddedByUser)
+            {
+                shown.Add((entity, false));
+                continue;
+            }
+
+            var own = view.VisibleAppearances(visibleLinks[entity.Id].ToList(), entity.EntitySubType == FictionalEntityType.Character).ToList();
+            if (own.Count == 0)
+            {
+                continue;
+            }
+
+            switch (view.Evaluate(own))
+            {
+                case CharacterVisibility.Hidden:
+                    hiddenCount++;
+                    break;
+                case CharacterVisibility.NoPlotDetails:
+                    shown.Add((entity, true));
+                    break;
+                default:
+                    shown.Add((entity, false));
+                    break;
+            }
+        }
+
+        return new Classified(shown, hiddenCount, visibleLinks, userLinks, view);
     }
 
     private static UniverseContentsTileDto ToTile(

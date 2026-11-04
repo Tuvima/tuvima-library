@@ -194,7 +194,8 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
                 row.EditionReleaseId,
                 row.ParentWorkId,
                 selectionRevisions[row.AssetId],
-                BuildMatchReason(row))).ToList();
+                BuildMatchReason(row),
+                row.FileSizeBytes > 0 ? row.FileSizeBytes : null)).ToList();
 
             return new MediaEditorOwnedChildSearchEnvelope(
                 parentEntityId, page, pageSize, totalCount, items);
@@ -420,7 +421,7 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
                WorkOrdinal, WorkOrdinalSort, WorkWikidataQid, EditionWikidataQid,
                MatchedTitle, MatchedNumber,
                SourceFilePath, MatchState, FileState,
-               SeasonNumber, DiscNumber, VolumeNumber
+               SeasonNumber, DiscNumber, VolumeNumber, FileSizeBytes
         FROM candidates
         ORDER BY
             CASE WHEN SeasonNumber IS NULL THEN 1 ELSE 0 END, SeasonNumber,
@@ -494,7 +495,8 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
                    (SELECT parent_ordinal.ordinal FROM works parent_ordinal WHERE parent_ordinal.id = w.parent_work_id)) AS INTEGER) AS SeasonNumber,
                CAST((SELECT cv.value FROM canonical_values cv WHERE cv.entity_id IN (ma.id, w.id) AND cv.key = 'disc_number' LIMIT 1) AS INTEGER) AS DiscNumber,
                CAST((SELECT cv.value FROM canonical_values cv WHERE cv.entity_id IN (ma.id, w.id) AND cv.key = 'volume_number' LIMIT 1) AS INTEGER) AS VolumeNumber,
-               w.ordinal AS WorkOrdinal
+               w.ordinal AS WorkOrdinal,
+               (SELECT fhc.size_bytes FROM file_hash_cache fhc WHERE fhc.sha256 = ma.content_hash LIMIT 1) AS FileSizeBytes
         FROM work_tree tree
         INNER JOIN works w ON w.id = tree.id
         INNER JOIN editions e ON e.work_id = w.id
@@ -562,6 +564,7 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
         public int? SeasonNumber { get; init; }
         public int? DiscNumber { get; init; }
         public int? VolumeNumber { get; init; }
+        public long? FileSizeBytes { get; init; }
     }
 
     private sealed class IdentityPiece

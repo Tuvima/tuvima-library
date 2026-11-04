@@ -95,16 +95,6 @@ public static class UniversePageText
         };
     }
 
-    /// <summary>"In 3 of your works" (and "In 1 of your works") for a character row; null when the count is zero.</summary>
-    public static string? CharacterWorksLine(int workCount) =>
-        workCount <= 0 ? null : string.Create(CultureInfo.InvariantCulture, $"In {workCount} of your works");
-
-    /// <summary>"3 characters hidden to avoid spoilers" ("1 character hidden to avoid spoilers"); null when none are hidden.</summary>
-    public static string? HiddenCharactersLine(int hiddenCount) =>
-        hiddenCount <= 0
-            ? null
-            : string.Create(CultureInfo.InvariantCulture, $"{hiddenCount} {(hiddenCount == 1 ? "character" : "characters")} hidden to avoid spoilers");
-
     /// <summary>"Details found for 6 of 14 works".</summary>
     public static string EnrichmentNote(UniverseEnrichmentStateDto enrichment) =>
         string.Create(

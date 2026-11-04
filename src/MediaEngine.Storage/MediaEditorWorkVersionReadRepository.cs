@@ -99,6 +99,7 @@ public sealed class MediaEditorWorkVersionReadRepository(IDatabaseConnection db)
             AssetId = row.AssetId,
             EditionId = row.EditionId,
             FileName = Path.GetFileName(row.FilePath),
+            Folder = Path.GetDirectoryName(row.FilePath) is { Length: > 0 } folder ? folder : null,
             TechnicalLabel = BuildTechnicalLabel(row.FilePath, row.EditionLabel),
             FileSizeBytes = fileSize,
             AddedAt = ParseTimestamp(row.PresentedAt) ?? ParseTimestamp(row.FirstLoggedAt),

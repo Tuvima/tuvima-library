@@ -187,6 +187,23 @@ public sealed class MediaEditorFamilyReadTests : IDisposable
     }
 
     [Fact]
+    public async Task OwnedChildren_CarryTheStoredFileSize_AndLeaveItOutWhenNoneIsStored()
+    {
+        SeedShow(showMatched: true);
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute(
+                "INSERT INTO file_hash_cache (absolute_path, size_bytes, mtime_utc, sha256, cached_at) VALUES ('/tv/show/s01e01.mkv', 1500000000, datetime('now'), 'ep1', datetime('now'));");
+        }
+
+        var reader = new MediaEditorOwnedChildReadService(_database);
+        var result = await reader.SearchAsync(_showId, null, 1, 50, null, null, null, null, null, CancellationToken.None);
+
+        Assert.Equal(1_500_000_000L, result!.Items.Single(item => item.WorkId == _episodeId).FileSizeBytes);
+        Assert.Null(result.Items.Single(item => item.WorkId == _strayId).FileSizeBytes);
+    }
+
+    [Fact]
     public async Task OwnedChildren_AnUnmatchedFileWithNoNumber_SaysWhyInWords_AndAMatchedFileSaysNothing()
     {
         SeedShow(showMatched: true);

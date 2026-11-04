@@ -15,3 +15,9 @@ public static class LibraryGroupKinds
     public const string Album = "album";
     public const string Series = "series";
 }
+
+/// <summary>
+/// One file of one item the person is deleting from the editor's Files tab. The Engine decides what happens to the item: it stays with
+/// its other files, or leaves the Library when this was its last file.
+/// </summary>
+public sealed record LibraryFileTarget(Guid WorkId, Guid AssetId, string FileName);

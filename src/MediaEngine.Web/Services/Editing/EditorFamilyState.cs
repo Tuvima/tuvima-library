@@ -56,6 +56,32 @@ public sealed record FamilyRow(
 /// <param name="Reason">Why the item is not matched, in plain words; null when it is matched.</param>
 public sealed record RailOption(Guid EntityId, string Title, string? Number, string? ImageUrl, bool Matched, string? Reason);
 
+/// <summary>One child listed in the Contents tab (universal editor v4 D3, WP5): a picture, a number, the title, the matched mark and the file's size.</summary>
+/// <param name="IsParent">A season or album that holds children of its own; it is listed but cannot be ticked.</param>
+/// <param name="SizeBytes">The file's size when the Engine knows it; null for a parent and for a file whose size is not stored.</param>
+public sealed record ContentsRow(
+    Guid EntityId,
+    string Title,
+    string Kind,
+    string? Number,
+    string? ImageUrl,
+    bool Matched,
+    string? Reason,
+    long? SizeBytes,
+    bool IsParent,
+    string? Variant);
+
+/// <summary>What the Contents tab shows for one parent: its children so far, and whether more are on the way.</summary>
+/// <param name="Known">The tree knows the parent; false while the family is still being read.</param>
+public sealed record ContentsPage(
+    bool Known,
+    IReadOnlyList<ContentsRow> Rows,
+    string? NoEpisodeHeadingAfter,
+    bool Loading,
+    bool Failed,
+    bool HasMore,
+    int Remaining);
+
 /// <summary>
 /// One dropdown of the editor's rail (universal editor v4 D2): "Show", "Season" or "Episode 3" with the item that is current at that level
 /// and every sibling that can be switched to. <paramref name="ParentId"/> is the item whose list this is, so the next page of a long
@@ -414,6 +440,92 @@ public sealed class EditorFamilyState
 
     private static RailOption ToOption(Node node) => new(node.Id, node.Title, node.Detail, node.ImageUrl, node.Matched, node.Reason);
 
+    /// <summary>
+    /// The children of one parent for the Contents tab: its seasons (or albums) first, then the files that sit straight under it, each with
+    /// a picture, its number, its matched mark and its size. The next page is read with <see cref="LoadMoreAsync"/>.
+    /// </summary>
+    public ContentsPage ContentsOf(Guid parentId)
+    {
+        if (!_nodes.TryGetValue(parentId, out var node) || !node.IsParent)
+        {
+            return new ContentsPage(false, [], null, Loading, false, false, 0);
+        }
+
+        var rows = new List<ContentsRow>();
+        foreach (var childId in node.Parents)
+        {
+            rows.Add(ToContentsRow(_nodes[childId]));
+        }
+
+        foreach (var leafId in node.Leaves)
+        {
+            rows.Add(ToContentsRow(_nodes[leafId]));
+        }
+
+        return new ContentsPage(
+            true, rows, node.Direct == DirectLeaves.NoEpisode && node.Leaves.Count > 0 ? "Files with no episode" : null,
+            node.Loading, node.Failed, node.HasMore, node.HasMore ? node.Total - node.Leaves.Count : 0);
+    }
+
+    /// <summary>Reads the first page of a parent's children when it has none yet (the Contents tab opened on it).</summary>
+    public async Task EnsureChildrenAsync(Guid parentId)
+    {
+        if (_nodes.TryGetValue(parentId, out var node) && node.IsParent && node.PagesLoaded == 0 && !node.Loading && !node.Failed)
+        {
+            await LoadPageAsync(node);
+        }
+    }
+
+    private static ContentsRow ToContentsRow(Node node) => new(
+        node.Id, node.Title, node.Kind, node.Detail,
+        node.ImageUrl ?? $"/engine-image/stream/entity/work/{node.Id:D}/cover?size=s",
+        node.Matched, node.Reason, node.SizeBytes, node.IsParent, node.VariantText);
+
+    /// <summary>
+    /// Takes deleted items out of the tree at once (universal editor v4 D13): each id leaves its parent's list, a deleted parent takes
+    /// everything under it, and a parent's count drops so "Show more" stays true. Nothing is read from the Engine; the next refresh agrees.
+    /// </summary>
+    public void Remove(IEnumerable<Guid> entityIds)
+    {
+        ArgumentNullException.ThrowIfNull(entityIds);
+        var changed = false;
+        foreach (var id in entityIds.Distinct())
+        {
+            changed |= RemoveNode(id);
+        }
+
+        if (changed)
+        {
+            Changed?.Invoke();
+        }
+    }
+
+    private bool RemoveNode(Guid id)
+    {
+        if (!_nodes.TryGetValue(id, out var node) || id == _rootId)
+        {
+            // The root (the show, album or series itself) is never taken out of its own tree; the editor closes instead.
+            return false;
+        }
+
+        foreach (var child in node.Parents.Concat(node.Leaves).ToList())
+        {
+            RemoveNode(child);
+        }
+
+        if (node.ParentId is { } parentId && _nodes.TryGetValue(parentId, out var parent))
+        {
+            parent.Parents.Remove(id);
+            if (parent.Leaves.Remove(id) && parent.Total > 0)
+            {
+                parent.Total--;
+            }
+        }
+
+        _nodes.Remove(id);
+        return true;
+    }
+
     /// <summary>The trail that ends at an item in the tree, outermost first, for switching to it; null when the item is not in the tree.</summary>
     public IReadOnlyList<EditTrailItem>? TrailTo(Guid entityId)
     {
@@ -436,6 +548,9 @@ public sealed class EditorFamilyState
 
     /// <summary>True when the tree lists the item as a parent (a season, an album, the show itself), whose own files can be opened.</summary>
     public bool IsParentOf(Guid entityId) => _nodes.TryGetValue(entityId, out var node) && node.IsParent;
+
+    /// <summary>The season, album or show an item sits under in the tree, or null when the tree does not know the item.</summary>
+    public Guid? ParentOf(Guid entityId) => _nodes.TryGetValue(entityId, out var node) ? node.ParentId : null;
 
     /// <summary>The name of an item in the tree, or null.</summary>
     public string? NameOf(Guid entityId) => _nodes.TryGetValue(entityId, out var node) ? node.Title : null;
@@ -684,6 +799,7 @@ public sealed class EditorFamilyState
             Detail = NumberLabel(file),
             Matched = matched,
             Reason = matched ? null : file.MatchReason ?? "Not matched yet.",
+            SizeBytes = file.FileSizeBytes,
         };
     }
 
@@ -779,6 +895,7 @@ public sealed class EditorFamilyState
         public bool Matched { get; init; } = true;
         public string? Reason { get; init; }
         public string? ImageUrl { get; init; }
+        public long? SizeBytes { get; init; }
         public bool IsParent { get; init; }
         public bool Expanded { get; set; }
         public bool Loading { get; set; }

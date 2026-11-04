@@ -122,6 +122,12 @@ public sealed class ItemFieldEditSession
     /// </summary>
     public ItemExplicitResponse? ExplicitMark { get; private set; }
 
+    /// <summary>
+    /// The Engine's totals for the Quick Facts panel (children owned of total, files, size, runtime, quality, read-only folder), or null when
+    /// the read has not finished or failed; the panel then shows only what the fields say. Read-only: it is never staged or saved.
+    /// </summary>
+    public ItemQuickFactsDto? QuickFacts { get; private set; }
+
     /// <summary>The key the Explicit mark is staged under in the pending list.</summary>
     public const string ExplicitFieldKey = "explicit";
 
@@ -149,6 +155,7 @@ public sealed class ItemFieldEditSession
         _profileOverrides = null;
         _presentation = new MediaEditorDetailsPresentation();
         ExplicitMark = null;
+        QuickFacts = null;
         EditorEntityId = Guid.Empty;
         LoadError = null;
         Loading = false;
@@ -167,6 +174,7 @@ public sealed class ItemFieldEditSession
         Loading = true;
         LoadError = null;
         _subject = null;
+        QuickFacts = null;
         Changed?.Invoke();
         try
         {
@@ -208,6 +216,11 @@ public sealed class ItemFieldEditSession
             }
 
             Rebuild();
+            if (_scope is not null)
+            {
+                await LoadQuickFactsAsync(_scope.FieldEntityId, ct);
+            }
+
             // The library's genres and tags do not depend on the item: switching items (spec D7) reuses the lists, so it stays quick.
             if (!_suggestionsLoaded)
             {
@@ -256,6 +269,7 @@ public sealed class ItemFieldEditSession
             }
 
             ApplySubject(subject);
+            await LoadQuickFactsAsync(subject.Id, ct);
             if (subject.Fields.Any(field => field.InputKind == EditorSubjectInputKinds.Chips))
             {
                 await LoadSuggestionsAsync(ct);
@@ -284,6 +298,7 @@ public sealed class ItemFieldEditSession
     private void ApplySubject(EditorSubjectDto subject)
     {
         _subject = subject;
+        QuickFacts = null;
         ExplicitMark = null;
         _mediaType = subject.Kind;
         _preferences = null;
@@ -334,7 +349,12 @@ public sealed class ItemFieldEditSession
         field.Label,
         field.Value,
         string.Empty,
-        field.InputKind == EditorSubjectInputKinds.TextArea ? "textarea" : "text",
+        field.InputKind switch
+        {
+            EditorSubjectInputKinds.TextArea => "textarea",
+            EditorSubjectInputKinds.Choice => "choice",
+            _ => "text",
+        },
         field.IsOverridden ? "Override" : "Canonical",
         field.SourceLabel,
         null,
@@ -345,7 +365,24 @@ public sealed class ItemFieldEditSession
         field.Value,
         field.Value,
         false,
-        CanonicalName: canonicalName);
+        CanonicalName: canonicalName,
+        Options: field.InputKind == EditorSubjectInputKinds.Choice
+            ? field.Options.Select(option => new MediaEditorChoiceOption(option.Value, option.Label)).ToList()
+            : null);
+
+    // The totals only add to the panel: a failed or missing read leaves the facts the fields give, and never blocks the editor.
+    private async Task LoadQuickFactsAsync(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            QuickFacts = id == Guid.Empty ? null : await _api.GetEditorQuickFactsAsync(id, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger?.LogDebug(ex, "The editor's Quick Facts totals were unavailable for {EntityId}", id);
+            QuickFacts = null;
+        }
+    }
 
     private async Task LoadSuggestionsAsync(CancellationToken ct)
     {

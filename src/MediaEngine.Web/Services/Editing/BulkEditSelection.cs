@@ -10,6 +10,17 @@ namespace MediaEngine.Web.Services.Editing;
 /// </summary>
 public sealed record BulkEditRow(Guid Id, string Title, DetailEntityType Kind, Guid? ParentId = null, string? MediaType = null);
 
+/// <summary>What a set of ticked rows is, for the several-items rules (spec 3c): one kind, or Mixed.</summary>
+public enum BulkItemKind
+{
+    None,
+    Song,
+    Episode,
+    Video,
+    Book,
+    Mixed,
+}
+
 /// <summary>What the right-hand panel shows for the ticked rows (universal editor spec D14).</summary>
 public enum BulkPanelKind
 {
@@ -61,6 +72,9 @@ public sealed class BulkEditSelection
 
     /// <summary>The bulk panel that should be open, or <see cref="BulkPanelKind.None"/>. The host shows it; closing the panel keeps the ticks.</summary>
     public BulkPanelKind Panel { get; private set; }
+
+    /// <summary>The editor tab that opened the panel (the Contents tab ticks rows and then opens Edit): "Back" returns there. Null for rows ticked on a page or list.</summary>
+    public EditTool? ReturnTool { get; set; }
 
     /// <summary>Goes up after a save reached the library, so a panel that read the items' values reads them again.</summary>
     public int DataVersion { get; private set; }
@@ -145,6 +159,7 @@ public sealed class BulkEditSelection
 
         _rows.Clear();
         Panel = BulkPanelKind.None;
+        ReturnTool = null;
         Changed?.Invoke();
     }
 
