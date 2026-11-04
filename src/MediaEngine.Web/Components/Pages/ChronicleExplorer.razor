@@ -51,7 +51,9 @@ else
     </AppText>
     @if (_canEditUniverse && DeviceContext.CanEdit)
     {
-        <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.Edit" Disabled="@(_openingEditor || _editing.IsOn)" OnClick="@(() => EditUniverseAsync(null))">@L["ChronicleExplorer_EditUniverse"]</AppButton>
+        <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.MoreHoriz" AriaLabel="@L["Common_MoreActions"].Value" Class="chronicle-explorer-more" Disabled="@(_openingEditor || _editing.IsOn)">
+            <AppMenuItem Label="@L["ChronicleExplorer_EditUniverse"].Value" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="@(() => EditUniverseAsync(null))" />
+        </AppOverflowMenu>
     }
 </div>
 
@@ -387,7 +389,9 @@ else
 
             @if (_canEditUniverse && !_selectedEntity.supplemental && DeviceContext.CanEdit)
             {
-                <AppButton ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.Edit" Disabled="@(_openingEditor || _editing.IsOn)" OnClick="@(() => EditUniverseAsync(_selectedEntity))">@L["ChronicleExplorer_Edit", _selectedEntity.label]</AppButton>
+                <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.MoreHoriz" AriaLabel="@L["Common_MoreActions"].Value" Class="chronicle-explorer-more" Disabled="@(_openingEditor || _editing.IsOn)">
+                    <AppMenuItem Label="@L["ChronicleExplorer_Edit", _selectedEntity.label].Value" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="@(() => EditUniverseAsync(_selectedEntity))" />
+                </AppOverflowMenu>
             }
 
             @if (_selectedEntity.works.Any())
@@ -432,7 +436,6 @@ else
     // What the editor is open on: the Universe itself (no id), or one character, place or organisation by its id.
     private Guid? _editEntityId;
     private string? _editEntityTitle;
-    private string? _editEntityKind;
 
     protected override void OnInitialized()
     {
@@ -440,19 +443,17 @@ else
         _flow = Editor.Flow;
         _binding = new EditorBinding(DeviceContext)
         {
-            LoadFields = LoadEditingFieldsAsync,
             Saved = RefreshAfterEditSavedAsync,
             Trail = EditTrail,
+            ShowHistory = true,
         };
         Editor.Changed += OnEditingChanged;
     }
 
-    private Task LoadEditingFieldsAsync() => _editEntityId is { } id
-        ? _editing.Fields.LoadSubjectAsync(id, _lifetime.Token)
-        : _editing.Fields.LoadUniverseSubjectAsync(Qid, _lifetime.Token);
-
-    private IReadOnlyList<EditTrailItem> EditTrail() =>
-        [new EditTrailItem(_editing.Fields.EntityId, _editEntityTitle ?? _graph?.universe.label ?? "Universe", _editEntityKind ?? "Universe")];
+    // The pop-over loads the Universe, or the character, place or faction chosen in its rail, because the binding names the Universe.
+    private IReadOnlyList<EditTrailItem> EditTrail() => _editEntityId is { } id
+        ? [new EditTrailItem(Guid.Empty, _graph?.universe.label ?? "Universe", EditTrailKinds.Universe), new EditTrailItem(id, _editEntityTitle ?? "Item", EditTrailKinds.Thing)]
+        : [new EditTrailItem(_editing.Fields.EntityId, _graph?.universe.label ?? "Universe", EditTrailKinds.Universe)];
 
     private void OnEditingChanged() => _ = InvokeAsync(StateHasChanged);
 
@@ -482,8 +483,8 @@ else
             if (!await AdministratorAccess.EnsureUnlockedAsync(_lifetime.Token)) return;
             _editEntityId = entityId;
             _editEntityTitle = entity?.label;
-            _editEntityKind = entity?.type;
             _binding.HasPermission = true;
+            _binding.UniverseQid = Qid;
             await Editor.OpenAsync(_binding, entityId ?? Guid.Empty, EditTool.Details);
         }
         catch (OperationCanceledException) { /* the page was left while the unlock prompt was open */ }
@@ -501,7 +502,6 @@ else
             if (selectedId is not null) _selectedEntity = _graph?.nodes.FirstOrDefault(node => node.id == selectedId);
             if (_cytoscapeReady && _graph is not null)
                 await JS.InvokeVoidAsync("CytoscapeInterop.updateGraph", System.Text.Json.JsonSerializer.Serialize(_graph.nodes), System.Text.Json.JsonSerializer.Serialize(_graph.edges));
-            await LoadEditingFieldsAsync();
             await InvokeAsync(StateHasChanged);
         }
         catch (Exception ex)
@@ -666,7 +666,6 @@ else
 
         _editEntityId = null;
         _editEntityTitle = null;
-        _editEntityKind = null;
         _selectedEntity = null;
         _selectedEntityEdges = [];
         _canEditUniverse = false;

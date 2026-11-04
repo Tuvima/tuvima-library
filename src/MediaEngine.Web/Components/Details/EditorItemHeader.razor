@@ -12,15 +12,18 @@
     var fields = Fields;
     var subject = fields.Loaded ? fields.MatchSubject() : null;
     var title = string.IsNullOrWhiteSpace(subject?.Title) ? active.Title : subject!.Title;
-    var kind = EditorHeaderRules.KindLabel(fields.MediaType, fields.ScopeId, fields.ScopeLabel);
+    var isUniverse = EditorUniverseRules.IsUniverseSubject(fields.SubjectKind);
+    var kind = isUniverse
+        ? EditorUniverseRules.KindLine(fields.SubjectKind, fields.Find("kind")?.DisplayValue ?? fields.Find("kind")?.Value, UniverseName)
+        : EditorHeaderRules.KindLabel(fields.MediaType, fields.ScopeId, fields.ScopeLabel);
     var trail = Flow.Session.Trail;
     var parent = subject?.ParentLabel ?? (trail.Count > 1 && trail[0].EntityId != active.EntityId ? trail[0].Title : null);
-    var kicker = EditorHeaderRules.FactsLine(parent, kind);
+    var kicker = isUniverse ? kind : EditorHeaderRules.FactsLine(parent, kind);
     var facts = fields.Loaded
         ? EditorHeaderRules.FactsLine(FieldText("air_date", "release_date", "premiere_date") ?? subject?.Year, FieldText("runtime", "duration"), subject?.Creator)
         : string.Empty;
     var image = !string.IsNullOrWhiteSpace(active.ImageUrl) ? active.ImageUrl : Family.TrailTo(active.EntityId)?[^1].ImageUrl;
-    var links = fields.Loaded ? EditorHeaderRules.Links(fields.Identity, fields.MediaType, fields.ScopeId) : [];
+    var links = fields.Loaded && !isUniverse ? EditorHeaderRules.Links(fields.Identity, fields.MediaType, fields.ScopeId) : [];
     <header class="tl-editor-header" aria-busy="@(fields.Loading ? "true" : null)">
         <div class="@(IsLandscape(fields.ScopeId) ? "tl-editor-header__cover tl-editor-header__cover--landscape" : "tl-editor-header__cover")" aria-hidden="true">
             @if (!string.IsNullOrWhiteSpace(image))
@@ -92,6 +95,9 @@
 
     [Parameter, EditorRequired] public EditorFamilyState Family { get; set; } = default!;
 
+    /// <summary>The name of the Universe being edited, for the kind line of a character, place or faction ("Faction in Dune").</summary>
+    [Parameter] public string? UniverseName { get; set; }
+
     /// <summary>The item has no match yet (the pop-over knows, from the family and the page).</summary>
     [Parameter] public bool Unmatched { get; set; }
 
@@ -105,7 +111,7 @@
     [Parameter] public EventCallback OnDelete { get; set; }
 
     // The matched mark is only said for an item that can be matched at all (a person or a collection is neither).
-    private bool FamilyHasState => Fields.CanMatch;
+    private bool FamilyHasState => Fields.CanMatch && !EditorUniverseRules.IsUniverseSubject(Fields.SubjectKind);
 
     // Episodes and stills are wide; everything else is a portrait cover.
     private static bool IsLandscape(string scopeId) => string.Equals(scopeId, "episode", StringComparison.OrdinalIgnoreCase);

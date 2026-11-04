@@ -13,6 +13,12 @@ public static class EditTrailKinds
     public const string Track = "Track";
     public const string Person = "Person";
 
+    /// <summary>A Universe, edited by its Wikidata ID (universal editor v4, WP11).</summary>
+    public const string Universe = "Universe";
+
+    /// <summary>A character, place, faction or other thing of a Universe.</summary>
+    public const string Thing = "Thing";
+
     /// <summary>The editor scope that edits an item of this kind (null for a kind with its own editor, such as a person).</summary>
     public static string? ScopeOf(string kind) => kind switch
     {

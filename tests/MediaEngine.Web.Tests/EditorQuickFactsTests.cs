@@ -326,7 +326,7 @@ public sealed class EditorQuickFactsTests
     [InlineData("person", "person", EditorSubjectKinds.Person, QuickFactsKind.Person)]
     [InlineData("collection", "collection", EditorSubjectKinds.Collection, QuickFactsKind.CuratedCollection)]
     [InlineData("universe", "universe", EditorSubjectKinds.Universe, QuickFactsKind.Universe)]
-    [InlineData("fictional-entity", "fictional-entity", EditorSubjectKinds.FictionalEntity, QuickFactsKind.None)]
+    [InlineData("fictional-entity", "fictional-entity", EditorSubjectKinds.FictionalEntity, QuickFactsKind.Thing)]
     public void TheKindOfItem_ComesFromItsMediaTypeAndScope(string mediaType, string scope, string? subject, QuickFactsKind expected)
     {
         Assert.Equal(expected, EditorQuickFactsBuilder.KindOf(mediaType, scope, subject));

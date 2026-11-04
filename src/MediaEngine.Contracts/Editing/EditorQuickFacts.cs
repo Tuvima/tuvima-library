@@ -12,6 +12,9 @@ public static class ItemQuickFactsKinds
 
     /// <summary>A Series, a curated collection or a Universe (the collection record).</summary>
     public const string Collection = "collection";
+
+    /// <summary>A character, place, faction or other thing of a Universe.</summary>
+    public const string Thing = "thing";
 }
 
 /// <summary>
@@ -53,7 +56,7 @@ public sealed class ItemQuickFactsDto
     /// <summary>True when any of the item's files lives in a library folder marked read-only. The Engine sets it after the data store read, from the configured folders.</summary>
     [JsonPropertyName("read_only_library")] public bool ReadOnlyLibrary { get; set; }
 
-    /// <summary>For a person: the works in the library that credit them. For a collection or Universe: the titles in it.</summary>
+    /// <summary>For a person: the works in the library that credit them. For a collection or Universe: the titles in it. For a thing of a Universe: the Works it appears in.</summary>
     [JsonPropertyName("item_count")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public int? ItemCount { get; init; }
 
     /// <summary>For a curated collection: the name of its owner, or "Library" when everyone shares it.</summary>

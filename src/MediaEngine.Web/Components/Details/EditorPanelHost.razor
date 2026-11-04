@@ -200,12 +200,12 @@
 
         if (mode.Fields.CanEditArtwork)
         {
-            tools.Add((EditTool.Artwork, "Artwork", AppMaterialIcons.Outlined.PhotoLibrary));
+            tools.Add((EditTool.Artwork, EditorUniverseRules.ArtworkTabLabel(mode.Fields.SubjectKind), AppMaterialIcons.Outlined.PhotoLibrary));
         }
 
-        if (mode.Fields.CanMatch)
+        if (mode.Fields.CanMatch || EditorUniverseRules.IsUniverseSubject(mode.Fields.SubjectKind))
         {
-            tools.Add((EditTool.Match, "Match & Identity", AppMaterialIcons.Outlined.TravelExplore));
+            tools.Add((EditTool.Match, EditorUniverseRules.MatchTabLabel(mode.Fields.SubjectKind), AppMaterialIcons.Outlined.TravelExplore));
         }
 
         if (showFiles)

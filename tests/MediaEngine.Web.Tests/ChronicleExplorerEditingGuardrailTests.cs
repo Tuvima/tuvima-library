@@ -15,8 +15,7 @@ public sealed class ChronicleExplorerEditingGuardrailTests
         Assert.DoesNotContain("<EditingBar", explorer, StringComparison.Ordinal);
         Assert.DoesNotContain("<EditorPanelHost", explorer, StringComparison.Ordinal);
         Assert.Contains("Editor.OpenAsync(_binding", explorer, StringComparison.Ordinal);
-        Assert.Contains("LoadSubjectAsync", explorer, StringComparison.Ordinal);
-        Assert.Contains("LoadUniverseSubjectAsync", explorer, StringComparison.Ordinal);
+        Assert.Contains("UniverseQid = Qid", explorer, StringComparison.Ordinal);
         Assert.Contains("EditorDeviceRule.TryRefuse", explorer, StringComparison.Ordinal);
         Assert.DoesNotContain("MediaEditorLauncher", explorer, StringComparison.Ordinal);
     }

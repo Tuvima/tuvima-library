@@ -1056,9 +1056,6 @@
   <data name="BulkEditPanel_TickSomeRowsToEdit" xml:space="preserve">
     <value>Tick some rows to edit them together.</value>
   </data>
-  <data name="BulkEditPanel_StageMatching" xml:space="preserve">
-    <value>Stage matching</value>
-  </data>
   <data name="Common_YouCanLookAtThese" xml:space="preserve">
     <value>You can look at these details but not change them.</value>
   </data>
@@ -10374,8 +10371,14 @@
   <data name="EditorContents_ChooseWhatToChange" xml:space="preserve">
     <value>Choose what to change</value>
   </data>
+  <data name="EditorLineUp_ApplyTo" xml:space="preserve">
+    <value>Apply to</value>
+  </data>
+  <data name="EditorLineUp_ReadOnly" xml:space="preserve">
+    <value>You can look at these matches, but you can't change them.</value>
+  </data>
   <data name="EditorContents_MatchN" xml:space="preserve">
-    <value>Match {0} {1}</value>
+    <value>Match these {0} {1}</value>
   </data>
   <data name="EditorContents_Loading" xml:space="preserve">
     <value>Loading the contents</value>
@@ -10556,6 +10559,30 @@
   </data>
   <data name="ExcludedFilesSection_IgnoredByYou" xml:space="preserve">
     <value>Ignored by you</value>
+  </data>
+  <data name="EditorUniverse_Universe" xml:space="preserve">
+    <value>Universe</value>
+  </data>
+  <data name="EditorUniverseAdd_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="EditorUniverseAdd_DescriptionOptional" xml:space="preserve">
+    <value>Description (optional)</value>
+  </data>
+  <data name="EditorUniverseAdd_Note" xml:space="preserve">
+    <value>Added by you. It is not on Wikidata, and nothing about it is sent anywhere.</value>
+  </data>
+  <data name="EditorUniverseMatch_Heading" xml:space="preserve">
+    <value>Match</value>
+  </data>
+  <data name="EditorUniverseMatch_Wikidata" xml:space="preserve">
+    <value>Wikidata</value>
+  </data>
+  <data name="EditorUniverseMatch_AddedByYou" xml:space="preserve">
+    <value>Not on Wikidata, added by you</value>
+  </data>
+  <data name="EditorUniverseMatch_NotMatched" xml:space="preserve">
+    <value>Not matched</value>
   </data>
   <data name="IntegrationKey_Name" xml:space="preserve">
     <value>Key name</value>
