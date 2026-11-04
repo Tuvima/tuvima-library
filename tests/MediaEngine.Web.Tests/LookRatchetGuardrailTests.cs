@@ -100,10 +100,17 @@ public sealed class LookRatchetGuardrailTests
         foreach (var path in Directory.EnumerateFiles(web, "*.razor", SearchOption.AllDirectories).Where(p => !p.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")))
         {
             var text = File.ReadAllText(path);
-            if (Regex.IsMatch(text, @"^@page\b", RegexOptions.Multiline)) continue;
+            if (Regex.IsMatch(text, @"^@page\b", RegexOptions.Multiline))
+            {
+                continue;
+            }
+
             var name = Path.GetFileNameWithoutExtension(path);
             var pattern = new Regex(@"(?<![A-Za-z0-9_])" + Regex.Escape(name) + @"(?![A-Za-z0-9_])");
-            if (!all.Any(f => f.Path != path && pattern.IsMatch(f.Text))) unused.Add(name);
+            if (!all.Any(f => f.Path != path && pattern.IsMatch(f.Text)))
+            {
+                unused.Add(name);
+            }
         }
 
         Assert.True(unused.Count == 0, "Components nothing uses (delete them): " + string.Join(", ", unused));
@@ -126,7 +133,10 @@ public sealed class LookRatchetGuardrailTests
             known.Add(value);
             for (var i = 0; i < value.Length - 1; i++)
             {
-                if (value[i] is '-' or '_') known.Add(value[..(i + 1)]);
+                if (value[i] is '-' or '_')
+                {
+                    known.Add(value[..(i + 1)]);
+                }
             }
         }
 
@@ -138,9 +148,17 @@ public sealed class LookRatchetGuardrailTests
             foreach (Match m in Regex.Matches(selectors, @"\.([a-zA-Z_][\w-]*)"))
             {
                 var name = m.Groups[1].Value;
-                if (known.Contains(name)) continue;
+                if (known.Contains(name))
+                {
+                    continue;
+                }
+
                 var prefix = Regex.Match(name, @"^(.*[-_])[^-_]+$");
-                if (prefix.Success && known.Contains(prefix.Groups[1].Value)) continue;
+                if (prefix.Success && known.Contains(prefix.Groups[1].Value))
+                {
+                    continue;
+                }
+
                 dead.Add(name);
             }
         }
