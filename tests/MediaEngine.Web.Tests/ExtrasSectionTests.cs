@@ -33,6 +33,19 @@ public sealed class ExtrasSectionTests : AsyncBunitContext
     }
 
     [Fact]
+    public void ACardWithAKindAndPlace_ShowsItsBadge_AndACardWithoutOneShowsNone()
+    {
+        var cut = Render<ExtrasSection>(p => p.Add(c => c.Extras,
+        [
+            new DetailExtraCardViewModel { Id = ClipId, Kind = DetailExtraCardKinds.Clip, Title = "Season 1 trailer", Badge = "Trailer · Season 1" },
+            new DetailExtraCardViewModel { Id = DocId, Kind = DetailExtraCardKinds.Document, Title = "Workbook" },
+        ]));
+
+        var badge = Assert.Single(cut.FindAll("[data-testid=extras-badge]"));
+        Assert.Equal("Trailer · Season 1", badge.TextContent.Trim());
+    }
+
+    [Fact]
     public void EachCardLinksToTheViewer_AndAPictureFolderIsOneCard()
     {
         var cut = Render<ExtrasSection>(p => p.Add(c => c.Extras,

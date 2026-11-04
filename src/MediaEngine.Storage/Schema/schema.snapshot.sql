@@ -1,5 +1,5 @@
 -- GENERATED FILE: do not edit.
--- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0079 universe_contents_kinds).
+-- The complete Tuvima data structure after every upgrade step in Schema/Upgrades/ (latest step: 0080 extra_kinds_and_places).
 -- Change the structure by adding a numbered upgrade step, then refresh this file:
 --   pwsh -File tools/Update-SchemaSnapshot.ps1
 
@@ -1009,19 +1009,19 @@ CREATE TABLE entity_relationships (
     end_time                TEXT
 );
 
-CREATE TABLE excluded_source_files (
+CREATE TABLE "excluded_source_files" (
     id                     BLOB NOT NULL PRIMARY KEY,
     library_id             TEXT NOT NULL,
     source_id              TEXT NOT NULL,
     relative_path          TEXT NOT NULL,
-    content_hash           TEXT,                -- SHA-256 hex of the deleted title's media asset
+    content_hash           TEXT,
     file_size              INTEGER,
-    last_write_utc         TEXT,                -- ISO 8601 UTC
+    last_write_utc         TEXT,
     title                  TEXT,
-    excluded_at            TEXT NOT NULL,       -- ISO 8601 UTC
+    excluded_at            TEXT NOT NULL,
     excluded_by_account_id BLOB,
     excluded_by_name       TEXT,
-    reason                 TEXT CHECK (reason IS NULL OR reason IN ('as_is', 'protected', 'delete_failed')),
+    reason                 TEXT CHECK (reason IS NULL OR reason IN ('as_is', 'protected', 'delete_failed', 'ignored_by_you')),
     UNIQUE (source_id, relative_path)
 );
 
@@ -1255,7 +1255,8 @@ CREATE TABLE item_extras (
     target_season    INTEGER,
     target_episode   INTEGER,
     found_at         TEXT NOT NULL
-);
+, extra_kind TEXT
+    CHECK (extra_kind IS NULL OR extra_kind IN ('trailer', 'featurette', 'behind_the_scenes', 'deleted_scene', 'interview', 'document', 'pictures', 'other_clip')), place_season INTEGER, place_episode INTEGER, place_track INTEGER);
 
 CREATE TABLE local_file_sources (
     id                  BLOB NOT NULL PRIMARY KEY,

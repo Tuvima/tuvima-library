@@ -109,6 +109,13 @@
     white-space: nowrap;
 }
 
+.tl-extras-card__badge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: rgba(246, 240, 232, 0.86);
+}
+
 .tl-extras-card__subtitle {
     font-size: 0.78rem;
     color: rgba(246, 240, 232, 0.66);
