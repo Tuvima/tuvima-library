@@ -77,7 +77,7 @@ public sealed class UniverseContentsReadService(
                 continue;
             }
 
-            var own = visibleLinks[entity.Id].ToList();
+            var own = view.VisibleAppearances(visibleLinks[entity.Id].ToList(), entity.EntitySubType == FictionalEntityType.Character).ToList();
             if (own.Count == 0)
             {
                 continue;

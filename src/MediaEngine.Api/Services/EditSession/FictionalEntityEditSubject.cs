@@ -136,7 +136,8 @@ public sealed class FictionalEntityEditSubject(IFictionalEntityRepository entiti
         }
 
         await entities.UpdateUserDetailsAsync(id, label, description, ct).ConfigureAwait(false);
-        if (fields.Any(field => string.Equals(field.Key.Trim(), AliasesKey, StringComparison.OrdinalIgnoreCase)))
+        var aliasesChanged = fields.Any(field => string.Equals(field.Key.Trim(), AliasesKey, StringComparison.OrdinalIgnoreCase));
+        if (aliasesChanged)
         {
             await entities.UpdateUserLinksAsync(id, links, ct).ConfigureAwait(false);
         }
@@ -146,9 +147,9 @@ public sealed class FictionalEntityEditSubject(IFictionalEntityRepository entiti
         return async undoCt =>
         {
             await entities.UpdateUserDetailsAsync(id, previousLabel, previousDescription, undoCt).ConfigureAwait(false);
-            if (storedLinks is not null)
+            if (aliasesChanged)
             {
-                await entities.UpdateUserLinksAsync(id, storedLinks, undoCt).ConfigureAwait(false);
+                await entities.UpdateUserLinksAsync(id, storedLinks ?? new FictionalEntityUserLinks([], null, false), undoCt).ConfigureAwait(false);
             }
         };
     }
