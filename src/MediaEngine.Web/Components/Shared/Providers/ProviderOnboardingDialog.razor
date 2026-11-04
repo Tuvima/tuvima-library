@@ -3,12 +3,13 @@
 @inject ILogger<ProviderOnboardingDialog> Logger
 @inject IStringLocalizer<SharedStrings> L
 
-<AppHostedDialog Title="@DialogTitle"
+<AppDialogShell Title="@DialogTitle"
                  Subtitle="@DialogSubtitle"
                  Eyebrow="@L["ProviderOnboardingDialog_ProviderConnection"].Value"
                  Icon="@AppMaterialIcons.Outlined.Extension"
                  Size="Provider"
-                 Class="provider-onboarding-host"
+                 Modal="false"
+                 HostClass="provider-onboarding-host"
                  OnClose="Cancel">
     <ChildContent>
         <div class="provider-onboarding" style="@AccentStyle">
@@ -118,7 +119,7 @@
             </div>
         </div>
     </FooterContent>
-</AppHostedDialog>
+</AppDialogShell>
 
 @code {
     [CascadingParameter] private IAppDialogContext DialogInstance { get; set; } = default!;

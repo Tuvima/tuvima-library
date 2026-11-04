@@ -136,6 +136,10 @@ public sealed class ItemCanonicalRetailCandidateDto
     [JsonPropertyName("match_scores")]
     public FieldMatchScoresDto? MatchScores { get; set; }
 
+    /// <summary>One short sentence saying why the confidence is what it is ("Title and year match; author differs"), worded from <see cref="MatchScores"/>. Null when the scoring gave nothing to say.</summary>
+    [JsonPropertyName("reason_text")]
+    public string? ReasonText { get; set; }
+
     [JsonPropertyName("link_state")]
     public string LinkState { get; set; } = "provider_only";
 
@@ -201,6 +205,10 @@ public sealed class ItemCanonicalLinkedCandidateDto
 
     [JsonPropertyName("match_scores")]
     public FieldMatchScoresDto? MatchScores { get; set; }
+
+    /// <summary>One short sentence saying why the confidence is what it is, worded from <see cref="MatchScores"/>. Null when the scoring gave nothing to say.</summary>
+    [JsonPropertyName("reason_text")]
+    public string? ReasonText { get; set; }
 
     [JsonPropertyName("bridge_ids")]
     public Dictionary<string, string> BridgeIds { get; set; } = new(StringComparer.OrdinalIgnoreCase);

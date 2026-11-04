@@ -67,7 +67,7 @@
     z-index: var(--tl-z-popover, 1600);
     top: calc(100% + 0.75rem);
     right: 0;
-    width: min(19rem, calc(100vw - 1rem));
+    width: min(var(--tl-menu-width), calc(100vw - 1rem));
     padding: 0.55rem;
     overflow: hidden;
     border: 1px solid rgba(150, 164, 192, 0.16);
@@ -115,7 +115,7 @@
 
 .top-nav-account-menu__panel ::deep .top-nav-account-menu__item {
     width: 100%;
-    min-height: var(--tl-touch-target-min, 48px);
+    min-height: var(--tl-menu-row-height);
     display: flex;
     align-items: center;
     gap: 0;
@@ -126,7 +126,7 @@
     color: var(--app-text-primary, #dbe4ed) !important;
     background: transparent !important;
     font-family: var(--font-ui) !important;
-    font-size: 0.94rem !important;
+    font-size: var(--tl-menu-row-font-size) !important;
     font-weight: 600 !important;
     line-height: 1.25 !important;
     text-decoration: none !important;
@@ -187,7 +187,7 @@
 
 .top-nav-account-menu__panel ::deep .top-nav-account-menu__signout {
     width: 100%;
-    min-height: 3rem;
+    min-height: var(--tl-menu-row-height);
     display: flex;
     align-items: center;
     gap: 0.82rem;

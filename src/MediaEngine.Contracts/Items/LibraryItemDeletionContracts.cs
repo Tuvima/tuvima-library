@@ -49,6 +49,40 @@ public sealed class LibraryItemDeletionPreview
 
     /// <summary>Set when the titles are a whole show, season, album or Series (see <see cref="LibraryGroupDeletionPreviewRequest"/>); null for a plain list of titles.</summary>
     [JsonPropertyName("group")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public LibraryItemDeletionGroupDto? Group { get; init; }
+
+    /// <summary>Set when the plan deletes one file of an item (see <see cref="LibraryItemFileDeletionPreviewRequest"/>); null for a plain list of titles or a group.</summary>
+    [JsonPropertyName("file_scope")][JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public LibraryItemDeletionFileScopeDto? FileScope { get; init; }
+}
+
+/// <summary>Asks what deleting one file of an item would do. Nothing is changed. The answer is a <see cref="LibraryItemDeletionPreview"/> whose <see cref="LibraryItemDeletionPreview.FileScope"/> is set.</summary>
+public sealed class LibraryItemFileDeletionPreviewRequest
+{
+    [JsonPropertyName("work_id")] public Guid WorkId { get; init; }
+
+    /// <summary>The media asset (file) of that item to delete.</summary>
+    [JsonPropertyName("asset_id")] public Guid AssetId { get; init; }
+}
+
+/// <summary>Deletes the one file as confirmed. A changed plan answers 409 with a fresh preview, exactly as a title delete does.</summary>
+public sealed class LibraryItemFileDeletionRequest
+{
+    [JsonPropertyName("work_id")] public Guid WorkId { get; init; }
+    [JsonPropertyName("asset_id")] public Guid AssetId { get; init; }
+    [JsonPropertyName("fingerprint")] public string Fingerprint { get; init; } = string.Empty;
+}
+
+/// <summary>What a one-file delete means for the item it belongs to, for the confirmation box.</summary>
+public sealed class LibraryItemDeletionFileScopeDto
+{
+    [JsonPropertyName("work_id")] public Guid WorkId { get; init; }
+    [JsonPropertyName("asset_id")] public Guid AssetId { get; init; }
+    [JsonPropertyName("file_name")] public string FileName { get; init; } = string.Empty;
+
+    /// <summary>True when the item has other files and stays in the library with them. False when this is its last file: the whole item leaves the library, as a title delete does.</summary>
+    [JsonPropertyName("item_remains")] public bool ItemRemains { get; init; }
+
+    /// <summary>How many media files the item keeps after this delete (0 when <see cref="ItemRemains"/> is false).</summary>
+    [JsonPropertyName("remaining_files")] public int RemainingFiles { get; init; }
 }
 
 /// <summary>What the whole group is, for the dialog's heading, totals and typed confirmation.</summary>

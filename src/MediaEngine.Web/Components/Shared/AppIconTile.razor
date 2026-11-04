@@ -6,11 +6,24 @@
       role="@(Decorative ? null : "img")"
       aria-label="@(Decorative ? null : AccessibleLabel)"
       aria-hidden="@(Decorative ? "true" : null)">
-    <AppIcon Name="@Name" Size="@IconSize" Decorative="true" />
+    @if (!string.IsNullOrEmpty(MaterialIcon))
+    {
+        <AppMaterialIcon Icon="@MaterialIcon" />
+    }
+    else
+    {
+        <AppIcon Name="@Name" Size="@IconSize" Decorative="true" />
+    }
 </span>
 
 @code {
-    [Parameter, EditorRequired] public string Name { get; set; } = string.Empty;
+    [Parameter] public string Name { get; set; } = string.Empty;
+
+    /// <summary>A Material icon name; when set it is drawn instead of <see cref="Name"/>.</summary>
+    [Parameter] public string? MaterialIcon { get; set; }
+
+    /// <summary>The icon tone by meaning (Look pass 4.7). Overrides <see cref="AccentColor"/>.</summary>
+    [Parameter] public AppIconTone? Tone { get; set; }
     [Parameter] public string AccentColor { get; set; } = "var(--tl-accent-primary)";
     [Parameter] public AppControlSize Size { get; set; } = AppControlSize.Normal;
     [Parameter] public string? Class { get; set; }
@@ -33,5 +46,5 @@
         Class,
     }.Where(value => !string.IsNullOrWhiteSpace(value)));
 
-    private string TileStyle => $"--app-icon-tile-accent:{AccentColor};";
+    private string TileStyle => $"--app-icon-tile-accent:{(Tone is { } tone ? AppIconToneMap.Color(tone) : AccentColor)};";
 }

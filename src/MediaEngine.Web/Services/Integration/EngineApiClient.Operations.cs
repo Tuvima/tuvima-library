@@ -721,6 +721,23 @@ public sealed partial class EngineApiClient
             ct);
     }
 
+    public Task<LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionPreview>> GetLibraryItemFileDeletionPreviewAsync(
+        Guid workId, Guid assetId, CancellationToken ct = default) =>
+        PostDeletionPreviewAsync(
+            "/library/items/file-deletion-preview",
+            new MediaEngine.Contracts.Items.LibraryItemFileDeletionPreviewRequest { WorkId = workId, AssetId = assetId },
+            ct);
+
+    public Task<LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>> DeleteLibraryItemFileAsync(
+        Guid workId, Guid assetId, string fingerprint, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(fingerprint);
+        return PostDeletionAsync(
+            "/library/items/file-delete",
+            new MediaEngine.Contracts.Items.LibraryItemFileDeletionRequest { WorkId = workId, AssetId = assetId, Fingerprint = fingerprint },
+            ct);
+    }
+
     private async Task<LibraryItemDeletionOutcome<MediaEngine.Contracts.Items.LibraryItemDeletionResultDto>> PostDeletionAsync(
         string route, object body, CancellationToken ct)
     {
