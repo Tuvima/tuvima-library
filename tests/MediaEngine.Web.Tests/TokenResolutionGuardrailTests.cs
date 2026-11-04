@@ -58,7 +58,11 @@ public sealed class TokenResolutionGuardrailTests
     private static string FindRepoRoot()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
-        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "MediaEngine.slnx"))) dir = dir.Parent;
+        while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "MediaEngine.slnx")))
+        {
+            dir = dir.Parent;
+        }
+
         return dir?.FullName ?? throw new InvalidOperationException("Repo root not found.");
     }
 }
