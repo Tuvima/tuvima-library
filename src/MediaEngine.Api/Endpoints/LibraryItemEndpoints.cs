@@ -177,6 +177,53 @@ public static class LibraryItemEndpoints
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireEffectiveAdministratorInPerson();
 
+        // Delete one file of an item (editor Files tab): the same two halves, narrowed to one media file. An item with other files stays
+        // with them; the last file of an item is the ordinary title delete. Fingerprint, safety gate and audience are the title ones.
+        group.MapPost("/file-deletion-preview", async (
+            LibraryItemFileDeletionPreviewRequest request,
+            LibraryItemDeletionService deletion,
+            CancellationToken ct) =>
+        {
+            var result = await deletion.PreviewFileAsync(request.WorkId, request.AssetId, ct);
+            return result.IsSuccess ? Results.Ok(result.Value) : GroupDeletionRefusal(result.Refusal!);
+        })
+        .WithName("PreviewLibraryItemFileDeletion")
+        .WithSummary("Preview deleting one file of an item: the file and its sidecars, the space freed, whether the item stays with its other files, and a fingerprint of the plan.")
+        .Produces<LibraryItemDeletionPreview>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireEffectiveAdministratorInPerson();
+
+        group.MapPost("/file-delete", async (
+            LibraryItemFileDeletionRequest request,
+            HttpContext http,
+            IRequestAuthorityResolver resolver,
+            IProfileRepository profiles,
+            LibraryItemDeletionService deletion,
+            CancellationToken ct) =>
+        {
+            var authority = await resolver.ResolveAsync(http, ct);
+            var profile = authority.ActiveProfileId is { } profileId
+                ? await profiles.GetByIdAsync(profileId, ct)
+                : null;
+            var actor = new LibraryItemDeletionActor(
+                authority.AccountId,
+                authority.ActiveProfileId,
+                string.IsNullOrWhiteSpace(profile?.DisplayName) ? "An administrator" : profile.DisplayName);
+
+            var result = await deletion.DeleteFileAsync(request.WorkId, request.AssetId, request.Fingerprint, actor, ct);
+            return result.IsSuccess ? Results.Ok(result.Value) : GroupDeletionRefusal(result.Refusal!);
+        })
+        .WithName("DeleteLibraryItemFile")
+        .WithSummary("Delete one file of an item. Confirms the plan by its fingerprint: a changed plan answers 409 with a fresh preview and nothing is deleted.")
+        .Produces<LibraryItemDeletionResultDto>(StatusCodes.Status200OK)
+        .Produces<LibraryItemDeletionConflictDto>(StatusCodes.Status409Conflict)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status403Forbidden)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireEffectiveAdministratorInPerson();
+
         // The recycle bin of the library types that have it switched on. Same audience as deleting: effective administrators at
         // the Dashboard. Restoring never overwrites; emptying is the only step that removes files from the disk.
         group.MapPost("/recycle-bin/{id:guid}/restore", async (Guid id, HttpContext http, IRequestAuthorityResolver authorities,
