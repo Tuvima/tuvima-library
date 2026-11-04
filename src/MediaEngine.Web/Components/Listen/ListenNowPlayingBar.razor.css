@@ -52,3 +52,6 @@
 
 .listen-player-shell ::deep .media-rate-control { --media-rate-trigger-size:44px; color:var(--playback-text); }
 .listen-player-shell ::deep .media-rate-control .hero-icon-circle:hover { color:var(--playback-accent-hover); }
+.listen-player__scope { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:2px 4px 0; font-size:var(--tl-font-size-sm); color:var(--playback-muted,#9EA4BC); }
+.listen-player__scope-label small { font-size:inherit; opacity:.85; }
+.listen-player__scope-switch { display:inline-flex; gap:2px; padding:2px; border-radius:var(--tl-radius-sm,6px); background:#30364A; }
