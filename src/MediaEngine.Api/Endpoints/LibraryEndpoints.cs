@@ -317,6 +317,31 @@ public static class LibraryEndpoints
         .ProducesProblem(StatusCodes.Status404NotFound)
         .RequireEffectiveAdministrator();
 
+        // ── GET /library/editor-quick-facts/{id} ─────
+        // The totals the editor's Quick Facts panel needs beyond the fields (universal editor v4, D4): children owned of total, files, size,
+        // runtime, best quality, and whether the files sit in a read-only library folder. Works for any title, person, Series, collection or Universe.
+        group.MapGet("/editor-quick-facts/{id:guid}", async (
+            Guid id,
+            [FromServices] ItemQuickFactsService quickFacts,
+            EditSessionAccessService access,
+            HttpContext http,
+            CancellationToken ct) =>
+        {
+            var refusals = await access.FindRefusalsAsync(http, [id], ct);
+            if (refusals.TryGetValue(id, out var refusal))
+            {
+                return ApiErrors.Forbidden(refusal);
+            }
+
+            var facts = await quickFacts.GetAsync(id, ct);
+            return facts is null ? ApiErrors.NotFound(EditSessionReasons.SubjectUnavailable) : Results.Ok(facts);
+        })
+        .WithName("GetEditorQuickFacts")
+        .WithSummary("The totals behind the universal editor's Quick Facts for an item: owned of total, file count, size, runtime and quality.")
+        .Produces<ItemQuickFactsDto>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .RequireEffectiveAdministrator();
+
         return app;
     }
 }

@@ -20,6 +20,7 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
     var canEdit = mode.CanEdit && fields.CanEditFields;
     var editable = canEdit ? Rows(fields).Where(IsEditable).ToList() : [];
     var facts = Rows(fields).Where(row => !editable.Contains(row)).ToList();
+    <div class="tl-editor-details-layout">
     <div class="tl-editor-details">
         @if (!canEdit)
         {
@@ -61,6 +62,8 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
 
         @ChildContent
     </div>
+    <EditorQuickFacts Fields="fields" />
+    </div>
 }
 
 @code {
@@ -83,15 +86,37 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
         var staged = session.Pending.TryGetField(entityId, key, out var stagedValue);
         var isReset = staged && string.IsNullOrWhiteSpace(stagedValue);
         var shown = staged ? stagedValue ?? string.Empty : Baseline(field);
-        var overridden = staged ? !isReset : field.CanRevert;
         var isTags = IsTags(field);
-        <div class="@(IsWide(field) ? "tl-editor-field tl-editor-field--wide" : "tl-editor-field")" data-field-key="@field.Key">
+        var state = StateOf(fields, session, field);
+        var overridden = state.Changed;
+        <div class="@FieldClass(field, state)" data-field-key="@field.Key" data-locked="@(state.Locked ? "true" : "false")" data-changed="@(state.Changed ? "true" : "false")">
             <div class="tl-editor-field__label">
                 <span>@field.Label</span>
                 @if (overridden)
                 {
                     <span class="tl-editor-field__dot" role="img" aria-label="@($"{field.Label} is changed")" title="@($"Changed from the {Canonical(field)} value")"></span>
                 }
+                <span class="tl-editor-field__tools">
+                    @if (state.Changed && !isReset)
+                    {
+                        <AppIconButton Icon="@AppMaterialIcons.Outlined.Replay"
+                                       Size="AppControlSize.Compact"
+                                       Tone="AppUiTone.Neutral"
+                                       Class="tl-editor-field__reset"
+                                       Tooltip="@RevertText(field, state)"
+                                       AriaLabel="@RevertText(field, state)"
+                                       OnClick="@(() => Revert(fields, session, field, state))" />
+                    }
+                    <AppIconButton Icon="@(state.Locked ? AppMaterialIcons.Outlined.Lock : AppMaterialIcons.Outlined.LockOpen)"
+                                   Size="AppControlSize.Compact"
+                                   Tone="@(state.Locked ? AppUiTone.Primary : AppUiTone.Neutral)"
+                                   Class="tl-editor-field__lock-toggle"
+                                   Disabled="@(state.LockFixed || (!state.Locked && string.IsNullOrWhiteSpace(Baseline(field))))"
+                                   Tooltip="@LockText(field, state)"
+                                   AriaLabel="@LockText(field, state)"
+                                   aria-pressed="@(state.Locked ? "true" : "false")"
+                                   OnClick="@(() => ToggleLock(fields, session, field, state))" />
+                </span>
             </div>
             @if (field.IsChips)
             {
@@ -125,13 +150,76 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
                     <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
                                OnClick="@(() => Undo(fields, session, field))">Undo</AppButton></span>
             }
-            else if (field.CanRevert)
-            {
-                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
-                           Class="tl-editor-field__reset" OnClick="@(() => Reset(fields, session, field))">Reset to @(field.CanonicalName ?? "provider") value</AppButton>
-            }
         </div>
     };
+
+    // Where one editable field stands: Changed (the value differs from the provider's, saved or waiting for Save), Locked (the value is kept
+    // when the provider refreshes) and whether the lock can be turned off. A changed value is always kept, so its lock is fixed on; Tags are
+    // private to the library and never replaced by a refresh, so theirs is fixed on too. A field that follows the provider can be locked
+    // as it is: that stages its current value as the person's own, exactly as typing the same value would.
+    private readonly record struct FieldState(bool Changed, bool Locked, bool LockFixed, bool Pinned, bool StagedOnly);
+
+    private FieldState StateOf(ItemFieldEditSession fields, EditSessionState session, MediaEditorDetailsFieldPresentation field)
+    {
+        var staged = session.Pending.TryGetField(fields.EntityId, StageKey(field), out var stagedValue);
+        var isReset = staged && string.IsNullOrWhiteSpace(stagedValue);
+        var stagedChange = staged && !isReset && !string.Equals(stagedValue?.Trim(), Baseline(field).Trim(), StringComparison.Ordinal);
+        var pinned = staged && !isReset && !stagedChange;
+        var changed = !isReset && (stagedChange || field.CanRevert);
+        var tags = IsTags(field);
+        var locked = tags || (!isReset && (changed || pinned || field.CanRevert));
+        return new FieldState(changed, locked, tags || changed, pinned, staged && !isReset && !field.CanRevert);
+    }
+
+    private static string FieldClass(MediaEditorDetailsFieldPresentation field, FieldState state) =>
+        string.Join(' ', new[]
+        {
+            "tl-editor-field",
+            IsWide(field) ? "tl-editor-field--wide" : null,
+            state.Changed ? "tl-editor-field--changed" : null,
+        }.Where(part => part is not null));
+
+    private static string RevertText(MediaEditorDetailsFieldPresentation field, FieldState state) =>
+        state.StagedOnly ? $"Put back the saved {field.Label.ToLowerInvariant()}" : $"Reset to {field.CanonicalName ?? "provider"} value";
+
+    private static string LockText(MediaEditorDetailsFieldPresentation field, FieldState state) =>
+        IsTags(field) ? "Tags are yours: a provider refresh never replaces them."
+        : state.Changed ? "Locked: a value you changed is kept when the provider refreshes. Use the arrow to go back."
+        : state.Locked ? "Locked: your value is kept when the provider refreshes. Click to let the provider update it."
+        : string.IsNullOrWhiteSpace(Baseline(field)) ? "Nothing to keep yet."
+        : "Click to keep this value when the provider refreshes.";
+
+    private void Revert(ItemFieldEditSession fields, EditSessionState session, MediaEditorDetailsFieldPresentation field, FieldState state)
+    {
+        if (state.StagedOnly)
+        {
+            Undo(fields, session, field);
+        }
+        else
+        {
+            Reset(fields, session, field);
+        }
+    }
+
+    private void ToggleLock(ItemFieldEditSession fields, EditSessionState session, MediaEditorDetailsFieldPresentation field, FieldState state)
+    {
+        if (!session.IsActive || Mode is not { CanEdit: true } || state.LockFixed)
+        {
+            return;
+        }
+
+        if (state.Locked)
+        {
+            // Unlocking a field that only follows a pin takes the pin back out; nothing else was staged for it.
+            session.Pending.ClearField(fields.EntityId, StageKey(field));
+        }
+        else if (!string.IsNullOrWhiteSpace(Baseline(field)))
+        {
+            session.Pending.SetField(fields.EntityId, StageKey(field), Baseline(field), before: PinBefore);
+        }
+    }
+
+    private const string PinBefore = "Follows the provider";
 
     // Only a video or a series of videos has the mark (the Engine says so). It is staged like a field and saved with Save changes.
     private RenderFragment ExplicitRow(ItemFieldEditSession fields, EditSessionState session, ItemExplicitResponse saved) => __builder =>

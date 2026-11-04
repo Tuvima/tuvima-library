@@ -207,7 +207,7 @@ public sealed class SubjectEditorTests : AsyncBunitContext
         var title = cut.WaitForElement(".tl-editor-field[data-field-key='title']");
 
         Assert.NotNull(title.QuerySelector(".tl-editor-field__dot"));
-        title.QuerySelectorAll("button").Single(button => button.TextContent.Contains("Reset to provider value")).Click();
+        title.QuerySelectorAll("button").Single(button => button.GetAttribute("aria-label") == "Reset to provider value").Click();
 
         cut.WaitForAssertion(() =>
         {
@@ -225,7 +225,7 @@ public sealed class SubjectEditorTests : AsyncBunitContext
         await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
         var title = cut.WaitForElement(".tl-editor-field[data-field-key='title']");
 
-        title.QuerySelectorAll("button").Single(button => button.TextContent.Contains("Reset to canonical value")).Click();
+        title.QuerySelectorAll("button").Single(button => button.GetAttribute("aria-label") == "Reset to canonical value").Click();
 
         cut.WaitForAssertion(() => Assert.Contains("canonical value", cut.Find(".tl-editor-field[data-field-key='title'] .tl-editor-field__note").TextContent));
     }

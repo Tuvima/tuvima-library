@@ -403,7 +403,7 @@ public sealed class UniversePageTests : AsyncBunitContext
         var title = _editor.WaitForElement(".tl-editor-field[data-field-key='title']");
 
         Assert.NotNull(title.QuerySelector(".tl-editor-field__dot"));
-        Assert.Contains(title.QuerySelectorAll("button"), button => button.TextContent.Contains("Reset to canonical value"));
+        Assert.Contains(title.QuerySelectorAll("button"), button => button.GetAttribute("aria-label") == "Reset to canonical value");
     }
 
     [Fact]
