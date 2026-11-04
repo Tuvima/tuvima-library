@@ -82,10 +82,10 @@
                                             Session="flow.Session"
                                             Family="Editor.Family"
                                             CanEdit="@mode.CanEdit" />
-                    <EditorExtrasMovePanel Subject="@(mode.Fields.Loading ? null : mode.Fields.MatchSubject())"
-                                           Extras="binding?.Extras"
-                                           Session="flow.Session"
-                                           CanEdit="@mode.CanEdit" />
+                    <EditorFileSortPanel Subject="@(mode.Fields.Loading ? null : mode.Fields.MatchSubject())"
+                                         Extras="binding?.Extras"
+                                         Session="flow.Session"
+                                         CanEdit="@mode.CanEdit" />
                 }
                 else if (tool == EditTool.History)
                 {

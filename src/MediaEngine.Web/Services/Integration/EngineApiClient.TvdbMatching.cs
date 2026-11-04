@@ -74,6 +74,9 @@ public sealed partial class EngineApiClient
     public async Task<EditorMatchContextDto?> GetEditorMatchContextAsync(Guid entityId, CancellationToken ct = default) =>
         await GetAsync<EditorMatchContextDto>("Editor match context", $"/metadata/{entityId}/match-context", ct: ct);
 
+    public async Task<EditorFileSortingDto?> GetEditorFileSortingAsync(Guid entityId, CancellationToken ct = default) =>
+        await GetAsync<EditorFileSortingDto>("Editor file sorting", $"/metadata/{entityId}/file-sorting", ct: ct);
+
     public async Task<EpisodeSiblingMatchPreviewDto?> PreviewEpisodeSiblingMatchAsync(Guid entityId, string seriesId, int seasonNumber, CancellationToken ct = default) =>
         await GetAsync<EpisodeSiblingMatchPreviewDto>(
             "Episode sibling match preview",

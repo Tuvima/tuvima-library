@@ -22,6 +22,15 @@ public sealed class DetailExtraCardViewModel
     /// <summary>The line under the title: "PDF, 42 pages", "24 pictures", "12:03".</summary>
     public string? Subtitle { get; init; }
 
+    /// <summary>What the Extra is (universal editor v4 D20): an <c>ExtraKinds</c> value such as <c>trailer</c>, <c>document</c> or <c>other_clip</c>.</summary>
+    public string ExtraKind { get; init; } = string.Empty;
+
+    /// <summary>Where in its title the Extra belongs, for example "Season 1", "Season 1, episode 3" or "Track 4"; empty for the whole title.</summary>
+    public string? Place { get; init; }
+
+    /// <summary>The kind and place as one line for the card's badge: "Trailer", "Trailer · Season 1".</summary>
+    public string? Badge { get; init; }
+
     /// <summary>How many files the card holds (more than one only for a picture folder).</summary>
     public int ItemCount { get; init; } = 1;
 
