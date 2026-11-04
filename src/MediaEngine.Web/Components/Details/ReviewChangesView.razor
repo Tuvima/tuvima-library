@@ -89,7 +89,10 @@
     }
 
     <p class="review-changes__note">@L["ReviewChangesView_ProviderRecordsAreNeverModified"]</p>
-    <ReviewFilesStatus Source="Source" Disabled="@Busy" />
+    @if (Source.ShowsFilesStatus)
+    {
+        <ReviewFilesStatus Source="Source" Disabled="@Busy" />
+    }
     <div class="review-changes__footer">
     @if (_finished)
     {

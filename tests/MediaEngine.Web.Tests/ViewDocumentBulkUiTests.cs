@@ -33,7 +33,7 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
     private readonly Handler _handler = new();
     private readonly DeviceContextService _device;
     private readonly IRenderedComponent<AppDialogHost> _dialogs;
-    private readonly IRenderedComponent<AppToastHost> _toasts;
+    private readonly IRenderedComponent<MediaEngine.Web.Components.Details.ViewSavedRibbon> _toasts;
 
     public ViewDocumentBulkUiTests()
     {
@@ -50,7 +50,7 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
         Services.AddSingleton<ViewAssetDragService>();
         Services.AddSingleton(new ViewMediaGrantService(new byte[32], TimeSpan.FromMinutes(1)));
         _dialogs = Render<AppDialogHost>();
-        _toasts = Render<AppToastHost>();
+        _toasts = Render<MediaEngine.Web.Components.Details.ViewSavedRibbon>();
     }
 
     private IRenderedComponent<ViewDocumentsPage> RenderLoaded()
@@ -191,7 +191,7 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task AddingTagsAsksWhichTagsFirstAndThenSendsThemByName()
+    public async Task TheOrganiseMenuOffersTheEditorInsteadOfOneDialogPerAction()
     {
         var cut = RenderLoaded();
         await EnterSelectModeAsync(cut);
@@ -199,17 +199,13 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
 
         await ClickAsync(cut, ".view-selection-toolbar button[aria-haspopup=menu]");
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[role=menuitem]")));
-        await ClickAsync(cut, "[role=menuitem]", item => item.TextContent.Contains("Add tags", StringComparison.Ordinal));
+        var items = cut.FindAll("[role=menuitem]").Select(item => item.TextContent.Trim()).ToList();
 
-        _dialogs.WaitForAssertion(() => Assert.Contains("Add tags", _dialogs.Markup, StringComparison.Ordinal));
-        await InputAsync(_dialogs, "input[aria-label='Tag to add']", "Receipts");
-        await SubmitAsync(_dialogs, "form.app-tag-input");
-        await ClickAsync(_dialogs, "button", button => button.TextContent.Contains("Apply to 1 document", StringComparison.Ordinal));
-
-        cut.WaitForAssertion(() => Assert.NotNull(_handler.LastBulkBody));
-        using var body = JsonDocument.Parse(_handler.LastBulkBody!);
-        Assert.Equal(ViewDocumentBulkOperations.AddTags, body.RootElement.GetProperty("operation").GetString());
-        Assert.Equal("Receipts", body.RootElement.GetProperty("tags")[0].GetString());
+        // Tags, correspondent, type and date are edited together in the one editor window (spec photos-documents-editor), not asked one by one.
+        Assert.Contains("Edit", items);
+        Assert.Contains("Mark filed", items);
+        Assert.DoesNotContain(items, item => item.Contains("Add tags", StringComparison.Ordinal) || item.Contains("Set correspondent", StringComparison.Ordinal));
+        Assert.Null(_handler.LastBulkBody);
     }
 
     [Fact]

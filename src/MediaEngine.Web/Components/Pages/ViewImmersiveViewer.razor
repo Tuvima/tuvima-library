@@ -1,8 +1,10 @@
 @using MediaEngine.Contracts.LocalAssets
 @using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Editing
 @namespace MediaEngine.Web.Components.Pages
 @inject IEngineApiClient ApiClient
-@inject IAppToastService Snackbar
+@inject ViewEditorHost EditorHost
+@inject ViewRibbonState Ribbon
 @inject ViewWorkspaceService Workspace
 @inject DeviceContextService DeviceContext
 @inject IStringLocalizer<SharedStrings> L
@@ -24,6 +26,10 @@
                   InfoInitiallyOpen="@(Workspace.ViewerInfoOpen || Item.FileMissing)"
                   InfoOpenChanged="InfoOpenChangedAsync">
     <ContextActions>
+        @if (CanEditHere)
+        {
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Edit" Tooltip="@L["ViewEdit_Edit"].Value" AriaLabel="@L["ViewEdit_Edit"].Value" OnClick="EditAsync" />
+        }
         @if (!string.IsNullOrWhiteSpace(MotionUrl))
         {
             <AppIconButton Icon="@(_showMotion ? AppMaterialIcons.Outlined.Photo : AppMaterialIcons.Outlined.MotionPhotosOn)"
@@ -37,25 +43,19 @@
         {
             <section class="view-viewer-info__section view-viewer-info__missing" role="status"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Warning" /><span><strong>@L["ViewImmersiveViewer_FileMissing"]</strong><small>@L["ViewImmersiveViewer_TheFileWasDeletedOr"]</small></span></section>
         }
-        <section class="view-viewer-info__section view-viewer-info__description">
-            @if (_editingDescription)
-            {
-                <AppTextarea Label="@L["ViewImmersiveViewer_Description"].Value" Value="@_description" ValueChanged="@(value => _description = value)" Lines="2" Placeholder="@L["ViewImmersiveViewer_AddADescription"].Value" Class="view-viewer-info__field" />
-                <div class="view-viewer-info__button-row"><AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_saving" OnClick="@(() => SaveDescriptionAsync())" Label="@L["Common_Save"].Value" /><AppButton ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => ToggleDescriptionEditor())" Label="@L["Search_Cancel"].Value" /></div>
-            }
-            else
-            {
-                <div class="view-viewer-info__description-card"><span class="@(string.IsNullOrWhiteSpace(Item.Description) ? "is-empty" : null)">@(string.IsNullOrWhiteSpace(Item.Description) ? "Add a description…" : Item.Description)</span>@if (CanEditHere) { <AppIconButton Icon="@AppMaterialIcons.Outlined.Edit" Tooltip="@L["ViewImmersiveViewer_EditDescription"].Value" AriaLabel="@L["ViewImmersiveViewer_EditDescription"].Value" OnClick="ToggleDescriptionEditor" /> }</div>
-            }
-        </section>
+        @* The side panel only shows (spec photos-documents-editor D6): the same facts the editor's Quick Facts card shows, with one Edit button. Nothing here is edited or saved. *@
+        @if (CanEditHere)
+        {
+            <section class="view-viewer-info__section"><AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" StartIcon="@AppMaterialIcons.Outlined.Edit" OnClick="EditAsync">@L["ViewEdit_Edit"]</AppButton></section>
+        }
+        @if (!string.IsNullOrWhiteSpace(Item.Description))
+        {
+            <section class="view-viewer-info__section view-viewer-info__description"><div class="view-viewer-info__description-card"><span>@Item.Description</span></div></section>
+        }
         <section class="view-viewer-info__section">
             <div class="view-viewer-info__heading"><h3>@L["Common_Details"]</h3></div>
             <div class="view-viewer-info__detail-list">
-                <div class="view-viewer-info__detail-row"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CalendarMonth" /><span><strong><time datetime="@Captured.ToString("O")">@CapturedLocal.ToString("MMM d, yyyy 'at' h:mm:ss tt")</time></strong><small>@($"{CapturedLocal:dddd}, GMT{CapturedLocal:zzz}")</small></span>@if (CanEditHere) { <AppIconButton Icon="@AppMaterialIcons.Outlined.Edit" Tooltip="@L["ViewImmersiveViewer_EditCapturedDate"].Value" AriaLabel="@L["ViewImmersiveViewer_EditCapturedDate"].Value" OnClick="ToggleDateEditor" /> }</div>
-                @if (_editingDate)
-                {
-                    <div class="view-viewer-info__inline-editor"><AppTextField InputType="AppInputType.DateTimeLocal" Value="@_capturedAt" ValueChanged="@(value => _capturedAt = value?.ToString())" Label="@L["ViewImmersiveViewer_CapturedDateAndTime"].Value" HideLabel="true" /><div class="view-viewer-info__button-row"><AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_saving" OnClick="@(() => SaveCapturedAtAsync())" Label="@L["Common_Save"].Value" />@if (Item.EmbeddedCapturedAt.HasValue && Item.CapturedAtUserOverride) { <AppButton ButtonStyle="AppButtonStyle.Outlined" Disabled="@_saving" OnClick="@(() => ResetCapturedAtAsync())" Label="@L["ViewImmersiveViewer_UseOriginal"].Value" /> }<AppButton ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => ToggleDateEditor())" Label="@L["Search_Cancel"].Value" /></div></div>
-                }
+                <div class="view-viewer-info__detail-row"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CalendarMonth" /><span><strong><time datetime="@Captured.ToString("O")">@CapturedLocal.ToString("MMM d, yyyy 'at' h:mm:ss tt")</time></strong><small>@($"{CapturedLocal:dddd}, GMT{CapturedLocal:zzz}")</small></span></div>
                 <div class="view-viewer-info__detail-row"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.InsertPhoto" /><span><strong>@Item.FileName</strong><small>@FileSummary</small></span></div>
                 @if (!string.IsNullOrWhiteSpace(Device))
                 {
@@ -63,34 +63,25 @@
                 }
             </div>
         </section>
-        @if (CanEditHere || !string.IsNullOrWhiteSpace(LocationLabel) || (Item.Latitude.HasValue && Item.Longitude.HasValue))
+        @if (!string.IsNullOrWhiteSpace(LocationLabel) || HasLocation)
         {
             <section class="view-viewer-info__section">
-            <div class="view-viewer-info__heading"><h3>@L["Common_Location"]</h3>@if (CanEditHere) { <AppIconButton Icon="@AppMaterialIcons.Outlined.Edit" Tooltip="@L["ViewImmersiveViewer_EditLocation"].Value" AriaLabel="@L["ViewImmersiveViewer_EditLocation"].Value" OnClick="ToggleLocationEditor" /> }</div>
-            @if (!string.IsNullOrWhiteSpace(LocationLabel)) { <div class="view-viewer-info__detail-row"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.LocationOn" /><span><strong>@LocationLabel</strong></span></div> }
-            @if (HasLocation)
-            {
-                <div class="view-viewer-info__map"><ViewMap Latitude="@Item.Latitude" Longitude="@Item.Longitude" Interactive="false" ShowNavigation="false" AriaLabel="@($"Map showing {LocationLabel}")" /></div>
-            }
-            @if (_editingLocation)
-            {
-                <div class="view-viewer-info__location-editor">
-                    <AppAutocomplete TItem="ViewPlaceDto" Label="@L["ViewImmersiveViewer_SearchIdentifiedPlaces"].Value" Value="@_selectedPlace" ValueChanged="PlaceSelected" SearchFunc="SearchPlacesAsync" ToStringFunc="@(place => place?.Name ?? string.Empty)" Placeholder="@L["ViewImmersiveViewer_SearchPlaces"].Value" ResetValueOnEmptyText="true" />
-                    @if (HasDraftLocation)
-                    {
-                        <div class="view-viewer-info__map is-editing"><ViewMap Latitude="@DraftLatitude" Longitude="@DraftLongitude" Editable="true" AriaLabel="@L["ViewImmersiveViewer_LocationEditorMap"].Value" OnCoordinateChanged="DraftCoordinateChanged" /></div>
-                        <div class="view-viewer-info__coordinates">
-                            <label class="view-viewer-info__field"><span>@L["ViewImmersiveViewer_Latitude"]</span><AppTextField InputMode="@(AppInputMode.@decimal)" Value="@_latitude" ValueChanged="@(value => LocationCoordinateChanged(value, true))" Label="@L["ViewImmersiveViewer_Latitude"].Value" HideLabel="true" /></label>
-                            <label class="view-viewer-info__field"><span>@L["ViewImmersiveViewer_Longitude"]</span><AppTextField InputMode="@(AppInputMode.@decimal)" Value="@_longitude" ValueChanged="@(value => LocationCoordinateChanged(value, false))" Label="@L["ViewImmersiveViewer_Longitude"].Value" HideLabel="true" /></label>
-                        </div>
-                    }
-                </div>
-                <div class="view-viewer-info__button-row"><AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(_saving || !HasDraftLocation)" OnClick="@(() => SaveLocationAsync())" Label="@L["ViewImmersiveViewer_SaveLocation"].Value" />@if (Item.EmbeddedLatitude.HasValue && Item.EmbeddedLongitude.HasValue && Item.LocationUserOverride) { <AppButton ButtonStyle="AppButtonStyle.Outlined" Disabled="@_saving" OnClick="@(() => ResetLocationAsync())" Label="@L["ViewImmersiveViewer_UseOriginal"].Value" /> }<AppButton ButtonStyle="AppButtonStyle.Outlined" OnClick="@(() => ToggleLocationEditor())" Label="@L["Search_Cancel"].Value" /></div>
-            }
+                <div class="view-viewer-info__heading"><h3>@L["Common_Location"]</h3></div>
+                @if (!string.IsNullOrWhiteSpace(LocationLabel)) { <div class="view-viewer-info__detail-row"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.LocationOn" /><span><strong>@LocationLabel</strong></span></div> }
+                @if (HasLocation)
+                {
+                    <div class="view-viewer-info__map"><ViewMap Latitude="@Item.Latitude" Longitude="@Item.Longitude" Interactive="false" ShowNavigation="false" AriaLabel="@($"Map showing {LocationLabel}")" /></div>
+                }
             </section>
         }
-        <section class="view-viewer-info__section"><div class="view-viewer-info__heading"><h3>@L["Wikidata_PeopleGroupTitle"]</h3></div>@if (CanEditHere) { <AppAutocomplete TItem="string" Value="@_personToAdd" ValueChanged="PersonSelected" SearchFunc="SearchPeopleAsync" Placeholder="@L["ViewImmersiveViewer_AddPeople"].Value" ResetValueOnEmptyText="true" /> }<div class="view-viewer-info__tags">@foreach (var person in _people) { <span>@person@if (CanEditHere) { <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Size="AppControlSize.Compact" Class="view-viewer-info__chip-remove" Tooltip="@($"Remove {person}")" AriaLabel="@($"Remove {person}")" OnClick="@(() => RemovePersonAsync(person))" /> }</span> }</div></section>
-        <section class="view-viewer-info__section"><div class="view-viewer-info__heading"><h3>@L["Common_Tags"]</h3></div>@if (CanEditHere) { <AppTagInput @key="Item.Id" Commit="CommitTagAsync" Search="SearchTagsAsync" /> }<div class="view-viewer-info__tags">@foreach (var tag in _tagValues) { <span>@tag@if (CanEditHere) { <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Disabled="@_tagSaving" Size="AppControlSize.Compact" Class="view-viewer-info__chip-remove" Tooltip="@($"Remove {tag}")" AriaLabel="@($"Remove {tag}")" OnClick="@(() => RemoveTagAsync(tag))" /> }</span> }</div></section>
+        @if (Item.People is { Count: > 0 })
+        {
+            <section class="view-viewer-info__section"><div class="view-viewer-info__heading"><h3>@L["Wikidata_PeopleGroupTitle"]</h3></div><div class="view-viewer-info__tags">@foreach (var person in Item.People) { <span>@person</span> }</div></section>
+        }
+        @if (Item.Tags.Count > 0)
+        {
+            <section class="view-viewer-info__section"><div class="view-viewer-info__heading"><h3>@L["Common_Tags"]</h3></div><div class="view-viewer-info__tags">@foreach (var tag in Item.Tags) { <span>@tag</span> }</div></section>
+        }
         <section class="view-viewer-info__section"><div class="view-viewer-info__heading"><h3>@L["Common_Files"]</h3></div><div class="view-viewer-info__files">@foreach (var file in DisplayFiles) { <div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.InsertPhoto" /><span><strong>@(file.FileName ?? Item.FileName)</strong>@if (DisplayFiles.Count > 1) { <small>@FileRole(file.Role)</small> }</span><small>@FormatBytes(file.ByteSize)</small></div> }</div></section>
     </InfoContent>
 </MediaViewerShell>
@@ -115,10 +106,13 @@
     [Parameter] public EventCallback<Guid> OnAddToGallery { get; set; }
     [Parameter] public EventCallback<LocalAssetDto> OnItemUpdated { get; set; }
     [Parameter] public bool CanEdit { get; set; }
+
+    /// <summary>Set when the viewer was opened from a gallery: Edit then shows "Gallery > Photo" in the editor's rail so the person can step through the gallery's photos.</summary>
+    [Parameter] public ViewEditGalleryRail? EditRail { get; set; }
     // Editing is desktop-only (EditorDeviceRule): phones and tablets only view photo details.
     private bool CanEditHere => CanEdit && DeviceContext.CanEdit && !Item.FileMissing;
     [Parameter] public bool CanManage { get; set; }
-    private Guid _editingItemId; private string? _description, _locationName, _locationCity, _locationRegion, _locationCountry, _latitude, _longitude, _capturedAt, _personToAdd; private bool _saving, _showMotion, _editingDescription, _editingDate, _editingLocation; private ViewPlaceDto? _selectedPlace; private List<string> _people = []; private List<string> _tagValues = [];
+    private bool _showMotion;
     private string Title => string.IsNullOrWhiteSpace(Item.Title) ? Item.FileName : Item.Title;
     private DateTimeOffset Captured => Item.CapturedAt ?? Item.CreatedAt;
     private DateTimeOffset CapturedLocal => Captured.ToLocalTime();
@@ -149,121 +143,32 @@
     }.Where(value => !string.IsNullOrWhiteSpace(value)));
     private string LocationLabel => string.Join(", ", new[] { Item.LocationName, Item.LocationCity, Item.LocationRegion, Item.LocationCountry }.Where(value => !string.IsNullOrWhiteSpace(value)));
     private bool HasLocation => Item.Latitude.HasValue && Item.Longitude.HasValue;
-    private bool HasDraftLocation => TryCoordinates(out _, out _);
-    private double? DraftLatitude => TryCoordinates(out var latitude, out _) ? latitude : null;
-    private double? DraftLongitude => TryCoordinates(out _, out var longitude) ? longitude : null;
-    protected override void OnParametersSet()
+
+    // Edit opens the one editor window over the viewer (spec photos-documents-editor D6); when it closes after a save, the item is read again.
+    private async Task EditAsync()
     {
-        if (_editingItemId == Item.Id) return;
-        _editingItemId = Item.Id; _showMotion = false; _editingDescription = false; _editingDate = false; _editingLocation = false; _description = Item.Description;
-        _tagValues = [.. Item.Tags]; _people = [.. (Item.People ?? [])];
-        _capturedAt = Captured.ToLocalTime().ToString("yyyy-MM-ddTHH:mm");
-        _locationName = Item.LocationName; _locationCity = Item.LocationCity; _locationRegion = Item.LocationRegion; _locationCountry = Item.LocationCountry;
-        _latitude = Item.Latitude?.ToString("0.#####", System.Globalization.CultureInfo.InvariantCulture);
-        _longitude = Item.Longitude?.ToString("0.#####", System.Globalization.CultureInfo.InvariantCulture);
-    }
-    private async Task ApplyAsync(Task<LocalAssetDto?> operation)
-    {
-        _saving = true;
-        var updated = await operation;
-        _saving = false;
-        if (updated is null) { Snackbar.Add(ApiClient.LastError ?? "The item could not be updated.", AppSeverity.Error); return; }
-        await OnItemUpdated.InvokeAsync(updated);
-        Snackbar.Add(L["ViewImmersiveViewer_ItemDetailsUpdated"].Value, AppSeverity.Success);
-    }
-    private void ToggleDescriptionEditor() { _description = Item.Description; _editingDescription = !_editingDescription; }
-    private async Task SaveDescriptionAsync() { await ApplyAsync(ApiClient.UpdateViewItemDescriptionAsync(Item.Id, _description)); _editingDescription = false; }
-    private void ToggleDateEditor() => _editingDate = !_editingDate;
-    private async Task SaveCapturedAtAsync()
-    {
-        if (!DateTime.TryParse(_capturedAt, System.Globalization.CultureInfo.CurrentCulture,
-                System.Globalization.DateTimeStyles.AllowWhiteSpaces, out var local))
-        { Snackbar.Add(L["ViewImmersiveViewer_EnterAValidCapturedDate"].Value, AppSeverity.Warning); return; }
-        local = DateTime.SpecifyKind(local, DateTimeKind.Unspecified);
-        await ApplyAsync(ApiClient.UpdateViewItemCapturedAtAsync(Item.Id,
-            new(new DateTimeOffset(local, TimeZoneInfo.Local.GetUtcOffset(local)))));
-        _editingDate = false;
-    }
-    private async Task ResetCapturedAtAsync() { await ApplyAsync(ApiClient.UpdateViewItemCapturedAtAsync(Item.Id, new(null, true))); _editingDate = false; }
-    private void ToggleLocationEditor() => _editingLocation = !_editingLocation;
-    private async Task SaveLocationAsync()
-    {
-        if (!double.TryParse(_latitude, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var latitude)
-            || !double.TryParse(_longitude, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var longitude))
-        { Snackbar.Add(L["ViewImmersiveViewer_ChooseAValidMapLocation"].Value, AppSeverity.Warning); return; }
-        await ApplyAsync(ApiClient.UpdateViewItemLocationAsync(Item.Id, new(latitude, longitude, _locationName, _locationCity, _locationRegion, _locationCountry)));
-        _editingLocation = false;
-    }
-    private async Task ResetLocationAsync() { await ApplyAsync(ApiClient.UpdateViewItemLocationAsync(Item.Id, new(null, null, ResetToEmbedded: true))); _editingLocation = false; }
-    private Task LocationCoordinateChanged(object? value, bool latitude)
-    {
-        if (latitude) _latitude = value?.ToString();
-        else _longitude = value?.ToString();
-        StateHasChanged();
-        return Task.CompletedTask;
-    }
-    private async Task<IEnumerable<ViewPlaceDto>> SearchPlacesAsync(string? search, CancellationToken ct)
-    {
-        var page = await ApiClient.GetViewPlacesAsync(new(Workspace.ScopeKind, Workspace.ScopeProfileId, search, Limit: 20), ct);
-        return page?.Items ?? [];
-    }
-    private Task PlaceSelected(ViewPlaceDto? place)
-    {
-        _selectedPlace = place;
-        if (place is null) return Task.CompletedTask;
-        _latitude = place.Latitude.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture);
-        _longitude = place.Longitude.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture);
-        _locationName = place.Name;
-        return Task.CompletedTask;
-    }
-    private Task DraftCoordinateChanged(ViewMap.ViewMapCoordinate coordinate)
-    {
-        _latitude = coordinate.Latitude.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture);
-        _longitude = coordinate.Longitude.ToString("0.######", System.Globalization.CultureInfo.InvariantCulture);
-        return Task.CompletedTask;
-    }
-    private async Task<IEnumerable<string>> SearchPeopleAsync(string? search, CancellationToken ct)
-    {
-        var page = await ApiClient.GetViewPeopleAsync(new(Workspace.ScopeKind, Workspace.ScopeProfileId, search, Limit: 40), ct);
-        return page?.Items.Select(person => person.DisplayName).Where(person => !_people.Contains(person, StringComparer.OrdinalIgnoreCase)) ?? [];
-    }
-    private async Task PersonSelected(string? person)
-    {
-        _personToAdd = null;
-        if (string.IsNullOrWhiteSpace(person) || _people.Contains(person, StringComparer.OrdinalIgnoreCase)) return;
-        _people.Add(person.Trim());
-        await ApplyAsync(ApiClient.UpdateViewItemPeopleAsync(Item.Id, _people));
-    }
-    private async Task RemovePersonAsync(string person) { _people.RemoveAll(value => string.Equals(value, person, StringComparison.OrdinalIgnoreCase)); await ApplyAsync(ApiClient.UpdateViewItemPeopleAsync(Item.Id, _people)); }
-    private async Task<IEnumerable<string>> SearchTagsAsync(string? search, CancellationToken ct) => await ApiClient.GetViewTagSuggestionsAsync(search, 30, ct);
-    private bool _tagSaving;
-    private async Task<bool> CommitTagAsync(string tag)
-    {
-        if (string.IsNullOrWhiteSpace(tag)) return false;
-        tag = tag.Trim();
-        if (_tagValues.Contains(tag, StringComparer.OrdinalIgnoreCase)) return true;
-        return await SaveTagsAsync([.. _tagValues, tag]);
-    }
-    private async Task RemoveTagAsync(string tag) => await SaveTagsAsync(_tagValues.Where(value => !string.Equals(value, tag, StringComparison.OrdinalIgnoreCase)).ToList());
-    private async Task<bool> SaveTagsAsync(List<string> tags)
-    {
-        if (_tagSaving || !CanEditHere) return false;
-        var itemId = Item.Id;
-        _tagSaving = true;
-        try
+        if (!CanEditHere || !await EditorHost.OpenItemsAsync([Item], EditRail))
         {
-            var updated = await ApiClient.UpdateViewItemTagsAsync(itemId, tags);
-            if (updated is null) { Snackbar.Add(ApiClient.LastError ?? "Tags could not be saved. Try again.", AppSeverity.Error); return false; }
-            // Navigating while saving must not replace the newly opened photo.
-            if (Item.Id == itemId) { _tagValues = [.. updated.Tags]; await OnItemUpdated.InvokeAsync(updated); }
-            return true;
+            return;
         }
-        finally { _tagSaving = false; }
+
+        var closed = await EditorHost.WhenClosedAsync();
+        if (closed.Changed && await ApiClient.GetViewItemAsync(Item.Id, Workspace.ScopeKind, Workspace.ScopeProfileId) is { } refreshed)
+        {
+            await OnItemUpdated.InvokeAsync(refreshed);
+        }
+
+        // The photo was deleted from the editor (it is in the Recycle bin now): the viewer has nothing left to show.
+        if (closed.DeletedIds.Contains(Item.Id))
+        {
+            await OnClose.InvokeAsync();
+        }
     }
+
     private async Task InfoOpenChangedAsync(bool open)
     {
         if (!await Workspace.SetViewerInfoOpenAsync(open))
-            Snackbar.Add(L["ViewImmersiveViewer_TheViewerPreferenceCouldNot"].Value, AppSeverity.Warning);
+            Ribbon.Show(L["ViewImmersiveViewer_TheViewerPreferenceCouldNot"].Value, isError: true);
     }
     private void ToggleMotion() => _showMotion = !_showMotion;
     private MediaViewerItem ViewerItem => new(
@@ -294,14 +199,6 @@
         CanPlay: Item.MimeType.StartsWith("video/", StringComparison.OrdinalIgnoreCase),
         CanSlideshow: HasNext);
     private static string FileRole(string role) => role.Replace('_', ' ').ToUpperInvariant();
-    private bool TryCoordinates(out double latitude, out double longitude)
-    {
-        var hasLatitude = double.TryParse(_latitude, System.Globalization.NumberStyles.Float,
-            System.Globalization.CultureInfo.InvariantCulture, out latitude);
-        var hasLongitude = double.TryParse(_longitude, System.Globalization.NumberStyles.Float,
-            System.Globalization.CultureInfo.InvariantCulture, out longitude);
-        return hasLatitude && hasLongitude;
-    }
     private static string FormatDuration(double seconds) => TimeSpan.FromSeconds(seconds).TotalHours >= 1 ? TimeSpan.FromSeconds(seconds).ToString(@"h\:mm\:ss") : TimeSpan.FromSeconds(seconds).ToString(@"m\:ss");
     private static string FormatBytes(long bytes) { string[] units = ["B", "KB", "MB", "GB", "TB"]; var value = (double)bytes; var unit = 0; while (value >= 1024 && unit < units.Length - 1) { value /= 1024; unit++; } return $"{value:0.#} {units[unit]}"; }
 }

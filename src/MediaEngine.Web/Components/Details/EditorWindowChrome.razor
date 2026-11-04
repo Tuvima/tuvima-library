@@ -1,0 +1,160 @@
+@namespace MediaEngine.Web.Components.Details
+@inject IStringLocalizer<SharedStrings> L
+
+@* The frame of every editor window (universal editor v4 D2, D3, D16; photos and documents editor D1): the rail of dropdowns (only where the item has
+   a family), the item's header, the tab bar, one scroll area for the tool, and the fixed footer that says where changes go, how many are waiting
+   and holds Discard and Save changes in the same place. It knows nothing about what is being edited, so the library editor (EditorPanelHost) and the
+   View editor (photos, videos, documents, galleries) draw exactly the same window and a guardrail can insist that nothing draws its own. *@
+<div class="@(Framed ? (RailVisible ? "tl-editor-panel tl-editor-window tl-editor-window--framed tl-editor-window--rail" : "tl-editor-panel tl-editor-window tl-editor-window--framed") : "tl-editor-panel tl-editor-window")"
+     data-tool="@ActiveKey.ToLowerInvariant()">
+    @if (Framed)
+    {
+        @if (RailVisible)
+        {
+            <div class="tl-editor-window__top">
+                @Rail
+            </div>
+        }
+
+        @ItemHeader
+        <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
+                       Size="AppControlSize.Large"
+                       Tone="AppUiTone.Neutral"
+                       Class="tl-editor-panel__close tl-editor-window__close"
+                       Tooltip="@L["EditorHeader_Close"].Value"
+                       AriaLabel="@L["EditorHeader_Close"].Value"
+                       OnClick="OnClose" />
+    }
+    else
+    {
+        <header class="tl-editor-panel__header">
+            <h2 id="tl-editor-panel-title" class="tl-editor-panel__title" tabindex="-1">@Title</h2>
+            @HeaderExtra
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
+                           Size="AppControlSize.Large"
+                           Tone="AppUiTone.Neutral"
+                           Class="tl-editor-panel__close"
+                           Tooltip="@($"Close {CloseName}")"
+                           AriaLabel="@($"Close {CloseName}")"
+                           OnClick="OnClose" />
+        </header>
+    }
+    @Notice
+    <div class="tl-editor-window__main">
+        <div class="tl-editor-window__content">
+            @{
+                RenderFragment body = @<div class="tl-editor-panel__body">@Body</div>;
+            }
+            @if (ShowTabs)
+            {
+                @* The shared tab strip (the same underline, spacing and arrow keys as the profile and browse pages). The open tool's panel holds the body. *@
+                var activeIndex = Math.Max(0, Tabs.ToList().FindIndex(entry => entry.Key == ActiveKey));
+                <AppTabs Class="tl-editor-window__tabs"
+                         Label="@L["Common_EditingTools"].Value"
+                         Rounded="false"
+                         Border="false"
+                         Elevation="0"
+                         ActivePanelIndex="@activeIndex"
+                         ActivePanelIndexChanged="@(index => OnTabIndex(index))">
+                    @foreach (var tab in Tabs)
+                    {
+                        <AppTabPanel Text="@tab.Label" Icon="@tab.Icon" Disabled="@TabsDisabled">
+                            @if (tab.Key == ActiveKey)
+                            {
+                                @body
+                            }
+                        </AppTabPanel>
+                    }
+                </AppTabs>
+            }
+            else
+            {
+                @body
+            }
+        </div>
+    </div>
+    @if (ShowFooter)
+    {
+        <footer class="tl-editor-window__footer">
+            @if (Framed)
+            {
+                @Where
+            }
+
+            <span class="tl-editor-window__changes" role="status">@(ChangeCount == 0 ? "No changes yet" : $"{ChangeCount} {(ChangeCount == 1 ? "change" : "changes")} waiting")</span>
+            <div class="tl-editor-window__actions">
+                <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                           Tone="AppUiTone.Neutral"
+                           Size="AppControlSize.Large"
+                           Class="tl-editor-window__cancel"
+                           Disabled="@Saving"
+                           OnClick="OnDiscard">
+                    @(Framed ? L["EditorFooter_Discard"] : L["Search_Cancel"])
+                </AppButton>
+                <AppButton ButtonStyle="AppButtonStyle.Filled"
+                           Tone="AppUiTone.Primary"
+                           Size="AppControlSize.Large"
+                           Class="tl-editor-window__save"
+                           StartIcon="@AppMaterialIcons.Outlined.Check"
+                           Disabled="@(ChangeCount == 0 || Saving)"
+                           OnClick="OnSave">
+                    @(Saving ? "Saving..." : ChangeCount == 0 ? "Save changes" : $"Save {ChangeCount} {(ChangeCount == 1 ? "change" : "changes")}")
+                </AppButton>
+            </div>
+        </footer>
+    }
+</div>
+
+@code {
+    /// <summary>One tab of the strip.</summary>
+    public sealed record Tab(string Key, string Label, string Icon);
+
+    /// <summary>True for the v4 frame (rail, header, where-line); false for the plain title bar used while several ticked items are edited together or Review is open.</summary>
+    [Parameter] public bool Framed { get; set; }
+
+    [Parameter] public bool RailVisible { get; set; }
+
+    [Parameter] public RenderFragment? Rail { get; set; }
+
+    [Parameter] public RenderFragment? ItemHeader { get; set; }
+
+    /// <summary>The plain title bar's text (not framed).</summary>
+    [Parameter] public string Title { get; set; } = string.Empty;
+
+    [Parameter] public string CloseName { get; set; } = string.Empty;
+
+    [Parameter] public RenderFragment? HeaderExtra { get; set; }
+
+    [Parameter] public bool ShowTabs { get; set; } = true;
+
+    [Parameter] public IReadOnlyList<Tab> Tabs { get; set; } = [];
+
+    [Parameter] public string ActiveKey { get; set; } = string.Empty;
+
+    [Parameter] public bool TabsDisabled { get; set; }
+
+    [Parameter] public EventCallback<string> OnTab { get; set; }
+
+    /// <summary>A notice above the tools (a save that left changes behind).</summary>
+    [Parameter] public RenderFragment? Notice { get; set; }
+
+    [Parameter] public RenderFragment? Body { get; set; }
+
+    [Parameter] public bool ShowFooter { get; set; } = true;
+
+    /// <summary>The footer's first words: where changes go.</summary>
+    [Parameter] public RenderFragment? Where { get; set; }
+
+    [Parameter] public int ChangeCount { get; set; }
+
+    [Parameter] public bool Saving { get; set; }
+
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    [Parameter] public EventCallback OnDiscard { get; set; }
+
+    [Parameter] public EventCallback OnSave { get; set; }
+
+    private Task OnTabIndex(int index) =>
+        index >= 0 && index < Tabs.Count && Tabs[index].Key != ActiveKey ? OnTab.InvokeAsync(Tabs[index].Key) : Task.CompletedTask;
+}

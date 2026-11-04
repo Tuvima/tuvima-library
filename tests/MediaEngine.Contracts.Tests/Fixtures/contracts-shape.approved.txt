@@ -5067,6 +5067,57 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewIntakeSu
   LayoutPattern: System.String | nullability=not-null | accessors=get,init
   Rejected: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewIntakeRejectedDto> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewItemsDocumentEdit
+  SetTitle: System.Boolean | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=nullable | accessors=get,init
+  SetCorrespondent: System.Boolean | nullability=not-null | accessors=get,init
+  Correspondent: System.String | nullability=nullable | accessors=get,init
+  SetDocumentType: System.Boolean | nullability=not-null | accessors=get,init
+  DocumentType: System.String | nullability=nullable | accessors=get,init
+  SetDocumentDate: System.Boolean | nullability=not-null | accessors=get,init
+  DocumentDate: System.DateOnly? | nullability=nullable | accessors=get,init
+  SetArchiveNumber: System.Boolean | nullability=not-null | accessors=get,init
+  ArchiveNumber: System.String | nullability=nullable | accessors=get,init
+  SetNotes: System.Boolean | nullability=not-null | accessors=get,init
+  Notes: System.String | nullability=nullable | accessors=get,init
+  FieldValues: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewDocumentFieldValueRequest> | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewItemsEditLimits
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewItemsEditRefusalDto
+  ItemId: System.Guid | nullability=not-null | accessors=get,init
+  Reason: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewItemsEditRequest
+  ItemIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=not-null | accessors=get,init
+  SetDescription: System.Boolean | nullability=not-null | accessors=get,init
+  Description: System.String | nullability=nullable | accessors=get,init
+  TagsAdd: System.Collections.Generic.IReadOnlyList<System.String> | nullability=nullable | accessors=get,init
+  TagsRemove: System.Collections.Generic.IReadOnlyList<System.String> | nullability=nullable | accessors=get,init
+  PeopleAdd: System.Collections.Generic.IReadOnlyList<System.String> | nullability=nullable | accessors=get,init
+  PeopleRemove: System.Collections.Generic.IReadOnlyList<System.String> | nullability=nullable | accessors=get,init
+  CapturedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+  CapturedShiftSeconds: System.Int64? | nullability=nullable | accessors=get,init
+  CapturedReset: System.Boolean | nullability=not-null | accessors=get,init
+  Location: MediaEngine.Contracts.LocalAssets.UpdateLocalAssetLocationRequest | nullability=nullable | accessors=get,init
+  GalleryAddIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=nullable | accessors=get,init
+  GalleryRemoveIds: System.Collections.Generic.IReadOnlyList<System.Guid> | nullability=nullable | accessors=get,init
+  CreateGalleryName: System.String | nullability=nullable | accessors=get,init
+  Document: MediaEngine.Contracts.LocalAssets.ViewItemsDocumentEdit | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewItemsEditResultDto
+  Saved: System.Boolean | nullability=not-null | accessors=get,init
+  Valid: System.Boolean | nullability=not-null | accessors=get,init
+  ChangedCount: System.Int32 | nullability=not-null | accessors=get,init
+  Refusals: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewItemsEditRefusalDto> | nullability=not-null | accessors=get,init
+  Message: System.String | nullability=nullable | accessors=get,init
+  CreatedGalleryId: System.Guid? | nullability=nullable | accessors=get,init
+  DayMoves: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewItemsEditSetRequest
+  Edits: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewItemsEditRequest> | nullability=not-null | accessors=get,init
+  PreviewOnly: System.Boolean | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewItemsRemovedResponse
   Removed: System.Int32 | nullability=not-null | accessors=get,init
 
