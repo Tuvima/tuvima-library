@@ -1,0 +1,605 @@
+@namespace MediaEngine.Web.Components.Details
+@using System.Globalization
+@using System.Net.Http
+@using MediaEngine.Contracts.Matching
+@using MediaEngine.Contracts.Metadata
+@using MediaEngine.Domain
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@implements IDisposable
+@inject IEngineApiClient Api
+@inject ILogger<EditorLineUpPanel> Logger
+@inject IStringLocalizer<SharedStrings> L
+
+@* Match for several files at once (universal editor v4, D5, D7, WP8). Step 1 chooses the show or the album (the same search the one-item
+   Match uses). Step 2 is a table that lines up YOUR files against the provider's episodes or tracks: picture, number, title, the Engine's
+   confidence bar with a small (i) giving its reason, and a status. A row the Engine is not sure about says "Needs choice" and offers a
+   dropdown of candidates; nothing can be staged until every row is decided. "Apply to" picks the ticked files or every file under the
+   season, show or album. Staging only fills the pending list (one match per file); Save changes and its Review do the saving, and no file
+   moves. *@
+<div class="tl-lineup" data-testid="lineup" data-step="@_step" data-kind="@(_kind == LineUpKind.AlbumTracks ? "album" : "show")">
+    @if (Entry && !_open)
+    {
+        <section class="tl-lineup__entry" aria-label="@EntryHeading" data-testid="lineup-entry">
+            <h3 class="tl-lineup__heading">@EntryHeading</h3>
+            <p class="tl-lineup__note">@EntryNote</p>
+            <div>
+                <AppButton Label="@EntryButton" StartIcon="@AppMaterialIcons.Outlined.TravelExplore" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral"
+                           Disabled="@(!CanEdit)" OnClick="OpenEntry" />
+            </div>
+        </section>
+    }
+    else
+    {
+        <section class="tl-lineup__body" aria-label="@PanelHeading">
+            <h3 class="tl-lineup__heading">@PanelHeading</h3>
+            @if (!CanEdit)
+            {
+                <AppAlert Severity="AppSeverity.Info" Dense="true">@L["EditorLineUp_ReadOnly"]</AppAlert>
+            }
+
+            @if (Rows is { Count: > 0 })
+            {
+                <div class="tl-lineup__apply" data-testid="lineup-apply">
+                    <span class="tl-lineup__label" id="@ApplyId">@L["EditorLineUp_ApplyTo"]</span>
+                    <AppSegmentedControl Options="@ApplyOptions" Value="@(_scope == LineUpScope.Selected ? ScopeSelected : ScopeAll)"
+                                         ValueChanged="ScopeChangedAsync" AriaLabel="@L["EditorLineUp_ApplyTo"].Value" Size="AppControlSize.Compact" Disabled="@_loading" />
+                </div>
+            }
+
+            @if (_step == 1)
+            {
+                @StepOne()
+            }
+            else
+            {
+                @StepTwo()
+            }
+        </section>
+    }
+</div>
+
+@code {
+    private const string ScopeSelected = "selected";
+    private const string ScopeAll = "all";
+    private const string NoReleaseText = "This result does not name an exact release, so tracks cannot be lined up with it.";
+
+    private readonly string _applyId = $"tl-lineup-apply-{Guid.NewGuid():N}";
+    private CancellationTokenSource? _cts;
+    private int _step = 1;
+    private bool _open;
+    private bool _loading;
+    private string? _problem;
+    private string? _warning;
+    private LineUpKind _kind;
+    private LineUpScope _scope = LineUpScope.All;
+    private IReadOnlyList<LineUpFile> _files = [];
+    private IReadOnlyList<LineUpRow> _rows = [];
+    private string _targetParentId = string.Empty;
+    private string _chosenName = string.Empty;
+    private string? _chosenArtist;
+    private string? _chosenCover;
+    private string? _chosenRelease;
+    private bool _staged;
+    private int _stagedCount;
+    private string _albumQuery = string.Empty;
+    private bool _albumSearching;
+    private string? _albumProblem;
+    private IReadOnlyList<ItemCanonicalRetailCandidateDto> _albums = [];
+    private Guid _startedFor;
+    private EditorLineUpLoader? _loader;
+
+    /// <summary>The season, show or album whose files are lined up.</summary>
+    [Parameter, EditorRequired] public Guid ParentId { get; set; }
+
+    /// <summary>The editor media type: "TV" or "Music".</summary>
+    [Parameter, EditorRequired] public string MediaType { get; set; } = "TV";
+
+    /// <summary>The scope id of the parent ("season", "series", "album"); words only.</summary>
+    [Parameter] public string? ParentScope { get; set; }
+
+    /// <summary>What the parent is called (the show or the album); the choice in step 1 starts from it.</summary>
+    [Parameter] public string? ParentName { get; set; }
+
+    /// <summary>The ticked rows. Null or empty means the line-up covers every file of the parent.</summary>
+    [Parameter] public IReadOnlyList<BulkEditRow>? Rows { get; set; }
+
+    /// <summary>The pending list the matches are staged in.</summary>
+    [Parameter, EditorRequired] public PendingEditList Pending { get; set; } = default!;
+
+    /// <summary>False when the person may look but not change.</summary>
+    [Parameter] public bool CanEdit { get; set; } = true;
+
+    /// <summary>True on the Match &amp; Identity tab: a short entry shows first and the steps open when it is pressed.</summary>
+    [Parameter] public bool Entry { get; set; }
+
+    /// <summary>Raised when the matches are staged (the several-items panel then goes back to its list).</summary>
+    [Parameter] public EventCallback<int> OnStaged { get; set; }
+
+    /// <summary>Raised by Cancel.</summary>
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    private string ApplyId => _applyId;
+
+    private bool WholeShow => string.Equals(ParentScope, "series", StringComparison.OrdinalIgnoreCase) || string.Equals(ParentScope, "show", StringComparison.OrdinalIgnoreCase);
+
+    private string Noun => _kind == LineUpKind.AlbumTracks ? "songs" : "episodes";
+
+    private string EntryHeading => _kind == LineUpKind.AlbumTracks ? "Match the songs on this album" : WholeShow ? "Match the files in this show" : "Match the files in this season";
+
+    private string EntryNote => _kind == LineUpKind.AlbumTracks
+        ? "Choose the album, then line up your songs with its tracks in one table."
+        : "Choose the show, then line up your files with its episodes in one table.";
+
+    private string EntryButton => _kind == LineUpKind.AlbumTracks ? "Line up songs" : "Line up files";
+
+    private string PanelHeading => Rows is { Count: > 0 } && _scope == LineUpScope.Selected
+        ? $"Match these {Rows.Count.ToString(CultureInfo.InvariantCulture)} {(Rows.Count == 1 ? Noun[..^1] : Noun)}"
+        : EntryHeading;
+
+    private IReadOnlyList<AppSelectOption> ApplyOptions =>
+    [
+        new AppSelectOption(ScopeSelected, EditorLineUpRules.SelectedLabel),
+        new AppSelectOption(ScopeAll, EditorLineUpRules.AllLabel(_kind, WholeShow)),
+    ];
+
+    protected override void OnParametersSet()
+    {
+        _kind = EditorLineUpRules.KindOf(MediaType);
+        _loader ??= new EditorLineUpLoader(Api, Logger);
+        if (_startedFor == ParentId)
+        {
+            return;
+        }
+
+        _startedFor = ParentId;
+        _step = 1;
+        _open = !Entry;
+        _rows = [];
+        _files = [];
+        _staged = false;
+        _problem = null;
+        _scope = Rows is { Count: > 0 } ? LineUpScope.Selected : LineUpScope.All;
+        _albumQuery = ParentName ?? string.Empty;
+        _albums = [];
+    }
+
+    private void OpenEntry() => _open = true;
+
+    private Task ScopeChangedAsync(string value)
+    {
+        var next = value == ScopeSelected ? LineUpScope.Selected : LineUpScope.All;
+        if (next == _scope)
+        {
+            return Task.CompletedTask;
+        }
+
+        _scope = next;
+        _staged = false;
+        // A table already built is built again for the new set of files, against the same show or album.
+        return _step == 2 ? LineUpAsync() : Task.CompletedTask;
+    }
+
+    private CancellationToken NewToken()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+        _cts = new CancellationTokenSource();
+        return _cts.Token;
+    }
+
+    // -- Step 1: choose the show or the album ------------------------------------------------------------
+
+    private RenderFragment StepOne() => __builder =>
+    {
+        <div class="tl-lineup__step" data-testid="lineup-step-one">
+            <p class="tl-lineup__note">@(_kind == LineUpKind.AlbumTracks ? "Step 1 of 2. Choose the album these songs belong to." : "Step 1 of 2. Choose the show these files belong to.")</p>
+            @if (_kind == LineUpKind.AlbumTracks)
+            {
+                <div class="tl-lineup__search">
+                    <AppTextField Label="Search for an album" HideLabel="true" Value="@_albumQuery" ValueChanged="@(value => _albumQuery = value ?? string.Empty)"
+                                  Placeholder="Search for an album" Immediate="true" OnKeyDown="OnAlbumKey" aria-label="Search for an album" />
+                    <AppButton Label="Search" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Search"
+                               Disabled="@_albumSearching" OnClick="SearchAlbumsAsync" />
+                </div>
+                @if (_albumProblem is not null)
+                {
+                    <AppAlert Severity="AppSeverity.Warning" Dense="true">@_albumProblem</AppAlert>
+                }
+
+                <div class="tl-lineup__albums" role="list">
+                    @foreach (var album in _albums)
+                    {
+                        var facts = EditorMatchRules.FactsOf(album);
+                        var release = ReleaseOf(album);
+                        <div class="tl-lineup__album" role="listitem" data-testid="lineup-album">
+                            @Art(album.CoverUrl)
+                            <div class="tl-lineup__text">
+                                <div class="tl-lineup__title">@facts.Title</div>
+                                <div class="tl-lineup__meta">@string.Join(" · ", new[] { facts.Creator, facts.Year }.Where(part => !string.IsNullOrWhiteSpace(part)))</div>
+                                @if (release is null)
+                                {
+                                    <div class="tl-lineup__meta">@NoReleaseText</div>
+                                }
+                            </div>
+                            <AppButton Label="Select" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                                       aria-label="@($"Select {facts.Title}")" Disabled="@(!CanEdit || release is null)"
+                                       OnClick="@(() => AlbumChosenAsync(album, release!))" />
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <EditorTvMatchBrowser Subject="@BrowserSubject" CanEdit="@CanEdit" OnShowChosen="ShowChosenAsync" />
+            }
+
+            <div class="tl-lineup__actions">
+                <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="CancelAsync" />
+            </div>
+        </div>
+    };
+
+    private EditorMatchSubject BrowserSubject => new(
+        ParentId, "TV", "series", "show", ParentName ?? string.Empty, null, null, null, new Dictionary<string, string>(), []);
+
+    private Task OnAlbumKey(KeyboardEventArgs args) => args.Key == "Enter" ? SearchAlbumsAsync() : Task.CompletedTask;
+
+    private static string? ReleaseOf(ItemCanonicalRetailCandidateDto album) =>
+        album.BridgeIds.TryGetValue(BridgeIdKeys.MusicBrainzReleaseId, out var release) && !string.IsNullOrWhiteSpace(release) ? release : null;
+
+    private async Task SearchAlbumsAsync()
+    {
+        var ct = NewToken();
+        _albumSearching = true;
+        _albumProblem = null;
+        StateHasChanged();
+        try
+        {
+            var typed = _albumQuery.Trim();
+            var draft = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (typed.Length > 0)
+            {
+                draft[MetadataFieldConstants.Album] = typed;
+            }
+
+            var response = await Api.SearchItemCanonicalAsync(
+                ParentId,
+                new ItemCanonicalSearchRequestDto
+                {
+                    MediaType = "Music",
+                    TargetKind = EditorMatchRules.TargetKindOf("album"),
+                    TargetFieldGroup = "album",
+                    DraftFields = draft,
+                    QueryOverride = typed.Length == 0 ? null : typed,
+                },
+                ct);
+            if (ct.IsCancellationRequested)
+            {
+                return;
+            }
+
+            _albums = response?.RetailCandidates ?? [];
+            _albumProblem = response is null
+                ? "The search did not get an answer. Try again."
+                : _albums.Count == 0 ? "Nothing matches that. Try different words." : null;
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "The album search for the line-up could not reach the Engine for {EntityId}", ParentId);
+            _albums = [];
+            _albumProblem = "The search did not get an answer. Try again.";
+        }
+
+        _albumSearching = false;
+    }
+
+    private Task AlbumChosenAsync(ItemCanonicalRetailCandidateDto album, string release)
+    {
+        var facts = EditorMatchRules.FactsOf(album);
+        _chosenName = facts.Title;
+        _chosenArtist = facts.Creator;
+        _chosenCover = album.CoverUrl;
+        _chosenRelease = release;
+        _targetParentId = release;
+        return LineUpAsync();
+    }
+
+    private Task ShowChosenAsync(TvMatchBrowserShowDto show)
+    {
+        _chosenName = show.Name;
+        _chosenCover = show.ImageUrl;
+        _chosenArtist = null;
+        _chosenRelease = null;
+        _targetParentId = show.SeriesId;
+        return LineUpAsync();
+    }
+
+    // -- Step 2: the table ----------------------------------------------------------------------------------
+
+    // Reads the files for the scope, asks the Engine to line them up with the chosen show or album, and shows the table.
+    private async Task LineUpAsync()
+    {
+        if (_loader is null)
+        {
+            return;
+        }
+
+        var ct = NewToken();
+        _loading = true;
+        _problem = null;
+        _staged = false;
+        _step = 2;
+        _rows = [];
+        StateHasChanged();
+        try
+        {
+            IReadOnlySet<Guid>? only = _scope == LineUpScope.Selected && Rows is { Count: > 0 } ? Rows.Select(row => row.Id).ToHashSet() : null;
+            var (files, message) = await _loader.ReadFilesAsync(ParentId, only, ct);
+            if (ct.IsCancellationRequested)
+            {
+                return;
+            }
+
+            if (files is null)
+            {
+                _problem = message;
+                _loading = false;
+                return;
+            }
+
+            _files = files;
+            var result = await _loader.LineUpAsync(ParentId, _kind, files, _targetParentId, ct);
+            if (ct.IsCancellationRequested)
+            {
+                return;
+            }
+
+            _rows = result.Rows;
+            _warning = result.Warning;
+            _problem = result.Ok ? null : result.Message;
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "The line-up could not reach the Engine for {EntityId}", ParentId);
+            _problem = "The Engine could not be reached. Try again.";
+        }
+
+        _loading = false;
+    }
+
+    private RenderFragment StepTwo() => __builder =>
+    {
+        <div class="tl-lineup__step" data-testid="lineup-step-two">
+            <p class="tl-lineup__note">
+                Step 2 of 2. <strong>@_chosenName</strong>
+                <AppButton Label="Change" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" Disabled="@_loading" OnClick="BackToStepOne" />
+            </p>
+            @if (_loading)
+            {
+                <EditorPanelBusy Label="Lining up your files" />
+            }
+            else if (_problem is not null)
+            {
+                <AppAlert Severity="AppSeverity.Warning" Dense="true">
+                    <span>@_problem</span>
+                    <AppButton Label="Try again" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" OnClick="LineUpAsync" />
+                </AppAlert>
+            }
+            else
+            {
+                if (_warning is not null)
+                {
+                    <AppAlert Severity="AppSeverity.Info" Dense="true">@_warning</AppAlert>
+                }
+
+                var statuses = EditorLineUpRules.StatusesOf(_rows);
+                var needs = statuses.Count(status => status == LineUpStatus.NeedsChoice);
+                var ready = statuses.Count(status => status == LineUpStatus.Ready);
+                var skipped = statuses.Count(status => status == LineUpStatus.Skipped);
+                <table class="tl-lineup__table" data-testid="lineup-table">
+                    <caption class="tl-lineup__caption">@EditorLineUpRules.FilesHeading(_kind, _rows.Count)</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">Your file</th>
+                            <th scope="col" class="tl-lineup__pic"><span class="tl-lineup__visually-hidden">Picture</span></th>
+                            <th scope="col">@(_kind == LineUpKind.AlbumTracks ? "Track" : "Episode")</th>
+                            <th scope="col">Confidence</th>
+                            <th scope="col">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (var index = 0; index < _rows.Count; index++)
+                        {
+                            var row = _rows[index];
+                            var status = statuses[index];
+                            var rowIndex = index;
+                            <tr class="tl-lineup__row @(status == LineUpStatus.NeedsChoice ? "is-doubtful" : null)" data-status="@StatusKey(status)" @key="row.File.EntityId">
+                                <td class="tl-lineup__file">
+                                    <div class="tl-lineup__title">@row.File.FileName</div>
+                                    @if (!string.IsNullOrWhiteSpace(row.File.CurrentNumber) || !string.IsNullOrWhiteSpace(row.File.CurrentTitle))
+                                    {
+                                        <div class="tl-lineup__meta">@string.Join(" ", new[] { row.File.CurrentNumber, row.File.CurrentTitle }.Where(part => !string.IsNullOrWhiteSpace(part)))</div>
+                                    }
+                                </td>
+                                <td class="tl-lineup__pic">@Art(row.Chosen?.ImageUrl ?? (_kind == LineUpKind.AlbumTracks ? _chosenCover : null))</td>
+                                <td class="tl-lineup__child">
+                                    @if (row.Chosen is { } chosen && !row.LeaveAlone)
+                                    {
+                                        <div class="tl-lineup__title"><span class="tl-lineup__number">@chosen.NumberLabel</span> @chosen.Title</div>
+                                        @if (_kind == LineUpKind.TvEpisodes && !string.IsNullOrWhiteSpace(chosen.Aired))
+                                        {
+                                            <div class="tl-lineup__meta">Aired @chosen.Aired</div>
+                                        }
+                                    }
+                                    <AppSelect Native="true" Label="@($"Candidates for {row.File.FileName}")" HideLabel="true" Value="@SelectValue(row)" Options="@OptionsOf(row)"
+                                               Disabled="@(!CanEdit)" ValueChanged="@(value => ChooseAsync(rowIndex, value))" />
+                                </td>
+                                <td class="tl-lineup__confidence">
+                                    <span class="tl-lineup__barwrap"><AppProgressBar Value="@row.Confidence" Color="@(row.Confidence >= 70 ? AppColor.Primary : AppColor.Warning)"
+                                                    Title="@($"{EditorLineUpRules.ConfidenceWord(row.Confidence)}, {row.Confidence}%")"
+                                                    Label="@($"{EditorLineUpRules.ConfidenceWord(row.Confidence)} {row.Confidence}%")" Class="tl-lineup__bar" /></span>
+                                    @if (!string.IsNullOrWhiteSpace(row.Reason))
+                                    {
+                                        <AppInfoTip Text="@row.Reason" Label="Why" />
+                                    }
+                                </td>
+                                <td class="tl-lineup__status">
+                                    <AppChip Text="@StatusText(status)" Icon="@StatusIcon(status)" Tone="@StatusTone(status)" Class="tl-lineup__mark" />
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+
+                <div class="tl-lineup__footer">
+                    <span class="tl-lineup__summary" role="status" data-testid="lineup-summary">
+                        @if (needs > 0)
+                        {
+                            @EditorLineUpRules.BlockedText(needs)
+                        }
+                        else
+                        {
+                            @EditorLineUpRules.ReadySummary(ready, skipped)
+                        }
+                    </span>
+                    <span class="tl-lineup__buttons">
+                        <AppButton Label="Cancel" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="CancelAsync" />
+                        <AppButton Label="@StageLabel(ready)" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!CanEdit || !EditorLineUpRules.CanStage(_rows))"
+                                   OnClick="StageAsync" />
+                    </span>
+                </div>
+                <p class="tl-lineup__note" data-testid="lineup-nothing-moves">Nothing is saved until you press Save changes, and no file is moved.</p>
+                @if (_staged)
+                {
+                    <AppAlert Severity="AppSeverity.Success" Dense="true">@($"{_stagedCount.ToString(CultureInfo.InvariantCulture)} {(_stagedCount == 1 ? "match" : "matches")} staged. Press Save changes to review and save them.")</AppAlert>
+                }
+            }
+        </div>
+    };
+
+    private RenderFragment Art(string? url) => __builder =>
+    {
+        if (!string.IsNullOrWhiteSpace(url))
+        {
+            <AppImage Src="@url" Alt="" Width="48" Height="48" ObjectFit="AppObjectFit.Cover" Class="tl-match__art" />
+        }
+        else
+        {
+            <span class="tl-match__art tl-match__art--empty" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Language" /></span>
+        }
+    };
+
+    private static string StatusKey(LineUpStatus status) => status switch
+    {
+        LineUpStatus.Ready => "ready",
+        LineUpStatus.Skipped => "skipped",
+        _ => "needs-choice",
+    };
+
+    private static string StatusText(LineUpStatus status) => status switch
+    {
+        LineUpStatus.Ready => EditorLineUpRules.ReadyText,
+        LineUpStatus.Skipped => EditorLineUpRules.SkippedText,
+        _ => EditorLineUpRules.NeedsChoiceText,
+    };
+
+    private static string StatusIcon(LineUpStatus status) => status == LineUpStatus.NeedsChoice ? AppMaterialIcons.Outlined.Warning : AppMaterialIcons.Outlined.Check;
+
+    private static AppUiTone StatusTone(LineUpStatus status) => status switch
+    {
+        LineUpStatus.Ready => AppUiTone.Success,
+        LineUpStatus.Skipped => AppUiTone.Neutral,
+        _ => AppUiTone.Warning,
+    };
+
+    private string StageLabel(int ready) => $"Stage {ready.ToString(CultureInfo.InvariantCulture)} {(ready == 1 ? "match" : "matches")}";
+
+    private static string SelectValue(LineUpRow row) => row.LeaveAlone ? EditorLineUpRules.LeaveAloneValue : row.ChosenId ?? string.Empty;
+
+    private static IReadOnlyList<AppSelectOption> OptionsOf(LineUpRow row)
+    {
+        var options = new List<AppSelectOption>();
+        if (row.ChosenId is null && !row.LeaveAlone)
+        {
+            options.Add(new AppSelectOption(string.Empty, "Choose…"));
+        }
+
+        options.AddRange(row.Options.Select(option => new AppSelectOption(option.ChildId, EditorLineUpRules.OptionText(option))));
+        options.Add(new AppSelectOption(EditorLineUpRules.LeaveAloneValue, EditorLineUpRules.LeaveAloneText));
+        return options;
+    }
+
+    private Task ChooseAsync(int index, string? value)
+    {
+        if (index < 0 || index >= _rows.Count)
+        {
+            return Task.CompletedTask;
+        }
+
+        var row = _rows[index];
+        _staged = false;
+        if (value == EditorLineUpRules.LeaveAloneValue)
+        {
+            row.LeaveAlone = true;
+            row.ChosenId = null;
+        }
+        else
+        {
+            row.LeaveAlone = false;
+            row.ChosenId = string.IsNullOrEmpty(value) ? null : value;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private void BackToStepOne()
+    {
+        _step = 1;
+        _staged = false;
+    }
+
+    // Puts one match per Ready file in the pending list; the one Save changes (and its Review) writes them.
+    private async Task StageAsync()
+    {
+        if (!CanEdit)
+        {
+            return;
+        }
+
+        var count = EditorLineUpRules.Stage(Pending, _kind, _rows, _chosenName, _chosenArtist, _chosenRelease, _chosenCover);
+        if (count < 0)
+        {
+            return;
+        }
+
+        _stagedCount = count;
+        _staged = true;
+        await OnStaged.InvokeAsync(count);
+    }
+
+    private async Task CancelAsync()
+    {
+        if (Entry)
+        {
+            _open = false;
+            _step = 1;
+        }
+
+        await OnCancel.InvokeAsync();
+    }
+
+    public void Dispose()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+    }
+}
