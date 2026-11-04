@@ -6,9 +6,10 @@ namespace MediaEngine.Web.Services.Editing;
 /// <summary>
 /// One ticked row: what the selection bar and the bulk panel need to name it. <see cref="ParentId"/> is the album, season or
 /// audiobook it sits in (null when the list does not know), <see cref="MediaType"/> the editor media type ("Music", "TV"...) when the
-/// row knows it better than the page does.
+/// row knows it better than the page does. <see cref="ImageUrl"/> is a small picture of the item when the list already holds one (the
+/// pop-over header shows it beside "Editing 12 songs"); null when it does not, and nothing is fetched to find one.
 /// </summary>
-public sealed record BulkEditRow(Guid Id, string Title, DetailEntityType Kind, Guid? ParentId = null, string? MediaType = null);
+public sealed record BulkEditRow(Guid Id, string Title, DetailEntityType Kind, Guid? ParentId = null, string? MediaType = null, string? ImageUrl = null);
 
 /// <summary>What a set of ticked rows is, for the several-items rules (spec 3c): one kind, or Mixed.</summary>
 public enum BulkItemKind

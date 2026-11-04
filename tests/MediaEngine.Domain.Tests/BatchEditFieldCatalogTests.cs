@@ -47,7 +47,7 @@ public sealed class BatchEditFieldCatalogTests
     [Theory]
     [InlineData("director")]
     [InlineData("cast_member")]
-    [InlineData("author")]
+    [InlineData("narrator")]
     public void ProviderFact_IsListedButNeverEditable(string key)
     {
         Assert.True(BatchEditFieldCatalog.TryGet(key, out var field));
@@ -58,6 +58,58 @@ public sealed class BatchEditFieldCatalogTests
 
         Assert.False(ok);
         Assert.Contains("cannot be changed", error, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("album_artist", "Album artist")]
+    [InlineData("author", "Author")]
+    public void GroupPeopleField_IsEditableAsAList_AndKeepsItsNameInErrors(string key, string label)
+    {
+        Assert.True(BatchEditFieldCatalog.TryGet(key, out var field));
+        Assert.True(field.IsEditable);
+        Assert.Equal(label, field.Label);
+        Assert.Equal(BatchEditFieldKind.List, field.Kind);
+
+        Assert.True(BatchEditFieldCatalog.TryValidateChange(key, "add", null, ["Someone"], out var change, out var error), error);
+        Assert.Equal("Someone", Assert.Single(change.Values));
+
+        Assert.False(BatchEditFieldCatalog.TryValidateChange(key, "add", null, ["A; B"], out _, out var bad));
+        Assert.DoesNotContain("genre", bad, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("Ann Lee; Bo Ray", BatchEditFieldCatalog.ToOverrideValue(field, ["Ann Lee", "Bo Ray"]));
+        Assert.False(BatchEditFieldCatalog.CanBeEmptied(field));
+    }
+
+    [Theory]
+    [InlineData("disc_number", "2", true)]
+    [InlineData("disc_number", "0", false)]
+    [InlineData("disc_number", "second", false)]
+    [InlineData("series", "Dune", true)]
+    public void ScalarGroupField_ChecksItsValue(string key, string value, bool valid)
+    {
+        var ok = BatchEditFieldCatalog.TryValidateChange(key, "set", value, null, out var change, out var error);
+
+        Assert.Equal(valid, ok);
+        if (valid)
+        {
+            Assert.Equal(value, change.Value);
+        }
+        else
+        {
+            Assert.False(string.IsNullOrWhiteSpace(error));
+        }
+    }
+
+    [Fact]
+    public void Explicit_IsAnOnOffMarkOnlyWithSet()
+    {
+        Assert.True(BatchEditFieldCatalog.TryGet("explicit", out var field));
+        Assert.Equal(BatchEditFieldStore.ExplicitMark, field.Store);
+        Assert.Equal([BatchEditFieldCatalog.OpSet], field.Operations);
+
+        Assert.True(BatchEditFieldCatalog.TryValidateChange("explicit", "set", "TRUE", null, out var change, out _));
+        Assert.Equal("true", change.Value);
+        Assert.False(BatchEditFieldCatalog.TryValidateChange("explicit", "set", "maybe", null, out _, out _));
+        Assert.False(BatchEditFieldCatalog.TryValidateChange("explicit", "clear", null, null, out _, out _));
     }
 
     [Fact]

@@ -414,7 +414,7 @@ public sealed class ArtworkPickerSession
         }
     }
 
-    private static IReadOnlyList<ArtworkPickerPicture> VersionsOf(ArtworkEntityWorkspaceDto? workspace, string slot)
+    internal static IReadOnlyList<ArtworkPickerPicture> VersionsOf(ArtworkEntityWorkspaceDto? workspace, string slot)
     {
         var role = ArtworkPickerRules.RoleFor(slot);
         return (workspace?.Variants ?? [])

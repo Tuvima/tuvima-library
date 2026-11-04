@@ -139,7 +139,7 @@ public sealed class DetailsEditSessionChangeHandler(
         };
     }
 
-    // Only a video or a series of videos can be marked; the id may be a file, so it is resolved to its work first.
+    // Only a song, a video or a series of videos can be marked; the id may be a file, so it is resolved to its work first.
     private async Task<string?> CheckExplicitAsync(Guid entityId, string? value, CancellationToken ct)
     {
         if (claimRepository is null || canonicalRepository is null)
@@ -153,9 +153,11 @@ public sealed class DetailsEditSessionChangeHandler(
         }
 
         var workId = await itemCanonicalRepository.ResolveWorkIdForAssetAsync(entityId, ct).ConfigureAwait(false) ?? entityId;
-        if (!string.Equals(await itemCanonicalRepository.GetWorkMediaTypeAsync(workId, ct).ConfigureAwait(false), nameof(MediaType.Videos), StringComparison.OrdinalIgnoreCase))
+        var mediaType = await itemCanonicalRepository.GetWorkMediaTypeAsync(workId, ct).ConfigureAwait(false);
+        if (!string.Equals(mediaType, nameof(MediaType.Videos), StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(mediaType, nameof(MediaType.Music), StringComparison.OrdinalIgnoreCase))
         {
-            return "Only a video or a series of videos can be marked Explicit.";
+            return "Only a song, a video or a series of videos can be marked Explicit.";
         }
 
         return null;

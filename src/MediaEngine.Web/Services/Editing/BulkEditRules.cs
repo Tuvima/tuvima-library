@@ -223,15 +223,37 @@ public static class BulkEditRules
         return $"These {count} {noun} would all be {label}{shown}.";
     }
 
-    /// <summary>Said above the artwork choice: which picture one choice sets for all, in words. Null when the items share no picture role.</summary>
+    /// <summary>
+    /// Said above the artwork choice: which picture one choice sets for all, in words. Null when the items share no picture role. Only songs
+    /// of one album share one (the album's cover); books, videos and episodes each have a picture of their own, so one choice cannot be set
+    /// for several of them.
+    /// </summary>
     public static string? ArtworkSentence(BulkItemKind kind, int count) => kind switch
     {
         BulkItemKind.Song => $"Set one cover for these {count} songs. It sets the album's cover.",
-        BulkItemKind.Book => $"Set one cover for these {count} books.",
-        BulkItemKind.Video => $"Set one poster for these {count} videos.",
-        BulkItemKind.Episode => $"Set one picture for these {count} episodes.",
         _ => null,
     };
+
+    /// <summary>
+    /// The album whose cover one choice sets, when every ticked row is a song of the same album; null otherwise (songs of several albums,
+    /// or any other kind, share no picture role).
+    /// </summary>
+    public static Guid? SharedArtworkTarget(IReadOnlyList<BulkEditRow> rows, string? pageMediaType = null)
+    {
+        if (!AllSongs(rows, pageMediaType) || rows[0].ParentId is not { } album || album == Guid.Empty || rows.Any(row => row.ParentId != album))
+        {
+            return null;
+        }
+
+        return album;
+    }
+
+    /// <summary>The Explicit mark's key; its box is a switch, not a text box.</summary>
+    public const string ExplicitKey = "explicit";
+
+    /// <summary>What a field with no value is written as, so staging "Off" on items that were never marked is not counted as a change.</summary>
+    public static string NormalizeForCompare(string key, string value) =>
+        string.Equals(key, ExplicitKey, StringComparison.OrdinalIgnoreCase) && value.Length == 0 ? "false" : value;
 
     public static string SelectedLabel(int count) => $"{count} selected";
 

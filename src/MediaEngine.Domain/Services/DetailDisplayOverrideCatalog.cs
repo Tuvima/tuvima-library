@@ -14,6 +14,7 @@ public static class DetailDisplayOverrideCatalog
         "year", "release_date", "air_date", "first_air_date", "publication_date",
         "original_publication_date", "edition_release_date", "runtime", "duration",
         "rating", "content_rating", "language", "sort_title", "custom_tags",
+        "album_artist", "disc_number", "series", "author",
     ];
 
     private static readonly HashSet<string> KeySet = new(Keys, StringComparer.OrdinalIgnoreCase);
@@ -66,6 +67,17 @@ public static class DetailDisplayOverrideCatalog
             }
 
             normalized = year.ToString(CultureInfo.InvariantCulture);
+        }
+        else if (normalizedKey is "disc_number")
+        {
+            if (!int.TryParse(normalized, NumberStyles.None, CultureInfo.InvariantCulture, out var disc)
+                || disc is < 1 or > 999)
+            {
+                error = "Disc must be a whole number from 1 through 999.";
+                return false;
+            }
+
+            normalized = disc.ToString(CultureInfo.InvariantCulture);
         }
         else if (normalizedKey is "release_date" or "air_date" or "first_air_date" or "publication_date"
             or "original_publication_date" or "edition_release_date")
