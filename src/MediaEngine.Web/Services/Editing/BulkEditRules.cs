@@ -131,6 +131,108 @@ public static class BulkEditRules
         return AllSongs(rows, pageMediaType) ? "Move to album" : LibraryMoveText.MoveLabel(MediaTypeOf(rows, pageMediaType));
     }
 
+    // -- Several items by rules (spec 3c, WP9) ---------------------------------------------------------------------------------------
+
+    /// <summary>Fields that identify one item. They are never offered for several, whatever the kind.</summary>
+    private static readonly HashSet<string> IdentifyingKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "title", "original_title", "sort_title", "subtitle", "track_number", "episode_number", "issue_number", "isbn", "file_name", "filename",
+    };
+
+    /// <summary>Fields whose value must differ from item to item: giving them one value would make the items collide.</summary>
+    private static readonly Dictionary<string, string> UniquePerItem = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["track_number"] = "track",
+        ["episode_number"] = "episode",
+        ["issue_number"] = "issue",
+    };
+
+    /// <summary>Fields that describe a group of one kind only; offered only when every ticked item is that kind.</summary>
+    private static readonly HashSet<string> KindSpecificKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "album", "album_artist", "disc_number", "series", "author", "explicit", "season", "show",
+    };
+
+    /// <summary>What the ticked rows are, when they are all one kind. <see cref="BulkItemKind.Mixed"/> offers only what every kind shares (tags).</summary>
+    public static BulkItemKind KindOf(IReadOnlyList<BulkEditRow> rows, string? pageMediaType = null)
+    {
+        if (rows.Count == 0)
+        {
+            return BulkItemKind.None;
+        }
+
+        if (AllEpisodes(rows))
+        {
+            return BulkItemKind.Episode;
+        }
+
+        if (AllSongs(rows, pageMediaType))
+        {
+            return BulkItemKind.Song;
+        }
+
+        if (AllVideos(rows, pageMediaType))
+        {
+            return BulkItemKind.Video;
+        }
+
+        var allBooks = rows.All(row =>
+            row.Kind == DetailEntityType.Work
+            && (row.MediaType ?? pageMediaType) is { } type
+            && (string.Equals(type, "Books", StringComparison.OrdinalIgnoreCase) || string.Equals(type, "Audiobooks", StringComparison.OrdinalIgnoreCase)));
+        return allBooks ? BulkItemKind.Book : BulkItemKind.Mixed;
+    }
+
+    /// <summary>The group fields a kind offers (spec 3c), in the order they are shown. Tags are offered for everything.</summary>
+    public static IReadOnlyList<string> GroupFieldKeys(BulkItemKind kind) => kind switch
+    {
+        BulkItemKind.Song => ["album", "album_artist", "genre", "year", "disc_number", "custom_tags", "explicit"],
+        BulkItemKind.Video => ["custom_tags", "explicit"],
+        BulkItemKind.Book => ["series", "author", "custom_tags"],
+        BulkItemKind.Episode => ["custom_tags"],
+        BulkItemKind.None => [],
+        _ => ["custom_tags"],
+    };
+
+    /// <summary>True when a field with this key identifies one item (title, track or episode number, ISBN, file name).</summary>
+    public static bool IsIdentifying(string key) => IdentifyingKeys.Contains(key);
+
+    /// <summary>
+    /// Whether a field is offered for these items: never an identifying one; a kind-specific group field only for its kind; everything else
+    /// the Engine lists as changeable stays as it was.
+    /// </summary>
+    public static bool IsOffered(string key, BulkItemKind kind) =>
+        !IsIdentifying(key) && (!KindSpecificKeys.Contains(key) || GroupFieldKeys(kind).Contains(key, StringComparer.OrdinalIgnoreCase));
+
+    /// <summary>The fields the Engine reported, without the ones these items must not share.</summary>
+    public static IReadOnlyList<BulkFieldView> OfferedFields(IReadOnlyList<BulkFieldView> fields, BulkItemKind kind) =>
+        [.. fields.Where(field => IsOffered(field.Key, kind))];
+
+    /// <summary>
+    /// Why one value for every item would make them collide ("These 3 songs would all be track 4"), or null when it would not. Only
+    /// per-item numbers collide; <paramref name="count"/> is how many items would receive the value.
+    /// </summary>
+    public static string? CollisionReason(string key, int count, string noun, string? value)
+    {
+        if (count < 2 || !UniquePerItem.TryGetValue(key, out var label))
+        {
+            return null;
+        }
+
+        var shown = string.IsNullOrWhiteSpace(value) ? string.Empty : $" {value.Trim()}";
+        return $"These {count} {noun} would all be {label}{shown}.";
+    }
+
+    /// <summary>Said above the artwork choice: which picture one choice sets for all, in words. Null when the items share no picture role.</summary>
+    public static string? ArtworkSentence(BulkItemKind kind, int count) => kind switch
+    {
+        BulkItemKind.Song => $"Set one cover for these {count} songs. It sets the album's cover.",
+        BulkItemKind.Book => $"Set one cover for these {count} books.",
+        BulkItemKind.Video => $"Set one poster for these {count} videos.",
+        BulkItemKind.Episode => $"Set one picture for these {count} episodes.",
+        _ => null,
+    };
+
     public static string SelectedLabel(int count) => $"{count} selected";
 
     public static string SelectLabel(string title) => $"Select {title}";
