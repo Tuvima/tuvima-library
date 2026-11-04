@@ -174,14 +174,14 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
         Assert.Equal("3 selected", cut.Find(".view-selection-toolbar__count").TextContent.Trim());
         Assert.Contains("Add to Gallery", cut.Markup, StringComparison.Ordinal);
         var actions = cut.FindAll(".view-selection-toolbar__action").Select(button => button.TextContent.Trim()).ToList();
-        Assert.Equal(["Share", "Download"], actions);
+        Assert.Equal(["Download", "Share"], actions);
         Assert.Single(cut.FindAll(".app-row-menu__trigger"));
         Assert.Empty(cut.FindAll("[role='menuitem']"));
 
         // The Gallery menu only renders its items while open, so open it before judging what it offers.
         Assert.Equal(["Holidays"], OpenGalleryMenu(cut));
 
-        cut.FindAll(".view-selection-toolbar__action")[1].Click();
+        cut.FindAll(".view-selection-toolbar__action")[0].Click();
         cut.Find(".view-selection-toolbar__close").Click();
 
         Assert.Equal(1, downloaded);
@@ -219,7 +219,7 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
 
         Assert.DoesNotContain("view-selection-toolbar--phone", cut.Markup, StringComparison.Ordinal);
         var actions = cut.FindAll(".view-selection-toolbar__action").Select(button => button.TextContent.Trim()).ToList();
-        Assert.Equal(["Submit to Shared Library", "Favorite", "Trash"], actions);
+        Assert.Equal(["Favorite", "Submit to Shared Library", "Trash"], actions);
         Assert.Empty(cut.FindAll(".app-row-menu__trigger"));
         Assert.Equal("Clear photo selection", cut.Find(".view-selection-toolbar__close").GetAttribute("aria-label"));
         Assert.Equal(["New Gallery"], OpenGalleryMenu(cut));

@@ -36,16 +36,16 @@
                 @if (!SelectMode && (OnEditItem.HasDelegate || (OnTrashItem.HasDelegate && item.CanTrash && !item.FileMissing)))
                 {
                     @* The tile's own menu: the same Edit and Trash as the selection bar, for one photo, without selecting it first. *@
-                    <AppOverflowMenu Class="view-tile__menu" AriaLabel="@($"More for {Title(item)}")" AnchorOrigin="AppOrigin.BottomRight" TransformOrigin="AppOrigin.TopRight">
+                    <span class="view-tile__menu"><AppOverflowMenu AriaLabel="@($"More for {Title(item)}")" AnchorOrigin="AppOrigin.BottomRight" TransformOrigin="AppOrigin.TopRight">
                         @if (OnEditItem.HasDelegate)
                         {
                             <AppMenuItem Label="@L["Common_Edit"].Value" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="@(() => OnEditItem.InvokeAsync(item))" />
                         }
                         @if (OnTrashItem.HasDelegate && item.CanTrash && !item.FileMissing)
                         {
-                            <AppMenuItem Label="@L["Common_Trash"].Value" Icon="@AppMaterialIcons.Outlined.DeleteOutline" Destructive="true" OnClick="@(() => OnTrashItem.InvokeAsync(item))" />
+                            <AppMenuItem Label="@L["Common_Trash"].Value" Icon="@AppMaterialIcons.Outlined.DeleteOutline" Tone="AppUiTone.Error" OnClick="@(() => OnTrashItem.InvokeAsync(item))" />
                         }
-                    </AppOverflowMenu>
+                    </AppOverflowMenu></span>
                 }
                 @if (NoteFor(item) is { Length: > 0 } note)
                 {

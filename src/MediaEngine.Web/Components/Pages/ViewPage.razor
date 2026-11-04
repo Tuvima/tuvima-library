@@ -357,8 +357,8 @@ else
     }
     private async Task TrashItemAsync(LocalAssetDto item)
     {
-        if (await ApiClient.TrashViewItemAsync(item.Id, default)) { await LoadAsync(); Snackbar.Add("Moved to Trash.", AppSeverity.Success); }
-        else Snackbar.Add("That item could not be moved to Trash.", AppSeverity.Error);
+        if (await ApiClient.TrashViewItemAsync(item.Id, default)) { await LoadAsync(); Snackbar.Add(L["ViewPage_MovedToTrash"].Value, AppSeverity.Success); }
+        else Snackbar.Add(L["ViewPage_ItemCouldNotBeMovedToTrash"].Value, AppSeverity.Error);
     }
     private EventCallback EditCallback => EditorHost.CanEdit && _filter != "trash" ? EventCallback.Factory.Create(this, EditSelectionAsync) : default;
 

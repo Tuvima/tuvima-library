@@ -107,11 +107,11 @@
     private RenderFragment ViewerActions => @<div class="media-viewer__actions" role="toolbar" aria-label="Media actions">
             @if (Capabilities.CanFavorite) { <AppIconButton Icon="@(Capabilities.IsFavorite ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)" Tooltip="Favorite" AriaLabel="Toggle favorite" OnClick="OnFavorite" /> }
             @if (Capabilities.CanAddToGallery) { <AppNativeSelect Value="@string.Empty" OnChange="GalleryChanged" aria-label="Add item to Gallery"><option value="">Gallery…</option>@foreach (var gallery in Galleries) { <option value="@gallery.Id">@gallery.Name</option> }@if (OnCreateGallery.HasDelegate) { <option value="@NewGalleryChoice">@L["Common_NewGallery"]</option> }</AppNativeSelect> }
-            @ContextActions
             @if (Capabilities.CanSlideshow) { <AppIconButton Icon="@(_slideshow ? AppMaterialIcons.Filled.PauseCircle : AppMaterialIcons.Outlined.Slideshow)" Tooltip="@(_slideshow ? "Pause slideshow" : "Start slideshow")" AriaLabel="@(_slideshow ? "Pause slideshow" : "Start slideshow")" OnClick="ToggleSlideshow" /> }
             @if (Capabilities.CanDownload) { <a class="media-viewer__icon-action" href="@Item.OriginalUrl" download aria-label="Download original" title="Download original"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Download" /></a> }
             @if (Capabilities.CanArchive) { <AppIconButton Icon="@AppMaterialIcons.Outlined.Inventory2" Tooltip="Archive" AriaLabel="Archive item" OnClick="OnArchive" /> }
             @if (Capabilities.CanRestore) { <AppIconButton Icon="@AppMaterialIcons.Outlined.Restore" Tooltip="Restore" AriaLabel="Restore item" OnClick="OnRestore" /> }
+            @ContextActions
             @if (Capabilities.CanTrash) { <AppIconButton Icon="@AppMaterialIcons.Outlined.DeleteOutline" Tooltip="Move to Trash" AriaLabel="Move item to Trash" Tone="AppUiTone.Error" OnClick="OnTrash" /> }
             @if (Capabilities.CanShowInfo) { <AppIconButton Icon="@AppMaterialIcons.Outlined.Info" Tooltip="@(ShowInfo ? "Hide information" : "Show information")" AriaLabel="Toggle information panel" aria-pressed="@(ShowInfo ? "true" : "false")" OnClick="ToggleInfo" /> }
             <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="Close" AriaLabel="Close viewer" OnClick="CloseAsync" />

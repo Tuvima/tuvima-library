@@ -9,6 +9,10 @@
     <span class="view-selection-toolbar__divider" aria-hidden="true"></span>
     <div class="view-selection-toolbar__actions">
         @ChildContent
+        @if (!Phone)
+        {
+            @if (OnFavorite.HasDelegate) { <AppNativeButton Type="button" Class="view-selection-toolbar__action" OnClick="@(_ => OnFavorite.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FavoriteBorder" />@L["Glossary_Favorite"]</AppNativeButton> }
+        }
         @if ((OnAddToGallery.HasDelegate && ManualGalleries.Count > 0) || OnCreateGallery.HasDelegate)
         {
         <AppOverflowMenu Label="@L["ViewSelectionToolbar_AddToGallery"].Value"
@@ -32,13 +36,13 @@
             }
         </AppOverflowMenu>
         }
-        @if (ShowSharedLibrary)
-        {
-            <AppNativeButton Type="button" Class="view-selection-toolbar__action" AriaLabel="@L["Common_SubmitToSharedLibrary"].Value" OnClick="@(_ => OnSharedLibrary.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.GroupWork" />@(Phone ? "Share" : "Submit to Shared Library")</AppNativeButton>
-        }
         @if (OnDownload.HasDelegate)
         {
             <AppNativeButton Type="button" Class="view-selection-toolbar__action" AriaLabel="@L["ViewSelectionToolbar_DownloadSelectedItems"].Value" OnClick="@(_ => OnDownload.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Download" />@L["Models_Download"]</AppNativeButton>
+        }
+        @if (ShowSharedLibrary)
+        {
+            <AppNativeButton Type="button" Class="view-selection-toolbar__action" AriaLabel="@L["Common_SubmitToSharedLibrary"].Value" OnClick="@(_ => OnSharedLibrary.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.GroupWork" />@(Phone ? "Share" : "Submit to Shared Library")</AppNativeButton>
         }
         @if (Phone)
         {
@@ -50,8 +54,6 @@
         }
         else
         {
-            @if (OnFavorite.HasDelegate) { <AppNativeButton Type="button" Class="view-selection-toolbar__action" OnClick="@(_ => OnFavorite.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FavoriteBorder" />@L["Glossary_Favorite"]</AppNativeButton> }
-            @if (OnEdit.HasDelegate) { <AppNativeButton Type="button" Class="view-selection-toolbar__action" OnClick="@(_ => OnEdit.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Edit" />@L["ViewEdit_Edit"]</AppNativeButton> }
             @if (ShowRestore)
             {
                 <AppNativeButton Type="button" Class="view-selection-toolbar__action" OnClick="@(_ => OnRestore.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Restore" />@L["Common_Restore"]</AppNativeButton>
@@ -60,6 +62,7 @@
             {
                 <AppNativeButton Type="button" Class="view-selection-toolbar__action" OnClick="@(_ => OnArchive.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Inventory2" />@L["ViewSelectionToolbar_Archive"]</AppNativeButton>
             }
+            @if (OnEdit.HasDelegate) { <AppNativeButton Type="button" Class="view-selection-toolbar__action" OnClick="@(_ => OnEdit.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Edit" />@L["ViewEdit_Edit"]</AppNativeButton> }
             @if (ShowTrash && OnTrash.HasDelegate)
             {
                 <AppNativeButton Type="button" Class="view-selection-toolbar__action" OnClick="@(_ => OnTrash.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.DeleteOutline" />@L["Common_Trash"]</AppNativeButton>
