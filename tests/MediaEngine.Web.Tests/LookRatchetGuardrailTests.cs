@@ -11,7 +11,7 @@ public sealed class LookRatchetGuardrailTests
 {
     private const int RoundedEndCeiling = 0;
     private const int RoundTokenCeiling = 47;
-    private const int NativeControlCeiling = 501;
+    private const int NativeControlCeiling = 374;
     private const int AdHocFontSizeCeiling = 150;
     private const int HandTypedHexCeiling = 902;
     private const int ForcedOverrideCeiling = 1501;
