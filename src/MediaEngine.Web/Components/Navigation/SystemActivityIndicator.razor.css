@@ -104,7 +104,7 @@
     place-items: center;
     padding-inline: 0.2rem;
     border: 2px solid var(--app-surface, #1e1f27);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-pill);
     color: var(--app-surface, #1e1f27);
     background: var(--tl-accent-secondary);
     font-size: var(--tl-font-size-xs);

@@ -10,7 +10,7 @@
     .media-tile.is-portrait { --media-tile-media-height:clamp(252px,23vw,342px);   --media-tile-hover-panel-width:clamp(276px,20vw,318px); --media-tile-hover-clearance:clamp(132px,14vw,188px); }
     .media-tile.is-landscape { width:calc(var(--media-tile-media-height) * 16 / 9); --media-tile-media-aspect:16 / 9; --media-tile-hover-panel-width:clamp(420px,36vw,560px); }
     @media (min-width:600px) {
-        :root:not([data-form-factor="phone"]) .media-tile.is-shelf-sized.is-square { --media-tile-media-height:clamp(176px,16.1vw,240px); }
+        :root:not([data-form-factor="phone"]) .media-tile.is-shelf-sized.is-square { --media-tile-media-height:clamp(240px,20.8vw,330px); }
         /* Bigger portrait covers: about 200px wide, six across at 1440px (Home, detail and tiles spec D2). */
         :root:not([data-form-factor="phone"]) .media-tile.is-shelf-sized.is-portrait { --media-tile-media-height:clamp(240px,20.8vw,330px); }
         :root:not([data-form-factor="phone"]) .media-tile.is-shelf-sized.is-landscape { --media-tile-media-height:clamp(134px,12.9vw,162px); }

@@ -1071,3 +1071,13 @@ Results and the 61 findings are in `engineering/validation/local-check-2026-11-0
 | Universe contents L3: hand-added faction | (this build) | Add a faction with a logo by hand (editor), rescan, and confirm it is still there and never overwritten. | Awaiting |
 | Universe contents L4: look and feel | (this build) | Tiles, logo tiles and the Timeline strip with Story order / Release order toggle, on desktop and phone; spoiler lines. | Awaiting |
 | Universe contents L5: still open in the spec | (this build) | Not yet built: the thing page, belongs-to and hide screens (editor v4), Wikidata fetch for Events, Objects and Species (needs live Wikidata), member-of / located-in links, and the older Connections character list still overlaps the new Characters rail. | Open |
+
+## Look pass (2026-11-04)
+
+| Item | PR | What to check | Status |
+|---|---|---|---|
+| Look pass: dialogs | PR 642 | Open a Discard, a Delete and a Save dialog (editor, Settings, Recycle bin): icon tile, bold title, close X, destructive outlined red on the left, safe filled button last and focused; Escape, backdrop click and X all keep the safe choice. Compare with the look pass mockup. | Awaiting |
+| Look pass: "..." menus | PR 642 | Open the "..." on a movie, a Continue tile, an album and a person, plus the account menu: every row is 44 px with 16 px text and 22 px icons, one width, Delete red and last. Phone width shows larger rows. | Awaiting |
+| Look pass: hero Play and Resume | PR 642 and wave 2 | At 1440 and 1280 wide open a movie and a half-watched episode: Play and Resume are the same 48 px size on one line, progress runs along the bottom edge, thumbs and companion buttons are 48 px rounded squares with hover exactly on the box. Check the hero is about 70 percent of screen height and say if the value should change (one token). | Awaiting |
+| Look pass: colors | PR 642 | Page and panels use the intro violet-navy; setup welcome icons are blue, purple and rose; Private panel is purple; Libraries icons use Watch rose, Listen amber, Read blue, View teal; the idle Activity indicator is grey, not green. Point out any remaining green. | Awaiting |
+| Look pass: tiles and pills | Wave 2 PR | A row of mixed portrait and square tiles on Home, Watch, Listen and Read has equal heights; "..." is a visible 36 px rounded square; Settings pills are square and aligned. Remaining work: one chip part, full tile badge/hover unification, type ladder mapping, native control migration, dead style deletion (see spec work packets 6 to 11). | Awaiting |

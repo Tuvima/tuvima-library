@@ -160,7 +160,7 @@
     place-items: center;
     transform: translateX(-50%);
     border: 1px solid rgba(255,255,255,0.82);
-    border-radius: 50%;
+    border-radius: var(--tl-radius-pill);
     background: linear-gradient(180deg, #8852FC, #6238dc);
     color: #fff;
     box-shadow: 0 0.45rem 1rem rgba(0,0,0,0.48), 0 0 1rem rgba(136, 82, 252, 0.48);

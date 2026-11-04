@@ -243,6 +243,9 @@
 
     /* Layers (Look pass 4.8): menu, popover, dialog, toast, player. */
     --tl-dialog-title-size: 1.25rem;
+    /* Hero height on desktop (Look pass 4.5): one token; confirm the value on the real app. */
+    --tl-hero-height: 70svh;
+    --tl-tile-menu-button: 36px;
     --tl-layer-menu: var(--tl-z-dropdown);
     --tl-layer-dialog: var(--tl-z-modal);
     --tl-layer-toast: var(--tl-z-toast);

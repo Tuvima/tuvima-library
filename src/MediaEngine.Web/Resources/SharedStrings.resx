@@ -9610,7 +9610,7 @@
     <value>Find</value>
   </data>
   <data name="SetupIntro_FindText" xml:space="preserve">
-    <value>Point Library at your folders and it recognises books, shows, films, music and more.</value>
+    <value>Point Library at your folders and it recognizes books, shows, films, music and more.</value>
   </data>
   <data name="SetupIntro_ConnectTitle" xml:space="preserve">
     <value>Connect</value>
