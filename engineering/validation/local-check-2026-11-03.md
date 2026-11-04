@@ -66,3 +66,17 @@ Passed (Shy): menu order; General (name, language, test email); Playback; Networ
 45. Settings, profile Preferences: a user's own preferences are hidden inside household/other pages. They should be easy to reach from the profile. The individual pages look good (maybe minor tweaks) but the layout of the user section is poor. Review how Netflix does it (Settings in the profile menu: one clear Profile page with its preferences) as the model. Related to the Settings redesign brief (F90, Manage Profiles).
 46. Needs Review page: heavily needs updating (see item 21).
 47. Settings, Users and households: adding a second profile works, but the page layout needs updating.
+
+## Player and videos walk (screenshots are local only; described here)
+
+Passed (Shy): bar order, icon sizes and name font size; Resume looks okay; one-click bookmark dots on the bar.
+
+48. Player bar hover: Play grows on hover (correct), but skip back/forward show a highlight instead. One unified hover behaviour for every button.
+49. Paused screen: works and the centred show name is good, but wants more detail, in the Netflix style: a "You're watching" line, the show title large, "Season N", the episode title with number ("It Often Rhymes: Ep. 1") and the episode description, all left-aligned on a black screen; plus a separate rating card at the top left with a red vertical bar, "RATED TV-MA" in bold and the content reasons ("nudity, language, smoking") underneath.
+50. Volume slider: works but is a plain straight line. Wanted: a Netflix-style squared box (dark rounded rectangle) with a thick vertical track, a red fill and a round knob, with the speaker icon below it, so it's easier and more precise to use (the fill colour should follow the app colour scheme rather than red). Bug: the speaker icon shows muted even when the volume is on; default must show "sound on" and only show muted after Shy clicks it.
+51. Shortcuts: the keyboard-shortcut hints should be gone (they are believed removed, so the batch row is out of date). Bookmarks panel still has scroll bars, doesn't render properly and has to be scrolled to see anything (repeat of item 31).
+52. Player Settings menu (gear): "hideous and ugly" and too narrow. Redesign: wider, same clean panel style as the other player menus (see items 31 to 33).
+53. Episodes with no episode still don't get a default image (a bug Shy reported before; was supposed to be fixed). Wanted: fall back to a default (for example the show backdrop or a generated card).
+54. Videos tab on Watch: nothing shows, and no photos show anywhere. Probably a bug (or still ingesting); check once ingestion has finished and look at the Engine log for the Videos and photo folders.
+55. Audiobook player: the tick marks span the entire book. Ticks are for bookmarks, so there should be a chapter selector instead. The audiobook player looks and behaves differently from the video player (Play button on the left for movies, in the middle for audio). Wanted: one unified player design for video, audiobook and music (same layout, same controls, same look). Needs its own thread.
+56. Audiobook started from a detail page: the detail page stays overlaid on top of the player and the player can't be used. The detail page should close when playback starts.
