@@ -116,3 +116,17 @@
     font-family: var(--font-ui);
     font-size: 0.8rem;
 }
+
+/* A tile opens the thing's own page; the link wraps the whole tile and adds nothing to its look. */
+.universe-contents__link {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    color: inherit;
+    text-decoration: none;
+}
+
+.universe-contents__link:focus-visible {
+    outline: 2px solid var(--tl-focus-ring, currentColor);
+    outline-offset: 2px;
+}

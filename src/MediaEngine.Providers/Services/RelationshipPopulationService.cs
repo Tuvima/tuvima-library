@@ -424,6 +424,7 @@ public sealed class RelationshipPopulationService : IRelationshipPopulationServi
                 FictionalEntityType.Organization => EntityType.Organization,
                 FictionalEntityType.Event => EntityType.Event,
                 FictionalEntityType.Object => EntityType.Object,
+                FictionalEntityType.Species => EntityType.Species,
                 _ => EntityType.Character,
             };
 

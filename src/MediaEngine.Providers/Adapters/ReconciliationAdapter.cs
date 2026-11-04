@@ -133,7 +133,8 @@ public sealed partial class ReconciliationAdapter : IExternalMetadataProvider, I
             or EntityType.Location
             or EntityType.Organization
             or EntityType.Event
-            or EntityType.Object;
+            or EntityType.Object
+            or EntityType.Species;
 
     /// <summary>
     /// Fetches metadata claims by reconciling the entity against Wikidata and
@@ -158,7 +159,7 @@ public sealed partial class ReconciliationAdapter : IExternalMetadataProvider, I
             return request.EntityType switch
             {
                 EntityType.Person => await FetchPersonAsync(request, ct).ConfigureAwait(false),
-                EntityType.Character or EntityType.Location or EntityType.Organization or EntityType.Event or EntityType.Object
+                EntityType.Character or EntityType.Location or EntityType.Organization or EntityType.Event or EntityType.Object or EntityType.Species
                     => await FetchFictionalEntityAsync(request, ct).ConfigureAwait(false),
                 _ => await FetchWorkAsync(request, ct).ConfigureAwait(false),
             };

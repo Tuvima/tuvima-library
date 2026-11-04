@@ -191,7 +191,7 @@ public sealed class UniversePageTests : AsyncBunitContext
 
         cut.WaitForAssertion(() =>
         {
-            Assert.Contains("No characters, cast or adaptations recorded for this Universe yet.", cut.Markup);
+            Assert.Contains("No cast or adaptations recorded for this Universe yet.", cut.Markup);
             Assert.DoesNotContain("Still learning", cut.Markup);
         });
     }
@@ -251,7 +251,7 @@ public sealed class UniversePageTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task Connections_ListCastThenAdaptationsThenCharacters_AndCharactersKeepTheEngineOrderWithTheirSource()
+    public async Task Connections_ListCastThenAdaptations_AndLeaveCharactersToTheirOwnRail()
     {
         _overview = () => UniversePageLoadResult.Loaded(Overview(
             cast: [Cast(Guid.NewGuid(), "Ann", ("Q1", "Hero"))],
@@ -263,49 +263,9 @@ public sealed class UniversePageTests : AsyncBunitContext
 
         cut.WaitForAssertion(() =>
         {
-            Assert.Equal(["Cast", "Adaptations", "Characters"], cut.FindAll(".universe-connections__subtitle").Select(h => h.TextContent).ToArray());
-            Assert.Equal(["Paul", "Chani", "Jessica"], cut.FindAll(".universe-characters__name").Select(n => n.TextContent).ToArray());
-            Assert.Equal(["In 3 of your works", "In 1 of your works"], cut.FindAll(".universe-characters__works").Select(n => n.TextContent).ToArray());
-            Assert.All(cut.FindAll(".universe-characters__source"), source => Assert.Equal("Source: Wikidata", source.TextContent));
-            Assert.Equal(3, cut.FindAll(".universe-characters__source").Count);
+            Assert.Equal(["Cast", "Adaptations"], cut.FindAll(".universe-connections__subtitle").Select(h => h.TextContent).ToArray());
+            Assert.Empty(cut.FindAll(".universe-characters__name"));
             Assert.DoesNotContain("Still learning", cut.Markup);
-        });
-    }
-
-    [Fact]
-    public async Task ChoosingACharacter_OpensAlsoAppearsIn_ForThatOneCharacterAndNoPerson()
-    {
-        _overview = () => UniversePageLoadResult.Loaded(Overview(characters: [Character("Q10", "Paul", 3), Character("Q11", "Chani", 1)]));
-        await UseDeviceAsync("web", "desktop");
-        var dialogs = (AppDialogService)Services.GetRequiredService<IAppDialogService>();
-
-        var cut = RenderPage();
-        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("button.universe-characters__row").Count));
-        cut.FindAll("button.universe-characters__row")[1].Click();
-
-        var dialog = Assert.Single(dialogs.Dialogs);
-        Assert.Equal(typeof(AlsoAppearsInPanel), dialog.ComponentType);
-        Assert.Equal(Qid, dialog.Parameters[nameof(AlsoAppearsInPanel.UniverseQid)]);
-        var characters = Assert.IsAssignableFrom<IReadOnlyList<(string Qid, string Label)>>(dialog.Parameters[nameof(AlsoAppearsInPanel.Characters)]);
-        Assert.Equal(("Q11", "Chani"), Assert.Single(characters));
-        Assert.False(dialog.Parameters.ContainsKey(nameof(AlsoAppearsInPanel.PersonId)) && dialog.Parameters[nameof(AlsoAppearsInPanel.PersonId)] is not null);
-    }
-
-    [Fact]
-    public async Task AUniverseWithOnlyCharacters_IsNotEmptyAndNotStillLearning()
-    {
-        _overview = () => UniversePageLoadResult.Loaded(Overview(characters: [Character("Q10", "Paul", 3)]));
-        await UseDeviceAsync("web", "desktop");
-
-        var cut = RenderPage();
-
-        cut.WaitForAssertion(() =>
-        {
-            Assert.Single(cut.FindAll(".universe-characters__item"));
-            Assert.DoesNotContain("Still learning", cut.Markup);
-            Assert.DoesNotContain("recorded for this Universe yet", cut.Markup);
-            Assert.Empty(cut.FindAll(".universe-cast"));
-            Assert.Empty(cut.FindAll(".universe-adaptations"));
         });
     }
 

@@ -36,6 +36,9 @@ public static class EditorSubjectInputKinds
 
     /// <summary>A list of short labels, separated by semicolons (library tags).</summary>
     public const string Chips = "chips";
+
+    /// <summary>One value picked from the field's <see cref="EditorSubjectFieldDto.Options"/> (a Universe thing's "belongs to").</summary>
+    public const string Choice = "choice";
 }
 
 /// <summary>
@@ -100,6 +103,20 @@ public sealed class EditorSubjectFieldDto
     /// <summary>The name of the source the canonical value comes from, shown beside the reset link.</summary>
     [JsonPropertyName("source_label")]
     public string? SourceLabel { get; init; }
+
+    /// <summary>For <see cref="EditorSubjectInputKinds.Choice"/>: the values the person can pick from, in the order shown.</summary>
+    [JsonPropertyName("options")]
+    public List<EditorSubjectOptionDto> Options { get; init; } = [];
+}
+
+/// <summary>One pickable value of a choice field.</summary>
+public sealed class EditorSubjectOptionDto
+{
+    [JsonPropertyName("value")]
+    public string Value { get; init; } = string.Empty;
+
+    [JsonPropertyName("label")]
+    public string Label { get; init; } = string.Empty;
 }
 
 /// <summary>A read-only fact with its label.</summary>
