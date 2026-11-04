@@ -176,7 +176,7 @@
     align-items: center;
     gap: 0.42rem;
     color: rgba(246, 240, 232, 0.70);
-    font-size: 0.92rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 :where(.tl-detail-page) .tl-detail-person-fact ::deep .tl-icon-root {
@@ -195,7 +195,7 @@
     background: rgba(255,255,255,0.065);
     color: color-mix(in srgb, var(--tl-detail-primary, #c9922e) 86%, #fff);
     text-decoration: none;
-    font-size: 0.9rem;
+    font-size: var(--tl-font-size-sm);
     font-weight: 700;
     transition: background 140ms ease, color 140ms ease, transform 140ms ease;
 }
@@ -220,7 +220,7 @@
     padding-bottom: 0.42rem;
     border-bottom: 1px solid color-mix(in srgb, var(--tl-detail-primary, #c9922e) 72%, transparent);
     color: color-mix(in srgb, var(--tl-detail-primary, #c9922e) 86%, #fff);
-    font-size: 0.78rem;
+    font-size: var(--tl-font-size-xs);
     font-weight: 700;
     letter-spacing: 0.16em;
     text-transform: uppercase;
@@ -263,7 +263,7 @@
     border-radius: 0.5rem;
     background: rgba(var(--hero-surface-rgb, 18, 22, 28), 0.48);
     color: rgba(var(--hero-text-rgb, 246, 240, 232), 0.88);
-    font-size: 0.82rem;
+    font-size: var(--tl-font-size-secondary);
     font-weight: 700;
     backdrop-filter: blur(10px);
 }
@@ -297,7 +297,7 @@
     display: inline-block;
     margin-top: 0.45rem;
     color: color-mix(in srgb, var(--tl-detail-primary, #8852FC) 82%, #fff);
-    font-size: 0.86rem;
+    font-size: var(--tl-font-size-sm);
     font-weight: 600;
     text-decoration: none;
 }

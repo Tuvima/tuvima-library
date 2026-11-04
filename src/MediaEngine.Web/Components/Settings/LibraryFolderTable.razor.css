@@ -1,7 +1,7 @@
 .folder-table {
     container: folder-table / inline-size;
     border: 1px solid var(--tl-border-subtle);
-    border-radius: var(--app-radius-md, 8px);
+    border-radius: var(--tl-radius-md, 8px);
     overflow: hidden;
 }
 
@@ -17,7 +17,7 @@
 .folder-table__head {
     min-height: 40px;
     color: var(--tl-text-muted);
-    font-size: 0.75rem;
+    font-size: var(--tl-font-size-xs);
     font-weight: 700;
     text-transform: uppercase;
 }
@@ -43,7 +43,7 @@
     justify-content: center;
     width: 32px;
     height: 32px;
-    border-radius: var(--app-radius-sm, 6px);
+    border-radius: var(--tl-radius-sm, 6px);
 }
 
 .folder-table__icon.is-managed {
@@ -77,12 +77,12 @@
 .folder-table__files,
 .folder-table__none {
     color: var(--tl-text-muted);
-    font-size: 0.85rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 .folder-table__files-hint {
     display: block;
-    font-size: 0.75rem;
+    font-size: var(--tl-font-size-xs);
 }
 
 .folder-table__radio-group {
@@ -90,7 +90,7 @@
 }
 
 .folder-table__status {
-    font-size: 0.8rem;
+    font-size: var(--tl-font-size-secondary);
     color: var(--tl-text-secondary);
 }
 

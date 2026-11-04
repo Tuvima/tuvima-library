@@ -286,12 +286,12 @@
             <div class="activity-delete" data-activity-delete-dialog>
                 <label class="activity-field">
                     <span class="activity-field__label">@L["ActivityPage_WhoseHistory"]</span>
-                    <AppNativeSelect Value="@_deleteScope" OnChange="OnDeleteScopeChanged" aria-label="@L["ActivityPage_WhoseHistoryToDelete"].Value" data-activity-delete-scope="true">
+                    <AppSelect Native="true" Value="@_deleteScope" ValueChanged="OnDeleteScopeChanged" aria-label="@L["ActivityPage_WhoseHistoryToDelete"].Value" data-activity-delete-scope="true">
                         @foreach (var option in _scopeOptions)
                         {
                             <option value="@option.Value">@option.Label</option>
                         }
-                    </AppNativeSelect>
+                    </AppSelect>
                 </label>
                 <AppTextField Label="@L["ActivityPage_DeleteEverythingBefore"].Value"
                               InputType="AppInputType.Date"
@@ -482,12 +482,12 @@
         {
             <label class="activity-field">
                 <span class="activity-field__label">@L["Common_Scope"]</span>
-                <AppNativeSelect Value="@_scope" OnChange="OnScopeChanged" aria-label="@L["Common_Scope"].Value" data-activity-scope="true">
+                <AppSelect Native="true" Value="@_scope" ValueChanged="OnScopeChanged" aria-label="@L["Common_Scope"].Value" data-activity-scope="true">
                     @foreach (var option in _scopeOptions)
                     {
                         <option value="@option.Value">@option.Label</option>
                     }
-                </AppNativeSelect>
+                </AppSelect>
             </label>
         }
 
@@ -502,11 +502,11 @@
 
         <label class="activity-field">
             <span class="activity-field__label">Outcome</span>
-            <AppNativeSelect Value="@_outcome" OnChange="OnOutcomeChanged" aria-label="Outcome" data-activity-outcome-filter="true">
+            <AppSelect Native="true" Value="@_outcome" ValueChanged="OnOutcomeChanged" aria-label="Outcome" data-activity-outcome-filter="true">
                 <option value="">Any</option>
                 <option value="finished">Finished</option>
                 <option value="not_finished">Not finished</option>
-            </AppNativeSelect>
+            </AppSelect>
         </label>
 
         <AppTextField Label="Device" Value="@_device" ValueChanged="OnDeviceChanged" DebounceInterval="350" Placeholder="Any device" data-activity-device-filter="true" />
@@ -750,9 +750,9 @@
             && Guid.TryParse(value[(separator + 1)..], out _);
     }
 
-    private async Task OnScopeChanged(ChangeEventArgs args)
+    private async Task OnScopeChanged(string? selected)
     {
-        var value = args.Value?.ToString();
+        var value = selected;
         if (string.IsNullOrEmpty(value) || value == _scope || _scopeOptions.All(option => option.Value != value))
         {
             return;
@@ -824,9 +824,9 @@
         return ReloadAsync();
     }
 
-    private Task OnOutcomeChanged(ChangeEventArgs args)
+    private Task OnOutcomeChanged(string? selected)
     {
-        _outcome = args.Value?.ToString() ?? string.Empty;
+        _outcome = selected ?? string.Empty;
         ResetPaging();
         return ReloadAsync();
     }
@@ -1179,9 +1179,9 @@
         return Task.CompletedTask;
     }
 
-    private Task OnDeleteScopeChanged(ChangeEventArgs args)
+    private Task OnDeleteScopeChanged(string? selected)
     {
-        _deleteScope = args.Value?.ToString() ?? PersonalActivityRequest.MeScope;
+        _deleteScope = selected ?? PersonalActivityRequest.MeScope;
         return RefreshPreviewAsync();
     }
 

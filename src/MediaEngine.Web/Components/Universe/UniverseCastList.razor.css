@@ -51,12 +51,12 @@ a.universe-cast__row {
 
 .universe-cast__characters {
     color: var(--tl-text-secondary);
-    font-size: 0.88rem;
+    font-size: var(--tl-font-size-sm);
     overflow-wrap: anywhere;
 }
 
 .universe-cast__source {
     color: var(--tl-text-muted);
-    font-size: 0.78rem;
+    font-size: var(--tl-font-size-xs);
     overflow-wrap: anywhere;
 }

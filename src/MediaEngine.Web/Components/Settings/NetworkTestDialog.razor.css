@@ -43,7 +43,7 @@
 
 .network-test-dialog__check strong {
     color: var(--tl-text-primary);
-    font-size: 0.82rem;
+    font-size: var(--tl-font-size-secondary);
 }
 
 .network-test-dialog__check span {

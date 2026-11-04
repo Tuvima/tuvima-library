@@ -9,7 +9,7 @@
     background: var(--tl-bg-surface-raised);
     color: var(--tl-text-secondary);
     font: inherit;
-    font-size: .85rem;
+    font-size: var(--tl-font-size-sm);
     cursor: pointer;
 }
 

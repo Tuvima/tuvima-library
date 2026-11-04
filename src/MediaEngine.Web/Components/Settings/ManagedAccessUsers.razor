@@ -386,7 +386,7 @@
             return;
         if (await Dialogs.ShowMessageBoxAsync($"Turn off two-step codes for {UserLabel(user)}?",
                 "They can sign in with just their password until they turn two-step codes on again. This is recorded in the activity log.",
-                yesText: "Turn off", cancelText: "Cancel") != true)
+                yesText: "Turn off", cancelText: "Cancel", options: AppDialogOptions.DestructiveConfirm) != true)
             return;
         if (!TryBeginMutation(out var generation))
             return;

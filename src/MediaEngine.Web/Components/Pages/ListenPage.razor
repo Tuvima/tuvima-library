@@ -134,7 +134,7 @@ else
                                         <span>@playlist.Name</span>
                                         @if (!CanAcceptPlaylistItems(playlist))
                                         {
-                                            <small class="listen-rail__smart-badge">@L["Common_Smart"]</small>
+                                            <AppChip Text="@L["Common_Smart"].Value" />
                                         }
                                     </a>
                                 }

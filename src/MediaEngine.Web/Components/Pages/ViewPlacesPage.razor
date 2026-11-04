@@ -29,7 +29,7 @@ else
                      Hotspots="@_atlas.Hotspots" ThumbnailUrl="HotspotThumbnail" JourneyEnabled="@_journey" ShowNavigation="false" OnHotspotSelected="SelectHotspotAsync" />
             <div class="view-atlas__toolbar" aria-label="@L["ViewPlacesPage_AtlasFilters"].Value">
                 <label class="view-atlas__search"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Search" /><AppNativeInput Type="search" Value="@_search" ValueChanged="SearchChangedAsync" Placeholder="@L["ViewPlacesPage_SearchPlacesCitiesOrRegions"].Value" AriaLabel="@L["ViewPlacesPage_SearchPlacesCitiesOrRegions2"].Value" /></label>
-                <AppNativeSelect Value="@TimePresetValue" OnChange="TimePresetChangedAsync" aria-label="@L["ViewPlacesPage_FilterPlacesByTime"].Value"><option value="">@L["ViewPlacesPage_AllTime"]</option>@foreach (var year in _atlas.AvailableYears) { <option value="@year">@year</option> }</AppNativeSelect>
+                <AppSelect Native="true" Value="@TimePresetValue" ValueChanged="TimePresetChangedAsync" aria-label="@L["ViewPlacesPage_FilterPlacesByTime"].Value"><option value="">@L["ViewPlacesPage_AllTime"]</option>@foreach (var year in _atlas.AvailableYears) { <option value="@year">@year</option> }</AppSelect>
                 <div class="view-atlas__types" role="group" aria-label="@L["Common_MediaType"].Value"><AppNativeButton Type="button" Class="@TypeClass(null)" OnClick="@(_ => SetMediaKindAsync(null))">@L["ApiKeys_AllKeysRevoked"]</AppNativeButton><AppNativeButton Type="button" Class="@TypeClass("image")" OnClick="@(_ => SetMediaKindAsync("image"))">@L["Common_Photos"]</AppNativeButton><AppNativeButton Type="button" Class="@TypeClass("video")" OnClick="@(_ => SetMediaKindAsync("video"))">@L["ViewPlacesPage_Videos"]</AppNativeButton></div>
                 <AppNativeButton Type="button" Class="@($"view-atlas__filters-button{(_filtersOpen || _favoritesOnly ? " is-active" : string.Empty)}")" aria-expanded="@_filtersOpen" OnClick="@(_ => _filtersOpen = !_filtersOpen)"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Tune" />@L["Common_Filters"]</AppNativeButton>
             </div>
@@ -38,11 +38,11 @@ else
                 <section class="view-atlas__filter-sheet" aria-label="@L["ViewPlacesPage_PlacesFilters"].Value">
                     @if (Workspace.Scopes is not null)
                     {
-                        <label><span>@L["ViewPlacesPage_LibraryScope"]</span><AppNativeSelect Value="@SelectedScopeValue" OnChange="ScopeChangedAsync" aria-label="@L["ViewPlacesPage_AuthorizedPlacesScope"].Value"><ViewScopeOptions Scopes="@Workspace.Scopes.AvailableScopes" OtherPeople="@Workspace.OtherPeople" /></AppNativeSelect></label>
+                        <label><span>@L["ViewPlacesPage_LibraryScope"]</span><AppSelect Native="true" Value="@SelectedScopeValue" ValueChanged="ScopeChangedAsync" aria-label="@L["ViewPlacesPage_AuthorizedPlacesScope"].Value"><ViewScopeOptions Scopes="@Workspace.Scopes.AvailableScopes" OtherPeople="@Workspace.OtherPeople" /></AppSelect></label>
                     }
                     <div class="view-atlas__check"><AppCheckbox Value="@_favoritesOnly" ValueChanged="FavoritesChangedAsync" Label="@L["ViewPlacesPage_FavoritesOnly"].Value" /><small>@L["ViewPlacesPage_ShowMappedMediaMarkedAs"]</small></div>
                     @if (_atlas.UnmappedAssetCount > 0) { <AppButton Label="@($"Without location ({_atlas.UnmappedAssetCount:N0})")" OnClick="ShowUnmappedAsync" /> }
-                    @if (_favoritesOnly) { <AppNativeButton Type="button" Class="view-atlas__clear-filter" OnClick="@(_ => ClearAdvancedFiltersAsync())">@L["Common_ClearFilters"]</AppNativeButton> }
+                    @if (_favoritesOnly) { <AppButton ButtonStyle="AppButtonStyle.Text" OnClick="@(() => ClearAdvancedFiltersAsync())" Label="@L["Common_ClearFilters"].Value" /> }
                 </section>
             }
             <div class="view-atlas__compass" role="toolbar" aria-label="@L["ViewPlacesPage_MemoryCompass"].Value">
@@ -123,7 +123,7 @@ else
         _search = value?.ToString() ?? string.Empty; _searchCts?.Cancel(); _searchCts?.Dispose(); var pending = _searchCts = new CancellationTokenSource();
         try { await Task.Delay(250, pending.Token); await LoadAtlasAsync(); } catch (OperationCanceledException) { }
     }
-    private async Task TimePresetChangedAsync(ChangeEventArgs args) { _year = int.TryParse(args.Value?.ToString(), out var year) ? year : null; _from = _year.HasValue ? new DateTimeOffset(_year.Value, 1, 1, 0, 0, 0, TimeSpan.Zero) : null; _to = _year.HasValue ? new DateTimeOffset(_year.Value, 12, 31, 23, 59, 59, 999, TimeSpan.Zero) : null; await LoadAtlasAsync(); }
+    private async Task TimePresetChangedAsync(string? selected) { _year = int.TryParse(selected, out var year) ? year : null; _from = _year.HasValue ? new DateTimeOffset(_year.Value, 1, 1, 0, 0, 0, TimeSpan.Zero) : null; _to = _year.HasValue ? new DateTimeOffset(_year.Value, 12, 31, 23, 59, 59, 999, TimeSpan.Zero) : null; await LoadAtlasAsync(); }
     private async Task SetMediaKindAsync(string? kind) { _mediaKind = kind; await LoadAtlasAsync(); }
     private string TimePresetValue => _year?.ToString() ?? string.Empty;
     private string TypeClass(string? kind) => string.Equals(_mediaKind, kind, StringComparison.Ordinal) ? "is-active" : string.Empty;
@@ -184,9 +184,9 @@ else
     private async Task FavoritesChangedAsync(bool value) { _favoritesOnly = value; await LoadAtlasAsync(); }
     private async Task ClearAdvancedFiltersAsync() { _favoritesOnly = false; await LoadAtlasAsync(); }
     private string HotspotThumbnail(ViewAtlasHotspotDto hotspot) => _profileId.HasValue ? GrantUrl(hotspot.RepresentativeLibraryId, hotspot.RepresentativeAssetId, ViewMediaResourceKind.Thumbnail, ViewMediaResourceRole.Primary, Workspace.ScopeKind, Workspace.ScopeProfileId) : string.Empty;
-    private async Task ScopeChangedAsync(ChangeEventArgs args)
+    private async Task ScopeChangedAsync(string? selected)
     {
-        var parts = args.Value?.ToString()?.Split(':', 2) ?? []; if (parts.Length == 0 || !Enum.TryParse<ViewScopeKind>(parts[0], true, out var kind)) return;
+        var parts = selected?.Split(':', 2) ?? []; if (parts.Length == 0 || !Enum.TryParse<ViewScopeKind>(parts[0], true, out var kind)) return;
         Guid? profile = parts.Length == 2 && Guid.TryParse(parts[1], out var parsed) ? parsed : null;
         if (await Workspace.SelectScopeAsync(kind, profile)) { _grants.Clear(); CloseStory(); _active = null; _atlas = null; await LoadAtlasAsync(); }
     }

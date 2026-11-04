@@ -201,7 +201,7 @@ public sealed class AppConfirmDialogTests : AsyncBunitContext
     public async Task AMessageBoxThatRemovesSomething_PutsTheSafeButtonLastFilledAndFocused()
     {
         var host = Render<AppDialogHost>();
-        _ = Dialogs.ShowMessageBoxAsync("Remove Smith?", "This cannot be undone.", yesText: "Remove", cancelText: "Cancel");
+        _ = Dialogs.ShowMessageBoxAsync("Remove Smith?", "This cannot be undone.", yesText: "Remove", cancelText: "Cancel", options: AppDialogOptions.DestructiveConfirm);
         host.WaitForElement(".app-dialog-shell");
 
         var buttons = host.FindAll(".app-dialog-shell__footer button").ToList();

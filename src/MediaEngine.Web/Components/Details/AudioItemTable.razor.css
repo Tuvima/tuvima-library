@@ -44,7 +44,7 @@
     align-items: center;
     gap: 0.4rem;
     color: rgba(255, 255, 255, 0.76);
-    font-size: 0.78rem;
+    font-size: var(--tl-font-size-xs);
     white-space: nowrap;
 }
 
@@ -71,7 +71,7 @@
     padding: 0 0.65rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.065);
     color: rgba(245, 247, 252, 0.84);
-    font-size: 0.84rem;
+    font-size: var(--tl-font-size-secondary);
 }
 
 .tl-embedded-audio--audiobook .tl-embedded-audio__table {
@@ -215,7 +215,7 @@
     gap: 0.6rem;
     min-width: 0;
     color: rgba(205, 214, 238, 0.72);
-    font-size: 0.78rem;
+    font-size: var(--tl-font-size-xs);
 }
 
 :where(.tl-detail-page) :where(.tl-detail-track-section,.tl-embedded-audio) ::deep .tl-detail-chapter-progress {
@@ -223,7 +223,7 @@
     width: min(7rem, 100%);
     height: 0.24rem;
     overflow: hidden;
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
     background: rgba(148, 163, 184, 0.22);
 }
 
@@ -360,7 +360,7 @@
     padding: 0.75rem clamp(1rem, 2vw, 1.35rem);
     border-bottom: 1px solid rgba(255,255,255,0.08);
     color: rgba(246, 240, 232, 0.66);
-    font-size: 0.82rem;
+    font-size: var(--tl-font-size-secondary);
     font-weight: 600;
 }
 
@@ -648,7 +648,7 @@
     justify-content: center;
     padding: 0;
     border: 1px solid rgba(255,255,255,0.10);
-    border-radius: 999px;
+    border-radius: var(--tl-control-radius);
     background: rgba(255,255,255,0.04);
     color: rgba(246, 240, 232, 0.66);
 }
@@ -677,7 +677,7 @@
 :where(.tl-detail-page) .tl-detail-track-empty {
     padding: 1rem 1.2rem 1.2rem;
     color: rgba(246, 240, 232, 0.58);
-    font-size: 0.86rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 @media (width < 840px) {
@@ -700,7 +700,7 @@
 
 :where(.tl-detail-page) .tl-detail-track-row__duration {
         text-align: right;
-        font-size: 0.86rem;
+        font-size: var(--tl-font-size-sm);
     }
 
 }
@@ -725,7 +725,7 @@
 
 :where(.tl-detail-page) .tl-detail-track-table .tl-detail-track-row__duration {
         text-align: left;
-        font-size: 0.86rem;
+        font-size: var(--tl-font-size-sm);
     }
 
 :where(.tl-detail-page) .tl-detail-track-toolbar {
@@ -799,7 +799,7 @@
     padding: 0 0.65rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.065);
     color: rgba(245, 247, 252, 0.84);
-    font-size: 0.76rem;
+    font-size: var(--tl-font-size-xs);
 }
 
 :where(.tl-detail-page) .tl-detail-stage--with-primary .tl-embedded-audio__row.is-playing {
@@ -1040,7 +1040,7 @@
 .tl-audio-item-table__group-heading {
     padding: 0.55rem 0.65rem 0.3rem;
     color: var(--tl-text-secondary, rgba(245, 247, 252, 0.68));
-    font-size: 0.75rem;
+    font-size: var(--tl-font-size-xs);
     font-weight: 600;
     letter-spacing: 0.08em;
     text-align: left;

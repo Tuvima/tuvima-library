@@ -147,7 +147,7 @@ public sealed class ViewDocumentRulesUiTests : AsyncBunitContext
 
         cut.Find("input.app-text-field").Input("Phone bills");
         cut.Find("select[aria-label='Match mode']").Change("any");
-        cut.Find("input[aria-label='Text to look for']").Change("telephone");
+        cut.Find("input[aria-label='Text to look for']").Input("telephone");
         cut.Find("button:contains('Add condition')").Click();
         var kinds = cut.FindAll("select[aria-label='Condition']");
         kinds[1].Change("source");
@@ -157,7 +157,7 @@ public sealed class ViewDocumentRulesUiTests : AsyncBunitContext
         cut.Find("button:contains('Add action')").Click();
         cut.FindAll("select[aria-label='Action']")[1].Change("set_field");
         cut.Find("select[aria-label='Field']").Change(CostField.ToString("D"));
-        cut.Find("input[aria-label='Value']").Change("12.50 eur");
+        cut.Find("input[aria-label='Value']").Input("12.50 eur");
         cut.Find("input[aria-label='File automatically']").Change(true);
         cut.Find("button:contains('Save rule')").Click();
 
@@ -198,7 +198,7 @@ public sealed class ViewDocumentRulesUiTests : AsyncBunitContext
              "documents_checked":40,"has_more":false}
             """);
         var cut = RenderEditor(new DialogSpy());
-        cut.Find("input[aria-label='Text to look for']").Change("water");
+        cut.Find("input[aria-label='Text to look for']").Input("water");
 
         cut.Find("button:contains('Test on my documents')").Click();
 

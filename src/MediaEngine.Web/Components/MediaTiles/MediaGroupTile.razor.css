@@ -86,7 +86,7 @@
     display: grid;
     place-items: center;
     color: var(--tl-text-secondary);
-    font-size: 2.5rem;
+    font-size: var(--tl-font-size-hero);
 }
 
 .media-group-tile__kind {
@@ -98,7 +98,7 @@
     border-radius: var(--tl-radius-pill);
     background: rgba(3, 7, 18, 0.62);
     color: #fff;
-    font-size: 0.75rem;
+    font-size: var(--tl-font-size-xs);
     font-weight: 600;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -117,7 +117,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     color: var(--tl-text-muted);
-    font-size: 0.75rem;
+    font-size: var(--tl-font-size-xs);
 }
 
 .media-group-tile__badge {
@@ -127,7 +127,7 @@
     border-radius: var(--tl-radius-pill);
     background: var(--tl-status-warning-soft);
     color: var(--tl-status-warning);
-    font-size: 0.75rem;
+    font-size: var(--tl-font-size-xs);
     font-weight: 600;
 }
 

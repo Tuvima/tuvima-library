@@ -22,7 +22,7 @@
     @if (Browse) { <div class="recent-items recent-items--browse" aria-busy="@_loading">@RecentItems</div> }
     else { <MediaShelfScroller ItemCount="@_items.Count" AriaLabel="@L["Common_RecentlyAddedMedia"].Value" Class="recent-items">@RecentItems</MediaShelfScroller> }
     @if (_loading) { <p role="status">@L["RecentMediaFeed_LoadingRecentAdditions"]</p> }
-    @if (Browse && _cursor is not null) { <AppNativeButton Class="recent-load-more" Disabled="@_loading" OnClick="LoadMoreAsync">@L["Common_ShowMore"]</AppNativeButton> }
+    @if (Browse && _cursor is not null) { <AppButton ButtonStyle="AppButtonStyle.Outlined" Class="recent-load-more" Disabled="@_loading" OnClick="LoadMoreAsync">@L["Common_ShowMore"]</AppButton> }
 </section>
 }
 @if (_activeView is not null && _profileId is { } activeProfile)

@@ -61,7 +61,7 @@
     display: grid;
     height: 100%;
     place-items: center;
-    font-size: 2.5rem;
+    font-size: var(--tl-font-size-hero);
 }
 
 .media-square-tile__name {

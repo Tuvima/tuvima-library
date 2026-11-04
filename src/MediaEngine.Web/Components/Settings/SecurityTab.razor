@@ -22,11 +22,11 @@
             <h3 id="security-group-sign-in">@L["SecurityTab_HowPeopleSignIn"]</h3>
             <div class="security-settings__controls" role="group" aria-labelledby="security-group-sign-in">
                 <label class="app-field__label">@L["SecurityTab_AuthenticationMode"]</label>
-                <AppNativeSelect Value="@_mode" OnChange="ChangeMode">
+                <AppSelect Native="true" Value="@_mode" ValueChanged="ChangeMode">
                     <option value="Local">@L["SecurityTab_LocalAccountSignIn"]</option>
                     <option value="Optional">@L["SecurityTab_OptionalSignIn"]</option>
                     <option value="Required">@L["SecurityTab_SignInRequired"]</option>
-                </AppNativeSelect>
+                </AppSelect>
                 <AppSwitchRow Label="@L["SecurityTab_PasswordSignIn"].Value"
                               Description="@L["SecurityTab_AllowAccountPasswordsAndPassword"].Value"
                               Value="@_passwordSignInEnabled"
@@ -61,10 +61,10 @@
                                       Label="@L["SecurityTab_ProviderId"].Value" ReadOnly="@provider.Persisted"
                                       HelpText="Stable id such as google, microsoft, github, facebook, or your OIDC provider name." />
                         <label class="app-field__label">@L["SecurityTab_Protocol"]</label>
-                        <AppNativeSelect Value="@provider.Kind" OnChange="args => ChangeProviderKind(provider, args)">
+                        <AppSelect Native="true" Value="@provider.Kind" ValueChanged="selected => ChangeProviderKind(provider, selected)">
                             <option value="oidc">@L["SecurityTab_OpenIDConnect"]</option>
                             <option value="oauth">@L["SecurityTab_OAuth20"]</option>
-                        </AppNativeSelect>
+                        </AppSelect>
                         <AppSwitchRow Label="@L["Schedule_Enabled"].Value" Value="@provider.Enabled"
                                       ValueChanged="value => provider.Enabled = value" />
                         <AppTextField T="string" @bind-Value="provider.DisplayName" Label="@L["SecurityTab_DisplayName"].Value" />
@@ -216,9 +216,9 @@
         _providerEditors.AddRange(value.ExternalProviders.Select(ProviderEditor.From));
     }
 
-    private void ChangeMode(ChangeEventArgs args)
+    private void ChangeMode(string? selected)
     {
-        _mode = args.Value?.ToString() ?? "Local";
+        _mode = selected ?? "Local";
         if (!ExternalCapableMode) _externalSignInEnabled = false;
     }
 
@@ -282,9 +282,9 @@
         });
     }
 
-    private static void ChangeProviderKind(ProviderEditor provider, ChangeEventArgs args)
+    private static void ChangeProviderKind(ProviderEditor provider, string? selected)
     {
-        provider.Kind = args.Value?.ToString() ?? "oidc";
+        provider.Kind = selected ?? "oidc";
         if (provider.Kind == "oidc" && !provider.Scopes.Split(' ', StringSplitOptions.RemoveEmptyEntries)
                 .Contains("openid", StringComparer.OrdinalIgnoreCase))
         {

@@ -284,9 +284,9 @@
             <AppTextField @bind-Value="_name" Label="Name" FullWidth="true" />
             <AppTextField @bind-Value="_description" Label="Description" FullWidth="true" />
             <label class="access-native-label" for="application-type">Application type</label>
-            <AppNativeSelect id="application-type" Value="@_type.ToString()" OnChange="SetType" Disabled="@_saving" aria-label="Application type">
+            <AppSelect Native="true" id="application-type" Value="@_type.ToString()" ValueChanged="SetType" Disabled="@_saving" aria-label="Application type">
                 @foreach (var type in Enum.GetValues<ApplicationTypeDto>()) { <option value="@type">@TypeLabel(type)</option> }
-            </AppNativeSelect>
+            </AppSelect>
             <AppSwitchRow @bind-Value="_enabled" Disabled="@_saving" Label="Application enabled" Description="Disabling an application rejects every credential attached to it." />
             @if (_type == ApplicationTypeDto.UserClient)
             {
@@ -312,10 +312,10 @@
     private RenderFragment AccessTab() => @<text>
         <section class="access-form-section">
             <AppText Typo="AppTypo.subtitle1">Permission preset</AppText>
-            <AppNativeSelect Value="@_presetId" OnChange="ApplyPreset" Disabled="@_saving" aria-label="Permission preset">
+            <AppSelect Native="true" Value="@_presetId" ValueChanged="ApplyPreset" Disabled="@_saving" aria-label="Permission preset">
                 <option value="custom">Custom</option>
                 @foreach (var preset in _presets.Where(value => !value.Id.Equals("custom", StringComparison.OrdinalIgnoreCase))) { <option value="@preset.Id">@preset.DisplayName</option> }
-            </AppNativeSelect>
+            </AppSelect>
             @if (_administrator)
             {
                 <AppAlert Severity="AppSeverity.Warning">Administrator applications receive every currently available registered permission and automatically include newly available permissions.</AppAlert>
@@ -848,9 +848,9 @@
         _editing = id is null ? null : applications.FirstOrDefault(app => app.Id == id);
     }
 
-    private void ApplyPreset(ChangeEventArgs args)
+    private void ApplyPreset(string? selected)
     {
-        var id = args.Value?.ToString() ?? "custom";
+        var id = selected ?? "custom";
         if (id == "custom") { _presetId = id; _administrator = false; return; }
         var preset = _presets.FirstOrDefault(value => value.Id == id);
         if (preset is not null) SetPreset(preset);
@@ -870,9 +870,9 @@
         _presetId = "custom";
     }
 
-    private void SetType(ChangeEventArgs args)
+    private void SetType(string? selected)
     {
-        if (!Enum.TryParse<ApplicationTypeDto>(args.Value?.ToString(), out var type)) return;
+        if (!Enum.TryParse<ApplicationTypeDto>(selected, out var type)) return;
         _type = type;
         var incompatible = _selected.Where(id => !_permissions.Any(permission => permission.Id == id && permission.IsAvailable && permission.ApplicationTypes.Contains(type))).ToArray();
         if (incompatible.Length > 0)

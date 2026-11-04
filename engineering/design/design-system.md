@@ -46,7 +46,7 @@ The Dashboard is **dark only** (`color-scheme: dark`). The reader adds light, se
 | Reading (EPUB) | Merriweather | Reader only |
 | Paths, IDs, code | JetBrains Mono | |
 
-Sizes: 12 · 13 (secondary) · 14 · 16 · 18 · 24 px. Weights: 400 body, 500 labels, 600 card titles and controls, 700 headings. Line heights 1.25 / 1.5 / 1.625. Small-caps labels use 0.08em letter spacing. Nothing smaller than 12px — make hierarchy with weight and spacing, not tiny text.
+Sizes: 12 · 13 (secondary) · 14 · 16 · 18 · 20 (dialog title) · 24 · 32 (hero) px, as tokens (`--tl-font-size-xs`, `-secondary`, `-sm`, `-md`, `-lg`, `-dialog-title`, `-xl`, `-hero`); a page picks a step and never writes its own size. Weights: 400 body, 500 labels, 600 card titles and controls, 700 headings. Line heights 1.25 / 1.5 / 1.625. Small-caps labels use 0.08em letter spacing. Nothing smaller than 12px — make hierarchy with weight and spacing, not tiny text.
 
 ## Spacing, shape, depth and motion
 
@@ -103,8 +103,25 @@ Every picture asks the Engine for the copy that fits its drawn size, never the o
 
 [`mockups/`](mockups/) holds the spring-2026 design previews (`preview/*.html`), a Dashboard UI kit (`ui_kits/dashboard/`), and their own token file `colors_and_type.css`. Those tokens are **older** than the shipped ones: accent `#8B5CF6` (now `#8852FC`), backgrounds `#0B1220`/`#111827` (now `#070A12`/`#0B1020`), Montserrat as the default font (now brand-only), different status and media colours, larger radii and different motion timings. Use them for layout ideas, not values. New mockups referenced by specs go in `mockups/` with the spec's name.
 
+## Look rules (look pass, 2026-11-04)
+
+One rulebook for every screen, kept in the tokens and the shared parts so a change there changes every page. The automatic checks live in `LookRatchetGuardrailTests`, `TokenResolutionGuardrailTests` and `IconToneGuardrailTests`.
+
+| Rule | Where it lives |
+|---|---|
+| Three button levels (filled purple primary, outlined secondary, quiet text) plus outlined-red destructive; heights 36 / 44 / 48; icon buttons are rounded squares | `AppButton`, `AppIconButton`, button tokens |
+| One dialog build: tinted icon tile, 20 px bold title, close X, body, safe filled button last and focused; destructive outlined red and to its left. Callers say a button is destructive with `AppDialogOptions.DestructiveConfirm`; nothing guesses from the label | `AppDialogShell`, `AppConfirmDialog`, `AppMessageBox` |
+| One menu: 44 px rows, 16 px text, 22 px icons, 272 px wide, Delete red and last | menu tokens (`--tl-menu-*`) |
+| One chip shape: square 3 px corners (`--tl-radius-pill`). Fully round (`--tl-radius-round`) only for avatars, switches, progress and seek bars, spinners and the player dock; a test caps its use | `AppChip`, `LookRatchetGuardrailTests` |
+| Tiles: equal heights in a row, one small "New" badge top left, the "..." button always visible bottom right (36 px), one hover (white border with purple ring on the cover only) | `MediaTile`, `--tl-tile-menu-button` |
+| Icon colors by meaning (neutral, accent, info, success, warning, danger, area, media type); a page asks for a tone, never a color | `AppIconTone`, `AppIconTile` |
+| Text sizes come from the ladder tokens; hand-typed sizes may only go down | type-size tokens, ratchet test |
+| Native buttons, inputs and selects are replaced by the shared parts (`AppButton`, `AppTextField`, `AppSelect`); what stays native is listed in the ratchet test and is limited to playback, the reader, tiles and toggle controls | `LookRatchetGuardrailTests` |
+
+Why: when the same control looks the same everywhere, people learn the app once; and one place to change a value means a restyle is a small, safe edit instead of a hunt through hundreds of files.
+
 ## Known gaps (2026-10-17)
 
-- Two colour sources disagree: CSS tokens and `config/ui/palette.json` (used for some chips and universe graphs).
+- Two colour sources disagree: CSS tokens and `config/ui/palette.json` (used for some chips and universe graphs). The look pass moved page colors to the tokens; palette.json stays only for media-type colors the Engine serves.
 - `--tl-media-view` is used on the For Me page but never defined.
 - Global styles remove the focus outline on links and buttons in places (`native-utilities.css:7`); a replacement ring isn't confirmed everywhere.

@@ -145,9 +145,7 @@
     border: 0;
     box-shadow: none;
 }
-.playback-icon-button-shell--appearance-bare.playback-icon-button-shell--surface-dock.playback-icon-button-shell--sleep-timer ::deep .playback-icon-button {
-    position: relative;
-}
+
 
 /* All presentations use the same icon-only utility target. */
 .playback-icon-button-shell ::deep .playback-icon-button {

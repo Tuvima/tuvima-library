@@ -500,7 +500,7 @@
             "Stop renaming and moving files?",
             "Library will stop organising this library's folders, and any organising that is running stops. Files already renamed keep their new names; nothing is undone and nothing else on disk changes.",
             yesText: "Stop renaming",
-            cancelText: "Keep renaming");
+            cancelText: "Keep renaming", options: AppDialogOptions.DestructiveConfirm);
         if (confirmed != true)
         {
             return false;

@@ -19,9 +19,7 @@
     }
     @if (OnDismiss.HasDelegate)
     {
-        <AppNativeButton Type="button" Class="settings-notice__dismiss" AriaLabel="@L["Common_Dismiss"].Value" OnClick="@(() => OnDismiss.InvokeAsync())">
-            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Close" Size="AppSize.Small" aria-hidden="true" />
-        </AppNativeButton>
+        <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Size="AppControlSize.Compact" AriaLabel="@L["Common_Dismiss"].Value" Tooltip="@L["Common_Dismiss"].Value" OnClick="@(() => OnDismiss.InvokeAsync())" />
     }
 </div>
 

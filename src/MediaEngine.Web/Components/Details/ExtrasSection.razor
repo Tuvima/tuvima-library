@@ -52,6 +52,10 @@
                             </div>
                             <div class="tl-extras-card__text">
                                 <span class="tl-extras-card__title">@card.Title</span>
+                                @if (!string.IsNullOrWhiteSpace(card.Badge))
+                                {
+                                    <span class="tl-extras-card__badge" data-testid="extras-badge">@card.Badge</span>
+                                }
                                 @if (!string.IsNullOrWhiteSpace(card.Subtitle))
                                 {
                                     <span class="tl-extras-card__subtitle">@card.Subtitle</span>

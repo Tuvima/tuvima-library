@@ -36,26 +36,26 @@ else
         @if (Target == ExistingProfile)
         {
             <small>@L["ManagedAccessUserInvite_TheSignInOpensThis"]</small>
-            <AppNativeSelect Value="@_profileId" OnChange="@(value => _profileId = value.Value?.ToString() ?? string.Empty)" aria-label="@L["ManagedAccessUserInvite_ProfileWithoutASignIn"].Value">
+            <AppSelect Native="true" Value="@_profileId" ValueChanged="@(selected => _profileId = selected ?? string.Empty)" aria-label="@L["ManagedAccessUserInvite_ProfileWithoutASignIn"].Value">
                 <option value="">@L["ManagedAccessUserInvite_ChooseAProfile"]</option>
                 @foreach (var profile in Profiles)
                 {
                     <option value="@profile.Id">@ProfileLabel(profile)</option>
                 }
-            </AppNativeSelect>
+            </AppSelect>
         }
         else
         {
             <small>They get their own profile. Its household and Kids setting are chosen here; everything else is set on the profile afterwards.</small>
             <AppTextField @bind-Value="_name" Label="@L["Users_ColName"].Value" FullWidth="true" />
-            <AppNativeSelect Value="@_household" OnChange="@(value => _household = value.Value?.ToString() ?? string.Empty)" aria-label="@L["Common_Household"].Value">
+            <AppSelect Native="true" Value="@_household" ValueChanged="@(selected => _household = selected ?? string.Empty)" aria-label="@L["Common_Household"].Value">
                 <option value="">@L["ManagedAccessUserInvite_ChooseAHousehold"]</option>
                 @foreach (var household in HouseholdOptions)
                 {
                     <option value="@household.Id">@household.Name</option>
                 }
                 <option value="@NewHousehold">@L["ManagedAccessUserInvite_ANewHousehold"]</option>
-            </AppNativeSelect>
+            </AppSelect>
             @if (_household == NewHousehold)
             {
                 <AppTextField @bind-Value="_newHouseholdName" Label="@L["ManagedAccessUserInvite_NewHouseholdName"].Value" HelpText="They will look after it." FullWidth="true" />

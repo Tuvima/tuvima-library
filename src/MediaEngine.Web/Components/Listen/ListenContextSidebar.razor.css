@@ -11,7 +11,7 @@
 .listen-context-sidebar__empty {
     margin: 14px;
     color: var(--playback-text-secondary);
-    font-size: .875rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 .listen-context-sidebar__section-action {
@@ -20,7 +20,7 @@
     justify-content: space-between;
     padding: 0 14px 8px;
     color: var(--playback-text-secondary);
-    font-size: .75rem;
+    font-size: var(--tl-font-size-xs);
 }
 
 .listen-context-sidebar__section-action ::deep button {
@@ -95,7 +95,7 @@
     padding: 12px 14px;
     border-bottom: 1px solid var(--playback-divider);
     color: var(--playback-text-secondary);
-    font-size: .875rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 .listen-context-sidebar__chapter-summary strong {
@@ -121,7 +121,7 @@
 .listen-context-sidebar__date {
     margin: 16px 14px 4px;
     color: var(--playback-text-secondary);
-    font-size: .78rem;
+    font-size: var(--tl-font-size-xs);
 }
 
 .listen-context-sidebar__body { min-height:0; overflow-y:auto; overscroll-behavior:contain; }

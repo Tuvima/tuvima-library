@@ -71,7 +71,7 @@
 }
 
 .playback-sheet-row-shell ::deep .playback-sheet-row__copy strong {
-    font-size: 0.98rem;
+    font-size: var(--tl-font-size-md);
     font-weight: 700;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -81,7 +81,7 @@
 .playback-sheet-row-shell ::deep .playback-sheet-row__copy span,
 .playback-sheet-row-shell ::deep .playback-sheet-row__resume {
     color: var(--playback-text-muted);
-    font-size: 0.88rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 .playback-sheet-row-shell ::deep .playback-sheet-row__resume {
@@ -99,7 +99,7 @@
 
 .playback-sheet-row-shell ::deep .playback-sheet-row__radio {
     border: 2px solid var(--playback-text-secondary);
-    border-radius: 999px;
+    border-radius: var(--tl-radius-round);
     flex: 0 0 auto;
     display: inline-block;
     height: 20px;

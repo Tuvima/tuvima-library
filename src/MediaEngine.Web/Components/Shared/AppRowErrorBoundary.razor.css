@@ -7,7 +7,7 @@
     min-height: 3.25rem;
     padding: .35rem .75rem;
     color: var(--tl-palette-text-secondary);
-    border-bottom: 1px solid var(--app-border);
+    border-bottom: 1px solid var(--tl-border-default);
 }
 
 .app-row-error__icon {
@@ -23,12 +23,12 @@
 
 .app-row-error__copy strong {
     color: var(--tl-text-primary);
-    font-size: .84rem;
+    font-size: var(--tl-font-size-secondary);
 }
 
 .app-row-error__copy small {
     overflow: hidden;
-    font-size: .77rem;
+    font-size: var(--tl-font-size-xs);
     white-space: nowrap;
     text-overflow: ellipsis;
 }

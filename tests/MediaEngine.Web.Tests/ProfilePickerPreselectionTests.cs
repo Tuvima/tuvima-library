@@ -52,7 +52,7 @@ public sealed class ProfilePickerPreselectionTests : AsyncBunitContext
 
         Assert.Equal(["Dad", "Mom", "Kim, Kids profile"], CardNames(cut));
         Assert.DoesNotContain("Continue as", cut.Markup, StringComparison.Ordinal);
-        Assert.Empty(cut.FindAll(".who-button--primary"));
+        Assert.Empty(cut.FindAll(".app-button--filled"));
         Assert.DoesNotContain(_requests, request => request.Method == HttpMethod.Post && request.Path == "/auth/session/switch-profile");
     }
 

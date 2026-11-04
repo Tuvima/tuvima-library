@@ -11,6 +11,9 @@ public static class ExcludedSourceFileReasons
 
     /// <summary>Tuvima tried to delete the file and could not (in use, or no permission).</summary>
     public const string DeleteFailed = "delete_failed";
+
+    /// <summary>A person chose Ignore in "What is this file?" (universal editor v4 D20): hidden from the Library and future scans, the file stays on disk.</summary>
+    public const string IgnoredByYou = "ignored_by_you";
 }
 
 /// <summary>

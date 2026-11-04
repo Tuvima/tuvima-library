@@ -20,7 +20,7 @@
     background: transparent;
     color: rgba(220, 228, 241, 0.82);
     font: inherit;
-    font-size: 0.9rem;
+    font-size: var(--tl-font-size-sm);
     font-weight: 600;
     white-space: nowrap;
     cursor: pointer;

@@ -6,7 +6,7 @@
     min-width: var(--tl-touch-target-min);
     height: var(--tl-touch-target-min);
     border-radius: var(--tl-radius-pill);
-    color: var(--app-text-primary, var(--tl-text-primary));
+    color: var(--tl-text-primary, var(--tl-text-primary));
     text-decoration: none;
     touch-action: manipulation;
 }

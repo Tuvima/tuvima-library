@@ -239,7 +239,7 @@
             row.Count == 0
                 ? "Nothing you can see uses it right now. If anything else does, it is taken off there too."
                 : $"It is used on {row.Count} {(row.Count == 1 ? "item" : "items")} you can see, and it is taken off every other item that carries it as well, including any you cannot see. Nothing else about them changes.",
-            "Remove", "Keep");
+            "Remove", "Keep", options: AppDialogOptions.DestructiveConfirm);
         if (confirmed != true)
         {
             return;

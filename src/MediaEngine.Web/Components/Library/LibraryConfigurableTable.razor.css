@@ -12,7 +12,7 @@
 
 
     .vct-text-cell {
-        font-size: 13px;
+        font-size: var(--tl-font-size-secondary);
         font-weight: 500;
         color: rgba(255, 255, 255, 0.55);
         white-space: nowrap;
@@ -105,7 +105,7 @@
     }
 
     .vmt-compact-title {
-        font-size: 13px;
+        font-size: var(--tl-font-size-secondary);
         font-weight: 500;
         color: var(--tl-text-primary);
         white-space: nowrap;
@@ -114,7 +114,7 @@
     }
 
     .vmt-row .vmt-compact-cell ~ .vct-text-cell {
-        font-size: 12px;
+        font-size: var(--tl-font-size-xs);
     }
 
     .vmt-poster-wrap {
@@ -213,7 +213,7 @@
     }
 
     .vmt-title {
-        font-size: 14px;
+        font-size: var(--tl-font-size-sm);
         font-weight: 700;
         color: var(--tl-text-primary);
         line-height: 1.3;
@@ -506,7 +506,7 @@
         }
 
         .vmt-title {
-            font-size: 13px;
+            font-size: var(--tl-font-size-secondary);
         }
 
         .vmt-group-header {
@@ -535,7 +535,7 @@
         }
 
         .vmt-title {
-            font-size: 12px;
+            font-size: var(--tl-font-size-xs);
         }
 
         .vmt-subtitle {
@@ -556,18 +556,9 @@
     }
 
 
-    .vmt-row--drillable:hover .vmt-drill-chevron {
-        opacity: 0.6;
-    }
+    
 
-    .vmt-drill-chevron {
-        opacity: 0;
-        transition: opacity 0.15s;
-        color: var(--tl-text-muted);
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-    }
+    
 
 
     .vmt-manage-actions {
@@ -645,7 +636,7 @@
         overflow: hidden;
         text-overflow: ellipsis;
         color: var(--tl-text-primary);
-        font-size: 0.875rem;
+        font-size: var(--tl-font-size-sm);
     }
 
     .vmt-original-title-sub {

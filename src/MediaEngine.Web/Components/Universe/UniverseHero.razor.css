@@ -43,7 +43,7 @@
     margin: 0;
     color: var(--tl-accent-secondary);
     font-family: var(--font-ui);
-    font-size: 0.85rem;
+    font-size: var(--tl-font-size-sm);
     font-weight: 600;
 }
 
