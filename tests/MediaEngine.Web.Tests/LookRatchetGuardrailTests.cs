@@ -10,13 +10,14 @@ namespace MediaEngine.Web.Tests;
 public sealed class LookRatchetGuardrailTests
 {
     private const int RoundedEndCeiling = 0;
-    private const int RoundTokenCeiling = 47;
     private const int NativeControlCeiling = 374;
     private const int AdHocFontSizeCeiling = 150;
     private const int HandTypedHexCeiling = 902;
     private const int ForcedOverrideCeiling = 1501;
     private const int HandTypedLayerCeiling = 307;
-    private const int OldAppVariableCeiling = 918;
+    // Class names made at runtime by a library or by joining a state name, so no source file spells them out.
+    private static readonly HashSet<string> BuiltAtRuntime = ["maplibregl-ctrl-bottom-left", "maplibregl-ctrl-bottom-right", "notifications-page__channel--needs_attention"];
+    private const int OldAppVariableCeiling = 164;
     private const int DeadStyleClassCeiling = 0;
 
     private static IEnumerable<(string Relative, string Text)> WebFiles(params string[] extensions)
@@ -44,8 +45,9 @@ public sealed class LookRatchetGuardrailTests
     {
         var css = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web", "wwwroot", "app.css"));
         var rule = Regex.Match(css, @"\.media-tile-actions \{[^}]*\}").Value;
-        Assert.Contains("bottom: 8px", rule);
-        Assert.Contains("right: 8px", rule);
+        Assert.Contains("aspect-ratio: var(--media-tile-media-aspect)", rule);
+        Assert.Contains("align-items: flex-end", rule);
+        Assert.Contains("justify-content: flex-end", rule);
         Assert.DoesNotContain("opacity: 0", rule);
     }
 
@@ -164,6 +166,19 @@ public sealed class LookRatchetGuardrailTests
         }
 
         Assert.True(dead.Count <= DeadStyleClassCeiling, $"{dead.Count} style classes nothing uses (ceiling {DeadStyleClassCeiling}): " + string.Join(", ", dead.Take(15)));
+    }
+
+    [Fact]
+    public void EveryToneSetsItsColorBackgroundAndBorderVariables()
+    {
+        var css = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web", "wwwroot", "app.css"));
+        foreach (var tone in new[] { "primary", "info", "success", "warning", "error" })
+        {
+            var rule = string.Concat(Regex.Matches(css, @"\.app-tone--" + tone + @" \{[^}]*\}").Select(m => m.Value));
+            Assert.Contains("--app-tone-color:", rule);
+            Assert.Contains("--app-tone-bg:", rule);
+            Assert.Contains("--app-tone-border:", rule);
+        }
     }
 
     [Fact]

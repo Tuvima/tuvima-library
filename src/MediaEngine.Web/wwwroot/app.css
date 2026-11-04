@@ -644,9 +644,9 @@ body {
 }
 
 .app-dialog-shell__icon--error {
-    color: var(--tl-status-danger);
-    background: var(--tl-status-danger-soft);
-    border-color: var(--tl-status-danger-border);
+    color: var(--app-tone-color);
+    background: var(--app-tone-bg);
+    border-color: var(--app-tone-border);
 }
 
 @media (max-width: 640px) {
@@ -747,7 +747,7 @@ code{
 .app-progress-bar__value { color: var(--tl-text-muted); font-size: var(--tl-font-size-xs); font-weight: 600; }
 
 .app-metric-card { display: flex; align-items: flex-start; gap: 12px; min-width: 0; padding: 14px 16px; color: var(--tl-text-primary); background: var(--tl-bg-surface-raised); border: 1px dashed var(--tl-border-strong); border-radius: var(--tl-radius-lg); }
-.app-metric-card__icon { color: var(--tl-status-danger, var(--tl-accent-primary)) !important; }
+.app-metric-card__icon { color: var(--app-tone-color, var(--tl-accent-primary)) !important; }
 .app-metric-card__copy { min-width: 0; }
 .app-metric-card__label,
 .app-metric-card__description { color: var(--tl-text-muted); font-size: var(--tl-font-size-xs); line-height: 1.45; }
@@ -832,7 +832,8 @@ code{
 
 
 /* The cover's "..." button (Look pass 4.5): always visible, bottom right of the cover. The "+" beside it shows on hover or focus (always on touch). */
-.media-tile-actions { position: absolute; bottom: 8px; right: 8px; z-index: 8; display: flex; gap: 6px; }
+.media-tile-actions { position: absolute; top: 0; left: 0; right: 0; z-index: 8; display: flex; gap: 6px; align-items: flex-end; justify-content: flex-end; box-sizing: border-box; aspect-ratio: var(--media-tile-media-aspect); padding: 8px; pointer-events: none; }
+.media-tile-actions > * { pointer-events: auto; }
 .media-tile-actions .media-tile-action { opacity: 0; transition: opacity var(--tl-motion-duration-fast, 120ms) ease; }
 .media-tile:is(:hover, :focus-within) .media-tile-actions .media-tile-action, .media-tile-actions:has([aria-expanded="true"]) .media-tile-action { opacity: 1; }
 @media (hover: none) { .media-tile-actions .media-tile-action { opacity: 1; } }
@@ -1901,8 +1902,8 @@ input.app-control.tl-input-slot,
 }
 
 .app-card--danger {
-    background: var(--tl-status-danger-soft);
-    border-color: var(--tl-status-danger-border);
+    background: var(--app-tone-bg);
+    border-color: var(--app-tone-border);
 }
 
 .app-card__header {
@@ -2204,25 +2205,40 @@ input.app-control.tl-input-slot,
 }
 
 .app-tone--primary {
+    --app-tone-color: var(--tl-accent-primary);
+    --app-tone-bg: var(--tl-accent-primary-soft);
+    --app-tone-border: var(--tl-accent-primary-border);
 }
 
 .app-tone--info {
+    --app-tone-color: var(--tl-status-info);
+    --app-tone-bg: var(--tl-status-info-soft);
+    --app-tone-border: var(--tl-status-info-border);
 }
 
 .app-tone--success {
+    --app-tone-color: var(--tl-status-success);
+    --app-tone-bg: var(--tl-status-success-soft);
+    --app-tone-border: var(--tl-status-success-border);
 }
 
 .app-tone--warning {
+    --app-tone-color: var(--tl-status-warning);
+    --app-tone-bg: var(--tl-status-warning-soft);
+    --app-tone-border: var(--tl-status-warning-border);
 }
 
 .app-tone--error {
+    --app-tone-color: var(--tl-status-danger);
+    --app-tone-bg: var(--tl-status-danger-soft);
+    --app-tone-border: var(--tl-status-danger-border);
 }
 
 .app-chip:not(.app-tone--neutral),
 .app-alert:not(.app-tone--neutral) {
-    color: var(--tl-status-danger);
-    background: var(--tl-status-danger-soft);
-    border-color: var(--tl-status-danger-border);
+    color: var(--app-tone-color);
+    background: var(--app-tone-bg);
+    border-color: var(--app-tone-border);
 }
 
 .app-checkbox-row {
@@ -5623,6 +5639,12 @@ body:has(.tl-editor-window) .tl-details-overlay__scroller,body:has(.tl-editor-wi
 .audiobook-global-extras__list li.is-glow { animation:video-bookmark-glow 1.4s ease-out 1; }
 .audiobook-global-extras__list li > span { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; opacity:.75; }
 .audiobook-global-extras__empty { opacity:.75; }
+/* MapLibre builds these class names itself, so no component names them: keep the controls above the phone docks. */
+html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-left,
+html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-right {
+    margin-bottom: calc(var(--tl-bottom-dock-height, 0px) + var(--tl-audio-dock-height, 0px));
+}
+
 /* Details page, phone pass. Everything here is scoped to the phone form factor; tablet and desktop keep the
    existing hero, tab and list rules. Phones never carry an editor entry point, and nothing relies on hover. */
 

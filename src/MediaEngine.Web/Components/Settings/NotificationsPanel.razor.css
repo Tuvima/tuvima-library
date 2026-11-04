@@ -144,3 +144,7 @@
         grid-column: 1 / -1;
     }
 }
+
+.notifications-page__channel--needs_attention {
+    border-color: var(--tl-warning);
+}
