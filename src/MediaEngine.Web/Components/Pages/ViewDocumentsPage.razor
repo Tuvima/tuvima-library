@@ -3,6 +3,7 @@
 @using MediaEngine.Domain.PersonalMedia
 @using MediaEngine.Web.Components.View
 @using MediaEngine.Web.Models.ViewDTOs
+@using MediaEngine.Web.Services.Editing
 @using MediaEngine.Web.Services.Theming
 @using MediaEngine.Web.Services.Ui
 @inject IEngineApiClient ApiClient
@@ -10,12 +11,13 @@
 @inject ActiveProfileSessionService ActiveProfileSession
 @inject ViewMediaGrantService MediaGrants
 @inject DeviceContextService Device
-@inject IAppToastService Snackbar
+@inject ViewRibbonVoice Snackbar
 @inject IAppDialogService DialogService
 @inject IJSRuntime Js
 @using Microsoft.JSInterop
 @implements IDisposable
 @namespace MediaEngine.Web.Components.Pages
+@inject ViewEditorHost EditorHost
 @inject IStringLocalizer<SharedStrings> L
 
 <PageTitle>@L["ViewDocumentsPage_DocumentsLibrary"]</PageTitle>
@@ -631,27 +633,32 @@
             return;
         }
 
-        var dialog = await DialogService.ShowAsync<ViewDocumentDetailsDialog>(string.Empty,
-            new AppDialogParameters<ViewDocumentDetailsDialog>
-            {
-                { component => component.Item, item },
-                { component => component.ScopeKind, Workspace.ScopeKind },
-                { component => component.ScopeProfileId, Workspace.ScopeProfileId },
-            },
-            new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Medium });
-        if (await dialog.Result is not { Canceled: false, Data: LocalAssetDocumentInfoDto })
+        await OpenEditorAsync([item]);
+    }
+
+    // Edit opens the one editor window (spec photos-documents-editor): one document shows all its fields, several show only what they share.
+    // Afterward only the documents it touched are read again, and the lists that count tags, correspondents and types are refreshed.
+    private async Task OpenEditorAsync(IReadOnlyList<LocalAssetDto> items)
+    {
+        if (items.Count == 0 || !await EditorHost.OpenItemsAsync(items))
         {
             return;
         }
 
-        // Take the saved details (and any new title or tags) from the Engine, then refresh the lists that count them.
-        var refreshed = await ApiClient.GetViewItemAsync(item.Id, Workspace.ScopeKind, Workspace.ScopeProfileId);
-        if (refreshed is not null)
+        var closed = await EditorHost.WhenClosedAsync();
+        if (!closed.Changed)
         {
-            ItemUpdated(refreshed);
+            return;
         }
 
-        Snackbar.Add(L["ViewDocumentsPage_DetailsSaved"].Value, AppSeverity.Success);
+        foreach (var id in closed.ItemIds)
+        {
+            if (await ApiClient.GetViewItemAsync(id, Workspace.ScopeKind, Workspace.ScopeProfileId) is { } refreshed)
+            {
+                ItemUpdated(refreshed);
+            }
+        }
+
         await LoadCatalogueAsync();
     }
 
@@ -888,11 +895,7 @@
         {
             <AppOverflowMenu Label="Organise" Icon="@AppMaterialIcons.Outlined.LocalOffer" AriaLabel="Organise the selected documents"
                              Class="view-selection-toolbar__gallery" Disabled="_bulkBusy" AnchorOrigin="AppOrigin.TopLeft" TransformOrigin="AppOrigin.BottomLeft">
-                <AppMenuItem Label="Add tags…" Icon="@AppMaterialIcons.Outlined.LocalOffer" OnClick="@(() => AskThenBulkAsync(ViewDocumentBulkOperations.AddTags))" />
-                <AppMenuItem Label="Remove tags…" Icon="@AppMaterialIcons.Outlined.RemoveCircleOutline" OnClick="@(() => AskThenBulkAsync(ViewDocumentBulkOperations.RemoveTags))" />
-                <AppMenuItem Label="Set correspondent…" Icon="@AppMaterialIcons.Outlined.PersonOutline" OnClick="@(() => AskThenBulkAsync(ViewDocumentBulkOperations.SetCorrespondent))" />
-                <AppMenuItem Label="Set type…" Icon="@AppMaterialIcons.Outlined.Description" OnClick="@(() => AskThenBulkAsync(ViewDocumentBulkOperations.SetDocumentType))" />
-                <AppMenuItem Label="Set date…" Icon="@AppMaterialIcons.Outlined.CalendarToday" OnClick="@(() => AskThenBulkAsync(ViewDocumentBulkOperations.SetDocumentDate))" />
+                <AppMenuItem Label="@(_selected.Count == 1 ? L["ViewEdit_Edit"].Value : L["ViewEdit_EditItems", _selected.Count].Value)" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="EditSelectionAsync" Disabled="@(!EditorHost.CanEdit)" />
                 <AppMenuItem Label="Mark filed" Icon="@AppMaterialIcons.Outlined.CheckCircleOutline" DividerBefore="true" OnClick="@(() => BulkAsync(ViewDocumentBulkOperations.MarkFiled))" />
             </AppOverflowMenu>
         }
@@ -904,26 +907,8 @@
     private string? TrashNote(LocalAssetDto item) =>
         _filter.TrashOnly && Workspace.TrashFailureReason(item.Id) is { } reason ? EmptyTrashText.FailureNote(reason) : null;
 
-    private async Task AskThenBulkAsync(string operation)
-    {
-        if (_selected.Count == 0)
-        {
-            return;
-        }
-
-        var dialog = await DialogService.ShowAsync<ViewDocumentBulkDialog>(string.Empty,
-            new AppDialogParameters<ViewDocumentBulkDialog>
-            {
-                { component => component.Operation, operation },
-                { component => component.Count, _selected.Count },
-                { component => component.Catalogue, _catalogue },
-            },
-            new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Small });
-        if (await dialog.Result is { Canceled: false, Data: ViewDocumentBulkRequest answer })
-        {
-            await BulkAsync(operation, answer);
-        }
-    }
+    private Task EditSelectionAsync() =>
+        OpenEditorAsync([.. _items.Where(item => _selected.Contains(item.Id))]);
 
     // One call changes at most 500 documents, so a longer selection goes in batches and is reported as one result.
     private async Task BulkAsync(string operation, ViewDocumentBulkRequest? answer = null)

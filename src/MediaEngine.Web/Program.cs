@@ -373,6 +373,7 @@ builder.Services.AddScoped<CollectionEditorLauncherService>();
 builder.Services.AddScoped<EditorHost>();
 builder.Services.AddScoped<ViewEditorHost>();
 builder.Services.AddScoped<ViewRibbonState>();
+builder.Services.AddScoped<ViewRibbonVoice>();
 builder.Services.AddScoped<ListEditLauncher>();
 builder.Services.AddScoped<GalleryEditorLauncherService>();
 builder.Services.AddScoped<MediaTileComposerService>();

@@ -891,17 +891,8 @@
   <data name="CollectionsPage_TryRemovingARoleLane" xml:space="preserve">
     <value>Try removing a role, lane, or search filter.</value>
   </data>
-  <data name="GalleryEditorShell_GalleryEditor" xml:space="preserve">
-    <value>Gallery editor</value>
-  </data>
-  <data name="GalleryEditorShell_DeleteGallery" xml:space="preserve">
-    <value>Delete gallery</value>
-  </data>
   <data name="GalleryEditorShell_AutomaticCover" xml:space="preserve">
     <value>Automatic cover</value>
-  </data>
-  <data name="GalleryEditorShell_TheGalleryUsesItsCover" xml:space="preserve">
-    <value>The Gallery uses its cover item and falls back to the newest matching photo.</value>
   </data>
   <data name="GalleryEditorShell_Manual" xml:space="preserve">
     <value>Manual</value>
@@ -909,47 +900,11 @@
   <data name="Common_Smart" xml:space="preserve">
     <value>Smart</value>
   </data>
-  <data name="GalleryEditorShell_ImagesAreAddedOneAt" xml:space="preserve">
-    <value>Images are added one at a time from the viewer.</value>
-  </data>
-  <data name="GalleryEditorShell_ManualMembershipStaysAvailableAs" xml:space="preserve">
-    <value>Manual membership stays available as a quick action throughout View.</value>
-  </data>
   <data name="GalleryEditorShell_NoSoundtrack" xml:space="preserve">
     <value>No soundtrack</value>
   </data>
-  <data name="GalleryEditorShell_CreateAPlaylistInListen" xml:space="preserve">
-    <value>Create a playlist in Listen before linking a Gallery soundtrack.</value>
-  </data>
-  <data name="GalleryEditorShell_TheLinkedPlaylistRemainsManaged" xml:space="preserve">
-    <value>The linked playlist remains managed in Listen and does not count toward Gallery membership.</value>
-  </data>
-  <data name="GalleryEditorShell_GalleryCreated" xml:space="preserve">
-    <value>Gallery created</value>
-  </data>
-  <data name="GalleryEditorShell_GalleryEditorSections" xml:space="preserve">
-    <value>Gallery editor sections</value>
-  </data>
   <data name="Common_DescriptionOptional" xml:space="preserve">
     <value>Description (optional)</value>
-  </data>
-  <data name="GalleryEditorShell_ChooseHowPhotosAndVideos" xml:space="preserve">
-    <value>Choose how photos and videos enter this Gallery.</value>
-  </data>
-  <data name="GalleryEditorShell_ManualItems" xml:space="preserve">
-    <value>Manual items</value>
-  </data>
-  <data name="GalleryEditorShell_OpenAnImageInThe" xml:space="preserve">
-    <value>Open an image in the Vault viewer and choose Add to gallery.</value>
-  </data>
-  <data name="GalleryEditorShell_UseAddToGalleryFrom" xml:space="preserve">
-    <value>Use Add to Gallery from View to add or remove selected photos and videos.</value>
-  </data>
-  <data name="GalleryEditorShell_Soundtrack" xml:space="preserve">
-    <value>Soundtrack</value>
-  </data>
-  <data name="GalleryEditorShell_OptionalMusicCanEnrichThis" xml:space="preserve">
-    <value>Optional music can enrich this Gallery without becoming a Gallery item.</value>
   </data>
   <data name="GalleryEditorShell_Playlist" xml:space="preserve">
     <value>Playlist</value>
@@ -2919,47 +2874,20 @@
   <data name="ViewContributionsPage_SharedLibraryContributions" xml:space="preserve">
     <value>Shared Library contributions</value>
   </data>
-  <data name="ViewDocumentBulkDialog_TagsToTakeOff" xml:space="preserve">
-    <value>Tags to take off</value>
-  </data>
-  <data name="ViewDocumentBulkDialog_NoneOfYourDocumentsHave" xml:space="preserve">
-    <value>None of your documents have tags yet.</value>
-  </data>
   <data name="Common_Date" xml:space="preserve">
     <value>Date</value>
-  </data>
-  <data name="ViewDocumentBulkDialog_TagsToAdd" xml:space="preserve">
-    <value>Tags to add</value>
   </data>
   <data name="Common_Correspondent" xml:space="preserve">
     <value>Correspondent</value>
   </data>
-  <data name="ViewDocumentBulkDialog_WhoSentOrIssuedThese" xml:space="preserve">
-    <value>Who sent or issued these</value>
-  </data>
-  <data name="ViewDocumentBulkDialog_ClearTheCorrespondentInstead" xml:space="preserve">
-    <value>Clear the correspondent instead</value>
-  </data>
   <data name="Common_DocumentType" xml:space="preserve">
     <value>Document type</value>
-  </data>
-  <data name="Common_InvoiceLetterContract" xml:space="preserve">
-    <value>Invoice, letter, contract…</value>
-  </data>
-  <data name="ViewDocumentBulkDialog_ClearTheTypeInstead" xml:space="preserve">
-    <value>Clear the type instead</value>
   </data>
   <data name="Common_DocumentDate" xml:space="preserve">
     <value>Document date</value>
   </data>
-  <data name="ViewDocumentBulkDialog_ClearTheDateInstead" xml:space="preserve">
-    <value>Clear the date instead</value>
-  </data>
   <data name="Common_Tags" xml:space="preserve">
     <value>Tags</value>
-  </data>
-  <data name="ViewDocumentDetailsDialog_CustomFields" xml:space="preserve">
-    <value>Custom fields</value>
   </data>
   <data name="Common_Yes" xml:space="preserve">
     <value>Yes</value>
@@ -2967,14 +2895,8 @@
   <data name="Common_No" xml:space="preserve">
     <value>No</value>
   </data>
-  <data name="ViewDocumentDetailsDialog_DocumentDetails" xml:space="preserve">
-    <value>Document details</value>
-  </data>
   <data name="ViewDocumentDetailsDialog_TagsOnThisDocument" xml:space="preserve">
     <value>Tags on this document</value>
-  </data>
-  <data name="ViewDocumentDetailsDialog_WhoSentOrIssuedIt" xml:space="preserve">
-    <value>Who sent or issued it</value>
   </data>
   <data name="ViewDocumentDetailsDialog_ArchiveNumber" xml:space="preserve">
     <value>Archive number</value>
@@ -3327,50 +3249,8 @@
   <data name="ViewImmersiveViewer_TheFileWasDeletedOr" xml:space="preserve">
     <value>The file was deleted or moved outside Library. If you want it back, tell an administrator.</value>
   </data>
-  <data name="ViewImmersiveViewer_UseOriginal" xml:space="preserve">
-    <value>Use original</value>
-  </data>
   <data name="Common_Location" xml:space="preserve">
     <value>Location</value>
-  </data>
-  <data name="ViewImmersiveViewer_Latitude" xml:space="preserve">
-    <value>Latitude</value>
-  </data>
-  <data name="ViewImmersiveViewer_Longitude" xml:space="preserve">
-    <value>Longitude</value>
-  </data>
-  <data name="ViewImmersiveViewer_SaveLocation" xml:space="preserve">
-    <value>Save location</value>
-  </data>
-  <data name="ViewImmersiveViewer_Description" xml:space="preserve">
-    <value>Description</value>
-  </data>
-  <data name="ViewImmersiveViewer_AddADescription" xml:space="preserve">
-    <value>Add a description…</value>
-  </data>
-  <data name="ViewImmersiveViewer_EditDescription" xml:space="preserve">
-    <value>Edit description</value>
-  </data>
-  <data name="ViewImmersiveViewer_EditCapturedDate" xml:space="preserve">
-    <value>Edit captured date</value>
-  </data>
-  <data name="ViewImmersiveViewer_CapturedDateAndTime" xml:space="preserve">
-    <value>Captured date and time</value>
-  </data>
-  <data name="ViewImmersiveViewer_EditLocation" xml:space="preserve">
-    <value>Edit location</value>
-  </data>
-  <data name="ViewImmersiveViewer_SearchIdentifiedPlaces" xml:space="preserve">
-    <value>Search identified places</value>
-  </data>
-  <data name="ViewImmersiveViewer_SearchPlaces" xml:space="preserve">
-    <value>Search places</value>
-  </data>
-  <data name="ViewImmersiveViewer_LocationEditorMap" xml:space="preserve">
-    <value>Location editor map</value>
-  </data>
-  <data name="ViewImmersiveViewer_AddPeople" xml:space="preserve">
-    <value>Add people…</value>
   </data>
   <data name="ViewPage_PhotosLibrary" xml:space="preserve">
     <value>Photos - Library</value>
@@ -8247,15 +8127,6 @@
   <data name="CollectionsPage_SeriesVolumesAlbumsAndAudiobook" xml:space="preserve">
     <value>Series, volumes, albums, and audiobook sequences grouped within their media type</value>
   </data>
-  <data name="GalleryEditorShell_EnterAGalleryName" xml:space="preserve">
-    <value>Enter a Gallery name.</value>
-  </data>
-  <data name="GalleryEditorShell_ASmartGalleryNeedsAt" xml:space="preserve">
-    <value>A Smart Gallery needs at least one complete rule.</value>
-  </data>
-  <data name="GalleryEditorShell_TheGalleryCouldNotBe" xml:space="preserve">
-    <value>The Gallery could not be saved.</value>
-  </data>
   <data name="Common_TheGalleryCouldNotBe" xml:space="preserve">
     <value>The Gallery could not be deleted.</value>
   </data>
@@ -8451,9 +8322,6 @@
   <data name="ViewContributionsPage_EnterASharedFolderName" xml:space="preserve">
     <value>Enter a Shared folder name before accepting.</value>
   </data>
-  <data name="ViewDocumentDetailsDialog_SomeOfYourDetailsCould" xml:space="preserve">
-    <value>Some of your details could not be loaded, so custom fields stay as they are. You can still edit the rest.</value>
-  </data>
   <data name="ViewDocumentsPage_YourSortCouldNotBe" xml:space="preserve">
     <value>Your sort could not be remembered. It still applies for now.</value>
   </data>
@@ -8472,9 +8340,6 @@
   <data name="ViewDocumentsPage_Filed" xml:space="preserve">
     <value>Filed.</value>
   </data>
-  <data name="ViewDocumentsPage_DetailsSaved" xml:space="preserve">
-    <value>Details saved.</value>
-  </data>
   <data name="ViewGalleryDetailPage_TheSelectedItemsCouldNot" xml:space="preserve">
     <value>The selected items could not be removed.</value>
   </data>
@@ -8486,15 +8351,6 @@
   </data>
   <data name="ViewGalleryDetailPage_GallerySharingCouldNotBe" xml:space="preserve">
     <value>Gallery sharing could not be saved.</value>
-  </data>
-  <data name="ViewImmersiveViewer_ItemDetailsUpdated" xml:space="preserve">
-    <value>Item details updated.</value>
-  </data>
-  <data name="ViewImmersiveViewer_EnterAValidCapturedDate" xml:space="preserve">
-    <value>Enter a valid captured date and time.</value>
-  </data>
-  <data name="ViewImmersiveViewer_ChooseAValidMapLocation" xml:space="preserve">
-    <value>Choose a valid map location.</value>
   </data>
   <data name="ViewImmersiveViewer_TheViewerPreferenceCouldNot" xml:space="preserve">
     <value>The viewer preference could not be saved.</value>
@@ -10853,5 +10709,17 @@
   </data>
   <data name="ViewEdit_WhereChangesSave" xml:space="preserve">
     <value>Changes save in Library</value>
+  </data>
+  <data name="ViewEdit_Edit" xml:space="preserve">
+    <value>Edit</value>
+  </data>
+  <data name="ViewEdit_EditItems" xml:space="preserve">
+    <value>Edit {0} items</value>
+  </data>
+  <data name="ViewEdit_NumberProblem" xml:space="preserve">
+    <value>Enter {0} as a number, such as 12.50.</value>
+  </data>
+  <data name="ViewEdit_CurrencyProblem" xml:space="preserve">
+    <value>Add a three-letter currency code for {0}, such as USD.</value>
   </data>
 </root>

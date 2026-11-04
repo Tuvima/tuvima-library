@@ -124,8 +124,52 @@
         {
             @foreach (var field in _fields)
             {
+                var draft = DraftFor(field);
                 <div class="tl-editor-field" @key="field.Id">
-                    <AppTextField Label="@field.Name" MaxLength="1000" Value="@CustomText(field)" ValueChanged="@(value => SetCustom(field, value?.ToString()))" />
+                    @switch (field.Kind)
+                    {
+                        case ViewDocumentFieldKinds.Choice:
+                            <label class="view-edit-details__custom"><span class="tl-editor-field__label">@field.Name</span>
+                                <AppSelect Native="true" aria-label="@field.Name" Value="@(draft.Text ?? string.Empty)" ValueChanged="@(selected => { draft.Text = selected; Commit(field, draft); })">
+                                    <option value="">@L["Common_NotSet"]</option>
+                                    @foreach (var choice in field.Choices)
+                                    {
+                                        <option value="@choice">@choice</option>
+                                    }
+                                </AppSelect>
+                            </label>
+                            break;
+                        case ViewDocumentFieldKinds.Bool:
+                            <label class="view-edit-details__custom"><span class="tl-editor-field__label">@field.Name</span>
+                                <AppSelect Native="true" aria-label="@field.Name" Value="@(draft.Flag is { } flag ? (flag ? "true" : "false") : string.Empty)" ValueChanged="@(selected => { draft.Flag = selected switch { "true" => true, "false" => false, _ => null }; Commit(field, draft); })">
+                                    <option value="">@L["Common_NotSet"]</option>
+                                    <option value="true">@L["Common_Yes"]</option>
+                                    <option value="false">@L["Common_No"]</option>
+                                </AppSelect>
+                            </label>
+                            break;
+                        case ViewDocumentFieldKinds.Date:
+                            <AppTextField InputType="AppInputType.Date" Label="@field.Name" Value="@draft.Date" ValueChanged="@(value => { draft.Date = value?.ToString(); Commit(field, draft); })" />
+                            break;
+                        case ViewDocumentFieldKinds.Number:
+                            <AppTextField InputMode="@(AppInputMode.@decimal)" Label="@field.Name" Value="@draft.Number" ValueChanged="@(value => { draft.Number = value?.ToString(); Commit(field, draft); })" />
+                            break;
+                        case ViewDocumentFieldKinds.Money:
+                            <span class="tl-editor-field__label">@field.Name</span>
+                            <div class="view-edit-details__row">
+                                <AppTextField InputMode="@(AppInputMode.@decimal)" Label="@($"{field.Name} amount")" HideLabel="true" Placeholder="@L["ViewDocumentDetailsDialog_Amount"].Value" Value="@draft.Number" ValueChanged="@(value => { draft.Number = value?.ToString(); Commit(field, draft); })" />
+                                <AppTextField Label="@($"{field.Name} currency")" HideLabel="true" Placeholder="@L["ViewDocumentDetailsDialog_USD"].Value" MaxLength="3" Value="@draft.Currency" ValueChanged="@(value => { draft.Currency = value?.ToString(); Commit(field, draft); })" />
+                            </div>
+                            break;
+                        default:
+                            <AppTextField Label="@field.Name" MaxLength="1000" Value="@draft.Text" ValueChanged="@(value => { draft.Text = value?.ToString(); Commit(field, draft); })" />
+                            break;
+                    }
+
+                    @if (_problems.TryGetValue(field.Id, out var problem))
+                    {
+                        <small class="tl-editor-field__hint" role="alert">@problem</small>
+                    }
                 </div>
             }
         }
@@ -198,7 +242,7 @@
     {
         _dateMode = Stage.IsGroup ? "shift" : "set";
         var galleries = await Api.GetViewGalleriesAsync();
-        _galleries = galleries?.Owned.Where(g => g.Kind == ViewGalleryKind.Manual).ToList() ?? [];
+        _galleries = (galleries?.Owned ?? []).Where(g => g.Kind == ViewGalleryKind.Manual).ToList();
         if (Stage.IsDocuments)
         {
             _catalogue = await Api.GetViewCatalogueAsync();
@@ -239,11 +283,86 @@
         }
     }
 
-    private string CustomText(ViewDocumentFieldDto field) =>
-        Stage.StagedCustomField(field.Id)?.TextValue ?? string.Empty;
+    private sealed class FieldDraft
+    {
+        public string? Text { get; set; }
+        public string? Number { get; set; }
+        public string? Date { get; set; }
+        public string? Currency { get; set; }
+        public bool? Flag { get; set; }
+    }
 
-    private void SetCustom(ViewDocumentFieldDto field, string? text) =>
-        Stage.SetCustomField(new ViewDocumentFieldValueRequest(field.Id, TextValue: string.IsNullOrWhiteSpace(text) ? null : text.Trim()));
+    private readonly Dictionary<Guid, FieldDraft> _drafts = [];
+    private readonly Dictionary<Guid, string> _problems = [];
+
+    private FieldDraft DraftFor(ViewDocumentFieldDto field)
+    {
+        if (!_drafts.TryGetValue(field.Id, out var draft))
+        {
+            draft = new FieldDraft();
+            if (Stage.StagedCustomField(field.Id) is { } staged)
+            {
+                draft.Text = field.Kind == ViewDocumentFieldKinds.Money ? null : staged.TextValue;
+                draft.Currency = field.Kind == ViewDocumentFieldKinds.Money ? staged.TextValue : null;
+                draft.Number = staged.NumberValue?.ToString(CultureInfo.InvariantCulture);
+                draft.Date = staged.DateValue?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                draft.Flag = staged.BoolValue;
+            }
+
+            else if (Stage.Items[0].DocumentInfo?.FieldValues?.FirstOrDefault(value => value.FieldId == field.Id) is { } current)
+            {
+                // What the document already has is shown as the starting point; nothing is staged until the person changes it.
+                draft.Text = field.Kind == ViewDocumentFieldKinds.Money ? null : current.TextValue;
+                draft.Currency = field.Kind == ViewDocumentFieldKinds.Money ? current.TextValue : null;
+                draft.Number = current.NumberValue?.ToString(CultureInfo.InvariantCulture);
+                draft.Date = current.DateValue?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+                draft.Flag = current.BoolValue;
+            }
+
+            _drafts[field.Id] = draft;
+        }
+
+        return draft;
+    }
+
+    // A typed value is turned into the Engine's shape here, before anything is sent: a number that is not a number is explained next to its field
+    // and is never staged, so Review changes and Save only ever carry values the Engine will accept (the same checks the old dialog made).
+    private void Commit(ViewDocumentFieldDto field, FieldDraft draft)
+    {
+        _problems.Remove(field.Id);
+        switch (field.Kind)
+        {
+            case ViewDocumentFieldKinds.Number or ViewDocumentFieldKinds.Money when !string.IsNullOrWhiteSpace(draft.Number):
+                if (!double.TryParse(draft.Number.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var number))
+                {
+                    _problems[field.Id] = L["ViewEdit_NumberProblem", field.Name].Value;
+                    Stage.RevertCustomField(field.Id);
+                    return;
+                }
+
+                if (field.Kind == ViewDocumentFieldKinds.Money && draft.Currency?.Trim().Length != 3)
+                {
+                    _problems[field.Id] = L["ViewEdit_CurrencyProblem", field.Name].Value;
+                    Stage.RevertCustomField(field.Id);
+                    return;
+                }
+
+                Stage.SetCustomField(new ViewDocumentFieldValueRequest(field.Id, field.Kind == ViewDocumentFieldKinds.Money ? draft.Currency!.Trim().ToUpperInvariant() : null, number));
+                return;
+            case ViewDocumentFieldKinds.Date when DateOnly.TryParseExact(draft.Date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date):
+                Stage.SetCustomField(new ViewDocumentFieldValueRequest(field.Id, DateValue: date));
+                return;
+            case ViewDocumentFieldKinds.Bool when draft.Flag.HasValue:
+                Stage.SetCustomField(new ViewDocumentFieldValueRequest(field.Id, BoolValue: draft.Flag));
+                return;
+            case ViewDocumentFieldKinds.Text or ViewDocumentFieldKinds.Choice when !string.IsNullOrWhiteSpace(draft.Text):
+                Stage.SetCustomField(new ViewDocumentFieldValueRequest(field.Id, TextValue: draft.Text.Trim()));
+                return;
+            default:
+                Stage.RevertCustomField(field.Id);
+                return;
+        }
+    }
 
     private void AddGallery(string? value)
     {

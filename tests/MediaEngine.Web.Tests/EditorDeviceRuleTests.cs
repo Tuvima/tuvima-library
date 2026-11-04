@@ -1,3 +1,5 @@
+using MediaEngine.Web.Services.Integration;
+using Microsoft.Extensions.Logging.Abstractions;
 using System.Reflection;
 using MediaEngine.Contracts.Universe;
 using MediaEngine.Web.Components.Collections;
@@ -101,9 +103,13 @@ public sealed class EditorDeviceRuleTests
         var desktop = await DesktopAsync();
         Assert.Equal(EditorLaunchResult.Applied,
             await new CollectionEditorLauncherService(desktopDialogs, null, desktop, new AppToastService()).TryOpenAsync(new CollectionEditorLaunchRequest()));
-        Assert.Equal(EditorLaunchResult.Applied,
-            await new GalleryEditorLauncherService(desktopDialogs, desktop, new AppToastService()).TryOpenAsync(new GalleryEditorLaunchRequest()));
-        Assert.Equal(2, desktopSpy.ShowCount);
+        // The gallery launcher opens the one View editor window; it answers when that window closes.
+        var galleryHost = new ViewEditorHost(null!, desktop, new ViewWorkspaceService(null!), NullLogger<ViewEditorHost>.Instance);
+        var opening = new GalleryEditorLauncherService(galleryHost, desktop, new AppToastService()).TryOpenAsync(new GalleryEditorLaunchRequest());
+        Assert.True(galleryHost.IsOpen);
+        galleryHost.Close();
+        Assert.Equal(EditorLaunchResult.Dismissed, await opening);
+        Assert.Equal(1, desktopSpy.ShowCount);
     }
 
     [Theory]
@@ -118,7 +124,7 @@ public sealed class EditorDeviceRuleTests
         Assert.Equal(EditorLaunchResult.NotAvailableOnThisDevice,
             await new CollectionEditorLauncherService(dialogs, null, device, new AppToastService()).TryOpenAsync(new CollectionEditorLaunchRequest()));
         Assert.Equal(EditorLaunchResult.NotAvailableOnThisDevice,
-            await new GalleryEditorLauncherService(dialogs, device, new AppToastService()).TryOpenAsync(new GalleryEditorLaunchRequest()));
+            await new GalleryEditorLauncherService(new ViewEditorHost(null!, device, new ViewWorkspaceService(null!), NullLogger<ViewEditorHost>.Instance), device, new AppToastService()).TryOpenAsync(new GalleryEditorLaunchRequest()));
         Assert.Equal(0, spy.ShowCount);
     }
 

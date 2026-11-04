@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using System.Reflection;
 using Bunit;
 using MediaEngine.Contracts.Vault;
@@ -50,7 +51,8 @@ public sealed class VaultImageViewTests : AsyncBunitContext
         Services.AddScoped<ActiveProfileSessionService>();
         Services.AddScoped<UIOrchestratorService>();
         Services.AddScoped(provider => new GalleryEditorLauncherService(
-            provider.GetRequiredService<IAppDialogService>(), provider.GetRequiredService<DeviceContextService>(), provider.GetRequiredService<IAppToastService>()));
+            new ViewEditorHost(null!, provider.GetRequiredService<DeviceContextService>(), new ViewWorkspaceService(null!), NullLogger<ViewEditorHost>.Instance),
+            provider.GetRequiredService<DeviceContextService>(), provider.GetRequiredService<IAppToastService>()));
     }
 
     private NsfwModeState State => Services.GetRequiredService<NsfwModeState>();
@@ -365,30 +367,21 @@ public sealed class VaultImageViewTests : AsyncBunitContext
     // -- The Gallery editor in its Vault mode -----------------------------------------------------------------------------
 
     [Fact]
-    public async Task TheGalleryEditor_InVaultMode_OffersOnlyWhatVaultImagesHave_AndSavesVaultGalleries()
+    public void TheGalleryEditor_InVaultMode_SavesVaultGalleriesOnly_AndSmartNeedsARule()
     {
-        await UnlockAsync(administrator: true);
-        var cut = Render<GalleryEditorShell>(p => p.Add(c => c.Request, new GalleryEditorLaunchRequest { Vault = true }));
+        var stage = new MediaEngine.Web.Services.Editing.ViewGalleryEditStage(null, null).AsNewVault();
+        stage.SetName("Picks");
+        stage.SetSmart(true);
 
-        var tabs = cut.FindAll(".sme-section-nav button").Select(b => b.TextContent.Trim()).ToArray();
-        Assert.Equal(["Details", "Membership"], tabs);
-        Assert.DoesNotContain("Soundtrack", cut.Markup);
+        // A Smart gallery with no rule is explained before anything is sent; a Manual one is ready.
+        Assert.Equal("A Smart gallery needs at least one rule.", stage.Problem());
+        stage.SetSmart(false);
+        Assert.Null(stage.Problem());
 
-        await cut.InvokeAsync(() => cut.FindAll(".sme-section-nav button").Single(b => b.TextContent.Trim() == "Membership").Click());
-        await cut.InvokeAsync(() => cut.FindAll("button").Single(b => b.TextContent.Trim() == "Smart").Click());
-        Assert.Contains("data-rule-domain=\"vault\"", cut.Markup);
-
-        SetField(cut.Instance, "_name", "Picks");
-        await cut.InvokeAsync(() => cut.FindAll("button").Single(b => b.TextContent.Trim() == "Create Gallery").Click());
-        Assert.Empty(_created);
-
-        await cut.InvokeAsync(() => cut.FindAll("button").Single(b => b.TextContent.Trim() == "Manual").Click());
-        await cut.InvokeAsync(() => cut.FindAll("button").Single(b => b.TextContent.Trim() == "Create Gallery").Click());
-
-        var request = Assert.Single(_created);
+        var request = stage.ToVaultRequest();
+        Assert.True(stage.IsVault);
         Assert.Equal("Picks", request.Name);
         Assert.Equal(VaultImageGalleryKinds.Manual, request.Kind);
-        Assert.Empty(_viewGalleriesCreated);
     }
 
     [Fact]
