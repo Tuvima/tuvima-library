@@ -67,7 +67,7 @@ public sealed class PluginFileEditorTests : AsyncBunitContext
 
         Assert.NotEmpty(editable.FindAll("[data-testid=plugin-file-edit]"));
         Assert.Empty(shipped.FindAll("[data-testid=plugin-file-edit]"));
-        Assert.NotEmpty(shipped.FindAll("[data-testid=plugin-file-view]"));
+        Assert.NotEmpty(shipped.FindAll("[data-testid=plugin-file-state]"));
     }
 
     [Fact]
@@ -93,7 +93,9 @@ public sealed class PluginFileEditorTests : AsyncBunitContext
         var device = Services.GetRequiredService<DeviceContextService>();
         await device.InitialiseAsync(new DeviceContextSnapshot("mobile", "phone", Touch: true));
 
-        var page = Render<PluginSetupPage>(parameters => parameters.Add(component => component.Plugin, new PluginSummaryResponse { Id = "example", Name = "Example", Enabled = true }));
+        var page = Render<PluginSetupPage>(parameters => parameters
+            .Add(component => component.Plugin, new PluginSummaryResponse { Id = "example", Name = "Example", Enabled = true })
+            .Add(component => component.Section, "file"));
 
         page.WaitForAssertion(() => Assert.NotEmpty(page.FindAll("[data-card=file]")));
         Assert.Empty(page.FindAll("[data-testid=plugin-file-edit]"));
@@ -101,21 +103,22 @@ public sealed class PluginFileEditorTests : AsyncBunitContext
     }
 
     [Fact]
-    public void EditFile_TurnsTheCardIntoTheEditor_WithTheBar_LineNumbers_AndSaveOff()
+    public void EditFile_OpensTheEditorInAWindow_WithTheFooter_LineNumbers_AndSaveOff()
     {
         _file = File(Original, State());
+        var host = Render<AppDialogHost>();
         var cut = RenderCard(State(), canEdit: true);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=plugin-file-viewer]")));
 
         cut.Find("[data-testid=plugin-file-edit]").Click();
 
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=plugin-file-editor]")));
-        Assert.Equal("example.json", cut.Find("[data-testid=plugin-file-editor-name]").TextContent);
-        Assert.Equal(["1", "2", "3", "4", "5"], cut.FindAll("[data-testid=plugin-file-editor-gutter] .plugin-file-editor__line").Select(line => line.TextContent).ToList());
-        Assert.Equal(Original, cut.Find("textarea").TextContent);
-        Assert.NotEmpty(cut.FindAll("[data-testid=plugin-file-cancel]"));
-        Assert.NotEmpty(cut.FindAll("[data-testid=plugin-file-reset]"));
-        Assert.True(cut.Find("[data-testid=plugin-file-save]").HasAttribute("disabled"));
-        Assert.Empty(cut.FindAll("[data-testid=plugin-file-view]"));
+        host.WaitForAssertion(() => Assert.NotEmpty(host.FindAll("[data-testid=plugin-file-editor]")));
+        Assert.Equal(["1", "2", "3", "4", "5"], host.FindAll("[data-testid=plugin-file-editor-gutter] .plugin-file-editor__line").Select(line => line.TextContent).ToList());
+        Assert.Equal(Original, host.Find("textarea").TextContent);
+        Assert.NotEmpty(host.FindAll("[data-testid=plugin-file-cancel]"));
+        Assert.NotEmpty(host.FindAll("[data-testid=plugin-file-reset]"));
+        Assert.True(host.Find("[data-testid=plugin-file-save]").HasAttribute("disabled"));
+        Assert.Contains("Review changes", host.Find("[data-testid=plugin-file-save]").TextContent, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -123,12 +126,14 @@ public sealed class PluginFileEditorTests : AsyncBunitContext
     {
         var state = State(shipped: false);
         _file = File(Original, state);
+        var host = Render<AppDialogHost>();
         var cut = RenderCard(state, canEdit: true);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=plugin-file-viewer]")));
 
         cut.Find("[data-testid=plugin-file-edit]").Click();
 
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=plugin-file-editor]")));
-        Assert.Empty(cut.FindAll("[data-testid=plugin-file-reset]"));
+        host.WaitForAssertion(() => Assert.NotEmpty(host.FindAll("[data-testid=plugin-file-editor]")));
+        Assert.Empty(host.FindAll("[data-testid=plugin-file-reset]"));
     }
 
     // ------------------------------------------------------------------------------------------------ Checks as you type
@@ -330,11 +335,12 @@ public sealed class PluginFileEditorTests : AsyncBunitContext
         };
         var host = Render<AppDialogHost>();
         var cut = RenderCard(State(), canEdit: true);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=plugin-file-viewer]")));
         cut.Find("[data-testid=plugin-file-edit]").Click();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=plugin-file-editor]")));
-        cut.Find("textarea").Input(Edited);
-        cut.WaitForAssertion(() => Assert.False(cut.Find("[data-testid=plugin-file-save]").HasAttribute("disabled")));
-        cut.Find("[data-testid=plugin-file-save]").Click();
+        host.WaitForAssertion(() => Assert.NotEmpty(host.FindAll("[data-testid=plugin-file-editor]")));
+        host.Find("textarea").Input(Edited);
+        host.WaitForAssertion(() => Assert.False(host.Find("[data-testid=plugin-file-save]").HasAttribute("disabled")));
+        host.Find("[data-testid=plugin-file-save]").Click();
         host.WaitForElement("[data-testid=plugin-file-diff]");
 
         host.FindAll(".app-dialog-shell__footer button").Single(button => button.TextContent.Trim() == "Save changes").Click();
@@ -342,7 +348,7 @@ public sealed class PluginFileEditorTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=plugin-file-result]")));
         Assert.Equal("reload_failed", cut.Find("[data-testid=plugin-file-result]").GetAttribute("data-outcome"));
         Assert.Contains("could not load the plugin", cut.Find("[data-testid=plugin-file-result]").TextContent, StringComparison.Ordinal);
-        Assert.Empty(cut.FindAll("[data-testid=plugin-file-editor]"));
+        host.WaitForAssertion(() => Assert.Empty(host.FindAll("[data-testid=plugin-file-editor]")));
         Assert.NotEmpty(cut.FindAll("[data-testid=plugin-file-reset-after]"));
 
         cut.Find("[data-testid=plugin-file-reset-after]").Click();
@@ -355,11 +361,12 @@ public sealed class PluginFileEditorTests : AsyncBunitContext
         _file = File(Original, State());
         var host = Render<AppDialogHost>();
         var cut = RenderCard(State(), canEdit: true);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=plugin-file-viewer]")));
         cut.Find("[data-testid=plugin-file-edit]").Click();
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=plugin-file-editor]")));
-        cut.Find("textarea").Input(Edited);
-        cut.WaitForAssertion(() => Assert.False(cut.Find("[data-testid=plugin-file-save]").HasAttribute("disabled")));
-        cut.Find("[data-testid=plugin-file-save]").Click();
+        host.WaitForAssertion(() => Assert.NotEmpty(host.FindAll("[data-testid=plugin-file-editor]")));
+        host.Find("textarea").Input(Edited);
+        host.WaitForAssertion(() => Assert.False(host.Find("[data-testid=plugin-file-save]").HasAttribute("disabled")));
+        host.Find("[data-testid=plugin-file-save]").Click();
         host.WaitForElement("[data-testid=plugin-file-diff]");
         host.FindAll(".app-dialog-shell__footer button").Single(button => button.TextContent.Trim() == "Save changes").Click();
 

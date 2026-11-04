@@ -174,7 +174,7 @@ public sealed class PluginsListPageTests : AsyncBunitContext
         detail.WaitForElement("[data-testid=plugin-privacy-card]");
         var setup = detail.Find("[data-testid=plugin-setup]");
         Assert.NotNull(setup.QuerySelector("[data-testid=plugin-privacy-card]"));
-        Assert.NotNull(setup.QuerySelector("[data-testid=plugin-about-card]"));
+        Assert.NotNull(setup.QuerySelector("[data-testid=plugin-side-facts]"));
         Assert.Contains("Who can use it", setup.TextContent);
         Assert.Contains("Nothing else depends on it.", setup.TextContent);
 
@@ -200,7 +200,7 @@ public sealed class PluginsListPageTests : AsyncBunitContext
         };
         _plugins = [plugin];
         var detail = RenderDetail("a", null);
-        detail.WaitForElement("[data-testid=plugin-about-card]");
+        detail.WaitForElement("[data-testid=plugin-side-facts]");
         var text = detail.Find("[data-testid=plugin-setup]").TextContent;
         Assert.Contains("Everyone who can use this Library", text);
         Assert.Contains("The song title goes to LRCLIB", text);
@@ -241,9 +241,9 @@ public sealed class PluginsListPageTests : AsyncBunitContext
             ],
         };
         var cut = RenderDetail("a", null);
-        cut.WaitForAssertion(() => Assert.Contains("All libraries", cut.Find("[data-testid=plugin-detail-sections]").TextContent));
+        cut.WaitForAssertion(() => Assert.Contains("All libraries", cut.Find("[data-testid=plugin-side-facts]").TextContent));
 
-        cut.FindAll("[data-testid=plugin-detail-sections] button").First(button => button.TextContent.Trim() == "Change").Click();
+        cut.FindAll("[data-testid=plugin-side-facts] button").First(button => button.TextContent.Trim() == "Change").Click();
         var picker = cut.WaitForElement("[data-testid=plugin-library-picker]");
         picker.QuerySelectorAll("input[type=checkbox]").First().Change(true);
         picker.QuerySelectorAll("button").First(button => button.TextContent.Trim() == "Save").Click();

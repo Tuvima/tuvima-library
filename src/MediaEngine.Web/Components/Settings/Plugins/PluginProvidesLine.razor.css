@@ -3,7 +3,7 @@
 .plugin-provides__ai { color: var(--tl-text-muted); font-style: italic; }
 .plugin-provides-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; min-width: 0; }
 .plugin-provides-kind { display: flex; gap: 12px; padding: 12px; min-width: 0; border: 1px solid color-mix(in srgb, var(--provides-accent, var(--tl-text-secondary)) 40%, transparent); border-radius: 8px; background: color-mix(in srgb, var(--provides-accent, var(--tl-text-secondary)) 10%, transparent); }
-.plugin-provides-kind__icon { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; color: var(--provides-accent, var(--tl-text-secondary)); background: color-mix(in srgb, var(--provides-accent, var(--tl-text-secondary)) 20%, transparent); }
+.plugin-provides-kind__icon { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 10px; color: var(--provides-accent, var(--tl-text-secondary)); background: color-mix(in srgb, var(--provides-accent, var(--tl-text-secondary)) 20%, transparent); }
 .plugin-provides-kind__body { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .plugin-provides-kind__name { color: var(--tl-text-primary); }
 .plugin-provides-kind__sentence { color: var(--tl-text-secondary); font-size: var(--tl-font-size-sm); }
@@ -19,3 +19,7 @@
 .plugin-provides-kind--insights { --provides-accent: var(--tl-provides-insights); }
 .plugin-provides-kind--lists-and-ratings { --provides-accent: var(--tl-provides-lists-and-ratings); }
 .plugin-provides-kind--account-sync { --provides-accent: var(--tl-provides-account-sync); }
+
+/* The coloured "what it does" icons are never small glyphs: 34 px in a coloured rounded square on tiles, 40 px on the plugin page (v6 D72). */
+.plugin-provides--icons { gap: 8px; }
+.plugin-provides--icons .plugin-provides__item { justify-content: center; width: 34px; height: 34px; border-radius: 8px; background: color-mix(in srgb, var(--provides-accent, var(--tl-text-secondary)) 18%, transparent); }

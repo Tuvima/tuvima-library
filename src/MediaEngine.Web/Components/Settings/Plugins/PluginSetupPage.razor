@@ -30,56 +30,54 @@ else if (_page is null)
 else
 {
     <div class="plugin-setup" data-testid="plugin-setup-page" data-definition="@_page.Definition">
-        @foreach (var card in _page.Cards)
+        @if (Section == "file")
         {
-            <div @key="card.Key"
-                 id="@CardId(card.Key)"
-                 class="@CardClass(card)"
-                 data-card="@card.Key"
-                 data-highlighted="@(IsHighlighted(card) ? "true" : null)">
-                @switch (card.Key)
-                {
-                    case "access":
-                        @AccessCard(card)
-                        break;
-                    case "provides":
-                        @ProvidesCard(card)
-                        break;
-                    case "settings":
-                        <PluginSettingsCard PluginId="@Plugin.Id"
-                                            SavedSettings="@Plugin.Settings"
-                                            Enabled="@Plugin.Enabled"
-                                            Card="@card"
-                                            Context="@_context"
-                                            CanChange="@CanChange"
-                                            Extra="@SettingsExtra"
-                                            Changed="@ChangedAsync" />
-                        break;
-                    case "privacy":
-                        @PrivacyCard(card)
-                        break;
-                    case "about":
-                        @AboutCard(card)
-                        break;
-                    case "file":
-                        <PluginFileCard PluginId="@Plugin.Id" Card="@card" CanView="@CanViewFile" CanEdit="@CanViewFile" Changed="@ChangedAsync" />
-                        break;
-                }
+            @* The Plugin file is its own tab, full width (v6 D65). *@
+            var fileCard = _page.Cards.FirstOrDefault(card => card.Key == "file") ?? new PluginSetupCardDto { Key = "file", Title = "Plugin file" };
+            <div id="@CardId("file")" class="plugin-card" data-card="file">
+                <PluginFileCard PluginId="@Plugin.Id" Card="@fileCard" CanView="@CanViewFile" CanEdit="@CanViewFile" Changed="@ChangedAsync" />
             </div>
         }
-        @* A plugin whose JSON describes no settings still has the rows every plugin has (who can use it, which libraries). *@
-        @if (_page.Cards.All(card => card.Key != "settings") && SettingsExtra is not null)
+        else
         {
-            <div class="plugin-card" data-card="settings">
-                <AppCard Title="@L["PluginPage_Settings"]" Class="plugin-page__card" data-testid="plugin-settings-card">@SettingsExtra</AppCard>
-            </div>
+            <AppDetailColumns Side="@SideColumn()" SideLabel="About this plugin">
+                @foreach (var card in _page.Cards.Where(card => card.Key is not ("file" or "about")))
+                {
+                    <div @key="card.Key"
+                         id="@CardId(card.Key)"
+                         class="@CardClass(card)"
+                         data-card="@card.Key"
+                         data-highlighted="@(IsHighlighted(card) ? "true" : null)">
+                        @switch (card.Key)
+                        {
+                            case "access":
+                                @ConnectionCard(card)
+                                break;
+                            case "provides":
+                                @ProvidesCard(card)
+                                break;
+                            case "settings":
+                                <PluginSettingsCard PluginId="@Plugin.Id"
+                                                    SavedSettings="@Plugin.Settings"
+                                                    Enabled="@Plugin.Enabled"
+                                                    Card="@card"
+                                                    Context="@_context"
+                                                    CanChange="@CanChange"
+                                                    Changed="@ChangedAsync" />
+                                break;
+                            case "privacy":
+                                @PrivacyCard(card)
+                                break;
+                        }
+                    </div>
+                }
+            </AppDetailColumns>
         }
     </div>
 }
 
 @code {
     private readonly CancellationTokenSource _disposed = new();
-    private readonly Dictionary<string, string> _typed = new(StringComparer.Ordinal);
     private readonly HashSet<string> _glowing = new(StringComparer.Ordinal);
     private PluginSetupPageResponse? _page;
 
@@ -109,19 +107,22 @@ else
     /// <summary>Whether the plugin is waiting for Local AI.</summary>
     [Parameter] public bool LocalAiBlocked { get; set; }
 
-    /// <summary>"Last checked ..." in plain words, shown on the Access card; empty when never checked.</summary>
+    /// <summary>Which part of the plugin's page to draw: <c>setup</c> (the cards and the side column) or <c>file</c> (the Plugin file tab).</summary>
+    [Parameter] public string Section { get; set; } = "setup";
+
+    /// <summary>"Last checked ..." in plain words, shown on the Connection card; empty when never checked.</summary>
     [Parameter] public string? LastChecked { get; set; }
 
-    /// <summary>Under the What it provides cards: where the plugin is used.</summary>
+    /// <summary>In the side column under "Used in": where the plugin is used.</summary>
     [Parameter] public RenderFragment? ProvidesExtra { get; set; }
 
-    /// <summary>Rows inside the Settings card: who can use it, which libraries.</summary>
+    /// <summary>Rows in the side column: who can use it, which libraries (term and description elements).</summary>
     [Parameter] public RenderFragment? SettingsExtra { get; set; }
 
     /// <summary>Inside the Privacy card: what the plugin is allowed to do and its capabilities.</summary>
     [Parameter] public RenderFragment? PrivacyExtra { get; set; }
 
-    /// <summary>Inside the About card: who turned it on, what it needs, what needs it and removing it.</summary>
+    /// <summary>In the side column, under the facts: who turned it on, what it needs, what needs it (term and description elements) and removing it.</summary>
     [Parameter] public RenderFragment? AboutExtra { get; set; }
 
     /// <summary>Raised after anything that the tiles should show (a key added, a setting saved, a test run).</summary>
@@ -194,7 +195,7 @@ else
         await Changed.InvokeAsync();
     }
 
-    // ------------------------------------------------------------------------------------------------ Access
+    // ------------------------------------------------------------------------------------------------ Connection (v6 D61, D62)
 
     private bool IsSourceFile => string.Equals(_page?.Definition, "source_file", StringComparison.Ordinal);
 
@@ -207,107 +208,97 @@ else
         return all.Any(action => action.Kind == PluginSetupValues.RowActionTest) ? [.. all.Where(action => action.Kind == PluginSetupValues.RowActionTest)] : all;
     }
 
-    private RenderFragment AccessCard(PluginSetupCardDto card) => @<AppCard Title="@card.Title" Class="plugin-page__card" data-testid="plugin-access-card">
+    private enum ConnectionState { NotConnected, Connected, NeedsAttention }
+
+    private ConnectionState StateOf(IReadOnlyList<PluginSetupCredentialDto> household)
+    {
+        if (_testResult is { Result: "not_working" })
+        {
+            return ConnectionState.NeedsAttention;
+        }
+
+        return household.Where(credential => credential.Required).All(credential => credential.Configured == true) && household.Any(credential => credential.Configured == true)
+            ? ConnectionState.Connected
+            : ConnectionState.NotConnected;
+    }
+
+    // One card, three states: a grey "Not connected" row with Connect, a green "Connected" row with Test again and a menu, or an
+    // amber row with the reason in plain words and the one fix as the main button.
+    private RenderFragment ConnectionCard(PluginSetupCardDto card) => @<AppCard Title="@(card.Credentials.Count > 0 ? "Connection" : card.Title)" Class="plugin-page__card" data-testid="plugin-access-card">
         <div class="plugin-access">
+            @{
+                var household = card.Credentials.Where(credential => credential.Scope != "profile").ToList();
+                var perProfile = card.Credentials.Where(credential => credential.Scope == "profile").ToList();
+            }
             @if (card.Credentials.Count == 0)
             {
-                <p class="plugin-access__quiet" data-testid="plugin-access-none">No key or sign-in is needed.</p>
+                <div class="plugin-conn plugin-conn--connected" data-testid="plugin-access-none">
+                    <AppStatusDot Tick="true" Tone="AppStatusDotTone.Working" Sentence="Nothing to set up" />
+                    <div class="plugin-conn__copy"><strong>Nothing to connect</strong><small>No key or sign-in is needed.</small></div>
+                    @TestButtons(card, "Test")
+                </div>
             }
 
-            @foreach (var credential in card.Credentials)
+            @if (household.Count > 0)
             {
-                var name = credential.Name;
-                <div class="@("plugin-access__row" + (_glowing.Contains(name) ? " plugin-access__row--saved" : string.Empty))" data-credential="@name" data-testid="plugin-credential">
-                    <div class="plugin-access__heading">
-                        <strong>@credential.Label</strong>
-                        @if (credential.Scope == "profile")
+                var state = StateOf(household);
+                var name = household[0].Name;
+                var label = string.Join(" and ", household.Select(credential => credential.Label));
+                <div class="@("plugin-conn plugin-conn--" + StateWord(state) + (_glowing.Contains(name) ? " plugin-conn--saved" : string.Empty))"
+                     data-credential="@name" data-testid="plugin-credential" data-state="@StateWord(state)">
+                    <AppStatusDot Tick="true" Tone="@StateTone(state)" Sentence="@StateSentence(state)" />
+                    <div class="plugin-conn__copy">
+                        <strong data-testid="plugin-connection-state">@StateSentence(state)</strong>
+                        <small>@ConnectionDetail(state, label, household)</small>
+                    </div>
+                    <div class="plugin-conn__actions">
+                        @if (CanChange)
                         {
-                            <AppStatusBadge Text="Each person links their own" Tone="AppUiTone.Neutral" />
-                        }
-                        else
-                        {
-                            <AppStatusBadge Text="@(credential.Configured == true ? "Set" : credential.Required ? "Key missing" : "Not set")"
-                                            Tone="@(credential.Configured == true ? AppUiTone.Success : credential.Required ? AppUiTone.Warning : AppUiTone.Neutral)" />
+                            @if (state == ConnectionState.Connected)
+                            {
+                                @TestButtons(card, "Test again")
+                                <AppRowMenu AriaLabel="@($"Actions for {label}")" Items="@KeyMenu(household)" />
+                            }
+                            else
+                            {
+                                <AppButton Label="@(state == ConnectionState.NeedsAttention ? "Replace key" : "Connect")"
+                                           StartIcon="@AppMaterialIcons.Outlined.Key" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@_busy"
+                                           OnClick="@(() => ConnectAsync(household, state == ConnectionState.NeedsAttention))" data-testid="plugin-connect" />
+                                @TestButtons(card, "Test")
+                            }
                         }
                     </div>
-                    @if (!string.IsNullOrWhiteSpace(credential.Help))
-                    {
-                        <small>@credential.Help</small>
-                    }
-                    @if (credential.Scope == "profile")
-                    {
+                </div>
+            }
+
+            @foreach (var credential in perProfile)
+            {
+                <div class="plugin-conn plugin-conn--notconnected" data-credential="@credential.Name" data-testid="plugin-credential" data-state="profile">
+                    <AppStatusDot Tick="true" Tone="AppStatusDotTone.Off" Sentence="Each person links their own" />
+                    <div class="plugin-conn__copy">
+                        <strong>@credential.Label</strong>
                         <small>@(credential.SignInMethod == "device_code" ? "Each person signs in with a code they approve on another device, on their Profile > Accounts page." : "Each person adds it on their Profile > Accounts page.")</small>
-                        <div class="plugin-access__actions">
-                            <AppButton Label="Open Accounts" Href="/settings/overview/accounts" Size="AppControlSize.Compact" />
-                        </div>
-                    }
-                    else if (CanChange && !IsSourceFile)
-                    {
-                        <AppTextField Label="@credential.Label" HideLabel="true" InputType="AppInputType.Password"
-                                      MaxLength="@(credential.MaximumLength ?? 512)"
-                                      Placeholder="@(credential.Configured == true ? "Paste a new value to replace it" : "Paste the value here")"
-                                      Value="@_typed.GetValueOrDefault(name)" ValueChanged="@(value => _typed[name] = value ?? string.Empty)" />
-                        <div class="plugin-access__actions">
-                            <AppButton Label="@(credential.Configured == true ? "Replace" : "Save")" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
-                                       Disabled="@(_busy || !LongEnough(credential, _typed.GetValueOrDefault(name)))" OnClick="@(() => SaveSecretAsync(credential))" />
-                            @if (credential.Configured == true)
-                            {
-                                <AppButton Label="Remove" Tone="AppUiTone.Error" Size="AppControlSize.Compact" Disabled="@_busy" OnClick="@(() => RemoveSecretAsync(credential))" />
-                            }
-                        </div>
-                    }
+                    </div>
+                    <div class="plugin-conn__actions">
+                        <AppButton Label="Connect account" Href="/settings/overview/accounts" Size="AppControlSize.Compact" data-testid="plugin-connect-account" />
+                    </div>
                 </div>
             }
 
-            @if (IsSourceFile && Catalogue is { } catalogue && card.Credentials.Count > 0 && CanChange)
+            @if (card.Credentials.Count > 0 && !household.Any() && TestActions(card) is { Count: > 0 })
             {
-                var saved = card.Credentials.Where(credential => credential.Required).All(credential => credential.Configured == true);
-                <div class="plugin-access__actions" data-testid="plugin-source-key-actions">
-                    <AppButton Label="@(saved ? "Replace key" : "Add key")" StartIcon="@AppMaterialIcons.Outlined.Key" ButtonStyle="@(saved ? AppButtonStyle.Outlined : AppButtonStyle.Filled)"
-                               Tone="@(saved ? AppUiTone.Neutral : AppUiTone.Primary)" Disabled="@_busy"
-                               OnClick="@(() => OpenKeyDialogAsync(catalogue, saved ? ProviderOnboardingOperation.Replace : ProviderOnboardingOperation.Connect))" />
-                    @if (saved && catalogue.Onboarding?.Credentials.Any(field => field.Configured && string.Equals(field.Ownership, "user_supplied", StringComparison.OrdinalIgnoreCase)) == true)
-                    {
-                        <AppButton Label="Remove key" Tone="AppUiTone.Error" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="@(() => RemoveSourceKeyAsync(catalogue))" />
-                    }
-                </div>
+                <div class="plugin-conn__actions">@TestButtons(card, "Test")</div>
             }
 
-            @if (card.Links.Count > 0)
+            @if (_testResult is { } result)
             {
-                <div class="plugin-access__actions" data-testid="plugin-access-links">
-                    @foreach (var link in card.Links)
+                <AppAlert Tone="@ResultTone(result.Result)" data-testid="plugin-test-result">
+                    @result.Summary
+                    @foreach (var step in result.Steps)
                     {
-                        <AppButton Label="@link.Label" Href="@link.Url" Target="_blank" ButtonStyle="AppButtonStyle.Text" EndIcon="@AppMaterialIcons.Outlined.OpenInNew" />
+                        <div>@(step.Ok ? "✓" : "✕") @step.Label@(string.IsNullOrWhiteSpace(step.Detail) ? null : $" - {step.Detail}")</div>
                     }
-                </div>
-            }
-
-            @if (!string.IsNullOrWhiteSpace(LastChecked))
-            {
-                <small class="plugin-access__quiet" data-testid="plugin-last-checked">@LastChecked</small>
-            }
-
-            @if (TestActions(card) is { Count: > 0 } tests)
-            {
-                <div class="plugin-access__actions" data-testid="plugin-tests">
-                    @foreach (var test in tests)
-                    {
-                        var kind = test.Kind;
-                        <AppButton Label="@(_testing == kind ? "Testing…" : test.Label)" StartIcon="@AppMaterialIcons.Outlined.NetworkCheck" Size="AppControlSize.Compact"
-                                   Disabled="@(_testing is not null || !CanChange)" OnClick="@(() => RunTestAsync(kind))" data-testid="@("plugin-test-" + kind)" />
-                    }
-                </div>
-                @if (_testResult is { } result)
-                {
-                    <AppAlert Tone="@ResultTone(result.Result)" data-testid="plugin-test-result">
-                        @result.Summary
-                        @foreach (var step in result.Steps)
-                        {
-                            <div>@(step.Ok ? "✓" : "✕") @step.Label@(string.IsNullOrWhiteSpace(step.Detail) ? null : $" - {step.Detail}")</div>
-                        }
-                    </AppAlert>
-                }
+                </AppAlert>
             }
 
             @if (!string.IsNullOrWhiteSpace(_problem))
@@ -316,6 +307,55 @@ else
             }
         </div>
     </AppCard>;
+
+    private static string StateWord(ConnectionState state) => state switch
+    {
+        ConnectionState.Connected => "connected",
+        ConnectionState.NeedsAttention => "attention",
+        _ => "notconnected",
+    };
+
+    private static AppStatusDotTone StateTone(ConnectionState state) => state switch
+    {
+        ConnectionState.Connected => AppStatusDotTone.Working,
+        ConnectionState.NeedsAttention => AppStatusDotTone.Attention,
+        _ => AppStatusDotTone.Off,
+    };
+
+    private static string StateSentence(ConnectionState state) => state switch
+    {
+        ConnectionState.Connected => "Connected",
+        ConnectionState.NeedsAttention => "Needs attention",
+        _ => "Not connected",
+    };
+
+    private string ConnectionDetail(ConnectionState state, string label, IReadOnlyList<PluginSetupCredentialDto> household) => state switch
+    {
+        ConnectionState.Connected => !string.IsNullOrWhiteSpace(LastChecked) ? LastChecked! : $"{label} is saved.",
+        ConnectionState.NeedsAttention => _testResult?.Summary is { Length: > 0 } reason ? reason : "The last test did not pass.",
+        _ => household.FirstOrDefault(credential => !string.IsNullOrWhiteSpace(credential.Help))?.Help is { Length: > 0 } help ? help : $"Add {label} to switch this on.",
+    };
+
+    // The declared tests, as buttons. Only the words change (Test, Test again); the plugin's JSON decides whether there is one.
+    private RenderFragment TestButtons(PluginSetupCardDto card, string label) => @<text>
+        @if (TestActions(card) is { Count: > 0 } tests)
+        {
+            <span class="plugin-conn__tests" data-testid="plugin-tests">
+                @foreach (var test in tests)
+                {
+                    var kind = test.Kind;
+                    <AppButton Label="@(_testing == kind ? "Testing…" : tests.Count == 1 && card.Credentials.Count > 0 ? label : test.Label)" StartIcon="@AppMaterialIcons.Outlined.NetworkCheck" Size="AppControlSize.Compact"
+                               Disabled="@(_testing is not null || !CanChange)" OnClick="@(() => RunTestAsync(kind))" data-testid="@("plugin-test-" + kind)" />
+                }
+            </span>
+        }
+    </text>;
+
+    private IReadOnlyList<AppRowMenuItem> KeyMenu(IReadOnlyList<PluginSetupCredentialDto> household) =>
+    [
+        new() { Label = L["PluginConnect_ReplaceKey"].Value, Icon = AppMaterialIcons.Outlined.Key, OnClick = EventCallback.Factory.Create(this, () => ConnectAsync(household, true)) },
+        new() { Label = L["PluginConnect_RemoveKey"].Value, Icon = AppMaterialIcons.Outlined.Delete, Destructive = true, OnClick = EventCallback.Factory.Create(this, () => RemoveKeyAsync(household)) },
+    ];
 
     private static bool LongEnough(PluginSetupCredentialDto credential, string? typed) =>
         !string.IsNullOrWhiteSpace(typed) && typed.Trim().Length >= (credential.MinimumLength ?? 1);
@@ -363,38 +403,129 @@ else
         await Changed.InvokeAsync();
     }
 
-    private async Task SaveSecretAsync(PluginSetupCredentialDto credential)
+    // Connect, Replace key: a metadata source uses the provider's own dialog (it tests the key and saves it only when it works); any
+    // other plugin uses the one Connect dialog, where Save stays off until a test passes (v6 D62).
+    private async Task ConnectAsync(IReadOnlyList<PluginSetupCredentialDto> household, bool replacing)
     {
         if (_busy)
         {
             return;
         }
 
-        _busy = true;
-        _problem = null;
-        try
+        if (IsSourceFile && Catalogue is { } catalogue)
         {
-            if (await ApiClient.SetPluginSecretAsync(Plugin.Id, credential.Name, _typed.GetValueOrDefault(credential.Name)?.Trim() ?? string.Empty, _disposed.Token))
-            {
-                _typed.Remove(credential.Name);
-                _glowing.Clear();
-                _glowing.Add(credential.Name);
-                await ChangedAsync();
-            }
-            else
-            {
-                _problem = ApiClient.LastError ?? "The value could not be saved.";
-            }
+            await OpenKeyDialogAsync(catalogue, replacing ? ProviderOnboardingOperation.Replace : ProviderOnboardingOperation.Connect);
+            return;
         }
-        finally
+
+        var fields = household.Select(credential => new PluginConnectField(
+            credential.Name, credential.Label, Secret: true, Required: credential.Required,
+            Help: string.IsNullOrWhiteSpace(credential.Help) ? null : credential.Help)).ToList();
+        var link = _page?.Cards.SelectMany(card => card.Links).FirstOrDefault()?.Url;
+        var title = replacing ? "Replace key" : "Connect " + Plugin.Name;
+        var parameters = new AppDialogParameters<PluginConnectDialog>
         {
-            _busy = false;
+            { component => component.Title, title },
+            { component => component.Summary, "Paste it here and test it. It is only kept when the test passes." },
+            { component => component.HelpUrl, link },
+            { component => component.Fields, fields },
+            { component => component.Test, (Func<IReadOnlyDictionary<string, string>, Task<PluginConnectResult>>)(values => TestAndKeepAsync(household, values)) },
+            { component => component.Discard, (Func<Task>)(() => DiscardAsync(household, replacing)) },
+        };
+        var dialog = await DialogService.ShowAsync<PluginConnectDialog>(string.Empty, parameters, new AppDialogOptions
+        {
+            MaxWidth = AppMaxWidth.Medium,
+            FullWidth = true,
+            CloseButton = false,
+            CloseOnEscapeKey = true,
+        });
+        var result = await dialog.Result;
+        if (result is { Canceled: false })
+        {
+            _glowing.Clear();
+            _glowing.Add(household[0].Name);
+            await ChangedAsync();
         }
     }
 
-    private async Task RemoveSecretAsync(PluginSetupCredentialDto credential)
+    // Keeps the typed values, runs the plugin's own check, and takes them back out when it does not pass (a first connect only: a
+    // replaced key cannot be put back, so a failed replacement says so plainly).
+    private async Task<PluginConnectResult> TestAndKeepAsync(IReadOnlyList<PluginSetupCredentialDto> household, IReadOnlyDictionary<string, string> values)
+    {
+        foreach (var credential in household)
+        {
+            var typed = values.GetValueOrDefault(credential.Name)?.Trim() ?? string.Empty;
+            if (typed.Length == 0 && !credential.Required)
+            {
+                continue;
+            }
+
+            if (!LongEnough(credential, typed))
+            {
+                return new PluginConnectResult(false, $"{credential.Label} is too short.");
+            }
+
+            if (!await ApiClient.SetPluginSecretAsync(Plugin.Id, credential.Name, typed, _disposed.Token))
+            {
+                return new PluginConnectResult(false, ApiClient.LastError ?? $"{credential.Label} could not be saved.");
+            }
+        }
+
+        if (TestActions(_page!.Cards.First(card => card.Key == "access")).Count == 0)
+        {
+            return new PluginConnectResult(true, "Saved. This plugin has no connection test.");
+        }
+
+        var check = await ApiClient.CheckPluginNowAsync(Plugin.Id, _disposed.Token);
+        _testResult = check;
+        if (check is { Result: "working" })
+        {
+            return new PluginConnectResult(true, "Connection verified.");
+        }
+
+        var wasConnected = household.All(credential => credential.Configured == true);
+        if (!wasConnected)
+        {
+            await DiscardAsync(household, false);
+        }
+
+        return new PluginConnectResult(false, (check?.Summary is { Length: > 0 } reason ? reason : "The test did not pass.") + (wasConnected ? " The previous key was replaced; try another." : string.Empty));
+    }
+
+    private async Task DiscardAsync(IReadOnlyList<PluginSetupCredentialDto> household, bool replacing)
+    {
+        if (replacing)
+        {
+            return;
+        }
+
+        foreach (var credential in household)
+        {
+            await ApiClient.RemovePluginSecretAsync(Plugin.Id, credential.Name, _disposed.Token);
+        }
+    }
+
+    private async Task RemoveKeyAsync(IReadOnlyList<PluginSetupCredentialDto> household)
     {
         if (_busy)
+        {
+            return;
+        }
+
+        if (IsSourceFile && Catalogue is { } catalogue)
+        {
+            await RemoveSourceKeyAsync(catalogue);
+            return;
+        }
+
+        var answer = await AppConfirmDialog.ShowAsync(
+            DialogService,
+            $"Remove the {Plugin.Name} key?",
+            "It will stop running until it is connected again.",
+            primaryLabel: "Remove",
+            secondaryLabel: "Keep",
+            primaryDestructive: true);
+        if (answer != AppConfirmResult.Primary)
         {
             return;
         }
@@ -403,14 +534,17 @@ else
         _problem = null;
         try
         {
-            if (await ApiClient.RemovePluginSecretAsync(Plugin.Id, credential.Name, _disposed.Token))
+            foreach (var credential in household)
             {
-                await ChangedAsync();
+                if (!await ApiClient.RemovePluginSecretAsync(Plugin.Id, credential.Name, _disposed.Token))
+                {
+                    _problem = ApiClient.LastError ?? "The key could not be removed.";
+                    return;
+                }
             }
-            else
-            {
-                _problem = ApiClient.LastError ?? "The value could not be removed.";
-            }
+
+            _testResult = null;
+            await ChangedAsync();
         }
         finally
         {
@@ -516,27 +650,46 @@ else
         }
     </AppCard>;
 
-    // ------------------------------------------------------------------------------------------------ About
+    // ------------------------------------------------------------------------------------------------ Side column (v6 D60)
 
-    private RenderFragment AboutCard(PluginSetupCardDto card) => @<AppCard Title="@card.Title" Class="plugin-page__card" data-testid="plugin-about-card">
-        @if (!string.IsNullOrWhiteSpace(card.Text))
-        {
-            <p class="plugin-card__line" data-testid="plugin-about-text">@card.Text</p>
+    // The quiet facts, kept out of the main column so it holds only things you act on: where it is used, who can use it, its version and
+    // how it runs, what it needs, and removing it. The About card is retired; its content lives here.
+    private RenderFragment SideColumn() => @<text>
+        @{
+            var about = _page?.Cards.FirstOrDefault(candidate => candidate.Key == "about");
         }
-        <AppTable Class="plugin-about__facts">
-            <tbody>
-                @foreach (var fact in card.Facts)
+        <dl data-testid="plugin-side-facts">
+            @if (ProvidesExtra is not null)
+            {
+                <dt>Used in</dt>
+                <dd>@ProvidesExtra</dd>
+            }
+            @SettingsExtra
+            @if (about is not null)
+            {
+                @foreach (var fact in about.Facts)
                 {
-                    <tr><td>@fact.Label</td><td>@fact.Value</td></tr>
+                    <dt>@fact.Label</dt>
+                    <dd>@fact.Value</dd>
                 }
                 @if (_page?.Cards.FirstOrDefault(candidate => candidate.Key == "access")?.Access is { } access)
                 {
-                    <tr data-testid="plugin-weight"><td>Weight</td><td>@WeightWords(access.WeightClass)</td></tr>
+                    <dt>Weight</dt>
+                    <dd data-testid="plugin-weight">@WeightWords(access.WeightClass)</dd>
                 }
-            </tbody>
-        </AppTable>
-        @AboutExtra
-    </AppCard>;
+            }
+            @AboutExtra
+        </dl>
+        @if (about is not null && !string.IsNullOrWhiteSpace(about.Text))
+        {
+            <p class="plugin-card__line" data-testid="plugin-about-text">@about.Text</p>
+        }
+        @if (CanViewFile)
+        {
+            <AppButton Label="Plugin file" StartIcon="@AppMaterialIcons.Outlined.Description" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact"
+                       Href="@($"/settings/plugins/{Uri.EscapeDataString(Plugin.Id)}/file")" data-testid="plugin-file-link" />
+        }
+    </text>;
 
     private static string WeightWords(string weight) => weight switch
     {

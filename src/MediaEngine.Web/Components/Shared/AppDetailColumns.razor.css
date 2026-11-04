@@ -1,0 +1,4 @@
+.app-detail-columns { display: grid; grid-template-columns: minmax(0, 1fr) 260px; align-items: start; gap: 18px; min-width: 0; }
+.app-detail-columns__main { display: grid; min-width: 0; gap: var(--tl-space-4, 16px); }
+.app-detail-columns__side { display: grid; min-width: 0; gap: 14px; padding: 6px 16px 14px; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-lg); background: var(--tl-bg-surface); }
+@media (max-width: 840px) { .app-detail-columns { grid-template-columns: minmax(0, 1fr); } }

@@ -822,7 +822,7 @@ else
         if (section == SettingsSection.Profiles) return Guid.TryParse(subsection, out _) && detail.Trim().ToLowerInvariant() is "preferences" or "access";
         if (section == SettingsSection.Libraries) return SettingsNav.IsLibraryRouteSegment(subsection) && IsProviderRouteKey(detail);
         if (section == SettingsSection.Integrations) return Guid.TryParse(subsection, out _) && detail.Trim().ToLowerInvariant() is "access" or "keys" or "deliveries" or "activity";
-        if (section == SettingsSection.Plugins) return !string.IsNullOrWhiteSpace(subsection) && detail.Trim().ToLowerInvariant() is "settings" or "access" or "activity";
+        if (section == SettingsSection.Plugins) return !string.IsNullOrWhiteSpace(subsection) && detail.Trim().ToLowerInvariant() is "settings" or "access" or "activity" or "file";
         return false;
     }
 

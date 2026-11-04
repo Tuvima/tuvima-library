@@ -45,3 +45,20 @@
         outline: 2px solid color-mix(in srgb, var(--tl-accent-primary) 55%, transparent);
     }
 }
+
+/* A setting is a row: its name and one line of help on the left, the control on the right; stacked on a phone (v6 D63). */
+.plugin-setting__row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 18rem);
+    align-items: center;
+    gap: var(--tl-space-2, 8px) var(--tl-space-5, 20px);
+    padding-block: var(--tl-space-3, 12px);
+    border-top: 1px solid var(--tl-border-subtle);
+}
+
+.plugin-setting__copy { display: grid; min-width: 0; }
+.plugin-setting__copy small { color: var(--tl-text-muted); }
+
+@media (max-width: 640px) {
+    .plugin-setting__row { grid-template-columns: minmax(0, 1fr); }
+}

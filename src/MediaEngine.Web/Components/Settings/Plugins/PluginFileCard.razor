@@ -5,13 +5,13 @@
 @implements IDisposable
 @inject IEngineApiClient ApiClient
 @inject ILogger<PluginFileCard> Logger
+@inject IAppDialogService DialogService
 
-@* The Plugin file card, last on every plugin's page (Plugins and Integrations screens v5 D54). It shows the file's name, whether it is
-   valid or how many problems it has, and whether it differs from Tuvima's version, and View file opens the file in place, read only
-   and coloured, with line numbers. Edit file (an administrator on a computer, for a file the Engine says is editable) turns the card
-   into the editor (D55); after a save or a reset the card says what happened and, if the plugin did not load or its check failed, offers
-   Reset. Reading and editing are for a computer: on a phone or tablet only the name and state show, with a line saying so. The card
-   draws whatever file the Engine names; it never knows which plugin it belongs to. *@
+@* The Plugin file tab (Plugins and Integrations screens v6 D65, D66). It shows the file's name, whether it is valid or how many problems it
+   has, whether it differs from Tuvima's version, and the file itself, full width, read only and coloured, with line numbers. Edit file (an
+   administrator on a computer, for a file the Engine says is editable) opens the editor in a pop-over window like Edit on an item; after a
+   save or a reset the card says what happened and, if the plugin did not load or its check failed, offers Reset. Reading and editing are for
+   a computer: the tab is absent elsewhere. The card draws whatever file the Engine names; it never knows which plugin it belongs to. *@
 @{
     var file = _latest ?? Card.File;
 }
@@ -30,6 +30,12 @@
                 {
                     <span data-testid="plugin-file-differs"><AppStatusBadge Text="@(file.DiffersFromShipped ? "Differs from Tuvima's version" : "Same as Tuvima's version")"
                                     Tone="@(file.DiffersFromShipped ? AppUiTone.Warning : AppUiTone.Neutral)" /></span>
+                }
+                @if (CanView && CanEdit && file.Editable)
+                {
+                    <span class="plugin-file__spacer"></span>
+                    <AppButton Label="@L["PluginFile_Edit"].Value" StartIcon="@AppMaterialIcons.Outlined.Edit" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
+                               Disabled="@_loading" OnClick="@EditAsync" data-testid="plugin-file-edit" />
                 }
             </div>
             @if (file.NoteCount > 0)
@@ -55,41 +61,21 @@
                 </div>
             }
 
-            @if (_editing && CanEdit && _response is not null)
-            {
-                <PluginFileEditorPanel PluginId="@PluginId" Initial="@_response" Done="@EditorDoneAsync" />
-            }
-            else if (CanView)
-            {
-                <div class="plugin-file__actions">
-                    <AppButton Label="@(_open ? "Hide file" : "View file")" StartIcon="@AppMaterialIcons.Outlined.Description" Size="AppControlSize.Compact"
-                               Disabled="@_loading" OnClick="@ToggleAsync" data-testid="plugin-file-view" />
-                    @if (CanEdit && file.Editable)
-                    {
-                        <AppButton Label="@L["PluginFile_Edit"].Value" StartIcon="@AppMaterialIcons.Outlined.Edit" Size="AppControlSize.Compact"
-                                   Disabled="@_loading" OnClick="@EditAsync" data-testid="plugin-file-edit" />
-                    }
-                </div>
-            }
-            else
+            @if (!CanView)
             {
                 <small class="plugin-file__quiet" data-testid="plugin-file-computer-only">@L["PluginFile_ComputerOnly"]</small>
             }
-
-            @if (CanView && _open && !_editing)
+            else if (_loading)
             {
-                @if (_loading)
-                {
-                    <AppPageState Kind="AppPageStateKind.Loading" Title="@L["PluginFile_Opening"]" />
-                }
-                else if (_response is null)
-                {
-                    <AppAlert Tone="AppUiTone.Error" data-testid="plugin-file-unavailable">The Engine did not return the file. Try again.</AppAlert>
-                }
-                else
-                {
-                    <PluginFileViewer Text="@_response.Text" FileName="@_response.State.FileName" Problems="@_response.Problems" />
-                }
+                <AppPageState Kind="AppPageStateKind.Loading" Title="@L["PluginFile_Opening"]" />
+            }
+            else if (_response is null)
+            {
+                <AppAlert Tone="AppUiTone.Error" data-testid="plugin-file-unavailable">The Engine did not return the file. Try again.</AppAlert>
+            }
+            else
+            {
+                <PluginFileViewer Text="@_response.Text" FileName="@_response.State.FileName" Problems="@_response.Problems" />
             }
         </div>
     }
@@ -101,9 +87,7 @@
     private PluginFileStateDto? _latest;
     private PluginFileSaveResponse? _result;
     private PluginSetupCardDto? _card;
-    private bool _open;
     private bool _loading;
-    private bool _editing;
     private bool _resetting;
     private string? _loadedFor;
 
@@ -125,33 +109,29 @@
     /// <summary>Raised after a save or a reset, so the page and the plugin's tile read the plugin again.</summary>
     [Parameter] public EventCallback Changed { get; set; }
 
-    protected override void OnParametersSet()
+    protected override async Task OnParametersSetAsync()
     {
-        if (!string.Equals(_loadedFor, PluginId, StringComparison.Ordinal))
-        {
-            _loadedFor = PluginId;
-            _open = false;
-            _editing = false;
-            _response = null;
-            _result = null;
-        }
-
         if (!ReferenceEquals(_card, Card))
         {
             _card = Card;
             _latest = null;
         }
+
+        if (!string.Equals(_loadedFor, PluginId, StringComparison.Ordinal))
+        {
+            _loadedFor = PluginId;
+            _response = null;
+            _result = null;
+            if (CanView)
+            {
+                await LoadAsync();
+            }
+        }
     }
 
-    private async Task ToggleAsync()
+    // The file is always shown on its tab (v6 D65), so it is read as soon as the tab opens.
+    private async Task LoadAsync()
     {
-        if (_open)
-        {
-            _open = false;
-            return;
-        }
-
-        _open = true;
         _loading = true;
         try
         {
@@ -168,36 +148,33 @@
         }
     }
 
+    // Edit file opens the editor in a pop-over window; the page behind does not change while it is open.
     private async Task EditAsync()
     {
-        if (!CanEdit)
+        if (!CanEdit || _response is null)
         {
             return;
         }
 
         _result = null;
-        _loading = true;
-        try
+        var parameters = new AppDialogParameters<PluginFileEditorPanel>
         {
-            _response = await ApiClient.GetPluginFileAsync(PluginId, _disposed.Token);
-            _editing = _response is not null;
-            _open = false;
-        }
-        catch (HttpRequestException ex)
+            { component => component.PluginId, PluginId },
+            { component => component.Initial, _response },
+        };
+        var dialog = await DialogService.ShowAsync<PluginFileEditorPanel>(string.Empty, parameters, new AppDialogOptions
         {
-            Logger.LogWarning(ex, "Could not read the file of plugin {PluginId} to edit it.", PluginId);
-            _response = null;
-        }
-        finally
-        {
-            _loading = false;
-        }
+            MaxWidth = AppMaxWidth.ExtraLarge,
+            FullWidth = true,
+            CloseButton = false,
+            CloseOnEscapeKey = false,
+        });
+        var outcome = await dialog.Result;
+        await EditorDoneAsync(outcome is { Canceled: false, Data: PluginFileSaveResponse saved } ? saved : null);
     }
 
     private async Task EditorDoneAsync(PluginFileSaveResponse? result)
     {
-        _editing = false;
-        _response = null;
         if (result is null)
         {
             return;
@@ -205,6 +182,7 @@
 
         _result = result;
         _latest = result.State;
+        await LoadAsync();
         await Changed.InvokeAsync();
     }
 
@@ -223,8 +201,7 @@
             {
                 _result = result;
                 _latest = result.State;
-                _response = null;
-                _open = false;
+                await LoadAsync();
                 await Changed.InvokeAsync();
             }
         }

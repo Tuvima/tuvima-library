@@ -372,43 +372,51 @@ else
 
         var status = StatusOf(plugin);
         var canChange = !DeviceContext.IsMobile;
-        var tab = DetailTab is "activity" ? "activity" : "setup";
+        // The File tab is for a computer (the same rule as editing an item); on a tablet or phone it is absent (v6 D65).
+        var canSeeFile = MediaEngine.Web.Services.Editing.EditorDeviceRule.CanEdit(DeviceContext);
+        var tab = DetailTab switch { "activity" => "activity", "file" when canSeeFile => "file", _ => "setup" };
         var tabs = new List<AppCountTab>
         {
             new("setup", "Set up", null, DetailHref(plugin.Id, "setup")),
             new("activity", "Activity", null, DetailHref(plugin.Id, "activity")),
         };
+        if (canSeeFile)
+        {
+            tabs.Add(new("file", "File", null, DetailHref(plugin.Id, "file")));
+        }
 
-        return @<div class="plugin-page" data-testid="plugin-page">
-            <header class="plugin-page__header">
-                @TileLogo(plugin, 48)
-                <div class="plugin-page__title">
-                    <h2>@plugin.Name <AppStatusDot Tick="true" Tone="@status.Tone" Sentence="@status.Sentence" /></h2>
-                    <p data-testid="plugin-status-sentence">@status.Sentence</p>
-                </div>
+        // One shared frame draws the header, status sentence and tabs for every plugin and integration page (v6 D60, D69).
+        return @<AppDetailPageFrame Title="@plugin.Name"
+                                    Logo="@TileLogo(plugin, 52)"
+                                    StatusTone="@status.Tone"
+                                    StatusSentence="@status.Sentence"
+                                    Tabs="@tabs"
+                                    SelectedTab="@tab"
+                                    RootTestId="plugin-page"
+                                    StatusTestId="plugin-status-sentence">
+            <Actions>
                 @if (canChange && SwitchState(plugin, canChange) is { } on)
                 {
-                    <div class="plugin-page__actions">
-                        <AppSwitchRow Value="@on" ValueChanged="@(value => SetEnabledAsync(plugin, value))"
-                                      Disabled="@(SwitchDisabledReason(plugin) is not null)" AriaLabel="@($"Switch {plugin.Name} on or off")" />
-                    </div>
+                    <AppSwitchRow Value="@on" ValueChanged="@(value => SetEnabledAsync(plugin, value))"
+                                  Disabled="@(SwitchDisabledReason(plugin) is not null)" AriaLabel="@($"Switch {plugin.Name} on or off")" />
                 }
-            </header>
-            <AppCountTabs Tabs="@tabs" Selected="@tab" AriaLabel="@($"{plugin.Name} sections")" />
-            @if (tab == "activity")
-            {
-                @PluginActivitySection(plugin)
-            }
-            else
-            {
-                @PluginSetUp(plugin, status)
-            }
-        </div>;
+            </Actions>
+            <ChildContent>
+                @if (tab == "activity")
+                {
+                    @PluginActivitySection(plugin)
+                }
+                else
+                {
+                    @PluginSetUp(plugin, status, tab == "file" ? "file" : "setup")
+                }
+            </ChildContent>
+        </AppDetailPageFrame>;
     }
 
     // Set up: the cards come from the plugin's page model, in this order, each absent when the plugin has nothing to say (v4 D33):
     // Access, What it provides, Settings, Privacy, About.
-    private RenderFragment PluginSetUp(PluginSummaryResponse plugin, TileStatus status)
+    private RenderFragment PluginSetUp(PluginSummaryResponse plugin, TileStatus status, string section)
     {
         _health.TryGetValue(plugin.Id, out var health);
         var state = StateCardHealth.ForPlugin(plugin, health, StateCardHealth.LatestRun(_tasks, plugin.Id));
@@ -435,6 +443,7 @@ else
             }
             @* One generator draws every plugin's page from the page model the Engine builds out of the plugin's JSON (v5 D46). *@
             <PluginSetupPage Plugin="@plugin"
+                             Section="@section"
                              CanChange="@(!DeviceContext.IsMobile)"
                              Attention="@attentionAsked"
                              ToolMissing="@(missing is not null)"
@@ -466,7 +475,7 @@ else
                             <span class="settings-plugin-rows__copy">
                                 <a href="@DetailHref(plugin.Id)" title="@plugin.LongDescription">@plugin.Name</a>
                                 @if (IsPrivate(plugin)) { <span class="settings-plugin-rows__private">Private</span> }
-                                @if (status.KeyMissing) { <span class="plugin-foot__pill" data-testid="plugin-key-missing">Key missing</span> }
+                                @if (status.KeyMissing) { <a class="plugin-foot__pill" href="@DetailHref(plugin.Id, "setup", true)" data-testid="plugin-key-missing">+ Add key</a> }
                                 <small title="@plugin.LongDescription">@plugin.ShortDescription</small>
                             </span>
                         </div>
@@ -529,7 +538,7 @@ else
                     <AppStatusDot Tick="true" Tone="@status.Tone" Sentence="@status.Sentence" />
                     @if (status.KeyMissing)
                     {
-                        <span class="plugin-foot__pill" data-testid="plugin-key-missing">Key missing</span>
+                        <a class="plugin-foot__pill" href="@DetailHref(plugin.Id, "setup", true)" data-testid="plugin-key-missing">+ Add key</a>
                     }
                 </span>
                 @PluginGear(plugin, status)
@@ -759,40 +768,35 @@ else
     };
 
     // Who can use it and which libraries it works on: two rows inside the Settings card (v4 D33).
-    private RenderFragment PluginWhoAndLibraries(PluginSummaryResponse plugin) => @<div data-testid="plugin-detail-sections">
-        <AppTable Class="settings-plugin-job-table">
-            <tbody>
-                <tr><td>Who can use it</td><td>@AudienceWords(plugin.Access.Audience)</td></tr>
-                <tr>
-                    <td>Libraries</td>
-                    <td>
-                        @LimitedToWords(plugin)
-                        @if (!DeviceContext.IsMobile && _libraryLimits.ContainsKey(plugin.Id))
-                        {
-                            <AppButton Label="Change" Size="AppControlSize.Compact" OnClick="@(() => BeginEditLibraries(plugin))" />
-                        }
-                    </td>
-                </tr>
-            </tbody>
-        </AppTable>
-        @if (string.Equals(_editLibrariesFor, plugin.Id, StringComparison.OrdinalIgnoreCase) && _libraryLimits.TryGetValue(plugin.Id, out var limit))
-        {
-            <div class="settings-plugin-library-picker" data-testid="plugin-library-picker">
-                <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Pick the libraries it works on. Leave all of them unticked to let it work on every library. Vault libraries are never listed.</AppText>
-                @foreach (var library in limit.Libraries)
-                {
-                    var libraryId = library.Id;
-                    <AppCheckbox Label="@library.Name"
-                                 Value="@_pickedLibraries.Contains(libraryId)"
-                                 ValueChanged="@(on => TogglePickedLibrary(libraryId, on))" />
-                }
-                <AppActionBar Align="AppHorizontalAlignment.End">
-                    <AppButton Label="Save" Tone="AppUiTone.Primary" OnClick="@(() => SaveLibrariesAsync(plugin))" />
-                    <AppButton Label="Cancel" OnClick="@(() => _editLibrariesFor = null)" />
-                </AppActionBar>
-            </div>
-        }
-    </div>;
+    private RenderFragment PluginWhoAndLibraries(PluginSummaryResponse plugin) => @<text>
+        <dt>Who can use it</dt>
+        <dd data-testid="plugin-detail-sections">@AudienceWords(plugin.Access.Audience)</dd>
+        <dt>Libraries</dt>
+        <dd>
+            @LimitedToWords(plugin)
+            @if (!DeviceContext.IsMobile && _libraryLimits.ContainsKey(plugin.Id))
+            {
+                <AppButton Label="Change" Size="AppControlSize.Compact" OnClick="@(() => BeginEditLibraries(plugin))" />
+            }
+            @if (string.Equals(_editLibrariesFor, plugin.Id, StringComparison.OrdinalIgnoreCase) && _libraryLimits.TryGetValue(plugin.Id, out var limit))
+            {
+                <div class="settings-plugin-library-picker" data-testid="plugin-library-picker">
+                    <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Pick the libraries it works on. Leave all of them unticked to let it work on every library. Vault libraries are never listed.</AppText>
+                    @foreach (var library in limit.Libraries)
+                    {
+                        var libraryId = library.Id;
+                        <AppCheckbox Label="@library.Name"
+                                     Value="@_pickedLibraries.Contains(libraryId)"
+                                     ValueChanged="@(on => TogglePickedLibrary(libraryId, on))" />
+                    }
+                    <AppActionBar Align="AppHorizontalAlignment.End">
+                        <AppButton Label="Save" Tone="AppUiTone.Primary" OnClick="@(() => SaveLibrariesAsync(plugin))" />
+                        <AppButton Label="Cancel" OnClick="@(() => _editLibrariesFor = null)" />
+                    </AppActionBar>
+                </div>
+            }
+        </dd>
+    </text>;
 
     // Inside the Privacy card: what the plugin is allowed to do, and its capabilities, in the Engine's own words.
     private RenderFragment PluginPrivacyExtra(PluginSummaryResponse plugin) => @<text>
@@ -817,32 +821,26 @@ else
     // Inside the About card, under the facts the plugin's page gives: who turned it on, what it needs and what needs it, and (private
     // uploads only) the quiet Remove link with its preview.
     private RenderFragment PluginAboutExtra(PluginSummaryResponse plugin) => @<text>
-        <AppTable Class="settings-plugin-job-table">
-            <tbody>
-                @if (_latestApproval.TryGetValue(plugin.Id, out var approved))
-                {
-                    <tr data-testid="plugin-approval"><td colspan="2">Turned on by @approved.ApprovedByName on @DisplayFormat.FormatPlainDate(approved.ApprovedAt)</td></tr>
-                }
-                @{ var needs = NeedLines(plugin); }
-                <tr>
-                    <td>Needs</td>
-                    <td data-testid="plugin-needs">
-                        @if (needs.Count == 0 && WaitingFor(plugin).Count == 0) { <span>Nothing else.</span> }
-                        else { @string.Join(", ", WaitingFor(plugin).Concat(needs)) }
-                    </td>
-                </tr>
-                <tr>
-                    <td>Needed by</td>
-                    <td data-testid="plugin-needed-by">
-                        @if (_dependencies.TryGetValue(plugin.Id, out var dependencies) && dependencies.NeededBy.Count > 0) { @string.Join(", ", dependencies.NeededBy.Select(dependant => dependant.Name)) }
-                        else { <span>Nothing else depends on it.</span> }
-                    </td>
-                </tr>
-            </tbody>
-        </AppTable>
+        @if (_latestApproval.TryGetValue(plugin.Id, out var approved))
+        {
+            <dt>Turned on</dt>
+            <dd data-testid="plugin-approval">By @approved.ApprovedByName on @DisplayFormat.FormatPlainDate(approved.ApprovedAt)</dd>
+        }
+        @{ var needs = NeedLines(plugin); }
+        <dt>Needs</dt>
+        <dd data-testid="plugin-needs">
+            @if (needs.Count == 0 && WaitingFor(plugin).Count == 0) { <span>Nothing else.</span> }
+            else { @string.Join(", ", WaitingFor(plugin).Concat(needs)) }
+        </dd>
+        <dt>Needed by</dt>
+        <dd data-testid="plugin-needed-by">
+            @if (_dependencies.TryGetValue(plugin.Id, out var dependencies) && dependencies.NeededBy.Count > 0) { @string.Join(", ", dependencies.NeededBy.Select(dependant => dependant.Name)) }
+            else { <span>Nothing else depends on it.</span> }
+        </dd>
         @if (plugin.Removable && !DeviceContext.IsMobile)
         {
-            @PluginRemovalSection(plugin)
+            <dt>Remove</dt>
+            <dd>@PluginRemovalSection(plugin)</dd>
         }
     </text>;
 

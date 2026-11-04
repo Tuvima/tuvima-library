@@ -41,11 +41,11 @@
     }
     else
     {
-        <span class="plugin-provides" data-testid="plugin-provides">
+        <span class="@("plugin-provides" + (Mode == PluginProvidesMode.Icons ? " plugin-provides--icons" : string.Empty))" data-testid="plugin-provides">
             @foreach (var word in Plugin.Provides)
             {
                 <span class="plugin-provides__item plugin-provides-kind--@KindKey(word)" data-kind="@KindKey(word)" title="@word">
-                    <AppMaterialIcon Icon="@IconFor(word)" Size="AppSize.Small" />@if (Mode == PluginProvidesMode.Named) { @word }
+                    <AppMaterialIcon Icon="@IconFor(word)" Size="@(Mode == PluginProvidesMode.Icons ? AppSize.Medium : AppSize.Small)" />@if (Mode == PluginProvidesMode.Named) { @word }
                 </span>
             }
             @if (Plugin.RequiresLocalAi)

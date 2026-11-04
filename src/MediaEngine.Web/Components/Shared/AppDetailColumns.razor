@@ -1,0 +1,20 @@
+@namespace MediaEngine.Web.Components.Shared
+
+@* The main column and the slim side column of a plugin or integration page (Plugins and Integrations screens v6 D60). The main
+   column holds only things you act on; the side column holds quiet facts. On a tablet or phone it is one column, side below. *@
+<div class="app-detail-columns" data-testid="app-detail-columns">
+    <div class="app-detail-columns__main">@ChildContent</div>
+    @if (Side is not null)
+    {
+        <aside class="app-detail-columns__side" aria-label="@SideLabel" data-testid="app-detail-side">@Side</aside>
+    }
+</div>
+
+@code {
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    /// <summary>The quiet facts: Used in, Who can use it, Version, Remove.</summary>
+    [Parameter] public RenderFragment? Side { get; set; }
+
+    [Parameter] public string SideLabel { get; set; } = "About";
+}
