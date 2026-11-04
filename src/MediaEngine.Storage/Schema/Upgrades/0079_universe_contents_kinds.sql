@@ -41,3 +41,40 @@ CREATE INDEX idx_fictional_entities_universe
 ALTER TABLE fictional_entity_user_overrides ADD COLUMN aliases_json TEXT;
 ALTER TABLE fictional_entity_user_overrides ADD COLUMN belongs_to_entity_id BLOB REFERENCES fictional_entities(id) ON DELETE SET NULL;
 ALTER TABLE fictional_entity_user_overrides ADD COLUMN is_hidden INTEGER NOT NULL DEFAULT 0 CHECK (is_hidden IN (0, 1));
+
+-- Fandom Lore can now describe Species and Concepts too (spec universe-contents, WP7).
+CREATE TABLE plugin_lore_entities_new (
+    id              BLOB PRIMARY KEY,
+    source_id       BLOB NOT NULL REFERENCES plugin_lore_sources(id) ON DELETE CASCADE,
+    universe_qid    TEXT NOT NULL,
+    plugin_id       TEXT NOT NULL,
+    external_key    TEXT NOT NULL,
+    wikidata_qid    TEXT,
+    label           TEXT NOT NULL,
+    description     TEXT,
+    entity_type     TEXT NOT NULL DEFAULT 'Unknown'
+                        CHECK (entity_type IN ('Character', 'Location', 'Organization', 'Event', 'Object', 'Species', 'Concept', 'Unknown')),
+    aliases_json    TEXT NOT NULL DEFAULT '[]',
+    source_url      TEXT NOT NULL,
+    confidence      REAL NOT NULL DEFAULT 0.0,
+    evidence_json   TEXT NOT NULL DEFAULT '{}',
+    created_at      TEXT NOT NULL,
+    updated_at      TEXT NOT NULL,
+    UNIQUE (source_id, external_key)
+);
+
+INSERT INTO plugin_lore_entities_new
+    (id, source_id, universe_qid, plugin_id, external_key, wikidata_qid, label, description, entity_type,
+     aliases_json, source_url, confidence, evidence_json, created_at, updated_at)
+SELECT id, source_id, universe_qid, plugin_id, external_key, wikidata_qid, label, description, entity_type,
+       aliases_json, source_url, confidence, evidence_json, created_at, updated_at
+FROM plugin_lore_entities;
+
+DROP TABLE plugin_lore_entities;
+ALTER TABLE plugin_lore_entities_new RENAME TO plugin_lore_entities;
+
+CREATE INDEX idx_plugin_lore_entities_qid
+    ON plugin_lore_entities (wikidata_qid) WHERE wikidata_qid IS NOT NULL;
+
+CREATE INDEX idx_plugin_lore_entities_universe
+    ON plugin_lore_entities (universe_qid, entity_type);

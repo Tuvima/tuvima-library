@@ -2087,7 +2087,7 @@ CREATE TABLE plugin_library_limits (
     PRIMARY KEY (plugin_id, library_id)
 );
 
-CREATE TABLE plugin_lore_entities (
+CREATE TABLE "plugin_lore_entities" (
     id              BLOB PRIMARY KEY,
     source_id       BLOB NOT NULL REFERENCES plugin_lore_sources(id) ON DELETE CASCADE,
     universe_qid    TEXT NOT NULL,
@@ -2097,7 +2097,7 @@ CREATE TABLE plugin_lore_entities (
     label           TEXT NOT NULL,
     description     TEXT,
     entity_type     TEXT NOT NULL DEFAULT 'Unknown'
-                        CHECK (entity_type IN ('Character', 'Location', 'Organization', 'Event', 'Object', 'Unknown')),
+                        CHECK (entity_type IN ('Character', 'Location', 'Organization', 'Event', 'Object', 'Species', 'Concept', 'Unknown')),
     aliases_json    TEXT NOT NULL DEFAULT '[]',
     source_url      TEXT NOT NULL,
     confidence      REAL NOT NULL DEFAULT 0.0,

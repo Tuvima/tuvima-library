@@ -282,7 +282,7 @@ public sealed class PluginUniverseLoreService
     private static string NormalizeEntityType(string value) =>
         value switch
         {
-            "Character" or "Location" or "Organization" or "Event" => value,
+            "Character" or "Location" or "Organization" or "Event" or "Object" or "Species" or "Concept" => value,
             _ => "Unknown",
         };
 
