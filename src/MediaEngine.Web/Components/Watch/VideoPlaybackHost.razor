@@ -22,7 +22,9 @@
 
 <section @ref="_hostRef" class="@StageClass"
          data-subtitle-size="@SubtitleSizeValue" data-subtitle-background="@SubtitleBackgroundValue"
-         data-subtitle-font="@SubtitleFontValue" data-subtitle-color="@SubtitleColorValue" data-subtitle-shadow="@SubtitleShadowValue"
+         data-subtitle-font="@SubtitleFontValue" data-subtitle-shadow="@SubtitleShadowValue"
+         data-subtitle-color="@SubtitleColorValue" data-subtitle-text-opacity="@SubtitleTextOpacityValue"
+         data-subtitle-bg-color="@SubtitleBackgroundColorValue" data-subtitle-bg-opacity="@SubtitleBackgroundOpacityValue"
          aria-label="@(Playback.IsVideoMode ? "Video player" : null)"
          aria-hidden="@(Playback.IsVideoMode ? "false" : "true")"
          tabindex="-1" @onkeydown="HandleVideoKeyDown">
@@ -376,9 +378,13 @@
             || string.Equals(size, PlaybackPreferenceValues.ExtraLarge, StringComparison.OrdinalIgnoreCase) => PlaybackPreferenceValues.Large,
         _ => PlaybackPreferenceValues.Medium,
     };
-    private string SubtitleBackgroundValue => _profileSubtitles?.SubtitleBackground == false ? "false" : "true";
+    private string SubtitleBackgroundValue => SubtitleStyleCss.BackgroundOpacity(_profileSubtitles) <= 0 ? "false" : "true";
     private string SubtitleFontValue => _profileSubtitles?.SubtitleFont ?? PlaybackPreferenceValues.FontDefault;
-    private string SubtitleColorValue => _profileSubtitles?.SubtitleColor ?? PlaybackPreferenceValues.ColorWhite;
+    // Text and background colour with their opacity (unified player D12). app.css turns the four attributes into --tl-subtitle-color / --tl-subtitle-bg for the cues.
+    private string SubtitleColorValue => SubtitleStyleCss.ColorName(_profileSubtitles?.SubtitleColor, PlaybackPreferenceValues.ColorWhite);
+    private string SubtitleBackgroundColorValue => SubtitleStyleCss.ColorName(_profileSubtitles?.SubtitleBackgroundColor, PlaybackPreferenceValues.ColorBlack);
+    private string SubtitleTextOpacityValue => SubtitleStyleCss.NearestStop(PlaybackPreferenceValues.TextOpacityStops, SubtitleStyleCss.TextOpacity(_profileSubtitles)).ToString(CultureInfo.InvariantCulture);
+    private string SubtitleBackgroundOpacityValue => SubtitleStyleCss.NearestStop(PlaybackPreferenceValues.BackgroundOpacityStops, SubtitleStyleCss.BackgroundOpacity(_profileSubtitles)).ToString(CultureInfo.InvariantCulture);
     private string SubtitleShadowValue => _profileSubtitles?.SubtitleShadow == true ? "true" : "false";
     // The audio track can be changed only when the player reports every track (HLS, or a browser with audioTracks). Direct play in
     // Chrome or Firefox reports none, so the profile's audio language must not be assumed to play there.

@@ -9072,7 +9072,10 @@
   SubtitleFont: System.String | json=subtitleFont | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SubtitleShadow: System.Boolean | json=subtitleShadow | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SubtitleColor: System.String | json=subtitleColor | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"defaultSubtitleLanguage":"sample","alternateSubtitleLanguages":[],"lyricsLanguage":"sample","forcedSubtitlesMode":"sample","audioLanguage":"sample","subtitleSize":"sample","subtitleBackground":true,"subtitlePosition":"sample","subtitleStyle":"sample","subtitleFont":"sample","subtitleShadow":true,"subtitleColor":"sample"}
+  SubtitleTextOpacity: System.Int32 | json=subtitleTextOpacity | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SubtitleBackgroundColor: System.String | json=subtitleBackgroundColor | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SubtitleBackgroundOpacity: System.Int32 | json=subtitleBackgroundOpacity | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"defaultSubtitleLanguage":"sample","alternateSubtitleLanguages":[],"lyricsLanguage":"sample","forcedSubtitlesMode":"sample","audioLanguage":"sample","subtitleSize":"sample","subtitleBackground":true,"subtitlePosition":"sample","subtitleStyle":"sample","subtitleFont":"sample","subtitleShadow":true,"subtitleColor":"sample","subtitleTextOpacity":7,"subtitleBackgroundColor":"sample","subtitleBackgroundOpacity":7}
 
 [contracts] MediaEngine.Contracts.Playback.TextTrackAlternativeDto
   kind=class | converter=default | number-handling=default | unmapped=default

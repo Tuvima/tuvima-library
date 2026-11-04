@@ -34,6 +34,15 @@
     --tl-bottom-dock-height: 0px;
     --tl-audio-dock-height: 0px;
 
+    /* Subtitle colours (unified player D12): the eight swatches for subtitle text and the background behind it. */
+    --tl-subtitle-swatch-white: #fff;
+    --tl-subtitle-swatch-black: #000;
+    --tl-subtitle-swatch-blue: #4f8bff;
+    --tl-subtitle-swatch-teal: #2dd4bf;
+    --tl-subtitle-swatch-green: #4ade80;
+    --tl-subtitle-swatch-yellow: #ffe066;
+    --tl-subtitle-swatch-red: #ff5c5c;
+    --tl-subtitle-swatch-magenta: #e879f9;
     --tl-accent-primary: #8852FC;
     --tl-accent-primary-rgb: 136, 82, 252;
     --tl-accent-primary-hover: #A46FFF;

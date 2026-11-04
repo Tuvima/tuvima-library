@@ -7761,6 +7761,9 @@ MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.SubtitleLanguageSe
   SubtitleFont: System.String | nullability=not-null | accessors=get,set
   SubtitleShadow: System.Boolean | nullability=not-null | accessors=get,set
   SubtitleColor: System.String | nullability=not-null | accessors=get,set
+  SubtitleTextOpacity: System.Int32 | nullability=not-null | accessors=get,set
+  SubtitleBackgroundColor: System.String | nullability=not-null | accessors=get,set
+  SubtitleBackgroundOpacity: System.Int32 | nullability=not-null | accessors=get,set
 
 MediaEngine.Contracts.Playback.MediaEngine.Contracts.Playback.TextTrackAlternativeDto
   provider: System.String | nullability=not-null | accessors=get,init
