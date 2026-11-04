@@ -50,11 +50,16 @@
     }
     else
     {
+        <h3 class="tl-editor-details__heading" data-bulk-heading>@BulkEditRules.EditingTitle(Selection.Rows, Selection.MediaType)</h3>
         <div class="tl-bulk__items" role="list" aria-label="@L["BulkEditPanel_ItemsBeingEditedTogether"].Value">
             @foreach (var row in Selection.OrderedRows())
             {
+                var skipped = _fields.Unavailable.TryGetValue(row.Id, out var skippedReason);
                 <span role="listitem">
-                    <AppChip Text="@row.Title" OnClose="@(() => Selection.Toggle(row))" />
+                    <AppChip Text="@row.Title"
+                             Title="@(skipped ? $"Left as it is: {skippedReason?.TrimEnd('.')}" : null)"
+                             Disabled="@skipped"
+                             OnClose="@(() => Selection.Toggle(row))" />
                 </span>
             }
         </div>
@@ -88,7 +93,7 @@
                 @SongTools()
             }
 
-            var effective = _fields.Fields.Select(field => (Engine: field, Shown: field.WithStaged(Pending))).ToList();
+            var effective = BulkEditRules.OfferedFields(_fields.Fields, Kind).Select(field => (Engine: field, Shown: field.WithStaged(Pending))).ToList();
             var editable = effective.Where(pair => !pair.Engine.IsProviderFact).ToList();
             var facts = effective.Where(pair => pair.Engine.IsProviderFact).ToList();
             @if (editable.Count > 0)
@@ -159,6 +164,8 @@
         BulkPanelKind.Series => "series",
         _ => "edit",
     };
+
+    private BulkItemKind Kind => BulkEditRules.KindOf(Selection.Rows, Selection.MediaType);
 
     private string Noun => BulkEditRules.Noun(Selection.Rows, Selection.MediaType);
 
@@ -468,7 +475,7 @@
             return;
         }
 
-        BulkEditStager.StageScalar(Pending, field, value);
+        BulkEditStager.StageScalar(Pending, field, value, Noun);
     }
 
     private void Restage(BulkFieldView field, ListDraft draft)

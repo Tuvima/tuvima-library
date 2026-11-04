@@ -22,7 +22,11 @@ public sealed record MediaEditorDetailsFieldPresentation(
     bool IsUserLocked,
     string? SourceScopeId = null,
     IReadOnlyList<MediaEditorDetailsLinkedValue>? LinkedValues = null,
-    string? CanonicalName = null);
+    string? CanonicalName = null,
+    IReadOnlyList<MediaEditorChoiceOption>? Options = null);
+
+/// <summary>One pickable value of a choice field (a Universe thing's "belongs to").</summary>
+public sealed record MediaEditorChoiceOption(string Value, string Label);
 
 public sealed record MediaEditorDetailsLinkedValue(string Label, string? Href);
 public sealed record MediaEditorDetailsSummaryFact(string Label, string Value);

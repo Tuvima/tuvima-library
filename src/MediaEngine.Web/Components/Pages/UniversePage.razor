@@ -83,13 +83,13 @@
                 }
 
                 <UniverseContents Contents="@overview.Contents"
+                                  UniverseQid="@CurrentQid"
                                   Gathering="@(overview.Enrichment.State == UniverseEnrichmentStateDto.Running)"
                                   CanEdit="@CanShowEdit" />
 
                 <UniverseConnections Page="@overview"
                                      FandomLine="@_showFandomLine"
-                                     OnCastMemberSelected="OpenAlsoAppearsInAsync"
-                                     OnCharacterSelected="OpenCharacterAppearsInAsync" />
+                                     OnCastMemberSelected="OpenAlsoAppearsInAsync" />
             }
             break;
     }
@@ -139,10 +139,6 @@
             member.Characters.Select(character => (character.Qid, character.Label)).ToList(),
             member.PersonId,
             member.Name);
-
-    // A character row opens the same panel for that one character, with no person. There is no character page.
-    private Task OpenCharacterAppearsInAsync(UniverseCharacterDto character) =>
-        AlsoAppearsInPanel.OpenAsync(Dialogs, CurrentQid, [(character.Qid, character.Label)]);
 
     protected override void OnInitialized()
     {

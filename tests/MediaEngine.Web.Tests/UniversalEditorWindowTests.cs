@@ -73,6 +73,7 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
                 return Task.FromResult(true);
             });
             stub.SetHandler(nameof(IEngineApiClient.GetEditorFollowUpAsync), _ => Task.FromResult(_followUp));
+            stub.SetHandler(nameof(IEngineApiClient.GetEditorQuickFactsAsync), _ => Task.FromResult(_quickFacts));
             stub.SetHandler(nameof(IEngineApiClient.GetItemExplicitAsync), _ =>
             {
                 _explicitAsks++;
@@ -95,6 +96,7 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
     }
 
     private EditorFollowUpDto? _followUp;
+    private ItemQuickFactsDto? _quickFacts;
     private readonly bool _explicitSaved = false;
     private int _explicitAsks;
     private int _explicitDirectSaves;
@@ -669,7 +671,7 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
         var title = cut.WaitForElement(".tl-editor-field[data-field-key='title']");
         Assert.NotNull(title.QuerySelector(".tl-editor-field__dot"));
 
-        title.QuerySelectorAll("button").Single(button => button.TextContent.Contains("Reset to provider value")).Click();
+        title.QuerySelectorAll("button").Single(button => button.GetAttribute("aria-label") == "Reset to provider value").Click();
 
         cut.WaitForAssertion(() =>
         {
@@ -678,6 +680,144 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
             Assert.Contains("provider's value", cut.Find(".tl-editor-field[data-field-key='title'] .tl-editor-field__note").TextContent);
         });
         Assert.Empty(_overrideSaves);
+    }
+
+    // -- Lock and revert on every field, and Quick Facts (universal editor v4, WP4) --------------------------------
+
+    [Fact]
+    public async Task EveryEditableField_HasALock()
+    {
+        var editor = await StartEditorAsync();
+        var cut = RenderPanel(editor);
+        await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
+        cut.WaitForElement(".tl-editor-details");
+
+        var editable = cut.FindAll(".tl-editor-field[data-field-key]:not(.tl-editor-field--locked)");
+
+        Assert.NotEmpty(editable);
+        Assert.All(editable, field => Assert.NotNull(field.QuerySelector("button.tl-editor-field__lock-toggle")));
+        Assert.Empty(cut.FindAll(".tl-editor-field--locked button.tl-editor-field__lock-toggle"));
+    }
+
+    [Fact]
+    public async Task LockingAField_KeepsItsCurrentValue_AndUnlockingTakesTheLockBack()
+    {
+        var editor = await StartEditorAsync();
+        var cut = RenderPanel(editor);
+        await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
+        var field = cut.WaitForElement(".tl-editor-field[data-field-key='title']");
+        Assert.Equal("false", field.GetAttribute("data-locked"));
+        Assert.False(editor.Session.Pending.TryGetField(MovieId, "title", out _));
+
+        field.QuerySelector("button.tl-editor-field__lock-toggle")!.Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.True(editor.Session.Pending.TryGetField(MovieId, "title", out var kept));
+            Assert.Equal("Dune: Part One", kept);
+            var locked = cut.Find(".tl-editor-field[data-field-key='title']");
+            Assert.Equal("true", locked.GetAttribute("data-locked"));
+            Assert.Equal("false", locked.GetAttribute("data-changed"));
+            Assert.Empty(locked.QuerySelectorAll("button.tl-editor-field__reset"));
+        });
+
+        cut.Find(".tl-editor-field[data-field-key='title'] button.tl-editor-field__lock-toggle").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.False(editor.Session.Pending.TryGetField(MovieId, "title", out _));
+            Assert.Equal("false", cut.Find(".tl-editor-field[data-field-key='title']").GetAttribute("data-locked"));
+        });
+    }
+
+    [Fact]
+    public async Task AChangedField_ShowsARevertArrow_ThatPutsTheSavedValueBack_AndItsLockIsFixedOn()
+    {
+        var editor = await StartEditorAsync();
+        var cut = RenderPanel(editor);
+        await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
+        var field = cut.WaitForElement(".tl-editor-field[data-field-key='title']");
+        Assert.Empty(field.QuerySelectorAll("button.tl-editor-field__reset"));
+
+        cut.Find("input[aria-label='Title']").Input("Dune 2");
+
+        cut.WaitForAssertion(() =>
+        {
+            var changed = cut.Find(".tl-editor-field[data-field-key='title']");
+            Assert.Equal("true", changed.GetAttribute("data-changed"));
+            Assert.Equal("true", changed.GetAttribute("data-locked"));
+            Assert.NotNull(changed.QuerySelector("button.tl-editor-field__reset"));
+            Assert.True(changed.QuerySelector("button.tl-editor-field__lock-toggle")!.HasAttribute("disabled"));
+        });
+
+        cut.Find(".tl-editor-field[data-field-key='title'] button.tl-editor-field__reset").Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.False(editor.Session.Pending.TryGetField(MovieId, "title", out _));
+            var back = cut.Find(".tl-editor-field[data-field-key='title']");
+            Assert.Equal("false", back.GetAttribute("data-changed"));
+            Assert.Equal("Dune: Part One", cut.Find("input[aria-label='Title']").GetAttribute("value"));
+        });
+    }
+
+    [Fact]
+    public async Task ASavedOverride_IsLockedAndChanged_AndItsArrowGoesBackToTheProvidersValue()
+    {
+        var editor = await StartEditorAsync(MovieWithTitleOverride());
+        var cut = RenderPanel(editor);
+        await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
+        var title = cut.WaitForElement(".tl-editor-field[data-field-key='title']");
+
+        Assert.Equal("true", title.GetAttribute("data-locked"));
+        Assert.Equal("true", title.GetAttribute("data-changed"));
+
+        title.QuerySelector("button.tl-editor-field__reset")!.Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.True(editor.Session.Pending.TryGetField(MovieId, "title", out var staged));
+            Assert.True(string.IsNullOrEmpty(staged));
+            Assert.Equal("false", cut.Find(".tl-editor-field[data-field-key='title']").GetAttribute("data-locked"));
+        });
+    }
+
+    [Fact]
+    public async Task AFilm_ShowsRuntimeYearSizeAndQuality_BesideTheForm()
+    {
+        _quickFacts = new ItemQuickFactsDto
+        {
+            Id = MovieId,
+            FileCount = 2,
+            SizeBytes = 62_500_000_000,
+            RuntimeSeconds = 9300,
+            BestQuality = "4K HDR",
+        };
+        var editor = await StartEditorAsync();
+        var cut = RenderPanel(editor);
+        await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
+
+        var facts = cut.WaitForElement(".tl-quick-facts");
+
+        Assert.Equal("film", facts.GetAttribute("data-quick-facts-kind"));
+        Assert.Equal(["runtime", "year", "size", "quality"], facts.QuerySelectorAll("[data-fact]").Select(row => row.GetAttribute("data-fact")!).ToArray());
+        Assert.Equal("2021", facts.QuerySelector("[data-fact='year'] strong")!.TextContent);
+        Assert.Equal("58.2 GB", facts.QuerySelector("[data-fact='size'] strong")!.TextContent);
+        Assert.Equal("4K HDR", facts.QuerySelector("[data-fact='quality'] strong")!.TextContent);
+        Assert.Empty(facts.QuerySelectorAll("input, textarea, button"));
+    }
+
+    [Fact]
+    public async Task AReadOnlyLibrary_IsNamedInQuickFacts()
+    {
+        _quickFacts = new ItemQuickFactsDto { Id = MovieId, FileCount = 1, SizeBytes = 1_000_000_000, ReadOnlyLibrary = true };
+        var editor = await StartEditorAsync();
+        var cut = RenderPanel(editor);
+        await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
+
+        var facts = cut.WaitForElement(".tl-quick-facts");
+
+        Assert.Equal("Read-only library", facts.QuerySelector("[data-note]")!.TextContent.Trim());
     }
 
     [Fact]

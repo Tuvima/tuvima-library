@@ -5,8 +5,8 @@
 @inject IStringLocalizer<SharedStrings> L
 
 @* What the Library can show about how a Universe connects, backed by evidence only: who plays whom across formats (Cast),
-   what was adapted from what (Adaptations) and the Universe's characters (Characters), in that order, each row naming the
-   source it came from. The lists come from Page.Connections. Before the Engine has learned anything this says so plainly; it
+   what was adapted from what (Adaptations), in that order, each row naming the
+   source it came from. The lists come from Page.Connections. The Universe's characters are not listed here: the Characters rail above and each thing's own page hold them. Before the Engine has learned anything this says so plainly; it
    never shows sample data. The explorer (paths, family tree) is a desktop screen and is only linked from a desktop. *@
 <section class="universe-connections" aria-labelledby="universe-connections-title">
     <header class="universe-connections__header">
@@ -32,16 +32,6 @@
                 <div class="universe-connections__column">
                     <h3 class="universe-connections__subtitle">@L["Universe_ModeAdaptations"]</h3>
                     <UniverseAdaptationsList Adaptations="@Connections.Adaptations" />
-                </div>
-            }
-            @if (Connections.Characters.Count > 0 || Connections.HiddenCharacterCount > 0)
-            {
-                <div class="universe-connections__column">
-                    <h3 class="universe-connections__subtitle">@L["Universe_GuideFilterCharacters"]</h3>
-                    <UniverseCharacterList Characters="@Connections.Characters"
-                                           CharacterCount="@Connections.CharacterCount"
-                                           HiddenCount="@Connections.HiddenCharacterCount"
-                                           OnCharacterSelected="@OnCharacterSelected" />
                 </div>
             }
         </div>
@@ -78,15 +68,12 @@
     /// <summary>Raised when a cast row is chosen. When nothing listens, a row links to the person's page.</summary>
     [Parameter] public EventCallback<UniverseClientCastMemberDto> OnCastMemberSelected { get; set; }
 
-    /// <summary>Raised when a character is chosen (one with no plot details too: the panel lists Works, not plot). When nothing listens, character rows are plain text.</summary>
-    [Parameter] public EventCallback<UniverseCharacterDto> OnCharacterSelected { get; set; }
-
     private UniverseClientDetailDto Detail => Page.Detail;
 
     private UniverseConnectionsDto Connections => Page.Connections;
 
     private bool HasConnections =>
-        Connections.Characters.Count > 0 || Connections.HiddenCharacterCount > 0 || Connections.Cast.Count > 0 || Connections.Adaptations.Count > 0;
+        Connections.Cast.Count > 0 || Connections.Adaptations.Count > 0;
 
     private bool IsReady => string.Equals(Page.Enrichment.State, UniverseEnrichmentStateDto.Ready, StringComparison.Ordinal);
 

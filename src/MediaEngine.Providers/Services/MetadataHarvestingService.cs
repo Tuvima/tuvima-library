@@ -266,7 +266,7 @@ public sealed class MetadataHarvestingService : BackgroundService, IMetadataHarv
             // behind the relationship-only Stage 3 boundary.
             var entitySubType = request.Hints.GetValueOrDefault("entity_sub_type") ?? request.EntityType.ToString();
             var entityQid = request.Hints.GetValueOrDefault(BridgeIdKeys.WikidataQid);
-            var graphEvidence = request.EntityType is EntityType.Character or EntityType.Location or EntityType.Organization or EntityType.Event or EntityType.Object
+            var graphEvidence = request.EntityType is EntityType.Character or EntityType.Location or EntityType.Organization or EntityType.Event or EntityType.Object or EntityType.Species
                 && provider is IFictionalEntityGraphEvidenceProvider graphProvider
                 && !string.IsNullOrWhiteSpace(entityQid)
                 ? await graphProvider.FetchFictionalEntityGraphEvidenceAsync(entityQid, entitySubType, ct).ConfigureAwait(false)
@@ -356,7 +356,7 @@ public sealed class MetadataHarvestingService : BackgroundService, IMetadataHarv
             }
 
             // Special handling: Wikidata claims for fictional entity types.
-            if (request.EntityType is EntityType.Character or EntityType.Location or EntityType.Organization or EntityType.Event or EntityType.Object)
+            if (request.EntityType is EntityType.Character or EntityType.Location or EntityType.Organization or EntityType.Event or EntityType.Object or EntityType.Species)
             {
                 await HandleFictionalEntityEnrichmentAsync(request, canonicals, provider, graphEvidence, ct)
                     .ConfigureAwait(false);

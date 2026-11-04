@@ -558,6 +558,7 @@ public static class SharedEntityEditorEndpoints
         "Organization" => EntityType.Organization,
         "Event" => EntityType.Event,
         "Object" => EntityType.Object,
+        "Species" => EntityType.Species,
         _ => throw new ArgumentOutOfRangeException(nameof(category), category, "Unsupported fictional entity category."),
     };
     private static Guid RootHistoryId(string qid) => new(MD5.HashData(Encoding.UTF8.GetBytes("narrative-root:" + qid.Trim().ToUpperInvariant())));
