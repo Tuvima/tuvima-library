@@ -1,6 +1,6 @@
 using MediaEngine.Web.Components.Shared;
-using MediaEngine.Web.Tests.Support;
 using MediaEngine.Web.Services.Playback;
+using MediaEngine.Web.Tests.Support;
 
 namespace MediaEngine.Web.Tests;
 

@@ -22,13 +22,25 @@ public sealed record AudiobookChapterWindow(int Number, int Count, string Title,
     /// <summary>Finds the chapter holding <paramref name="position"/>. Null when the book has fewer than two usable chapters.</summary>
     public static AudiobookChapterWindow? Find(IReadOnlyList<PlaybackChapterDto>? chapters, double position, double duration)
     {
-        if (chapters is null || chapters.Count < 2 || !double.IsFinite(duration) || duration <= 0d) return null;
+        if (chapters is null || chapters.Count < 2 || !double.IsFinite(duration) || duration <= 0d)
+        {
+            return null;
+        }
+
         var ordered = chapters.OrderBy(chapter => chapter.StartSeconds).ToList();
         var index = ordered.FindLastIndex(chapter => chapter.StartSeconds <= position);
-        if (index < 0) index = 0;
+        if (index < 0)
+        {
+            index = 0;
+        }
+
         var chapter = ordered[index];
         var end = chapter.EndSeconds ?? (index + 1 < ordered.Count ? ordered[index + 1].StartSeconds : duration);
-        if (!double.IsFinite(end) || end <= chapter.StartSeconds) end = duration;
+        if (!double.IsFinite(end) || end <= chapter.StartSeconds)
+        {
+            end = duration;
+        }
+
         return new AudiobookChapterWindow(index + 1, ordered.Count, chapter.Title, chapter.StartSeconds, Math.Min(end, duration));
     }
 }
