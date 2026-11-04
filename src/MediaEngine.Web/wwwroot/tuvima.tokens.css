@@ -50,19 +50,19 @@
     --tl-accent-collection-border: rgba(214, 168, 79, 0.46);
     --tl-text-on-collection: #17120A;
 
-    --tl-bg-root: #070A12;
-    --tl-bg-shell: #0B1020;
-    --tl-bg-surface: #111827;
-    --tl-bg-surface-raised: #151E2F;
-    --tl-bg-surface-hover: #1A2438;
-    --tl-bg-surface-elevated: #1D2940;
+    --tl-bg-root: #0B0920;
+    --tl-bg-shell: #100B2A;
+    --tl-bg-surface: #170F32;
+    --tl-bg-surface-raised: #1A1036;
+    --tl-bg-surface-hover: #241749;
+    --tl-bg-surface-elevated: #301B59;
     --tl-bg-overlay: rgba(0, 0, 0, 0.72);
     --tl-bg-app-gradient:
         radial-gradient(circle at 18% 0%, rgba(136, 82, 252, 0.18), transparent 30%),
         radial-gradient(circle at 82% 8%, rgba(56, 189, 248, 0.12), transparent 28%),
-        linear-gradient(180deg, #070A12 0%, #0B1020 46%, #070A12 100%);
+        linear-gradient(180deg, #0B0920 0%, #100B2A 46%, #0B0920 100%);
     --tl-bg-shell-gradient:
-        linear-gradient(180deg, rgba(11, 16, 32, 0.98) 0%, rgba(7, 10, 18, 0.98) 100%);
+        linear-gradient(180deg, rgba(16, 11, 42, 0.98) 0%, rgba(11, 9, 32, 0.98) 100%);
 
     --tl-text-primary: #F5F7FB;
     --tl-text-secondary: #B6C2D6;
@@ -117,14 +117,18 @@
     --tl-divider: rgba(148, 163, 184, 0.10);
 
     /* Shared dropdown and secondary-action chrome. */
-    --tl-menu-surface: rgba(10, 14, 23, 0.97);
+    --tl-menu-surface: rgba(18, 11, 42, 0.97);
     --tl-menu-border: rgba(136, 82, 252, 0.65);
     --tl-menu-divider: rgba(196, 181, 253, 0.14);
     --tl-menu-item-hover: rgba(136, 82, 252, 0.14);
     --tl-menu-item-selected: rgba(136, 82, 252, 0.2);
     --tl-menu-icon: #c4b5fd;
     --tl-menu-min-width: 10.75rem;
-    --tl-menu-item-height: var(--tl-touch-target-min);
+    --tl-menu-width: 272px;
+    --tl-menu-row-height: 44px;
+    --tl-menu-row-font-size: 1rem;
+    --tl-menu-icon-size: 22px;
+    --tl-menu-item-height: var(--tl-menu-row-height);
     --tl-secondary-action-bg: rgba(76, 29, 149, 0.12);
     --tl-secondary-action-bg-hover: rgba(109, 40, 217, 0.2);
     --tl-secondary-action-bg-selected: rgba(136, 82, 252, 0.3);
@@ -193,6 +197,56 @@
     --playback-row-height: 64px;
     --playback-tool-icon-size: 22px;
     --playback-utility-icon-size: 22px;
+
+
+    /* Look pass WP1: tokens that older styles referenced without a definition. One place now; do not add more aliases. */
+    --tl-danger: var(--tl-status-danger);
+    --tl-error: var(--tl-status-danger);
+    --tl-success: var(--tl-status-success);
+    --tl-warning: var(--tl-status-warning);
+    --tl-info: var(--tl-status-info);
+    --tl-primary: var(--tl-accent-primary);
+    --tl-accent: var(--tl-accent-primary);
+    --tl-accent-soft: var(--tl-accent-primary-soft);
+    --tl-on-accent: var(--tl-text-on-accent);
+    --tl-bg: var(--tl-bg-root);
+    --tl-bg-base: var(--tl-bg-root);
+    --tl-bg-page: var(--tl-bg-root);
+    --tl-bg-subtle: var(--tl-bg-surface);
+    --tl-bg-raised: var(--tl-bg-surface-raised);
+    --tl-bg-elevated: var(--tl-bg-surface-elevated);
+    --tl-surface-elevated: var(--tl-bg-surface-elevated);
+    --tl-surface-hover: var(--tl-bg-surface-hover);
+    --tl-surface-variant: var(--tl-bg-surface-raised);
+    --tl-text: var(--tl-text-primary);
+    --tl-text-default: var(--tl-text-primary);
+    --tl-font-sans: var(--font-ui);
+    --tl-font-size-h4: var(--tl-font-size-lg);
+    --tl-motion-fast: var(--tl-motion-duration-fast);
+    --tl-shadow-xl: var(--tl-shadow-lg);
+
+    /* One color per area (Look pass D3). Used for the area's icon tile, label and filter chip everywhere. */
+    --tl-area-watch: #FB7185;
+    --tl-area-listen: #FBBF24;
+    --tl-area-read: #60A5FA;
+    --tl-area-view: #2DD4BF;
+    --tl-area-vault: #D6A84F;
+
+    /* Icon tones (Look pass 4.7): a page asks for a tone, never a color. */
+    --tl-tone-neutral: var(--tl-text-secondary);
+    --tl-tone-accent: var(--tl-accent-primary-hover);
+    --tl-tone-info: var(--tl-status-info);
+    --tl-tone-success: var(--tl-status-success);
+    --tl-tone-warning: var(--tl-status-warning);
+    --tl-tone-danger: var(--tl-status-danger);
+    --tl-tone-wash: 14%;
+
+    /* Layers (Look pass 4.8): menu, popover, dialog, toast, player. */
+    --tl-layer-menu: var(--tl-z-dropdown);
+    --tl-layer-dialog: var(--tl-z-modal);
+    --tl-layer-toast: var(--tl-z-toast);
+    --tl-layer-popover: var(--tl-z-popover);
+    --tl-layer-player: 1700;
 
     --tl-status-registered: var(--tl-status-success);
     --tl-status-healthy: var(--tl-status-success);
