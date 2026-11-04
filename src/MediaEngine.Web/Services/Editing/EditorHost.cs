@@ -43,6 +43,9 @@ public sealed class EditorBinding
     /// <summary>The editor media type used when rows are ticked (Renumber and Match need it).</summary>
     public string? BulkMediaType { get; set; }
 
+    /// <summary>The Universe the page's item belongs to, for "Open Universe" in the Match tab (v4 D17); null when the item has none.</summary>
+    public Func<EditorUniverseLink?>? UniverseLink { get; set; }
+
     /// <summary>A show's video clips, for "Move to episode" in the Match tool.</summary>
     public IReadOnlyList<DetailExtraCardViewModel>? Extras { get; set; }
 
@@ -86,6 +89,9 @@ public sealed class EditorBinding
     /// <summary>A row's own Edit: opens the pop-over on the page's item with that row ticked in the bulk panel.</summary>
     public Func<BulkEditRow, Task<bool>>? EditRowAsync { get; set; }
 }
+
+/// <summary>A Universe an item belongs to: its Wikidata id, its name and, when known, its picture.</summary>
+public sealed record EditorUniverseLink(string Qid, string Name, string? ImageUrl = null);
 
 /// <summary>What a list needs to know when the pop-over it opened over itself closes (universal editor v3 WP3).</summary>
 /// <param name="Changed">True when something was saved or committed (a match, a field) while the pop-over was open.</param>

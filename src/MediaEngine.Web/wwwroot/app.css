@@ -6105,6 +6105,20 @@ body:has(.tl-editor-window) .tl-details-overlay__scroller,body:has(.tl-editor-wi
 .tl-just-changed{animation:tl-just-changed 3.4s ease-out 1}
 @media (prefers-reduced-motion:reduce){.tl-just-changed{animation:none;outline:2px solid var(--tl-accent-primary,#8852FC);outline-offset:2px}}
 .tl-match__happen{margin:0;font-size:var(--tl-font-size-md);font-weight:var(--tl-font-weight-semibold)}
+/* Match & Identity for one item (editor v4, WP7): what it is matched to now, confidence, before and after, Universe. */
+.tl-match__section-heading{margin:0;color:var(--tl-text-muted);font-size:var(--tl-font-size-sm);font-weight:var(--tl-font-weight-semibold)}
+.tl-match__now,.tl-match__universe,.tl-match__manual{display:flex;flex-direction:column;gap:var(--tl-space-2)}
+.tl-match__searchby{flex:0 0 12rem}
+.tl-match__year{flex:0 0 7rem}
+.tl-match__row.is-active{flex-wrap:wrap;background:var(--tl-bg-subtle,transparent);outline:1px solid var(--tl-accent-primary,#8852FC);outline-offset:-1px}
+.tl-match__confidence{display:flex;align-items:center;gap:var(--tl-space-2);flex:0 0 9rem}
+.tl-match__confidence .tl-match__bar{flex:1 1 auto}
+.tl-match__beforeafter{display:flex;flex-wrap:wrap;align-items:center;gap:var(--tl-space-2) var(--tl-space-3);margin-top:var(--tl-space-1);font-size:var(--tl-font-size-sm)}
+.tl-match__ba-side{display:flex;flex-wrap:wrap;align-items:center;gap:var(--tl-space-1) var(--tl-space-2);min-width:0}
+.tl-match__ba-heading{color:var(--tl-text-muted);font-weight:var(--tl-font-weight-semibold)}
+.tl-match__ba-arrow{color:var(--tl-text-muted)}
+.tl-match__ba-label{color:var(--tl-text-muted)}
+.tl-match__ba-tick{margin-left:var(--tl-space-1);color:var(--tl-success,#2e7d32)}
 
 /* Universe hero: the Universe's own cover, description and background once the editor has set them (spec D17a). */
 .universe-hero__cover {
