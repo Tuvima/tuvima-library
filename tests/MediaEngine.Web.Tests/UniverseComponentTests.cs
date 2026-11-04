@@ -24,34 +24,41 @@ public sealed class UniverseComponentTests : AsyncBunitContext
         Services.AddSingleton(EngineApiClientStub.CreateDefault());
     }
 
-    // The item page's "Part of" line -----------------------------------------------------------------------------------
+    // The item page's Universe icon ----------------------------------------------------------------------------------------
 
     [Theory]
-    [InlineData("Dune", "Part of the Dune Universe")]
-    [InlineData("Dune Universe", "Part of the Dune Universe")]
-    [InlineData("The Expanse universe", "Part of the Expanse universe")]
-    [InlineData("The Arrakis Saga", "Part of the Arrakis Saga Universe")]
-    [InlineData("the Lord of the Rings", "Part of the Lord of the Rings Universe")]
-    [InlineData("Theseus", "Part of the Theseus Universe")]
-    [InlineData("  Discworld  ", "Part of the Discworld Universe")]
-    public void ThePartOfLine_NeverSaysUniverseTwice(string name, string expected) =>
-        Assert.Equal(expected, UniversePageText.PartOfLine(name));
+    [InlineData("Dune", "Dune Universe")]
+    [InlineData("Dune Universe", "Dune Universe")]
+    [InlineData("The Expanse universe", "Expanse universe")]
+    [InlineData("The Arrakis Saga", "Arrakis Saga Universe")]
+    [InlineData("Theseus", "Theseus Universe")]
+    [InlineData("  Discworld  ", "Discworld Universe")]
+    public void TheUniverseName_NeverSaysUniverseTwice(string name, string expected) =>
+        Assert.Equal(expected, UniversePageText.UniverseName(name));
+
+    [Theory]
+    [InlineData(3, 14, "3 Series · 14 Works in your Library")]
+    [InlineData(1, 1, "1 Series · 1 Work in your Library")]
+    [InlineData(0, 2, "2 Works in your Library")]
+    public void TheIconCard_NamesWhatTheLibraryHolds(int series, int works, string expected) =>
+        Assert.Equal(expected, UniversePageText.CardCounts(series, works));
 
     [Fact]
-    public void AnItemPageWithAUniverseLink_ShowsOneQuietLine_ThatOpensTheUniversePage()
+    public void AnItemPageWithAUniverseLink_ShowsTheIcon_ThatOpensTheUniversePage()
     {
-        var cut = RenderHero(new UniverseLinkViewModel { Qid = "Q4242", Name = "Dune" });
+        var cut = RenderHero(new UniverseLinkViewModel { Qid = "Q4242", Name = "Dune", SeriesCount = 2, WorkCount = 7 });
 
-        var link = Assert.Single(cut.FindAll(".tl-detail-hero__universe-link a"));
-        Assert.Equal("Part of the Dune Universe", link.TextContent);
+        var link = Assert.Single(cut.FindAll(".tl-universe-icon__button"));
         Assert.Equal("/universe/Q4242", link.GetAttribute("href"));
-        // A line under the title block, not a tab or a button row.
-        Assert.Empty(cut.FindAll(".tl-detail-hero__universe-link button"));
+        Assert.Equal("Open the Dune Universe", link.GetAttribute("aria-label"));
+        Assert.Contains("2 Series · 7 Works in your Library", cut.Find(".tl-universe-icon__card").TextContent);
+        // The icon replaces the old quiet text line.
+        Assert.Empty(cut.FindAll(".tl-detail-hero__universe-link"));
     }
 
     [Fact]
-    public void AnItemPageWithoutAUniverseLink_ShowsNoLine() =>
-        Assert.Empty(RenderHero(null).FindAll(".tl-detail-hero__universe-link"));
+    public void AnItemPageWithoutAUniverseLink_ShowsNoIcon() =>
+        Assert.Empty(RenderHero(null).FindAll(".tl-universe-icon"));
 
     // A Series shelf and its missing entries ------------------------------------------------------------------------------
 

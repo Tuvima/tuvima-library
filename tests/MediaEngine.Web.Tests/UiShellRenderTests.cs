@@ -1142,7 +1142,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
             Assert.Contains(">Curated<", cut.Markup);
             Assert.Contains(">Shelves<", cut.Markup);
             Assert.Contains(">People<", cut.Markup);
-            Assert.Contains("Broader worlds Library found by connecting trusted relationships", cut.Markup);
+            Assert.Contains("Whole worlds your Library holds more than one Series of", cut.Markup);
             Assert.DoesNotContain(">Playlists<", cut.Markup);
             Assert.DoesNotContain("CROSS-MEDIA COLLECTIONS", cut.Markup);
             Assert.DoesNotContain("WATCH COLLECTIONS", cut.Markup);

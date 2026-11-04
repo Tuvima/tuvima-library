@@ -2851,6 +2851,8 @@ MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.TvEpisodeDetailRoute
 MediaEngine.Contracts.Details.MediaEngine.Contracts.Details.UniverseLinkViewModel
   Qid: System.String | nullability=not-null | accessors=get,init
   Name: System.String | nullability=not-null | accessors=get,init
+  SeriesCount: System.Int32 | nullability=not-null | accessors=get,init
+  WorkCount: System.Int32 | nullability=not-null | accessors=get,init
 
 MediaEngine.Contracts.Development.MediaEngine.Contracts.Development.DebugBridgeHint
   Key: System.String | nullability=not-null | accessors=get,init

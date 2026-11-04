@@ -3447,7 +3447,9 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   Qid: System.String | json=qid | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Name: System.String | json=name | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"qid":"sample","name":"sample"}
+  SeriesCount: System.Int32 | json=seriesCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  WorkCount: System.Int32 | json=workCount | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"qid":"sample","name":"sample","seriesCount":7,"workCount":7}
 
 [contracts] MediaEngine.Contracts.Development.DebugBridgeHint
   kind=class | converter=default | number-handling=default | unmapped=default

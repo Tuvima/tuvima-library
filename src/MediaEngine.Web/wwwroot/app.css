@@ -4996,6 +4996,12 @@ input[type="reset"],
 .video-settings-menu .video-settings-menu__choice { border-color: rgba(255, 255, 255, .12); }
 .playback-sheet-list { overflow-x: hidden; max-height: min(80vh, 640px); scrollbar-width: thin; }
 
+/* Unified player D12: on touch the style menu uses 48 px rows and choices, with nothing that depends on hover. */
+@media (pointer: coarse) { .video-settings-menu .video-settings-menu__choice, .video-settings-menu .video-settings-menu__row { min-height: 48px; } .video-settings-menu__group { flex-wrap: wrap; } }
+
+/* Unified player D7: a paused Now Playing page dims its backdrop after a short pause. */
+.playback-desktop--paused::before { filter: blur(34px) brightness(.28); transition: filter .4s ease 1.2s; }
+
 /* Library folder table (Settings > Libraries): classes on AppNativeButton / AppOverflowMenu live here because isolated CSS does not reach child roots. */
 /* The lock on a read-only folder's icon: an AppMaterialIcon, so its root is styled here. */
 .folder-table__icon .folder-table__lock { position: absolute; right: -3px; bottom: -3px; width: 14px; height: 14px; padding: 1px; border-radius: 50%; color: var(--tl-status-info); background: var(--tl-bg-surface); }
