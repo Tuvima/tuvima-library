@@ -7,6 +7,7 @@ using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Tests.Support;
+using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace MediaEngine.Web.Tests;
@@ -65,7 +66,7 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
 
     private static EditorMatchSubject Song(bool overridden = false) => new(
         SongId, "Music", "track", "track", "Karma Police", "Radiohead", "Greatest Hits", "1997",
-        new Dictionary<string, string> { ["title"] = "Karma Police", ["artist"] = "Radiohead" },
+        new Dictionary<string, string> { ["title"] = "Karma Police", ["artist"] = "Radiohead", ["album"] = "Greatest Hits" },
         overridden ? ["title"] : []);
 
     private static ItemCanonicalRetailCandidateDto Candidate(string title, string album, string artist, string provider) => new()
@@ -78,6 +79,7 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
         Year = "1997",
         CoverUrl = "https://example.test/cover.jpg",
         CompositeScore = title.Contains("Live", StringComparison.Ordinal) ? 0.4 : 0.9,
+        ReasonText = title.Contains("Live", StringComparison.Ordinal) ? "Title matches; album differs" : "Title and artist match",
         RequiredFields = new Dictionary<string, string> { ["album"] = album, ["artist"] = artist },
     };
 
@@ -135,7 +137,12 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
         Assert.Null(_searches[0].QueryOverride);
         Assert.Single(cut.FindAll(".tl-match__best"));
         Assert.Contains("Best guess", cut.FindAll(".tl-match__row")[0].TextContent, StringComparison.Ordinal);
-        Assert.DoesNotContain("%", cut.Markup, StringComparison.Ordinal);
+        // The Engine's confidence is a bar with its percentage; the reason sits in a small (i) beside it.
+        var confidence = cut.FindAll("[data-testid=match-confidence]");
+        Assert.Equal(2, confidence.Count);
+        Assert.Contains("90%", confidence[0].TextContent, StringComparison.Ordinal);
+        Assert.Contains("40%", confidence[1].TextContent, StringComparison.Ordinal);
+        Assert.Contains("Title and artist match", confidence[0].QuerySelector(".app-info-tip")!.GetAttribute("aria-label"), StringComparison.Ordinal);
         Assert.Contains("OK Computer", cut.FindAll(".tl-match__row")[0].TextContent, StringComparison.Ordinal);
         Assert.Contains("Radiohead", cut.FindAll(".tl-match__row")[0].TextContent, StringComparison.Ordinal);
     }
@@ -159,7 +166,7 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
         var cut = RenderPanel();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-match__row")));
 
-        var picker = cut.FindComponent<AppSelect>();
+        var picker = cut.FindComponents<AppSelect>().Single(select => select.Instance.AriaLabel == "Search in");
         cut.InvokeAsync(() => picker.Instance.ValueChanged.InvokeAsync("musicbrainz"));
 
         cut.WaitForAssertion(() => Assert.Equal("musicbrainz", _searches[^1].ProviderName));
@@ -174,8 +181,15 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
         Select(cut, 0);
 
         cut.WaitForAssertion(() => Assert.Contains("Review selected match", cut.Find(".tl-match").InnerHtml, StringComparison.Ordinal));
-        Assert.Contains("Greatest Hits", cut.Find("[aria-label='Your item']").TextContent, StringComparison.Ordinal);
-        Assert.Contains("OK Computer", cut.Find("[aria-label='Proposed match']").TextContent, StringComparison.Ordinal);
+        // The highlighted row carries the before-and-after line: your file's deciding facts, then the candidate's.
+        var active = Assert.Single(cut.FindAll(".tl-match__row.is-active"));
+        var line = active.QuerySelector("[data-testid=match-before-after]")!;
+        Assert.Contains("Karma Police", line.QuerySelector("[aria-label='Your file']")!.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Greatest Hits", line.QuerySelector("[aria-label='Your file']")!.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Karma Police", line.QuerySelector("[aria-label='Will become']")!.TextContent, StringComparison.Ordinal);
+        Assert.Contains("OK Computer", line.QuerySelector("[aria-label='Will become']")!.TextContent, StringComparison.Ordinal);
+        // A fact that agrees (the title) is ticked; one that differs (the album) is not.
+        Assert.Single(line.QuerySelectorAll(".tl-match__ba-tick"));
         Assert.Equal(4, cut.FindAll("input[role=switch]").Count);
         cut.WaitForAssertion(() => Assert.False(cut.Find("input[role=switch][aria-label='Move to OK Computer']").HasAttribute("disabled")));
         Assert.True(SwitchOn(cut, "Keep my library details"));
@@ -313,7 +327,8 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
         _answer = () => Response();
         var cut = RenderPanel();
 
-        cut.WaitForAssertion(() => Assert.Contains("Nothing matched", cut.Find(".tl-match__problem").TextContent, StringComparison.Ordinal));
+        cut.WaitForAssertion(() => Assert.Contains("Nothing matches that.", cut.Find(".tl-match__problem").TextContent, StringComparison.Ordinal));
+        Assert.NotEmpty(cut.FindAll("[data-testid=match-manual]"));
         var again = cut.FindAll("button").First(button => button.TextContent.Trim() == "Try another provider");
         again.Click();
 
@@ -341,6 +356,170 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
 
         Assert.True(cut.FindAll("button").First(button => button.TextContent.Trim() == "Use this match").HasAttribute("disabled"));
     }
+
+    [Fact]
+    public void TheTabShowsWhatTheItemIsMatchedToNow_OrThatItIsNotMatched()
+    {
+        var matched = RenderPanel();
+        Assert.Contains("Karma Police", matched.Find("[data-testid=match-now]").TextContent, StringComparison.Ordinal);
+        Assert.Contains("Greatest Hits", matched.Find("[data-testid=match-now]").TextContent, StringComparison.Ordinal);
+        Assert.Contains("Matched", matched.Find("[data-testid=match-now]").TextContent, StringComparison.Ordinal);
+
+        var unmatched = Render<EditorMatchPanel>(parameters => parameters
+            .Add(panel => panel.Subject, Song())
+            .Add(panel => panel.Session, _session)
+            .Add(panel => panel.IsUnmatched, true));
+        Assert.Contains("Not matched", unmatched.Find("[data-testid=match-now]").TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TheUniverse_IsOnlyShownWhenTheItemHasOne_AndOpenUniverseHandsItUp()
+    {
+        Assert.Empty(RenderPanel().FindAll("[data-testid=match-universe]"));
+
+        EditorUniverseLink? opened = null;
+        var cut = Render<EditorMatchPanel>(parameters => parameters
+            .Add(panel => panel.Subject, Song())
+            .Add(panel => panel.Session, _session)
+            .Add(panel => panel.Universe, new EditorUniverseLink("Q1234", "Radiohead Universe"))
+            .Add(panel => panel.OnOpenUniverse, EventCallback.Factory.Create<EditorUniverseLink>(this, link => opened = link)));
+
+        Assert.Contains("Radiohead Universe", cut.Find("[data-testid=match-universe]").TextContent, StringComparison.Ordinal);
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Open Universe").Click();
+
+        Assert.Equal("Q1234", opened!.Qid);
+        Assert.Empty(_session.Pending.Changes);
+    }
+
+    [Fact]
+    public void Placement_ShowsWhereTheItemSits_AndOffersChangePlacement()
+    {
+        var cut = RenderPanel();
+
+        Assert.Equal("Greatest Hits", cut.Find("[data-testid=placement-current]").TextContent.Trim());
+        Assert.Contains(cut.FindAll("button"), button => button.TextContent.Trim() == "Change placement");
+    }
+
+    [Fact]
+    public void SearchBy_OffersOnlyTheOptionsThatApplyToTheKindOfItem()
+    {
+        var song = EditorMatchFacts.SearchOptionsFor("Music", "track").Select(option => option.Key).ToArray();
+        var episode = EditorMatchFacts.SearchOptionsFor("TV", "episode").Select(option => option.Key).ToArray();
+        var film = EditorMatchFacts.SearchOptionsFor("Movies", "movie").Select(option => option.Key).ToArray();
+
+        Assert.DoesNotContain(EditorMatchFacts.SearchYear, song);
+        Assert.Contains(EditorMatchFacts.SearchProviderId, song);
+        Assert.Contains(EditorMatchFacts.SearchEpisodeWords, episode);
+        Assert.Contains(EditorMatchFacts.SearchEpisodeNumber, episode);
+        Assert.DoesNotContain(EditorMatchFacts.SearchYear, episode);
+        Assert.Contains(EditorMatchFacts.SearchYear, film);
+        Assert.DoesNotContain(EditorMatchFacts.SearchEpisodeWords, film);
+    }
+
+    [Fact]
+    public void SearchByYear_NarrowsWithTheYear_WithoutChangingTheTitleQuery()
+    {
+        var cut = RenderPanel();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-match__row")));
+
+        var by = cut.FindComponents<AppSelect>().Single(select => select.Instance.AriaLabel == "Search by");
+        cut.InvokeAsync(() => by.Instance.ValueChanged.InvokeAsync(EditorMatchFacts.SearchYear));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("input[aria-label='Year']")));
+        cut.Find("input[aria-label='Year']").Input("1998");
+        cut.FindAll("button").First(button => button.TextContent.Trim() == "Search").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal(2, _searches.Count));
+        Assert.Equal("1998", _searches[^1].DraftFields["year"]);
+        Assert.Null(_searches[^1].QueryOverride);
+    }
+
+    [Fact]
+    public void SearchByProviderId_SearchesForThePastedId()
+    {
+        var cut = RenderPanel();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-match__row")));
+
+        var by = cut.FindComponents<AppSelect>().Single(select => select.Instance.AriaLabel == "Search by");
+        cut.InvokeAsync(() => by.Instance.ValueChanged.InvokeAsync(EditorMatchFacts.SearchProviderId));
+        cut.Find("input[aria-label='Search for a match']").Input("https://musicbrainz.org/recording/6f5f3f29-4a2b-4a53-8a8d-3d5a8e5b0c11");
+        cut.FindAll("button").First(button => button.TextContent.Trim() == "Search").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal(2, _searches.Count));
+        Assert.Equal("6f5f3f29-4a2b-4a53-8a8d-3d5a8e5b0c11", _searches[^1].QueryOverride);
+    }
+
+    [Fact]
+    public void WhenAProviderDoesNotAnswer_TheMessageNamesTheProvider()
+    {
+        _answer = () =>
+        {
+            var response = Response();
+            response.ProviderErrors = ["musicbrainz search could not complete. Please retry."];
+            return response;
+        };
+        var cut = RenderPanel();
+
+        cut.WaitForAssertion(() => Assert.Contains("MusicBrainz did not answer", cut.Find(".tl-match__problem").TextContent, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void WhenNothingMatches_TheManualDetailsCanBeStaged_AsTheItemsOwn()
+    {
+        _answer = () => Response();
+        var cut = RenderPanel();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-manual]")));
+
+        cut.Find("input[aria-label='Title']").Input("Karma Police (demo)");
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Use these details").Click();
+
+        Assert.True(_session.Pending.TryGetField(SongId, "title", out var title));
+        Assert.Equal("Karma Police (demo)", title);
+        Assert.DoesNotContain(_session.Pending.Changes, change => change.Kind == EditSessionChangeKinds.Identity);
+    }
+
+    [Fact]
+    public void TheFacts_ForAnEpisode_AreNumberTitleAiredAndRuntime_AndAgreeingOnesAreTicked()
+    {
+        var subject = new EditorMatchSubject(
+            SongId, "TV", "episode", "show_episode", "S02E04.mkv", null, "The Expanse", null,
+            new Dictionary<string, string> { ["season_number"] = "2", ["episode_number"] = "4", ["runtime"] = "44", ["title"] = "S02E04.mkv" }, []);
+        var candidate = new ItemCanonicalRetailCandidateDto
+        {
+            Title = "Godspeed",
+            RequiredFields = new Dictionary<string, string> { ["season_number"] = "2", ["episode_number"] = "4", ["runtime"] = "44" },
+            ExtraFields = new Dictionary<string, string> { ["air_date"] = "2017-02-15" },
+        };
+
+        var facts = EditorMatchFacts.DecidingFacts(subject, candidate);
+
+        Assert.Equal(["Episode", "Title", "Aired", "Runtime"], facts.Select(fact => fact.Label).ToArray());
+        Assert.True(facts.Single(fact => fact.Label == "Episode").Agrees);
+        Assert.Equal("S02E04", facts.Single(fact => fact.Label == "Episode").After);
+        Assert.True(facts.Single(fact => fact.Label == "Runtime").Agrees);
+        Assert.False(facts.Single(fact => fact.Label == "Title").Agrees);
+    }
+
+    [Fact]
+    public void AProviderLinkOrId_IsReadForTheProvidersThatHaveThem()
+    {
+        Assert.Equal(new EditorProviderReference("tvdb", "354627"), EditorMatchFacts.ParseProviderReference("https://thetvdb.com/series/354627"));
+        Assert.Equal(new EditorProviderReference("tvdb", "354627"), EditorMatchFacts.ParseProviderReference("354627"));
+        Assert.Equal(new EditorProviderReference("imdb", "tt3230854"), EditorMatchFacts.ParseProviderReference("https://www.imdb.com/title/tt3230854/"));
+        Assert.Equal(new EditorProviderReference("isbn", "9780441172719"), EditorMatchFacts.ParseProviderReference("978-0-441-17271-9"));
+        Assert.Null(EditorMatchFacts.ParseProviderReference("not an id"));
+    }
+
+    [Theory]
+    [InlineData("Godspeed", true)]
+    [InlineData("good god", false)]
+    [InlineData("4", true)]
+    [InlineData("S02E04", true)]
+    [InlineData("S01E04", false)]
+    [InlineData("e4", true)]
+    [InlineData("2017-02-15", true)]
+    [InlineData("", true)]
+    public void AnEpisodeFilter_MatchesTitleWordsNumbersAndAirDates(string filter, bool expected) =>
+        Assert.Equal(expected, EditorMatchFacts.EpisodeMatchesFilter(2, 4, "Godspeed", "2017-02-15", filter));
 
     [Fact]
     public void TheRules_GiveASongTracksAndAlbums_AndEverythingElseOneKind()

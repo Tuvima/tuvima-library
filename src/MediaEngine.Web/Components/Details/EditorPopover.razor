@@ -8,6 +8,7 @@
 @inject IAppDialogService Dialogs
 @inject IStringLocalizer<SharedStrings> L
 @inject IJSRuntime JS
+@inject NavigationManager Nav
 
 @* The universal editor's pop-over (v3 D1, D6), drawn once by the app layout so it can open over any page or list. It is a native modal
    dialog (opened with showModal by app-dialog.js), so it stacks above the details overlay, makes everything behind it inert, traps focus
@@ -74,10 +75,9 @@
                                       CanEdit="@mode.CanEdit"
                                       Mode="mode"
                                       IsUnmatched="@IsActiveUnmatched"
+                                      Universe="@binding?.UniverseLink?.Invoke()"
+                                      OnOpenUniverse="OpenUniverseAsync"
                                       OnMatched="@(() => Editor.NotifyCommittedAsync())" />
-                    <EditorPlacementPicker Subject="@(mode.Fields.Loading ? null : mode.Fields.MatchSubject())"
-                                           Session="flow.Session"
-                                           CanEdit="@mode.CanEdit" />
                     <EditorVideoSeriesPanel Subject="@(mode.Fields.Loading ? null : mode.Fields.MatchSubject())"
                                             Session="flow.Session"
                                             Family="Editor.Family"
@@ -151,6 +151,17 @@
     }
 
     private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    // Open Universe (v4 D17): closes the editor, asking "Unsaved changes" first, then opens the Universe page. Staying leaves everything as it was.
+    private async Task OpenUniverseAsync(EditorUniverseLink universe)
+    {
+        if (!await Editor.Flow.LeaveAsync())
+        {
+            return;
+        }
+
+        Nav.NavigateTo($"/universe/{Uri.EscapeDataString(universe.Qid)}");
+    }
 
     private int _focusTries;
     private IJSObjectReference? _focusModule;

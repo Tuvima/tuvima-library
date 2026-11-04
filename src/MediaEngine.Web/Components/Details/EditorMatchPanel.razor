@@ -14,10 +14,12 @@
 @inject IJSRuntime JS
 @inject IStringLocalizer<SharedStrings> L
 
-@* The Match tool (universal editor spec D5, D6, D11): two steps in the right-hand panel. Step 1 finds a record (search box filled from the
-   item, a "Search in" picker, tabs for what is being matched, results with their picture, creator, parent, year, edition and provider).
-   Step 2 reviews the chosen record beside the item, with four switches: the library's own details, the retail match, the parent
-   relationship and the physical files. "Use this match" only stages the choice in the pending list; Save changes writes it. *@
+@* The Match & Identity tab for one item (universal editor v4, D5, D9, D17, D18, section 3a). Top to bottom: what the item is matched to now;
+   the search (pre-filled from the folder and file names, with "Search by" options each type shows only when they apply); a short list of
+   candidates, each with the Engine's confidence bar and a small (i) giving its reason, and a before-and-after line on the highlighted row
+   (your file's facts, then the candidate's, only the facts that decide the pick); the switches (the library's own details, the retail
+   match, the parent relationship and the physical files, the last two off unless turned on); the item's Universe with "Open Universe";
+   and its placement with "Change placement". "Use this match" only stages the choice in the pending list; Save changes writes it. *@
 @if (Subject is not null)
 {
     <div class="tl-match">
@@ -26,11 +28,18 @@
             <AppAlert Severity="AppSeverity.Info" Dense="true">@L["EditorMatchPanel_YouCanLookAtMatches"]</AppAlert>
         }
 
+        @CurrentIdentity()
         @FindStep()
         @if (_selected is not null)
         {
             @ReviewStep(_selected)
         }
+        @if (_manualPlaced is not null)
+        {
+            <AppAlert Severity="AppSeverity.Success" Dense="true">@_manualPlaced</AppAlert>
+        }
+        @UniverseSection()
+        <EditorPlacementPicker Subject="Subject" Session="Session" CanEdit="CanEdit" Current="@PlacementText" Heading="@PlacementHeading" ButtonLabel="@ChangePlacementLabel" />
     </div>
 }
 
@@ -38,6 +47,12 @@
     private CancellationTokenSource? _searchCts;
     private Guid _startedFor;
     private string _query = string.Empty;
+    private string _mode = EditorMatchFacts.SearchTitle;
+    private string _year = string.Empty;
+    private string? _providerNote;
+    private string _manualTitle = string.Empty;
+    private string _manualYear = string.Empty;
+    private string? _manualPlaced;
     private string _group = string.Empty;
     private string _provider = string.Empty;
     private bool _loading;
@@ -92,6 +107,12 @@
     /// </summary>
     [Parameter] public bool IsUnmatched { get; set; }
 
+    /// <summary>The Universe the item belongs to (v4 D17), shown with "Open Universe"; null when the item has none.</summary>
+    [Parameter] public EditorUniverseLink? Universe { get; set; }
+
+    /// <summary>Raised by "Open Universe". The window closes (asking about unsaved changes) and the Universe page opens; the host does both.</summary>
+    [Parameter] public EventCallback<EditorUniverseLink> OnOpenUniverse { get; set; }
+
     /// <summary>Raised after the video lookup matched something, so the page can refresh.</summary>
     [Parameter] public EventCallback OnMatched { get; set; }
 
@@ -127,6 +148,12 @@
         _rematch = null;
         _results = [];
         _searched = false;
+        _mode = EditorMatchFacts.SearchTitle;
+        _year = string.Empty;
+        _providerNote = null;
+        _manualPlaced = null;
+        _manualTitle = Subject.Title;
+        _manualYear = Subject.Year ?? string.Empty;
         _contextReady = false;
         _context = await LoadContextAsync(Subject.EntityId);
         _contextReady = true;
@@ -194,13 +221,27 @@
             else if (UsesTvBrowser)
             {
                 <EditorTvMatchBrowser Subject="Subject" CanEdit="CanEdit" Unmatched="IsUnmatched" Context="_context"
-                                      OnShowChosen="OnShowChosenAsync" OnEpisodeChosen="OnEpisodeChosenAsync" />
+                                      OnShowChosen="OnShowChosenAsync" OnEpisodeChosen="OnEpisodeChosenAsync" OnManualPlacement="OnManualPlacementAsync" />
             }
             else
             {
             <div class="tl-match__searchrow">
+                @if (SearchOptions.Count > 1)
+                {
+                    <div class="tl-match__searchby">
+                        <AppSelect Value="@_mode" ValueChanged="OnModeChanged" Options="@SearchOptionChoices" HideLabel="true"
+                                   AriaLabel="Search by" Disabled="@_loading" FullWidth="false" />
+                    </div>
+                }
                 <AppTextField Label="Search" HideLabel="true" Value="@_query" ValueChanged="@(value => _query = value ?? string.Empty)"
-                              Placeholder="@($"Search for {Subject!.Title}")" Immediate="true" OnKeyDown="OnQueryKey" aria-label="Search for a match" />
+                              Placeholder="@SearchPlaceholder" Immediate="true" OnKeyDown="OnQueryKey" aria-label="Search for a match" />
+                @if (_mode == EditorMatchFacts.SearchYear)
+                {
+                    <div class="tl-match__year">
+                        <AppTextField Label="Year" HideLabel="true" Value="@_year" ValueChanged="@(value => _year = value ?? string.Empty)"
+                                      Placeholder="Year" Immediate="true" OnKeyDown="OnQueryKey" aria-label="Year" />
+                    </div>
+                }
                 <AppButton Label="Search" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Search"
                            Disabled="@_loading" OnClick="SearchAsync" />
             </div>
@@ -242,9 +283,17 @@
                                    OnClick="TryAnotherProviderAsync" />
                     }
                 </AppAlert>
+                @if (_results.Count == 0 && _searched && _providerNote is null)
+                {
+                    @ManualFields()
+                }
             }
             else if (_searched)
             {
+                @if (_providerNote is not null)
+                {
+                    <AppAlert Severity="AppSeverity.Warning" Dense="true" Class="tl-match__problem">@_providerNote</AppAlert>
+                }
                 <div class="tl-match__results" role="list">
                     @for (var i = 0; i < _results.Count; i++)
                     {
@@ -264,9 +313,10 @@
     private RenderFragment ResultRow(ItemCanonicalRetailCandidateDto candidate, int index) => __builder =>
     {
         var best = index == 0;
+        var active = ReferenceEquals(candidate, _selected);
         var facts = EditorMatchRules.FactsOf(candidate);
         var line = string.Join(" · ", new[] { facts.Creator, facts.Parent, facts.Year, facts.Edition }.Where(part => !string.IsNullOrWhiteSpace(part)));
-        <div class="tl-match__row" role="listitem" data-provider="@facts.Provider">
+        <div class="@(active ? "tl-match__row is-active" : "tl-match__row")" role="listitem" data-provider="@facts.Provider" aria-current="@(active ? "true" : null)">
             @Artwork(candidate.CoverUrl)
             <div class="tl-match__text">
                 <div class="tl-match__title">
@@ -281,9 +331,60 @@
                     <div class="tl-match__meta">@line</div>
                 }
                 <div class="tl-match__provider-name">@FormatProvider(facts.Provider)</div>
+                @if (active && Subject is not null)
+                {
+                    @BeforeAfter(candidate)
+                }
             </div>
-            <AppButton Label="Select" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+            @ConfidenceBar(candidate)
+            <AppButton Label="@(active ? "Selected" : "Select")" ButtonStyle="@(active ? AppButtonStyle.Filled : AppButtonStyle.Outlined)" Tone="@(active ? AppUiTone.Primary : AppUiTone.Neutral)" Size="AppControlSize.Compact"
                        id="@SelectButtonId(index)" aria-label="@($"Select {facts.Title}")" OnClick="@(() => SelectAsync(candidate))" />
+        </div>
+    };
+
+    // The Engine's confidence as a bar with a small (i) giving its reason in words. Nothing is drawn when the Engine gave no confidence.
+    private RenderFragment ConfidenceBar(ItemCanonicalRetailCandidateDto candidate) => __builder =>
+    {
+        if (!EditorMatchFacts.HasConfidence(candidate))
+        {
+            return;
+        }
+
+        var percent = EditorMatchFacts.ConfidencePercent(candidate);
+        <div class="tl-match__confidence" data-testid="match-confidence">
+            <AppProgressBar Value="@percent" Color="@(percent >= 60 ? AppColor.Primary : AppColor.Warning)" Title="@($"Confidence {percent}%")" Label="@($"Confidence {percent}%")" ShowValue="true" Class="tl-match__bar" />
+            @if (!string.IsNullOrWhiteSpace(candidate.ReasonText))
+            {
+                <AppInfoTip Text="@candidate.ReasonText" Label="Why" />
+            }
+        </div>
+    };
+
+    // Your file's deciding facts, an arrow, then the candidate's; a tick marks each fact where the two agree.
+    private RenderFragment BeforeAfter(ItemCanonicalRetailCandidateDto candidate) => __builder =>
+    {
+        var pairs = EditorMatchFacts.DecidingFacts(Subject!, candidate);
+        if (pairs.Count == 0)
+        {
+            return;
+        }
+
+        <div class="tl-match__beforeafter" data-testid="match-before-after">
+            <div class="tl-match__ba-side" aria-label="Your file">
+                <span class="tl-match__ba-heading">Your file</span>
+                @foreach (var pair in pairs.Where(p => p.Before is not null))
+                {
+                    <span class="tl-match__ba-fact"><span class="tl-match__ba-label">@pair.Label</span> @EditorMatchFacts.Show(pair.Label, pair.Before!)</span>
+                }
+            </div>
+            <span class="tl-match__ba-arrow" aria-hidden="true">→</span>
+            <div class="tl-match__ba-side" aria-label="Will become">
+                <span class="tl-match__ba-heading">Will become</span>
+                @foreach (var pair in pairs.Where(p => p.After is not null))
+                {
+                    <span class="tl-match__ba-fact @(pair.Agrees ? "is-agree" : null)"><span class="tl-match__ba-label">@pair.Label</span> @EditorMatchFacts.Show(pair.Label, pair.After!)@if (pair.Agrees) { <span class="tl-match__ba-tick" role="img" aria-label="matches your file">✓</span> }</span>
+                }
+            </div>
         </div>
     };
 
@@ -301,34 +402,20 @@
 
     private RenderFragment ReviewStep(ItemCanonicalRetailCandidateDto candidate) => __builder =>
     {
-        var facts = EditorMatchRules.FactsOf(candidate);
         <div class="tl-match__review" id="tl-match-review" role="group" aria-label="Review selected match" tabindex="-1">
             <h3 class="tl-match__happen">What will happen</h3>
-            <div class="tl-match__compare">
-                <section class="tl-match__side" aria-label="Your item">
-                    <h3 class="tl-match__side-heading">Your item</h3>
-                    @Fact("Title", Subject!.Title)
-                    @Fact("Creator", Subject.Creator)
-                    @Fact("Part of", Subject.ParentLabel)
-                    @Fact("Year", Subject.Year)
-                </section>
-                <section class="tl-match__side tl-match__side--proposed" aria-label="Proposed match">
-                    <h3 class="tl-match__side-heading">Proposed match</h3>
-                    <div class="tl-match__proposed-art">@Artwork(candidate.CoverUrl)</div>
-                    @Fact("Title", facts.Title)
-                    @Fact("Creator", facts.Creator)
-                    @Fact("Part of", facts.Parent)
-                    @Fact("Year", facts.Year)
-                    @Fact("Edition", facts.Edition)
-                    @Fact("From", FormatProvider(facts.Provider))
-                </section>
-            </div>
+            @if (UsesTvBrowser)
+            {
+                @* The browser's lists live in other columns, so its before-and-after sits here; a candidate list shows it on its own row. *@
+                <div class="tl-match__proposed-art">@Artwork(candidate.CoverUrl)</div>
+                @BeforeAfter(candidate)
+            }
 
             <div class="tl-match__switches">
                 <AppSwitchRow Label="Keep my library details"
                               Description="@(_keepDetails ? "Anything you changed in Details stays as you set it." : "Details you changed go back to what the provider says.")"
                               Value="@_keepDetails" ValueChanged="@(value => { _keepDetails = value; _staged = false; })"
-                              Disabled="@(!CanEdit || Subject.OverriddenKeys.Count == 0)" />
+                              Disabled="@(!CanEdit || Subject!.OverriddenKeys.Count == 0)" />
                 <AppSwitchRow Label="Use as the retail match"
                               Description="Which provider record this item is. It does not move the item."
                               Value="@_useRetail" ValueChanged="@(value => { _useRetail = value; _staged = false; })" Disabled="@(!CanEdit)" />
@@ -369,14 +456,6 @@
                 <AppButton Label="Choose another" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" OnClick="BackToResults" />
                 <AppButton Label="Use this match" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!CanUse)" OnClick="UseThisMatch" />
             </div>
-        </div>
-    };
-
-    private RenderFragment Fact(string label, string? value) => __builder =>
-    {
-        <div class="tl-match__fact">
-            <span class="tl-match__fact-label">@label</span>
-            <span class="tl-match__fact-value">@(string.IsNullOrWhiteSpace(value) ? "Not set" : value)</span>
         </div>
     };
 
@@ -429,6 +508,156 @@
         _ => "Renames and moves the files to fit. Off unless you turn it on. Checked again when you save.",
     };
 
+    private const string PlacementHeading = "Placement";
+    private const string ChangePlacementLabel = "Change placement";
+    private const string NotSavedYet = "Nothing is saved until you press Save changes.";
+
+    private IReadOnlyList<EditorSearchOption> SearchOptions => Subject is null ? [] : EditorMatchFacts.SearchOptionsFor(Subject.MediaType, Subject.ScopeId);
+
+    private IReadOnlyList<AppSelectOption> SearchOptionChoices => SearchOptions.Select(option => new AppSelectOption(option.Key, option.Label)).ToList();
+
+    private string SearchPlaceholder => _mode switch
+    {
+        EditorMatchFacts.SearchProviderId => SearchOptions.FirstOrDefault(o => o.Key == _mode)?.Placeholder ?? "Provider ID or link",
+        EditorMatchFacts.SearchAnotherTitle => SearchOptions.FirstOrDefault(o => o.Key == _mode)?.Placeholder ?? "Another title",
+        _ => $"Search for {Subject!.Title}",
+    };
+
+    // Where the item sits now: the season and episode for an episode, otherwise the album, show or series it is in.
+    private string? PlacementText
+    {
+        get
+        {
+            if (Subject is null)
+            {
+                return null;
+            }
+
+            if (string.Equals(Subject.MediaType, "TV", StringComparison.OrdinalIgnoreCase) && string.Equals(Subject.ScopeId, "episode", StringComparison.OrdinalIgnoreCase)
+                && Subject.Draft.TryGetValue(MetadataFieldConstants.SeasonNumber, out var season) && Subject.Draft.TryGetValue(MetadataFieldConstants.EpisodeNumber, out var episode))
+            {
+                return $"Season {season} · Episode {episode}";
+            }
+
+            return string.IsNullOrWhiteSpace(Subject.ParentLabel) ? null : Subject.ParentLabel;
+        }
+    }
+
+    private Task OnModeChanged(string? value)
+    {
+        _mode = value ?? EditorMatchFacts.SearchTitle;
+        _query = _mode switch
+        {
+            EditorMatchFacts.SearchTitle => _context is { ParsedTitle.Length: > 0 } && IsUnmatched ? _context.ParsedTitle! : Subject?.Title ?? string.Empty,
+            EditorMatchFacts.SearchYear => Subject?.Title ?? string.Empty,
+            _ => string.Empty,
+        };
+        _year = string.Empty;
+        return Task.CompletedTask;
+    }
+
+    // What the item is matched to now: its title, who made it, where it sits and its year, or that it has no match yet.
+    private RenderFragment CurrentIdentity() => __builder =>
+    {
+        if (Subject is null)
+        {
+            return;
+        }
+
+        var line = string.Join(" · ", new[] { Subject.Creator, Subject.ParentLabel, Subject.Year }.Where(part => !string.IsNullOrWhiteSpace(part)));
+        <section class="tl-match__now" aria-label="Matched to now" data-testid="match-now">
+            <h3 class="tl-match__section-heading">Matched to now</h3>
+            @if (IsUnmatched)
+            {
+                <div class="tl-match__title"><span>@(string.IsNullOrWhiteSpace(_context?.FileName) ? Subject.Title : _context!.FileName)</span> <NotMatchedTag /></div>
+                <div class="tl-match__meta">Pick the right match below. Nothing changes until you press Save changes.</div>
+            }
+            else
+            {
+                <div class="tl-match__title"><span>@Subject.Title</span> <AppChip Text="Matched" Tone="AppUiTone.Success" /></div>
+                @if (line.Length > 0)
+                {
+                    <div class="tl-match__meta">@line</div>
+                }
+            }
+        </section>
+    };
+
+    // The Universe the item belongs to (v4 D17). "Open Universe" closes the editor, asking about unsaved changes first.
+    private RenderFragment UniverseSection() => __builder =>
+    {
+        if (Universe is not { } universe)
+        {
+            return;
+        }
+
+        <section class="tl-match__universe" aria-label="Universe" data-testid="match-universe">
+            <h3 class="tl-match__section-heading">Universe</h3>
+            <div class="tl-match__row">
+                @if (!string.IsNullOrWhiteSpace(universe.ImageUrl))
+                {
+                    <AppImage Src="@universe.ImageUrl" Alt="" Width="48" Height="48" ObjectFit="AppObjectFit.Cover" Class="tl-match__art" />
+                }
+                else
+                {
+                    <span class="tl-match__art tl-match__art--empty" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Public" /></span>
+                }
+                <div class="tl-match__text"><div class="tl-match__title"><span>@universe.Name</span></div></div>
+                <AppButton Label="Open Universe" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                           OnClick="@(() => OnOpenUniverse.InvokeAsync(universe))" />
+            </div>
+        </section>
+    };
+
+    // The empty state: nothing came back, so the details can be typed by hand and are saved as the item's own.
+    private RenderFragment ManualFields() => __builder =>
+    {
+        <section class="tl-match__manual" aria-label="Type the details yourself" data-testid="match-manual">
+            <h3 class="tl-match__section-heading">Type the details yourself</h3>
+            <p class="tl-match__meta">If the provider has nothing, type them here. They are saved as this item's own, not as a match.</p>
+            <div class="tl-match__searchrow">
+                <AppTextField Label="Title" Value="@_manualTitle" ValueChanged="@(value => _manualTitle = value ?? string.Empty)" Immediate="true" aria-label="Title" />
+                <div class="tl-match__year">
+                    <AppTextField Label="Year" Value="@_manualYear" ValueChanged="@(value => _manualYear = value ?? string.Empty)" Immediate="true" aria-label="Year" />
+                </div>
+                <AppButton Label="Use these details" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Disabled="@(!CanEdit || Session is not { IsActive: true } || string.IsNullOrWhiteSpace(_manualTitle))"
+                           OnClick="UseManualDetails" />
+            </div>
+        </section>
+    };
+
+    private void UseManualDetails()
+    {
+        if (!CanEdit || Subject is null || Session is not { IsActive: true })
+        {
+            return;
+        }
+
+        var pending = Session.Pending;
+        pending.SetField(Subject.EntityId, MetadataFieldConstants.Title, _manualTitle.Trim());
+        if (!string.IsNullOrWhiteSpace(_manualYear))
+        {
+            pending.SetField(Subject.EntityId, MetadataFieldConstants.Year, _manualYear.Trim());
+        }
+
+        _manualPlaced = $"Title and year staged as this item's own details. {NotSavedYet}";
+    }
+
+    // Season and episode typed by hand, for a file the provider has nothing for: staged as the item's own details.
+    private Task OnManualPlacementAsync((int Season, int Episode) numbers)
+    {
+        if (!CanEdit || Subject is null || Session is not { IsActive: true })
+        {
+            return Task.CompletedTask;
+        }
+
+        var pending = Session.Pending;
+        pending.SetField(Subject.EntityId, MetadataFieldConstants.SeasonNumber, numbers.Season.ToString(CultureInfo.InvariantCulture));
+        pending.SetField(Subject.EntityId, MetadataFieldConstants.EpisodeNumber, numbers.Episode.ToString(CultureInfo.InvariantCulture));
+        _manualPlaced = $"Season {numbers.Season.ToString(CultureInfo.InvariantCulture)}, episode {numbers.Episode.ToString(CultureInfo.InvariantCulture)} staged as this item's own details. {NotSavedYet}";
+        return Task.CompletedTask;
+    }
+
     private static string FormatProvider(string name) => ProviderCatalogueService.FormatProviderLabel(name);
 
     private Task OnQueryKey(KeyboardEventArgs args) => args.Key == "Enter" ? SearchAsync() : Task.CompletedTask;
@@ -473,6 +702,28 @@
         try
         {
             var typed = _query.Trim();
+            var draft = new Dictionary<string, string>(Subject.Draft, StringComparer.OrdinalIgnoreCase);
+            string? queryOverride = typed.Length == 0 || string.Equals(typed, Subject.Title, StringComparison.Ordinal) ? null : typed;
+            if (_mode == EditorMatchFacts.SearchYear && _year.Trim() is { Length: > 0 } year)
+            {
+                // A year only narrows: it joins the item's own details, which the Engine weighs as soft hints.
+                draft[MetadataFieldConstants.Year] = year;
+            }
+            else if (_mode == EditorMatchFacts.SearchProviderId)
+            {
+                var reference = EditorMatchFacts.ParseProviderReference(typed);
+                if (reference is null)
+                {
+                    _loading = false;
+                    _searched = true;
+                    _results = [];
+                    _problem = "That is not an ID or link I can read. Paste an ISBN, an IMDb or MusicBrainz ID, or a link to one.";
+                    return;
+                }
+
+                queryOverride = reference.Id;
+            }
+
             response = await Api.SearchItemCanonicalAsync(
                 Subject.EntityId,
                 new ItemCanonicalSearchRequestDto
@@ -480,8 +731,8 @@
                     MediaType = Subject.MediaType,
                     TargetKind = EditorMatchRules.TargetKindOf(_group),
                     TargetFieldGroup = _group,
-                    DraftFields = new Dictionary<string, string>(Subject.Draft, StringComparer.OrdinalIgnoreCase),
-                    QueryOverride = typed.Length == 0 || string.Equals(typed, Subject.Title, StringComparison.Ordinal) ? null : typed,
+                    DraftFields = draft,
+                    QueryOverride = queryOverride,
                     ProviderName = string.IsNullOrEmpty(_provider) ? null : _provider,
                 },
                 cts.Token);
@@ -517,11 +768,14 @@
         }
 
         _results = Distinct(response.RetailCandidates);
+        _providerNote = response.ProviderErrors.Count > 0
+            ? EditorMatchFacts.ProviderDownText(response.ProviderErrors, _providers, _provider)
+            : null;
         if (_results.Count == 0)
         {
             _problem = response.ProviderErrors.Count > 0
-                ? "A provider did not answer. Try again, or search in another provider."
-                : $"Nothing matched \"{_query.Trim()}\". Try different words, or search in another provider.";
+                ? _providerNote
+                : "Nothing matches that. Try different words, or search in another provider.";
         }
     }
 

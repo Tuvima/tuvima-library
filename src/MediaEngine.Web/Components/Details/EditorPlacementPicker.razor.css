@@ -26,3 +26,8 @@
 .tl-place__preview p {
     margin: 0;
 }
+
+.tl-place__current {
+    margin: 0;
+    font-weight: var(--tl-font-weight-semibold);
+}

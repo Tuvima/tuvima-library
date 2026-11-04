@@ -16,10 +16,14 @@
 @if (Subject is not null && EditorPlacementRules.PlaceNoun(Subject.MediaType) != "place")
 {
     <section class="tl-place" data-testid="placement-picker" aria-label="@EditorPlacementRules.MoveHeading(Subject.MediaType)">
-        <h3 class="tl-place__heading">@EditorPlacementRules.MoveHeading(Subject.MediaType)</h3>
+        <h3 class="tl-place__heading">@(Heading ?? EditorPlacementRules.MoveHeading(Subject.MediaType))</h3>
         @if (!_open)
         {
-            <AppButton Label="@EditorPlacementRules.MoveHeading(Subject.MediaType)" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+            @if (!string.IsNullOrWhiteSpace(Current))
+            {
+                <p class="tl-place__current" data-testid="placement-current">@Current</p>
+            }
+            <AppButton Label="@(ButtonLabel ?? EditorPlacementRules.MoveHeading(Subject.MediaType))" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
                        Disabled="@(!CanEdit || Session is not { IsActive: true })" OnClick="OpenAsync" />
             @if (StagedMove is not null)
             {
@@ -123,6 +127,15 @@
 
     /// <summary>False when the person may look but not change.</summary>
     [Parameter] public bool CanEdit { get; set; } = true;
+
+    /// <summary>Where the item sits now ("Season 2 · Episode 3"), shown above the button. Optional.</summary>
+    [Parameter] public string? Current { get; set; }
+
+    /// <summary>The section heading; the move heading for the item's type when null.</summary>
+    [Parameter] public string? Heading { get; set; }
+
+    /// <summary>The button that opens the picker; the move heading for the item's type when null (the Match tab says "Change placement").</summary>
+    [Parameter] public string? ButtonLabel { get; set; }
 
     private EditSessionChange? StagedMove =>
         Subject is null || Session is null

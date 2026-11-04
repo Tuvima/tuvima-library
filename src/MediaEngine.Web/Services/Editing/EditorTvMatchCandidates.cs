@@ -67,6 +67,10 @@ public static class EditorTvMatchCandidates
             IsApplicable = true,
             RequiredFields = fields,
             SuggestedFields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
+            // Facts the Match tab compares but never stages (air date), kept apart from the fields a save would write.
+            ExtraFields = string.IsNullOrWhiteSpace(episode.Aired)
+                ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { [MetadataFieldConstants.AirDate] = episode.Aired! },
             BridgeIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 [BridgeIdKeys.TvdbId] = episode.SeriesId,

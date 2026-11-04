@@ -184,6 +184,7 @@ else if (Model is not null)
             MediaTypes = () => Model is null ? [] : [ResolveEditorMediaType(Model.EntityType, Model.PresentationContext)],
             Trail = EditTrail,
             EditRowAsync = row => RowEditEntry.StartAsync(Editor, _binding, row),
+            UniverseLink = () => Model?.UniverseLink is { Qid.Length: > 0 } link ? new EditorUniverseLink(link.Qid, link.Name) : null,
         };
         Orchestrator.OnLibraryItemsRemoved += OnLibraryItemsRemoved;
         Editor.Changed += OnEditorChanged;

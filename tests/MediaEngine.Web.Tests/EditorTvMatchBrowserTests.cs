@@ -177,6 +177,83 @@ public sealed class EditorTvMatchBrowserTests : AsyncBunitContext
     }
 
     [Fact]
+    public void AnEpisode_IsMatchedInTwoClicksAndTheThirdIsSave_WithABeforeAndAfter()
+    {
+        var cut = RenderPanel(Episode());
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[aria-label='Episode'] .tl-tvm__row").Count));
+
+        // Click 1: pick the episode. The before-and-after appears at once.
+        cut.Find("button[aria-label='Select Second']").Click();
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("#tl-match-review [data-testid=match-before-after]")));
+        var line = cut.Find("#tl-match-review [data-testid=match-before-after]");
+        Assert.Contains("S01E02", line.QuerySelector("[aria-label='Will become']")!.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Second", line.QuerySelector("[aria-label='Will become']")!.TextContent, StringComparison.Ordinal);
+        Assert.Contains("2015-03-08", line.QuerySelector("[aria-label='Will become']")!.TextContent, StringComparison.Ordinal);
+
+        // Click 2: use it. Click 3 is Save changes in the window's footer, which writes what is now staged.
+        cut.FindAll("button").First(button => button.TextContent.Trim() == "Use this match").Click();
+        Assert.Single(_session.Pending.Changes, c => c.Kind == EditSessionChangeKinds.Identity);
+    }
+
+    [Fact]
+    public void APastedTheTvdbLink_OpensThatShowDirectly()
+    {
+        var cut = RenderPanel(Episode());
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[aria-label='Show'] .tl-tvm__row").Count));
+
+        cut.Find("input[aria-label='TheTVDB link or ID']").Input("https://thetvdb.com/series/200");
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Open show").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("seasons:200", _calls));
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("button[aria-label='Open Season 1']")));
+    }
+
+    [Fact]
+    public void ALinkThatIsNotTheTvdbs_SaysSoInsteadOfSearching()
+    {
+        var cut = RenderPanel(Episode());
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[aria-label='Show'] .tl-tvm__row").Count));
+
+        cut.Find("input[aria-label='TheTVDB link or ID']").Input("https://www.imdb.com/title/tt3230854/");
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Open show").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains("Only TheTVDB", cut.Markup, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void TheEpisodeFilter_NarrowsByTitleWordsNumberOrAirDate()
+    {
+        var cut = RenderPanel(Episode());
+        cut.WaitForAssertion(() => Assert.Equal(2, cut.FindAll("[aria-label='Episode'] .tl-tvm__row").Count));
+
+        cut.Find("input[aria-label='Find an episode']").Input("sec");
+        Assert.Single(cut.FindAll("[aria-label='Episode'] .tl-tvm__row"));
+        cut.Find("input[aria-label='Find an episode']").Input("2015-03-01");
+        Assert.Single(cut.FindAll("[aria-label='Episode'] .tl-tvm__row"));
+        Assert.Contains("Opening", cut.Find("[aria-label='Episode']").TextContent, StringComparison.Ordinal);
+        cut.Find("input[aria-label='Find an episode']").Input("zzz");
+        Assert.Empty(cut.FindAll("[aria-label='Episode'] .tl-tvm__row"));
+        Assert.Contains("Nothing matches that.", cut.Find("[aria-label='Episode']").TextContent, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TypingTheNumbersByHand_StagesSeasonAndEpisodeAsTheItemsOwnDetails()
+    {
+        var cut = RenderPanel(Episode());
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-testid=match-manual-numbers]")));
+
+        cut.Find("input[aria-label='Season number']").Input("2");
+        cut.Find("input[aria-label='Episode number']").Input("7");
+        cut.FindAll("button").Single(button => button.TextContent.Trim() == "Use these numbers").Click();
+
+        Assert.True(_session.Pending.TryGetField(EpisodeId, MetadataFieldConstants.SeasonNumber, out var season));
+        Assert.True(_session.Pending.TryGetField(EpisodeId, MetadataFieldConstants.EpisodeNumber, out var episode));
+        Assert.Equal("2", season);
+        Assert.Equal("7", episode);
+        Assert.DoesNotContain(_session.Pending.Changes, c => c.Kind == EditSessionChangeKinds.Identity);
+    }
+
+    [Fact]
     public void OnlyShowAndEpisodePages_UseTheBrowser()
     {
         Assert.True(EditorTvMatchCandidates.UsesBrowser("TV", "series"));

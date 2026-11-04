@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Details
 @using System.Net.Http
+@using MediaEngine.Domain.Services
 @using MediaEngine.Contracts.Editing
 @using MediaEngine.Contracts.Metadata
 @using MediaEngine.Web.Services.Editing
@@ -26,6 +27,15 @@
         {
             <AppButton Label="@L["EditorTvMatchBrowser_SearchAllShows"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
                        aria-label="@L["EditorTvMatchBrowser_SearchAllShows"].Value" OnClick="SearchAllShows" />
+        }
+        <div class="tl-tvm__search" data-testid="match-by-reference">
+            <AppTextField Label="@RefLabel" HideLabel="true" Value="@_reference" ValueChanged="@(value => _reference = value ?? string.Empty)"
+                          Placeholder="@RefLabel" Immediate="true" OnKeyDown="OnReferenceKey" aria-label="@RefLabel" />
+            <AppButton Label="@OpenShowLabel" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Disabled="@_showsLoading" OnClick="OpenByReferenceAsync" />
+        </div>
+        @if (_referenceProblem is not null)
+        {
+            <AppAlert Severity="AppSeverity.Warning" Dense="true">@_referenceProblem</AppAlert>
         }
         @if (_showsLoading)
         {
@@ -124,8 +134,10 @@
             }
             else
             {
+                <AppTextField Label="@FindLabel" HideLabel="true" Value="@_filter" ValueChanged="@(value => _filter = value ?? string.Empty)"
+                              Placeholder="@FindHint" Immediate="true" aria-label="@FindLabel" />
                 <div class="tl-tvm__list" role="list">
-                    @foreach (var episode in _episodes)
+                    @foreach (var episode in VisibleEpisodes)
                     {
                         <div class="tl-tvm__row" role="listitem" data-slot="@EditorTvMatchCandidates.SlotLabel(episode.SeasonNumber, episode.EpisodeNumber)">
                             <span class="tl-tvm__slot">@EditorTvMatchCandidates.SlotLabel(episode.SeasonNumber, episode.EpisodeNumber)</span>
@@ -137,8 +149,24 @@
                                        aria-label="@($"Select {episode.Title}")" Disabled="@(!CanEdit || episode.IsCurrent)" OnClick="@(() => OnEpisodeChosen.InvokeAsync(episode))" />
                         </div>
                     }
+                    @if (_filter.Trim().Length > 0 && !VisibleEpisodes.Any())
+                    {
+                        <p class="tl-tvm__hint">@NothingText</p>
+                    }
                 </div>
             }
+        </section>
+    }
+    @if (NeedsEpisode)
+    {
+        <section class="tl-tvm__manual" aria-label="@ManualHeading" data-testid="match-manual-numbers">
+            <h3 class="tl-tvm__heading">@ManualHeading</h3>
+            <p class="tl-tvm__hint">@ManualHint</p>
+            <div class="tl-tvm__search">
+                <AppTextField Label="@SeasonLabel" Value="@_manualSeason" ValueChanged="@(value => _manualSeason = value ?? string.Empty)" Immediate="true" aria-label="@SeasonLabel" />
+                <AppTextField Label="@EpisodeLabel" Value="@_manualEpisode" ValueChanged="@(value => _manualEpisode = value ?? string.Empty)" Immediate="true" aria-label="@EpisodeLabel" />
+                <AppButton Label="@UseNumbersLabel" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Disabled="@(!CanEdit || !ManualValid)" OnClick="UseManualNumbersAsync" />
+            </div>
         </section>
     }
 </div>
@@ -148,6 +176,11 @@
     private Guid _startedFor;
     private string _query = string.Empty;
     private bool _searchedByHand;
+    private string _reference = string.Empty;
+    private string? _referenceProblem;
+    private string _filter = string.Empty;
+    private string _manualSeason = string.Empty;
+    private string _manualEpisode = string.Empty;
     private bool _showsLoading;
     private string? _showsProblem;
     private IReadOnlyList<TvMatchBrowserShowDto> _shows = [];
@@ -177,6 +210,91 @@
 
     /// <summary>Raised when an episode is chosen (an episode page).</summary>
     [Parameter] public EventCallback<TvMatchBrowserEpisodeDto> OnEpisodeChosen { get; set; }
+
+    /// <summary>Raised with the season and episode numbers typed by hand when the provider has nothing for the file.</summary>
+    [Parameter] public EventCallback<(int Season, int Episode)> OnManualPlacement { get; set; }
+
+    // Words for the v4 search options; kept here with the code that uses them.
+    private const string RefLabel = "TheTVDB link or ID";
+    private const string OpenShowLabel = "Open show";
+    private const string FindLabel = "Find an episode";
+    private const string FindHint = "Title words, number (3 or S02E03) or air date";
+    private const string NothingText = "Nothing matches that.";
+    private const string ManualHeading = "Provider has nothing?";
+    private const string ManualHint = "Type the season and episode numbers yourself. They are saved as this item's own details.";
+    private const string SeasonLabel = "Season number";
+    private const string EpisodeLabel = "Episode number";
+    private const string UseNumbersLabel = "Use these numbers";
+
+    private IEnumerable<TvMatchBrowserEpisodeDto> VisibleEpisodes =>
+        _episodes.Where(episode => EditorMatchFacts.EpisodeMatchesFilter(episode.SeasonNumber, episode.EpisodeNumber, episode.Title, episode.Aired, _filter));
+
+    private bool ManualValid =>
+        int.TryParse(_manualSeason, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var season) && season is >= 0 and <= 999
+        && int.TryParse(_manualEpisode, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var episode) && episode is >= 1 and <= 9999;
+
+    private Task UseManualNumbersAsync() => OnManualPlacement.InvokeAsync((
+        int.Parse(_manualSeason, System.Globalization.CultureInfo.InvariantCulture),
+        int.Parse(_manualEpisode, System.Globalization.CultureInfo.InvariantCulture)));
+
+    private Task OnReferenceKey(KeyboardEventArgs args) => args.Key == "Enter" ? OpenByReferenceAsync() : Task.CompletedTask;
+
+    // A pasted TheTVDB link or ID opens that show directly: its seasons answer for any show, so the name comes from there.
+    private async Task OpenByReferenceAsync()
+    {
+        if (Subject is null)
+        {
+            return;
+        }
+
+        _referenceProblem = null;
+        var reference = EditorMatchFacts.ParseProviderReference(_reference);
+        if (reference is null)
+        {
+            _referenceProblem = "That is not a TheTVDB link or ID. Paste the show page link from TheTVDB, or its number.";
+            return;
+        }
+
+        if (reference.Provider != "tvdb")
+        {
+            _referenceProblem = "Only TheTVDB links and IDs can open a show here.";
+            return;
+        }
+
+        var ct = NewToken();
+        TvMatchBrowserSeasonsDto? seasons = null;
+        try
+        {
+            seasons = await Api.GetTvMatchBrowserSeasonsAsync(Subject.EntityId, reference.Id, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+        catch (HttpRequestException ex)
+        {
+            Logger.LogWarning(ex, "The TV match browser could not open show {SeriesId} for {EntityId}", reference.Id, Subject.EntityId);
+        }
+
+        if (seasons is null)
+        {
+            _referenceProblem = "TheTVDB did not answer for that show. Check the link or ID, or try again.";
+            return;
+        }
+
+        var show = new TvMatchBrowserShowDto(reference.Id, seasons.ShowName, null, null, null, OutsideLinks.TvdbSeries(reference.Id) ?? string.Empty, false);
+        _shows = [show, .. _shows.Where(existing => existing.SeriesId != show.SeriesId)];
+        _showsProblem = null;
+        _searchedByHand = true;
+        if (NeedsEpisode)
+        {
+            await OpenShowAsync(show);
+        }
+        else
+        {
+            _show = show;
+        }
+    }
 
     private bool NeedsEpisode => Subject is not null && EditorTvMatchCandidates.NeedsEpisode(Subject.ScopeId);
 
@@ -398,6 +516,7 @@
 
         var ct = NewToken();
         _season = season;
+        _filter = string.Empty;
         _episodes = [];
         _episodesProblem = null;
         _episodesLoading = true;
