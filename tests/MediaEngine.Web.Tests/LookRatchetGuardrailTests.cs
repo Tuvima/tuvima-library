@@ -13,6 +13,9 @@ public sealed class LookRatchetGuardrailTests
     private const int RoundTokenCeiling = 47;
     private const int NativeControlCeiling = 501;
     private const int AdHocFontSizeCeiling = 150;
+    private const int HandTypedHexCeiling = 902;
+    private const int ForcedOverrideCeiling = 1501;
+    private const int HandTypedLayerCeiling = 307;
 
     private static IEnumerable<(string Relative, string Text)> WebFiles(params string[] extensions)
     {
@@ -50,6 +53,29 @@ public sealed class LookRatchetGuardrailTests
         var box = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web", "Components", "Shared", "AppMessageBox.razor"));
         Assert.DoesNotContain("Regex", box);
         Assert.Contains("Destructive", box);
+    }
+
+    [Fact]
+    public void HandTypedHexColorsOnlyGoDown()
+    {
+        var count = WebFiles(".css", ".razor")
+            .Where(f => f.Relative != "wwwroot/tuvima.tokens.css")
+            .Sum(f => Regex.Matches(f.Text, @"#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})(?![0-9a-zA-Z_-])").Count);
+        Assert.True(count <= HandTypedHexCeiling, $"Hand-typed hex colors rose to {count} (ceiling {HandTypedHexCeiling}). Colors live in tuvima.tokens.css; ask for a token or an icon tone.");
+    }
+
+    [Fact]
+    public void ForcedOverridesOnlyGoDown()
+    {
+        var count = WebFiles(".css", ".razor").Sum(f => Regex.Matches(f.Text, "!important").Count);
+        Assert.True(count <= ForcedOverrideCeiling, $"Forced overrides rose to {count} (ceiling {ForcedOverrideCeiling}). Fix the rule order instead of forcing.");
+    }
+
+    [Fact]
+    public void HandTypedLayersOnlyGoDown()
+    {
+        var count = WebFiles(".css", ".razor").Sum(f => Regex.Matches(f.Text, @"z-index:\s*[0-9]+").Count);
+        Assert.True(count <= HandTypedLayerCeiling, $"Hand-typed layers rose to {count} (ceiling {HandTypedLayerCeiling}). Use the layer tokens (menu, popover, dialog, toast, player).");
     }
 
     [Fact]
