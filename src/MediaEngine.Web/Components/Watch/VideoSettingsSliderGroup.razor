@@ -1,0 +1,21 @@
+@namespace MediaEngine.Web.Components.Watch
+@using MediaEngine.Web.Components.Shared
+
+@* An opacity slider with fixed stops on the subtitle style menu (unified player D12). It moves between the stops (every 20 percent)
+   and the marks under it say the percent, so nothing depends on hover or fine pointer control. *@
+<div class="video-settings-menu__group video-settings-menu__group--slider" role="group" aria-label="@Title">
+    <h4>@Title</h4>
+    <AppSlider Class="video-settings-menu__slider" Label="@Title" Min="@Stops.Min()" Max="@Stops.Max()" Step="20"
+               Value="@Value" ValueChanged="@(value => ValueSelected.InvokeAsync(value))" Immediate="false"
+               MarkValues="@Stops" MarkFormatter="@(mark => $"{mark}%")" />
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public IReadOnlyList<int> Stops { get; set; } = [];
+
+    /// <summary>The current percent.</summary>
+    [Parameter] public int Value { get; set; }
+
+    [Parameter] public EventCallback<int> ValueSelected { get; set; }
+}

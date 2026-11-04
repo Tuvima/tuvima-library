@@ -285,6 +285,46 @@ public sealed class UserPlaybackSettingsServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task TheSubtitleColoursAndOpacities_DefaultToTheOldLook_AndAreSavedPerProfile()
+    {
+        var settings = await _service.GetAsync(_profileId);
+        Assert.Equal(100, settings.Subtitles.SubtitleTextOpacity);
+        Assert.Equal("Black", settings.Subtitles.SubtitleBackgroundColor);
+        Assert.Equal(60, settings.Subtitles.SubtitleBackgroundOpacity);
+
+        settings.Subtitles.SubtitleColor = "Magenta";
+        settings.Subtitles.SubtitleTextOpacity = 40;
+        settings.Subtitles.SubtitleBackgroundColor = "Blue";
+        settings.Subtitles.SubtitleBackgroundOpacity = 80;
+        await _service.UpdateAsync(_profileId, settings);
+
+        var saved = await _service.GetAsync(_profileId);
+        Assert.Equal("Magenta", saved.Subtitles.SubtitleColor);
+        Assert.Equal(40, saved.Subtitles.SubtitleTextOpacity);
+        Assert.Equal("Blue", saved.Subtitles.SubtitleBackgroundColor);
+        Assert.Equal(80, saved.Subtitles.SubtitleBackgroundOpacity);
+        Assert.Equal(100, (await _service.GetAsync(_otherProfileId)).Subtitles.SubtitleTextOpacity);
+    }
+
+    [Fact]
+    public async Task TheSubtitleOpacities_AreKeptInRange_TheOldCyanBecomesTeal_AndAnUnknownBackgroundColourIsRejected()
+    {
+        var settings = await _service.GetAsync(_profileId);
+        settings.Subtitles.SubtitleColor = "Cyan";
+        settings.Subtitles.SubtitleTextOpacity = 0; // Fully see-through text would hide the subtitles; the lowest is 20.
+        settings.Subtitles.SubtitleBackgroundOpacity = 500;
+        await _service.UpdateAsync(_profileId, settings);
+
+        var saved = await _service.GetAsync(_profileId);
+        Assert.Equal("Teal", saved.Subtitles.SubtitleColor);
+        Assert.Equal(20, saved.Subtitles.SubtitleTextOpacity);
+        Assert.Equal(100, saved.Subtitles.SubtitleBackgroundOpacity);
+
+        saved.Subtitles.SubtitleBackgroundColor = "Plaid";
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.UpdateAsync(_profileId, saved));
+    }
+
+    [Fact]
     public async Task UpdateAsync_PreservesExactValidSpeedAndRejectsInvalidThresholdAndEnumValues()
     {
         var settings = await _service.GetAsync(_profileId);

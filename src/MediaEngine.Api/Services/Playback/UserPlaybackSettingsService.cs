@@ -98,11 +98,7 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         PlaybackPreferenceValues.FontDefault,
         PlaybackPreferenceValues.FontSerif,
         PlaybackPreferenceValues.FontMono);
-    private static readonly HashSet<string> SubtitleColorValues = BuildSet(
-        PlaybackPreferenceValues.ColorWhite,
-        PlaybackPreferenceValues.ColorYellow,
-        PlaybackPreferenceValues.ColorCyan,
-        PlaybackPreferenceValues.ColorGreen);
+    private static readonly HashSet<string> SubtitleColorValues = BuildSet([.. PlaybackPreferenceValues.SubtitleColors]);
     private static readonly HashSet<string> BookmarkFilterValues = BuildSet(
         PlaybackPreferenceValues.All,
         PlaybackPreferenceValues.Mine,
@@ -270,6 +266,18 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         }
     }
 
+    /// <summary>Cyan (the old fourth colour) is now Teal; a blank value falls back to the default so older saved profiles keep loading.</summary>
+    private static string NormalizeSubtitleColor(string? value, string fallback = PlaybackPreferenceValues.ColorWhite)
+    {
+        var token = NormalizeToken(value);
+        if (token.Length == 0)
+        {
+            return fallback;
+        }
+
+        return string.Equals(token, "Cyan", StringComparison.OrdinalIgnoreCase) ? PlaybackPreferenceValues.ColorTeal : token;
+    }
+
     private static UserPlaybackSettingsDto Normalize(UserPlaybackSettingsDto settings, Guid profileId)
     {
         settings.ProfileId = profileId;
@@ -329,7 +337,10 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         settings.Subtitles.SubtitlePosition = NormalizeToken(settings.Subtitles.SubtitlePosition);
         settings.Subtitles.SubtitleStyle = NormalizeToken(settings.Subtitles.SubtitleStyle);
         settings.Subtitles.SubtitleFont = NormalizeToken(settings.Subtitles.SubtitleFont);
-        settings.Subtitles.SubtitleColor = NormalizeToken(settings.Subtitles.SubtitleColor);
+        settings.Subtitles.SubtitleColor = NormalizeSubtitleColor(settings.Subtitles.SubtitleColor);
+        settings.Subtitles.SubtitleBackgroundColor = NormalizeSubtitleColor(settings.Subtitles.SubtitleBackgroundColor, PlaybackPreferenceValues.ColorBlack);
+        settings.Subtitles.SubtitleTextOpacity = Math.Clamp(settings.Subtitles.SubtitleTextOpacity, PlaybackPreferenceValues.MinTextOpacity, 100);
+        settings.Subtitles.SubtitleBackgroundOpacity = Math.Clamp(settings.Subtitles.SubtitleBackgroundOpacity, 0, 100);
         settings.General.BookmarkFilter = NormalizeToken(settings.General.BookmarkFilter);
         settings.Subtitles.DefaultSubtitleLanguage = NormalizeLanguage(settings.Subtitles.DefaultSubtitleLanguage);
         settings.Subtitles.AudioLanguage = NormalizeLanguage(settings.Subtitles.AudioLanguage);
@@ -388,6 +399,7 @@ public sealed class UserPlaybackSettingsService : IUserPlaybackSettingsService
         RequireAllowed(settings.Subtitles.SubtitleStyle, SubtitleStyleValues, nameof(settings.Subtitles.SubtitleStyle));
         RequireAllowed(settings.Subtitles.SubtitleFont, SubtitleFontValues, nameof(settings.Subtitles.SubtitleFont));
         RequireAllowed(settings.Subtitles.SubtitleColor, SubtitleColorValues, nameof(settings.Subtitles.SubtitleColor));
+        RequireAllowed(settings.Subtitles.SubtitleBackgroundColor, SubtitleColorValues, nameof(settings.Subtitles.SubtitleBackgroundColor));
         RequireAllowed(settings.General.BookmarkFilter, BookmarkFilterValues, nameof(settings.General.BookmarkFilter));
 
         if (settings.Listening.MusicCrossfade)

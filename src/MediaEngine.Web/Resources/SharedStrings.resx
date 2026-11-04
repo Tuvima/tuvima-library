@@ -9934,10 +9934,7 @@
     <value>Shadow</value>
   </data>
   <data name="PlayerSettings_Colour" xml:space="preserve">
-    <value>Colour</value>
-  </data>
-  <data name="PlayerSettings_Background" xml:space="preserve">
-    <value>Background</value>
+    <value>Text colour</value>
   </data>
   <data name="PlayerSettings_Small" xml:space="preserve">
     <value>Small</value>
@@ -9966,8 +9963,29 @@
   <data name="PlayerSettings_Yellow" xml:space="preserve">
     <value>Yellow</value>
   </data>
-  <data name="PlayerSettings_Cyan" xml:space="preserve">
-    <value>Cyan</value>
+  <data name="PlayerSettings_Black" xml:space="preserve">
+    <value>Black</value>
+  </data>
+  <data name="PlayerSettings_Blue" xml:space="preserve">
+    <value>Blue</value>
+  </data>
+  <data name="PlayerSettings_Teal" xml:space="preserve">
+    <value>Teal</value>
+  </data>
+  <data name="PlayerSettings_Red" xml:space="preserve">
+    <value>Red</value>
+  </data>
+  <data name="PlayerSettings_Magenta" xml:space="preserve">
+    <value>Magenta</value>
+  </data>
+  <data name="PlayerSettings_TextOpacity" xml:space="preserve">
+    <value>Text opacity</value>
+  </data>
+  <data name="PlayerSettings_BackgroundColour" xml:space="preserve">
+    <value>Background colour</value>
+  </data>
+  <data name="PlayerSettings_BackgroundOpacity" xml:space="preserve">
+    <value>Background opacity</value>
   </data>
   <data name="PlayerSettings_Green" xml:space="preserve">
     <value>Green</value>
