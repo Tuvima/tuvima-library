@@ -10,6 +10,17 @@ namespace MediaEngine.Web.Services.Editing;
 /// </summary>
 public sealed record BulkEditRow(Guid Id, string Title, DetailEntityType Kind, Guid? ParentId = null, string? MediaType = null);
 
+/// <summary>What a set of ticked rows is, for the several-items rules (spec 3c): one kind, or Mixed.</summary>
+public enum BulkItemKind
+{
+    None,
+    Song,
+    Episode,
+    Video,
+    Book,
+    Mixed,
+}
+
 /// <summary>What the right-hand panel shows for the ticked rows (universal editor spec D14).</summary>
 public enum BulkPanelKind
 {

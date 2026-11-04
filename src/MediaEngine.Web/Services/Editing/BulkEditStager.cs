@@ -26,11 +26,18 @@ public static class BulkEditStager
     /// unchanged" (nothing is staged); on a field every item agrees on, an empty box sends the items back to the provider's value, as the
     /// single Details tool does.
     /// </summary>
-    public static BulkStageResult StageScalar(PendingEditList pending, BulkFieldView field, string? typed)
+    public static BulkStageResult StageScalar(PendingEditList pending, BulkFieldView field, string? typed, string? noun = null)
     {
         ArgumentNullException.ThrowIfNull(pending);
         ArgumentNullException.ThrowIfNull(field);
         var value = (typed ?? string.Empty).Trim();
+        if (BulkEditRules.IsIdentifying(field.Key))
+        {
+            // A field that names one item is never set for several: giving them one value would make them collide.
+            var count = field.Eligible.Count();
+            return new BulkStageResult(0, field.Items.Count, BulkEditRules.CollisionReason(field.Key, count, noun ?? "items", value) ?? $"{field.Label} belongs to one item and can't be set for several.");
+        }
+
         var staged = 0;
         foreach (var item in field.Eligible)
         {
