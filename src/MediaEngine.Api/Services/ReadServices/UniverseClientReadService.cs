@@ -31,7 +31,8 @@ public sealed partial class UniverseClientReadService(
     ISeriesManifestRepository? manifests = null,
     UniverseLinkCache? linkCache = null,
     ICanonicalValueArrayRepository? arrays = null,
-    CollectionDisplayOverrideRepository? displayOverrides = null)
+    CollectionDisplayOverrideRepository? displayOverrides = null,
+    INarrativeRootRepository? roots = null)
 {
     /// <summary>Cards listed on each member shelf; <c>item_count</c> still reports the whole shelf.</summary>
     public const int MaxShelfItems = 24;
@@ -208,7 +209,7 @@ public sealed partial class UniverseClientReadService(
     /// count toward the formats (they are in the Universe even though they are in no Series). Null when nothing in the
     /// Universe is visible to the profile.
     /// </summary>
-    public async Task<(int SeriesCount, int FormatCount, string Name)?> GetMembershipSummaryAsync(
+    public async Task<(int SeriesCount, int FormatCount, string Name, int WorkCount)?> GetMembershipSummaryAsync(
         string qid,
         Profile? profile,
         CancellationToken ct = default)
@@ -240,12 +241,18 @@ public sealed partial class UniverseClientReadService(
             .Distinct(StringComparer.Ordinal)
             .Count();
         var name = string.IsNullOrWhiteSpace(universe.DisplayName) ? normalized : universe.DisplayName!;
-        return (rowsByCollection.Count, formats, name);
+        var workCount = rowsByCollection
+            .SelectMany(group => group)
+            .Concat(standaloneRows)
+            .Select(row => row.WorkId)
+            .Distinct()
+            .Count();
+        return (rowsByCollection.Count, formats, name, workCount);
     }
 
     /// <summary>
-    /// The "Part of the {name} Universe" link for an item page: present only when the profile can see this Universe
-    /// and the Library holds two or more Series, or two or more formats, in it. Otherwise null.
+    /// The Universe link for an item page (the Universe icon): present whenever the profile can open this Universe, which
+    /// includes a Universe the Library holds a single Series of. Otherwise null (never a dead link).
     /// </summary>
     public async Task<UniverseLinkViewModel?> GetUniverseLinkAsync(
         string qid,
@@ -267,17 +274,20 @@ public sealed partial class UniverseClientReadService(
 
     private async Task<UniverseLinkViewModel?> LoadLinkAsync(string normalizedQid, Profile? profile, CancellationToken ct)
     {
-        if (await GetMembershipSummaryAsync(normalizedQid, profile, ct).ConfigureAwait(false) is not { } summary
-            || !ShowsPartOfLine(summary.SeriesCount, summary.FormatCount))
+        // Any Universe the profile can open gets the link, including one with a single Series (the page opens for it too).
+        if (await GetMembershipSummaryAsync(normalizedQid, profile, ct).ConfigureAwait(false) is not { } summary)
         {
             return null;
         }
 
-        return new UniverseLinkViewModel { Qid = normalizedQid, Name = summary.Name };
+        return new UniverseLinkViewModel
+        {
+            Qid = normalizedQid,
+            Name = summary.Name,
+            SeriesCount = summary.SeriesCount,
+            WorkCount = summary.WorkCount,
+        };
     }
-
-    /// <summary>The one rule for the "Part of" line: two or more Series, or two or more formats, in the Universe.</summary>
-    public static bool ShowsPartOfLine(int seriesCount, int formatCount) => seriesCount >= 2 || formatCount >= 2;
 
     /// <summary>The Universe the profile may open and the member Series below it, or null when there is none.</summary>
     private async Task<(Collection Universe, IReadOnlyList<Collection> Members)?> ResolveVisibleUniverseAsync(
@@ -291,14 +301,14 @@ public sealed partial class UniverseClientReadService(
             return null;
         }
 
-        var universe = await FindOpenUniverseAsync(normalizedQid, profile, ct).ConfigureAwait(false);
-        if (universe is null)
+        var open = await FindOpenUniverseAsync(normalizedQid, profile, ct).ConfigureAwait(false);
+        if (open is null)
         {
             return null;
         }
 
-        var members = await LoadMemberCollectionsAsync(universe, profile, ct).ConfigureAwait(false);
-        return members.Count == 0 && !allowNoMembers ? null : (universe, members);
+        var members = open.OneSeriesMembers ?? await LoadMemberCollectionsAsync(open.Universe, profile, ct).ConfigureAwait(false);
+        return members.Count == 0 && !allowNoMembers ? null : (open.Universe, members);
     }
 
     /// <summary>
@@ -313,15 +323,15 @@ public sealed partial class UniverseClientReadService(
         CancellationToken ct = default)
     {
         var normalized = NormalizeQid(qid);
-        var universe = normalized is null
+        var open = normalized is null
             ? null
             : await FindOpenUniverseAsync(normalized, profile, ct).ConfigureAwait(false);
-        if (universe is null)
+        if (open is null)
         {
             return [];
         }
 
-        var memberIds = (await LoadMemberCollectionsAsync(universe, profile, ct).ConfigureAwait(false))
+        var memberIds = (open.OneSeriesMembers ?? await LoadMemberCollectionsAsync(open.Universe, profile, ct).ConfigureAwait(false))
             .Select(member => member.Id)
             .ToHashSet();
         return visibleRows
@@ -329,16 +339,66 @@ public sealed partial class UniverseClientReadService(
             .ToList();
     }
 
-    private async Task<Collection?> FindOpenUniverseAsync(string normalizedQid, Profile? profile, CancellationToken ct)
+    /// <summary>A Universe the profile may open. <see cref="OneSeriesMembers"/> is set only for a Universe with no stored shelf.</summary>
+    private sealed record OpenUniverse(Collection Universe, IReadOnlyList<Collection>? OneSeriesMembers);
+
+    private async Task<OpenUniverse?> FindOpenUniverseAsync(string normalizedQid, Profile? profile, CancellationToken ct)
     {
         var universe = await collections.FindUniverseByQidAsync(normalizedQid, ct).ConfigureAwait(false);
-        return universe is null
-            || universe.CollectionType != CollectionType.Universe
+        if (universe is null)
+        {
+            return await FindOneSeriesUniverseAsync(normalizedQid, profile, ct).ConfigureAwait(false);
+        }
+
+        return universe.CollectionType != CollectionType.Universe
             || universe.ParentCollectionId is not null
             || !universe.IsEnabled
             || !CollectionAccessPolicy.CanAccess(universe, profile)
                 ? null
-                : universe;
+                : new OpenUniverse(universe, null);
+    }
+
+    /// <summary>
+    /// A Universe the Library holds a single Series of has no stored Universe shelf (Collections lists a Universe only
+    /// with two or more Series), but its page still opens. The page is built on the spot from the Series shelf that names
+    /// the Universe and the Universe's own record (name); nothing is written, so Collections is unchanged.
+    /// </summary>
+    private async Task<OpenUniverse?> FindOneSeriesUniverseAsync(string normalizedQid, Profile? profile, CancellationToken ct)
+    {
+        var shelves = await collections.ListSeriesShelvesByUniverseQidAsync(normalizedQid, ct).ConfigureAwait(false);
+        var visible = shelves
+            .Where(shelf => shelf.IsEnabled && CollectionAccessPolicy.CanAccess(shelf, profile))
+            .ToList();
+        if (visible.Count == 0
+            || !UniverseIdentityRule.CanOpenUniversePage(
+                normalizedQid,
+                visible.Select(shelf => new UniverseSeriesShelf(shelf.WikidataQid, shelf.MediaType)).ToList()))
+        {
+            return null;
+        }
+
+        var record = roots is null ? null : await roots.FindByQidAsync(normalizedQid, ct).ConfigureAwait(false);
+        var name = !string.IsNullOrWhiteSpace(record?.Label)
+            ? record!.Label
+            : visible[0].DisplayName ?? normalizedQid;
+        var universe = new Collection
+        {
+            // Stable for one QID so repeated reads agree; the id belongs to no stored row.
+            Id = new Guid(System.Security.Cryptography.MD5.HashData(System.Text.Encoding.UTF8.GetBytes("universe:" + normalizedQid))),
+            DisplayName = name,
+            Description = record?.Description,
+            CreatedAt = visible.Min(shelf => shelf.CreatedAt),
+            WikidataQid = normalizedQid,
+            UniverseQid = normalizedQid,
+        };
+        universe.RestoreDefinition(
+            CollectionType.Universe,
+            CollectionScope.Library,
+            CollectionResolution.Materialized,
+            CollectionMatchMode.All,
+            CollectionSortDirection.Desc,
+            CollectionUniverseStatus.Unknown);
+        return new OpenUniverse(universe, visible);
     }
 
     private static string ItemsLabel(int count) => count == 1 ? "1 item" : $"{count} items";

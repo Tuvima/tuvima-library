@@ -60,7 +60,16 @@
         else if (_activeSection == CollectionsSectionConfiguration.Overview)
         {
             <div class="collections-overview">
-                @if (AutomaticTiles.Count > 0)
+                @if (UniverseTiles.Count > 0)
+                {
+                    @* Universes sit in their own row at the top, so a whole world is in front of you without touching a filter. *@
+                    <MediaTileShelf Shelf="@OverviewUniversesShelf"
+                                    HoverMode="MediaTileHoverMode.GlowOnly"
+                                    HideMediaKindBadges="true"
+                                    HideSourceBadges="true" />
+                }
+
+                @if (OverviewAutomaticTiles.Count > 0)
                 {
                     <MediaTileShelf Shelf="@OverviewAutomaticShelf"
                                     HoverMode="MediaTileHoverMode.GlowOnly"
@@ -116,7 +125,7 @@
                     </section>
                 }
 
-                @if (AutomaticTiles.Count == 0 && CuratedTiles.Count == 0 && ShelfTiles.Count == 0 && VisiblePeopleRoles.Count == 0)
+                @if (UniverseTiles.Count == 0 && OverviewAutomaticTiles.Count == 0 && CuratedTiles.Count == 0 && ShelfTiles.Count == 0 && VisiblePeopleRoles.Count == 0)
                 {
                     <AppPageState Kind="AppPageStateKind.Empty"
                                   Title="@L["CollectionsPage_NothingHasBeenGroupedYet"].Value"
@@ -436,8 +445,25 @@
             .ToList();
     }
 
-    private IReadOnlyList<MediaTileViewModel> AutomaticTiles =>
-        AutomaticCollections.Select(CollectionSurfaceTileComposer.FromCollection).ToList();
+    private static bool IsUniverse(CollectionManagementCatalogViewModel collection) =>
+        string.Equals(collection.CollectionType, "Universe", StringComparison.OrdinalIgnoreCase);
+
+    // The Universe row of the default view; the Automatic section still lists them too (filter: Universes).
+    private IReadOnlyList<MediaTileViewModel> UniverseTiles =>
+        AutomaticCollections.Where(IsUniverse).Select(CollectionSurfaceTileComposer.FromCollection).ToList();
+
+    // The rest of the automatic rollups; Universes have their own row above so none is shown twice.
+    private IReadOnlyList<MediaTileViewModel> OverviewAutomaticTiles =>
+        AutomaticCollections.Where(collection => !IsUniverse(collection)).Select(CollectionSurfaceTileComposer.FromCollection).ToList();
+
+    private MediaTileShelfViewModel OverviewUniversesShelf => new()
+    {
+        Key = "universes",
+        Title = L["Nav_Universes"].Value,
+        Subtitle = L["CollectionsPage_UniversesSubtitle"].Value,
+        Items = SortCollectionTiles(UniverseTiles).Take(12).ToList(),
+        SeeAllRoute = "/collections/automatic?kind=Universe",
+    };
 
     private IReadOnlyList<MediaTileViewModel> CuratedTiles =>
         CuratedCollections.Select(CollectionSurfaceTileComposer.FromCollection).ToList();
@@ -450,7 +476,7 @@
         Key = "automatic-collections",
         Title = L["CollectionsPage_AutomaticCollections"].Value,
         Subtitle = L["CollectionsPage_BroaderWorldsLibraryFoundBy"].Value,
-        Items = SortCollectionTiles(AutomaticTiles).Take(12).ToList(),
+        Items = SortCollectionTiles(OverviewAutomaticTiles).Take(12).ToList(),
         SeeAllRoute = "/collections/automatic",
     };
 

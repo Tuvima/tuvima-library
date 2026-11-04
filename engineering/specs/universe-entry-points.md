@@ -1,6 +1,6 @@
 # Spec: Universe entry points (make Universes easy to find)
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-11-04 · **Related docs:** [Universe spec](universe.md) (parent; its D1 "no Universe link on item pages beyond one quiet line" is changed by this draft, see Decisions) · [Universal editor v3](universal-editor-v3.md) · Local check items 57, 59, 60 (`engineering/validation/local-check-2026-11-03.md`)
+> **Status:** In progress · **Version:** 1 · **Last updated:** 2026-11-04 · **Related docs:** [Universe spec](universe.md) (parent; its D1 "no Universe link on item pages beyond one quiet line" is changed by this draft, see Decisions) · [Universal editor v3](universal-editor-v3.md) · Local check items 57, 59, 60 (`engineering/validation/local-check-2026-11-03.md`)
 
 ## 0. Why Shy has never seen a Universe (verified by reading the code; the real data lives on SHY-DESKTOP and was not looked at)
 

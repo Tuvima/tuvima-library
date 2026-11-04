@@ -1,0 +1,64 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Details
+@using MediaEngine.Web.Components.Universe
+@inject IStringLocalizer<SharedStrings> L
+
+@* The Universe icon (spec: universe-entry-points). A square icon button with an edge-on galaxy, top right of the hero. It is only
+   drawn when the Engine says the Universe can be opened, so it is never a dead link. On hover or focus the galaxy spins and the
+   stars twinkle (not with reduced motion, not on touch), and on a fine pointer a small card names the Universe. *@
+@if (Link is { } link && !string.IsNullOrWhiteSpace(link.Qid))
+{
+    <div class="tl-universe-icon">
+        <a class="tl-universe-icon__button"
+           href="@($"/universe/{Uri.EscapeDataString(link.Qid)}")"
+           aria-label="@L["UniverseIcon_Open", link.Name].Value"
+           aria-describedby="@CardId">
+            <svg class="tl-universe-icon__art" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+                <defs>
+                    <radialGradient id="@($"{CardId}-core")">
+                        <stop offset="0" stop-color="#fff" stop-opacity="0.95" />
+                        <stop offset="0.45" stop-color="currentColor" stop-opacity="0.7" />
+                        <stop offset="1" stop-color="currentColor" stop-opacity="0" />
+                    </radialGradient>
+                </defs>
+                <g transform="rotate(-18 32 32)">
+                    <ellipse class="tl-universe-icon__band tl-universe-icon__band--outer" cx="32" cy="32" rx="28" ry="7" />
+                    <ellipse class="tl-universe-icon__band tl-universe-icon__band--inner" cx="32" cy="32" rx="17" ry="4.2" />
+                    <ellipse cx="32" cy="32" rx="10" ry="6" fill="@($"url(#{CardId}-core)")" />
+                </g>
+                <path class="tl-universe-icon__star" d="M12 11l1.2 2.8L16 15l-2.8 1.2L12 19l-1.2-2.8L8 15l2.8-1.2z" />
+                <path class="tl-universe-icon__star tl-universe-icon__star--b" d="M51 8l.9 2.1L54 11l-2.1.9L51 14l-.9-2.1L48 11l2.1-.9z" />
+                <path class="tl-universe-icon__star tl-universe-icon__star--c" d="M54 47l1.1 2.4L57.5 50.5l-2.4 1.1L54 54l-1.1-2.4L50.5 50.5l2.4-1.1z" />
+                <path class="tl-universe-icon__star tl-universe-icon__star--d" d="M10 50l.8 1.8L12.6 52.6l-1.8.8L10 55.2l-.8-1.8L7.4 52.6l1.8-.8z" />
+            </svg>
+        </a>
+        <div class="tl-universe-icon__card" id="@CardId" role="tooltip">
+            <strong>@UniversePageText.UniverseName(link.Name)</strong>
+            @if (CountsLine is { } counts)
+            {
+                <span>@counts</span>
+            }
+            <span>@L["UniverseIcon_Offers"]</span>
+        </div>
+    </div>
+}
+
+@code {
+    /// <summary>The Universe the title belongs to, or null (nothing is drawn).</summary>
+    [Parameter] public UniverseLinkViewModel? Link { get; set; }
+
+    private string CardId => $"tl-universe-card-{UniversePageText.SafeId(Link?.Qid)}";
+
+    private string? CountsLine
+    {
+        get
+        {
+            if (Link is null || (Link.SeriesCount <= 0 && Link.WorkCount <= 0))
+            {
+                return null;
+            }
+
+            return UniversePageText.CardCounts(Link.SeriesCount, Link.WorkCount);
+        }
+    }
+}
