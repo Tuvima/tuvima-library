@@ -184,9 +184,33 @@ public sealed partial class ViewDocumentOrganisationEndpointTests
         Assert.Empty(await real.GetOwnedAsync(person.ProfileId));
     }
 
-    // A gallery store whose "add items" step fails after the gallery itself was made, so the Save has to be undone.
-    private sealed class FailsOnAdd(IViewGalleryRepository inner) : IViewGalleryRepository
+    [Fact]
+    public async Task AFailureAfterPhotosJoinedAnExistingGalleryTakesOnlyThoseNewPhotosBackOut()
     {
+        var person = await CreatePerson("StandardUser");
+        var one = await AddPhoto(person, 'a');
+        var two = await AddPhoto(person, 'b');
+        var space = (await _spaces.GetByOwnerAsync(person.ProfileId))!;
+        var real = new ViewGalleryRepository(_database);
+        var target = await real.CreateAsync(new CreateViewGalleryCommand(person.ProfileId, space.Id, "Target", ViewGalleryKind.Manual));
+        var other = await real.CreateAsync(new CreateViewGalleryCommand(person.ProfileId, space.Id, "Other", ViewGalleryKind.Manual));
+        await real.AddItemsAsync(target.Id, [one]);
+        var service = new ViewItemsEditService(_assets, new ViewCatalogueRepository(_database), new FailsOnAdd(real, failOnRemoveInstead: true), NullLogger<ViewItemsEditService>.Instance);
+        var context = new ViewItemsEditService.Context(new ViewCatalogueViewer(person.ProfileId, [person.LibraryId]), person.ProfileId, space.Id, [], _ => Task.FromResult<string?>(null), _ => Task.FromResult(true));
+
+        var result = await service.RunAsync(context,
+            new ViewItemsEditSetRequest([new ViewItemsEditRequest([one, two], GalleryAddIds: [target.Id], GalleryRemoveIds: [other.Id])]), [], CancellationToken.None);
+
+        Assert.False(result.Saved);
+        var left = await real.GetItemsAsync(target.Id);
+        Assert.Equal([one], left.Items.Select(item => item.ItemId).ToArray());
+    }
+
+    // A gallery store whose "add items" step fails after the gallery itself was made, so the Save has to be undone.
+    private sealed class FailsOnAdd(IViewGalleryRepository inner, bool failOnRemoveInstead = false) : IViewGalleryRepository
+    {
+        private bool _failedOnce;
+        private bool FirstFailureDone() { var done = _failedOnce; _failedOnce = true; return done; }
         public Task<ViewGallery?> GetAsync(Guid galleryId, bool includeDocuments = true, CancellationToken ct = default, IReadOnlyCollection<string>? blockedKinds = null) => inner.GetAsync(galleryId, includeDocuments, ct, blockedKinds);
         public Task<IReadOnlyList<ViewGallery>> GetOwnedAsync(Guid ownerProfileId, bool includeDocuments = true, CancellationToken ct = default, IReadOnlyCollection<string>? blockedKinds = null) => inner.GetOwnedAsync(ownerProfileId, includeDocuments, ct, blockedKinds);
         public Task<IReadOnlyList<ViewGallery>> GetSharedWithAsync(Guid profileId, bool includeDocuments = true, CancellationToken ct = default, IReadOnlyCollection<string>? blockedKinds = null) => inner.GetSharedWithAsync(profileId, includeDocuments, ct, blockedKinds);
@@ -194,8 +218,8 @@ public sealed partial class ViewDocumentOrganisationEndpointTests
         public Task<ViewGallery?> UpdateAsync(UpdateViewGalleryCommand command, CancellationToken ct = default) => inner.UpdateAsync(command, ct);
         public Task<bool> DeleteAsync(Guid galleryId, CancellationToken ct = default) => inner.DeleteAsync(galleryId, ct);
         public Task<ViewGalleryItemPage> GetItemsAsync(Guid galleryId, int? afterPosition = null, Guid? afterItemId = null, int limit = 100, bool includeDocuments = true, CancellationToken ct = default, IReadOnlyCollection<string>? blockedKinds = null) => inner.GetItemsAsync(galleryId, afterPosition, afterItemId, limit, includeDocuments, ct, blockedKinds);
-        public Task<AddViewGalleryItemsResult> AddItemsAsync(Guid galleryId, IReadOnlyCollection<Guid> itemIds, IReadOnlyCollection<string>? blockedKinds = null, CancellationToken ct = default) => throw new InvalidOperationException("The gallery store went away.");
-        public Task<int> RemoveItemsAsync(Guid galleryId, IReadOnlyCollection<Guid> itemIds, bool includeDocuments = true, CancellationToken ct = default) => inner.RemoveItemsAsync(galleryId, itemIds, includeDocuments, ct);
+        public Task<AddViewGalleryItemsResult> AddItemsAsync(Guid galleryId, IReadOnlyCollection<Guid> itemIds, IReadOnlyCollection<string>? blockedKinds = null, CancellationToken ct = default) => failOnRemoveInstead ? inner.AddItemsAsync(galleryId, itemIds, blockedKinds, ct) : throw new InvalidOperationException("The gallery store went away.");
+        public Task<int> RemoveItemsAsync(Guid galleryId, IReadOnlyCollection<Guid> itemIds, bool includeDocuments = true, CancellationToken ct = default) => failOnRemoveInstead && !FirstFailureDone() ? throw new InvalidOperationException("The gallery store went away.") : inner.RemoveItemsAsync(galleryId, itemIds, includeDocuments, ct);
         public Task<bool> SetItemPositionAsync(Guid galleryId, Guid itemId, int position, bool includeDocuments = true, CancellationToken ct = default) => inner.SetItemPositionAsync(galleryId, itemId, position, includeDocuments, ct);
         public Task ReplaceSharesAsync(Guid galleryId, IReadOnlyCollection<(Guid ProfileId, ViewGallerySharePermission Permission)> shares, CancellationToken ct = default) => inner.ReplaceSharesAsync(galleryId, shares, ct);
         public Task<IReadOnlyList<ViewGalleryShare>> GetSharesAsync(Guid galleryId, CancellationToken ct = default) => inner.GetSharesAsync(galleryId, ct);

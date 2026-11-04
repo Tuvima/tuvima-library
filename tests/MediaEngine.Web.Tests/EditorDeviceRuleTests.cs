@@ -1,14 +1,14 @@
-using MediaEngine.Web.Services.Integration;
-using Microsoft.Extensions.Logging.Abstractions;
 using System.Reflection;
 using MediaEngine.Contracts.Universe;
 using MediaEngine.Web.Components.Collections;
 using MediaEngine.Web.Components.MediaEditor;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Editing;
+using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Services.Ui;
 using MediaEngine.Web.Tests.Support;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Web.Tests;
 

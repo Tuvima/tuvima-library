@@ -403,13 +403,21 @@ public sealed class ViewEditSession : IReviewSource
         CreatedGalleryId = saved.Id;
         if (gallery.IsNew && gallery.StartingMembers.Count > 0)
         {
-            await _api.AddViewGalleryItemsAsync(saved.Id, [.. gallery.StartingMembers.Select(member => member.Id)]);
+            if (await _api.AddViewGalleryItemsAsync(saved.Id, [.. gallery.StartingMembers.Select(member => member.Id)]) is null)
+            {
+                Message = "The gallery was saved, but its photos could not be added. Your changes are still here.";
+                return false;
+            }
         }
 
         if (gallery.Removed.Count > 0 && gallery.Original is { } source)
         {
             // Taking photos out of a gallery keeps them in the library.
-            await _api.RemoveViewGalleryItemsAsync(source.Id, [.. gallery.Removed]);
+            if (await _api.RemoveViewGalleryItemsAsync(source.Id, [.. gallery.Removed]) is null)
+            {
+                Message = "The photos could not be taken out of the gallery. Your changes are still here.";
+                return false;
+            }
         }
 
         return true;

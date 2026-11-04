@@ -32,14 +32,40 @@ public static partial class ViewEndpoints
                 }
 
                 var requests = set.Edits ?? [];
-                var ids = requests.SelectMany(request => request.ItemIds ?? []).Distinct().ToList();
+                if (requests.Count > ViewItemsEditLimits.MaximumItems
+                    || requests.Sum(request => request?.ItemIds?.Count ?? 0) > ViewItemsEditLimits.MaximumItems)
+                {
+                    throw new ArgumentException($"One Save can change at most {ViewItemsEditLimits.MaximumItems} items.");
+                }
+
+                // Shared Library editors may change a shared document's own fields and tags, nothing else: every other change
+                // (description, people, date, place, galleries) belongs to the item's owner.
+                var ownerOnlyIds = new HashSet<Guid>();
+                var ids = new List<Guid>();
+                foreach (var request in requests.Where(request => request is not null))
+                {
+                    var ownerOnly = request.SetDescription || request.PeopleAdd is { Count: > 0 } || request.PeopleRemove is { Count: > 0 }
+                        || request.CapturedAt is not null || request.CapturedShiftSeconds is not null || request.CapturedReset
+                        || request.Location is not null || request.GalleryAddIds is { Count: > 0 } || request.GalleryRemoveIds is { Count: > 0 }
+                        || !string.IsNullOrWhiteSpace(request.CreateGalleryName);
+                    foreach (var id in request.ItemIds ?? [])
+                    {
+                        ids.Add(id);
+                        if (ownerOnly)
+                        {
+                            ownerOnlyIds.Add(id);
+                        }
+                    }
+                }
+
+                ids = ids.Distinct().ToList();
                 var refusals = new List<ViewItemsEditRefusalDto>();
                 var hasDocuments = false;
                 foreach (var id in ids)
                 {
                     var isDocument = string.Equals(assets.GetContentKind(id), ViewContentKinds.Documents, StringComparison.Ordinal);
                     hasDocuments |= isDocument;
-                    var decision = isDocument
+                    var decision = isDocument && !ownerOnlyIds.Contains(id)
                         ? await AuthorizeDocumentEditAsync(id, identity, preferences, authorization, assets, ct)
                         : await AuthorizeOwnedItemAsync(id, identity, authorization, ct);
                     if (!decision.IsAllowed

@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1444; api=0; web-client=55
+# scopes: contracts=1449; api=0; web-client=55
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -6004,6 +6004,60 @@
   RetentionDays: System.Int32 | json=retention_days | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   LayoutPattern: System.String | json=layout_pattern | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Rejected: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewIntakeRejectedDto> | json=rejected | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.LocalAssets.ViewItemsDocumentEdit
+  kind=class | converter=default | number-handling=default | unmapped=default
+  SetTitle: System.Boolean | json=set_title | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Title: System.String | json=title | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SetCorrespondent: System.Boolean | json=set_correspondent | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Correspondent: System.String | json=correspondent | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SetDocumentType: System.Boolean | json=set_document_type | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DocumentType: System.String | json=document_type | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SetDocumentDate: System.Boolean | json=set_document_date | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DocumentDate: System.DateOnly? | json=document_date | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SetArchiveNumber: System.Boolean | json=set_archive_number | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ArchiveNumber: System.String | json=archive_number | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SetNotes: System.Boolean | json=set_notes | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Notes: System.String | json=notes | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FieldValues: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewDocumentFieldValueRequest> | json=field_values | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.LocalAssets.ViewItemsEditRefusalDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  ItemId: System.Guid | json=item_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Reason: System.String | json=reason | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.LocalAssets.ViewItemsEditRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  ItemIds: System.Collections.Generic.IReadOnlyList<System.Guid> | json=item_ids | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  SetDescription: System.Boolean | json=set_description | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Description: System.String | json=description | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  TagsAdd: System.Collections.Generic.IReadOnlyList<System.String> | json=tags_add | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  TagsRemove: System.Collections.Generic.IReadOnlyList<System.String> | json=tags_remove | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PeopleAdd: System.Collections.Generic.IReadOnlyList<System.String> | json=people_add | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PeopleRemove: System.Collections.Generic.IReadOnlyList<System.String> | json=people_remove | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CapturedAt: System.DateTimeOffset? | json=captured_at | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CapturedShiftSeconds: System.Int64? | json=captured_shift_seconds | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CapturedReset: System.Boolean | json=captured_reset | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Location: MediaEngine.Contracts.LocalAssets.UpdateLocalAssetLocationRequest | json=location | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  GalleryAddIds: System.Collections.Generic.IReadOnlyList<System.Guid> | json=gallery_add_ids | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  GalleryRemoveIds: System.Collections.Generic.IReadOnlyList<System.Guid> | json=gallery_remove_ids | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CreateGalleryName: System.String | json=create_gallery_name | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Document: MediaEngine.Contracts.LocalAssets.ViewItemsDocumentEdit | json=document | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.LocalAssets.ViewItemsEditResultDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Saved: System.Boolean | json=saved | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Valid: System.Boolean | json=valid | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ChangedCount: System.Int32 | json=changed_count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Refusals: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewItemsEditRefusalDto> | json=refusals | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Message: System.String | json=message | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CreatedGalleryId: System.Guid? | json=created_gallery_id | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  DayMoves: System.Int32 | json=day_moves | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.LocalAssets.ViewItemsEditSetRequest
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Edits: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewItemsEditRequest> | json=edits | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  PreviewOnly: System.Boolean | json=preview_only | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.LocalAssets.ViewItemsRemovedResponse
   kind=class | converter=default | number-handling=default | unmapped=default

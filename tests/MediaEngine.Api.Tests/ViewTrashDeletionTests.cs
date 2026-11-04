@@ -88,6 +88,7 @@ public sealed partial class ViewTrashDeletionTests : IAsyncLifetime
         builder.Services.AddSingleton<IDocumentRuleRepository, DocumentRuleRepository>();
         builder.Services.AddSingleton<IDocumentBulkRepository, DocumentBulkRepository>();
         builder.Services.AddScoped<ViewDocumentBulkService>();
+        builder.Services.AddScoped<ViewItemsEditService>();
         builder.Services.AddSingleton<IMediaOperationRepository, MediaOperationRepository>();
         builder.Services.AddSingleton<DocumentRulesQueue>();
         builder.Services.AddSingleton<ViewDocumentRuleService>();

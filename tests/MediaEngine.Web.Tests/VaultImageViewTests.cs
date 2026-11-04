@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Logging.Abstractions;
 using System.Reflection;
 using Bunit;
 using MediaEngine.Contracts.Vault;
@@ -15,6 +14,7 @@ using MediaEngine.Web.Tests.Support;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Web.Tests;
 

@@ -118,6 +118,7 @@ public sealed class ViewItemsEditService(
 
         var applied = new List<LocalAssetDto>();
         var createdGalleries = new List<Guid>();
+        var membership = new List<(Guid GalleryId, List<Guid> Added, List<Guid> Removed)>();
         Guid? firstCreated = null;
         try
         {
@@ -142,19 +143,29 @@ public sealed class ViewItemsEditService(
 
                 foreach (var galleryId in (request.GalleryAddIds ?? []).Where(id => id != Guid.Empty).Distinct())
                 {
+                    var before = await MembersAsync(galleryId, touched, ct).ConfigureAwait(false);
+                    membership.Add((galleryId, touched.Where(id => !before.Contains(id)).ToList(), new List<Guid>()));
                     await galleries.AddItemsAsync(galleryId, touched, context.BlockedKinds, ct).ConfigureAwait(false);
                 }
 
                 foreach (var galleryId in (request.GalleryRemoveIds ?? []).Where(id => id != Guid.Empty).Distinct())
                 {
+                    var before = await MembersAsync(galleryId, touched, ct).ConfigureAwait(false);
+                    membership.Add((galleryId, new List<Guid>(), touched.Where(before.Contains).ToList()));
                     await galleries.RemoveItemsAsync(galleryId, touched, true, ct).ConfigureAwait(false);
                 }
             }
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception)
         {
             logger.LogWarning(exception, "A View save failed part-way; putting {Count} item(s) back.", applied.Count);
-            await PutBackAsync(context, applied, createdGalleries, ct).ConfigureAwait(false);
+            // Putting things back must finish even when the person closed the page, so it never uses the request's token.
+            await PutBackAsync(context, applied, createdGalleries, membership).ConfigureAwait(false);
+            if (exception is OperationCanceledException)
+            {
+                throw;
+            }
+
             return exception is ArgumentException or InvalidOperationException or ViewCatalogueAccessException or ViewCatalogueConflictException
                 ? new ViewItemsEditResultDto(false, false, 0, [], $"Nothing was saved. {exception.Message}")
                 : new ViewItemsEditResultDto(false, false, 0, [], "Nothing was saved: something went wrong, and everything was put back as it was.");
@@ -311,16 +322,31 @@ public sealed class ViewItemsEditService(
     }
 
     // Puts every touched item back to what it said before, in reverse; a gallery made by this Save is removed and its additions undone.
-    private async Task PutBackAsync(Context context, IReadOnlyList<LocalAssetDto> touchedItems, IReadOnlyList<Guid> createdGalleries, CancellationToken ct)
+    private async Task PutBackAsync(Context context, IReadOnlyList<LocalAssetDto> touchedItems, IReadOnlyList<Guid> createdGalleries,
+        IReadOnlyList<(Guid GalleryId, List<Guid> Added, List<Guid> Removed)> membership)
     {
+        var ct = CancellationToken.None;
+        foreach (var (galleryId, added, removed) in membership.Reverse())
+        {
+            var gallery = galleryId;
+            if (added.Count > 0)
+            {
+                await Try(() => galleries.RemoveItemsAsync(gallery, added, true, ct)).ConfigureAwait(false);
+            }
+
+            if (removed.Count > 0)
+            {
+                await Try(() => galleries.AddItemsAsync(gallery, removed, context.BlockedKinds, ct)).ConfigureAwait(false);
+            }
+        }
+
         foreach (var made in createdGalleries)
         {
             var gallery = made;
             await Try(() => galleries.DeleteAsync(gallery, ct)).ConfigureAwait(false);
         }
 
-        // Items that were already in a gallery are not told apart here, so a failed Save never removes an item from a gallery it
-        // was in before: only a gallery this Save created is undone, wholesale.
+        // Membership of existing galleries is put back from what it was before each step; a gallery this Save made is removed whole.
         foreach (var item in touchedItems.Reverse())
         {
             var id = item.Id;
@@ -350,6 +376,31 @@ public sealed class ViewItemsEditService(
             {
                 await Try(() => catalogue.UpdateDocumentDetailsAsync(context.Viewer, id, DocumentWrite(item, new ViewItemsDocumentEdit()), ct)).ConfigureAwait(false);
             }
+        }
+    }
+
+    // Which of the given items a gallery holds now (so a failed Save can put exactly that back).
+    private async Task<HashSet<Guid>> MembersAsync(Guid galleryId, IReadOnlyCollection<Guid> candidates, CancellationToken ct)
+    {
+        var wanted = candidates.ToHashSet();
+        var found = new HashSet<Guid>();
+        int? afterPosition = null;
+        Guid? afterItem = null;
+        while (true)
+        {
+            var page = await galleries.GetItemsAsync(galleryId, afterPosition, afterItem, 500, true, ct).ConfigureAwait(false);
+            foreach (var item in page.Items.Where(item => wanted.Contains(item.ItemId)))
+            {
+                found.Add(item.ItemId);
+            }
+
+            if (!page.HasMore || page.Items.Count == 0)
+            {
+                return found;
+            }
+
+            afterPosition = page.NextPosition;
+            afterItem = page.NextItemId;
         }
     }
 

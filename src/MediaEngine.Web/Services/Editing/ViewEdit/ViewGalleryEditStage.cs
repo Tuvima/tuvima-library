@@ -2,9 +2,9 @@ using System.Text.Json;
 using MediaEngine.Contracts.Collections;
 using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Contracts.Vault;
-using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Domain.PersonalMedia;
 using MediaEngine.Domain.Services;
+using MediaEngine.Web.Models.ViewDTOs;
 
 namespace MediaEngine.Web.Services.Editing;
 
@@ -228,8 +228,12 @@ public static class ViewGalleryRuleJson
             MatchMode = group.MatchMode,
             Conditions = group.Conditions.Where(Complete).Select(condition => new CollectionRulePredicateDto
             {
-                Field = condition.Field, Op = condition.Op, Value = condition.Value, DisplayValue = condition.DisplayValue,
-                Values = condition.Values, DisplayValues = condition.DisplayValues,
+                Field = condition.Field,
+                Op = condition.Op,
+                Value = condition.Value,
+                DisplayValue = condition.DisplayValue,
+                Values = condition.Values,
+                DisplayValues = condition.DisplayValues,
             }).ToList(),
         }).Where(group => group.Conditions.Count > 0).ToList();
         return groups.Count == 0 ? null : JsonSerializer.Serialize(new CollectionRuleDefinitionDto { Version = 1, Groups = groups });
@@ -250,11 +254,17 @@ public static class ViewGalleryRuleJson
                 Version = dto.Version,
                 Groups = dto.Groups.Select(group => new CollectionRuleGroupViewModel
                 {
-                    Id = group.Id, JoinWithPrevious = group.JoinWithPrevious, MatchMode = group.MatchMode,
+                    Id = group.Id,
+                    JoinWithPrevious = group.JoinWithPrevious,
+                    MatchMode = group.MatchMode,
                     Conditions = group.Conditions.Select(rule => new CollectionRulePredicateViewModel
                     {
-                        Field = rule.Field, Op = rule.Op, Value = rule.Value, DisplayValue = rule.DisplayValue,
-                        Values = rule.Values, DisplayValues = rule.DisplayValues,
+                        Field = rule.Field,
+                        Op = rule.Op,
+                        Value = rule.Value,
+                        DisplayValue = rule.DisplayValue,
+                        Values = rule.Values,
+                        DisplayValues = rule.DisplayValues,
                     }).ToList(),
                 }).ToList(),
             };
