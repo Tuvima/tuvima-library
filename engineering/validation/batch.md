@@ -1095,3 +1095,15 @@ Results and the 61 findings are in `engineering/validation/local-check-2026-11-0
 | Editor v4 WP4: Read-only library and write-back notes | (this build) | Put one film in a folder marked read-only (Settings, Libraries) and open Edit: Quick Facts ends with "Read-only library". Turn the library's "Save changes into the files" switch off: it also shows "File write-back off", matching the footer. Widen and narrow the window past 1280 px: Quick Facts sit to the right of the form, then under it. | Awaiting |
 | Editor v4 WP4: not covered | (this build) | A character, place or organisation of a Universe shows no Quick Facts yet (the Universe thing editor is a later packet). Totals of very large libraries (a 500-episode show) should open quickly; report any pause when Edit opens. | Awaiting |
 | Editor v4 WP9: several songs by rules | (this build) | On SHY-DESKTOP tick 12 songs in a real album and choose Edit. The window says "Editing 12 songs"; year, genres and tags are offered, but never title, track number or file name. Tick songs from two albums plus an episode: only tags remain. Set the year: Review lists each song. A read-only song stays ticked, greyed, with its reason; the change reaches the others. Not built yet (Engine fields needed): album artist, disc number, Explicit, book series/author as editable for several, and one-cover-for-all artwork. | Awaiting |
+| Plugin and Integration pages v6: Connect (L1) | (this build) | Open TMDB with no key: a grey Not connected row with Connect. Paste a wrong key, press Test, then Save: Save stays off and the reason is shown, nothing is saved. Paste the right key: the green Connected row appears with Test again and a menu. | Awaiting |
+
+| Plugin and Integration pages v6: servers (L2) | (this build) | Open StashDB: servers are a table. A server without a key shows an amber + Add key pill. Add server stays off until its test passes. The default server has a lock and no Remove. | Awaiting |
+
+| Plugin and Integration pages v6: File tab (L3) | (this build) | On a computer open a plugin's Plugin file tab: coloured file with line numbers. Edit file opens a window; break a number: the line shows in Checks and Review changes stays off; fix it, press Review changes, then Save changes; the plugin still works and keeps its key. | Awaiting |
+
+| Plugin and Integration pages v6: Integrations (L4) | (this build) | Integrations tiles match the Plugin tiles (no summary strip). Open one, Generate key, Copy key, close the window: the key cannot be shown again. Rotate and Revoke each ask first. | Awaiting |
+
+| Plugin and Integration pages v6: phone (L5) | (this build) | Phone-sized window: one column, no Plugin file tab, no Edit file, no Generate key. | Awaiting |
+
+| Plugin and Integration pages v6: look (L6) | (this build) | Compare each plugin and integration page with engineering/design/mockups/plugins-and-integrations-v6.html on SHY-DESKTOP: logo with tick, status sentence, tabs, side column, 34 px and 40 px colored icons, New integration steps with square badges. | Awaiting |
+
