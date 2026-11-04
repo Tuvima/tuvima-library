@@ -247,10 +247,6 @@
       "important": 6,
       "deep": 16
     },
-    "src/MediaEngine.Web/Components/MediaEditor/EditorDetailsInlineField.razor.css": {
-      "important": 0,
-      "deep": 11
-    },
     "src/MediaEngine.Web/Components/MediaEditor/EditorTargetSummary.razor.css": {
       "important": 0,
       "deep": 1
@@ -1180,10 +1176,6 @@
     "src/MediaEngine.Web/Components/MediaEditor/EditorContextNavigator.razor.css": {
       "important": 6,
       "deep": 15
-    },
-    "src/MediaEngine.Web/Components/MediaEditor/EditorDetailsInlineField.razor.css": {
-      "important": 0,
-      "deep": 9
     },
     "src/MediaEngine.Web/Components/MediaEditor/EditorTargetSummary.razor.css": {
       "important": 0,

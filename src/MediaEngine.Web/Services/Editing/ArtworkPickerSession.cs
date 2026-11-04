@@ -546,19 +546,6 @@ public sealed class ArtworkPickerSession
         }
     }
 
-    /// <summary>Picks a saved picture: the page previews it, nothing is written.</summary>
-    public void PickSaved(ArtworkPickerPicture picture)
-    {
-        if (ActiveSlot is null)
-        {
-            return;
-        }
-
-        _pickedProviderId = null;
-        _preview.Pick(ActiveSlot, picture.AssetId.ToString("D"), picture.ContentUrl);
-        Changed?.Invoke();
-    }
-
     /// <summary>Picks a provider picture: the page previews its thumbnail, nothing is written until it is used.</summary>
     public void PickProvider(ProviderArtworkCandidateDto candidate)
     {
