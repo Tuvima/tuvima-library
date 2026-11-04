@@ -317,9 +317,35 @@ public sealed class EditSubjectEditSessionTests : IDisposable
 
         Assert.NotNull(subject);
         Assert.Equal(EditorSubjectKinds.FictionalEntity, subject.Kind);
-        Assert.Equal(["name", "description"], subject.Fields.Select(field => field.Key));
+        Assert.Equal(["name", "description", "aliases"], subject.Fields.Select(field => field.Key));
         Assert.Equal(["CharacterPortrait", "Background"], subject.ArtworkSlots);
         Assert.Contains(subject.Facts, fact => fact.Label == "Kind" && fact.Value == "Character");
+    }
+
+    [Fact]
+    public async Task FictionalEntity_Faction_OffersALogoSlot_AndHandAddedSaysNotOnWikidata()
+    {
+        var added = await _entities.CreateUserEntityAsync("Spacing Guild", "Organization", "Q3041974", "Dune universe", null);
+
+        var subject = await _subjects.LoadAsync(added.Id);
+
+        Assert.NotNull(subject);
+        Assert.Equal(["CharacterPortrait", "Logo", "Background"], subject.ArtworkSlots);
+        Assert.Contains(subject.Facts, fact => fact.Label == "Wikidata" && fact.Value == "Not on Wikidata, added by you" && fact.SourceLabel == "You");
+    }
+
+    [Fact]
+    public async Task FictionalEntity_Apply_SavesAliases_AndUndoPutsThemBack()
+    {
+        var entity = await SeedEntityAsync("Paul Atreides", null);
+
+        var result = await CreateService().RunAsync(
+            Request(previewOnly: false, DetailsChange("d1", entity, ("aliases", "Muad'Dib\nUsul\nmuad'dib"))), NoRefusals);
+
+        Assert.True(result.DataSaved);
+        Assert.Equal(["Muad'Dib", "Usul"], (await _entities.GetUserLinksAsync(entity))?.Aliases);
+        var subject = (await _subjects.LoadAsync(entity))!;
+        Assert.Equal("Muad'Dib\nUsul", subject.Fields.Single(field => field.Key == "aliases").Value);
     }
 
     [Fact]
