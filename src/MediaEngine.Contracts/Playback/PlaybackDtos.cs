@@ -718,8 +718,23 @@ public sealed class SubtitleLanguageSettingsDto
     /// <summary>A soft shadow behind the subtitle text. It is also drawn whenever the background is off.</summary>
     public bool SubtitleShadow { get; set; }
 
-    /// <summary>Subtitle text colour: <c>White</c>, <c>Yellow</c>, <c>Cyan</c> or <c>Green</c>.</summary>
+    /// <summary>
+    /// Subtitle text colour (unified player D12): one of <see cref="PlaybackPreferenceValues.SubtitleColors"/>
+    /// (<c>White</c>, <c>Black</c>, <c>Blue</c>, <c>Teal</c>, <c>Green</c>, <c>Yellow</c>, <c>Red</c> or <c>Magenta</c>).
+    /// </summary>
     public string SubtitleColor { get; set; } = PlaybackPreferenceValues.ColorWhite;
+
+    /// <summary>How solid the subtitle text is, as a percent from 20 to 100. 100 is fully solid.</summary>
+    public int SubtitleTextOpacity { get; set; } = PlaybackPreferenceValues.DefaultTextOpacity;
+
+    /// <summary>The colour behind the subtitle text; one of <see cref="PlaybackPreferenceValues.SubtitleColors"/>. Black by default.</summary>
+    public string SubtitleBackgroundColor { get; set; } = PlaybackPreferenceValues.ColorBlack;
+
+    /// <summary>
+    /// How solid the colour behind the text is, as a percent from 0 to 100 (0 is none, 100 is solid). It is used while
+    /// <see cref="SubtitleBackground"/> is on; choosing 0 on the slider turns <see cref="SubtitleBackground"/> off.
+    /// </summary>
+    public int SubtitleBackgroundOpacity { get; set; } = PlaybackPreferenceValues.DefaultBackgroundOpacity;
 }
 
 public static class PlaybackPreferenceValues
@@ -734,8 +749,28 @@ public static class PlaybackPreferenceValues
     public const string FontMono = "Mono";
     public const string ColorWhite = "White";
     public const string ColorYellow = "Yellow";
-    public const string ColorCyan = "Cyan";
     public const string ColorGreen = "Green";
+    public const string ColorBlack = "Black";
+    public const string ColorBlue = "Blue";
+    public const string ColorTeal = "Teal";
+    public const string ColorRed = "Red";
+    public const string ColorMagenta = "Magenta";
+
+    /// <summary>The eight subtitle colours, in the order the swatch row shows them (unified player D12).</summary>
+    public static readonly IReadOnlyList<string> SubtitleColors =
+        [ColorWhite, ColorBlack, ColorBlue, ColorTeal, ColorGreen, ColorYellow, ColorRed, ColorMagenta];
+
+    /// <summary>The stops on the subtitle text opacity slider, in percent.</summary>
+    public static readonly IReadOnlyList<int> TextOpacityStops = [20, 40, 60, 80, 100];
+
+    /// <summary>The stops on the subtitle background opacity slider, in percent. 0 means no background.</summary>
+    public static readonly IReadOnlyList<int> BackgroundOpacityStops = [0, 20, 40, 60, 80, 100];
+
+    public const int DefaultTextOpacity = 100;
+    public const int MinTextOpacity = 20;
+
+    /// <summary>The background keeps the look it had before the slider existed (a 60 percent black backing).</summary>
+    public const int DefaultBackgroundOpacity = 60;
     public const string Original = "Original";
     public const string High = "High";
     public const string Balanced = "Balanced";

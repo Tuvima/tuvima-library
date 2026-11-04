@@ -1,0 +1,50 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Web.Services.Editing
+@implements IDisposable
+@inject ViewRibbonState Ribbon
+@inject IStringLocalizer<SharedStrings> L
+
+@* The page proves the save, as in the library editor (spec photos-documents-editor D6): a slim ribbon says in words what was just saved or done.
+   Errors show here in place, never as a toast. It goes away on its own after a few seconds, or with its close button. *@
+@if (Ribbon.Message is { } message)
+{
+    <div class="tl-saved-ribbon" role="@(Ribbon.IsError ? "alert" : "status")" aria-live="polite" data-view-ribbon="true">
+        <AppMaterialIcon Icon="@(Ribbon.IsError ? AppMaterialIcons.Outlined.Warning : AppMaterialIcons.Outlined.Check)" Size="AppSize.Small" />
+        <span>@message</span>
+        <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
+                       Size="AppControlSize.Compact"
+                       Tone="AppUiTone.Neutral"
+                       Tooltip="@L["Common_Dismiss"].Value"
+                       AriaLabel="@L["EditSavedRibbon_DismissTheSavedMessage"].Value"
+                       OnClick="@(() => Ribbon.Clear())" />
+    </div>
+}
+
+@code {
+    private CancellationTokenSource? _timer;
+
+    protected override void OnInitialized() => Ribbon.Changed += OnChanged;
+
+    public void Dispose()
+    {
+        Ribbon.Changed -= OnChanged;
+        _timer?.Cancel();
+        _timer?.Dispose();
+    }
+
+    private void OnChanged()
+    {
+        _timer?.Cancel();
+        _timer?.Dispose();
+        _timer = null;
+        if (Ribbon.Message is not null && !Ribbon.IsError)
+        {
+            _timer = new CancellationTokenSource();
+            var token = _timer.Token;
+            _ = Task.Delay(TimeSpan.FromSeconds(6), token).ContinueWith(
+                task => { if (!task.IsCanceled) { Ribbon.Clear(); } }, TaskScheduler.Default);
+        }
+
+        _ = InvokeAsync(StateHasChanged);
+    }
+}

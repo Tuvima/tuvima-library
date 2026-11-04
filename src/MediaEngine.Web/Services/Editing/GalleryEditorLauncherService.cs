@@ -1,12 +1,14 @@
-using MediaEngine.Web.Components.Collections;
-using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Services.Ui;
 
 namespace MediaEngine.Web.Services.Editing;
 
+/// <summary>
+/// Opens a gallery in the one View editor window (spec photos-documents-editor D4), the same window photos and documents use. The old modal gallery
+/// editor shell is gone; this keeps the one call pages already make, so New gallery and Edit gallery work from every page that offered them.
+/// </summary>
 public sealed class GalleryEditorLauncherService(
-    IAppDialogService dialogService,
+    ViewEditorHost host,
     DeviceContextService? device = null,
     IAppToastService? toasts = null)
 {
@@ -16,31 +18,23 @@ public sealed class GalleryEditorLauncherService(
 
     public async Task<EditorLaunchResult> TryOpenAsync(GalleryEditorLaunchRequest request)
     {
-        // Editing is desktop-only (fine, hover-capable pointer): the editor shell never opens anywhere else.
+        // Editing is desktop-only (fine, hover-capable pointer): the editor never opens anywhere else.
         if (EditorDeviceRule.TryRefuse(device, toasts))
         {
             return EditorLaunchResult.NotAvailableOnThisDevice;
         }
 
-        var dialog = await dialogService.ShowAsync<GalleryEditorShell>(
-            request.EditingGallery is null && request.EditingVaultGallery is null ? "New Gallery" : "Edit Gallery",
-            new AppDialogParameters { { nameof(GalleryEditorShell.Request), request } },
-            new AppDialogOptions
-            {
-                CloseButton = false,
-                NoHeader = true,
-                MaxWidth = AppMaxWidth.ExtraLarge,
-                FullWidth = true,
-                BackdropClick = false,
-                CloseOnEscapeKey = true,
-            });
-
-        if (dialog is null)
+        var opened = await host.OpenGalleryAsync(
+            request.EditingGallery,
+            request.EditingVaultGallery,
+            newSmart: string.Equals(request.InitialMembershipMode, "Smart", StringComparison.OrdinalIgnoreCase),
+            newVault: request.Vault && request.EditingVaultGallery is null);
+        if (!opened)
         {
             return EditorLaunchResult.NotAvailable;
         }
 
-        var result = await dialog.Result;
-        return result is not null && !result.Canceled ? EditorLaunchResult.Applied : EditorLaunchResult.Dismissed;
+        var closed = await host.WhenClosedAsync();
+        return closed.Changed ? EditorLaunchResult.Applied : EditorLaunchResult.Dismissed;
     }
 }

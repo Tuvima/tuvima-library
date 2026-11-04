@@ -891,17 +891,8 @@
   <data name="CollectionsPage_TryRemovingARoleLane" xml:space="preserve">
     <value>Try removing a role, lane, or search filter.</value>
   </data>
-  <data name="GalleryEditorShell_GalleryEditor" xml:space="preserve">
-    <value>Gallery editor</value>
-  </data>
-  <data name="GalleryEditorShell_DeleteGallery" xml:space="preserve">
-    <value>Delete gallery</value>
-  </data>
   <data name="GalleryEditorShell_AutomaticCover" xml:space="preserve">
     <value>Automatic cover</value>
-  </data>
-  <data name="GalleryEditorShell_TheGalleryUsesItsCover" xml:space="preserve">
-    <value>The Gallery uses its cover item and falls back to the newest matching photo.</value>
   </data>
   <data name="GalleryEditorShell_Manual" xml:space="preserve">
     <value>Manual</value>
@@ -909,47 +900,11 @@
   <data name="Common_Smart" xml:space="preserve">
     <value>Smart</value>
   </data>
-  <data name="GalleryEditorShell_ImagesAreAddedOneAt" xml:space="preserve">
-    <value>Images are added one at a time from the viewer.</value>
-  </data>
-  <data name="GalleryEditorShell_ManualMembershipStaysAvailableAs" xml:space="preserve">
-    <value>Manual membership stays available as a quick action throughout View.</value>
-  </data>
   <data name="GalleryEditorShell_NoSoundtrack" xml:space="preserve">
     <value>No soundtrack</value>
   </data>
-  <data name="GalleryEditorShell_CreateAPlaylistInListen" xml:space="preserve">
-    <value>Create a playlist in Listen before linking a Gallery soundtrack.</value>
-  </data>
-  <data name="GalleryEditorShell_TheLinkedPlaylistRemainsManaged" xml:space="preserve">
-    <value>The linked playlist remains managed in Listen and does not count toward Gallery membership.</value>
-  </data>
-  <data name="GalleryEditorShell_GalleryCreated" xml:space="preserve">
-    <value>Gallery created</value>
-  </data>
-  <data name="GalleryEditorShell_GalleryEditorSections" xml:space="preserve">
-    <value>Gallery editor sections</value>
-  </data>
   <data name="Common_DescriptionOptional" xml:space="preserve">
     <value>Description (optional)</value>
-  </data>
-  <data name="GalleryEditorShell_ChooseHowPhotosAndVideos" xml:space="preserve">
-    <value>Choose how photos and videos enter this Gallery.</value>
-  </data>
-  <data name="GalleryEditorShell_ManualItems" xml:space="preserve">
-    <value>Manual items</value>
-  </data>
-  <data name="GalleryEditorShell_OpenAnImageInThe" xml:space="preserve">
-    <value>Open an image in the Vault viewer and choose Add to gallery.</value>
-  </data>
-  <data name="GalleryEditorShell_UseAddToGalleryFrom" xml:space="preserve">
-    <value>Use Add to Gallery from View to add or remove selected photos and videos.</value>
-  </data>
-  <data name="GalleryEditorShell_Soundtrack" xml:space="preserve">
-    <value>Soundtrack</value>
-  </data>
-  <data name="GalleryEditorShell_OptionalMusicCanEnrichThis" xml:space="preserve">
-    <value>Optional music can enrich this Gallery without becoming a Gallery item.</value>
   </data>
   <data name="GalleryEditorShell_Playlist" xml:space="preserve">
     <value>Playlist</value>
@@ -2928,47 +2883,20 @@
   <data name="ViewContributionsPage_SharedLibraryContributions" xml:space="preserve">
     <value>Shared Library contributions</value>
   </data>
-  <data name="ViewDocumentBulkDialog_TagsToTakeOff" xml:space="preserve">
-    <value>Tags to take off</value>
-  </data>
-  <data name="ViewDocumentBulkDialog_NoneOfYourDocumentsHave" xml:space="preserve">
-    <value>None of your documents have tags yet.</value>
-  </data>
   <data name="Common_Date" xml:space="preserve">
     <value>Date</value>
-  </data>
-  <data name="ViewDocumentBulkDialog_TagsToAdd" xml:space="preserve">
-    <value>Tags to add</value>
   </data>
   <data name="Common_Correspondent" xml:space="preserve">
     <value>Correspondent</value>
   </data>
-  <data name="ViewDocumentBulkDialog_WhoSentOrIssuedThese" xml:space="preserve">
-    <value>Who sent or issued these</value>
-  </data>
-  <data name="ViewDocumentBulkDialog_ClearTheCorrespondentInstead" xml:space="preserve">
-    <value>Clear the correspondent instead</value>
-  </data>
   <data name="Common_DocumentType" xml:space="preserve">
     <value>Document type</value>
-  </data>
-  <data name="Common_InvoiceLetterContract" xml:space="preserve">
-    <value>Invoice, letter, contract…</value>
-  </data>
-  <data name="ViewDocumentBulkDialog_ClearTheTypeInstead" xml:space="preserve">
-    <value>Clear the type instead</value>
   </data>
   <data name="Common_DocumentDate" xml:space="preserve">
     <value>Document date</value>
   </data>
-  <data name="ViewDocumentBulkDialog_ClearTheDateInstead" xml:space="preserve">
-    <value>Clear the date instead</value>
-  </data>
   <data name="Common_Tags" xml:space="preserve">
     <value>Tags</value>
-  </data>
-  <data name="ViewDocumentDetailsDialog_CustomFields" xml:space="preserve">
-    <value>Custom fields</value>
   </data>
   <data name="Common_Yes" xml:space="preserve">
     <value>Yes</value>
@@ -2976,14 +2904,8 @@
   <data name="Common_No" xml:space="preserve">
     <value>No</value>
   </data>
-  <data name="ViewDocumentDetailsDialog_DocumentDetails" xml:space="preserve">
-    <value>Document details</value>
-  </data>
   <data name="ViewDocumentDetailsDialog_TagsOnThisDocument" xml:space="preserve">
     <value>Tags on this document</value>
-  </data>
-  <data name="ViewDocumentDetailsDialog_WhoSentOrIssuedIt" xml:space="preserve">
-    <value>Who sent or issued it</value>
   </data>
   <data name="ViewDocumentDetailsDialog_ArchiveNumber" xml:space="preserve">
     <value>Archive number</value>
@@ -3336,50 +3258,8 @@
   <data name="ViewImmersiveViewer_TheFileWasDeletedOr" xml:space="preserve">
     <value>The file was deleted or moved outside Library. If you want it back, tell an administrator.</value>
   </data>
-  <data name="ViewImmersiveViewer_UseOriginal" xml:space="preserve">
-    <value>Use original</value>
-  </data>
   <data name="Common_Location" xml:space="preserve">
     <value>Location</value>
-  </data>
-  <data name="ViewImmersiveViewer_Latitude" xml:space="preserve">
-    <value>Latitude</value>
-  </data>
-  <data name="ViewImmersiveViewer_Longitude" xml:space="preserve">
-    <value>Longitude</value>
-  </data>
-  <data name="ViewImmersiveViewer_SaveLocation" xml:space="preserve">
-    <value>Save location</value>
-  </data>
-  <data name="ViewImmersiveViewer_Description" xml:space="preserve">
-    <value>Description</value>
-  </data>
-  <data name="ViewImmersiveViewer_AddADescription" xml:space="preserve">
-    <value>Add a description…</value>
-  </data>
-  <data name="ViewImmersiveViewer_EditDescription" xml:space="preserve">
-    <value>Edit description</value>
-  </data>
-  <data name="ViewImmersiveViewer_EditCapturedDate" xml:space="preserve">
-    <value>Edit captured date</value>
-  </data>
-  <data name="ViewImmersiveViewer_CapturedDateAndTime" xml:space="preserve">
-    <value>Captured date and time</value>
-  </data>
-  <data name="ViewImmersiveViewer_EditLocation" xml:space="preserve">
-    <value>Edit location</value>
-  </data>
-  <data name="ViewImmersiveViewer_SearchIdentifiedPlaces" xml:space="preserve">
-    <value>Search identified places</value>
-  </data>
-  <data name="ViewImmersiveViewer_SearchPlaces" xml:space="preserve">
-    <value>Search places</value>
-  </data>
-  <data name="ViewImmersiveViewer_LocationEditorMap" xml:space="preserve">
-    <value>Location editor map</value>
-  </data>
-  <data name="ViewImmersiveViewer_AddPeople" xml:space="preserve">
-    <value>Add people…</value>
   </data>
   <data name="ViewPage_PhotosLibrary" xml:space="preserve">
     <value>Photos - Library</value>
@@ -8256,15 +8136,6 @@
   <data name="CollectionsPage_SeriesVolumesAlbumsAndAudiobook" xml:space="preserve">
     <value>Series, volumes, albums, and audiobook sequences grouped within their media type</value>
   </data>
-  <data name="GalleryEditorShell_EnterAGalleryName" xml:space="preserve">
-    <value>Enter a Gallery name.</value>
-  </data>
-  <data name="GalleryEditorShell_ASmartGalleryNeedsAt" xml:space="preserve">
-    <value>A Smart Gallery needs at least one complete rule.</value>
-  </data>
-  <data name="GalleryEditorShell_TheGalleryCouldNotBe" xml:space="preserve">
-    <value>The Gallery could not be saved.</value>
-  </data>
   <data name="Common_TheGalleryCouldNotBe" xml:space="preserve">
     <value>The Gallery could not be deleted.</value>
   </data>
@@ -8460,9 +8331,6 @@
   <data name="ViewContributionsPage_EnterASharedFolderName" xml:space="preserve">
     <value>Enter a Shared folder name before accepting.</value>
   </data>
-  <data name="ViewDocumentDetailsDialog_SomeOfYourDetailsCould" xml:space="preserve">
-    <value>Some of your details could not be loaded, so custom fields stay as they are. You can still edit the rest.</value>
-  </data>
   <data name="ViewDocumentsPage_YourSortCouldNotBe" xml:space="preserve">
     <value>Your sort could not be remembered. It still applies for now.</value>
   </data>
@@ -8481,9 +8349,6 @@
   <data name="ViewDocumentsPage_Filed" xml:space="preserve">
     <value>Filed.</value>
   </data>
-  <data name="ViewDocumentsPage_DetailsSaved" xml:space="preserve">
-    <value>Details saved.</value>
-  </data>
   <data name="ViewGalleryDetailPage_TheSelectedItemsCouldNot" xml:space="preserve">
     <value>The selected items could not be removed.</value>
   </data>
@@ -8495,15 +8360,6 @@
   </data>
   <data name="ViewGalleryDetailPage_GallerySharingCouldNotBe" xml:space="preserve">
     <value>Gallery sharing could not be saved.</value>
-  </data>
-  <data name="ViewImmersiveViewer_ItemDetailsUpdated" xml:space="preserve">
-    <value>Item details updated.</value>
-  </data>
-  <data name="ViewImmersiveViewer_EnterAValidCapturedDate" xml:space="preserve">
-    <value>Enter a valid captured date and time.</value>
-  </data>
-  <data name="ViewImmersiveViewer_ChooseAValidMapLocation" xml:space="preserve">
-    <value>Choose a valid map location.</value>
   </data>
   <data name="ViewImmersiveViewer_TheViewerPreferenceCouldNot" xml:space="preserve">
     <value>The viewer preference could not be saved.</value>
@@ -9934,10 +9790,7 @@
     <value>Shadow</value>
   </data>
   <data name="PlayerSettings_Colour" xml:space="preserve">
-    <value>Colour</value>
-  </data>
-  <data name="PlayerSettings_Background" xml:space="preserve">
-    <value>Background</value>
+    <value>Text colour</value>
   </data>
   <data name="PlayerSettings_Small" xml:space="preserve">
     <value>Small</value>
@@ -9966,8 +9819,29 @@
   <data name="PlayerSettings_Yellow" xml:space="preserve">
     <value>Yellow</value>
   </data>
-  <data name="PlayerSettings_Cyan" xml:space="preserve">
-    <value>Cyan</value>
+  <data name="PlayerSettings_Black" xml:space="preserve">
+    <value>Black</value>
+  </data>
+  <data name="PlayerSettings_Blue" xml:space="preserve">
+    <value>Blue</value>
+  </data>
+  <data name="PlayerSettings_Teal" xml:space="preserve">
+    <value>Teal</value>
+  </data>
+  <data name="PlayerSettings_Red" xml:space="preserve">
+    <value>Red</value>
+  </data>
+  <data name="PlayerSettings_Magenta" xml:space="preserve">
+    <value>Magenta</value>
+  </data>
+  <data name="PlayerSettings_TextOpacity" xml:space="preserve">
+    <value>Text opacity</value>
+  </data>
+  <data name="PlayerSettings_BackgroundColour" xml:space="preserve">
+    <value>Background colour</value>
+  </data>
+  <data name="PlayerSettings_BackgroundOpacity" xml:space="preserve">
+    <value>Background opacity</value>
   </data>
   <data name="PlayerSettings_Green" xml:space="preserve">
     <value>Green</value>
@@ -10614,6 +10488,438 @@
   <data name="EditorUniverseMatch_NotMatched" xml:space="preserve">
     <value>Not matched</value>
   </data>
+  <data name="NeedsReviewList_ShowAriaLabel" xml:space="preserve">
+    <value>Show</value>
+  </data>
+  <data name="NeedsReviewList_Library" xml:space="preserve">
+    <value>Library</value>
+  </data>
+  <data name="NeedsReviewList_AllLibraries" xml:space="preserve">
+    <value>All libraries</value>
+  </data>
+  <data name="NeedsReviewList_TickToTryAgain" xml:space="preserve">
+    <value>Tick rows to try them again or keep them as they are.</value>
+  </data>
+  <data name="NeedsReviewList_NSelected" xml:space="preserve">
+    <value>{0} selected</value>
+  </data>
+  <data name="NeedsReviewList_KeepAsTheyAre" xml:space="preserve">
+    <value>Keep as they are</value>
+  </data>
+  <data name="NeedsReviewList_TryAgainN" xml:space="preserve">
+    <value>Try again ({0})</value>
+  </data>
+  <data name="NeedsReviewList_Caption" xml:space="preserve">
+    <value>Items that need review, with why, the best guess and when each was last tried</value>
+  </data>
+  <data name="NeedsReviewList_SelectAll" xml:space="preserve">
+    <value>Select all</value>
+  </data>
+  <data name="NeedsReviewList_Item" xml:space="preserve">
+    <value>Item</value>
+  </data>
+  <data name="NeedsReviewList_Why" xml:space="preserve">
+    <value>Why</value>
+  </data>
+  <data name="NeedsReviewList_BestGuess" xml:space="preserve">
+    <value>Best guess</value>
+  </data>
+  <data name="NeedsReviewList_LastTried" xml:space="preserve">
+    <value>Last tried</value>
+  </data>
+  <data name="NeedsReviewList_Fix" xml:space="preserve">
+    <value>Fix</value>
+  </data>
+  <data name="NeedsReviewList_All" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="NeedsReviewList_NotMatched" xml:space="preserve">
+    <value>Not matched</value>
+  </data>
+  <data name="NeedsReviewList_NotSure" xml:space="preserve">
+    <value>Not sure</value>
+  </data>
+  <data name="NeedsReviewList_NothingNotMatched" xml:space="preserve">
+    <value>Every file has been matched.</value>
+  </data>
+  <data name="NeedsReviewList_NothingNotSure" xml:space="preserve">
+    <value>Nothing the Engine is unsure about.</value>
+  </data>
+  <data name="NeedsReviewList_MoreCouldNotBeLoaded" xml:space="preserve">
+    <value>More items could not be loaded. Try again in a moment.</value>
+  </data>
+  <data name="NeedsReviewList_UseThis" xml:space="preserve">
+    <value>Use this</value>
+  </data>
+  <data name="NeedsReviewList_NoGuess" xml:space="preserve">
+    <value>No guess yet. Fix searches from the file name.</value>
+  </data>
+  <data name="NeedsReviewList_KeepAsItIs" xml:space="preserve">
+    <value>Keep as it is</value>
+  </data>
+  <data name="NeedsReviewList_RemoveFromLibrary" xml:space="preserve">
+    <value>Remove from library</value>
+  </data>
+  <data name="TopNavAccountMenu_NeedsReviewCount" xml:space="preserve">
+    <value>{0} need review</value>
+  </data>
+  <data name="MediaTile_AddToMyList" xml:space="preserve">
+    <value>Add to My List</value>
+  </data>
+  <data name="MediaTile_RemoveFromMyList" xml:space="preserve">
+    <value>Remove from My List</value>
+  </data>
+  <data name="MediaTile_Restart" xml:space="preserve">
+    <value>Restart</value>
+  </data>
+  <data name="MediaTile_Edit" xml:space="preserve">
+    <value>Edit</value>
+  </data>
+  <data name="MediaTile_DeleteAlbum" xml:space="preserve">
+    <value>Delete album…</value>
+  </data>
+  <data name="MediaTile_DeleteShow" xml:space="preserve">
+    <value>Delete show…</value>
+  </data>
+  <data name="MediaTile_AddedToMyList" xml:space="preserve">
+    <value>Added to My List.</value>
+  </data>
+  <data name="MediaTile_RemovedFromMyList" xml:space="preserve">
+    <value>Removed from My List.</value>
+  </data>
+  <data name="EditorVideoSeries_Series" xml:space="preserve">
+    <value>Series</value>
+  </data>
+  <data name="EditorVideoSeries_ChooseSeries" xml:space="preserve">
+    <value>Which series is this video in?</value>
+  </data>
+  <data name="EditorVideoSeries_NotInASeries" xml:space="preserve">
+    <value>Not in a series</value>
+  </data>
+  <data name="EditorVideoSeries_StandsOnItsOwn" xml:space="preserve">
+    <value>Stands on its own</value>
+  </data>
+  <data name="EditorVideoSeries_VideoOne" xml:space="preserve">
+    <value>1 video</value>
+  </data>
+  <data name="EditorVideoSeries_VideoMany" xml:space="preserve">
+    <value>{0} videos</value>
+  </data>
+  <data name="EditorVideoSeries_StartANewSeries" xml:space="preserve">
+    <value>Start a new series…</value>
+  </data>
+  <data name="EditorVideoSeries_NewSeriesName" xml:space="preserve">
+    <value>Name of the new series</value>
+  </data>
+  <data name="EditorVideoSeries_Add" xml:space="preserve">
+    <value>Use this name</value>
+  </data>
+  <data name="EditorVideoSeries_WhatWillHappen" xml:space="preserve">
+    <value>What will happen</value>
+  </data>
+  <data name="EditorVideoSeries_OrderHeading" xml:space="preserve">
+    <value>Order of the videos</value>
+  </data>
+  <data name="EditorVideoSeries_SortByFileName" xml:space="preserve">
+    <value>Sort by file name</value>
+  </data>
+  <data name="EditorVideoSeries_SortByDateAdded" xml:space="preserve">
+    <value>Sort by date added</value>
+  </data>
+  <data name="EditorVideoSeries_MoveUp" xml:space="preserve">
+    <value>Move {0} up</value>
+  </data>
+  <data name="EditorVideoSeries_MoveDown" xml:space="preserve">
+    <value>Move {0} down</value>
+  </data>
+  <data name="EditorVideoSeries_DragToReorder" xml:space="preserve">
+    <value>Drag to put {0} somewhere else</value>
+  </data>
+  <data name="EditorVideoSeries_RenameFiles" xml:space="preserve">
+    <value>Rename the files to match this order</value>
+  </data>
+  <data name="EditorVideoSeries_RenameDescription" xml:space="preserve">
+    <value>Off by default. Puts each video's position at the start of its file name, like "02 - Kitchen tour.mkv". Files stay in their folders. This cannot be undone.</value>
+  </data>
+  <data name="EditorVideoSeries_Reset" xml:space="preserve">
+    <value>Put back as saved</value>
+  </data>
+  <data name="EditorVideoSeries_Position" xml:space="preserve">
+    <value>Position {0}</value>
+  </data>
+  <data name="BulkVideoSeries_Intro" xml:space="preserve">
+    <value>Put the {0} ticked videos in one series. Nothing is moved or renamed on disk, and Review changes lists each video before anything is saved.</value>
+  </data>
+  <data name="BulkVideoSeries_Stage" xml:space="preserve">
+    <value>Stage this series</value>
+  </data>
+  <data name="EditorVideoSeries_NotMatched" xml:space="preserve">
+    <value>Not matched</value>
+  </data>
+  <data name="EditorVideoSeries_NotInASeriesTip" xml:space="preserve">
+    <value>This video is not in a series yet, so Library shows it on its own.</value>
+  </data>
+  <data name="EditorRail_Label" xml:space="preserve">
+    <value>Where this item sits</value>
+  </data>
+  <data name="EditorRail_EarlierLevels" xml:space="preserve">
+    <value>Earlier levels</value>
+  </data>
+  <data name="EditorRail_ChangesWaiting" xml:space="preserve">
+    <value>Changes waiting</value>
+  </data>
+  <data name="EditorRail_NotMatched" xml:space="preserve">
+    <value>Not matched</value>
+  </data>
+  <data name="EditorRail_OneChange" xml:space="preserve">
+    <value>1 change</value>
+  </data>
+  <data name="EditorRail_ManyChanges" xml:space="preserve">
+    <value>{0} changes</value>
+  </data>
+  <data name="EditorRail_NothingHere" xml:space="preserve">
+    <value>Nothing to choose here.</value>
+  </data>
+  <data name="EditorRail_NothingMatches" xml:space="preserve">
+    <value>Nothing matches that.</value>
+  </data>
+  <data name="EditorRail_ShowMore" xml:space="preserve">
+    <value>Show more ({0} left)</value>
+  </data>
+  <data name="EditorHeader_OpenAt" xml:space="preserve">
+    <value>Open at {0}</value>
+  </data>
+  <data name="EditorHeader_Close" xml:space="preserve">
+    <value>Close the editor</value>
+  </data>
+  <data name="EditorFooter_Discard" xml:space="preserve">
+    <value>Discard</value>
+  </data>
+  <data name="EditorFooter_SavesToLibrary" xml:space="preserve">
+    <value>Changes save to Library</value>
+  </data>
+  <data name="EditorFooter_WriteBack" xml:space="preserve">
+    <value>File write-back {0}</value>
+  </data>
+  <data name="EditorContents_TickedRows" xml:space="preserve">
+    <value>Ticked rows</value>
+  </data>
+  <data name="EditorContents_ChooseWhatToChange" xml:space="preserve">
+    <value>Choose what to change</value>
+  </data>
+  <data name="EditorLineUp_ApplyTo" xml:space="preserve">
+    <value>Apply to</value>
+  </data>
+  <data name="EditorLineUp_ReadOnly" xml:space="preserve">
+    <value>You can look at these matches, but you can't change them.</value>
+  </data>
+  <data name="EditorContents_MatchN" xml:space="preserve">
+    <value>Match these {0} {1}</value>
+  </data>
+  <data name="EditorContents_Loading" xml:space="preserve">
+    <value>Loading the contents</value>
+  </data>
+  <data name="EditorContents_LoadingMore" xml:space="preserve">
+    <value>Loading more</value>
+  </data>
+  <data name="EditorContents_CouldNotRead" xml:space="preserve">
+    <value>These could not be read.</value>
+  </data>
+  <data name="EditorContents_RestCouldNotRead" xml:space="preserve">
+    <value>The rest could not be read.</value>
+  </data>
+  <data name="EditorContents_Empty" xml:space="preserve">
+    <value>There is nothing in your library under this yet.</value>
+  </data>
+  <data name="EditorContents_Select" xml:space="preserve">
+    <value>Select</value>
+  </data>
+  <data name="EditorContents_Picture" xml:space="preserve">
+    <value>Picture</value>
+  </data>
+  <data name="EditorContents_Title" xml:space="preserve">
+    <value>Title</value>
+  </data>
+  <data name="EditorContents_Status" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="EditorContents_Size" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="EditorContents_Matched" xml:space="preserve">
+    <value>Matched</value>
+  </data>
+  <data name="EditorContents_NotMatched" xml:space="preserve">
+    <value>Not matched</value>
+  </data>
+  <data name="EditorContents_HeadingShow" xml:space="preserve">
+    <value>Seasons and episodes</value>
+  </data>
+  <data name="EditorContents_HeadingAlbum" xml:space="preserve">
+    <value>Songs</value>
+  </data>
+  <data name="EditorContents_HeadingSeries" xml:space="preserve">
+    <value>Books and issues</value>
+  </data>
+  <data name="EditorContents_Back" xml:space="preserve">
+    <value>Back to Contents</value>
+  </data>
+  <data name="EditorFiles_Loading" xml:space="preserve">
+    <value>Loading the files</value>
+  </data>
+  <data name="EditorFiles_CouldNotRead" xml:space="preserve">
+    <value>The files could not be read.</value>
+  </data>
+  <data name="EditorFiles_EmptyGrouping" xml:space="preserve">
+    <value>The files are on the episodes, songs and books inside. Open one from Contents to see its file.</value>
+  </data>
+  <data name="EditorFiles_Empty" xml:space="preserve">
+    <value>No files are stored for this item.</value>
+  </data>
+  <data name="EditorFiles_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="EditorFiles_Folder" xml:space="preserve">
+    <value>Folder</value>
+  </data>
+  <data name="EditorFiles_Size" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="EditorFiles_Quality" xml:space="preserve">
+    <value>Quality</value>
+  </data>
+  <data name="EditorFiles_Access" xml:space="preserve">
+    <value>Access</value>
+  </data>
+  <data name="EditorFiles_ReadOnly" xml:space="preserve">
+    <value>Read-only</value>
+  </data>
+  <data name="EditorFiles_ReadOnlyTip" xml:space="preserve">
+    <value>Library only reads this file and never changes or deletes it.</value>
+  </data>
+  <data name="EditorFiles_OnlyFirst" xml:space="preserve">
+    <value>Only the first files are listed.</value>
+  </data>
+  <data name="EditorQuickFacts_Title" xml:space="preserve">
+    <value>Quick Facts</value>
+  </data>
+  <data name="EditorFiles_Actions" xml:space="preserve">
+    <value>Actions</value>
+  </data>
+  <data name="EditorFiles_DeleteFile" xml:space="preserve">
+    <value>Delete {0}…</value>
+  </data>
+  <data name="EditorHeader_MoreActions" xml:space="preserve">
+    <value>More actions for this item</value>
+  </data>
+  <data name="EditorFileSort_Heading" xml:space="preserve">
+    <value>What is this file?</value>
+  </data>
+  <data name="EditorFileSort_MainFileHint" xml:space="preserve">
+    <value>Use Match above to find which one it is.</value>
+  </data>
+  <data name="EditorFileSort_MatchAbove" xml:space="preserve">
+    <value>Use the search above to find the match, then choose Use this match.</value>
+  </data>
+  <data name="EditorFileSort_Extra" xml:space="preserve">
+    <value>An Extra</value>
+  </data>
+  <data name="EditorFileSort_ExtraHint" xml:space="preserve">
+    <value>A trailer, featurette, document, pictures or another clip that goes with a title.</value>
+  </data>
+  <data name="EditorFileSort_OnlyFilesCanBeExtras" xml:space="preserve">
+    <value>Only documents, pictures and video or audio clips can be Extras.</value>
+  </data>
+  <data name="EditorFileSort_Another" xml:space="preserve">
+    <value>It belongs to another title</value>
+  </data>
+  <data name="EditorFileSort_AnotherHint" xml:space="preserve">
+    <value>Search your Library and file it there as an Extra.</value>
+  </data>
+  <data name="EditorFileSort_Ignore" xml:space="preserve">
+    <value>Ignore it</value>
+  </data>
+  <data name="EditorFileSort_IgnoreHint" xml:space="preserve">
+    <value>Hide it from your Library and future scans. The file stays on disk.</value>
+  </data>
+  <data name="EditorFileSort_IgnoreExplained" xml:space="preserve">
+    <value>Library hides this file and skips it in future scans. Nothing is deleted. You can add it back in Settings.</value>
+  </data>
+  <data name="EditorFileSort_IgnoreThisFile" xml:space="preserve">
+    <value>Ignore this file</value>
+  </data>
+  <data name="EditorFileSort_Kind" xml:space="preserve">
+    <value>Kind</value>
+  </data>
+  <data name="EditorFileSort_Where" xml:space="preserve">
+    <value>Belongs to</value>
+  </data>
+  <data name="EditorFileSort_Track" xml:space="preserve">
+    <value>Track</value>
+  </data>
+  <data name="EditorFileSort_MakeExtra" xml:space="preserve">
+    <value>Make it an Extra</value>
+  </data>
+  <data name="EditorFileSort_NotInTitleFolder" xml:space="preserve">
+    <value>This file is not inside a title's folder. File it under another title instead.</value>
+  </data>
+  <data name="EditorFileSort_SearchTitles" xml:space="preserve">
+    <value>Search your Library</value>
+  </data>
+  <data name="EditorFileSort_NothingMatches" xml:space="preserve">
+    <value>Nothing in your Library matches.</value>
+  </data>
+  <data name="EditorFileSort_SearchFailed" xml:space="preserve">
+    <value>The search did not work. Try again.</value>
+  </data>
+  <data name="EditorFileSort_AttachTo" xml:space="preserve">
+    <value>Attach to {0}</value>
+  </data>
+  <data name="EditorFileSort_StagedAs" xml:space="preserve">
+    <value>Will be saved as {0}.</value>
+  </data>
+  <data name="EditorFileSort_Undo" xml:space="preserve">
+    <value>Undo</value>
+  </data>
+  <data name="EditorFileSort_FolderFiles" xml:space="preserve">
+    <value>Other files in this folder that are not sorted yet</value>
+  </data>
+  <data name="EditorFileSort_SortAs" xml:space="preserve">
+    <value>Sort as {0}</value>
+  </data>
+  <data name="EditorFileSort_SortAllGuessed" xml:space="preserve">
+    <value>Sort them all as guessed</value>
+  </data>
+  <data name="EditorFileSort_ShowExtras" xml:space="preserve">
+    <value>This show's Extras</value>
+  </data>
+  <data name="ExcludedFilesSection_IgnoredByYou" xml:space="preserve">
+    <value>Ignored by you</value>
+  </data>
+  <data name="EditorUniverse_Universe" xml:space="preserve">
+    <value>Universe</value>
+  </data>
+  <data name="EditorUniverseAdd_Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="EditorUniverseAdd_DescriptionOptional" xml:space="preserve">
+    <value>Description (optional)</value>
+  </data>
+  <data name="EditorUniverseAdd_Note" xml:space="preserve">
+    <value>Added by you. It is not on Wikidata, and nothing about it is sent anywhere.</value>
+  </data>
+  <data name="EditorUniverseMatch_Heading" xml:space="preserve">
+    <value>Match</value>
+  </data>
+  <data name="EditorUniverseMatch_Wikidata" xml:space="preserve">
+    <value>Wikidata</value>
+  </data>
+  <data name="EditorUniverseMatch_AddedByYou" xml:space="preserve">
+    <value>Not on Wikidata, added by you</value>
+  </data>
+  <data name="EditorUniverseMatch_NotMatched" xml:space="preserve">
+    <value>Not matched</value>
+  </data>
   <data name="IntegrationKey_Name" xml:space="preserve">
     <value>Key name</value>
   </data>
@@ -10664,5 +10970,218 @@
   </data>
   <data name="PluginConnect_RemoveKey" xml:space="preserve">
     <value>Remove key</value>
+  </data>
+  <data name="ViewEdit_AddToGallery" xml:space="preserve">
+    <value>Add to a gallery</value>
+  </data>
+  <data name="ViewEdit_CoverHint" xml:space="preserve">
+    <value>Click a photo to make it the cover, or choose Automatic and Library picks one.</value>
+  </data>
+  <data name="ViewEdit_DateSet" xml:space="preserve">
+    <value>Set to one date</value>
+  </data>
+  <data name="ViewEdit_DateShift" xml:space="preserve">
+    <value>Shift by an amount</value>
+  </data>
+  <data name="ViewEdit_DateTaken" xml:space="preserve">
+    <value>Date taken</value>
+  </data>
+  <data name="ViewEdit_Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="ViewEdit_DeleteFailed" xml:space="preserve">
+    <value>Nothing was deleted. Try again.</value>
+  </data>
+  <data name="ViewEdit_DeleteGalleryMessage" xml:space="preserve">
+    <value>The gallery goes away. Its photos and videos stay in your library.</value>
+  </data>
+  <data name="ViewEdit_DeleteGalleryTitle" xml:space="preserve">
+    <value>Delete this gallery?</value>
+  </data>
+  <data name="ViewEdit_DeleteItemMessage" xml:space="preserve">
+    <value>It moves to the Recycle bin, where you can bring it back.</value>
+  </data>
+  <data name="ViewEdit_DeleteItemTitle" xml:space="preserve">
+    <value>Delete this item?</value>
+  </data>
+  <data name="ViewEdit_DeleteItemsTitle" xml:space="preserve">
+    <value>Delete {0} items?</value>
+  </data>
+  <data name="ViewEdit_Deleted" xml:space="preserve">
+    <value>Deleted {0}.</value>
+  </data>
+  <data name="ViewEdit_DeletedSome" xml:space="preserve">
+    <value>{0} moved to the Recycle bin, {1} stayed.</value>
+  </data>
+  <data name="ViewEdit_Description" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="ViewEdit_EditingGallery" xml:space="preserve">
+    <value>Editing gallery</value>
+  </data>
+  <data name="ViewEdit_EditingItem" xml:space="preserve">
+    <value>Editing {0}</value>
+  </data>
+  <data name="ViewEdit_EditingItems" xml:space="preserve">
+    <value>Editing {0} items</value>
+  </data>
+  <data name="ViewEdit_FactCamera" xml:space="preserve">
+    <value>Camera</value>
+  </data>
+  <data name="ViewEdit_FactDimensions" xml:space="preserve">
+    <value>Size in pixels</value>
+  </data>
+  <data name="ViewEdit_FactLength" xml:space="preserve">
+    <value>Length</value>
+  </data>
+  <data name="ViewEdit_FactPages" xml:space="preserve">
+    <value>Pages</value>
+  </data>
+  <data name="ViewEdit_FactSize" xml:space="preserve">
+    <value>File size</value>
+  </data>
+  <data name="ViewEdit_FactType" xml:space="preserve">
+    <value>File type</value>
+  </data>
+  <data name="ViewEdit_FactWhere" xml:space="preserve">
+    <value>Kept in</value>
+  </data>
+  <data name="ViewEdit_Galleries" xml:space="preserve">
+    <value>Galleries</value>
+  </data>
+  <data name="ViewEdit_GalleryContentsHint" xml:space="preserve">
+    <value>Removing a photo here takes it out of the gallery only. The photo stays in your library.</value>
+  </data>
+  <data name="ViewEdit_GalleryDeleted" xml:space="preserve">
+    <value>Deleted gallery {0}.</value>
+  </data>
+  <data name="ViewEdit_GalleryEmpty" xml:space="preserve">
+    <value>There are no photos in this gallery yet.</value>
+  </data>
+  <data name="ViewEdit_HistoryAdded" xml:space="preserve">
+    <value>Added to Library on {0}</value>
+  </data>
+  <data name="ViewEdit_HistoryArchived" xml:space="preserve">
+    <value>Archived on {0}</value>
+  </data>
+  <data name="ViewEdit_HistoryFavorite" xml:space="preserve">
+    <value>Marked as a favorite</value>
+  </data>
+  <data name="ViewEdit_HistoryGroup" xml:space="preserve">
+    <value>Open one item to see its history.</value>
+  </data>
+  <data name="ViewEdit_HistoryHidden" xml:space="preserve">
+    <value>Hidden from the timeline</value>
+  </data>
+  <data name="ViewEdit_HistoryTaken" xml:space="preserve">
+    <value>Taken on {0}</value>
+  </data>
+  <data name="ViewEdit_Keep" xml:space="preserve">
+    <value>Keep</value>
+  </data>
+  <data name="ViewEdit_KeepAgain" xml:space="preserve">
+    <value>Keep it</value>
+  </data>
+  <data name="ViewEdit_KindDocument" xml:space="preserve">
+    <value>Document</value>
+  </data>
+  <data name="ViewEdit_KindGallery" xml:space="preserve">
+    <value>Gallery</value>
+  </data>
+  <data name="ViewEdit_KindPhoto" xml:space="preserve">
+    <value>Photo</value>
+  </data>
+  <data name="ViewEdit_KindPhotos" xml:space="preserve">
+    <value>Photos</value>
+  </data>
+  <data name="ViewEdit_KindSelection" xml:space="preserve">
+    <value>Selection</value>
+  </data>
+  <data name="ViewEdit_KindVideo" xml:space="preserve">
+    <value>Video</value>
+  </data>
+  <data name="ViewEdit_Latitude" xml:space="preserve">
+    <value>Latitude</value>
+  </data>
+  <data name="ViewEdit_Longitude" xml:space="preserve">
+    <value>Longitude</value>
+  </data>
+  <data name="ViewEdit_ManualGalleryHint" xml:space="preserve">
+    <value>Add photos from any photo's menu, or with New gallery in the selection bar.</value>
+  </data>
+  <data name="ViewEdit_Mixed" xml:space="preserve">
+    <value>Mixed, leave unchanged</value>
+  </data>
+  <data name="ViewEdit_NewGallery" xml:space="preserve">
+    <value>New gallery</value>
+  </data>
+  <data name="ViewEdit_NewGalleryName" xml:space="preserve">
+    <value>Or create a new gallery</value>
+  </data>
+  <data name="ViewEdit_NoteReadOnlyFolder" xml:space="preserve">
+    <value>This file is in a Read-only folder, so Library cannot move it.</value>
+  </data>
+  <data name="ViewEdit_NoteStaysInLibrary" xml:space="preserve">
+    <value>Changes stay in Library. Your files are never rewritten.</value>
+  </data>
+  <data name="ViewEdit_People" xml:space="preserve">
+    <value>People</value>
+  </data>
+  <data name="ViewEdit_Place" xml:space="preserve">
+    <value>Place</value>
+  </data>
+  <data name="ViewEdit_PlaceName" xml:space="preserve">
+    <value>Place name</value>
+  </data>
+  <data name="ViewEdit_Preferred" xml:space="preserve">
+    <value>Preferred</value>
+  </data>
+  <data name="ViewEdit_RemoveFromGallery" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="ViewEdit_ReviewChanges" xml:space="preserve">
+    <value>Review changes</value>
+  </data>
+  <data name="ViewEdit_ShiftDays" xml:space="preserve">
+    <value>Days</value>
+  </data>
+  <data name="ViewEdit_ShiftHint" xml:space="preserve">
+    <value>Moves every date by the same amount. Use it when a camera's clock was wrong.</value>
+  </data>
+  <data name="ViewEdit_ShiftHours" xml:space="preserve">
+    <value>Hours</value>
+  </data>
+  <data name="ViewEdit_TabArtwork" xml:space="preserve">
+    <value>Artwork</value>
+  </data>
+  <data name="ViewEdit_TabContents" xml:space="preserve">
+    <value>Contents</value>
+  </data>
+  <data name="ViewEdit_TabDetails" xml:space="preserve">
+    <value>Details</value>
+  </data>
+  <data name="ViewEdit_TabFiles" xml:space="preserve">
+    <value>Files</value>
+  </data>
+  <data name="ViewEdit_TabHistory" xml:space="preserve">
+    <value>History</value>
+  </data>
+  <data name="ViewEdit_UseOriginal" xml:space="preserve">
+    <value>Use original</value>
+  </data>
+  <data name="ViewEdit_WhereChangesSave" xml:space="preserve">
+    <value>Changes save in Library</value>
+  </data>
+  <data name="ViewEdit_Edit" xml:space="preserve">
+    <value>Edit</value>
+  </data>
+  <data name="ViewEdit_EditItems" xml:space="preserve">
+    <value>Edit {0} items</value>
+  </data>
+  <data name="ViewEdit_NumberProblem" xml:space="preserve">
+    <value>Enter {0} as a number, such as 12.50.</value>
+  </data>
+  <data name="ViewEdit_CurrencyProblem" xml:space="preserve">
+    <value>Add a three-letter currency code for {0}, such as USD.</value>
   </data>
 </root>

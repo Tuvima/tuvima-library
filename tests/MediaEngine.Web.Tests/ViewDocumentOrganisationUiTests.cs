@@ -3,9 +3,11 @@ using System.Text;
 using System.Text.Json;
 using Bunit;
 using MediaEngine.Contracts.LocalAssets;
+using MediaEngine.Web.Components.Details;
 using MediaEngine.Web.Components.Pages;
 using MediaEngine.Web.Components.Settings;
 using MediaEngine.Web.Models.ViewDTOs;
+using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Ui;
 using Microsoft.AspNetCore.Components;
@@ -100,16 +102,14 @@ public sealed class ViewDocumentOrganisationUiTests : AsyncBunitContext
     }
 
     [Fact]
-    public void TheEditorOffersEveryDetailAndSavesThemInOneRequest()
+    public void TheEditorOffersEveryDetailAndStagesThemWithoutSavingAnything()
     {
-        _handler.Set("GET", "/view/items/{id}/document-details", Info());
         _handler.Set("GET", "/view/catalogue", Catalogue);
-        _handler.Set("PUT", "/view/items/{id}/document-details", Info());
-        var dialog = new DialogSpy();
-        var cut = RenderDialog(dialog);
+        var stage = new ViewEditStage([Document()]);
+        var cut = Render<ViewEditDetailsPanel>(parameters => parameters.Add(panel => panel.Stage, stage));
 
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("input[aria-label='Document date']")));
-        cut.Find("input[aria-label='Document date']").Input("2026-03-01");
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("select[aria-label='Status']")));
+        cut.Find("input[type=date]").Input("2026-03-01");
         cut.Find("textarea").Input("Pay by April");
         cut.Find("input[aria-label='Tag to add']").Input("Utilities");
         cut.Find("form.app-tag-input").Submit();
@@ -119,73 +119,64 @@ public sealed class ViewDocumentOrganisationUiTests : AsyncBunitContext
         var comboboxes = cut.FindAll("input[role=combobox]");
         comboboxes[0].Input("City Water");
         comboboxes[1].Input("Bill");
-        cut.Find(".app-dialog-shell__footer button.app-button--filled, .app-dialog-shell__footer button:last-child").Click();
 
-        cut.WaitForAssertion(() => Assert.NotNull(dialog.Result));
-        Assert.False(dialog.Result!.Canceled);
-        using var body = JsonDocument.Parse(_handler.LastBody("PUT", "/view/items/{id}/document-details")!);
-        var root = body.RootElement;
-        Assert.Equal("2026-03-01", root.GetProperty("document_date").GetString());
-        Assert.Equal("City Water", root.GetProperty("correspondent").GetString());
-        Assert.Equal("Bill", root.GetProperty("document_type").GetString());
-        Assert.Equal("Pay by April", root.GetProperty("notes").GetString());
-        Assert.Contains("Utilities", root.GetProperty("tags").EnumerateArray().Select(tag => tag.GetString()));
-        var values = root.GetProperty("field_values").EnumerateArray().ToList();
-        Assert.Equal("Open", values.Single(value => value.GetProperty("field_id").GetGuid() == StatusField).GetProperty("text_value").GetString());
-        var money = values.Single(value => value.GetProperty("field_id").GetGuid() == AmountField);
-        Assert.Equal(120.5, money.GetProperty("number_value").GetDouble());
-        Assert.Equal("EUR", money.GetProperty("text_value").GetString());
+        // Typing only stages: nothing reached the Engine, and the footer's count would say how many changes are waiting.
+        Assert.Null(_handler.LastBody("PUT", "/view/items/{id}/document-details"));
+        Assert.Null(_handler.LastBody("POST", "/view/items/edit"));
+        var request = stage.ToRequest();
+        var document = request.Document!;
+        Assert.Equal(new DateOnly(2026, 3, 1), document.DocumentDate);
+        Assert.Equal("City Water", document.Correspondent);
+        Assert.Equal("Bill", document.DocumentType);
+        Assert.Equal("Pay by April", document.Notes);
+        Assert.Contains("Utilities", request.TagsAdd!);
+        var money = Assert.Single(document.FieldValues!, value => value.FieldId == AmountField);
+        Assert.Equal(120.5, money.NumberValue);
+        Assert.Equal("EUR", money.TextValue);
+        Assert.Equal("Open", Assert.Single(document.FieldValues!, value => value.FieldId == StatusField).TextValue);
+        Assert.True(stage.ChangeCount >= 6);
     }
 
     [Fact]
-    public void SavingWhenCustomFieldsCouldNotBeLoadedLeavesThemUntouched()
+    public void WhenCustomFieldsCouldNotBeLoadedNothingAboutThemIsStaged()
     {
-        _handler.Set("GET", "/view/items/{id}/document-details", Info());
         _handler.Set("GET", "/view/catalogue", "not json", HttpStatusCode.InternalServerError);
-        _handler.Set("PUT", "/view/items/{id}/document-details", Info());
-        var dialog = new DialogSpy();
-        var cut = RenderDialog(dialog);
+        var stage = new ViewEditStage([Document()]);
+        var cut = Render<ViewEditDetailsPanel>(parameters => parameters.Add(panel => panel.Stage, stage));
 
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("input[aria-label='Document date']")));
-        Assert.Contains("custom fields stay as they are", cut.Markup, StringComparison.Ordinal);
-        cut.Find(".app-dialog-shell__footer button:last-child").Click();
-
-        cut.WaitForAssertion(() => Assert.NotNull(dialog.Result));
-        using var body = JsonDocument.Parse(_handler.LastBody("PUT", "/view/items/{id}/document-details")!);
-        Assert.False(body.RootElement.TryGetProperty("field_values", out var values) && values.ValueKind != JsonValueKind.Null);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("input[type=date]")));
+        Assert.Empty(cut.FindAll("select[aria-label='Status']"));
+        Assert.Equal(0, stage.ChangeCount);
+        Assert.Null(stage.ToRequest().Document);
     }
 
     [Fact]
-    public void ARejectedSaveStaysOpenAndShowsTheEnginesReason()
+    public void ABadNumberIsExplainedBesideItsFieldAndIsNeverStaged()
     {
-        _handler.Set("GET", "/view/items/{id}/document-details", Info());
         _handler.Set("GET", "/view/catalogue", Catalogue);
-        _handler.Set("PUT", "/view/items/{id}/document-details", """{"title":"Invalid request.","detail":"A tag named 'x' already exists."}""", HttpStatusCode.Conflict);
-        var dialog = new DialogSpy();
-        var cut = RenderDialog(dialog);
-
-        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("input[aria-label='Document date']")));
-        cut.Find(".app-dialog-shell__footer button:last-child").Click();
-
-        cut.WaitForAssertion(() => Assert.Contains("already exists", cut.Markup, StringComparison.Ordinal));
-        Assert.Null(dialog.Result);
-    }
-
-    [Fact]
-    public void ABadNumberIsExplainedBeforeAnythingIsSent()
-    {
-        _handler.Set("GET", "/view/items/{id}/document-details", Info());
-        _handler.Set("GET", "/view/catalogue", Catalogue);
-        var dialog = new DialogSpy();
-        var cut = RenderDialog(dialog);
+        var stage = new ViewEditStage([Document()]);
+        var cut = Render<ViewEditDetailsPanel>(parameters => parameters.Add(panel => panel.Stage, stage));
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("input[aria-label='Amount amount']")));
         cut.Find("input[aria-label='Amount amount']").Input("abc");
-        cut.Find(".app-dialog-shell__footer button:last-child").Click();
 
         cut.WaitForAssertion(() => Assert.Contains("as a number", cut.Markup, StringComparison.Ordinal));
-        Assert.Null(_handler.LastBody("PUT", "/view/items/{id}/document-details"));
-        Assert.Null(dialog.Result);
+        Assert.False(stage.IsCustomFieldStaged(AmountField));
+        Assert.Equal(0, stage.ChangeCount);
+    }
+
+    [Fact]
+    public void AGroupOfDocumentsOffersOnlyWhatTheyShare()
+    {
+        _handler.Set("GET", "/view/catalogue", Catalogue);
+        var stage = new ViewEditStage([Document(), Document() with { Id = Guid.NewGuid() }]);
+        var cut = Render<ViewEditDetailsPanel>(parameters => parameters.Add(panel => panel.Stage, stage));
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("input[type=date]")));
+        // Title, archive number, notes and the person's own fields are about one document; a group never offers them.
+        Assert.Empty(cut.FindAll("textarea"));
+        Assert.Empty(cut.FindAll("select[aria-label='Status']"));
+        Assert.Contains("Correspondent", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -206,11 +197,6 @@ public sealed class ViewDocumentOrganisationUiTests : AsyncBunitContext
         Assert.Contains("Open, Closed", cut.Markup, StringComparison.Ordinal);
     }
 
-    private IRenderedComponent<ViewDocumentDetailsDialog> RenderDialog(DialogSpy dialog) =>
-        Render<ViewDocumentDetailsDialog>(parameters => parameters
-            .Add(component => component.Item, Document())
-            .AddCascadingValue<IAppDialogContext>(dialog));
-
     private static LocalAssetDto Document() => JsonSerializer.Deserialize<LocalAssetDto>("""
         {"id":"11111111-1111-1111-1111-111111111111","library_id":"22222222-2222-2222-2222-222222222222","media_kind":"document",
          "title":"Water bill","file_name":"bill.pdf","mime_type":"application/pdf","created_at":"2026-03-02T10:00:00+00:00","captured_at":null,
@@ -221,23 +207,6 @@ public sealed class ViewDocumentOrganisationUiTests : AsyncBunitContext
         {"text_source":"embedded","text_truncated":false,"encrypted":false,"has_text":true,"filing_state":"inbox",
          "tags":[{"id":"aaaaaaaa-0000-0000-0000-000000000001","name":"Tax"}],"field_values":[]}
         """;
-
-    private sealed class DialogSpy : IAppDialogContext
-    {
-        public AppDialogResult? Result { get; private set; }
-        public Guid Id { get; } = Guid.NewGuid();
-        public AppDialogOptions Options { get; } = new();
-        public string? PresentationClass => null;
-        public void Close(AppDialogResult? result = null) => Result = result ?? AppDialogResult.Ok(new object());
-        public void Cancel() => Result = AppDialogResult.Cancel();
-        public Task CloseAsync(AppDialogResult? result = null) { Close(result); return Task.CompletedTask; }
-        public Task CancelAsync() { Cancel(); return Task.CompletedTask; }
-        public Task SetOptionsAsync(AppDialogOptions options) => Task.CompletedTask;
-        public Task SetPresentationClassAsync(string? value) => Task.CompletedTask;
-        public void SetCloseGuard(Func<Task<bool>>? guard) { }
-        public IDisposable RegisterCloseGuard(Func<Task<bool>> guard) => new Nothing();
-        private sealed class Nothing : IDisposable { public void Dispose() { } }
-    }
 
     private sealed class RoutedHandler : HttpMessageHandler
     {

@@ -1,0 +1,45 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.LocalAssets
+@using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient Api
+@inject IStringLocalizer<SharedStrings> L
+
+@* Artwork of a gallery (spec D4): the cover is chosen by clicking a version to make it Preferred, or Automatic, which lets Library pick. *@
+<div class="tl-editor-details view-edit-artwork">
+    <div class="view-edit-details__row">
+        <AppButton ButtonStyle="@(Gallery.EffectiveCover is null ? AppButtonStyle.Filled : AppButtonStyle.Outlined)" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="@(() => Gallery.UseAutomaticCover())">@L["GalleryEditorShell_AutomaticCover"]</AppButton>
+    </div>
+    <p class="tl-editor-field__hint">@L["ViewEdit_CoverHint"]</p>
+    <ul class="view-edit-contents__grid">
+        @foreach (var item in _members)
+        {
+            var selected = Gallery.EffectiveCover == item.Id;
+            <li class="@(selected ? "view-edit-contents__tile is-selected" : "view-edit-contents__tile")" @key="item.Id">
+                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" aria-pressed="@(selected ? "true" : "false")" OnClick="@(() => Gallery.SetCover(item.Id))">
+                    <AppImage Src="@item.ThumbnailUrl" Alt="@ViewEditStage.DisplayTitle(item)" Width="96" Height="96" ObjectFit="AppObjectFit.Cover" />
+                    @if (selected)
+                    {
+                        <span class="view-edit-contents__badge"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" Size="AppSize.Small" /> @L["ViewEdit_Preferred"]</span>
+                    }
+                </AppButton>
+            </li>
+        }
+    </ul>
+</div>
+
+@code {
+    private List<LocalAssetDto> _members = [];
+
+    [Parameter, EditorRequired] public ViewGalleryEditStage Gallery { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _members = [.. Gallery.StartingMembers];
+        if (Gallery.Id is { } id)
+        {
+            var page = await Api.GetViewAssetsAsync(new ViewAssetQueryOptions(MediaEngine.Domain.PersonalMedia.ViewScopeKind.Mine, null, GalleryId: id, Limit: 500));
+            _members = [.. page?.Items ?? []];
+        }
+    }
+}

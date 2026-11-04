@@ -14,6 +14,18 @@ internal static class NativeUiTestServices
         // The universal editor is one service per circuit; pages bind to it and the layout draws it (render EditorPopover to see it).
         services.TryAddScoped<MediaEngine.Web.Services.Editing.EditorHost>();
         services.TryAddScoped<MediaEngine.Web.Services.Editing.ListEditLauncher>();
+        // The photos, videos, documents and galleries editor: one window per circuit, and the ribbon the quick actions speak through.
+        services.TryAddScoped<MediaEngine.Web.Services.Editing.ViewRibbonState>();
+        services.TryAddScoped<MediaEngine.Web.Services.Editing.ViewRibbonVoice>();
+        services.TryAddScoped(provider =>
+        {
+            var api = provider.GetService<MediaEngine.Web.Services.Integration.IEngineApiClient>() ?? EngineApiClientStub.CreateDefault();
+            return new MediaEngine.Web.Services.Editing.ViewEditorHost(
+                api,
+                provider.GetRequiredService<DeviceContextService>(),
+                provider.GetService<MediaEngine.Web.Services.Integration.ViewWorkspaceService>() ?? new MediaEngine.Web.Services.Integration.ViewWorkspaceService(api),
+                provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<MediaEngine.Web.Services.Editing.ViewEditorHost>>());
+        });
         services.TryAddScoped<AppDialogService>();
         services.TryAddScoped<IAppDialogService>(provider => provider.GetRequiredService<AppDialogService>());
         services.TryAddScoped<AppToastService>();

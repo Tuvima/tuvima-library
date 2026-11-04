@@ -4,11 +4,12 @@
 @using MediaEngine.Web.Services.Editing
 @inject IEngineApiClient ApiClient
 @inject ViewWorkspaceService Workspace
-@inject IAppToastService Snackbar
+@inject ViewRibbonVoice Snackbar
 @inject UIOrchestratorService Orchestrator
 @inject ViewMediaGrantService MediaGrants
 @inject NavigationManager Nav
 @inject GalleryEditorLauncherService GalleryEditorLauncher
+@inject ViewEditorHost EditorHost
 @inject DeviceContextService DeviceContext
 @namespace MediaEngine.Web.Components.Pages
 @inject IStringLocalizer<SharedStrings> L
@@ -79,7 +80,7 @@
                 @if (_page.HasMore) { <AppButton Label="@L["Common_LoadMore"].Value" Disabled="@_loadingMore" OnClick="LoadMoreAsync" /> }
                 @if (IsOwner && _gallery.Kind == ViewGalleryKind.Manual && _selected.Count > 0)
                 {
-                    <ViewSelectionToolbar Count="@_selected.Count" OnClear="@(() => _selected.Clear())" OnRemoveFromGallery="RemoveAsync" />
+                    <ViewSelectionToolbar Count="@_selected.Count" OnClear="@(() => _selected.Clear())" OnRemoveFromGallery="RemoveAsync" OnEdit="@EditCallback" />
                 }
             }
         }
@@ -96,6 +97,7 @@
                          MotionUrl="@MotionUrl(_active)"
                          PositionLabel="@($"{ActiveIndex + 1} of {_page?.Items.Count ?? 0}")"
                          ThumbnailUrl="@Thumbnail(_active)"
+                         EditRail="@(_gallery is not null && _page is not null ? new ViewEditGalleryRail(_gallery.Id, _gallery.Name, _page.Items) : null)"
                          OnClose="@(() => _active = null)"
                          OnPrevious="Previous"
                          OnNext="Next"
@@ -275,6 +277,15 @@
     private async Task AddToGalleryAsync(Guid galleryId)
     {
         if (_active is not null) await ApiClient.AddViewGalleryItemsAsync(galleryId, [_active.Id]);
+    }
+
+    private EventCallback EditCallback => EditorHost.CanEdit ? EventCallback.Factory.Create(this, EditSelectionAsync) : default;
+
+    private async Task EditSelectionAsync()
+    {
+        var items = _page?.Items.Where(item => _selected.Contains(item.Id)).ToList() ?? [];
+        if (items.Count == 0 || !await EditorHost.OpenItemsAsync(items)) return;
+        if ((await EditorHost.WhenClosedAsync()).Changed) { _selected.Clear(); await OnParametersSetAsync(); }
     }
 
     private async Task OpenEdit()
