@@ -183,6 +183,20 @@ public sealed class ExtraMoveEditSessionChangeHandler(
         ExtraTitleFolder? target = null;
         if (choice.Action == EditSessionExtraMove.ActionAttach)
         {
+            // The title the file is filed under is edited too, so the caller needs the same right over it as over the file's own item.
+            if (callers.Current is not { } caller)
+            {
+                return FilePlan.Refuse(EditSessionReasons.SessionUnavailable);
+            }
+
+            var refusal = caller.TargetRefusal is null
+                ? EditSessionReasons.NotAllowedToEdit
+                : await caller.TargetRefusal(choice.TitleId ?? Guid.Empty, ct).ConfigureAwait(false);
+            if (refusal is not null)
+            {
+                return FilePlan.Refuse(refusal);
+            }
+
             target = await FindTitleFolderAsync(choice.TitleId ?? Guid.Empty, ct).ConfigureAwait(false);
             if (target is null)
             {

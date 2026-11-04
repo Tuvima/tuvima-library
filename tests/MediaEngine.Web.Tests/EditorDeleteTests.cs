@@ -206,6 +206,31 @@ public sealed class EditorDeleteTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task TheEditorSaysItIsDeleting_FromTheQuestionUntilTheMoveToTheParentIsDone_AndNoLonger()
+    {
+        UseApi();
+        SetAdministrator();
+        var host = await OpenAsync(EpisodeOne, Show, Season, Episode);
+        var dialogs = RenderDialogs();
+        Assert.False(host.IsDeleting);
+
+        var deleting = dialogs.InvokeAsync(() => EditorDeleteFlow.DeleteActiveAsync(host, Services.GetRequiredService<IAppDialogService>(), Services.GetRequiredService<IAppToastService>(), _device, _session));
+        var confirm = WaitForConfirm(dialogs);
+        Assert.True(host.IsDeleting);
+        confirm.Click();
+
+        Assert.True(await deleting);
+        Assert.False(host.IsDeleting);
+
+        var again = dialogs.InvokeAsync(() => EditorDeleteFlow.DeleteActiveAsync(host, Services.GetRequiredService<IAppDialogService>(), Services.GetRequiredService<IAppToastService>(), _device, _session));
+        WaitForConfirm(dialogs);
+        Assert.True(host.IsDeleting);
+        dialogs.FindAll("footer button").First().Click();
+        Assert.False(await again);
+        Assert.False(host.IsDeleting);
+    }
+
+    [Fact]
     public async Task SayingNo_DeletesNothing_AndStaysOnTheEpisode()
     {
         UseApi();

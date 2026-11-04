@@ -111,6 +111,7 @@ public static class EditorDeleteFlow
             return false;
         }
 
+        using var deleting = editor.MarkDeleting();
         var group = ActiveGroup(editor);
         var answer = group is null
             ? await LibraryItemDeletionFlow.RunForResultAsync(dialogs, toasts, [active.EntityId], active.Title)

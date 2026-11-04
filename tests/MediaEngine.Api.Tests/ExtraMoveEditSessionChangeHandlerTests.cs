@@ -28,6 +28,7 @@ public sealed class ExtraMoveEditSessionChangeHandlerTests : IDisposable
     private readonly ScannerSpy _scanner = new();
     private readonly IngestionSpy _ingestion = new();
     private readonly ExtraMoveEditSessionChangeHandler _handler;
+    private readonly EditSessionCallerAccessor _callers = new();
     private readonly Guid _showId = Guid.NewGuid();
     private readonly Guid _episodeId = Guid.NewGuid();
     private readonly Guid _looseId = Guid.NewGuid();
@@ -60,7 +61,7 @@ public sealed class ExtraMoveEditSessionChangeHandlerTests : IDisposable
         _excluded = new ExcludedSourceFileRepository(_database);
         _handler = new ExtraMoveEditSessionChangeHandler(
             _extras, _scanner, _titles, _ingestion, new OneLibrary(_root), _excluded, _filter,
-            new EditSessionCallerAccessor(), NullLogger<ExtraMoveEditSessionChangeHandler>.Instance);
+            _callers, NullLogger<ExtraMoveEditSessionChangeHandler>.Instance);
     }
 
     [Fact]
@@ -122,6 +123,7 @@ public sealed class ExtraMoveEditSessionChangeHandlerTests : IDisposable
         _scanner.Described = Extra(_guide, ItemExtraKinds.Document, ItemExtraOrigins.UserExtra);
         _scanner.TitleFolder = new ExtraTitleFolder("lib", Path.GetFullPath(otherFolder));
         var change = Sort(_looseId, new ExtraFileChoice(EditSessionExtraMove.ActionAttach, ExtraKinds.Document, null, null, null, _showId));
+        using var scope = _callers.Use(Caller(null));
 
         Assert.Null(await _handler.CheckAsync(change));
         await _handler.ApplyAsync(change);
@@ -137,11 +139,36 @@ public sealed class ExtraMoveEditSessionChangeHandlerTests : IDisposable
     {
         _titles.AddWork(_looseId, _guide);
         _scanner.TitleFolder = null;
+        using var scope = _callers.Use(Caller(null));
 
         Assert.Equal(
             ExtraMoveEditSessionChangeHandler.TitleGone,
             await _handler.CheckAsync(Sort(_looseId, new ExtraFileChoice(EditSessionExtraMove.ActionAttach, ExtraKinds.Document, null, null, null, _showId))));
     }
+
+    [Fact]
+    public async Task AFileFiledUnderAnotherTitle_IsRefused_WhenTheCallerMayNotEditThatTitle()
+    {
+        _titles.AddWork(_looseId, _guide);
+        _scanner.TitleFolder = new ExtraTitleFolder("lib", Path.GetFullPath(_show));
+        var change = Sort(_looseId, new ExtraFileChoice(EditSessionExtraMove.ActionAttach, ExtraKinds.Document, null, null, null, _showId));
+
+        using (_callers.Use(Caller(EditSessionReasons.NotAllowedToEdit, _showId)))
+        {
+            Assert.Equal(EditSessionReasons.NotAllowedToEdit, await _handler.CheckAsync(change));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => _handler.ApplyAsync(change));
+        }
+
+        Assert.Empty(_titles.Deleted);
+        Assert.Null(await _extras.GetByPathAsync(Path.GetFullPath(_guide)));
+        Assert.Equal(EditSessionReasons.SessionUnavailable, await _handler.CheckAsync(change));
+    }
+
+    private static EditSessionCaller Caller(string? refusal, Guid? refusedTitle = null) =>
+        new(LibraryMoveTestWorld.Actor, LibraryMoveTestWorld.Everything)
+        {
+            TargetRefusal = (id, _) => Task.FromResult(refusedTitle is null || id == refusedTitle ? refusal : null),
+        };
 
     [Fact]
     public async Task AnIgnoredFile_StaysOnDisk_IsHiddenFromScans_AndCanBeAddedBack()

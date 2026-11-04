@@ -1,6 +1,6 @@
 # Spec: Universal editor v4 (the editor overhaul)
 
-> **Status:** In progress (Locked by Shy 2026-11-04; WP1 to WP12 built, WP13 Fable review and visual proof remains; not archived until then) · **Version:** 1 · **Last updated:** 2026-11-04 · **Related docs:** [Universe contents](universe-contents.md) · [Universal editor v3](universal-editor-v3.md) · [Universal editor v3.1, video series and order](universal-editor-v3-1-video-series-and-order.md) · [Delete from library (archived)](archive/delete-from-library.md) · [Delete groups (archived)](archive/delete-groups.md) · [Universes](universe.md) · [Product overview](../product/overview.md) · Mockups: [`engineering/design/mockups/universal-editor-v4/editor-v4-mockups.html`](../design/mockups/universal-editor-v4/editor-v4-mockups.html) · Planning notes: review and questions, 2026-11-04 (project thread "Overhaul the editor")
+> **Status:** Built, awaiting your Local checks (Locked by Shy 2026-11-04; WP1 to WP13 built and independently reviewed; visual comparison with the mockups and L1 to L6 run on SHY-DESKTOP; archive once validated) · **Version:** 1 · **Last updated:** 2026-11-04 · **Related docs:** [Universe contents](universe-contents.md) · [Universal editor v3](universal-editor-v3.md) · [Universal editor v3.1, video series and order](universal-editor-v3-1-video-series-and-order.md) · [Delete from library (archived)](archive/delete-from-library.md) · [Delete groups (archived)](archive/delete-groups.md) · [Universes](universe.md) · [Product overview](../product/overview.md) · Mockups: [`engineering/design/mockups/universal-editor-v4/editor-v4-mockups.html`](../design/mockups/universal-editor-v4/editor-v4-mockups.html) · Planning notes: review and questions, 2026-11-04 (project thread "Overhaul the editor")
 
 ## 0. Why a v4
 
@@ -295,3 +295,10 @@ The editor gets a clean rebuild. It always opens on the item you clicked, which 
 ## Look pass addendum (2026-11-04)
 
 Discard, Save, Review and delete dialogs use the look pass dialog exactly (icon tile, bold title, close X, destructive outlined red on the left, safe filled button last and focused). The editor layout is unchanged. Source: [look pass spec](look-pass.md) section 6. This is a version note; the Locked body above is unchanged.
+
+## Known gaps (added after the independent review, 2026-11-04)
+
+Appended notes only; the Locked body above is unchanged.
+
+- Comics and book series have no Line-up table. A comic issue or a book is fixed one item at a time in Match.
+- Absolute episode numbering (episode 213 of a long-running show) is not offered when choosing an episode; the Line-up and the episode filters use season and episode numbers and air dates.
