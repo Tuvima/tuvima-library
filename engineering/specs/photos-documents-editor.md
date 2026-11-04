@@ -206,7 +206,7 @@ v4 has Fable review its implementation; the same applies here for WP1 (all-or-no
 ## 8. Risks and open questions
 
 - **Risks:** (1) A group Save touching thousands of photos is slow; the editor limits a group to what the selection bar already allows and runs the save as one job with progress. (2) Shifting dates can move photos into other days of the Timeline; Review says so ("moves 4 photos to the previous day"). (3) Photos-in-View modelling is unplanned; this spec touches only editing and must be revisited if that model changes how a photo, album or gallery is defined.
-- **Open questions (nothing here is locked):** see below. Each has the context, the options and a recommendation.
+- **Open questions:** none. Q1 to Q10 were all answered by Shy on 2026-11-04 (option A each time, Q5 decided earlier); they stay below as the record.
 
 **Q1. Photos and videos in one editor.** A video in View has the same fields as a photo (description, date, place, people, tags). A: one editor for both, edited together. B: separate. **Recommend A.**
 
