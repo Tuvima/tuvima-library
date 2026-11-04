@@ -38,10 +38,6 @@ src/MediaEngine.Web/Components/MediaEditor/EditorContextNavigator.razor.css:1100
 src/MediaEngine.Web/Components/MediaEditor/EditorContextNavigator.razor.css:380px
 src/MediaEngine.Web/Components/MediaEditor/EditorContextNavigator.razor.css:700px
 src/MediaEngine.Web/Components/MediaEditor/EditorContextNavigator.razor.css:701px
-src/MediaEngine.Web/Components/MediaEditor/EditorDetailsInlineField.razor.css:1450px
-src/MediaEngine.Web/Components/MediaEditor/EditorDetailsInlineField.razor.css:720px
-src/MediaEngine.Web/Components/MediaEditor/EditorDetailsInlineField.razor.css:721px
-src/MediaEngine.Web/Components/MediaEditor/EditorDetailsInlineField.razor.css:760px
 src/MediaEngine.Web/Components/MediaEditor/MediaEditorInheritedArtworkTable.razor.css:800px
 src/MediaEngine.Web/Components/MediaEditor/MediaEditorLocalOptions.razor.css:720px
 src/MediaEngine.Web/Components/MediaEditor/MediaEditorOwnedChildBrowser.razor.css:800px

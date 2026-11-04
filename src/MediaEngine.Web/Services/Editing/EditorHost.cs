@@ -192,7 +192,7 @@ public sealed class EditorHost : IDisposable
     /// <summary>The rows ticked for the bulk panel; what it stages goes into the same pending list as one item's edits.</summary>
     public BulkEditSelection Batch { get; }
 
-    /// <summary>The family tree in the left column: this show, album or series and its seasons, episodes or tracks (universal editor v3 D3).</summary>
+    /// <summary>The family behind the rail of dropdowns and the Contents tab: this show, album or series and its seasons, episodes or tracks (universal editor v4 D2).</summary>
     public EditorFamilyState Family { get; }
 
     /// <summary>The rail of the Universe editor: the Universe, its kinds with counts, and the things of each kind (universal editor v4, WP11).</summary>
@@ -721,7 +721,7 @@ public sealed class EditorHost : IDisposable
         RaiseChanged();
     }
 
-    // The left column follows the item being edited: a new family is read when the item is not in the tree, and the parents above the item
+    // The rail follows the item being edited: a new family is read when the item is not in the tree, and the parents above the item
     // (the page's trail, the Engine's scope chain) are opened so the item is in view. Films, standalone items, people and the like get none.
     private void SyncFamily()
     {
