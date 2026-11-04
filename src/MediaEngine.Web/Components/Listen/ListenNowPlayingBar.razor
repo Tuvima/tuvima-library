@@ -226,7 +226,7 @@
                     }
                     @if (!IsPhonePresentation) {
                     <PlaybackVolumeControl Surface="dock" Size="standard" Appearance="bare" CommitOnChange="true" Step="@VolumeStep"
-                                           Volume="@Playback.Volume" IsMuted="@(Playback.IsMuted || Playback.Volume <= 0)" Supported="@Playback.SoftwareVolumeSupported"
+                                           Volume="@Playback.Volume" IsMuted="@(PlaybackMuteDisplay.ShowsMuted(Playback.IsMuted, Playback.Volume, Playback.VolumeReported))" Supported="@Playback.SoftwareVolumeSupported"
                                            OnToggleMute="ToggleMuteAsync" OnVolumeChanged="SetVolumeOnHostAsync" />
                     }
                 </div>
@@ -256,7 +256,7 @@
                             }
                             @if (!IsPhonePresentation) {
                             <PlaybackVolumeControl Surface="panel" Size="standard" CommitOnChange="true" Step="@VolumeStep"
-                                                   Volume="@Playback.Volume" IsMuted="@(Playback.IsMuted || Playback.Volume <= 0)" Supported="@Playback.SoftwareVolumeSupported"
+                                                   Volume="@Playback.Volume" IsMuted="@(PlaybackMuteDisplay.ShowsMuted(Playback.IsMuted, Playback.Volume, Playback.VolumeReported))" Supported="@Playback.SoftwareVolumeSupported"
                                                    OnToggleMute="ToggleMuteAsync" OnVolumeChanged="SetVolumeOnHostAsync" />
                             }
                         </div>

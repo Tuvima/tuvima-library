@@ -8094,6 +8094,9 @@
   <data name="VideoPlaybackHost_NextEpisode" xml:space="preserve">
     <value>Next episode</value>
   </data>
+  <data name="VideoPlaybackHost_PreviousEpisode" xml:space="preserve">
+    <value>Previous episode</value>
+  </data>
   <data name="VideoPlaybackHost_TurnSubtitlesOff" xml:space="preserve">
     <value>Turn subtitles off</value>
   </data>
