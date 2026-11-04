@@ -85,3 +85,9 @@ Passed (Shy): bar order, icon sizes and name font size; Resume looks okay; one-c
 58. Bookmark panel target design (Shy's image, local only; described here): a dark rounded panel over the video, with a bookmark icon, "Bookmarks" and a purple count chip, close X; a "Show on timeline" switch; a full-width outlined "+ Bookmark at 04:55" button; tabs "Mine (4)" and "Global (2)" with a purple underline on the active one; a search box; rows with a purple time chip (02:18), the bookmark title, a small "Personal" label, and pencil and bin icons; a footer line "Select a time to jump to that moment." Everything fits without scrolling, and the player bar below shows time (04:55 / 28:17) and a thin progress line with one marker. Answers items 31 and 51.
 59. Collections: no Universe appears (only a shelf for "The Expanse"), even though the Engine log shows Universe building (for example John Wick from The Continental). Either Universes aren't being created or aren't listed. Needs a look at what the Engine holds versus what the page shows.
 60. Universe access (idea from Shy): whenever a movie, show, book and so on has Universe data, show a small "Universe" icon on the item, floating above the cover art or in the top right of the background landscape, which opens the Universe page. Also reachable from the editor. Today there is no discoverable way in.
+
+## Plugins and Integrations walk
+
+Passed (Shy): Plugins page tiles, list view, remembered choice (look better now); TheTVDB page; Restore official plugins review. Tabs match: skipped, Libraries page is being redone anyway.
+
+61. Plugin pages (TMDB, StashDB, plugin file card) and the Integrations pages work, but the UI is poor: the connection UI and the page layout of the TMDB page, the StashDB page, the plugin file view/editor, and the Integrations page and tiles. Shy wants a dedicated thread to redesign the plugin and integration page UI as one piece.
