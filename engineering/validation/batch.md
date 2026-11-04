@@ -1070,3 +1070,4 @@ Results and the 61 findings are in `engineering/validation/local-check-2026-11-0
 | Universe contents L2: Fandom Lore | (this build) | Turn Fandom Lore on and see whether pictures and descriptions are good and labelled Fandom, and that Concepts only appear with it on. | Awaiting |
 | Universe contents L3: hand-added faction | (this build) | Add a faction with a logo by hand (editor), rescan, and confirm it is still there and never overwritten. | Awaiting |
 | Universe contents L4: look and feel | (this build) | Tiles, logo tiles and the Timeline strip with Story order / Release order toggle, on desktop and phone; spoiler lines. | Awaiting |
+| Universe contents L5: still open in the spec | (this build) | Not yet built: the thing page, belongs-to and hide screens (editor v4), Wikidata fetch for Events, Objects and Species (needs live Wikidata), member-of / located-in links, and the older Connections character list still overlaps the new Characters rail. | Open |
