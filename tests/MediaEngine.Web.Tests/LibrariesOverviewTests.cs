@@ -257,6 +257,7 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         host.FindAll("[role=menuitem]").Single(item => Text(item).Contains("Remove", StringComparison.Ordinal)).Click();
         host.FindAll("button").Single(button => Text(button) == "Save changes").Click();
 
+        host.WaitForAssertion(() => Assert.NotEmpty(host.FindAll("[data-review]")));
         var review = Text(host.Find("[data-review]"));
         Assert.Contains("Remove the folder F:\\Movies", review);
         Assert.Contains("files stay on disk", review);
