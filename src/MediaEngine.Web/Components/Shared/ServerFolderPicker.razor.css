@@ -4,7 +4,7 @@
     flex-direction: column;
     box-sizing: border-box;
     /* One width wherever the picker opens (Add library, Vault, Settings), so it never changes shape between screens. */
-    width: min(calc(100vw - 64px), 760px);
+    width: min(calc(100vw - 32px), 1100px);
     max-width: 100%;
     min-height: min(680px, 72vh);
     font-family: var(--app-font-sans);
@@ -23,8 +23,9 @@
 /* Like an Explorer address bar: clickable folder names with a chevron each, and an empty end that turns the bar into a text box. */
 .server-folder-picker__address {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
+    gap: 8px;
     min-height: 48px;
     padding: 0 4px;
     border: 1px solid var(--tl-border-subtle);
@@ -327,7 +328,7 @@ input.server-folder-picker__address-field { padding: 0 12px; }
 /* Reserve room for validation notices so the folder list does not jump when one appears. */
 .server-folder-picker__notices { display: grid; align-content: start; gap: 8px; min-height: 76px; }
 
-/* Footer: the selected path with its copy button, then Cancel and the confirm button. */
+/* Footer: the safety line, then Cancel and the confirm button. */
 .server-folder-picker__footer {
     display: flex;
     flex-wrap: wrap;
@@ -337,34 +338,22 @@ input.server-folder-picker__address-field { padding: 0 12px; }
     width: 100%;
 }
 
-.server-folder-picker__footer-start { flex: 1 1 100%; max-width: 360px; }
+.server-folder-picker__safety { margin: 0; flex: 1 1 240px; color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
 
-.server-folder-picker__selected {
-    display: flex;
-    flex: 1 1 320px;
-    align-items: center;
-    gap: 12px;
-    min-width: 0;
-}
+/* Host fields above the path box: the library name is large and the first thing you type (D5). */
+.server-folder-picker__top { display: grid; gap: 12px; padding: 20px 28px 0; }
+@media (max-width: 600px) { .server-folder-picker__top { padding: 12px 14px 0; } }
+.server-folder-picker__top ::deep input { font-size: var(--tl-font-size-lg, 1.125rem); }
 
-.server-folder-picker__selected-label {
-    color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-sm);
-    white-space: nowrap;
-}
-
-.server-folder-picker__selected-field {
-    flex: 1 1 auto;
-    min-width: 0;
-}
-
-.server-folder-picker__selected-field ::deep .tl-input-adornment { min-width: 44px; min-height: 44px; }
-
-.server-folder-picker__copied {
-    min-width: 3.5rem;
-    color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-secondary);
-}
+/* The one check's answer, drawn when Add / Choose is pressed (D7). */
+.server-folder-picker__result { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: var(--tl-radius-md, 10px); border: 1px solid var(--tl-border-subtle); }
+.server-folder-picker__result p { margin: 2px 0 0; color: var(--tl-text-secondary); }
+.server-folder-picker__result[data-result="looks-right"] { border-color: var(--tl-status-success); color: var(--tl-status-success); }
+.server-folder-picker__result[data-result="heads-up"] { border-color: var(--tl-status-warning); color: var(--tl-status-warning); }
+.server-folder-picker__result[data-result="already-used"], .server-folder-picker__result[data-result="refused"] { border-color: var(--tl-status-error, var(--tl-status-warning)); color: var(--tl-status-error, var(--tl-status-warning)); }
+.server-folder-picker__result strong, .server-folder-picker__result p { color: inherit; }
+.server-folder-picker__result p { color: var(--tl-text-secondary); }
+.server-folder-picker__validation-progress { display: grid; gap: 6px; color: var(--tl-text-muted); }
 
 /* Under 840px (the one card breakpoint shared with the Libraries panel): a narrower location column, and Modified is hidden. */
 @media (max-width: 840px) {
@@ -401,7 +390,4 @@ input.server-folder-picker__address-field { padding: 0 12px; }
 
     .server-folder-picker__browser { padding: 14px; }
     .server-folder-picker__search { max-width: none; }
-    .server-folder-picker__selected { flex-flow: row wrap; flex-basis: 100%; }
-    .server-folder-picker__selected-label { flex-basis: 100%; }
-    .server-folder-picker__selected-field { flex: 1 1 0; }
 }

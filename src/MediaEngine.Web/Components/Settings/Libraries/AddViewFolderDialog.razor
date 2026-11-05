@@ -124,10 +124,10 @@
     private string? _storageLocationId;
     private string _storageRelative = "View";
 
-    private string Heading => $"Choose your {Kind.Label} folder";
+    private string Heading => $"Choose your {LibraryTypeCatalog.AddChoiceLabel(Kind)} folder";
 
     // "Photos" reads "photos" in the middle of a sentence; "Personal videos" and "Documents" follow the same rule.
-    private string Noun => char.ToLowerInvariant(Kind.PluralLabel[0]) + Kind.PluralLabel[1..];
+    private string Noun => Kind.Key == "photos" ? "photos and videos" : char.ToLowerInvariant(Kind.PluralLabel[0]) + Kind.PluralLabel[1..];
 
     private IReadOnlyList<ServerStorageLocationDto> _storageWritable = [];
 
@@ -155,7 +155,7 @@
     {
         _storageWritable = [.. Configuration.StorageLocations.Where(location => location.AllowWrite)];
         _storageLocationId = StorageReady ? null : _storageWritable.FirstOrDefault()?.Id;
-        _name = Kind.Label;
+        _name = LibraryTypeCatalog.AddChoiceLabel(Kind);
     }
 
     private void NameChanged(string? value)

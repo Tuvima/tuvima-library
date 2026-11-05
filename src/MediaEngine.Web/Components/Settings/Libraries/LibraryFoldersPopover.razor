@@ -1,0 +1,85 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Settings
+@using Microsoft.JSInterop
+@inject IJSRuntime JS
+@inject IStringLocalizer<SharedStrings> L
+
+@* "N folders" as a button (Libraries and folder picker D3): it opens a small list of the library's real paths, each with its online or offline state and a copy
+   button. It never navigates. Enter or Space opens it, Esc closes it; on a phone the list is a bottom sheet. *@
+<span class="lib-folders" @onclick:stopPropagation="true">
+    <AppButton Label="@Label"
+               EndIcon="@AppMaterialIcons.Outlined.ExpandMore"
+               ButtonStyle="AppButtonStyle.Text"
+               Size="AppControlSize.Compact"
+               Class="lib-folders__button"
+               aria-haspopup="dialog"
+               aria-expanded="@(_open ? "true" : "false")"
+               data-folder-count
+               OnClick="Toggle" />
+    @if (_open)
+    {
+        <div class="lib-folders__panel" role="dialog" aria-label="@PanelLabel" data-folder-list @onkeydown="KeyDown">
+            <div class="lib-folders__inner">
+            <ul class="lib-folders__list">
+                @foreach (var source in Sources)
+                {
+                    var issue = IssueFor(source);
+                    <li class="lib-folders__item" data-source="@source.Id" data-state="@(issue is null ? "online" : "offline")">
+                        <span class="lib-folders__path" title="@source.Path">@source.Path</span>
+                        <span class="lib-folders__state">@(issue ?? L["LibraryFoldersPopover_Online"].Value)</span>
+                        <AppIconButton Icon="@AppMaterialIcons.Outlined.ContentCopy"
+                                       Tooltip="@L["LibraryFoldersPopover_CopyPath"].Value"
+                                       AriaLabel="@L["LibraryFoldersPopover_CopyThisPath", source.Path].Value"
+                                       OnClick="@(() => CopyAsync(source.Path))" />
+                    </li>
+                }
+            </ul>
+            <div class="lib-folders__foot">
+                <span aria-live="polite">@_copied</span>
+                <AppButton Label="@L["LibraryFoldersPopover_Close"].Value" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" OnClick="Close" />
+            </div>
+            </div>
+        </div>
+    }
+</span>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<LibrarySourceDto> Sources { get; set; } = [];
+    [Parameter] public string LibraryName { get; set; } = "library";
+    /// <summary>Folder path to its problem (offline, no access); null while the folder checks have not finished, so nothing is claimed.</summary>
+    [Parameter] public IReadOnlyDictionary<string, string>? PathIssues { get; set; }
+
+    private bool _open;
+    private string? _copied;
+
+    private string Label => Sources.Count == 1 ? L["LibraryFoldersPopover_OneFolder"].Value : L["LibraryFoldersPopover_ManyFolders", Sources.Count].Value;
+    private string PanelLabel => L["LibraryFoldersPopover_FoldersOf", LibraryName].Value;
+
+    private string? IssueFor(LibrarySourceDto source) => PathIssues is not null && PathIssues.TryGetValue(source.Path, out var issue) ? issue : null;
+
+    private void Toggle()
+    {
+        _open = !_open;
+        _copied = null;
+    }
+
+    private void Close() => _open = false;
+
+    private void KeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape") _open = false;
+    }
+
+    private async Task CopyAsync(string path)
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", path);
+            _copied = L["LibraryFoldersPopover_Copied"].Value;
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException)
+        {
+            _copied = L["LibraryFoldersPopover_CouldNotCopy"].Value;
+        }
+    }
+}

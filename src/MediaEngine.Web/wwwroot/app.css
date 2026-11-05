@@ -4254,7 +4254,7 @@ input[type="reset"],
 
 
 /* The picker host is fit-content by default, which squeezed the picker; give it a real width. */
-.tl-dialog.server-folder-picker-host { width: min(calc(100vw - 32px), 1240px) !important; }
+.tl-dialog.server-folder-picker-host { width: min(calc(100vw - 32px), 1100px) !important; }
 .tl-dialog.server-folder-picker-host .app-dialog-shell { width: 100%; }
 @media (max-width: 520px){
     .tl-dialog.server-folder-picker-host {
@@ -5097,6 +5097,7 @@ input[type="reset"],
 .lib-area--listen { --lib-area-colour: var(--tl-area-listen); }
 .lib-area--read { --lib-area-colour: var(--tl-area-read); }
 .lib-area--view { --lib-area-colour: var(--tl-area-view); }
+.lib-area--vault { --lib-area-colour: var(--tl-area-vault); }
 .lib-kind-tile { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 10px; font-size: var(--tl-font-size-xl); color: var(--tl-text-muted); background: var(--tl-bg-surface-raised); }
 .lib-kind-tile--lookup { color: var(--lib-area-colour, var(--tl-accent-primary)); background: color-mix(in srgb, var(--lib-area-colour, var(--tl-accent-primary)) 16%, transparent); }
 .lib-meta { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }

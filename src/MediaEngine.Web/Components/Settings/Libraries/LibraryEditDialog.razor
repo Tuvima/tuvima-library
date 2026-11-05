@@ -1,0 +1,434 @@
+@namespace MediaEngine.Web.Components.Settings
+@using System.Text.Json
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Integration
+@using MediaEngine.Web.Services.Ui
+@inject LibraryFolderAddService AddService
+@inject IAppDialogService DialogService
+@inject IEngineApiClient Api
+@inject IStringLocalizer<SharedStrings> L
+@inject DashboardSessionAccessor Session
+@inject MediaEngine.Web.Services.Vault.NsfwModeState Nsfw
+
+@* Edit (Libraries and folder picker D4): one window for a library's name and folders, with the fixed footer (Cancel, Save changes). Nothing is saved until Save
+   changes, which first shows Review: the plain list of what will happen. Removing a folder never deletes files. Scan now, Move to Vault (administrators) and
+   Remove library (asks once) sit here too, so the table row needs only one Edit button. The Import folder uses the same window with its one folder. *@
+<AppDialogShell Title="@Title" Subtitle="@Lead" Size="Large" OnClose="@(() => Dialog.Cancel())">
+    <ChildContent>
+        <div class="lib-edit" data-step="@(_review ? "review" : "edit")">
+            @if (_review)
+            {
+                <ul class="lib-edit__review" data-review>
+                    @foreach (var line in ReviewLines)
+                    {
+                        <li>@line</li>
+                    }
+                </ul>
+            }
+            else
+            {
+                @if (!Import)
+                {
+                    <div class="lib-edit__name">
+                        <AppTextField Label="@L["LibraryEditDialog_LibraryName"].Value"
+                                      Value="@_name"
+                                      ValueChanged="@((string? value) => _name = value ?? string.Empty)"
+                                      MaxLength="@CreateLibraryDialog.MaxNameLength"
+                                      ReadOnly="@_saving"
+                                      Error="@(NameProblem is not null)"
+                                      ErrorText="@NameProblem" />
+                    </div>
+                }
+
+                <div class="lib-edit__folders" role="list" aria-label="@L["LibraryEditDialog_Folders"].Value" data-folder-rows>
+                    @foreach (var source in KeptSources)
+                    {
+                        var issue = IssueFor(source.Path);
+                        <div class="lib-edit__folder" role="listitem" data-source="@source.Id">
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" />
+                            <span class="lib-edit__path" title="@source.Path">@source.Path</span>
+                            <span class="lib-edit__state" data-state="@(issue is null ? "online" : "offline")">@(issue ?? L["LibraryFoldersPopover_Online"].Value)</span>
+                            <AppRowMenu AriaLabel="@L["LibraryEditDialog_ActionsFor", source.Path].Value" Items="@FolderMenu(source)" />
+                        </div>
+                    }
+                    @foreach (var added in _added)
+                    {
+                        <div class="lib-edit__folder lib-edit__folder--new" role="listitem" data-added="@added.Path">
+                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CreateNewFolder" />
+                            <span class="lib-edit__path" title="@added.Path">@added.Path</span>
+                            <span class="lib-edit__state">@L["LibraryEditDialog_WillBeAdded"]</span>
+                            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="@L["LibraryEditDialog_DontAdd"].Value" AriaLabel="@L["LibraryEditDialog_DontAddPath", added.Path].Value" OnClick="@(() => _added.Remove(added))" />
+                        </div>
+                    }
+                    @if (KeptSources.Count == 0 && _added.Count == 0)
+                    {
+                        <p class="lib-edit__note">@(Import ? L["LibraryEditDialog_NoImportFolder"].Value : L["LibraryEditDialog_NoFolders"].Value)</p>
+                    }
+                </div>
+
+                @if (!Import || (KeptSources.Count == 0 && _added.Count == 0))
+                {
+                    <AppButton Label="@(Import ? L["LibrariesOverview_ChooseAFolder"].Value : L["LibraryEditDialog_AddFolder"].Value)" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_saving" OnClick="AddFolderAsync" />
+                }
+
+                @if (!Import)
+                {
+                    <div class="lib-edit__more" data-more>
+                        @if (!IsVault)
+                        {
+                            <AppButton Label="@L["LibraryEditDialog_ScanNow"].Value" StartIcon="@AppMaterialIcons.Outlined.Sync" ButtonStyle="AppButtonStyle.Text" Disabled="@(_saving || Library!.Sources.Count == 0)" OnClick="ScanNowAsync" />
+                        }
+                        <AppButton Label="@L["LibraryEditDialog_RemoveLibrary"].Value" StartIcon="@AppMaterialIcons.Outlined.Delete" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" Disabled="@_saving" OnClick="RemoveLibraryAsync" />
+                    </div>
+                    @if (_scanNote is not null)
+                    {
+                        <p class="lib-edit__note" role="status">@_scanNote</p>
+                    }
+                }
+            }
+
+            @if (!string.IsNullOrWhiteSpace(_error))
+            {
+                <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
+            }
+        </div>
+    </ChildContent>
+    <FooterContent>
+        <AppActionBar Align="AppHorizontalAlignment.End">
+            @if (_review)
+            {
+                <AppButton Label="@L["LibraryEditDialog_Back"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@_saving" OnClick="@(() => _review = false)" />
+                <AppButton Label="@L["LibraryEditDialog_Save"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Loading="@_saving" OnClick="SaveAsync" />
+            }
+            else
+            {
+                <AppButton Label="@L["LibraryEditDialog_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@_saving" OnClick="@(() => Dialog.Cancel())" />
+                <AppButton Label="@L["LibraryEditDialog_SaveChanges"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Disabled="@(!CanReview)" OnClick="OpenReview" />
+            }
+        </AppActionBar>
+    </FooterContent>
+</AppDialogShell>
+
+@code {
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
+    /// <summary>The library being edited; null for the Import folder.</summary>
+    [Parameter] public LibraryFolderDto? Library { get; set; }
+    [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
+    [Parameter, EditorRequired] public LibraryKindCatalog Kinds { get; set; } = default!;
+    [Parameter] public IReadOnlyDictionary<string, string>? PathIssues { get; set; }
+    /// <summary>True when the window edits the Import folder (one folder, no name).</summary>
+    [Parameter] public bool Import { get; set; }
+    /// <summary>First-run setup: the setup calls are used.</summary>
+    [Parameter] public FolderAddScope Scope { get; set; } = FolderAddScope.Settings;
+
+    private const string ImportLocationId = "incoming";
+
+    public static AppDialogOptions DialogOptions { get; } = new() { MaxWidth = AppMaxWidth.Large, FullWidth = true, CloseButton = false, NoHeader = true, CloseOnEscapeKey = true };
+
+    private string _name = string.Empty;
+    private readonly HashSet<string> _removed = new(StringComparer.Ordinal);
+    private readonly List<ServerFolderValidationResultDto> _added = [];
+    private bool _review;
+    private bool _saving;
+    private string? _error;
+    private string? _scanNote;
+
+    private bool IsVault => Library is not null && LibraryLookupRules.IsVaultLibrary(Library);
+    private string Title => Import ? L["LibrariesOverview_EditImport"].Value : L["LibrariesOverview_EditNamed", (string.IsNullOrWhiteSpace(Library?.Name) ? L["LibraryEditDialog_LibraryLower"].Value : Library!.Name)].Value;
+    private string Lead => Import
+        ? L["LibraryEditDialog_LeadImport"].Value
+        : L["LibraryEditDialog_Lead"].Value;
+
+    private IReadOnlyList<LibrarySourceDto> Sources => Import
+        ? Configuration.ImportFolderStatus is { Configured: true } status
+            ? [new LibrarySourceDto { Id = ImportLocationId, Path = status.Path ?? string.Empty }]
+            : []
+        : Library?.Sources ?? [];
+
+    private IReadOnlyList<LibrarySourceDto> KeptSources => [.. Sources.Where(source => !_removed.Contains(source.Id))];
+
+    protected override void OnInitialized() => _name = Library?.Name ?? string.Empty;
+
+    private string? IssueFor(string path) => PathIssues is not null && PathIssues.TryGetValue(path, out var issue) ? issue : null;
+
+    private string? NameProblem
+    {
+        get
+        {
+            if (Import || Library is null) return null;
+            var name = _name.Trim();
+            if (name.Length == 0) return L["LibraryEditDialog_NameRequired"].Value;
+            if (name.Length > CreateLibraryDialog.MaxNameLength) return L["LibraryEditDialog_NameTooLong", CreateLibraryDialog.MaxNameLength].Value;
+            var taken = Configuration.Libraries.Any(other => other.Id != Library.Id
+                && other.IsVault == Library.IsVault
+                && string.Equals(other.Area, Library.Area, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(other.Name?.Trim(), name, StringComparison.OrdinalIgnoreCase));
+            return taken ? L["LibraryEditDialog_NameTaken", name].Value : null;
+        }
+    }
+
+    private bool NameChanged => !Import && Library is not null && !string.Equals(_name.Trim(), Library.Name?.Trim(), StringComparison.Ordinal);
+
+    private bool HasChanges => NameChanged || _removed.Count > 0 || _added.Count > 0;
+
+    private bool CanReview => HasChanges && NameProblem is null && !_saving;
+
+    private bool JobRunning(LibrarySourceDto source) =>
+        string.Equals(source.ConversionState, "converting", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(source.MergeState, "merging", StringComparison.OrdinalIgnoreCase);
+
+    private bool CanOfferVault => !Import && Library is not null && !IsVault
+        && LibraryVaultAccess.CanShow(Nsfw, Session, isKids: false)
+        && Kinds.Find(Library.KindKey) is { } kind && !LibraryTypeCatalog.IsViewKind(kind);
+
+    private IReadOnlyList<AppRowMenuItem> FolderMenu(LibrarySourceDto source)
+    {
+        var running = JobRunning(source);
+        var items = new List<AppRowMenuItem>
+        {
+            new() { Label = L["LibraryEditDialog_OpenInPicker"].Value, Icon = AppMaterialIcons.Outlined.FolderOpen, Disabled = _saving, OnClick = EventCallback.Factory.Create(this, () => OpenInPickerAsync(source)) },
+        };
+        if (CanOfferVault)
+        {
+            items.Add(new() { Label = L["LibraryEditDialog_MoveToVault"].Value, Icon = AppMaterialIcons.Outlined.Lock, Disabled = _saving || running, OnClick = EventCallback.Factory.Create(this, () => MoveToVaultAsync(source)) });
+        }
+
+        // A folder Library is moving or organising cannot be removed until the job ends.
+        items.Add(new()
+        {
+            Label = running ? L["LibraryEditDialog_RemoveWait"].Value : L["LibraryEditDialog_Remove"].Value,
+            Icon = AppMaterialIcons.Outlined.Delete,
+            Destructive = true,
+            Disabled = _saving || running,
+            OnClick = EventCallback.Factory.Create(this, () => { _removed.Add(source.Id); _error = null; }),
+        });
+        return items;
+    }
+
+    private IReadOnlyList<string> ReviewLines
+    {
+        get
+        {
+            var lines = new List<string>();
+            if (NameChanged) lines.Add(L["LibraryEditDialog_ReviewRename", _name.Trim()].Value);
+            foreach (var added in _added) lines.Add(Import ? L["LibraryEditDialog_ReviewUseImport", added.Path].Value : L["LibraryEditDialog_ReviewAddFolder", added.Path].Value);
+            foreach (var source in Sources.Where(source => _removed.Contains(source.Id)))
+            {
+                lines.Add(Import
+                    ? L["LibraryEditDialog_ReviewStopImport", source.Path].Value
+                    : L["LibraryEditDialog_ReviewRemoveFolder", source.Path].Value);
+            }
+
+            lines.Add(L["LibraryEditDialog_ReviewNeverChanged"].Value);
+            return lines;
+        }
+    }
+
+    private void OpenReview()
+    {
+        if (!CanReview) return;
+        _error = null;
+        _review = true;
+    }
+
+    private async Task<ServerFolderValidationResultDto?> PickAsync(string? start)
+    {
+        var kind = Import ? null : Kinds.Find(Library?.KindKey);
+        var managed = Import || kind?.DefaultHandling == "managed";
+        var parameters = new AppDialogParameters<ServerFolderPicker>
+        {
+            { component => component.Title, Import ? L["LibraryEditDialog_ChooseImport"].Value : L["LibraryEditDialog_ChooseYourFolder", kind?.Label ?? L["LibraryEditDialog_LibraryLower"].Value].Value },
+            { component => component.HelpText, Import
+                ? L["LibraryEditDialog_HelpImport"].Value
+                : L["LibraryEditDialog_HelpMore", Library?.Name ?? string.Empty].Value },
+            { component => component.ConfirmLabel, L["LibraryEditDialog_ChooseFolder"].Value },
+            { component => component.SelectionMode, managed && !IsVault ? ServerFolderSelectionModes.ManagedLibrary : ServerFolderSelectionModes.ExistingLibrary },
+            { component => component.MediaType, kind?.MediaTypes.FirstOrDefault() },
+            { component => component.SetupSession, Scope.SetupSession },
+            { component => component.InitialPath, start },
+        };
+        var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, parameters, ServerFolderPicker.DialogOptions);
+        return await dialog.Result is { Canceled: false, Data: ServerFolderValidationResultDto selected } ? selected : null;
+    }
+
+    private async Task AddFolderAsync()
+    {
+        if (await PickAsync(null) is not { } selected) return;
+        if (_added.Any(item => string.Equals(item.Path, selected.Path, StringComparison.OrdinalIgnoreCase))
+            || Sources.Any(source => string.Equals(source.Path, selected.Path, StringComparison.OrdinalIgnoreCase) && !_removed.Contains(source.Id)))
+        {
+            _error = L["LibraryEditDialog_AlreadyListed"].Value;
+            return;
+        }
+
+        _error = null;
+        _added.Add(selected);
+    }
+
+    // Open in picker: the picker starts on the folder; choosing another one swaps it in (the old one is removed, the new one added) when Save changes is pressed.
+    private async Task OpenInPickerAsync(LibrarySourceDto source)
+    {
+        if (await PickAsync(source.Path) is not { } selected || string.Equals(selected.Path, source.Path, StringComparison.OrdinalIgnoreCase)) return;
+        _removed.Add(source.Id);
+        _added.Add(selected);
+        _error = null;
+    }
+
+    private async Task ScanNowAsync()
+    {
+        if (Library is null) return;
+        var started = await Api.ScanLibraryAsync(Library.Id);
+        _scanNote = started is not null ? L["LibraryEditDialog_Scanning", Library.Name].Value : Api.LastError ?? L["LibraryEditDialog_ScanFailed"].Value;
+    }
+
+    private async Task MoveToVaultAsync(LibrarySourceDto source)
+    {
+        var kind = Kinds.Find(Library?.KindKey);
+        if (kind is null) return;
+        var parameters = new AppDialogParameters<MoveToVaultDialog>
+        {
+            { component => component.KindKey, kind.Key },
+            { component => component.PluralLabel, kind.PluralLabel },
+            { component => component.FolderName, source.DisplayName() },
+            { component => component.SourceId, source.Id },
+        };
+        var dialog = await DialogService.ShowAsync<MoveToVaultDialog>(string.Empty, parameters, MoveToVaultDialog.DialogOptions);
+        await dialog.Result;
+        Dialog.Close(AppDialogResult.Ok(true));
+    }
+
+    // Remove library asks once; the folders' files stay on disk.
+    private async Task RemoveLibraryAsync()
+    {
+        if (Library is null || _saving) return;
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            L["LibraryEditDialog_RemoveTitle", Library.Name].Value,
+            L["LibraryEditDialog_RemoveBody"].Value,
+            yesText: L["LibraryEditDialog_Remove"].Value, cancelText: L["LibraryEditDialog_Keep"].Value, options: AppDialogOptions.DestructiveConfirm);
+        if (confirmed != true) return;
+
+        _saving = true;
+        try
+        {
+            var saved = await Api.UpdateLibrariesAsync(new UpdateLibrariesRequest
+            {
+                SchemaVersion = Configuration.SchemaVersion,
+                StorageLocations = Configuration.StorageLocations,
+                ViewStorage = Configuration.ViewStorage,
+                Libraries = [.. Configuration.Libraries.Where(item => item.Id != Library.Id)],
+                PersonalLibraryPolicy = Configuration.PersonalLibraryPolicy,
+                FileHandling = Configuration.FileHandling,
+            });
+            if (saved is null)
+            {
+                _error = Api.LastError ?? L["LibraryEditDialog_RemoveFailed"].Value;
+                return;
+            }
+        }
+        finally
+        {
+            _saving = false;
+        }
+
+        Dialog.Close(AppDialogResult.Ok(true));
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_saving) return;
+        _saving = true;
+        _error = null;
+        try
+        {
+            if (Import)
+            {
+                await SaveImportAsync();
+            }
+            else
+            {
+                await SaveLibraryAsync();
+            }
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task SaveImportAsync()
+    {
+        var path = _added.LastOrDefault()?.Path;
+        var locations = Configuration.StorageLocations
+            .Where(location => !string.Equals(location.Id, ImportLocationId, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (path is not null)
+        {
+            locations.Add(new ServerStorageLocationDto { Id = ImportLocationId, Label = L["LibraryEditDialog_ImportLabel"].Value, Path = path, AllowWrite = true });
+        }
+
+        var saved = await Api.UpdateLibrariesAsync(new UpdateLibrariesRequest
+        {
+            SchemaVersion = Configuration.SchemaVersion,
+            StorageLocations = locations,
+            ViewStorage = Configuration.ViewStorage,
+            Libraries = Configuration.Libraries,
+            PersonalLibraryPolicy = Configuration.PersonalLibraryPolicy,
+            FileHandling = Configuration.FileHandling,
+        });
+        if (saved is null)
+        {
+            _review = false;
+            _error = Api.LastError ?? L["LibraryEditDialog_ImportSaveFailed"].Value;
+            return;
+        }
+
+        Dialog.Close(AppDialogResult.Ok(true));
+    }
+
+    private async Task SaveLibraryAsync()
+    {
+        if (Library is null) return;
+        var current = Configuration;
+        if (NameChanged || _removed.Count > 0)
+        {
+            var copy = JsonSerializer.Deserialize<LibraryFolderDto>(JsonSerializer.Serialize(Library));
+            if (copy is null) return;
+            copy.Name = _name.Trim();
+            copy.Sources.RemoveAll(source => _removed.Contains(source.Id));
+            var saved = await AddService.SaveLibraryAsync(Scope, current, copy);
+            if (saved is null)
+            {
+                _review = false;
+                _error = Api.LastError ?? L["LibraryEditDialog_SaveFailed"].Value;
+                return;
+            }
+
+            current = saved;
+        }
+
+        var kind = Kinds.Find(Library.KindKey);
+        var managed = kind?.DefaultHandling == "managed" && !IsVault;
+        foreach (var folder in _added)
+        {
+            var plan = new AddFolderPlan(
+                Library.KindKey,
+                folder,
+                managed ? AddFolderHandling.Managed : AddFolderHandling.ReadOnly,
+                MarkNewMediaHere: false,
+                LibraryId: Library.Id);
+            var result = await AddService.AddAsync(plan, Kinds, current, Scope);
+            if (!result.Saved)
+            {
+                _review = false;
+                _error = result.Error ?? L["LibraryEditDialog_AddFailed"].Value;
+                return;
+            }
+
+            current = result.Configuration ?? current;
+            if (!Scope.Embedded) await Api.TriggerRescanAsync(folder.Path);
+        }
+
+        Dialog.Close(AppDialogResult.Ok(true));
+    }
+}

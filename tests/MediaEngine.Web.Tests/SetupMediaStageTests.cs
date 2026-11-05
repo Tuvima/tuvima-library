@@ -177,7 +177,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         Assert.Contains("Movies", Text(_dialogs.Find("[aria-label='Content type']")), StringComparison.Ordinal);
         DialogButton("Next").Click();
         _dialogs.WaitForElement(".create-library[data-step='3'] .server-folder-picker");
-        Assert.NotNull(_dialogs.Find(".server-folder-picker__footer-start [data-library-name] input"));
+        Assert.NotNull(_dialogs.Find(".server-folder-picker__top [data-library-name] input"));
         _dialogs.WaitForAssertion(() => Assert.False(DialogButton("Add library").HasAttribute("disabled")));
 
         DialogButton("Add library").Click();
@@ -377,7 +377,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         }
 
         var create = File.ReadAllText(Path.Combine(root, "Settings", "Libraries", "CreateLibraryDialog.razor"));
-        Assert.Contains("<FooterStart>", create, StringComparison.Ordinal);
+        Assert.Contains("<TopContent>", create, StringComparison.Ordinal);
         Assert.Contains("MaxWidth = ServerFolderPicker.DialogOptions.MaxWidth", create, StringComparison.Ordinal);
     }
 

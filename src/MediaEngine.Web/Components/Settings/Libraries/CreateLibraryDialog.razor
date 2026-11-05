@@ -88,19 +88,28 @@
                                         SelectionMode="@PickerMode"
                                         SetupSession="@SetupSession"
                                         InitialPath="@_pickerStart"
-                                        OnValidationChanged="FolderChecked">
-                        <FooterStart>
+                                        OnPathChanged="PathChosen">
+                        <TopContent>
+                            @* Step line, the area and kind (read only), then the library name, large and the first thing you type (Libraries and folder picker D5). *@
+                            <div class="create-library__chips" data-picker-chips>
+                                @if (!(_vaultMode && Simple))
+                                {
+                                    <span class="create-library__chip lib-area--@(_vaultMode ? "vault" : _area)">@(_vaultMode ? L["Nav_Vault"].Value : Kinds.TryGetGroup(_area)?.Label)</span>
+                                }
+                                <span class="create-library__chip">@(Kind is null ? string.Empty : LabelOf(Kind))</span>
+                            </div>
                             <div class="create-library__name" data-library-name>
                                 <AppTextField Label="@L["Common_LibraryName"].Value"
                                               Value="@_name"
                                               ValueChanged="NameChanged"
                                               MaxLength="@MaxNameLength"
                                               ReadOnly="@_saving"
+                                              AutoFocus="true"
                                               Error="@(NameProblem is not null)"
                                               ErrorText="@NameProblem" />
                                 <span class="create-library__hint">@L["CreateLibraryDialog_YouCanRenameItLater"]</span>
                             </div>
-                        </FooterStart>
+                        </TopContent>
                     </ServerFolderPicker>
                     <p class="create-library__line" data-scan-line>@ScanLine</p>
                     @if (HeldWords is { } held)
@@ -219,6 +228,8 @@
     // The Vault row is offered only once the Vault is on for this person (and, in setup, only after it was turned on there).
     private bool VaultRowShown => VaultAllowed && VaultVisible;
     private ServerFolderValidationResultDto? _folder;
+    // The folder path the picker has selected so far (a plain choice, not checked).
+    private string _chosenPath = string.Empty;
     // Where the folder picker opens: the folder already chosen when the content type changes under it.
     private string? _pickerStart;
     private int _pickerKey;
@@ -242,17 +253,20 @@
     private IReadOnlyList<LibraryTypeOption> KindsOfArea => _vaultMode
         ? [.. VaultKindKeys.Select(Kinds.Find).OfType<LibraryTypeOption>()]
         : Kinds.TryGetGroup(_area) is { } group
-            ? [.. group.TypeKeys.Select(Kinds.Find).OfType<LibraryTypeOption>().Where(kind => kind.Key != AdultContentKindKey)]
+            ? [.. group.TypeKeys.Select(Kinds.Find).OfType<LibraryTypeOption>().Where(kind => kind.Key != AdultContentKindKey && !LibraryTypeCatalog.IsHiddenFromAdd(kind))]
             : [];
 
     private string StepText => $"Step {_step} of 4";
 
     // The plain video kind is called "Videos" everywhere else (import folder, Change what this folder is); only this dialog says "Other".
-    private static string LabelOf(LibraryTypeOption kind) => kind.Key == "other_videos" ? "Other" : kind.Label;
+    private static string LabelOf(LibraryTypeOption kind) => kind.Key == "other_videos" ? "Other" : LibraryTypeCatalog.AddChoiceLabel(kind);
 
-    private static string DescriptionOf(LibraryTypeOption kind) => kind.Key == "other_videos"
-        ? "Anything else, like home videos, recordings or clips. Nothing is looked up."
-        : kind.Tooltip;
+    private static string DescriptionOf(LibraryTypeOption kind) => kind.Key switch
+    {
+        "other_videos" => "Anything else, like home videos, recordings or clips. Nothing is looked up.",
+        "photos" => "A dump of your phone or camera: pictures and videos together. Library sorts each file by what it is.",
+        _ => kind.Tooltip,
+    };
 
     private string Heading => _step switch
     {
@@ -368,7 +382,8 @@
         && (_vaultMode || string.Equals(library.Area, _area, StringComparison.OrdinalIgnoreCase))
         && string.Equals(library.Name?.Trim(), name, StringComparison.OrdinalIgnoreCase));
 
-    private bool FolderUsable => _folder is { CanSelect: true, Exists: true, HasRead: true };
+    // Nothing is checked while browsing; the folder is looked at once, when Add library is pressed (the picker keeps only a chosen path).
+    private bool FolderUsable => !string.IsNullOrWhiteSpace(_chosenPath);
 
     private bool CanCreate => !_saving
         && !string.IsNullOrWhiteSpace(_name)
@@ -507,7 +522,7 @@
     // The folder is checked for the content type, so a new type checks it again (the picker is rebuilt on the folder already chosen).
     private void RestartPicker()
     {
-        _pickerStart = _folder?.Path;
+        _pickerStart = string.IsNullOrWhiteSpace(_chosenPath) ? null : _chosenPath;
         _pickerKey++;
         _error = null;
     }
@@ -542,9 +557,10 @@
         _nameTouched = true;
     }
 
-    private Task FolderChecked(ServerFolderValidationResultDto? folder)
+    private Task PathChosen(string path)
     {
-        _folder = folder;
+        _chosenPath = path;
+        _folder = null;
         _error = null;
         StateHasChanged();
         return Task.CompletedTask;
@@ -572,18 +588,12 @@
     // A Vault library skips the look, because its answers never name anything outside the Vault.
     private async Task AddClickedAsync()
     {
-        if (!CanCreate || Kind is not { } kind || _folder is not { } folder) return;
-        if (IsVaultChoice)
-        {
-            await CreateAsync();
-            return;
-        }
-
+        if (!CanCreate || Kind is not { } kind) return;
         _saving = true;
         _error = null;
         try
         {
-            var request = new ValidateServerFolderRequest { ManualPath = folder.Path, SelectionMode = PickerMode, KindKey = kind.Key };
+            var request = new ValidateServerFolderRequest { ManualPath = _chosenPath, SelectionMode = PickerMode, KindKey = kind.Key };
             var checkedFolder = Simple ? await Api.ValidateSetupServerFolderAsync(request, SetupSession) : await Api.ValidateServerFolderAsync(request);
             if (checkedFolder is null)
             {
@@ -591,35 +601,48 @@
                 return;
             }
 
-            var duplicate = checkedFolder.Issues.FirstOrDefault(issue => issue.Code == "already_configured");
-            if (duplicate is not null)
+            _folder = checkedFolder;
+            if (IsVaultChoice)
             {
-                _fit = FitAlreadyUsed;
-                _fitDetail = duplicate.Message;
-                _step = 4;
-                return;
+                // A Vault library skips the look, because its answers never name anything outside the Vault.
+                if (!checkedFolder.CanSelect)
+                {
+                    _error = checkedFolder.Issues.FirstOrDefault()?.Message ?? "This folder cannot be used.";
+                    return;
+                }
             }
-
-            if (!checkedFolder.CanSelect)
+            else
             {
-                _error = checkedFolder.Issues.FirstOrDefault()?.Message ?? "This folder cannot be used.";
-                return;
-            }
+                var duplicate = checkedFolder.Issues.FirstOrDefault(issue => issue.Code == "already_configured");
+                if (duplicate is not null)
+                {
+                    _fit = FitAlreadyUsed;
+                    _fitDetail = duplicate.Message;
+                    _step = 4;
+                    return;
+                }
 
-            var other = checkedFolder.Issues.FirstOrDefault(issue => issue.Code == "looks_like_other_kind");
-            var empty = checkedFolder.SupportedFileCount == 0 && !checkedFolder.SupportedFileCountUnavailable;
-            if (other is not null || empty)
-            {
-                _fit = FitHeadsUp;
-                _fitDetail = other?.Message ?? $"We did not find any {Plural} here. Check it is the right folder, or add it anyway and fill it later.";
-                _step = 4;
-                return;
-            }
+                if (!checkedFolder.CanSelect)
+                {
+                    _error = checkedFolder.Issues.FirstOrDefault()?.Message ?? "This folder cannot be used.";
+                    return;
+                }
 
-            _fit = FitLooksRight;
-            _fitDetail = checkedFolder.SupportedFileCount is { } found and > 0
-                ? $"Found {found:N0}{(checkedFolder.SupportedFileCountCapped ? "+" : string.Empty)} {checkedFolder.SupportedFileKindLabel ?? "media"} files. {(Simple ? "Library will scan them once setup is finished." : "Library is scanning them now.")}"
-                : "The folder is ready. Library will look inside as soon as it can.";
+                var other = checkedFolder.Issues.FirstOrDefault(issue => issue.Code == "looks_like_other_kind");
+                var empty = checkedFolder.SupportedFileCount == 0 && !checkedFolder.SupportedFileCountUnavailable;
+                if (other is not null || empty)
+                {
+                    _fit = FitHeadsUp;
+                    _fitDetail = other?.Message ?? $"We did not find any {Plural} here. Check it is the right folder, or add it anyway and fill it later.";
+                    _step = 4;
+                    return;
+                }
+
+                _fit = FitLooksRight;
+                _fitDetail = checkedFolder.SupportedFileCount is { } found and > 0
+                    ? $"Found {found:N0}{(checkedFolder.SupportedFileCountCapped ? "+" : string.Empty)} {checkedFolder.SupportedFileKindLabel ?? "media"} files. {(Simple ? "Library will scan them once setup is finished." : "Library is scanning them now.")}"
+                    : "The folder is ready. Library will look inside as soon as it can.";
+            }
         }
         finally
         {

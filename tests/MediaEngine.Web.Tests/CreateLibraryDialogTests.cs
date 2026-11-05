@@ -237,7 +237,7 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
     {
         await OpenAsync(area: "view", chooseFolder: false);
 
-        _dialogs.WaitForAssertion(() => Assert.Equal(["Photos", "Personal videos", "Documents"], KindRows.Select(row => row.QuerySelector("strong")!.TextContent).ToArray()));
+        _dialogs.WaitForAssertion(() => Assert.Equal(["Photos and Videos", "Documents"], KindRows.Select(row => row.QuerySelector("strong")!.TextContent).ToArray()));
         Assert.All(KindRows, row => Assert.False(row.HasAttribute("disabled")));
 
         Next();
@@ -271,22 +271,34 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task AddLibraryIsOffUntilTheFolderHasBeenCheckedAndAccepted()
+    public async Task ChoosingAFolderChecksNothingAndAddingChecksItOnceAndStopsOnAFolderAnotherLibraryUses()
     {
         _picked = Folder("E:\\Nope", canSelect: false, count: null, label: null, issues: new ServerFolderValidationIssueDto { Code = "already_configured", Message = "This folder is already used by the library \"Movies\". Choose a different folder." });
         await OpenAsync(kind: "tv", chooseFolder: false);
-        Assert.True(CreateButton.HasAttribute("disabled"));
+        _dialogs.WaitForElement(".create-library[data-step='3'] .server-folder-picker");
 
-        _dialogs.WaitForElement(".create-library[data-step='3']");
-        _dialogs.WaitForElement(".server-folder-picker");
-        _dialogs.WaitForAssertion(() => Assert.Contains("already used by the library \"Movies\"", _dialogs.Find("[data-folder-result=refused]").TextContent, StringComparison.Ordinal));
-        Assert.True(CreateButton.HasAttribute("disabled"));
-        Assert.Empty(_dialogs.FindAll("[data-folder-result=accessible]"));
-
-        _picked = Folder("E:\\Shows");
-        _dialogs.Find("button[aria-label='Refresh folders']").Click();
+        // Choosing a folder runs no check (the picker is dumb); the button is on as soon as a path is chosen.
         _dialogs.WaitForAssertion(() => Assert.False(CreateButton.HasAttribute("disabled")));
-        Assert.Equal("Folder accessible, 126 video files found", Text(_dialogs.Find(".create-library [data-folder-result=accessible]")));
+        Assert.Empty(_validations);
+
+        CreateButton.Click();
+
+        _dialogs.WaitForElement(".create-library[data-step='4'] [data-fit='already_used']");
+        Assert.Single(_validations);
+        Assert.Contains("already used by the library \"Movies\"", _dialogs.Find("[data-fit]").TextContent, StringComparison.Ordinal);
+        Assert.Empty(_dialogs.FindAll("[data-fit='looks_right']"));
+    }
+
+    [Fact]
+    public async Task AddingAFolderThatLooksRightSaysHowManyFilesWereFound()
+    {
+        await OpenAsync(kind: "tv", chooseFolder: false);
+        _dialogs.WaitForAssertion(() => Assert.False(CreateButton.HasAttribute("disabled")));
+
+        CreateButton.Click();
+
+        _dialogs.WaitForElement(".create-library[data-step='4'] [data-fit='looks_right']");
+        Assert.Contains("Found 126 video files", _dialogs.Find("[data-fit]").TextContent, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -544,26 +556,6 @@ public sealed class CreateLibraryDialogTests : AsyncBunitContext
 
         Assert.DoesNotContain("Adult content", _dialogs.Markup, StringComparison.Ordinal);
         Assert.Contains("TV Shows", _dialogs.Markup, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task TheFolderCardSaysHowManyFilesWereFoundOrWhyTheFolderCannotBeUsed()
-    {
-        await OpenAsync(kind: "tv", chooseFolder: false);
-        _dialogs.WaitForElement(".create-library[data-step='3']");
-        _dialogs.WaitForElement(".server-folder-picker");
-
-        _dialogs.WaitForAssertion(() => Assert.Equal("Folder accessible, 126 video files found", Text(_dialogs.Find("[data-folder-result=accessible]"))));
-        // Choosing a folder reads nothing inside it, so no library kind is sent; the match check runs after the folder is added.
-        Assert.Null(_validations.Last().KindKey);
-
-        _picked = Folder("E:\\Huge", count: 10_000, capped: true);
-        _dialogs.Find("button[aria-label='Refresh folders']").Click();
-        _dialogs.WaitForAssertion(() => Assert.Equal("Folder accessible, 10,000+ video files found", Text(_dialogs.Find("[data-folder-result=accessible]"))));
-
-        _picked = new ServerFolderValidationResultDto { Path = "E:\\Slow", StorageLocationId = "media", Exists = true, HasRead = true, CanSelect = true, SupportedFileCountUnavailable = true };
-        _dialogs.Find("button[aria-label='Refresh folders']").Click();
-        _dialogs.WaitForAssertion(() => Assert.Contains("file count isn't available", Text(_dialogs.Find("[data-folder-result=accessible]")), StringComparison.Ordinal));
     }
 
     private IReadOnlyList<MediaEngine.Contracts.Plugins.PluginSummaryResponse> _plugins = [];

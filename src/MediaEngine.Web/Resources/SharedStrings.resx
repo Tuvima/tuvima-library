@@ -4689,9 +4689,6 @@
   <data name="Common_UseADesktopOrTablet" xml:space="preserve">
     <value>Use a desktop or tablet to change folders.</value>
   </data>
-  <data name="LibrariesOverview_NothingYet" xml:space="preserve">
-    <value>nothing yet</value>
-  </data>
   <data name="LibrariesOverview_FoldersAndTitles" xml:space="preserve">
     <value>Folders and titles</value>
   </data>
@@ -4706,9 +4703,6 @@
   </data>
   <data name="LibrariesOverview_FilterByStatus" xml:space="preserve">
     <value>Filter by status</value>
-  </data>
-  <data name="LibrariesOverview_LibrariesLayout" xml:space="preserve">
-    <value>Libraries layout</value>
   </data>
   <data name="Common_NothingYet" xml:space="preserve">
     <value>Nothing yet</value>
@@ -7488,9 +7482,6 @@
   <data name="RecoveryCodesDisplay_DownloadTxt" xml:space="preserve">
     <value>Download .txt</value>
   </data>
-  <data name="ServerFolderSegmentMenu_LoadingFolders" xml:space="preserve">
-    <value>Loading folders...</value>
-  </data>
   <data name="ToolRequirementRow_Install" xml:space="preserve">
     <value>Install</value>
   </data>
@@ -8717,12 +8708,6 @@
   </data>
   <data name="ServerFolderPicker_LibraryCouldNotValidateThis" xml:space="preserve">
     <value>Library could not validate this server folder. Check that the location is online and try again.</value>
-  </data>
-  <data name="ServerFolderPicker_Copied" xml:space="preserve">
-    <value>Copied</value>
-  </data>
-  <data name="ServerFolderPicker_CouldnTCopySelectThe" xml:space="preserve">
-    <value>Couldn't copy. Select the path and copy it.</value>
   </data>
   <data name="VaultProfileSettings_ThisProfileHasNoPIN" xml:space="preserve">
     <value>This profile has no PIN, so Vault mode would open without one. Set a PIN in Profile details to ask for it.</value>
@@ -10763,5 +10748,236 @@
   </data>
   <data name="ViewEdit_CurrencyProblem" xml:space="preserve">
     <value>Add a three-letter currency code for {0}, such as USD.</value>
+  </data>
+  <data name="LibraryAreaChips_FilterByArea" xml:space="preserve">
+    <value>Filter libraries by area</value>
+  </data>
+  <data name="LibraryAreaChips_All" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="LibrariesSummary_InYourCollection" xml:space="preserve">
+    <value>In your collection</value>
+  </data>
+  <data name="LibrariesSummary_KindFolders" xml:space="preserve">
+    <value>{0} (folders)</value>
+  </data>
+  <data name="LibraryFoldersPopover_Online" xml:space="preserve">
+    <value>Online</value>
+  </data>
+  <data name="LibraryFoldersPopover_CopyPath" xml:space="preserve">
+    <value>Copy path</value>
+  </data>
+  <data name="LibraryFoldersPopover_CopyThisPath" xml:space="preserve">
+    <value>Copy {0}</value>
+  </data>
+  <data name="LibraryFoldersPopover_Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="LibraryFoldersPopover_OneFolder" xml:space="preserve">
+    <value>1 folder</value>
+  </data>
+  <data name="LibraryFoldersPopover_ManyFolders" xml:space="preserve">
+    <value>{0} folders</value>
+  </data>
+  <data name="LibraryFoldersPopover_FoldersOf" xml:space="preserve">
+    <value>Folders of {0}</value>
+  </data>
+  <data name="LibraryFoldersPopover_Copied" xml:space="preserve">
+    <value>Copied</value>
+  </data>
+  <data name="LibraryFoldersPopover_CouldNotCopy" xml:space="preserve">
+    <value>Couldn't copy. Select the path and copy it by hand.</value>
+  </data>
+  <data name="LibrariesOverview_NoLibrariesYet" xml:space="preserve">
+    <value>No libraries yet</value>
+  </data>
+  <data name="LibrariesOverview_AddOneForEachKind" xml:space="preserve">
+    <value>Add a library for each kind of media you own. You can add more later in Settings.</value>
+  </data>
+  <data name="LibrariesOverview_AboutImport" xml:space="preserve">
+    <value>About the Import folder</value>
+  </data>
+  <data name="LibrariesOverview_NewFilesOfAnyKind" xml:space="preserve">
+    <value>New files of any kind</value>
+  </data>
+  <data name="LibrariesOverview_AllMedia" xml:space="preserve">
+    <value>All media</value>
+  </data>
+  <data name="LibrariesOverview_ChooseAFolder" xml:space="preserve">
+    <value>Choose a folder</value>
+  </data>
+  <data name="LibrariesOverview_UpToDate" xml:space="preserve">
+    <value>Up to date</value>
+  </data>
+  <data name="LibrariesOverview_EditImport" xml:space="preserve">
+    <value>Edit Import folder</value>
+  </data>
+  <data name="LibrariesOverview_EditNamed" xml:space="preserve">
+    <value>Edit {0}</value>
+  </data>
+  <data name="LibrariesOverview_NoAreaLibrariesYet" xml:space="preserve">
+    <value>No {0} libraries yet</value>
+  </data>
+  <data name="LibrariesOverview_AddAreaLibrary" xml:space="preserve">
+    <value>Add a {0} library</value>
+  </data>
+  <data name="LibrariesOverview_NothingWaiting" xml:space="preserve">
+    <value>Nothing waiting</value>
+  </data>
+  <data name="LibrariesOverview_WaitingCount" xml:space="preserve">
+    <value>{0} waiting</value>
+  </data>
+  <data name="LibrariesOverview_ImportInfo" xml:space="preserve">
+    <value>The landing place for new files of any kind. Library checks what lands here and files it into the right library. Change the folder here with Edit. Files are never changed until they are filed.</value>
+  </data>
+  <data name="LibrariesOverview_Footer" xml:space="preserve">
+    <value>{0} · {1}</value>
+  </data>
+  <data name="LibrariesOverview_OneLibrary" xml:space="preserve">
+    <value>1 library</value>
+  </data>
+  <data name="LibrariesOverview_ManyLibraries" xml:space="preserve">
+    <value>{0} libraries</value>
+  </data>
+  <data name="LibraryEditDialog_LibraryName" xml:space="preserve">
+    <value>Library name</value>
+  </data>
+  <data name="LibraryEditDialog_Folders" xml:space="preserve">
+    <value>Folders</value>
+  </data>
+  <data name="LibraryEditDialog_ActionsFor" xml:space="preserve">
+    <value>Actions for {0}</value>
+  </data>
+  <data name="LibraryEditDialog_WillBeAdded" xml:space="preserve">
+    <value>Will be added</value>
+  </data>
+  <data name="LibraryEditDialog_DontAdd" xml:space="preserve">
+    <value>Don't add</value>
+  </data>
+  <data name="LibraryEditDialog_DontAddPath" xml:space="preserve">
+    <value>Don't add {0}</value>
+  </data>
+  <data name="LibraryEditDialog_NoImportFolder" xml:space="preserve">
+    <value>No import folder is set.</value>
+  </data>
+  <data name="LibraryEditDialog_NoFolders" xml:space="preserve">
+    <value>This library has no folders yet.</value>
+  </data>
+  <data name="LibraryEditDialog_AddFolder" xml:space="preserve">
+    <value>Add folder</value>
+  </data>
+  <data name="LibraryEditDialog_ScanNow" xml:space="preserve">
+    <value>Scan now</value>
+  </data>
+  <data name="LibraryEditDialog_RemoveLibrary" xml:space="preserve">
+    <value>Remove library</value>
+  </data>
+  <data name="LibraryEditDialog_Back" xml:space="preserve">
+    <value>Back</value>
+  </data>
+  <data name="LibraryEditDialog_Save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="LibraryEditDialog_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="LibraryEditDialog_SaveChanges" xml:space="preserve">
+    <value>Save changes</value>
+  </data>
+  <data name="LibraryEditDialog_LibraryLower" xml:space="preserve">
+    <value>library</value>
+  </data>
+  <data name="LibraryEditDialog_LeadImport" xml:space="preserve">
+    <value>The landing place for new files of any kind. Files are never changed until Library files them.</value>
+  </data>
+  <data name="LibraryEditDialog_Lead" xml:space="preserve">
+    <value>Rename it and choose which folders it uses. Nothing changes until you press Save changes.</value>
+  </data>
+  <data name="LibraryEditDialog_NameRequired" xml:space="preserve">
+    <value>Give the library a name.</value>
+  </data>
+  <data name="LibraryEditDialog_NameTooLong" xml:space="preserve">
+    <value>Use {0} characters or fewer.</value>
+  </data>
+  <data name="LibraryEditDialog_NameTaken" xml:space="preserve">
+    <value>You already have a library called "{0}" in this area. Choose a different name.</value>
+  </data>
+  <data name="LibraryEditDialog_OpenInPicker" xml:space="preserve">
+    <value>Open in picker</value>
+  </data>
+  <data name="LibraryEditDialog_MoveToVault" xml:space="preserve">
+    <value>Move to Vault</value>
+  </data>
+  <data name="LibraryEditDialog_RemoveWait" xml:space="preserve">
+    <value>Remove (wait until the move finishes)</value>
+  </data>
+  <data name="LibraryEditDialog_Remove" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="LibraryEditDialog_ReviewRename" xml:space="preserve">
+    <value>Rename the library to "{0}".</value>
+  </data>
+  <data name="LibraryEditDialog_ReviewUseImport" xml:space="preserve">
+    <value>Use {0} as the Import folder.</value>
+  </data>
+  <data name="LibraryEditDialog_ReviewAddFolder" xml:space="preserve">
+    <value>Add the folder {0} and scan it.</value>
+  </data>
+  <data name="LibraryEditDialog_ReviewStopImport" xml:space="preserve">
+    <value>Stop importing from {0}. Files in it stay on disk.</value>
+  </data>
+  <data name="LibraryEditDialog_ReviewRemoveFolder" xml:space="preserve">
+    <value>Remove the folder {0}. Its files stay on disk, and titles already in your library stay until you remove them there.</value>
+  </data>
+  <data name="LibraryEditDialog_ReviewNeverChanged" xml:space="preserve">
+    <value>Your files are never changed.</value>
+  </data>
+  <data name="LibraryEditDialog_ChooseImport" xml:space="preserve">
+    <value>Choose the Import folder</value>
+  </data>
+  <data name="LibraryEditDialog_ChooseYourFolder" xml:space="preserve">
+    <value>Choose your {0} folder</value>
+  </data>
+  <data name="LibraryEditDialog_HelpImport" xml:space="preserve">
+    <value>Choose a folder on the Library server where new media will be dropped. It must be separate from your library folders.</value>
+  </data>
+  <data name="LibraryEditDialog_HelpMore" xml:space="preserve">
+    <value>Choose the folder on the Library server that holds more of {0}.</value>
+  </data>
+  <data name="LibraryEditDialog_ChooseFolder" xml:space="preserve">
+    <value>Choose folder</value>
+  </data>
+  <data name="LibraryEditDialog_AlreadyListed" xml:space="preserve">
+    <value>That folder is already in the list.</value>
+  </data>
+  <data name="LibraryEditDialog_Scanning" xml:space="preserve">
+    <value>Scanning {0}.</value>
+  </data>
+  <data name="LibraryEditDialog_ScanFailed" xml:space="preserve">
+    <value>The scan could not start. Try again in a moment.</value>
+  </data>
+  <data name="LibraryEditDialog_RemoveTitle" xml:space="preserve">
+    <value>Remove {0}?</value>
+  </data>
+  <data name="LibraryEditDialog_RemoveBody" xml:space="preserve">
+    <value>Library stops using this library's folders. Your files stay on disk.</value>
+  </data>
+  <data name="LibraryEditDialog_Keep" xml:space="preserve">
+    <value>Keep</value>
+  </data>
+  <data name="LibraryEditDialog_RemoveFailed" xml:space="preserve">
+    <value>The library could not be removed. Try again.</value>
+  </data>
+  <data name="LibraryEditDialog_ImportLabel" xml:space="preserve">
+    <value>Library import folder</value>
+  </data>
+  <data name="LibraryEditDialog_ImportSaveFailed" xml:space="preserve">
+    <value>That change could not be saved. Check it and try again.</value>
+  </data>
+  <data name="LibraryEditDialog_SaveFailed" xml:space="preserve">
+    <value>The change could not be saved. Check it and try again.</value>
+  </data>
+  <data name="LibraryEditDialog_AddFailed" xml:space="preserve">
+    <value>The folder could not be added. Check it and try again.</value>
   </data>
 </root>

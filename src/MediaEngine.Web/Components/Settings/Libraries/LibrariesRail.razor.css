@@ -26,5 +26,7 @@
     .librail__heading { margin: 0 4px 0 10px; }
     .librail__lib, .librail__overview { border: 1px solid var(--tl-border-subtle); padding: 6px 10px; }
     .librail__tile, .librail__rule, .librail__quiet { display: none; }
-    .librail__lib--plain .librail__name { display: inline; }
 }
+.librail__area { color: inherit; text-decoration: none; }
+.librail__area:hover { text-decoration: underline; }
+.librail__area:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }

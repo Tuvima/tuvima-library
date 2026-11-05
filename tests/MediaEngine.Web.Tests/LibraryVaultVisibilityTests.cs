@@ -93,8 +93,8 @@ public sealed class LibraryVaultVisibilityTests : AsyncBunitContext
         var vaultStep = Render<SetupAreaCards>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Configuration, _configuration).Add(x => x.VaultOnly, true));
 
         // Settings lists the Vault library only inside the Vault area; the Libraries step never shows it; the Vault step shows the Vault card alone, without a way to change a Vault library.
-        Assert.Equal(["Movies"], settings.FindAll(".libs__group[data-area=watch] .libs__link").Select(Text).ToArray());
-        Assert.Equal(["Private movies"], settings.FindAll(".libs__group[data-area=vault] .libs__link").Select(Text).ToArray());
+        Assert.Equal(["Movies"], settings.FindAll("tr[data-area=watch] .libs__link").Select(Text).ToArray());
+        Assert.Equal(["Private movies"], settings.FindAll("tr[data-area=vault] .libs__link").Select(Text).ToArray());
         Assert.Equal(["Movies"], setup.FindAll(".setup-area[data-area=watch] .setup-area__name").Select(Text).ToArray());
         Assert.DoesNotContain("vault", setup.Markup, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Private movies", setup.Markup, StringComparison.Ordinal);

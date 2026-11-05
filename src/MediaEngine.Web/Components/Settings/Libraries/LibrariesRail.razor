@@ -16,7 +16,7 @@
         var rows = LibraryListing.RowsFor(Kinds, area.Key, Configuration, Overview, ViewFolders, PathIssues, ShowVault);
         <div class="librail__group" data-area="@area.Key" role="group" aria-label="@area.Label">
             <h3 class="librail__heading">
-                <span>@area.Label</span>
+                <a class="librail__area" href="@LibraryListing.OverviewAddress(area.Key)" aria-label="@($"Show {area.Label} libraries")">@area.Label</a>
                 @if (CanAdd(area))
                 {
                     <AppButton Label="@L["Vibes_Add"].Value" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" Class="librail__add" aria-label="@($"Add a {area.Label} library")" OnClick="@(() => OnAddLibrary.InvokeAsync(area.Key))" />
@@ -42,14 +42,6 @@
         </div>
     }
 
-    @if (!HideImport)
-    {
-        <hr class="librail__rule" />
-        <a class="librail__lib librail__lib--plain @(IsSelected(LibraryTypeCatalog.ImportKey) ? "librail__on" : null)" href="/settings/libraries/import">
-            <span class="librail__tile lib-kind-tile"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoveToInbox" /></span>
-            <span class="librail__name">@L["Common_ImportFolder"]</span>
-        </a>
-    }
 </nav>
 
 @code {
@@ -61,10 +53,9 @@
     [Parameter] public IReadOnlyDictionary<string, int>? ViewFolders { get; set; }
     [Parameter] public IReadOnlyDictionary<string, string>? PathIssues { get; set; }
     [Parameter] public bool ShowVault { get; set; }
-    /// <summary>What is open: <see cref="OverviewKey"/>, a library's Id, a View kind's key or the Import folder's key.</summary>
+    /// <summary>What is open: <see cref="OverviewKey"/>, a library's Id or a View kind's key.</summary>
     [Parameter] public string Selected { get; set; } = OverviewKey;
     [Parameter] public bool ReadOnly { get; set; }
-    [Parameter] public bool HideImport { get; set; }
     /// <summary>Raised with the area key when a heading's Add link is chosen.</summary>
     [Parameter] public EventCallback<string> OnAddLibrary { get; set; }
 

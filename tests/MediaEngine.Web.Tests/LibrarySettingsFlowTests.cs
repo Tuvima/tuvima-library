@@ -277,16 +277,17 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
 
     private static string Text(AngleSharp.Dom.IElement element) => Regex.Replace(element.TextContent, "\\s+", " ").Trim();
 
-    // The overview groups every area in one list; each library shows its folder count, and the Import folder is one line under them.
+    // The overview is one table under the area chips; each library shows its folder count, and the Import folder is the pinned first row.
     [Fact]
-    public void OverviewGroupsTheAreasAndListsEveryLibraryWithItsFolderCount()
+    public void OverviewListsEveryLibraryInOneTableWithItsFolderCountAndAChipPerArea()
     {
         var cut = Render<LibrariesTab>();
         cut.WaitForElement(".libs__row");
-        Assert.Equal(["Watch", "Listen", "Read", "View"], cut.FindAll(".libs__group").Select(group => group.GetAttribute("aria-label")!).ToArray());
+        Assert.Equal(["All", "Watch", "Listen", "Read", "View"], cut.FindAll(".lib-chip").Select(chip => chip.GetAttribute("data-area")!).Select(area => char.ToUpperInvariant(area[0]) + area[1..]).ToArray());
+        Assert.Equal("import", cut.FindAll(".libs__row").First().GetAttribute("data-library"));
         Assert.Contains("3 folders", Text(cut.Find($".libs__row[data-library='{MoviesId}']")));
-        Assert.Contains("1 folder", Text(cut.Find($".libs__group[data-area=listen] .libs__row[data-library='{AudiobooksId}']")));
-        Assert.Contains("Import folder", Text(cut.Find(".libs__note")));
+        Assert.Contains("1 folder", Text(cut.Find($".libs__row[data-library='{AudiobooksId}'] [data-folder-count]")));
+        Assert.Equal("listen", cut.Find($".libs__row[data-library='{AudiobooksId}']").GetAttribute("data-area"));
     }
 
     private static ImportFolderStatusDto ConfiguredImport() => new()
@@ -301,44 +302,20 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         ],
     };
 
-    // I1 to I3: the front door has one Import folder row that reads Not set; its page shows only the Set button with no type lines.
+    // The Import folder is the pinned first row: not set reads "Not set", once set it reads Up to date with its one folder.
     [Fact]
-    public void ImportFolderIsOneRowOnTheFrontDoorAndShowsOnlySetWhenNotSet()
+    public void ImportFolderIsThePinnedFirstRowAndReadsNotSetUntilAFolderIsChosen()
     {
         var front = Render<LibrariesTab>();
-        front.WaitForElement(".libs__note a");
-        Assert.Equal("Import folder", Text(front.Find(".libs__note a")));
-        Assert.Contains("not set", Text(front.Find(".libs__note")));
-        Assert.Equal("/settings/libraries/import", front.Find(".libs__note a").GetAttribute("href"));
-        var cut = OpenImport();
-        cut.WaitForAssertion(() => Assert.Contains("Set import folder", cut.Markup));
-        Assert.Empty(cut.FindAll(".library-folders__destination"));
-        Assert.DoesNotContain("Where imported files go", cut.Markup);
-        foreach (var banned in new[] { "drop-off", "Ready", "Waiting for destinations", "Needs destination" })
-        {
-            Assert.False(Regex.IsMatch(cut.Markup, $@"\b{Regex.Escape(banned)}\b", RegexOptions.IgnoreCase), banned);
-        }
-    }
+        front.WaitForElement(".libs__row--import");
+        Assert.Contains("Not set", Text(front.Find(".libs__row--import [data-import-status]")));
+        Assert.Equal("not-set", front.Find("[data-import-status]").GetAttribute("data-import-status"));
 
-    // I2: once set, the folder row and one line per type appear; a type without a managed folder gets a Choose action.
-    [Fact]
-    public void ImportPanelShowsTheFolderRowAndOneLinePerType()
-    {
         _configuration.ImportFolderStatus = ConfiguredImport();
-        var front = Render<LibrariesTab>();
-        front.WaitForElement(".libs__note a");
-        Assert.Contains("set", Text(front.Find(".libs__note")));
-        Assert.DoesNotContain("not set", Text(front.Find(".libs__note")));
-        var cut = OpenImport();
-        cut.WaitForAssertion(() => Assert.Equal(3, cut.FindAll(".library-folders__destination").Count));
-        Assert.Contains("C:\\media\\Import", cut.Find(".library-folders__table-row").TextContent);
-        Assert.Contains("Where imported files go", cut.Markup);
-        var lines = cut.FindAll(".library-folders__destination").Select(Text).ToList();
-        Assert.Contains(lines, line => line.StartsWith("Movies") && line.Contains("Library Movies") && line.Contains("E:\\Library\\Movies"));
-        Assert.Contains(lines, line => line.StartsWith("Audiobooks") && line.Contains("Add a managed folder to import Audiobooks") && line.Contains("Choose"));
-        // Merge into now exists, so the panel says when to use it instead of the Import folder.
-        Assert.True(LibraryFolderTable.HasMergeAction);
-        Assert.Contains("To bring in a whole existing folder once, use Merge into on a managed folder.", cut.Markup);
+        var set = Render<LibrariesTab>();
+        set.WaitForElement(".libs__row--import");
+        Assert.Equal("ready", set.Find("[data-import-status]").GetAttribute("data-import-status"));
+        Assert.Contains("1 folder", Text(set.Find(".libs__row--import")));
     }
 
     // On the Import folder's own address there is no type list, so Choose opens that type's page instead.
@@ -1273,16 +1250,13 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task EditingThePathBarImmediatelyInvalidatesAnEarlierSelection()
+    public async Task TypingAPathOutsideEveryLocationAndPressingGoTurnsAddOff()
     {
         var cut = Render<AppDialogHost>();
         await cut.InvokeAsync(() => Services.GetRequiredService<IAppDialogService>().ShowAsync<ServerFolderPicker>(""));
         cut.WaitForAssertion(() => Assert.False(cut.FindAll("button").Single(button => button.TextContent.Trim() == "Add").HasAttribute("disabled")));
-        cut.Find(".server-folder-picker__address-end").Click();
-        var input = cut.Find(".server-folder-picker__address-input");
-        input.Input("C:\\media\\changed");
-        Assert.True(cut.FindAll("button").Single(button => button.TextContent.Trim() == "Add").HasAttribute("disabled"));
-        input.KeyDown(new Microsoft.AspNetCore.Components.Web.KeyboardEventArgs { Key = "Enter" });
-        cut.WaitForAssertion(() => Assert.False(cut.FindAll("button").Single(button => button.TextContent.Trim() == "Add").HasAttribute("disabled")));
+        cut.Find("input[aria-label='Folder path']").Input("Z:\\not-a-listed-location");
+        cut.Find("[data-picker-go]").Click();
+        cut.WaitForAssertion(() => Assert.True(cut.FindAll("button").Single(button => button.TextContent.Trim() == "Add").HasAttribute("disabled")));
     }
 }
