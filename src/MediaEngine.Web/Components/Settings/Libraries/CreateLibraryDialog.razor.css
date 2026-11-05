@@ -75,3 +75,6 @@
     display: flex;
     margin-bottom: var(--tl-space-3, 12px);
 }
+
+.create-library__chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.create-library__chip { display: inline-flex; align-items: center; padding: 2px 12px; border-radius: var(--tl-radius-pill); font-size: var(--tl-font-size-sm); font-weight: 600; color: var(--lib-area-colour, var(--tl-text-secondary, var(--tl-text-muted))); background: color-mix(in srgb, var(--lib-area-colour, var(--tl-text-muted)) 14%, transparent); }

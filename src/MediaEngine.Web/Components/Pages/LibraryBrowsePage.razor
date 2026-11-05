@@ -10,6 +10,8 @@
 @inject IWebHostEnvironment Env
 @inject IStringLocalizer<SharedStrings> L
 @inject IAppToastService Snackbar
+@inject IJSRuntime JS
+@inject DashboardSessionAccessor Session
 @implements IDisposable
 
 <PageTitle>@L["Nav_Library"]</PageTitle>
@@ -102,9 +104,9 @@
         <div class="home-discovery-content-shell">
             <div class="home-discovery-shelves">
                 <CompanionNowPlayingCard />
-                @foreach (var shelf in VisibleShelves.Where(s => s.Kind == MediaTileShelfKind.Continue))
+                @foreach (var shelf in VisibleShelves.Where(s => s.Kind == MediaTileShelfKind.Continue).Select(s => PickUpShelf(s, _recentType)).Where(s => s.Items.Count > 0))
                 {
-                    <MediaTileShelf Shelf="@PickUpShelf(shelf)" UseContinueWatchingOrListeningTiles="true" IsHomeSurface="true" HideMediaKindBadges="true" HideSourceBadges="true" ShowCompactCaptions="true" @key="shelf.Key" />
+                    <MediaTileShelf Shelf="@shelf" UseContinueWatchingOrListeningTiles="true" IsHomeSurface="true" HideMediaKindBadges="true" HideSourceBadges="true" ShowCompactCaptions="true" @key="shelf.Key" />
                 }
                 <RecentMediaFeed Type="@_recentType" TypeChanged="RecentTypeChanged" RefreshKey="@_recentRefreshKey" HasItemsChanged="RecentItemsChanged" />
                 @foreach (var (shelf, shelfIndex) in VisibleShelves.Where(s => s.Kind != MediaTileShelfKind.Continue).Select((shelf, shelfIndex) => (shelf, shelfIndex)))
@@ -138,7 +140,40 @@
     private string _recentType = "all";
     private long _recentRefreshKey;
     private bool _hasRecentItems;
-    private void RecentTypeChanged(string type) => _recentType = type;
+    // The Home chips (Watch, Read, Listen, View) are shared by Pick up and Recently added: one choice narrows both rows, and it is remembered for this profile.
+    private string ChipStorageKey => $"tuvima.home.area.{Session.ActiveProfileId?.ToString("N") ?? "device"}";
+
+    private async Task RecentTypeChanged(string type)
+    {
+        _recentType = type;
+        try
+        {
+            if (RecentFilterLogic.IsAll(type)) await JS.InvokeVoidAsync("localStorage.removeItem", ChipStorageKey);
+            else await JS.InvokeVoidAsync("localStorage.setItem", ChipStorageKey, type);
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException or OperationCanceledException)
+        {
+            // Not remembered; the choice still applies to this visit.
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try
+        {
+            var stored = await JS.InvokeAsync<string?>("localStorage.getItem", ChipStorageKey);
+            if (!string.IsNullOrWhiteSpace(stored) && !RecentFilterLogic.IsAll(stored) && stored != _recentType)
+            {
+                _recentType = stored;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException or OperationCanceledException)
+        {
+            // Storage is blocked or the circuit ended: Home stays on all.
+        }
+    }
     private void RecentItemsChanged(bool hasItems) { if (_recentType == "all") _hasRecentItems = hasItems; }
     private const int FirstShelfEagerTileCount = 6;
     private DiscoveryPageViewModel _page = new() { Key = "home" };
@@ -179,11 +214,11 @@
     }
 
     // Home's Pick up row uses the same Continue tiles as Read, Watch and Listen: started items only, newest first.
-    private static MediaTileShelfViewModel PickUpShelf(MediaTileShelfViewModel shelf) => new()
+    private static MediaTileShelfViewModel PickUpShelf(MediaTileShelfViewModel shelf, string scope) => new()
     {
         Key = shelf.Key,
         Title = "Pick up where you left off",
-        Items = PhoneContinueLogic.Select(shelf.Items),
+        Items = PhoneContinueLogic.InScope(PhoneContinueLogic.Select(shelf.Items), scope),
     };
 
     private static DiscoveryHeroViewModel HeroFromTile(MediaTileViewModel item) => new()

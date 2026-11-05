@@ -755,7 +755,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     // The Libraries levels are real addresses: a library's own page must not be redirected to the overview or /not-found.
     [Theory]
     [InlineData("/settings/libraries/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", null)]
-    [InlineData("/settings/libraries/import", "import", null)]
     [InlineData("/settings/libraries/view/photos", "view", "photos")]
     public async Task SettingsPage_OnALibrariesLevelAddress_StaysOnThatAddress(string address, string subsection, string? detail)
     {
@@ -780,7 +779,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [Theory]
     [InlineData("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", null, "Movies - Watch - Library")]
     [InlineData("view", "photos", "Photos - View - Library")]
-    [InlineData("import", null, "Import folder - Library")]
+    [InlineData("import", null, "Libraries - Library")]
     [InlineData("watch", null, "Libraries - Library")]
     [InlineData("watch", "movies", "Libraries - Library")]
     [InlineData("vault", null, "Libraries - Library")]
@@ -806,7 +805,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
     [InlineData(null, null, "Libraries", "Libraries", true)]
     [InlineData("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", null, "Movies", "Libraries|Watch|Movies", false)]
     [InlineData("view", "photos", "Photos", "Libraries|View|Photos", false)]
-    [InlineData("import", null, "Import folder", "Libraries|Import folder", false)]
     public void SettingsPage_OnALibrariesAddress_ShowsTheLevelInItsFrameBreadcrumbAndTitle(string? subsection, string? detail, string title, string trail, bool hasSubtitle)
     {
         var cut = RenderLibraries(subsection, detail);

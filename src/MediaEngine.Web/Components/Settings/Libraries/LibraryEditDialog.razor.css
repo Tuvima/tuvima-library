@@ -1,0 +1,9 @@
+.lib-edit { display: grid; gap: 16px; min-width: 0; }
+.lib-edit__folders { display: grid; gap: 4px; }
+.lib-edit__folder { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 6px 8px; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); }
+.lib-edit__path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-edit__state { color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
+.lib-edit__state[data-state="offline"] { color: var(--tl-status-warning); }
+.lib-edit__note { margin: 0; color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
+.lib-edit__more { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 8px; border-top: 1px solid var(--tl-border-subtle); }
+.lib-edit__review { margin: 0; padding-inline-start: 20px; display: grid; gap: 8px; }

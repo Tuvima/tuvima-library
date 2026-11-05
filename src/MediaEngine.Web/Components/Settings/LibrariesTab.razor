@@ -19,7 +19,7 @@
 }
 
 @* Libraries has these addresses, so Back and a reload keep the level: the overview (/settings/libraries, with ?area=watch|listen|read|view),
-   one library's page (/settings/libraries/{libraryId}, with ?tab=), the Import folder (/settings/libraries/import) and each View kind's
+   one library's page (/settings/libraries/{libraryId}, with ?tab=), and each View kind's
    settings (/settings/libraries/view/{kind}: photos, personal_videos, documents). The older group and type addresses redirect. *@
 <div class="libraries">
     @if (unavailable)
@@ -58,6 +58,8 @@
                                    PathIssues="@_pathIssues"
                                    ShowVault="@VaultVisible"
                                    ReadOnly="@readOnly"
+                                   Area="@AreaQuery"
+                                   ImportWaiting="@_importWaiting"
                                    FolderAdded="FolderAddedAsync" />
                 break;
             case LevelKind.Library:
@@ -81,13 +83,6 @@
                                  ReadOnly="@readOnly"
                                  Tab="@TabQuery"
                                  RootChanged="LoadAsync" />
-                break;
-            case LevelKind.Import:
-                <LibraryFoldersPanel @key="@LibraryTypeCatalog.ImportKey"
-                                     TypeKey="@LibraryTypeCatalog.ImportKey"
-                                     Kinds="@Kinds"
-                                     ReadOnly="@(readOnly || _engineUnavailable)"
-                                     Changed="RefreshConfigurationAsync" />
                 break;
             default:
                 <AppPageState Kind="AppPageStateKind.Unavailable"
@@ -118,7 +113,7 @@
             <AppAlert Tone="AppUiTone.Warning">@_loadError</AppAlert>
         }
 
-        @if (!readOnly && level.Kind is LevelKind.Overview or LevelKind.Library or LevelKind.ViewKind or LevelKind.Import)
+        @if (!readOnly && level.Kind is LevelKind.Overview or LevelKind.Library or LevelKind.ViewKind)
         {
             @* The rail never goes away on a Libraries page (Libraries redesign D1): every area and library, one click from anywhere. *@
             <div class="libraries__layout">
@@ -155,7 +150,7 @@
     // The address this page was routed with (see RoutedPageQuery): the page under the details overlay keeps its own query.
     [CascadingParameter(Name = RoutedPageQuery.CascadingName)] public string? RoutedUri { get; set; }
 
-    private enum LevelKind { Overview, Library, Import, ViewKind, NotFound }
+    private enum LevelKind { Overview, Library, ViewKind, NotFound }
 
     private sealed record Level(LevelKind Kind, LibraryFolderDto? Library = null, string? TypeKey = null);
 
@@ -169,6 +164,8 @@
     private bool _loading = true;
     private bool _engineUnavailable;
     private string? _routeKey;
+    // Files waiting in the Import folder, for its row on the overview; null until known.
+    private int? _importWaiting;
     private bool _isKids;
 
     // A Vault-protected library is listed only for an administrator with Vault mode on, never on a Kids profile (Library setup D13).
@@ -319,6 +316,12 @@
 
         _overview = await overview;
         await InvokeAsync(StateHasChanged);
+        if (CurrentLevel.Kind == LevelKind.Overview && configuration.ImportFolderStatus?.Configured == true)
+        {
+            _importWaiting = (await ApiClient.GetImportFolderWaitingAsync())?.Waiting.Sum(item => item.FileCount);
+            await InvokeAsync(StateHasChanged);
+        }
+
         _pathIssues = await issues;
         await InvokeAsync(StateHasChanged);
         _viewFolders = await viewFolders;
@@ -380,12 +383,11 @@
         await LoadSummaryAsync();
     }
 
-    // What the rail highlights: the overview, a library, a View kind or the Import folder.
+    // What the rail highlights: the overview, a library or a View kind.
     private static string RailSelection(Level level) => level.Kind switch
     {
         LevelKind.Library => level.Library!.Id,
         LevelKind.ViewKind => level.TypeKey!,
-        LevelKind.Import => LibraryTypeCatalog.ImportKey,
         _ => LibrariesRail.OverviewKey,
     };
 
@@ -400,11 +402,6 @@
         var subsection = Subsection?.Trim();
         var detail = Detail?.Trim();
         if (string.IsNullOrEmpty(subsection)) return string.IsNullOrEmpty(detail) ? new Level(LevelKind.Overview) : new Level(LevelKind.NotFound);
-
-        if (string.Equals(subsection, LibraryTypeCatalog.ImportKey, StringComparison.OrdinalIgnoreCase))
-        {
-            return string.IsNullOrEmpty(detail) ? new Level(LevelKind.Import) : new Level(LevelKind.NotFound);
-        }
 
         if (string.Equals(subsection, LibraryTypeCatalog.ViewArea, StringComparison.OrdinalIgnoreCase))
         {

@@ -48,7 +48,7 @@ public sealed class Wave5AccessibilityGuardrailTests
         Assert.Contains("role=\"listbox\"", folderBrowser);
         Assert.Contains("AriaLabel=\"@($\"Open folder {folder.Name}\")\"", folderBrowser);
         Assert.Contains("aria-live=\"polite\"", folderBrowser);
-        Assert.Contains("Label=\"@ConfirmLabel\"", folderBrowser);
+        Assert.Contains("Label=\"@ConfirmButtonLabel\"", folderBrowser);
         Assert.Contains("ConfirmLabel { get; set; } = \"Add\"", folderBrowser);
         // Shy's 2026-10-18 addendum (AD2) replaces open-on-click: a single click selects, a double click or the row's open button opens.
         Assert.Contains("AriaLabel=\"@($\"Open folder {folder.Name}\")\"", folderBrowser);

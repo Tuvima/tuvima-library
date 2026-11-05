@@ -20,7 +20,7 @@ public sealed class ServerFolderPickerUiTests
         Assert.Contains("BrowseServerFoldersAsync", picker, StringComparison.Ordinal);
         Assert.Contains("ValidateServerFolderAsync", picker, StringComparison.Ordinal);
         Assert.DoesNotContain("Enter path manually", picker, StringComparison.Ordinal);
-        Assert.Contains("Label=\"@ConfirmLabel\"", picker, StringComparison.Ordinal);
+        Assert.Contains("Label=\"@ConfirmButtonLabel\"", picker, StringComparison.Ordinal);
         Assert.Contains("ConfirmLabel { get; set; } = \"Add\"", picker, StringComparison.Ordinal);
         Assert.DoesNotContain("InputFile", picker, StringComparison.Ordinal);
         Assert.Contains("TimeSpan.FromMilliseconds(275)", picker, StringComparison.Ordinal);
@@ -36,7 +36,7 @@ public sealed class ServerFolderPickerUiTests
 
         // The path box and the footer take the Engine's own text (display path / validated path), never a host-mapped one.
         Assert.Contains("_pathText = browse.DisplayPath", picker, StringComparison.Ordinal);
-        Assert.Contains("_selectedPathText = _validation.Path", picker, StringComparison.Ordinal);
+        Assert.Contains("_selectedPathText = validation.Path", picker, StringComparison.Ordinal);
         foreach (var translation in new[] { "HostPath", "host_path", "HOST_PATH", "PathMapping", "MapToHost", "TranslatePath" })
         {
             Assert.DoesNotContain(translation, picker, StringComparison.OrdinalIgnoreCase);
@@ -55,7 +55,7 @@ public sealed class ServerFolderPickerUiTests
             picker.IndexOf("server-folder-picker__pathbar", StringComparison.Ordinal) < picker.IndexOf("server-folder-picker__body", StringComparison.Ordinal),
             "The path row must come before the location list and browser.");
         Assert.Contains("@ondblclick", picker, StringComparison.Ordinal);
-        Assert.Contains("navigator.clipboard.writeText", picker, StringComparison.Ordinal);
+        Assert.Contains("data-picker-go", picker, StringComparison.Ordinal);
     }
 
     [Theory]

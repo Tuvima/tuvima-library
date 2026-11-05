@@ -218,20 +218,13 @@ public sealed class LibraryAddressesAndViewPagesTests : AsyncBunitContext
         Assert.Contains("list of library kinds could not be loaded", cut.Markup, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public void ImportOpensTheImportFolderPanel()
-    {
-        var cut = Open("import");
-
-        cut.WaitForElement("#library-import-title");
-    }
-
     // Addresses that name nothing.
     [Theory]
     [InlineData("00000000-0000-4000-8000-000000000000", null)]
     [InlineData("nowhere", null)]
     [InlineData("view", "movies")]
     [InlineData("import", "movies")]
+    [InlineData("import", null)]
     public void AnAddressThatNamesNothingShowsAPlainNotFoundWithALinkBack(string subsection, string? detail)
     {
         var cut = Open(subsection, detail);
@@ -292,7 +285,7 @@ public sealed class LibraryAddressesAndViewPagesTests : AsyncBunitContext
     [InlineData("view", "documents", "Documents", "Libraries>/settings/libraries|View>/settings/libraries?area=view|Documents")]
     [InlineData("view", "podcasts", "Libraries", "")]
     [InlineData("view", null, "Libraries", "")]
-    [InlineData("import", null, "Import folder", "Libraries>/settings/libraries|Import folder")]
+    [InlineData("import", null, "Libraries", "")]
     [InlineData("import", "movies", "Libraries", "")]
     [InlineData("watch", null, "Libraries", "")]
     [InlineData("watch", "movies", "Libraries", "")]

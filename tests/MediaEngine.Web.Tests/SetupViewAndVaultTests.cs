@@ -206,7 +206,7 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
 
         OpenViewFolderDialog(cut, "Photos");
 
-        Assert.Equal("Choose your Photos folder", Text(_dialogs.FindAll("h1, h2, [role=heading]").Last()));
+        Assert.Equal("Choose your Photos and Videos folder", Text(_dialogs.FindAll("h1, h2, [role=heading]").Last()));
         Assert.Empty(_dialogs.FindAll(".add-view-folder [aria-label='More information'], .add-view-folder .app-info-tip"));
         Assert.Empty(_dialogs.FindAll("[data-view-storage]"));
         Assert.Contains("Library scans this folder and its subfolders. Your files are never changed.", _dialogs.Markup, StringComparison.Ordinal);
@@ -431,10 +431,9 @@ public sealed class SetupViewAndVaultTests : AsyncBunitContext
         Assert.Equal([RightPin], _unlocks);
         Assert.DoesNotContain(nameof(IEngineApiClient.SetNsfwNavigationAsync), _stub.Calls);
         Assert.False(Services.GetRequiredService<NsfwModeState>().ShowInNavigation);
-        var vault = cut.Find(".setup-area[data-area=vault]");
-        Assert.Single(cut.FindAll(".setup-area"));
-        Assert.Equal("Nothing yet", Text(vault.QuerySelector(".setup-area__empty")!));
-        Assert.Single(vault.QuerySelectorAll("button[aria-label='Add a Vault library']"));
+        // The Vault step has no add controls of its own: private libraries are added from the one Add library list (Vault tab).
+        Assert.Empty(cut.FindAll(".setup-area"));
+        Assert.Contains("Vault tab", Text(cut.Find("[data-vault-note]")), StringComparison.Ordinal);
         Assert.Equal(["Not now", "Continue"], cut.FindAll("footer button").Select(Text).ToArray());
         Assert.Contains("stays out of the menu", cut.Markup, StringComparison.Ordinal);
 

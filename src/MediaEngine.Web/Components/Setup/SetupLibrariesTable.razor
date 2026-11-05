@@ -19,16 +19,27 @@
     {
         <AppAlert Tone="AppUiTone.Warning" Dense="true">@_error</AppAlert>
     }
-    @if (!ReadOnly)
+    @{ var rows = Rows; }
+    @if (rows.Count > 0)
+    {
+        <LibraryAreaChips Areas="@Areas" Counts="@AreaCounts" Selected="@_area" SelectedChanged="@(key => { _area = key; return Task.CompletedTask; })" />
+    }
+    @if (!ReadOnly && rows.Count > 0)
     {
         <div class="setup-libs__toolbar">
             <AppButton Label="@L["Common_AddLibrary"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="AddAsync" />
         </div>
     }
-    @{ var rows = Rows; }
     @if (rows.Count == 0)
     {
-        <AppPanel Class="setup-libs__empty"><strong>@L["SetupLibraries_NoneYet"]</strong><span>@L["SetupLibraries_NoneYetText"]</span></AppPanel>
+        <div class="setup-libs__empty" data-empty="none">
+            <h3>@L["LibrariesOverview_NoLibrariesYet"]</h3>
+            <p>@L["LibrariesOverview_AddOneForEachKind"]</p>
+            @if (!ReadOnly)
+            {
+                <AppButton Label="@L["Common_AddLibrary"].Value" StartIcon="@AppMaterialIcons.Outlined.Add" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="AddAsync" />
+            }
+        </div>
     }
     else
     {
@@ -44,19 +55,36 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach (var row in rows)
+                @foreach (var row in rows.Where(row => _area is null || string.Equals(row.AreaKey, _area, StringComparison.OrdinalIgnoreCase)))
                 {
                     <tr @key="row.Key" data-library="@row.Key">
                         <td data-card-role="title"><span class="setup-libs__name"><span class="@LibraryKindLook.TileClass(row.Type)"><AppMaterialIcon Icon="@row.Type.Icon" /></span><strong>@row.Name</strong></span></td>
                         <td data-card-role="subtitle">@row.AreaLabel</td>
-                        <td class="setup-libs__path">@row.Path</td>
+                        <td class="setup-libs__path">
+                            @if (row.Library is { Sources.Count: > 0 } library)
+                            {
+                                <LibraryFoldersPopover Sources="@library.Sources" LibraryName="@row.Name" />
+                            }
+                            else
+                            {
+                                @row.Path
+                            }
+                        </td>
                         <td data-card-role="value"><AppStatusBadge Text="@L["SetupLibraries_Pending"].Value" Tone="AppUiTone.Neutral" Icon="@AppMaterialIcons.Outlined.Schedule" /></td>
                         <td data-card-role="hidden" class="setup-libs__actions">
                             @if (!ReadOnly)
                             {
-                                <AppIconButton Icon="@AppMaterialIcons.Outlined.Edit" Tooltip="@L["Common_Rename"].Value" AriaLabel="@($"Rename {row.Name}")" OnClick="@(() => RenameAsync(row))" />
-                                <AppIconButton Icon="@AppMaterialIcons.Outlined.FolderOpen" Tooltip="@L["SetupAreaCards_ChangeFolder"].Value" AriaLabel="@($"Change the folder of {row.Name}")" OnClick="@(() => ChangeFolderAsync(row))" />
-                                <AppIconButton Icon="@AppMaterialIcons.Outlined.Delete" Tooltip="@L["Common_Remove"].Value" AriaLabel="@($"Remove {row.Name}")" OnClick="@(() => RemoveAsync(row))" />
+                                @if (row.Library is not null)
+                                {
+                                    <AppButton Label="@L["Common_Edit"].Value" StartIcon="@AppMaterialIcons.Outlined.Edit" ButtonStyle="AppButtonStyle.Outlined" Size="AppControlSize.Compact"
+                                               aria-label="@L["LibrariesOverview_EditNamed", row.Name].Value" OnClick="@(() => EditAsync(row))" data-edit="@row.Key" />
+                                }
+                                else
+                                {
+                                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Edit" Tooltip="@L["Common_Rename"].Value" AriaLabel="@($"Rename {row.Name}")" OnClick="@(() => RenameAsync(row))" />
+                                    <AppIconButton Icon="@AppMaterialIcons.Outlined.FolderOpen" Tooltip="@L["SetupAreaCards_ChangeFolder"].Value" AriaLabel="@($"Change the folder of {row.Name}")" OnClick="@(() => ChangeFolderAsync(row))" />
+                                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Delete" Tooltip="@L["Common_Remove"].Value" AriaLabel="@($"Remove {row.Name}")" OnClick="@(() => RemoveAsync(row))" />
+                                }
                             }
                         </td>
                     </tr>
@@ -67,7 +95,7 @@
 </div>
 
 @code {
-    private sealed record Row(string Key, string Name, string AreaLabel, string Path, LibraryTypeOption Type, LibraryFolderDto? Library, ViewSourceAdminDto? ViewFolder);
+    private sealed record Row(string Key, string Name, string AreaKey, string AreaLabel, string Path, LibraryTypeOption Type, LibraryFolderDto? Library, ViewSourceAdminDto? ViewFolder);
 
     [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
     [Parameter, EditorRequired] public LibraryKindCatalog Kinds { get; set; } = default!;
@@ -80,6 +108,31 @@
     [Parameter] public EventCallback Changed { get; set; }
 
     private string? _error;
+    private string? _area;
+
+    private IReadOnlyList<LibraryGroup> Areas => Kinds.Visible(false);
+
+    private IReadOnlyDictionary<string, int> AreaCounts => Rows.GroupBy(row => row.AreaKey, StringComparer.OrdinalIgnoreCase)
+        .ToDictionary(group => group.Key, group => group.Count(), StringComparer.OrdinalIgnoreCase);
+
+    // Edit: the same window as Settings, saving through the setup session (nothing is scanned or moved during setup).
+    private async Task EditAsync(Row row)
+    {
+        if (row.Library is null) return;
+        var parameters = new AppDialogParameters<LibraryEditDialog>
+        {
+            { component => component.Library, row.Library },
+            { component => component.Configuration, Configuration },
+            { component => component.Kinds, Kinds },
+            { component => component.Scope, Scope },
+        };
+        var dialog = await DialogService.ShowAsync<LibraryEditDialog>(string.Empty, parameters, LibraryEditDialog.DialogOptions);
+        if (await dialog.Result is { Canceled: false })
+        {
+            _error = null;
+            await Changed.InvokeAsync();
+        }
+    }
 
     private FolderAddScope Scope => new(true, SetupSession);
 
@@ -96,7 +149,7 @@
                     foreach (var source in (ViewFolders ?? []).Where(source => source.StorageMode == "linked" && !string.IsNullOrWhiteSpace(source.Location)))
                     {
                         var kind = viewKinds.FirstOrDefault(item => item.Key == source.ContentKind) ?? viewKinds.FirstOrDefault();
-                        if (kind is not null) rows.Add(new Row(source.Id.ToString("D"), source.Name, area.Label, source.Location, kind, null, source));
+                        if (kind is not null) rows.Add(new Row(source.Id.ToString("D"), source.Name, area.Key, area.Label, source.Location, kind, null, source));
                     }
 
                     continue;
@@ -104,7 +157,7 @@
 
                 rows.AddRange(LibraryListing.RowsFor(Kinds, area.Key, Configuration, null, null, null, showVault: false)
                     .Where(row => row.Library is not null)
-                    .Select(row => new Row(row.Key, row.Name, area.Label, PathOf(row.Library!), row.Type, row.Library, null)));
+                    .Select(row => new Row(row.Key, row.Name, area.Key, area.Label, PathOf(row.Library!), row.Type, row.Library, null)));
             }
 
             return rows;

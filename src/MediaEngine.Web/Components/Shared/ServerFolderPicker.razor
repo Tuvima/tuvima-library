@@ -33,62 +33,34 @@ else
     // The picker body and footer are shared by the dialog and the inline (embedded) form.
     private RenderFragment BodyContent => @<text>
         <div class="@RootClass">
-            @if (!string.IsNullOrWhiteSpace(TargetLabel))
+            @if (TopContent is not null)
+            {
+                @* The host's own fields come first (Add library puts the library name here, large and focused), then the path box. *@
+                <div class="server-folder-picker__top" data-picker-top>@TopContent</div>
+            }
+            @if (!string.IsNullOrWhiteSpace(TargetLabel) && TopContent is null)
             {
                 @* Says what this pick is for, so a folder meant for one library is not chosen for another by accident. *@
                 <p class="server-folder-picker__target" data-picker-target>Choose the folder that holds your <strong>@TargetLabel</strong></p>
             }
             @if (ShowBrowser)
             {
+                @* The path box with its Go button (Libraries and folder picker D5): Go lists that folder's names, nothing is checked. *@
                 <div class="server-folder-picker__pathbar">
-                    @if (_editingPath)
-                    {
-                        <div class="server-folder-picker__address is-editing" data-app-escape-owner="field">
-                            <input @ref="_pathInput"
-                                   type="text"
-                                   class="server-folder-picker__address-field server-folder-picker__address-input"
-                                   aria-label="Folder path"
-                                   aria-invalid="@(_pathMessage is not null ? "true" : null)"
-                                   aria-describedby="@(_pathMessage is not null ? _pathErrorId : null)"
-                                   autocomplete="off"
-                                   spellcheck="false"
-                                   value="@_pathText"
-                                   placeholder="Type or paste a folder path (for example /media/movies) and press Enter"
-                                   @oninput="PathInput"
-                                   @onkeydown="PathKeyDownAsync"
-                                   @onblur="PathBlurAsync" />
-                        </div>
-                    }
-                    else
-                    {
-                        <nav class="server-folder-picker__address" aria-label="Folder path">
-                            @foreach (var crumb in Crumbs)
-                            {
-                                <span class="server-folder-picker__segment">
-                                    <button type="button"
-                                            class="server-folder-picker__crumb@(crumb.IsCurrent ? " is-current" : string.Empty)"
-                                            aria-current="@(crumb.IsCurrent ? "location" : null)"
-                                            @onclick="@(() => OpenCrumbAsync(crumb.Relative))">@crumb.Label</button>
-                                    <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.ChevronRight"
-                                                     Class="server-folder-picker__chevron"
-                                                     AriaLabel="@($"Folders inside {crumb.Label}")"
-                                                     AnchorOrigin="AppOrigin.BottomLeft"
-                                                     TransformOrigin="AppOrigin.TopLeft">
-                                        <ServerFolderSegmentMenu StorageLocationId="@_activeLocation?.Id"
-                                                                 RelativePath="@crumb.Relative"
-                                                                 SetupSession="@SetupSession"
-                                                                 OnChosen="OpenCrumbAsync" />
-                                    </AppOverflowMenu>
-                                </span>
-                            }
-                            <button type="button"
-                                    @ref="_addressEnd"
-                                    class="server-folder-picker__address-field server-folder-picker__address-end"
-                                    aria-label="Type a path"
-                                    title="Type a path"
-                                    @onclick="BeginPathEdit"></button>
-                        </nav>
-                    }
+                    <div class="server-folder-picker__address">
+                        <input type="text"
+                               class="server-folder-picker__address-field server-folder-picker__address-input"
+                               aria-label="Folder path"
+                               aria-invalid="@(_pathMessage is not null ? "true" : null)"
+                               aria-describedby="@(_pathMessage is not null ? _pathErrorId : null)"
+                               autocomplete="off"
+                               spellcheck="false"
+                               value="@_pathText"
+                               placeholder="Type or paste a folder path (for example /media/movies), then press Go"
+                               @oninput="PathInput"
+                               @onkeydown="PathKeyDownAsync" />
+                        <AppButton Label="Go" ButtonStyle="AppButtonStyle.Outlined" Size="AppControlSize.Compact" Disabled="@(_loadingBrowse || string.IsNullOrWhiteSpace(_pathText))" OnClick="GoToTypedPathAsync" data-picker-go />
+                    </div>
                     @if (_pathMessage is not null)
                     {
                         <div id="@_pathErrorId" class="app-field__help tl-field-error" role="alert">@_pathMessage</div>
@@ -144,11 +116,6 @@ else
                                                AriaLabel="Back"
                                                Disabled="@(!CanGoBack || _loadingBrowse)"
                                                OnClick="BackAsync" />
-                                <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowForward"
-                                               Tooltip="Forward"
-                                               AriaLabel="Forward"
-                                               Disabled="@(!CanGoForward || _loadingBrowse)"
-                                               OnClick="ForwardAsync" />
                                 <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowUpward"
                                                Tooltip="Up one level"
                                                AriaLabel="Up one level"
@@ -220,34 +187,23 @@ else
                             }
                         </div>
 
-                        @if (_validating)
-                        {
-                            <div class="server-folder-picker__validation-progress" aria-live="polite"><AppProgressBar Indeterminate="true" /></div>
-                        }
                     }
 
                     <div class="server-folder-picker__notices">
-                    @if (_validation is { CanSelect: true, Exists: false }) { <AppAlert Tone="AppUiTone.Info">This View folder will be created when storage is saved.</AppAlert> }
                     @if (!string.IsNullOrWhiteSpace(_error))
                     {
                         <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
                     }
-                    @foreach (var problem in AccessProblems)
+                    @if (_validating)
                     {
-                        <div class="server-folder-picker__issues" aria-live="assertive"><div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WarningAmber" /><span>@problem</span></div></div>
+                        <div class="server-folder-picker__validation-progress" aria-live="polite"><span>Checking…</span><AppProgressBar Indeterminate="true" /></div>
                     }
-                    @if (FolderResultText is { } folderResult)
+                    @if (_validation is { } checkedFolder && !_validating)
                     {
-                        <AppAlert Tone="AppUiTone.Success" data-folder-result="accessible">@folderResult</AppAlert>
-                    }
-                    @if (_validation?.Issues.Count > 0)
-                    {
-                        @* The Engine's refusals are plain sentences that already name the other library, so they are shown as they come. *@
-                        <div class="server-folder-picker__issues" aria-live="assertive" data-folder-result="refused">
-                            @foreach (var issue in _validation.Issues)
-                            {
-                                <div><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.WarningAmber" /><span>@issue.Message</span></div>
-                            }
+                        @* The one check, run when the folder was chosen: Looks right, Heads up or Already used (D7). Already used blocks Add. *@
+                        <div class="server-folder-picker__result" data-result="@ResultKind(checkedFolder)" role="status" aria-live="polite">
+                            <AppMaterialIcon Icon="@ResultIcon(checkedFolder)" />
+                            <div><strong>@ResultTitle(checkedFolder)</strong><p>@ResultText(checkedFolder)</p></div>
                         </div>
                     }
                     </div>
@@ -258,26 +214,6 @@ else
 
     private RenderFragment FooterContent => @<text>
         <div class="server-folder-picker__footer">
-            <div class="server-folder-picker__selected">
-                <span class="server-folder-picker__selected-label">Selected path</span>
-                <div class="server-folder-picker__selected-field">
-                    <AppTextField Label="Selected path"
-                                  HideLabel="true"
-                                  ReadOnly="true"
-                                  Value="@_selectedPathText"
-                                  Placeholder="No folder selected"
-                                  Adornment="AppAdornment.End"
-                                  AdornmentIcon="@AppMaterialIcons.Outlined.ContentCopy"
-                                  AdornmentAriaLabel="Copy selected path"
-                                  OnAdornmentClick="CopySelectedPathAsync" />
-                </div>
-                <span class="server-folder-picker__copied" aria-live="polite">@_copyMessage</span>
-            </div>
-            @if (FooterStart is not null)
-            {
-                @* The host's own field (the library name in Add library) sits in the footer, so every caller shares one picker size and one footer. *@
-                <div class="server-folder-picker__footer-start" data-picker-footer-start>@FooterStart</div>
-            }
             @if (OfferManagedChoice)
             {
                 <AppSwitchRow Label="Let Library manage this folder"
@@ -285,6 +221,7 @@ else
                               Value="@_managedChoice"
                               ValueChanged="SetManagedChoiceAsync" />
             }
+            <p class="server-folder-picker__safety" data-picker-safety>@SafetyLine</p>
             <AppActionBar Align="AppHorizontalAlignment.End">
                 @if (!Inline)
                 {
@@ -292,10 +229,10 @@ else
                 }
                 @if (!HideConfirm)
                 {
-                    <AppButton Label="@ConfirmLabel"
+                    <AppButton Label="@ConfirmButtonLabel"
                                ButtonStyle="AppButtonStyle.Filled"
                                Tone="AppUiTone.Primary"
-                               Disabled="@(_validation?.CanSelect != true || _validating || _loadingBrowse)"
+                               Disabled="@(_validating || _loadingBrowse || string.IsNullOrWhiteSpace(_selectedPathText) || IsBlocked)"
                                OnClick="Confirm" />
                 }
             </AppActionBar>
@@ -303,8 +240,8 @@ else
     </text>;
 
     [Parameter] public string? SetupSession { get; set; }
-    /// <summary>A host's own field drawn in the footer beside the selected path (Add library puts the library name here).</summary>
-    [Parameter] public RenderFragment? FooterStart { get; set; }
+    /// <summary>A host's own fields drawn above the path box (Add library puts the library name here, large and focused).</summary>
+    [Parameter] public RenderFragment? TopContent { get; set; }
     [CascadingParameter] private IAppDialogContext DialogInstance { get; set; } = null!;
     [Parameter] public string Title { get; set; } = "Choose a folder";
     [Parameter] public string HelpText { get; set; } = "Choose a folder on the Library server.";
@@ -322,10 +259,10 @@ else
     [Parameter] public bool Inline { get; set; }
     /// <summary>Called with the validated folder when the person confirms while <see cref="Inline"/> is true; the dialog form closes with the same result instead.</summary>
     [Parameter] public EventCallback<ServerFolderValidationResultDto> OnConfirmed { get; set; }
-    /// <summary>Leaves out the confirm button, for a host (the Create library dialog) that has its own button and reads <see cref="OnValidationChanged"/> instead.</summary>
+    /// <summary>Leaves out the confirm button, for a host (the Create library dialog) that has its own button and reads <see cref="OnPathChanged"/> instead.</summary>
     [Parameter] public bool HideConfirm { get; set; }
-    /// <summary>Called whenever the checked folder changes: the Engine's answer for the selected folder, or null while it is being checked or nothing is selected.</summary>
-    [Parameter] public EventCallback<ServerFolderValidationResultDto?> OnValidationChanged { get; set; }
+    /// <summary>Called whenever the selected folder's path changes (a plain choice, nothing is checked); empty when nothing is selected. A host with its own button reads it and runs the one check itself.</summary>
+    [Parameter] public EventCallback<string> OnPathChanged { get; set; }
 
     /// <summary>The centred pop-up every host opens the folder picker with, so Add library and Add folder look the same.</summary>
     public static AppDialogOptions DialogOptions { get; } = new() { MaxWidth = AppMaxWidth.ExtraExtraLarge, FullWidth = false, CloseButton = false, CloseOnEscapeKey = true };
@@ -343,25 +280,26 @@ else
         if (_managedChoice == value) return;
         _managedChoice = value;
         await OnManagedChoiceChanged.InvokeAsync(value);
+        // The earlier check was for the other handling, so it no longer stands; the next choice checks again.
         InvalidateValidation();
-        if (_validation is null && _activeLocation is not null) await ValidateSelectedAsync();
     }
 
-    private const string CantOpenMessage = "The Library can't open that folder.";
+    private const string CantOpenMessage = "Library can't open this folder. Pick another or check its permissions.";
     private const string NotFoundMessage = "That folder doesn't exist.";
+    private const string UnreachableMessage = "Can't reach your Library server";
 
     private readonly CancellationTokenSource _lifetime = new();
     private CancellationTokenSource? _browseRequest;
     private CancellationTokenSource? _validationRequest;
     private CancellationTokenSource? _searchDebounce;
-    private CancellationTokenSource? _copyReset;
     private long _browseGeneration;
     private long _validationGeneration;
     private List<ServerStorageLocationDto> _locations = [];
     private BrowseServerFoldersResultDto? _browse;
     private ServerStorageLocationDto? _activeLocation;
+    // The one check's answer; null until Add / Choose is pressed, and dropped again as soon as the selection changes.
     private ServerFolderValidationResultDto? _validation;
-    // The folders visited in this dialog, as (location id, relative path); Back and Forward walk it.
+    // The folders visited in this dialog, as (location id, relative path); Back walks it.
     private readonly List<(string LocationId, string RelativePath)> _history = [];
     private int _historyIndex = -1;
     private string _selectedRelativePath = string.Empty;
@@ -371,19 +309,8 @@ else
     private string _selectedPathText = string.Empty;
     private string? _pathMessage;
     private readonly string _pathErrorId = $"server-folder-picker-path-error-{Guid.NewGuid():N}";
-    private string? _copyMessage;
     private string _search = string.Empty;
     private string _pathText = string.Empty;
-    // The address bar shows clickable folder names; clicking its empty end swaps it for a text box holding the full path.
-    private bool _editingPath;
-    private bool _pathEdited;
-    private bool _focusPathInput;
-    private bool _focusAddressEnd;
-    private ElementReference _pathInput;
-    private ElementReference _addressEnd;
-    private IJSObjectReference? _fields;
-    // What was selected when path editing began, so Esc (or leaving the box) puts it back without another call.
-    private (string? Folder, string RelativePath, string PathText, ServerFolderValidationResultDto? Validation)? _beforeEdit;
     private int _highlight;
     private bool _focusList;
     private ElementReference _listElement;
@@ -392,10 +319,9 @@ else
     private bool _rootsFailed;
     private bool _loadingBrowse;
     private bool _validating;
-    private ServerFolderValidationResultDto? _reportedValidation;
-
-    // The result card for a folder that can be used: it says so and, when the Engine counted them, how many supported files it holds.
-    private string? FolderResultText => _validating ? null : ServerFolderResultText.For(_validation);
+    // A Heads up is acknowledged by pressing the button a second time, which then reads "Add anyway".
+    private bool _headsUpShown;
+    private string _reportedPath = string.Empty;
 
     // Drives and the server root are discovered automatically; anything else in the list is a configured media location.
     // Tuvima's own folders are never sent by the Engine, so there is nothing to hide or rename here.
@@ -457,65 +383,57 @@ else
         var first = VisibleLocations.FirstOrDefault(location => !IsMachineLocation(location)) ?? VisibleLocations.FirstOrDefault();
         if (first is null) return;
 
-        if (!string.IsNullOrWhiteSpace(InitialPath))
+        // A folder to start on is found among the listed locations by its path; nothing is checked for it (browsing is dumb, D6).
+        if (!string.IsNullOrWhiteSpace(InitialPath) && ResolveTyped(InitialPath) is { } start)
         {
-            var request = new ValidateServerFolderRequest
+            _selectedPathText = InitialPath;
+            _pathText = InitialPath;
+            _activeLocation = start.Location;
+            _selectedRelativePath = start.Relative;
+            if (!await TryBrowseAsync(start.Location, start.Relative, selectBrowsed: false))
             {
-                ManualPath = InitialPath,
-                SelectionMode = EffectiveMode,
-                CurrentSourceId = CurrentSourceId,
-            };
-            var initial = string.IsNullOrWhiteSpace(SetupSession)
-                ? await ApiClient.ValidateServerFolderAsync(request, _lifetime.Token)
-                : await ApiClient.ValidateSetupServerFolderAsync(request, SetupSession, _lifetime.Token);
-            if (initial is not null)
-            {
-                first = VisibleLocations.FirstOrDefault(location =>
-                    string.Equals(location.Id, initial.StorageLocationId, StringComparison.OrdinalIgnoreCase)) ?? first;
-                _selectedRelativePath = initial.RelativePath;
-                _validation = initial;
-                if (initial is { CanSelect: true, Exists: false })
-                {
-                    // The folder does not exist yet: keep it as the selection and browse the location root beside it.
-                    _activeLocation = first;
-                    _pathText = initial.Path;
-                    _selectedPathText = initial.Path;
-                    await NavigateAsync(string.Empty, preserveSelection: true);
-                    return;
-                }
+                // The folder does not exist yet: keep it as the selection and show the location's root beside it.
+                await TryBrowseAsync(start.Location, string.Empty, selectBrowsed: false);
             }
+
+            return;
         }
 
-        await SelectLocationAsync(first, string.IsNullOrWhiteSpace(_selectedRelativePath) ? null : _selectedRelativePath);
+        await SelectLocationAsync(first);
     }
 
-    private async Task SelectLocationAsync(ServerStorageLocationDto location, string? relativePath = null)
+    private async Task SelectLocationAsync(ServerStorageLocationDto location)
     {
         CancelSearchDebounce();
-        EndPathEdit();
         _activeLocation = location;
         _search = string.Empty;
-        _selectedRelativePath = relativePath ?? string.Empty;
-        _validation = null;
+        _selectedRelativePath = string.Empty;
         _pathMessage = null;
-        await NavigateAsync(_selectedRelativePath, preserveSelection: false);
+        await NavigateAsync(string.Empty);
     }
 
-    private async Task NavigateAsync(string relativePath, bool preserveSelection = false, bool fromHistory = false)
+    private Task NavigateAsync(string relativePath, bool preserveSelection = false, bool fromHistory = false)
     {
-        if (_activeLocation is null) return;
-        EndPathEdit();
+        return _activeLocation is null
+            ? Task.CompletedTask
+            : TryBrowseAsync(_activeLocation, relativePath, selectBrowsed: !preserveSelection, fromHistory: fromHistory);
+    }
+
+    // Lists a folder's names. This is the only call browsing makes: no check of any kind runs here.
+    private async Task<bool> TryBrowseAsync(ServerStorageLocationDto location, string relativePath, bool selectBrowsed, bool fromHistory = false)
+    {
+        _activeLocation = location;
         var generation = ++_browseGeneration;
         _browseRequest?.Cancel();
         _browseRequest?.Dispose();
         _browseRequest = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
         var token = _browseRequest.Token;
         _loadingBrowse = true;
-        if (!preserveSelection) InvalidateValidation();
+        if (selectBrowsed) InvalidateValidation();
         _error = null;
         var request = new BrowseServerFoldersRequest
         {
-            StorageLocationId = _activeLocation.Id,
+            StorageLocationId = location.Id,
             RelativePath = relativePath,
             Search = _search,
         };
@@ -528,32 +446,34 @@ else
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
-            return;
+            return false;
         }
         finally
         {
             if (generation == _browseGeneration) _loadingBrowse = false;
         }
 
-        if (generation != _browseGeneration) return;
+        if (generation != _browseGeneration) return false;
         if (browse is null)
         {
+            // The last list stays on screen; the person is told, and nothing else changes.
             _error = L["ServerFolderPicker_LibraryCouldNotReachThis"].Value;
-            return;
+            return false;
         }
 
         _browse = browse;
         _highlight = 0;
-        if (!fromHistory) RecordHistory(_activeLocation.Id, browse.RelativePath);
-        if (!preserveSelection)
+        if (!fromHistory) RecordHistory(location.Id, browse.RelativePath);
+        if (selectBrowsed)
         {
             _selectedFolder = null;
             _selectedRelativePath = browse.RelativePath;
             _pathText = browse.DisplayPath;
             _selectedPathText = browse.DisplayPath;
             _pathMessage = null;
-            await ValidateSelectedAsync();
         }
+
+        return true;
     }
 
     private void RecordHistory(string locationId, string relativePath)
@@ -566,9 +486,7 @@ else
     }
 
     private bool CanGoBack => _historyIndex > 0;
-    private bool CanGoForward => _historyIndex >= 0 && _historyIndex < _history.Count - 1;
     private Task BackAsync() => GoThroughHistoryAsync(-1);
-    private Task ForwardAsync() => GoThroughHistoryAsync(1);
 
     private async Task GoThroughHistoryAsync(int step)
     {
@@ -594,17 +512,9 @@ else
         ? NavigateAsync(parent)
         : Task.CompletedTask;
 
-    private Task OpenCrumbAsync(string relativePath)
-    {
-        _focusList = true;
-        return NavigateAsync(relativePath);
-    }
-
     private async Task RefreshAsync()
     {
-        InvalidateValidation();
         await NavigateAsync(_browse?.RelativePath ?? string.Empty, preserveSelection: true);
-        await ValidateSelectedAsync();
     }
 
     private async Task SearchChangedAsync(object? value)
@@ -624,17 +534,18 @@ else
         }
     }
 
-    // A single click only selects the folder; opening is a double click, the open button on the row, or Enter.
-    private async Task SelectFolderAsync(ServerFolderEntryDto folder, int position)
+    // A single click only selects the folder; opening is a double click, the open button on the row, or Enter. Nothing is checked.
+    private Task SelectFolderAsync(ServerFolderEntryDto folder, int position)
     {
         _focusList = true;
-        EndPathEdit();
+        InvalidateValidation();
         _highlight = position;
         _selectedFolder = folder.RelativePath;
         _selectedRelativePath = folder.RelativePath;
         _selectedPathText = JoinPath(folder.Name);
+        _pathText = _selectedPathText;
         _pathMessage = null;
-        await ValidateSelectedAsync();
+        return Task.CompletedTask;
     }
 
     private async Task OpenFolderAsync(ServerFolderEntryDto folder)
@@ -650,107 +561,58 @@ else
         return basePath.TrimEnd('\\', '/') + separator + name;
     }
 
-    private async Task ValidateSelectedAsync()
+    // The listed location a typed path sits under (the longest match wins), and the path below it; null when the path is outside every listed location.
+    private (ServerStorageLocationDto Location, string Relative)? ResolveTyped(string typed)
     {
-        if (_activeLocation is null) return;
-        _validation = null;
-        var generation = ++_validationGeneration;
-        _validationRequest?.Cancel();
-        _validationRequest?.Dispose();
-        _validationRequest = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
-        var token = _validationRequest.Token;
-        _validating = true;
-        _error = null;
-        var request = new ValidateServerFolderRequest
+        var path = typed.Trim();
+        (ServerStorageLocationDto Location, string Relative)? best = null;
+        var bestLength = -1;
+        foreach (var location in VisibleLocations)
         {
-            StorageLocationId = _activeLocation.Id,
-            RelativePath = _selectedRelativePath,
-            SelectionMode = EffectiveMode,
-            CurrentSourceId = CurrentSourceId,
-        };
-        ServerFolderValidationResultDto? validation;
-        try
-        {
-            validation = string.IsNullOrWhiteSpace(SetupSession)
-                ? await ApiClient.ValidateServerFolderAsync(request, token)
-                : await ApiClient.ValidateSetupServerFolderAsync(request, SetupSession, token);
+            var root = location.Path.TrimEnd('\\', '/');
+            if (path.Length < root.Length || !path.StartsWith(root, StringComparison.OrdinalIgnoreCase)) continue;
+            var rest = path[root.Length..];
+            if (rest.Length > 0 && rest[0] is not ('\\' or '/')) continue;
+            if (root.Length > bestLength)
+            {
+                bestLength = root.Length;
+                best = (location, rest.Trim('\\', '/'));
+            }
         }
-        catch (OperationCanceledException) when (token.IsCancellationRequested)
-        {
-            return;
-        }
-        finally
-        {
-            if (generation == _validationGeneration) _validating = false;
-        }
-        if (generation != _validationGeneration) return;
-        _validation = validation;
-        if (_validation is null) _error = L["ServerFolderPicker_LibraryCouldNotValidateThis"].Value;
-        else if (!string.IsNullOrWhiteSpace(_validation.Path)) _selectedPathText = _validation.Path;
+
+        return best;
     }
 
-    // The path box takes a full path: Enter or Go checks it, then opens it when it exists.
+    // Go: lists the typed path's folders. The path box takes a full path; the folders are read, nothing is checked.
     private async Task GoToTypedPathAsync()
     {
         if (string.IsNullOrWhiteSpace(_pathText)) return;
-        _pathEdited = true;
-        InvalidateValidation();
-        var generation = _validationGeneration;
-        _validationRequest = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
-        var token = _validationRequest.Token;
-        _validating = true;
-        _error = null;
         _pathMessage = null;
-        var request = new ValidateServerFolderRequest { ManualPath = _pathText, SelectionMode = EffectiveMode, CurrentSourceId = CurrentSourceId };
-        ServerFolderValidationResultDto? validation;
-        try
+        _error = null;
+        if (ResolveTyped(_pathText) is not { } target)
         {
-            validation = string.IsNullOrWhiteSpace(SetupSession)
-                ? await ApiClient.ValidateServerFolderAsync(request, token)
-                : await ApiClient.ValidateSetupServerFolderAsync(request, SetupSession, token);
-        }
-        catch (OperationCanceledException) when (token.IsCancellationRequested)
-        {
-            // A changed path or closed dialog superseded this request.
-            return;
-        }
-        finally { if (generation == _validationGeneration) _validating = false; }
-        if (generation != _validationGeneration) return;
-
-        // The Engine refuses a path outside the locations it allows, or one it cannot resolve, with no result at all.
-        if (validation is null) { RejectTypedPath(CantOpenMessage); return; }
-        var location = VisibleLocations.FirstOrDefault(item => string.Equals(item.Id, validation.StorageLocationId, StringComparison.OrdinalIgnoreCase));
-        if (location is null || string.IsNullOrWhiteSpace(validation.Path))
-        {
-            RejectTypedPath(validation.Issues.Any(issue => issue.Code == "not_found") ? NotFoundMessage : CantOpenMessage);
+            RejectTypedPath(CantOpenMessage);
             return;
         }
 
-        if (!validation.Exists && !validation.CanSelect) { RejectTypedPath(NotFoundMessage); return; }
-        if (validation.Exists && !validation.HasRead) { RejectTypedPath(CantOpenMessage); return; }
-
-        _activeLocation = location;
-        _selectedFolder = null;
-        _selectedRelativePath = validation.RelativePath;
-        _validation = validation;
-        _editingPath = false;
-        _pathEdited = false;
-        _beforeEdit = null;
-        _focusAddressEnd = true;
-        if (!string.IsNullOrWhiteSpace(validation.Path))
+        CancelSearchDebounce();
+        _search = string.Empty;
+        if (!await TryBrowseAsync(target.Location, target.Relative, selectBrowsed: true))
         {
-            _pathText = validation.Path;
-            _selectedPathText = validation.Path;
+            // The last list stays; the person is told beside the path box.
+            RejectTypedPath(_error is null ? NotFoundMessage : CantOpenMessage);
+            _error = null;
+            return;
         }
 
-        if (validation.Exists) await NavigateAsync(validation.RelativePath, preserveSelection: true);
+        _focusList = true;
     }
 
     // A path that cannot be used says so beside the path box and leaves nothing selected.
     private void RejectTypedPath(string message)
     {
         _pathMessage = message;
-        _validation = null;
+        InvalidateValidation();
         _selectedFolder = null;
         _selectedRelativePath = string.Empty;
         _selectedPathText = string.Empty;
@@ -759,61 +621,6 @@ else
     private async Task PathKeyDownAsync(KeyboardEventArgs args)
     {
         if (args.Key == "Enter") await GoToTypedPathAsync();
-        else if (args.Key == "Escape") await CancelPathEditAsync();
-    }
-
-    // Clicking the empty end of the address bar (or its "Type a path" button) turns it into a text box with the full path selected.
-    private void BeginPathEdit()
-    {
-        if (_editingPath) return;
-        _beforeEdit = (_selectedFolder, _selectedRelativePath, _selectedPathText, _validation);
-        _pathText = _browse?.DisplayPath ?? _pathText;
-        _pathMessage = null;
-        _editingPath = true;
-        _focusPathInput = true;
-    }
-
-    // Leaving the box untouched goes back to the folder names. A path that was typed but not entered stays in the box: only Enter
-    // uses it and only Esc drops it, so moving to the Next button can neither confirm the earlier folder nor lose the typing unseen
-    // (Next stays off while the typed path is waiting).
-    private async Task PathBlurAsync()
-    {
-        if (_pathEdited) return;
-        await CancelPathEditAsync();
-    }
-
-    // Choosing a folder, drive or crumb with the mouse replaces whatever was being typed.
-    private void EndPathEdit()
-    {
-        _editingPath = false;
-        _pathEdited = false;
-        _beforeEdit = null;
-    }
-
-    // Esc goes back to the folder names; nothing is browsed and the earlier selection returns.
-    private async Task CancelPathEditAsync()
-    {
-        if (!_editingPath) return;
-        _editingPath = false;
-        _pathMessage = null;
-        _focusAddressEnd = true;
-        var edited = _pathEdited;
-        var before = _beforeEdit;
-        _pathEdited = false;
-        _beforeEdit = null;
-        _pathText = _browse?.DisplayPath ?? _pathText;
-        // Typing or Enter dropped the selection; opening the box and leaving it untouched changed nothing.
-        if (!edited) return;
-        InvalidateValidation();
-        if (before is { } saved)
-        {
-            _selectedFolder = saved.Folder;
-            _selectedRelativePath = saved.RelativePath;
-            _selectedPathText = saved.PathText;
-            _validation = saved.Validation;
-        }
-
-        if (_validation is null && _activeLocation is not null) await ValidateSelectedAsync();
     }
 
     private async Task ListKeyDownAsync(KeyboardEventArgs args)
@@ -846,67 +653,14 @@ else
         }
     }
 
-    // The same clipboard call the rest of the Dashboard uses; the secure-context rule can refuse it, so say so plainly.
-    private async Task CopySelectedPathAsync()
-    {
-        if (string.IsNullOrWhiteSpace(_selectedPathText)) return;
-        _copyReset?.Cancel();
-        _copyReset?.Dispose();
-        _copyReset = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
-        var token = _copyReset.Token;
-        try
-        {
-            await JS.InvokeVoidAsync("navigator.clipboard.writeText", token, _selectedPathText);
-            _copyMessage = L["ServerFolderPicker_Copied"].Value;
-        }
-        catch (JSException)
-        {
-            _copyMessage = L["ServerFolderPicker_CouldnTCopySelectThe"].Value;
-        }
-        catch (JSDisconnectedException)
-        {
-            return;
-        }
-        catch (OperationCanceledException) when (token.IsCancellationRequested)
-        {
-            return;
-        }
-
-        StateHasChanged();
-        try
-        {
-            await Task.Delay(TimeSpan.FromSeconds(2), token);
-            _copyMessage = null;
-        }
-        catch (OperationCanceledException) when (token.IsCancellationRequested)
-        {
-            // A newer copy or the closing dialog took over the message.
-        }
-    }
-
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         // Each focus request is a flag set while handling an event; it runs here, once the elements have rendered.
         if (_lifetime.IsCancellationRequested) return;
-        if (!ReferenceEquals(_reportedValidation, _validation))
+        if (!string.Equals(_reportedPath, _selectedPathText, StringComparison.Ordinal))
         {
-            _reportedValidation = _validation;
-            await OnValidationChanged.InvokeAsync(_validation);
-        }
-
-        if (_focusPathInput && _editingPath)
-        {
-            _focusPathInput = false;
-            await TryAsync(async () =>
-            {
-                _fields ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/app-fields.js");
-                if (_pathInput.Id is not null) await _fields.InvokeVoidAsync("selectText", _pathInput);
-            });
-        }
-        else if (_focusAddressEnd && !_editingPath)
-        {
-            _focusAddressEnd = false;
-            if (!_focusList) await TryFocusAsync(_addressEnd);
+            _reportedPath = _selectedPathText;
+            await OnPathChanged.InvokeAsync(_selectedPathText);
         }
 
         if (!_focusList || _loadingBrowse) return;
@@ -931,71 +685,124 @@ else
         _validationRequest = null;
         _validation = null;
         _validating = false;
+        _headsUpShown = false;
     }
-    private void PathInput(ChangeEventArgs args) { _pathText = args.Value?.ToString() ?? string.Empty; _pathMessage = null; _pathEdited = true; InvalidateValidation(); }
+
+    private void PathInput(ChangeEventArgs args) { _pathText = args.Value?.ToString() ?? string.Empty; _pathMessage = null; }
+
     private void CancelSearchDebounce()
     {
         _searchDebounce?.Cancel();
         _searchDebounce?.Dispose();
         _searchDebounce = null;
     }
+
+    // The one check (D6, D7): run when Add / Choose is pressed, capped by the Engine (10,000 files or a few seconds), and it never blocks Cancel.
+    private async Task CheckSelectedAsync()
+    {
+        if (_activeLocation is null) return;
+        var generation = ++_validationGeneration;
+        _validationRequest?.Cancel();
+        _validationRequest?.Dispose();
+        _validationRequest = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        var token = _validationRequest.Token;
+        _validating = true;
+        _validation = null;
+        _error = null;
+        var request = new ValidateServerFolderRequest
+        {
+            StorageLocationId = _activeLocation.Id,
+            RelativePath = _selectedRelativePath,
+            SelectionMode = EffectiveMode,
+            CurrentSourceId = CurrentSourceId,
+        };
+        ServerFolderValidationResultDto? validation;
+        try
+        {
+            validation = string.IsNullOrWhiteSpace(SetupSession)
+                ? await ApiClient.ValidateServerFolderAsync(request, token)
+                : await ApiClient.ValidateSetupServerFolderAsync(request, SetupSession, token);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            return;
+        }
+        finally
+        {
+            if (generation == _validationGeneration) _validating = false;
+        }
+
+        if (generation != _validationGeneration) return;
+        _validation = validation;
+        if (validation is null) _error = L["ServerFolderPicker_LibraryCouldNotValidateThis"].Value;
+        else if (!string.IsNullOrWhiteSpace(validation.Path)) _selectedPathText = validation.Path;
+    }
+
+    // Looks right closes at once; Heads up waits for a second press ("Add anyway"); Already used and a folder that cannot be opened block.
     private async Task Confirm()
     {
-        if (_validating || _loadingBrowse || _validation?.CanSelect != true) return;
-        await ValidateSelectedAsync();
-        if (_validation?.CanSelect != true) return;
+        if (_validating || _loadingBrowse || string.IsNullOrWhiteSpace(_selectedPathText)) return;
+        if (_validation is null || !_headsUpShown)
+        {
+            if (_validation is null) await CheckSelectedAsync();
+            if (_validation is null) return;
+            if (ResultKind(_validation) == "heads-up" && !_headsUpShown)
+            {
+                _headsUpShown = true;
+                return;
+            }
+        }
+
+        if (_validation is not { CanSelect: true } || ResultKind(_validation) is "already-used" or "refused") return;
         if (Inline) await OnConfirmed.InvokeAsync(_validation);
         else DialogInstance.Close(AppDialogResult.Ok(_validation));
     }
+
     private void Cancel() => DialogInstance.Cancel();
+
+    private bool IsBlocked => _validation is { } checkedFolder && ResultKind(checkedFolder) is "already-used" or "refused";
+
+    private string ConfirmButtonLabel => _headsUpShown ? "Add anyway" : ConfirmLabel;
+
+    private string SafetyLine => EffectiveMode == ServerFolderSelectionModes.ManagedLibrary
+        ? "Library keeps this folder organised."
+        : "Your files are never changed.";
+
+    private static string ResultKind(ServerFolderValidationResultDto result)
+    {
+        if (result.Issues.Any(issue => issue.Code == "already_configured")) return "already-used";
+        if (!result.CanSelect || (result.Exists && !result.HasRead)) return "refused";
+        if (result.Issues.Any(issue => issue.Code is "looks_like_other_kind" or "no_matching_files")) return "heads-up";
+        return "looks-right";
+    }
+
+    private static string ResultIcon(ServerFolderValidationResultDto result) => ResultKind(result) switch
+    {
+        "looks-right" => AppMaterialIcons.Outlined.CheckCircle,
+        "heads-up" => AppMaterialIcons.Outlined.WarningAmber,
+        _ => AppMaterialIcons.Outlined.ErrorOutline,
+    };
+
+    private static string ResultTitle(ServerFolderValidationResultDto result) => ResultKind(result) switch
+    {
+        "looks-right" => "Looks right",
+        "heads-up" => "Heads up",
+        "already-used" => "Already used",
+        _ => "Can't use this folder",
+    };
+
+    private string ResultText(ServerFolderValidationResultDto result) => ResultKind(result) switch
+    {
+        "looks-right" => ServerFolderResultText.For(result) ?? "Folder accessible",
+        "already-used" or "heads-up" => result.Issues.FirstOrDefault(issue => issue.Code is "already_configured" or "looks_like_other_kind" or "no_matching_files")?.Message ?? string.Empty,
+        _ => result.Exists && !result.HasRead
+            ? "Library can't read this folder."
+            : result.Issues.FirstOrDefault()?.Message ?? CantOpenMessage,
+    };
 
     private string RootClass => DeviceContext.IsMobile ? "server-folder-picker server-folder-picker--phone" : "server-folder-picker";
     private string FolderId(int index) => $"server-folder-picker-folder-{index}";
     private string? ActiveDescendant => _browse is { Directories.Count: > 0 } && _highlight < _browse.Directories.Count ? FolderId(_highlight) : null;
-
-    // The trail runs from the location's own root down to the folder being browsed; it never goes above the location.
-    private IReadOnlyList<(string Label, string Relative, bool IsCurrent)> Crumbs
-    {
-        get
-        {
-            if (_browse is null || _activeLocation is null) return [];
-            var separator = _browse.DisplayPath.Contains('\\') ? '\\' : '/';
-            var segments = _browse.RelativePath.Split(['\\', '/'], StringSplitOptions.RemoveEmptyEntries);
-            var rootLabel = _activeLocation.Label.TrimEnd('\\', '/');
-            // A drive reports its letter as the location and sometimes again as the first folder; show it once.
-            var repeatsDrive = segments.Length > 0 && rootLabel.EndsWith(':')
-                && string.Equals(segments[0].TrimEnd('\\', '/'), rootLabel, StringComparison.OrdinalIgnoreCase);
-            var crumbs = new List<(string Label, string Relative, bool IsCurrent)>
-            {
-                (_activeLocation.Path is "/" ? "/" : _activeLocation.Label, string.Empty, segments.Length == 0),
-            };
-            var relative = string.Empty;
-            for (var index = 0; index < segments.Length; index++)
-            {
-                relative = relative.Length == 0 ? segments[index] : relative + separator + segments[index];
-                if (index == 0 && repeatsDrive)
-                {
-                    if (segments.Length == 1) crumbs[0] = (crumbs[0].Label, crumbs[0].Relative, true);
-                    continue;
-                }
-
-                crumbs.Add((segments[index], relative, index == segments.Length - 1));
-            }
-
-            return crumbs;
-        }
-    }
-
-    // Access facts, space and file system are hidden unless something is wrong.
-    private IEnumerable<string> AccessProblems
-    {
-        get
-        {
-            if (_validation is not { Exists: true }) yield break;
-            if (!_validation.HasRead) yield return "Library can't read this folder.";
-            if (!_validation.HasWrite && ServerFolderSelectionModes.RequiresWrite(EffectiveMode)) yield return "Library can't write to this folder.";
-        }
-    }
 
     private string LocationClass(ServerStorageLocationDto location) => $"server-folder-picker__location{(_activeLocation?.Id == location.Id ? " is-active" : string.Empty)}";
     private bool IsSelected(ServerFolderEntryDto folder) => _selectedFolder is not null && string.Equals(_selectedFolder, folder.RelativePath, StringComparison.Ordinal);
@@ -1009,8 +816,6 @@ else
         _browseRequest?.Dispose();
         _validationRequest?.Cancel();
         _validationRequest?.Dispose();
-        _copyReset?.Cancel();
-        _copyReset?.Dispose();
         _lifetime.Cancel();
         _lifetime.Dispose();
     }

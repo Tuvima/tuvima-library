@@ -25,6 +25,19 @@ public sealed record LibraryTypeOption(
 /// <summary>Keys the Libraries addresses and the Dashboard know by name: the Import folder row and the View group.</summary>
 public static class LibraryTypeCatalog
 {
+    /// <summary>
+    /// Add library offers View as two choices (Libraries and folder picker D8): "Photos and Videos" (a dump of your phone: the Photos kind,
+    /// whose folder already takes pictures and videos together) and Documents. Personal videos is not a separate choice there.
+    /// </summary>
+    public const string PhotosAndVideosLabel = "Photos and Videos";
+
+    public static bool IsHiddenFromAdd(LibraryTypeOption kind) =>
+        string.Equals(kind.Key, "personal_videos", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>The words an Add choice uses for a View kind ("Photos and Videos" for the Photos kind); other kinds keep their label.</summary>
+    public static string AddChoiceLabel(LibraryTypeOption kind) =>
+        string.Equals(kind.Key, "photos", StringComparison.OrdinalIgnoreCase) ? PhotosAndVideosLabel : kind.Label;
+
     public const string ImportKey = "import";
     public const string ViewArea = "view";
 
@@ -166,11 +179,6 @@ public static class LibraryAddress
         if (string.IsNullOrEmpty(sub))
         {
             return front;
-        }
-
-        if (string.Equals(sub, LibraryTypeCatalog.ImportKey, StringComparison.OrdinalIgnoreCase))
-        {
-            return string.IsNullOrEmpty(det) ? Level("Import folder", libraries) : front;
         }
 
         if (Guid.TryParse(sub, out _) && string.IsNullOrEmpty(det))
