@@ -9516,12 +9516,6 @@
   <data name="SetupIntro_GetStarted" xml:space="preserve">
     <value>Get started</value>
   </data>
-  <data name="SetupLibraries_NoneYet" xml:space="preserve">
-    <value>No libraries yet</value>
-  </data>
-  <data name="SetupLibraries_NoneYetText" xml:space="preserve">
-    <value>Add a library for each kind of media you own. You can add more later in Settings.</value>
-  </data>
   <data name="SetupLibraries_TableCaption" xml:space="preserve">
     <value>Libraries added during setup</value>
   </data>
@@ -10979,5 +10973,8 @@
   </data>
   <data name="LibraryEditDialog_AddFailed" xml:space="preserve">
     <value>The folder could not be added. Check it and try again.</value>
+  </data>
+  <data name="SetupVaultOffer_AddFromLibraries" xml:space="preserve">
+    <value>To add a private library, go back to the Libraries step, press Add library and choose the Vault tab.</value>
   </data>
 </root>

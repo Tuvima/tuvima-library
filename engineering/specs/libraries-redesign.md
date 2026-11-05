@@ -1,6 +1,8 @@
 # Spec: Libraries redesign (two-pane Libraries, honest status, one folder pop-up)
 
 > **Status:** Built, awaiting your Local checks · **Version:** 1 · **Last updated:** 2026-10-30 · **Related docs:** [Product overview](../product/overview.md) · [Library pages](library-pages.md) (v15, Built, awaiting Local checks) · [Library setup and add-folder flow](library-setup-add-folder.md) (v2, In progress) · [Simpler library access](library-access.md) (v3, Locked) · [One shared look](one-shared-look.md) · [Universal editor](universal-editor.md) (Match panel) · [Vault sections and Move to Vault](vault-sections-and-move.md) · Mockups: [`engineering/design/mockups/libraries-redesign.html`](../design/mockups/libraries-redesign.html)
+> **Version 2 note (2026-11-05):** [libraries-and-folder-picker](libraries-and-folder-picker.md) changes D2 (area chips instead of area groups), D8 (the name moves to the top of the picker) and D10 (the folder is checked once, when Add is pressed, not while browsing). This version stays as history.
+
 
 > Written 2026-10-30 after Shy's review of the built Libraries pages: "the UI has gotten better, but the UX is still very bad." It was checked against the code on main (commit 90283826) and replaces piecemeal fixes with one redesign of the Libraries area in Settings, the library page, Add library, Add folder and the setup step. Locked by Shy on 2026-10-30 ("Agree lock it"), accepting every recommendation (Q1 to Q6: A). It supersedes parts of Library pages v15, Library setup and add-folder v2 and Library access v3 (section 9).
 

@@ -7,13 +7,11 @@
 @inject NsfwModeState Nsfw
 @inject DashboardIdentityClient Identity
 @inject ConfirmedActionRunner Confirmed
-@inject DeviceContextService DeviceContext
 @inject IStringLocalizer<SharedStrings> L
 
 @* "Turn on the Vault?" (library setup and add-folder v2, D17 to D21): its own optional step after Libraries, offered once, after the libraries,
    to the first administrator only. Not now leaves no trace: the caller carries straight on and nothing here is ever drawn. Set up the Vault asks for a PIN
-   typed twice (strongly suggested, never required: Vault sections D44), turns the Vault on for this administrator only, opens it for the rest of setup
-   with the same area card and Add button the Libraries step uses, so a first private library can be added now, and leaves it out of the main menu. It is one profile PIN, the same
+   typed twice (strongly suggested, never required: Vault sections D44), turns the Vault on for this administrator only, opens it for the rest of setup, so the one Add library list on the Libraries step shows a Vault tab, and leaves it out of the main menu. It is one profile PIN, the same
    one that protects the profile (Videos D52). The caller locks the Vault again when setup finishes. *@
 <div class="setup-stage-content" data-setup-vault>
     @switch (_phase)
@@ -64,19 +62,7 @@
 
         default:
             <div class="setup-stage__heading"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" /><div><h2 id="setup-stage-title">@L["SetupVaultOffer_YourVaultIsOn"]</h2><p>@L["SetupVaultOffer_AddAFirstPrivateLibrary"]</p></div></div>
-            @if (_configuration is not null)
-            {
-                <SetupAreaCards VaultOnly="true"
-                                SetupSession="@SetupSession"
-                                Configuration="@_configuration"
-                                Kinds="@_kinds"
-                                ReadOnly="@DeviceContext.IsMobile"
-                                Changed="LoadAsync" />
-            }
-            else if (_loadError is not null)
-            {
-                <AppAlert Tone="AppUiTone.Error"><span>@_loadError</span></AppAlert>
-            }
+            <p class="setup-vault__note" data-vault-note>@L["SetupVaultOffer_AddFromLibraries"]</p>
             @* Not now (Quiet) beside Continue, as in the design: the Vault is already on, so both carry on; Not now simply says no library for now. *@
             <SetupStageFooter>
                 <AppButton Label="@L["Common_NotNow"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Finished.InvokeAsync(true))" />
@@ -107,9 +93,6 @@
     private string _pin = string.Empty;
     private string _pinAgain = string.Empty;
     private string? _error;
-    private string? _loadError;
-    private LibrariesConfigurationDto? _configuration;
-    private LibraryKindCatalog _kinds = LibraryKindCatalog.Empty;
 
     protected override void OnInitialized() => _hasPin = AdministratorHasPin;
 
@@ -170,37 +153,11 @@
             _pin = string.Empty;
             _pinAgain = string.Empty;
             _phase = Phase.On;
-            await LoadAsync();
         }
         finally
         {
             if (_phase != Phase.On) { _pin = string.Empty; _pinAgain = string.Empty; }
             _busy = false;
         }
-    }
-
-    // The setup list never holds the Vault's libraries, so the signed-in administrator's own Vault list is added to it for this view.
-    private async Task LoadAsync()
-    {
-        var fresh = await ApiClient.GetSetupLibrariesAsync(SetupSession);
-        var kinds = await ApiClient.GetSetupLibraryKindsAsync(SetupSession);
-        if (fresh is null || kinds is null)
-        {
-            _configuration = null;
-            _loadError = ApiClient.LastError ?? "Your libraries could not be loaded.";
-            return;
-        }
-
-        if (await ApiClient.GetVaultSiblingLibrariesAsync() is { } vault)
-        {
-            foreach (var library in vault)
-            {
-                if (fresh.Libraries.All(existing => !string.Equals(existing.Id, library.Id, StringComparison.OrdinalIgnoreCase))) fresh.Libraries.Add(library);
-            }
-        }
-
-        _kinds = new LibraryKindCatalog(kinds);
-        _configuration = fresh;
-        _loadError = null;
     }
 }

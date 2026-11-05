@@ -75,7 +75,7 @@
                 @if (!Import)
                 {
                     <div class="lib-edit__more" data-more>
-                        @if (!IsVault)
+                        @if (!IsVault && !Scope.Embedded)
                         {
                             <AppButton Label="@L["LibraryEditDialog_ScanNow"].Value" StartIcon="@AppMaterialIcons.Outlined.Sync" ButtonStyle="AppButtonStyle.Text" Disabled="@(_saving || Library!.Sources.Count == 0)" OnClick="ScanNowAsync" />
                         }
@@ -178,7 +178,7 @@
         string.Equals(source.ConversionState, "converting", StringComparison.OrdinalIgnoreCase)
         || string.Equals(source.MergeState, "merging", StringComparison.OrdinalIgnoreCase);
 
-    private bool CanOfferVault => !Import && Library is not null && !IsVault
+    private bool CanOfferVault => !Import && !Scope.Embedded && Library is not null && !IsVault
         && LibraryVaultAccess.CanShow(Nsfw, Session, isKids: false)
         && Kinds.Find(Library.KindKey) is { } kind && !LibraryTypeCatalog.IsViewKind(kind);
 
@@ -302,6 +302,15 @@
     private async Task RemoveLibraryAsync()
     {
         if (Library is null || _saving) return;
+        if (Scope.Embedded)
+        {
+            // First-run setup: its own session removes the library and asks once itself.
+            var outcome = await AddService.RemoveSetupLibraryAsync(Scope, Configuration, Library);
+            if (outcome.Changed) Dialog.Close(AppDialogResult.Ok(true));
+            else _error = outcome.Error;
+            return;
+        }
+
         var confirmed = await DialogService.ShowMessageBoxAsync(
             L["LibraryEditDialog_RemoveTitle", Library.Name].Value,
             L["LibraryEditDialog_RemoveBody"].Value,

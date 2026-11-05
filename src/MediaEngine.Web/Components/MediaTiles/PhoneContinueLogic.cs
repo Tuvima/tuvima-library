@@ -23,6 +23,15 @@ public static class PhoneContinueLogic
             .Select(entry => entry.item)
             .ToList();
 
+    /// <summary>The area (watch, listen or read) a started item belongs to; the Home chips narrow Pick up by it.</summary>
+    public static string AreaKey(string? mediaKind) => ActionWord(mediaKind).ToLowerInvariant();
+
+    /// <summary>Started items of the chosen Home chips only (all of them when nothing is chosen).</summary>
+    public static IReadOnlyList<MediaTileViewModel> InScope(IEnumerable<MediaTileViewModel> items, string? scope)
+        => RecentFilterLogic.IsAll(scope)
+            ? [.. items]
+            : [.. items.Where(item => RecentFilterLogic.Selected(scope).Contains(AreaKey(item.MediaKind)))];
+
     /// <summary>The Read / Listen / Watch label on a pick-up card.</summary>
     public static string ActionWord(string? mediaKind) => mediaKind switch
     {

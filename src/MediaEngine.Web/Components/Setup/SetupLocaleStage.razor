@@ -8,7 +8,7 @@
     <section class="setup-locale-form" aria-label="@L["Settings_LanguageAndRegion"].Value">
         @if (ShowDisplay)
         {
-            <DisplayLanguagePicker Value="@Value.DisplayLanguage" ValueChanged="@(tag => Change(display: tag))" />
+            <DisplayLanguagePicker ShowRegion="false" Value="@Value.DisplayLanguage" ValueChanged="@(tag => Change(display: tag))" />
             <label>@L["ServerGeneral_CountryLabel"]
                 <AppNativeSelect Value="@Value.Country" OnChange="@(args => Change(country: args.Value?.ToString()))">
                     @foreach (var region in Regions) { <option value="@region.TwoLetterISORegionName">@region.EnglishName</option> }
