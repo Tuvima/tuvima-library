@@ -77,7 +77,7 @@ else
         </AdvancedFilters>
     </AppDiscoveryFilterBar>
     @if (_filter == "trash") { <ViewTrashHeader IsMine="@(Workspace.ScopeKind == ViewScopeKind.Mine)" Version="@_trashVersion" OnChanged="@(() => LoadAsync())" /> }
-    @if (_selected.Count > 0) { <ViewSelectionToolbar Count="@_selected.Count" Phone="@DeviceContext.IsPhone" ManualGalleries="@Workspace.OwnedGalleries.Where(g => g.Kind == ViewGalleryKind.Manual).ToList()" OnClear="CancelSelection" OnAddToGallery="AddSelectionToGalleryAsync" OnCreateGallery="@CreateGalleryCallback" OnDownload="@DownloadCallback" OnSharedLibrary="SubmitSelectionToSharedAsync" ShowSharedLibrary="@(Workspace.ScopeKind == ViewScopeKind.Mine)" OnFavorite="FavoriteSelectionAsync" OnEdit="@EditCallback" OnArchive="ArchiveSelectionAsync" OnRestore="RestoreSelectionAsync" ShowRestore="@(_filter is "archive" or "trash")" OnTrash="TrashSelectionAsync" ShowTrash="@(_filter != "trash" && AnySelectedTrashable)" /> }
+    @if (_selected.Count > 0) { <ViewSelectionToolbar Count="@_selected.Count" Phone="@DeviceContext.IsPhone" ManualGalleries="@Workspace.OwnedGalleries.Where(g => g.Kind == ViewGalleryKind.Manual).ToList()" OnClear="CancelSelection" OnAddToGallery="AddSelectionToGalleryAsync" OnCreateGallery="@CreateGalleryCallback" OnDownload="@DownloadCallback" OnSharedLibrary="SubmitSelectionToSharedAsync" ShowSharedLibrary="@(Workspace.ScopeKind == ViewScopeKind.Mine)" OnFavorite="FavoriteSelectionAsync" OnEdit="@EditCallback" OnArchive="ArchiveSelectionAsync" OnRestore="RestoreSelectionAsync" ShowRestore="@(_filter is "archive" or "trash")" OnTrash="TrashSelectionAsync" ShowTrash="@(_filter != "trash" && !DeviceContext.IsPhone && AnySelectedTrashable)" /> }
     @if (_loading) { <AppPageState Kind="AppPageStateKind.Loading" Title="@L["ViewPage_LoadingPhotos"].Value" Message="@L["ViewPage_BuildingYourPersonalTimeline"].Value" /> }
     else if (_page is null) { <AppErrorState Title="@L["Common_PhotosCouldNotBeLoaded"].Value" Message="The Engine did not return a timeline." Retry="@(() => LoadAsync())" /> }
     else if (_page.Items.Count == 0) { <AppPageState Kind="AppPageStateKind.Empty" Title="@EmptyTitle" Message="@EmptyMessage" /> }
@@ -308,7 +308,7 @@ else
     private async Task CreateGalleryFromSelectionAsync() { if (_viewSectionShell is null) return; await _viewSectionShell.BeginManualGalleryCreateAsync(_selected); ClearSelection(); }
     private async Task AddActiveToGalleryAsync(Guid id) { if (_activeItem is null) return; var result = await ApiClient.AddViewGalleryItemsAsync(id, [_activeItem.Id]); if (result is not null) Snackbar.Add(GalleryResult(result), AppSeverity.Success); }
     private static string GalleryResult(AddViewGalleryItemsResponseDto result) => result.AlreadyPresent > 0 ? $"{result.Added} added · {result.AlreadyPresent} already in Gallery" : $"{result.Added} added";
-    private Task ArchiveSelectionAsync() => MutateSelectionAsync(ApiClient.ArchiveViewItemAsync, "Archived selected items.");
+    private async Task ArchiveSelectionAsync() { if (!await ViewTrashConfirmation.AskArchiveAsync(DialogService, _selected.Count)) return; await MutateSelectionAsync(ApiClient.ArchiveViewItemAsync, "Archived selected items."); }
     private async Task TrashSelectionAsync()
     {
         // Items in a read-only folder never go to Trash (the Engine refuses them too); the others do, and the note says how many stayed.
@@ -320,6 +320,7 @@ else
             return;
         }
 
+        if (!await ViewTrashConfirmation.AskTrashAsync(DialogService, _selected.Count - readOnly.Count)) return;
         await MutateSelectionAsync(ApiClient.TrashViewItemAsync, "Moved selected items to Trash.", readOnly);
         if (note is not null) Snackbar.Add(note, AppSeverity.Warning);
     }
@@ -357,6 +358,7 @@ else
     }
     private async Task TrashItemAsync(LocalAssetDto item)
     {
+        if (!await ViewTrashConfirmation.AskTrashAsync(DialogService)) return;
         if (await ApiClient.TrashViewItemAsync(item.Id, default)) { await LoadAsync(); Snackbar.Add(L["ViewPage_MovedToTrash"].Value, AppSeverity.Success); }
         else Snackbar.Add(L["ViewPage_ItemCouldNotBeMovedToTrash"].Value, AppSeverity.Error);
     }
@@ -386,7 +388,7 @@ else
         ClearSelection();
     }
     private Task RestoreSelectionAsync() { _trashVersion++; return MutateSelectionAsync(async (id, ct) => { var restored = await ApiClient.RestoreViewItemAsync(id, ct); if (restored) Workspace.ClearTrashFailures([id]); return restored; }, "Restored selected items to Photos."); }
-    private async Task ToggleFavoriteAsync() { if (_activeItem is null) return; var value = !_activeItem.Favorite; if (await ApiClient.SetViewItemFavoriteAsync(_activeItem.Id, value)) Replace(_activeItem with { Favorite = value }); } private async Task ArchiveActiveAsync() { if (_activeItem is not null && await ApiClient.ArchiveViewItemAsync(_activeItem.Id)) await RemoveActiveAsync(); } private async Task RestoreActiveAsync() { if (_activeItem is not null && await ApiClient.RestoreViewItemAsync(_activeItem.Id)) { Workspace.ClearTrashFailures([_activeItem.Id]); _trashVersion++; await RemoveActiveAsync(); } } private async Task TrashActiveAsync() { if (_activeItem is { CanTrash: true } && await ApiClient.TrashViewItemAsync(_activeItem.Id)) await RemoveActiveAsync(); } private async Task RemoveActiveAsync() { _activeItem = null; await LoadAsync(); } private void Replace(LocalAssetDto updated) { _activeItem = updated; if (_page is not null) _page = _page with { Items = _page.Items.Select(i => i.Id == updated.Id ? updated : i).ToList() }; }
+    private async Task ToggleFavoriteAsync() { if (_activeItem is null) return; var value = !_activeItem.Favorite; if (await ApiClient.SetViewItemFavoriteAsync(_activeItem.Id, value)) Replace(_activeItem with { Favorite = value }); } private async Task ArchiveActiveAsync() { if (_activeItem is not null && await ViewTrashConfirmation.AskArchiveAsync(DialogService) && await ApiClient.ArchiveViewItemAsync(_activeItem.Id)) await RemoveActiveAsync(); } private async Task RestoreActiveAsync() { if (_activeItem is not null && await ApiClient.RestoreViewItemAsync(_activeItem.Id)) { Workspace.ClearTrashFailures([_activeItem.Id]); _trashVersion++; await RemoveActiveAsync(); } } private async Task TrashActiveAsync() { if (_activeItem is { CanTrash: true } && await ViewTrashConfirmation.AskTrashAsync(DialogService) && await ApiClient.TrashViewItemAsync(_activeItem.Id)) await RemoveActiveAsync(); } private async Task RemoveActiveAsync() { _activeItem = null; await LoadAsync(); } private void Replace(LocalAssetDto updated) { _activeItem = updated; if (_page is not null) _page = _page with { Items = _page.Items.Select(i => i.Id == updated.Id ? updated : i).ToList() }; }
     private string AssetUrl(LocalAssetDto item, ViewMediaResourceKind kind, ViewMediaResourceRole role = ViewMediaResourceRole.Primary)
     {
         if (!_profileId.HasValue) return "";

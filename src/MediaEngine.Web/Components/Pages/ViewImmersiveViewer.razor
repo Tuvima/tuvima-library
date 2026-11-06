@@ -197,7 +197,8 @@
         CanArchive: CanManage && !Item.FileMissing && !Item.ArchivedAt.HasValue && !Item.TrashedAt.HasValue,
         CanRestore: CanManage && (Item.ArchivedAt.HasValue || Item.TrashedAt.HasValue),
         // An item with a file in a read-only (linked) folder can't go to Trash, so the button isn't offered; Restore stays.
-        CanTrash: CanManage && !Item.FileMissing && !Item.TrashedAt.HasValue && Item.CanTrash,
+        // Phones never offer Trash (spec view-section D11).
+        CanTrash: CanManage && !DeviceContext.IsPhone && !Item.FileMissing && !Item.TrashedAt.HasValue && Item.CanTrash,
         CanShowInfo: true,
         CanZoom: Item.MimeType.StartsWith("image/", StringComparison.OrdinalIgnoreCase),
         CanPlay: Item.MimeType.StartsWith("video/", StringComparison.OrdinalIgnoreCase),

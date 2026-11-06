@@ -61,12 +61,33 @@ public sealed class ViewEditorGuardrailTests
     }
 
     [Fact]
+    public void TrashAndArchiveAlwaysAskOnceFirstOnEveryViewSurface()
+    {
+        // Spec view-section WP1: the selection bar, tile menu, viewer, Gallery viewer, Places and Documents all ask before Trash or Archive.
+        foreach (var (file, call) in new[]
+        {
+            ("ViewPage", "ViewTrashConfirmation.AskTrashAsync"), ("ViewPage", "ViewTrashConfirmation.AskArchiveAsync"),
+            ("ViewGalleryDetailPage", "ViewTrashConfirmation.AskTrashAsync"), ("ViewGalleryDetailPage", "ViewTrashConfirmation.AskArchiveAsync"),
+            ("ViewPlacesPage", "ViewTrashConfirmation.AskTrashAsync"), ("ViewPlacesPage", "ViewTrashConfirmation.AskArchiveAsync"),
+            ("ViewDocumentsPage", "ViewTrashConfirmation.AskTrashAsync"),
+        })
+        {
+            Assert.Contains(call, Web($"Components/Pages/{file}.razor"), StringComparison.Ordinal);
+        }
+
+        Assert.Contains("!DeviceContext.IsPhone", Web("Components/Pages/ViewImmersiveViewer.razor"), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ThePhotosAndDocumentsScreensSpeakThroughTheRibbonNotAToast()
     {
-        foreach (var file in new[] { "ViewPage", "ViewGalleryDetailPage", "ViewDocumentsPage", "ViewImmersiveViewer" })
+        // Every View screen, panel and setting speaks through the ribbon (spec view-section WP2), not only the four photo pages.
+        var viewSources = Directory.EnumerateFiles(Path.Combine(Root(), "src", "MediaEngine.Web", "Components"), "View*.razor", SearchOption.AllDirectories)
+            .ToList();
+        Assert.NotEmpty(viewSources);
+        foreach (var path in viewSources)
         {
-            var source = Web($"Components/Pages/{file}.razor");
-            Assert.DoesNotContain("IAppToastService", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("IAppToastService", File.ReadAllText(path), StringComparison.Ordinal);
         }
 
         Assert.Contains("Details.ViewSavedRibbon", Web("Shared/MainLayout.razor"), StringComparison.Ordinal);

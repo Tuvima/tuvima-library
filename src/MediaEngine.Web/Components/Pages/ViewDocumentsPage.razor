@@ -927,6 +927,11 @@
             return;
         }
 
+        if (operation == ViewDocumentBulkOperations.MoveToTrash && !await ViewTrashConfirmation.AskTrashAsync(DialogService, _selected.Count))
+        {
+            return;
+        }
+
         _bulkBusy = true;
         try
         {
