@@ -20,6 +20,7 @@
                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ExpandMore" aria-hidden="true" />
             </summary>
             <div class="media-section-shell__mobile-nav-panel">
+                @NavigationHeader
                 @foreach (var group in NavigationGroups)
                 {
                     <section aria-labelledby="@($"{GroupId(group)}-mobile")">
@@ -60,6 +61,7 @@
     </nav>
     }
     <aside class="media-section-shell__rail" aria-label="@($"{Title} navigation")">
+        @NavigationHeader
         @foreach (var group in NavigationGroups)
         {
             <section class="media-section-shell__rail-group @(IsFlatTree ? "is-flat" : null)" aria-labelledby="@GroupId(group)">
@@ -415,6 +417,8 @@
     [Parameter] public Func<MediaSectionNavigationRenameEvent, Task<bool>>? OnNavigationItemRename { get; set; }
     [Parameter] public Func<MediaSectionNavigationManageEvent, Task<bool>>? OnNavigationItemDelete { get; set; }
     [Parameter] public Func<MediaSectionNavigationReorderEvent, Task<bool>>? OnNavigationItemReorder { get; set; }
+    /// <summary>Optional content shown at the top of the rail and as the first row of the phone menu (View uses it for the Viewing switch).</summary>
+    [Parameter] public RenderFragment? NavigationHeader { get; set; }
     [Parameter] public bool ShowMobileNavigation { get; set; } = true;
 
     /// <summary>

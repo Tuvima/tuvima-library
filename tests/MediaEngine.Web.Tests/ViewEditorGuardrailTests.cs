@@ -167,4 +167,22 @@ public sealed class ViewEditorGuardrailTests
             Assert.Equal(expected, positions.OrderBy(entry => entry.At).Select(entry => entry.Action).ToList());
         }
     }
+
+    [Fact]
+    public void WhoseLibraryIsChosenOnlyBy_TheViewingSwitchInTheRail()
+    {
+        // One switch at the top of the rail picks the scope for every View page; a page-level scope picker would let two disagree.
+        foreach (var page in new[] { "ViewPage", "ViewPlacesPage", "ViewDocumentsPage", "ViewPeoplePage" })
+        {
+            var source = Web($"Components/Pages/{page}.razor");
+            Assert.DoesNotContain("ViewScopeOptions", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("SelectScopeAsync", source, StringComparison.Ordinal);
+            Assert.Contains("Workspace.ScopeChanged += ScopeSwitchedAsync", source, StringComparison.Ordinal);
+            Assert.Contains("Workspace.ScopeChanged -= ScopeSwitchedAsync", source, StringComparison.Ordinal);
+        }
+
+        var shell = Web("Components/Pages/ViewSectionShell.razor");
+        Assert.Contains("<ViewScopeSwitch", shell, StringComparison.Ordinal);
+        Assert.Contains("NavigationHeader=", shell, StringComparison.Ordinal);
+    }
 }

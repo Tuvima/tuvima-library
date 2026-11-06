@@ -26,7 +26,7 @@
         <HeaderActions>
             @if (CanBrowse && !Device.IsPhone)
             {
-                @ScopePicker
+                
                 @LayoutPicker
                 @if (!Device.IsTv)
                 {
@@ -252,7 +252,7 @@
 {
     <AppDialogFrame Open="true" Title="@L["ViewDocumentsPage_ViewOptions"].Value" DialogOptions="SheetOptions" Class="view-documents-sheet" OnCancel="@(() => _sheetOpen = false)">
         <div class="view-documents-sheet__body">
-            @ScopePicker
+            
             @LayoutPicker
             <ViewDocumentFilterRail Catalogue="_catalogue" State="_filter" InboxCount="_inboxCount" ShowInbox="HasInbox" OnChanged="FilterChangedAsync"
                                     ShowSavedViews="CanUseSavedViews" SavedViews="SavedViews" CanSaveView="CanSaveView" SavedViewsBusy="_savedViewsBusy"
@@ -339,12 +339,12 @@
     private string ListClass => $"view-documents-grid{(_list ? " view-documents-grid--list" : string.Empty)}";
     private int ActiveIndex => _active is null ? -1 : _items.FindIndex(item => item.Id == _active.Id);
 
-    private RenderFragment ScopePicker => @<label class="view-documents-scope"><span>Scope</span><AppSelect Native="true" Value="@SelectedScopeValue" ValueChanged="ScopeChangedAsync" aria-label="Documents scope"><ViewScopeOptions Scopes="@(Workspace.Scopes?.AvailableScopes ?? [])" OtherPeople="@Workspace.OtherPeople" /></AppSelect></label>;
     private RenderFragment LayoutPicker => @<AppSegmentedControl Options="LayoutOptions" Value="@(_list ? "list" : "grid")" ValueChanged="LayoutChanged" AriaLabel="Documents layout" Class="view-documents-layout" />;
 
     protected override async Task OnInitializedAsync()
     {
         Device.OnChanged += DeviceChanged;
+        Workspace.ScopeChanged += ScopeSwitchedAsync;
         _profileId = (await ActiveProfileSession.GetActiveProfileAsync())?.Id;
         // The View shell owns loading the View settings; this page only waits for them.
         await Workspace.WhenReadyAsync();
@@ -747,24 +747,16 @@
         }
     }
 
-    private async Task ScopeChangedAsync(string? selected)
+    private async Task ScopeSwitchedAsync()
     {
-        var parts = selected?.Split(':', 2) ?? [];
-        if (parts.Length == 0 || !Enum.TryParse<ViewScopeKind>(parts[0], true, out var kind))
-        {
-            return;
-        }
-
-        Guid? profile = parts.Length == 2 && Guid.TryParse(parts[1], out var parsed) ? parsed : null;
-        if (await Workspace.SelectScopeAsync(kind, profile))
+        await InvokeAsync(async () =>
         {
             _selectMode = false;
             _filter.Clear();
             await Task.WhenAll(LoadAsync(), LoadCatalogueAsync(), LoadInboxCountAsync());
-        }
+            StateHasChanged();
+        });
     }
-
-    private string SelectedScopeValue => $"{Workspace.ScopeKind}:{(Workspace.ScopeKind.CarriesProfileId() ? Workspace.ScopeProfileId?.ToString("D") : null)}";
 
     private Task LayoutChanged(string value)
     {
@@ -1042,6 +1034,7 @@
     public void Dispose()
     {
         Device.OnChanged -= DeviceChanged;
+        Workspace.ScopeChanged -= ScopeSwitchedAsync;
         PressEnded();
         _searchCts?.Cancel();
         _searchCts?.Dispose();

@@ -26,7 +26,6 @@
 <HeaderActions>
     @if (!_initializing && Workspace.Scopes is not null && Workspace.CanViewPhotoTimeline)
     {
-        <label><span>@L["Common_Scope"]</span><AppSelect Native="true" Value="@SelectedScopeValue" ValueChanged="ScopeChangedAsync" aria-label="@L["ViewPage_AuthorizedPhotoScope"].Value"><ViewScopeOptions Scopes="@Workspace.Scopes.AvailableScopes" OtherPeople="@Workspace.OtherPeople" /></AppSelect></label>
         <label><span>@L["ViewPage_Density"]</span><AppSelect Native="true" Value="@Workspace.Density.ToString()" ValueChanged="DensityChangedAsync" aria-label="@L["ViewPage_TimelineDensity"].Value">@foreach (var density in Enum.GetValues<ViewTimelineDensity>()) { <option value="@density">@density</option> }</AppSelect></label>
         <AppButton Href="/view/contributions" Label="@L["Common_Contributions"].Value" StartIcon="@AppMaterialIcons.Outlined.MoveToInbox" ButtonStyle="AppButtonStyle.Text" />
         @if (DeviceContext.IsTouch) { <AppButton Class="view-select-toggle" ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.CheckCircleOutline" Label="@(_selectMode ? "Done" : "Select")" aria-pressed="@(_selectMode ? "true" : "false")" OnClick="ToggleSelectMode" /> }
@@ -129,7 +128,7 @@ else
     private bool _selectMode;
     // Bumped after a restore, so the Trash header reads the Trash size again. Empty Trash refreshes it itself; a new visit to Trash reads it fresh.
     private int _trashVersion;
-    protected override async Task OnInitializedAsync() { Orchestrator.OnProfileChanged += OnProfileChanged; DeviceContext.OnChanged += DeviceChanged; await InitializeAsync(); }
+    protected override async Task OnInitializedAsync() { Workspace.ScopeChanged += ScopeSwitchedAsync; Orchestrator.OnProfileChanged += OnProfileChanged; DeviceContext.OnChanged += DeviceChanged; await InitializeAsync(); }
     private void DeviceChanged() => _ = InvokeAsync(() => { if (!DeviceContext.IsTouch) { _selectMode = false; } StateHasChanged(); });
     // A new profile starts with no chips and no filter: a chip or a kind filter left from the last profile could not be seen, so it could not be switched off.
     private async Task InitializeAsync() { _initializing = true; _addedBy.Clear(); _tags.Clear(); _addedByChoices = []; _tagChoices = []; _filter = "all"; _profileId = (await Orchestrator.GetActiveProfileAsync())?.Id; await Workspace.InitializeAsync(); await Workspace.LoadGalleriesAsync(); _initializing = false; if (!Workspace.CanViewPhotoTimeline) { _loading = false; return; } await Task.WhenAll(LoadAsync(), LoadFilterChoicesAsync()); }
@@ -197,7 +196,7 @@ else
         _loadingMore = false;
         _observeTimeline = _page.Items.Count > 0;
     }
-    private async Task ScopeChangedAsync(string? selected) { var parts = selected?.Split(':', 2) ?? []; if (parts.Length == 0 || !Enum.TryParse<ViewScopeKind>(parts[0], true, out var kind)) return; Guid? profile = parts.Length == 2 && Guid.TryParse(parts[1], out var parsed) ? parsed : null; if (await Workspace.SelectScopeAsync(kind, profile)) { _addedBy.Clear(); _tags.Clear(); _addedByChoices = []; _tagChoices = []; await Task.WhenAll(LoadAsync(), LoadFilterChoicesAsync()); } }
+    private async Task ScopeSwitchedAsync() { await InvokeAsync(async () => { _addedBy.Clear(); _tags.Clear(); _addedByChoices = []; _tagChoices = []; await Task.WhenAll(LoadAsync(), LoadFilterChoicesAsync()); StateHasChanged(); }); }
     private async Task DensityChangedAsync(string? selected) { if (Enum.TryParse<ViewTimelineDensity>(selected, out var density) && !await Workspace.SetDensityAsync(density)) Snackbar.Add(L["ViewPage_TimelineDensityCouldNotBe"].Value, AppSeverity.Error); }
     private async Task SearchChanged(object? value)
     {
@@ -216,7 +215,6 @@ else
     private async Task ToggleMissingAsync() { _includeMissing = !_includeMissing; await LoadAsync(); }
     private async Task SetFilterAsync(string filter) { _filter = filter; await LoadAsync(); }
     private string FilterClass(string filter) => $"app-discovery-filter__tab{(_filter == filter ? " is-active" : "")}";
-    private string SelectedScopeValue => ScopeValue(Workspace.ScopeKind, Workspace.ScopeProfileId);
     private static string ScopeValue(ViewScopeKind kind, Guid? profile) => $"{kind}:{(kind.CarriesProfileId() ? profile?.ToString("D") : null)}";
     private string ScopeDescription => Workspace.ScopeKind switch
     {
@@ -514,7 +512,7 @@ else
         if (_focusAnchoredPeriod) { _focusAnchoredPeriod = false; await _timelineModule.InvokeVoidAsync("focusFirstPeriod"); }
     }
     private void OnProfileChanged() => _ = InvokeAsync(async () => { _grants.Clear(); Workspace.Reset(); await InitializeAsync(); StateHasChanged(); });
-    public void Dispose() { Orchestrator.OnProfileChanged -= OnProfileChanged; DeviceContext.OnChanged -= DeviceChanged; _searchCts?.Cancel(); _searchCts?.Dispose(); }
+    public void Dispose() { Workspace.ScopeChanged -= ScopeSwitchedAsync; Orchestrator.OnProfileChanged -= OnProfileChanged; DeviceContext.OnChanged -= DeviceChanged; _searchCts?.Cancel(); _searchCts?.Dispose(); }
     public async ValueTask DisposeAsync() { Dispose(); if (_timelineModule is not null) { try { await _timelineModule.InvokeVoidAsync("disconnectTimeline", _timelineSentinel); await _timelineModule.DisposeAsync(); } catch (JSDisconnectedException) { } } _timelineReference?.Dispose(); }
     private sealed record CachedMediaGrant(string Url, DateTimeOffset ExpiresAt);
 }

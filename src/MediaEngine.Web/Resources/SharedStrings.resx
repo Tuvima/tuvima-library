@@ -3282,9 +3282,6 @@
   <data name="Common_Photos" xml:space="preserve">
     <value>Photos</value>
   </data>
-  <data name="ViewPage_AuthorizedPhotoScope" xml:space="preserve">
-    <value>Authorized photo scope</value>
-  </data>
   <data name="ViewPage_TimelineDensity" xml:space="preserve">
     <value>Timeline density</value>
   </data>
@@ -3360,9 +3357,6 @@
   <data name="ViewPlacesPage_Videos" xml:space="preserve">
     <value>Videos</value>
   </data>
-  <data name="ViewPlacesPage_LibraryScope" xml:space="preserve">
-    <value>Library scope</value>
-  </data>
   <data name="ViewPlacesPage_ShowMappedMediaMarkedAs" xml:space="preserve">
     <value>Show mapped media marked as a favorite.</value>
   </data>
@@ -3398,9 +3392,6 @@
   </data>
   <data name="ViewPlacesPage_PlacesFilters" xml:space="preserve">
     <value>Places filters</value>
-  </data>
-  <data name="ViewPlacesPage_AuthorizedPlacesScope" xml:space="preserve">
-    <value>Authorized Places scope</value>
   </data>
   <data name="ViewPlacesPage_FavoritesOnly" xml:space="preserve">
     <value>Favorites only</value>
@@ -11165,5 +11156,8 @@
   </data>
   <data name="ViewPage_SelectedHidden" xml:space="preserve">
     <value>Hidden selected items.</value>
+  </data>
+  <data name="ViewScopeSwitch_Viewing" xml:space="preserve">
+    <value>Viewing</value>
   </data>
 </root>

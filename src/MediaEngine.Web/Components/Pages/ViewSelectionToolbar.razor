@@ -1,17 +1,18 @@
 @using MediaEngine.Contracts.LocalAssets
 @namespace MediaEngine.Web.Components.Pages
 @inject IStringLocalizer<SharedStrings> L
+@inject IJSRuntime JS
 
-<section class="view-selection-toolbar@(Phone ? " view-selection-toolbar--phone" : string.Empty)" role="toolbar" aria-label="@AriaLabel">
+<section class="view-selection-toolbar@(Phone ? " view-selection-toolbar--phone" : string.Empty)" role="toolbar" aria-label="@AriaLabel" @ref="_toolbar" @onkeydown="OnKeyDownAsync">
     <div class="view-selection-toolbar__count">
-        <strong>@Count selected</strong>
+        <strong role="status" aria-live="polite">@Count selected</strong>
     </div>
     <span class="view-selection-toolbar__divider" aria-hidden="true"></span>
     <div class="view-selection-toolbar__actions">
         @ChildContent
         @if (!Phone)
         {
-            @if (OnFavorite.HasDelegate) { <AppNativeButton Type="button" Class="view-selection-toolbar__action" OnClick="@(_ => OnFavorite.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FavoriteBorder" />@L["Glossary_Favorite"]</AppNativeButton> }
+            @if (OnFavorite.HasDelegate) { <AppNativeButton Type="button" Class="view-selection-toolbar__action" OnClick="@(_ => OnFavorite.InvokeAsync())"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FavoriteBorder" />@L[FavoriteRemoves ? "ViewActions_RemoveFromFavorites" : "Glossary_Favorite"]</AppNativeButton> }
         }
         @if ((OnAddToGallery.HasDelegate && ManualGalleries.Count > 0) || OnCreateGallery.HasDelegate)
         {
@@ -83,6 +84,23 @@
 </section>
 
 @code {
+    private ElementReference _toolbar;
+
+    private async Task OnKeyDownAsync(KeyboardEventArgs args)
+    {
+        if (args.Key is not ("ArrowLeft" or "ArrowRight" or "Home" or "End"))
+            return;
+        try
+        {
+            await using var module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/view-toolbar.js");
+            await module.InvokeVoidAsync("moveFocus", _toolbar, args.Key);
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or InvalidOperationException)
+        {
+            // Without script the buttons stay reachable with Tab, so there is nothing to recover.
+        }
+    }
+
     [Parameter] public int Count { get; set; }
 
     /// <summary>What a screen reader calls the bar; the Documents page says "documents" instead of "photo".</summary>
@@ -93,6 +111,8 @@
     [Parameter] public IReadOnlyList<ViewGalleryDto> ManualGalleries { get; set; } = [];
     [Parameter] public EventCallback OnClear { get; set; }
     [Parameter] public EventCallback OnFavorite { get; set; }
+    /// <summary>True when every selected item is already a favorite, so the action takes them out of Favorites.</summary>
+    [Parameter] public bool FavoriteRemoves { get; set; }
 
     /// <summary>Opens the editor window on the selection (spec photos-documents-editor D2). Editing is desktop-only, so the phone bar never offers it.</summary>
     [Parameter] public EventCallback OnEdit { get; set; }
@@ -121,7 +141,7 @@
         get
         {
             var items = new List<AppRowMenuItem>();
-            if (OnFavorite.HasDelegate) { items.Add(new() { Label = L["Glossary_Favorite"].Value, Icon = AppMaterialIcons.Outlined.FavoriteBorder, OnClick = OnFavorite }); }
+            if (OnFavorite.HasDelegate) { items.Add(new() { Label = L[FavoriteRemoves ? "ViewActions_RemoveFromFavorites" : "Glossary_Favorite"].Value, Icon = AppMaterialIcons.Outlined.FavoriteBorder, OnClick = OnFavorite }); }
             if (ShowRestore) { items.Add(new() { Label = L["Common_Restore"].Value, Icon = AppMaterialIcons.Outlined.Restore, OnClick = OnRestore }); }
             else if (OnArchive.HasDelegate) { items.Add(new() { Label = L["ViewSelectionToolbar_Archive"].Value, Icon = AppMaterialIcons.Outlined.Inventory2, OnClick = OnArchive }); }
             if (OnHide.HasDelegate) { items.Add(new() { Label = L["ViewActions_Hide"].Value, Icon = AppMaterialIcons.Outlined.VisibilityOff, OnClick = OnHide }); }
