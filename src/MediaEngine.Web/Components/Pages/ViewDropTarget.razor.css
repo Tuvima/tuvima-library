@@ -1,3 +1,0 @@
-.view-drop-target { position: fixed; inset: 0.5rem; z-index: 55; pointer-events: none; border: 2px dashed transparent; border-radius: var(--tl-radius-md); transition: border-color 0.12s ease; }
-.view-drop-target.is-active { border-color: var(--tl-accent-primary); background: transparent; }
-.view-drop-target__input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; overflow: hidden; }
