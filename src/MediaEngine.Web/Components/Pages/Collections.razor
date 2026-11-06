@@ -12,8 +12,7 @@
                  KindQuery="@KindQuery"
                  MembershipQuery="@MembershipQuery"
                  RoleQuery="@RoleQuery"
-                 SortQuery="@SortQuery"
-                 TileQuery="@TileQuery" />
+                 SortQuery="@SortQuery" />
 
 @code {
     [Parameter] public string? Section { get; set; }
@@ -28,5 +27,4 @@
     public string? MembershipQuery => Query.String("membership");
     public string? RoleQuery => Query.String("role");
     public string? SortQuery => Query.String("sort");
-    public int? TileQuery => Query.Int("tile");
 }

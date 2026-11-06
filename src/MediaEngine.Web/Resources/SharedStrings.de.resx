@@ -433,9 +433,6 @@
   <data name="Common_Display" xml:space="preserve">
     <value>Anzeige</value>
   </data>
-  <data name="Common_TileSize" xml:space="preserve">
-    <value>Kachelgröße</value>
-  </data>
   <data name="Common_Cards" xml:space="preserve">
     <value>Karten</value>
   </data>

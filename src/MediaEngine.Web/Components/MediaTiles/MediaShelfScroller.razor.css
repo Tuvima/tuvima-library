@@ -56,12 +56,6 @@
         scroll-snap-type: none;
     }
 
-    .media-tile-shelf-scroll.is-hover-scroll-locked {
-        overflow-y: clip;
-        overscroll-behavior-x: contain;
-        overscroll-behavior-y: auto;
-    }
-
     .media-tile-shelf-scroll::-webkit-scrollbar {
         display: none;
     }

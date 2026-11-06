@@ -657,12 +657,6 @@
   <data name="Common_Display" xml:space="preserve">
     <value>Display</value>
   </data>
-  <data name="Common_TileSize" xml:space="preserve">
-    <value>Tile size</value>
-  </data>
-  <data name="MediaBrowseShell_CardSize" xml:space="preserve">
-    <value>Card size: {0}</value>
-  </data>
   <data name="Common_Cards" xml:space="preserve">
     <value>Cards</value>
   </data>
@@ -704,9 +698,6 @@
   </data>
   <data name="Common_Unmatched" xml:space="preserve">
     <value>Unmatched</value>
-  </data>
-  <data name="MediaBrowseShell_AdjustTileSize" xml:space="preserve">
-    <value>Adjust tile size</value>
   </data>
   <data name="MediaBrowseShell_ViewMode" xml:space="preserve">
     <value>View mode</value>
@@ -881,9 +872,6 @@
   </data>
   <data name="Common_Media" xml:space="preserve">
     <value>Media</value>
-  </data>
-  <data name="CollectionsPage_CollectionTileSize" xml:space="preserve">
-    <value>Collection tile size</value>
   </data>
   <data name="CollectionsPage_NoPeopleFound" xml:space="preserve">
     <value>No people found</value>
@@ -2427,12 +2415,6 @@
   <data name="ListenPage_SortAlbums" xml:space="preserve">
     <value>Sort albums</value>
   </data>
-  <data name="ListenPage_AdjustAlbumTileSize" xml:space="preserve">
-    <value>Adjust album tile size</value>
-  </data>
-  <data name="ListenPage_AlbumTileSize" xml:space="preserve">
-    <value>Album tile size</value>
-  </data>
   <data name="ListenPage_SearchArtists" xml:space="preserve">
     <value>Search artists</value>
   </data>
@@ -2474,12 +2456,6 @@
   </data>
   <data name="ListenPage_SortAudiobooks" xml:space="preserve">
     <value>Sort audiobooks</value>
-  </data>
-  <data name="ListenPage_AdjustAudiobookTileSize" xml:space="preserve">
-    <value>Adjust audiobook tile size</value>
-  </data>
-  <data name="ListenPage_AudiobookTileSize" xml:space="preserve">
-    <value>Audiobook tile size</value>
   </data>
   <data name="ListenPage_AudiobookLayout" xml:space="preserve">
     <value>Audiobook layout</value>
@@ -8055,12 +8031,6 @@
   <data name="CinematicHeroCarousel_RestartFromBeginning" xml:space="preserve">
     <value>Restart from beginning</value>
   </data>
-  <data name="ContinueTile_Remove" xml:space="preserve">
-    <value>Remove {0} from Continue</value>
-  </data>
-  <data name="ContinueTile_RemoveShort" xml:space="preserve">
-    <value>Remove from Continue</value>
-  </data>
   <data name="CinematicHeroCarousel_GoToDetails" xml:space="preserve">
     <value>Go to details</value>
   </data>
@@ -10109,6 +10079,36 @@
   </data>
   <data name="MediaTile_RemoveFromMyList" xml:space="preserve">
     <value>Remove from My List</value>
+  </data>
+  <data name="MediaTile_GettingDetails" xml:space="preserve">
+    <value>Getting details</value>
+  </data>
+  <data name="MediaTile_RemoveFromContinue" xml:space="preserve">
+    <value>Remove from Continue</value>
+  </data>
+  <data name="MediaTile_GoToShow" xml:space="preserve">
+    <value>Go to show</value>
+  </data>
+  <data name="MediaTile_GoToMovie" xml:space="preserve">
+    <value>Go to movie</value>
+  </data>
+  <data name="MediaTile_GoToBook" xml:space="preserve">
+    <value>Go to book</value>
+  </data>
+  <data name="MediaTile_GoToAudiobook" xml:space="preserve">
+    <value>Go to audiobook</value>
+  </data>
+  <data name="MediaTile_GoToComic" xml:space="preserve">
+    <value>Go to comic</value>
+  </data>
+  <data name="MediaTile_GoToAlbum" xml:space="preserve">
+    <value>Go to album</value>
+  </data>
+  <data name="MediaTile_GoToSeries" xml:space="preserve">
+    <value>Go to series</value>
+  </data>
+  <data name="MediaTile_GoToTitle" xml:space="preserve">
+    <value>Go to title</value>
   </data>
   <data name="MediaTile_Restart" xml:space="preserve">
     <value>Restart</value>

@@ -183,7 +183,7 @@ public sealed class RecentMediaFeedInteractionTests : AsyncBunitContext
         };
         var cut = Render<RecentMediaFeed>();
         cut.WaitForAssertion(() => Assert.Equal(4, cut.FindAll(".recent-item").Count));
-        var order = cut.FindAll(".recent-item").Select(item => item.QuerySelector(".media-tile-caption__title, .media-tile-caption__title *")?.TextContent ?? item.TextContent).ToList();
+        var order = cut.FindAll(".recent-item").Select(item => item.QuerySelector("a.media-tile-link")?.GetAttribute("aria-label") ?? item.TextContent).ToList();
         Assert.Contains("Matched Second", order[0]);
         Assert.Contains("Matched Fourth", order[1]);
         Assert.Contains("Unsettled First", order[2]);

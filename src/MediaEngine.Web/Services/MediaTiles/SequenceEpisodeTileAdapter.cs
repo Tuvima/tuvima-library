@@ -44,7 +44,6 @@ public static class SequenceEpisodeTileAdapter
             TileImageFitMode = MediaTileImageFitMode.Fill,
             HoverImageFitMode = MediaTileImageFitMode.Fill,
             HoverLayout = MediaTileHoverLayout.BannerPopover,
-            HoverMode = MediaTileHoverMode.Expanded,
             TileTextMode = MediaTileTextMode.Caption,
             NavigationUrl = route,
             DetailsNavigationUrl = route,

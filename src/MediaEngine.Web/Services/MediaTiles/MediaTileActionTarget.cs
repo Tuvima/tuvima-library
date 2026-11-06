@@ -57,6 +57,52 @@ public sealed record MediaTileActionTarget(Guid Id, string Title, ProfileEntityK
     public static string RestartUrl(MediaTileViewModel item) =>
         Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(item.PrimaryNavigationUrl ?? item.NavigationUrl, "restart", "true");
 
+    /// <summary>
+    /// What a Continue tile's "Go to ..." names: "show" for an episode, otherwise the kind of the title ("movie", "book", "audiobook",
+    /// "comic", "album") or "series" for a group; null when the kind is not known (the row then reads "Go to title").
+    /// </summary>
+    public static string? GoToKind(MediaTileViewModel item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        if (item.EpisodeContext is not null || item.Subject == DisplaySubjectKind.TvEpisode || item.Subject == DisplaySubjectKind.TvShow)
+        {
+            return "show";
+        }
+
+        if (item.IsCollection && item.Presentation is not (MediaTilePresentation.Album or MediaTilePresentation.TvSeries))
+        {
+            return "series";
+        }
+
+        if (item.Presentation == MediaTilePresentation.Album)
+        {
+            return "album";
+        }
+
+        return (item.MediaKind ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "movie" or "movies" => "movie",
+            "tv" => "show",
+            "music" => "album",
+            "audiobook" or "audiobooks" => "audiobook",
+            "comic" or "comics" => "comic",
+            "book" or "books" => "book",
+            _ => null,
+        };
+    }
+
+    /// <summary>The title's own page, for "Go to ...": the show's page for an episode, otherwise the page the tile opens.</summary>
+    public static string GoToUrl(MediaTileViewModel item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        if (item.EpisodeContext is { } episode && episode.ShowWorkId != Guid.Empty)
+        {
+            return $"/details/tvshow/{episode.ShowWorkId:D}?context=watch";
+        }
+
+        return item.DetailsNavigationUrl ?? item.NavigationUrl;
+    }
+
     /// <summary>The pop-over editor's target for this tile.</summary>
     public ListEditTarget ToEditTarget() =>
         ListEditTarget.ForLibraryRow(Id, Title, MediaType) with { Kind = EntityType };

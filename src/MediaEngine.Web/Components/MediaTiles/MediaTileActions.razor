@@ -15,21 +15,14 @@
 @inject DeviceContextService DeviceContext
 @inject IStringLocalizer<SharedStrings> L
 @inject ILogger<MediaTileActions> Logger
-@* The two overlay buttons on a cover (Home, detail and tiles spec D6, D8): "+" adds it to My List (a tick once added) and "..." holds
-   Restart (only once started), Edit (desktop only) and Delete (administrators on a desktop). They sit beside the cover's link, never
-   inside it, and show on hover or keyboard focus (always on touch). Edit opens the pop-over editor over the page; nothing navigates away. *@
-@if (_target is not null)
+@* The cover's one button (One tile design D3, D4): "..." sits top right, always visible, and holds Add to My List (first, on every device),
+   Restart (only once started), Open Universe (when there is one), Edit (desktop only) and Delete (administrators on a desktop). A Continue
+   tile adds "Go to ..." first and "Remove from Continue" after Restart (D8). It sits beside the cover's link, never inside it. Edit opens the
+   pop-over editor over the page; nothing navigates away. It is not drawn when it would be empty. *@
+@if (_target is not null || IsContinue)
 {
     <div class="media-tile-actions" data-media-tile-actions>
-        <AppNativeButton Type="button"
-                         Class="@($"media-tile-action media-tile-action--list{(_isSaved ? " is-saved" : string.Empty)}")"
-                         AriaLabel="@ListLabel"
-                         Title="@ListLabel"
-                         aria-pressed="@(_isSaved ? "true" : "false")"
-                         OnClick="@(_ => ToggleListAsync())">
-            <AppMaterialIcon Icon="@(_isSaved ? AppMaterialIcons.Outlined.Check : AppMaterialIcons.Outlined.Add)" aria-hidden="true" />
-        </AppNativeButton>
-        <OverflowActionMenu Actions="MenuActions" ButtonClass="media-tile-action" OnActionSelected="SelectAsync" />
+        <OverflowActionMenu Actions="MenuActions" ButtonClass="media-tile-action" TriggerIcon="@AppMaterialIcons.Outlined.MoreVert" KeepOrder="true" OnActionSelected="SelectAsync" />
     </div>
 }
 
@@ -45,7 +38,15 @@
     /// <summary>Raised after the title was deleted, so the cover can leave the row.</summary>
     [Parameter] public EventCallback OnDeleted { get; set; }
 
+    /// <summary>True on a Continue tile: its menu starts with "Go to ..." and holds "Remove from Continue" (D8).</summary>
+    [Parameter] public bool IsContinue { get; set; }
+
+    /// <summary>Raised when "Remove from Continue" is chosen; the tile hides itself and tells the Engine.</summary>
+    [Parameter] public EventCallback OnRemoveFromContinue { get; set; }
+
     private const string OpenUniverseKey = "open-universe";
+    private const string GoToKey = "go-to";
+    private const string RemoveFromContinueKey = "remove-from-continue";
 
     private string ListLabel => _isSaved ? L["MediaTile_RemoveFromMyList"].Value : L["MediaTile_AddToMyList"].Value;
 
@@ -54,9 +55,30 @@
         get
         {
             var actions = new List<DetailAction>();
+            // A Continue tile plays when tapped, so its page is one row away (D8): named by what it is.
+            if (IsContinue)
+            {
+                actions.Add(new DetailAction { Key = GoToKey, Label = GoToLabel, Icon = "arrow_forward" });
+            }
+
+            if (_target is not null)
+            {
+                actions.Add(new DetailAction
+                {
+                    Key = DetailActionKeys.MyList,
+                    Label = ListLabel,
+                    Icon = _isSaved ? "playlist_add_check" : "playlist_add",
+                });
+            }
+
             if (MediaTileActionTarget.IsStarted(Item))
             {
                 actions.Add(new DetailAction { Key = "restart", Label = L["MediaTile_Restart"].Value, Icon = "restart_alt" });
+            }
+
+            if (IsContinue)
+            {
+                actions.Add(new DetailAction { Key = RemoveFromContinueKey, Label = L["MediaTile_RemoveFromContinue"].Value, Icon = "close" });
             }
 
             // Only when the Engine says this title's Universe page can open, so the row is never a dead link (Universe entry points spec).
@@ -66,7 +88,7 @@
             }
 
             // Editing is desktop-only (EditorDeviceRule); the Engine's own answer for this item is read when Edit is chosen.
-            if (EditorDeviceRule.CanEdit(DeviceContext))
+            if (_target is not null && EditorDeviceRule.CanEdit(DeviceContext))
             {
                 actions.Add(new DetailAction { Key = DetailActionKeys.Edit, Label = L["MediaTile_Edit"].Value, Icon = "edit" });
             }
@@ -149,8 +171,32 @@
         }
     }
 
+    private string GoToLabel => MediaTileActionTarget.GoToKind(Item) switch
+    {
+        "show" => L["MediaTile_GoToShow"].Value,
+        "movie" => L["MediaTile_GoToMovie"].Value,
+        "book" => L["MediaTile_GoToBook"].Value,
+        "audiobook" => L["MediaTile_GoToAudiobook"].Value,
+        "comic" => L["MediaTile_GoToComic"].Value,
+        "album" => L["MediaTile_GoToAlbum"].Value,
+        "series" => L["MediaTile_GoToSeries"].Value,
+        _ => L["MediaTile_GoToTitle"].Value,
+    };
+
     private async Task SelectAsync(DetailAction action)
     {
+        if (action.Key == GoToKey)
+        {
+            Nav.NavigateTo(MediaTileActionTarget.GoToUrl(Item));
+            return;
+        }
+
+        if (action.Key == RemoveFromContinueKey)
+        {
+            await OnRemoveFromContinue.InvokeAsync();
+            return;
+        }
+
         if (_target is null)
         {
             return;
@@ -158,6 +204,9 @@
 
         switch (action.Key)
         {
+            case DetailActionKeys.MyList:
+                await ToggleListAsync();
+                break;
             case "restart":
                 Nav.NavigateTo(MediaTileActionTarget.RestartUrl(Item));
                 break;

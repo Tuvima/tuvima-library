@@ -48,7 +48,10 @@
     /// <summary>A quiet, non-interactive line that stands where Edit would be (for example "Edit on a computer").</summary>
     [Parameter] public string? Note { get; set; }
 
-    private IReadOnlyList<DetailMenuEntry> Entries => DetailMenuGrouping.Arrange(Actions, Note);
+    /// <summary>True when the caller already put the rows in the order it wants (a cover's menu); they are neither regrouped nor divided.</summary>
+    [Parameter] public bool KeepOrder { get; set; }
+
+    private IReadOnlyList<DetailMenuEntry> Entries => DetailMenuGrouping.Arrange(Actions, Note, KeepOrder);
 
     private static AppUiTone ToneFor(DetailAction action) =>
         DetailMenuGrouping.IsDestructive(action) ? AppUiTone.Error : AppUiTone.Neutral;

@@ -50,10 +50,6 @@
             @foreach (var shelf in OverviewShelves)
             {
                 <MediaTileShelf Shelf="@shelf"
-                                HoverMode="MediaTileHoverMode.GlowOnly"
-                                HideMediaKindBadges="true"
-                                HideSourceBadges="true"
-                                ShowCompactCaptions="true"
                                 @key="shelf.Key" />
             }
             @if (OverviewShelves.Count == 0)
@@ -115,9 +111,6 @@
         else
         {
             <MediaTileGrid Items="@ActiveItems"
-                           HoverMode="MediaTileHoverMode.GlowOnly"
-                           HideSourceBadges="true"
-                           ShowCompactCaptions="true"
                            Class="for-me-page__grid" />
         }
     }
@@ -456,7 +449,6 @@
         Shape = MediaTileShape.Square,
         HoverArtworkShape = MediaTileShape.Square,
         SurfaceKind = MediaTileSurfaceKind.CoverSquare,
-        HoverMode = MediaTileHoverMode.GlowOnly,
         TileTextMode = MediaTileTextMode.Caption,
         NavigationUrl = $"/view/galleries/{gallery.Id:D}",
         DetailsNavigationUrl = $"/view/galleries/{gallery.Id:D}",

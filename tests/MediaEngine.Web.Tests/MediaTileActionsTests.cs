@@ -22,8 +22,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace MediaEngine.Web.Tests;
 
 /// <summary>
-/// The "+" and "..." buttons on a cover (Home, detail and tiles spec D6, D8): the menu holds only Restart (once started), Edit (desktop)
-/// and Delete (administrator on a desktop); Edit opens the pop-over over Home without navigating; "+" toggles My List.
+/// The "..." button on a cover (One tile design D3, D4): the menu holds Add to My List, Restart (once started), Open Universe, Edit (desktop)
+/// and Delete (administrator on a desktop); Edit opens the pop-over over Home without navigating. There is no "+".
 /// </summary>
 public sealed class MediaTileActionsTests : AsyncBunitContext
 {
@@ -96,7 +96,7 @@ public sealed class MediaTileActionsTests : AsyncBunitContext
     }
 
     private IRenderedComponent<MediaTile> RenderTile(MediaTileViewModel item) =>
-        Render<MediaTile>(parameters => parameters.Add(tile => tile.Item, item).Add(tile => tile.IsHomeSurface, true));
+        Render<MediaTile>(parameters => parameters.Add(tile => tile.Item, item));
 
     private static IReadOnlyList<string> MenuLabels(IRenderedComponent<MediaTile> cut)
     {
@@ -105,14 +105,14 @@ public sealed class MediaTileActionsTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task TheMenu_HoldsOnlyRestartEditAndDelete_ForAnAdministratorOnADesktop()
+    public async Task TheMenu_HoldsMyListRestartEditAndDelete_ForAnAdministratorOnADesktop()
     {
         await UseDevice("desktop");
         SetAdministrator(true);
 
         var cut = RenderTile(Movie());
 
-        Assert.Equal(["Restart", "Edit", "Delete from library…"], MenuLabels(cut));
+        Assert.Equal(["Add to My List", "Restart", "Edit", "Delete from library…"], MenuLabels(cut));
         Assert.Single(cut.FindAll("[data-media-tile-actions]"));
     }
 
@@ -124,7 +124,7 @@ public sealed class MediaTileActionsTests : AsyncBunitContext
 
         var cut = RenderTile(Movie(progress: null));
 
-        Assert.Equal(["Edit", "Delete from library…"], MenuLabels(cut));
+        Assert.Equal(["Add to My List", "Edit", "Delete from library…"], MenuLabels(cut));
     }
 
     [Fact]
@@ -135,7 +135,7 @@ public sealed class MediaTileActionsTests : AsyncBunitContext
 
         var cut = RenderTile(Movie());
 
-        Assert.Equal(["Restart", "Edit"], MenuLabels(cut));
+        Assert.Equal(["Add to My List", "Restart", "Edit"], MenuLabels(cut));
     }
 
     [Fact]
@@ -157,8 +157,8 @@ public sealed class MediaTileActionsTests : AsyncBunitContext
             DetailsNavigationUrl = "/details/movie/wick",
             NavigationUrl = "/details/movie/wick",
         });
-        Assert.Equal(["Open Universe"], MenuLabels(withUniverse));
-        withUniverse.FindAll("[role='menuitem']").Single().Click();
+        Assert.Equal(["Add to My List", "Open Universe"], MenuLabels(withUniverse));
+        withUniverse.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Open Universe").Click();
 
         withUniverse.WaitForAssertion(() => Assert.EndsWith("/universe/Q1234", navigation.Uri, StringComparison.Ordinal));
     }
@@ -198,62 +198,67 @@ public sealed class MediaTileActionsTests : AsyncBunitContext
     [Theory]
     [InlineData("phone")]
     [InlineData("tablet")]
-    public async Task OnAPhoneOrTablet_EditAndDeleteAreHidden_AndOnlyRestartRemains(string formFactor)
+    public async Task OnAPhoneOrTablet_EditAndDeleteAreHidden_AndOnlyMyListAndRestartRemain(string formFactor)
     {
         await UseDevice(formFactor);
         SetAdministrator(true);
 
         var cut = RenderTile(Movie());
 
-        Assert.Equal(["Restart"], MenuLabels(cut));
+        Assert.Equal(["Add to My List", "Restart"], MenuLabels(cut));
         Assert.Equal(0, _detailReads);
     }
 
     [Theory]
     [InlineData("phone")]
     [InlineData("tablet")]
-    public async Task OnAPhoneOrTablet_AnUnstartedTitleHasNoMenuAtAll(string formFactor)
+    public async Task OnAPhoneOrTablet_AnUnstartedTitleHasOnlyAddToMyList(string formFactor)
     {
         await UseDevice(formFactor);
         SetAdministrator(true);
 
         var cut = RenderTile(Movie(progress: null));
 
-        Assert.Empty(cut.FindAll("button[aria-label='More actions']"));
-        Assert.Single(cut.FindAll("button.media-tile-action--list"));
+        Assert.Equal(["Add to My List"], MenuLabels(cut));
+        Assert.Empty(cut.FindAll("button.media-tile-action--list"));
     }
 
     [Fact]
-    public async Task Plus_AddsToMyList_AndAgainRemovesIt()
+    public async Task AddToMyList_SavesTheTitle_AndTheMenuThenOffersRemoving()
     {
         await UseDevice("desktop");
         var cut = RenderTile(Movie());
-        var plus = () => cut.Find("button.media-tile-action--list");
-        Assert.Equal("Add to My List", plus().GetAttribute("aria-label"));
-        Assert.Equal("false", plus().GetAttribute("aria-pressed"));
+        cut.Find("button[aria-label='More actions']").Click();
 
-        plus().Click();
+        cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Add to My List").Click();
 
-        cut.WaitForAssertion(() => Assert.Equal("true", plus().GetAttribute("aria-pressed")));
-        Assert.Equal("Remove from My List", plus().GetAttribute("aria-label"));
-        Assert.Single(_saved);
+        cut.WaitForAssertion(() => Assert.Single(_saved));
         Assert.Equal(ProfileEntityKind.Movie, _saved[0].EntityKind);
-
-        plus().Click();
-
-        cut.WaitForAssertion(() => Assert.Equal("false", plus().GetAttribute("aria-pressed")));
-        Assert.Empty(_saved);
+        var again = RenderTile(Movie());
+        again.WaitForAssertion(() => Assert.Contains("Remove from My List", MenuLabels(again)));
     }
 
     [Fact]
-    public async Task Plus_StartsTickedForATitleAlreadyOnMyList()
+    public async Task AddToMyList_ReadsRemoveForATitleAlreadyOnMyList_AndRemovesIt()
     {
         await UseDevice("desktop");
         _saved.Add(new ProfileSavedItemDto(ProfileEntityKind.Movie, MovieId, DateTimeOffset.UtcNow, null));
+        var cut = RenderTile(Movie());
+        cut.WaitForAssertion(() => Assert.Contains("Remove from My List", MenuLabels(cut)));
 
+        cut.FindAll("[role='menuitem']").Single(item => item.TextContent.Trim() == "Remove from My List").Click();
+
+        cut.WaitForAssertion(() => Assert.Empty(_saved));
+    }
+
+    [Fact]
+    public async Task TheCover_HasNoPlusButton()
+    {
+        await UseDevice("desktop");
         var cut = RenderTile(Movie());
 
-        cut.WaitForAssertion(() => Assert.Equal("true", cut.Find("button.media-tile-action--list").GetAttribute("aria-pressed")));
+        Assert.Empty(cut.FindAll("button.media-tile-action--list"));
+        Assert.Single(cut.FindAll("button[aria-label='More actions']"));
     }
 
     [Fact]

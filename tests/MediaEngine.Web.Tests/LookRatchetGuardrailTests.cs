@@ -41,13 +41,12 @@ public sealed class LookRatchetGuardrailTests
     }
 
     [Fact]
-    public void TheTileMenuButtonIsAlwaysVisibleAtTheBottomRightOfTheCover()
+    public void TheTileMenuButtonIsAlwaysVisibleAtTheTopRightOfTheCover()
     {
         var css = File.ReadAllText(Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web", "wwwroot", "app.css"));
         var rule = Regex.Match(css, @"\.media-tile-actions \{[^}]*\}").Value;
-        Assert.Contains("aspect-ratio: var(--media-tile-media-aspect)", rule);
-        Assert.Contains("align-items: flex-end", rule);
-        Assert.Contains("justify-content: flex-end", rule);
+        Assert.Contains("top:", rule.Replace(" ", ""));
+        Assert.Contains("right:", rule.Replace(" ", ""));
         Assert.DoesNotContain("opacity: 0", rule);
     }
 

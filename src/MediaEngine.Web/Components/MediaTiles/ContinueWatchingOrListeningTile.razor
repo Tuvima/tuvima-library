@@ -1,13 +1,9 @@
 @namespace MediaEngine.Web.Components.MediaTiles
 @using MediaEngine.Web.Models.ViewDTOs
 
-@* Continue is a landscape tile for every kind (Home, detail and tiles spec D3). *@
+@* Continue is a landscape tile for every kind (One tile design D8). *@
 <ContinueLandscapeTile Item="@Item" />
 
 @code {
     [Parameter, EditorRequired] public MediaTileViewModel Item { get; set; } = default!;
-    [Parameter] public MediaTileHoverMode? HoverMode { get; set; }
-    [Parameter] public bool IsHomeSurface { get; set; }
-    [Parameter] public bool HideMediaKindBadge { get; set; }
-    [Parameter] public bool HideSourceBadge { get; set; }
 }

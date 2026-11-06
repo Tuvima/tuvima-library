@@ -831,28 +831,20 @@ code{
 
 
 
-/* The cover's "..." button (Look pass 4.5): always visible, bottom right of the cover. The "+" beside it shows on hover or focus (always on touch). */
-.media-tile-actions { position: absolute; top: 0; left: 0; right: 0; z-index: 8; display: flex; gap: 6px; align-items: flex-end; justify-content: flex-end; box-sizing: border-box; aspect-ratio: var(--media-tile-media-aspect); padding: 8px; pointer-events: none; }
-.media-tile-actions > * { pointer-events: auto; }
-.media-tile-actions .media-tile-action { opacity: 0; transition: opacity var(--tl-motion-duration-fast, 120ms) ease; }
-.media-tile:is(:hover, :focus-within) .media-tile-actions .media-tile-action, .media-tile-actions:has([aria-expanded="true"]) .media-tile-action { opacity: 1; }
-@media (hover: none) { .media-tile-actions .media-tile-action { opacity: 1; } }
-.media-tile-actions .media-tile-action { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: var(--tl-radius-pill); background: rgba(5, 8, 14, .78); color: #fff; cursor: pointer; }
-.media-tile-actions .media-tile-action:is(:hover, :focus-visible) { outline: 3px solid #fff; outline-offset: 0; box-shadow: 0 0 0 6px color-mix(in srgb, var(--tl-accent-primary) 90%, transparent); }
-.media-tile-actions .media-tile-action.is-saved { background: var(--tl-accent-primary, #8852FC); }
-.media-tile-actions .app-overflow-menu__trigger { display: inline-flex; align-items: center; justify-content: center; width: var(--tl-tile-menu-button); height: var(--tl-tile-menu-button); min-width: var(--tl-tile-menu-button); min-height: var(--tl-tile-menu-button); padding: 0; border: 0; border-radius: var(--tl-control-radius); background: rgba(5, 8, 14, .78); color: #fff; }
-.media-tile-actions .app-overflow-menu__trigger:is(:hover, :focus-visible, [aria-expanded="true"]) { outline: 3px solid #fff; outline-offset: 0; box-shadow: 0 0 0 6px color-mix(in srgb, var(--tl-accent-primary) 90%, transparent); }
-/* Continue tile X (Home, detail and tiles spec D3): always visible on touch, on hover or focus with a mouse. */
-.continue-tile__remove { position: absolute; top: 8px; right: 8px; z-index: 4; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--tl-radius-round, 999px); background: rgba(5, 8, 14, .78); color: #fff; cursor: pointer; opacity: 0; transition: opacity var(--tl-motion-duration-fast, 120ms) ease; }
-.continue-tile:is(:hover, :focus-within) .continue-tile__remove, .continue-tile__remove:focus-visible { opacity: 1; }
-@media (hover: none) { .continue-tile__remove { opacity: 1; } }
+/* One tile design (spec one-tile-design). The two label slots (D10, D11): each flush to its corner, one label per slot, only the corner that
+   touches no edge is rounded. Used by the single-title tile, the group tile and the square tile. */
+.media-tile-label { position:absolute; z-index:6; max-width:80%; box-sizing:border-box; padding:4px 8px; overflow:hidden; background:rgba(16,17,21,.9); color:#f8fafc; font-family:var(--font-ui); font-size:max(var(--tl-tile-text-floor,13px),var(--tl-font-size-xs)); font-weight:700; line-height:1.2; text-overflow:ellipsis; white-space:nowrap; pointer-events:none; }
+.media-tile-label--status { top:0; left:0; border-bottom-right-radius:var(--tl-radius-md); }
+.media-tile-label--bottom { bottom:0; left:0; border-top-right-radius:var(--tl-radius-md); }
 
-
-
-
-
-
-
+/* The cover's "..." (D3, D17): always visible, top right, a vertical three-dot mark with no box and a soft shadow so it reads on any art.
+   The mark is small; the tappable area is the full 44 px on every device. */
+.media-tile-actions { position:absolute; top:0; right:0; z-index:8; display:flex; pointer-events:none; }
+.media-tile-actions > * { pointer-events:auto; }
+.media-tile-actions .app-overflow-menu__trigger, .media-tile-actions .media-tile-action { display:inline-flex; align-items:center; justify-content:center; width:var(--tl-tile-menu-button,44px); height:var(--tl-tile-menu-button,44px); min-width:var(--tl-tile-menu-button,44px); min-height:var(--tl-tile-menu-button,44px); padding:0; border:0; border-radius:var(--tl-radius-md); background:transparent; box-shadow:none; color:#fff; cursor:pointer; }
+.media-tile-actions .app-overflow-menu__trigger .tl-icon-root, .media-tile-actions .media-tile-action .tl-icon-root { font-size:22px; filter:drop-shadow(0 1px 3px rgba(0,0,0,.9)); }
+.media-tile-actions .app-overflow-menu__trigger:is(:hover, [aria-expanded="true"]) { background:rgba(16,17,21,.55); }
+.media-tile-actions .app-overflow-menu__trigger:focus-visible { outline:2px solid var(--tl-accent-primary,#8852FC); outline-offset:-2px; }
 @media (prefers-reduced-motion: reduce){
     .tl-card-hover--quiet,
     .tl-card-hover--standard,
@@ -2755,7 +2747,6 @@ input.app-control.tl-input-slot,
 }
 
 .media-tile-shelf:has(.media-tile:hover),
-.media-tile-shelf:has(.media-tile.is-hover-active),
 .media-tile-shelf:focus-within {
     z-index: 30;
 }
@@ -3507,10 +3498,6 @@ button.app-menu-item {
         min-height: var(--tl-tap-target-min);
     }
 
-    :root:root:root .browse-shell__tile-size input[type="range"] {
-        min-height: var(--tl-tap-target-min);
-    }
-
     /* Links inside an alert (for example Devices > Open Remote Access) get a full 44px tap box. */
     :root:root .tl-alert-message a {
         display: inline-flex;
@@ -3963,9 +3950,7 @@ html[data-form-factor="phone"] .app-discovery-filter__tabs[data-scroll-more-star
 :root:root .browse-filter-sheet__body .browse-shell__multi-select,
 :root:root .browse-filter-sheet__body .browse-shell__sort,
 :root:root .browse-filter-sheet__body .browse-shell__layout-toggle,
-:root:root .browse-filter-sheet__body .browse-shell__tile-size,
 :root:root .browse-filter-sheet__body .collections-filter-select,
-:root:root .browse-filter-sheet__body .collections-tile-size,
 :root:root .browse-filter-sheet__body .search-page__media-filter,
 :root:root .browse-filter-sheet__body .search-page__select,
 :root:root .browse-filter-sheet__body .search-page__year-filter {
@@ -3986,10 +3971,8 @@ html[data-form-factor="phone"] .app-discovery-filter__tabs[data-scroll-more-star
 :root:root .browse-filter-sheet__body .browse-shell__sort-label,
 :root:root .browse-filter-sheet__body .browse-shell__display-label,
 :root:root .browse-filter-sheet__body .browse-shell__sort,
-:root:root .browse-filter-sheet__body .browse-shell__tile-size,
 :root:root .browse-filter-sheet__body .browse-shell__layout-toggle,
-:root:root .browse-filter-sheet__body .browse-shell__timeline-grouping,
-:root:root .browse-filter-sheet__body .collections-tile-size {
+:root:root .browse-filter-sheet__body .browse-shell__timeline-grouping {
     grid-column: 1;
     grid-row: auto;
 }
@@ -3998,8 +3981,6 @@ html[data-form-factor="phone"] .app-discovery-filter__tabs[data-scroll-more-star
 :root:root .browse-filter-sheet__body .browse-shell__sort-label { order: 1; }
 :root:root .browse-filter-sheet__body .browse-shell__sort { order: 2; }
 :root:root .browse-filter-sheet__body .browse-shell__display-label { order: 3; }
-:root:root .browse-filter-sheet__body .browse-shell__tile-size,
-:root:root .browse-filter-sheet__body .collections-tile-size { order: 4; }
 :root:root .browse-filter-sheet__body .browse-shell__layout-toggle,
 :root:root .browse-filter-sheet__body .browse-shell__timeline-grouping { order: 5; }
 
@@ -4009,10 +3990,6 @@ html[data-form-factor="phone"] .app-discovery-filter__tabs[data-scroll-more-star
 
 :root:root .browse-filter-sheet__body input[type="range"] {
     min-height: 44px;
-}
-
-:root:root .browse-filter-sheet__body .browse-shell__tile-size-readout {
-    display: block;
 }
 
 :root:root .browse-filter-sheet__body .browse-shell__toggle-row {
@@ -4061,10 +4038,6 @@ input[type="reset"],
         min-width: var(--tl-touch-target-min) !important;
         min-height: var(--tl-touch-target-min) !important;
         touch-action: manipulation;
-    }
-
-    .media-tile-hover-panel{
-        display: none !important;
     }
 
     .media-tile,
@@ -4420,9 +4393,6 @@ input[type="reset"],
 
 /* Portaled and fragment-owned control bridges. */
 .media-viewer .media-viewer__actions .tl-icon-button[aria-pressed="true"] { color:var(--tl-accent-primary); background:var(--playback-accent-soft); }
-.media-tile.is-continue-card .app-artwork-progress .app-progress-bar__track { transition:height 150ms ease,background-color 150ms ease; }
-.media-tile.is-continue-card:is(:hover,:focus-within) .app-artwork-progress .app-progress-bar__track { height:6px; }
-.media-tile.is-continue-card:is(:hover,:focus-within) .app-artwork-progress .app-progress-bar__fill { background:var(--tl-accent-primary-hover); }
 @media(prefers-reduced-motion:reduce) { .media-tile .app-artwork-progress .app-progress-bar__track { transition:none; } }
 
 .compact-continue__item:is(:hover,:focus-visible) .app-progress-bar__track { height:6px; }
@@ -5335,8 +5305,6 @@ input[type="reset"],
 .view-rule-editor__matches { margin: 0; padding-left: 1.25rem; overflow-wrap: anywhere; }
 @media (min-width: 600px) {
     .view-documents-layout { grid-template-columns: 15rem minmax(0, 1fr); }
-}
-@media (max-width: 600px) {
 }
 
 /* The document viewer fills the window above everything else, like the photo viewer. */

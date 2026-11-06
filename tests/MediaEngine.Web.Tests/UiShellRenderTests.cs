@@ -1686,9 +1686,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
 
         var markup = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Browse", "MediaBrowseShell.razor"));
         Assert.Contains("<MediaTileGrid Items=\"@_cards\"", markup, StringComparison.Ordinal);
-        Assert.Contains("ShowCompactCaptions=\"true\"", markup, StringComparison.Ordinal);
-        Assert.Contains("TileSizePx=\"@TileSizePx\"", markup, StringComparison.Ordinal);
-        Assert.Contains("\"Music\" => 136", markup, StringComparison.Ordinal);
     }
 
     [Fact]

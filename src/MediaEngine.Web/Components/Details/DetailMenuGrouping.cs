@@ -108,8 +108,14 @@ public static class DetailMenuGrouping
     /// Orders the actions by group (a stable sort, with "play from the beginning" first within its group) and marks the
     /// first row of each later group with a divider. A note, when given, takes the edit group's place.
     /// </summary>
-    public static IReadOnlyList<DetailMenuEntry> Arrange(IEnumerable<DetailAction> actions, string? note = null)
+    public static IReadOnlyList<DetailMenuEntry> Arrange(IEnumerable<DetailAction> actions, string? note = null, bool keepOrder = false)
     {
+        if (keepOrder)
+        {
+            // A cover's menu is already in the order the spec names (One tile design D3, D8): no groups, no dividers.
+            return [.. actions.Select(action => new DetailMenuEntry(action, null, false))];
+        }
+
         var rows = actions
             .Select(action => (Group: GroupOf(action), Action: (DetailAction?)action, Note: (string?)null))
             .ToList();
