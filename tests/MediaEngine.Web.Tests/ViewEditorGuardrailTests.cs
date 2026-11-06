@@ -75,7 +75,8 @@ public sealed class ViewEditorGuardrailTests
             Assert.Contains(call, Web($"Components/Pages/{file}.razor"), StringComparison.Ordinal);
         }
 
-        Assert.Contains("!DeviceContext.IsPhone", Web("Components/Pages/ViewImmersiveViewer.razor"), StringComparison.Ordinal);
+        Assert.Contains("ViewActionPolicy.For", Web("Components/Pages/ViewImmersiveViewer.razor"), StringComparison.Ordinal);
+        Assert.Contains("ViewActionPolicy.For", Web("Components/Pages/ViewPage.razor"), StringComparison.Ordinal);
     }
 
     [Fact]

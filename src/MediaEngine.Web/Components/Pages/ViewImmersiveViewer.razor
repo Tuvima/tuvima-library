@@ -116,6 +116,9 @@
     // Editing is desktop-only (EditorDeviceRule): phones and tablets only view photo details.
     private bool CanEditHere => CanEdit && DeviceContext.CanEdit && !Item.FileMissing;
     [Parameter] public bool CanManage { get; set; }
+
+    /// <summary>The actions this item offers, from the one shared rule (ViewActionPolicy). Left unset, the viewer works it out from CanManage.</summary>
+    [Parameter] public ViewActions? Actions { get; set; }
     private bool _showMotion;
     private string Title => string.IsNullOrWhiteSpace(Item.Title) ? Item.FileName : Item.Title;
     private DateTimeOffset Captured => Item.CapturedAt ?? Item.CreatedAt;
@@ -189,16 +192,18 @@
         ThumbnailUrl,
         PositionLabel,
         Title);
+    // The same action list as the selection bar and the tile menu (ViewActionPolicy). A page that passes Actions gets exactly that; one that does not keeps the older CanManage rule.
+    private ViewActions Allowed => Actions ?? ViewActionPolicy.For(new ViewActionContext(
+        CanManage ? ViewItemOwnership.Own : ViewItemOwnership.OtherPerson, DeviceContext.IsPhone, CanEdit, Item.FileMissing, Item.CanTrash,
+        Item.ArchivedAt.HasValue, Item.TrashedAt.HasValue, Item.Hidden));
     private MediaViewerCapabilities ViewerCapabilities => new(
-        CanFavorite: CanManage && !Item.FileMissing,
+        CanFavorite: Allowed.HasFlag(ViewActions.Favorite),
         IsFavorite: Item.Favorite,
-        CanAddToGallery: (ManualGalleries.Count > 0 || OnCreateGallery.HasDelegate) && !Item.FileMissing,
-        CanDownload: !Item.FileMissing,
-        CanArchive: CanManage && !Item.FileMissing && !Item.ArchivedAt.HasValue && !Item.TrashedAt.HasValue,
-        CanRestore: CanManage && (Item.ArchivedAt.HasValue || Item.TrashedAt.HasValue),
-        // An item with a file in a read-only (linked) folder can't go to Trash, so the button isn't offered; Restore stays.
-        // Phones never offer Trash (spec view-section D11).
-        CanTrash: CanManage && !DeviceContext.IsPhone && !Item.FileMissing && !Item.TrashedAt.HasValue && Item.CanTrash,
+        CanAddToGallery: Allowed.HasFlag(ViewActions.AddToGallery) && (ManualGalleries.Count > 0 || OnCreateGallery.HasDelegate),
+        CanDownload: Allowed.HasFlag(ViewActions.Download),
+        CanArchive: Allowed.HasFlag(ViewActions.Archive),
+        CanRestore: Allowed.HasFlag(ViewActions.Restore),
+        CanTrash: Allowed.HasFlag(ViewActions.Trash),
         CanShowInfo: true,
         CanZoom: Item.MimeType.StartsWith("image/", StringComparison.OrdinalIgnoreCase),
         CanPlay: Item.MimeType.StartsWith("video/", StringComparison.OrdinalIgnoreCase),

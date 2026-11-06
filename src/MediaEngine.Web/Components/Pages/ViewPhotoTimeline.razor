@@ -1,6 +1,7 @@
 @using System.Globalization
 @using MediaEngine.Contracts.LocalAssets
 @using MediaEngine.Domain.PersonalMedia
+@using MediaEngine.Web.Services.Editing
 @namespace MediaEngine.Web.Components.Pages
 @implements IDisposable
 @inject DeviceContextService DeviceContext
@@ -33,17 +34,44 @@
                     @TileFace(item)
                 </AppNativeButton>
                 }
-                @if (!SelectMode && (OnEditItem.HasDelegate || (OnTrashItem.HasDelegate && item.CanTrash && !item.FileMissing)))
+                @if (!SelectMode && ActionsFor(item) is var actions && actions != ViewActions.None)
                 {
-                    @* The tile's own menu: the same Edit and Trash as the selection bar, for one photo, without selecting it first. *@
+                    @* The tile's own menu: the same action list as the selection bar and the viewer (one shared rule, ViewActionPolicy), for one photo, without selecting it first. *@
                     <span class="view-tile__menu"><AppOverflowMenu AriaLabel="@($"More for {Title(item)}")" AnchorOrigin="AppOrigin.BottomRight" TransformOrigin="AppOrigin.TopRight">
-                        @if (OnEditItem.HasDelegate)
+                        @if (actions.HasFlag(ViewActions.Favorite) && OnFavoriteItem.HasDelegate)
                         {
-                            <AppMenuItem Label="@L["Common_Edit"].Value" Icon="@AppMaterialIcons.Outlined.Edit" OnClick="@(() => OnEditItem.InvokeAsync(item))" />
+                            <AppMenuItem Label="@(item.Favorite ? "Remove from Favorites" : L["Glossary_Favorite"].Value)" Icon="@(item.Favorite ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)" OnClick="@(() => OnFavoriteItem.InvokeAsync(item))" />
                         }
-                        @if (OnTrashItem.HasDelegate && item.CanTrash && !item.FileMissing)
+                        @if (actions.HasFlag(ViewActions.AddToGallery) && OnAddItemToGallery.HasDelegate)
                         {
-                            <AppMenuItem Label="@L["Common_Trash"].Value" Icon="@AppMaterialIcons.Outlined.DeleteOutline" Tone="AppUiTone.Error" OnClick="@(() => OnTrashItem.InvokeAsync(item))" />
+                            @foreach (var gallery in ManualGalleries.Take(5))
+                            {
+                                <AppMenuItem Label="@($"Add to {gallery.Name}")" Icon="@AppMaterialIcons.Outlined.PhotoAlbum" OnClick="@(() => OnAddItemToGallery.InvokeAsync(new GalleryAdd(item, gallery.Id)))" />
+                            }
+                        }
+                        @if (actions.HasFlag(ViewActions.Download) && OnDownloadItem.HasDelegate)
+                        {
+                            <AppMenuItem Label="Download" Icon="@AppMaterialIcons.Outlined.Download" OnClick="@(() => OnDownloadItem.InvokeAsync(item))" />
+                        }
+                        @if (actions.HasFlag(ViewActions.Edit) && OnEditItem.HasDelegate)
+                        {
+                            <AppMenuItem Label="@L["Common_Edit"].Value" Icon="@AppMaterialIcons.Outlined.Edit" DividerBefore="true" OnClick="@(() => OnEditItem.InvokeAsync(item))" />
+                        }
+                        @if (actions.HasFlag(ViewActions.Archive) && OnArchiveItem.HasDelegate)
+                        {
+                            <AppMenuItem Label="Archive" Icon="@AppMaterialIcons.Outlined.Inventory2" OnClick="@(() => OnArchiveItem.InvokeAsync(item))" />
+                        }
+                        @if (actions.HasFlag(ViewActions.Hide) && OnHideItem.HasDelegate)
+                        {
+                            <AppMenuItem Label="Hide" Icon="@AppMaterialIcons.Outlined.VisibilityOff" OnClick="@(() => OnHideItem.InvokeAsync(item))" />
+                        }
+                        @if (actions.HasFlag(ViewActions.Restore) && OnRestoreItem.HasDelegate)
+                        {
+                            <AppMenuItem Label="@L["Common_Restore"].Value" Icon="@AppMaterialIcons.Outlined.Restore" OnClick="@(() => OnRestoreItem.InvokeAsync(item))" />
+                        }
+                        @if (actions.HasFlag(ViewActions.Trash) && OnTrashItem.HasDelegate)
+                        {
+                            <AppMenuItem Label="@L["Common_Trash"].Value" Icon="@AppMaterialIcons.Outlined.DeleteOutline" Tone="AppUiTone.Error" DividerBefore="true" OnClick="@(() => OnTrashItem.InvokeAsync(item))" />
                         }
                     </AppOverflowMenu></span>
                 }
@@ -74,11 +102,26 @@
     [Parameter, EditorRequired] public Func<LocalAssetDto, string> ThumbnailUrl { get; set; } = _ => string.Empty;
     [Parameter] public EventCallback<LocalAssetDto> OnOpen { get; set; }
 
-    /// <summary>Opens the editor on one photo from its tile menu; left unset (phones, tablets, Trash) the menu offers no Edit.</summary>
+    /// <summary>Which actions each tile's menu offers: the one shared rule (ViewActionPolicy). A tile with none shows no menu.</summary>
+    [Parameter] public Func<LocalAssetDto, ViewActions> ActionsFor { get; set; } = _ => ViewActions.None;
+
+    /// <summary>The person's own Galleries the menu can add a photo to (the first few are listed).</summary>
+    [Parameter] public IReadOnlyList<ViewGalleryDto> ManualGalleries { get; set; } = [];
+
+    /// <summary>Opens the editor on one photo from its tile menu (when the policy offers Edit).</summary>
     [Parameter] public EventCallback<LocalAssetDto> OnEditItem { get; set; }
 
-    /// <summary>Moves one photo to Trash from its tile menu; left unset the menu offers no Trash.</summary>
+    /// <summary>Moves one photo to Trash from its tile menu (when the policy offers Trash).</summary>
     [Parameter] public EventCallback<LocalAssetDto> OnTrashItem { get; set; }
+    [Parameter] public EventCallback<LocalAssetDto> OnFavoriteItem { get; set; }
+    [Parameter] public EventCallback<LocalAssetDto> OnDownloadItem { get; set; }
+    [Parameter] public EventCallback<LocalAssetDto> OnArchiveItem { get; set; }
+    [Parameter] public EventCallback<LocalAssetDto> OnRestoreItem { get; set; }
+    [Parameter] public EventCallback<LocalAssetDto> OnHideItem { get; set; }
+    [Parameter] public EventCallback<GalleryAdd> OnAddItemToGallery { get; set; }
+
+    /// <summary>One photo and the Gallery its menu asked to add it to.</summary>
+    public sealed record GalleryAdd(LocalAssetDto Item, Guid GalleryId);
     [Parameter] public EventCallback<Guid> OnToggleSelection { get; set; }
     [Parameter] public EventCallback<SelectionRequest> OnToggleSelectionRequested { get; set; }
     [Parameter] public EventCallback<IReadOnlyCollection<Guid>> OnSelectDateGroup { get; set; }

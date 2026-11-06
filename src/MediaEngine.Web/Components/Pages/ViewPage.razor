@@ -77,7 +77,7 @@ else
         </AdvancedFilters>
     </AppDiscoveryFilterBar>
     @if (_filter == "trash") { <ViewTrashHeader IsMine="@(Workspace.ScopeKind == ViewScopeKind.Mine)" Version="@_trashVersion" OnChanged="@(() => LoadAsync())" /> }
-    @if (_selected.Count > 0) { <ViewSelectionToolbar Count="@_selected.Count" Phone="@DeviceContext.IsPhone" ManualGalleries="@Workspace.OwnedGalleries.Where(g => g.Kind == ViewGalleryKind.Manual).ToList()" OnClear="CancelSelection" OnAddToGallery="AddSelectionToGalleryAsync" OnCreateGallery="@CreateGalleryCallback" OnDownload="@DownloadCallback" OnSharedLibrary="SubmitSelectionToSharedAsync" ShowSharedLibrary="@(Workspace.ScopeKind == ViewScopeKind.Mine)" OnFavorite="FavoriteSelectionAsync" OnEdit="@EditCallback" OnArchive="ArchiveSelectionAsync" OnRestore="RestoreSelectionAsync" ShowRestore="@(_filter is "archive" or "trash")" OnTrash="TrashSelectionAsync" ShowTrash="@(_filter != "trash" && !DeviceContext.IsPhone && AnySelectedTrashable)" /> }
+    @if (_selected.Count > 0) { <ViewSelectionToolbar Count="@_selected.Count" Phone="@DeviceContext.IsPhone" ManualGalleries="@Workspace.OwnedGalleries.Where(g => g.Kind == ViewGalleryKind.Manual).ToList()" OnClear="CancelSelection" OnAddToGallery="AddSelectionToGalleryAsync" OnCreateGallery="@CreateGalleryCallback" OnDownload="@BarCallback(ViewActions.Download, DownloadSelectionAsync)" OnSharedLibrary="SubmitSelectionToSharedAsync" ShowSharedLibrary="@(Workspace.ScopeKind == ViewScopeKind.Mine)" OnFavorite="@BarCallback(ViewActions.Favorite, FavoriteSelectionAsync)" OnEdit="@BarCallback(ViewActions.Edit, EditSelectionAsync)" OnHide="@BarCallback(ViewActions.Hide, HideSelectionAsync)" OnArchive="@BarCallback(ViewActions.Archive, ArchiveSelectionAsync)" OnRestore="RestoreSelectionAsync" ShowRestore="@SelectedActions.HasFlag(ViewActions.Restore)" OnTrash="TrashSelectionAsync" ShowTrash="@(_filter != "trash" && !DeviceContext.IsPhone && AnySelectedTrashable)" /> }
     @if (_loading) { <AppPageState Kind="AppPageStateKind.Loading" Title="@L["ViewPage_LoadingPhotos"].Value" Message="@L["ViewPage_BuildingYourPersonalTimeline"].Value" /> }
     else if (_page is null) { <AppErrorState Title="@L["Common_PhotosCouldNotBeLoaded"].Value" Message="The Engine did not return a timeline." Retry="@(() => LoadAsync())" /> }
     else if (_page.Items.Count == 0) { <AppPageState Kind="AppPageStateKind.Empty" Title="@EmptyTitle" Message="@EmptyMessage" /> }
@@ -85,7 +85,7 @@ else
     {
         @if (_olderWindow) { <AppButton Label="@L["ViewPage_BackToNewestPhotos"].Value" OnClick="@(() => LoadAsync(preserveSelection: true))" /> }
         <div class="view-timeline-layout">
-            <ViewPhotoTimeline Items="@_page.Items" NoteFor="@ItemNote" Selected="@_selected" SelectMode="@_selectMode" SelectEntireDate="true" Density="@Workspace.Density" ThumbnailUrl="@(item => AssetUrl(item, ViewMediaResourceKind.Thumbnail))" OnOpen="OpenItem" OnEditItem="EditItemCallback" OnTrashItem="TrashItemCallback" OnToggleSelection="ToggleSelection" OnToggleSelectionRequested="ToggleSelectionRequested" OnSelectDateGroup="SelectDateGroup" OnDragStarted="BeginDrag" OnDragEnded="EndDrag" />
+            <ViewPhotoTimeline Items="@_page.Items" NoteFor="@ItemNote" Selected="@_selected" SelectMode="@_selectMode" SelectEntireDate="true" Density="@Workspace.Density" ThumbnailUrl="@(item => AssetUrl(item, ViewMediaResourceKind.Thumbnail))" OnOpen="OpenItem" ActionsFor="ActionsFor" ManualGalleries="@Workspace.OwnedGalleries.Where(g => g.Kind == ViewGalleryKind.Manual).ToList()" OnEditItem="EditItemCallback" OnTrashItem="TrashItemCallback" OnFavoriteItem="FavoriteItemAsync" OnDownloadItem="DownloadItemAsync" OnArchiveItem="ArchiveItemAsync" OnRestoreItem="RestoreItemAsync" OnHideItem="HideItemAsync" OnAddItemToGallery="AddItemToGalleryAsync" OnToggleSelection="ToggleSelection" OnToggleSelectionRequested="ToggleSelectionRequested" OnSelectDateGroup="SelectDateGroup" OnDragStarted="BeginDrag" OnDragEnded="EndDrag" />
             <ViewTimelineScrubber Buckets="@(_timelineIndex?.Buckets ?? [])" ActiveYear="@_activeYear" ActiveMonth="@_activeMonth" OnJump="JumpToBucketAsync" />
         </div>
         <span class="view-timeline-observer-anchor" @ref="_timelineSentinel" aria-hidden="true"></span>
@@ -98,7 +98,7 @@ else
 </ChildContent>
 </ViewContentPage>
 </ViewSectionShell>
-@if (_activeItem is not null) { <ViewImmersiveViewer Item="@_activeItem" HasPrevious="@HasPrevious" HasNext="@HasNext" PositionLabel="@ViewerPosition" ContentUrl="@AssetUrl(_activeItem, ViewMediaResourceKind.Preview)" OriginalUrl="@AssetUrl(_activeItem, ViewMediaResourceKind.Content)" MotionUrl="@MotionUrl(_activeItem)" ThumbnailUrl="@AssetUrl(_activeItem, ViewMediaResourceKind.Thumbnail)" OnClose="CloseItem" OnPrevious="PreviousItem" OnNext="NextItem" OnFavorite="ToggleFavoriteAsync" OnArchive="ArchiveActiveAsync" OnRestore="RestoreActiveAsync" OnTrash="TrashActiveAsync" ManualGalleries="@Workspace.OwnedGalleries.Where(g => g.Kind == ViewGalleryKind.Manual).ToList()" OnAddToGallery="AddActiveToGalleryAsync" OnCreateGallery="@CreateActiveGalleryCallback" CanEdit="@(Workspace.ScopeKind == ViewScopeKind.Mine)" CanManage="@(ItemScope(_activeItem).Kind == ViewScopeKind.Mine)" OnItemUpdated="Replace" /> }
+@if (_activeItem is not null) { <ViewImmersiveViewer Item="@_activeItem" HasPrevious="@HasPrevious" HasNext="@HasNext" PositionLabel="@ViewerPosition" ContentUrl="@AssetUrl(_activeItem, ViewMediaResourceKind.Preview)" OriginalUrl="@AssetUrl(_activeItem, ViewMediaResourceKind.Content)" MotionUrl="@MotionUrl(_activeItem)" ThumbnailUrl="@AssetUrl(_activeItem, ViewMediaResourceKind.Thumbnail)" OnClose="CloseItem" OnPrevious="PreviousItem" OnNext="NextItem" OnFavorite="ToggleFavoriteAsync" OnArchive="ArchiveActiveAsync" OnRestore="RestoreActiveAsync" OnTrash="TrashActiveAsync" ManualGalleries="@Workspace.OwnedGalleries.Where(g => g.Kind == ViewGalleryKind.Manual).ToList()" OnAddToGallery="AddActiveToGalleryAsync" OnCreateGallery="@CreateActiveGalleryCallback" CanEdit="@(Workspace.ScopeKind == ViewScopeKind.Mine)" CanManage="@(ItemScope(_activeItem).Kind == ViewScopeKind.Mine)" Actions="@ActionsFor(_activeItem)" OnItemUpdated="Replace" /> }
 
 @code {
     // Videos is offered only while personal videos are allowed for this profile.
@@ -280,8 +280,12 @@ else
     private EventCallback CreateActiveGalleryCallback => DeviceContext.CanEdit && Workspace.ScopeKind == ViewScopeKind.Mine ? EventCallback.Factory.Create(this, CreateActiveGalleryAsync) : default;
     private async Task CreateActiveGalleryAsync() { if (_viewSectionShell is null || _activeItem is null) return; var id = _activeItem.Id; CloseItem(); await _viewSectionShell.BeginManualGalleryCreateAsync([id]); }
     private EventCallback CreateGalleryCallback => DeviceContext.CanEdit ? EventCallback.Factory.Create(this, CreateGalleryFromSelectionAsync) : default;
-    // Download is part of the phone bar only; desktop and tablet bars keep their existing actions.
-    private EventCallback DownloadCallback => DeviceContext.IsPhone ? EventCallback.Factory.Create(this, DownloadSelectionAsync) : default;
+    // The bar offers an action only when the one shared rule (ViewActionPolicy) allows it for every selected photo that is loaded; Trash needs just one trashable photo, since the Engine skips the rest.
+    private ViewActions SelectedActions => _page is null || _selected.Count == 0 ? ViewActions.None
+        : _page.Items.Where(item => _selected.Contains(item.Id)).Select(ActionsFor).DefaultIfEmpty(ViewActions.None).Aggregate((a, b) => a & b);
+    private bool AnySelected(ViewActions action) => _page is not null && _page.Items.Any(item => _selected.Contains(item.Id) && ActionsFor(item).HasFlag(action));
+    private EventCallback BarCallback(ViewActions action, Func<Task> run) => SelectedActions.HasFlag(action) ? EventCallback.Factory.Create(this, run) : default;
+    private Task HideSelectionAsync() => MutateSelectionAsync((id, ct) => ApiClient.SetViewItemHiddenAsync(id, true, ct), "Hidden selected items.");
     private async Task DownloadSelectionAsync()
     {
         if (_page is null || _selected.Count == 0)
@@ -345,11 +349,55 @@ else
         }
         finally { _mutatingSelection = false; }
     }
-    // The tile menu offers Edit on a computer and Trash on someone's own photos; the Trash list and Shared views keep only their own actions.
-    private EventCallback<LocalAssetDto> EditItemCallback => EditorHost.CanEdit && _filter != "trash" && Workspace.ScopeKind == ViewScopeKind.Mine
-        ? EventCallback.Factory.Create<LocalAssetDto>(this, EditItemAsync) : default;
-    private EventCallback<LocalAssetDto> TrashItemCallback => _filter != "trash" && Workspace.ScopeKind == ViewScopeKind.Mine && DeviceContext.CanEdit
-        ? EventCallback.Factory.Create<LocalAssetDto>(this, TrashItemAsync) : default;
+    // Every surface asks the one shared rule for what an item offers (spec view-section D5); the callbacks below are always wired and the policy decides who sees them.
+    private EventCallback<LocalAssetDto> EditItemCallback => EventCallback.Factory.Create<LocalAssetDto>(this, EditItemAsync);
+    private EventCallback<LocalAssetDto> TrashItemCallback => EventCallback.Factory.Create<LocalAssetDto>(this, TrashItemAsync);
+    private ViewActions ActionsFor(LocalAssetDto item)
+    {
+        var (scopeKind, _) = ItemScope(item);
+        var actions = ViewActionPolicy.For(new ViewActionContext(
+            ViewActionPolicy.OwnershipOf(scopeKind, item.AddedByProfileId, _profileId),
+            DeviceContext.IsPhone, EditorHost.CanEdit, item.FileMissing, item.CanTrash,
+            item.ArchivedAt.HasValue, item.TrashedAt.HasValue, item.Hidden));
+        // The Trash list only restores; Archive's own list can restore too.
+        return _filter == "trash" ? actions & (ViewActions.Download | ViewActions.Restore) : actions;
+    }
+    private async Task FavoriteItemAsync(LocalAssetDto item)
+    {
+        var value = !item.Favorite;
+        if (await ApiClient.SetViewItemFavoriteAsync(item.Id, value)) { Replace(item with { Favorite = value }); Snackbar.Add(value ? "Added to Favorites." : "Removed from Favorites.", AppSeverity.Success); }
+        else Snackbar.Add("That could not be changed.", AppSeverity.Error);
+    }
+    private async Task ArchiveItemAsync(LocalAssetDto item)
+    {
+        if (!await ViewTrashConfirmation.AskArchiveAsync(DialogService)) return;
+        if (await ApiClient.ArchiveViewItemAsync(item.Id)) { await LoadAsync(); Snackbar.Add("Archived.", AppSeverity.Success); }
+        else Snackbar.Add("That item could not be archived.", AppSeverity.Error);
+    }
+    private async Task RestoreItemAsync(LocalAssetDto item)
+    {
+        if (await ApiClient.RestoreViewItemAsync(item.Id)) { Workspace.ClearTrashFailures([item.Id]); _trashVersion++; await LoadAsync(); Snackbar.Add("Restored to Photos.", AppSeverity.Success); }
+        else Snackbar.Add("That item could not be restored.", AppSeverity.Error);
+    }
+    private async Task HideItemAsync(LocalAssetDto item)
+    {
+        if (await ApiClient.SetViewItemHiddenAsync(item.Id, true)) { await LoadAsync(); Snackbar.Add("Hidden. Find it under More filters, Hidden.", AppSeverity.Success); }
+        else Snackbar.Add("That item could not be hidden.", AppSeverity.Error);
+    }
+    private async Task AddItemToGalleryAsync(ViewPhotoTimeline.GalleryAdd request)
+    {
+        var result = await ApiClient.AddViewGalleryItemsAsync(request.GalleryId, [request.Item.Id]);
+        if (result is null) { Snackbar.Add("That item could not be added.", AppSeverity.Error); return; }
+        Snackbar.Add(GalleryResult(result), AppSeverity.Success);
+        await Workspace.LoadGalleriesAsync(force: true);
+    }
+    private async Task DownloadItemAsync(LocalAssetDto item)
+    {
+        var url = AssetUrl(item, ViewMediaResourceKind.Content);
+        if (string.IsNullOrEmpty(url)) return;
+        _timelineModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./js/view-timeline.js");
+        await _timelineModule.InvokeVoidAsync("downloadFiles", new[] { new { url, name = item.FileName } });
+    }
     private async Task EditItemAsync(LocalAssetDto item)
     {
         if (!await EditorHost.OpenItemsAsync([item])) return;
