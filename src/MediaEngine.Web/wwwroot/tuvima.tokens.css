@@ -145,7 +145,12 @@
     --tl-menu-min-width: 10.75rem;
     --tl-menu-width: 272px;
     --tl-menu-row-height: 44px;
-    --tl-menu-row-font-size: 1rem;
+    /* The page root is 14px, so menu type is in px: rem would resolve to 14px here (issue 702). */
+    --tl-menu-row-font-size: 16px;
+    --tl-menu-row-font-weight: 500;
+    --tl-menu-row-padding-y: 8px;
+    --tl-menu-sheet-row-height: 52px;
+    --tl-menu-helper-font-size: 13px;
     --tl-menu-icon-size: 24px;
     --tl-menu-item-height: var(--tl-menu-row-height);
     --tl-secondary-action-bg: rgba(76, 29, 149, 0.12);

@@ -1692,8 +1692,6 @@ input.app-control.tl-input-slot,
 
 .app-select__popover .tl-list-item,
 .app-overflow-menu__popover .tl-list-item {
-    min-height: var(--tl-menu-row-height) !important;
-    font-size: var(--tl-menu-row-font-size) !important;
     border-radius: var(--tl-radius-md);
     color: var(--tl-text-secondary) !important;
 }
@@ -2864,14 +2862,14 @@ input.app-control.tl-input-slot,
 .app-select__popover .tl-list-item {
     min-height: var(--tl-menu-item-height) !important;
     gap: 0.6rem;
-    padding: 12px 16px;
+    padding: var(--tl-menu-row-padding-y) 16px;
     border: 0 !important;
     border-radius: var(--tl-radius-md) !important;
     color: var(--tl-text-secondary) !important;
     background: transparent !important;
     font-family: var(--font-ui) !important;
     font-size: var(--tl-menu-row-font-size) !important;
-    font-weight: 500 !important;
+    font-weight: var(--tl-menu-row-font-weight) !important;
     line-height: 1.25 !important;
     box-shadow: none !important;
     transition: color var(--tl-motion-duration-fast) var(--tl-motion-ease-standard),
@@ -4163,7 +4161,7 @@ input[type="reset"],
 
 .app-row-menu__sheet,
 .app-menu-sheet {
-    --tl-menu-item-height: 52px;
+    --tl-menu-item-height: var(--tl-menu-sheet-row-height);
 }
 
 .app-menu-sheet__items {
@@ -4252,7 +4250,7 @@ input[type="reset"],
 }
 
 .tl-detail-menu-item__reason {
-    font-size: var(--tl-control-font-size-sm);
+    font-size: var(--tl-menu-helper-font-size);
     font-weight: 500;
     color: var(--tl-text-muted);
     white-space: normal;
@@ -4261,9 +4259,9 @@ input[type="reset"],
 /* The quiet "Edit on a computer" line: not a control, lined up with the labels above it. */
 .tl-detail-menu-note {
     margin: 0;
-    padding: 0.5rem 1rem 0.5rem calc(1rem + 1.35rem + 0.6rem);
+    padding: 0.5rem 16px 0.5rem calc(16px + var(--tl-menu-icon-size) + 0.6rem);
     font-family: var(--font-ui);
-    font-size: var(--tl-control-font-size-sm);
+    font-size: var(--tl-menu-helper-font-size);
     line-height: 1.3;
     color: var(--tl-text-muted);
     cursor: default;
@@ -6117,7 +6115,7 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-actions .hero-icon-cir
 }
 
 .tl-detail-more-sheet {
-    --tl-menu-item-height: 52px;
+    --tl-menu-item-height: var(--tl-menu-sheet-row-height);
 }
 
 .tl-detail-more-sheet__items {

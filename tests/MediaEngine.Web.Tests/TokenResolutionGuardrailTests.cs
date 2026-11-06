@@ -116,7 +116,37 @@ public sealed class TokenResolutionGuardrailTests
         Assert.Contains("--tl-menu-width: 272px;", tokens);
         var app = File.ReadAllText(Path.Combine(web, "wwwroot", "app.css"));
         Assert.DoesNotContain("min-height: 34px !important;\r\n    border-radius: var(--tl-radius-md);\r\n    color: var(--tl-text-secondary)", app);
-        Assert.Contains("min-height: var(--tl-menu-row-height) !important;", app);
+        Assert.Contains("min-height: var(--tl-menu-item-height) !important;", app);
+    }
+
+    [Fact]
+    public void MenuRows_Are44Px16PxAtWeight500_InPixelsBecauseThePageRootIs14Px()
+    {
+        var web = Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web");
+        var tokens = File.ReadAllText(Path.Combine(web, "wwwroot", "tuvima.tokens.css"));
+        Assert.Contains("--tl-menu-row-height: 44px;", tokens);
+        Assert.Contains("--tl-menu-row-font-size: 16px;", tokens);
+        Assert.Contains("--tl-menu-row-font-weight: 500;", tokens);
+        Assert.Contains("--tl-menu-sheet-row-height: 52px;", tokens);
+        Assert.Contains("--tl-menu-item-height: var(--tl-menu-row-height);", tokens);
+
+        var app = File.ReadAllText(Path.Combine(web, "wwwroot", "app.css"));
+        var sharedRow = Regex.Match(app, @"\.app-menu-popover \.tl-list-item,\s*\.app-menu-item,[^{]*\{(?<body>[^}]*)\}");
+        Assert.True(sharedRow.Success, "The shared menu row rule is missing from app.css.");
+        var body = sharedRow.Groups["body"].Value;
+        Assert.Contains("min-height: var(--tl-menu-item-height) !important;", body);
+        Assert.Contains("font-size: var(--tl-menu-row-font-size) !important;", body);
+        Assert.Contains("font-weight: var(--tl-menu-row-font-weight) !important;", body);
+
+        // Phone sheets take their 52 px rows from the one token, never a second literal.
+        Assert.DoesNotContain("--tl-menu-item-height: 52px;", app);
+        Assert.Equal(2, Regex.Matches(app, @"--tl-menu-item-height: var\(--tl-menu-sheet-row-height\);").Count);
+
+        // Other menu lists read the same tokens instead of keeping their own size.
+        var fields = File.ReadAllText(Path.Combine(web, "wwwroot", "native-fields.css"));
+        Assert.Contains("font-size: var(--tl-menu-row-font-size, 16px); font-weight: var(--tl-menu-row-font-weight, 500);", fields);
+        var account = File.ReadAllText(Path.Combine(web, "Components", "Navigation", "TopNavAccountMenu.razor.css"));
+        Assert.Equal(2, Regex.Matches(account, @"font-weight: var\(--tl-menu-row-font-weight\)").Count);
     }
 
     private static string FindRepoRoot()
