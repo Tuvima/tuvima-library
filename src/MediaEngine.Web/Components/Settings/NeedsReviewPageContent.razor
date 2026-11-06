@@ -103,7 +103,7 @@
                 }
                 else
                 {
-                    <AppTable Hover="true" Dense="true" Class="needs-review-table">
+                    <AppTable Hover="true" Dense="true" CardsOn="AppTableCardsMode.Phone" Class="needs-review-table">
                         <caption class="sr-only">@L["NeedsReviewList_Caption"]</caption>
                         <thead>
                             <tr>
@@ -138,17 +138,29 @@
                                         <AppCheckbox Value="@_selected.Contains(row.Key)" ValueChanged="@((bool on) => Toggle(row, on))" Label="@($"Select {title}")" HideLabel="true" />
                                     </td>
                                     <td class="needs-review-table__item">
-                                        <strong>@title</strong>
-                                        <small>
-                                            @if (row.Review is { } reviewed)
+                                        <strong class="needs-review-table__title">@title</strong>
+                                        @* The kind, then ONE line for where the file sits: the last two folder names, the full path in the shared tooltip. *@
+                                        @if (row.Review is { } reviewed)
+                                        {
+                                            <small>@L["NeedsReviewPageContent_AddedAgo", MediaLabel(row), RelativeAge(reviewed.CreatedAt)]</small>
+                                        }
+                                        else if (row.Unmatched is { } file)
+                                        {
+                                            @if (!string.IsNullOrWhiteSpace(row.LibraryName))
                                             {
-                                                @L["NeedsReviewPageContent_AddedAgo", MediaLabel(row), RelativeAge(reviewed.CreatedAt)]
+                                                <small>@row.LibraryName</small>
                                             }
-                                            else if (row.Unmatched is { } file)
+                                            @if (string.IsNullOrWhiteSpace(file.Folder))
                                             {
-                                                @(string.IsNullOrWhiteSpace(file.Folder) ? file.FileName : $"{row.LibraryName} · {file.Folder}")
+                                                <small class="needs-review-table__path">@file.FileName</small>
                                             }
-                                        </small>
+                                            else
+                                            {
+                                                <AppTooltip Text="@file.Folder" Class="needs-review-table__path-tip">
+                                                    <small class="needs-review-table__path" data-testid="needs-review-path">@ShortFolder(file.Folder)</small>
+                                                </AppTooltip>
+                                            }
+                                        }
                                         @if (row.Review is { FromImportFolder: true } or { FromMerge: true })
                                         {
                                             <span class="review-row__badges">
@@ -183,8 +195,15 @@
                                             <small>@L["NeedsReviewList_NoGuess"]</small>
                                         }
                                     </td>
-                                    <td class="needs-review-table__tried">@LastTried(row.LastTriedAt)</td>
+                                    <td class="needs-review-table__tried" data-label="@L["NeedsReviewList_LastTried"].Value">
+                                        <span class="needs-review-table__tried-date">@LastTriedDate(row.LastTriedAt)</span>
+                                        @if (LastTriedTime(row.LastTriedAt) is { } tried)
+                                        {
+                                            <span class="needs-review-table__tried-time">@tried</span>
+                                        }
+                                    </td>
                                     <td class="needs-review-table__actions">
+                                      <div class="needs-review-table__actions-row">
                                         @if (tvSuggestion is null && CanFix(row))
                                         {
                                             <AppButton Label="@L["NeedsReviewList_Fix"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
@@ -217,6 +236,7 @@
                                                 <AppMenuItem Label="@L["NeedsReviewPageContent_DismissFromReview"].Value" Icon="@AppMaterialIcons.Outlined.Close" OnClick="@(() => KeepAsync(row))" />
                                             }
                                         </AppOverflowMenu>
+                                      </div>
                                     </td>
                                 </tr>
                                 @if (tvSuggestion is not null && model is not null)
@@ -509,7 +529,18 @@
         _ => "No match was found online. It is tried again from time to time.",
     };
 
-    internal static string LastTried(DateTimeOffset value) => value == default ? "Not yet" : value.ToLocalTime().ToString("d MMM yyyy, HH:mm");
+    // The date and the time are separate spans so the narrow Last tried column can stack them instead of breaking a word.
+    internal static string LastTriedDate(DateTimeOffset value) => value == default ? "Not yet" : value.ToLocalTime().ToString("d MMM yyyy");
+
+    internal static string? LastTriedTime(DateTimeOffset value) => value == default ? null : value.ToLocalTime().ToString("HH:mm");
+
+    // A folder on one line: an ellipsis, then the last two folder names (the drive and the rest stay in the tooltip).
+    internal static string ShortFolder(string folder)
+    {
+        var separator = folder.Contains('\\') ? '\\' : '/';
+        var names = folder.Split(['\\', '/'], StringSplitOptions.RemoveEmptyEntries);
+        return names.Length <= 2 ? folder : $"…{separator}{string.Join(separator, names[^2..])}";
+    }
 
     private static bool IsWikidataReview(string? trigger) => trigger is "WikidataBridgeFailed" or "MissingQid" or "MultipleQidMatches" or "QidNoMatch";
 

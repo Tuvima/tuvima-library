@@ -46,6 +46,40 @@ public sealed class ActivityRunRepositoryTests : IDisposable
     }
 
     [Fact]
+    public async Task ListRuns_AfterAFreshIngestOfSeveralRuns_ReturnsEveryRunWithItsCountsWhateverTheirStatus()
+    {
+        // The shape of a finished test library: several runs (one still open, one a first run), a few hundred items in all.
+        var expected = new List<(Guid Id, int Items)>();
+        for (var index = 0; index < 8; index++)
+        {
+            var at = Start.AddMinutes(index * 10);
+            var run = await OpenRunAsync(Library, ActivityRunKinds.Added, isFirst: index == 0, at);
+            var items = 20 + index * 15;
+            for (var item = 0; item < items; item++)
+            {
+                var show = $"Show {item % 3}";
+                await AddAsync(
+                    run, index % 2 == 0 ? "TV" : "Movies", $"Title {index}-{item}", at.AddSeconds(item),
+                    groupKey: $"{index}|{show}", groupTitle: show, groupWorkId: Guid.NewGuid());
+            }
+
+            expected.Add((run.Id, items));
+        }
+
+        // Every run but the last has gone quiet and closed; the last is still active.
+        await _runs.CompleteQuietRunsAsync(Start.AddMinutes(70));
+
+        var page = await _runs.ListRunsAsync(new ActivityRunQuery(Limit: 51));
+
+        Assert.Equal(8, page.Count);
+        Assert.Equal(expected.AsEnumerable().Reverse().Select(entry => entry.Id), page.Select(entry => entry.Run.Id));
+        Assert.All(page, entry => Assert.Equal(entry.Run.ItemCount, entry.CountsByMediaType.Values.Sum()));
+        Assert.Contains(page, entry => entry.Run.Status == ActivityRunStatuses.Active);
+        Assert.NotNull(await _runs.GetLastCompletedAsync(null));
+        Assert.Equal(8, (await _runs.ListRunsAsync(new ActivityRunQuery(LibraryIds: [Library], Limit: 51))).Count);
+    }
+
+    [Fact]
     public async Task ListRuns_ForARemovalOfThreeItems_ReturnsOneRemovedRun()
     {
         var run = await OpenRunAsync(Library, ActivityRunKinds.Removed, isFirst: false, Start);

@@ -488,7 +488,7 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
     private static readonly Guid FileAssetId = Guid.Parse("55555555-5555-4555-8555-555555555555");
     private static readonly Guid FileWorkId = Guid.Parse("66666666-6666-4666-8666-666666666666");
 
-    private static MediaEngine.Contracts.Review.NeedsReviewRowDto FileRow(Guid assetId, string name, Guid? workId = null, string reason = "no_match", string library = "movies") => new()
+    private static MediaEngine.Contracts.Review.NeedsReviewRowDto FileRow(Guid assetId, string name, Guid? workId = null, string reason = "no_match", string library = "movies", string folder = "C:/media/movies") => new()
     {
         Key = $"file:{assetId:D}",
         Kind = MediaEngine.Contracts.Review.NeedsReviewKinds.NotMatched,
@@ -500,7 +500,7 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
             AssetId = assetId,
             LibraryId = library,
             FileName = name,
-            Folder = "C:/media/movies",
+            Folder = folder,
             WorkId = workId,
             Reason = reason,
             LastTriedAt = DateTimeOffset.UtcNow.AddHours(-3),
@@ -673,6 +673,53 @@ public sealed class NeedsReviewPageTests : AsyncBunitContext
         var cut = Render<NeedsReviewPageContent>(p => p.Add(c => c.Show, "not-matched"));
 
         cut.WaitForAssertion(() => Assert.Contains("Every file has been matched.", cut.Markup));
+    }
+
+    [Fact]
+    public void AnUnmatchedFileRow_ShowsTitleKindAndOneShortenedFolderLine_WithTheFullPathInTheTooltip()
+    {
+        const string folder = @"Z:\Development\testing\media\real_media\books\Rick Riordan\The Percy Jackson and the Olympians, Book Two_ Sea of Monsters (112)";
+        var list = ListOf(FileRow(FileAssetId, "Sea of Monsters.epub", folder: folder));
+        Register(() => Loaded(), configure: stub => stub.SetHandler(nameof(IEngineApiClient.GetNeedsReviewListAsync), _ => Task.FromResult(list)));
+
+        var cut = Render<NeedsReviewPageContent>();
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("tr.needs-review-table__row")));
+        var item = cut.Find("td.needs-review-table__item");
+        Assert.Equal("Movies", item.QuerySelectorAll("small")[0].TextContent.Trim());
+        var path = item.QuerySelectorAll("[data-testid='needs-review-path']").Single();
+        Assert.Equal(@"…\Rick Riordan\The Percy Jackson and the Olympians, Book Two_ Sea of Monsters (112)", path.TextContent.Trim());
+        Assert.DoesNotContain("real_media", path.TextContent, StringComparison.Ordinal);
+        Assert.Equal(folder, item.QuerySelector("[data-playback-tooltip]")!.GetAttribute("data-playback-tooltip"));
+        Assert.Null(item.QuerySelector("[title]"));
+    }
+
+    [Theory]
+    [InlineData(@"Z:\a\b\c\d", @"…\c\d")]
+    [InlineData("C:/media/movies", "…/media/movies")]
+    [InlineData(@"Z:\movies", @"Z:\movies")]
+    [InlineData("/movies", "/movies")]
+    public void ShortFolder_KeepsTheLastTwoFolderNames_AndTheSeparatorTheFolderUses(string folder, string expected)
+    {
+        Assert.Equal(expected, NeedsReviewPageContent.ShortFolder(folder));
+    }
+
+    [Fact]
+    public void TheLastTriedColumn_StacksTheDateAboveTheTime_AndTheActionsHoldFixAndMoreInOneRow()
+    {
+        var list = ListOf(FileRow(FileAssetId, "Mystery.2019.mkv", FileWorkId));
+        Register(() => Loaded(), configure: stub => stub.SetHandler(nameof(IEngineApiClient.GetNeedsReviewListAsync), _ => Task.FromResult(list)));
+
+        var cut = Render<NeedsReviewPageContent>();
+
+        cut.WaitForAssertion(() => Assert.Single(cut.FindAll("tr.needs-review-table__row")));
+        var tried = cut.Find("td.needs-review-table__tried");
+        Assert.Single(tried.QuerySelectorAll(".needs-review-table__tried-date"));
+        Assert.Single(tried.QuerySelectorAll(".needs-review-table__tried-time"));
+        Assert.Contains(":", tried.QuerySelector(".needs-review-table__tried-time")!.TextContent, StringComparison.Ordinal);
+        Assert.Single(cut.FindAll("td.needs-review-table__actions .needs-review-table__actions-row .app-overflow-menu__trigger"));
+        Assert.Equal(6, cut.FindAll("thead th").Count);
+        Assert.Equal(6, cut.FindAll("tr.needs-review-table__row > td").Count);
     }
 
 
