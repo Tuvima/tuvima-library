@@ -54,17 +54,26 @@ public sealed class ViewActionPolicyTests
         Assert.True(actions.HasFlag(ViewActions.Archive));
     }
 
-    [Theory]
-    [InlineData(true, false)]
-    [InlineData(false, true)]
-    public void ArchivedOrTrashedPhoto_OffersRestoreInsteadOfArchiveAndTrash(bool archived, bool trashed)
+    [Fact]
+    public void TrashedPhoto_OffersOnlyRestore()
     {
-        var actions = ViewActionPolicy.For(Desktop(ViewItemOwnership.Own) with { IsArchived = archived, IsTrashed = trashed });
+        var actions = ViewActionPolicy.For(Desktop(ViewItemOwnership.Own) with { IsTrashed = true });
 
         Assert.True(actions.HasFlag(ViewActions.Restore));
         Assert.False(actions.HasFlag(ViewActions.Archive));
         Assert.False(actions.HasFlag(ViewActions.Trash));
         Assert.False(actions.HasFlag(ViewActions.Edit));
+    }
+
+    [Fact]
+    public void ArchivedPhoto_OffersRestoreAndEditButNotArchiveOrTrash()
+    {
+        var actions = ViewActionPolicy.For(Desktop(ViewItemOwnership.Own) with { IsArchived = true });
+
+        Assert.True(actions.HasFlag(ViewActions.Restore));
+        Assert.True(actions.HasFlag(ViewActions.Edit));
+        Assert.False(actions.HasFlag(ViewActions.Archive));
+        Assert.False(actions.HasFlag(ViewActions.Trash));
     }
 
     [Fact]

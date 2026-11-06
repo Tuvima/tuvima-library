@@ -898,7 +898,7 @@
 
     private RenderFragment BulkToolbar => @<ViewSelectionToolbar Count="@_selected.Count" AriaLabel="Selected document actions"
                                                                   OnFavorite="FavoriteSelectionAsync" OnClear="@(() => _selected.Clear())"
-                                                                  ShowTrash="@(!_filter.TrashOnly && AnySelectedTrashable)" OnTrash="@(() => BulkAsync(ViewDocumentBulkOperations.MoveToTrash))"
+                                                                  ShowTrash="@(!_filter.TrashOnly && !Device.IsPhone && AnySelectedTrashable)" OnTrash="@(() => BulkAsync(ViewDocumentBulkOperations.MoveToTrash))"
                                                                   ShowRestore="_filter.TrashOnly" OnRestore="@(() => BulkAsync(ViewDocumentBulkOperations.Restore))">
         @if (!_filter.TrashOnly)
         {

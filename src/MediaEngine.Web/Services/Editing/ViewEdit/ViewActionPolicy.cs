@@ -70,7 +70,8 @@ public static class ViewActionPolicy
             return actions;
         }
 
-        if (c.IsArchived || c.IsTrashed)
+        // A trashed photo can only be brought back; an archived one can still be edited, and restored.
+        if (c.IsTrashed)
         {
             return actions | ViewActions.Restore;
         }
@@ -78,6 +79,11 @@ public static class ViewActionPolicy
         if (c.CanEdit && !c.IsPhone && live)
         {
             actions |= ViewActions.Edit;
+        }
+
+        if (c.IsArchived)
+        {
+            return actions | ViewActions.Restore;
         }
 
         if (live)
