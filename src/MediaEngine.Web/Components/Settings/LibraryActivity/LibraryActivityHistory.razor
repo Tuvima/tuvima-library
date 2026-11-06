@@ -152,7 +152,8 @@
     private bool _loading = true;
     private bool _failed;
     private bool _hasMore;
-    private string _signature = string.Empty;
+    // Null until the first load has started, so the first render loads even when no library filter is chosen (an empty signature).
+    private string? _signature;
     private int _lastRefresh;
 
     private bool Searching => !string.IsNullOrWhiteSpace(_search);
@@ -271,6 +272,7 @@
             if (Searching)
             {
                 var found = await Api.SearchActivityTitlesAsync(_search!.Trim(), LibraryIds, Kinds, from, to, ct);
+                if (ct.IsCancellationRequested) { return; }
                 if (found is null) { _failed = true; return; }
                 _titles = found.Titles;
                 _runs.Clear();
@@ -280,6 +282,8 @@
 
             _titles = null;
             var page = await Api.GetActivityRunsAsync(LibraryIds, Kinds, from, to, null, _sort == "newest", 0, PageSize, ct);
+            // The client answers null for a cancelled call too; a newer load has taken over, so that is not a failure.
+            if (ct.IsCancellationRequested) { return; }
             if (page is null) { _failed = true; return; }
             _runs.Clear();
             _runs.AddRange(page.Runs);
