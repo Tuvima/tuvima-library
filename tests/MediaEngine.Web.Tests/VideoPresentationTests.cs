@@ -562,14 +562,16 @@ public sealed class VideoSubtitleCloseRegressionTests : AsyncBunitContext
 
         var offered = Render<MediaViewerShell>(p => p.Add(x => x.Item, item).Add(x => x.Capabilities, new MediaViewerCapabilities(CanAddToGallery: true))
             .Add(x => x.OnCreateGallery, Microsoft.AspNetCore.Components.EventCallback.Factory.Create(this, () => created++)));
-        var select = offered.Find("select[aria-label='Add item to Gallery']");
-        Assert.Contains(select.QuerySelectorAll("option"), option => option.TextContent.Contains("New gallery", StringComparison.OrdinalIgnoreCase));
-        await select.ChangeAsync(new Microsoft.AspNetCore.Components.ChangeEventArgs { Value = "new" });
+        // The gallery list is the app's own menu now (not a native select): a trigger button, with New Gallery listed only when the page allows it.
+        var trigger = offered.Find("button[aria-label='Add item to Gallery']");
+        await trigger.ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        var newGallery = offered.FindAll("[role='menuitem']").Single(item => item.TextContent.Contains("New gallery", StringComparison.OrdinalIgnoreCase));
+        await newGallery.ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
         Assert.Equal(1, created);
 
         var withheld = Render<MediaViewerShell>(p => p.Add(x => x.Item, item).Add(x => x.Capabilities, new MediaViewerCapabilities(CanAddToGallery: true)));
-        Assert.DoesNotContain(withheld.Find("select[aria-label='Add item to Gallery']").QuerySelectorAll("option"),
-            option => option.TextContent.Contains("New gallery", StringComparison.OrdinalIgnoreCase));
+        await withheld.Find("button[aria-label='Add item to Gallery']").ClickAsync(new Microsoft.AspNetCore.Components.Web.MouseEventArgs());
+        Assert.DoesNotContain(withheld.FindAll("[role='menuitem']"), option => option.TextContent.Contains("New gallery", StringComparison.OrdinalIgnoreCase));
     }
 
     [Theory]

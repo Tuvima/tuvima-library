@@ -149,7 +149,6 @@ public sealed partial class UiConsistencyGuardrailTests
         {
             ["src/MediaEngine.Web/Components/Browse/BrowseShellStyles.razor.css"] = ".browse-shell__tabs-frame .tl-tab {",
             ["src/MediaEngine.Web/Components/Browse/MediaBrowseShell.razor.css"] = ".browse-shell__tabs-frame ::deep .tl-tab {",
-            ["src/MediaEngine.Web/Components/Pages/ViewPage.razor.css"] = "::deep .view-kind-tab {",
         };
 
         foreach (var (path, selector) in scopedControlRules)

@@ -53,6 +53,15 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
         _toasts = Render<MediaEngine.Web.Components.Details.ViewSavedRibbon>();
     }
 
+    // Trash asks once first (spec view-section WP1): click the bar's Trash, then answer "Move to Trash" in the dialog.
+    private async Task ClickTrashAndConfirmAsync(IRenderedComponent<ViewDocumentsPage> cut)
+    {
+        var host = Render<AppDialogHost>();
+        await ClickAsync(cut, ".view-selection-toolbar__action", button => button.TextContent.Contains("Trash", StringComparison.Ordinal));
+        host.WaitForAssertion(() => Assert.Contains("to Trash?", host.Markup, StringComparison.Ordinal));
+        await host.InvokeAsync(() => host.FindAll("footer button").Single(button => button.TextContent.Trim() == "Move to Trash").Click());
+    }
+
     private IRenderedComponent<ViewDocumentsPage> RenderLoaded()
     {
         var cut = Render<ViewDocumentsPage>();
@@ -159,7 +168,7 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
         await ChangeAsync(cut, ".view-document-card__select input", 0, true);
         await ChangeAsync(cut, ".view-document-card__select input", 1, true);
 
-        await ClickAsync(cut, ".view-selection-toolbar__action", button => button.TextContent.Contains("Trash", StringComparison.Ordinal));
+        await ClickTrashAndConfirmAsync(cut);
 
         cut.WaitForAssertion(() => Assert.NotNull(_handler.LastBulkBody));
         using var body = JsonDocument.Parse(_handler.LastBulkBody!);
@@ -183,7 +192,7 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
             await ChangeAsync(cut, ".view-document-card__select input", index, true);
         }
 
-        await ClickAsync(cut, ".view-selection-toolbar__action", button => button.TextContent.Contains("Trash", StringComparison.Ordinal));
+        await ClickTrashAndConfirmAsync(cut);
 
         cut.WaitForAssertion(() => Assert.Contains("Updated 1 of 3 documents.", cut.Find(".view-documents-bulk-report").TextContent, StringComparison.Ordinal));
         var reasons = cut.FindAll(".view-documents-bulk-report__reasons li").Select(item => item.TextContent.Trim()).ToList();
@@ -426,7 +435,7 @@ public sealed class ViewDocumentBulkUiTests : AsyncBunitContext
             await ChangeAsync(cut, ".view-document-card__select input", index, true);
         }
 
-        await ClickAsync(cut, ".view-selection-toolbar__action", button => button.TextContent.Contains("Trash", StringComparison.Ordinal));
+        await ClickTrashAndConfirmAsync(cut);
 
         cut.WaitForAssertion(() => Assert.Contains("Updated 1 of 3 documents.", cut.Find(".view-documents-bulk-report").TextContent, StringComparison.Ordinal));
         var reasons = cut.FindAll(".view-documents-bulk-report__reasons li").Select(item => item.TextContent.Trim()).ToList();

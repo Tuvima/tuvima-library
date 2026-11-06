@@ -6,6 +6,7 @@ using MediaEngine.Contracts.LocalAssets;
 using MediaEngine.Web.Components.Artwork;
 using MediaEngine.Web.Components.Pages;
 using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Tests.Support;
@@ -56,7 +57,7 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
             .Add(timeline => timeline.OnOpen, EventCallback.Factory.Create<LocalAssetDto>(this, item => opened?.Invoke(item))));
 
     [Fact]
-    public async Task ATileMenuAppearsOnlyWhenThePageOffersEditOrTrash()
+    public async Task ATileMenuAppearsOnlyWhenTheSharedRuleOffersSomething()
     {
         await UseAsync("desktop", touch: false);
 
@@ -67,6 +68,7 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
             .Add(timeline => timeline.Items, [Photo("one"), Photo("two")])
             .Add(timeline => timeline.Selected, new HashSet<Guid>())
             .Add(timeline => timeline.ThumbnailUrl, _ => "/thumb")
+            .Add(timeline => timeline.ActionsFor, _ => ViewActions.Edit)
             .Add(timeline => timeline.OnEditItem, EventCallback.Factory.Create<LocalAssetDto>(this, _ => { })));
         Assert.Equal(2, with.FindAll(".view-tile__menu").Count);
 
@@ -75,6 +77,7 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
             .Add(timeline => timeline.Selected, new HashSet<Guid>())
             .Add(timeline => timeline.SelectMode, true)
             .Add(timeline => timeline.ThumbnailUrl, _ => "/thumb")
+            .Add(timeline => timeline.ActionsFor, _ => ViewActions.Edit)
             .Add(timeline => timeline.OnEditItem, EventCallback.Factory.Create<LocalAssetDto>(this, _ => { })));
         Assert.Empty(picking.FindAll(".view-tile__menu"));
     }
@@ -282,7 +285,7 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task DesktopPhotosBarOffersNewGalleryButNoDownload()
+    public async Task DesktopPhotosBarOffersNewGalleryAndDownload()
     {
         await UseAsync("desktop", touch: false);
         RegisterPageServices(new PhotosHandler([Photo("one"), Photo("two")]));
@@ -294,7 +297,7 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
 
         var bar = cut.Find(".view-selection-toolbar");
         Assert.DoesNotContain("view-selection-toolbar--phone", bar.ClassList);
-        Assert.DoesNotContain("Download", bar.TextContent, StringComparison.Ordinal);
+        Assert.Single(bar.QuerySelectorAll("button[aria-label*='Download']"));
         Assert.Equal(["Holidays", "New Gallery"], OpenGalleryMenu(cut));
         Assert.Single(cut.FindAll("button[aria-label='Create in Galleries']"));
     }

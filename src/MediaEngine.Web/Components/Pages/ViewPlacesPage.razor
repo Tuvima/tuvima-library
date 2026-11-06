@@ -1,6 +1,7 @@
 @page "/view/places"
 @using MediaEngine.Contracts.LocalAssets
 @using MediaEngine.Domain.PersonalMedia
+@inject IAppDialogService DialogService
 @inject IEngineApiClient ApiClient
 @inject ViewWorkspaceService Workspace
 @inject UIOrchestratorService Orchestrator
@@ -216,8 +217,8 @@ else
     private void ClearSelection() { _selected.Clear(); _selectionAnchor = null; }
     private void BeginDrag(Guid id) => AssetDrag.Begin(_selected.Contains(id) ? _selected : [id]); private void EndDrag() => AssetDrag.Clear();
     private async Task ToggleFavoriteAsync() { if (_active is null) return; var value = !_active.Favorite; if (await ApiClient.SetViewItemFavoriteAsync(_active.Id, value)) UpdateActive(_active with { Favorite = value }); }
-    private async Task ArchiveAsync() { if (_active is not null && await ApiClient.ArchiveViewItemAsync(_active.Id)) { _active = null; await LoadAtlasAsync(); } }
-    private async Task TrashAsync() { if (_active is not null && await ApiClient.TrashViewItemAsync(_active.Id)) { _active = null; await LoadAtlasAsync(); } }
+    private async Task ArchiveAsync() { if (_active is not null && await ViewTrashConfirmation.AskArchiveAsync(DialogService) && await ApiClient.ArchiveViewItemAsync(_active.Id)) { _active = null; await LoadAtlasAsync(); } }
+    private async Task TrashAsync() { if (_active is not null && await ViewTrashConfirmation.AskTrashAsync(DialogService) && await ApiClient.TrashViewItemAsync(_active.Id)) { _active = null; await LoadAtlasAsync(); } }
     private async Task AddToGalleryAsync(Guid galleryId) { if (_active is not null) await ApiClient.AddViewGalleryItemsAsync(galleryId, [_active.Id]); }
     private void UpdateActive(LocalAssetDto item) { _active = item; if (_placeMedia is not null) _placeMedia = _placeMedia with { Items = _placeMedia.Items.Select(existing => existing.Id == item.Id ? item : existing).ToList() }; if (_showUnmapped) _unmapped = _unmapped.Select(existing => existing.Id == item.Id ? item : existing).Where(existing => !existing.Latitude.HasValue || !existing.Longitude.HasValue).ToList(); }
     private string AssetUrl(LocalAssetDto item, ViewMediaResourceKind kind, ViewMediaResourceRole role = ViewMediaResourceRole.Primary) { if (!_profileId.HasValue) return string.Empty; var scope = ItemScope(item); return GrantUrl(item.LibraryId, item.Id, kind, role, scope.Kind, scope.ProfileId); }

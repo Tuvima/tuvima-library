@@ -1,7 +1,3 @@
-.view-toolbar{
-    display: flex;
-}
-
 .view-add-media {
     position: relative;
     display: inline-flex;
@@ -73,19 +69,6 @@
     background: rgba(127, 29, 29, 0.18);
 }
 
-.view-toolbar {
-    position: sticky;
-    z-index: 5;
-    top: 0;
-    align-items: center;
-    display: grid;
-    grid-template-columns: minmax(300px, 1fr) auto;
-    gap: 16px 20px;
-    padding: 0;
-    margin-bottom: 26px;
-    background: transparent;
-}
-
 .view-search {
     display: flex;
     flex: 1 1 420px;
@@ -110,64 +93,6 @@
     border: 0;
     outline: 0;
     background: transparent;
-}
-
-.view-kind-tabs {
-    display: flex;
-    gap: 4px;
-}
-
-.view-filter-controls {
-    display: flex;
-    align-items: stretch;
-    gap: 10px;
-}
-
-.view-kind-tabs {
-    min-width: 0;
-    padding: 8px;
-    border-radius: var(--tl-radius-md);
-    background: rgba(24, 35, 54, 0.76);
-}
-
-::deep .view-kind-tab {
-    flex: 1 1 auto;
-    min-height: 36px;
-    padding: 7px 13px;
-    color: rgba(226, 232, 240, 0.72);
-    border: 1px solid transparent;
-    border-radius: calc(var(--tl-radius-md) - 2px);
-    background: transparent;
-    font-family: var(--font-ui);
-    font-size: var(--tl-control-font-size-md);
-    font-weight: var(--tl-control-font-weight);
-    line-height: var(--tl-control-line-height);
-    letter-spacing: var(--tl-control-letter-spacing);
-    cursor: pointer;
-}
-
-
-
-
-
-
-
-::deep .view-kind-tab:hover,
-::deep .view-kind-tab:focus-visible,
-::deep .view-kind-tab.is-active {
-    color: white;
-    border-color: rgba(167, 139, 250, 0.34);
-    background: rgba(136, 82, 252, 0.22);
-    outline: 0;
-}
-
-::deep .view-kind-tab.is-active {
-    background: linear-gradient(135deg, var(--tl-accent-primary), #5b21b6);
-}
-
-::deep .view-kind-tab:disabled {
-    color: rgba(203, 213, 225, 0.38);
-    cursor: not-allowed;
 }
 
 .view-workspace {
@@ -335,8 +260,6 @@
     font-size: var(--tl-font-size-xs);
 }
 
-
-
 .view-empty {
     display: grid;
     min-height: 360px;
@@ -391,36 +314,12 @@
     backdrop-filter: blur(18px);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 @media (max-width: 900px) {
     .view-timeline-layout { grid-template-columns: minmax(0, 1fr); }
-    .view-toolbar { grid-template-columns: 1fr; }
     .view-search { width: 100%; }
-    .view-filter-controls { justify-content: flex-end; }
-    .view-kind-tabs { flex: 1; min-width: 0; }
-    ::deep .view-kind-tab { flex: 1; }
 }
 
 @media (max-width: 640px) {
-    .view-filter-controls { flex-direction: column; }
-    .view-kind-tabs { width: 100%; }
     
     .view-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
     

@@ -2,7 +2,7 @@
 @using MediaEngine.Contracts.Profiles
 @using MediaEngine.Domain.PersonalMedia
 @inject IEngineApiClient ApiClient
-@inject IAppToastService Snackbar
+@inject ViewRibbonVoice Snackbar
 @inject IStringLocalizer<SharedStrings> L
 
 <AppCard Title="@($"Who can see {KindNoun}")" Description="@($"Only the people turned on here can see {KindNoun} and the files behind them.")">
