@@ -11121,4 +11121,49 @@
   <data name="LibraryActivity_WorkingNow" xml:space="preserve">
     <value>Working now</value>
   </data>
+  <data name="ViewActions_Download" xml:space="preserve">
+    <value>Download</value>
+  </data>
+  <data name="ViewActions_Hide" xml:space="preserve">
+    <value>Hide</value>
+  </data>
+  <data name="ViewActions_RemoveFromFavorites" xml:space="preserve">
+    <value>Remove from Favorites</value>
+  </data>
+  <data name="ViewActions_AddToGallery" xml:space="preserve">
+    <value>Add to {0}</value>
+  </data>
+  <data name="ViewPage_FavoriteAdded" xml:space="preserve">
+    <value>Added to Favorites.</value>
+  </data>
+  <data name="ViewPage_FavoriteRemoved" xml:space="preserve">
+    <value>Removed from Favorites.</value>
+  </data>
+  <data name="ViewPage_ChangeFailed" xml:space="preserve">
+    <value>That could not be changed.</value>
+  </data>
+  <data name="ViewPage_ItemArchived" xml:space="preserve">
+    <value>Archived.</value>
+  </data>
+  <data name="ViewPage_ArchiveFailed" xml:space="preserve">
+    <value>That item could not be archived.</value>
+  </data>
+  <data name="ViewPage_ItemRestored" xml:space="preserve">
+    <value>Restored to Photos.</value>
+  </data>
+  <data name="ViewPage_RestoreFailed" xml:space="preserve">
+    <value>That item could not be restored.</value>
+  </data>
+  <data name="ViewPage_ItemHidden" xml:space="preserve">
+    <value>Hidden. Find it under More filters, Hidden.</value>
+  </data>
+  <data name="ViewPage_HideFailed" xml:space="preserve">
+    <value>That item could not be hidden.</value>
+  </data>
+  <data name="ViewPage_AddToGalleryFailed" xml:space="preserve">
+    <value>That item could not be added.</value>
+  </data>
+  <data name="ViewPage_SelectedHidden" xml:space="preserve">
+    <value>Hidden selected items.</value>
+  </data>
 </root>

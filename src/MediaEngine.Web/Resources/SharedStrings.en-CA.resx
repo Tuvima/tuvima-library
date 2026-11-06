@@ -98,4 +98,13 @@
   <data name="ViewEdit_HistoryFavorite" xml:space="preserve">
     <value>Marked as a favourite</value>
   </data>
+  <data name="ViewActions_RemoveFromFavorites" xml:space="preserve">
+    <value>Remove from Favourites</value>
+  </data>
+  <data name="ViewPage_FavoriteAdded" xml:space="preserve">
+    <value>Added to Favourites.</value>
+  </data>
+  <data name="ViewPage_FavoriteRemoved" xml:space="preserve">
+    <value>Removed from Favourites.</value>
+  </data>
 </root>

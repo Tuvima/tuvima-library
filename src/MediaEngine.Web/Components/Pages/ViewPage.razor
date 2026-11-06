@@ -285,7 +285,7 @@ else
         : _page.Items.Where(item => _selected.Contains(item.Id)).Select(ActionsFor).DefaultIfEmpty(ViewActions.None).Aggregate((a, b) => a & b);
     private bool AnySelected(ViewActions action) => _page is not null && _page.Items.Any(item => _selected.Contains(item.Id) && ActionsFor(item).HasFlag(action));
     private EventCallback BarCallback(ViewActions action, Func<Task> run) => SelectedActions.HasFlag(action) ? EventCallback.Factory.Create(this, run) : default;
-    private Task HideSelectionAsync() => MutateSelectionAsync((id, ct) => ApiClient.SetViewItemHiddenAsync(id, true, ct), "Hidden selected items.");
+    private Task HideSelectionAsync() => MutateSelectionAsync((id, ct) => ApiClient.SetViewItemHiddenAsync(id, true, ct), L["ViewPage_SelectedHidden"].Value);
     private async Task DownloadSelectionAsync()
     {
         if (_page is null || _selected.Count == 0)
@@ -365,29 +365,29 @@ else
     private async Task FavoriteItemAsync(LocalAssetDto item)
     {
         var value = !item.Favorite;
-        if (await ApiClient.SetViewItemFavoriteAsync(item.Id, value)) { Replace(item with { Favorite = value }); Snackbar.Add(value ? "Added to Favorites." : "Removed from Favorites.", AppSeverity.Success); }
-        else Snackbar.Add("That could not be changed.", AppSeverity.Error);
+        if (await ApiClient.SetViewItemFavoriteAsync(item.Id, value)) { Replace(item with { Favorite = value }); Snackbar.Add(L[value ? "ViewPage_FavoriteAdded" : "ViewPage_FavoriteRemoved"].Value, AppSeverity.Success); }
+        else Snackbar.Add(L["ViewPage_ChangeFailed"].Value, AppSeverity.Error);
     }
     private async Task ArchiveItemAsync(LocalAssetDto item)
     {
         if (!await ViewTrashConfirmation.AskArchiveAsync(DialogService)) return;
-        if (await ApiClient.ArchiveViewItemAsync(item.Id)) { await LoadAsync(); Snackbar.Add("Archived.", AppSeverity.Success); }
-        else Snackbar.Add("That item could not be archived.", AppSeverity.Error);
+        if (await ApiClient.ArchiveViewItemAsync(item.Id)) { await LoadAsync(); Snackbar.Add(L["ViewPage_ItemArchived"].Value, AppSeverity.Success); }
+        else Snackbar.Add(L["ViewPage_ArchiveFailed"].Value, AppSeverity.Error);
     }
     private async Task RestoreItemAsync(LocalAssetDto item)
     {
-        if (await ApiClient.RestoreViewItemAsync(item.Id)) { Workspace.ClearTrashFailures([item.Id]); _trashVersion++; await LoadAsync(); Snackbar.Add("Restored to Photos.", AppSeverity.Success); }
-        else Snackbar.Add("That item could not be restored.", AppSeverity.Error);
+        if (await ApiClient.RestoreViewItemAsync(item.Id)) { Workspace.ClearTrashFailures([item.Id]); _trashVersion++; await LoadAsync(); Snackbar.Add(L["ViewPage_ItemRestored"].Value, AppSeverity.Success); }
+        else Snackbar.Add(L["ViewPage_RestoreFailed"].Value, AppSeverity.Error);
     }
     private async Task HideItemAsync(LocalAssetDto item)
     {
-        if (await ApiClient.SetViewItemHiddenAsync(item.Id, true)) { await LoadAsync(); Snackbar.Add("Hidden. Find it under More filters, Hidden.", AppSeverity.Success); }
-        else Snackbar.Add("That item could not be hidden.", AppSeverity.Error);
+        if (await ApiClient.SetViewItemHiddenAsync(item.Id, true)) { await LoadAsync(); Snackbar.Add(L["ViewPage_ItemHidden"].Value, AppSeverity.Success); }
+        else Snackbar.Add(L["ViewPage_HideFailed"].Value, AppSeverity.Error);
     }
     private async Task AddItemToGalleryAsync(ViewPhotoTimeline.GalleryAdd request)
     {
         var result = await ApiClient.AddViewGalleryItemsAsync(request.GalleryId, [request.Item.Id]);
-        if (result is null) { Snackbar.Add("That item could not be added.", AppSeverity.Error); return; }
+        if (result is null) { Snackbar.Add(L["ViewPage_AddToGalleryFailed"].Value, AppSeverity.Error); return; }
         Snackbar.Add(GalleryResult(result), AppSeverity.Success);
         await Workspace.LoadGalleriesAsync(force: true);
     }

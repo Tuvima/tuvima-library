@@ -40,18 +40,18 @@
                     <span class="view-tile__menu"><AppOverflowMenu AriaLabel="@($"More for {Title(item)}")" AnchorOrigin="AppOrigin.BottomRight" TransformOrigin="AppOrigin.TopRight">
                         @if (actions.HasFlag(ViewActions.Favorite) && OnFavoriteItem.HasDelegate)
                         {
-                            <AppMenuItem Label="@(item.Favorite ? "Remove from Favorites" : L["Glossary_Favorite"].Value)" Icon="@(item.Favorite ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)" OnClick="@(() => OnFavoriteItem.InvokeAsync(item))" />
+                            <AppMenuItem Label="@(item.Favorite ? L["ViewActions_RemoveFromFavorites"].Value : L["Glossary_Favorite"].Value)" Icon="@(item.Favorite ? AppMaterialIcons.Filled.Favorite : AppMaterialIcons.Outlined.FavoriteBorder)" OnClick="@(() => OnFavoriteItem.InvokeAsync(item))" />
                         }
                         @if (actions.HasFlag(ViewActions.AddToGallery) && OnAddItemToGallery.HasDelegate)
                         {
                             @foreach (var gallery in ManualGalleries.Take(5))
                             {
-                                <AppMenuItem Label="@($"Add to {gallery.Name}")" Icon="@AppMaterialIcons.Outlined.PhotoAlbum" OnClick="@(() => OnAddItemToGallery.InvokeAsync(new GalleryAdd(item, gallery.Id)))" />
+                                <AppMenuItem Label="@L["ViewActions_AddToGallery", gallery.Name].Value" Icon="@AppMaterialIcons.Outlined.PhotoAlbum" OnClick="@(() => OnAddItemToGallery.InvokeAsync(new GalleryAdd(item, gallery.Id)))" />
                             }
                         }
                         @if (actions.HasFlag(ViewActions.Download) && OnDownloadItem.HasDelegate)
                         {
-                            <AppMenuItem Label="Download" Icon="@AppMaterialIcons.Outlined.Download" OnClick="@(() => OnDownloadItem.InvokeAsync(item))" />
+                            <AppMenuItem Label="@L["ViewActions_Download"].Value" Icon="@AppMaterialIcons.Outlined.Download" OnClick="@(() => OnDownloadItem.InvokeAsync(item))" />
                         }
                         @if (actions.HasFlag(ViewActions.Edit) && OnEditItem.HasDelegate)
                         {
@@ -59,11 +59,11 @@
                         }
                         @if (actions.HasFlag(ViewActions.Archive) && OnArchiveItem.HasDelegate)
                         {
-                            <AppMenuItem Label="Archive" Icon="@AppMaterialIcons.Outlined.Inventory2" OnClick="@(() => OnArchiveItem.InvokeAsync(item))" />
+                            <AppMenuItem Label="@L["ViewSelectionToolbar_Archive"].Value" Icon="@AppMaterialIcons.Outlined.Inventory2" OnClick="@(() => OnArchiveItem.InvokeAsync(item))" />
                         }
                         @if (actions.HasFlag(ViewActions.Hide) && OnHideItem.HasDelegate)
                         {
-                            <AppMenuItem Label="Hide" Icon="@AppMaterialIcons.Outlined.VisibilityOff" OnClick="@(() => OnHideItem.InvokeAsync(item))" />
+                            <AppMenuItem Label="@L["ViewActions_Hide"].Value" Icon="@AppMaterialIcons.Outlined.VisibilityOff" OnClick="@(() => OnHideItem.InvokeAsync(item))" />
                         }
                         @if (actions.HasFlag(ViewActions.Restore) && OnRestoreItem.HasDelegate)
                         {
