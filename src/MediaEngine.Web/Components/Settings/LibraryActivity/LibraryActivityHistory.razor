@@ -8,21 +8,39 @@
    headings that collapse. The current month starts open; older months and years start collapsed with their batch count. One row of
    controls: search, type, date range, sort by time. Searching is an instant filter and expands every heading that holds a match. *@
 <section class="lact-history" aria-labelledby="lact-history-title">
-    <h2 id="lact-history-title" class="lact-heading">@L["LibraryActivity_History"]</h2>
+    @* The heading on the left and one compact row of controls on the right (search, type, date range, sort by time), none with a label above:
+       the closed value says what it is and the label stays for screen readers. While a search is showing the heading adds "· 2 titles". *@
+    <div class="lact-history__head">
+        <h2 id="lact-history-title" class="lact-heading">
+            @L["LibraryActivity_History"]
+            @if (_titles is not null)
+            {
+                <span class="lact-heading__count" data-testid="lact-title-count">· @LibraryActivityText.TitlesCount(_titles.Count)</span>
+            }
+        </h2>
 
-    <div class="lact-controls" role="search" aria-label="@L["LibraryActivity_HistoryFilters"]">
-        <div class="lact-controls__search">
-            <AppTextField Value="@_search"
-                          ValueChanged="OnSearchChanged"
-                          OnDebounceIntervalElapsed="OnSearchDebounced"
-                          DebounceInterval="250"
-                          Placeholder="@L["LibraryActivity_SearchTitles"].Value"
-                          Adornment="AppAdornment.Start"
-                          AdornmentIcon="@AppMaterialIcons.Outlined.Search" />
-        </div>
-        <AppSelect Label="@L["LibraryActivity_Type"].Value" Value="@_kind" ValueChanged="OnKindChanged" Options="KindOptions" />
-        <AppSelect Label="@L["LibraryActivity_DateRange"].Value" Value="@_range" ValueChanged="OnRangeChanged" Options="RangeOptions" />
-        <AppSelect Label="@L["LibraryActivity_SortByTime"].Value" Value="@_sort" ValueChanged="OnSortChanged" Options="SortOptions" />
+        <AppFilterRow Class="lact-controls" AriaLabel="@L["LibraryActivity_HistoryFilters"].Value">
+            <div class="lact-controls__search">
+                <AppTextField Value="@_search"
+                              ValueChanged="OnSearchChanged"
+                              OnDebounceIntervalElapsed="OnSearchDebounced"
+                              DebounceInterval="250"
+                              Label="@L["LibraryActivity_SearchTitles"].Value"
+                              HideLabel="true"
+                              Placeholder="@L["LibraryActivity_SearchHistory"].Value"
+                              Adornment="AppAdornment.Start"
+                              AdornmentIcon="@AppMaterialIcons.Outlined.Search" />
+            </div>
+            <div class="lact-controls__select lact-controls__select--type">
+                <AppSelect Label="@L["LibraryActivity_Type"].Value" HideLabel="true" Value="@_kind" ValueChanged="OnKindChanged" Options="KindOptions" />
+            </div>
+            <div class="lact-controls__select lact-controls__select--range">
+                <AppSelect Label="@L["LibraryActivity_DateRange"].Value" HideLabel="true" Value="@_range" ValueChanged="OnRangeChanged" Options="RangeOptions" />
+            </div>
+            <div class="lact-controls__select lact-controls__select--sort">
+                <AppSelect Label="@L["LibraryActivity_SortByTime"].Value" HideLabel="true" Value="@_sort" ValueChanged="OnSortChanged" Options="SortOptions" />
+            </div>
+        </AppFilterRow>
     </div>
 
     @if (_loading && _runs.Count == 0 && _titles is null)
@@ -57,19 +75,44 @@
                                              MediaType="@card.MediaType"
                                              Route="@card.Route"
                                              BottomLabel="@LibraryActivityText.NewLabel(card.MediaType, card.TotalCount)" />
-                        <ol class="lact-markers" aria-label="@L["LibraryActivity_WhenAdded", card.Title]">
-                            @foreach (var marker in card.Markers)
+                        <div class="lact-markers-wrap">
+                            @if (card.Markers.Count > ManyMarkers)
                             {
-                                <li class="lact-marker" data-testid="lact-title-marker">
-                                    <span class="lact-bubble">@LibraryActivityText.Bubble(marker.StartedAt)</span>
-                                    <span class="lact-marker__text">@LibraryActivityText.KindVerb(marker.Kind) @LibraryActivityText.Counts([(card.MediaType, marker.ItemCount)])</span>
-                                </li>
+                                @* Many dates group under month headings that collapse, like the main timeline (D18). *@
+                                @foreach (var month in card.Markers.GroupBy(marker => (marker.StartedAt.ToLocalTime().Year, marker.StartedAt.ToLocalTime().Month)))
+                                {
+                                    var key = $"t{card.GroupKey}-{month.Key.Year}-{month.Key.Month}";
+                                    var open = IsOpen(key, true);
+                                    <div class="lact-group" data-testid="lact-title-month">
+                                        <AppNativeButton Type="button" Class="lact-group__toggle" aria-expanded="@(open ? "true" : "false")"
+                                                         OnClick="@(() => Toggle(key, true))">
+                                            <AppMaterialIcon Icon="@(open ? AppMaterialIcons.Outlined.ExpandMore : AppMaterialIcons.Outlined.ChevronRight)" />
+                                            <strong>@LibraryActivityText.MonthHeading(month.First().StartedAt)</strong>
+                                            <span class="lact-group__count">· @LibraryActivityText.BatchCount(month.Count())</span>
+                                        </AppNativeButton>
+                                        @if (open)
+                                        {
+                                            @Markers(card, month)
+                                        }
+                                    </div>
+                                }
                             }
-                        </ol>
+                            else
+                            {
+                                @Markers(card, card.Markers)
+                            }
+                        </div>
                     </article>
                 }
             </div>
         }
+    }
+    else if (_runs.Count == 0 && Narrowed)
+    {
+        <AppPageState Kind="AppPageStateKind.Empty"
+                      Icon="@AppMaterialIcons.Outlined.History"
+                      Title="@L["LibraryActivity_NoBatches"].Value"
+                      Message="@L["LibraryActivity_NoBatchesHelp"].Value" />
     }
     else if (_runs.Count == 0)
     {
@@ -86,11 +129,12 @@
                 @if (year.Wrap)
                 {
                     <div class="lact-group lact-group--year">
-                        <AppButton ButtonStyle="AppButtonStyle.Text" FullWidth="true" 
-                                         OnClick="@(() => Toggle(year.Key, year.OpenByDefault))" UserAttributes="@Toggled(IsOpen(year.Key, year.OpenByDefault), "lact-year-toggle")">
+                        <AppNativeButton Type="button" Class="lact-group__toggle" aria-expanded="@(IsOpen(year.Key, year.OpenByDefault) ? "true" : "false")" data-testid="lact-year-toggle"
+                                         OnClick="@(() => Toggle(year.Key, year.OpenByDefault))">
                             <AppMaterialIcon Icon="@(IsOpen(year.Key, year.OpenByDefault) ? AppMaterialIcons.Outlined.ExpandMore : AppMaterialIcons.Outlined.ChevronRight)" />
-                            <strong>@year.Year</strong><span>@LibraryActivityText.BatchCount(year.Count)</span>
-                        </AppButton>
+                            <strong>@year.Year</strong>
+                            <span class="lact-group__count">· @LibraryActivityText.BatchCount(year.Count)</span>
+                        </AppNativeButton>
                         @if (IsOpen(year.Key, year.OpenByDefault))
                         {
                             @foreach (var month in year.Months)
@@ -127,8 +171,11 @@
 
     private static readonly IReadOnlyList<AppSelectOption> RangeOptions =
     [
-        new("all", "All time"), new("today", "Today"), new("7", "7 days"), new("30", "30 days"), new("year", "This year"),
+        new("today", "Today"), new("7", "Last 7 days"), new("30", "Last 30 days"), new("year", "This year"), new("all", "All time"),
     ];
+
+    // More dated markers than this on one searched title group under month headings.
+    private const int ManyMarkers = 6;
 
     private static readonly IReadOnlyList<AppSelectOption> SortOptions = [new("newest", "Newest first"), new("oldest", "Oldest first")];
 
@@ -147,7 +194,7 @@
     private CancellationTokenSource? _cts;
     private string? _search;
     private string _kind = "all";
-    private string _range = "all";
+    private string _range = "30";
     private string _sort = "newest";
     private bool _loading = true;
     private bool _failed;
@@ -157,6 +204,9 @@
     private int _lastRefresh;
 
     private bool Searching => !string.IsNullOrWhiteSpace(_search);
+
+    // A type or date range is narrowing the list, so an empty answer means "none in this period", not "nothing was ever added".
+    private bool Narrowed => _kind != "all" || _range != "all";
 
     private sealed record MonthGroupModel(string Key, string Heading, int Count, bool OpenByDefault, IReadOnlyList<ActivityRunDto> Runs);
     private sealed record YearGroupModel(string Key, string Year, int Count, bool Wrap, bool OpenByDefault, IReadOnlyList<MonthGroupModel> Months);
@@ -202,11 +252,12 @@
     {
         var open = IsOpen(month.Key, month.OpenByDefault);
         <div class="lact-group" data-testid="lact-month">
-            <AppButton ButtonStyle="AppButtonStyle.Text" FullWidth="true" 
-                             OnClick="@(() => Toggle(month.Key, month.OpenByDefault))" UserAttributes="@Toggled(open, "lact-month-toggle")">
+            <AppNativeButton Type="button" Class="lact-group__toggle" aria-expanded="@(open ? "true" : "false")" data-testid="lact-month-toggle"
+                             OnClick="@(() => Toggle(month.Key, month.OpenByDefault))">
                 <AppMaterialIcon Icon="@(open ? AppMaterialIcons.Outlined.ExpandMore : AppMaterialIcons.Outlined.ChevronRight)" />
-                <strong>@month.Heading</strong><span>@LibraryActivityText.BatchCount(month.Count)</span>
-            </AppButton>
+                <strong>@month.Heading</strong>
+                <span class="lact-group__count">· @LibraryActivityText.BatchCount(month.Count)</span>
+            </AppNativeButton>
             @if (open)
             {
                 <ol class="lact-line">
@@ -219,8 +270,22 @@
         </div>
     };
 
-    private static Dictionary<string, object> Toggled(bool open, string testId)
-        => new() { ["aria-expanded"] = open ? "true" : "false", ["data-testid"] = testId };
+    // One searched title's dated markers (D18): a round date bubble on a line, how much was added that time, and what kind of batch it was.
+    private RenderFragment Markers(ActivityTitleCardDto card, IEnumerable<ActivityTitleMarkerDto> markers) => __builder =>
+    {
+        <ol class="lact-markers" aria-label="@L["LibraryActivity_WhenAdded", card.Title]">
+            @foreach (var marker in markers)
+            {
+                <li class="lact-marker" data-testid="lact-title-marker">
+                    <span class="lact-bubble">@LibraryActivityText.Bubble(marker.StartedAt)</span>
+                    <span class="lact-marker__text">
+                        <strong>@LibraryActivityText.MarkerLine(marker, card.MediaType)</strong>
+                        <small>@LibraryActivityText.KindVerb(marker.Kind)</small>
+                    </span>
+                </li>
+            }
+        </ol>
+    };
 
     private bool IsOpen(string key, bool openByDefault) => _toggled.Contains(key) ? !openByDefault : openByDefault;
 

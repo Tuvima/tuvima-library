@@ -1,14 +1,33 @@
-.lact-history { display: flex; flex-direction: column; gap: var(--tl-space-3); }
-.lact-heading { margin: 0; font-size: var(--tl-font-size-lg); }
-.lact-controls { display: flex; flex-wrap: wrap; gap: var(--tl-space-3); align-items: end; }
-.lact-controls__search { flex: 1 1 240px; }
+.lact-history { display: flex; flex-direction: column; gap: var(--tl-space-3); min-width: 0; }
+/* The heading on the left, one compact row of controls on the right (the row's own layout is in app.css). */
+.lact-history__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--tl-space-3); }
+.lact-heading { margin: 0; font-size: var(--tl-font-size-lg); font-weight: var(--tl-font-weight-bold); }
+.lact-heading__count { color: var(--tl-text-muted); font-weight: var(--tl-font-weight-regular); }
+.lact-controls__search { flex: 0 1 210px; width: 210px; min-width: 0; }
+.lact-controls__select { flex: 0 1 140px; min-width: 0; }
+.lact-controls__select--type { width: 130px; flex-basis: 130px; }
+.lact-controls__select--range { width: 150px; flex-basis: 150px; }
+.lact-controls__select--sort { width: 140px; flex-basis: 140px; }
+/* Month and year headings: a chevron, the name in bold, then a muted "· 3 batches". The button root itself is styled in app.css. */
+.lact-group { margin-top: var(--tl-space-2); }
+.lact-group__toggle strong { color: var(--tl-text-secondary); font-size: var(--tl-font-size-md); font-weight: var(--tl-font-weight-bold); }
+.lact-group__count { color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); font-weight: var(--tl-font-weight-regular); }
 .lact-group--year { margin-bottom: var(--tl-space-1); }
 .lact-line { list-style: none; margin: 0 0 var(--tl-space-2); padding: 0; position: relative; }
-.lact-line::before { content: ""; position: absolute; left: 31px; top: 8px; bottom: 8px; width: 2px; background: var(--tl-border-subtle); }
-.lact-titles { display: flex; flex-direction: column; gap: var(--tl-space-5); }
-.lact-title { display: flex; gap: var(--tl-space-5); align-items: flex-start; }
-.lact-markers { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--tl-space-2); }
-.lact-marker { display: flex; align-items: center; gap: var(--tl-space-3); }
-.lact-bubble { flex: none; width: 62px; border-radius: var(--tl-radius-pill); background: var(--tl-bg-surface-raised); border: 1px solid var(--tl-border-default); text-align: center; padding: 3px 0; font-size: var(--tl-font-size-xs); font-weight: var(--tl-font-weight-semibold); }
+.lact-line::before { content: ""; position: absolute; left: 31px; top: 8px; bottom: 8px; width: 2px; background: var(--tl-border-default); }
+/* A searched title (mock screen 4): a bordered card with the standard tile on the left and the title's own dated markers beside it. */
+.lact-titles { display: flex; flex-direction: column; gap: var(--tl-space-3); }
+.lact-title { display: flex; gap: var(--tl-space-5); align-items: flex-start; padding: var(--tl-space-3); border: 1px solid var(--tl-border-default); border-radius: var(--tl-radius-lg); background: var(--tl-bg-surface); }
+.lact-markers-wrap { flex: 1; min-width: 0; align-self: center; }
+.lact-markers { list-style: none; margin: 0; padding: 0; position: relative; display: flex; flex-direction: column; gap: var(--tl-space-2); }
+.lact-markers::before { content: ""; position: absolute; left: 31px; top: 12px; bottom: 12px; width: 2px; background: var(--tl-border-default); }
+.lact-marker { display: flex; align-items: center; gap: var(--tl-space-4); padding: var(--tl-space-1) 0; }
+.lact-marker__text { display: flex; flex-direction: column; }
+.lact-marker__text small { color: var(--tl-text-muted); }
+.lact-bubble { position: relative; z-index: 1; flex: none; width: 62px; box-sizing: border-box; border-radius: var(--tl-radius-pill); background: var(--tl-bg-surface-raised); border: 1px solid var(--tl-border-default); text-align: center; padding: 3px 0; font-size: var(--tl-font-size-xs); font-weight: var(--tl-font-weight-semibold); }
 .lact-more { display: flex; justify-content: center; padding: var(--tl-space-2); }
-@media (max-width: 640px) { .lact-title { flex-direction: column; } }
+@media (max-width: 640px) {
+    .lact-controls__search { flex: 1 1 100%; width: auto; }
+    .lact-controls__select, .lact-controls__select--type, .lact-controls__select--range, .lact-controls__select--sort { flex: 1 1 0; width: auto; }
+    .lact-title { flex-direction: column; }
+}

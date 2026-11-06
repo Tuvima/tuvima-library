@@ -455,31 +455,50 @@ public sealed partial class EngineApiClient
     public Task<LibrariesConfigurationDto?> MutateLibraryAsync(LibraryMutationRequest request, CancellationToken ct = default) =>
         PostAsync<LibraryMutationRequest, LibrariesConfigurationDto>("POST /settings/libraries/mutations", "/settings/libraries/mutations", request, ct: ct);
 
-    public Task<MediaEngine.Contracts.Library.ActivityRunsDto?> GetActivityRunsAsync(
+    // The Engine answers its own cover addresses ("/stream/entity/work/{id}/cover?size=s"). The browser cannot send the Engine session header
+    // and "localhost" would be the viewer's device, so every picture address goes through the same-origin image proxy before it is drawn.
+    public async Task<MediaEngine.Contracts.Library.ActivityRunsDto?> GetActivityRunsAsync(
         IReadOnlyCollection<string>? libraryIds, IReadOnlyCollection<string>? kinds, DateTimeOffset? from, DateTimeOffset? to,
-        string? search, bool newestFirst, int offset, int limit, CancellationToken ct = default) =>
-        GetAsync<MediaEngine.Contracts.Library.ActivityRunsDto>(
+        string? search, bool newestFirst, int offset, int limit, CancellationToken ct = default)
+    {
+        var runs = await GetAsync<MediaEngine.Contracts.Library.ActivityRunsDto>(
             "GET /library/activity/runs",
             "/library/activity/runs" + ActivityQuery(libraryIds, kinds, from, to, search, ("sort", newestFirst ? "newest" : "oldest"),
                 ("offset", offset.ToString(System.Globalization.CultureInfo.InvariantCulture)),
                 ("limit", limit.ToString(System.Globalization.CultureInfo.InvariantCulture))),
-            ct: ct);
+            ct: ct).ConfigureAwait(false);
+        return runs is null
+            ? null
+            : runs with { Runs = [.. runs.Runs.Select(run => run with { Covers = [.. run.Covers.Select(cover => cover with { Url = ProxiedPicture(cover.Url) })] })] };
+    }
 
-    public Task<MediaEngine.Contracts.Library.ActivityRunGroupsDto?> GetActivityRunGroupsAsync(
-        Guid entryId, string? mediaType, int offset, int limit, CancellationToken ct = default) =>
-        GetAsync<MediaEngine.Contracts.Library.ActivityRunGroupsDto>(
+    public async Task<MediaEngine.Contracts.Library.ActivityRunGroupsDto?> GetActivityRunGroupsAsync(
+        Guid entryId, string? mediaType, int offset, int limit, CancellationToken ct = default)
+    {
+        var groups = await GetAsync<MediaEngine.Contracts.Library.ActivityRunGroupsDto>(
             "GET /library/activity/runs/{entryId}/groups",
             $"/library/activity/runs/{entryId:D}/groups" + ActivityQuery(null, null, null, null, null,
                 ("media_type", mediaType),
                 ("offset", offset.ToString(System.Globalization.CultureInfo.InvariantCulture)),
                 ("limit", limit.ToString(System.Globalization.CultureInfo.InvariantCulture))),
-            ct: ct);
+            ct: ct).ConfigureAwait(false);
+        return groups is null
+            ? null
+            : groups with { Groups = [.. groups.Groups.Select(group => group with { CoverUrl = ProxiedPicture(group.CoverUrl) })] };
+    }
 
-    public Task<MediaEngine.Contracts.Library.ActivityTitleSearchDto?> SearchActivityTitlesAsync(
+    public async Task<MediaEngine.Contracts.Library.ActivityTitleSearchDto?> SearchActivityTitlesAsync(
         string search, IReadOnlyCollection<string>? libraryIds, IReadOnlyCollection<string>? kinds, DateTimeOffset? from, DateTimeOffset? to,
-        CancellationToken ct = default) =>
-        GetAsync<MediaEngine.Contracts.Library.ActivityTitleSearchDto>(
-            "GET /library/activity/titles", "/library/activity/titles" + ActivityQuery(libraryIds, kinds, from, to, search), ct: ct);
+        CancellationToken ct = default)
+    {
+        var found = await GetAsync<MediaEngine.Contracts.Library.ActivityTitleSearchDto>(
+            "GET /library/activity/titles", "/library/activity/titles" + ActivityQuery(libraryIds, kinds, from, to, search), ct: ct).ConfigureAwait(false);
+        return found is null
+            ? null
+            : found with { Titles = [.. found.Titles.Select(title => title with { CoverUrl = ProxiedPicture(title.CoverUrl) })] };
+    }
+
+    private string? ProxiedPicture(string? url) => string.IsNullOrWhiteSpace(url) ? null : AbsoluteUrl(url);
 
     public Task<MediaEngine.Contracts.Library.ActivityPurgeResultDto?> PurgeActivityRunsAsync(DateTimeOffset olderThan, CancellationToken ct = default) =>
         PostAsync<MediaEngine.Contracts.Library.ActivityPurgeRequest, MediaEngine.Contracts.Library.ActivityPurgeResultDto>(

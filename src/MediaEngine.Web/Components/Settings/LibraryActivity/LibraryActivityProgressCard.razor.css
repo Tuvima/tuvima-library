@@ -1,4 +1,10 @@
-.lact-summary { display: flex; flex-direction: column; gap: var(--tl-space-2); padding: var(--tl-space-4); border: 1px solid var(--tl-border-default); border-radius: var(--tl-radius-md); }
-.lact-summary--idle { flex-direction: row; flex-wrap: wrap; align-items: center; gap: var(--tl-space-2); }
-.lact-summary__head, .lact-summary__foot { display: flex; justify-content: space-between; flex-wrap: wrap; gap: var(--tl-space-3); }
-.lact-summary__foot { color: var(--tl-text-muted); }
+/* The one card under the chips (mock screens 2 and 3): a raised box with the title and percent on one line, the bar, then the counts on the left and Review N items on the right. */
+.lact-summary { display: flex; flex-direction: column; gap: var(--tl-space-2); padding: var(--tl-space-3) var(--tl-space-4); border: 1px solid var(--tl-border-default); border-radius: var(--tl-radius-lg); background: var(--tl-bg-surface); color: var(--tl-text-secondary); }
+.lact-summary--idle { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: var(--tl-space-1); }
+.lact-summary strong { color: var(--tl-text-primary); }
+.lact-summary__head { display: flex; align-items: center; justify-content: space-between; gap: var(--tl-space-3); font-size: var(--tl-font-size-lg); }
+.lact-summary__title { display: inline-flex; align-items: center; gap: var(--tl-space-2); }
+.lact-summary__foot { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--tl-space-3); }
+.lact-summary__counts { display: flex; flex-direction: column; gap: var(--tl-space-1); min-width: 0; }
+.lact-summary__started { color: var(--tl-text-muted); }
+@media (max-width: 640px) { .lact-summary__foot { flex-direction: column; } }

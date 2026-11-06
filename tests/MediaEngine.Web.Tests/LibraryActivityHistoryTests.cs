@@ -59,12 +59,31 @@ public sealed class LibraryActivityHistoryTests : AsyncBunitContext
     }
 
     [Fact]
-    public void WhenTheEngineHasNoRuns_TheListSaysNothingHasBeenAddedYet()
+    public void WhenTheEngineHasNoRunsInTheLast30Days_TheListSaysNothingWasAddedInThisTime()
     {
         var cut = RenderHistory();
 
-        cut.WaitForAssertion(() => Assert.Contains("Nothing has been added yet", cut.Markup, StringComparison.Ordinal));
+        // The date range starts on Last 30 days (the mockup), so an empty answer means "none in this time", not "never".
+        cut.WaitForAssertion(() => Assert.Contains("Nothing has been added in this time", cut.Markup, StringComparison.Ordinal));
+        Assert.DoesNotContain("Nothing has been added yet", cut.Markup, StringComparison.Ordinal);
         Assert.Empty(cut.FindAll("[data-testid='lact-entry']"));
+    }
+
+    [Fact]
+    public void TheFirstLoad_AsksForTheLast30DaysOnly()
+    {
+        DateTimeOffset? from = null;
+        Services.AddSingleton(EngineApiClientStub.Create(stub =>
+            stub.SetHandler(nameof(IEngineApiClient.GetActivityRunsAsync), args =>
+            {
+                from = (DateTimeOffset?)args![2];
+                return Task.FromResult<ActivityRunsDto?>(new ActivityRunsDto([], false, null));
+            })));
+
+        RenderHistory();
+
+        Assert.NotNull(from);
+        Assert.InRange((DateTimeOffset.Now - from!.Value).TotalDays, 29.9, 30.1);
     }
 
     [Fact]
