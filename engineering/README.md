@@ -108,6 +108,7 @@ Every documentation file in the repository, one line each, with its status. Two 
 | [Spec: Deleting personal files in View](specs/archive/view-personal-file-deletion.md) | Built (v3, archived 2026-10-20) |
 | [Spec: Open from the start — retire "Who can connect"](specs/archive/open-from-the-start.md) | Built (v3, archived 2026-10-18) |
 | [Spec: Numbered data store upgrades and contributor guide](specs/archive/data-store-upgrade-scripts.md) | Built (v2, archived 2026-10-18) |
+| [Spec: View section (cleanup, Viewing switch, one action list, Recently added, On this day, drag and drop)](specs/view-section.md) | Locked (v1, 2026-11-06) | Photos, Galleries, Documents, People and Places follow the app rules; one whose-library switch; new Photos pill and memories strip |
 
 ## Handoffs
 
