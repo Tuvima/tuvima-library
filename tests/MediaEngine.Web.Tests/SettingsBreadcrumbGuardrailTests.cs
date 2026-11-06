@@ -17,7 +17,7 @@ public sealed class SettingsBreadcrumbGuardrailTests
         Assert.DoesNotContain("IngestionBatchDisplay", settings, StringComparison.Ordinal);
         Assert.Contains("SettingsSection.LibraryRules => \"The rules every library follows", settings, StringComparison.Ordinal);
         Assert.Contains("<LibraryRulesPage", settings, StringComparison.Ordinal);
-        Assert.Contains("<RecentlyAddedPageContent", settings, StringComparison.Ordinal);
+        Assert.Contains("<LibraryActivityPage", settings, StringComparison.Ordinal);
         Assert.Contains("focus-visible", frameCss, StringComparison.Ordinal);
         Assert.DoesNotContain("<AppBreadcrumbs>", metadata, StringComparison.Ordinal);
     }

@@ -1,0 +1,317 @@
+@namespace MediaEngine.Web.Components.Settings.LibraryActivity
+@using MediaEngine.Contracts.Library
+@inject IEngineApiClient Api
+@inject IStringLocalizer<SharedStrings> L
+@implements IDisposable
+
+@* History (spec library-activity D9 to D20): one entry per batch on a vertical timeline, a round date bubble on a line, under month and year
+   headings that collapse. The current month starts open; older months and years start collapsed with their batch count. One row of
+   controls: search, type, date range, sort by time. Searching is an instant filter and expands every heading that holds a match. *@
+<section class="lact-history" aria-labelledby="lact-history-title">
+    <h2 id="lact-history-title" class="lact-heading">@L["LibraryActivity_History"]</h2>
+
+    <div class="lact-controls" role="search" aria-label="@L["LibraryActivity_HistoryFilters"]">
+        <div class="lact-controls__search">
+            <AppTextField Value="@_search"
+                          ValueChanged="OnSearchChanged"
+                          OnDebounceIntervalElapsed="OnSearchDebounced"
+                          DebounceInterval="250"
+                          Placeholder="@L["LibraryActivity_SearchTitles"].Value"
+                          Adornment="AppAdornment.Start"
+                          AdornmentIcon="@AppMaterialIcons.Outlined.Search" />
+        </div>
+        <AppSelect Label="@L["LibraryActivity_Type"].Value" Value="@_kind" ValueChanged="OnKindChanged" Options="KindOptions" />
+        <AppSelect Label="@L["LibraryActivity_DateRange"].Value" Value="@_range" ValueChanged="OnRangeChanged" Options="RangeOptions" />
+        <AppSelect Label="@L["LibraryActivity_SortByTime"].Value" Value="@_sort" ValueChanged="OnSortChanged" Options="SortOptions" />
+    </div>
+
+    @if (_loading && _runs.Count == 0 && _titles is null)
+    {
+        <AppProgressBar Indeterminate="true" Decorative="true" />
+    }
+    else if (_failed)
+    {
+        <AppPageState Kind="AppPageStateKind.Error"
+                      Icon="@AppMaterialIcons.Outlined.CloudOff"
+                      Title="@L["LibraryActivity_LoadFailed"].Value"
+                      Message="@L["LibraryActivity_LoadFailedHelp"].Value">
+            <Actions>
+                <AppButton Label="@L["LibraryActivity_TryAgain"].Value" OnClick="ReloadAsync" />
+            </Actions>
+        </AppPageState>
+    }
+    else if (_titles is not null)
+    {
+        @if (_titles.Count == 0)
+        {
+            <AppPageState Kind="AppPageStateKind.Empty" Icon="@AppMaterialIcons.Outlined.Search" Title="@L["LibraryActivity_NoMatch"].Value" Message="@L["LibraryActivity_NoMatchHelp"].Value" />
+        }
+        else
+        {
+            <div class="lact-titles" data-testid="lact-title-results">
+                @foreach (var card in _titles)
+                {
+                    <article class="lact-title" @key="card.GroupKey" data-testid="lact-title-card">
+                        <LibraryActivityTile Title="@card.Title"
+                                             CoverUrl="@card.CoverUrl"
+                                             MediaType="@card.MediaType"
+                                             Route="@card.Route"
+                                             BottomLabel="@LibraryActivityText.NewLabel(card.MediaType, card.TotalCount)" />
+                        <ol class="lact-markers" aria-label="@L["LibraryActivity_WhenAdded", card.Title]">
+                            @foreach (var marker in card.Markers)
+                            {
+                                <li class="lact-marker" data-testid="lact-title-marker">
+                                    <span class="lact-bubble">@LibraryActivityText.Bubble(marker.StartedAt)</span>
+                                    <span class="lact-marker__text">@LibraryActivityText.KindVerb(marker.Kind) @LibraryActivityText.Counts([(card.MediaType, marker.ItemCount)])</span>
+                                </li>
+                            }
+                        </ol>
+                    </article>
+                }
+            </div>
+        }
+    }
+    else if (_runs.Count == 0)
+    {
+        <AppPageState Kind="AppPageStateKind.Empty"
+                      Icon="@AppMaterialIcons.Outlined.History"
+                      Title="@L["LibraryActivity_Empty"].Value"
+                      Message="@L["LibraryActivity_EmptyHelp"].Value" />
+    }
+    else
+    {
+        <div class="lact-timeline" data-testid="lact-timeline">
+            @foreach (var year in Years)
+            {
+                @if (year.Wrap)
+                {
+                    <div class="lact-group lact-group--year">
+                        <AppButton ButtonStyle="AppButtonStyle.Text" FullWidth="true" 
+                                         OnClick="@(() => Toggle(year.Key, year.OpenByDefault))" UserAttributes="@Toggled(IsOpen(year.Key, year.OpenByDefault), "lact-year-toggle")">
+                            <AppMaterialIcon Icon="@(IsOpen(year.Key, year.OpenByDefault) ? AppMaterialIcons.Outlined.ExpandMore : AppMaterialIcons.Outlined.ChevronRight)" />
+                            <strong>@year.Year</strong><span>@LibraryActivityText.BatchCount(year.Count)</span>
+                        </AppButton>
+                        @if (IsOpen(year.Key, year.OpenByDefault))
+                        {
+                            @foreach (var month in year.Months)
+                            {
+                                @MonthGroup(month)
+                            }
+                        }
+                    </div>
+                }
+                else
+                {
+                    @foreach (var month in year.Months)
+                    {
+                        @MonthGroup(month)
+                    }
+                }
+            }
+            @if (_hasMore)
+            {
+                <div class="lact-more"><AppButton Label="@L["LibraryActivity_ShowOlder"].Value" OnClick="LoadMoreAsync" Disabled="_loading" /></div>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    private const int PageSize = 50;
+
+    private static readonly IReadOnlyList<AppSelectOption> KindOptions =
+    [
+        new("all", "All"), new(ActivityRunKindNames.Added, "Added"), new(ActivityRunKindNames.Updated, "Updated"),
+        new(ActivityRunKindNames.Fixed, "Fixed"), new(ActivityRunKindNames.Removed, "Removed"),
+    ];
+
+    private static readonly IReadOnlyList<AppSelectOption> RangeOptions =
+    [
+        new("all", "All time"), new("today", "Today"), new("7", "7 days"), new("30", "30 days"), new("year", "This year"),
+    ];
+
+    private static readonly IReadOnlyList<AppSelectOption> SortOptions = [new("newest", "Newest first"), new("oldest", "Oldest first")];
+
+    /// <summary>The libraries the chips and the library tab allow; empty means every library.</summary>
+    [Parameter] public IReadOnlyList<string> LibraryIds { get; set; } = [];
+
+    /// <summary>Bumped by the page when ingestion starts or finishes, so the newest entry follows along.</summary>
+    [Parameter] public int RefreshToken { get; set; }
+
+    /// <summary>The newest completed scan time, for the "Everything is up to date" card.</summary>
+    [Parameter] public EventCallback<DateTimeOffset?> LastCompletedChanged { get; set; }
+
+    private readonly List<ActivityRunDto> _runs = [];
+    private readonly HashSet<string> _toggled = [];
+    private IReadOnlyList<ActivityTitleCardDto>? _titles;
+    private CancellationTokenSource? _cts;
+    private string? _search;
+    private string _kind = "all";
+    private string _range = "all";
+    private string _sort = "newest";
+    private bool _loading = true;
+    private bool _failed;
+    private bool _hasMore;
+    private string _signature = string.Empty;
+    private int _lastRefresh;
+
+    private bool Searching => !string.IsNullOrWhiteSpace(_search);
+
+    private sealed record MonthGroupModel(string Key, string Heading, int Count, bool OpenByDefault, IReadOnlyList<ActivityRunDto> Runs);
+    private sealed record YearGroupModel(string Key, string Year, int Count, bool Wrap, bool OpenByDefault, IReadOnlyList<MonthGroupModel> Months);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var signature = string.Join(',', LibraryIds);
+        if (signature == _signature && _lastRefresh == RefreshToken)
+        {
+            return;
+        }
+
+        _signature = signature;
+        _lastRefresh = RefreshToken;
+        await ReloadAsync();
+    }
+
+    private IEnumerable<YearGroupModel> Years
+    {
+        get
+        {
+            var now = DateTimeOffset.Now;
+            foreach (var year in _runs.GroupBy(run => run.StartedAt.ToLocalTime().Year, (key, runs) => (Year: key, Runs: runs.ToList())))
+            {
+                var current = year.Year == now.Year;
+                var months = year.Runs
+                    .GroupBy(run => run.StartedAt.ToLocalTime().Month)
+                    .Select(group => new MonthGroupModel(
+                        $"m{year.Year}-{group.Key}",
+                        LibraryActivityText.MonthHeading(group.First().StartedAt),
+                        group.Count(),
+                        Searching || (current && group.Key == now.Month),
+                        group.ToList()))
+                    .ToList();
+                yield return new YearGroupModel(
+                    $"y{year.Year}", year.Year.ToString(System.Globalization.CultureInfo.InvariantCulture), year.Runs.Count,
+                    Wrap: !current, OpenByDefault: Searching, months);
+            }
+        }
+    }
+
+    private RenderFragment MonthGroup(MonthGroupModel month) => __builder =>
+    {
+        var open = IsOpen(month.Key, month.OpenByDefault);
+        <div class="lact-group" data-testid="lact-month">
+            <AppButton ButtonStyle="AppButtonStyle.Text" FullWidth="true" 
+                             OnClick="@(() => Toggle(month.Key, month.OpenByDefault))" UserAttributes="@Toggled(open, "lact-month-toggle")">
+                <AppMaterialIcon Icon="@(open ? AppMaterialIcons.Outlined.ExpandMore : AppMaterialIcons.Outlined.ChevronRight)" />
+                <strong>@month.Heading</strong><span>@LibraryActivityText.BatchCount(month.Count)</span>
+            </AppButton>
+            @if (open)
+            {
+                <ol class="lact-line">
+                    @foreach (var run in month.Runs)
+                    {
+                        <LibraryActivityRunEntry @key="run.Id" Run="run" />
+                    }
+                </ol>
+            }
+        </div>
+    };
+
+    private static Dictionary<string, object> Toggled(bool open, string testId)
+        => new() { ["aria-expanded"] = open ? "true" : "false", ["data-testid"] = testId };
+
+    private bool IsOpen(string key, bool openByDefault) => _toggled.Contains(key) ? !openByDefault : openByDefault;
+
+    private void Toggle(string key, bool openByDefault)
+    {
+        if (!_toggled.Remove(key))
+        {
+            _toggled.Add(key);
+        }
+    }
+
+    private Task OnSearchChanged(string? value)
+    {
+        _search = value;
+        return Task.CompletedTask;
+    }
+
+    private Task OnSearchDebounced(string _) => ReloadAsync();
+    private Task OnKindChanged(string? value) { _kind = value ?? "all"; return ReloadAsync(); }
+    private Task OnRangeChanged(string? value) { _range = value ?? "all"; return ReloadAsync(); }
+    private Task OnSortChanged(string? value) { _sort = value ?? "newest"; return ReloadAsync(); }
+
+    private (DateTimeOffset? From, DateTimeOffset? To) Dates()
+    {
+        var now = DateTimeOffset.Now;
+        return _range switch
+        {
+            "today" => (new DateTimeOffset(now.Date, now.Offset), null),
+            "7" => (now.AddDays(-7), null),
+            "30" => (now.AddDays(-30), null),
+            "year" => (new DateTimeOffset(new DateTime(now.Year, 1, 1), now.Offset), null),
+            _ => (null, null),
+        };
+    }
+
+    private IReadOnlyCollection<string>? Kinds => _kind == "all" ? null : [_kind];
+
+    private async Task ReloadAsync()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+        _cts = new CancellationTokenSource();
+        var ct = _cts.Token;
+        _loading = true;
+        _failed = false;
+        try
+        {
+            var (from, to) = Dates();
+            if (Searching)
+            {
+                var found = await Api.SearchActivityTitlesAsync(_search!.Trim(), LibraryIds, Kinds, from, to, ct);
+                if (found is null) { _failed = true; return; }
+                _titles = found.Titles;
+                _runs.Clear();
+                _hasMore = false;
+                return;
+            }
+
+            _titles = null;
+            var page = await Api.GetActivityRunsAsync(LibraryIds, Kinds, from, to, null, _sort == "newest", 0, PageSize, ct);
+            if (page is null) { _failed = true; return; }
+            _runs.Clear();
+            _runs.AddRange(page.Runs);
+            _hasMore = page.HasMore;
+            await LastCompletedChanged.InvokeAsync(page.LastCompletedAt);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
+        finally
+        {
+            if (!ct.IsCancellationRequested) { _loading = false; }
+        }
+    }
+
+    private async Task LoadMoreAsync()
+    {
+        _loading = true;
+        try
+        {
+            var (from, to) = Dates();
+            var page = await Api.GetActivityRunsAsync(LibraryIds, Kinds, from, to, null, _sort == "newest", _runs.Count, PageSize);
+            if (page is not null)
+            {
+                _runs.AddRange(page.Runs.Where(run => _runs.All(existing => existing.Id != run.Id)));
+                _hasMore = page.HasMore;
+            }
+        }
+        finally { _loading = false; }
+    }
+
+    public void Dispose()
+    {
+        _cts?.Cancel();
+        _cts?.Dispose();
+    }
+}

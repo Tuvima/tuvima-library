@@ -1,0 +1,23 @@
+.lact-entry { position: relative; display: flex; gap: var(--tl-space-4); align-items: flex-start; padding: 5px 0; }
+.lact-bubble { z-index: 1; flex: none; width: 62px; border-radius: var(--tl-radius-pill); background: var(--tl-bg-surface-raised); border: 1px solid var(--tl-border-default); text-align: center; padding: 3px 0; font-size: var(--tl-font-size-xs); font-weight: var(--tl-font-weight-semibold); }
+.lact-entry.is-active .lact-bubble, .lact-entry.is-active .lact-box { border-color: var(--tl-accent-primary); }
+.lact-box { flex: 1; min-width: 0; border: 1px solid var(--tl-border-default); border-radius: var(--tl-radius-md); background: var(--tl-bg-surface); }
+.lact-box__what { width: 200px; display: flex; flex-direction: column; text-align: left; }
+.lact-box__what small, .lact-box__count { color: var(--tl-text-muted); }
+.lact-box__covers { display: flex; gap: var(--tl-space-1); align-items: center; width: 210px; }
+.lact-cover { display: inline-block; width: 30px; height: 44px; border-radius: 3px; overflow: hidden; }
+.lact-cover.is-square { width: 44px; }
+.lact-cover-more { padding: 3px var(--tl-space-2); border: 1px solid var(--tl-border-default); border-radius: var(--tl-radius-pill); font-size: var(--tl-font-size-xs); }
+.lact-box__count { flex: 1; font-size: var(--tl-font-size-secondary); text-align: left; }
+.lact-box__status { display: inline-flex; align-items: center; gap: var(--tl-space-1); font-size: var(--tl-font-size-secondary); font-weight: var(--tl-font-weight-semibold); color: var(--tl-status-success); }
+.lact-box__status.lact-status--active { color: var(--tl-accent-primary); }
+.lact-open { padding: var(--tl-space-3); border-top: 1px solid var(--tl-border-subtle); }
+.lact-kinds { display: flex; flex-wrap: wrap; gap: var(--tl-space-2); margin-bottom: var(--tl-space-2); }
+/* Two rows of tiles at a time (321 px each plus the gap); more load as the area scrolls. */
+.lact-scroll { max-height: calc(2 * 321px + var(--tl-space-4)); overflow: auto; }
+.lact-tiles { display: flex; flex-wrap: wrap; gap: var(--tl-space-4); }
+.lact-sentinel { display: flex; justify-content: center; padding: var(--tl-space-2) 0; }
+@media (max-width: 640px) {
+    .lact-box__what, .lact-box__covers { width: auto; }
+    .lact-scroll { max-height: calc(2 * 168px + var(--tl-space-4)); }
+}
