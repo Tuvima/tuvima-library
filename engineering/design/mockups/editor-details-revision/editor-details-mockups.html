@@ -1,0 +1,249 @@
+<title>Details Page Mockups</title>
+<title>Match Mockups</title>
+
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: a stack of 1440-wide app screens, each in its own sideways-scrolling frame, numbered notes beneath. Single dark look on purpose: it is the app's own look. */
+:root{
+  --page:#050507; --app:#101115; --win:#101115; --panel:#1A1B21; --line:#25272E; --line2:#33363F;
+  --fg:#F5F7FB; --fg2:#B6C2D6; --fg3:#8593AA; --accent:#8852FC; --accent2:#C4A1FF; --accentbg:#221a3e;
+  --ok:#4ade80; --okbg:#12351f; --warn:#fbbf24; --warnbg:#3a2c0b; --bad:#f87171; --badbg:#3b1414;
+  --ui:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--page);color:var(--fg);font-family:var(--ui);font-size:14px;line-height:1.4;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 48px}
+.intro{max-width:880px;margin:0 auto 28px}
+.intro h1{font-size:26px;margin:0 0 8px;text-wrap:balance}
+.intro p{color:var(--fg2);margin:0 0 8px;max-width:70ch}
+section.shot{max-width:1460px;margin:0 auto 44px}
+section.shot h2{font-size:18px;margin:0 0 4px}
+section.shot .sub{color:var(--fg3);margin:0 0 12px}
+.frame{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--app)}
+.notes{max-width:880px;margin:14px 0 0;padding:0;list-style:none;display:grid;gap:8px}
+.notes li{display:grid;grid-template-columns:26px 1fr;gap:10px;color:var(--fg2)}
+.notes li b{color:var(--fg)}
+
+/* screen */
+.vp{width:1440px;height:900px;position:relative;overflow:hidden;background:var(--app)}
+.bgpage{position:absolute;inset:0;background:linear-gradient(180deg,#1a1532 0,#0B1020 380px)}
+.bgpage .topnav{height:56px;border-bottom:1px solid var(--line);background:#0B1020;display:flex;align-items:center;gap:28px;padding:0 32px;color:var(--fg2)}
+.bgpage .topnav b{color:var(--fg);letter-spacing:.08em}
+.dim{position:absolute;inset:0;background:rgba(3,5,10,.7)}
+.win{position:absolute;left:80px;top:20px;width:1280px;height:860px;background:var(--win);border:1px solid var(--line2);border-radius:12px;box-shadow:0 30px 80px rgba(0,0,0,.65);display:flex;flex-direction:column;overflow:hidden}
+.rail{height:58px;display:flex;align-items:center;gap:8px;padding:0 16px;border-bottom:1px solid var(--line);flex:none}
+.crumb{display:flex;align-items:center;gap:10px;height:42px;padding:0 12px 0 6px;border:1px solid var(--line2);border-radius:8px;background:var(--panel);min-width:210px}
+.crumb.on{border-color:var(--accent);background:#17132b}
+.crumb .t{width:30px;height:30px;border-radius:5px;flex:none}
+.crumb small{display:block;color:var(--fg3);font-size:11px;line-height:1.1}
+.crumb span{font-weight:600;font-size:13px}
+.crumb .v{margin-left:auto;color:var(--fg3)}
+.sep{color:var(--fg3)}
+.x{margin-left:auto;color:var(--fg2);font-size:22px;width:36px;text-align:center}
+.head{height:168px;flex:none;display:flex;gap:22px;padding:18px 24px;position:relative;background:linear-gradient(90deg,var(--win) 35%,transparent),var(--herobg,linear-gradient(120deg,#1b2440,#3a2346));border-bottom:1px solid var(--line)}
+.head .cover{width:88px;height:132px;border-radius:8px;flex:none;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.head .cover.land{width:200px;height:113px;align-self:center}
+.head .kicker{color:var(--accent2);font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:600}
+.head h3{font-size:28px;margin:4px 0 4px}
+.head .facts{color:var(--fg2)}
+.head .links{position:absolute;right:24px;top:18px;display:flex;gap:8px}
+.lnk{border:1px solid var(--line2);background:rgba(10,14,24,.75);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600}
+.more{border:1px solid var(--line2);background:rgba(10,14,24,.75);border-radius:8px;padding:6px 12px;font-weight:700}
+.tabs{display:flex;gap:10px;padding:0 24px;border-bottom:1px solid var(--line);flex:none}
+.tab{display:flex;align-items:center;gap:10px;padding:16px 26px;color:var(--fg2);font-weight:600;border-bottom:2px solid transparent}
+.ti{font-style:normal;font-size:15px;color:var(--ic,#8f7fd1)}.tab.on .ti{filter:brightness(1.25)}.tab.on{color:var(--fg);border-color:var(--accent)}
+.body{flex:1;min-height:0;display:flex;gap:20px;padding:20px 24px;overflow:hidden}
+.form{flex:1;min-width:0;display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;align-content:start}
+.f{display:flex;flex-direction:column;gap:5px}
+.f.w{grid-column:1/-1}
+.f label{font-size:12px;color:var(--fg2);font-weight:600}
+.in{height:38px;border:1px solid var(--line2);border-radius:7px;background:#0A0B0E;display:flex;align-items:center;padding:0 10px;gap:8px}
+.in.tall{height:64px;align-items:flex-start;padding-top:9px}
+.in.changed{border-color:var(--accent)}
+.in .ico{margin-left:auto;color:var(--fg3);font-size:13px}
+.in .rev{color:var(--accent2)}
+.ro{color:var(--fg3)}
+.qf{width:300px;flex:none;border:1px solid #3d2d80;border-radius:10px;background:linear-gradient(180deg,#1d1446,#140e33);padding:14px 16px;align-self:start}
+.qf h4{margin:0 0 8px;font-size:15px}
+.qf .r{display:flex;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.qf .r:first-of-type{border-top:0}
+.qf .i{width:34px;height:34px;border-radius:50%;background:var(--accentbg);color:var(--accent2);display:grid;place-items:center;font-size:14px;flex:none}
+.qf b{display:block;font-size:16px}.qf small{color:var(--fg2)}
+.foot{height:64px;flex:none;border-top:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:0 20px;background:#0B0C0F}.foot .where{margin-left:6px}
+.foot .where b{display:block;font-size:13px}.foot .where small{color:var(--fg3)}
+.foot .cnt{margin-left:auto;color:var(--fg2)}
+.btn{height:38px;padding:0 16px;border-radius:8px;border:1px solid var(--line2);display:inline-flex;align-items:center;font-weight:600;background:transparent;color:var(--fg)}
+.btn.p{background:var(--accent);border-color:var(--accent)}
+.btn.d{background:#b42318;border-color:#b42318}
+.btn.sm{height:30px;padding:0 10px;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:4px;font-size:12px;background:#1E293B;color:var(--fg2)}
+.chip.ok{background:var(--okbg);color:var(--ok)}.chip.warn{background:var(--warnbg);color:var(--warn)}.chip.ac{background:var(--accentbg);color:var(--accent2)}
+.mk{position:absolute;width:24px;height:24px;border-radius:50%;background:#ffd84d;color:#1a1300;font-weight:800;font-size:13px;display:grid;place-items:center;box-shadow:0 0 0 3px rgba(0,0,0,.6);z-index:5}
+.th{border-radius:5px;flex:none}
+.g1{background:linear-gradient(150deg,#c0603a,#3a1d2f 60%,#121a33)}
+.g2{background:linear-gradient(150deg,#3d5a8a,#14203a)}
+.g3{background:linear-gradient(150deg,#5a4a8a,#1a1538)}
+.g4{background:linear-gradient(150deg,#8a6a3a,#2a1a10)}
+.g5{background:linear-gradient(150deg,#2a6a6a,#0c2224)}
+.g6{background:linear-gradient(150deg,#7a3a5a,#200c18)}
+.g7{background:linear-gradient(150deg,#d8a24a,#5a2a12 70%)}
+.g8{background:linear-gradient(150deg,#4a7a3a,#10200c)}
+table.t{width:100%;border-collapse:collapse;font-size:13px}
+table.t th{text-align:left;color:var(--fg3);font-weight:600;font-size:12px;padding:8px 10px;border-bottom:1px solid var(--line)}
+table.t td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+table.t tr.sel td{background:#151a30}
+.cb{width:16px;height:16px;border-radius:4px;border:1.5px solid var(--fg3);display:inline-block;vertical-align:middle}
+.cb.on{background:var(--accent);border-color:var(--accent);position:relative}
+.cb.on::after{content:"";position:absolute;left:4px;top:1px;width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.bar{display:inline-block;width:70px;height:6px;border-radius:3px;background:#1E293B;vertical-align:middle;margin-right:6px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent)}
+.bar.lo i{background:var(--warn)}
+.num{font-variant-numeric:tabular-nums}
+.card{border:1px solid var(--line2);border-radius:10px;background:var(--panel)}
+.dd{position:absolute;background:#111a2c;border:1px solid var(--line2);border-radius:10px;box-shadow:0 18px 40px rgba(0,0,0,.6);padding:8px;z-index:4}
+.dd .s{height:34px;border:1px solid var(--line2);border-radius:7px;background:#0B1020;display:flex;align-items:center;padding:0 10px;color:var(--fg3);margin-bottom:6px}
+.dd .o{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:7px}
+.dd .o.on{background:#1D2940}
+.dd .o small{color:var(--fg3);display:block;font-size:11px}
+.dd .o .m{margin-left:auto;font-size:12px}
+.modal{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:520px;background:#121a2b;border:1px solid var(--line2);border-radius:12px;box-shadow:0 30px 80px rgba(0,0,0,.7);padding:22px;z-index:6}
+.modal h3{margin:0 0 10px;font-size:19px}
+.modal p{color:var(--fg2);margin:0 0 10px}
+.modal ul{margin:0 0 14px;padding-left:18px;color:var(--fg2)}
+.modal .acts{display:flex;justify-content:flex-end;gap:10px}
+.scrim{position:absolute;inset:0;background:rgba(3,5,10,.55);z-index:5}
+
+/* Header v2: the Show is a static tile; the Season and Episode dropdowns live inside the header (no separate rail row). */
+.hero{height:176px;flex:none;display:flex;gap:20px;padding:18px 24px;position:relative;background:linear-gradient(90deg,var(--win) 30%,transparent),var(--herobg,linear-gradient(120deg,#1b2440,#3a2346));border-bottom:1px solid var(--line)}
+.showtile{width:214px;height:140px;flex:none;border:1px solid var(--line2);border-radius:10px;background:rgba(10,14,24,.72);display:flex;gap:12px;padding:10px;align-items:flex-start}
+.showtile .p{width:62px;height:96px;border-radius:6px;flex:none;box-shadow:0 6px 18px rgba(0,0,0,.5)}
+.showtile small{display:block;color:var(--fg3);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.showtile b{display:block;font-size:15px;line-height:1.2;margin:4px 0 4px}
+.showtile em{font-style:normal;color:var(--fg2);font-size:12px}
+.showtile.is-item{border-color:var(--accent);background:#17132b}
+.hero .cover{border-radius:8px;flex:none;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.hero .main{min-width:0;display:flex;flex-direction:column}
+.hero .kicker{color:var(--accent2);font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:600}
+.hero h3{font-size:26px;margin:2px 0 2px;text-wrap:balance}
+.hero .facts{color:var(--fg2);display:flex;align-items:center;gap:10px}
+.sels{display:flex;gap:10px;margin-top:auto}
+.sel{display:flex;align-items:center;gap:10px;height:40px;min-width:230px;padding:0 12px 0 6px;border:1px solid var(--line2);border-radius:8px;background:rgba(10,14,24,.78)}
+.sel.on{border-color:var(--accent);background:#17132b}
+.sel .t{width:30px;height:30px;border-radius:5px;flex:none}
+.sel small{display:block;color:var(--fg3);font-size:11px;line-height:1.1}
+.sel span.n{font-weight:600;font-size:13px}
+.sel .v{margin-left:auto;color:var(--fg3)}
+.hero .links{position:absolute;right:24px;top:18px;display:flex;gap:8px}
+.narrow .win{left:0;top:0;width:1024px;height:760px;border-radius:0}
+.narrow.vp{width:1024px;height:760px}
+.narrow .hero{height:auto;flex-wrap:wrap;gap:14px 16px}
+.narrow .showtile{width:calc(100% - 130px);height:auto;align-items:center;padding:8px 10px}
+.narrow .showtile .p{width:34px;height:50px}
+
+.ftile{position:relative;display:block;width:62px;height:96px;border-radius:6px;flex:none;box-shadow:0 6px 18px rgba(0,0,0,.5);overflow:hidden}.ftile b{position:absolute;left:0;right:0;bottom:0;padding:14px 4px 4px;font-size:9px;text-align:center;text-transform:uppercase;letter-spacing:.08em;background:linear-gradient(0deg,rgba(0,0,0,.75),transparent)}.stack{position:relative;width:96px;height:64px;flex:none}
+.stack i{position:absolute;width:70px;height:42px;border-radius:5px;box-shadow:0 4px 12px rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.12)}
+.stack i:nth-child(1){left:0;top:16px;transform:rotate(-6deg)}
+.stack i:nth-child(2){left:12px;top:8px;transform:rotate(-1deg)}
+.stack i:nth-child(3){left:24px;top:0;transform:rotate(5deg)}
+.showtile.wide{align-items:center}
+.fr{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.fr .a{aspect-ratio:16/9;border-radius:6px;border:2px solid transparent;position:relative}
+.fr .a.pref{border-color:var(--accent)}
+.fr .a small{position:absolute;right:6px;bottom:4px;background:rgba(0,0,0,.6);padding:1px 5px;border-radius:3px;font-size:11px}
+.scrub{height:6px;border-radius:3px;background:#1E193A;position:relative;margin:12px 0 4px}
+.scrub i{position:absolute;left:34%;top:-5px;width:16px;height:16px;border-radius:50%;background:var(--accent)}
+.sw{display:inline-block;width:34px;height:20px;border-radius:10px;background:#2c2552;position:relative;vertical-align:middle}
+.sw::after{content:"";position:absolute;left:3px;top:3px;width:14px;height:14px;border-radius:50%;background:#B6C2D6}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+.mt{padding:16px 24px;display:flex;flex-direction:column;gap:14px;flex:1;min-height:0;overflow:hidden}
+.sec{border:1px solid var(--line2);border-radius:10px;background:var(--panel);padding:14px 16px}
+.sec h4{margin:0 0 2px;font-size:15px}.sec .sm{color:var(--fg3);font-size:12px;margin:0 0 10px}
+.row{display:flex;align-items:center;gap:14px}
+.logo{width:30px;height:30px;border-radius:7px;display:grid;place-items:center;font-weight:800;font-size:13px;flex:none}
+.l-tv{background:#0f3d2e;color:#4ade80}.l-wd{background:#2a1740;color:#c4a1ff}.l-mb{background:#3a1d2f;color:#f0a0d0}.l-tm{background:#0d2f4a;color:#7cc7ff}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:700}
+.pct{background:var(--okbg);color:var(--ok)}.pct.mid{background:var(--warnbg);color:var(--warn)}
+.res{display:flex;align-items:center;gap:14px;padding:10px 12px;border:1px solid var(--line);border-radius:9px;background:#13141a}
+.res.sel{border-color:var(--accent);background:#17132b}
+.res .t{width:96px;height:54px;border-radius:5px;flex:none}
+.res b{display:block}.res small{color:var(--fg3)}
+.why{margin:6px 0 2px 0;border:1px solid #3d2d80;border-radius:9px;background:#150f33;padding:10px 14px}
+.why table{width:100%;border-collapse:collapse;font-size:13px}.why td{padding:4px 8px;border-bottom:1px solid #2a2150}
+.v-ex{color:var(--ok)}.v-cl{color:var(--warn)}.v-mm{color:var(--bad)}
+.srch{display:flex;gap:10px}.srch .in{flex:1}.srch .dd2{width:200px;height:38px;border:1px solid var(--accent);border-radius:7px;display:flex;align-items:center;padding:0 12px;gap:8px;background:#0A0B0E}
+.rv{width:100%;border-collapse:collapse;font-size:14px}.rv th{color:var(--fg3);font-weight:600;font-size:12px;text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}.rv td{padding:9px 10px;border-bottom:1px solid var(--line)}
+.sw.on{background:var(--accent)}.sw.on::after{left:17px;background:#fff}
+.swr{display:flex;align-items:center;gap:12px;padding:8px 0}.swr small{display:block;color:var(--fg3)}
+
+.dp{width:1440px;position:relative;overflow:hidden;background:#101115;background-image:radial-gradient(900px 400px at 10% 0,rgba(71,53,122,.20),transparent),radial-gradient(800px 400px at 95% 10%,rgba(194,135,48,.12),transparent)}
+.hero2{height:600px;position:relative;background:linear-gradient(90deg,#101115 0,rgba(16,17,21,.88) 34%,rgba(16,17,21,.15) 70%),linear-gradient(120deg,#1b2440,#3a2346 55%,#6a4a2a)}
+.hero2:after{content:"";position:absolute;left:0;right:0;bottom:0;height:160px;background:linear-gradient(0deg,#101115,transparent)}
+.left{position:absolute;left:48px;bottom:40px;width:560px;z-index:2}
+.logo2{font-family:Georgia,serif;font-size:58px;letter-spacing:.14em;font-weight:700;color:#e9d7a8;margin:0 0 10px;line-height:1}
+.info{display:flex;gap:10px;align-items:center;color:var(--fg2);font-size:14px;margin-bottom:16px}
+.bdg{border:1px solid var(--line2);border-radius:4px;padding:1px 6px;font-size:12px;color:var(--fg2)}
+.watch{height:56px;border-radius:8px;background:#ececf0;color:#0b0b0d;font-weight:800;font-size:18px;display:flex;align-items:center;justify-content:center;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,.45)}
+.prog{height:3px;background:#3a3b42;border-radius:2px;margin:8px 0 16px}.prog i{display:block;height:100%;width:42%;background:#ececf0;border-radius:2px}
+.icons{display:flex;gap:30px;margin-bottom:18px}
+.ic2{display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--fg2);font-size:12px;width:44px}.ic2 b{font-size:20px;color:#fff;font-weight:400;line-height:1.1}
+.desc{color:#e4e8f0;font-size:15px;line-height:1.5;margin:0 0 10px;max-width:540px}
+.gen{color:var(--fg3);font-size:13px;margin-bottom:6px}.cast1{color:var(--fg3);font-size:13px}.cast1 span{color:var(--fg2)}
+.uni{position:absolute;right:112px;top:24px;width:44px;height:44px;border-radius:10px;border:1px solid rgba(255,255,255,.28);background:rgba(8,10,16,.8);display:grid;place-items:center;font-size:22px;z-index:3}
+.cls{position:absolute;right:48px;top:24px;width:44px;height:44px;border-radius:50%;border:1.5px solid rgba(255,255,255,.55);background:rgba(8,10,16,.88);display:grid;place-items:center;font-size:20px;z-index:3}
+.dtabs{display:flex;gap:26px;padding:0 48px;border-bottom:1px solid var(--line);margin-top:-8px;position:relative;z-index:2}
+.dtabs span{padding:14px 2px;color:var(--fg2);font-weight:600;border-bottom:2px solid transparent}.dtabs span.on{color:#fff;border-color:#fff}
+.sec2{padding:22px 48px 0}.sec2 h3{font-size:19px;margin:0 0 12px}
+.seld{display:inline-flex;align-items:center;gap:14px;height:44px;padding:0 16px;border:1px solid var(--line2);border-radius:8px;background:#1a1b21;font-weight:700;margin-bottom:16px}
+.eps{display:grid;grid-template-columns:repeat(6,1fr);gap:16px}
+.ep .st{aspect-ratio:16/9;border-radius:6px;position:relative}
+.ep .st:after{content:"▶";position:absolute;left:8px;bottom:6px;color:#fff;font-size:14px}
+.ep .dots{position:absolute;right:8px;top:6px;color:#fff;font-weight:900;letter-spacing:-1px;text-shadow:0 1px 3px #000}
+.ep b{display:block;font-size:13px;margin:8px 0 2px}.ep small{display:block;color:var(--fg3);font-size:12px;margin-bottom:4px}
+.ep p{margin:0;color:var(--fg2);font-size:12px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.ext{display:grid;grid-template-columns:repeat(6,1fr);gap:16px}
+.ext .t2{aspect-ratio:16/9;border-radius:6px;position:relative}
+.kind{position:absolute;left:8px;top:8px;background:rgba(0,0,0,.65);padding:1px 7px;border-radius:4px;font-size:11px;font-weight:700}
+.docT{aspect-ratio:16/9;border-radius:6px;border:1px solid var(--line2);background:#17181d;display:grid;place-items:center;font-size:30px;position:relative}
+.about{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;border:1px solid var(--line2);border-radius:10px;background:#15161b;padding:16px 20px}
+.about small{color:var(--fg3);display:block;font-size:12px}.about b{font-size:14px}
+.ser{display:grid;grid-template-columns:repeat(8,1fr);gap:16px}
+.ser .p{aspect-ratio:2/3;border-radius:6px}.ser .miss{opacity:.45}.ser b{display:block;font-size:13px;margin-top:6px}.ser small{color:var(--fg3);font-size:12px}
+.dd3{position:absolute;background:#1a1b21;border:1px solid var(--line2);border-radius:10px;box-shadow:0 18px 40px rgba(0,0,0,.6);padding:6px;width:260px;z-index:6}
+.dd3 div{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:7px}.dd3 div.on{background:#25262d}.dd3 small{margin-left:auto;color:var(--fg3)}
+.mk{z-index:9}
+
+.ph{width:390px;background:#101115;position:relative;overflow:hidden;border-radius:18px;border:1px solid var(--line2)}
+.ph .hero2{height:330px;background:linear-gradient(0deg,#101115 0,rgba(16,17,21,.1) 60%),linear-gradient(120deg,#1b2440,#3a2346 55%,#6a4a2a)}
+.ph .hero2:after{display:none}
+.ph .cls{right:14px;top:14px;width:40px;height:40px}.ph .uni{right:64px;top:14px;width:40px;height:40px}
+.ph .pbody{padding:0 16px 24px}
+.ph .logo2{font-size:30px}.ph .watch{height:52px;font-size:17px}.ph .icons{justify-content:space-around;margin:4px 0 14px}
+.ph .desc{font-size:14px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:4px}
+.ph .mre{color:var(--fg2);font-size:13px;margin-bottom:10px}
+.pe{display:flex;gap:12px;margin-bottom:14px}.pe .st{width:128px;aspect-ratio:16/9;border-radius:6px;flex:none;position:relative}
+.pe b{display:block;font-size:14px}.pe small{color:var(--fg3);font-size:12px}.pe p{margin:2px 0 0;color:var(--fg2);font-size:12px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ph h3{font-size:17px;margin:18px 0 10px}
+.ph .ext2{display:flex;gap:10px;overflow:hidden}.ph .ext2 .t2{width:150px;flex:none;aspect-ratio:16/9;border-radius:6px;position:relative}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#1a1b21;border-radius:16px 16px 0 0;border-top:1px solid var(--line2);padding:12px 16px 18px;z-index:6}
+.sheet div{padding:12px 4px;border-bottom:1px solid var(--line);display:flex}.sheet small{margin-left:auto;color:var(--fg3)}
+</style><section class="intro" style="max-width:880px;margin:0 auto 28px"><h1>Details page: hero, episodes, Extras and About</h1><p>The window colors match the details page. Stand-in colour blocks stand for pictures.</p></section><section class="shot"><h2>N. A TV show page</h2><p class="sub">The left side follows the HBO layout. Close, Universe icon, one big button, quiet icons, no Details or Related tab.</p><div class="frame"><div class="dp" style="height:1640px"><div class="hero2"><span class="uni">✦</span><span class="cls">✕</span><div class="left"><div class="logo2">THE EXPANSE</div>
+<div class="info"><span>TV-MA</span><span>6 Seasons</span><span class="bdg">4K</span><span class="bdg">HDR</span><span class="bdg">Atmos</span></div>
+<div class="watch">▶ Resume S2 E3</div><div class="prog"><i></i></div>
+<div class="icons"><div class="ic2"><b>＋</b>My List</div><div class="ic2"><b>👍</b>Like</div><div class="ic2"><b>✎</b>Edit</div><div class="ic2"><b>⋯</b>More</div></div>
+<p class="desc">In the 24th century, a police detective and a ship's officer chase a missing-person case that grows into a conflict across the solar system.</p>
+<div class="gen">Sci-Fi · Drama · Mystery</div><div class="cast1">Starring <span>Steven Strait, Dominique Tipper, Wes Chatham</span></div></div></div><div class="dtabs"><span class="on">Overview</span><span>Cast</span></div><div class="sec2"><div class="seld"><span>Season 2</span><span>▾</span></div><div class="eps"><div class="ep"><div class="st g3"><span class="dots">⋮</span></div><b>1. Dulcinea</b><small>TV-MA · 44m · 2015</small><p>Detective Miller searches for a missing girl while Holden and the crew survive.</p></div><div class="ep"><div class="st g5"><span class="dots">⋮</span></div><b>2. The Big Empty</b><small>TV-MA · 43m · 2015</small><p>The survivors drift in a stolen shuttle as the Canterbury mystery deepens.</p></div><div class="ep"><div class="st g2"><span class="dots">⋮</span></div><b>3. Remember the Cant</b><small>TV-MA · 42m · 2015</small><p>Holden broadcasts what he knows, and a war between planets draws closer.</p></div><div class="ep"><div class="st g4"><span class="dots">⋮</span></div><b>4. CQB</b><small>TV-MA · 43m · 2015</small><p>Boarding the Donnager, the crew faces an enemy it cannot see.</p></div><div class="ep"><div class="st g6"><span class="dots">⋮</span></div><b>5. Back to the Butcher</b><small>TV-MA · 45m · 2015</small><p>Miller follows the trail to Eros as the crew pursues a hidden cargo.</p></div><div class="ep"><div class="st g1"><span class="dots">⋮</span></div><b>6. Rock Bottom</b><small>TV-MA · 44m · 2015</small><p>On Ceres a riot erupts, and the crew learns who stands behind it.</p></div></div></div><div class="sec2" style="padding-top:30px"><h3>Extras</h3><div class="ext"><div class="t2 g7"><span class="kind">Trailer</span></div><div class="t2 g2"><span class="kind">Featurette</span></div><div class="docT">📄<span class="kind">Guide</span></div></div></div><div class="sec2" style="padding-top:30px"><h3>About this</h3><div class="about"><div><small>Quality</small><b>4K · HDR · Dolby Vision</b></div><div><small>Audio</small><b>English 5.1 · Atmos</b></div><div><small>Subtitles</small><b>English, Spanish</b></div><div><small>Size</small><b>62 episodes · 214 GB</b></div><div><small>First aired</small><b>14 Dec 2015</b></div><div><small>Location</small><b>TV/The Expanse</b></div><div><small>TheTVDB</small><b>264492 ↗</b></div><div><small>Wikidata</small><b>Q18154771 ↗</b></div></div></div><div class="sec2" style="padding-top:30px"><h3>More in this world</h3><div class="ser"><div><div class="p g1"></div><b>Caliban's War</b><small>Book 2</small></div><div><div class="p g3"></div><b>Abaddon's Gate</b><small>Book 3</small></div><div class="miss"><div class="p g5"></div><b>Cibola Burn</b><small>Not in your library</small></div><div class="miss"><div class="p g6"></div><b>Nemesis Games</b><small>Not in your library</small></div></div></div><span class="mk" style="left:1254px;top:34px">1</span><span class="mk" style="left:1392px;top:16px">2</span><span class="mk" style="left:16px;top:332px">3</span><span class="mk" style="left:16px;top:404px">4</span><span class="mk" style="left:16px;top:520px">5</span><span class="mk" style="left:16px;top:612px">6</span><span class="mk" style="left:16px;top:740px">7</span><span class="mk" style="left:16px;top:1020px">8</span><span class="mk" style="left:16px;top:1204px">9</span><span class="mk" style="left:16px;top:1396px">10</span></div></div><ol class="notes"><li><b>1</b><span><b>Universe icon</b> sits top right beside the close button, and only shows when the title has a Universe.</span></li><li><b>2</b><span><b>Close button</b> is a solid dark circle with a clear outline, so it reads over any artwork.</span></li><li><b>3</b><span><b>One big Watch or Resume button</b>, solid and light. A thin progress bar sits under it while resuming.</span></li><li><b>4</b><span><b>Quiet icons with labels</b>: My List, Like, Edit and More. Mark as watched and Delete-type actions live under More.</span></li><li><b>5</b><span><b>Genres</b> as a quiet line under the description, then one line of cast names. The full cast is on the Cast tab.</span></li><li><b>6</b><span><b>Two tabs only</b>: Overview and Cast. No Details, no Related, no expand arrows.</span></li><li><b>7</b><span><b>Episode cards</b> show a still, a number and title, a detail line and three lines of description. A still taken from the video file is used when the provider has none.</span></li><li><b>8</b><span><b>Extras</b> row under the episodes: trailers, featurettes and documents.</span></li><li><b>9</b><span><b>About this</b> holds the facts that used to be on the Details tab, with provider links.</span></li><li><b>10</b><span><b>Series items</b> you do not own are dimmed and labeled. Owned items carry no marker.</span></li></ol></section><section class="shot"><h2>O. A folder of Other videos</h2><p class="sub">Same page, video wording: Videos and named sections, no Seasons or Episodes.</p><div class="frame"><div class="dp" style="height:1160px"><div class="hero2"><span class="cls">✕</span><div class="left"><div class="logo2">Python Course</div>
+<div class="info"><span>Videos</span><span>38 videos</span><span>6h 20m</span></div>
+<div class="watch">▶ Resume · 14 min left</div><div class="prog"><i></i></div>
+<div class="icons"><div class="ic2"><b>＋</b>My List</div><div class="ic2"><b>👍</b>Like</div><div class="ic2"><b>✎</b>Edit</div><div class="ic2"><b>⋯</b>More</div></div>
+<p class="desc">Learn Python from the first line to your own projects, with homework after each section.</p>
+<div class="gen">Course · Programming</div></div></div><div class="dtabs"><span class="on">Overview</span></div><div class="sec2"><div class="seld"><span>Functions</span><span>▾</span></div><div class="eps"><div class="ep"><div class="st g3"><span class="dots">⋮</span></div><b>Defining functions</b><small>14 min</small></div><div class="ep"><div class="st g5"><span class="dots">⋮</span></div><b>Arguments and defaults</b><small>11 min</small></div><div class="ep"><div class="st g2"><span class="dots">⋮</span></div><b>Return values</b><small>9 min</small></div></div></div><div class="sec2" style="padding-top:30px"><h3>Extras</h3><div class="ext"><div class="docT">📄<span class="kind">Homework</span></div><div class="docT">📄<span class="kind">Notes</span></div></div></div><span class="mk" style="left:16px;top:676px">1</span><span class="mk" style="left:16px;top:332px">2</span><span class="mk" style="left:16px;top:968px">3</span></div></div><ol class="notes"><li><b>1</b><span><b>Wording</b>: "Videos" and sections named after their folders (here, Functions). No Season, Episode, S1 E1 or Up Next numbers.</span></li><li><b>2</b><span><b>Play button</b> says Play or Resume with the time left.</span></li><li><b>3</b><span><b>Homework and notes</b> are Extras. They open read-only in the Documents reader.</span></li></ol></section><section class="shot"><h2>P. The same show page on a phone</h2><p class="sub">One column. Edit is not shown on a phone. Season opens as a bottom sheet (right).</p><div class="frame" style="display:flex;gap:40px;padding:24px;justify-content:center;background:#08090C">
+<div class="ph" style="height:1180px"><div class="hero2"><span class="uni">✦</span><span class="cls">✕</span></div><div class="pbody" style="margin-top:-150px;position:relative;z-index:2"><div class="logo2" style="margin-bottom:6px">THE EXPANSE</div><div class="info"><span>TV-MA</span><span>6 Seasons</span><span class="bdg">4K</span></div><div class="watch">▶ Resume S2 E3</div><div class="prog"><i></i></div><div class="icons"><div class="ic2"><b>＋</b>My List</div><div class="ic2"><b>👍</b>Like</div><div class="ic2"><b>⋯</b>More</div></div><p class="desc">In the 24th century, a police detective and a ship's officer chase a missing-person case that grows into a conflict across the solar system.</p><div class="mre">more</div><div class="gen">Sci-Fi · Drama · Mystery</div><div class="dtabs" style="padding:0;margin:14px 0 0"><span class="on">Overview</span><span>Cast</span></div><div class="seld" style="margin:16px 0 14px"><span>Season 2</span><span>▾</span></div>
+<div class="pe"><div class="st g3"></div><div><b>1. Dulcinea</b><small>44m</small><p>Detective Miller searches for a missing girl while Holden and the crew survive.</p></div></div>
+<div class="pe"><div class="st g5"></div><div><b>2. The Big Empty</b><small>43m</small><p>The survivors drift in a stolen shuttle as the Canterbury mystery deepens.</p></div></div>
+<div class="pe"><div class="st g2"></div><div><b>3. Remember the Cant</b><small>42m</small><p>Holden broadcasts what he knows, and a war between planets draws closer.</p></div></div>
+<h3>Extras</h3><div class="ext2"><div class="t2 g7"><span class="kind">Trailer</span></div><div class="t2 g2"><span class="kind">Featurette</span></div></div>
+<h3>About this</h3><div class="about" style="grid-template-columns:1fr 1fr;gap:14px"><div><small>Quality</small><b>4K · HDR</b></div><div><small>Audio</small><b>5.1 · Atmos</b></div><div><small>Size</small><b>214 GB</b></div><div><small>First aired</small><b>14 Dec 2015</b></div></div></div>
+<span class="mk" style="left:8px;top:340px">1</span><span class="mk" style="left:8px;top:424px">2</span><span class="mk" style="left:8px;top:720px">3</span></div>
+<div class="ph" style="height:640px;align-self:flex-start"><div class="hero2" style="position:absolute;left:0;right:0;top:0;height:330px"></div><div style="position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:5"></div><div class="sheet"><div><b>Season 1</b><small>10 episodes</small></div><div><b>Season 2</b><small>13 episodes ✓</small></div><div><b>Season 3</b><small>13 episodes</small></div><div style="border:0"><b>Season 4</b><small>10 episodes</small></div></div><span class="mk" style="left:8px;top:430px">4</span></div></div>
+<ol class="notes"><li><b>1</b><span><b>One full-width Watch or Resume button</b> with the progress bar under it, and a short row of icons. Edit is not shown on a phone.</span></li><li><b>2</b><span><b>Description is two lines</b>, with "more" to expand it. Genres sit under it.</span></li><li><b>3</b><span><b>Episodes are a vertical list</b>: still on the left, number, title, length and two lines of description on the right. Extras scroll sideways.</span></li><li><b>4</b><span><b>Season opens as a bottom sheet</b> with the season names and episode counts.</span></li></ol></section>

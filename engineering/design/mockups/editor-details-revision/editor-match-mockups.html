@@ -1,0 +1,215 @@
+<title>Match Mockups</title>
+
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: a stack of 1440-wide app screens, each in its own sideways-scrolling frame, numbered notes beneath. Single dark look on purpose: it is the app's own look. */
+:root{
+  --page:#050507; --app:#101115; --win:#101115; --panel:#1A1B21; --line:#25272E; --line2:#33363F;
+  --fg:#F5F7FB; --fg2:#B6C2D6; --fg3:#8593AA; --accent:#8852FC; --accent2:#C4A1FF; --accentbg:#221a3e;
+  --ok:#4ade80; --okbg:#12351f; --warn:#fbbf24; --warnbg:#3a2c0b; --bad:#f87171; --badbg:#3b1414;
+  --ui:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--page);color:var(--fg);font-family:var(--ui);font-size:14px;line-height:1.4;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 48px}
+.intro{max-width:880px;margin:0 auto 28px}
+.intro h1{font-size:26px;margin:0 0 8px;text-wrap:balance}
+.intro p{color:var(--fg2);margin:0 0 8px;max-width:70ch}
+section.shot{max-width:1460px;margin:0 auto 44px}
+section.shot h2{font-size:18px;margin:0 0 4px}
+section.shot .sub{color:var(--fg3);margin:0 0 12px}
+.frame{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--app)}
+.notes{max-width:880px;margin:14px 0 0;padding:0;list-style:none;display:grid;gap:8px}
+.notes li{display:grid;grid-template-columns:26px 1fr;gap:10px;color:var(--fg2)}
+.notes li b{color:var(--fg)}
+
+/* screen */
+.vp{width:1440px;height:900px;position:relative;overflow:hidden;background:var(--app)}
+.bgpage{position:absolute;inset:0;background:linear-gradient(180deg,#1a1532 0,#0B1020 380px)}
+.bgpage .topnav{height:56px;border-bottom:1px solid var(--line);background:#0B1020;display:flex;align-items:center;gap:28px;padding:0 32px;color:var(--fg2)}
+.bgpage .topnav b{color:var(--fg);letter-spacing:.08em}
+.dim{position:absolute;inset:0;background:rgba(3,5,10,.7)}
+.win{position:absolute;left:80px;top:20px;width:1280px;height:860px;background:var(--win);border:1px solid var(--line2);border-radius:12px;box-shadow:0 30px 80px rgba(0,0,0,.65);display:flex;flex-direction:column;overflow:hidden}
+.rail{height:58px;display:flex;align-items:center;gap:8px;padding:0 16px;border-bottom:1px solid var(--line);flex:none}
+.crumb{display:flex;align-items:center;gap:10px;height:42px;padding:0 12px 0 6px;border:1px solid var(--line2);border-radius:8px;background:var(--panel);min-width:210px}
+.crumb.on{border-color:var(--accent);background:#17132b}
+.crumb .t{width:30px;height:30px;border-radius:5px;flex:none}
+.crumb small{display:block;color:var(--fg3);font-size:11px;line-height:1.1}
+.crumb span{font-weight:600;font-size:13px}
+.crumb .v{margin-left:auto;color:var(--fg3)}
+.sep{color:var(--fg3)}
+.x{margin-left:auto;color:var(--fg2);font-size:22px;width:36px;text-align:center}
+.head{height:168px;flex:none;display:flex;gap:22px;padding:18px 24px;position:relative;background:linear-gradient(90deg,var(--win) 35%,transparent),var(--herobg,linear-gradient(120deg,#1b2440,#3a2346));border-bottom:1px solid var(--line)}
+.head .cover{width:88px;height:132px;border-radius:8px;flex:none;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.head .cover.land{width:200px;height:113px;align-self:center}
+.head .kicker{color:var(--accent2);font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:600}
+.head h3{font-size:28px;margin:4px 0 4px}
+.head .facts{color:var(--fg2)}
+.head .links{position:absolute;right:24px;top:18px;display:flex;gap:8px}
+.lnk{border:1px solid var(--line2);background:rgba(10,14,24,.75);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600}
+.more{border:1px solid var(--line2);background:rgba(10,14,24,.75);border-radius:8px;padding:6px 12px;font-weight:700}
+.tabs{display:flex;gap:10px;padding:0 24px;border-bottom:1px solid var(--line);flex:none}
+.tab{display:flex;align-items:center;gap:10px;padding:16px 26px;color:var(--fg2);font-weight:600;border-bottom:2px solid transparent}
+.ti{font-style:normal;font-size:15px;color:var(--ic,#8f7fd1)}.tab.on .ti{filter:brightness(1.25)}.tab.on{color:var(--fg);border-color:var(--accent)}
+.body{flex:1;min-height:0;display:flex;gap:20px;padding:20px 24px;overflow:hidden}
+.form{flex:1;min-width:0;display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;align-content:start}
+.f{display:flex;flex-direction:column;gap:5px}
+.f.w{grid-column:1/-1}
+.f label{font-size:12px;color:var(--fg2);font-weight:600}
+.in{height:38px;border:1px solid var(--line2);border-radius:7px;background:#0A0B0E;display:flex;align-items:center;padding:0 10px;gap:8px}
+.in.tall{height:64px;align-items:flex-start;padding-top:9px}
+.in.changed{border-color:var(--accent)}
+.in .ico{margin-left:auto;color:var(--fg3);font-size:13px}
+.in .rev{color:var(--accent2)}
+.ro{color:var(--fg3)}
+.qf{width:300px;flex:none;border:1px solid #3d2d80;border-radius:10px;background:linear-gradient(180deg,#1d1446,#140e33);padding:14px 16px;align-self:start}
+.qf h4{margin:0 0 8px;font-size:15px}
+.qf .r{display:flex;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.qf .r:first-of-type{border-top:0}
+.qf .i{width:34px;height:34px;border-radius:50%;background:var(--accentbg);color:var(--accent2);display:grid;place-items:center;font-size:14px;flex:none}
+.qf b{display:block;font-size:16px}.qf small{color:var(--fg2)}
+.foot{height:64px;flex:none;border-top:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:0 20px;background:#0B0C0F}.foot .where{margin-left:6px}
+.foot .where b{display:block;font-size:13px}.foot .where small{color:var(--fg3)}
+.foot .cnt{margin-left:auto;color:var(--fg2)}
+.btn{height:38px;padding:0 16px;border-radius:8px;border:1px solid var(--line2);display:inline-flex;align-items:center;font-weight:600;background:transparent;color:var(--fg)}
+.btn.p{background:var(--accent);border-color:var(--accent)}
+.btn.d{background:#b42318;border-color:#b42318}
+.btn.sm{height:30px;padding:0 10px;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:4px;font-size:12px;background:#1E293B;color:var(--fg2)}
+.chip.ok{background:var(--okbg);color:var(--ok)}.chip.warn{background:var(--warnbg);color:var(--warn)}.chip.ac{background:var(--accentbg);color:var(--accent2)}
+.mk{position:absolute;width:24px;height:24px;border-radius:50%;background:#ffd84d;color:#1a1300;font-weight:800;font-size:13px;display:grid;place-items:center;box-shadow:0 0 0 3px rgba(0,0,0,.6);z-index:5}
+.th{border-radius:5px;flex:none}
+.g1{background:linear-gradient(150deg,#c0603a,#3a1d2f 60%,#121a33)}
+.g2{background:linear-gradient(150deg,#3d5a8a,#14203a)}
+.g3{background:linear-gradient(150deg,#5a4a8a,#1a1538)}
+.g4{background:linear-gradient(150deg,#8a6a3a,#2a1a10)}
+.g5{background:linear-gradient(150deg,#2a6a6a,#0c2224)}
+.g6{background:linear-gradient(150deg,#7a3a5a,#200c18)}
+.g7{background:linear-gradient(150deg,#d8a24a,#5a2a12 70%)}
+.g8{background:linear-gradient(150deg,#4a7a3a,#10200c)}
+table.t{width:100%;border-collapse:collapse;font-size:13px}
+table.t th{text-align:left;color:var(--fg3);font-weight:600;font-size:12px;padding:8px 10px;border-bottom:1px solid var(--line)}
+table.t td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+table.t tr.sel td{background:#151a30}
+.cb{width:16px;height:16px;border-radius:4px;border:1.5px solid var(--fg3);display:inline-block;vertical-align:middle}
+.cb.on{background:var(--accent);border-color:var(--accent);position:relative}
+.cb.on::after{content:"";position:absolute;left:4px;top:1px;width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.bar{display:inline-block;width:70px;height:6px;border-radius:3px;background:#1E293B;vertical-align:middle;margin-right:6px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent)}
+.bar.lo i{background:var(--warn)}
+.num{font-variant-numeric:tabular-nums}
+.card{border:1px solid var(--line2);border-radius:10px;background:var(--panel)}
+.dd{position:absolute;background:#111a2c;border:1px solid var(--line2);border-radius:10px;box-shadow:0 18px 40px rgba(0,0,0,.6);padding:8px;z-index:4}
+.dd .s{height:34px;border:1px solid var(--line2);border-radius:7px;background:#0B1020;display:flex;align-items:center;padding:0 10px;color:var(--fg3);margin-bottom:6px}
+.dd .o{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:7px}
+.dd .o.on{background:#1D2940}
+.dd .o small{color:var(--fg3);display:block;font-size:11px}
+.dd .o .m{margin-left:auto;font-size:12px}
+.modal{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:520px;background:#121a2b;border:1px solid var(--line2);border-radius:12px;box-shadow:0 30px 80px rgba(0,0,0,.7);padding:22px;z-index:6}
+.modal h3{margin:0 0 10px;font-size:19px}
+.modal p{color:var(--fg2);margin:0 0 10px}
+.modal ul{margin:0 0 14px;padding-left:18px;color:var(--fg2)}
+.modal .acts{display:flex;justify-content:flex-end;gap:10px}
+.scrim{position:absolute;inset:0;background:rgba(3,5,10,.55);z-index:5}
+
+/* Header v2: the Show is a static tile; the Season and Episode dropdowns live inside the header (no separate rail row). */
+.hero{height:176px;flex:none;display:flex;gap:20px;padding:18px 24px;position:relative;background:linear-gradient(90deg,var(--win) 30%,transparent),var(--herobg,linear-gradient(120deg,#1b2440,#3a2346));border-bottom:1px solid var(--line)}
+.showtile{width:214px;height:140px;flex:none;border:1px solid var(--line2);border-radius:10px;background:rgba(10,14,24,.72);display:flex;gap:12px;padding:10px;align-items:flex-start}
+.showtile .p{width:62px;height:96px;border-radius:6px;flex:none;box-shadow:0 6px 18px rgba(0,0,0,.5)}
+.showtile small{display:block;color:var(--fg3);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.showtile b{display:block;font-size:15px;line-height:1.2;margin:4px 0 4px}
+.showtile em{font-style:normal;color:var(--fg2);font-size:12px}
+.showtile.is-item{border-color:var(--accent);background:#17132b}
+.hero .cover{border-radius:8px;flex:none;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.hero .main{min-width:0;display:flex;flex-direction:column}
+.hero .kicker{color:var(--accent2);font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:600}
+.hero h3{font-size:26px;margin:2px 0 2px;text-wrap:balance}
+.hero .facts{color:var(--fg2);display:flex;align-items:center;gap:10px}
+.sels{display:flex;gap:10px;margin-top:auto}
+.sel{display:flex;align-items:center;gap:10px;height:40px;min-width:230px;padding:0 12px 0 6px;border:1px solid var(--line2);border-radius:8px;background:rgba(10,14,24,.78)}
+.sel.on{border-color:var(--accent);background:#17132b}
+.sel .t{width:30px;height:30px;border-radius:5px;flex:none}
+.sel small{display:block;color:var(--fg3);font-size:11px;line-height:1.1}
+.sel span.n{font-weight:600;font-size:13px}
+.sel .v{margin-left:auto;color:var(--fg3)}
+.hero .links{position:absolute;right:24px;top:18px;display:flex;gap:8px}
+.narrow .win{left:0;top:0;width:1024px;height:760px;border-radius:0}
+.narrow.vp{width:1024px;height:760px}
+.narrow .hero{height:auto;flex-wrap:wrap;gap:14px 16px}
+.narrow .showtile{width:calc(100% - 130px);height:auto;align-items:center;padding:8px 10px}
+.narrow .showtile .p{width:34px;height:50px}
+
+.ftile{position:relative;display:block;width:62px;height:96px;border-radius:6px;flex:none;box-shadow:0 6px 18px rgba(0,0,0,.5);overflow:hidden}.ftile b{position:absolute;left:0;right:0;bottom:0;padding:14px 4px 4px;font-size:9px;text-align:center;text-transform:uppercase;letter-spacing:.08em;background:linear-gradient(0deg,rgba(0,0,0,.75),transparent)}.stack{position:relative;width:96px;height:64px;flex:none}
+.stack i{position:absolute;width:70px;height:42px;border-radius:5px;box-shadow:0 4px 12px rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.12)}
+.stack i:nth-child(1){left:0;top:16px;transform:rotate(-6deg)}
+.stack i:nth-child(2){left:12px;top:8px;transform:rotate(-1deg)}
+.stack i:nth-child(3){left:24px;top:0;transform:rotate(5deg)}
+.showtile.wide{align-items:center}
+.fr{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.fr .a{aspect-ratio:16/9;border-radius:6px;border:2px solid transparent;position:relative}
+.fr .a.pref{border-color:var(--accent)}
+.fr .a small{position:absolute;right:6px;bottom:4px;background:rgba(0,0,0,.6);padding:1px 5px;border-radius:3px;font-size:11px}
+.scrub{height:6px;border-radius:3px;background:#1E193A;position:relative;margin:12px 0 4px}
+.scrub i{position:absolute;left:34%;top:-5px;width:16px;height:16px;border-radius:50%;background:var(--accent)}
+.sw{display:inline-block;width:34px;height:20px;border-radius:10px;background:#2c2552;position:relative;vertical-align:middle}
+.sw::after{content:"";position:absolute;left:3px;top:3px;width:14px;height:14px;border-radius:50%;background:#B6C2D6}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+.mt{padding:16px 24px;display:flex;flex-direction:column;gap:14px;flex:1;min-height:0;overflow:hidden}
+.sec{border:1px solid var(--line2);border-radius:10px;background:var(--panel);padding:14px 16px}
+.sec h4{margin:0 0 2px;font-size:15px}.sec .sm{color:var(--fg3);font-size:12px;margin:0 0 10px}
+.row{display:flex;align-items:center;gap:14px}
+.logo{width:30px;height:30px;border-radius:7px;display:grid;place-items:center;font-weight:800;font-size:13px;flex:none}
+.l-tv{background:#0f3d2e;color:#4ade80}.l-wd{background:#2a1740;color:#c4a1ff}.l-mb{background:#3a1d2f;color:#f0a0d0}.l-tm{background:#0d2f4a;color:#7cc7ff}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:700}
+.pct{background:var(--okbg);color:var(--ok)}.pct.mid{background:var(--warnbg);color:var(--warn)}
+.res{display:flex;align-items:center;gap:14px;padding:10px 12px;border:1px solid var(--line);border-radius:9px;background:#13141a}
+.res.sel{border-color:var(--accent);background:#17132b}
+.res .t{width:96px;height:54px;border-radius:5px;flex:none}
+.res b{display:block}.res small{color:var(--fg3)}
+.why{margin:6px 0 2px 0;border:1px solid #3d2d80;border-radius:9px;background:#150f33;padding:10px 14px}
+.why table{width:100%;border-collapse:collapse;font-size:13px}.why td{padding:4px 8px;border-bottom:1px solid #2a2150}
+.v-ex{color:var(--ok)}.v-cl{color:var(--warn)}.v-mm{color:var(--bad)}
+.srch{display:flex;gap:10px}.srch .in{flex:1}.srch .dd2{width:200px;height:38px;border:1px solid var(--accent);border-radius:7px;display:flex;align-items:center;padding:0 12px;gap:8px;background:#0A0B0E}
+.rv{width:100%;border-collapse:collapse;font-size:14px}.rv th{color:var(--fg3);font-weight:600;font-size:12px;text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}.rv td{padding:9px 10px;border-bottom:1px solid var(--line)}
+.sw.on{background:var(--accent)}.sw.on::after{left:17px;background:#fff}
+.swr{display:flex;align-items:center;gap:12px;padding:8px 0}.swr small{display:block;color:var(--fg3)}
+</style><section class="intro" style="max-width:880px;margin:0 auto 28px"><h1>Match &amp; Identity: matched episode, search and review</h1><p>Wikidata identity and the retail match are now two separate parts. Provider logos, percentages and a short "why" follow your reference pictures. Stand-in colour blocks stand for pictures.</p></section><section class="shot"><h2>J. An episode that is matched</h2><p class="sub">The Expanse, S02E03. Open on the Match &amp; Identity tab.</p><div class="frame"><div class="vp"><div class="bgpage"></div><div class="dim"></div><div class="win"><div class="hero" style="--herobg:linear-gradient(120deg,#14203a,#3d5a8a)">
+        <div class="showtile"><span class="p g1"></span><div><small>Show</small><b>The Expanse</b><em>6 seasons · 62 episodes</em></div></div>
+        <div class="main"><div class="kicker">TV episode · Season 2</div><h3>S02E03 · Static</h3>
+          <div class="facts"><span>Aired 8 Feb 2017 · 42 min</span><span class="chip ok">✓ Matched</span></div>
+          <div class="sels"><div class="sel"><span class="t g2"></span><div><small>Season</small><span class="n">Season 2</span></div><span class="v">▾</span></div><div class="sel on"><span class="t g3"></span><div><small>Episode 3</small><span class="n">Static</span></div><span class="v">▾</span></div></div></div>
+        <div class="links"><span class="lnk" style="display:inline-flex;align-items:center;gap:6px"><span class="logo l-tv" style="width:20px;height:20px;font-size:9px">TV</span>TheTVDB ↗</span><span class="lnk" style="display:inline-flex;align-items:center;gap:6px"><span class="logo l-wd" style="width:20px;height:20px;font-size:9px">W</span>Wikidata ↗</span><span class="x" style="margin:0">✕</span></div></div>
+      <div class="tabs"><span class="tab"><i class="ti" style="--ic:#9a8cf0">▤</i>Details</span><span class="tab"><i class="ti" style="--ic:#e58fb4">◩</i>Artwork</span><span class="tab on"><i class="ti" style="--ic:#4ec9a0">⌖</i>Match &amp; Identity</span><span class="tab"><i class="ti" style="--ic:#e8b24a">▭</i>Files</span><span class="tab"><i class="ti" style="--ic:#8aa0c8">↺</i>History</span></div><div class="mt"><div class="sec"><div class="row"><span class="logo l-wd">W</span><div style="flex:1"><h4 style="margin:0">Wikidata identity</h4><div style="color:var(--fg2)">Static (The Expanse S02E03) · <span style="color:var(--accent2)">Q28004587</span></div></div><span class="chip ok">✓ Linked</span><span class="btn sm">Change</span><span class="btn sm">Remove</span></div></div>
+ <div class="sec"><h4>Retail match</h4><p class="sm">Where this episode's title, picture and details come from.</p>
+  <div class="row"><span class="logo l-tv">TV</span><span class="th g3" style="width:96px;height:54px"></span><div style="flex:1"><b style="font-size:16px">Static</b><div style="color:var(--fg2)">The Expanse · Season 2, episode 3 · 8 Feb 2017</div><div style="color:var(--fg3)">TheTVDB · episode 6389021</div></div><span class="chip ok">✓ Matched</span><span class="btn">Find a different match</span></div></div>
+ <div class="sec"><h4>More</h4><div class="swr"><span class="sw on"></span><div>Keep my library details<small>Your own edits are not replaced by the match</small></div></div></div></div>
+ <div class="foot"><span class="btn" style="color:#f87171;border-color:#5a2424;gap:8px">🗑 Delete</span><div class="where"><b>Changes save to Library</b><small>File write-back off</small></div><span class="cnt">No changes yet</span><span class="btn">Discard</span><span class="btn p" style="opacity:.45">Save changes</span></div></div><span class="mk" style="left:92px;top:262px">1</span><span class="mk" style="left:92px;top:366px">2</span><span class="mk" style="left:1296px;top:404px">3</span></div></div><ol class="notes"><li><b>1</b><span><b>Wikidata identity</b> is its own card, with its own Change and Remove. It never changes when you pick a retail match unless you say so.</span></li><li><b>2</b><span><b>Retail match</b> shows what it is matched to: the provider logo, its picture, season and episode, and the provider ID. No more "nothing is matched" on a matched episode.</span></li><li><b>3</b><span><b>Find a different match</b> opens the search (next screen).</span></li></ol></section><section class="shot"><h2>K. Finding a retail match</h2><p class="sub">Search with a provider dropdown, logos and a match percentage. Clicking a result explains the percentage.</p><div class="frame"><div class="vp"><div class="bgpage"></div><div class="dim"></div><div class="win"><div class="hero" style="--herobg:linear-gradient(120deg,#14203a,#3d5a8a)">
+        <div class="showtile"><span class="p g1"></span><div><small>Show</small><b>The Expanse</b><em>6 seasons · 62 episodes</em></div></div>
+        <div class="main"><div class="kicker">TV episode · Season 2</div><h3>S02E03 · Static</h3>
+          <div class="facts"><span>Aired 8 Feb 2017 · 42 min</span><span class="chip ok">✓ Matched</span></div>
+          <div class="sels"><div class="sel"><span class="t g2"></span><div><small>Season</small><span class="n">Season 2</span></div><span class="v">▾</span></div><div class="sel on"><span class="t g3"></span><div><small>Episode 3</small><span class="n">Static</span></div><span class="v">▾</span></div></div></div>
+        <div class="links"><span class="lnk" style="display:inline-flex;align-items:center;gap:6px"><span class="logo l-tv" style="width:20px;height:20px;font-size:9px">TV</span>TheTVDB ↗</span><span class="lnk" style="display:inline-flex;align-items:center;gap:6px"><span class="logo l-wd" style="width:20px;height:20px;font-size:9px">W</span>Wikidata ↗</span><span class="x" style="margin:0">✕</span></div></div>
+      <div class="tabs"><span class="tab"><i class="ti" style="--ic:#9a8cf0">▤</i>Details</span><span class="tab"><i class="ti" style="--ic:#e58fb4">◩</i>Artwork</span><span class="tab on"><i class="ti" style="--ic:#4ec9a0">⌖</i>Match &amp; Identity</span><span class="tab"><i class="ti" style="--ic:#e8b24a">▭</i>Files</span><span class="tab"><i class="ti" style="--ic:#8aa0c8">↺</i>History</span></div><div class="mt"><div class="sec" style="padding:10px 16px"><div class="row"><span class="logo l-wd">W</span><div style="flex:1">Wikidata identity · <span style="color:var(--accent2)">Q28004587</span></div><span class="chip ok">✓ Linked</span></div></div>
+ <div class="sec"><h4>Find a retail match</h4><p class="sm">Current: Static · The Expanse S02E03</p>
+  <div class="srch"><div class="dd2"><span class="logo l-tv" style="width:22px;height:22px;font-size:10px">TV</span>TheTVDB <span style="margin-left:auto">▾</span></div><div class="in" style="flex:2"><span class="ro">Show</span>The Expanse</div><div class="in" style="flex:0 0 90px"><span class="ro">Season</span>2</div><div class="in" style="flex:0 0 90px"><span class="ro">Episode</span>3</div><div class="in" style="flex:2"><span class="ro">Title</span>Static</div><span class="btn p">Search</span></div><div style="color:var(--fg3);font-size:12px;margin-top:6px">Filled in from this episode's own details. <span style="color:var(--accent2)">Search by TheTVDB ID instead</span></div>
+  <div style="display:grid;gap:8px;margin-top:12px">
+   <div class="res sel"><span class="t g3"></span><div style="flex:1"><b>Static <span class="chip ac" style="margin-left:6px">Best match</span></b><small>The Expanse · S02E03 · 2017</small></div><span class="logo l-tv">TV</span><span class="pill pct">96%</span></div>
+   <div class="why"><b>Why 96%</b><table><tr><td>Title</td><td>Static</td><td class="v-ex">Exact</td></tr><tr><td>Season and episode</td><td>S02E03</td><td class="v-ex">Exact</td></tr><tr><td>Year</td><td>2017</td><td class="v-ex">Exact</td></tr><tr><td>Length</td><td>42 min vs 43 min</td><td class="v-cl">Close</td></tr></table></div>
+   <div class="res"><span class="t g5"></span><div style="flex:1"><b>Static</b><small>The Expanse (2015) · S02E03 · TMDB</small></div><span class="logo l-tm">TM</span><span class="pill pct mid">71%</span></div>
+   <div class="res"><span class="t g6"></span><div style="flex:1"><b>Static Shock</b><small>Static Shock · S01E03</small></div><span class="logo l-tv">TV</span><span class="pill pct mid">38%</span></div>
+  </div></div>
+ </div><div class="foot"><span class="btn" style="color:#f87171;border-color:#5a2424;gap:8px">🗑 Delete</span><div class="where"><b>Changes save to Library</b><small>File write-back off</small></div><span class="cnt">No changes yet</span><span class="btn">Discard</span><span class="btn p" style="opacity:.45">Save changes</span></div></div><span class="mk" style="left:1092px;top:368px">1</span><span class="mk" style="left:1186px;top:446px">2</span><span class="mk" style="left:1324px;top:446px">3</span><span class="mk" style="left:96px;top:510px">4</span></div></div><ol class="notes"><li><b>1</b><span><b>Specific fields, not one box.</b> For a matched episode they are filled in from its own real details (show, season, episode, title). The provider dropdown comes first and changes the fields.</span></li><li><b>2</b><span><b>Provider logo</b> on every result, so you know where a result comes from.</span></li><li><b>3</b><span><b>Match percentage</b> in green, yellow when it is a weaker guess.</span></li><li><b>4</b><span><b>Why 96%</b> opens when you click a result: each fact, what was compared, and Exact, Close or Mismatch. These come straight from the Engine.</span></li></ol></section><section class="shot"><h2>M. Searching for a file that is not matched yet</h2><p class="sub">A film with a messy file name. The fields are filled in with a best guess, and the provider changes which fields appear.</p><div class="frame"><div class="vp"><div class="bgpage"></div><div class="dim"></div><div class="win"><div class="hero" style="--herobg:linear-gradient(120deg,#2a1a10,#5a3a1a)"><span class="cover g4" style="width:88px;height:132px"></span><div class="main"><div class="kicker">Film</div><h3>Dune.Part.Two.2024.2160p.x265.Atmos-GRP</h3><div class="facts"><span>2h 46m</span><span class="chip warn">⚠ Not matched</span></div></div><div class="links"><span class="x" style="margin:0">✕</span></div></div><div class="tabs"><span class="tab"><i class="ti" style="--ic:#9a8cf0">▤</i>Details</span><span class="tab"><i class="ti" style="--ic:#e58fb4">◩</i>Artwork</span><span class="tab on"><i class="ti" style="--ic:#4ec9a0">⌖</i>Match &amp; Identity</span><span class="tab"><i class="ti" style="--ic:#e8b24a">▭</i>Files</span><span class="tab"><i class="ti" style="--ic:#8aa0c8">↺</i>History</span></div><div class="mt"><div class="sec" style="padding:10px 16px"><div class="row"><span class="logo l-wd">W</span><div style="flex:1">Wikidata identity · <span style="color:var(--fg3)">Not linked</span></div><span class="btn sm">Find</span></div></div><div class="sec"><h4>Find a retail match</h4><p class="sm">Best guess from the file name</p><div class="srch"><div class="dd2"><span class="logo l-tm" style="width:22px;height:22px;font-size:10px">TM</span>TMDB <span style="margin-left:auto">▾</span></div><div class="in" style="flex:3"><span class="ro">Title</span>Dune Part Two</div><div class="in" style="flex:0 0 110px"><span class="ro">Year</span>2024</div><div class="in" style="flex:1.4"><span class="ro">TMDB or IMDb ID</span><span style="color:var(--fg3)">optional</span></div><span class="btn p">Search</span></div><div style="color:var(--fg3);font-size:12px;margin-top:8px">Left out of the search: 2160p, x265, Atmos, GRP &nbsp;·&nbsp; <span style="color:var(--accent2)">Put them back</span></div><div style="display:grid;gap:8px;margin-top:12px"><div class="res"><span class="t g4"></span><div style="flex:1"><b>Dune: Part Two</b><small>2024 · Denis Villeneuve</small></div><span class="logo l-tm">TM</span><span class="pill pct">97%</span></div><div class="res"><span class="t g7"></span><div style="flex:1"><b>Dune</b><small>2021 · Denis Villeneuve</small></div><span class="logo l-tm">TM</span><span class="pill pct mid">62%</span></div></div></div></div><div class="foot"><span class="btn" style="color:#f87171;border-color:#5a2424;gap:8px">🗑 Delete</span><div class="where"><b>Changes save to Library</b><small>File write-back off</small></div><span class="cnt">No changes yet</span><span class="btn">Discard</span><span class="btn p" style="opacity:.45">Save changes</span></div></div><span class="mk" style="left:92px;top:344px">1</span><span class="mk" style="left:420px;top:386px">2</span><span class="mk" style="left:980px;top:386px">3</span><span class="mk" style="left:92px;top:452px">4</span></div></div><ol class="notes"><li><b>1</b><span><b>Provider first.</b> The fields change with it. A book provider adds Author and ISBN, a music provider adds Artist, Album and Track, and TheTVDB adds Show, Season and Episode.</span></li><li><b>2</b><span><b>Best guess, not a dump.</b> For a file that is not matched, the title and year are taken from the file name.</span></li><li><b>3</b><span><b>Specific details</b> keep results clean. An ID field (TMDB, IMDb, TheTVDB, ISBN, MusicBrainz) goes straight to that exact item when filled in.</span></li><li><b>4</b><span><b>Left-out words</b> such as resolution, codec, audio format and release group are shown, with Put them back if one was part of the real title. A matched item skips all of this and starts from its own real details.</span></li></ol></section><section class="shot"><h2>L. Review before it applies</h2><p class="sub">One short table of what will change. Nothing happens until Use this match, then Save changes.</p><div class="frame"><div class="vp"><div class="bgpage"></div><div class="dim"></div><div class="win"><div class="hero" style="--herobg:linear-gradient(120deg,#14203a,#3d5a8a)">
+        <div class="showtile"><span class="p g1"></span><div><small>Show</small><b>The Expanse</b><em>6 seasons · 62 episodes</em></div></div>
+        <div class="main"><div class="kicker">TV episode · Season 2</div><h3>S02E03 · Static</h3>
+          <div class="facts"><span>Aired 8 Feb 2017 · 42 min</span><span class="chip ok">✓ Matched</span></div>
+          <div class="sels"><div class="sel"><span class="t g2"></span><div><small>Season</small><span class="n">Season 2</span></div><span class="v">▾</span></div><div class="sel on"><span class="t g3"></span><div><small>Episode 3</small><span class="n">Static</span></div><span class="v">▾</span></div></div></div>
+        <div class="links"><span class="lnk" style="display:inline-flex;align-items:center;gap:6px"><span class="logo l-tv" style="width:20px;height:20px;font-size:9px">TV</span>TheTVDB ↗</span><span class="lnk" style="display:inline-flex;align-items:center;gap:6px"><span class="logo l-wd" style="width:20px;height:20px;font-size:9px">W</span>Wikidata ↗</span><span class="x" style="margin:0">✕</span></div></div>
+      <div class="tabs"><span class="tab"><i class="ti" style="--ic:#9a8cf0">▤</i>Details</span><span class="tab"><i class="ti" style="--ic:#e58fb4">◩</i>Artwork</span><span class="tab on"><i class="ti" style="--ic:#4ec9a0">⌖</i>Match &amp; Identity</span><span class="tab"><i class="ti" style="--ic:#e8b24a">▭</i>Files</span><span class="tab"><i class="ti" style="--ic:#8aa0c8">↺</i>History</span></div><div class="mt"><div class="sec"><h4>Review the match</h4><p class="sm">Static · TheTVDB · 96%</p>
+  <table class="rv"><tr><th></th><th>Current (your library)</th><th></th><th>Proposed (from match)</th></tr>
+  <tr><td>Title</td><td>Static</td><td>→</td><td>Static</td></tr><tr><td>Episode</td><td>Not set</td><td>→</td><td>S02E03</td></tr><tr><td>Aired</td><td>8 Feb 2017</td><td>→</td><td>8 Feb 2017</td></tr><tr><td>Identity</td><td>Unlinked</td><td>→</td><td><span class="logo l-tv" style="display:inline-grid;width:20px;height:20px;font-size:9px;vertical-align:middle">TV</span> TheTVDB 6389021</td></tr></table>
+  <div class="swr"><span class="sw on"></span><div>Update details from this match<small>Title, overview, air date and picture</small></div></div>
+  <div class="swr"><span class="sw"></span><div>Re-run Wikidata alignment<small>Off: the Wikidata identity above stays exactly as it is</small></div></div>
+  
+  <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:6px"><span class="btn">Back</span><span class="btn p">Use this match</span></div></div></div>
+ <div class="foot" style="height:72px"><span class="btn" style="color:#f87171;border-color:#5a2424;gap:8px">🗑 Delete</span><div class="where"><b style="color:var(--warn)">⚠ This file will move when you save</b><small>Static.mkv → The Expanse/Season 2/The Expanse - S02E03 - Static.mkv</small></div><span class="cnt">1 change waiting</span><span class="btn">Discard</span><span class="btn p" style="">Save changes</span></div></div><span class="mk" style="left:100px;top:320px">1</span><span class="mk" style="left:100px;top:572px">2</span><span class="mk" style="left:92px;top:786px">3</span></div></div><ol class="notes"><li><b>1</b><span><b>Current to Proposed</b> in one table. Only the lines that change are marked.</span></li><li><b>2</b><span><b>Wikidata alignment</b> is its own switch and starts off, so a retail match never changes Wikidata behind your back.</span></li><li><b>3</b><span><b>The bottom bar warns before anything moves.</b> In a Managed folder, saving a match also renames and moves the file, and the bar says exactly where it goes. In a Read-only folder the file never moves and the bar says nothing about it.</span></li></ol></section>
