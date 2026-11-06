@@ -651,12 +651,8 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
                         LastScoredAt = checkedAt,
                     }], ct).ConfigureAwait(false);
             }
-            var detail = await _tvdb.GetAsync("tvdb", "season_extended", ProviderApiClient.Args(("id", seasonId)), ct).ConfigureAwait(false);
-            await AddArtworksAsync(detail, "season", season.WorkId).ConfigureAwait(false);
-            if (!heldTypes.Contains(AssetType.SeasonPoster.ToString()))
-            {
-                await AddAsync(detail?["image"]?.ToString(), AssetType.SeasonPoster, season.WorkId).ConfigureAwait(false);
-            }
+            // Season pictures are no longer downloaded (editor and details revision D9): a season shows its show's poster.
+            // The season id above is still stored, and a person can still pick a season picture by hand in the editor.
         }
 
         // Every owned episode gets its still, not just the one that started this pass: a show re-match
@@ -751,6 +747,9 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             scopes.AddRange(episodeOwners.Select(owner => (owner, AssetType.EpisodeStill)));
             scopes.AddRange(offered.Keys.Where(key => key.Owner != context.RootWorkId
                 && key.Type is AssetType.SeasonPoster or AssetType.SeasonThumb));
+            // Season pictures are no longer offered, so the earlier show's season pictures are cleared by season.
+            scopes.AddRange(representedSeasons.SelectMany(season => new[]
+                { (season.WorkId, AssetType.SeasonPoster), (season.WorkId, AssetType.SeasonThumb) }));
             foreach (var (owner, type) in scopes.Distinct())
             {
                 await RemoveEarlierIdentityArtworkAsync(owner, type, offered.GetValueOrDefault((owner, type)) ?? [],
