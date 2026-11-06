@@ -63,6 +63,7 @@ An editor that is calm, near-black, and tells you plainly what an item is matche
 | D14 | Extras row under episodes/videos/films; trailer lives there; per-episode extras; documents read-only. |
 | D15 | Other videos use video wording (amends videos.md D4's "sections/episodes"). |
 | D16 | Cast tiles: one square rounded tile at one modest size everywhere. |
+| D18 | **Amendment (Shy, 2026-11-06, local walk item 134):** Home hero books show a much larger cover. "Other videos" use a frame taken from the video as the full-width background, on the home hero and on their own details page, never a portrait cover shrunk inside the picture. Uses the WP8 frame service. |
 | D17 | Universe icon (already built) stays top right of the hero; Edit appears only on desktop. |
 
 ## 3. Work packets
@@ -82,6 +83,7 @@ Cloud-built, at most 2 helper agents at once. Packets 1 to 3 can run first; the 
 - **WP11 Season dropdown and episodes [S].** Real dropdown (LC-22) over the page, bottom sheet on phones, keyboard support; episode cards show three-line descriptions; stop downloading and showing season artwork, verify the season page, editor Contents rows and Artwork tab still look right. *Depends on:* WP10.
 - **WP12 Extras row [S].** Extras under episodes/videos/films, per-episode extras, documents open read-only in the Documents reader, naming in Contents. Builds on `ExtrasSection.razor`. *Depends on:* WP10.
 - **WP13 Other videos wording [M]/[S].** Video wording across the roughly 20 places that say Show/Season/Episode for a video folder; no Match tab; home-tile folder picture with a random frame; amend `videos.md` with a wording note. *Depends on:* WP10.
+- **WP13b Home hero pictures [S] (amendment D18).** Larger book covers in the home hero; Other videos use a video frame as the full-bleed background on the home hero and on their details page (reuses WP8). *Depends on:* WP8, WP9, WP13.
 - **WP14 Phone layout [S].** One-column layout and bottom sheets as in the phone mockup; no Edit or Delete on phones. *Depends on:* WP9 to WP12.
 - **WP15 Docs and cleanup [M].** Update public docs (tuvima-docs), CLAUDE.md "Never" 1 wording on matches and file moves, spec statuses, batch list. *Depends on:* all.
 - **WP16 Fable review and visual proof [C].** Fable reviews WP5, WP6, WP7 and WP8 (matching and file moves) and the final diff. Visual proof via standalone harness; cloud cannot run the app, so real screenshots are Local checks. *Depends on:* all.
@@ -95,7 +97,7 @@ Cloud-built, at most 2 helper agents at once. Packets 1 to 3 can run first; the 
 
 ## 5. Local checks (appended to `engineering/validation/batch.md` at build time)
 
-L1 Open Edit on a matched episode: it shows as matched with provider, logo, ID. L2 Search a retail match for a file named with H.264/Atmos tags: terms are stripped and shown under "Left out". L3 Pick a result: percentage and "Why" match the numbers. L4 Managed folder: save a match, file moves and renames, warning shown. L5 Read-only folder: nothing moves. L6 Episode with no provider still shows a video frame; it is replaced by a provider still later. L7 Season dropdown opens over the page and switches episodes; no season posters. L8 Details page on light artwork: the close X is clearly visible. L9 Phone (real device or narrow browser): the layout matches the phone mockup. L10 Course folder: no Seasons, Episodes or S1 E1 anywhere. L11 Extras (existing L1 to L6 stay on the batch list). L12 Artwork Choose from Library on a Universe thing.
+L1 Open Edit on a matched episode: it shows as matched with provider, logo, ID. L2 Search a retail match for a file named with H.264/Atmos tags: terms are stripped and shown under "Left out". L3 Pick a result: percentage and "Why" match the numbers. L4 Managed folder: save a match, file moves and renames, warning shown. L5 Read-only folder: nothing moves. L6 Episode with no provider still shows a video frame; it is replaced by a provider still later. L7 Season dropdown opens over the page and switches episodes; no season posters. L8 Details page on light artwork: the close X is clearly visible. L9 Phone (real device or narrow browser): the layout matches the phone mockup. L10 Course folder: no Seasons, Episodes or S1 E1 anywhere. L11 Extras (existing L1 to L6 stay on the batch list). L12 Artwork Choose from Library on a Universe thing. L13 Home hero: a book's cover is large; an Other videos item shows a full-width video frame, and so does its details page.
 
 ## 6. Risks and open questions
 
