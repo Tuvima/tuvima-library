@@ -21,7 +21,7 @@
 .universal-results__type {
     color: #c4b5fd;
     font-size: var(--tl-font-size-xs);
-    font-weight: 800;
+    font-weight: 700;
     letter-spacing: 0.09em;
     text-transform: uppercase;
 }

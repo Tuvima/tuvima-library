@@ -104,7 +104,7 @@
     color: var(--tl-bg-surface, #1e1f27);
     background: var(--tl-accent-secondary);
     font-size: var(--tl-font-size-xs);
-    font-weight: 800;
+    font-weight: 700;
     line-height: 1;
 }
 

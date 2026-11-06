@@ -52,7 +52,7 @@
     margin: 0;
     color: rgba(203, 213, 225, 0.48);
     font-size: var(--tl-font-size-xs);
-    font-weight: 800;
+    font-weight: 700;
     letter-spacing: 0.13em;
     text-transform: uppercase;
 }
@@ -602,7 +602,7 @@
         padding: 0.45rem 0.7rem 0.25rem;
         color: rgba(203, 213, 225, 0.52);
         font-size: var(--tl-font-size-xs);
-        font-weight: 800;
+        font-weight: 700;
         letter-spacing: 0.12em;
         text-transform: uppercase;
     }
