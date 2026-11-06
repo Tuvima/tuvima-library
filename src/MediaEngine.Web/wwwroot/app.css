@@ -6014,29 +6014,9 @@ html[data-form-factor="phone"] .tl-detail-page .tl-series-detail .tl-series-deta
     min-width: 0;
 }
 
-html[data-form-factor="phone"] .tl-detail-page .tl-series-detail .tl-season-toggle {
-    width: 100%;
-    min-height: var(--tl-tap-target-min, 44px);
-    height: auto;
-    justify-content: space-between;
-}
 
-html[data-form-factor="phone"] .tl-detail-page .tl-series-detail .tl-season-toggle__art {
-    width: 2rem;
-    height: 2rem;
-    flex: 0 0 2rem;
-}
 
-html[data-form-factor="phone"] .tl-detail-page .tl-series-detail .tl-season-toggle__art img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
 
-html[data-form-factor="phone"] .tl-detail-page .tl-series-detail .tl-season-toggle__label {
-    flex: 1 1 auto;
-    text-align: left;
-}
 
 html[data-form-factor="phone"] .tl-detail-page .tl-series-detail__jump {
     flex-direction: column;

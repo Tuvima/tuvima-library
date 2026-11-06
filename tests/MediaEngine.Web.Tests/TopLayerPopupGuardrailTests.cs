@@ -17,7 +17,6 @@ public sealed class TopLayerPopupGuardrailTests
         ["Components/Details/EditorFamilyRail.razor"] = "Editor rail drop-down inside the editor window.",
         ["Components/Details/EditorUniverseRail.razor"] = "Editor rail drop-down inside the editor window.",
         ["Components/Details/ManageActionsMenu.razor"] = "Details actions menu.",
-        ["Components/Details/SequencePlacementPanel.razor"] = "Placement panel inside the editor window.",
         ["Components/Details/ViewEditRail.razor"] = "Editor rail drop-down inside the editor window.",
         ["Components/Listen/SongActions.razor"] = "Song actions in the player.",
         ["Components/MediaEditor/MediaEditorTagEditor.razor"] = "Tag editor suggestions.",

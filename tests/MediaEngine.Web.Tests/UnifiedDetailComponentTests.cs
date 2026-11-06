@@ -327,20 +327,17 @@ public sealed class UnifiedDetailComponentTests
     }
 
     [Fact]
-    public void SequencePlacement_EnlargesSeasonArtworkWithoutGrowingTheBrowserRow()
+    public void SequencePlacement_HasNoSeasonPosterBrowser_AndKeepsTheSeasonPageRowHeight()
     {
         var styles = ReadSequenceStyles();
 
-        Assert.Contains("grid-auto-columns: clamp(11.5rem, 15vw, 14rem)", styles);
-        Assert.Contains("justify-content: start", styles);
-        Assert.Contains("text-align: center", styles);
+        // The season control is a dropdown; the old row of season posters (and its toggle) is gone.
+        Assert.DoesNotContain(".tl-season-card", styles);
+        Assert.DoesNotContain(".tl-season-toggle", styles);
+        Assert.DoesNotContain(".tl-season-browser", styles);
         Assert.Contains(".tl-series-detail.is-season-container .tl-series-detail__carousel", styles);
         Assert.Contains("min-height: clamp(24rem, 58svh, 30rem)", styles);
-        Assert.Contains("padding: 0.25rem 0.45rem 0.15rem", styles);
         Assert.Contains(".tl-series-detail.is-season-container .tl-series-detail__ownership", styles);
-        Assert.Contains("min-height: 1.65rem", styles);
-        Assert.Contains("padding-top: 0.15rem", styles);
-        Assert.DoesNotContain(".tl-season-card__edit", styles);
         Assert.DoesNotContain(".tl-series-detail__edit-season", styles);
     }
 

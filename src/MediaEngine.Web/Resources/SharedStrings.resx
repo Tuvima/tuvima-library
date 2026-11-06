@@ -1446,14 +1446,8 @@
   <data name="SequencePlacementPanel_MakeThisTheDefaultSeries" xml:space="preserve">
     <value>Make this the default series</value>
   </data>
-  <data name="SequencePlacementPanel_PreviousSeasons" xml:space="preserve">
-    <value>Previous seasons</value>
-  </data>
   <data name="SequencePlacementPanel_ChooseSeason" xml:space="preserve">
     <value>Choose season</value>
-  </data>
-  <data name="SequencePlacementPanel_NextSeasons" xml:space="preserve">
-    <value>Next seasons</value>
   </data>
   <data name="SequencePlacementPanel_ShowMissing" xml:space="preserve">
     <value>Show missing</value>
