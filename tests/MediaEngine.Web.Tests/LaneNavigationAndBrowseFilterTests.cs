@@ -125,10 +125,10 @@ public sealed class LaneNavigationAndBrowseFilterTests
         Assert.Contains("SelectedValuesChanged=\"OnYearsChanged\"", browseShell, StringComparison.Ordinal);
         Assert.Contains("SupportsFacetFilters => true", browseShell, StringComparison.Ordinal);
         Assert.Contains("<AppBrowseModeSelector", browseShell, StringComparison.Ordinal);
-        Assert.Contains(".app-browse-mode__option:first-child", browseModeStyles, StringComparison.Ordinal);
-        Assert.Contains("border-radius: 9px 0 0 9px", browseModeStyles, StringComparison.Ordinal);
-        Assert.Contains(".app-browse-mode__option:last-child", browseModeStyles, StringComparison.Ordinal);
-        Assert.Contains("border-radius: 0 9px 9px 0", browseModeStyles, StringComparison.Ordinal);
+        Assert.Contains(".app-browse-mode__option.is-selected", browseModeStyles, StringComparison.Ordinal);
+        Assert.Contains("background: var(--tl-gradient-primary);", browseModeStyles, StringComparison.Ordinal);
+        Assert.Contains("min-height: var(--tl-control-height-md);", browseModeStyles, StringComparison.Ordinal);
+        Assert.DoesNotContain("rgba(", browseModeStyles.Split("html[data-form-factor")[0], StringComparison.Ordinal);
         Assert.Contains("<AppQuickFilterToggle", browseShell, StringComparison.Ordinal);
         Assert.Contains("<AppActiveFilterSummary", browseShell, StringComparison.Ordinal);
         Assert.Contains("<AppTimelineResults", browseShell, StringComparison.Ordinal);
