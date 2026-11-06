@@ -193,6 +193,64 @@ public static partial class PhoneHeroPresentation
         }
     }
 
+    /// <summary>
+    /// The small label over the title of a video hero: "Continue Watching" once something has been started, otherwise "Video folder"
+    /// for a folder of videos and "Video" for a single one. Null for every other kind, which keeps its own label.
+    /// </summary>
+    public static string? VideoLabel(DiscoveryHeroViewModel hero)
+    {
+        if (!IsVideoKind(hero.MediaKind))
+        {
+            return null;
+        }
+
+        return IsStarted(hero)
+            ? VideoFolderWording.ContinueLabel
+            : VideoFolderWording.IsVideoFolderMediaType(hero.MediaKind) ? VideoFolderWording.KindLabel : VideoFolderWording.ItemLabel;
+    }
+
+    /// <summary>
+    /// The one muted line under the title of a video hero. A folder says "N videos · M sections" and, when a video in it has been
+    /// started, "Next up: ..." with the time left (the Engine composes it); a single video says "N minutes left" once started,
+    /// otherwise its length. Null for every other kind.
+    /// </summary>
+    public static string? VideoLine(DiscoveryHeroViewModel hero)
+    {
+        if (!IsVideoKind(hero.MediaKind))
+        {
+            return null;
+        }
+
+        var parts = Parse(hero.MetaPills);
+        if (VideoFolderWording.IsVideoFolderMediaType(hero.MediaKind))
+        {
+            if (!string.IsNullOrWhiteSpace(hero.Subtitle))
+            {
+                return hero.Subtitle.Trim();
+            }
+
+            var counts = string.Join(" · ", new[] { parts.Videos, parts.Sections }.Where(value => !string.IsNullOrWhiteSpace(value)));
+            return counts.Length == 0 ? null : counts;
+        }
+
+        if (IsStarted(hero) && VideoFolderWording.MinutesLeft(RemainingSeconds(hero)) is { } left)
+        {
+            return left;
+        }
+
+        return parts.RuntimeMinutes is { } minutes ? VideoLength(minutes) : parts.Runtime ?? parts.Year;
+    }
+
+    /// <summary>The line to draw under the title on the phone: a video hero's own line, otherwise the usual meta line.</summary>
+    public static string HeroLine(DiscoveryHeroViewModel hero) => VideoLine(hero) ?? MetaLine(hero);
+
+    // "21 min", "1h 41m".
+    private static string VideoLength(double minutes)
+    {
+        var total = (int)Math.Round(minutes, MidpointRounding.AwayFromZero);
+        return total is > 0 and < 60 ? $"{total} min" : FormatRuntime(minutes) ?? string.Empty;
+    }
+
     /// <summary>True for the video kinds that are neither a movie nor a TV show: Videos, Other videos and YouTube.</summary>
     public static bool IsVideoKind(string? mediaKind)
     {
@@ -208,7 +266,7 @@ public static partial class PhoneHeroPresentation
     private static string? ProgressPct(DiscoveryHeroViewModel hero)
         => hero.ProgressPct is > 0 and < 99.5 ? $"{Math.Max(1, (int)Math.Round(hero.ProgressPct.Value))}%" : null;
 
-    private static string? TimeLeft(DiscoveryHeroViewModel hero)
+    private static double? RemainingSeconds(DiscoveryHeroViewModel hero)
     {
         double? seconds = hero.RemainingSeconds;
         if (seconds is not > 0 && hero.EpisodeContext is { PositionSeconds: { } position, DurationSeconds: { } duration })
@@ -216,6 +274,12 @@ public static partial class PhoneHeroPresentation
             seconds = duration - position;
         }
 
+        return seconds;
+    }
+
+    private static string? TimeLeft(DiscoveryHeroViewModel hero)
+    {
+        var seconds = RemainingSeconds(hero);
         if (seconds is not > 0 || !double.IsFinite(seconds.Value))
         {
             return null;
@@ -244,11 +308,12 @@ public static partial class PhoneHeroPresentation
         _ => "Item",
     };
 
-    private sealed record Parts(string? Year, string? Runtime, string? Rating, string? ContentRating, string? Seasons, string? Tracks, string? Pages, string? Sections, string? Videos);
+    private sealed record Parts(string? Year, string? Runtime, string? Rating, string? ContentRating, string? Seasons, string? Tracks, string? Pages, string? Sections, string? Videos, double? RuntimeMinutes);
 
     private static Parts Parse(IReadOnlyList<string> pills)
     {
         string? year = null, runtime = null, rating = null, contentRating = null, seasons = null, tracks = null, pages = null, sections = null, videos = null;
+        double? runtimeMinutes = null;
         foreach (var raw in pills.Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value.Trim()))
         {
             if (raw.StartsWith('★'))
@@ -291,6 +356,7 @@ public static partial class PhoneHeroPresentation
                 && double.TryParse(minutes.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var m))
             {
                 runtime ??= FormatRuntime(m);
+                runtimeMinutes ??= m;
             }
             else if (HoursRegex().IsMatch(raw))
             {
@@ -302,7 +368,7 @@ public static partial class PhoneHeroPresentation
             }
         }
 
-        return new Parts(year, runtime, rating, contentRating, seasons, tracks, pages, sections, videos);
+        return new Parts(year, runtime, rating, contentRating, seasons, tracks, pages, sections, videos, runtimeMinutes);
     }
 
     [GeneratedRegex(@"\bS(\d+)\s*E(\d+)\b", RegexOptions.IgnoreCase)]

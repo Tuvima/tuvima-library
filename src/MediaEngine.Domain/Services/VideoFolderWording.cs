@@ -72,6 +72,47 @@ public static class VideoFolderWording
     /// <summary>The sections of a folder as one line, or null when the folder is a single plain list (one section or none is no section at all).</summary>
     public static string? SectionsLine(int sectionCount) => sectionCount > 1 ? SectionCount(sectionCount) : null;
 
+    /// <summary>The small label over a Home hero's title once something has been started (otherwise a folder says <see cref="KindLabel"/> and a video <see cref="ItemLabel"/>).</summary>
+    public const string ContinueLabel = "Continue Watching";
+
+    /// <summary>The lead-in of the video a folder's hero will play next ("Next up: Triple Point").</summary>
+    public const string NextUpLabel = "Next up";
+
+    /// <summary>"88 videos" or "88 videos · 14 sections"; a folder with one section or none says only its videos.</summary>
+    public static string CountsLine(int videoCount, int sectionCount)
+        => SectionsLine(sectionCount) is { } sections ? $"{VideoCount(videoCount)} · {sections}" : VideoCount(videoCount);
+
+    /// <summary>"38 minutes left" or "1 minute left"; null when no time is left or it is not known.</summary>
+    public static string? MinutesLeft(double? seconds)
+    {
+        if (seconds is not > 0 || !double.IsFinite(seconds.Value))
+        {
+            return null;
+        }
+
+        var minutes = Math.Max(1, (int)Math.Ceiling(seconds.Value / 60));
+        return string.Create(CultureInfo.InvariantCulture, $"{minutes} {(minutes == 1 ? "minute" : "minutes")} left");
+    }
+
+    /// <summary>
+    /// The one muted line under a folder's Home hero title: its videos and sections, then, when a video in it has been started,
+    /// "Next up: &lt;title&gt;" and the time left in it. Never carries a season or episode number.
+    /// </summary>
+    public static string HeroLine(int videoCount, int sectionCount, string? nextUpTitle, double? secondsLeft)
+    {
+        var parts = new List<string> { CountsLine(videoCount, sectionCount) };
+        if (!string.IsNullOrWhiteSpace(nextUpTitle))
+        {
+            parts.Add($"{NextUpLabel}: {nextUpTitle.Trim()}");
+            if (MinutesLeft(secondsLeft) is { } left)
+            {
+                parts.Add(left);
+            }
+        }
+
+        return string.Join(" · ", parts);
+    }
+
     /// <summary>The play button of a folder's video: Play, or Resume once it has been started. Never carries a season or episode number.</summary>
     public static string PlayButton(bool started) => started ? ResumeLabel : PlayLabel;
 
