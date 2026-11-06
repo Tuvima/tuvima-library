@@ -18,6 +18,8 @@
     <!-- Tuvima.Wikidata: unified Wikidata/Wikipedia API client and in-memory graph engine.
          MIT license — approved for AGPLv3 compatibility (see CLAUDE.md §5.1). -->
     <PackageReference Include="Tuvima.Wikidata" />
+    <!-- TagLibSharp: reads lyrics embedded in a song's own tags; LGPL-2.1, already used by Processors and Ingestion. -->
+    <PackageReference Include="TagLibSharp" />
   </ItemGroup>
 
   <ItemGroup>

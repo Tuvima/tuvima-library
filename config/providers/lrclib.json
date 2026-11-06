@@ -44,24 +44,22 @@
       "requests": [
         {
           "when_media_type": "Music",
+          "needs": ["title", "artist", "album", "duration_seconds"],
           "path": "/api/get",
           "query": [
-            [
-              "track_name",
-              "{title}"
-            ],
-            [
-              "artist_name",
-              "{artist}"
-            ],
-            [
-              "album_name",
-              "{album}"
-            ],
-            [
-              "duration",
-              "{duration_seconds}"
-            ]
+            ["track_name", "{title}"],
+            ["artist_name", "{artist}"],
+            ["album_name", "{album}"],
+            ["duration", "{duration_seconds}"]
+          ]
+        },
+        {
+          "when_media_type": "Music",
+          "needs": ["title"],
+          "path": "/api/search",
+          "query": [
+            ["track_name", "{title}"],
+            ["artist_name", "{artist}"]
           ]
         }
       ],
