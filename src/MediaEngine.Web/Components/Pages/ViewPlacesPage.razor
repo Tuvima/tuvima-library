@@ -1,6 +1,7 @@
 @page "/view/places"
 @using MediaEngine.Contracts.LocalAssets
 @using MediaEngine.Domain.PersonalMedia
+@implements IDisposable
 @inject IAppDialogService DialogService
 @inject IEngineApiClient ApiClient
 @inject ViewWorkspaceService Workspace
@@ -37,10 +38,6 @@ else
             @if (_filtersOpen)
             {
                 <section class="view-atlas__filter-sheet" aria-label="@L["ViewPlacesPage_PlacesFilters"].Value">
-                    @if (Workspace.Scopes is not null)
-                    {
-                        <label><span>@L["ViewPlacesPage_LibraryScope"]</span><AppSelect Native="true" Value="@SelectedScopeValue" ValueChanged="ScopeChangedAsync" aria-label="@L["ViewPlacesPage_AuthorizedPlacesScope"].Value"><ViewScopeOptions Scopes="@Workspace.Scopes.AvailableScopes" OtherPeople="@Workspace.OtherPeople" /></AppSelect></label>
-                    }
                     <div class="view-atlas__check"><AppCheckbox Value="@_favoritesOnly" ValueChanged="FavoritesChangedAsync" Label="@L["ViewPlacesPage_FavoritesOnly"].Value" /><small>@L["ViewPlacesPage_ShowMappedMediaMarkedAs"]</small></div>
                     @if (_atlas.UnmappedAssetCount > 0) { <AppButton Label="@($"Without location ({_atlas.UnmappedAssetCount:N0})")" OnClick="ShowUnmappedAsync" /> }
                     @if (_favoritesOnly) { <AppButton ButtonStyle="AppButtonStyle.Text" OnClick="@(() => ClearAdvancedFiltersAsync())" Label="@L["Common_ClearFilters"].Value" /> }
@@ -99,7 +96,7 @@ else
     private bool _initializing = true, _loading, _storyLoading, _showUnmapped, _journey, _filtersOpen, _favoritesOnly;
     private IReadOnlyList<LocalAssetDto> _unmapped = [];
 
-    protected override async Task OnInitializedAsync() { _profileId = (await Orchestrator.GetActiveProfileAsync())?.Id; await Workspace.InitializeAsync(); await Workspace.LoadGalleriesAsync(); _initializing = false; await LoadAtlasAsync(); }
+    protected override async Task OnInitializedAsync() { Workspace.ScopeChanged += ScopeSwitchedAsync; _profileId = (await Orchestrator.GetActiveProfileAsync())?.Id; await Workspace.InitializeAsync(); await Workspace.LoadGalleriesAsync(); _initializing = false; await LoadAtlasAsync(); }
     // The atlas histogram remains monthly and contextual while the selector controls
     // the calendar precision used by the range handles. This prevents Year mode from
     // collapsing a multi-year library into a handful of oversized bars.
@@ -185,14 +182,11 @@ else
     private async Task FavoritesChangedAsync(bool value) { _favoritesOnly = value; await LoadAtlasAsync(); }
     private async Task ClearAdvancedFiltersAsync() { _favoritesOnly = false; await LoadAtlasAsync(); }
     private string HotspotThumbnail(ViewAtlasHotspotDto hotspot) => _profileId.HasValue ? GrantUrl(hotspot.RepresentativeLibraryId, hotspot.RepresentativeAssetId, ViewMediaResourceKind.Thumbnail, ViewMediaResourceRole.Primary, Workspace.ScopeKind, Workspace.ScopeProfileId) : string.Empty;
-    private async Task ScopeChangedAsync(string? selected)
+    public void Dispose() => Workspace.ScopeChanged -= ScopeSwitchedAsync;
+    private async Task ScopeSwitchedAsync()
     {
-        var parts = selected?.Split(':', 2) ?? []; if (parts.Length == 0 || !Enum.TryParse<ViewScopeKind>(parts[0], true, out var kind)) return;
-        Guid? profile = parts.Length == 2 && Guid.TryParse(parts[1], out var parsed) ? parsed : null;
-        if (await Workspace.SelectScopeAsync(kind, profile)) { _grants.Clear(); CloseStory(); _active = null; _atlas = null; await LoadAtlasAsync(); }
+        await InvokeAsync(async () => { _grants.Clear(); CloseStory(); _active = null; _atlas = null; await LoadAtlasAsync(); StateHasChanged(); });
     }
-    private string SelectedScopeValue => ScopeValue(Workspace.ScopeKind, Workspace.ScopeProfileId);
-    private static string ScopeValue(ViewScopeKind kind, Guid? profile) => $"{kind}:{(kind.CarriesProfileId() ? profile?.ToString("D") : null)}";
     private void OpenItem(LocalAssetDto item) => _active = item;
     private void CloseViewer() => _active = null;
     private int ActiveIndex => _active is null ? -1 : StoryItems.ToList().FindIndex(item => item.Id == _active.Id);

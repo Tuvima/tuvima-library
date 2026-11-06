@@ -1,10 +1,15 @@
 @page "/view/people"
 @using MediaEngine.Contracts.LocalAssets
 @using MediaEngine.Domain.PersonalMedia
+@implements IDisposable
 @inject IEngineApiClient ApiClient
 @inject ViewWorkspaceService Workspace
 @inject UIOrchestratorService Orchestrator
 @inject ViewMediaGrantService MediaGrants
+@inject ViewRibbonVoice Snackbar
+@inject IAppDialogService DialogService
+@inject ViewEditorHost EditorHost
+@inject DeviceContextService DeviceContext
 @namespace MediaEngine.Web.Components.Pages
 @inject IStringLocalizer<SharedStrings> L
 <PageTitle>@L["ViewPeoplePage_PeopleLibrary"]</PageTitle>
@@ -22,7 +27,7 @@ else if (_person is not null)
     else
     {
         <ViewPhotoTimeline Items="@_media.Items" Selected="@_selected" ThumbnailUrl="@(item => Thumbnail(item.LibraryId, item.Id))" OnOpen="@(item => _active = item)" OnToggleSelection="ToggleSelection" OnSelectDateGroup="SelectGroup" />
-        @if (_selected.Count > 0) { <ViewSelectionToolbar Count="@_selected.Count" OnClear="@(() => _selected.Clear())" OnFavorite="FavoriteSelectionAsync" /> }
+        @if (_selected.Count > 0) { <ViewSelectionToolbar Count="@_selected.Count" OnClear="@(() => _selected.Clear())" OnFavorite="FavoriteSelectionAsync" FavoriteRemoves="@AllSelectedFavorite" /> }
         @if (_media.HasMore) { <AppButton Label="@L["ViewPeoplePage_LoadMorePhotos"].Value" Disabled="@_mediaLoadingMore" OnClick="LoadMoreMediaAsync" /> }
     }
 }
@@ -34,7 +39,8 @@ else { <section class="view-discovery-grid" aria-label="@L["Wikidata_PeopleGroup
         ThumbnailUrl="@Thumbnail(_active.LibraryId, _active.Id)" OnClose="@(() => _active = null)" MotionUrl="@MotionUrl(_active)"
         HasPrevious="@(ActiveIndex > 0)" HasNext="@(ActiveIndex >= 0 && (ActiveIndex < (_media?.Items.Count ?? 0) - 1 || _media?.HasMore == true))"
         OnPrevious="PreviousItem" OnNext="NextItemAsync" PositionLabel="@($"{ActiveIndex + 1} of {_media?.Items.Count ?? 0}{(_media?.HasMore == true ? "+" : "")}")"
-        CanEdit="@(Workspace.ScopeKind == ViewScopeKind.Mine)" OnItemUpdated="UpdateItem" />
+        CanEdit="@(Workspace.ScopeKind == ViewScopeKind.Mine)" OnItemUpdated="UpdateItem"
+        Actions="@ActionsFor(_active)" OnFavorite="ToggleFavoriteAsync" OnArchive="ArchiveActiveAsync" OnTrash="TrashActiveAsync" />
 }
 @code {
     private ViewPersonDto? _person;
@@ -56,10 +62,42 @@ else { <section class="view-discovery-grid" aria-label="@L["Wikidata_PeopleGroup
     private string? MotionUrl(LocalAssetDto item) => item.Files.Any(file => file.Role == "live_photo_video") && _profileId.HasValue
         ? $"/view-media/{MediaGrants.Create(_profileId.Value, item.LibraryId, item.Id, ViewMediaResourceKind.Content, ViewMediaResourceRole.LivePhotoVideo, Workspace.ScopeKind, Workspace.ScopeProfileId).Value}" : null;
     private readonly HashSet<Guid> _selected = [];
+    private IEnumerable<LocalAssetDto> SelectedItems => _media?.Items.Where(item => _selected.Contains(item.Id)) ?? [];
+    private bool AllSelectedFavorite => SelectedItems.Any() && SelectedItems.All(item => item.Favorite);
+    private ViewActions ActionsFor(LocalAssetDto item) => ViewActionPolicy.For(new ViewActionContext(
+        ViewActionPolicy.OwnershipOf(Workspace.ScopeKind, item.AddedByProfileId, _profileId),
+        DeviceContext.IsPhone, EditorHost.CanEdit, item.FileMissing, item.CanTrash,
+        item.ArchivedAt.HasValue, item.TrashedAt.HasValue, item.Hidden));
     private async Task FavoriteSelectionAsync()
     {
-        foreach (var id in _selected.ToArray()) if (await ApiClient.SetViewItemFavoriteAsync(id, true)) _selected.Remove(id);
+        var value = !AllSelectedFavorite;
+        foreach (var item in SelectedItems.ToArray())
+        {
+            if (await ApiClient.SetViewItemFavoriteAsync(item.Id, value)) { _selected.Remove(item.Id); ReplaceItem(item with { Favorite = value }); }
+            else Snackbar.Add(L["ViewPage_ChangeFailed"].Value, AppSeverity.Error);
+        }
     }
+    private void ReplaceItem(LocalAssetDto item) { if (_active?.Id == item.Id) _active = item; if (_media is not null) _media = _media with { Items = _media.Items.Select(value => value.Id == item.Id ? item : value).ToList() }; }
+    private async Task ToggleFavoriteAsync()
+    {
+        if (_active is not { } item) return;
+        var value = !item.Favorite;
+        if (await ApiClient.SetViewItemFavoriteAsync(item.Id, value)) { ReplaceItem(item with { Favorite = value }); Snackbar.Add(L[value ? "ViewPage_FavoriteAdded" : "ViewPage_FavoriteRemoved"].Value, AppSeverity.Success); }
+        else Snackbar.Add(L["ViewPage_ChangeFailed"].Value, AppSeverity.Error);
+    }
+    private async Task ArchiveActiveAsync()
+    {
+        if (_active is not { } item || !await ViewTrashConfirmation.AskArchiveAsync(DialogService)) return;
+        if (await ApiClient.ArchiveViewItemAsync(item.Id)) { RemoveItem(item); Snackbar.Add(L["ViewPage_ItemArchived"].Value, AppSeverity.Success); }
+        else Snackbar.Add(L["ViewPage_ArchiveFailed"].Value, AppSeverity.Error);
+    }
+    private async Task TrashActiveAsync()
+    {
+        if (_active is not { } item || !await ViewTrashConfirmation.AskTrashAsync(DialogService)) return;
+        if (await ApiClient.TrashViewItemAsync(item.Id, default)) { RemoveItem(item); Snackbar.Add(L["ViewPage_MovedToTrash"].Value, AppSeverity.Success); }
+        else Snackbar.Add(L["ViewPage_ItemCouldNotBeMovedToTrash"].Value, AppSeverity.Error);
+    }
+    private void RemoveItem(LocalAssetDto item) { _active = null; _selected.Remove(item.Id); if (_media is not null) _media = _media with { Items = _media.Items.Where(value => value.Id != item.Id).ToList() }; }
     private void ToggleSelection(Guid id) { if (!_selected.Add(id)) _selected.Remove(id); }
     private void SelectGroup(IReadOnlyCollection<Guid> ids) { if (ids.All(_selected.Contains)) _selected.ExceptWith(ids); else _selected.UnionWith(ids); }
     private void UpdateItem(LocalAssetDto item) { _active = item; if (_media is not null) _media = _media with { Items = _media.Items.Select(value => value.Id == item.Id ? item : value).ToList() }; }
@@ -85,10 +123,12 @@ else { <section class="view-discovery-grid" aria-label="@L["Wikidata_PeopleGroup
         finally { _mediaLoadingMore = false; }
     }
     private ViewPeoplePageDto? _page; private string _search = ""; private bool _loading = true; private Guid? _profileId;
-    protected override async Task OnInitializedAsync() { await Workspace.InitializeAsync(); _profileId = (await Orchestrator.GetActiveProfileAsync())?.Id; await LoadAsync(); }
+    protected override async Task OnInitializedAsync() { Workspace.ScopeChanged += ScopeSwitchedAsync; await Workspace.InitializeAsync(); _profileId = (await Orchestrator.GetActiveProfileAsync())?.Id; await LoadAsync(); }
     private ViewDiscoveryQueryOptions Query(string? cursor = null) => new(Workspace.ScopeKind, Workspace.ScopeProfileId, _search, cursor);
     private int _peopleVersion;
     private bool _loadingMore;
+    public void Dispose() => Workspace.ScopeChanged -= ScopeSwitchedAsync;
+    private async Task ScopeSwitchedAsync() { await InvokeAsync(async () => { ++_mediaVersion; _person = null; _active = null; await LoadAsync(); StateHasChanged(); }); }
     private async Task LoadAsync() { var version = ++_peopleVersion; _loading = true; var page = await ApiClient.GetViewPeopleAsync(Query()); if (version != _peopleVersion) return; _page = page; _loading = false; }
     private async Task SearchChanged(object? value) { _search = value?.ToString() ?? ""; ++_mediaVersion; _person = null; _active = null; await LoadAsync(); }
     private async Task LoadMoreAsync() { if (_page?.NextCursor is null || _loadingMore) return; var version = _peopleVersion; _loadingMore = true; try { var next = await ApiClient.GetViewPeopleAsync(Query(_page.NextCursor)); if (version == _peopleVersion && next is not null) _page = next with { Items = [.. _page.Items, .. next.Items] }; } finally { _loadingMore = false; } }

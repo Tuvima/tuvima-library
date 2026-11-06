@@ -79,9 +79,12 @@
                                    OnToggleSelection="Toggle"
                                    OnSelectDateGroup="SelectGroup" />
                 @if (_page.HasMore) { <AppButton Label="@L["Common_LoadMore"].Value" Disabled="@_loadingMore" OnClick="LoadMoreAsync" /> }
-                @if (IsOwner && _gallery.Kind == ViewGalleryKind.Manual && _selected.Count > 0)
+                @if (_selected.Count > 0)
                 {
-                    <ViewSelectionToolbar Count="@_selected.Count" OnClear="@(() => _selected.Clear())" OnRemoveFromGallery="RemoveAsync" OnEdit="@EditCallback" />
+                    @* Smart Galleries fill from rules, so their selection only copies (Favorite); removing and editing belong to a manual Gallery you own. *@
+                    var canManage = IsOwner && _gallery.Kind == ViewGalleryKind.Manual;
+                    <ViewSelectionToolbar Count="@_selected.Count" OnClear="@(() => _selected.Clear())" OnFavorite="FavoriteSelectionAsync" FavoriteRemoves="@AllSelectedFavorite"
+                                          OnRemoveFromGallery="@(canManage ? EventCallback.Factory.Create(this, RemoveAsync) : default)" OnEdit="@(canManage ? EditCallback : default)" />
                 }
             }
         }
@@ -177,6 +180,20 @@
     private Guid? _profileId;
     private bool _loading = true;
     private bool _loadingMore;
+    private IEnumerable<LocalAssetDto> SelectedItems => _page?.Items.Where(item => _selected.Contains(item.Id)) ?? [];
+    private bool AllSelectedFavorite => SelectedItems.Any() && SelectedItems.All(item => item.Favorite);
+    private async Task FavoriteSelectionAsync()
+    {
+        var value = !AllSelectedFavorite;
+        foreach (var item in SelectedItems.ToArray())
+        {
+            if (await ApiClient.SetViewItemFavoriteAsync(item.Id, value))
+            {
+                _selected.Remove(item.Id);
+                if (_page is not null) _page = _page with { Items = _page.Items.Select(entry => entry.Id == item.Id ? entry with { Favorite = value } : entry).ToList() };
+            }
+        }
+    }
     private async Task LoadMoreAsync()
     {
         if (_loadingMore || _page?.NextCursor is null) return;

@@ -95,9 +95,6 @@
   <data name="ViewGalleriesPage_OrganizePersonalPhotosAndVideos" xml:space="preserve">
     <value>Organise personal photos and videos without changing their source files.</value>
   </data>
-  <data name="ViewPage_AuthorizedPhotoScope" xml:space="preserve">
-    <value>Authorised photo scope</value>
-  </data>
   <data name="ViewPage_TheDashboardCouldNotResolve" xml:space="preserve">
     <value>The Dashboard could not resolve an authorised View scope.</value>
   </data>
@@ -109,9 +106,6 @@
   </data>
   <data name="ViewPlacesPage_WorldMapOfAuthorizedPhoto" xml:space="preserve">
     <value>World map of authorised photo and video locations</value>
-  </data>
-  <data name="ViewPlacesPage_AuthorizedPlacesScope" xml:space="preserve">
-    <value>Authorised Places scope</value>
   </data>
   <data name="ViewPlacesPage_FavoritesOnly" xml:space="preserve">
     <value>Favourites only</value>

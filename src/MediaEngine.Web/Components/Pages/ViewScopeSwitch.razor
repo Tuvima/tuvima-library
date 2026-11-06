@@ -1,0 +1,85 @@
+@using MediaEngine.Contracts.LocalAssets
+@using MediaEngine.Domain.PersonalMedia
+@namespace MediaEngine.Web.Components.Pages
+@inject ViewWorkspaceService Workspace
+@inject IStringLocalizer<SharedStrings> L
+@implements IDisposable
+@* The Viewing switch: whose library every View page shows. It sits at the top of the left rail (first row of the phone menu). *@
+@if (Workspace.Scopes is { } scopes)
+{
+    <div class="view-scope-switch">
+        <AppOverflowMenu Label="@($"{L["ViewScopeSwitch_Viewing"].Value}: {CurrentLabel}")"
+                         ShowIcon="false"
+                         EndIcon="@AppMaterialIcons.Outlined.ExpandMore"
+                         AriaLabel="@L["ViewScopeSwitch_Viewing"].Value"
+                         SheetTitle="@L["ViewScopeSwitch_Viewing"].Value"
+                         MatchAnchorWidth="true"
+                         Size="AppControlSize.Normal"
+                         AnchorOrigin="AppOrigin.BottomLeft"
+                         TransformOrigin="AppOrigin.TopLeft">
+            @foreach (var scope in scopes.AvailableScopes.Where(value => value.Kind == ViewScopeKind.Mine))
+            {
+                <AppMenuItem Label="@scope.Label" Checked="@IsCurrent(scope.Kind, scope.ProfileId)" OnClick="@(() => SelectAsync(scope.Kind, scope.ProfileId))" />
+            }
+            @foreach (var scope in scopes.AvailableScopes.Where(value => value.Kind == ViewScopeKind.Profile))
+            {
+                <AppMenuItem Label="@scope.Label" Checked="@IsCurrent(scope.Kind, scope.ProfileId)" DividerBefore="@IsFirstProfile(scope)" OnClick="@(() => SelectAsync(scope.Kind, scope.ProfileId))" />
+            }
+            @foreach (var scope in scopes.AvailableScopes.Where(value => value.Kind == ViewScopeKind.Shared))
+            {
+                <AppMenuItem Label="@scope.Label" Checked="@IsCurrent(scope.Kind, scope.ProfileId)" DividerBefore="true" OnClick="@(() => SelectAsync(scope.Kind, scope.ProfileId))" />
+            }
+            @if (Workspace.OtherPeople is { Households.Count: > 0 } others)
+            {
+                @foreach (var household in others.Households)
+                {
+                    @foreach (var person in household.People.Where(value => value.HasPersonalSpace))
+                    {
+                        <AppMenuItem Label="@($"{person.DisplayName} · {household.Name}")" Checked="@IsCurrent(ViewScopeKind.Profile, person.ProfileId)" DividerBefore="@(person == household.People.First(value => value.HasPersonalSpace))" OnClick="@(() => SelectAsync(ViewScopeKind.Profile, person.ProfileId))" />
+                    }
+                    @if (household.People.Count > 0)
+                    {
+                        <AppMenuItem Label="@($"{L["Common_SharedLibrary"].Value} · {household.Name}")" Checked="@IsCurrent(ViewScopeKind.OtherShared, household.People[0].ProfileId)" OnClick="@(() => SelectAsync(ViewScopeKind.OtherShared, household.People[0].ProfileId))" />
+                    }
+                }
+            }
+        </AppOverflowMenu>
+    </div>
+}
+
+@code {
+    protected override void OnInitialized() => Workspace.ScopeChanged += Changed;
+
+    public void Dispose() => Workspace.ScopeChanged -= Changed;
+
+    private Task Changed() => InvokeAsync(StateHasChanged);
+
+    private bool IsFirstProfile(ViewScopeOptionDto scope) =>
+        Workspace.Scopes!.AvailableScopes.First(value => value.Kind == ViewScopeKind.Profile) == scope;
+
+    private bool IsCurrent(ViewScopeKind kind, Guid? profileId) =>
+        Workspace.ScopeKind == kind && (!kind.CarriesProfileId() || Workspace.ScopeProfileId == profileId);
+
+    private string CurrentLabel
+    {
+        get
+        {
+            var scopes = Workspace.Scopes!.AvailableScopes;
+            var match = scopes.FirstOrDefault(value => IsCurrent(value.Kind, value.ProfileId));
+            if (match is not null)
+            {
+                return match.Label;
+            }
+
+            if (Workspace.ScopeKind == ViewScopeKind.OtherShared)
+            {
+                return L["Common_SharedLibrary"].Value;
+            }
+
+            return Workspace.OtherPersonName(Workspace.ScopeProfileId) ?? scopes[0].Label;
+        }
+    }
+
+    private Task SelectAsync(ViewScopeKind kind, Guid? profileId) =>
+        IsCurrent(kind, profileId) ? Task.CompletedTask : Workspace.SelectScopeAsync(kind, profileId);
+}
