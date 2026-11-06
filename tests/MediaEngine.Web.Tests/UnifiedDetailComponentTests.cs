@@ -1201,7 +1201,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("Elapsed session \u00b7 {FormatTime(interval)}", contextPanel);
         Assert.Contains("Resume {entry.ChapterTitle ?? entry.Title} at {FormatTime(entry.PositionSeconds)}", contextPanel);
         Assert.Contains("ListenPlaybackCommandActions.SetSpeed", popupPlayer);
-        Assert.Contains("SpeedMenuOpenChanged=\"SpeedMenuChangedAsync\"", popupPlayer);
+        Assert.Contains("OpenChanged=\"SettingsMenuChangedAsync\"", popupPlayer);
         Assert.Contains("SleepTimerState=\"Snapshot.SleepTimerState\"", popupPlayer);
         Assert.Contains("SleepTimerChanged=", popupPlayer);
         Assert.Contains("control.Key == PlaybackControlKey.SleepTimer", ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackControlStrip.razor"));
@@ -1235,10 +1235,11 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("PlaybackRateOptions.FormatLabel", playbackSpeedControl);
         Assert.DoesNotContain("Quick presets", playbackSpeedControl);
         Assert.DoesNotContain("ResetValue", playbackSpeedControl);
-        Assert.Contains("AudiobookSleepTimerModes.EndCurrent", playbackSleepTimerControl);
-        Assert.Contains("AudiobookSleepTimerModes.EndNext", playbackSleepTimerControl);
-        Assert.Contains("Availability.CanEndCurrent", playbackSleepTimerControl);
-        Assert.Contains("Availability.CanEndNext", playbackSleepTimerControl);
+        var playbackSleepTimerChoices = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerChoices.cs");
+        Assert.Contains("AudiobookSleepTimerModes.EndCurrent", playbackSleepTimerChoices);
+        Assert.Contains("AudiobookSleepTimerModes.EndNext", playbackSleepTimerChoices);
+        Assert.Contains("availability.CanEndCurrent", playbackSleepTimerChoices);
+        Assert.Contains("availability.CanEndNext", playbackSleepTimerChoices);
         Assert.Contains("SelectionChanged.InvokeAsync(selection)", playbackSleepTimerControl);
         Assert.DoesNotContain("AppRangeSlider", playbackSleepTimerControl);
         Assert.DoesNotContain("System.Threading.Timer", playbackSleepTimerControl);
@@ -1377,8 +1378,9 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("<PlaybackSleepTimerControl", controls);
         Assert.Contains("<PlaybackSpeedControl", controls);
         Assert.Contains("<AppRangeSlider", speed);
-        Assert.Contains("Availability.CanEndCurrent", sleep);
-        Assert.Contains("Availability.CanEndNext", sleep);
+        Assert.Contains("availability.CanEndCurrent", ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerChoices.cs"));
+        Assert.Contains("availability.CanEndNext", ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerChoices.cs"));
+        Assert.Contains("<AudiobookSettingsPopover", full);
         Assert.Contains("<AudiobookBookmarkDialog", popup);
         Assert.Contains("OnValidSubmit=\"SaveAsync\"", bookmark);
         Assert.Contains("ReplayAsync(bookmark.Id)", bookmark);

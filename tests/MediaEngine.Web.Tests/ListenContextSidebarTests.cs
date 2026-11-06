@@ -500,8 +500,10 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         var dockTools = cut.Find(".listen-player__desktop-tools");
         Assert.NotEmpty(dockTools.QuerySelectorAll("button[aria-label='Chapters and history']"));
         Assert.NotEmpty(dockTools.QuerySelectorAll("button[aria-label='Bookmark']"));
-        Assert.NotEmpty(dockTools.QuerySelectorAll("[aria-label='Playback speed 1.0x']"));
-        Assert.NotEmpty(dockTools.QuerySelectorAll(".playback-sleep-timer [aria-label^='Sleep timer:']"));
+        // Unified player D10: one Settings gear holds Playback speed and the Sleep timer; the dock no longer has buttons for them.
+        Assert.NotEmpty(dockTools.QuerySelectorAll("button[aria-label='Settings']"));
+        Assert.Empty(dockTools.QuerySelectorAll("[aria-label^='Playback speed']"));
+        Assert.Empty(dockTools.QuerySelectorAll(".playback-sleep-timer"));
         Assert.NotEmpty(cut.FindAll("input[aria-label='Volume']"));
         Assert.Single(cut.FindAll("button[aria-label='Close player']"));
         var chapterTool = cut.FindComponents<ListenDockTool>().Single(tool => tool.Instance.PanelKey == "chapters");
@@ -523,23 +525,20 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
             Assert.Empty(cut.FindAll(".listen-player-panel"));
         });
 
-        // Slider speed and select sleep share the same exclusive temporary-tool owner.
+        // The phone full player has the same one Settings gear, and opening it uses the shared temporary-tool owner.
         var phoneFull = cut.FindComponent<PlaybackFullPlayer>();
-        await cut.InvokeAsync(() => phoneFull.FindComponents<PlaybackPopover>().Single(p => p.Instance.Title == "More audiobook controls").Instance.OpenAsync(true));
-        var speed = phoneFull.FindComponent<PlaybackSpeedControl>().FindComponent<PlaybackPopover>();
-        await cut.InvokeAsync(() => speed.Instance.OpenAsync(true));
-        cut.WaitForAssertion(() => Assert.Equal("true", speed.Find("button").GetAttribute("aria-expanded")));
+        var gear = phoneFull.FindComponent<AudiobookSettingsPopover>().FindComponent<PlaybackPopover>();
+        await cut.InvokeAsync(() => gear.Instance.OpenAsync(true));
+        cut.WaitForAssertion(() => Assert.Equal("true", gear.Find("button").GetAttribute("aria-expanded")));
         Assert.NotEqual("audio-chapters", transientTools.OpenToolId);
-        var selector = phoneFull.FindComponent<PlaybackSleepTimerControl>().FindComponent<AppSelect>();
-        await selector.Find(".tl-select-trigger").ClickAsync();
         cut.WaitForAssertion(() =>
         {
-            Assert.True(selector.Instance.Open);
-            Assert.StartsWith("app-select-", transientTools.OpenToolId);
-            Assert.Equal("false", speed.Find("button").GetAttribute("aria-expanded"));
+            Assert.NotEmpty(phoneFull.FindAll("[data-settings-row='speed']"));
+            Assert.NotEmpty(phoneFull.FindAll("[data-settings-row='sleep']"));
+            Assert.NotEmpty(phoneFull.FindAll(".player-settings-menu__switch"));
         });
-        await cut.InvokeAsync(() => selector.Instance.ClosePlaybackMenuAsync());
-        cut.WaitForAssertion(() => Assert.False(selector.Instance.Open));
+        await cut.InvokeAsync(() => gear.Instance.CloseAsync());
+        cut.WaitForAssertion(() => Assert.Equal("false", gear.Find("button").GetAttribute("aria-expanded")));
         Assert.True(playback.IsPlaying);
         Assert.Equal(120, playback.CurrentTimeSeconds);
         await cut.Find(".playback-full__modes button[aria-label='Chapters']").ClickAsync();
@@ -620,9 +619,9 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Assert.Equal(firstStableOffCalls, jsRuntime.OffCalls);
 
         var stableOffCalls = jsRuntime.OffCalls;
-        var sleepControl = cut.FindComponent<PlaybackSleepTimerControl>().Instance;
+        var settingsGear = cut.FindComponent<AudiobookSettingsPopover>().Instance;
 
-        var selectionTask = cut.InvokeAsync(() => sleepControl.SelectionChanged.InvokeAsync(
+        var selectionTask = cut.InvokeAsync(() => settingsGear.SleepTimerChanged.InvokeAsync(
             new AudiobookSleepTimerSelectionDto { Mode = AudiobookSleepTimerModes.Timer, Minutes = 15 }));
         await jsRuntime.CandidateStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
@@ -688,8 +687,8 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         var cut = Render<ListenNowPlayingBar>();
         cut.WaitForAssertion(() => Assert.True(jsRuntime.OffCalls > 0));
         var initialOffCalls = jsRuntime.OffCalls;
-        var sleepControl = cut.FindComponent<PlaybackSleepTimerControl>().Instance;
-        var selectionTask = cut.InvokeAsync(() => sleepControl.SelectionChanged.InvokeAsync(
+        var settingsGear = cut.FindComponent<AudiobookSettingsPopover>().Instance;
+        var selectionTask = cut.InvokeAsync(() => settingsGear.SleepTimerChanged.InvokeAsync(
             new AudiobookSleepTimerSelectionDto { Mode = AudiobookSleepTimerModes.Timer, Minutes = 15 }));
         await jsRuntime.CandidateStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
 

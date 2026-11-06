@@ -1,5 +1,4 @@
 @namespace MediaEngine.Web.Components.Shared
-@using System.Globalization
 @using MediaEngine.Contracts.Playback
 @using MediaEngine.Web.Services.Playback
 
@@ -54,78 +53,10 @@
     }.Where(value => !string.IsNullOrWhiteSpace(value)));
 
     private string NormalizedSurface => Surface is "dock" or "expanded" or "phone" or "popup" or "video" ? Surface : "panel";
-    private string SelectedValue => State.Mode switch
-    {
-        AudiobookSleepTimerModes.Timer when State.ChosenMinutes is > 0 => MinuteValue(State.ChosenMinutes.Value),
-        AudiobookSleepTimerModes.EndCurrent => AudiobookSleepTimerModes.EndCurrent,
-        AudiobookSleepTimerModes.EndNext => AudiobookSleepTimerModes.EndNext,
-        _ when DefaultMinutes is > 0 and <= 240 => MinuteValue(DefaultMinutes.Value),
-        _ => AudiobookSleepTimerModes.Off,
-    };
+    private string SelectedValue => PlaybackSleepTimerChoices.SelectedValue(State, DefaultMinutes);
 
-    private IReadOnlyList<AppSelectOption> Options => BuildOptions();
-    private string StatusText => State.Mode switch
-    {
-        AudiobookSleepTimerModes.Timer => TimerStatus,
-        AudiobookSleepTimerModes.EndCurrent => BoundaryStatus("End of chapter", State.TargetChapterTitle),
-        AudiobookSleepTimerModes.EndNext => BoundaryStatus("End of next chapter", State.TargetChapterTitle),
-        _ => "Off",
-    };
-
-    private string AriaLabel => $"Sleep timer: {StatusText}. Choose when playback stops.";
-    private string TimerStatus
-    {
-        get
-        {
-            if (State.DeadlineUtc is not { } deadline) return State.ChosenMinutes is { } chosen ? $"{chosen} minutes" : "Timer active";
-            var remaining = deadline - DateTimeOffset.UtcNow;
-            var minutes = remaining <= TimeSpan.Zero ? 0 : Math.Max(1, (int)Math.Ceiling(remaining.TotalMinutes));
-            return State.ChosenMinutes is { } preset
-                ? $"{preset} minutes selected, {minutes} minutes remaining"
-                : $"{minutes} minutes remaining";
-        }
-    }
-
-    private IReadOnlyList<AppSelectOption> BuildOptions()
-    {
-        var minuteOptions = OptionsMinutes
-            .Where(minutes => minutes is > 0 and <= 240)
-            .Concat(State.Mode == AudiobookSleepTimerModes.Timer && State.ChosenMinutes is { } chosen ? [chosen] : [])
-            .Concat(DefaultMinutes is { } preferred ? [preferred] : [])
-            .Append(15).Append(30).Append(45).Append(60)
-            .Distinct()
-            .Order()
-            .Select(minutes => new AppSelectOption(MinuteValue(minutes), $"{minutes} min"))
-            .ToList();
-
-        var options = new List<AppSelectOption> { new(AudiobookSleepTimerModes.Off, "Off") };
-        if (minuteOptions.Count > 0)
-        {
-            minuteOptions[0] = minuteOptions[0] with { SeparatorBefore = true };
-        }
-        options.AddRange(minuteOptions);
-        if (!OffersEndOfChapter)
-        {
-            return options;
-        }
-
-        options.Add(new AppSelectOption(
-            AudiobookSleepTimerModes.EndCurrent,
-            "End of chapter",
-            AppMaterialIcons.Outlined.MenuBook,
-            Disabled: !Availability.CanEndCurrent,
-            SeparatorBefore: true,
-            Title: Availability.CanEndCurrent ? null : Availability.CurrentUnavailableReason ?? "No verified chapter boundary",
-            AccessibleLabel: Availability.CanEndCurrent ? null : $"End of chapter unavailable: {Availability.CurrentUnavailableReason ?? "no verified chapter boundary"}"));
-        options.Add(new AppSelectOption(
-            AudiobookSleepTimerModes.EndNext,
-            "End of next chapter",
-            AppMaterialIcons.Outlined.SkipNext,
-            Disabled: !Availability.CanEndNext,
-            Title: Availability.CanEndNext ? null : Availability.NextUnavailableReason ?? "No verified next chapter boundary",
-            AccessibleLabel: Availability.CanEndNext ? null : $"End of next chapter unavailable: {Availability.NextUnavailableReason ?? "no verified next boundary"}"));
-        return options;
-    }
+    private IReadOnlyList<AppSelectOption> Options => PlaybackSleepTimerChoices.Options(State, OptionsMinutes, DefaultMinutes, OffersEndOfChapter, Availability);
+    private string AriaLabel => $"Sleep timer: {PlaybackSleepTimerChoices.StatusText(State)}. Choose when playback stops.";
 
     private string FormatSelected(string? _) => string.Empty;
 
@@ -133,14 +64,7 @@
     {
         if (string.IsNullOrWhiteSpace(value)) return;
 
-        AudiobookSleepTimerSelectionDto? selection = value switch
-        {
-            AudiobookSleepTimerModes.Off => new() { Mode = AudiobookSleepTimerModes.Off },
-            AudiobookSleepTimerModes.EndCurrent when Availability.CanEndCurrent => new() { Mode = AudiobookSleepTimerModes.EndCurrent },
-            AudiobookSleepTimerModes.EndNext when Availability.CanEndNext => new() { Mode = AudiobookSleepTimerModes.EndNext },
-            _ when TryReadMinutes(value, out var minutes) => new() { Mode = AudiobookSleepTimerModes.Timer, Minutes = minutes },
-            _ => null,
-        };
+        var selection = PlaybackSleepTimerChoices.SelectionFor(value, Availability);
 
         if (selection is null) return;
         try
@@ -158,17 +82,4 @@
             }
         }
     }
-
-    private static string MinuteValue(int minutes) => $"minutes:{minutes.ToString(CultureInfo.InvariantCulture)}";
-    private static bool TryReadMinutes(string value, out int minutes)
-    {
-        minutes = 0;
-        return value.StartsWith("minutes:", StringComparison.Ordinal)
-            && int.TryParse(value.AsSpan("minutes:".Length), NumberStyles.None, CultureInfo.InvariantCulture, out minutes)
-            && minutes is > 0 and <= 1440;
-    }
-
-    private static string BoundaryStatus(string mode, string? title) =>
-        string.IsNullOrWhiteSpace(title) ? mode : $"{mode}: {title}";
-
 }

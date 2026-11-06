@@ -152,7 +152,7 @@
                         <PlaybackPopover Title="@L["PlayerSettings_StylingTitle"].Value" ToolId="video-subtitle-style" Kind="settings" Surface="video" ShowHeading="false" ItemKey="@VideoInstanceKey">
                             <TriggerContent><span class="video-playback-host__aa" aria-hidden="true">@L["PlayerSettings_AaGlyph"]</span></TriggerContent>
                             <ChildContent>
-                                <VideoSettingsMenu StylingOnly="true" Look="@_profileSubtitles" StyleChanged="ChangeSubtitleStyleAsync" OnClose="CloseSettingsAsync" />
+                                <PlayerSettingsMenu StylingOnly="true" Look="@_profileSubtitles" StyleChanged="ChangeSubtitleStyleAsync" OnClose="CloseSettingsAsync" />
                             </ChildContent>
                         </PlaybackPopover>
                     }
@@ -160,7 +160,7 @@
                                      OpenChanged="HandleSettingsOpenChangedAsync" TriggerClass="@(_captionTracks.Any(track => track.Selected) || Math.Abs(Playback.PlaybackRate - 1d) > 0.001 ? "is-on" : null)">
                         <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Settings" /></TriggerContent>
                         <ChildContent>
-                            <VideoSettingsMenu AudioSummary="@AudioSummary" SubtitlesSummary="@SubtitlesSummary" NoSubtitleSource="@_noSubtitleSource" IsAdministrator="@CanShareBookmarks" Look="@_profileSubtitles"
+                            <PlayerSettingsMenu AudioSummary="@AudioSummary" SubtitlesSummary="@SubtitlesSummary" NoSubtitleSource="@_noSubtitleSource" IsAdministrator="@CanShareBookmarks" Look="@_profileSubtitles"
                                                StyleChanged="ChangeSubtitleStyleAsync" OnClose="CloseSettingsAsync"
                                                PlaybackRate="@Playback.PlaybackRate" PlaybackRateChanged="SelectPlaybackRateAsync">
                                 <Audio>
@@ -203,7 +203,7 @@
                                         @if (!string.IsNullOrWhiteSpace(_textTrackStatus)) { <p role="status" class="video-playback-host__track-status">@_textTrackStatus</p> }
                                     </PlaybackSheetList>
                                 </Subtitles>
-                            </VideoSettingsMenu>
+                            </PlayerSettingsMenu>
                         </ChildContent>
                     </PlaybackPopover>
                     <PlaybackControlStrip Controls="@VideoHeaderUtilityControls" Size="compact" Surface="video" OnControl="HandleVideoUtilityControl" />

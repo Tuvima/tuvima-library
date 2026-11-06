@@ -14,7 +14,7 @@ public sealed class VideoPlaybackSurfaceTests
         Assert.Contains("Close video", razor);
         Assert.DoesNotContain("Back to details", razor);
         Assert.Contains("<PlaybackPopover Title=\"Settings\"", razor);
-        Assert.Contains("<VideoSettingsMenu", razor);
+        Assert.Contains("<PlayerSettingsMenu", razor);
         Assert.Contains("<VideoContextPanel", razor);
         Assert.Contains("listenPlayback.toggleFullscreen\", _hostRef, _videoRef", razor);
         Assert.DoesNotContain("video-playback-host__tool-backdrop", razor);

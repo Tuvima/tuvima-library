@@ -3,6 +3,7 @@
 @using MediaEngine.Contracts.Playback
 @using MediaEngine.Web.Components.Details
 @using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Integration
 @using MediaEngine.Web.Services.Playback
 @using Microsoft.JSInterop
 @inject IJSRuntime JS
@@ -76,7 +77,8 @@
             }
             <div class="playback-full__timeline" aria-label="@L["PlaybackFullPlayer_PlaybackProgress"].Value">
                 <PlaybackSeekRail Surface="phone" Duration="@Duration" Position="@Math.Min(Snapshot.CurrentTimeSeconds, Duration)"
-                                  ValueChanged="@(seconds => SendAsync(displayed, ListenPlaybackCommandActions.Seek, seconds))" />
+                                  ValueChanged="@(seconds => SendAsync(displayed, ListenPlaybackCommandActions.Seek, seconds))"
+                                  Bookmarks="@BarMarkers" BookmarkJump="@(marker => SendAsync(displayed, ListenPlaybackCommandActions.Seek, marker.Seconds))" />
             </div>
             <PlaybackQualityBadge Item="@item" BrowserStreamUrl="@Snapshot.CurrentBrowserStreamUrl" />
             <ListenTransportControls Variant="phone" ShowMusicModeButtons="@(!IsBook)" ShuffleEnabled="Snapshot.ShuffleEnabled" RepeatEnabled="@(Snapshot.RepeatMode != PlayerRepeatModes.Off)"
@@ -101,16 +103,17 @@
             @if (IsBook)
             {
                 <div class="playback-full__book-tools">
-                    <PlaybackPopover Title="@L["PlaybackFullPlayer_MoreAudiobookControls"].Value" ToolId="full-book-more" ShowHeading="false">
-                        <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.More" /></TriggerContent>
-                        <ChildContent><PlaybackControlStrip Controls="BookTools" Surface="phone" AriaLabel="@L["Common_AudiobookControls"].Value"
-                            SpeedValue="Snapshot.PlaybackRate" SpeedChanged="@(rate => SendAsync(displayed, ListenPlaybackCommandActions.SetSpeed, rate))"
-                            SpeedMenuOpen="_speedOpen" SpeedMenuOpenChanged="SpeedMenuChangedAsync"
-                            SleepTimerState="Snapshot.SleepTimerState" SleepTimerAvailability="Snapshot.SleepTimerAvailability" SleepTimerOptionsMinutes="Snapshot.SleepTimerOptionsMinutes" SleepTimerDefaultMinutes="Snapshot.DefaultSleepTimerMinutes" SleepTimerOffersEndOfChapter="Snapshot.AllowEndOfChapterSleepTimer"
-                            SleepTimerChanged="@(selection => SendAsync(displayed, ListenPlaybackCommandActions.SetSleepTimer, sleep: selection))"
-                            SleepMenuOpen="_sleepOpen" SleepMenuOpenChanged="SleepMenuChangedAsync" />
-                        </ChildContent>
-                    </PlaybackPopover>
+                    <PlaybackControlStrip Controls="BookTools" Surface="phone" AriaLabel="@L["Common_AudiobookControls"].Value">
+                        <SettingsContent Context="settings">
+                            <AudiobookSettingsPopover Surface="phone" Title="@settings.AriaLabel" IsOn="@settings.IsActive"
+                                                      Open="@_settingsOpen" OpenChanged="SettingsMenuChangedAsync"
+                                                      PlaybackRate="@Snapshot.PlaybackRate" PlaybackRateChanged="@(rate => SendAsync(displayed, ListenPlaybackCommandActions.SetSpeed, rate))"
+                                                      SleepTimerState="Snapshot.SleepTimerState" SleepTimerAvailability="Snapshot.SleepTimerAvailability"
+                                                      SleepTimerOptionsMinutes="@Snapshot.SleepTimerOptionsMinutes" SleepTimerDefaultMinutes="@Snapshot.DefaultSleepTimerMinutes" SleepTimerOffersEndOfChapter="@Snapshot.AllowEndOfChapterSleepTimer"
+                                                      SleepTimerChanged="@(selection => SendAsync(displayed, ListenPlaybackCommandActions.SetSleepTimer, sleep: selection))"
+                                                      ShowBookmarksOnBar="@ShowBookmarksOnBar" ShowBookmarksOnBarChanged="ChangeShowBookmarksOnBarAsync" />
+                        </SettingsContent>
+                    </PlaybackControlStrip>
                 </div>
             }
             <div class="playback-full__volume">
@@ -148,7 +151,7 @@
     private readonly SemaphoreSlim _focusLifecycle = new(1, 1);
     private bool _disposed;
     public ElementReference Element => _section?.Element ?? default;
-    private bool _speedOpen, _sleepOpen;
+    private bool _settingsOpen;
     private readonly Dictionary<string, AppNativeButton> _modeButtons = [];
     private string? _subject, _commandError;
     private ListenQueueItem? Current => Snapshot.CurrentIndex >= 0 && Snapshot.CurrentIndex < Snapshot.Queue.Count ? Snapshot.Queue[Snapshot.CurrentIndex] : null;
@@ -160,7 +163,7 @@
     private AudiobookPlaybackProjection? BookProgress => IsBook ? AudiobookPlaybackProjection.Create(Current?.Chapters, Current?.AssetId, Snapshot.CurrentTimeSeconds, Snapshot.DurationSeconds) : null;
     private IReadOnlyList<PlaybackControlDefinition> BookTools => PlaybackControlCatalog.BuildToolStrip(PlaybackExperience.Audiobook, PlaybackControlSurface.Phone,
         new PlaybackControlState(PlaybackRate: Snapshot.PlaybackRate, IsSleepTimerActive: Snapshot.SleepTimerState.Mode != AudiobookSleepTimerModes.Off))
-        .Where(control => control.Key is PlaybackControlKey.Speed or PlaybackControlKey.SleepTimer).ToList();
+        .Where(control => control.Key == PlaybackControlKey.Settings).ToList();
     private IEnumerable<(string Key, string Label, PlaybackUtilityGlyphKind Glyph)> Modes => IsBook
         ? [("chapters", "Chapters", PlaybackUtilityGlyphKind.Chapters), ("bookmarks", "Bookmarks", PlaybackUtilityGlyphKind.Bookmark), ("history", "History", PlaybackUtilityGlyphKind.History)]
         : Snapshot.OutputSupported
@@ -170,7 +173,7 @@
     private async Task SelectModeAsync(string key)
     {
         CloseTransientTools();
-        _speedOpen = false; _sleepOpen = false;
+        _settingsOpen = false;
         if (ModeIsSelected(key)) { await DismissToolsAsync(); return; }
         _tool = key; _toolFamily = key;
         await ModeChanged.InvokeAsync(key);
@@ -182,7 +185,9 @@
     {
         if (_subject == Subject) return;
         _subject = Subject;
-        _tool = null; _toolFamily = null; _speedOpen = false; _sleepOpen = false; _commandError = null;
+        _tool = null; _toolFamily = null; _settingsOpen = false; _commandError = null;
+        _markers = [];
+        _ = RefreshMarkersAsync();
     }
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -248,12 +253,64 @@
         catch (Exception) { if (SameSubject(displayed, Snapshot)) _commandError = L["Common_TheMainPlayerConnectionWas"].Value; }
     }
     private async Task PanelSelectedAsync(string key) { _tool = key; await PanelChanged.InvokeAsync(key); }
-    private async Task SpeedMenuChangedAsync(PlaybackSpeedMenuState state) { _speedOpen = state.IsOpen; if (state.IsOpen) _sleepOpen = false; await ToolVisibilityChanged.InvokeAsync(_speedOpen); }
-    private async Task SleepMenuChangedAsync(PlaybackSpeedMenuState state) { _sleepOpen = state.IsOpen; if (state.IsOpen) _speedOpen = false; await ToolVisibilityChanged.InvokeAsync(_sleepOpen); }
+    private async Task SettingsMenuChangedAsync(PlaybackSpeedMenuState state) { _settingsOpen = state.IsOpen; await ToolVisibilityChanged.InvokeAsync(_settingsOpen); }
+
+    // Unified player D10: "Show bookmarks on the bar" is the profile's own setting (the one the video player and Settings > Playback use), off by default.
+    private ILogger<PlaybackFullPlayer>? Logger => Services.GetService<ILogger<PlaybackFullPlayer>>();
+    private UserPlaybackSettingsDto? _settings;
+    private IReadOnlyList<AudiobookBookmarkDto> _markers = [];
+    private int _markersVersion;
+    private bool ShowBookmarksOnBar => _settings?.General.ShowBookmarksOnBar == true;
+    private IReadOnlyList<PlaybackRailBookmark> BarMarkers => IsBook ? AudiobookBarMarkers.ForBar(_markers, ShowBookmarksOnBar, Duration, null) : [];
+
+    private async Task RefreshMarkersAsync()
+    {
+        if (_disposed || !IsBook || Current is not { AssetId: Guid assetId } item || Snapshot.ProfileId is not Guid profileId || profileId == Guid.Empty) return;
+        var version = Interlocked.Increment(ref _markersVersion);
+        try
+        {
+            var preferences = Services.GetService<PlayerPreferenceService>();
+            if (_settings is null && preferences is not null) _settings = await preferences.GetAsync();
+            var saved = ShowBookmarksOnBar
+                ? await AudiobookBarMarkers.LoadAsync(Services.GetService<IEngineApiClient>(), item.AudiobookWorkId ?? item.WorkId, profileId, assetId, CancellationToken.None)
+                : [];
+            if (_disposed || version != _markersVersion) return;
+            _markers = saved;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or OperationCanceledException)
+        {
+            Logger?.LogInformation(ex, "The bookmark markers for the audiobook bar could not be loaded; the bar shows none.");
+        }
+    }
+
+    private async Task ChangeShowBookmarksOnBarAsync(bool show)
+    {
+        _settings ??= new UserPlaybackSettingsDto();
+        _settings.General.ShowBookmarksOnBar = show;
+        var reload = RefreshMarkersAsync();
+        var preferences = Services.GetService<PlayerPreferenceService>();
+        if (preferences is not null)
+        {
+            try
+            {
+                if (!await preferences.UpdateAsync(settings => settings.General.ShowBookmarksOnBar = show))
+                {
+                    Logger?.LogInformation("The bookmark markers choice could not be saved.");
+                }
+            }
+            catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or OperationCanceledException)
+            {
+                Logger?.LogWarning(ex, "The bookmark markers choice could not be saved.");
+            }
+        }
+
+        await reload;
+    }
     public Task DismissToolsAsync() => InvokeAsync(async () =>
     {
         CloseTransientTools();
-        _tool = null; _speedOpen = false; _sleepOpen = false;
+        _tool = null; _settingsOpen = false;
         await ModeChanged.InvokeAsync(null);
         await ToolVisibilityChanged.InvokeAsync(false);
         StateHasChanged();

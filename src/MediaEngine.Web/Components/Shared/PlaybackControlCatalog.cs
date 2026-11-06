@@ -22,6 +22,7 @@ public enum PlaybackControlKey
     Bookmarks,
     SleepTimer,
     Speed,
+    Settings,
     Cast,
     More,
     Captions,
@@ -201,12 +202,12 @@ public static class PlaybackControlCatalog
             { AriaLabel = "Chapters unavailable; no timed chapters were found" });
         }
 
+        // Player controls v3 D7 / unified player D10: previous and next chapter, Chapters, Settings (speed, sleep timer, bookmark markers), Bookmarks.
         var order = new[]
         {
             PlaybackControlKey.Chapters,
+            PlaybackControlKey.Settings,
             PlaybackControlKey.Bookmarks,
-            PlaybackControlKey.Speed,
-            PlaybackControlKey.SleepTimer,
             PlaybackControlKey.History,
         };
         return OrderByKeys(tools, order);
@@ -287,34 +288,28 @@ public static class PlaybackControlCatalog
                 controls.Add(new(PlaybackControlKey.Repeat, "Repeat", state.RepeatMode == "one" ? "Repeat one" : state.IsRepeatEnabled ? "Repeat all" : "Repeat off", string.Empty, PlaybackControlPlacement.ToolStrip, "repeat", IsActive: state.IsRepeatEnabled));
                 break;
             case PlaybackExperience.Audiobook:
-                controls.Add(Tool(PlaybackControlKey.Speed, "Speed", "speed", state, ValueText: DisplayFormat.FormatSpeedControl(state.PlaybackRate)));
+                // Speed and the sleep timer live inside the one Settings menu (unified player D10), not as buttons of their own.
+                // The gear shows its on-state while the speed is not 1x or a sleep timer is running.
                 if (state.HasChapters)
                 {
                     controls.Add(Tool(PlaybackControlKey.Chapters, "Chapters", "chapters", state));
                 }
-                controls.Add(Tool(PlaybackControlKey.History, "History", "history", state));
-                controls.Add(Tool(PlaybackControlKey.Bookmarks, "Bookmark", "bookmark-dialog", state));
-                var sleepTimer = new PlaybackControlDefinition(
-                    PlaybackControlKey.SleepTimer,
-                    "Sleep",
-                    "Sleep timer",
-                    string.Empty,
-                    PlaybackControlPlacement.ToolStrip,
-                    "sleep-timer",
-                    ValueText: state.SleepTimerValueText,
-                    BadgeText: state.SleepTimerValueText,
-                    IsActive: state.IsSleepTimerActive);
+                var settings = Tool(PlaybackControlKey.Settings, "Settings", "settings", state,
+                    BadgeText: state.IsSleepTimerActive ? state.SleepTimerValueText : null,
+                    IsActive: state.IsSleepTimerActive || Math.Abs(state.PlaybackRate - 1d) > 0.001);
                 if (state.IsSleepTimerActive)
                 {
                     var status = state.SleepTimerValueText switch
                     {
-                        "Ch" => "ends at the current chapter boundary",
+                        "CH" or "Ch" => "ends at the current chapter boundary",
                         "NEXT" => "ends at the next chapter boundary",
                         _ => $"{state.SleepTimerValueText ?? "active"} remaining",
                     };
-                    sleepTimer = sleepTimer with { AriaLabel = $"Sleep timer active, {status}" };
+                    settings = settings with { AriaLabel = $"Settings, sleep timer active, {status}" };
                 }
-                controls.Add(sleepTimer);
+                controls.Add(settings);
+                controls.Add(Tool(PlaybackControlKey.History, "History", "history", state));
+                controls.Add(Tool(PlaybackControlKey.Bookmarks, "Bookmark", "bookmark-dialog", state));
                 break;
             case PlaybackExperience.Video:
                 // Control sets by media (player-controls-v3 D7). A film has bookmarks only: no Up next and no chapters.
