@@ -26,6 +26,7 @@
                         RailVisible="RailVisible"
                         Rail="RailContent"
                         ItemHeader="ItemHeader"
+                        FooterStart="@(_reviewing ? null : FooterStart)"
                         Title="@title"
                         CloseName="@(TitleOverride ?? TitleFor(shown))"
                         HeaderExtra="HeaderContent"
@@ -106,6 +107,9 @@
 
     /// <summary>The item's header (picture, kind, title, facts, provider links). When set, it replaces the plain title bar for a single item.</summary>
     [Parameter] public RenderFragment? ItemHeader { get; set; }
+
+    /// <summary>Bottom-left of the footer (Delete); hidden while the changes are being reviewed.</summary>
+    [Parameter] public RenderFragment? FooterStart { get; set; }
 
     /// <summary>The item has children to list (a show, season, album or series), so the Contents tab is offered.</summary>
     [Parameter] public bool ShowContents { get; set; }

@@ -13,7 +13,6 @@
             <AppCollapsibleRow Title="@RowTitle"
                                Summary="@RowSummary"
                                RowKind="@RowKind"
-                               StartCollapsed="@StartsCollapsed"
                                Actions="@ModuleControls">
                 <div class="tl-detail-primary-module__viewport">
                     @if (Model.PrimaryModule.Kind is DetailPrimaryModuleKind.Sequence or DetailPrimaryModuleKind.Episodes
@@ -271,8 +270,6 @@
         _ => "library-items",
     };
 
-    private bool StartsCollapsed => Model.PrimaryModule.Kind == DetailPrimaryModuleKind.Sequence
-        && DetailSequenceRowRule.StartsCollapsed(Model.EntityType, Model.SequencePlacement);
 
     private string? RowSummary
     {

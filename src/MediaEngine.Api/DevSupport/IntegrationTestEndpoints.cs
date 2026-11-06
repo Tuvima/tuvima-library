@@ -2999,7 +2999,7 @@ public static class IntegrationTestEndpoints
                 DetailPresentationContext.Listen,
                 group => group.RootWorkId ?? group.CollectionId,
                 id => $"/details/musicalbum/{id:D}?context=listen",
-                expectedTabs: ["overview", "details"]);
+                expectedTabs: ["overview"]);
         }
 
         if (report.ActiveTypes.Contains("tv"))
@@ -3048,7 +3048,7 @@ public static class IntegrationTestEndpoints
                     if (detail is not null)
                     {
                         var requiredTabs = expectedTabs
-                            ?? (enforceSharedCollectionContract ? ["overview", "details"] : null);
+                            ?? (enforceSharedCollectionContract ? ["overview"] : null);
                         check.UsesExpectedTabs = requiredTabs is null
                             || detail.Tabs.Select(tab => tab.Key)
                                 .SequenceEqual(requiredTabs, StringComparer.OrdinalIgnoreCase);

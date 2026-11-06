@@ -247,6 +247,10 @@ public sealed class PhoneHomeHeroTests : AsyncBunitContext
         { "audiobook-started", "Continue Listening", "1h 5m left" },
         { "album-unstarted", "Play album", "" },
         { "album-started", "Play album", "" },
+        { "videos-unstarted", "Play", "" },
+        { "videos-started", "Resume", "23 min left" },
+        { "othervideos-unstarted", "Play", "" },
+        { "othervideos-started", "Resume", "23 min left" },
     };
 
     private static DiscoveryHeroViewModel ForLabel(string key)
@@ -263,6 +267,8 @@ public sealed class PhoneHomeHeroTests : AsyncBunitContext
             "tv" => Made("TV", state: state, progress: pct, remaining: started ? 1380 : null, engineLabel: started ? "Resume S5 E1" : "Watch S1 E1"),
             "episode" => Made("TV", state: state, progress: pct, episode: started ? StartedEpisode : UnstartedEpisode, engineLabel: "Watch"),
             "audiobook" => Made("Audiobook", state: state, progress: pct, remaining: started ? 3900 : null, engineLabel: started ? "Continue" : "Play"),
+            "videos" => Made("Videos", state: state, progress: pct, remaining: started ? 1380 : null, engineLabel: started ? "Continue" : "Play"),
+            "othervideos" => Made("Other videos", state: state, progress: pct, remaining: started ? 1380 : null, engineLabel: started ? "Continue" : "Play"),
             _ => Made("Music", state: state, progress: pct, engineLabel: started ? "Continue" : "Play"),
         };
     }
@@ -292,6 +298,21 @@ public sealed class PhoneHomeHeroTests : AsyncBunitContext
             Assert.DoesNotContain("Resume", text);
             Assert.DoesNotContain("0%", text);
         }
+    }
+
+    [Theory]
+    [InlineData("Videos")]
+    [InlineData("Other videos")]
+    [InlineData("YouTube")]
+    [InlineData("Something new")]
+    public void AVideoOrUnknownKindIsNeverPresentedAsABook(string kind)
+    {
+        var hero = Made(kind, state: DisplayContinuationState.InProgress, progress: 12, engineLabel: "Continue");
+
+        var label = PhoneHeroPresentation.PrimaryLabel(hero);
+
+        Assert.DoesNotContain("Read", label.Text);
+        Assert.NotEqual("Book", PhoneHeroPresentation.PlaceholderLabel(kind));
     }
 
     [Fact]

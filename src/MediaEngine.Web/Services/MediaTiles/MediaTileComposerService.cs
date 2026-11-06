@@ -129,10 +129,18 @@ public sealed class MediaTileComposerService
         var primaryAction = hero.Progress?.ResumeAction ?? hero.Actions.FirstOrDefault();
         var secondaryAction = hero.Actions.Skip(1).FirstOrDefault();
 
+        // Other videos have no portrait cover: their picture is a frame taken from the video. It fills the hero as the
+        // background instead of sitting as a small picture inside a portrait cover.
+        var frameBackdrop = Components.Cinematic.PhoneHeroPresentation.IsVideoKind(hero.MediaType) ? FrameBackdropUrl(hero.Artwork) : null;
+        if (frameBackdrop is not null)
+        {
+            heroSurfaceKind = MediaTileSurfaceKind.BannerLandscape;
+        }
+
         return new DiscoveryHeroViewModel
         {
-            BackgroundWidthPx = !string.IsNullOrWhiteSpace(hero.Artwork.BackgroundUrl ?? hero.Artwork.BackgroundLargeUrl ?? hero.Artwork.BackgroundMediumUrl) ? hero.Artwork.BackgroundWidthPx : hero.Artwork.BannerWidthPx,
-            BackgroundHeightPx = !string.IsNullOrWhiteSpace(hero.Artwork.BackgroundUrl ?? hero.Artwork.BackgroundLargeUrl ?? hero.Artwork.BackgroundMediumUrl) ? hero.Artwork.BackgroundHeightPx : hero.Artwork.BannerHeightPx,
+            BackgroundWidthPx = frameBackdrop is not null ? hero.Artwork.CoverWidthPx : !string.IsNullOrWhiteSpace(hero.Artwork.BackgroundUrl ?? hero.Artwork.BackgroundLargeUrl ?? hero.Artwork.BackgroundMediumUrl) ? hero.Artwork.BackgroundWidthPx : hero.Artwork.BannerWidthPx,
+            BackgroundHeightPx = frameBackdrop is not null ? hero.Artwork.CoverHeightPx : !string.IsNullOrWhiteSpace(hero.Artwork.BackgroundUrl ?? hero.Artwork.BackgroundLargeUrl ?? hero.Artwork.BackgroundMediumUrl) ? hero.Artwork.BackgroundHeightPx : hero.Artwork.BannerHeightPx,
             CoverWidthPx = !string.IsNullOrWhiteSpace(hero.Artwork.CoverUrl ?? hero.Artwork.CoverLargeUrl ?? hero.Artwork.CoverMediumUrl) ? hero.Artwork.CoverWidthPx : hero.Artwork.SquareWidthPx,
             CoverHeightPx = !string.IsNullOrWhiteSpace(hero.Artwork.CoverUrl ?? hero.Artwork.CoverLargeUrl ?? hero.Artwork.CoverMediumUrl) ? hero.Artwork.CoverHeightPx : hero.Artwork.SquareHeightPx,
             Subject = hero.Subject,
@@ -146,8 +154,8 @@ public sealed class MediaTileComposerService
             Subtitle = hero.Subtitle,
             Tagline = hero.Tagline,
             Description = hero.Description,
-            BackgroundImageUrl = StringHelpers.FirstNonBlank(hero.Artwork.BackgroundUrl, hero.Artwork.BackgroundLargeUrl, hero.Artwork.BackgroundMediumUrl, hero.Artwork.BannerUrl, hero.Artwork.BannerLargeUrl, hero.Artwork.BannerMediumUrl),
-            HeroBackgroundImageUrl = StringHelpers.FirstNonBlank(hero.Artwork.BackgroundUrl, hero.Artwork.BackgroundLargeUrl, hero.Artwork.BackgroundMediumUrl, hero.Artwork.BannerUrl, hero.Artwork.BannerLargeUrl, hero.Artwork.BannerMediumUrl),
+            BackgroundImageUrl = frameBackdrop ?? StringHelpers.FirstNonBlank(hero.Artwork.BackgroundUrl, hero.Artwork.BackgroundLargeUrl, hero.Artwork.BackgroundMediumUrl, hero.Artwork.BannerUrl, hero.Artwork.BannerLargeUrl, hero.Artwork.BannerMediumUrl),
+            HeroBackgroundImageUrl = frameBackdrop ?? StringHelpers.FirstNonBlank(hero.Artwork.BackgroundUrl, hero.Artwork.BackgroundLargeUrl, hero.Artwork.BackgroundMediumUrl, hero.Artwork.BannerUrl, hero.Artwork.BannerLargeUrl, hero.Artwork.BannerMediumUrl),
             BannerImageUrl = StringHelpers.FirstNonBlank(hero.Artwork.BannerUrl, hero.Artwork.BannerLargeUrl, hero.Artwork.BannerMediumUrl),
             PreviewImageUrl = StringHelpers.FirstNonBlank(hero.Artwork.CoverUrl, hero.Artwork.CoverLargeUrl, hero.Artwork.CoverMediumUrl, hero.Artwork.SquareUrl, hero.Artwork.SquareLargeUrl, hero.Artwork.SquareMediumUrl),
             SurfaceKind = heroSurfaceKind,
@@ -528,6 +536,15 @@ public sealed class MediaTileComposerService
         "listen" => new(AppMaterialIcons.Filled.Headphones, "Listen", count.Count),
         _ => new(AppMaterialIcons.Filled.MoreHoriz, "Other", count.Count),
     };
+
+    /// <summary>The cover of a video when it has no background or banner of its own (it is a frame from the video).</summary>
+    internal static string? FrameBackdropUrl(DisplayArtworkDto artwork)
+    {
+        var hasLandscape = !string.IsNullOrWhiteSpace(artwork.BackgroundUrl) || !string.IsNullOrWhiteSpace(artwork.BackgroundLargeUrl)
+            || !string.IsNullOrWhiteSpace(artwork.BackgroundMediumUrl) || !string.IsNullOrWhiteSpace(artwork.BannerUrl)
+            || !string.IsNullOrWhiteSpace(artwork.BannerLargeUrl) || !string.IsNullOrWhiteSpace(artwork.BannerMediumUrl);
+        return hasLandscape ? null : StringHelpers.FirstNonBlank(artwork.CoverLargeUrl, artwork.CoverUrl, artwork.CoverMediumUrl);
+    }
 
     private static MediaTileSurfaceKind ResolveHeroSurfaceKind(DisplayArtworkDto artwork, MediaTileSurfaceKind fallback = MediaTileSurfaceKind.CoverPortrait)
     {

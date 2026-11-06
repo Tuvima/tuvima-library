@@ -486,7 +486,7 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
                    WHEN EXISTS (
                    SELECT 1 FROM canonical_values identity_value
                    WHERE identity_value.entity_id IN (ma.id, w.id)
-                     AND identity_value.key IN ('tmdb_id', 'tvdb_id', 'musicbrainz_release_id', 'musicbrainz_recording_id', 'comicvine_issue_id', 'openlibrary_work_id', 'wikidata_qid')
+                     AND identity_value.key IN ('tmdb_id', 'tvdb_id', 'tmdb_episode_id', 'tvdb_episode_id', 'tvdb_season_id', 'musicbrainz_release_id', 'musicbrainz_recording_id', 'comicvine_issue_id', 'openlibrary_work_id', 'wikidata_qid')
                      AND NULLIF(identity_value.value, '') IS NOT NULL)
                    THEN 'matched' ELSE 'unmatched' END AS MatchState,
                COALESCE(NULLIF(ma.writeback_status, ''), 'unknown') AS FileState,
@@ -531,7 +531,7 @@ public sealed class MediaEditorOwnedChildReadService(IDatabaseConnection db) : I
               THEN CASE WHEN EXISTS (SELECT 1 FROM works series WHERE series.id = w.parent_work_id AND series.work_kind = 'parent') THEN 'matched' ELSE 'unmatched' END
               WHEN EXISTS (
               SELECT 1 FROM canonical_values identity_value WHERE identity_value.entity_id IN (ma.id, w.id)
-              AND identity_value.key IN ('tmdb_id', 'tvdb_id', 'musicbrainz_release_id', 'musicbrainz_recording_id', 'comicvine_issue_id', 'openlibrary_work_id', 'wikidata_qid')
+              AND identity_value.key IN ('tmdb_id', 'tvdb_id', 'tmdb_episode_id', 'tvdb_episode_id', 'tvdb_season_id', 'musicbrainz_release_id', 'musicbrainz_recording_id', 'comicvine_issue_id', 'openlibrary_work_id', 'wikidata_qid')
               AND NULLIF(identity_value.value, '') IS NOT NULL) THEN 'matched' ELSE 'unmatched' END)
           AND (@fileStatus IS NULL OR lower(COALESCE(NULLIF(ma.writeback_status, ''), 'unknown')) = lower(@fileStatus))
         """;

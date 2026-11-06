@@ -8,6 +8,15 @@ namespace MediaEngine.Web.Tests;
 public sealed class MediaTileComposerServiceTests
 {
     [Fact]
+    public void OtherVideoFrame_FillsTheHeroAsItsBackground_UnlessItHasALandscapePicture()
+    {
+        var frame = EmptyArtwork(null) with { CoverUrl = "/stream/artwork/frame", CoverLargeUrl = "/stream/artwork/frame?size=l" };
+
+        Assert.Equal("/stream/artwork/frame?size=l", MediaTileComposerService.FrameBackdropUrl(frame));
+        Assert.Null(MediaTileComposerService.FrameBackdropUrl(frame with { BannerUrl = "/banner.jpg" }));
+    }
+
+    [Fact]
     public void PlaylistComposition_CentralizesVisibilityAndArtworkPolicy()
     {
         var playlist = new ManagedCollectionViewModel

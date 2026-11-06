@@ -41,7 +41,8 @@
                          ShowContents="@EditorHeaderRules.HasContents(mode.Fields.ScopeId, Editor.Family.Kind != EditorFamilyKind.None)"
                          ShowFiles="@(binding?.ShowHistory == true && mode.Fields.SubjectKind is null)"
                          RailVisible="@(Editor.Family.Visible || Editor.Universe.Visible)"
-                         ItemHeader="@(Editor.Batch.Panel == BulkPanelKind.None ? ItemHeaderFragment(flow, mode) : null)">
+                         ItemHeader="@(Editor.Batch.Panel == BulkPanelKind.None ? ItemHeaderFragment(flow, mode) : null)"
+                         FooterStart="@(Editor.Batch.Panel == BulkPanelKind.None && (CanDeleteActive || CanDeleteThing) ? DeleteButtonFragment(flow, mode) : null)">
             <HeaderContent>
                 @if (Editor.Batch.Panel == BulkPanelKind.None && Editor.Session.ActiveItem is { } editing)
                 {
@@ -165,9 +166,17 @@
     {
         <EditorItemHeader Flow="flow" Fields="mode.Fields" Family="Editor.Family" Unmatched="@IsActiveUnmatched"
                           UniverseName="@Editor.Universe.UniverseName"
-                          CanDelete="@(CanDeleteActive || CanDeleteThing)"
-                          DeleteLabel="@(CanDeleteThing ? "Delete from this Universe…" : EditorDeleteRules.MenuLabel(EditorDeleteFlow.ActiveGroup(Editor), mode.Fields.ScopeId))"
-                          OnDelete="@(CanDeleteThing ? DeleteThingAsync : DeleteActiveAsync)" />
+                          CanDelete="false" />
+    };
+
+    // Delete sits bottom-left of the footer as a red button (v4.1 D3). It asks once and then happens at once; it does not wait for Save.
+    private RenderFragment DeleteButtonFragment(EditSessionFlow flow, EditingModeContext mode) => __builder =>
+    {
+        <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" Size="AppControlSize.Large" Class="tl-editor-window__delete"
+                   StartIcon="@AppMaterialIcons.Outlined.Delete" Disabled="@(flow.Saving || flow.Switching)"
+                   OnClick="@(CanDeleteThing ? DeleteThingAsync : DeleteActiveAsync)">
+            @(CanDeleteThing ? "Delete from this Universe…" : EditorDeleteRules.MenuLabel(EditorDeleteFlow.ActiveGroup(Editor), mode.Fields.ScopeId))
+        </AppButton>
     };
 
     private bool _deleting;

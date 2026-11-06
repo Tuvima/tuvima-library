@@ -172,6 +172,7 @@
         "tv" => AppMaterialIcons.Outlined.Tv,
         "music" => AppMaterialIcons.Outlined.Album,
         "audiobook" => AppMaterialIcons.Outlined.Headphones,
+        var other when PhoneHeroPresentation.IsVideoKind(other) => AppMaterialIcons.Outlined.Movie,
         _ => AppMaterialIcons.Outlined.MenuBook,
     };
 }

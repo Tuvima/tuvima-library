@@ -835,7 +835,7 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task TvdbImagesPass_AfterShowReidentification_UsesTheNewShowsSeasonAndDropsTheEarlierShowsArtwork()
+    public async Task TvdbImagesPass_AfterShowReidentification_UsesTheNewShowsSeasonIdAndDropsTheEarlierShowsArtwork()
     {
         // The season kept the season id found under the show's earlier identity; that id is not one of the
         // current show's seasons, so the pass looks the season up again and records the new id. The earlier
@@ -897,9 +897,8 @@ public sealed class ImageEnrichmentServiceTests : IDisposable
 
         Assert.DoesNotContain("/v4/seasons/500/extended", paths);
         Assert.Equal("77", await GetCanonicalAsync(season, BridgeIdKeys.TvdbSeasonId));
-        var seasonPoster = Assert.Single(await _entityAssets.GetByEntityAsync(season.ToString(), "SeasonPoster"));
-        Assert.Equal("https://artworks.thetvdb.com/new-season.png", seasonPoster.ImageUrl);
-        Assert.True(seasonPoster.IsPreferred);
+        // The earlier show's season picture is dropped and no new season picture is downloaded: a season shows its show's poster.
+        Assert.Empty(await _entityAssets.GetByEntityAsync(season.ToString(), "SeasonPoster"));
         var showPoster = Assert.Single(await _entityAssets.GetByEntityAsync(show.ToString(), "CoverArt"));
         Assert.Equal("https://artworks.thetvdb.com/current-show.png", showPoster.ImageUrl);
     }

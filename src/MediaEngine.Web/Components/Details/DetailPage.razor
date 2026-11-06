@@ -94,6 +94,9 @@ else if (Model is not null)
                                                                      OnContainerSelected="HandleContainerSelectedAsync" />
                 }
                 <ExtrasSection Extras="Model.Extras" />
+                <section class="tl-detail-about" aria-label="@L["DetailPage_AboutThis"].Value">
+                    <DetailsTab Model="Model" />
+                </section>
                 @if (Model.EntityType == DetailEntityType.Collection && Model.CollectionInfo is { } collectionInfo)
                 {
                     @* A set lists the collections inside it; an imported list lists what it holds that the library does not (Collections and lists 4g). *@

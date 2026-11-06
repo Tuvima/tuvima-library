@@ -61,47 +61,19 @@
                                    Class="tl-series-detail__control tl-series-detail__control--group"
                                    >
                         <span class="sr-only">@(IsSeasonContainer ? "Season" : "Arc / sub-series")</span>
-                        @if (IsSeasonContainer)
-                        {
-                            <AppNativeButton Type="button"
-                                             Class="@SeasonToggleClass"
-                                             OnClick="ToggleSeasonBrowser"
-                                             aria-pressed="@_seasonBrowserOpen"
-                                             aria-expanded="@_seasonBrowserOpen"
-                                             aria-controls="@_seasonStripId"
-                                             AriaLabel="@($"Choose season; {ActiveGroup?.Title ?? "current season"} selected")">
-                                <span class="tl-season-toggle__art">
-                                    @if (!string.IsNullOrWhiteSpace(ActiveGroup?.ArtworkSmallUrl))
-                                    {
-                                        <img src="@MediaTileArtworkUrl.ForDrawnSize(ActiveGroup.ArtworkSmallUrl, 64)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(ActiveGroup.ArtworkSmallUrl, 64)" alt="" width="40" height="60" decoding="async" />
-                                    }
-                                    else
-                                    {
-                                        <span>@SeasonShortLabel(ActiveGroup)</span>
-                                    }
-                                </span>
-                                <span class="tl-season-toggle__label">@(ActiveGroup?.Title ?? "Season")</span>
-                                <AppMaterialIcon Class="tl-season-toggle__chevron"
-                                         Icon="@AppMaterialIcons.Outlined.ExpandMore"
-                                         Size="AppSize.Small" />
-                            </AppNativeButton>
-                        }
-                        else
-                        {
-                            <AppSelect Value="@SelectedGroupKey"
-                                       ValueChanged="SelectGroup"
-                                       Options="@GroupSelectOptions"
-                                       LeadingIcon="@AppMaterialIcons.Outlined.AccountTree"
-                                       Class="tl-series-detail__select" Sizing="intrinsic" FullWidth="false"
-                                       PopoverClass="app-select__popover tl-series-select-popover"
-                                       aria-label="@GroupSelectorAriaLabel" />
-                        }
+                        <AppSelect Value="@SelectedGroupKey"
+                                   ValueChanged="SelectGroup"
+                                   Options="@GroupSelectOptions"
+                                   LeadingIcon="@(IsSeasonContainer ? null : AppMaterialIcons.Outlined.AccountTree)"
+                                   Class="tl-series-detail__select" Sizing="intrinsic" FullWidth="false"
+                                   PopoverClass="app-select__popover tl-series-select-popover"
+                                   aria-label="@(IsSeasonContainer ? L["SequencePlacementPanel_ChooseSeason"].Value : GroupSelectorAriaLabel)" />
                     </AppCssElement>
                     }
             </div>
 
         @* Under a shared row heading (no identity line), a Series' Jump to sits in this controls row, as a season's does. *@
-        @if ((IsSeasonContainer || !ShowIdentity) && ShowJumpSelector && !_seasonBrowserOpen)
+        @if ((IsSeasonContainer || !ShowIdentity) && ShowJumpSelector)
         {
             @JumpPicker
         }
@@ -119,7 +91,7 @@
                 <small>@Placement.ItemPluralLabel · @OwnedSummary</small>
             </div>
         </div>
-        @if (ShowJumpSelector && !_seasonBrowserOpen)
+        @if (ShowJumpSelector)
         {
             @JumpPicker
         }
@@ -129,58 +101,6 @@
     @* The ticked rows' bar sits directly above the rows. *@
     <BulkSelectionBar />
 
-    @if (_seasonBrowserOpen && IsSeasonContainer)
-    {
-    <div class="tl-series-detail__carousel tl-season-browser">
-        <AppIconButton Class="tl-series-carousel__arrow tl-series-carousel__arrow--left"
-                       Icon="@AppMaterialIcons.Outlined.ChevronLeft"
-                       Size="AppControlSize.Large"
-                       AriaLabel="@L["SequencePlacementPanel_PreviousSeasons"].Value"
-                       OnClick="@(() => PageSeasonRailAsync(-1))" />
-        <div id="@_seasonStripId"
-             class="tl-season-browser__strip"
-             role="listbox"
-             aria-label="@L["SequencePlacementPanel_ChooseSeason"].Value">
-            @for (var index = 0; index < VisibleGroups.Count; index++)
-            {
-                var season = VisibleGroups[index];
-                var selected = string.Equals(season.Key, SelectedGroupKey, StringComparison.OrdinalIgnoreCase);
-                <AppNativeButton Type="button"
-                                 Class="@(selected ? "tl-season-card is-selected" : "tl-season-card")"
-                                 OnClick="@(() => SelectSeason(season.Key))"
-                                 data-sequence-index="@index"
-                                 role="option"
-                                 aria-selected="@(selected ? "true" : "false")"
-                                 aria-current="@(selected ? "true" : null)">
-                    <span class="tl-season-card__art">
-                        @if (!string.IsNullOrWhiteSpace(season.ArtworkUrl))
-                        {
-                            <img src="@MediaTileArtworkUrl.ForDrawnSize(season.ArtworkUrl, 340)"
-                                 srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(season.ArtworkUrl, 340)"
-                                 alt=""
-                                 width="280"
-                                 height="420"
-                                 loading="@(selected ? "eager" : "lazy")"
-                                 fetchpriority="@(selected ? "high" : "auto")"
-                                 decoding="async" />
-                        }
-                        else
-                        {
-                            <span>@SeasonShortLabel(season)</span>
-                        }
-                    </span>
-                    <strong>@season.Title</strong>
-                </AppNativeButton>
-            }
-        </div>
-        <AppIconButton Class="tl-series-carousel__arrow tl-series-carousel__arrow--right"
-                       Icon="@AppMaterialIcons.Outlined.ChevronRight"
-                       Size="AppControlSize.Large"
-                       AriaLabel="@L["SequencePlacementPanel_NextSeasons"].Value"
-                       OnClick="@(() => PageSeasonRailAsync(1))" />
-    </div>
-    }
-    else
     {
     <div class="tl-series-detail__carousel">
         <AppIconButton Class="@LeftArrowClass"
@@ -673,13 +593,10 @@ else
     private bool _configuredShowMissingDefault;
     private bool _hasMissingPreferenceOverride;
     private bool _savingMissingPreference;
-    private bool _seasonBrowserOpen;
-    private bool _scrollToCurrentSeason;
-    private Guid? _activeProfileId;
+        private Guid? _activeProfileId;
     private int _visibleMissingLimit;
     private MissingItemDisplayPolicy? _missingItemPolicy;
     private ElementReference _seriesDescriptionElement;
-    private readonly string _seasonStripId = "seasons-" + Guid.NewGuid().ToString("N");
 
     private bool HasVisibleSibling(SequenceItemViewModel item)
         => item.CoveredWith.Any(link => VisibleItems.Any(other => string.Equals(other.Id, link.Id, StringComparison.OrdinalIgnoreCase)));
@@ -765,8 +682,17 @@ else
         ["aria-expanded"] = _seriesDescriptionExpanded.ToString().ToLowerInvariant(),
     };
     private IReadOnlyList<AppSelectOption> GroupSelectOptions => VisibleGroups
-        .Select(group => new AppSelectOption(group.Key, group.Title))
+        .Select(group => new AppSelectOption(group.Key, GroupOptionLabel(group)))
         .ToList();
+
+    // A season reads "Season 2 · 13 episodes" so the list says what each choice holds.
+    private string GroupOptionLabel(SequenceGroupViewModel group)
+    {
+        var count = group.ItemCount > 0 ? group.ItemCount : group.Items.Count;
+        return IsSeasonContainer && count > 0
+            ? $"{group.Title} · {count} {(count == 1 ? Placement.ItemLabel.ToLowerInvariant() : Placement.ItemPluralLabel.ToLowerInvariant())}"
+            : group.Title;
+    }
 
     private string? SelectedGroupKey
     {
@@ -791,7 +717,6 @@ else
         => SelectedGroupKey is null
             ? null
             : VisibleGroups.FirstOrDefault(group => group.Key == SelectedGroupKey);
-    private string SeasonToggleClass => $"tl-season-toggle{(_seasonBrowserOpen ? " is-open" : string.Empty)}";
     // A full-width wash at 28% opacity under dark overlays: the medium copy.
     private string? SeasonAtmosphereStyle => string.IsNullOrWhiteSpace(ActiveGroup?.BackgroundArtworkUrl)
         ? null
@@ -930,7 +855,7 @@ else
         .Select(option => new AppSelectOption(option.ContainerId, option.ContainerTitle))
         .ToList();
     private bool HasTopControls => CanChooseDistinctContainer || ShowGroupSelector || CanShowMissingToggle
-        || (!IsSeasonContainer && !ShowIdentity && ShowJumpSelector && !_seasonBrowserOpen);
+        || (!IsSeasonContainer && !ShowIdentity && ShowJumpSelector);
 
     // A season's Jump to sizes to the chosen episode; a Series' sizes to its longest entry, so entries never wrap.
     private RenderFragment JumpPicker => __builder =>
@@ -1086,8 +1011,6 @@ else
             _loadingWindow = false;
             _windowFailed = false;
             _selectedGroupKey = Placement.CurrentGroupKey;
-            _seasonBrowserOpen = false;
-            _scrollToCurrentSeason = false;
             _seriesDescriptionExpanded = false;
             _hasExpandableSeriesDescription = false;
             _needsSeriesDescriptionMeasurement = true;
@@ -1136,7 +1059,7 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (UsesScrollingRail && !_seasonBrowserOpen && _episodeStrip is not null
+        if (UsesScrollingRail && _episodeStrip is not null
             && !_observedEpisodeStrip.Equals(_episodeStrip.Element))
         {
             if (_episodeReference is not null) await Js.InvokeVoidAsync("unregisterMediaShelfBoundaries", _observedEpisodeStrip);
@@ -1149,16 +1072,6 @@ else
             _scrollToCurrentEpisode = false;
             // A season starts at its first episode; a movie Series opens with the open movie in view.
             await Js.InvokeVoidAsync("scrollSequenceItem", _episodeStripId, IsSeasonContainer ? 0 : _windowCenterIndex, IsSeasonContainer ? "start" : "center", "auto");
-        }
-        if (_scrollToCurrentSeason)
-        {
-            _scrollToCurrentSeason = false;
-            var seasonIndex = VisibleGroups.ToList().FindIndex(group =>
-                string.Equals(group.Key, SelectedGroupKey, StringComparison.OrdinalIgnoreCase));
-            if (seasonIndex >= 0)
-            {
-                await Js.InvokeVoidAsync("scrollSequenceItem", _seasonStripId, seasonIndex, "center", "auto");
-            }
         }
         if (!_needsSeriesDescriptionMeasurement
             || Compact
@@ -1274,33 +1187,6 @@ else
             if (request == _windowRequestId)
                 _loadingWindow = false;
         }
-    }
-
-    private void ToggleSeasonBrowser()
-    {
-        if (!IsSeasonContainer)
-        {
-            return;
-        }
-
-        _seasonBrowserOpen = !_seasonBrowserOpen;
-        _scrollToCurrentSeason = _seasonBrowserOpen;
-    }
-
-    private async Task SelectSeason(string key)
-    {
-        _seasonBrowserOpen = false;
-        await SelectGroup(key);
-    }
-
-    private Task PageSeasonRailAsync(int direction)
-        => Js.InvokeVoidAsync("scrollSequenceRail", _seasonStripId, direction).AsTask();
-
-    private static string SeasonShortLabel(SequenceGroupViewModel? group)
-    {
-        var value = StringHelpers.FirstNonBlank(group?.Key, group?.Title, "Season")!;
-        var number = new string(value.Where(char.IsDigit).ToArray());
-        return string.IsNullOrWhiteSpace(number) ? "S" : $"S{number}";
     }
 
     private async Task ShowMissingChangedAsync(bool value)

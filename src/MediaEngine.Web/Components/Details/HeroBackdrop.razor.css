@@ -924,7 +924,7 @@
 .cinematic-hero--landing .tl-detail-media-stage__cover-wrap { --hc: min(30rem, 52svh); position: absolute; z-index: 2; top: 50%; right: 8vw; height: var(--hc); transform: translateY(-50%); pointer-events: none; }
 .cinematic-hero--landing .tl-detail-media-stage--audiobook .tl-detail-media-stage__cover-wrap,
 .cinematic-hero--landing .tl-detail-media-stage--square .tl-detail-media-stage__cover-wrap { width: var(--hc); }
-.cinematic-hero--landing .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap { --hero-book-cover-height: var(--hc); aspect-ratio: 2 / 3; height: auto; }
+.cinematic-hero--landing .tl-detail-media-stage--book .tl-detail-media-stage__cover-wrap { --hc: min(40rem, 68svh); right: max(4vw, 2rem); --hero-book-cover-height: var(--hc); aspect-ratio: 2 / 3; height: auto; }
 .cinematic-hero--landing .tl-detail-media-stage--audiobook .tl-detail-media-stage__foreground,
 .cinematic-hero--landing .tl-detail-media-stage--square .tl-detail-media-stage__foreground,
 .cinematic-hero--landing .tl-detail-media-stage--audiobook .tl-detail-media-stage__cover,

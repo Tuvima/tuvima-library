@@ -190,16 +190,16 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
         Assert.Contains("OK Computer", line.QuerySelector("[aria-label='Will become']")!.TextContent, StringComparison.Ordinal);
         // A fact that agrees (the title) is ticked; one that differs (the album) is not.
         Assert.Single(line.QuerySelectorAll(".tl-match__ba-tick"));
-        Assert.Equal(4, cut.FindAll("input[role=switch]").Count);
+        Assert.Equal(3, cut.FindAll("input[role=switch]").Count);
         cut.WaitForAssertion(() => Assert.False(cut.Find("input[role=switch][aria-label='Move to OK Computer']").HasAttribute("disabled")));
         Assert.True(SwitchOn(cut, "Keep my library details"));
         Assert.True(SwitchOn(cut, "Use as the retail match"));
         Assert.False(SwitchOn(cut, "Move to OK Computer"));
-        Assert.False(SwitchOn(cut, "Rename and move the files"));
+        Assert.Empty(cut.FindAll("input[role=switch][aria-label='Rename and move the files']"));
     }
 
     [Fact]
-    public void TheFileSwitch_IsGreyedWithTheReason_WhenTheFolderIsProtected()
+    public void TheFileNote_SaysTheFileStays_WhenTheFolderIsProtected()
     {
         _fileRow = new LibraryMovePreviewRow { ItemId = SongId, FileNote = "Read-only folder: the file stays where it is." };
         var cut = RenderPanel();
@@ -207,8 +207,8 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
 
         Select(cut, 0);
 
-        cut.WaitForAssertion(() => Assert.True(cut.Find("input[role=switch][aria-label='Rename and move the files']").HasAttribute("disabled")));
-        Assert.Contains("Read-only folder: the file stays where it is.", cut.Markup, StringComparison.Ordinal);
+        cut.WaitForAssertion(() => Assert.Contains("Read-only folder: the file stays where it is.", cut.Markup, StringComparison.Ordinal));
+        Assert.DoesNotContain("This file will move when you save", cut.Markup, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -256,9 +256,10 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
 
         cut.FindAll("button").First(button => button.TextContent.Trim() == "Use this match").Click();
 
-        var change = Assert.Single(_session.Pending.Changes);
+        var change = Assert.Single(_session.Pending.Changes, c => c.Kind == EditSessionChangeKinds.Identity);
         Assert.Equal(EditSessionChangeKinds.Identity, change.Kind);
         Assert.Equal(SongId, change.EntityId);
+        Assert.Equal([EditSessionChangeKinds.Identity, EditSessionChangeKinds.FileMove], _session.Pending.Changes.Select(c => c.Kind).ToArray());
         Assert.True(EditSessionIdentityTarget.TryParse(change.TargetId, out var match));
         Assert.Equal("musicbrainz", match!.ProviderName);
         Assert.Empty(_writes);
@@ -266,7 +267,7 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
     }
 
     [Fact]
-    public void UseThisMatch_StagesTheAlbumMoveAndTheFilesOnlyWhenTheirSwitchesAreOn()
+    public void UseThisMatch_StagesTheFileMoveAutomatically_WhenTheFolderIsManaged_AndWarnsFirst()
     {
         var cut = RenderPanel();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-match__row")));
@@ -274,7 +275,7 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.False(cut.Find("input[role=switch][aria-label='Move to OK Computer']").HasAttribute("disabled")));
 
         cut.Find("input[role=switch][aria-label='Move to OK Computer']").Change(true);
-        cut.Find("input[role=switch][aria-label='Rename and move the files']").Change(true);
+        Assert.Contains("This file will move when you save", cut.Markup, StringComparison.Ordinal);
         cut.FindAll("button").First(button => button.TextContent.Trim() == "Use this match").Click();
 
         Assert.Equal(
@@ -290,7 +291,7 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-match__row")));
         Select(cut, 0);
         cut.FindAll("button").First(button => button.TextContent.Trim() == "Use this match").Click();
-        Assert.Single(_session.Pending.Changes);
+        Assert.Contains(_session.Pending.Changes, c => c.Kind == EditSessionChangeKinds.Identity);
 
         cut.Find("input[role=switch][aria-label='Use as the retail match']").Change(false);
         cut.Find("input[role=switch][aria-label='Keep my library details']");

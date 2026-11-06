@@ -76,6 +76,10 @@
     @if (ShowFooter)
     {
         <footer class="tl-editor-window__footer">
+            @if (FooterStart is not null)
+            {
+                <div class="tl-editor-window__footer-start">@FooterStart</div>
+            }
             @if (Framed)
             {
                 @Where
@@ -144,6 +148,9 @@
 
     /// <summary>The footer's first words: where changes go.</summary>
     [Parameter] public RenderFragment? Where { get; set; }
+
+    /// <summary>Bottom-left of the footer: Delete, for an item that can be deleted.</summary>
+    [Parameter] public RenderFragment? FooterStart { get; set; }
 
     [Parameter] public int ChangeCount { get; set; }
 

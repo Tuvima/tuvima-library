@@ -63,12 +63,15 @@ public sealed class BulkSeasonTickTests : AsyncBunitContext
 
     private static void SwitchToSeasonTwo(IRenderedComponent<SequencePlacementPanel> panel)
     {
-        panel.Find("button.tl-season-toggle").Click();
-        panel.FindAll("button.tl-season-card").Single(card => card.TextContent.Contains("Season 2", StringComparison.Ordinal)).Click();
+        var select = SeasonSelect(panel);
+        panel.InvokeAsync(() => select.Instance.ValueChanged.InvokeAsync("season-2")).GetAwaiter().GetResult();
     }
 
     private static string ActiveSeason(IRenderedComponent<SequencePlacementPanel> panel) =>
-        panel.Find(".tl-season-toggle__label").TextContent.Trim();
+        SeasonSelect(panel).Instance.Value == "season-2" ? "Season 2" : "Season 1";
+
+    private static IRenderedComponent<AppSelect> SeasonSelect(IRenderedComponent<SequencePlacementPanel> panel) =>
+        panel.FindComponents<AppSelect>().Single(select => select.Instance.Options!.Any(option => option.Label.StartsWith("Season", StringComparison.Ordinal)));
 
     // -- The card ticks anywhere you click it ---------------------------------------------------
 

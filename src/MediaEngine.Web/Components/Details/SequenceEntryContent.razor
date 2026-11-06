@@ -41,7 +41,8 @@
                 }
                 @if (Item.ProgressState == LibraryProgressState.InProgress && Item.ProgressPercent is > 0 and < 99.5)
                 { <AppArtworkProgress State="DisplayContinuationState.InProgress" Percent="@Item.ProgressPercent" MediaKind="TV" RemainingSeconds="@Item.RemainingSeconds" /> }
-                @if (Item.ProgressState == LibraryProgressState.Completed)
+                @* A Series row carries no checkmarks: an owned item needs no marker and a missing one is dimmed and labeled. Episodes keep their watched check. *@
+                @if (Item.ProgressState == LibraryProgressState.Completed && IsSeasonContainer)
                 {
                     <span class="tl-series-item__completed-badge" title="@L["SequenceEntryContent_Completed"].Value">
                         <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Check" Size="AppSize.Small" />

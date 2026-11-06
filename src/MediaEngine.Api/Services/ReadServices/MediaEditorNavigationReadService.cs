@@ -553,11 +553,18 @@ public sealed class MediaEditorNavigationReadService(
                    CAST(pic.file_size AS TEXT) AS InspectionFileSize,
                    CAST(pic.container AS TEXT) AS InspectionContainer,
                    CAST(w.display_overrides_json AS TEXT) AS WorkDisplayOverridesJson,
+                   COALESCE(
                    (SELECT ea.id FROM entity_assets ea WHERE ea.entity_id = w.id
                     AND ea.asset_type = CASE WHEN w.media_type = 'TV' AND w.work_kind != 'parent' THEN 'EpisodeStill'
                         WHEN w.media_type = 'TV' AND w.parent_work_id IS NOT NULL THEN 'SeasonPoster' ELSE 'CoverArt' END
                     AND COALESCE(NULLIF(ea.local_image_path_m, ''), NULLIF(ea.local_image_path, '')) IS NOT NULL
-                    ORDER BY ea.is_user_override DESC, ea.is_preferred DESC, COALESCE(ea.updated_at, ea.created_at) DESC LIMIT 1) AS ArtworkId,
+                    ORDER BY ea.is_user_override DESC, ea.is_preferred DESC, COALESCE(ea.updated_at, ea.created_at) DESC LIMIT 1),
+                   -- A season has no picture of its own any more (editor and details revision D9): it shows its show's poster.
+                   (SELECT ea.id FROM entity_assets ea WHERE ea.entity_id = w.parent_work_id
+                    AND w.media_type = 'TV' AND w.work_kind = 'parent'
+                    AND ea.asset_type = 'CoverArt'
+                    AND COALESCE(NULLIF(ea.local_image_path_m, ''), NULLIF(ea.local_image_path, '')) IS NOT NULL
+                    ORDER BY ea.is_user_override DESC, ea.is_preferred DESC, COALESCE(ea.updated_at, ea.created_at) DESC LIMIT 1)) AS ArtworkId,
                    (SELECT ea.aspect_class FROM entity_assets ea WHERE ea.entity_id = w.id
                     AND ea.asset_type = 'CoverArt' AND COALESCE(NULLIF(ea.local_image_path_m, ''), NULLIF(ea.local_image_path, '')) IS NOT NULL
                     ORDER BY ea.is_user_override DESC, ea.is_preferred DESC, COALESCE(ea.updated_at, ea.created_at) DESC LIMIT 1) AS ArtworkShape,

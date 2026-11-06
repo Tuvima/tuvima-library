@@ -5,6 +5,7 @@ using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Contracts.Progress;
 using MediaEngine.Web.Components.Details;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
@@ -135,14 +136,29 @@ public sealed class DetailAddressStateTests : AsyncBunitContext
         Assert.Single(_loads);
     }
 
+    private static IRenderedComponent<AppSelect> SeasonSelect(IRenderedComponent<Microsoft.AspNetCore.Components.IComponent> cut) =>
+        cut.FindComponents<AppSelect>().Single(select => select.Instance.Options!.Any(option => option.Label.StartsWith("Season", StringComparison.Ordinal)));
+
+    private static void PickSeason(IRenderedComponent<Microsoft.AspNetCore.Components.IComponent> cut, string season)
+    {
+        var select = SeasonSelect(cut);
+        var key = select.Instance.Options!.Single(option => option.Label.StartsWith(season, StringComparison.Ordinal)).Value;
+        cut.InvokeAsync(() => select.Instance.ValueChanged.InvokeAsync(key)).GetAwaiter().GetResult();
+    }
+
+    private static string SelectedSeasonLabel(IRenderedComponent<Microsoft.AspNetCore.Components.IComponent> cut)
+    {
+        var select = SeasonSelect(cut);
+        return select.Instance.Options!.Single(option => option.Value == select.Instance.Value).Label;
+    }
+
     [Fact]
     public void PickingASeasonWritesItToTheAddressByReplacingTheEntryAndDoesNotReloadThePage()
     {
         var cut = RenderShow();
         var navigation = Services.GetRequiredService<BunitNavigationManager>();
 
-        cut.Find("button.tl-season-toggle").Click();
-        cut.FindAll("button.tl-season-card").Single(card => card.QuerySelector("strong")!.TextContent.Trim() == "Season 2").Click();
+        PickSeason(cut, "Season 2");
 
         var written = navigation.History.First();
         Assert.Contains($"season={SeasonTwoId:D}", written.Uri, StringComparison.Ordinal);
@@ -150,7 +166,7 @@ public sealed class DetailAddressStateTests : AsyncBunitContext
         Assert.True(written.Options.ReplaceHistoryEntry);
         Assert.Single(navigation.History);
         Assert.Single(_loads);
-        Assert.Equal("Season 2", cut.Find(".tl-season-toggle__label").TextContent.Trim());
+        Assert.StartsWith("Season 2", SelectedSeasonLabel(cut), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -169,8 +185,7 @@ public sealed class DetailAddressStateTests : AsyncBunitContext
     public async Task APersonalActionRefreshKeepsTheChosenSeasonAndTab()
     {
         var cut = RenderShow();
-        cut.Find("button.tl-season-toggle").Click();
-        cut.FindAll("button.tl-season-card").Single(card => card.QuerySelector("strong")!.TextContent.Trim() == "Season 2").Click();
+        PickSeason(cut, "Season 2");
         cut.FindAll("[role='tab']").Single(tab => tab.TextContent.Trim() == "Cast").Click();
         Assert.Equal("cast", cut.Find("section.tl-detail-body").Id);
 
@@ -186,7 +201,7 @@ public sealed class DetailAddressStateTests : AsyncBunitContext
         // Back on Overview the refreshed page is still on the chosen season, and the page did not fall back to the
         // payload it was first loaded with.
         cut.FindAll("[role='tab']").Single(tab => tab.TextContent.Trim() == "Overview").Click();
-        Assert.Equal("Season 2", cut.Find(".tl-season-toggle__label").TextContent.Trim());
+        Assert.StartsWith("Season 2", SelectedSeasonLabel(cut), StringComparison.Ordinal);
         Assert.Single(_loads);
     }
 
