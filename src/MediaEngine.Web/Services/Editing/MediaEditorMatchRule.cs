@@ -8,6 +8,8 @@ namespace MediaEngine.Web.Services.Editing;
 public static class MediaEditorMatchRule
 {
     public static bool CanMatch(string? editorMediaType, string? scopeId) =>
-        !string.Equals(editorMediaType, "TV", StringComparison.Ordinal)
-        || scopeId is "series" or "season" or "episode";
+        // A folder of Other videos (a course, a saved channel) has no identity to match; its single videos do (details page D15).
+        !(string.Equals(editorMediaType, "Videos", StringComparison.OrdinalIgnoreCase) && scopeId is "series")
+        && (!string.Equals(editorMediaType, "TV", StringComparison.Ordinal)
+        || scopeId is "series" or "season" or "episode");
 }
