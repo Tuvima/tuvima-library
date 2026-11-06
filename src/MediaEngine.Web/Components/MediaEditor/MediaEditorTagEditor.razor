@@ -20,7 +20,7 @@
                            OnClick="OnAction" />
         }
     </div>
-    <div class="sme-tag-editor__surface">
+    <div class="sme-tag-editor__surface" @ref="_anchor">
         @foreach (var tag in Parse(Value))
         {
             var capturedTag = tag;
@@ -36,7 +36,8 @@
         @if (_adding)
         {
             <AppTextField T="string"
-                          @bind-Value="_draft"
+                          Value="_draft"
+                          ValueChanged="OnDraftChanged"
                           Placeholder="@L["Common_AddTag"].Value"
                           Variant="AppVariant.Text"
                           Margin="AppMargin.Dense"
@@ -70,20 +71,23 @@
             </AppButton>
         }
     </div>
-    @if (_adding && !Locked && FilteredSuggestions.Count > 0)
+    @if (_adding && !Locked && !_suggestionsDismissed && FilteredSuggestions.Count > 0)
     {
-        <div class="sme-tag-editor__suggestions" role="listbox" aria-label="@($"{Label} suggestions")">
-            @foreach (var suggestion in FilteredSuggestions)
-            {
-                var capturedSuggestion = suggestion;
-                <AppButton ButtonStyle="AppButtonStyle.Text"
-                           Tone="AppUiTone.Neutral"
-                           Class="sme-tag-editor__suggestion"
-                           OnClick="@(() => CommitAsync(capturedSuggestion))">
-                    @capturedSuggestion
-                </AppButton>
-            }
-        </div>
+        @* Drawn through the shared popover so it sits in the top layer and no editor window or scroll box can clip it. *@
+        <AppPopover Open="true" OpenChanged="SuggestionsPopoverChanged" Anchor="_anchor" MatchAnchorWidth="true" Class="sme-tag-editor__suggestions-surface">
+            <div class="sme-tag-editor__suggestions" role="listbox" aria-label="@($"{Label} suggestions")">
+                @foreach (var suggestion in FilteredSuggestions)
+                {
+                    var capturedSuggestion = suggestion;
+                    <AppButton ButtonStyle="AppButtonStyle.Text"
+                               Tone="AppUiTone.Neutral"
+                               Class="sme-tag-editor__suggestion"
+                               OnClick="@(() => CommitAsync(capturedSuggestion))">
+                        @capturedSuggestion
+                    </AppButton>
+                }
+            </div>
+        </AppPopover>
     }
     @if (ConfirmingAction)
     {
@@ -117,6 +121,8 @@
     [Parameter] public EventCallback OnCancelAction { get; set; }
 
     private bool _adding;
+    private bool _suggestionsDismissed;
+    private ElementReference _anchor;
     private string _draft = string.Empty;
     private IReadOnlyList<string> FilteredSuggestions => Suggestions
         .Where(suggestion => !Parse(Value).Contains(suggestion, StringComparer.OrdinalIgnoreCase))
@@ -133,6 +139,20 @@
                 .Select(tag => tag.Trim())
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
+
+    // Typing brings the suggestions back after they were dismissed.
+    private void OnDraftChanged(string? value)
+    {
+        _draft = value ?? string.Empty;
+        _suggestionsDismissed = false;
+    }
+
+    // The shared popover reports an outside click or Escape: the list hides until the next keystroke.
+    private void SuggestionsPopoverChanged(bool open)
+    {
+        if (!open)
+            _suggestionsDismissed = true;
+    }
 
     private async Task AddAsync()
     {
@@ -165,6 +185,7 @@
     private void Cancel()
     {
         _adding = false;
+        _suggestionsDismissed = false;
         _draft = string.Empty;
     }
 }

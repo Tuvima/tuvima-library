@@ -6,7 +6,8 @@
 ::deep .collection-rule-value-picker__trigger.is-active, ::deep .collection-rule-value-picker__trigger:hover { border-color: var(--tl-accent-primary-border); }
 ::deep .collection-rule-value-picker__trigger .tl-icon-root { color: var(--tl-text-secondary); font-size: 20px; }
 
-.collection-rule-value-picker__panel { position: absolute; z-index: var(--tl-z-popover, 1600); top: calc(100% + 7px); right: 0; width: min(520px, calc(100vw - 48px)); padding: 12px; border: 1px solid var(--tl-accent-primary-border); border-radius: var(--tl-radius-lg); background: linear-gradient(180deg, color-mix(in srgb, var(--tl-bg-surface-raised) 96%, #141b32), var(--tl-bg-surface)); box-shadow: var(--tl-shadow-lg); }
+/* The surface (position, width, border, background) is drawn by AppPopover in the top layer; its styles are global in app.css. */
+.collection-rule-value-picker__panel { padding: 12px; }
 .collection-rule-value-picker__search { display: grid; min-height: 42px; grid-template-columns: 20px minmax(0, 1fr); align-items: center; gap: 8px; padding: 0 11px; border: 1px solid var(--tl-divider); border-radius: var(--tl-control-radius); color: var(--tl-text-muted); }
 .collection-rule-value-picker__search ::deep input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--tl-text-primary); font: inherit; }
 .collection-rule-value-picker__search:focus-within { border-color: var(--tl-accent-primary-border); box-shadow: 0 0 0 2px color-mix(in srgb, var(--tl-accent-primary) 14%, transparent); }
@@ -25,7 +26,3 @@
 ::deep .collection-rule-value-picker__option em { color: var(--tl-text-muted); font-size: var(--tl-font-size-xs); font-style: normal; }
 
 .collection-rule-value-picker__panel footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px; padding: 8px 4px 0; border-top: 1px solid var(--tl-divider); color: var(--tl-text-secondary); font-size: var(--tl-font-size-xs); }
-
-@media (max-width: 700px) {
-    .collection-rule-value-picker__panel { position: fixed; inset: auto 12px 82px; width: auto; }
-}

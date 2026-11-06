@@ -3,17 +3,9 @@
 @inject IStringLocalizer<SharedStrings> L
 
 <div class="top-nav-account-menu-shell"
+     @ref="_anchor"
      data-app-dismissible="@(_open ? "open" : null)"
      @onkeydown="HandleKeyDown">
-    @if (_open)
-    {
-        <AppNativeButton Type="button"
-                         Class="app-dismissible-surface__dismiss"
-                         data-app-dismiss
-                         tabindex="-1"
-                         aria-hidden="true"
-                         OnClick="CloseMenu" />
-    }
     <AppNativeButton Type="button"
                      Class="top-nav-account-menu__trigger"
                      AriaLabel="@ProfileMenuAriaLabel"
@@ -37,6 +29,8 @@
 
     @if (_open)
     {
+        @* Drawn through the shared popover so it sits in the top layer and no bar or scroll box can clip it. *@
+        <AppPopover Open="true" OpenChanged="PopoverChanged" Anchor="_anchor" AnchorOrigin="AppOrigin.BottomRight" TransformOrigin="AppOrigin.TopRight" Class="top-nav-account-menu__surface">
             <div class="top-nav-account-menu__panel" role="menu">
                 @if (ShowSecureAccount && !_secureNotNow && !IsKids)
                 {
@@ -189,6 +183,7 @@
                     </form>
                 }
             </div>
+        </AppPopover>
     }
 </div>
 
@@ -223,6 +218,7 @@
     [Parameter] public bool IsKids { get; set; }
 
     private bool _open;
+    private ElementReference _anchor;
     private string HeaderLabel => string.IsNullOrWhiteSpace(AccountLabel) ? DisplayName : AccountLabel!;
     private string ProfileMenuAriaLabel =>
         string.IsNullOrWhiteSpace(DisplayName) ? L["TopBar_OpenProfileMenu"].Value : string.Concat(L["TopBar_OpenProfileMenu"].Value, ": ", DisplayName);
@@ -237,6 +233,13 @@
     private void CloseMenu()
     {
         _open = false;
+    }
+
+    // The popover reports an outside click or Escape; the menu closes with it.
+    private void PopoverChanged(bool open)
+    {
+        if (!open)
+            CloseMenu();
     }
 
     // Not now hides the card at once, before the owner has finished remembering the choice.

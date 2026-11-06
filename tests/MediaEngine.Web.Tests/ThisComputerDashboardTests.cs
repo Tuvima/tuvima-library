@@ -193,6 +193,7 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
     public void AccountMenu_ShowsTheSecureYourAccountCardAboveTheNameOnlyWhileTheAccountIsThisComputerOnly()
     {
         Services.AddLocalization();
+        JSInterop.Mode = JSRuntimeMode.Loose;
         var offered = Render<TopNavAccountMenu>(parameters => parameters
             .Add(menu => menu.DisplayName, "Owner")
             .Add(menu => menu.ShowSecureAccount, true));
@@ -229,6 +230,7 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
     public void AccountMenu_NotNowReportsTheChoiceAndTheCardDisappearsImmediately()
     {
         Services.AddLocalization();
+        JSInterop.Mode = JSRuntimeMode.Loose;
         var notNowCount = 0;
         var menu = Render<TopNavAccountMenu>(parameters => parameters
             .Add(component => component.DisplayName, "Owner")
@@ -250,6 +252,7 @@ public sealed class ThisComputerDashboardTests : AsyncBunitContext
     public void AccountMenu_NeverShowsTheSecureCardOnAKidsProfile()
     {
         Services.AddLocalization();
+        JSInterop.Mode = JSRuntimeMode.Loose;
         var menu = Render<TopNavAccountMenu>(parameters => parameters
             .Add(component => component.DisplayName, "Kid")
             .Add(component => component.IsKids, true)

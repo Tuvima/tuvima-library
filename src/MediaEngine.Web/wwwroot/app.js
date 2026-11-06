@@ -228,9 +228,13 @@ window.tuvimaScrollElementBy = function (element, amount) {
     if (element) element.scrollBy({ left: amount, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
 };
 
-window.tuvimaFocusById = function (id) {
+window.tuvimaFocusById = function (id, attempts = 8) {
     const target = id && document.getElementById(id);
     if (target) target.focus({ preventScroll: true });
+    // A list drawn in the top layer is shown a moment after it renders, so keep trying for a few frames until the element takes focus.
+    if (id && attempts > 0 && (!target || document.activeElement !== target)) {
+        requestAnimationFrame(() => window.tuvimaFocusById(id, attempts - 1));
+    }
 };
 
 window.tuvimaPositionSharedEntityPopover = function (anchorId, popoverId) {

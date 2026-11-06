@@ -140,25 +140,10 @@
     background: var(--tl-accent-primary, #8852FC);
 }
 
-.tl-rail__scrim {
-    position: fixed;
-    inset: 0;
-    z-index: 4;
-}
-
+/* The list itself (position, width, border, background) is drawn by AppPopover in the top layer; its surface styles are global in app.css. */
 .tl-rail__panel {
-    position: absolute;
-    top: calc(100% + var(--tl-space-1));
-    left: 0;
-    z-index: 5;
     box-sizing: border-box;
-    width: 21rem;
-    max-width: calc(100vw - 2rem);
     padding: var(--tl-space-2);
-    border: 1px solid var(--tl-border-default);
-    border-radius: var(--tl-radius-md);
-    background: var(--tl-bg-surface-raised, var(--tl-bg-surface));
-    box-shadow: var(--tl-shadow-lg);
 }
 
 .tl-rail__search {
