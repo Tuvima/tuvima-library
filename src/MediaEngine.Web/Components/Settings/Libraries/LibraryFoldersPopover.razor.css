@@ -1,5 +1,5 @@
 .lib-folders { position: relative; display: inline-block; }
-.lib-folders__panel { position: absolute; z-index: 20; inset-block-start: calc(100% + 4px); inset-inline-start: 0; width: min(440px, 80vw); border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: var(--tl-bg-surface-raised); box-shadow: var(--tl-shadow-lg, 0 8px 24px rgb(0 0 0 / 0.3)); }
+.lib-folders__panel { width: min(440px, 80vw); border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: var(--tl-bg-surface-raised); box-shadow: var(--tl-shadow-lg, 0 8px 24px rgb(0 0 0 / 0.3)); }
 .lib-folders__inner { padding: 8px; }
 .lib-folders__list { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
 .lib-folders__item { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; }
@@ -9,10 +9,6 @@
 .lib-folders__item[data-state="online"] .lib-folders__state::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-inline-end: 6px; border-radius: 50%; background: currentColor; }
 .lib-folders__item[data-state="offline"] .lib-folders__state { color: var(--tl-status-warning); }
 .lib-folders__foot { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
-/* Phones: the list is a bottom sheet (D13). */
-@media (max-width: 600px) {
-    .lib-folders__panel { position: fixed; inset-block-start: auto; inset-block-end: 0; inset-inline: 0; width: auto; border-radius: var(--tl-radius-lg, 16px) var(--tl-radius-lg, 16px) 0 0; }
-}
 @media (max-width: 600px) {
     .lib-folders__inner { padding: 16px; }
 }
