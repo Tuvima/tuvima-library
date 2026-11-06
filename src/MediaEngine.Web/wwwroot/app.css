@@ -4178,8 +4178,16 @@ input[type="reset"],
     border-radius: var(--tl-radius-md);
 }
 
-.app-row-menu__sheet {
-    --tl-menu-item-height: 48px;
+.app-row-menu__sheet,
+.app-menu-sheet {
+    --tl-menu-item-height: 52px;
+}
+
+.app-menu-sheet__items {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px 8px 12px;
 }
 
 .app-row-menu__extra {
@@ -5951,7 +5959,7 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-actions .hero-icon-cir
 }
 
 .tl-detail-more-sheet {
-    --tl-menu-item-height: 48px;
+    --tl-menu-item-height: 52px;
 }
 
 .tl-detail-more-sheet__items {

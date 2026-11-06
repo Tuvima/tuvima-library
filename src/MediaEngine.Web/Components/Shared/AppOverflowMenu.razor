@@ -1,5 +1,7 @@
 @namespace MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Ui
 @inject IJSRuntime JS
+@inject DeviceContextService DeviceContext
 @implements IDisposable
 
 <div class="@TriggerRootClass"
@@ -38,7 +40,18 @@
         }
     </button>
 
-    @if (_open)
+    @if (_open && DeviceContext.IsPhone)
+    {
+        @* Phones get a bottom sheet with 52px rows instead of a popover (Look pass v2 D5). *@
+        <AppDialogFrame Open="true" Title="@SheetTitle" DialogOptions="SheetOptions" Class="app-menu-sheet" OnCancel="CloseSheetAsync">
+            <CascadingValue Value="@this" IsFixed="true">
+                <div id="@_popoverId" class="app-overflow-menu__content app-menu-sheet__items" role="menu" aria-label="@EffectiveAriaLabel" @onclick="Close">
+                    @ChildContent
+                </div>
+            </CascadingValue>
+        </AppDialogFrame>
+    }
+    else if (_open)
     {
         <AppPopover Open="true" OpenChanged="PopoverChanged" Anchor="_trigger" FocusOnOpen="@FocusOnOpen"
                     AnchorOrigin="@AnchorOrigin"
@@ -80,6 +93,16 @@
     [Parameter] public AppOrigin AnchorOrigin { get; set; } = AppOrigin.BottomRight;
     [Parameter] public AppOrigin TransformOrigin { get; set; } = AppOrigin.TopRight;
 
+    [Parameter] public string? SheetTitle { get; set; }
+    private static readonly AppDialogOptions NoTitleSheet = new() { Sheet = AppDialogSheetMode.Phone, NoHeader = true, BackdropClick = true, CloseOnEscapeKey = true };
+    private static readonly AppDialogOptions TitledSheet = new() { Sheet = AppDialogSheetMode.Phone, BackdropClick = true, CloseOnEscapeKey = true };
+    private AppDialogOptions SheetOptions => string.IsNullOrWhiteSpace(SheetTitle) ? NoTitleSheet : TitledSheet;
+    private Task CloseSheetAsync()
+    {
+        _open = false;
+        return Task.CompletedTask;
+    }
+
     private string EffectiveAriaLabel => AriaLabel ?? Label ?? "More actions";
     private string TriggerRootClass =>
         string.Join(" ", new[] { "app-overflow-menu", AppUiMaps.SizeClass(Size), Class }
@@ -107,6 +130,9 @@
         _open = !_open;
         _focusMenu = _open && FocusOnOpen;
     }
+    protected override void OnInitialized() => DeviceContext.OnChanged += DeviceChanged;
+    private void DeviceChanged() => _ = InvokeAsync(StateHasChanged);
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!_open && _actionCloseRendered is not null)
@@ -152,6 +178,7 @@
     public void Dispose()
     {
         _disposed = true;
+        DeviceContext.OnChanged -= DeviceChanged;
         _actionCloseRendered?.TrySetResult(false);
         _actionCloseRendered = null;
     }

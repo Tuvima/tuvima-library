@@ -13,6 +13,7 @@ public sealed class PopupCardGuardrailTests
         ["Components/Shared/AppDialogFrame.razor"] = "The shared native dialog element every popup sits in.",
         ["Components/Shared/AppDialogHost.razor"] = "Hosts the dialogs the service opens.",
         ["Components/Shared/AppRowMenu.razor"] = "The shared row menu; its phone sheet.",
+        ["Components/Shared/AppOverflowMenu.razor"] = "The shared overflow menu; its phone sheet.",
         ["Components/Shared/AppDrawer.razor"] = "Side drawer, not a popup (drawers follow the table and menu rules).",
         // Full-screen viewers and readers (Group E).
         ["Components/Pages/BookReader.razor"] = "Full-screen reader.",
