@@ -97,6 +97,10 @@
     --tl-font-size-xl: 1.5rem;
     --tl-font-size-dialog-title: 1.25rem;
     --tl-font-size-hero: 2rem;
+    --tl-font-size-title: 1.5rem;
+    --tl-font-size-shelf-title: 1.25rem;
+    --tl-line-height-title: 1.25;
+    --tl-line-height-heading: 1.3;
     --tl-font-size-caption: var(--tl-font-size-xs);
     --tl-font-size-secondary: 0.8125rem;
     --tl-font-size-body: var(--tl-font-size-sm);

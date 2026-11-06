@@ -110,7 +110,7 @@
 
 .settings-frame__header ::deep .sidebar-page-header h1 {
     font-family: var(--font-ui, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif);
-    font-size: clamp(2rem, 2.4vw, 2.25rem);
+    font-size: var(--tl-font-size-title);
     font-weight: 600;
     line-height: 1.15;
     letter-spacing: -.015em;

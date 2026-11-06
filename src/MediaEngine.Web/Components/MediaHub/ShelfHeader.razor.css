@@ -15,8 +15,8 @@
 .shelf-header h2 {
     margin: 0;
     font-family: var(--font-ui);
-    font-size: clamp(1rem, 0.72vw + 0.86rem, 1.28rem);
-    line-height: 1.15;
+    font-size: var(--tl-font-size-shelf-title);
+    line-height: var(--tl-line-height-heading);
     font-weight: 600;
     letter-spacing: 0;
     color: rgba(248, 250, 252, 0.98);
