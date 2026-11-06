@@ -127,7 +127,7 @@
 
     private IReadOnlyList<EditorMatchTab> Tabs => Subject is null ? [] : EditorMatchRules.TabsFor(Subject.MediaType, Subject.TargetGroup);
 
-    private bool AnySwitchOn => _useRetail || !_keepDetails || (_moveParent && _destination is not null) || (_moveFiles && _files != FilesState.CannotMove);
+    private bool AnySwitchOn => _useRetail || !_keepDetails || (_moveParent && _destination is not null);
 
     private bool CanUse => CanEdit && Session is { IsActive: true } && _selected is not null && AnySwitchOn;
 
@@ -437,10 +437,14 @@
                               Description="@ParentSwitchDescription"
                               Value="@_moveParent" ValueChanged="@(value => { _moveParent = value; _staged = false; })"
                               Disabled="@(!CanEdit || _destination is null)" />
-                <AppSwitchRow Label="Rename and move the files"
-                              Description="@FilesSwitchDescription"
-                              Value="@_moveFiles" ValueChanged="@(value => { _moveFiles = value; _staged = false; })"
-                              Disabled="@(!CanEdit || _files == FilesState.CannotMove)" />
+                @if (_files == FilesState.CannotMove)
+                {
+                    <AppAlert Severity="AppSeverity.Info" Dense="true">@FilesSwitchDescription</AppAlert>
+                }
+                else if (_moveFiles)
+                {
+                    <AppAlert Severity="AppSeverity.Warning" Dense="true">This file will move when you save. It is renamed and filed to fit this match.</AppAlert>
+                }
             </div>
 
             @if (_staged)
@@ -504,8 +508,8 @@
     {
         FilesState.Checking => "Checking the files...",
         FilesState.CannotMove => _filesReason ?? "The files cannot be moved.",
-        FilesState.CanMove => _filesReason ?? "Renames and moves the files to fit. Off unless you turn it on.",
-        _ => "Renames and moves the files to fit. Off unless you turn it on. Checked again when you save.",
+        FilesState.CanMove => _filesReason ?? "Renames and moves the files to fit.",
+        _ => "Renames and moves the files to fit. Checked again when you save.",
     };
 
     private const string PlacementHeading = "Placement";
@@ -1016,6 +1020,8 @@
         {
             // Nothing to preview a move against (a movie or a book with no list). The Engine checks the folder again when you save.
             _files = FilesState.Unknown;
+            // A file in a Managed folder moves with its match; a Read-only folder never moves (the Engine decides when you save).
+            _moveFiles = true;
             return;
         }
 
@@ -1038,6 +1044,7 @@
             {
                 _files = FilesState.CanMove;
                 _filesReason = row?.FileNote;
+                _moveFiles = true;
             }
         }
         catch (HttpRequestException ex)
