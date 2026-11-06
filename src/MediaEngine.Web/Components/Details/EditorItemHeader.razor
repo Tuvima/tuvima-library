@@ -68,6 +68,7 @@
                 {
                     <AppLink Href="@link.Url" Target="_blank" Underline="AppUnderline.None" Class="tl-editor-header__link"
                              aria-label="@(string.Format(L["EditorHeader_OpenAt"].Value, link.Name))">
+                        <AppProviderLogo FallbackText="@link.Name[..1]" Size="AppControlSize.Compact" AltText="" Class="tl-editor-header__link-logo" />
                         <span>@link.Name</span>
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppSize.Small" />
                     </AppLink>

@@ -642,7 +642,7 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task ProviderFacts_AreReadOnlyWithALockAndTheProvidersName()
+    public async Task ProviderFacts_AreNotRepeatedInTheEditableDetails()
     {
         var context = EditingModeTestData.MovieContext();
         context.Scopes[0].FieldSnapshot.AllowedOverrideKeys = ["title", "description"];
@@ -651,15 +651,9 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
         await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
         cut.WaitForElement(".tl-editor-details");
 
-        var rating = cut.Find(".tl-editor-field--locked[data-field-key='rating']");
-
-        Assert.Empty(rating.QuerySelectorAll("input, textarea"));
-        Assert.Contains("8.1", rating.TextContent);
-        Assert.NotNull(rating.QuerySelector("[aria-label*='locked']"));
-        Assert.Contains("TMDB", rating.TextContent);
-        Assert.Empty(cut.FindAll(".tl-editor-field--locked input"));
+        Assert.Empty(cut.FindAll(".tl-editor-field--locked"));
         Assert.Single(cut.FindAll("input[aria-label='Title']"));
-        Assert.Empty(cut.FindAll(".tl-editor-field[data-field-key='rating']:not(.tl-editor-field--locked)"));
+        Assert.Empty(cut.FindAll(".tl-editor-field[data-field-key='rating']"));
     }
 
     [Fact]

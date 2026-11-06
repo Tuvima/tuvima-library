@@ -8,7 +8,7 @@
     min-height: 7.5rem;
     padding: var(--tl-space-4) var(--tl-space-6);
     border-bottom: 1px solid var(--tl-divider);
-    background: linear-gradient(90deg, var(--tl-bg-surface) 40%, color-mix(in srgb, var(--tl-accent-primary, #8852FC) 10%, var(--tl-bg-surface)));
+    background: var(--tl-bg-surface);
 }
 
 .tl-editor-header__cover {

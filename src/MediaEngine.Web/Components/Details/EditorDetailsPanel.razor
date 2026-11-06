@@ -49,7 +49,7 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
             @ExplicitRow(fields, session, explicitMark)
         }
 
-        @if (facts.Count > 0)
+        @if (facts.Count > 0 && !canEdit)
         {
             <section class="tl-editor-details__group" aria-label="@L["Common_ProviderFacts"].Value">
                 <h3 class="tl-editor-details__heading">@(fields.SubjectKind is null ? "From providers" : "Also on record")</h3>
