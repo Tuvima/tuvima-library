@@ -4109,15 +4109,15 @@ input[type="reset"],
     display: grid;
     place-items: center;
     box-sizing: border-box;
-    width: 44px;
-    height: 44px;
-    min-width: 44px;
-    min-height: 44px;
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    min-height: 48px;
     padding: 0;
-    border: 1px solid rgba(255, 255, 255, 0.22);
+    border: 1px solid color-mix(in srgb, var(--tl-text-primary) 70%, transparent);
     border-radius: 50%;
-    background: rgba(8, 12, 18, 0.66);
-    color: #f6f0e8;
+    background: color-mix(in srgb, var(--tl-bg-page) 80%, transparent);
+    color: var(--tl-text-primary);
     cursor: pointer;
     backdrop-filter: blur(0.75rem);
 }
@@ -4127,7 +4127,7 @@ input[type="reset"],
 }
 
 .tl-details-overlay__close:hover {
-    background: rgba(8, 12, 18, 0.86);
+    background: color-mix(in srgb, var(--tl-bg-page) 92%, transparent);
 }
 
 .tl-details-overlay__close:focus-visible {
