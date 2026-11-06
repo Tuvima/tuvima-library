@@ -76,8 +76,6 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     private readonly List<ExcludedFileDto> _excluded = [];
     private IRenderedComponent<AppPopoverHost> _popovers = null!;
     // The Engine refusing a library change (a duplicate name, say) with its own sentence; null means it saves.
-    private string? _refuseSave;
-    private string? _lastError;
     // What the library actions for Unmatched files were asked, and how many files the Engine says they changed.
     private readonly List<(string Action, string LibraryId)> _unmatchedActions = [];
     private int _unmatchedAffected = 3;
@@ -134,7 +132,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
                 _configuration = new LibrariesConfigurationDto { StorageLocations = _lastUpdate.StorageLocations, Libraries = _lastUpdate.Libraries, FileHandling = _lastUpdate.FileHandling };
                 return Task.FromResult<LibrariesConfigurationDto?>(_configuration);
             });
-            stub.SetHandler("get_LastError", _ => _lastError);
+            stub.SetHandler("get_LastError", _ => null);
             stub.SetHandler(nameof(IEngineApiClient.RetryUnmatchedLibraryAsync), args => RetryAnswerAsync((string)args![0]!));
             stub.SetHandler(nameof(IEngineApiClient.KeepAllUnmatchedLibraryAsync), args =>
             {
@@ -153,12 +151,6 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
             });
             stub.SetHandler(nameof(IEngineApiClient.MutateLibraryAsync), args =>
             {
-                if (_refuseSave is not null)
-                {
-                    _lastError = _refuseSave;
-                    return Task.FromResult<LibrariesConfigurationDto?>(null);
-                }
-
                 _saves++;
                 _lastRequest = (LibraryMutationRequest)args![0]!;
                 _lastLibrary = _lastRequest.Library;
@@ -892,7 +884,9 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
     {
         var cut = Open("Movies");
         var rows = cut.FindAll(".folder-table__row");
-        Assert.Empty(cut.FindAll(".folder-table__chip, .folder-table__tag, .folder-table__handling"));
+        Assert.Empty(cut.FindAll(".folder-table__chip, .folder-table__handling"));
+        // The handling is also written as a plain tag beside the path (Libraries v3 D19), never colour alone.
+        Assert.All(rows, row => Assert.Contains(Text(row.QuerySelector(".folder-table__tag")!), new[] { "Managed", "Read-only" }));
         Assert.All(rows, row =>
         {
             var icon = row.QuerySelector(".folder-table__icon")!;
@@ -975,7 +969,7 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
         dialogs.WaitForElement("input");
         dialogs.Find("input").Input("Main films");
         dialogs.FindAll("button").Single(x => x.TextContent.Trim() == "Apply").Click();
-        cut.WaitForAssertion(() => Assert.Equal("Main films", _lastLibrary?.Sources.Single(x => x.Id == "movies-main").Notes));
+        cut.WaitForAssertion(() => Assert.Equal("Main films", _lastLibrary?.Sources.Single(x => x.Id == "movies-main").Label));
     }
 
     [Fact]
@@ -1072,58 +1066,6 @@ public sealed class LibrarySettingsFlowTests : AsyncBunitContext
             MediaTypes = ["Videos"],
             Sources = [new() { Id = "fam-1", Path = "C:\\media\\Family", ManagementMode = "existing_library", AccessMode = "read_only" }, new() { Id = "fam-2", Path = "C:\\media\\Birthdays", ManagementMode = "existing_library", AccessMode = "read_only" }],
         });
-    }
-
-    [Fact]
-    public void TheKindPageListsEachNamedLibraryAsItsOwnSectionWithItsFolders()
-    {
-        AddNamedVideoLibraries();
-
-        var cut = Open("Videos");
-
-        var sections = cut.FindAll(".library-folders__library");
-        Assert.Equal(["Lectures", "Family recordings"], sections.Select(section => Text(section.QuerySelector("h3")!)).ToArray());
-        Assert.Equal([1, 2], sections.Select(section => section.QuerySelectorAll(".folder-table__row").Length).ToArray());
-        Assert.Equal(2, cut.FindAll("button[aria-label^='Rename ']").Count);
-    }
-
-    [Fact]
-    public void RenamingANamedLibrarySavesItThroughTheLibraryChange()
-    {
-        AddNamedVideoLibraries();
-        var dialogs = Render<AppDialogHost>();
-        var cut = Open("Videos");
-
-        cut.Find("button[aria-label='Rename Lectures']").Click();
-        dialogs.WaitForAssertion(() => Assert.NotEmpty(dialogs.FindAll("input")));
-        dialogs.Find("input").Input("Open lectures");
-        dialogs.FindAll("button").Single(button => button.TextContent.Trim() == "Apply").Click();
-
-        cut.WaitForAssertion(() => Assert.Equal("Open lectures", _lastLibrary?.Name));
-        Assert.Equal("55555555-5555-4555-8555-555555555555", _lastLibrary!.Id);
-        // The rename keeps the library's folders and is guarded by the copy that was read.
-        Assert.Equal(["lec-1"], _lastLibrary.Sources.Select(source => source.Id).ToArray());
-        Assert.NotNull(_lastRequest!.ExpectedLibrary);
-        Assert.Equal("Lectures", _lastRequest.ExpectedLibrary!.Name);
-        Assert.Equal(["lec-1"], _lastRequest.ExpectedLibrary.Sources.Select(source => source.Id).ToArray());
-        cut.WaitForAssertion(() => Assert.Contains("Open lectures", cut.FindAll(".library-folders__library h3").Select(Text)));
-    }
-
-    [Fact]
-    public void TheEnginesRefusalOfADuplicateNameIsShownAsItComesAndTheNameStays()
-    {
-        AddNamedVideoLibraries();
-        _refuseSave = "libraries[2].name \"Lectures\" is already used by another library in watch. Give each library its own name.";
-        var dialogs = Render<AppDialogHost>();
-        var cut = Open("Videos");
-
-        cut.Find("button[aria-label='Rename Family recordings']").Click();
-        dialogs.WaitForAssertion(() => Assert.NotEmpty(dialogs.FindAll("input")));
-        dialogs.Find("input").Input("Lectures");
-        dialogs.FindAll("button").Single(button => button.TextContent.Trim() == "Apply").Click();
-
-        cut.WaitForAssertion(() => Assert.Contains("is already used by another library in watch", cut.Markup));
-        Assert.Equal(["Lectures", "Family recordings"], cut.FindAll(".library-folders__library h3").Select(Text).ToArray());
     }
 
     // Unmatched files are worked on from the library's own Unmatched tab and the Needs Review tab; the folders pane carries no bar for them.

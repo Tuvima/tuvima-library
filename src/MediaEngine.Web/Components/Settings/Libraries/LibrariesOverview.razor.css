@@ -1,5 +1,8 @@
 .libs { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .libs__note { margin: 0; color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
+.libs__header { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
+.libs__filters { display: flex; flex-direction: column; gap: 12px; }
+.libs__filters .libs__toolbar { margin-bottom: 0; }
 .libs__toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 12px; }
 .libs__search { flex: 1 1 220px; min-width: 0; }
 .libs__filter { flex: 0 0 200px; }

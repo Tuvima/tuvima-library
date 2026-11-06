@@ -34,7 +34,8 @@ public partial interface IEngineApiClient
         string? vibes = null,
         string? themes = null,
         Guid? libraryId = null,
-        bool? unmatched = null);
+        bool? unmatched = null,
+        string? folder = null);
 
     /// <summary>
     /// GET /api/v1/display/browse/libraries - the libraries the signed-in profile may browse, one browse tab each (Watch, Listen and Read only).

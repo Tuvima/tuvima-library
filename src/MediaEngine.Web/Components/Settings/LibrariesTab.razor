@@ -113,33 +113,12 @@
             <AppAlert Tone="AppUiTone.Warning">@_loadError</AppAlert>
         }
 
-        @if (!readOnly && level.Kind is LevelKind.Overview or LevelKind.Library or LevelKind.ViewKind)
+        @* No rail on a Libraries page (Libraries v3 D22): the table uses the full width, the chips filter, and a library's page has its breadcrumb back. *@
+        @if (level.Kind != LevelKind.NotFound)
         {
-            @* The rail never goes away on a Libraries page (Libraries redesign D1): every area and library, one click from anywhere. *@
-            <div class="libraries__layout">
-                <LibrariesRail Configuration="@_configuration"
-                               Kinds="@Kinds"
-                               Overview="@_overview"
-                               ViewFolders="@_viewFolders"
-                               PathIssues="@_pathIssues"
-                               ShowVault="@VaultVisible"
-                               Selected="@RailSelection(level)"
-                               ReadOnly="@readOnly"
-                               OnAddLibrary="OpenAddLibraryAsync" />
-                <div class="libraries__pane">
-                    <LibraryStatusLine ReadOnly="@readOnly" />
-                    @content
-                </div>
-            </div>
+            <LibraryStatusLine ReadOnly="@readOnly" />
         }
-        else
-        {
-            @if (level.Kind != LevelKind.NotFound)
-            {
-                <LibraryStatusLine ReadOnly="@readOnly" />
-            }
-            @content
-        }
+        @content
     }
 </div>
 
@@ -382,18 +361,6 @@
         await RefreshConfigurationAsync();
         await LoadSummaryAsync();
     }
-
-    // What the rail highlights: the overview, a library or a View kind.
-    private static string RailSelection(Level level) => level.Kind switch
-    {
-        LevelKind.Library => level.Library!.Id,
-        LevelKind.ViewKind => level.TypeKey!,
-        _ => LibrariesRail.OverviewKey,
-    };
-
-    // A rail heading's Add link and the overview's button start the same two-step dialog, which lands on the new library's page.
-    private Task OpenAddLibraryAsync(string areaKey) => _configuration is null ? Task.CompletedTask : LibraryAddFlow.OpenAsync(
-        DialogService, _configuration, Kinds, areaKey, VaultVisible, setup: false, setupSession: null, onCreated: _ => FolderAddedAsync());
 
     private Level CurrentLevel => ResolveLevel();
 

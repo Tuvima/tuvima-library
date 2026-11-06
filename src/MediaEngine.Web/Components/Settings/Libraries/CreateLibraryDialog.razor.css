@@ -3,12 +3,10 @@
     display: grid;
     gap: var(--tl-space-5);
     box-sizing: border-box;
-    width: min(calc(100vw - 64px), 760px);
-    max-width: 100%;
+    width: 100%;
     padding-block: var(--tl-space-3) var(--tl-space-4);
 }
 
-.create-library[data-step="2"] { width: min(calc(100vw - 64px), 1240px); }
 
 .create-library__section,
 .create-library__rows {
@@ -78,3 +76,14 @@
 
 .create-library__chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .create-library__chip { display: inline-flex; align-items: center; padding: 2px 12px; border-radius: var(--tl-radius-pill); font-size: var(--tl-font-size-sm); font-weight: 600; color: var(--lib-area-colour, var(--tl-text-secondary, var(--tl-text-muted))); background: color-mix(in srgb, var(--lib-area-colour, var(--tl-text-muted)) 14%, transparent); }
+
+/* Areas and kinds are square tiles in an auto-fill grid with one fixed tile size; the grid wraps naturally and scrolls inside the fixed window (Libraries v3 D23). */
+.create-library__tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 160px);
+    gap: var(--tl-space-4);
+    justify-content: start;
+    padding-bottom: 140px;
+}
+
+.create-library__area-line { display: flex; align-items: center; gap: var(--tl-space-2); margin: 0; color: var(--tl-text-secondary); }

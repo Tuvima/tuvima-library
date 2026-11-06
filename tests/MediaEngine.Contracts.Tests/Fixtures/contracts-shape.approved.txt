@@ -2941,6 +2941,10 @@ MediaEngine.Contracts.Development.MediaEngine.Contracts.Development.DevHarnessWi
 
 MediaEngine.Contracts.Development.MediaEngine.Contracts.Development.DevHarnessWipeScope
 
+MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.BrowseFolderDto
+  Id: System.String | nullability=not-null | accessors=get,init
+  Name: System.String | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.BrowseLibraryDto
   Id: System.Guid | nullability=not-null | accessors=get,init
   Name: System.String | nullability=not-null | accessors=get,init
@@ -2948,6 +2952,7 @@ MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.BrowseLibraryDto
   Area: System.String | nullability=not-null | accessors=get,init
   MediaType: System.String | nullability=not-null | accessors=get,init
   HasFolders: System.Boolean | nullability=not-null | accessors=get,init
+  Folders: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Display.BrowseFolderDto> | nullability=nullable | accessors=get,init
 
 MediaEngine.Contracts.Display.MediaEngine.Contracts.Display.DisplayActionDto
   Type: System.String | nullability=not-null | accessors=get,init
@@ -9688,6 +9693,9 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibraryKindDto
   Misfit: System.String | nullability=not-null | accessors=get,set
   DefaultHandling: System.String | nullability=not-null | accessors=get,set
   Tooltip: System.String | nullability=not-null | accessors=get,set
+  Explainer: System.String | nullability=not-null | accessors=get,set
+  Examples: System.Collections.Generic.List<System.String> | nullability=not-null | accessors=get,set
+  LibraryDoes: System.String | nullability=not-null | accessors=get,set
   Order: System.Int32 | nullability=not-null | accessors=get,set
   BuiltIn: System.Boolean | nullability=not-null | accessors=get,set
   PluginId: System.String | nullability=nullable | accessors=get,set
@@ -9729,6 +9737,7 @@ MediaEngine.Contracts.Settings.MediaEngine.Contracts.Settings.LibrarySourceDto
   Id: System.String | nullability=not-null | accessors=get,set
   Path: System.String | nullability=not-null | accessors=get,set
   ManagementMode: System.String | nullability=not-null | accessors=get,set
+  Label: System.String | nullability=nullable | accessors=get,set
   SourceType: System.String | nullability=not-null | accessors=get,set
   IncludeSubdirectories: System.Boolean | nullability=not-null | accessors=get,set
   AccessMode: System.String | nullability=not-null | accessors=get,set

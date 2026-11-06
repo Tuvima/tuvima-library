@@ -27,9 +27,21 @@
         var areas = Areas;
     }
 
-    <LibraryAreaChips Areas="@areas" Counts="@AreaCounts(groups)" Selected="@_area" SelectedChanged="ChooseAreaAsync" />
+    @* Header with Add library at the top right, then the collection card, then the filter row (Libraries v3 D22). *@
+    <div class="libs__header">
+        @if (CanAddLibrary)
+        {
+            <AppButton Label="@L["Common_AddLibrary"].Value"
+                       StartIcon="@AppMaterialIcons.Outlined.Add"
+                       ButtonStyle="AppButtonStyle.Filled"
+                       Tone="AppUiTone.Primary"
+                       OnClick="@(() => OpenAddLibraryAsync(_area))" />
+        }
+    </div>
     <LibrariesSummary Rows="@everyRow" />
 
+    <div class="libs__filters">
+    <LibraryAreaChips Areas="@areas" Counts="@AreaCounts(groups)" Selected="@_area" SelectedChanged="ChooseAreaAsync" />
     <div class="libs__toolbar">
         <div class="libs__search">
             <AppSearchField Label="@L["LibrariesOverview_SearchLibraries"].Value"
@@ -47,14 +59,7 @@
                        Options="StatusOptions"
                        Size="AppControlSize.Compact" />
         </div>
-        @if (CanAddLibrary)
-        {
-            <AppButton Label="@L["Common_AddLibrary"].Value"
-                       StartIcon="@AppMaterialIcons.Outlined.Add"
-                       ButtonStyle="AppButtonStyle.Filled"
-                       Tone="AppUiTone.Primary"
-                       OnClick="@(() => OpenAddLibraryAsync(_area))" />
-        }
+    </div>
     </div>
 
     @if (everyRow.All(row => row.IsView))

@@ -22,7 +22,7 @@ else
                      Icon="@AppMediaPresentation.IconFor(MediaType, outlined: true)"
                      Size="Large"
                      Modal="false"
-                     HostClass="server-folder-picker-host"
+                     HostClass="@HostClass"
                      OnClose="Cancel">
         <ChildContent>@BodyContent</ChildContent>
         <FooterContent>@FooterContent</FooterContent>
@@ -37,6 +37,17 @@ else
             {
                 @* The host's own fields come first (Add library puts the library name here, large and focused), then the path box. *@
                 <div class="server-folder-picker__top" data-picker-top>@TopContent</div>
+            }
+            @if (ShowFolderName)
+            {
+                @* The folder's friendly name, first thing in the folder step (Libraries v3 D18): it names the folder, never the library. *@
+                <div class="server-folder-picker__name" data-folder-name>
+                    <AppTextField Label="Friendly name"
+                                  Value="@_folderName"
+                                  ValueChanged="FolderNameEdited"
+                                  MaxLength="@FolderHandlingWords.MaxFolderNameLength" />
+                    <span class="server-folder-picker__name-hint">Names this folder, not the library. It shows only when the library has more than one folder.</span>
+                </div>
             }
             @if (!string.IsNullOrWhiteSpace(TargetLabel) && TopContent is null)
             {
@@ -221,6 +232,22 @@ else
                               Value="@_managedChoice"
                               ValueChanged="SetManagedChoiceAsync" />
             }
+            @if (OfferHandling)
+            {
+                <div class="server-folder-picker__handling" role="group" aria-label="How Library uses this folder" data-folder-handling>
+                    <AppChoiceRow Title="@FolderHandlingWords.ReadOnly" Description="@FolderHandlingWords.ReadOnlyExplainer"
+                                  Icon="@AppMaterialIcons.Outlined.Visibility" Selected="@(!_handlingManaged)" OnClick="@(() => SetHandlingAsync(false))" />
+                    @if (ManagedAllowed)
+                    {
+                        <AppChoiceRow Title="@FolderHandlingWords.Managed" Description="@FolderHandlingWords.ManagedExplainer"
+                                      Icon="@AppMaterialIcons.Outlined.Tune" Selected="@_handlingManaged" OnClick="@(() => SetHandlingAsync(true))" />
+                    }
+                </div>
+                @if (_handlingManaged && _validation is { SupportedFileCount: > 0 })
+                {
+                    <AppAlert Tone="AppUiTone.Warning" Dense="true" data-managed-warning>@FolderHandlingWords.ManagedOnFilesWarning</AppAlert>
+                }
+            }
             <p class="server-folder-picker__safety" data-picker-safety>@SafetyLine</p>
             <AppActionBar Align="AppHorizontalAlignment.End">
                 @if (!Inline)
@@ -240,6 +267,17 @@ else
     </text>;
 
     [Parameter] public string? SetupSession { get; set; }
+    /// <summary>Shows the folder's friendly name at the top (pre-filled from the last part of the path, editable); every folder window that adds a folder turns it on.</summary>
+    [Parameter] public bool ShowFolderName { get; set; }
+    /// <summary>The friendly name as the host last knew it; the picker fills it from the path until the person types their own.</summary>
+    [Parameter] public string? FolderName { get; set; }
+    [Parameter] public EventCallback<string> FolderNameChanged { get; set; }
+    /// <summary>Shows the Read-only / Managed choice (Libraries v3 D19); Read-only is selected until the person picks Managed.</summary>
+    [Parameter] public bool OfferHandling { get; set; }
+    /// <summary>False when the kind's rules do not allow Library to manage the folder; the choice then offers only Read-only.</summary>
+    [Parameter] public bool ManagedAllowed { get; set; } = true;
+    /// <summary>The handling the person chose: <see cref="FolderHandlingWords.ReadOnlyKey"/> or <see cref="FolderHandlingWords.ManagedKey"/>.</summary>
+    [Parameter] public EventCallback<string> OnHandlingChanged { get; set; }
     /// <summary>A host's own fields drawn above the path box (Add library puts the library name here, large and focused).</summary>
     [Parameter] public RenderFragment? TopContent { get; set; }
     [CascadingParameter] private IAppDialogContext DialogInstance { get; set; } = null!;
@@ -264,8 +302,11 @@ else
     /// <summary>Called whenever the selected folder's path changes (a plain choice, nothing is checked); empty when nothing is selected. A host with its own button reads it and runs the one check itself.</summary>
     [Parameter] public EventCallback<string> OnPathChanged { get; set; }
 
-    /// <summary>The centred pop-up every host opens the folder picker with, so Add library and Add folder look the same.</summary>
+    /// <summary>The one folder window (Libraries v3 D21): Add library, Add folder, the Folders tab, the View folder dialog and setup all open with exactly these options and the host class below (1100 by 680 px on desktop, full width minus 32 px on phones), so it never changes size between steps or callers.</summary>
     public static AppDialogOptions DialogOptions { get; } = new() { MaxWidth = AppMaxWidth.ExtraExtraLarge, FullWidth = false, CloseButton = false, CloseOnEscapeKey = true };
+
+    /// <summary>The host class that gives every folder window the same fixed size (see app.css).</summary>
+    public const string HostClass = "server-folder-picker-host";
 
     /// <summary>Draws one switch above the buttons, "Let Library manage this folder": on, the folder is checked for write access (a Vault library's managed folder, which Move to Vault needs).</summary>
     [Parameter] public bool OfferManagedChoice { get; set; }
@@ -273,7 +314,26 @@ else
     [Parameter] public EventCallback<bool> OnManagedChoiceChanged { get; set; }
 
     private bool _managedChoice;
-    private string EffectiveMode => _managedChoice ? ServerFolderSelectionModes.ManagedLibrary : SelectionMode;
+    private bool _handlingManaged;
+    private string _folderName = string.Empty;
+    private bool _folderNameTouched;
+
+    private async Task SetHandlingAsync(bool managed)
+    {
+        if (_handlingManaged == managed) return;
+        _handlingManaged = managed;
+        await OnHandlingChanged.InvokeAsync(managed ? FolderHandlingWords.ManagedKey : FolderHandlingWords.ReadOnlyKey);
+        // The earlier check was for the other handling, so it no longer stands.
+        InvalidateValidation();
+    }
+
+    private async Task FolderNameEdited(string? value)
+    {
+        _folderName = value ?? string.Empty;
+        _folderNameTouched = true;
+        await FolderNameChanged.InvokeAsync(_folderName);
+    }
+    private string EffectiveMode => _managedChoice || _handlingManaged ? ServerFolderSelectionModes.ManagedLibrary : SelectionMode;
 
     private async Task SetManagedChoiceAsync(bool value)
     {
@@ -356,7 +416,16 @@ else
 
     private bool ShowBrowser => !_rootsFailed && !(_locations.Count == 0 && !_loadingRoots);
 
-    protected override Task OnInitializedAsync() => LoadAsync();
+    protected override Task OnInitializedAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(FolderName))
+        {
+            _folderName = FolderName;
+            _folderNameTouched = true;
+        }
+
+        return LoadAsync();
+    }
 
     private async Task RetryRootsAsync()
     {
@@ -660,6 +729,13 @@ else
         if (!string.Equals(_reportedPath, _selectedPathText, StringComparison.Ordinal))
         {
             _reportedPath = _selectedPathText;
+            if (ShowFolderName && !_folderNameTouched)
+            {
+                _folderName = FolderHandlingWords.NameFromPath(_selectedPathText);
+                await FolderNameChanged.InvokeAsync(_folderName);
+                StateHasChanged();
+            }
+
             await OnPathChanged.InvokeAsync(_selectedPathText);
         }
 

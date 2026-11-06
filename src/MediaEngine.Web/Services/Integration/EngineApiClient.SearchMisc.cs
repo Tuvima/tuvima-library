@@ -214,12 +214,13 @@ public sealed partial class EngineApiClient
 
     // -- Collection shelves ---------------------------------------------------
 
-    public async Task<List<ContentGroupViewModel>> GetContentGroupsAsync(CancellationToken ct = default, Guid? libraryId = null, bool? unmatched = null)
+    public async Task<List<ContentGroupViewModel>> GetContentGroupsAsync(CancellationToken ct = default, Guid? libraryId = null, bool? unmatched = null, string? folder = null)
     {
         try
         {
             var query = new List<string>();
             AddQuery(query, "libraryId", libraryId?.ToString("D"));
+            AddQuery(query, "folder", folder);
             AddQuery(query, "unmatched", unmatched?.ToString().ToLowerInvariant());
             var url = "/collections/content-groups" + (query.Count == 0 ? string.Empty : "?" + string.Join("&", query));
             var contracts = await _http.GetFromJsonAsync<List<ContentGroupDto>>(url, ct) ?? [];
@@ -276,12 +277,13 @@ public sealed partial class EngineApiClient
         }
     }
 
-    public async Task<List<ContentGroupViewModel>> GetSystemViewGroupsAsync(string? mediaType = null, string? groupField = null, CancellationToken ct = default, Guid? libraryId = null, bool? unmatched = null)
+    public async Task<List<ContentGroupViewModel>> GetSystemViewGroupsAsync(string? mediaType = null, string? groupField = null, CancellationToken ct = default, Guid? libraryId = null, bool? unmatched = null, string? folder = null)
     {
         try
         {
             var queryParts = new List<string>();
             AddQuery(queryParts, "libraryId", libraryId?.ToString("D"));
+            AddQuery(queryParts, "folder", folder);
             AddQuery(queryParts, "unmatched", unmatched?.ToString().ToLowerInvariant());
             if (!string.IsNullOrWhiteSpace(mediaType))
             {

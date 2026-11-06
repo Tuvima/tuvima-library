@@ -12,4 +12,10 @@ public sealed record BrowseLibraryDto(
     [property: JsonPropertyName("kind_key")] string KindKey,
     [property: JsonPropertyName("area")] string Area,
     [property: JsonPropertyName("media_type")] string MediaType,
-    [property: JsonPropertyName("has_folders")] bool HasFolders);
+    [property: JsonPropertyName("has_folders")] bool HasFolders,
+    [property: JsonPropertyName("folders")] IReadOnlyList<BrowseFolderDto>? Folders = null);
+
+/// <summary>One folder of a library that has two or more, for the Folders filter on its browse page (Libraries v3 D18): the folder's source id and friendly name.</summary>
+public sealed record BrowseFolderDto(
+    [property: JsonPropertyName("id")] string Id,
+    [property: JsonPropertyName("name")] string Name);

@@ -57,6 +57,7 @@ public static class DisplayEndpoints
             string? themes,
             Guid? libraryId,
             bool? unmatched,
+            string? folder,
             ClaimsPrincipal user,
             DisplayComposerService display,
             CancellationToken ct) =>
@@ -80,10 +81,11 @@ public static class DisplayEndpoints
                 vibes,
                 themes,
                 libraryId,
-                unmatched == true));
+                unmatched == true,
+                folder));
         })
             .WithName("GetDisplayBrowse")
-            .WithSummary("Returns cross-platform display cards for a media lane or browse query; libraryId narrows it to one library, unmatched=true to files the Engine could not match.")
+            .WithSummary("Returns cross-platform display cards for a media lane or browse query; libraryId narrows it to one library, folder to one folder (source id) of it, unmatched=true to files the Engine could not match.")
             .Produces<DisplayPageDto>(StatusCodes.Status200OK)
             .RequireClientScope(ClientApiScopes.LibraryRead);
 

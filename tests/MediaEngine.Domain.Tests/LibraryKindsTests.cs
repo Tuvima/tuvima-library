@@ -193,15 +193,13 @@ public sealed class LibraryKindsTests
     }
 
     [Fact]
-    public void OnlyThePlainKindsAllowSeveralLibrariesAndUpToFive()
+    public void EveryShippedKindHoldsExactlyOneLibrary()
     {
+        // Libraries v3 D17: names are fixed, so a shipped kind is one library; only a kind added in config can allow several.
         var kinds = LibraryKindsConfiguration.BuiltIn();
 
-        Assert.Equal(
-            ["other_videos", "other_audio", "other_reading"],
-            kinds.Where(kind => kind.AllowsMultiple).Select(kind => kind.Key).ToArray());
-        Assert.All(kinds.Where(kind => kind.AllowsMultiple), kind => Assert.Equal(5, kind.MaxLibraries));
-        Assert.All(kinds.Where(kind => !kind.AllowsMultiple), kind => Assert.Equal(1, kind.MaxLibraries));
+        Assert.DoesNotContain(kinds, kind => kind.AllowsMultiple);
+        Assert.All(kinds, kind => Assert.Equal(1, kind.MaxLibraries));
     }
 
     [Fact]
@@ -217,16 +215,19 @@ public sealed class LibraryKindsTests
     }
 
     [Fact]
-    public void SeveralNamedLibrariesOfAPlainKindAreFineUpToTheLimit()
+    public void SeveralNamedLibrariesOfAKindAddedInConfigAreFineUpToTheLimit()
     {
-        var kinds = LibraryKindsConfiguration.BuiltIn();
+        var podcasts = Podcasts();
+        podcasts.AllowsMultiple = true;
+        podcasts.MaxLibraries = 5;
+        var kinds = new List<LibraryKindDefinition>(LibraryKindsConfiguration.BuiltIn()) { podcasts };
         var named = new[] { "Lectures", "Family recordings", "Talks", "Courses", "Clips" }
-            .Select(name => Library("other_videos", "Videos", name, LibraryAreas.Watch))
+            .Select(name => Library("podcasts", "Music", name, LibraryAreas.Listen))
             .ToArray();
 
         Assert.Empty(LibraryKindRules.LibraryProblems(Libraries(named), kinds));
 
-        var sixth = Libraries([.. named, Library("other_videos", "Videos", "Concerts", LibraryAreas.Watch)]);
+        var sixth = Libraries([.. named, Library("podcasts", "Music", "Concerts", LibraryAreas.Listen)]);
         Assert.Contains("allows at most 5", Assert.Single(LibraryKindRules.LibraryProblems(sixth, kinds)), StringComparison.Ordinal);
     }
 
@@ -285,15 +286,18 @@ public sealed class LibraryKindsTests
     [Fact]
     public void LibraryNamesAreUniqueInAnAreaIgnoringCaseAndNeverAnotherKindsLabel()
     {
-        var kinds = LibraryKindsConfiguration.BuiltIn();
+        var podcasts = Podcasts();
+        podcasts.AllowsMultiple = true;
+        podcasts.MaxLibraries = 5;
+        var kinds = new List<LibraryKindDefinition>(LibraryKindsConfiguration.BuiltIn()) { podcasts };
         var duplicate = Libraries(
-            Library("other_videos", "Videos", "Lectures", LibraryAreas.Watch),
-            Library("other_videos", "Videos", "LECTURES", LibraryAreas.Watch));
+            Library("podcasts", "Music", "Lectures", LibraryAreas.Listen),
+            Library("podcasts", "Music", "LECTURES", LibraryAreas.Listen));
         var otherArea = Libraries(
             Library("other_videos", "Videos", "Lectures", LibraryAreas.Watch),
             Library("other_audio", "Music", "Lectures", LibraryAreas.Listen));
-        var kindLabel = Libraries(Library("other_videos", "Videos", "Movies", LibraryAreas.Watch));
-        var ownLabel = Libraries(Library("other_videos", "Videos", "Videos", LibraryAreas.Watch));
+        var kindLabel = Libraries(Library("podcasts", "Music", "Movies", LibraryAreas.Listen));
+        var ownLabel = Libraries(Library("podcasts", "Music", "Podcasts", LibraryAreas.Listen));
 
         Assert.Contains("already used", Assert.Single(LibraryKindRules.LibraryProblems(duplicate, kinds)), StringComparison.Ordinal);
         Assert.Empty(LibraryKindRules.LibraryProblems(otherArea, kinds));

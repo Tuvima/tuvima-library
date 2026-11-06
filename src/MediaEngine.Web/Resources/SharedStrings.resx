@@ -4638,17 +4638,11 @@
   <data name="AddFilesDialog_CopyFiles" xml:space="preserve">
     <value>Copy files</value>
   </data>
-  <data name="AddViewFolderDialog_BrowseForAFolder" xml:space="preserve">
-    <value>Browse for a folder</value>
-  </data>
   <data name="AddViewFolderDialog_LibraryScansThisFolderAnd" xml:space="preserve">
     <value>Library scans this folder and its subfolders. Your files are never changed.</value>
   </data>
   <data name="Common_FolderName" xml:space="preserve">
     <value>Folder name</value>
-  </data>
-  <data name="AddViewFolderDialog_ThisIsHowItAppears" xml:space="preserve">
-    <value>This is how it appears in your list. You can rename it later.</value>
   </data>
   <data name="AddViewFolderDialog_WhereViewKeepsItsFiles" xml:space="preserve">
     <value>Where View keeps its files</value>
@@ -4659,9 +4653,6 @@
   <data name="AddViewFolderDialog_ViewKeepsThumbnailsAndAnything" xml:space="preserve">
     <value>View keeps thumbnails and anything Library creates here. Your own files stay where they are.</value>
   </data>
-  <data name="AddViewFolderDialog_ChooseAFolderToContinue" xml:space="preserve">
-    <value>Choose a folder to continue.</value>
-  </data>
   <data name="AddViewFolderDialog_Browse" xml:space="preserve">
     <value>Browse</value>
   </data>
@@ -4670,9 +4661,6 @@
   </data>
   <data name="CreateLibraryDialog_ThereAreNoContentTypes" xml:space="preserve">
     <value>There are no content types in this area yet.</value>
-  </data>
-  <data name="CreateLibraryDialog_YouCanRenameItLater" xml:space="preserve">
-    <value>You can rename it later.</value>
   </data>
   <data name="Common_Area" xml:space="preserve">
     <value>Area</value>
@@ -10833,9 +10821,6 @@
   <data name="LibrariesOverview_ManyLibraries" xml:space="preserve">
     <value>{0} libraries</value>
   </data>
-  <data name="LibraryEditDialog_LibraryName" xml:space="preserve">
-    <value>Library name</value>
-  </data>
   <data name="LibraryEditDialog_Folders" xml:space="preserve">
     <value>Folders</value>
   </data>
@@ -10887,9 +10872,6 @@
   <data name="LibraryEditDialog_Lead" xml:space="preserve">
     <value>Rename it and choose which folders it uses. Nothing changes until you press Save changes.</value>
   </data>
-  <data name="LibraryEditDialog_NameRequired" xml:space="preserve">
-    <value>Give the library a name.</value>
-  </data>
   <data name="LibraryEditDialog_NameTooLong" xml:space="preserve">
     <value>Use {0} characters or fewer.</value>
   </data>
@@ -10907,9 +10889,6 @@
   </data>
   <data name="LibraryEditDialog_Remove" xml:space="preserve">
     <value>Remove</value>
-  </data>
-  <data name="LibraryEditDialog_ReviewRename" xml:space="preserve">
-    <value>Rename the library to "{0}".</value>
   </data>
   <data name="LibraryEditDialog_ReviewUseImport" xml:space="preserve">
     <value>Use {0} as the Import folder.</value>
@@ -10976,5 +10955,29 @@
   </data>
   <data name="SetupVaultOffer_AddFromLibraries" xml:space="preserve">
     <value>To add a private library, go back to the Libraries step, press Add library and choose the Vault tab.</value>
+  </data>
+  <data name="MediaBrowseShell_Folders" xml:space="preserve">
+    <value>Folders</value>
+  </data>
+  <data name="MediaBrowseShell_AllFolders" xml:space="preserve">
+    <value>All folders</value>
+  </data>
+  <data name="Common_Change" xml:space="preserve">
+    <value>Change</value>
+  </data>
+  <data name="CreateLibrary_Added" xml:space="preserve">
+    <value>Added</value>
+  </data>
+  <data name="LibraryEditDialog_FriendlyName" xml:space="preserve">
+    <value>Friendly name</value>
+  </data>
+  <data name="LibraryEditDialog_Converting" xml:space="preserve">
+    <value>Converting</value>
+  </data>
+  <data name="LibraryEditDialog_SwitchToManaged" xml:space="preserve">
+    <value>Switch to Managed</value>
+  </data>
+  <data name="LibraryEditDialog_ReviewRenameFolder" xml:space="preserve">
+    <value>Call the folder {0} "{1}".</value>
   </data>
 </root>

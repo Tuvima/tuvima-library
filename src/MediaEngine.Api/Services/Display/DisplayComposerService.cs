@@ -22,6 +22,7 @@ public sealed partial class DisplayComposerService
     private readonly IProfileHeroSettingsRepository? _heroSettings;
     private readonly IHeroOrderer _heroOrderer;
     private readonly IHeroPluginSlides? _heroPluginSlides;
+    private readonly BrowseFolderScope? _folderScope;
 
     public DisplayComposerService(
         IDisplayProjectionReadService readService,
@@ -36,8 +37,10 @@ public sealed partial class DisplayComposerService
         IUnmatchedAssetRepository? unmatched = null,
         IProfileHeroSettingsRepository? heroSettings = null,
         IHeroOrderer? heroOrderer = null,
-        IHeroPluginSlides? heroPluginSlides = null)
+        IHeroPluginSlides? heroPluginSlides = null,
+        BrowseFolderScope? folderScope = null)
     {
+        _folderScope = folderScope;
         _heroPluginSlides = heroPluginSlides;
         _heroSettings = heroSettings;
         _heroOrderer = heroOrderer ?? new DefaultHeroOrderer();
@@ -181,11 +184,12 @@ public sealed partial class DisplayComposerService
         string? vibes = null,
         string? themes = null,
         Guid? libraryId = null,
-        bool unmatchedOnly = false)
+        bool unmatchedOnly = false,
+        string? folderId = null)
     {
         var normalizedLane = DisplayMediaRules.NormalizeLane(lane);
         // A single library or the Unmatched filter always needs the rows, so the lane shortcuts below (prebuilt shelves) do not apply.
-        var narrowed = libraryId is not null || unmatchedOnly;
+        var narrowed = libraryId is not null || unmatchedOnly || !string.IsNullOrWhiteSpace(folderId);
         if (!narrowed &&
             normalizedLane is not null &&
             string.IsNullOrWhiteSpace(mediaType) &&
@@ -226,6 +230,11 @@ public sealed partial class DisplayComposerService
         {
             var qualifying = await WorksInNarrowingAsync(libraryId, unmatchedOnly, ct);
             filtered = filtered.Where(work => qualifying.Contains(work.WorkId));
+            // The Folders filter (Libraries v3 D18): only the titles with a file beneath the chosen folder of the library.
+            if (_folderScope is not null && await _folderScope.WorksAsync(folderId, libraryId, ct) is { } inFolder)
+            {
+                filtered = filtered.Where(work => inFolder.Contains(work.WorkId));
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(mediaType))
