@@ -41,7 +41,7 @@ public static class ReaderFileRateLimitPartition
     /// </summary>
     public static string? SessionKey(HttpContext context)
     {
-        var recognizer = context.RequestServices.GetService<DashboardServiceCredentialRecognizer>();
+        var recognizer = context.RequestServices?.GetService<DashboardServiceCredentialRecognizer>();
         if (recognizer is not null
             && context.Request.Headers.TryGetValue(TuvimaAuthDefaults.ServiceHeader, out var presented)
             && recognizer.Matches(presented.ToString())
