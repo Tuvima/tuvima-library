@@ -10,50 +10,59 @@
    that shows two rows at a time and loads more as you scroll, with a filter by kind. Episodes are stacked into one tile per show, tracks into
    one per album. No file or enrichment detail (that lives in the item's editor). *@
 <li class="lact-entry @(Run.Status == ActivityRunStatusNames.Active ? "is-active" : null)" data-testid="lact-entry" data-run-status="@Run.Status">
-    <span class="lact-bubble">@Bubble</span>
-    <div class="lact-box">
-        <AppButton ButtonStyle="AppButtonStyle.Text" FullWidth="true" OnClick="ToggleAsync"
-                   UserAttributes="@(new Dictionary<string, object> { ["aria-expanded"] = _open ? "true" : "false", ["data-testid"] = "lact-entry-toggle", ["aria-label"] = $"{LibraryActivityText.Headline(Run)}, {LibraryActivityText.StatusLabel(Run.Status)}" })">
-            <span class="lact-box__what">
-                <strong>@LibraryActivityText.Headline(Run)</strong>
-                <small>@Run.LibraryName</small>
-            </span>
-            <span class="lact-box__covers" aria-hidden="true">
-                @foreach (var cover in Run.Covers)
-                {
-                    <span class="lact-cover @(cover.MediaType == "Music" ? "is-square" : null)">
-                        <AppMediaArtwork ImageUrl="@cover.Url" Alt="" AspectRatio="@(cover.MediaType == "Music" ? "1 / 1" : "2 / 3")" FallbackIcon="@AppMaterialIcons.Outlined.Image" />
-                    </span>
-                }
-                @if (MoreCovers > 0)
-                {
-                    <span class="lact-cover-more">+@MoreCovers.ToString("N0")</span>
-                }
-            </span>
-            <span class="lact-box__count">@Count</span>
-            <span class="lact-box__status lact-status--@Run.Status" data-testid="lact-entry-status">
-                @if (Run.Status == ActivityRunStatusNames.Active)
-                {
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Sync" /> <span>@L["LibraryActivity_Active"]</span>
-                }
-                else
-                {
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" /> <span>@LibraryActivityText.StatusLabel(Run.Status)</span>
-                }
-            </span>
-            <AppMaterialIcon Icon="@(_open ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.ExpandMore)" />
-        </AppButton>
+    <div class="lact-entry__row">
+        <span class="lact-bubble">@Bubble</span>
+        <div class="lact-box" title="@Run.LibraryName">
+            <AppNativeButton Type="button" Class="lact-box__toggle" OnClick="ToggleAsync"
+                             aria-expanded="@(_open ? "true" : "false")" data-testid="lact-entry-toggle"
+                             AriaLabel="@($"{LibraryActivityText.Headline(Run)}, {LibraryActivityText.StatusLabel(Run.Status)}")">
+                <span class="lact-box__what">
+                    <strong>@LibraryActivityText.Headline(Run)</strong>
+                    <small data-testid="lact-entry-subtitle">@LibraryActivityText.Subtitle(Run)</small>
+                </span>
+                <span class="lact-box__covers" aria-hidden="true">
+                    @foreach (var cover in Run.Covers)
+                    {
+                        <span class="lact-cover @(cover.MediaType == "Music" ? "is-square" : null)">
+                            <LibraryActivityPicture Url="@cover.Url" DrawnPx="44" />
+                        </span>
+                    }
+                    @if (MoreCovers > 0)
+                    {
+                        <span class="lact-cover-more">+@MoreCovers.ToString("N0")</span>
+                    }
+                </span>
+                <span class="lact-box__count">@Count</span>
+                <span class="lact-box__status lact-status--@Run.Status" data-testid="lact-entry-status">
+                    @if (Run.Status == ActivityRunStatusNames.Active)
+                    {
+                        <span class="lact-dot" aria-hidden="true"></span><span>@L["LibraryActivity_Active"]</span>
+                    }
+                    else if (Run.Status == ActivityRunStatusNames.Failed)
+                    {
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ErrorOutline" Size="AppSize.Small" /><span>@LibraryActivityText.StatusLabel(Run.Status)</span>
+                    }
+                    else
+                    {
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" Size="AppSize.Small" /><span>@LibraryActivityText.StatusLabel(Run.Status)</span>
+                    }
+                </span>
+                <span class="lact-box__chevron"><AppMaterialIcon Icon="@(_open ? AppMaterialIcons.Outlined.ExpandLess : AppMaterialIcons.Outlined.ExpandMore)" Size="AppSize.Small" /></span>
+            </AppNativeButton>
+        </div>
+    </div>
 
-        @if (_open)
-        {
-            <div class="lact-open" data-testid="lact-open">
+    @if (_open)
+    {
+        @* The opened batch is its own panel under the line, indented past the date bubble (mock screen 2). *@
+        <div class="lact-open" data-testid="lact-open">
                 @if (Run.Counts.Count > 1)
                 {
                     <div class="lact-kinds" role="group" aria-label="@L["LibraryActivity_FilterByKind"]">
-                        <AppToggleChip Pressed="@(_mediaType is null)" OnClick="@(() => PickAsync(null))">@L["LibraryActivity_AllCount", Run.ItemCount.ToString("N0")]</AppToggleChip>
+                        <AppToggleChip Pressed="@(_mediaType is null)" Class="lact-kind-chip" OnClick="@(() => PickAsync(null))">@L["LibraryActivity_AllCount", Run.ItemCount.ToString("N0")]</AppToggleChip>
                         @foreach (var count in Run.Counts)
                         {
-                            <AppToggleChip Pressed="@(_mediaType == count.MediaType)" OnClick="@(() => PickAsync(count.MediaType))">@KindName(count.MediaType) @count.Count.ToString("N0")</AppToggleChip>
+                            <AppToggleChip Pressed="@(_mediaType == count.MediaType)" Class="lact-kind-chip" OnClick="@(() => PickAsync(count.MediaType))">@KindName(count.MediaType) @count.Count.ToString("N0")</AppToggleChip>
                         }
                     </div>
                 }
@@ -88,7 +97,6 @@
                 }
             </div>
         }
-    </div>
 </li>
 
 @code {

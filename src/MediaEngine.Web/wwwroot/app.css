@@ -5162,6 +5162,26 @@ input[type="reset"],
 .lib-chip.is-on { border-color: var(--lib-area-colour, var(--tl-accent-primary)); background: color-mix(in srgb, var(--lib-area-colour, var(--tl-accent-primary)) 16%, transparent); }
 .lib-chip__count { color: var(--tl-text-muted); font-weight: 400; font-size: var(--tl-font-size-sm); }
 @media (max-width: 600px) { .lib-chip { flex: 0 0 auto; } }
+/* Activity page (LibraryActivity*, spec library-activity): the roots of shared buttons, links and the filter row are not reached by the pieces' scoped sheets,
+   so their layout sits here. The chips are the shared toggle chip (button.app-toggle-chip, whose own sheet is scoped, hence the element in the selectors): the area chips are
+   outlined in their area colour (lib-area--*; All libraries in the accent) and a pressed one adds a soft fill of that colour. */
+button.app-toggle-chip.lact-chip { gap: 4px; min-height: 34px; padding: 0 14px; border-radius: var(--tl-radius-sm); border-color: color-mix(in srgb, var(--lib-area-colour, var(--tl-accent-primary)) 75%, transparent); background: transparent; color: var(--tl-text-secondary); font-weight: var(--tl-font-weight-regular); }
+button.app-toggle-chip.lact-chip--all { --lib-area-colour: var(--tl-accent-primary); }
+button.app-toggle-chip.lact-chip.is-on { border-color: var(--lib-area-colour, var(--tl-accent-primary)); background: color-mix(in srgb, var(--lib-area-colour, var(--tl-accent-primary)) 16%, transparent); color: var(--tl-text-primary); }
+button.app-toggle-chip.lact-kind-chip { min-height: 32px; padding: 0 12px; border-radius: var(--tl-radius-sm); font-weight: var(--tl-font-weight-regular); }
+.lact-controls { flex: 0 1 auto; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
+@media (max-width: 640px) { .lact-controls { flex: 1 1 100%; margin-left: 0; } }
+.lact-group__toggle { display: flex; align-items: center; gap: var(--tl-space-2); width: 100%; padding: var(--tl-space-1) 0; border: 0; background: none; color: var(--tl-text-secondary); font: inherit; text-align: left; cursor: pointer; }
+.lact-group__toggle:focus-visible, .lact-box__toggle:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
+.lact-box__toggle { display: grid; grid-template-areas: "what covers count status chev"; grid-template-columns: minmax(0, 200px) 210px minmax(0, 1fr) auto auto; align-items: center; column-gap: var(--tl-space-4); width: 100%; box-sizing: border-box; padding: var(--tl-space-2) var(--tl-space-3); border: 0; border-radius: var(--tl-radius-lg); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.lact-box__toggle:hover { background: var(--tl-bg-surface-hover); }
+@media (max-width: 1180px) {
+    .lact-box__toggle { grid-template-areas: "what covers status chev" "count count count count"; grid-template-columns: minmax(0, 1fr) auto auto auto; row-gap: var(--tl-space-1); }
+}
+@media (max-width: 640px) {
+    .lact-box__toggle { grid-template-areas: "what status chev" "covers covers covers" "count count count"; grid-template-columns: minmax(0, 1fr) auto auto; row-gap: var(--tl-space-2); }
+}
+a.tl-link.lact-summary__review { color: var(--tl-status-warning); font-weight: 700; white-space: nowrap; }
 /* Needs Review: the table sits inside the shared table box, so its fixed layout is set here, not from the page sheet. */
 .needs-review-table .app-table { width: 100%; min-width: 0; table-layout: fixed; }
 .lib-kind-tile { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 10px; font-size: var(--tl-font-size-xl); color: var(--tl-text-muted); background: var(--tl-bg-surface-raised); }

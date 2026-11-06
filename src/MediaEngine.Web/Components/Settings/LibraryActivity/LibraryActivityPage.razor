@@ -12,16 +12,20 @@
 <div class="lact-page" data-testid="library-activity-page">
     <header class="lact-header">
         <h1 class="lact-title-main">@L["LibraryActivity_Title"]</h1>
-        <span class="lact-live @(Working ? "is-working" : null)" data-testid="lact-live"><span class="lact-live__dot" aria-hidden="true"></span> @(Working ? L["LibraryActivity_Live"] : L["LibraryActivity_Idle"])</span>
+        @* Live means the page updates by itself: green while connected to the Engine, quiet "Not live" otherwise (busy or idle makes no difference). *@
+        <span class="lact-live @(IsLive ? "is-live" : null)" data-testid="lact-live" data-live="@(IsLive ? "true" : "false")"><span class="lact-live__dot" aria-hidden="true"></span> @(IsLive ? L["LibraryActivity_Live"] : L["LibraryActivity_NotLive"])</span>
     </header>
 
     @if (LibraryId is null)
     {
+        @* Each area chip is outlined in its own area colour (the same lib-chip look as the Libraries page); All libraries carries a small chevron. *@
         <div class="lact-chips" role="group" aria-label="@L["LibraryActivity_Areas"]" data-testid="lact-chips">
-            <AppToggleChip Pressed="@(_area is null)" OnClick="@(() => PickAreaAsync(null))">@L["LibraryActivity_AllLibraries"]</AppToggleChip>
+            <AppToggleChip Pressed="@(_area is null)" Class="@ChipClass(null)" OnClick="@(() => PickAreaAsync(null))">
+                @L["LibraryActivity_AllLibraries"]<AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ExpandMore" Size="AppSize.Small" />
+            </AppToggleChip>
             @foreach (var area in Areas)
             {
-                <AppToggleChip Pressed="@(_area == area.Key)" OnClick="@(() => PickAreaAsync(area.Key))">@L[area.LabelKey]</AppToggleChip>
+                <AppToggleChip Pressed="@(_area == area.Key)" Class="@ChipClass(area.Key)" OnClick="@(() => PickAreaAsync(area.Key))">@L[area.LabelKey]</AppToggleChip>
             }
         </div>
     }
@@ -57,6 +61,11 @@
     private DateTimeOffset? _lastCompleted;
 
     private bool Working => Dashboard.QueueProgress is { State: "working" } || Dashboard.Presentation is { IsRunning: true };
+
+    private bool IsLive => Dashboard.ConnectionState == EngineConnectionState.Online && !Dashboard.IsEngineUnreachable;
+
+    // The chip is the shared toggle chip; this adds the area colour (lib-area--*) its outline takes, and the accent for All libraries.
+    private static string ChipClass(string? area) => area is null ? "lact-chip lact-chip--all" : $"lact-chip lib-area--{area}";
 
     private IReadOnlyList<string> LibraryIds
     {

@@ -1,0 +1,52 @@
+@namespace MediaEngine.Web.Components.Settings.LibraryActivity
+@using MediaEngine.Web.Services.MediaTiles
+
+@* One picture of the Activity page, small cover or tile art. The address arrives already on the Dashboard's own origin (the Engine client turns
+   every cover address into an /engine-image one). With no address, or when the picture will not load, a neutral stand-in is drawn instead of
+   the browser's broken-image mark: the kind's icon, and the title when there is room for it. *@
+@if (!string.IsNullOrWhiteSpace(Url) && !_failed)
+{
+    <img class="lact-picture" src="@MediaTileArtworkUrl.ForDrawnSize(Url, DrawnPx)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(Url, DrawnPx)" alt="" loading="lazy" decoding="async" @onerror="OnError" />
+}
+else
+{
+    <span class="lact-picture lact-picture--empty" data-testid="lact-picture-empty">
+        <AppMaterialIcon Icon="@Icon" Size="IconSize" />
+        @if (!string.IsNullOrWhiteSpace(FallbackText))
+        {
+            <span class="lact-picture__text">@FallbackText</span>
+        }
+    </span>
+}
+
+@code {
+    [Parameter] public string? Url { get; set; }
+
+    /// <summary>The long side the picture is drawn at, in CSS pixels (the small covers are 44; a tile is 321).</summary>
+    [Parameter] public int DrawnPx { get; set; } = 96;
+
+    [Parameter] public string Icon { get; set; } = AppMaterialIcons.Outlined.Image;
+
+    /// <summary>The stand-in's icon size: medium on a small cover, large on a tile.</summary>
+    [Parameter] public AppSize IconSize { get; set; } = AppSize.Medium;
+
+    /// <summary>Drawn on the stand-in only, so a tile with no picture still names its title.</summary>
+    [Parameter] public string? FallbackText { get; set; }
+
+    private bool _failed;
+    private string? _failedUrl;
+
+    protected override void OnParametersSet()
+    {
+        if (_failed && _failedUrl != Url)
+        {
+            _failed = false;
+        }
+    }
+
+    private void OnError(ErrorEventArgs _)
+    {
+        _failed = true;
+        _failedUrl = Url;
+    }
+}

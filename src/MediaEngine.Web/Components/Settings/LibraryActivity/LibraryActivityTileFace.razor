@@ -1,12 +1,13 @@
 @namespace MediaEngine.Web.Components.Settings.LibraryActivity
 
+@* The art of one tile: the picture fills it, a flush label sits in the top-left corner and another in the bottom-left. A title with no picture
+   names itself on the stand-in (One tile design spec); a title with art shows no caption, because the art carries it. *@
 <span class="lact-tile__face">
-    <AppMediaArtwork ImageUrl="@CoverUrl" Alt="" AspectRatio="@(MediaType == "Music" ? "1 / 1" : "2 / 3")" FallbackIcon="@Icon" FallbackText="@Title" />
+    <LibraryActivityPicture Url="@CoverUrl" DrawnPx="321" Icon="@Icon" IconSize="AppSize.Large" FallbackText="@Title" />
     @if (!string.IsNullOrWhiteSpace(StatusLabel))
     {
         <span class="lact-tile__label lact-tile__label--top">@StatusLabel</span>
     }
-    <span class="lact-tile__title">@Title</span>
     @if (!string.IsNullOrWhiteSpace(BottomLabel))
     {
         <span class="lact-tile__label lact-tile__label--bottom">@BottomLabel</span>

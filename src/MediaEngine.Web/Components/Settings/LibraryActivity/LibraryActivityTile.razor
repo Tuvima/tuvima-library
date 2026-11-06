@@ -1,15 +1,22 @@
 @namespace MediaEngine.Web.Components.Settings.LibraryActivity
+@using MediaEngine.Web.Components.MediaTiles
+@using MediaEngine.Web.Models.ViewDTOs
 @inject IStringLocalizer<SharedStrings> L
 
-@* One standard tile of the Activity page (spec library-activity D13, One tile design spec): the title on the art, a flush label in the
-   top-left corner for what Library is doing ("Getting artwork") and a flush label in the bottom-left corner for the count or step. No
-   caption under the art. Square art (albums) keeps the poster's height. A tile with a page opens it on click. *@
+@* One standard tile of the Activity page (spec library-activity D13, One tile design spec): the picture, a flush label in the top-left corner
+   for what Library is doing ("Getting artwork") and a flush label in the bottom-left corner for the count or step, the "..." menu top right
+   (the same one every tile has) and no caption under the art. Square art (albums) keeps the poster's height. A tile with a page opens it
+   on click; a tile that stands for no single page (a folder of videos, several movies) has no link and no menu. *@
 <div class="lact-tile @(IsSquare ? "is-square" : null)" data-testid="activity-tile" data-media-type="@MediaType">
     @if (!string.IsNullOrWhiteSpace(Route))
     {
         <a href="@Route" class="lact-tile__link" aria-label="@L["LibraryActivity_OpenTitle", Title]">
             <LibraryActivityTileFace Title="@Title" CoverUrl="@CoverUrl" MediaType="@MediaType" StatusLabel="@StatusLabel" BottomLabel="@BottomLabel" />
         </a>
+        @if (ActionItem is { } item)
+        {
+            <MediaTileActions Item="@item" />
+        }
     }
     else
     {
@@ -26,4 +33,21 @@
     [Parameter] public string? BottomLabel { get; set; }
 
     private bool IsSquare => MediaType == "Music";
+
+    // The menu acts on the title the tile's page belongs to (the show for an episode stack, the album for a track stack): the id in its route.
+    private MediaTileViewModel? ActionItem => PageId(Route) is { } id
+        ? new MediaTileViewModel { Id = id, WorkId = id, Title = Title, MediaKind = MediaType, NavigationUrl = Route! }
+        : null;
+
+    private static Guid? PageId(string? route)
+    {
+        if (string.IsNullOrWhiteSpace(route))
+        {
+            return null;
+        }
+
+        var path = route.Split('?', 2)[0].TrimEnd('/');
+        var last = path[(path.LastIndexOf('/') + 1)..];
+        return Guid.TryParse(last, out var id) && id != Guid.Empty ? id : null;
+    }
 }

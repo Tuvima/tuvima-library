@@ -11022,8 +11022,11 @@
   <data name="LibraryActivity_HistoryFilters" xml:space="preserve">
     <value>History filters</value>
   </data>
-  <data name="LibraryActivity_Idle" xml:space="preserve">
-    <value>Idle</value>
+  <data name="LibraryActivity_NotLive" xml:space="preserve">
+    <value>Not live</value>
+  </data>
+  <data name="LibraryActivity_StartedAgo" xml:space="preserve">
+    <value>Started {0}</value>
   </data>
   <data name="LibraryActivity_ItemsFailed" xml:space="preserve">
     <value>These items could not be loaded.</value>
@@ -11042,6 +11045,12 @@
   </data>
   <data name="LibraryActivity_NeedReview" xml:space="preserve">
     <value>{0} need review</value>
+  </data>
+  <data name="LibraryActivity_NoBatches" xml:space="preserve">
+    <value>Nothing has been added in this time</value>
+  </data>
+  <data name="LibraryActivity_NoBatchesHelp" xml:space="preserve">
+    <value>Choose a longer date range or another type to see older batches.</value>
   </data>
   <data name="LibraryActivity_NoMatch" xml:space="preserve">
     <value>Nothing matches that search</value>
@@ -11072,6 +11081,9 @@
   </data>
   <data name="LibraryActivity_ReviewOneItem" xml:space="preserve">
     <value>Review 1 item →</value>
+  </data>
+  <data name="LibraryActivity_SearchHistory" xml:space="preserve">
+    <value>Search history</value>
   </data>
   <data name="LibraryActivity_SearchTitles" xml:space="preserve">
     <value>Search titles</value>
