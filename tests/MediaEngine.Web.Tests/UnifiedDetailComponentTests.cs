@@ -248,7 +248,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains(".tl-detail-watch-metadata-row--facts", ReadSource("src/MediaEngine.Web/Components/Details/DetailHeroContent.razor.css"));
         Assert.Contains("align-items:center", actions);
         Assert.Contains("height:var(--tl-control-height-lg)", actions);
-        Assert.Contains("flex:0 0 auto; width:auto", actions);
+        Assert.Contains("flex:0 0 auto; width:min(100%, 24rem)", actions);
         Assert.Contains("var(--tl-font-size-lg)", actions);
         Assert.Contains("@media (max-width: 600px)", actions);
     }

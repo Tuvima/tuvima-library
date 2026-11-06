@@ -5403,6 +5403,12 @@ button.view-inbox-chip:disabled { cursor: default; opacity: .6; }
 }
 
 dialog.app-native-dialog.tl-editor-dialog{width:100vw;max-width:none;height:100dvh;max-height:none !important;margin:0;border:0 !important;border-radius:0 !important;background:transparent !important;box-shadow:none !important;overflow:visible}dialog.tl-editor-dialog::backdrop{background:color-mix(in srgb,var(--tl-bg-shell,#000) 62%,transparent)}
+/* Detail page: the small hero icons are quiet and each carries its name underneath (editor and details revision).
+   The Home hero keeps its single row. */
+.tl-detail-page .tl-detail-secondary-actions { align-items: flex-start; gap: 6px 18px; padding-bottom: 1.35rem; }
+.tl-detail-page .tl-detail-actions .hero-icon-circle { position: relative; }
+.tl-detail-page .tl-detail-actions .hero-icon-circle::after { content: attr(data-phone-label); position: absolute; top: calc(100% + 0.2rem); left: 50%; max-width: 5.5rem; overflow: hidden; transform: translateX(-50%); color: var(--tl-text-secondary); font-size: var(--tl-font-size-sm); line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; pointer-events: none; }
+
 /* tv form factor: 10-foot presentation for remote-driven televisions. Larger root type, 56px dock targets, 14px dock
    labels, a wider shelf gutter and a readable hero line length. Phone and desktop layouts are untouched. */
 html[data-form-factor="tv"] {
