@@ -1137,6 +1137,9 @@
   <data name="Common_Sources" xml:space="preserve">
     <value>Sources</value>
   </data>
+  <data name="DetailPage_AboutThis" xml:space="preserve">
+    <value>About this</value>
+  </data>
   <data name="DetailsTab_FileFacts" xml:space="preserve">
     <value>File facts</value>
   </data>
