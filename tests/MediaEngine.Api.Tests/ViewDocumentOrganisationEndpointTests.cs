@@ -972,6 +972,19 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
     }
 
     [Fact]
+    public void TheOnThisDayRouteAsksOnlyForPhotosAndVideosInTheCallersOwnAndSharedScopes()
+    {
+        // The route fixes its scopes (never taken from the request) and its kinds, so a document or another person's photo cannot reach the strip.
+        // Marker for the review table: on-this-day-route-asks-for-images-and-videos
+        var source = File.ReadAllText(Path.Combine(FindRepositoryRoot(), "src", "MediaEngine.Api", "Endpoints", "ViewEndpoints.cs"));
+        var start = source.IndexOf("\"/assets/on-this-day\"", StringComparison.Ordinal);
+        var route = source[start..source.IndexOf("GetViewOnThisDay", start, StringComparison.Ordinal)];
+        Assert.Contains("new[] { ViewScopeKind.Mine, ViewScopeKind.Shared }", route, StringComparison.Ordinal);
+        Assert.Contains("MediaKinds: [LocalAssetMediaKinds.Image, LocalAssetMediaKinds.Video]", route, StringComparison.Ordinal);
+        Assert.DoesNotContain("string? scope", route, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task TheTimelineIndexNeverCountsOrSearchesDocumentsForAProfileWithoutThem()
     {
         var household = Guid.NewGuid();
@@ -1659,6 +1672,7 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
     private const string GalleryRead = "AGalleryNeverShowsOrCountsDocumentsToAProfileWithoutThem_SharedOrSmart";
     private const string GalleryWrite = "AProfileWithoutDocumentsCannotAddMoveOrCountDocumentsInAGallery";
     private const string TagSuggestions = "TagTypeAheadNeverOffersATagThatOnlyDocumentsCarryToAProfileWithoutDocuments";
+    private const string OnThisDayKinds = "TheOnThisDayRouteAsksOnlyForPhotosAndVideosInTheCallersOwnAndSharedScopes";
     private const string TimelineIndex = "TheTimelineIndexNeverCountsOrSearchesDocumentsForAProfileWithoutThem";
     private const string ContributionRoutes = "ContributionRoutesAnswerFilteredOrNotFoundOrRefusedForAReviewerWithoutDocuments";
     private const string ContributionService = "AReviewerWithoutDocumentsNeverSeesADocumentInAContribution";
@@ -1703,6 +1717,7 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
         ["GET /view/admin/shared/sources"] = NoItems + "administrator source settings, no items",
         ["GET /view/assets"] = Refused,
         ["GET /view/assets/added-by"] = Covers(AddedByCounts, "/view/assets/added-by"),
+        ["GET /view/assets/on-this-day"] = Covers(OnThisDayKinds, "on-this-day-route-asks-for-images-and-videos"),
         ["GET /view/assets/timeline-index"] = Covers(TimelineIndex, "timeline-index"),
         ["GET /view/catalogue"] = Refused,
         ["GET /view/document-rules"] = Refused,

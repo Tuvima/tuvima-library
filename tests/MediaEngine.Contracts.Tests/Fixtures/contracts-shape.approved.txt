@@ -5199,6 +5199,14 @@ MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewMissingF
   RetentionDays: System.Int32 | nullability=not-null | accessors=get,init
   DefaultRetentionDays: System.Int32 | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewOnThisDayDto
+  Years: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewOnThisDayYearDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewOnThisDayYearDto
+  Year: System.Int32 | nullability=not-null | accessors=get,init
+  Count: System.Int32 | nullability=not-null | accessors=get,init
+  Cover: MediaEngine.Contracts.LocalAssets.LocalAssetDto | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.LocalAssets.MediaEngine.Contracts.LocalAssets.ViewOtherHouseholdDto
   HouseholdId: System.Guid | nullability=not-null | accessors=get,init
   Name: System.String | nullability=not-null | accessors=get,init

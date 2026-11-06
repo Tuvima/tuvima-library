@@ -152,7 +152,11 @@ public sealed record LocalAssetTimelineQuery(
     IReadOnlyCollection<string>? ExcludedContentKinds = null,
     IReadOnlyCollection<Guid>? AddedByProfileIds = null,
     LocalAssetVaultScope? Vault = null,
-    bool IncludeMissing = false);
+    bool IncludeMissing = false,
+    LocalAssetOnThisDay? OnThisDay = null);
+
+/// <summary>Photos and videos taken on this month and day in an earlier year (the On this day strip).</summary>
+public sealed record LocalAssetOnThisDay(int Month, int Day, int BeforeYear);
 
 /// <summary>One profile that added items, and how many (the filter chips on the shared galleries).</summary>
 public sealed record LocalAssetAddedByCount(Guid ProfileId, string Name, int ItemCount);

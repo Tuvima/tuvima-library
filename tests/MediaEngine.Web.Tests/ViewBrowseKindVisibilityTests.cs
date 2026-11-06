@@ -104,7 +104,7 @@ public sealed class ViewBrowseKindVisibilityTests : AsyncBunitContext
         var cut = Render<ViewPage>();
 
         cut.WaitForAssertion(() => Assert.NotEmpty(QuickFilters(cut)));
-        Assert.Equal(["All", "Favorites", "Archive"], QuickFilters(cut));
+        Assert.Equal(["All", "Recently added", "Favorites", "Archive"], QuickFilters(cut));
     }
 
     [Fact]
@@ -113,7 +113,21 @@ public sealed class ViewBrowseKindVisibilityTests : AsyncBunitContext
         var cut = Render<ViewPage>();
 
         cut.WaitForAssertion(() => Assert.NotEmpty(QuickFilters(cut)));
-        Assert.Equal(["All", "Favorites", "Videos", "Archive"], QuickFilters(cut));
+        Assert.Equal(["All", "Recently added", "Favorites", "Videos", "Archive"], QuickFilters(cut));
+    }
+
+    [Fact]
+    public void TheRecentlyAddedPillAsksForNewestAddedFirstAndHasNoScrubberIndex()
+    {
+        var cut = Render<ViewPage>();
+        cut.WaitForAssertion(() => Assert.NotEmpty(QuickFilters(cut)));
+        _handler.Requests.Clear();
+
+        cut.FindAll(".app-discovery-filter__quick .app-discovery-filter__tab, .app-discovery-filter__tab")
+            .First(tab => tab.TextContent.Trim() == "Recently added").Click();
+
+        cut.WaitForAssertion(() => Assert.Contains(_handler.Requests, request => request.StartsWith("/view/assets?", StringComparison.Ordinal) && request.Contains("sort=added", StringComparison.Ordinal)));
+        Assert.DoesNotContain(_handler.Requests, request => request.StartsWith("/view/assets/timeline-index", StringComparison.Ordinal));
     }
 
     [Fact]

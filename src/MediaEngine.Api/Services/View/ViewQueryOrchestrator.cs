@@ -28,7 +28,8 @@ public sealed record ViewAssetQueryRequest(
     string? AddedAfterKey = null,
     LocalAssetDocumentFilter? DocumentFilter = null,
     IReadOnlyCollection<Guid>? AddedByProfileIds = null,
-    bool IncludeMissing = false);
+    bool IncludeMissing = false,
+    LocalAssetOnThisDay? OnThisDay = null);
 
 /// <summary>
 /// Authorized persistence plan. Backends receive only library IDs approved by
@@ -59,7 +60,8 @@ public sealed record ViewAssetQueryPlan(
     LocalAssetDocumentFilter? DocumentFilter = null,
     IReadOnlyCollection<string>? ExcludedContentKinds = null,
     IReadOnlyCollection<Guid>? AddedByProfileIds = null,
-    bool IncludeMissing = false);
+    bool IncludeMissing = false,
+    LocalAssetOnThisDay? OnThisDay = null);
 
 public sealed record ViewAddedByResult(
     ViewAccessOutcome Outcome,
@@ -167,7 +169,8 @@ public sealed class ViewQueryOrchestrator(
             await BlockedKindsAsync(ct).ConfigureAwait(false),
             request.AddedByProfileIds,
             // Missing files are found only by a search (D9); the same scope, content-limit and Kids rules as everywhere else still apply.
-            IncludeMissing: request.IncludeMissing && !string.IsNullOrWhiteSpace(request.Search));
+            IncludeMissing: request.IncludeMissing && !string.IsNullOrWhiteSpace(request.Search),
+            OnThisDay: request.OnThisDay);
         var page = await backend.QueryAsync(plan, ct).ConfigureAwait(false);
         return new ViewQueryResult(ViewAccessOutcome.Allowed, page, decision.Scope);
     }

@@ -99,6 +99,8 @@
     [Parameter, EditorRequired] public IReadOnlySet<Guid> Selected { get; set; } = new HashSet<Guid>();
     [Parameter] public ViewTimelineDensity Density { get; set; } = ViewTimelineDensity.Comfortable;
     [Parameter] public bool SelectEntireDate { get; set; }
+    /// <summary>Group by the day the item was added (the Recently added pill) instead of the day it was taken.</summary>
+    [Parameter] public bool GroupByAdded { get; set; }
     [Parameter, EditorRequired] public Func<LocalAssetDto, string> ThumbnailUrl { get; set; } = _ => string.Empty;
     [Parameter] public EventCallback<LocalAssetDto> OnOpen { get; set; }
 
@@ -131,8 +133,8 @@
     /// <summary>A short note drawn over a tile ("Couldn't delete: the file is in use"); null or empty for none.</summary>
     [Parameter] public Func<LocalAssetDto, string?> NoteFor { get; set; } = _ => null;
     private IEnumerable<IGrouping<DateTimeOffset, LocalAssetDto>> Months => Items.OrderByDescending(Date).GroupBy(i => StartOfMonth(Date(i)));
-    private static IEnumerable<IGrouping<DateTimeOffset, LocalAssetDto>> Days(IEnumerable<LocalAssetDto> month) => month.GroupBy(i => StartOfDay(Date(i))).OrderByDescending(g => g.Key);
-    private static DateTimeOffset Date(LocalAssetDto item) => item.CapturedAt ?? item.CreatedAt;
+    private IEnumerable<IGrouping<DateTimeOffset, LocalAssetDto>> Days(IEnumerable<LocalAssetDto> month) => month.GroupBy(i => StartOfDay(Date(i))).OrderByDescending(g => g.Key);
+    private DateTimeOffset Date(LocalAssetDto item) => GroupByAdded ? item.CreatedAt : item.CapturedAt ?? item.CreatedAt;
     private static DateTimeOffset StartOfMonth(DateTimeOffset d) => new(d.Year, d.Month, 1, 0, 0, 0, TimeSpan.Zero);
     private static DateTimeOffset StartOfDay(DateTimeOffset d) => new(d.Year, d.Month, d.Day, 0, 0, 0, TimeSpan.Zero);
     private static string MonthId(DateTimeOffset date) => $"view-{date:yyyy-MM}";

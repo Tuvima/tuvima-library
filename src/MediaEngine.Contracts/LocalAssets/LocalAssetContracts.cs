@@ -116,6 +116,16 @@ public sealed record ViewAssetTimelinePageDto(
     [property: JsonPropertyName("next_cursor")] string? NextCursor,
     [property: JsonPropertyName("has_more")] bool HasMore);
 
+/// <summary>One earlier year of the On this day strip: how many photos and videos were taken on this month and day that year, and one to show.</summary>
+public sealed record ViewOnThisDayYearDto(
+    [property: JsonPropertyName("year")] int Year,
+    [property: JsonPropertyName("count")] int Count,
+    [property: JsonPropertyName("cover")] LocalAssetDto Cover);
+
+/// <summary>The On this day strip, newest year first. It reads only the person's own space and the Shared Library, and is empty when nothing matches.</summary>
+public sealed record ViewOnThisDayDto(
+    [property: JsonPropertyName("years")] IReadOnlyList<ViewOnThisDayYearDto> Years);
+
 public sealed record ViewTimelineBucketDto(
     [property: JsonPropertyName("year")] int Year,
     [property: JsonPropertyName("month")] int Month,
