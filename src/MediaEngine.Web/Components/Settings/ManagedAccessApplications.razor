@@ -251,7 +251,6 @@
                 @if (!DeviceContext.IsPhone)
                 {
                     <AppSwitchRow Value="@app.IsEnabled" ValueChanged="@(value => SetEnabledAsync(app, value))" AriaLabel="@($"Switch {app.Name} on or off")" />
-                    <AppRowMenu AriaLabel="@($"Actions for {app.Name}")" Items="@MenuItems(app)" />
                 }
             </Actions>
             <ChildContent>
@@ -313,19 +312,12 @@
             <dd>@KindLabel(app)</dd>
             <dt>Keys</dt>
             <dd>@app.Credentials.Count(credential => credential.RevokedAt is null) active@(CredentialExpirySummary(app) is { } expiry ? $" · {expiry}" : null)</dd>
-            @if (!DeviceContext.IsPhone)
+            @if (!DeviceContext.IsPhone && !IsProtected(app))
             {
                 <dt>Delete</dt>
                 <dd>
-                    @if (IsProtected(app))
-                    {
-                        <small>@L["ManagedAccessApplications_ProtectedNote"].Value</small>
-                    }
-                    else
-                    {
-                        <small>Its credentials stop working at once. No media or account data is deleted.</small>
-                        <AppButton Label="Delete integration" Tone="AppUiTone.Error" StartIcon="@AppMaterialIcons.Outlined.Delete" Size="AppControlSize.Compact" OnClick="@(() => _deleteMode = true)" data-testid="integration-delete" />
-                    }
+                    <small>Its credentials stop working at once. No media or account data is deleted.</small>
+                    <AppButton Label="Delete integration" Tone="AppUiTone.Error" StartIcon="@AppMaterialIcons.Outlined.Delete" Size="AppControlSize.Compact" OnClick="@(() => _deleteMode = true)" data-testid="integration-delete" />
                 </dd>
             }
         </dl>
@@ -528,19 +520,6 @@
 
     // The integration the Tuvima apps use can be switched off or have its keys revoked, never deleted (Plugins screens v4 D37).
     private static bool IsProtected(ApplicationResponse app) => app.Id == MediaEngine.Domain.Entities.BuiltInApplicationIds.NativeClient;
-
-    private IReadOnlyList<AppRowMenuItem> MenuItems(ApplicationResponse app)
-    {
-        var items = new List<AppRowMenuItem>
-        {
-            new() { Label = app.IsEnabled ? "Disable" : "Enable", Icon = app.IsEnabled ? AppMaterialIcons.Outlined.Block : AppMaterialIcons.Outlined.CheckCircle, OnClick = EventCallback.Factory.Create(this, () => SetEnabledAsync(app, !app.IsEnabled)) },
-        };
-        if (app.Credentials.Any(credential => credential.RevokedAt is null))
-            items.Add(new() { Label = L["ManagedAccessApplications_RevokeKeys"].Value, Icon = AppMaterialIcons.Outlined.Key, Destructive = true, OnClick = EventCallback.Factory.Create(this, () => RevokeAllKeysAsync(app)) });
-        if (!IsProtected(app))
-            items.Add(new() { Label = L["Common_Delete"].Value, Icon = AppMaterialIcons.Outlined.Delete, Destructive = true, OnClick = EventCallback.Factory.Create(this, () => ConfirmDelete(app)) });
-        return items;
-    }
 
     private const int PageSize = 24;
     private string? _search;

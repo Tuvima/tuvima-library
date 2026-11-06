@@ -8508,9 +8508,6 @@
   <data name="LogRetentionPanel_TheLimitsCouldNotBe" xml:space="preserve">
     <value>The limits could not be saved. Check that the server is online, then try again.</value>
   </data>
-  <data name="ManagedAccessApplications_RevokeKeys" xml:space="preserve">
-    <value>Revoke keys</value>
-  </data>
   <data name="ManagedAccessUsers_TurnOffTwoStepCodes" xml:space="preserve">
     <value>Turn off two-step codes</value>
   </data>
@@ -9288,9 +9285,6 @@
   <data name="ProviderAccess_GetKey" xml:space="preserve">
     <value>Get a key at {0}</value>
   </data>
-  <data name="ManagedAccessApplications_ProtectedNote" xml:space="preserve">
-    <value>Your Library apps use this integration, so it can be switched off or have its keys revoked, but not deleted.</value>
-  </data>
   <data name="CreateLibraryDialog_NothingCanIdentifyFilms" xml:space="preserve">
     <value>Nothing can identify films yet. Connect TMDB or TheTVDB first.</value>
   </data>
@@ -9578,9 +9572,6 @@
   </data>
   <data name="PluginPage_NothingAdded" xml:space="preserve">
     <value>Nothing added yet.</value>
-  </data>
-  <data name="PluginPage_TestConnection" xml:space="preserve">
-    <value>Test connection</value>
   </data>
   <data name="PluginPage_CheckNow" xml:space="preserve">
     <value>Check now</value>

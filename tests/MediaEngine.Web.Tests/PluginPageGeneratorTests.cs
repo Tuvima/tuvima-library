@@ -81,15 +81,34 @@ public sealed class PluginPageGeneratorTests : AsyncBunitContext
     }
 
     [Fact]
-    public void GroupTitles_AreShownAndAdvancedControlsStayCollapsed()
+    public void GroupTitles_AreShown_WhenThereAreSeveralGroups()
     {
         var advanced = Control("number", "timeout", "Timeout", value: 30, integer: true);
         advanced.Advanced = true;
-        var card = SettingsCard(Control("toggle", "on", "On", value: true, group: "Lookups"), advanced);
+        var card = SettingsCard(Control("toggle", "on", "On", value: true, group: "Lookups"), Control("toggle", "also", "Also", value: false, group: "Display"), advanced);
 
         var cut = RenderCard(card);
 
         Assert.Equal("Lookups", cut.Find("[data-testid=plugin-settings-group] h4").TextContent);
+        Assert.Equal(2, cut.FindAll("[data-testid=plugin-settings-group] h4").Count);
+    }
+
+    [Fact]
+    public void AGroupTitle_IsLeftOut_WhenThereIsOnlyOneGroup()
+    {
+        var cut = RenderCard(SettingsCard(Control("toggle", "on", "On", value: true, group: "Details")));
+
+        Assert.Empty(cut.FindAll("[data-testid=plugin-settings-group] h4"));
+        Assert.NotEmpty(cut.FindAll("[data-setting=on]"));
+    }
+
+    [Fact]
+    public void AdvancedControls_StayCollapsed_UnderTheGroups()
+    {
+        var advanced = Control("number", "timeout", "Timeout", value: 30, integer: true);
+        advanced.Advanced = true;
+        var cut = RenderCard(SettingsCard(Control("toggle", "on", "On", value: true, group: "Lookups"), advanced));
+
         Assert.Empty(cut.FindAll("[data-setting=timeout]"));
         Assert.Contains("Advanced settings", cut.Markup);
     }
@@ -147,6 +166,8 @@ public sealed class PluginPageGeneratorTests : AsyncBunitContext
         Assert.NotEmpty(locked.QuerySelectorAll("[data-testid=plugin-group-lock]"));
         Assert.Empty(cut.Find("[data-item=mine]").QuerySelectorAll("[data-testid=plugin-group-lock]"));
         Assert.Contains("Add server", cut.Find("[data-testid=plugin-group-add]").TextContent);
+        // Every row has the same two controls (v6 D64): Test, then the menu.
+        Assert.Equal("Test", cut.Find("[data-item=mine] [data-testid=plugin-group-test]").TextContent.Trim());
 
         await cut.ClickAsync("[data-item=built-in] .app-row-menu__trigger");
         Assert.DoesNotContain(cut.FindAll("[role=menuitem]"), item => item.TextContent.Contains("Remove", StringComparison.Ordinal));

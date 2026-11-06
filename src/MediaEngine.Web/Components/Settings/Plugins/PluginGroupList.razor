@@ -76,7 +76,7 @@
                             }
                             else if (!string.IsNullOrWhiteSpace(item.State))
                             {
-                                <AppStatusBadge Text="@StateWords(item.State!)" Tone="@StateTone(item.State!)" />
+                                <AppStatusBadge Text="@KeyColumnWords(item.State!)" Tone="@StateTone(item.State!)" />
                             }
                         </td>
                         <td class="plugin-group__actions-cell">
@@ -85,7 +85,7 @@
                                 <div class="plugin-group__actions">
                                     @if (HasAction(PluginSetupValues.RowActionTest) || HasAction(PluginSetupValues.RowActionCheckNow))
                                     {
-                                        <AppButton Label="@(HasAction(PluginSetupValues.RowActionTest) ? L["PluginPage_TestConnection"].Value : L["PluginPage_CheckNow"].Value)" Size="AppControlSize.Compact"
+                                        <AppButton Label="@(HasAction(PluginSetupValues.RowActionTest) ? "Test" : L["PluginPage_CheckNow"].Value)" Size="AppControlSize.Compact"
                                                    Disabled="@(_busy || item.KeyMissing)" OnClick="@(() => TestAsync(id))"
                                                    data-testid="@(HasAction(PluginSetupValues.RowActionTest) ? "plugin-group-test" : "plugin-group-check")" />
                                     }
@@ -127,6 +127,9 @@
         var field = Control.GroupList!.Fields.FirstOrDefault(candidate => candidate.Control == PluginSetupValues.UrlControl);
         return field is not null && item.Values.TryGetValue(field.Key, out var value) && PluginSetupValues.Text(value) is { Length: > 0 } text ? text : null;
     }
+
+    // In the Key column a working key reads "Key saved" (v6 D64); the other states keep their words.
+    private static string KeyColumnWords(string state) => state == "connected" ? "Key saved" : StateWords(state);
 
     private static string StateWords(string state) => state switch
     {

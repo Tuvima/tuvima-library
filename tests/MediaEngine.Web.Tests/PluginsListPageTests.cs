@@ -93,7 +93,7 @@ public sealed class PluginsListPageTests : AsyncBunitContext
 
 
     [Fact]
-    public void ThePage_ShowsTheHeaderAndTheSummaryStrip()
+    public void ThePage_ShowsTheHeader_AndNoSummaryStrip()
     {
         _plugins = [Plugin("a", "Alpha", enabled: true), Plugin("b", "Beta", enabled: false), Plugin("c", "Gamma", enabled: true)];
 
@@ -103,10 +103,8 @@ public sealed class PluginsListPageTests : AsyncBunitContext
         // The page name appears once (in the Settings page header), never again inside the list.
         Assert.Empty(cut.FindAll(".app-list-page-header__title"));
         Assert.Contains("Upload plugin", cut.Find(".app-list-page-header__actions").TextContent);
-        var strip = Squash(cut.Find(".app-summary-strip"));
-        Assert.Contains("3installed", strip);
-        Assert.Contains("2switchedon", strip);
-        Assert.Contains("0needattention", strip);
+        // The summary strip is gone (v6 D71): the tabs carry the counts.
+        Assert.Empty(cut.FindAll(".app-summary-strip"));
         Assert.Empty(cut.FindAll(".app-pager"));
     }
 
@@ -176,7 +174,9 @@ public sealed class PluginsListPageTests : AsyncBunitContext
         Assert.NotNull(setup.QuerySelector("[data-testid=plugin-privacy-card]"));
         Assert.NotNull(setup.QuerySelector("[data-testid=plugin-side-facts]"));
         Assert.Contains("Who can use it", setup.TextContent);
-        Assert.Contains("Nothing else depends on it.", setup.TextContent);
+        // Empty facts are left out: no "Nothing else depends on it." row, and Remove is always one of the four quiet facts (v6 D60).
+        Assert.DoesNotContain("Nothing else depends on it.", setup.TextContent);
+        Assert.Contains("Remove", setup.TextContent);
 
         var activity = RenderDetail("a", "activity");
         var text = activity.WaitForElement("section[aria-label='Activity']").TextContent;
@@ -533,7 +533,7 @@ public sealed class PluginsListPageTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.Contains("Requires Ffmpeg", cut.Markup));
         Assert.Empty(cut.FindAll(".app-warning-strip"));
-        Assert.Contains("1needattention", Squash(cut.Find(".app-summary-strip")));
+        Assert.Empty(cut.FindAll(".app-summary-strip"));
 
         var page = RenderDetail("seg", null);
         var link = page.WaitForElement("[data-testid=plugin-overview-attention] a[href='/settings/tools']");

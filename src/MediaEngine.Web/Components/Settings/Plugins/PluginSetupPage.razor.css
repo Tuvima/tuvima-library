@@ -79,3 +79,8 @@
 .plugin-conn__copy small { color: var(--tl-text-muted); }
 .plugin-conn__actions, .plugin-conn__tests { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--tl-space-2, 8px); }
 .plugin-conn--saved { animation: plugin-access-glow 2.4s ease-out; }
+
+/* Folded extra facts under the side column (v6 D60): four quiet facts show, the rest is one click away. */
+.plugin-more { margin: var(--tl-space-3, 12px) 0; }
+.plugin-more > summary { cursor: pointer; color: var(--tl-text-secondary); font-size: var(--tl-font-size-secondary); min-height: 44px; display: flex; align-items: center; }
+.plugin-more > dl { margin: 0; }

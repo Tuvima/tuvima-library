@@ -150,3 +150,7 @@ Plugin and integration pages get one shared look. At the top you see whether it 
 ## Look pass addendum (2026-11-04)
 
 Tile icons and status ticks use the icon tone rules (`AppIconTone`); green means healthy or done only, so there is no stray green. Source: [look pass spec](look-pass.md) section 6. This is a version note; the Locked body above is unchanged.
+
+## Visual pass addendum (2026-11-06)
+
+Shy: "plugin page doesn't match the UI mocks". A live-app capture found the differences listed in the fix plan (`/mnt/project-files/plans/plugins-validation/plugins-v6-fix-plan.md`). Fixed in the follow-up build: the side column (D60), "What it provides" icon tiles (D72), Settings card group heading and Cancel (D63), servers table words and duplicate Connection card (D64), Connect dialog size (D62), Edit file window size (D66), the Plugins list summary strip (D71) and the integration page header menu and Delete row (D68). Not yet built: "key ending" and "tested N ago" on the Connection row (D61) need Engine data. Colors, control heights and tooltips follow Look pass v2. The mockup was redrawn on Look v2 colors. The Locked body above is unchanged.

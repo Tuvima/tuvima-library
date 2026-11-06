@@ -273,7 +273,6 @@ else
             </AppListPageHeader>
         }
         <PluginUploadDialog Open="@_uploadOpen" OnClosed="@(() => { _uploadOpen = false; })" OnUploaded="@UploadedAsync" />
-        <AppSummaryStrip AriaLabel="Plugin summary" Items="@SummaryItems()" />
         @if (_plugins.Count == 0)
         {
             <AppEmptyState Title="No plugins installed" Message="The Engine did not return any installed extensions.">
@@ -389,7 +388,7 @@ else
         return @<AppDetailPageFrame Title="@plugin.Name"
                                     Logo="@TileLogo(plugin, 52)"
                                     StatusTone="@status.Tone"
-                                    StatusSentence="@status.Sentence"
+                                    StatusSentence="@HeaderSentence(plugin, status)"
                                     Tabs="@tabs"
                                     SelectedTab="@tab"
                                     RootTestId="plugin-page"
@@ -412,6 +411,18 @@ else
                 }
             </ChildContent>
         </AppDetailPageFrame>;
+    }
+
+    // The header's one sentence, with when it was last checked where the Engine keeps that (v6 D60): "Working · last checked 4 minutes ago."
+    private string HeaderSentence(PluginSummaryResponse plugin, TileStatus status)
+    {
+        var checkedWords = IsProvider(plugin) ? ProviderLastChecked(plugin) : null;
+        if (string.IsNullOrWhiteSpace(checkedWords) || checkedWords.StartsWith("Not checked", StringComparison.Ordinal))
+        {
+            return status.Sentence;
+        }
+
+        return status.Sentence.TrimEnd('.') + " · " + char.ToLowerInvariant(checkedWords[0]) + checkedWords[1..];
     }
 
     // Set up: the cards come from the plugin's page model, in this order, each absent when the plugin has nothing to say (v4 D33):
@@ -453,6 +464,7 @@ else
                              SettingsExtra="@PluginWhoAndLibraries(plugin)"
                              PrivacyExtra="@PluginPrivacyExtra(plugin)"
                              AboutExtra="@PluginAboutExtra(plugin)"
+                             MoreExtra="@PluginMoreExtra(plugin)"
                              Changed="@RefreshAsync" />
         </div>;
     }
@@ -493,17 +505,6 @@ else
             }
         </tbody>
     </AppTable>;
-
-    private IReadOnlyList<AppSummaryItem> SummaryItems()
-    {
-        var attention = _plugins.Count(NeedsAttention);
-        return
-        [
-            new("installed", _plugins.Count.ToString(CultureInfo.InvariantCulture), AppMaterialIcons.Outlined.Extension, AppSummaryTone.Accent),
-            new("switched on", _plugins.Count(plugin => plugin.Enabled).ToString(CultureInfo.InvariantCulture), AppMaterialIcons.Outlined.CheckCircle, AppSummaryTone.Ok),
-            new("need attention", attention.ToString(CultureInfo.InvariantCulture), attention == 0 ? AppMaterialIcons.Outlined.CheckCircle : AppMaterialIcons.Outlined.Warning, attention == 0 ? AppSummaryTone.Mute : AppSummaryTone.Warn),
-        ];
-    }
 
     // A tile says five things and no more (v4 D30): logo with its status dot, name and switch, what it provides, a short description
     // (the full text on hover) and one button that is the fix when something is wrong.
@@ -818,29 +819,40 @@ else
         }
     </text>;
 
-    // Inside the About card, under the facts the plugin's page gives: who turned it on, what it needs and what needs it, and (private
-    // uploads only) the quiet Remove link with its preview.
+    // In the side column after the version: what it needs and what needs it (only when there is something to say), and removing it.
+    // Official plugins can be switched off but not removed, and the page says so.
     private RenderFragment PluginAboutExtra(PluginSummaryResponse plugin) => @<text>
+        @{ var needs = WaitingFor(plugin).Concat(NeedLines(plugin)).ToList(); }
+        @if (needs.Count > 0)
+        {
+            <dt>Needs</dt>
+            <dd data-testid="plugin-needs">@string.Join(", ", needs)</dd>
+        }
+        @if (_dependencies.TryGetValue(plugin.Id, out var dependencies) && dependencies.NeededBy.Count > 0)
+        {
+            <dt>Needed by</dt>
+            <dd data-testid="plugin-needed-by">@string.Join(", ", dependencies.NeededBy.Select(dependant => dependant.Name))</dd>
+        }
+        @if (!DeviceContext.IsMobile)
+        {
+            <dt>Remove</dt>
+            @if (plugin.Removable)
+            {
+                <dd>@PluginRemovalSection(plugin)</dd>
+            }
+            else
+            {
+                <dd data-testid="plugin-not-removable">Official plugins can be switched off, not removed.</dd>
+            }
+        }
+    </text>;
+
+    // Folded away in the side column: who turned it on.
+    private RenderFragment PluginMoreExtra(PluginSummaryResponse plugin) => @<text>
         @if (_latestApproval.TryGetValue(plugin.Id, out var approved))
         {
             <dt>Turned on</dt>
             <dd data-testid="plugin-approval">By @approved.ApprovedByName on @DisplayFormat.FormatPlainDate(approved.ApprovedAt)</dd>
-        }
-        @{ var needs = NeedLines(plugin); }
-        <dt>Needs</dt>
-        <dd data-testid="plugin-needs">
-            @if (needs.Count == 0 && WaitingFor(plugin).Count == 0) { <span>Nothing else.</span> }
-            else { @string.Join(", ", WaitingFor(plugin).Concat(needs)) }
-        </dd>
-        <dt>Needed by</dt>
-        <dd data-testid="plugin-needed-by">
-            @if (_dependencies.TryGetValue(plugin.Id, out var dependencies) && dependencies.NeededBy.Count > 0) { @string.Join(", ", dependencies.NeededBy.Select(dependant => dependant.Name)) }
-            else { <span>Nothing else depends on it.</span> }
-        </dd>
-        @if (plugin.Removable && !DeviceContext.IsMobile)
-        {
-            <dt>Remove</dt>
-            <dd>@PluginRemovalSection(plugin)</dd>
         }
     </text>;
 
