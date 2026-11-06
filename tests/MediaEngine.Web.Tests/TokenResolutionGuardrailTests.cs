@@ -92,6 +92,22 @@ public sealed class TokenResolutionGuardrailTests
     }
 
     [Fact]
+    public void NoStyleUsesWeight800Or900()
+    {
+        var web = Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web");
+        var offenders = Directory.EnumerateFiles(web, "*.*", SearchOption.AllDirectories)
+            .Where(p => (p.EndsWith(".css") || p.EndsWith(".razor"))
+                && !p.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")
+                && !p.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}")
+                && !p.Contains($"{Path.DirectorySeparatorChar}lib{Path.DirectorySeparatorChar}")
+                && !p.Contains($"{Path.DirectorySeparatorChar}vendor{Path.DirectorySeparatorChar}"))
+            .Where(p => Regex.IsMatch(File.ReadAllText(p), @"font-weight:\s*(800|900)"))
+            .Select(p => Path.GetRelativePath(web, p))
+            .ToList();
+        Assert.True(offenders.Count == 0, "Weights are 400/500/600/700 (Look pass v2 A3): " + string.Join(", ", offenders));
+    }
+
+    [Fact]
     public void MenuRowsUseTheOneMenuSizeTokens()
     {
         var web = Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web");

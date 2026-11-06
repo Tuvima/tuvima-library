@@ -163,7 +163,7 @@
     color: #16100a;
     background: var(--tl-status-warning, #fbbf24);
     font-size: var(--tl-font-size-xs);
-    font-weight: 800;
+    font-weight: 700;
     line-height: 1.25;
     text-align: center;
 }

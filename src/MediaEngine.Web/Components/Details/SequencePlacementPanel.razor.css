@@ -1565,7 +1565,7 @@
     color: rgba(241, 235, 255, 0.9);
     background: linear-gradient(145deg, rgba(126, 87, 194, 0.58), rgba(27, 36, 62, 0.88));
     font-size: var(--tl-font-size-xs);
-    font-weight: 800;
+    font-weight: 700;
 }
 
 .tl-season-toggle__label {
@@ -1647,7 +1647,7 @@
     color: rgba(242, 236, 255, 0.9);
     background: linear-gradient(145deg, rgba(126, 87, 194, 0.52), rgba(23, 32, 56, 0.94));
     font-size: var(--tl-font-size-dialog-title);
-    font-weight: 800;
+    font-weight: 700;
 }
 
 .tl-season-card__art img {
