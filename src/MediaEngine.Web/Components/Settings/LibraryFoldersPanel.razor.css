@@ -196,7 +196,6 @@
     color: var(--tl-text-muted);
     font-size: var(--tl-font-size-xs);
     font-weight: 700;
-    text-transform: uppercase;
 }
 
 .library-folders__table-row {

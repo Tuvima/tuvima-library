@@ -290,7 +290,6 @@
     font-weight: 500;
     line-height: 0.92;
     letter-spacing: 0;
-    text-transform: uppercase;
     text-wrap: pretty;
 }
 
@@ -300,7 +299,6 @@
     font-size: clamp(1.2rem, 2vw, 1.85rem);
     font-weight: 600;
     letter-spacing: 0.38em;
-    text-transform: uppercase;
 }
 
 :where(.tl-detail-page) .tl-detail-hero__inner {
@@ -402,7 +400,6 @@
 :where(.tl-detail-page) .tl-detail-hero--watch .tl-detail-hero__copy h1 {
     font-size: clamp(4.8rem, 8.1vw, 9rem);
     line-height: 0.86;
-    text-transform: uppercase;
 }
 
 :where(.tl-detail-page) .tl-detail-hero--watch.tl-detail-hero--title-long .tl-detail-hero__copy {

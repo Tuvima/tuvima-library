@@ -52,7 +52,6 @@
         font-size: var(--tl-font-size-xs);
         font-weight: 700;
         color: rgba(255, 255, 255, 0.60);
-        text-transform: uppercase;
         letter-spacing: 0.1em;
     }
 
@@ -241,7 +240,6 @@
         font-size: var(--tl-font-size-xs);
         font-weight: 700;
         color: var(--tl-text-muted);
-        text-transform: uppercase;
         letter-spacing: 0.02em;
         margin: 0;
     }
@@ -256,7 +254,6 @@
         border-radius: 4px;
         padding: 2px 6px;
         margin: 2px 0 0 0;
-        text-transform: uppercase;
         letter-spacing: 0.04em;
         line-height: 1.2;
     }
@@ -265,7 +262,6 @@
         font-size: var(--tl-font-size-xs);
         font-weight: 700;
         letter-spacing: 0.05em;
-        text-transform: uppercase;
         color: var(--tl-text-muted);
         margin-top: 2px;
         background: none;
@@ -284,7 +280,7 @@
 
     .vmt-creator-sep {
         font-size: var(--tl-font-size-xs);
-        color: var(--tl-text-faint);
+        color: var(--tl-text-muted);
     }
 
     .vmt-review-reason {
@@ -312,7 +308,6 @@
         font-size: var(--tl-font-size-xs);
         font-weight: 700;
         letter-spacing: 0.05em;
-        text-transform: uppercase;
         color: #A78BFA;
     }
 
@@ -320,8 +315,7 @@
         font-size: var(--tl-font-size-xs);
         font-weight: 700;
         letter-spacing: 0.05em;
-        text-transform: uppercase;
-        color: var(--tl-text-faint);
+        color: var(--tl-text-muted);
     }
 
     .vmt-group {
@@ -364,7 +358,6 @@
         font-size: var(--tl-font-size-xs);
         font-weight: 700;
         color: var(--tl-text-muted);
-        text-transform: uppercase;
         letter-spacing: 0.15em;
         white-space: nowrap;
     }
@@ -396,10 +389,9 @@
         align-items: center;
         background: none;
         border: none;
-        color: var(--tl-text-faint);
+        color: var(--tl-text-muted);
         font-size: var(--tl-font-size-xs);
         font-weight: 700;
-        text-transform: uppercase;
         letter-spacing: 0.08em;
         cursor: pointer;
         padding: 0;
@@ -547,7 +539,6 @@
     .media-type-badge {
         font-size: var(--tl-font-size-xs);
         font-weight: 700;
-        text-transform: uppercase;
         letter-spacing: 0.15em;
         padding: 2px 8px;
         border-radius: 4px;

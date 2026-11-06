@@ -1791,7 +1791,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("--tl-form-row-gap: 16px;", tokens);
         Assert.Contains("--tl-form-section-gap: 24px;", tokens);
         Assert.Contains("--tl-card-padding: 20px;", tokens);
-        Assert.Contains("--tl-text-faint:", tokens);
+        Assert.DoesNotContain("--tl-text-faint:", tokens);
         Assert.Contains("--tl-font-mono:", tokens);
     }
 

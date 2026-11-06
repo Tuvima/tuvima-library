@@ -240,7 +240,6 @@
     font-weight: 700;
     letter-spacing: 0.08em;
     line-height: 1;
-    text-transform: uppercase;
 }
 
 .browse-shell__filter-selects {
@@ -465,7 +464,6 @@
     font-weight: 700;
     letter-spacing: 0.08em;
     line-height: 1;
-    text-transform: uppercase;
 }
 
 .browse-shell__sort-label {

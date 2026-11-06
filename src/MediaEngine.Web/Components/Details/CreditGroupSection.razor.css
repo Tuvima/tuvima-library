@@ -85,7 +85,6 @@
     font-size: var(--tl-font-size-secondary);
     font-weight: 700;
     letter-spacing: 0.16em;
-    text-transform: uppercase;
 }
 
 :where(.tl-detail-page) .tl-credits-detail-card .tl-credit-grid {

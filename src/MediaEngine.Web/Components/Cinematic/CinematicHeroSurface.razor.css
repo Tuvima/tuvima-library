@@ -248,7 +248,6 @@
     font-size: var(--tl-font-size-secondary);
     font-weight: 700;
     letter-spacing: 0;
-    text-transform: uppercase;
 }
 
 @media (max-width: 840px) {

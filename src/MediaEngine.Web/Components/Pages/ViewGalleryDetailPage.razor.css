@@ -1,12 +1,12 @@
 .view-feature-page { display: grid; gap: 1.5rem; min-height: 100%; padding: 1.8rem 2rem 3rem; }
-.view-feature-page__header span { color: var(--tl-accent-primary); font-size: var(--tl-font-size-xs); font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.view-feature-page__header span { color: var(--tl-accent-primary); font-size: var(--tl-font-size-xs); font-weight: 700; letter-spacing: .12em;}
 .view-feature-page__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem; }
 .view-feature-page__identity { min-width: 0; }
 .view-feature-page__header h1 { margin: .3rem 0; font-size: var(--tl-font-size-title); line-height: var(--tl-line-height-title); font-weight: 600; }
 .view-feature-page__header p { color: rgba(203,213,225,.68); }
 .view-feature-page__header dl { display: flex; flex-wrap: wrap; gap: 1.5rem; }
 .view-feature-page__header dl div { display: grid; gap: .15rem; }
-.view-feature-page__header dt { color: rgba(203,213,225,.55); font-size: var(--tl-font-size-xs); text-transform: uppercase; }
+.view-feature-page__header dt { color: rgba(203,213,225,.55); font-size: var(--tl-font-size-xs);}
 .view-feature-page__header dd { margin: 0; }
 .view-feature-page__header details { max-width: 46rem; }
 .view-feature-page__header code { display: block; max-height: 10rem; overflow: auto; margin-top: .5rem; padding: .75rem; border-radius: .5rem; background: rgba(15,23,42,.9); white-space: pre-wrap; }

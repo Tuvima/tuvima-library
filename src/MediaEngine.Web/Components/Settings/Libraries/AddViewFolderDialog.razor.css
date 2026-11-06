@@ -18,7 +18,6 @@
     font-size: var(--tl-font-size-sm);
     font-weight: 600;
     letter-spacing: 0.06em;
-    text-transform: uppercase;
 }
 
 .add-view-folder__line {

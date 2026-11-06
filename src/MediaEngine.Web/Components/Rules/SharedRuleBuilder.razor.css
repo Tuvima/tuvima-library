@@ -118,7 +118,7 @@
 .collection-rule-builder__sentence { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .collection-rule-builder__block { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .collection-rule-builder__block--exceptions { padding: 12px; border: 1px dashed var(--tl-divider); border-radius: 12px; background: color-mix(in srgb, var(--tl-status-error) 5%, transparent); }
-.collection-rule-builder__label { color: var(--tl-text-muted); font-size: var(--tl-font-size-xs); letter-spacing: .04em; text-transform: uppercase; }
+.collection-rule-builder__label { color: var(--tl-text-muted); font-size: var(--tl-font-size-xs); letter-spacing: .04em;}
 .collection-rule-builder__label--exceptions { color: var(--tl-status-warning); }
 .collection-rule-builder__hint { margin: 0; color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
 .collection-rule-builder__and { padding-left: 4px; color: var(--tl-text-muted); font-size: var(--tl-font-size-secondary); }

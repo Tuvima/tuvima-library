@@ -54,7 +54,6 @@
     font-size: var(--tl-font-size-xs);
     font-weight: 700;
     letter-spacing: 0.13em;
-    text-transform: uppercase;
 }
 
 ::deep .media-section-shell__create-menu .app-overflow-menu__trigger {
@@ -604,7 +603,6 @@
         font-size: var(--tl-font-size-xs);
         font-weight: 700;
         letter-spacing: 0.12em;
-        text-transform: uppercase;
     }
 
     .media-section-shell__mobile-nav-link {
