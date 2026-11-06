@@ -6,7 +6,7 @@
 
 @* The video player's one Settings menu (unified player D9, D10; replaces the two-column layout of player-controls-v3 D3). The main page is one
    column under a "Settings" title row with a close: each row has its label on the left and the current choice on the right (Audio, Subtitles,
-   Subtitle style). A row opens its own page with a back arrow and a close. The panel is as tall as its content. *@
+   Playback speed, Subtitle style). A row opens its own page with a back arrow and a close. The panel is as tall as its content. *@
 <div class="video-settings-menu" data-settings-page="@(ShowStyling ? "styling" : "main")">
     @if (ShowStyling)
     {
@@ -55,6 +55,19 @@
             }
         </section>
     }
+    else if (_page == "speed")
+    {
+        <header class="video-settings-menu__header">
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowBack" Class="video-settings-menu__nav" AriaLabel="@L["Common_Back"].Value" OnClick="@(() => _page = null)" />
+            <h3>@L["PlayerSettings_PlaybackSpeed"]</h3>
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Class="video-settings-menu__nav" AriaLabel="@L["Common_Close"].Value" OnClick="OnClose" />
+        </header>
+        <section class="video-settings-menu__page video-settings-menu__speed" aria-label="@L["PlayerSettings_PlaybackSpeed"].Value">
+            <output aria-live="polite">@SpeedLabel</output>
+            <AppRangeSlider Value="@PlaybackRate" Min="0.5" Max="3" Step="0.05" SnapValueToStep="false" InputStep="0.05" ShowTicks="false" Surface="video" AriaLabel="@L["PlaybackSpeedControl_PlaybackSpeed"].Value" ValueFormatter="PlaybackRateOptions.FormatLabel" ValueChanged="PlaybackRateChanged" />
+            <AppNativeButton Type="button" OnClick="@(() => PlaybackRateChanged.InvokeAsync(1d))" AriaLabel="@L["PlaybackSpeedControl_ResetPlaybackSpeedTo1"].Value">@L["PlaybackSpeedControl_ResetTo1"]</AppNativeButton>
+        </section>
+    }
     else
     {
         <header class="video-settings-menu__header">
@@ -70,6 +83,13 @@
                 <span class="video-settings-menu__row-label">@L["Common_Subtitles"]</span>
                 <span class="video-settings-menu__row-value">@SubtitlesSummary<AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></span>
             </AppNativeButton>
+            @if (PlaybackRateChanged.HasDelegate)
+            {
+                <AppNativeButton Type="button" Class="video-settings-menu__row" OnClick="@(() => _page = "speed")" AriaLabel="@L["PlayerSettings_PlaybackSpeed"].Value" data-settings-row="speed">
+                    <span class="video-settings-menu__row-label">@L["PlayerSettings_PlaybackSpeed"]</span>
+                    <span class="video-settings-menu__row-value">@SpeedLabel<AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></span>
+                </AppNativeButton>
+            }
             <AppNativeButton Type="button" Class="video-settings-menu__row" OnClick="@(() => _styling = true)" AriaLabel="@L["PlayerSettings_StylingTitle"].Value">
                 <span class="video-settings-menu__row-label">@L["PlayerSettings_Styling"]</span>
                 <span class="video-settings-menu__row-value"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></span>
@@ -89,6 +109,14 @@
     [Parameter] public string? SubtitlesSummary { get; set; }
 
     private string? _page;
+
+    /// <summary>The current playback rate; the Playback speed row shows it on the right (for example "1.0x").</summary>
+    [Parameter] public double PlaybackRate { get; set; } = 1d;
+
+    /// <summary>Asks the host to change the playback rate. The Playback speed row is drawn only when the host listens.</summary>
+    [Parameter] public EventCallback<double> PlaybackRateChanged { get; set; }
+
+    private string SpeedLabel => PlaybackRateOptions.IsValid(PlaybackRate) ? PlaybackRateOptions.FormatLabel(PlaybackRate) : string.Empty;
 
     /// <summary>True when the Engine says no subtitle source is switched on. The Subtitles column then says so instead of offering a search.</summary>
     [Parameter] public bool NoSubtitleSource { get; set; }
