@@ -88,6 +88,27 @@ public sealed class VideoSeriesDetailTests : IDisposable
         Assert.Equal(DetailEntityType.TvShow, page!.EntityType);
     }
 
+    [Fact]
+    public async Task ACourseSpeaksOfVideos_NeverOfSeasonsOrEpisodes()
+    {
+        var series = SeedSeries(sections: false);
+
+        var page = await ComposeAsync(series);
+
+        var sequence = page!.SequencePlacement;
+        Assert.NotNull(sequence);
+        Assert.Equal("Video", sequence!.ItemLabel);
+        Assert.Equal("Videos", sequence.ItemPluralLabel);
+        Assert.DoesNotContain(sequence.Groups, group => group.Title.StartsWith("Season", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Theory]
+    [InlineData(null, "Videos")]
+    [InlineData("Season 1", "Videos")]
+    [InlineData("Week 2", "Week 2")]
+    public void ASectionKeepsItsFolderName_AnythingElseIsJustVideos(string? groupTitle, string expected) =>
+        Assert.Equal(expected, DetailCompositionOrchestrator.VideoSectionTitle(groupTitle, "Videos"));
+
     [Theory]
     [InlineData(DetailEntityType.Collection)]
     [InlineData(DetailEntityType.MovieSeries)]

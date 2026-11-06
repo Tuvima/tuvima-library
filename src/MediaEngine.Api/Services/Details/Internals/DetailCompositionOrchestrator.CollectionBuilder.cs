@@ -469,6 +469,13 @@ internal sealed partial class DetailCompositionOrchestrator
             _ => "Unknown",
         });
 
+    /// <summary>A section of Other videos keeps its folder name; an unnamed or numbered group is just "Videos" (details page D15).</summary>
+    internal static string VideoSectionTitle(string? groupTitle, string fallback)
+    {
+        var title = groupTitle?.Trim();
+        return string.IsNullOrEmpty(title) || title.StartsWith("Season ", StringComparison.OrdinalIgnoreCase) ? fallback : title;
+    }
+
     private static string? PublicationYear(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -513,7 +520,7 @@ internal sealed partial class DetailCompositionOrchestrator
             return null;
         }
 
-        var labels = ResolveSequenceLabels(entityType);
+        var labels = ResolveSequenceLabels(entityType, works.FirstOrDefault()?.MediaType);
         var items = orderedWorks.Select(work =>
         {
             var itemType = InferMediaItemEntityType(work);
@@ -585,6 +592,7 @@ internal sealed partial class DetailCompositionOrchestrator
             .Where(entry => !string.IsNullOrWhiteSpace(entry.Season))
             .GroupBy(entry => entry.Season!, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(group => group.Key, group => group.Max(entry => entry.Value), StringComparer.OrdinalIgnoreCase);
+        var isVideoFolder = entityType == DetailEntityType.TvShow && string.Equals(works.FirstOrDefault()?.MediaType, "Videos", StringComparison.OrdinalIgnoreCase);
         var groups = entityType == DetailEntityType.TvShow
             ? items
                 .GroupBy(item => item.GroupKey ?? "season-1")
@@ -599,7 +607,7 @@ internal sealed partial class DetailCompositionOrchestrator
                         OwnedCount = group.Where(item => item.IsOwned).Select(item => item.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
                         CompletedCount = group.Where(item => item.IsOwned && item.ProgressState == LibraryProgressState.Completed).Select(item => item.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count(),
                         Key = group.Key,
-                        Title = group.First().GroupTitle ?? "Season 1",
+                        Title = isVideoFolder ? VideoSectionTitle(group.First().GroupTitle, labels.ItemPluralLabel) : group.First().GroupTitle ?? "Season 1",
                         EntityId = presentation?.EntityId,
                         ArtworkSmallUrl = presentation?.ArtworkSmallUrl,
                         ArtworkUrl = presentation?.ArtworkUrl,
