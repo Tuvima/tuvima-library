@@ -35,3 +35,6 @@
 .libs__empty h3 { margin: 0; }
 .libs__empty p { margin: 0; color: var(--tl-text-muted); }
 .libs__link--button { background: none; border: 0; padding: 0; font: inherit; font-weight: 600; cursor: pointer; text-align: start; }
+/* The Import folder row is one line like the others: the name and its (i) sit side by side, and the explanation is the (i)'s tooltip. */
+.libs__title--inline { flex-direction: row; align-items: center; gap: 6px; }
+.libs__info { display: inline-flex; align-items: center; }

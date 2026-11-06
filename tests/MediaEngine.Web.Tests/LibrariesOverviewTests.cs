@@ -185,6 +185,21 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
     }
 
     [Fact]
+    public void TheImportFolderRowIsOneLineWithItsInfoIconBesideTheName()
+    {
+        var cut = OpenAndSettle();
+
+        var title = cut.Find("tr[data-library=import] .libs__title");
+        Assert.Contains("libs__title--inline", title.ClassList);
+        Assert.NotNull(title.QuerySelector(".libs__link"));
+        Assert.NotNull(title.QuerySelector(".libs__info .app-info-tip"));
+        Assert.Null(title.QuerySelector(".libs__subtitle"));
+        Assert.Null(cut.Find("tr[data-library=import]").QuerySelector(".libs__subtitle"));
+        // The other rows are unchanged: name above the content type.
+        Assert.Equal("Movies", Text(Row(cut, MoviesId).QuerySelector(".libs__subtitle")!));
+    }
+
+    [Fact]
     public void TheImportFolderIsAPinnedFirstRowThatStaysUnderEveryChipAndReadsNotSetUntilAFolderIsChosen()
     {
         var cut = OpenAndSettle(query: "area=listen");

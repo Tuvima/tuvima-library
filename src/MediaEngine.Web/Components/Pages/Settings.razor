@@ -382,7 +382,7 @@ else
     // One flat menu: the desktop rail, the phone page selector and the tab strip are all built from it.
     private IReadOnlyList<MediaSectionNavigationGroup> SettingsNavigationGroups => SettingsMenuBuilder.Build(MenuContext);
 
-    private IReadOnlyList<SettingsPhoneMenuGroup> PhoneMenuGroups => SettingsMenuBuilder.BuildPhoneSelector(SettingsNavigationGroups);
+    private IReadOnlyList<SettingsPhoneMenuGroup> PhoneMenuGroups => SettingsMenuBuilder.BuildPhoneSelector(SettingsNavigationGroups, _activeSection);
 
     // The page this person is on, with only the tabs they may open; null for a page the menu does not place.
     private SettingsMenuLocation? CurrentLocation
@@ -468,12 +468,8 @@ else
             ? "settings-mobile-summary"
             : null,
     }.Where(value => !string.IsNullOrWhiteSpace(value)));
-    private string MobileNavigationValue => IsMobileRouteUnavailable
-        ? MobileFallbackRoute
-        : SettingsNavigationGroups
-            .SelectMany(group => group.Items)
-            .FirstOrDefault(item => item.ActiveRoutes?.Contains(SettingsNav.BaseRouteFor(_activeSection), StringComparer.OrdinalIgnoreCase) == true)?.Route
-          ?? SettingsNav.RouteFor(_activeSection);
+    // Always the page this person is on (a page the phone menu leaves out is added to the list), never a fallback page.
+    private string MobileNavigationValue => SettingsMenuBuilder.PhoneSelectorRoute(SettingsNavigationGroups, _activeSection);
     private bool IsMobileNavigationOptionSelected(string route) =>
         string.Equals(route, MobileNavigationValue, StringComparison.OrdinalIgnoreCase);
 

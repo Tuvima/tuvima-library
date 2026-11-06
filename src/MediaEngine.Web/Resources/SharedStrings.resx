@@ -10773,9 +10773,6 @@
   <data name="LibrariesOverview_AboutImport" xml:space="preserve">
     <value>About the Import folder</value>
   </data>
-  <data name="LibrariesOverview_NewFilesOfAnyKind" xml:space="preserve">
-    <value>New files of any kind</value>
-  </data>
   <data name="LibrariesOverview_AllMedia" xml:space="preserve">
     <value>All media</value>
   </data>

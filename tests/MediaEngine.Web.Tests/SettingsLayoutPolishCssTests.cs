@@ -27,6 +27,42 @@ public sealed class SettingsLayoutPolishCssTests
         Assert.Contains("justify-content: center;", slot, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void SettingsRail_IsItsOwnScroller_SoEveryEntryStaysReachableInAShortWindow()
+    {
+        var css = Read("src/MediaEngine.Web/Components/MediaHub/MediaSectionShell.razor.css");
+
+        var rail = Rule(css, ".media-section-shell__rail");
+        Assert.Contains("overflow-y: auto;", rail, StringComparison.Ordinal);
+        Assert.Contains("overflow-x: hidden;", rail, StringComparison.Ordinal);
+        Assert.Contains("min-height: 0;", rail, StringComparison.Ordinal);
+        Assert.DoesNotContain("overflow: visible;", rail, StringComparison.Ordinal);
+        Assert.Contains("border-right:", rail, StringComparison.Ordinal);
+        Assert.Contains("background:", rail, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SettingsShell_CannotBeScrolledByFocus_SoTheRailAndPageNeverShiftUnderTheTopBar()
+    {
+        var css = Read("src/MediaEngine.Web/Components/MediaHub/MediaSectionShell.razor.css");
+
+        var shell = Rule(css, ".media-section-shell");
+        Assert.Contains("overflow: clip;", shell, StringComparison.Ordinal);
+        // The content column is the other scroller, so nothing inside the shell overflows it.
+        var content = Rule(css, ".media-section-shell__content");
+        Assert.Contains("overflow-y: auto;", content, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SettingsRail_InAShortPlaybackFrame_LeavesScrollingToTheWholeShell()
+    {
+        var css = Read("src/MediaEngine.Web/Components/MediaHub/MediaSectionShell.razor.css");
+
+        var block = css[css.IndexOf("@container playback-frame (max-height:700px)", StringComparison.Ordinal)..];
+        var rail = Regex.Match(block, @"\.media-section-shell__rail\s*\{(?<body>[^}]*)\}").Groups["body"].Value;
+        Assert.Contains("overflow: visible;", rail, StringComparison.Ordinal);
+    }
+
     private static string Rule(string css, string selector)
     {
         var match = Regex.Match(css, "(?m)^" + Regex.Escape(selector) + @"\s*\{(?<body>[^}]*)\}");

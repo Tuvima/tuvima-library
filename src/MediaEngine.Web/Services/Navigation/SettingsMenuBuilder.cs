@@ -59,6 +59,42 @@ public static class SettingsMenuBuilder
             .Select(group => new SettingsPhoneMenuGroup(group.Label, group.Items.Select(item => new SettingsPhoneMenuOption(item.Route, item.Label)).ToList()))
             .ToList();
 
+    /// <summary>
+    /// The phone page selector for the page this person is on. Pages a phone does not list (Local AI, Plugins, Integrations, Developer
+    /// Tools, or a page the menu hides for another reason) stay reachable by address, so the current page is added under its own
+    /// group when the menu leaves it out: the selector can always show where you are.
+    /// </summary>
+    public static IReadOnlyList<SettingsPhoneMenuGroup> BuildPhoneSelector(IReadOnlyList<MediaSectionNavigationGroup> groups, SettingsSection current)
+    {
+        var selector = BuildPhoneSelector(groups).ToList();
+        var route = PhoneSelectorRoute(groups, current);
+        if (selector.Any(group => group.Options.Any(option => string.Equals(option.Route, route, StringComparison.OrdinalIgnoreCase))))
+        {
+            return selector;
+        }
+
+        var option = new SettingsPhoneMenuOption(route, SettingsNav.FindMenuLocation(current)?.Page.Label ?? SettingsNav.GetItem(current).Label);
+        var groupLabel = SettingsNav.GetGroup(current).Label;
+        var index = selector.FindIndex(group => string.Equals(group.Label, groupLabel, StringComparison.Ordinal));
+        if (index >= 0)
+        {
+            selector[index] = selector[index] with { Options = selector[index].Options.Append(option).ToList() };
+        }
+        else
+        {
+            selector.Add(new SettingsPhoneMenuGroup(groupLabel, new[] { option }));
+        }
+
+        return selector;
+    }
+
+    /// <summary>The selector line that stands for the page: the menu row that lights up for it, otherwise the page's own address.</summary>
+    public static string PhoneSelectorRoute(IReadOnlyList<MediaSectionNavigationGroup> groups, SettingsSection current) =>
+        groups
+            .SelectMany(group => group.Items)
+            .FirstOrDefault(item => item.ActiveRoutes?.Contains(SettingsNav.BaseRouteFor(current), StringComparer.OrdinalIgnoreCase) == true)?.Route
+        ?? SettingsNav.RouteFor(current);
+
     private static bool IsOffered(SettingsMenuNode node, SettingsMenuContext context)
     {
         if (context.IsSectionEnabled is not null && !context.IsSectionEnabled(node.Section))
