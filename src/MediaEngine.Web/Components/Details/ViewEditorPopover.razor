@@ -23,7 +23,6 @@
     <NavigationLock ConfirmExternalNavigation="@session.HasPendingChanges" OnBeforeInternalNavigation="ConfirmNavigationAsync" />
     <AppDialogFrame Open="true" Title="@Header(session)" DialogOptions="_options" OnCancel="@(() => session.LeaveAsync())" Class="tl-editor-dialog">
         <EditorWindowChrome Framed="@(!_reviewing)"
-                            RailVisible="@(session.Rail is not null)"
                             Title="@L["ViewEdit_ReviewChanges"].Value"
                             CloseName="@Header(session)"
                             ShowTabs="@(!_reviewing)"
@@ -37,11 +36,12 @@
                             OnClose="@(() => session.LeaveAsync())"
                             OnDiscard="@(() => session.LeaveAsync())"
                             OnSave="OpenReviewAsync">
-            <Rail>
-                <ViewEditRail Session="session" OnPick="@(item => Host.SwitchItemAsync(item))" />
-            </Rail>
             <ItemHeader>
-                <ViewEditHeader Session="session" />
+                @* The gallery and its photos sit inside the header: the gallery as a fixed tile, the photo as a dropdown under the title. *@
+                <ViewEditHeader Session="session">
+                    <Tile><ViewEditRail Session="session" Part="EditorFamilyRailPart.Tile" /></Tile>
+                    <Selects><ViewEditRail Session="session" Part="EditorFamilyRailPart.Selects" OnPick="@(item => Host.SwitchItemAsync(item))" /></Selects>
+                </ViewEditHeader>
             </ItemHeader>
             <Notice>
                 @if (!_reviewing && (!string.IsNullOrWhiteSpace(session.Message) || !string.IsNullOrWhiteSpace(_deleteNote)))

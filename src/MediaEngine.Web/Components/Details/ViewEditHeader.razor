@@ -4,7 +4,11 @@
 
 @* The header of the View editor (spec photos-documents-editor D1): the same header the library editor draws (tl-editor-header), with the picture, the
    kind line, the title and one line of facts. Read-only. *@
-<header class="tl-editor-header">
+<header class="@(HasFamily ? "tl-editor-header tl-editor-header--family" : "tl-editor-header")">
+    @if (HasFamily && Tile is not null)
+    {
+        <div class="tl-editor-header__tile">@Tile</div>
+    }
     <div class="tl-editor-header__cover" aria-hidden="true">
         @if (Image is not null)
         {
@@ -20,13 +24,26 @@
         <h2 id="tl-editor-panel-title" class="tl-editor-header__title" tabindex="-1" title="@Title">@Title</h2>
         @if (!string.IsNullOrWhiteSpace(Facts))
         {
-            <div class="tl-editor-header__facts">@Facts</div>
+            <div class="tl-editor-header__line"><div class="tl-editor-header__facts">@Facts</div></div>
+        }
+        @if (HasFamily && Selects is not null)
+        {
+            <div class="tl-editor-header__selects">@Selects</div>
         }
     </div>
 </header>
 
 @code {
     [Parameter, EditorRequired] public ViewEditSession Session { get; set; } = default!;
+
+    /// <summary>The item sits in a gallery: the header draws the gallery's tile and the photo dropdown.</summary>
+    private bool HasFamily => Session.Rail is not null;
+
+    /// <summary>The gallery, as a fixed tile at the left of the header.</summary>
+    [Parameter] public RenderFragment? Tile { get; set; }
+
+    /// <summary>The photo dropdown, under the title.</summary>
+    [Parameter] public RenderFragment? Selects { get; set; }
 
     private ViewEditStage Stage => Session.Active;
 

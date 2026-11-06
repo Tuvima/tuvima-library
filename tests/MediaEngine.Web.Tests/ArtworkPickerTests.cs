@@ -28,6 +28,7 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
     private readonly DeviceContextService _device = new(EngineApiClientStub.CreateDefault());
     private readonly List<(string Name, object?[]? Args)> _writes = [];
     private string? _providerMessage;
+    private int _providerAsked;
     private IReadOnlyList<ProviderArtworkCandidateDto>? _providerItems;
     private ArtworkEntityWorkspaceDto _workspace = default!;
 
@@ -115,10 +116,14 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.GetMediaEditorContextAsync), _ => Task.FromResult<MediaEditorContextDto?>(context));
             stub.SetHandler(nameof(IEngineApiClient.GetItemEditorSuggestionsAsync), _ => Task.FromResult<IReadOnlyList<string>>([]));
             stub.SetHandler(nameof(IEngineApiClient.GetEntityArtworkAsync), _ => Task.FromResult<ArtworkEntityWorkspaceDto?>(_workspace));
-            stub.SetHandler(nameof(IEngineApiClient.DiscoverProviderArtworkAsync), _ => Task.FromResult<ProviderArtworkDiscoveryDto?>(
-                _providerMessage is { } message
-                    ? new ProviderArtworkDiscoveryDto([], message)
-                    : new ProviderArtworkDiscoveryDto(_providerItems ?? [new ProviderArtworkCandidateDto("tmdb-1", "TMDB", "/thumb/tmdb-1", 1000, 1500, false)], null)));
+            stub.SetHandler(nameof(IEngineApiClient.DiscoverProviderArtworkAsync), _ =>
+            {
+                _providerAsked++;
+                return Task.FromResult<ProviderArtworkDiscoveryDto?>(
+                    _providerMessage is { } message
+                        ? new ProviderArtworkDiscoveryDto([], message)
+                        : new ProviderArtworkDiscoveryDto(_providerItems ?? [new ProviderArtworkCandidateDto("tmdb-1", "TMDB", "/thumb/tmdb-1", 1000, 1500, false)], null));
+            });
             stub.SetHandler(nameof(IEngineApiClient.ImportProviderArtworkAsync), args =>
             {
                 _writes.Add((nameof(IEngineApiClient.ImportProviderArtworkAsync), args));
@@ -190,7 +195,8 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
             .Select(src => src.Split('/')[2])
             .ToList();
 
-    private static void OpenAddPanel(IRenderedComponent<EditorArtworkTool> cut) => cut.Find("button.tl-art-picker__add").Click();
+    // Refresh asks the providers for pictures and opens them in place of the preview (the old "Add artwork" door).
+    private static void OpenAddPanel(IRenderedComponent<EditorArtworkTool> cut) => cut.Find("button.tl-art-picker__refresh").Click();
 
     // -- Role cards ----------------------------------------------------------------------------------
 
@@ -218,16 +224,16 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task ARoleCardSaysWhetherAVersionIsPreferredAndHowManyVersionsThereAre()
+    public async Task ARoleTabSaysWhetherAVersionIsPreferred_AndShowsHowManyVersionsThereAre()
     {
         var (_, cut) = await OpenPickerAsync();
 
         var poster = RoleCard(cut, "Poster");
-        Assert.Contains("Preferred", poster.TextContent);
-        Assert.Contains("2 versions", poster.TextContent);
+        Assert.Contains("Preferred", poster.GetAttribute("aria-label"));
+        Assert.Contains("2 versions", poster.GetAttribute("aria-label"));
         var logo = RoleCard(cut, "Logo");
-        Assert.Contains("No artwork", logo.TextContent);
-        Assert.Contains("0 versions", logo.TextContent);
+        Assert.Contains("No artwork", logo.GetAttribute("aria-label"));
+        Assert.Contains("0 versions", logo.GetAttribute("aria-label"));
         Assert.Equal("true", poster.GetAttribute("aria-pressed"));
     }
 
@@ -387,7 +393,7 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
     // -- Add artwork: Provider, Upload, Link --------------------------------------------------------------------
 
     [Fact]
-    public async Task AddArtwork_OpensProviderUploadAndLink_InPlaceOfThePreview()
+    public async Task TheAddPanel_OpensProviderUploadFromUrlAndLibrary_InPlaceOfThePreview()
     {
         var (_, cut) = await OpenPickerAsync();
 
@@ -395,7 +401,7 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
 
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-art-picker__add-panel")));
         Assert.Empty(cut.FindAll(".tl-art-picker__preview"));
-        Assert.Equal(["Provider", "Upload", "Link"], cut.FindAll(".tl-art-picker__sources .app-segmented-control__item").Select(item => item.TextContent.Trim()));
+        Assert.Equal(["Provider", "Upload", "From URL", "Library"], cut.FindAll(".tl-art-picker__sources .app-segmented-control__item").Select(item => item.TextContent.Trim()));
         cut.Find("button.tl-art-picker__back").Click();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-art-picker__preview")));
     }
@@ -523,17 +529,94 @@ public sealed class ArtworkPickerTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task Replace_OpensAddArtwork_AndTheNewPictureBecomesPreferred()
+    public async Task Upload_OpensTheAddPanelOnUpload_WithoutAskingTheProviders()
     {
-        var (harness, cut) = await OpenPickerAsync();
+        var (_, cut) = await OpenPickerAsync();
 
-        cut.Find("button.tl-art-picker__replace").Click();
+        cut.Find("button.tl-art-picker__upload").Click();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-art-picker__add-panel")));
+        Assert.NotEmpty(cut.FindAll("input[type='file']"));
+        Assert.Empty(cut.FindAll(".tl-art-picker__tile"));
+        Assert.Empty(_writes);
+    }
+
+    [Fact]
+    public async Task FromUrl_OpensTheAddPanelOnTheWebAddressField()
+    {
+        var (_, cut) = await OpenPickerAsync();
+
+        cut.Find("button.tl-art-picker__url").Click();
+
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-art-picker__add-panel input")));
+        Assert.Contains("Picture web address", cut.Find(".tl-art-picker__add-panel").TextContent);
+    }
+
+    // -- One row of actions ---------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task TheActionsAreOneRowUnderTheRoleTabs_InTheOrderUploadFromUrlLibraryPreferredRemoveRefresh()
+    {
+        var (_, cut) = await OpenPickerAsync();
+
+        var row = cut.Find(".tl-art-picker__actions");
+        Assert.Equal(
+            ["Upload", "From URL", "Choose from Library", "Preferred", "Remove", "Refresh"],
+            row.QuerySelectorAll("button").Select(button => button.TextContent.Trim()));
+        // The old stacked column of buttons is gone, and the row sits after the tabs and before the preview.
+        Assert.Empty(cut.FindAll(".tl-art-picker__side"));
+        Assert.Empty(cut.FindAll("button.tl-art-picker__add"));
+        Assert.Empty(cut.FindAll("button.tl-art-picker__replace"));
+        var html = cut.Markup;
+        Assert.True(html.IndexOf("tl-art-picker__levels", StringComparison.Ordinal) < html.IndexOf("tl-art-picker__actions", StringComparison.Ordinal));
+        Assert.True(html.IndexOf("tl-art-picker__actions", StringComparison.Ordinal) < html.IndexOf("tl-art-picker__preview", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ARoleTab_ShowsItsLabelAndCount_WithoutTheOldCardWords()
+    {
+        var (_, cut) = await OpenPickerAsync();
+
+        var logo = RoleCard(cut, "Logo");
+        Assert.Equal("0", logo.QuerySelector(".tl-art-picker__tab-count")!.TextContent.Trim());
+        Assert.DoesNotContain("versions", logo.TextContent);
+        Assert.Equal("2", RoleCard(cut, "Poster").QuerySelector(".tl-art-picker__tab-count")!.TextContent.Trim());
+    }
+
+    [Fact]
+    public async Task ThePreferredButton_SaysThePictureIsPreferred_AndRemoveIsOfferedWithIt()
+    {
+        var (_, cut) = await OpenPickerAsync();
+
+        var preferred = cut.Find("button.tl-art-picker__prefer");
+        Assert.Equal("true", preferred.GetAttribute("aria-pressed"));
+        Assert.True(preferred.HasAttribute("disabled"));
+        Assert.False(cut.Find("button.tl-art-picker__delete").HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public async Task ARoleWithNoArtwork_CannotBeRemoved_AndCannotBePreferred()
+    {
+        var (_, cut) = await OpenPickerAsync();
+
+        RoleCard(cut, "Logo").Click();
+
+        cut.WaitForAssertion(() => Assert.True(cut.Find("button.tl-art-picker__delete").HasAttribute("disabled")));
+        Assert.True(cut.Find("button.tl-art-picker__prefer").HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public async Task Refresh_AsksTheProvidersAgain_EvenWhenTheirPicturesAreAlreadyListed()
+    {
+        var (_, cut) = await OpenPickerAsync();
+
+        cut.Find("button.tl-art-picker__refresh").Click();
         cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-art-picker__tile")));
-        cut.Find(".tl-art-picker__tile").Click();
-        cut.WaitForAssertion(() => Assert.Empty(cut.FindAll(".tl-art-picker__selected input[type='checkbox']")));
-        cut.Find("button.tl-art-picker__use").Click();
+        Assert.Equal(1, _providerAsked);
+        cut.Find("button.tl-art-picker__back").Click();
+        cut.Find("button.tl-art-picker__refresh").Click();
 
-        cut.WaitForAssertion(() => Assert.Equal(ProviderPicture.ToString("D"), Assert.Single(harness.Session.Pending.Changes).TargetId));
+        cut.WaitForAssertion(() => Assert.Equal(2, _providerAsked));
     }
 
     // -- What the tool shows ----------------------------------------------------------------------------

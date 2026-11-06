@@ -7,68 +7,69 @@
 @inject IAppDialogService Dialogs
 @inject IStringLocalizer<SharedStrings> L
 
-@* The rail across the top of the pop-over while a Universe, or a character, place or faction of one, is being edited (universal editor v4 D10,
-   WP11). The Universe comes first, then one dropdown for each kind it holds (Characters, Factions, Places, and so on), each showing how many
-   there are. A dropdown lists that kind's things with a small picture, a purple dot when changes are waiting and a search once it is long, and
-   starts with "Add <kind>", which asks for a name and stages the new thing. Choosing a thing switches the editor to it; every thing's staged
-   changes stay in the one list. Nothing is saved here. *@
+@* The Universe in the editor's header while a Universe, or a character, place or faction of one, is being edited (universal editor v4 D10,
+   WP11; header revision v4.1 D1). The Universe is a fixed tile at the left of the header, then one dropdown for each kind it holds (Characters,
+   Factions, Places, and so on) under the title, each showing how many there are. A dropdown lists that kind's things with a small picture, a
+   purple dot when changes are waiting and a search once it is long, and starts with "Add <kind>", which asks for a name and stages the new
+   thing. Choosing a thing switches the editor to it; every thing's staged changes stay in the one list. The header draws the two parts (Tile,
+   then Selects); on its own it draws both. Nothing is saved here. *@
 @if (State.Visible && Flow is not null)
 {
     var activeId = Flow.Session.ActiveItem?.EntityId ?? Guid.Empty;
     var onUniverse = Flow.Session.ActiveItem?.Kind == EditTrailKinds.Universe;
     var pending = Flow.Session.Pending.Changes.GroupBy(change => change.EntityId).ToDictionary(group => group.Key, group => group.Count());
     var busy = State.Loading || Flow.Switching;
-    <nav class="tl-urail" aria-label="@L["EditorUniverse_Universe"].Value" aria-busy="@(busy ? "true" : null)">
-        <div class="tl-urail__level">
-            <AppButton ButtonStyle="AppButtonStyle.Text"
-                       Class="@(onUniverse ? "tl-urail__crumb is-current" : "tl-urail__crumb")"
-                       aria-current="@(onUniverse ? "true" : null)"
-                       data-level="Universe"
-                       Disabled="@(State.UniverseId == Guid.Empty)"
-                       OnClick="PickUniverseAsync">
-                <span class="tl-urail__text"><small>@L["EditorUniverse_Universe"]</small><span>@(string.IsNullOrWhiteSpace(State.UniverseName) ? "Universe" : State.UniverseName)</span></span>
-                @if (pending.GetValueOrDefault(State.UniverseId) > 0)
-                {
-                    <span class="tl-urail__dot" role="img" aria-label="@L["EditorRail_ChangesWaiting"].Value" title="@L["EditorRail_ChangesWaiting"].Value"></span>
-                }
-            </AppButton>
+    var showTile = Part != EditorFamilyRailPart.Selects;
+    var showSelects = Part != EditorFamilyRailPart.Tile;
+    if (showTile && !showSelects)
+    {
+        <div class="tl-urail-tile" aria-busy="@(busy ? "true" : null)">
+            @UniverseTile(onUniverse, pending)
         </div>
-        @if (State.Loading && State.Kinds.Count == 0)
-        {
-            <span class="tl-urail__sep" aria-hidden="true">&rsaquo;</span>
-            <AppSkeleton Height="2.6rem" Width="10rem" />
-        }
+    }
+    else
+    {
+        <nav class="tl-urail" aria-label="@L["EditorUniverse_Universe"].Value" aria-busy="@(busy ? "true" : null)">
+            @if (showTile)
+            {
+                @UniverseTile(onUniverse, pending)
+            }
 
-        @foreach (var kind in State.Kinds)
-        {
-            var list = State.ListFor(kind.Key);
-            var isOpen = _open == kind.Key;
-            var staged = StagedAdds(kind.Key);
-            var activeKind = Flow.Session.ActiveItem is { Kind: var itemKind } && itemKind == EditTrailKinds.Thing && list.Items.Any(thing => thing.Id == activeId);
-            var waiting = staged.Count + list.Items.Where(thing => pending.GetValueOrDefault(thing.Id) > 0).Count();
-            <span class="tl-urail__sep" aria-hidden="true">&rsaquo;</span>
-            <div class="tl-urail__level" @key="@($"kind{kind.Key}")">
-                <AppButton ButtonStyle="AppButtonStyle.Text"
-                           id="@CrumbId(kind.Key)"
-                           Class="@(activeKind ? "tl-urail__crumb is-current" : "tl-urail__crumb")"
-                           aria-haspopup="listbox"
-                           aria-expanded="@(isOpen ? "true" : "false")"
-                           data-level="@kind.Label"
-                           OnClick="() => ToggleAsync(kind)">
-                    <span class="tl-urail__text"><small>@kind.Label</small><span>@(kind.Count + staged.Count)</span></span>
-                    @if (waiting > 0)
+            @if (State.Loading && State.Kinds.Count == 0)
+            {
+                <AppSkeleton Height="2.6rem" Width="10rem" />
+            }
+
+            @foreach (var kind in State.Kinds)
+            {
+                var list = State.ListFor(kind.Key);
+                var isOpen = _open == kind.Key;
+                var staged = StagedAdds(kind.Key);
+                var activeKind = Flow.Session.ActiveItem is { Kind: var itemKind } && itemKind == EditTrailKinds.Thing && list.Items.Any(thing => thing.Id == activeId);
+                var waiting = staged.Count + list.Items.Where(thing => pending.GetValueOrDefault(thing.Id) > 0).Count();
+                <div class="tl-urail__level" @key="@($"kind{kind.Key}")">
+                    <AppButton ButtonStyle="AppButtonStyle.Text"
+                               id="@CrumbId(kind.Key)"
+                               Class="@(activeKind ? "tl-urail__crumb is-current" : "tl-urail__crumb")"
+                               aria-haspopup="listbox"
+                               aria-expanded="@(isOpen ? "true" : "false")"
+                               data-level="@kind.Label"
+                               OnClick="() => ToggleAsync(kind)">
+                        <span class="tl-urail__text"><small>@kind.Label</small><span>@(kind.Count + staged.Count)</span></span>
+                        @if (waiting > 0)
+                        {
+                            <span class="tl-urail__dot" role="img" aria-label="@L["EditorRail_ChangesWaiting"].Value" title="@L["EditorRail_ChangesWaiting"].Value"></span>
+                        }
+                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ExpandMore" Size="AppSize.Small" />
+                    </AppButton>
+                    @if (isOpen)
                     {
-                        <span class="tl-urail__dot" role="img" aria-label="@L["EditorRail_ChangesWaiting"].Value" title="@L["EditorRail_ChangesWaiting"].Value"></span>
+                        @RenderPanel(kind, list, staged, activeId, pending)
                     }
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ExpandMore" Size="AppSize.Small" />
-                </AppButton>
-                @if (isOpen)
-                {
-                    @RenderPanel(kind, list, staged, activeId, pending)
-                }
-            </div>
-        }
-    </nav>
+                </div>
+            }
+        </nav>
+    }
 }
 
 @code {
@@ -81,6 +82,9 @@
 
     [Parameter, EditorRequired] public EditSessionFlow? Flow { get; set; }
 
+    /// <summary>Which part to draw: the header draws the Universe tile and the kinds' dropdowns in two places; on its own it draws both.</summary>
+    [Parameter] public EditorFamilyRailPart Part { get; set; } = EditorFamilyRailPart.All;
+
     private static string CrumbId(string key) => $"tl-urail-crumb-{key}";
 
     // Things staged to be added to this Universe in this kind, in the order they were staged.
@@ -92,6 +96,25 @@
                 .Select(change => (
                     change.Fields.FirstOrDefault(field => field.Key == EditSessionThingAdd.NameKey)?.Value ?? string.Empty,
                     change.Fields.FirstOrDefault(field => field.Key == EditSessionThingAdd.DescriptionKey)?.Value ?? string.Empty))];
+
+    // The Universe itself: a fixed tile at the left of the header. It is the item being edited when it has the accent edge.
+    private RenderFragment UniverseTile(bool onUniverse, Dictionary<Guid, int> pending) => __builder =>
+    {
+        <div class="tl-urail__level tl-urail__level--tile">
+            <AppButton ButtonStyle="AppButtonStyle.Text"
+                       Class="@(onUniverse ? "tl-urail__crumb tl-urail__crumb--tile is-current" : "tl-urail__crumb tl-urail__crumb--tile")"
+                       aria-current="@(onUniverse ? "true" : null)"
+                       data-level="Universe"
+                       Disabled="@(State.UniverseId == Guid.Empty)"
+                       OnClick="PickUniverseAsync">
+                <span class="tl-urail__text"><small>@L["EditorUniverse_Universe"]</small><span>@(string.IsNullOrWhiteSpace(State.UniverseName) ? "Universe" : State.UniverseName)</span></span>
+                @if (pending.GetValueOrDefault(State.UniverseId) > 0)
+                {
+                    <span class="tl-urail__dot" role="img" aria-label="@L["EditorRail_ChangesWaiting"].Value" title="@L["EditorRail_ChangesWaiting"].Value"></span>
+                }
+            </AppButton>
+        </div>
+    };
 
     private RenderFragment RenderPanel(EditorUniverseKindDto kind, UniverseKindList list, IReadOnlyList<(string Name, string Description)> staged, Guid activeId, Dictionary<Guid, int> pending) => __builder =>
     {

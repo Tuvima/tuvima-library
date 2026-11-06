@@ -5,11 +5,11 @@
 @inject IAppDialogService Dialogs
 @inject IStringLocalizer<SharedStrings> L
 
-@* The universal editor's window (v4 spec D2, D3, D16): the content of the pop-over the layout shows in a modal dialog. Top to bottom: the rail of
-   dropdowns (only where the item has a family), the item's header, the tab bar (Details, Contents, Artwork, Match & Identity, Files, History,
-   only where the item has them), one scroll area for the tool, and a footer that says where changes save, how many are waiting, and holds
-   Discard and Save changes in the same place. The window keeps one size whatever the tab; only the tab's content scrolls. While several
-   ticked items are edited together, or Review changes is open, the plain title bar replaces the rail and header. Closing it with the X, Esc
+@* The universal editor's window (v4 spec D2, D3, D16; v4.1 D1): the content of the pop-over the layout shows in a modal dialog. Top to bottom: the
+   item's header (with the family's tile and dropdowns inside it, only where the item has a family), the tab bar (Details, Contents, Artwork,
+   Match & Identity, Files, History, only where the item has them), one scroll area for the tool, and a footer that says where changes save, how
+   many are waiting, and holds Discard and Save changes in the same place. The window keeps one size whatever the tab; only the tab's content
+   scrolls. While several ticked items are edited together, or Review changes is open, the plain title bar replaces the header. Closing it with the X, Esc
    or Discard asks "Unsaved changes" when something is staged. The native dialog around it makes the page inert and traps focus; what the
    tool shows is chosen by the pop-over; Artwork is drawn here from the editor's picker session. *@
 @if (Mode is { IsOn: true, CanEdit: true } mode && Flow?.Session is { IsActive: true, ActiveTool: { } tool } session)
@@ -23,8 +23,6 @@
     var tabs = railTools.Select(entry => new EditorWindowChrome.Tab(entry.Item1.ToString(), entry.Item2, entry.Item3)).ToList();
     var title = _reviewing ? "Review changes" : TitleOverride ?? TitleFor(shown);
     <EditorWindowChrome Framed="framed"
-                        RailVisible="RailVisible"
-                        Rail="RailContent"
                         ItemHeader="ItemHeader"
                         FooterStart="@(_reviewing ? null : FooterStart)"
                         Title="@title"
@@ -99,13 +97,7 @@
     /// <summary>Extra content in the header, between the title and the close button.</summary>
     [Parameter] public RenderFragment? HeaderContent { get; set; }
 
-    /// <summary>The rail of dropdowns across the top (the item's family), drawn first so the Tab order is rail, header, tools, content, footer.</summary>
-    [Parameter] public RenderFragment? RailContent { get; set; }
-
-    /// <summary>True when the rail has something to show (the item has a family); the rail row is then drawn above the header.</summary>
-    [Parameter] public bool RailVisible { get; set; }
-
-    /// <summary>The item's header (picture, kind, title, facts, provider links). When set, it replaces the plain title bar for a single item.</summary>
+    /// <summary>The item's header (picture, kind, title, facts, provider links, and the family's tile and dropdowns). When set, it replaces the plain title bar for a single item.</summary>
     [Parameter] public RenderFragment? ItemHeader { get; set; }
 
     /// <summary>Bottom-left of the footer (Delete); hidden while the changes are being reviewed.</summary>

@@ -5,11 +5,13 @@
 @inject IJSRuntime JS
 @inject IStringLocalizer<SharedStrings> L
 
-@* The rail across the top of the pop-over (universal editor v4 D2): one dropdown per level of the item's family, such as Show > Season >
-   Episode. Each dropdown lists that level's siblings with a small picture, a tick when matched, an amber mark when not and a purple dot when
-   changes are waiting; a long list is searched and paged in as the end scrolls into view. Choosing an item switches the editor to it and
-   keeps every item's staged changes in the one list. The rail is drawn only when the item has a family: a film, a standalone book and a
-   person show nothing. Below 1280px the earlier levels fold into one "..." menu. Nothing is saved here. *@
+@* The dropdowns of the editor's header (universal editor v4 D2; header revision v4.1 D1): the item's family, such as Show > Season > Episode.
+   The first level (the show, album or series) is a fixed tile at the left of the header that names it and goes to it when it is not the item
+   being edited; the later levels (Season, Episode) are dropdowns under the title, inside the same header, so there is no separate row. Each
+   dropdown lists that level's siblings with a small picture, a tick when matched, an amber mark when not and a purple dot when changes are
+   waiting; a long list is searched and paged in as the end scrolls into view. Choosing an item switches the editor to it and keeps every
+   item's staged changes in the one list. Nothing is drawn when the item has no family: a film, a standalone book and a person show nothing.
+   The header draws it as two parts (Tile, then Selects); on its own it draws both. Nothing is saved here. *@
 @if (Family.Visible && Flow is not null)
 {
     var active = Flow.Session.ActiveItem;
@@ -17,93 +19,39 @@
     var levels = Family.Levels(activeId, Flow.Session.Trail);
     var pending = Flow.Session.Pending.Changes.GroupBy(change => change.EntityId).ToDictionary(group => group.Key, group => group.Count());
     var busy = Family.Loading || Flow.Switching;
-    var hiddenCount = Math.Max(0, levels.Count - 2);
-    <nav class="tl-rail" aria-label="@L["EditorRail_Label"]" aria-busy="@(busy ? "true" : null)">
-        @if (levels.Count == 0)
-        {
-            @* The family is still being read: grey crumbs hold the place while the right side is already usable. *@
-            <span class="tl-rail__skeleton"><AppSkeleton Height="2.6rem" Width="13rem" /></span>
-            <span class="tl-rail__sep" aria-hidden="true">&rsaquo;</span>
-            <span class="tl-rail__skeleton"><AppSkeleton Height="2.6rem" Width="13rem" /></span>
-        }
-        else
-        {
-            @if (hiddenCount > 0)
+    var showTile = Part != EditorFamilyRailPart.Selects;
+    var showSelects = Part != EditorFamilyRailPart.Tile;
+    if (showTile && !showSelects)
+    {
+        <div class="tl-rail-tile" aria-busy="@(busy ? "true" : null)">
+            @if (levels.Count == 0)
             {
-                <div class="tl-rail__fold">
-                    <AppButton ButtonStyle="AppButtonStyle.Text" Class="tl-rail__crumb tl-rail__crumb--fold" aria-haspopup="listbox"
-                            aria-expanded="@(_foldOpen ? "true" : "false")" aria-label="@L["EditorRail_EarlierLevels"]"
-                            OnClick="ToggleFold">
-                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoreHoriz" Size="AppSize.Small" />
-                    </AppButton>
-                    @if (_foldOpen)
-                    {
-                        @* Drawn through the shared popover (top layer); a click anywhere else or Escape closes it. *@
-                        <AppPopover Open="true" OpenChanged="FoldPopoverChanged" Class="tl-rail__surface">
-                            <div class="tl-rail__panel" role="listbox" aria-label="@L["EditorRail_EarlierLevels"]" @onkeydown="OnKeyDown">
-                                <ul class="tl-rail__options">
-                                    @foreach (var level in levels.Take(hiddenCount))
-                                    {
-                                        <li>
-                                            <AppButton ButtonStyle="AppButtonStyle.Text" role="option" aria-selected="false" Class="tl-rail__option"
-                                                             OnClick="() => PickAsync(level.CurrentId, true, true)">
-                                                <span class="tl-rail__text"><small>@level.Label</small><span>@level.CurrentTitle</span></span>
-                                            </AppButton>
-                                        </li>
-                                    }
-                                </ul>
-                            </div>
-                        </AppPopover>
-                    }
-                </div>
-                <span class="tl-rail__sep tl-rail__sep--fold" aria-hidden="true">&rsaquo;</span>
+                <span class="tl-rail__skeleton tl-rail__skeleton--tile"><AppSkeleton Height="6.75rem" Width="13.5rem" /></span>
             }
-
-            @foreach (var (level, index) in levels.Select((level, index) => (level, index)))
+            else
             {
-                var isCurrent = index == levels.Count - 1 || (index == levels.Count - 2 && levels[^1].CurrentId == Guid.Empty);
-                var placeholder = level.CurrentId == Guid.Empty;
-                var hasChoices = level.Options.Count > 1 || level.HasMore || level.Loading || placeholder;
-                var isOpen = _open == index;
-                var waiting = pending.GetValueOrDefault(level.CurrentId);
-                var early = index < hiddenCount;
-                <div class="@(early ? "tl-rail__level tl-rail__level--early" : "tl-rail__level")" @key="@($"level{index}")">
-                    <AppButton ButtonStyle="AppButtonStyle.Text"
-                            id="@CrumbId(index)"
-                            Class="@CrumbClass(isCurrent && !placeholder, placeholder)"
-                            aria-haspopup="@(hasChoices ? "listbox" : null)"
-                            aria-expanded="@(hasChoices ? (isOpen ? "true" : "false") : null)"
-                            aria-current="@(isCurrent && !placeholder ? "true" : null)"
-                            data-level="@level.Label"
-                            OnClick="() => ClickCrumbAsync(index, level, hasChoices)">
-                        <span class="tl-rail__thumb" data-kind="@level.Label" aria-hidden="true">
-                            @if (!string.IsNullOrWhiteSpace(level.CurrentImageUrl))
-                            {
-                                <AppImage Src="@level.CurrentImageUrl" Alt="" Width="32" Height="32" ObjectFit="AppObjectFit.Cover" Class="tl-rail__img" />
-                            }
-                        </span>
-                        <span class="tl-rail__text"><small>@level.Label</small><span>@level.CurrentTitle</span></span>
-                        @if (waiting > 0)
-                        {
-                            <span class="tl-rail__dot" role="img" aria-label="@L["EditorRail_ChangesWaiting"]" title="@L["EditorRail_ChangesWaiting"]"></span>
-                        }
-                        @if (hasChoices)
-                        {
-                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ExpandMore" Size="AppSize.Small" />
-                        }
-                    </AppButton>
-                    @if (isOpen)
-                    {
-                        @RenderPanel(index, level, activeId, pending)
-                    }
-                </div>
-                @if (index < levels.Count - 1)
+                @RenderCrumb(0, levels, pending)
+            }
+        </div>
+    }
+    else
+    {
+        <nav class="tl-rail" aria-label="@L["EditorRail_Label"]" aria-busy="@(busy ? "true" : null)">
+            @if (levels.Count == 0)
+            {
+                @* The family is still being read: grey crumbs hold the place while the right side is already usable. *@
+                <span class="tl-rail__skeleton"><AppSkeleton Height="2.6rem" Width="13rem" /></span>
+                <span class="tl-rail__skeleton"><AppSkeleton Height="2.6rem" Width="13rem" /></span>
+            }
+            else
+            {
+                @for (var index = showTile ? 0 : 1; index < levels.Count; index++)
                 {
-                    <span class="@(early ? "tl-rail__sep tl-rail__sep--early" : "tl-rail__sep")" aria-hidden="true">&rsaquo;</span>
+                    @RenderCrumb(index, levels, pending)
                 }
             }
-        }
-    </nav>
+        </nav>
+    }
 }
 
 @code {
@@ -114,7 +62,6 @@
     private EditorFamilyState? _family;
     private EditSessionFlow? _flow;
     private int _open = -1;
-    private bool _foldOpen;
     private string? _search;
     private bool _focusPending;
     private string? _focusId;
@@ -127,14 +74,60 @@
     /// <summary>Opens Match for an item that is not matched yet (the editor opens on Match when the item is not matched, v3 D4).</summary>
     [Parameter] public bool CanMatch { get; set; }
 
+    /// <summary>Which part of the family to draw: the header draws the fixed tile and the dropdowns in two places; on its own it draws both.</summary>
+    [Parameter] public EditorFamilyRailPart Part { get; set; } = EditorFamilyRailPart.All;
+
     private static string CrumbId(int index) => $"tl-rail-crumb-{index}";
 
     private static string OptionId(Guid id) => $"tl-rail-option-{id:N}";
 
     private static string MoreId(Guid parentId) => $"tl-rail-more-{parentId:N}";
 
-    private static string CrumbClass(bool current, bool placeholder) =>
-        "tl-rail__crumb" + (current ? " is-current" : string.Empty) + (placeholder ? " is-placeholder" : string.Empty);
+    private static string CrumbClass(bool current, bool placeholder, bool tile) =>
+        "tl-rail__crumb" + (tile ? " tl-rail__crumb--tile" : string.Empty) + (current ? " is-current" : string.Empty) + (placeholder ? " is-placeholder" : string.Empty);
+
+    // One level of the family. The first level is the fixed tile (it names the show, album or series); later levels are dropdowns.
+    private RenderFragment RenderCrumb(int index, IReadOnlyList<RailLevel> levels, Dictionary<Guid, int> pending) => __builder =>
+    {
+        var activeId = Flow?.Session.ActiveItem?.EntityId ?? Guid.Empty;
+        var level = levels[index];
+        var isTile = index == 0;
+        var isCurrent = index == levels.Count - 1 || (index == levels.Count - 2 && levels[^1].CurrentId == Guid.Empty);
+        var placeholder = level.CurrentId == Guid.Empty;
+        var hasChoices = level.Options.Count > 1 || level.HasMore || level.Loading || placeholder;
+        var isOpen = _open == index;
+        var waiting = pending.GetValueOrDefault(level.CurrentId);
+        <div class="@(isTile ? "tl-rail__level tl-rail__level--tile" : "tl-rail__level")" @key="@($"level{index}")">
+            <AppButton ButtonStyle="AppButtonStyle.Text"
+                    id="@CrumbId(index)"
+                    Class="@CrumbClass(isCurrent && !placeholder, placeholder, isTile)"
+                    aria-haspopup="@(hasChoices ? "listbox" : null)"
+                    aria-expanded="@(hasChoices ? (isOpen ? "true" : "false") : null)"
+                    aria-current="@(isCurrent && !placeholder ? "true" : null)"
+                    data-level="@level.Label"
+                    OnClick="() => ClickCrumbAsync(index, level, hasChoices)">
+                <span class="tl-rail__thumb" data-kind="@level.Label" aria-hidden="true">
+                    @if (!string.IsNullOrWhiteSpace(level.CurrentImageUrl))
+                    {
+                        <AppImage Src="@level.CurrentImageUrl" Alt="" Width="@(isTile ? 56 : 32)" Height="@(isTile ? 84 : 32)" ObjectFit="AppObjectFit.Cover" Class="tl-rail__img" />
+                    }
+                </span>
+                <span class="tl-rail__text"><small>@level.Label</small><span>@level.CurrentTitle</span></span>
+                @if (waiting > 0)
+                {
+                    <span class="tl-rail__dot" role="img" aria-label="@L["EditorRail_ChangesWaiting"]" title="@L["EditorRail_ChangesWaiting"]"></span>
+                }
+                @if (hasChoices)
+                {
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ExpandMore" Size="AppSize.Small" />
+                }
+            </AppButton>
+            @if (isOpen)
+            {
+                @RenderPanel(index, level, activeId, pending)
+            }
+        </div>
+    };
 
     private RenderFragment RenderPanel(int index, RailLevel level, Guid activeId, Dictionary<Guid, int> pending) => __builder =>
     {
@@ -259,13 +252,6 @@
         }
     }
 
-    private void ToggleFold()
-    {
-        _foldOpen = !_foldOpen;
-        _open = -1;
-        _search = null;
-    }
-
     private void OnSearchChanged(string? value) => _search = value;
 
     // The shared popover reports an outside click or Escape; only the list that is still open closes.
@@ -277,18 +263,9 @@
         }
     }
 
-    private void FoldPopoverChanged(bool open)
-    {
-        if (!open && _foldOpen)
-        {
-            CloseAll();
-        }
-    }
-
     private void CloseAll()
     {
         _open = -1;
-        _foldOpen = false;
         _search = null;
     }
 
@@ -305,7 +282,6 @@
 
     private async Task ClickCrumbAsync(int index, RailLevel level, bool hasChoices)
     {
-        _foldOpen = false;
         _search = null;
         if (!hasChoices)
         {
@@ -338,7 +314,6 @@
     private async Task PickAsync(Guid id, bool matched, bool isParent)
     {
         _open = -1;
-        _foldOpen = false;
         _search = null;
         if (Flow is null || id == Guid.Empty)
         {

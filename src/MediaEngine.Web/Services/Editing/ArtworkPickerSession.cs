@@ -610,6 +610,74 @@ public sealed class ArtworkPickerSession
             "That link could not be used.");
     }
 
+    /// <summary>Whether "Choose from Library" can be offered: a role is open and the item has an artwork owner to link a Library picture to (every kind, a Universe and its things included).</summary>
+    public bool CanChooseFromLibrary => ActiveSlot is not null && _fields.ArtworkEntityId != Guid.Empty;
+
+    /// <summary>
+    /// What the Library's picture picker opens on for the active role: the Library's own pictures, the ones already used by this item first, then
+    /// the ones of its family and its other things (a Universe's characters, places and Series), then everything else. Null when no role is open.
+    /// </summary>
+    public ArtworkAssetQuery? LibraryQuery()
+    {
+        var slot = ActiveSlot;
+        var role = ArtworkPickerRules.RoleFor(slot);
+        if (slot is null || role is null || !CanChooseFromLibrary)
+        {
+            return null;
+        }
+
+        return new ArtworkAssetQuery(
+            TargetEntityType: _fields.ArtworkEntityKind,
+            TargetEntityId: _fields.ArtworkEntityId,
+            TargetRole: role,
+            TargetSourceAssetType: slot,
+            PickerScope: ArtworkPickerScope.Recommended,
+            Limit: 48);
+    }
+
+    /// <summary>The item the Library's picker adds a chosen picture to; its words are shown in the picker's title.</summary>
+    public ArtworkLibraryItemDto? LibraryTarget() =>
+        CanChooseFromLibrary
+            ? new ArtworkLibraryItemDto(
+                _fields.ArtworkEntityId,
+                _fields.ArtworkEntityKind,
+                _session.ActiveItem?.Title ?? string.Empty,
+                _fields.MediaType,
+                Year: null,
+                Subtitle: null,
+                ImageUrl: null,
+                PrimaryAssetType: null,
+                AssetTypes: [],
+                VariantCount: 0,
+                OwnedWorkCount: 0,
+                UsesLegacyPersonImage: false)
+            : null;
+
+    /// <summary>
+    /// The Library's picker added these pictures to the item as unchosen versions (the same as an upload: nothing on the page changes). The
+    /// first one is picked here, ready for "Add version"; nothing becomes Preferred, and nothing is staged, until then.
+    /// </summary>
+    public async Task<bool> UseLibraryPicturesAsync(IReadOnlyList<Guid> added)
+    {
+        var slot = ActiveSlot;
+        if (slot is null || added.Count == 0)
+        {
+            return false;
+        }
+
+        _pickedProviderId = null;
+        await LoadSavedAsync();
+        if (!string.Equals(slot, ActiveSlot, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var first = added[0];
+        _preview.Pick(slot, first.ToString("D"), Saved.FirstOrDefault(picture => picture.AssetId == first)?.ContentUrl);
+        Changed?.Invoke();
+        return true;
+    }
+
     /// <summary>"Use this artwork": stages the picked picture. Nothing is saved until Save changes.</summary>
     public async Task<bool> UseAsync(bool makePreferred = true)
     {

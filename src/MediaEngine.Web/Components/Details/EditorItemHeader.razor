@@ -6,7 +6,9 @@
 
 @* The header of the pop-over (universal editor v4 D3, section 1a): the item's picture, its kind line ("The Expanse - TV episode"), its title, one
    line of facts and links to its provider records where they are known. It names the item at once from the editor's own trail and fills the
-   facts in when the fields have loaded. Read-only: nothing here is edited or saved. *@
+   facts in when the fields have loaded. A family (a show, an album, a series, a Universe) sits in the same header (v4.1 D1): its first level is a
+   fixed tile at the left and the later levels are dropdowns under the title, so there is no separate row. Read-only: nothing here is edited or
+   saved. *@
 @if (Flow?.Session.ActiveItem is { } active)
 {
     var fields = Fields;
@@ -24,41 +26,58 @@
         : string.Empty;
     var image = !string.IsNullOrWhiteSpace(active.ImageUrl) ? active.ImageUrl : Family.TrailTo(active.EntityId)?[^1].ImageUrl;
     var links = fields.Loaded && !isUniverse ? EditorHeaderRules.Links(fields.Identity, fields.MediaType, fields.ScopeId) : [];
-    <header class="tl-editor-header" aria-busy="@(fields.Loading ? "true" : null)">
-        <div class="@(IsLandscape(fields.ScopeId) ? "tl-editor-header__cover tl-editor-header__cover--landscape" : "tl-editor-header__cover")" aria-hidden="true">
-            @if (!string.IsNullOrWhiteSpace(image))
-            {
-                <AppImage Src="@image" Alt="" DrawnPx="200" ObjectFit="AppObjectFit.Cover" Class="tl-editor-header__img" />
-            }
-            else
-            {
-                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" Size="AppSize.Large" />
-            }
-        </div>
+    // The show's tile already carries its picture, so a show's seasons and episodes draw no second picture beside it; every other family keeps the item's own.
+    var showCover = !(HasFamily && Family.Kind == EditorFamilyKind.Show);
+    <header class="@(HasFamily ? "tl-editor-header tl-editor-header--family" : "tl-editor-header")" aria-busy="@(fields.Loading ? "true" : null)">
+        @if (HasFamily && Tile is not null)
+        {
+            <div class="tl-editor-header__tile">@Tile</div>
+        }
+
+        @if (showCover)
+        {
+            <div class="@(IsLandscape(fields.ScopeId) ? "tl-editor-header__cover tl-editor-header__cover--landscape" : "tl-editor-header__cover")" aria-hidden="true">
+                @if (!string.IsNullOrWhiteSpace(image))
+                {
+                    <AppImage Src="@image" Alt="" DrawnPx="200" ObjectFit="AppObjectFit.Cover" Class="tl-editor-header__img" />
+                }
+                else
+                {
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" Size="AppSize.Large" />
+                }
+            </div>
+        }
         <div class="tl-editor-header__body">
             <div class="tl-editor-header__kicker">@kicker</div>
             <h2 id="tl-editor-panel-title" class="tl-editor-header__title" tabindex="-1" title="@title">@title</h2>
-            @if (fields.Loading && !fields.Loaded)
-            {
-                <AppSkeleton Height="1rem" Width="12rem" />
-            }
-            else if (!string.IsNullOrWhiteSpace(facts))
-            {
-                <div class="tl-editor-header__facts">@facts</div>
-            }
+            <div class="tl-editor-header__line">
+                @if (fields.Loading && !fields.Loaded)
+                {
+                    <AppSkeleton Height="1rem" Width="12rem" />
+                }
+                else if (!string.IsNullOrWhiteSpace(facts))
+                {
+                    <div class="tl-editor-header__facts">@facts</div>
+                }
 
-            @if (fields.Loaded && FamilyHasState)
+                @if (fields.Loaded && FamilyHasState)
+                {
+                    <div class="tl-editor-header__chips">
+                        @if (Unmatched)
+                        {
+                            <AppStatusBadge Tone="AppUiTone.Warning" Text="@L["EditorFamily_NotMatched"].Value" />
+                        }
+                        else
+                        {
+                            <AppStatusBadge Tone="AppUiTone.Success" Text="@L["EditorFamily_Matched"].Value" Icon="@AppMaterialIcons.Outlined.Check" />
+                        }
+                    </div>
+                }
+            </div>
+
+            @if (HasFamily && Selects is not null)
             {
-                <div class="tl-editor-header__chips">
-                    @if (Unmatched)
-                    {
-                        <AppStatusBadge Tone="AppUiTone.Warning" Text="@L["EditorFamily_NotMatched"].Value" />
-                    }
-                    else
-                    {
-                        <AppStatusBadge Tone="AppUiTone.Success" Text="@L["EditorFamily_Matched"].Value" Icon="@AppMaterialIcons.Outlined.Check" />
-                    }
-                </div>
+                <div class="tl-editor-header__selects">@Selects</div>
             }
         </div>
         @if (links.Count > 0 || CanDelete)
@@ -95,6 +114,15 @@
     [Parameter, EditorRequired] public ItemFieldEditSession Fields { get; set; } = default!;
 
     [Parameter, EditorRequired] public EditorFamilyState Family { get; set; } = default!;
+
+    /// <summary>The item has a family (a show, album, series or Universe): the header draws its tile and its dropdowns.</summary>
+    [Parameter] public bool HasFamily { get; set; }
+
+    /// <summary>The fixed tile of the family (the show, album, series or Universe), at the left of the header.</summary>
+    [Parameter] public RenderFragment? Tile { get; set; }
+
+    /// <summary>The dropdowns of the family (Season, Episode; a Universe's kinds), under the title.</summary>
+    [Parameter] public RenderFragment? Selects { get; set; }
 
     /// <summary>The name of the Universe being edited, for the kind line of a character, place or faction ("Faction in Dune").</summary>
     [Parameter] public string? UniverseName { get; set; }

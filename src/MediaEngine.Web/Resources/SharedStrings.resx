@@ -10191,9 +10191,6 @@
   <data name="EditorRail_Label" xml:space="preserve">
     <value>Where this item sits</value>
   </data>
-  <data name="EditorRail_EarlierLevels" xml:space="preserve">
-    <value>Earlier levels</value>
-  </data>
   <data name="EditorRail_ChangesWaiting" xml:space="preserve">
     <value>Changes waiting</value>
   </data>
