@@ -1,0 +1,46 @@
+name: Tracked bug (Tuvima team)
+description: A bug the product owner tracks to closure, with proof of the fix.
+labels: ["state:planned"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Plain English please. Closing needs a closure note, and UI bugs need the approved mock beside the live page at 1024, 1280, 1440 and phone width. Screenshots go in this issue, never into the repository.
+  - type: textarea
+    id: saw
+    attributes:
+      label: What was seen
+      description: In plain English.
+    validations:
+      required: true
+  - type: input
+    id: where
+    attributes:
+      label: Where
+      description: Page or route, and device width.
+  - type: textarea
+    id: expected
+    attributes:
+      label: What it should look like or do
+      description: Link the spec or mock file.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Type
+      options: ["UI (looks wrong)", "Logic (behaves wrong)"]
+    validations:
+      required: true
+  - type: textarea
+    id: shot
+    attributes:
+      label: Screenshot of the problem
+      description: Drag it in here.
+  - type: textarea
+    id: cause
+    attributes:
+      label: Cause, if known
+  - type: input
+    id: legacy
+    attributes:
+      label: Legacy number
+      description: For example "local check 2026-11-05 item 18".
