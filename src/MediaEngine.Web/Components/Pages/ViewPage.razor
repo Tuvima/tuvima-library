@@ -112,9 +112,20 @@ else
     private bool _includeMissing;
     private IReadOnlyList<ViewFilterChoice> _addedByChoices = [];
     private IReadOnlyList<ViewFilterChoice> _tagChoices = [];
-    private ViewSectionShell? _viewSectionShell; private ViewAssetTimelinePageDto? _page; private ViewTimelineIndexDto? _timelineIndex; private LocalAssetDto? _activeItem; private readonly HashSet<Guid> _selected = []; private readonly Dictionary<(Guid, Guid, ViewMediaResourceKind, ViewMediaResourceRole, ViewScopeKind, Guid?), CachedMediaGrant> _grants = [];
+    private ViewSectionShell? _viewSectionShell;
+    private ViewAssetTimelinePageDto? _page;
+    private ViewTimelineIndexDto? _timelineIndex;
+    private LocalAssetDto? _activeItem;
+    private readonly HashSet<Guid> _selected = [];
+    private readonly Dictionary<(Guid, Guid, ViewMediaResourceKind, ViewMediaResourceRole, ViewScopeKind, Guid?), CachedMediaGrant> _grants = [];
     private CancellationTokenSource? _searchCts; private Guid? _profileId; private string _search = ""; private string _filter = "all"; private bool _initializing = true, _loading, _loadingMore, _uploading; private string? _uploadFileName, _uploadError;
-    private DateTimeOffset? _anchorBefore; private Guid? _selectionAnchor; private int? _activeYear, _activeMonth; private ElementReference _timelineSentinel; private IJSObjectReference? _timelineModule; private DotNetObjectReference<ViewPage>? _timelineReference; private bool _observeTimeline, _focusAnchoredPeriod;
+    private DateTimeOffset? _anchorBefore;
+    private Guid? _selectionAnchor;
+    private int? _activeYear, _activeMonth;
+    private ElementReference _timelineSentinel;
+    private IJSObjectReference? _timelineModule;
+    private DotNetObjectReference<ViewPage>? _timelineReference;
+    private bool _observeTimeline, _focusAnchoredPeriod;
     private bool _selectMode;
     // Bumped after a restore, so the Trash header reads the Trash size again. Empty Trash refreshes it itself; a new visit to Trash reads it fresh.
     private int _trashVersion;
@@ -203,7 +214,10 @@ else
         catch (OperationCanceledException) { }
     }
     private async Task ToggleMissingAsync() { _includeMissing = !_includeMissing; await LoadAsync(); }
-    private async Task SetFilterAsync(string filter) { _filter = filter; await LoadAsync(); } private string FilterClass(string filter) => $"app-discovery-filter__tab{(_filter == filter ? " is-active" : "")}"; private string SelectedScopeValue => ScopeValue(Workspace.ScopeKind, Workspace.ScopeProfileId); private static string ScopeValue(ViewScopeKind kind, Guid? profile) => $"{kind}:{(kind.CarriesProfileId() ? profile?.ToString("D") : null)}";
+    private async Task SetFilterAsync(string filter) { _filter = filter; await LoadAsync(); }
+    private string FilterClass(string filter) => $"app-discovery-filter__tab{(_filter == filter ? " is-active" : "")}";
+    private string SelectedScopeValue => ScopeValue(Workspace.ScopeKind, Workspace.ScopeProfileId);
+    private static string ScopeValue(ViewScopeKind kind, Guid? profile) => $"{kind}:{(kind.CarriesProfileId() ? profile?.ToString("D") : null)}";
     private string ScopeDescription => Workspace.ScopeKind switch
     {
         ViewScopeKind.Mine => "Your private photo and video timeline.",
@@ -216,7 +230,14 @@ else
         scope.Kind == Workspace.ScopeKind && (scope.Kind != ViewScopeKind.Profile || scope.ProfileId == Workspace.ScopeProfileId))?.Label
         ?? Workspace.OtherPersonName(Workspace.ScopeProfileId) ?? "this profile";
     private async Task UploadMediaAsync(InputFileChangeEventArgs args) { if (_uploading) return; var file = args.File; _uploadFileName = file.Name; _uploadError = null; _uploading = true; try { await using var stream = file.OpenReadStream(file.Size); var result = await ApiClient.UploadViewMediaAsync(stream, file.Name, file.ContentType); if (!result.Success) { _uploadError = result.ErrorMessage ?? "The Engine rejected this upload."; return; } Snackbar.Add(result.Upload?.Outcome == "duplicate" ? result.Upload.Message ?? $"{file.Name} is already in your library." : $"Added {file.Name} to Photos.", result.Upload?.Outcome == "duplicate" ? AppSeverity.Info : AppSeverity.Success); await LoadAsync(); } catch (Exception ex) { _uploadError = $"The file could not be uploaded: {ex.Message}"; } finally { _uploading = false; _uploadFileName = null; } }
-    private void OpenItem(LocalAssetDto item) => _activeItem = item; private void CloseItem() => _activeItem = null; private IReadOnlyList<LocalAssetDto> VisibleItems => _page?.Items ?? []; private int ActiveIndex => _activeItem is null ? -1 : VisibleItems.ToList().FindIndex(i => i.Id == _activeItem.Id); private bool HasPrevious => ActiveIndex > 0; private bool HasNext => ActiveIndex >= 0 && ActiveIndex < VisibleItems.Count - 1; private void PreviousItem() { if (HasPrevious) _activeItem = VisibleItems[ActiveIndex - 1]; } private void NextItem() { if (HasNext) _activeItem = VisibleItems[ActiveIndex + 1]; }
+    private void OpenItem(LocalAssetDto item) => _activeItem = item;
+    private void CloseItem() => _activeItem = null;
+    private IReadOnlyList<LocalAssetDto> VisibleItems => _page?.Items ?? [];
+    private int ActiveIndex => _activeItem is null ? -1 : VisibleItems.ToList().FindIndex(i => i.Id == _activeItem.Id);
+    private bool HasPrevious => ActiveIndex > 0;
+    private bool HasNext => ActiveIndex >= 0 && ActiveIndex < VisibleItems.Count - 1;
+    private void PreviousItem() { if (HasPrevious) _activeItem = VisibleItems[ActiveIndex - 1]; }
+    private void NextItem() { if (HasNext) _activeItem = VisibleItems[ActiveIndex + 1]; }
     private string? ViewerPosition => ActiveIndex >= 0 ? $"{ActiveIndex + 1} of {VisibleItems.Count}" : null;
     private void ToggleSelection(Guid id) { if (!_selected.Add(id)) _selected.Remove(id); _selectionAnchor = id; }
     private void ToggleSelectionRequested(ViewPhotoTimeline.SelectionRequest request)
@@ -436,7 +457,12 @@ else
         ClearSelection();
     }
     private Task RestoreSelectionAsync() { _trashVersion++; return MutateSelectionAsync(async (id, ct) => { var restored = await ApiClient.RestoreViewItemAsync(id, ct); if (restored) Workspace.ClearTrashFailures([id]); return restored; }, "Restored selected items to Photos."); }
-    private async Task ToggleFavoriteAsync() { if (_activeItem is null) return; var value = !_activeItem.Favorite; if (await ApiClient.SetViewItemFavoriteAsync(_activeItem.Id, value)) Replace(_activeItem with { Favorite = value }); } private async Task ArchiveActiveAsync() { if (_activeItem is not null && await ViewTrashConfirmation.AskArchiveAsync(DialogService) && await ApiClient.ArchiveViewItemAsync(_activeItem.Id)) await RemoveActiveAsync(); } private async Task RestoreActiveAsync() { if (_activeItem is not null && await ApiClient.RestoreViewItemAsync(_activeItem.Id)) { Workspace.ClearTrashFailures([_activeItem.Id]); _trashVersion++; await RemoveActiveAsync(); } } private async Task TrashActiveAsync() { if (_activeItem is { CanTrash: true } && await ViewTrashConfirmation.AskTrashAsync(DialogService) && await ApiClient.TrashViewItemAsync(_activeItem.Id)) await RemoveActiveAsync(); } private async Task RemoveActiveAsync() { _activeItem = null; await LoadAsync(); } private void Replace(LocalAssetDto updated) { _activeItem = updated; if (_page is not null) _page = _page with { Items = _page.Items.Select(i => i.Id == updated.Id ? updated : i).ToList() }; }
+    private async Task ToggleFavoriteAsync() { if (_activeItem is null) return; var value = !_activeItem.Favorite; if (await ApiClient.SetViewItemFavoriteAsync(_activeItem.Id, value)) Replace(_activeItem with { Favorite = value }); }
+    private async Task ArchiveActiveAsync() { if (_activeItem is not null && await ViewTrashConfirmation.AskArchiveAsync(DialogService) && await ApiClient.ArchiveViewItemAsync(_activeItem.Id)) await RemoveActiveAsync(); }
+    private async Task RestoreActiveAsync() { if (_activeItem is not null && await ApiClient.RestoreViewItemAsync(_activeItem.Id)) { Workspace.ClearTrashFailures([_activeItem.Id]); _trashVersion++; await RemoveActiveAsync(); } }
+    private async Task TrashActiveAsync() { if (_activeItem is { CanTrash: true } && await ViewTrashConfirmation.AskTrashAsync(DialogService) && await ApiClient.TrashViewItemAsync(_activeItem.Id)) await RemoveActiveAsync(); }
+    private async Task RemoveActiveAsync() { _activeItem = null; await LoadAsync(); }
+    private void Replace(LocalAssetDto updated) { _activeItem = updated; if (_page is not null) _page = _page with { Items = _page.Items.Select(i => i.Id == updated.Id ? updated : i).ToList() }; }
     private string AssetUrl(LocalAssetDto item, ViewMediaResourceKind kind, ViewMediaResourceRole role = ViewMediaResourceRole.Primary)
     {
         if (!_profileId.HasValue) return "";
@@ -458,7 +484,8 @@ else
             : item.OwnerProfileId.HasValue && item.OwnerProfileId != _profileId
                 ? (ViewScopeKind.Profile, item.OwnerProfileId)
                 : (ViewScopeKind.Mine, null);
-    private string EmptyTitle => !string.IsNullOrWhiteSpace(_search) ? "No matching items" : _filter switch { "favorites" => "No favorites yet", "videos" => "No videos yet", "archive" => "Archive is empty", "trash" => "Trash is empty", "hidden" => "No hidden items", "documents" => "No documents yet", _ => "No personal media yet" }; private string EmptyMessage => !string.IsNullOrWhiteSpace(_search) ? "Try a different search." : "Items matching this View filter will appear here.";
+    private string EmptyTitle => !string.IsNullOrWhiteSpace(_search) ? "No matching items" : _filter switch { "favorites" => "No favorites yet", "videos" => "No videos yet", "archive" => "Archive is empty", "trash" => "Trash is empty", "hidden" => "No hidden items", "documents" => "No documents yet", _ => "No personal media yet" };
+    private string EmptyMessage => !string.IsNullOrWhiteSpace(_search) ? "Try a different search." : "Items matching this View filter will appear here.";
     private async Task JumpToBucketAsync(ViewTimelineBucketDto bucket)
     {
         if (_timelineModule is not null && await _timelineModule.InvokeAsync<bool>("jumpToPeriod", bucket.Year, bucket.Month)) return;
@@ -486,7 +513,8 @@ else
         _observeTimeline = false;
         if (_focusAnchoredPeriod) { _focusAnchoredPeriod = false; await _timelineModule.InvokeVoidAsync("focusFirstPeriod"); }
     }
-    private void OnProfileChanged() => _ = InvokeAsync(async () => { _grants.Clear(); Workspace.Reset(); await InitializeAsync(); StateHasChanged(); }); public void Dispose() { Orchestrator.OnProfileChanged -= OnProfileChanged; DeviceContext.OnChanged -= DeviceChanged; _searchCts?.Cancel(); _searchCts?.Dispose(); }
+    private void OnProfileChanged() => _ = InvokeAsync(async () => { _grants.Clear(); Workspace.Reset(); await InitializeAsync(); StateHasChanged(); });
+    public void Dispose() { Orchestrator.OnProfileChanged -= OnProfileChanged; DeviceContext.OnChanged -= DeviceChanged; _searchCts?.Cancel(); _searchCts?.Dispose(); }
     public async ValueTask DisposeAsync() { Dispose(); if (_timelineModule is not null) { try { await _timelineModule.InvokeVoidAsync("disconnectTimeline", _timelineSentinel); await _timelineModule.DisposeAsync(); } catch (JSDisconnectedException) { } } _timelineReference?.Dispose(); }
     private sealed record CachedMediaGrant(string Url, DateTimeOffset ExpiresAt);
 }
