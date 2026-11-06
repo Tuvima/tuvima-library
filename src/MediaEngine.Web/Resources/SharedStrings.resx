@@ -3246,9 +3246,6 @@
   <data name="ViewPage_Density" xml:space="preserve">
     <value>Density</value>
   </data>
-  <data name="ViewPage_Uploading" xml:space="preserve">
-    <value>Uploading {0}…</value>
-  </data>
   <data name="ViewPage_Hidden" xml:space="preserve">
     <value>Hidden</value>
   </data>
@@ -11186,5 +11183,23 @@
   </data>
   <data name="ViewPage_ClearDay" xml:space="preserve">
     <value>Show all dates</value>
+  </data>
+  <data name="ViewDrop_Uploading" xml:space="preserve">
+    <value>Adding {0} of {1}: {2}</value>
+  </data>
+  <data name="ViewDrop_AddedOne" xml:space="preserve">
+    <value>Added 1 item.</value>
+  </data>
+  <data name="ViewDrop_AddedMany" xml:space="preserve">
+    <value>Added {0} items.</value>
+  </data>
+  <data name="ViewDrop_AlreadyThere" xml:space="preserve">
+    <value>{0} already in your library.</value>
+  </data>
+  <data name="ViewDrop_NotAdded" xml:space="preserve">
+    <value>{0}: This isn't a valid photo or video. {1}</value>
+  </data>
+  <data name="ViewDrop_AddedToGallery" xml:space="preserve">
+    <value>Added {0} to {1}.</value>
   </data>
 </root>

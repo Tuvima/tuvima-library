@@ -48,27 +48,6 @@
 .view-add-media__label ::deep .tl-icon-root {
     font-size: 1.05rem;
 }
-
-.view-upload-status {
-    display: grid;
-    gap: 8px;
-    padding: 10px 14px;
-    margin: -10px 0 18px;
-    color: rgba(226, 232, 240, 0.86);
-    border: 1px solid rgba(167, 139, 250, 0.22);
-    border-radius: var(--tl-radius-md);
-    background: rgba(76, 29, 149, 0.16);
-    font-size: var(--tl-font-size-secondary);
-}
-
-.view-upload-status.is-error {
-    display: flex;
-    align-items: center;
-    color: #fecaca;
-    border-color: rgba(248, 113, 113, 0.32);
-    background: rgba(127, 29, 29, 0.18);
-}
-
 .view-search {
     display: flex;
     flex: 1 1 420px;

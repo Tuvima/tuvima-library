@@ -41,9 +41,9 @@ public sealed class ViewLibrarySurfaceTests
         Assert.Contains("[\"archive\"] = \"Archive\"", source, StringComparison.Ordinal);
         Assert.Contains("Add media", source, StringComparison.Ordinal);
         Assert.Contains("<InputFile", source, StringComparison.Ordinal);
-        Assert.Contains("UploadViewMediaAsync", source, StringComparison.Ordinal);
-        Assert.Contains("role=\"status\"", source, StringComparison.Ordinal);
-        Assert.Contains("role=\"alert\"", source, StringComparison.Ordinal);
+        Assert.Contains("DropUploader.UploadAsync", source, StringComparison.Ordinal);
+        // Upload progress and errors are said on the slim ribbon, not on the page.
+        Assert.Contains("<ViewDropTarget", source, StringComparison.Ordinal);
         Assert.DoesNotContain("view-library-picker", source, StringComparison.Ordinal);
         Assert.DoesNotContain("view-summary", source, StringComparison.Ordinal);
         Assert.DoesNotContain("Scan library", source, StringComparison.Ordinal);

@@ -13,13 +13,34 @@ public sealed class ViewRibbonState
 
     public DateTimeOffset At { get; private set; }
 
+    /// <summary>Files finished so far while something is being added, or null when no progress is showing.</summary>
+    public int? ProgressDone { get; private set; }
+
+    public int? ProgressTotal { get; private set; }
+
+    public bool InProgress => ProgressTotal is > 0;
+
+
     public event Action? Changed;
 
     public void Show(string message, bool isError = false)
     {
         Message = message;
         IsError = isError;
+        ProgressDone = null;
+        ProgressTotal = null;
         At = DateTimeOffset.Now;
+        Changed?.Invoke();
+    }
+
+    /// <summary>Says what is being added and how far along it is; the ribbon draws a progress bar until the next <see cref="Show"/>.</summary>
+    public void ShowProgress(string message, int done, int total)
+    {
+        Message = message;
+        IsError = false;
+        At = DateTimeOffset.Now;
+        ProgressDone = done;
+        ProgressTotal = total;
         Changed?.Invoke();
     }
 
@@ -31,6 +52,8 @@ public sealed class ViewRibbonState
         }
 
         Message = null;
+        ProgressDone = null;
+        ProgressTotal = null;
         Changed?.Invoke();
     }
 }

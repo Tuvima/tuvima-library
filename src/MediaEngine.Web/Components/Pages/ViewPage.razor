@@ -6,6 +6,7 @@
 @inject IEngineApiClient ApiClient
 @inject UIOrchestratorService Orchestrator
 @inject ViewRibbonVoice Snackbar
+@inject ViewDropUploader DropUploader
 @inject ViewWorkspaceService Workspace
 @inject ViewAssetDragService AssetDrag
 @inject ViewMediaGrantService MediaGrants
@@ -28,17 +29,16 @@
     {
         <AppButton Href="/view/contributions" Label="@L["Common_Contributions"].Value" StartIcon="@AppMaterialIcons.Outlined.MoveToInbox" ButtonStyle="AppButtonStyle.Text" />
         @if (DeviceContext.IsTouch) { <AppButton Class="view-select-toggle" ButtonStyle="AppButtonStyle.Outlined" StartIcon="@AppMaterialIcons.Outlined.CheckCircleOutline" Label="@(_selectMode ? "Done" : "Select")" aria-pressed="@(_selectMode ? "true" : "false")" OnClick="ToggleSelectMode" /> }
-        @if (!Workspace.ScopeKind.CarriesProfileId()) { <label class="view-add-media@(_uploading ? " is-busy" : string.Empty)" aria-disabled="@_uploading"><InputFile class="view-add-media__input" OnChange="UploadMediaAsync" disabled="@_uploading" accept="image/*,video/*" /><span class="view-add-media__label"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" />@(_uploading ? "Uploading…" : "Add media")</span></label> }
+        @if (!Workspace.ScopeKind.CarriesProfileId()) { <label class="view-add-media@(_uploading ? " is-busy" : string.Empty)" aria-disabled="@_uploading"><InputFile class="view-add-media__input" OnChange="PickedAsync" multiple disabled="@_uploading" accept="image/*,video/*" /><span class="view-add-media__label"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" />@(_uploading ? "Uploading…" : "Add media")</span></label> }
     }
 </HeaderActions>
 <ChildContent>
+@if (!Workspace.ScopeKind.CarriesProfileId() && Workspace.CanViewPhotoTimeline && !_initializing) { <ViewDropTarget OnFiles="FilesChosenAsync" /> }
 @if (_initializing) { <AppPageState Kind="AppPageStateKind.Loading" Title="@L["ViewPage_LoadingPhotos"].Value" Message="@L["ViewPage_OpeningYourPersonalSpace"].Value" /> }
 else if (Workspace.Scopes is null) { <AppErrorState Title="@L["Common_PhotosCouldNotBeLoaded"].Value" Message="@L["ViewPage_TheDashboardCouldNotResolve"].Value" Retry="InitializeAsync" /> }
 else if (!Workspace.CanViewPhotoTimeline) { <AppPageState Kind="AppPageStateKind.Unavailable" Icon="@AppMaterialIcons.Outlined.Lock" Title="@L["ViewPage_PhotosAreNotAvailableFor"].Value" Message="@L["ViewPage_AskAnAdministratorOfThis"].Value" Class="view-photos-denied" /> }
 else
 {
-    @if (_uploading) { <section class="view-upload-status" role="status" aria-live="polite"><span>@L["ViewPage_Uploading", _uploadFileName ?? string.Empty]</span><AppProgressBar Color="AppColor.Primary" Indeterminate="true" /></section> }
-    @if (!string.IsNullOrWhiteSpace(_uploadError)) { <section class="view-upload-status is-error" role="alert">@_uploadError</section> }
     <AppDiscoveryFilterBar AriaLabel="@L["ViewPage_ViewFilters"].Value"
                            ActiveKey="@_filter"
                            SearchValue="@_search"
@@ -132,7 +132,7 @@ else
     private LocalAssetDto? _activeItem;
     private readonly HashSet<Guid> _selected = [];
     private readonly Dictionary<(Guid, Guid, ViewMediaResourceKind, ViewMediaResourceRole, ViewScopeKind, Guid?), CachedMediaGrant> _grants = [];
-    private CancellationTokenSource? _searchCts; private Guid? _profileId; private string _search = ""; private string _filter = "all"; private bool _initializing = true, _loading, _loadingMore, _uploading; private string? _uploadFileName, _uploadError;
+    private CancellationTokenSource? _searchCts; private Guid? _profileId; private string _search = ""; private string _filter = "all"; private bool _initializing = true, _loading, _loadingMore, _uploading;
     private DateTimeOffset? _anchorBefore;
     private Guid? _selectionAnchor;
     private int? _activeYear, _activeMonth;
@@ -255,7 +255,19 @@ else
     private string SelectedScopeLabel => Workspace.Scopes?.AvailableScopes.FirstOrDefault(scope =>
         scope.Kind == Workspace.ScopeKind && (scope.Kind != ViewScopeKind.Profile || scope.ProfileId == Workspace.ScopeProfileId))?.Label
         ?? Workspace.OtherPersonName(Workspace.ScopeProfileId) ?? "this profile";
-    private async Task UploadMediaAsync(InputFileChangeEventArgs args) { if (_uploading) return; var file = args.File; _uploadFileName = file.Name; _uploadError = null; _uploading = true; try { await using var stream = file.OpenReadStream(file.Size); var result = await ApiClient.UploadViewMediaAsync(stream, file.Name, file.ContentType); if (!result.Success) { _uploadError = result.ErrorMessage ?? "The Engine rejected this upload."; return; } Snackbar.Add(result.Upload?.Outcome == "duplicate" ? result.Upload.Message ?? $"{file.Name} is already in your library." : $"Added {file.Name} to Photos.", result.Upload?.Outcome == "duplicate" ? AppSeverity.Info : AppSeverity.Success); await LoadAsync(); } catch (Exception ex) { _uploadError = $"The file could not be uploaded: {ex.Message}"; } finally { _uploading = false; _uploadFileName = null; } }
+    private Task PickedAsync(InputFileChangeEventArgs args) => FilesChosenAsync(args.GetMultipleFiles(200));
+    private async Task FilesChosenAsync(IReadOnlyList<IBrowserFile> files)
+    {
+        if (_uploading || files.Count == 0) return;
+        _uploading = true;
+        try
+        {
+            var result = await DropUploader.UploadAsync(files);
+            DropUploader.Report(result);
+            if (result.ItemIds.Count > 0) await LoadAsync();
+        }
+        finally { _uploading = false; }
+    }
     private void OpenItem(LocalAssetDto item) => _activeItem = item;
     private void CloseItem() => _activeItem = null;
     private IReadOnlyList<LocalAssetDto> VisibleItems => _page?.Items ?? [];

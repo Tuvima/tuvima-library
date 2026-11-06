@@ -17,6 +17,7 @@ internal static class NativeUiTestServices
         // The photos, videos, documents and galleries editor: one window per circuit, and the ribbon the quick actions speak through.
         services.TryAddScoped<MediaEngine.Web.Services.Editing.ViewRibbonState>();
         services.TryAddScoped<MediaEngine.Web.Services.Editing.ViewRibbonVoice>();
+        services.TryAddScoped<MediaEngine.Web.Services.Editing.ViewDropUploader>();
         services.TryAddScoped(provider =>
         {
             var api = provider.GetService<MediaEngine.Web.Services.Integration.IEngineApiClient>() ?? EngineApiClientStub.CreateDefault();
