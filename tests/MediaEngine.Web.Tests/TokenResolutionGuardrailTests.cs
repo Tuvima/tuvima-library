@@ -79,6 +79,19 @@ public sealed class TokenResolutionGuardrailTests
     }
 
     [Fact]
+    public void FilterChipsShareOneHeightAndGrowToTouchSize()
+    {
+        var web = Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web");
+        var tokens = File.ReadAllText(Path.Combine(web, "wwwroot", "tuvima.tokens.css"));
+        Assert.Contains("--tl-chip-height: 36px;", tokens);
+        Assert.Contains("--tl-chip-height-touch: 44px;", tokens);
+        var app = File.ReadAllText(Path.Combine(web, "wwwroot", "app.css"));
+        Assert.Contains("min-height: var(--tl-chip-height-touch)", app);
+        var toggle = File.ReadAllText(Path.Combine(web, "Components", "Shared", "AppToggleChip.razor.css"));
+        Assert.Contains("min-height: var(--tl-chip-height);", toggle);
+    }
+
+    [Fact]
     public void MenuRowsUseTheOneMenuSizeTokens()
     {
         var web = Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web");

@@ -2118,8 +2118,8 @@ input.app-control.tl-input-slot,
 }
 
 .app-chip.browse-shell__grouping-chip {
-    min-height: 28px;
-    padding: 0 12px;
+    min-height: var(--tl-chip-height);
+    padding: 0 14px;
     border-radius: var(--tl-radius-pill);
     align-items: center;
     justify-content: center;
@@ -2142,6 +2142,15 @@ input.app-control.tl-input-slot,
 
 .app-chip--clickable {
     cursor: pointer;
+    min-height: var(--tl-chip-height);
+    padding: 0 14px;
+    font-size: var(--tl-font-size-sm);
+    font-weight: var(--tl-font-weight-medium);
+}
+
+@media (pointer: coarse) {
+    .app-chip--clickable,
+    .app-chip.browse-shell__grouping-chip { min-height: var(--tl-chip-height-touch); }
 }
 
 .app-chip.is-disabled {
