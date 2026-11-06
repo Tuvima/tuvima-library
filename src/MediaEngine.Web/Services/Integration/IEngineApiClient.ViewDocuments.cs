@@ -38,6 +38,11 @@ public partial interface IEngineApiClient
     Task<string?> GetViewDocumentsSortAsync(CancellationToken ct = default);
 
     Task<bool> SetViewDocumentsSortAsync(string? sort, CancellationToken ct = default);
+
+    /// <summary>True when this profile chose "Don't ask again" and pictures dropped on Documents go straight to Photos.</summary>
+    Task<bool> GetViewDocumentsPicturesToPhotosAsync(CancellationToken ct = default);
+
+    Task<bool> SetViewDocumentsPicturesToPhotosAsync(bool toPhotos, CancellationToken ct = default);
 }
 
 /// <summary>A finished export: the file, or the reason there is none. <see cref="Truncated"/> means the list was cut at the row cap.</summary>

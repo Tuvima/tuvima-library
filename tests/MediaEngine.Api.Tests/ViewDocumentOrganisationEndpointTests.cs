@@ -236,6 +236,8 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
             (HttpMethod.Get, "/view/documents/export", null),
             (HttpMethod.Get, "/view/preferences/documents-sort", null),
             (HttpMethod.Put, "/view/preferences/documents-sort", JsonContent.Create(new ViewDocumentsSortDto("title"))),
+            (HttpMethod.Get, "/view/preferences/documents-pictures", null),
+            (HttpMethod.Put, "/view/preferences/documents-pictures", JsonContent.Create(new ViewDocumentsPicturesDto(true))),
             (HttpMethod.Put, $"/view/galleries/{savedView:D}/shares", JsonContent.Create(new ViewGallerySharesRequest([]))),
             (HttpMethod.Post, "/view/galleries", JsonContent.Create(new ViewGalleryRequest("Saved", ViewGalleryKind.Smart, SmartRuleJson: DocumentViewRule()))),
             (HttpMethod.Get, $"/view/galleries/{savedView:D}", null),
@@ -917,6 +919,22 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
         Assert.Equal(2, narrowedLines.Length);
         using var badSort = await _client.GetAsync("/view/documents/export?scope=mine&docSort=chaos");
         Assert.Equal(HttpStatusCode.BadRequest, badSort.StatusCode);
+    }
+
+    [Fact]
+    public async Task ThePictureDropChoiceIsRememberedPerProfile()
+    {
+        var alice = await CreatePerson("StandardUser");
+        var bob = await CreatePerson("StandardUser");
+        _actor.Current = alice.Authority;
+        Assert.False((await _client.GetFromJsonAsync<ViewDocumentsPicturesDto>("/view/preferences/documents-pictures"))!.ToPhotos);
+
+        using var saved = await _client.PutAsJsonAsync("/view/preferences/documents-pictures", new ViewDocumentsPicturesDto(true));
+        Assert.Equal(HttpStatusCode.OK, saved.StatusCode);
+        Assert.True((await _client.GetFromJsonAsync<ViewDocumentsPicturesDto>("/view/preferences/documents-pictures"))!.ToPhotos);
+
+        _actor.Current = bob.Authority;
+        Assert.False((await _client.GetFromJsonAsync<ViewDocumentsPicturesDto>("/view/preferences/documents-pictures"))!.ToPhotos);
     }
 
     [Fact]
@@ -1741,6 +1759,7 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
         ["GET /view/places/atlas"] = Covers(Discovery, "QueryAtlas"),
         ["GET /view/places/media"] = Covers(Discovery, "QueryPlaceAssets"),
         ["GET /view/preferences"] = NoItems + "the person's own settings",
+        ["GET /view/preferences/documents-pictures"] = Refused,
         ["GET /view/preferences/documents-sort"] = Refused,
         ["GET /view/scopes"] = NoItems + "scope names only",
         ["GET /view/share-targets"] = NoItems + "profile names only",
@@ -1803,6 +1822,7 @@ public sealed partial class ViewDocumentOrganisationEndpointTests : IAsyncLifeti
         ["PUT /view/items/{id:guid}/people"] = Refused,
         ["PUT /view/items/{id:guid}/tags"] = Refused,
         ["PUT /view/preferences"] = NoItems + "the person's own settings",
+        ["PUT /view/preferences/documents-pictures"] = Refused,
         ["PUT /view/preferences/documents-sort"] = Refused,
         ["PUT /view/tags/{id:guid}"] = Refused,
 

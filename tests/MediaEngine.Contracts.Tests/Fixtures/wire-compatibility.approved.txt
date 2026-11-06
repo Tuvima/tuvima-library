@@ -1953,6 +1953,9 @@
   input scopeProfileId | default=null | shape=1cc7cad302ebf04503481215740acd66365a6458785e51466ebcca79d1b00b6c
   response | shape=1bf2bc75c6124d59745f5bb7bbcbf1c9c94b23418fe569f85c1335cfca81dcd9
 
+[method] GetViewDocumentsPicturesToPhotosAsync
+  response | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
+
 [method] GetViewDocumentsSortAsync
   response | shape=b7f71ed495bd93896e800be27ce47fe57bc5e91c260a23941824ad675096d219
 
@@ -3051,6 +3054,10 @@
   input libraryId | default=required | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c
   input enabled | default=required | shape=6a8a0c49ed90d72a562a3fff9de3ce004a7916f9a97c95b3beb3f537a6f06102
   response | shape=05dcd80b85c9e89f172b4016bf1c9a2c247f763ab3ccd2c6078b4ed89d563185
+
+[method] SetViewDocumentsPicturesToPhotosAsync
+  input toPhotos | default=required | shape=6a8a0c49ed90d72a562a3fff9de3ce004a7916f9a97c95b3beb3f537a6f06102
+  response | shape=5799371b53eca3a30e5c58a05a5fc21ebcff4b2ea3a11a74d123b45ada034677
 
 [method] SetViewDocumentsSortAsync
   input sort | default=required | shape=5f8e496050a6b44f36ce0029250d28a6669af25673d426cd41838f3f7808990c

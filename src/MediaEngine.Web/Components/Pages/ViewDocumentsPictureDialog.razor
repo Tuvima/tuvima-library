@@ -1,0 +1,24 @@
+@namespace MediaEngine.Web.Components.Pages
+@inject IStringLocalizer<SharedStrings> L
+
+<AppDialogShell Title="@L["ViewDocumentsDrop_PictureTitle"].Value" Subtitle="@L["ViewDocumentsDrop_PictureSubtitle"].Value" Size="Small" OnClose="@(() => Dialog.Cancel())">
+    <ChildContent>
+        <p>@Summary</p>
+        <AppCheckboxRow Label="@L["ViewDocumentsDrop_DontAskAgain"].Value" Description="@L["ViewDocumentsDrop_DontAskAgainHint"].Value" Value="_remember" ValueChanged="@(value => _remember = value)" />
+    </ChildContent>
+    <FooterContent>
+        <AppButton Label="@L["ViewDocumentsDrop_Cancel"].Value" ButtonStyle="AppButtonStyle.Text" OnClick="@(() => Dialog.Cancel())" />
+        <AppButton Label="@L["ViewDocumentsDrop_AddToPhotos"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="Complete" />
+    </FooterContent>
+</AppDialogShell>
+
+@code {
+    [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
+    [Parameter] public int PictureCount { get; set; }
+    [Parameter] public string FirstName { get; set; } = string.Empty;
+    private bool _remember;
+    private string Summary => PictureCount == 1
+        ? L["ViewDocumentsDrop_PictureOne", FirstName].Value
+        : L["ViewDocumentsDrop_PictureCount", PictureCount].Value;
+    private void Complete() => Dialog.Close(AppDialogResult.Ok(_remember));
+}

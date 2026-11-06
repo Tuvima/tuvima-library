@@ -34,6 +34,29 @@ public sealed class ViewDropUploaderTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task ADropOnDocumentsUploadsDocumentsAndTurnsAwayVideosWithTheDocumentsWording()
+    {
+        var uploader = Uploader();
+
+        var result = await uploader.UploadAsync([new FakeFile("lease.pdf"), new FakeFile("clip.mov")], accepts: ViewDropUploader.IsDocument);
+        uploader.Report(result, notAddedKey: "ViewDrop_NotAddedToDocuments");
+
+        Assert.Equal(["lease.pdf"], _sent);
+        Assert.Contains("Documents keeps documents and pictures only.", _ribbon.Message, StringComparison.Ordinal);
+        Assert.True(_ribbon.IsError);
+    }
+
+    [Fact]
+    public async Task APictureIsUploadedFromDocumentsOnlyWhenThePageHasAcceptedPictures()
+    {
+        var uploader = Uploader();
+
+        await uploader.UploadAsync([new FakeFile("scan.png")], accepts: name => ViewDropUploader.IsDocument(name) || ViewDropUploader.IsPicture(name));
+
+        Assert.Equal(["scan.png"], _sent);
+    }
+
+    [Fact]
     public async Task APdfDroppedOnPhotosIsRejectedWithTheReasonAndNothingIsSent()
     {
         var uploader = Uploader();

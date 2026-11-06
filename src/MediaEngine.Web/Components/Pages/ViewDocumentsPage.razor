@@ -18,6 +18,8 @@
 @implements IDisposable
 @namespace MediaEngine.Web.Components.Pages
 @inject ViewEditorHost EditorHost
+@inject ViewDropUploader DropUploader
+@using Microsoft.AspNetCore.Components.Forms
 @inject IStringLocalizer<SharedStrings> L
 
 <PageTitle>@L["ViewDocumentsPage_DocumentsLibrary"]</PageTitle>
@@ -40,6 +42,7 @@
             }
         </HeaderActions>
         <ChildContent>
+            @if (CanDropFiles) { <ViewDropTarget OnFiles="FilesDroppedAsync" /> }
             @if (_loading && !_policyKnown)
             {
                 <AppPageState Kind="AppPageStateKind.Loading" Title="@L["ViewDocumentsPage_LoadingDocuments"].Value" Message="@L["ViewDocumentsPage_ReadingTheDocumentsYouCan"].Value" />
@@ -313,6 +316,50 @@
     private Guid? _longPressed;
     // Bumped after a bulk restore, so the Trash header reads the Trash size again. Empty Trash refreshes it itself; a new visit to Trash reads it fresh.
     private int _trashVersion;
+
+    private bool _dropping;
+
+    // The whole page takes files in your own space and the Shared Library on a pointer or touch screen, never on a television.
+    private bool CanDropFiles => CanBrowse && _policyKnown && !Device.IsTv && !Workspace.ScopeKind.CarriesProfileId();
+
+    // Documents upload here. A picture is asked about once (it belongs in Photos); "Don't ask again" is remembered for this profile.
+    // Cancelling skips only the pictures, and anything else in the same drop still goes through.
+    private async Task FilesDroppedAsync(IReadOnlyList<IBrowserFile> files)
+    {
+        if (_dropping || files.Count == 0) return;
+        _dropping = true;
+        try
+        {
+            var pictures = files.Where(file => ViewDropUploader.IsPicture(file.Name)).ToList();
+            var toPhotos = false;
+            if (pictures.Count > 0)
+            {
+                toPhotos = await ApiClient.GetViewDocumentsPicturesToPhotosAsync();
+                if (!toPhotos)
+                {
+                    var dialog = await DialogService.ShowAsync<ViewDocumentsPictureDialog>(string.Empty,
+                        new AppDialogParameters<ViewDocumentsPictureDialog>
+                        {
+                            { component => component.PictureCount, pictures.Count },
+                            { component => component.FirstName, pictures[0].Name },
+                        },
+                        new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Small });
+                    if (await dialog.Result is { Canceled: false, Data: bool remember })
+                    {
+                        toPhotos = true;
+                        if (remember) await ApiClient.SetViewDocumentsPicturesToPhotosAsync(true);
+                    }
+                }
+            }
+
+            var chosen = files.Where(file => toPhotos || !ViewDropUploader.IsPicture(file.Name)).ToList();
+            if (chosen.Count == 0) return;
+            var result = await DropUploader.UploadAsync(chosen, accepts: name => ViewDropUploader.IsDocument(name) || (toPhotos && ViewDropUploader.IsPicture(name)));
+            DropUploader.Report(result, notAddedKey: "ViewDrop_NotAddedToDocuments");
+            if (result.ItemIds.Count > 0) await LoadAsync();
+        }
+        finally { _dropping = false; }
+    }
 
     // A profile that may not see Documents gets the plain "not available" page. Until the scopes load the answer is unknown.
     private bool CanBrowse => Workspace.Scopes?.CanViewDocuments != false;

@@ -259,6 +259,20 @@ public sealed class DocumentSavedViewAndBulkTests : IDisposable
     }
 
     [Fact]
+    public async Task ThePictureDropChoiceIsRememberedPerProfileAndSurvivesSavingTheScope()
+    {
+        var alice = await CreateLibrary();
+        var profiles = new ViewProfileRepository(_database);
+
+        Assert.False((await profiles.GetPreferencesAsync(alice.ProfileId)).DocumentsPicturesToPhotos);
+        Assert.True(await profiles.SaveDocumentsPicturesToPhotosAsync(alice.ProfileId, true));
+        await profiles.SavePreferencesAsync(new ViewProfilePreferences(
+            alice.ProfileId, ViewScopeKind.Mine, null, ViewTimelineDensity.Compact, DateTimeOffset.UtcNow));
+        Assert.True((await profiles.GetPreferencesAsync(alice.ProfileId)).DocumentsPicturesToPhotos);
+        Assert.False(await profiles.SaveDocumentsPicturesToPhotosAsync(Guid.NewGuid(), true));
+    }
+
+    [Fact]
     public async Task BulkTagsAddAndRemoveWithoutTouchingOtherTags()
     {
         var alice = await CreateLibrary();

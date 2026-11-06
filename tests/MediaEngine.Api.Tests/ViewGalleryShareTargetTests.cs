@@ -113,5 +113,8 @@ public sealed class ViewGalleryShareTargetTests
 
         public Task<bool> SaveDocumentsSortAsync(Guid profileId, string? sort, CancellationToken ct = default) =>
             throw new NotSupportedException();
+
+        public Task<bool> SaveDocumentsPicturesToPhotosAsync(Guid profileId, bool toPhotos, CancellationToken ct = default) =>
+            throw new NotSupportedException();
     }
 }

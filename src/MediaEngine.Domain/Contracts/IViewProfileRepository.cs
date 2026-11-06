@@ -14,4 +14,10 @@ public interface IViewProfileRepository
     /// so that saving the scope or density never forgets it, and false when the profile does not exist.
     /// </summary>
     Task<bool> SaveDocumentsSortAsync(Guid profileId, string? sort, CancellationToken ct = default);
+
+    /// <summary>
+    /// Remembers that this profile ticked "Don't ask again" when a picture was dropped on Documents, so pictures go
+    /// straight to Photos. False when the profile does not exist.
+    /// </summary>
+    Task<bool> SaveDocumentsPicturesToPhotosAsync(Guid profileId, bool toPhotos, CancellationToken ct = default);
 }
