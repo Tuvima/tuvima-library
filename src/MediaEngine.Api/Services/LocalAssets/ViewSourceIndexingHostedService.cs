@@ -47,6 +47,18 @@ public sealed class ViewSourceIndexingHostedService(
     }
 
     /// <summary>
+    /// Looks at every View folder again, Shared folders included ("Check folders for changes"). Each library is queued once and
+    /// scanned in the background, so this returns at once.
+    /// </summary>
+    public void RequestReconcileAll()
+    {
+        foreach (var libraryId in _sources.Select(source => source.LibraryId).Distinct())
+        {
+            RequestReconcile(libraryId);
+        }
+    }
+
+    /// <summary>
     /// A file was deleted or renamed in this library: after a short wait (so a move whose new place is still being indexed, or a short
     /// hiccup on a network share, is never mistaken for a deletion) the folders are looked at again and gone files are marked missing.
     /// </summary>
@@ -205,10 +217,7 @@ public sealed class ViewSourceIndexingHostedService(
 
         // Directory enumeration can be expensive. Keep it off the hosted-service
         // startup path so Kestrel does not wait for an existing photo archive.
-        foreach (var libraryId in _sources.Select(source => source.LibraryId).Distinct())
-        {
-            RequestReconcile(libraryId);
-        }
+        RequestReconcileAll();
 
         var reconciliation = Task.Run(
             () => ReconcileExistingFilesAsync(stoppingToken),

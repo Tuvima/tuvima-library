@@ -115,8 +115,13 @@ public sealed class ViewResourcePersistenceService(
             ? new HashSet<Guid>()
             : await GetExplicitAssetRecipientsAsync(item.Id, requestingProfileId, ct).ConfigureAwait(false);
         using var connection = database.CreateConnection();
+        // An item of a household's Shared library: moved or contributed in, or read from one of its folders.
         var isSharedLibraryAsset = connection.ExecuteScalar<int>(new Dapper.CommandDefinition(
-            "SELECT COUNT(*) FROM view_shared_assets WHERE item_id = @itemId;",
+            """
+            SELECT COUNT(*) FROM local_items li
+             WHERE li.id = @itemId AND li.scope_kind = 'shared'
+               AND EXISTS (SELECT 1 FROM view_shared_library vsl WHERE vsl.library_id = li.library_id);
+            """,
             new { itemId = item.Id }, cancellationToken: ct)) > 0;
         return new ViewResourceDescriptor(
             kind,
@@ -164,7 +169,11 @@ public sealed class ViewResourcePersistenceService(
                   FROM local_items WHERE id IN @ids;
                 """, new { ids = chunkIds }, cancellationToken: ct)));
             sharedLibraryAssets.UnionWith(connection.Query<Guid>(new Dapper.CommandDefinition(
-                "SELECT item_id FROM view_shared_assets WHERE item_id IN @ids;",
+                """
+                SELECT li.id FROM local_items li
+                 WHERE li.id IN @ids AND li.scope_kind = 'shared'
+                   AND EXISTS (SELECT 1 FROM view_shared_library vsl WHERE vsl.library_id = li.library_id);
+                """,
                 new { ids = chunkIds }, cancellationToken: ct)));
         }
 

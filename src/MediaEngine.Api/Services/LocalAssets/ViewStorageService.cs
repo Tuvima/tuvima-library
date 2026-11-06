@@ -394,6 +394,21 @@ public sealed class ViewStorageService(
         return result;
     }
 
+    /// <summary>
+    /// The folders of one household's Shared library (every folder, enabled or not) with where each one lives. Empty when the
+    /// library id is not a Shared library or it has no folders.
+    /// </summary>
+    public async Task<IReadOnlyList<(ViewSharedSource Source, string Path)>> GetSharedSourcesAsync(
+        Guid libraryId, CancellationToken ct = default) =>
+        (await sharedLibrary.GetSourcesAsync(ct))
+            .Where(source => source.LibraryId == libraryId)
+            .Select(source => (source, GetSharedSourcePath(source)))
+            .ToList();
+
+    /// <summary>Records how many files the last full scan left out of a Shared folder because they do not fit its kind.</summary>
+    public Task SetSharedSourceSkippedFileCountAsync(Guid sourceId, int skippedFileCount, CancellationToken ct = default) =>
+        sharedLibrary.SetSourceSkippedFileCountAsync(sourceId, skippedFileCount, ct);
+
     public async Task<IReadOnlyList<(Guid LibraryId, string Path, bool IncludeSubdirectories)>>
         GetEnabledSourcePathsAsync(CancellationToken ct = default)
     {
