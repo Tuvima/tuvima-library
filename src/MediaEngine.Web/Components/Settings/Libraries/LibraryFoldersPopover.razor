@@ -3,10 +3,13 @@
 @using Microsoft.JSInterop
 @inject IJSRuntime JS
 @inject IStringLocalizer<SharedStrings> L
+@inject MediaEngine.Web.Services.Theming.DeviceContextService DeviceContext
+@implements IDisposable
 
 @* "N folders" as a button (Libraries and folder picker D3): it opens a small list of the library's real paths, each with its online or offline state and a copy
    button. It never navigates. Enter or Space opens it, Esc closes it; on a phone the list is a bottom sheet. *@
 <span class="lib-folders" @onclick:stopPropagation="true">
+    <span @ref="_anchor" class="lib-folders__anchor">
     <AppButton Label="@Label"
                EndIcon="@AppMaterialIcons.Outlined.ExpandMore"
                ButtonStyle="AppButtonStyle.Text"
@@ -16,9 +19,28 @@
                aria-expanded="@(_open ? "true" : "false")"
                data-folder-count
                OnClick="Toggle" />
-    @if (_open)
+    </span>
+    @if (_open && DeviceContext.IsPhone)
     {
-        <div class="lib-folders__panel" role="dialog" aria-label="@PanelLabel" data-folder-list @onkeydown="KeyDown">
+        @* Phones: the list is a bottom sheet (D13). *@
+        <AppDialogFrame Open="true" Title="@PanelLabel" DialogOptions="SheetOptions" Class="lib-folders__sheet" OnCancel="CloseAsync">
+            @ListBody
+        </AppDialogFrame>
+    }
+    else if (_open)
+    {
+        @* Drawn through the shared popover so it sits in the top layer and no table row or card can clip it. *@
+        <AppPopover Open="true" OpenChanged="PopoverChanged" Anchor="_anchor" Class="lib-folders__panel">
+            <div role="dialog" aria-label="@PanelLabel" data-folder-list @onkeydown="KeyDown">
+                @ListBody
+            </div>
+        </AppPopover>
+    }
+</span>
+
+@code {
+    private RenderFragment ListBody => __builder =>
+    {
             <div class="lib-folders__inner">
             <ul class="lib-folders__list">
                 @foreach (var source in Sources)
@@ -39,11 +61,8 @@
                 <AppButton Label="@L["LibraryFoldersPopover_Close"].Value" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" OnClick="Close" />
             </div>
             </div>
-        </div>
-    }
-</span>
+    };
 
-@code {
     [Parameter, EditorRequired] public IReadOnlyList<LibrarySourceDto> Sources { get; set; } = [];
     [Parameter] public string LibraryName { get; set; } = "library";
     /// <summary>Folder path to its problem (offline, no access); null while the folder checks have not finished, so nothing is claimed.</summary>
@@ -51,6 +70,18 @@
 
     private bool _open;
     private string? _copied;
+    private ElementReference _anchor;
+    private static readonly AppDialogOptions SheetOptions = new() { Sheet = AppDialogSheetMode.Phone, BackdropClick = true, CloseOnEscapeKey = true };
+
+    protected override void OnInitialized() => DeviceContext.OnChanged += DeviceChanged;
+    public void Dispose() => DeviceContext.OnChanged -= DeviceChanged;
+    private void DeviceChanged() => _ = InvokeAsync(StateHasChanged);
+    private void PopoverChanged(bool open) => _open = open;
+    private Task CloseAsync()
+    {
+        _open = false;
+        return Task.CompletedTask;
+    }
 
     private string Label => Sources.Count == 1 ? L["LibraryFoldersPopover_OneFolder"].Value : L["LibraryFoldersPopover_ManyFolders", Sources.Count].Value;
     private string PanelLabel => L["LibraryFoldersPopover_FoldersOf", LibraryName].Value;
