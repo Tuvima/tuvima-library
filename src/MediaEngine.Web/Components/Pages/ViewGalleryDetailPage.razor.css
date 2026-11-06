@@ -2,7 +2,7 @@
 .view-feature-page__header span { color: var(--tl-accent-primary); font-size: var(--tl-font-size-xs); font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
 .view-feature-page__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem; }
 .view-feature-page__identity { min-width: 0; }
-.view-feature-page__header h1 { margin: .3rem 0; font-size: clamp(1.8rem,3vw,2.5rem); }
+.view-feature-page__header h1 { margin: .3rem 0; font-size: var(--tl-font-size-title); line-height: var(--tl-line-height-title); font-weight: 600; }
 .view-feature-page__header p { color: rgba(203,213,225,.68); }
 .view-feature-page__header dl { display: flex; flex-wrap: wrap; gap: 1.5rem; }
 .view-feature-page__header dl div { display: grid; gap: .15rem; }

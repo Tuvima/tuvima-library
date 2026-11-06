@@ -39,7 +39,7 @@
 .view-content-page__identity h1 {
     margin: 5px 0 7px;
     font-family: inherit;
-    font-size: clamp(1.8rem, 3vw, 2.45rem);
+    font-size: var(--tl-font-size-title);
     font-weight: 700;
     line-height: 1.05;
     letter-spacing: -0.035em;

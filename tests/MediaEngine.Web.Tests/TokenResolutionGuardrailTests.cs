@@ -62,6 +62,19 @@ public sealed class TokenResolutionGuardrailTests
     }
 
     [Fact]
+    public void PageTitlesAndShelfHeadingsUseTheTitleTokens()
+    {
+        var web = Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web");
+        var tokens = File.ReadAllText(Path.Combine(web, "wwwroot", "tuvima.tokens.css"));
+        Assert.Contains("--tl-font-size-title: 1.5rem;", tokens);
+        Assert.Contains("--tl-font-size-shelf-title: 1.25rem;", tokens);
+        foreach (var file in new[] { "Components/MediaHub/ShelfHeader.razor.css", "Components/MediaTiles/ContinueAcrossMediaSection.razor.css" })
+            Assert.Contains("var(--tl-font-size-shelf-title)", File.ReadAllText(Path.Combine(web, file)));
+        foreach (var file in new[] { "Components/Pages/SearchPage.razor.css", "Components/Settings/Frame/SettingsPageFrame.razor.css", "Components/Shared/Shell/SidebarPageHeader.razor.css", "Components/Pages/ViewContentPage.razor.css" })
+            Assert.Contains("var(--tl-font-size-title)", File.ReadAllText(Path.Combine(web, file)));
+    }
+
+    [Fact]
     public void MenuRowsUseTheOneMenuSizeTokens()
     {
         var web = Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web");
