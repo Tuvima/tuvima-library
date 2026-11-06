@@ -1792,7 +1792,7 @@ input.app-control.tl-input-slot,
 }
 
 .app-button.app-control--large {
-    font-size: var(--tl-control-font-size-lg) !important;
+    font-size: var(--tl-font-size-md) !important;
 }
 
 .app-button.app-control--compact .tl-icon-root {
@@ -2874,7 +2874,7 @@ input.app-control.tl-input-slot,
     background: transparent !important;
     font-family: var(--font-ui) !important;
     font-size: var(--tl-menu-row-font-size) !important;
-    font-weight: 600 !important;
+    font-weight: 500 !important;
     line-height: 1.25 !important;
     box-shadow: none !important;
     transition: color var(--tl-motion-duration-fast) var(--tl-motion-ease-standard),
@@ -2936,7 +2936,7 @@ button.app-menu-item {
 
 .app-menu-item.app-tone--error,
 .app-menu-item.app-tone--error .tl-icon-root {
-    color: var(--tl-status-danger) !important;
+    color: var(--tl-text-danger) !important;
 }
 
 .app-menu-item.app-tone--error:hover,

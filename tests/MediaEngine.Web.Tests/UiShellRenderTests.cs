@@ -1788,7 +1788,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         var tokens = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "wwwroot", "tuvima.tokens.css"));
 
         Assert.Contains("--tl-control-height-sm: 36px;", tokens);
-        Assert.Contains("--tl-control-height-md: 42px;", tokens);
+        Assert.Contains("--tl-control-height-md: 44px;", tokens);
         Assert.Contains("--tl-control-height-lg: 48px;", tokens);
         Assert.Contains("--tl-control-radius: 10px;", tokens);
         Assert.Contains("--tl-form-row-gap: 16px;", tokens);

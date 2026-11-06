@@ -33,14 +33,32 @@ public sealed class TokenResolutionGuardrailTests
     }
 
     [Fact]
-    public void SurfacesAndTheSplashUseTheIntroVioletNavy()
+    public void SurfacesAreNeutralNearBlackAndControlsAre44()
     {
         var web = Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web");
         var tokens = File.ReadAllText(Path.Combine(web, "wwwroot", "tuvima.tokens.css"));
-        Assert.Contains("--tl-bg-root: #0B0920;", tokens);
+        Assert.Contains("--tl-bg-root: #101115;", tokens);
+        Assert.Contains("--tl-bg-shell: #14151A;", tokens);
+        Assert.Contains("--tl-bg-surface: #1A1B21;", tokens);
+        Assert.Contains("--tl-bg-surface-hover: #272830;", tokens);
+        Assert.Contains("--tl-bg-surface-elevated: #2F3039;", tokens);
+        Assert.Contains("--tl-control-height-md: 44px;", tokens);
+        Assert.DoesNotContain("0B0920", tokens, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("100B2A", tokens, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("--tl-accent-primary: #8852FC;", tokens);
         var intro = File.ReadAllText(Path.Combine(web, "Components", "Setup", "IntroAnimation.razor.css"));
         Assert.DoesNotContain("#8b5cf6", intro, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void DangerTextAndFocusRingFollowTheLookV2Contract()
+    {
+        var web = Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web");
+        var tokens = File.ReadAllText(Path.Combine(web, "wwwroot", "tuvima.tokens.css"));
+        Assert.Contains("--tl-text-danger: #FF8A8A;", tokens);
+        var utilities = File.ReadAllText(Path.Combine(web, "wwwroot", "native-utilities.css"));
+        Assert.DoesNotContain("a:focus-visible,button:focus{outline:none}", utilities);
+        Assert.Contains(":focus-visible{outline:var(--tl-focus-ring-width", utilities);
     }
 
     [Fact]

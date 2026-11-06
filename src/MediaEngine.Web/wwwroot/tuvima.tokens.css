@@ -59,19 +59,17 @@
     --tl-accent-collection-border: rgba(214, 168, 79, 0.46);
     --tl-text-on-collection: #17120A;
 
-    --tl-bg-root: #0B0920;
-    --tl-bg-shell: #100B2A;
-    --tl-bg-surface: #170F32;
-    --tl-bg-surface-raised: #1A1036;
-    --tl-bg-surface-hover: #241749;
-    --tl-bg-surface-elevated: #301B59;
+    --tl-bg-root: #101115;
+    --tl-bg-shell: #14151A;
+    --tl-bg-surface: #1A1B21;
+    --tl-bg-surface-raised: #1F2027;
+    --tl-bg-surface-hover: #272830;
+    --tl-bg-surface-elevated: #2F3039;
     --tl-bg-overlay: rgba(0, 0, 0, 0.72);
     --tl-bg-app-gradient:
-        radial-gradient(circle at 18% 0%, rgba(136, 82, 252, 0.18), transparent 30%),
-        radial-gradient(circle at 82% 8%, rgba(56, 189, 248, 0.12), transparent 28%),
-        linear-gradient(180deg, #0B0920 0%, #100B2A 46%, #0B0920 100%);
+        linear-gradient(180deg, #101115 0%, #14151A 46%, #101115 100%);
     --tl-bg-shell-gradient:
-        linear-gradient(180deg, rgba(16, 11, 42, 0.98) 0%, rgba(11, 9, 32, 0.98) 100%);
+        linear-gradient(180deg, rgba(20, 21, 26, 0.98) 0%, rgba(16, 17, 21, 0.98) 100%);
 
     --tl-text-primary: #F5F7FB;
     --tl-text-secondary: #B6C2D6;
@@ -112,7 +110,6 @@
     --tl-letter-spacing-label: 0.08em;
     --tl-control-font-size-sm: 0.8125rem;
     --tl-control-font-size-md: 0.875rem;
-    --tl-control-font-size-lg: 0.9375rem;
     --tl-control-font-weight: var(--tl-font-weight-semibold);
     --tl-control-line-height: 1.25;
     --tl-control-letter-spacing: 0;
@@ -156,6 +153,7 @@
     --tl-status-warning-soft: rgba(245, 158, 11, 0.14);
     --tl-status-warning-border: rgba(245, 158, 11, 0.38);
     --tl-status-danger: #EF4444;
+    --tl-text-danger: #FF8A8A;
     --tl-status-danger-soft: rgba(239, 68, 68, 0.14);
     --tl-status-danger-border: rgba(239, 68, 68, 0.34);
     --tl-status-unmatched: #FB7185;
@@ -325,7 +323,7 @@
     --tl-list-row-height-compact: 2.7rem;
 
     --tl-control-height-sm: 36px;
-    --tl-control-height-md: 42px;
+    --tl-control-height-md: 44px;
     --tl-control-height-lg: 48px;
     --tl-control-height-compact: var(--tl-control-height-sm);
     --tl-control-height-normal: var(--tl-control-height-md);
