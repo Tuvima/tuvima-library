@@ -76,6 +76,10 @@ public sealed partial class PlaybackLyricsPresenter
             {
                 return null;
             }
+            if (string.Equals(track.Provider, "embedded", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Lyrics from the song's own tags";
+            }
             if (track.IsUserOwned)
             {
                 return "Lyrics from a file next to the song";

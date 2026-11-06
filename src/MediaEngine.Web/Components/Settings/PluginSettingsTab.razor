@@ -293,7 +293,7 @@ else
                                  SelectedChanged="@(ticks => Narrow(() => _statusTicks = ticks))" />
                     <AppTickMenu Label="Show" Options="@ShowOptions" Selected="@_showTicks"
                                  SelectedChanged="@(ticks => Narrow(() => _showTicks = ticks))" />
-                    <AppSelect Label="Sort" Value="@_sort" Options="@SortOptions" Native="true" FullWidth="false"
+                    <AppSelect Label="Sort" HideLabel="true" Value="@_sort" Options="@SortOptions" Native="true" FullWidth="false"
                                ValueChanged="@(value => Narrow(() => _sort = value ?? "name"))" />
                     <AppLayoutSwitch StorageKey="tuvima.plugins.layout" Value="@_layout" ValueChanged="@(value => _layout = value)" AriaLabel="Plugins layout" />
                 </AppSearchFilterRow>

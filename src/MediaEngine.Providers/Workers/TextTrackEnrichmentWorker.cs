@@ -473,8 +473,72 @@ public sealed partial class TextTrackEnrichmentWorker
             }
         }
 
+        if (!imported && kind == TextTrackKind.Lyrics)
+        {
+            imported = await ImportEmbeddedLyricsAsync(asset, ct).ConfigureAwait(false);
+        }
+
         return imported;
     }
+
+    /// <summary>
+    /// Lyrics stored inside the song's own tags (USLT / lyrics atom). They come with the file, so they are taken in before
+    /// any online source is asked and are kept as the person's own: they are never replaced by a lookup.
+    /// </summary>
+    private async Task<bool> ImportEmbeddedLyricsAsync(MediaAsset asset, CancellationToken ct)
+    {
+        var mediaPath = asset.FilePathRoot;
+        if (string.IsNullOrWhiteSpace(mediaPath) || !File.Exists(mediaPath))
+        {
+            return false;
+        }
+
+        string? embedded;
+        try
+        {
+            using var file = TagLib.File.Create(mediaPath);
+            embedded = file.Tag.Lyrics;
+        }
+        catch (Exception ex) when (ex is TagLib.CorruptFileException or TagLib.UnsupportedFormatException or IOException or UnauthorizedAccessException)
+        {
+            _logger.LogDebug(ex, "Could not read embedded lyrics from {AssetId}", asset.Id);
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(embedded))
+        {
+            return false;
+        }
+
+        var timed = embedded.Contains("[00:", StringComparison.Ordinal) || System.Text.RegularExpressions.Regex.IsMatch(embedded, @"^\[\d{1,3}:\d{2}", System.Text.RegularExpressions.RegexOptions.Multiline);
+        var extension = timed ? "lrc" : "txt";
+        var normalized = timed ? LrcParser.Normalize(embedded) : embedded.Trim();
+        var identity = BuildTrackIdentity(asset.Id, TextTrackKind.Lyrics, "embedded", Hashing.Sha256Hex(normalized), UnknownLanguage);
+        var storageProvider = $"embedded-{Hashing.Sha256Hex(identity)[..12]}";
+        var path = _assetPaths.GetCentralTextTrackPath(asset.Id, "Lyrics", storageProvider, UnknownLanguage, $".{extension}");
+        await WriteTextAtomicallyAsync(path, normalized, ct).ConfigureAwait(false);
+
+        var track = new TextTrack
+        {
+            Id = Hashing.DeterministicGuid(identity),
+            AssetId = asset.Id,
+            Kind = TextTrackKind.Lyrics,
+            Language = UnknownLanguage,
+            Provider = "embedded",
+            Confidence = 1,
+            SourceFormat = extension,
+            NormalizedFormat = extension,
+            LocalPath = path,
+            TimingMode = timed ? "Line" : "Plain",
+            IsPreferred = true,
+            IsUserOwned = true,
+        };
+        await _trackRepo.UpsertAsync(track, ct).ConfigureAwait(false);
+        await _trackRepo.SetPreferredAsync(track.Id, ct).ConfigureAwait(false);
+        return true;
+    }
+
+    private const string UnknownLanguage = "und";
 
     private async Task<TextTrackLookup> BuildLookupAsync(MediaAsset asset, WorkLineage? lineage, MediaType mediaType, TextTrackKind kind, CancellationToken ct)
     {

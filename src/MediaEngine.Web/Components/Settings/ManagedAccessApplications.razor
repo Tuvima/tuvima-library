@@ -60,9 +60,9 @@
             {
                 <AppSearchFilterRow Search="@_search" SearchChanged="@(value => Narrow(() => _search = value))" Placeholder="@L["ManagedAccessApplications_SearchIntegrationsByName"].Value"
                                     Narrowed="@Narrowed" OnClear="@ClearFilters">
-                    <AppSelect Label="@L["Models_Status"].Value" Value="@_statusFilter" Options="@StatusOptions" Native="true" FullWidth="false"
+                    <AppSelect Label="@L["Models_Status"].Value" HideLabel="true" Value="@_statusFilter" Options="@StatusOptions" Native="true" FullWidth="false"
                                ValueChanged="@(value => Narrow(() => _statusFilter = value ?? "all"))" />
-                    <AppSelect Label="@L["Common_Access"].Value" Value="@_accessFilter" Options="@AccessOptions()" Native="true" FullWidth="false"
+                    <AppSelect Label="@L["Common_Access"].Value" HideLabel="true" Value="@_accessFilter" Options="@AccessOptions()" Native="true" FullWidth="false"
                                ValueChanged="@(value => Narrow(() => _accessFilter = value ?? "all"))" />
                     <AppLayoutSwitch StorageKey="tuvima.integrations.layout" Value="@_layout" ValueChanged="@(value => _layout = value)" AriaLabel="@L["ManagedAccessApplications_IntegrationsLayout"].Value" />
                 </AppSearchFilterRow>

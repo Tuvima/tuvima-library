@@ -114,9 +114,9 @@ public sealed class PersonalTasteService(
                 Month = group.Key,
                 Finished = group.Sum(row => row.Titles),
                 Genres = group
-                    .Where(row => !string.IsNullOrWhiteSpace(row.Genre))
-                    .GroupBy(row => row.Genre!.Trim().ToLowerInvariant(), StringComparer.Ordinal)
-                    .ToDictionary(genre => genre.Key, genre => genre.Sum(row => row.Titles), StringComparer.Ordinal),
+                    .SelectMany(row => MediaEngine.Domain.Text.GenreLabels.Split(row.Genre).Select(label => (Label: label, row.Titles)))
+                    .GroupBy(entry => entry.Label, StringComparer.Ordinal)
+                    .ToDictionary(genre => genre.Key, genre => genre.Sum(entry => entry.Titles), StringComparer.Ordinal),
             }),
     ];
 

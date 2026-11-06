@@ -27,7 +27,9 @@ public static class DashboardAuthenticationEndpoints
             var bootstrap = await identity.GetBootstrapStatusAsync(context.RequestAborted).ConfigureAwait(false);
             if (bootstrap is null)
             {
-                return EngineUnavailableResult(SafeReturnUrl(returnUrl));
+                return context.RequestServices.GetService<EngineBusyState>() is { WasBusyRecently: true }
+                    ? EngineBusyResult(SafeReturnUrl(returnUrl))
+                    : EngineUnavailableResult(SafeReturnUrl(returnUrl));
             }
 
             if (!bootstrap.AdministratorConfigured)
@@ -918,6 +920,12 @@ public static class DashboardAuthenticationEndpoints
     private static string LoginFailurePage(string message) => Shell($"<h1>Unable to continue</h1><p>{H(message)}</p><p><a href=\"/auth/login\">Return to sign in</a></p>");
     private static IResult EngineUnavailableResult(string returnUrl) => Results.Content(
         EngineUnavailablePage(returnUrl),
+        "text/html",
+        Encoding.UTF8,
+        StatusCodes.Status503ServiceUnavailable);
+    /// <summary>The Engine is up but busy: say so and try again by itself, instead of "Engine unavailable".</summary>
+    private static IResult EngineBusyResult(string returnUrl) => Results.Content(
+        Shell($"<meta http-equiv=\"refresh\" content=\"3\"><p class=\"eyebrow\">Library</p><h1>Library is busy</h1><p class=\"supporting\">The Engine is catching up. Trying again in a moment.</p><p><a class=\"button\" href=\"/auth/login?returnUrl={Uri.EscapeDataString(returnUrl)}\">Try now</a></p>"),
         "text/html",
         Encoding.UTF8,
         StatusCodes.Status503ServiceUnavailable);

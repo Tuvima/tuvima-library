@@ -5141,6 +5141,15 @@ input[type="reset"],
 .lib-area--read { --lib-area-colour: var(--tl-area-read); }
 .lib-area--view { --lib-area-colour: var(--tl-area-view); }
 .lib-area--vault { --lib-area-colour: var(--tl-area-vault); }
+/* Library area chips (LibraryAreaChips). Global on purpose: the chip is the root of the shared native button, so a scoped sheet never reached it. */
+.lib-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: transparent; color: var(--lib-area-colour, var(--tl-text-secondary, var(--tl-text-muted))); font: inherit; font-weight: 600; cursor: pointer; }
+.lib-chip:hover { background: color-mix(in srgb, var(--lib-area-colour, var(--tl-accent-primary)) 10%, transparent); }
+.lib-chip:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
+.lib-chip.is-on { border-color: var(--lib-area-colour, var(--tl-accent-primary)); background: color-mix(in srgb, var(--lib-area-colour, var(--tl-accent-primary)) 16%, transparent); }
+.lib-chip__count { color: var(--tl-text-muted); font-weight: 400; font-size: var(--tl-font-size-sm); }
+@media (max-width: 600px) { .lib-chip { flex: 0 0 auto; } }
+/* Needs Review: the table sits inside the shared table box, so its fixed layout is set here, not from the page sheet. */
+.needs-review-table .app-table { width: 100%; min-width: 0; table-layout: fixed; }
 .lib-kind-tile { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 10px; font-size: var(--tl-font-size-xl); color: var(--tl-text-muted); background: var(--tl-bg-surface-raised); }
 .lib-kind-tile--lookup { color: var(--lib-area-colour, var(--tl-accent-primary)); background: color-mix(in srgb, var(--lib-area-colour, var(--tl-accent-primary)) 16%, transparent); }
 .lib-meta { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }

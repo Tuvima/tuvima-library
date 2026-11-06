@@ -10,11 +10,12 @@
    enforces that, and the Settings shell only offers the page to administrators. *@
 <AppCard Title="@L["TechnicalLogPanel_TechnicalLog"].Value"
          Description="@L["TechnicalLogPanel_WhatTheEngineWroteTo"].Value">
-    <div class="technical-log__filters">
-        <AppSelect Label="@L["Common_Time"].Value" Value="@_range" ValueChanged="OnRangeChanged" Options="RangeOptions" />
-        <AppSelect Label="@L["Common_Level"].Value" Value="@_level" ValueChanged="OnLevelChanged" Options="LevelOptions" />
-        <AppSelect Label="@L["Common_Area"].Value" Value="@_area" ValueChanged="OnAreaChanged" Options="AreaOptions" />
+    <AppFilterRow Class="technical-log__filters">
+        <AppSelect Label="@L["Common_Time"].Value" HideLabel="true" Value="@_range" ValueChanged="OnRangeChanged" Options="RangeOptions" />
+        <AppSelect Label="@L["Common_Level"].Value" HideLabel="true" Value="@_level" ValueChanged="OnLevelChanged" Options="LevelOptions" />
+        <AppSelect Label="@L["Common_Area"].Value" HideLabel="true" Value="@_area" ValueChanged="OnAreaChanged" Options="AreaOptions" />
         <AppTextField Label="@L["Nav_Search"].Value"
+                      HideLabel="true"
                       Value="@_search"
                       ValueChanged="OnSearchChanged"
                       OnDebounceIntervalElapsed="OnSearchDebounced"
@@ -22,7 +23,7 @@
                       Placeholder="@L["TechnicalLogPanel_SearchTheLogText"].Value"
                       Adornment="AppAdornment.Start"
                       AdornmentIcon="@AppMaterialIcons.Outlined.Search" />
-    </div>
+    </AppFilterRow>
 
     @if (_loading)
     {

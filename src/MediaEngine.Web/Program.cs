@@ -268,6 +268,8 @@ builder.Services.AddSingleton<DashboardServiceCredentialProvider>();
 builder.Services.AddScoped<DashboardSessionAccessor>();
 builder.Services.AddTransient<DashboardServiceCredentialHandler>();
 builder.Services.AddTransient<DashboardEngineAuthenticationHandler>();
+builder.Services.AddSingleton<EngineBusyState>();
+builder.Services.AddTransient<EngineBusyBackoffHandler>();
 // One shared sign-in check per burst of requests (a page load fetches dozens of assets). Anything sent through the
 // identity client that can change a sign-in empties it first.
 builder.Services.AddSingleton(new SessionValidationCache());
@@ -303,6 +305,7 @@ builder.Services.AddScoped<EngineApiClient>(services => new EngineApiClient(
 builder.Services.AddScoped<IEngineApiClient>(services => services.GetRequiredService<EngineApiClient>());
 builder.Services.AddScoped<EngineApiFailureState>();
 builder.Services.AddHttpClient("EngineViewMedia", ConfigureEngineClient)
+    .AddHttpMessageHandler<EngineBusyBackoffHandler>()
     .AddHttpMessageHandler<DashboardEngineAuthenticationHandler>()
     .AddHttpMessageHandler<ViewProfileAssertionHandler>();
 builder.Services.AddScoped<ViewMediaEngineClient>(services => new ViewMediaEngineClient(
@@ -320,6 +323,7 @@ builder.Services.AddScoped<ICollectionPersonalMediaClient>(services => services.
 // Used by ad-hoc pages (e.g. the Enrichment Tester) that need direct HttpClient access
 // without routing through IEngineApiClient.
 builder.Services.AddHttpClient("EngineApi", ConfigureEngineClient)
+    .AddHttpMessageHandler<EngineBusyBackoffHandler>()
     .AddHttpMessageHandler<DashboardEngineAuthenticationHandler>()
     .AddHttpMessageHandler<ViewProfileAssertionHandler>();
 // Resumable uploads into the Import folder (Library setup D44): the same sign-in handlers, but each piece has its own five-minute limit
@@ -337,6 +341,7 @@ builder.Services.AddHttpClient(ImportUploadRelayEndpoint.EngineClientName, clien
 builder.Services.AddHttpClient("EngineArtwork", ConfigureEngineClient)
     .AddHttpMessageHandler<DashboardEngineAuthenticationHandler>();
 builder.Services.AddHttpClient("EngineIdentity", ConfigureEngineClient)
+    .AddHttpMessageHandler<EngineBusyBackoffHandler>()
     .AddHttpMessageHandler<SessionValidationInvalidationHandler>()
     .AddHttpMessageHandler<DashboardEngineAuthenticationHandler>();
 // The app door never carries the Dashboard's service credential. No cookies are stored or replayed

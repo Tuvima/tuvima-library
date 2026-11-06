@@ -65,9 +65,9 @@ public sealed class TasteProfiler : ITasteProfiler
         foreach (var signal in signals)
         {
             var weight = Math.Max(0.10, Math.Clamp(signal.ProgressPct, 0, 100) / 100.0);
-            foreach (var genre in signal.Genres.Where(value => !string.IsNullOrWhiteSpace(value)))
+            foreach (var genre in signal.Genres.SelectMany(MediaEngine.Domain.Text.GenreLabels.Split).Distinct(StringComparer.Ordinal))
             {
-                Increment(genreWeights, genre.Trim().ToLowerInvariant(), weight);
+                Increment(genreWeights, genre, weight);
             }
 
             foreach (var mood in signal.Moods.Where(value => !string.IsNullOrWhiteSpace(value)))
@@ -167,7 +167,7 @@ public sealed class TasteProfiler : ITasteProfiler
                 .Append(signal.LastAccessed.ToUniversalTime().ToString("O")).Append('|')
                 .Append(signal.MediaType).Append('|')
                 .Append(signal.ReleaseYear).Append('|')
-                .AppendJoin(',', signal.Genres.Order(StringComparer.OrdinalIgnoreCase)).Append('|')
+                .AppendJoin(',', signal.Genres.SelectMany(MediaEngine.Domain.Text.GenreLabels.Split).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)).Append('|')
                 .AppendJoin(',', signal.Moods.Order(StringComparer.OrdinalIgnoreCase)).Append('\n');
         }
 
