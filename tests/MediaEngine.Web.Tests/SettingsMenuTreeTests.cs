@@ -211,6 +211,41 @@ public sealed class SettingsMenuTreeTests : AsyncBunitContext
             selector.SelectMany(group => group.Options).Select(option => option.Label));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void PhoneSelector_ForEverySettingsSection_ListsAndSelectsTheCurrentPage(bool administrator)
+    {
+        var groups = SettingsMenuBuilder.Build(Context(administrator) with { IsMobile = true });
+
+        foreach (var section in Enum.GetValues<SettingsSection>())
+        {
+            var selector = SettingsMenuBuilder.BuildPhoneSelector(groups, section);
+            var route = SettingsMenuBuilder.PhoneSelectorRoute(groups, section);
+
+            var matches = selector.SelectMany(group => group.Options).Where(option => string.Equals(option.Route, route, StringComparison.OrdinalIgnoreCase)).ToArray();
+            Assert.True(matches.Length == 1, $"{section} must have exactly one selector line for {route}.");
+            Assert.False(string.IsNullOrWhiteSpace(matches[0].Label), section.ToString());
+        }
+    }
+
+    [Theory]
+    [InlineData(SettingsSection.Plugins, "Plugins", "Server")]
+    [InlineData(SettingsSection.Integrations, "Integrations", "Server")]
+    [InlineData(SettingsSection.LocalAi, "Local AI", "Server")]
+    [InlineData(SettingsSection.DevHarness, "Developer Tools", "Developer")]
+    public void PhoneSelector_OnAPageThePhoneMenuLeavesOut_AddsThatPageUnderItsOwnGroup(SettingsSection section, string label, string group)
+    {
+        var groups = SettingsMenuBuilder.Build(Context(administrator: true) with { IsMobile = true });
+
+        var selector = SettingsMenuBuilder.BuildPhoneSelector(groups, section);
+
+        var option = Assert.Single(selector.Single(g => g.Label == group).Options, o => o.Label == label);
+        Assert.Equal(SettingsMenuBuilder.PhoneSelectorRoute(groups, section), option.Route);
+        // Pages the phone menu does list are unchanged.
+        Assert.DoesNotContain(SettingsMenuBuilder.BuildPhoneSelector(groups, SettingsSection.Profiles), g => g.Label == "Developer");
+    }
+
     [Fact]
     public void Shell_DrawsEveryRowWithIconLabelAndBadgeSlots_AndNoChevron()
     {

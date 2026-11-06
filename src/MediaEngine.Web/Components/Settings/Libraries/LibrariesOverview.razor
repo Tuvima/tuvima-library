@@ -93,10 +93,9 @@
                 <td data-card-role="title">
                     <span class="libs__name">
                         <span class="lib-kind-tile"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoveToInbox" /></span>
-                        <span class="libs__title">
+                        <span class="libs__title libs__title--inline">
                             <span @onclick:stopPropagation="true"><AppButton Label="@L["Common_ImportFolder"].Value" ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" Class="libs__link libs__link--button" Disabled="@ReadOnly" OnClick="EditImportAsync" /></span>
-                            <AppInfoTip Text="@ImportInfo" Label="@L["LibrariesOverview_AboutImport"].Value" />
-                            <small class="libs__subtitle">@L["LibrariesOverview_NewFilesOfAnyKind"]</small>
+                            <span class="libs__info" @onclick:stopPropagation="true"><AppInfoTip Text="@ImportInfo" Label="@L["LibrariesOverview_AboutImport"].Value" /></span>
                         </span>
                     </span>
                 </td>
