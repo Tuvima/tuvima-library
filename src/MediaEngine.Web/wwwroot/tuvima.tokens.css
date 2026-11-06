@@ -154,6 +154,12 @@
     --tl-status-warning-border: rgba(245, 158, 11, 0.38);
     --tl-status-danger: #EF4444;
     --tl-text-danger: #FF8A8A;
+    --tl-tooltip-surface: var(--tl-bg-surface-elevated);
+    --tl-tooltip-border: var(--tl-border-default);
+    --tl-tooltip-text: var(--tl-text-primary);
+    --tl-tooltip-radius: 6px;
+    --tl-tooltip-font-size: 0.8125rem;
+    --tl-tooltip-max-width: 280px;
     --tl-status-danger-soft: rgba(239, 68, 68, 0.14);
     --tl-status-danger-border: rgba(239, 68, 68, 0.34);
     --tl-status-unmatched: #FB7185;
