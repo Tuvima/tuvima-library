@@ -7,7 +7,7 @@
             @foreach (var panel in _panels)
             {
                 var index = _panels.IndexOf(panel);
-                var tabClass = "tl-tab" + (index == ActivePanelIndex ? " tl-tab-active" : "");
+                var tabClass = "tl-tab" + (index == ActivePanelIndex ? " tl-tab-active" : "") + (string.IsNullOrWhiteSpace(panel.Class) ? "" : " " + panel.Class);
                 @if (!string.IsNullOrWhiteSpace(panel.Href) && !panel.Disabled)
                 {
                     @* Route-linked tab: a real link, so the address survives reload and Back/Forward. *@

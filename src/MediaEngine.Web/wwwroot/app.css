@@ -5570,6 +5570,8 @@ body:has(.tl-editor-window) .tl-details-overlay__scroller,body:has(.tl-editor-wi
 .tl-match__searchrow{display:flex;align-items:flex-start;gap:var(--tl-space-2)}
 .tl-match__searchrow>:first-child{flex:1 1 auto;min-width:0}
 .tl-match__provider{display:flex;align-items:center;gap:var(--tl-space-2)}
+.tl-match__why{border-collapse:collapse;margin-top:var(--tl-space-2);font-size:var(--tl-font-size-sm);color:var(--tl-text-secondary)}.tl-match__why caption{text-align:left;color:var(--tl-text-muted);padding-bottom:var(--tl-space-1)}.tl-match__why th{text-align:left;font-weight:400;padding-right:var(--tl-space-4)}.tl-match__why td{text-align:right}
+.tl-match__provider-name{display:flex;align-items:center;gap:var(--tl-space-2)}
 .tl-match__provider-label,.tl-match__meta,.tl-match__provider-name{color:var(--tl-text-muted);font-size:var(--tl-font-size-sm)}
 .tl-match__leftout{display:flex;flex-wrap:wrap;align-items:center;gap:var(--tl-space-2);margin:0;color:var(--tl-text-muted);font-size:var(--tl-font-size-sm)}
 .tl-match__results{display:flex;flex-direction:column}
@@ -5876,6 +5878,9 @@ html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-right {
     border-top: 1px solid var(--tl-border-subtle);
 }
 
+.tl-editor-tab{padding-inline:var(--tl-space-5, 1.5rem)}
+.tl-editor-tab svg{color:var(--tl-editor-tab-icon,currentColor)}
+.tl-editor-tab--details{--tl-editor-tab-icon:#9a8cf0}.tl-editor-tab--contents{--tl-editor-tab-icon:#4fb3d9}.tl-editor-tab--artwork{--tl-editor-tab-icon:#e58fb4}.tl-editor-tab--match{--tl-editor-tab-icon:#4ec9a0}.tl-editor-tab--files{--tl-editor-tab-icon:#e8b24a}.tl-editor-tab--history{--tl-editor-tab-icon:#8aa0c8}
 /* Details page, phone pass. Everything here is scoped to the phone form factor; tablet and desktop keep the
    existing hero, tab and list rules. Phones never carry an editor entry point, and nothing relies on hover. */
 

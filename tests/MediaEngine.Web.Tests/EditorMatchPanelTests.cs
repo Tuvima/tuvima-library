@@ -190,7 +190,7 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
         Assert.Contains("OK Computer", line.QuerySelector("[aria-label='Will become']")!.TextContent, StringComparison.Ordinal);
         // A fact that agrees (the title) is ticked; one that differs (the album) is not.
         Assert.Single(line.QuerySelectorAll(".tl-match__ba-tick"));
-        Assert.Equal(3, cut.FindAll("input[role=switch]").Count);
+        Assert.Equal(4, cut.FindAll("input[role=switch]").Count);
         cut.WaitForAssertion(() => Assert.False(cut.Find("input[role=switch][aria-label='Move to OK Computer']").HasAttribute("disabled")));
         Assert.True(SwitchOn(cut, "Keep my library details"));
         Assert.True(SwitchOn(cut, "Use as the retail match"));
@@ -244,6 +244,25 @@ public sealed class EditorMatchPanelTests : AsyncBunitContext
         Assert.True(EditSessionIdentityTarget.TryParse(change.TargetId, out var match));
         Assert.Equal(group, match!.TargetFieldGroup);
         Assert.Empty(_writes);
+    }
+
+    [Fact]
+    public void TurningOffTheWikidataCheck_IsCarriedIntoTheStagedMatch()
+    {
+        var subject = new EditorMatchSubject(
+            SongId, "Music", "album", "album", "OK Computer", null, null, "1997",
+            new Dictionary<string, string> { ["title"] = "OK Computer" }, []);
+        var cut = RenderPanel(subject);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll(".tl-match__row")));
+        Select(cut, 0);
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("#tl-match-review")));
+
+        cut.Find("input[role=switch][aria-label='Check the Wikidata link again']").Change(false);
+        cut.FindAll("button").First(button => button.TextContent.Trim() == "Use this match").Click();
+
+        var change = Assert.Single(_session.Pending.Changes, c => c.Kind == EditSessionChangeKinds.Identity);
+        Assert.True(EditSessionIdentityTarget.TryParse(change.TargetId, out var match));
+        Assert.False(match!.ClearAutoAlignedWikidata);
     }
 
     [Fact]

@@ -25,12 +25,67 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
     private const string TmdbApiBaseUrl = "https://api.themoviedb.org/3";
     private const string TmdbImageBaseUrl = "https://image.tmdb.org/t/p/original";
     private const int MaxVariantsPerAssetType = 3;
+    private readonly IEpisodeFrameSource? _episodeFrames;
 
     private static bool IsTvdbImageUrl(string? value) =>
         Uri.TryCreate(value, UriKind.Absolute, out var uri)
         && uri.Scheme == Uri.UriSchemeHttps
         && (uri.Host.Equals("thetvdb.com", StringComparison.OrdinalIgnoreCase)
             || uri.Host.EndsWith(".thetvdb.com", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// An episode TheTVDB has no picture for gets a still taken from its own video (v4.1 D8). It is kept as a normal picture from the
+    /// source "generated", so the artwork picker lists it and a provider still replaces it when one arrives at the next check.
+    /// Nothing is written beside the media.
+    /// </summary>
+    private async Task EnsureGeneratedStillAsync(Guid episodeWorkId, CancellationToken ct)
+    {
+        if (_episodeFrames is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var existing = await _assetRepo.GetByEntityAsync(episodeWorkId.ToString(), AssetType.EpisodeStill.ToString(), ct).ConfigureAwait(false);
+            if (existing.Count > 0)
+            {
+                return;
+            }
+
+            var bytes = await _episodeFrames.GetFrameAsync(episodeWorkId, ct).ConfigureAwait(false);
+            if (bytes is not { Length: > 0 })
+            {
+                return;
+            }
+
+            var variant = new EntityAsset
+            {
+                Id = Guid.NewGuid(),
+                EntityId = episodeWorkId.ToString(),
+                EntityType = "Work",
+                AssetTypeValue = AssetType.EpisodeStill.ToString(),
+                ImageUrl = string.Empty,
+                SourceProvider = "generated",
+                AssetClassValue = "Artwork",
+                StorageLocationValue = "Central",
+                OwnerScope = "Episode",
+                IsPreferred = false,
+                IsUserOverride = false,
+                CreatedAt = DateTimeOffset.UtcNow,
+            };
+            variant.LocalImagePath = _assetPaths.GetCentralAssetPath("Work", episodeWorkId, AssetType.EpisodeStill.ToString(), variant.Id, ".jpg");
+            AssetPathService.EnsureDirectory(variant.LocalImagePath);
+            await File.WriteAllBytesAsync(variant.LocalImagePath, bytes, ct).ConfigureAwait(false);
+            ArtworkVariantHelper.StampMetadataAndRenditions(variant, _assetPaths);
+            await _assetRepo.UpsertAsync(variant, ct).ConfigureAwait(false);
+            await _assetRepo.SetPreferredAsync(variant.Id, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "A still frame for episode {EpisodeWorkId} could not be made; the show picture stands in", episodeWorkId);
+        }
+    }
 
     /// <summary>
     /// Records, as data only, that an episode has no TheTVDB still: the value is the date Library checks again
@@ -47,6 +102,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
             }
             return;
         }
+        await EnsureGeneratedStillAsync(episodeWorkId, ct).ConfigureAwait(false);
         var days = _configLoader.LoadHydration().Stage3RefreshDays;
         var retryAfter = checkedAt.AddDays(days > 0 ? days : 90).UtcDateTime.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         await _canonicalRepo.UpsertBatchAsync([new CanonicalValue
@@ -243,7 +299,8 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         IImageCacheRepository imageCache, AssetPathService assetPaths, IAssetExportService? assetExportService,
         IHttpClientFactory httpFactory, IFuzzyMatchingService fuzzy, ILogger<ImageEnrichmentService> logger,
         ImageDownloadCoordinator? imageDownloadCoordinator = null,
-        ProviderApiClient? tvdb = null)
+        ProviderApiClient? tvdb = null,
+        IEpisodeFrameSource? episodeFrames = null)
     {
         _assetRepo = assetRepo;
         _mediaAssetRepo = mediaAssetRepo;
@@ -258,6 +315,7 @@ public sealed class ImageEnrichmentService : IImageEnrichmentService
         _imageDownloadCoordinator = imageDownloadCoordinator ?? ImageDownloadCoordinator.Shared;
         _logger = logger;
         _tvdb = tvdb;
+        _episodeFrames = episodeFrames;
     }
 
     public Task<ImageEnrichmentResult> EnrichWorkImagesAsync(Guid assetId, string? workQid, CancellationToken ct = default) =>

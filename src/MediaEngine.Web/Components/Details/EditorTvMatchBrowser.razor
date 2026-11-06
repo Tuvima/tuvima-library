@@ -57,7 +57,7 @@
                     <div class="tl-tvm__row @(IsActiveShow(show) ? "is-active" : null)" role="listitem">
                         @Art(show.ImageUrl)
                         <div class="tl-tvm__text">
-                            <div class="tl-tvm__title">@show.Name @if (show.IsCurrent) { <AppChip Text="@L["EditorTvMatchBrowser_ThisItemSShow"].Value" Tone="AppUiTone.Neutral" /> } @if (IsBestGuess(show, showIndex)) { <AppChip Text="@L["EditorTvMatchBrowser_BestGuess"].Value" Tone="AppUiTone.Primary" Class="tl-tvm__best" /> }</div>
+                            <div class="tl-tvm__title">@show.Name @if (show.IsCurrent) { <AppChip Text="@L["EditorTvMatchBrowser_ThisItemSShow"].Value" Tone="AppUiTone.Neutral" /> } @if (IsBestGuess(show, showIndex)) { <AppChip Text="@L["EditorTvMatchBrowser_BestGuess"].Value" Tone="AppUiTone.Primary" Class="tl-tvm__best" /> } @MatchPill(EditorTvMatchScore.Show(ShowSearchText, Context?.ParsedYear, show))</div>
                             @if (!string.IsNullOrWhiteSpace(show.Year))
                             {
                                 <div class="tl-tvm__meta">@show.Year</div>
@@ -142,7 +142,7 @@
                         <div class="tl-tvm__row" role="listitem" data-slot="@EditorTvMatchCandidates.SlotLabel(episode.SeasonNumber, episode.EpisodeNumber)">
                             <span class="tl-tvm__slot">@EditorTvMatchCandidates.SlotLabel(episode.SeasonNumber, episode.EpisodeNumber)</span>
                             <div class="tl-tvm__text">
-                                <div class="tl-tvm__title">@episode.Title @if (episode.IsCurrent) { <AppChip Text="@L["EditorTvMatchBrowser_ThisEpisode"].Value" Tone="AppUiTone.Neutral" /> } @if (IsParsedEpisode(episode)) { <AppChip Text="@L["EditorTvMatchBrowser_BestGuess"].Value" Tone="AppUiTone.Primary" Class="tl-tvm__best" /> }</div>
+                                <div class="tl-tvm__title">@episode.Title @if (episode.IsCurrent) { <AppChip Text="@L["EditorTvMatchBrowser_ThisEpisode"].Value" Tone="AppUiTone.Neutral" /> } @if (IsParsedEpisode(episode)) { <AppChip Text="@L["EditorTvMatchBrowser_BestGuess"].Value" Tone="AppUiTone.Primary" Class="tl-tvm__best" /> } @MatchPill(Unmatched ? EditorTvMatchScore.Episode(Context, episode) : 0)</div>
                                 <div class="tl-tvm__meta">@EpisodeLine(episode)</div>
                             </div>
                             <AppButton Label="@L["Common_Select"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
@@ -339,6 +339,19 @@
         Unmatched && (Context?.BestGuess is { } guess
             ? string.Equals(guess.ProviderItemId, show.SeriesId, StringComparison.Ordinal)
             : index == 0 && !_searchedByHand);
+
+    // The words the Show column was last searched for; with nothing typed yet, the show the file name carries.
+    private string? ShowSearchText => !string.IsNullOrWhiteSpace(_query) ? _query : Context?.ParsedShow ?? Context?.ParsedTitle;
+
+    // A small percentage pill: how well this answer fits the file name (D5). Nothing is drawn when there is nothing to compare.
+    private RenderFragment MatchPill(int percent) => __builder =>
+    {
+        if (percent > 0 && Unmatched)
+        {
+            <AppChip Text="@($"{percent}%")" Tone="@(percent >= 85 ? AppUiTone.Success : percent >= 60 ? AppUiTone.Warning : AppUiTone.Neutral)"
+                     Class="tl-tvm__pill" data-testid="tvm-pill" data-band="@EditorTvMatchScore.Band(percent)" />
+        }
+    };
 
     private bool IsParsedEpisode(TvMatchBrowserEpisodeDto episode) =>
         Unmatched && Context is { ParsedEpisode: { } number } && episode.EpisodeNumber == number

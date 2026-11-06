@@ -34,6 +34,50 @@ public static partial class EditorMatchFacts
         return (int)Math.Round(Math.Clamp(score, 0, 1) * 100, MidpointRounding.AwayFromZero);
     }
 
+    /// <summary>
+    /// The "Why" table: how well each fact agreed, as whole percentages (v4.1). Title is always listed when the Engine scored the
+    /// candidate; the other facts only when they were compared (a score above zero).
+    /// </summary>
+    public static IReadOnlyList<(string Label, int Percent)> WhyRows(ItemCanonicalRetailCandidateDto candidate)
+    {
+        if (candidate.MatchScores is not { } scores)
+        {
+            return [];
+        }
+
+        static int Pct(double value) => (int)Math.Round(Math.Clamp(value, 0, 1) * 100, MidpointRounding.AwayFromZero);
+
+        var rows = new List<(string, int)> { ("Title", Pct(scores.TitleScore)) };
+        if (scores.AuthorScore > 0)
+        {
+            rows.Add(("Creator", Pct(scores.AuthorScore)));
+        }
+
+        if (scores.YearScore > 0)
+        {
+            rows.Add(("Year", Pct(scores.YearScore)));
+        }
+
+        if (scores.FormatScore > 0)
+        {
+            rows.Add(("Format", Pct(scores.FormatScore)));
+        }
+
+        if (scores.CoverScore > 0)
+        {
+            rows.Add(("Cover", Pct(scores.CoverScore)));
+        }
+
+        return rows;
+    }
+
+    /// <summary>The least confidence, in percent, at which the top result may be called the best guess.</summary>
+    public const int BestGuessThresholdPercent = 60;
+
+    /// <summary>True when the Engine gave a confidence and it reaches the best-guess threshold.</summary>
+    public static bool IsConfidentGuess(ItemCanonicalRetailCandidateDto candidate) =>
+        HasConfidence(candidate) && ConfidencePercent(candidate) >= BestGuessThresholdPercent;
+
     /// <summary>Whether the Engine said anything about how sure it is.</summary>
     public static bool HasConfidence(ItemCanonicalRetailCandidateDto candidate) => candidate.CompositeScore > 0 || candidate.Confidence > 0;
 

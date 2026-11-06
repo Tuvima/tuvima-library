@@ -66,6 +66,8 @@
     private bool _useRetail = true;
     private bool _moveParent;
     private bool _moveFiles;
+    // Whether saving this match checks the item's Wikidata link again (v4.1, WP6). On is how a retail match has always behaved.
+    private bool _recheckWikidata = true;
     private PlaceState _place = PlaceState.None;
     private string? _placeReason;
     private LibraryMoveDestination? _destination;
@@ -143,6 +145,7 @@
         _group = Subject.TargetGroup;
         _query = Subject.Title;
         _leftOut = [];
+        _recheckWikidata = true;
         _provider = string.Empty;
         _selected = null;
         _siblings = null;
@@ -336,7 +339,8 @@
 
     private RenderFragment ResultRow(ItemCanonicalRetailCandidateDto candidate, int index) => __builder =>
     {
-        var best = index == 0;
+        // "Best guess" is said only when the Engine is reasonably sure (v4.1); a weak top answer is just the first result.
+        var best = index == 0 && EditorMatchFacts.IsConfidentGuess(candidate);
         var active = ReferenceEquals(candidate, _selected);
         var facts = EditorMatchRules.FactsOf(candidate);
         var line = string.Join(" · ", new[] { facts.Creator, facts.Parent, facts.Year, facts.Edition }.Where(part => !string.IsNullOrWhiteSpace(part)));
@@ -354,10 +358,25 @@
                 {
                     <div class="tl-match__meta">@line</div>
                 }
-                <div class="tl-match__provider-name">@FormatProvider(facts.Provider)</div>
+                <div class="tl-match__provider-name">
+                    <AppProviderLogo FallbackText="@ProviderInitial(facts.Provider)" Size="AppControlSize.Compact" AltText="" Class="tl-match__provider-logo" />
+                    <span>@FormatProvider(facts.Provider)</span>
+                </div>
                 @if (active && Subject is not null)
                 {
                     @BeforeAfter(candidate)
+                }
+                @if (active && EditorMatchFacts.WhyRows(candidate) is { Count: > 0 } why)
+                {
+                    <table class="tl-match__why" data-testid="match-why-table">
+                        <caption>Why this answer</caption>
+                        <tbody>
+                            @foreach (var row in why)
+                            {
+                                <tr><th scope="row">@row.Label</th><td>@row.Percent%</td></tr>
+                            }
+                        </tbody>
+                    </table>
                 }
             </div>
             @ConfidenceBar(candidate)
@@ -443,6 +462,10 @@
                 <AppSwitchRow Label="Use as the retail match"
                               Description="Which provider record this item is. It does not move the item."
                               Value="@_useRetail" ValueChanged="@(value => { _useRetail = value; _staged = false; })" Disabled="@(!CanEdit)" />
+                <AppSwitchRow Label="Check the Wikidata link again"
+                              Description="@(_recheckWikidata ? "Wikidata is looked up again for this match, unless you set the link yourself." : "The Wikidata link stays exactly as it is.")"
+                              Value="@_recheckWikidata" ValueChanged="@(value => { _recheckWikidata = value; _staged = false; })"
+                              Disabled="@(!CanEdit || !_useRetail)" />
                 @if (_siblingTarget is not null)
                 {
                     <AppSwitchRow Label="@SiblingsLabel"
@@ -685,6 +708,8 @@
         _manualPlaced = $"Season {numbers.Season.ToString(CultureInfo.InvariantCulture)}, episode {numbers.Episode.ToString(CultureInfo.InvariantCulture)} staged as this item's own details. {NotSavedYet}";
         return Task.CompletedTask;
     }
+
+    private static string ProviderInitial(string name) => FormatProvider(name) is { Length: > 0 } label ? label[..1].ToUpperInvariant() : "?";
 
     private static string FormatProvider(string name) => ProviderCatalogueService.FormatProviderLabel(name);
 
@@ -1099,6 +1124,7 @@
         if (_useRetail)
         {
             var request = EditorMatchRules.RequestFor(_selected, Subject, _group);
+            request.ClearAutoAlignedWikidata = _recheckWikidata;
             var facts = EditorMatchRules.FactsOf(_selected);
             pending.SetTarget(EditSessionChangeKinds.Identity, id, EditSessionIdentityTarget.Serialize(request), label: $"{facts.Title} ({facts.Provider})", before: MatchBefore(Subject));
         }

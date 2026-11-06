@@ -48,6 +48,7 @@ public static class TuvimaProviderServiceCollectionExtensions
         services.AddSingleton<ILoreDeltaService, LoreDeltaService>();
         services.AddSingleton<IEraActorResolverService, EraActorResolverService>();
         services.AddSingleton<ImageDownloadCoordinator>();
+        services.AddSingleton<IEpisodeFrameSource, MediaEngine.Api.Services.EpisodeFrameSource>();
         services.AddSingleton<ImageEnrichmentService>();
         services.AddSingleton<IImageEnrichmentService>(sp => sp.GetRequiredService<ImageEnrichmentService>());
         services.AddSingleton<IHydrationPipelineService, SynchronousIdentityPipelineService>();

@@ -64,6 +64,8 @@ An editor that is calm, near-black, and tells you plainly what an item is matche
 | D15 | Other videos use video wording (amends videos.md D4's "sections/episodes"). |
 | D16 | Cast tiles: one square rounded tile at one modest size everywhere. |
 | D18 | **Amendment (Shy, 2026-11-06, local walk item 134):** Home hero books show a much larger cover. "Other videos" use a frame taken from the video as the full-width background, on the home hero and on their own details page, never a portrait cover shrunk inside the picture. Uses the WP8 frame service. |
+| D19 | **Build default (2026-11-06, frame stills):** an episode TheTVDB has no picture for gets one frame from its own video, generated the first time its picture is looked for and kept as a normal picture from the source "generated" (listed in the artwork picker, never written beside the media). The 90-day recheck stays; when a provider still arrives it becomes the preferred picture and the frame stays as a choice. Same frame service as Other videos. |
+| D20 | **Build defaults (2026-11-06, match screen):** TV percentage pills compare the file name with each show (name, plus year when both have one) and each episode (season and episode numbers first, title second); "Best guess" appears only at 60% or more; the Why table lists the per-fact scores the Engine already returns; provider logo is the first-letter badge until a plugin supplies an image; the Wikidata switch is "Check the Wikidata link again", on by default (today's behaviour), and off keeps the link exactly as it is. |
 | D17 | Universe icon (already built) stays top right of the hero; Edit appears only on desktop. |
 
 ## 3. Work packets
