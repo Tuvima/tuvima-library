@@ -2,6 +2,7 @@
 @using MediaEngine.Contracts.Library
 @using MediaEngine.Contracts.Settings
 @using MediaEngine.Contracts.Vault
+@using MediaEngine.Web.Components.Settings.LibraryActivity
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Integration
@@ -167,7 +168,7 @@
                     }
                     else if (tab.Slug == ActivityTab)
                     {
-                        <LibraryActivityTab Library="@Library" />
+                        <LibraryActivityPage LibraryId="@Library.Id" />
                     }
                     else if (tab.Slug == LookupTab && IsVault)
                     {

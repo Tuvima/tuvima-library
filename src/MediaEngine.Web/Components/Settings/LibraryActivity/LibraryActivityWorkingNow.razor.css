@@ -1,0 +1,4 @@
+.lact-working { display: flex; flex-direction: column; gap: var(--tl-space-2); }
+.lact-heading { margin: 0; font-size: var(--tl-font-size-lg); }
+.lact-tiles { display: flex; flex-wrap: wrap; gap: var(--tl-space-4); }
+.lact-background { margin: 0; color: var(--tl-text-muted); }

@@ -666,11 +666,14 @@ public sealed class MediaTileComposerService
             .ToList();
     }
 
-    /// <summary>Added in the last 7 days and not started yet: "New" (or "New Episode" for an episode). Anything the person is partway through is not new.</summary>
+    /// <summary>
+    /// "New" (or "New Episode" for an episode) when the Engine says a later import added the item in the last 14 days (Library activity D14)
+    /// and the person has not started it. Cards built without the Engine's answer fall back to a 7-day added-recently check.
+    /// </summary>
     internal static string? NewLabelFor(DisplayCardDto card)
     {
-        if (card.ContinuationState is DisplayContinuationState.InProgress or DisplayContinuationState.Completed
-            || DateTimeOffset.UtcNow - card.SortTimestamp > TimeSpan.FromDays(7))
+        var isNew = card.IsNew ?? DateTimeOffset.UtcNow - card.SortTimestamp <= TimeSpan.FromDays(7);
+        if (!isNew || card.ContinuationState is DisplayContinuationState.InProgress or DisplayContinuationState.Completed)
         {
             return null;
         }

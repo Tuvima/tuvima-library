@@ -125,6 +125,8 @@ public static class TuvimaHostedServiceCollectionExtensions
         services.AddHostedService<WikidataBridgeHostedService>();
         services.AddHostedService<QuickHydrationHostedService>();
         services.AddSingleton<IIdentityBypassLibraries, ConfiguredIdentityBypassLibraries>();
+        services.AddSingleton<MediaEngine.Domain.Contracts.IActivityRunRecorder, ActivityRunRecorder>();
+        services.AddHostedService<ActivityRunSweeper>();
         services.AddHostedService<WorkReadinessService>();
         services.AddHostedService<MusicBrainzEnrichmentHostedService>();
         services.AddHostedService<MusicAlbumManifestHostedService>();

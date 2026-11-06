@@ -1,0 +1,68 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Unified look mockup</title>
+<style>
+:root{--root:#101115;--shell:#14151A;--surf:#1A1B21;--hov:#272830;--menu:#2F3039;--bd:rgba(148,163,184,.14);--ac:#8852FC;--ac2:#A46FFF;--tx:#F5F7FB;--t2:#B6C2D6;--t3:#94A3B8;--danger:#FF8A8A}
+*{box-sizing:border-box}body{margin:0;background:#0a0a0c;color:#e8e8ec;font:14px/1.5 "Segoe UI",system-ui,sans-serif;padding:24px 16px}
+h1{font-size:20px;margin:0 0 16px}h2{font-size:15px;margin:28px 0 10px;color:#c4c4cc}
+.wrap{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}
+.scr{background:var(--root);color:var(--tx);border:1px solid var(--bd);border-radius:10px;position:relative;overflow:hidden}
+.desk{width:760px;max-width:100%;min-height:430px;display:grid;grid-template-columns:170px 1fr}
+.phone{width:320px;min-height:560px}
+.side{background:var(--shell);border-right:1px solid var(--bd);padding:14px 10px}
+.side div{padding:10px 12px;border-radius:6px;color:var(--t2);font-size:14px;font-weight:500;display:flex;gap:10px;align-items:center}
+.side .on{background:rgba(136,82,252,.16);color:#fff}
+.ic{width:20px;height:20px;border-radius:5px;display:inline-block;flex:none}
+.main{padding:20px;position:relative}
+h3{font-size:24px;font-weight:600;line-height:1.25;margin:0 0 4px}.sub{color:var(--t3);font-size:14px;margin:0 0 14px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--bd);margin-bottom:14px}.tabs span{padding:10px 14px;font-size:16px;font-weight:500;color:var(--t3)}.tabs .on{color:#fff;box-shadow:inset 0 -2px 0 var(--ac)}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.chip{height:36px;padding:0 14px;border-radius:6px;background:var(--surf);border:1px solid var(--bd);font-size:14px;font-weight:500;display:inline-flex;align-items:center;color:var(--t2)}.chip.on{background:rgba(136,82,252,.16);border-color:var(--ac);color:#fff}
+.card{background:var(--surf);border:1px solid var(--bd);border-radius:8px;padding:12px 14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;font-size:16px;font-weight:500}.card small{display:block;color:var(--t3);font-size:13px;font-weight:400}
+.tog{width:38px;height:22px;border-radius:11px;background:var(--hov);position:relative}.tog.on{background:var(--ac)}.tog:after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff}.tog.on:after{left:19px}
+.btn{height:44px;padding:0 20px;border-radius:6px;font-size:16px;font-weight:600;display:inline-flex;align-items:center;gap:8px;border:0;color:#fff;background:var(--ac)}
+.btn.sec{background:var(--hov)}
+.hero{display:flex;gap:10px;align-items:center;margin:6px 0 14px}
+.rb{width:48px;height:48px;border-radius:6px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.28);display:grid;place-items:center;font-size:20px;color:#fff}
+.rb.rated{background:rgba(136,82,252,.28);border-color:var(--ac);color:var(--ac2)}
+.menu{position:absolute;background:var(--menu);border:1px solid var(--bd);border-radius:8px;width:272px;padding:6px 0;box-shadow:0 12px 32px rgba(0,0,0,.5)}
+.menu div{height:44px;padding:0 16px;display:flex;align-items:center;gap:12px;font-size:16px;font-weight:500}.menu .d{color:var(--danger)}.menu hr{border:0;border-top:1px solid var(--bd);margin:4px 0}
+.tip{position:absolute;background:var(--menu);border:1px solid var(--bd);border-radius:6px;padding:6px 10px;font-size:13px;font-weight:500;line-height:1.3;max-width:280px;box-shadow:0 6px 18px rgba(0,0,0,.45);white-space:nowrap}
+.m{position:absolute;width:20px;height:20px;border-radius:50%;background:#f5b942;color:#111;font:700 12px/20px sans-serif;text-align:center;z-index:5}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--menu);border-radius:12px 12px 0 0;padding:8px 0 12px}.sheet div{height:52px;padding:0 20px;display:flex;align-items:center;gap:14px;font-size:16px;font-weight:500}.grab{width:36px;height:4px;border-radius:2px;background:var(--hov)!important;margin:4px auto 8px;height:4px!important;padding:0!important}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.55)}
+ol{max-width:820px;color:#c4c4cc}
+</style></head><body>
+<h1>Unified look: near-black, one type ladder, one tooltip</h1>
+<div class="wrap">
+<div class="scr desk">
+ <div class="side"><div><i class="ic" style="background:#38BDF8"></i>Home</div><div><i class="ic" style="background:#D6A84F"></i>Library</div><div class="on"><i class="ic" style="background:var(--ac2)"></i>Settings</div></div>
+ <div class="main">
+  <h3>Playback</h3><p class="sub">How titles play on this device</p>
+  <div class="tabs"><span class="on">General</span><span>Subtitles</span><span>Audio</span></div>
+  <div class="chips"><span class="chip on">All</span><span class="chip">Movies</span><span class="chip">TV</span><span class="chip">Music</span></div>
+  <div class="card"><div>Autoplay next episode<small>Starts the next one after credits</small></div><div class="tog on"></div></div>
+  <div class="hero"><span class="btn">▶ Play</span><span class="btn sec">+ My List</span><span class="rb rated">👍</span><span class="rb">👎</span><span class="rb">⋯</span></div>
+  <div class="menu" style="right:24px;top:236px"><div>✎ Edit</div><div>★ Add to Favorites</div><div>ⓘ Movie Details</div><hr><div class="d">🗑 Delete</div></div>
+  <div class="tip" style="left:300px;top:312px">Like this title</div>
+ </div>
+ <span class="m" style="left:180px;top:10px">1</span><span class="m" style="left:300px;top:128px">2</span><span class="m" style="left:190px;top:318px">3</span><span class="m" style="left:455px;top:352px">4</span><span class="m" style="left:410px;top:322px">5</span><span class="m" style="right:290px;top:234px">6</span>
+</div>
+<div class="scr phone">
+ <div class="main" style="padding:16px"><h3 style="font-size:22px">The Expanse</h3><p class="sub">TV · 6 seasons</p>
+  <div class="hero" style="flex-wrap:wrap"><span class="btn">▶ Play</span><span class="rb rated">👍</span><span class="rb">👎</span><span class="rb">⋯</span></div>
+  <div class="chips" style="overflow:hidden;flex-wrap:nowrap"><span class="chip on" style="height:44px">All</span><span class="chip" style="height:44px">Unwatched</span><span class="chip" style="height:44px">Extras</span></div></div>
+ <div class="scrim"></div>
+ <div class="sheet"><div class="grab"></div><div>＋ Add to My List</div><div>★ Add to Favorites</div><div>ⓘ Show Details</div></div>
+ <span class="m" style="left:10px;top:150px">7</span><span class="m" style="right:10px;bottom:250px">8</span>
+</div>
+</div>
+<h2>Notes</h2>
+<ol>
+<li>Near-black surfaces everywhere (page #101115, nav #14151A, cards #1A1B21). Purple appears only on the selected nav row, selected tab, selected chip, switch and primary button.</li>
+<li>One type ladder: page title 24/600, tabs 16/500, body 14, helper 13. No 700 or 800 weights.</li>
+<li>Filter chips: one design, 36 px tall on desktop, 44 px on phones, square corners, same selected look on every page.</li>
+<li>Buttons are 44 px tall with 16 px text; the primary is a plain purple fill with no white border.</li>
+<li>A liked title shows a filled, purple-edged thumb at rest, on the hero, the tile menu and the player.</li>
+<li>Menus: 272 px wide, 44 px rows, 16/500 text, soft red Delete (readable on the gray).</li>
+<li>Tooltip: menu-gray bubble, 13/500 text, 6 px corners, no arrow, above the item, appears in 150 ms (instantly on keyboard focus). Phones long-press instead.</li>
+<li>On phones every menu is a bottom sheet with 52 px rows. Nothing is clipped. Edit and Delete do not appear on phones: editing stays desktop-only.</li>
+</ol>
+</body></html>

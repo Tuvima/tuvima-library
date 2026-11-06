@@ -1,0 +1,47 @@
+@namespace MediaEngine.Web.Components.Settings.LibraryActivity
+@using MediaEngine.Contracts.Ingestion
+@inject IStringLocalizer<SharedStrings> L
+@using MediaEngine.Web.Components.Settings
+
+@* Working now (spec library-activity D6, D7): a row of standard tiles, each with the flush status label for what Library is doing to that title
+   and a flush count or step at the bottom-left. Hidden when nothing runs. Background work is one plain line with no bar of its own. *@
+@if (Items.Count > 0)
+{
+    <section class="lact-working" data-testid="activity-working-now" aria-labelledby="lact-working-title">
+        <h2 id="lact-working-title" class="lact-heading">@L["LibraryActivity_WorkingNow"]</h2>
+        <div class="lact-tiles">
+            @foreach (var item in Items)
+            {
+                <LibraryActivityTile @key="item.GroupId"
+                              Title="@IngestionMediaCard.DisplayTitleFor(item.Title)"
+                              CoverUrl="@item.CoverUrl"
+                              MediaType="@item.MediaType"
+                              Route="@item.DetailRoute"
+                              StatusLabel="@(string.IsNullOrWhiteSpace(item.CurrentGateLabel) ? item.StatusLabel : item.CurrentGateLabel)"
+                              BottomLabel="@Step(item)" />
+            }
+        </div>
+    </section>
+}
+@if (Background.Count > 0)
+{
+    <p class="lact-background" data-testid="activity-background"><strong>@L["LibraryActivity_Background"]</strong> · @string.Join(" · ", Background)</p>
+}
+
+@code {
+    [Parameter] public IReadOnlyList<IngestionMediaGroupDto> Items { get; set; } = [];
+
+    /// <summary>Plain names of the background work now running (AI, maintenance); empty hides the line.</summary>
+    [Parameter] public IReadOnlyList<string> Background { get; set; } = [];
+
+    private static string? Step(IngestionMediaGroupDto item)
+    {
+        if (item.ChildUnit is { Length: > 0 } unit && item.ChildCompleted > 0)
+        {
+            var noun = item.ChildCompleted == 1 && unit.EndsWith('s') ? unit[..^1] : unit;
+            return $"{item.ChildCompleted:N0} {noun}";
+        }
+
+        return string.IsNullOrWhiteSpace(item.Subtitle) ? null : item.Subtitle;
+    }
+}

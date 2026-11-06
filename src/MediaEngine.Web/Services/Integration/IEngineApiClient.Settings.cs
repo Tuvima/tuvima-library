@@ -227,6 +227,23 @@ public partial interface IEngineApiClient
     Task<IReadOnlyList<LibraryKindDto>?> GetLibraryKindsAsync(CancellationToken ct = default);
     Task<LibrariesConfigurationDto?> MutateLibraryAsync(LibraryMutationRequest request, CancellationToken ct = default);
 
+    /// <summary>GET /library/activity/runs: the Activity page's History, one entry per batch (administrators); null when the Engine refused or it could not be read.</summary>
+    Task<MediaEngine.Contracts.Library.ActivityRunsDto?> GetActivityRunsAsync(
+        IReadOnlyCollection<string>? libraryIds, IReadOnlyCollection<string>? kinds, DateTimeOffset? from, DateTimeOffset? to,
+        string? search, bool newestFirst, int offset, int limit, CancellationToken ct = default);
+
+    /// <summary>GET /library/activity/runs/{entryId}/groups: one opened batch as stacked tiles, a page at a time.</summary>
+    Task<MediaEngine.Contracts.Library.ActivityRunGroupsDto?> GetActivityRunGroupsAsync(
+        Guid entryId, string? mediaType, int offset, int limit, CancellationToken ct = default);
+
+    /// <summary>GET /library/activity/titles: the instant title search, each title once with its own dated markers.</summary>
+    Task<MediaEngine.Contracts.Library.ActivityTitleSearchDto?> SearchActivityTitlesAsync(
+        string search, IReadOnlyCollection<string>? libraryIds, IReadOnlyCollection<string>? kinds, DateTimeOffset? from, DateTimeOffset? to,
+        CancellationToken ct = default);
+
+    /// <summary>POST /library/activity/purge: removes History that started before the date (administrators).</summary>
+    Task<MediaEngine.Contracts.Library.ActivityPurgeResultDto?> PurgeActivityRunsAsync(DateTimeOffset olderThan, CancellationToken ct = default);
+
     /// <summary>GET /library/libraries/{libraryId}/activity — what has happened in one library, newest first, in plain sentences (administrators); null when the Engine refused, the library is unknown or it could not be read.</summary>
     Task<MediaEngine.Contracts.Library.LibraryActivityDto?> GetLibraryActivityAsync(string libraryId, int take = 50, CancellationToken ct = default);
 

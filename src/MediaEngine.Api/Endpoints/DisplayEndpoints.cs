@@ -25,6 +25,26 @@ public static class DisplayEndpoints
         var group = app.MapGroup("/api/v1/display")
             .WithTags("Display");
 
+        // One place applies the New tag rule (Library activity D14) to every page of cards the Engine returns.
+        group.AddEndpointFilter(async (context, next) =>
+        {
+            var result = await next(context);
+            if (result is not IValueHttpResult { Value: { } value })
+            {
+                return result;
+            }
+
+            var rule = context.HttpContext.RequestServices.GetRequiredService<NewTagRule>();
+            var ct = context.HttpContext.RequestAborted;
+            return value switch
+            {
+                DisplayPageDto page => Results.Ok(await rule.MarkAsync(page, ct)),
+                DisplayShelfPageDto shelf => Results.Ok(await rule.MarkAsync(shelf, ct)),
+                DisplayGridPageDto grid => Results.Ok(await rule.MarkAsync(grid, ct)),
+                _ => result,
+            };
+        });
+
         group.MapGet("/home", async (
             bool? includeCatalog,
             HttpContext http,

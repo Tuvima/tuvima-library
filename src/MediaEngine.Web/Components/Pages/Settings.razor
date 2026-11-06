@@ -6,6 +6,7 @@
 @namespace MediaEngine.Web.Components.Pages
 @using MediaEngine.Contracts.Authentication
 @using MediaEngine.Web.Components.Settings
+@using MediaEngine.Web.Components.Settings.LibraryActivity
 @using MediaEngine.Web.Models.ViewDTOs
 @using MediaEngine.Web.Services.Navigation
 @using Microsoft.AspNetCore.Components.Authorization
@@ -198,7 +199,7 @@ else
                                 <LibrariesTab Subsection="@_activeSubsection" Detail="@Detail" />
                                 break;
                             case SettingsSection.RecentlyAdded:
-                                <RecentlyAddedPageContent InitialSearch="@RecentSearch" />
+                                <LibraryActivityPage />
                                 break;
                             case SettingsSection.Review:
                                 <NeedsReviewPageContent InitialSearch="@RecentSearch" Library="@Query.String("library")" Show="@Query.String("show")" />

@@ -1,0 +1,38 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Near-black color scheme</title>
+<style>
+body{margin:0;background:#0a0a0c;color:#e8e8ec;font:14px/1.5 "Segoe UI",system-ui,sans-serif;padding:24px 16px}
+h1{font-size:20px;margin:0 0 4px}p.lead{color:#9a9aa6;margin:0 0 20px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:20px}
+.lab{font-weight:600;margin:0 0 8px}
+.app{display:grid;grid-template-columns:150px 1fr;border-radius:10px;overflow:hidden;border:1px solid var(--bd);background:var(--root);color:#f5f7fb;min-height:330px;position:relative}
+.side{background:var(--shell);padding:14px 10px;border-right:1px solid var(--bd)}
+.side div{padding:7px 10px;border-radius:8px;color:#b6c2d6;margin-bottom:2px}
+.side .on{background:var(--soft);color:#fff}
+.main{padding:16px}
+.tabs{display:flex;gap:6px;margin-bottom:14px}.tabs span{padding:5px 12px;border-radius:8px;color:#94a3b8}.tabs .on{background:var(--soft);color:#fff;box-shadow:inset 0 -2px 0 #8852FC}
+.card{background:var(--surf);border:1px solid var(--bd);border-radius:10px;padding:12px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+.card small{display:block;color:#94a3b8}
+.tog{width:34px;height:18px;border-radius:9px;background:var(--hov);position:relative}.tog.on{background:#8852FC}
+.tog:after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff}.tog.on:after{left:18px}
+.btn{background:#8852FC;color:#fff;border-radius:8px;padding:6px 14px;font-weight:600;display:inline-block}
+.btn2{background:var(--hov);border-radius:8px;padding:6px 14px;display:inline-block;margin-right:6px}
+.m{position:absolute;width:20px;height:20px;border-radius:50%;background:#f5b942;color:#111;font:700 12px/20px sans-serif;text-align:center}
+.before{--root:#0B0920;--shell:#100B2A;--surf:#170F32;--hov:#241749;--bd:rgba(148,163,184,.16);--soft:rgba(136,82,252,.16)}
+.after{--root:#101115;--shell:#14151A;--surf:#1A1B21;--hov:#272830;--bd:rgba(148,163,184,.14);--soft:rgba(136,82,252,.16)}
+ol{color:#c4c4cc;max-width:760px}table{border-collapse:collapse;margin:16px 0}td,th{padding:4px 12px;border-bottom:1px solid #26262c;text-align:left}
+.sw{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:6px;border:1px solid #444}
+</style></head><body>
+<h1>Settings page: before and after</h1><p class="lead">Same page, same purple accent. Only the background grays change, to match the editor and details pages.</p>
+<div class="grid">
+<div><p class="lab">Before (purple-tinted surfaces)</p><div class="app before"><div class="side"><div>Home</div><div class="on">Settings</div><div>Libraries</div></div><div class="main"><div class="tabs"><span class="on">General</span><span>Playback</span><span>Security</span></div><div class="card"><div>Auto-organize files<small>Move files after a match</small></div><div class="tog on"></div></div><div class="card"><div>Show hints<small>Tips on pages</small></div><div class="tog"></div></div><span class="btn2">Discard</span><span class="btn">Save changes</span></div></div></div>
+<div><p class="lab">After (editor near-black)</p><div class="app after"><div class="side"><div>Home</div><div class="on">Settings</div><div>Libraries</div></div><div class="main"><div class="tabs"><span class="on">General</span><span>Playback</span><span>Security</span></div><div class="card"><div>Auto-organize files<small>Move files after a match</small></div><div class="tog on"></div></div><div class="card"><div>Show hints<small>Tips on pages</small></div><div class="tog"></div></div><span class="btn2">Discard</span><span class="btn">Save changes</span></div><span class="m" style="left:6px;top:6px">1</span><span class="m" style="left:156px;top:40px">2</span><span class="m" style="right:8px;top:46px">3</span><span class="m" style="left:170px;bottom:30px">4</span></div></div>
+</div>
+<ol><li>Page and navigation backgrounds become neutral near-black, no violet tint.</li><li>Selected item keeps a soft purple highlight: the accent.</li><li>Selected tab keeps a purple underline.</li><li>Primary button and switches stay purple. Nothing else is purple.</li></ol>
+<table><tr><th>Token</th><th>Now</th><th>Proposed</th></tr>
+<tr><td>Page</td><td><span class="sw" style="background:#0B0920"></span>#0B0920</td><td><span class="sw" style="background:#101115"></span>#101115 (same as editor)</td></tr>
+<tr><td>Navigation / shell</td><td><span class="sw" style="background:#100B2A"></span>#100B2A</td><td><span class="sw" style="background:#14151A"></span>#14151A</td></tr>
+<tr><td>Cards</td><td><span class="sw" style="background:#170F32"></span>#170F32</td><td><span class="sw" style="background:#1A1B21"></span>#1A1B21</td></tr>
+<tr><td>Hover</td><td><span class="sw" style="background:#241749"></span>#241749</td><td><span class="sw" style="background:#272830"></span>#272830</td></tr>
+<tr><td>Raised (menus)</td><td><span class="sw" style="background:#301B59"></span>#301B59</td><td><span class="sw" style="background:#2F3039"></span>#2F3039</td></tr>
+<tr><td>Purple glow in page gradient</td><td>on</td><td>removed</td></tr></table>
+</body></html>

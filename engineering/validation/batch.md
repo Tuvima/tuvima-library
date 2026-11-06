@@ -2292,3 +2292,12 @@ Results and the 61 findings are in `engineering/validation/local-check-2026-11-0
 
 | Libraries v3 L11: switch a folder to Managed | Libraries v3 build (PR) | Switch a copy of a real folder to Managed from Edit: Preview counts match, files are renamed in place on the same drive, pause, cancel and an Engine restart all behave. Note what can and cannot be played while it runs. | Awaiting |
 
+| Library activity L1: spinner and progress | (this build) | On a small test library, start a scan. The spinner turns blue; click it and Activity opens with one progress card moving, Working now tiles with status labels, and a History entry saying Active. Failure: it lands on Libraries, or there is one bar per library. | Awaiting |
+| Library activity L2: finishing | (this build) | Let the scan finish. The spinner turns green; the card is replaced by "Everything is up to date"; the entry turns Completed (about 1 to 5 minutes later, after the quiet period) and shows its covers. | Awaiting |
+| Library activity L3: open an entry | (this build) | Open a finished entry: two rows of standard tiles, episodes stacked into one tile per show, scrolling loads more, square and portrait art are the same height. | Awaiting |
+| Library activity L4: search | (this build) | Type a show's title in search: it appears once with its own timeline of dates; months with matches are open. | Awaiting |
+| Library activity L5: collapse | (this build) | Collapse and expand months and years. | Awaiting |
+| Library activity L6: non-administrator | (this build) | Sign in as a non-administrator: no spinner and no Activity entry. | Awaiting |
+| Library activity L7: Libraries scan card | (this build) | After the Libraries v3 build merges: the scan card's View activity opens Activity. Not yet checkable (depends on that card). | Awaiting |
+| Library activity L8: two imports | (this build) | Drop three new files into a watched folder, then more after 5 minutes: two entries. Photos and documents never create entries. | Awaiting |
+| Library activity L9: New tag | (this build) | The first import of a brand-new library shows no New tags; a later import does, for 14 days. | Awaiting |

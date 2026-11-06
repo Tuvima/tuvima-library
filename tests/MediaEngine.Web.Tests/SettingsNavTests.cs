@@ -35,7 +35,7 @@ public sealed class SettingsNavTests
         Assert.DoesNotContain("AccordionNavigation", settingsSource, StringComparison.Ordinal);
         Assert.Contains("<SettingsPageTabs", settingsSource, StringComparison.Ordinal);
         Assert.Contains("settings-mobile-navigation", settingsSource, StringComparison.Ordinal);
-        Assert.Contains("<RecentlyAddedPageContent", settingsSource, StringComparison.Ordinal);
+        Assert.Contains("<LibraryActivityPage", settingsSource, StringComparison.Ordinal);
         Assert.Contains("<LibraryRulesPage", settingsSource, StringComparison.Ordinal);
         Assert.Contains("<GeneralPage", settingsSource, StringComparison.Ordinal);
         Assert.Contains("<ToolsRequirementsTab", settingsSource, StringComparison.Ordinal);

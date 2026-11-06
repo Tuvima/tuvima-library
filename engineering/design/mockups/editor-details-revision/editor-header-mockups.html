@@ -1,0 +1,509 @@
+<title>Editor Header Mockups</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: a stack of 1440-wide app screens, each in its own sideways-scrolling frame, numbered notes beneath. Single dark look on purpose: it is the app's own look. */
+:root{
+  --page:#050507; --app:#101115; --win:#101115; --panel:#1A1B21; --line:#25272E; --line2:#33363F;
+  --fg:#F5F7FB; --fg2:#B6C2D6; --fg3:#8593AA; --accent:#8852FC; --accent2:#C4A1FF; --accentbg:#221a3e;
+  --ok:#4ade80; --okbg:#12351f; --warn:#fbbf24; --warnbg:#3a2c0b; --bad:#f87171; --badbg:#3b1414;
+  --ui:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--page);color:var(--fg);font-family:var(--ui);font-size:14px;line-height:1.4;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 48px}
+.intro{max-width:880px;margin:0 auto 28px}
+.intro h1{font-size:26px;margin:0 0 8px;text-wrap:balance}
+.intro p{color:var(--fg2);margin:0 0 8px;max-width:70ch}
+section.shot{max-width:1460px;margin:0 auto 44px}
+section.shot h2{font-size:18px;margin:0 0 4px}
+section.shot .sub{color:var(--fg3);margin:0 0 12px}
+.frame{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--app)}
+.notes{max-width:880px;margin:14px 0 0;padding:0;list-style:none;display:grid;gap:8px}
+.notes li{display:grid;grid-template-columns:26px 1fr;gap:10px;color:var(--fg2)}
+.notes li b{color:var(--fg)}
+
+/* screen */
+.vp{width:1440px;height:900px;position:relative;overflow:hidden;background:var(--app)}
+.bgpage{position:absolute;inset:0;background:linear-gradient(180deg,#1a1532 0,#0B1020 380px)}
+.bgpage .topnav{height:56px;border-bottom:1px solid var(--line);background:#0B1020;display:flex;align-items:center;gap:28px;padding:0 32px;color:var(--fg2)}
+.bgpage .topnav b{color:var(--fg);letter-spacing:.08em}
+.dim{position:absolute;inset:0;background:rgba(3,5,10,.7)}
+.win{position:absolute;left:80px;top:20px;width:1280px;height:860px;background:var(--win);border:1px solid var(--line2);border-radius:12px;box-shadow:0 30px 80px rgba(0,0,0,.65);display:flex;flex-direction:column;overflow:hidden}
+.rail{height:58px;display:flex;align-items:center;gap:8px;padding:0 16px;border-bottom:1px solid var(--line);flex:none}
+.crumb{display:flex;align-items:center;gap:10px;height:42px;padding:0 12px 0 6px;border:1px solid var(--line2);border-radius:8px;background:var(--panel);min-width:210px}
+.crumb.on{border-color:var(--accent);background:#17132b}
+.crumb .t{width:30px;height:30px;border-radius:5px;flex:none}
+.crumb small{display:block;color:var(--fg3);font-size:11px;line-height:1.1}
+.crumb span{font-weight:600;font-size:13px}
+.crumb .v{margin-left:auto;color:var(--fg3)}
+.sep{color:var(--fg3)}
+.x{margin-left:auto;color:var(--fg2);font-size:22px;width:36px;text-align:center}
+.head{height:168px;flex:none;display:flex;gap:22px;padding:18px 24px;position:relative;background:linear-gradient(90deg,var(--win) 35%,transparent),var(--herobg,linear-gradient(120deg,#1b2440,#3a2346));border-bottom:1px solid var(--line)}
+.head .cover{width:88px;height:132px;border-radius:8px;flex:none;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.head .cover.land{width:200px;height:113px;align-self:center}
+.head .kicker{color:var(--accent2);font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:600}
+.head h3{font-size:28px;margin:4px 0 4px}
+.head .facts{color:var(--fg2)}
+.head .links{position:absolute;right:24px;top:18px;display:flex;gap:8px}
+.lnk{border:1px solid var(--line2);background:rgba(10,14,24,.75);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:600}
+.more{border:1px solid var(--line2);background:rgba(10,14,24,.75);border-radius:8px;padding:6px 12px;font-weight:700}
+.tabs{display:flex;gap:10px;padding:0 24px;border-bottom:1px solid var(--line);flex:none}
+.tab{display:flex;align-items:center;gap:10px;padding:16px 26px;color:var(--fg2);font-weight:600;border-bottom:2px solid transparent}
+.ti{font-style:normal;font-size:15px;color:var(--ic,#8f7fd1)}.tab.on .ti{filter:brightness(1.25)}.tab.on{color:var(--fg);border-color:var(--accent)}
+.body{flex:1;min-height:0;display:flex;gap:20px;padding:20px 24px;overflow:hidden}
+.form{flex:1;min-width:0;display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;align-content:start}
+.f{display:flex;flex-direction:column;gap:5px}
+.f.w{grid-column:1/-1}
+.f label{font-size:12px;color:var(--fg2);font-weight:600}
+.in{height:38px;border:1px solid var(--line2);border-radius:7px;background:#0A0B0E;display:flex;align-items:center;padding:0 10px;gap:8px}
+.in.tall{height:64px;align-items:flex-start;padding-top:9px}
+.in.changed{border-color:var(--accent)}
+.in .ico{margin-left:auto;color:var(--fg3);font-size:13px}
+.in .rev{color:var(--accent2)}
+.ro{color:var(--fg3)}
+.qf{width:300px;flex:none;border:1px solid #3d2d80;border-radius:10px;background:linear-gradient(180deg,#1d1446,#140e33);padding:14px 16px;align-self:start}
+.qf h4{margin:0 0 8px;font-size:15px}
+.qf .r{display:flex;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.qf .r:first-of-type{border-top:0}
+.qf .i{width:34px;height:34px;border-radius:50%;background:var(--accentbg);color:var(--accent2);display:grid;place-items:center;font-size:14px;flex:none}
+.qf b{display:block;font-size:16px}.qf small{color:var(--fg2)}
+.foot{height:64px;flex:none;border-top:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:0 20px;background:#0B0C0F}.foot .where{margin-left:6px}
+.foot .where b{display:block;font-size:13px}.foot .where small{color:var(--fg3)}
+.foot .cnt{margin-left:auto;color:var(--fg2)}
+.btn{height:38px;padding:0 16px;border-radius:8px;border:1px solid var(--line2);display:inline-flex;align-items:center;font-weight:600;background:transparent;color:var(--fg)}
+.btn.p{background:var(--accent);border-color:var(--accent)}
+.btn.d{background:#b42318;border-color:#b42318}
+.btn.sm{height:30px;padding:0 10px;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:4px;font-size:12px;background:#1E293B;color:var(--fg2)}
+.chip.ok{background:var(--okbg);color:var(--ok)}.chip.warn{background:var(--warnbg);color:var(--warn)}.chip.ac{background:var(--accentbg);color:var(--accent2)}
+.mk{position:absolute;width:24px;height:24px;border-radius:50%;background:#ffd84d;color:#1a1300;font-weight:800;font-size:13px;display:grid;place-items:center;box-shadow:0 0 0 3px rgba(0,0,0,.6);z-index:5}
+.th{border-radius:5px;flex:none}
+.g1{background:linear-gradient(150deg,#c0603a,#3a1d2f 60%,#121a33)}
+.g2{background:linear-gradient(150deg,#3d5a8a,#14203a)}
+.g3{background:linear-gradient(150deg,#5a4a8a,#1a1538)}
+.g4{background:linear-gradient(150deg,#8a6a3a,#2a1a10)}
+.g5{background:linear-gradient(150deg,#2a6a6a,#0c2224)}
+.g6{background:linear-gradient(150deg,#7a3a5a,#200c18)}
+.g7{background:linear-gradient(150deg,#d8a24a,#5a2a12 70%)}
+.g8{background:linear-gradient(150deg,#4a7a3a,#10200c)}
+table.t{width:100%;border-collapse:collapse;font-size:13px}
+table.t th{text-align:left;color:var(--fg3);font-weight:600;font-size:12px;padding:8px 10px;border-bottom:1px solid var(--line)}
+table.t td{padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+table.t tr.sel td{background:#151a30}
+.cb{width:16px;height:16px;border-radius:4px;border:1.5px solid var(--fg3);display:inline-block;vertical-align:middle}
+.cb.on{background:var(--accent);border-color:var(--accent);position:relative}
+.cb.on::after{content:"";position:absolute;left:4px;top:1px;width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.bar{display:inline-block;width:70px;height:6px;border-radius:3px;background:#1E293B;vertical-align:middle;margin-right:6px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent)}
+.bar.lo i{background:var(--warn)}
+.num{font-variant-numeric:tabular-nums}
+.card{border:1px solid var(--line2);border-radius:10px;background:var(--panel)}
+.dd{position:absolute;background:#111a2c;border:1px solid var(--line2);border-radius:10px;box-shadow:0 18px 40px rgba(0,0,0,.6);padding:8px;z-index:4}
+.dd .s{height:34px;border:1px solid var(--line2);border-radius:7px;background:#0B1020;display:flex;align-items:center;padding:0 10px;color:var(--fg3);margin-bottom:6px}
+.dd .o{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:7px}
+.dd .o.on{background:#1D2940}
+.dd .o small{color:var(--fg3);display:block;font-size:11px}
+.dd .o .m{margin-left:auto;font-size:12px}
+.modal{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:520px;background:#121a2b;border:1px solid var(--line2);border-radius:12px;box-shadow:0 30px 80px rgba(0,0,0,.7);padding:22px;z-index:6}
+.modal h3{margin:0 0 10px;font-size:19px}
+.modal p{color:var(--fg2);margin:0 0 10px}
+.modal ul{margin:0 0 14px;padding-left:18px;color:var(--fg2)}
+.modal .acts{display:flex;justify-content:flex-end;gap:10px}
+.scrim{position:absolute;inset:0;background:rgba(3,5,10,.55);z-index:5}
+
+/* Header v2: the Show is a static tile; the Season and Episode dropdowns live inside the header (no separate rail row). */
+.hero{height:176px;flex:none;display:flex;gap:20px;padding:18px 24px;position:relative;background:linear-gradient(90deg,var(--win) 30%,transparent),var(--herobg,linear-gradient(120deg,#1b2440,#3a2346));border-bottom:1px solid var(--line)}
+.showtile{width:214px;height:140px;flex:none;border:1px solid var(--line2);border-radius:10px;background:rgba(10,14,24,.72);display:flex;gap:12px;padding:10px;align-items:flex-start}
+.showtile .p{width:62px;height:96px;border-radius:6px;flex:none;box-shadow:0 6px 18px rgba(0,0,0,.5)}
+.showtile small{display:block;color:var(--fg3);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.showtile b{display:block;font-size:15px;line-height:1.2;margin:4px 0 4px}
+.showtile em{font-style:normal;color:var(--fg2);font-size:12px}
+.showtile.is-item{border-color:var(--accent);background:#17132b}
+.hero .cover{border-radius:8px;flex:none;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.hero .main{min-width:0;display:flex;flex-direction:column}
+.hero .kicker{color:var(--accent2);font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:600}
+.hero h3{font-size:26px;margin:2px 0 2px;text-wrap:balance}
+.hero .facts{color:var(--fg2);display:flex;align-items:center;gap:10px}
+.sels{display:flex;gap:10px;margin-top:auto}
+.sel{display:flex;align-items:center;gap:10px;height:40px;min-width:230px;padding:0 12px 0 6px;border:1px solid var(--line2);border-radius:8px;background:rgba(10,14,24,.78)}
+.sel.on{border-color:var(--accent);background:#17132b}
+.sel .t{width:30px;height:30px;border-radius:5px;flex:none}
+.sel small{display:block;color:var(--fg3);font-size:11px;line-height:1.1}
+.sel span.n{font-weight:600;font-size:13px}
+.sel .v{margin-left:auto;color:var(--fg3)}
+.hero .links{position:absolute;right:24px;top:18px;display:flex;gap:8px}
+.narrow .win{left:0;top:0;width:1024px;height:760px;border-radius:0}
+.narrow.vp{width:1024px;height:760px}
+.narrow .hero{height:auto;flex-wrap:wrap;gap:14px 16px}
+.narrow .showtile{width:calc(100% - 130px);height:auto;align-items:center;padding:8px 10px}
+.narrow .showtile .p{width:34px;height:50px}
+
+.ftile{position:relative;display:block;width:62px;height:96px;border-radius:6px;flex:none;box-shadow:0 6px 18px rgba(0,0,0,.5);overflow:hidden}.ftile b{position:absolute;left:0;right:0;bottom:0;padding:14px 4px 4px;font-size:9px;text-align:center;text-transform:uppercase;letter-spacing:.08em;background:linear-gradient(0deg,rgba(0,0,0,.75),transparent)}.stack{position:relative;width:96px;height:64px;flex:none}
+.stack i{position:absolute;width:70px;height:42px;border-radius:5px;box-shadow:0 4px 12px rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.12)}
+.stack i:nth-child(1){left:0;top:16px;transform:rotate(-6deg)}
+.stack i:nth-child(2){left:12px;top:8px;transform:rotate(-1deg)}
+.stack i:nth-child(3){left:24px;top:0;transform:rotate(5deg)}
+.showtile.wide{align-items:center}
+.fr{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.fr .a{aspect-ratio:16/9;border-radius:6px;border:2px solid transparent;position:relative}
+.fr .a.pref{border-color:var(--accent)}
+.fr .a small{position:absolute;right:6px;bottom:4px;background:rgba(0,0,0,.6);padding:1px 5px;border-radius:3px;font-size:11px}
+.scrub{height:6px;border-radius:3px;background:#1E193A;position:relative;margin:12px 0 4px}
+.scrub i{position:absolute;left:34%;top:-5px;width:16px;height:16px;border-radius:50%;background:var(--accent)}
+.sw{display:inline-block;width:34px;height:20px;border-radius:10px;background:#2c2552;position:relative;vertical-align:middle}
+.sw::after{content:"";position:absolute;left:3px;top:3px;width:14px;height:14px;border-radius:50%;background:#B6C2D6}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.logo{width:20px;height:20px;border-radius:5px;display:inline-grid;place-items:center;font-weight:800;font-size:9px;flex:none}.l-tv{background:#0f3d2e;color:#4ade80}.l-wd{background:#2a1740;color:#c4a1ff}.l-mb{background:#3a1d2f;color:#f0a0d0}.l-tm{background:#0d2f4a;color:#7cc7ff}.lnk{display:inline-flex;align-items:center;gap:6px}
+</style>
+<div class="intro">
+  <h1>Editor header, Details tab and Other Videos</h1>
+  <p>A revision of the Locked v4 header (decision D2) and Details tab. The window is now the near-black of the details page, and the Quick Facts card takes the app's purple accent. The separate row of three dropdowns is gone. The show is a fixed tile at the left of the header. Season and Episode are two dropdowns inside the header, under the title. Everything else in the editor is unchanged from the locked mockups. Each screen is 1440 px wide unless it says otherwise. Pictures are stand-in colour blocks.</p>
+  <p>A film, a standalone book and a person keep today's header with no tile and no dropdowns.</p>
+</div>
+
+<section class="shot">
+  <h2>A. An episode, Episode dropdown open</h2>
+  <p class="sub">The Expanse, Season 2, episode 3.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="win">
+      <div class="hero" style="--herobg:linear-gradient(120deg,#14203a,#3d5a8a)">
+        <div class="showtile"><span class="p g1"></span><div><small>Show</small><b>The Expanse</b><em>6 seasons · 62 episodes</em></div></div>
+        <div class="main">
+          <div class="kicker">TV episode · Season 2</div><h3>S02E03 · Static</h3>
+          <div class="facts"><span>Aired 8 Feb 2017 · 42 min</span><span class="chip ok">✓ Matched</span></div>
+          <div class="sels">
+            <div class="sel"><span class="t g2"></span><div><small>Season</small><span class="n">Season 2</span></div><span class="v">▾</span></div>
+            <div class="sel on"><span class="t g3"></span><div><small>Episode 3</small><span class="n">Static</span></div><span class="v">▾</span></div>
+          </div>
+        </div>
+        <div class="links"><span class="lnk"><span class="logo l-tv">TV</span>TheTVDB ↗</span><span class="lnk"><span class="logo l-wd">W</span>Wikidata ↗</span><span class="x" style="margin:0">✕</span></div>
+      </div>
+      <div class="tabs"><span class="tab on"><i class="ti" style="--ic:#9a8cf0">▤</i>Details</span><span class="tab"><i class="ti" style="--ic:#e58fb4">◩</i>Artwork</span><span class="tab"><i class="ti" style="--ic:#4ec9a0">⌖</i>Match &amp; Identity</span><span class="tab"><i class="ti" style="--ic:#e8b24a">▭</i>Files</span><span class="tab"><i class="ti" style="--ic:#8aa0c8">↺</i>History</span></div>
+      <div class="body"><div class="form">
+          <div class="f w"><label>Title</label><div class="in">Static<span class="ico">🔓</span></div></div>
+          <div class="f w"><label>Overview</label><div class="in tall">Holden and the crew of the Rocinante investigate the growing crisis on Eros.<span class="ico">🔓</span></div></div>
+          <div class="f w"><label>Tags</label><div class="in"><span class="chip">Season finale ✕</span><span class="ico">＋</span></div></div>
+        </div><div class="qf"><h4>Quick Facts</h4>
+          <div class="r"><span class="i">✓</span><div><b>TheTVDB</b><small>Matched · episode 6389021</small></div></div>
+          <div class="r"><span class="i">⛁</span><div><b>1.4 GB · 1080p</b><small>1 file</small></div></div>
+          <div class="r"><span class="i">↻</span><div><b>10 May 2025</b><small>Last refreshed</small></div></div>
+        </div></div>
+      <div class="foot"><span class="btn" style="color:#f87171;border-color:#5a2424;gap:8px">🗑 Delete</span><div class="where"><b>Changes save to Library</b><small>File write-back off</small></div><span class="cnt">No changes yet</span><span class="btn">Discard</span><span class="btn p" style="opacity:.45">Save changes</span></div>
+    </div>
+    <div class="dd" style="left:608px;top:218px;width:330px">
+      <div class="s">⌕ Find an episode</div>
+      <div class="o"><span class="th g4" style="width:52px;height:30px"></span><div>1 · Safe<small>Aired 1 Feb 2017</small></div><span class="m" style="color:var(--ok)">✓</span></div>
+      <div class="o"><span class="th g5" style="width:52px;height:30px"></span><div>2 · Doors &amp; Corners<small>Aired 1 Feb 2017</small></div><span class="m" style="color:var(--accent2)">● 1 change</span></div>
+      <div class="o on"><span class="th g3" style="width:52px;height:30px"></span><div>3 · Static<small>Aired 8 Feb 2017</small></div><span class="m" style="color:var(--accent2)">● 1 change</span></div>
+      <div class="o"><span class="th g6" style="width:52px;height:30px"></span><div>4 · Godspeed<small>Not matched</small></div><span class="m" style="color:var(--warn)">⚠</span></div>
+      <div class="o" style="color:var(--fg3)">Showing 4 of 13 · scroll for more</div>
+    </div>
+    <span class="mk" style="left:94px;top:34px">1</span>
+    <span class="mk" style="left:590px;top:176px">2</span>
+    <span class="mk" style="left:950px;top:224px">3</span>
+    <span class="mk" style="left:94px;top:218px">4</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>The Show tile is fixed.</b> It names the show and never moves, folds or opens a list. It is the same on every episode, season and Contents view of this show.</span></li>
+    <li><b>2</b><span><b>Season and Episode dropdowns</b> sit under the title, inside the header. They look and open the way the rail's dropdowns did: picture, tick when matched, warning when not, purple dot when changes are waiting, search when long.</span></li>
+    <li><b>3</b><span><b>Choosing an item</b> switches the editor to it. The header content changes, the Show tile and the window do not, and changes staged on other items stay waiting.</span></li>
+    <li><b>4</b><span><b>No separate row.</b> The window starts with the header, so every editor opens with the same top, with or without a family.</span></li>
+  </ol>
+</section>
+
+<section class="shot">
+  <h2>B. A season</h2>
+  <p class="sub">Season 2. Episode has nothing chosen yet.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="win">
+      <div class="hero" style="--herobg:linear-gradient(120deg,#14203a,#5a3a2a)">
+        <div class="showtile"><span class="p g1"></span><div><small>Show</small><b>The Expanse</b><em>6 seasons · 62 episodes</em></div></div>
+        <div class="main">
+          <div class="kicker">TV season</div><h3>Season 2</h3>
+          <div class="facts"><span>2017 · 13 episodes · 12 matched, 1 not matched</span></div>
+          <div class="sels">
+            <div class="sel on"><span class="t g2"></span><div><small>Season</small><span class="n">Season 2</span></div><span class="v">▾</span></div>
+            <div class="sel"><span class="t" style="background:#1E293B"></span><div><small>Episode</small><span class="n" style="color:var(--fg3)">Choose an episode</span></div><span class="v">▾</span></div>
+          </div>
+        </div>
+        <div class="links"><span class="lnk"><span class="logo l-tv">TV</span>TheTVDB ↗</span><span class="lnk"><span class="logo l-wd">W</span>Wikidata ↗</span><span class="x" style="margin:0">✕</span></div>
+      </div>
+      <div class="tabs"><span class="tab"><i class="ti" style="--ic:#9a8cf0">▤</i>Details</span><span class="tab on"><i class="ti" style="--ic:#4fb3d9">☰</i>Contents</span><span class="tab"><i class="ti" style="--ic:#e58fb4">◩</i>Artwork</span><span class="tab"><i class="ti" style="--ic:#4ec9a0">⌖</i>Match &amp; Identity</span><span class="tab"><i class="ti" style="--ic:#e8b24a">▭</i>Files</span><span class="tab"><i class="ti" style="--ic:#8aa0c8">↺</i>History</span></div>
+      <div style="flex:1;overflow:hidden;padding:0 24px">
+        <table class="t">
+          <tr><th style="width:30px"><span class="cb"></span></th><th style="width:90px"></th><th>#</th><th>Title</th><th>Status</th><th>Aired</th><th class="num">Runtime</th><th class="num">Size</th></tr>
+          <tr><td><span class="cb"></span></td><td><span class="th g4" style="display:block;width:72px;height:40px"></span></td><td class="num">1</td><td>Safe</td><td><span class="chip ok">✓ Matched</span></td><td>1 Feb 2017</td><td class="num">43 min</td><td class="num">1.5 GB</td></tr>
+          <tr><td><span class="cb"></span></td><td><span class="th g5" style="display:block;width:72px;height:40px"></span></td><td class="num">2</td><td>Doors &amp; Corners</td><td><span class="chip ok">✓ Matched</span></td><td>1 Feb 2017</td><td class="num">43 min</td><td class="num">1.4 GB</td></tr>
+          <tr><td><span class="cb"></span></td><td><span class="th g3" style="display:block;width:72px;height:40px"></span></td><td class="num">3</td><td>Static</td><td><span class="chip ok">✓ Matched</span></td><td>8 Feb 2017</td><td class="num">42 min</td><td class="num">1.4 GB</td></tr>
+          <tr><td><span class="cb"></span></td><td><span class="th" style="display:block;width:72px;height:40px;background:#1E293B"></span></td><td class="num">?</td><td>S02E04.mkv</td><td><span class="chip warn">⚠ Not matched</span></td><td>–</td><td class="num">44 min</td><td class="num">1.5 GB</td></tr>
+        </table>
+      </div>
+      <div class="foot"><span class="btn" style="color:#f87171;border-color:#5a2424;gap:8px">🗑 Delete</span><div class="where"><b>Changes save to Library</b><small>File write-back off</small></div><span class="cnt">No changes yet</span><span class="btn">Discard</span><span class="btn p" style="opacity:.45">Save changes</span></div>
+    </div>
+    <span class="mk" style="left:94px;top:34px">1</span>
+    <span class="mk" style="left:590px;top:218px">2</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>Picking a season keeps the Show tile where it is.</b> This is the case that went wrong before, when the show disappeared behind a "..." as soon as a third level appeared.</span></li>
+    <li><b>2</b><span><b>The Episode dropdown is always there</b> on a season, empty until you choose one, so you can reach any episode from here.</span></li>
+  </ol>
+</section>
+
+<section class="shot">
+  <h2>C. The show itself</h2>
+  <p class="sub">When you edit the show, its own tile is highlighted as the item being edited, and both dropdowns wait to be used.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="win">
+      <div class="hero" style="--herobg:linear-gradient(120deg,#1b2440,#3a2346)">
+        <div class="showtile is-item"><span class="p g1"></span><div><small>Show</small><b>The Expanse</b><em>Editing this</em></div></div>
+        <div class="main">
+          <div class="kicker">TV show</div><h3>The Expanse</h3>
+          <div class="facts"><span>2015 · Syfy / Prime Video · 6 seasons · 62 episodes</span><span class="chip ok">✓ Matched</span></div>
+          <div class="sels">
+            <div class="sel"><span class="t" style="background:#1E293B"></span><div><small>Season</small><span class="n" style="color:var(--fg3)">Choose a season</span></div><span class="v">▾</span></div>
+            <div class="sel"><span class="t" style="background:#1E293B"></span><div><small>Episode</small><span class="n" style="color:var(--fg3)">Choose an episode</span></div><span class="v">▾</span></div>
+          </div>
+        </div>
+        <div class="links"><span class="lnk"><span class="logo l-tv">TV</span>TheTVDB ↗</span><span class="lnk"><span class="logo l-wd">W</span>Wikidata ↗</span><span class="lnk">Wikidata ↗</span><span class="x" style="margin:0">✕</span></div>
+      </div>
+      <div class="tabs"><span class="tab on"><i class="ti" style="--ic:#9a8cf0">▤</i>Details</span><span class="tab"><i class="ti" style="--ic:#4fb3d9">☰</i>Contents</span><span class="tab"><i class="ti" style="--ic:#e58fb4">◩</i>Artwork</span><span class="tab"><i class="ti" style="--ic:#4ec9a0">⌖</i>Match &amp; Identity</span><span class="tab"><i class="ti" style="--ic:#e8b24a">▭</i>Files</span><span class="tab"><i class="ti" style="--ic:#8aa0c8">↺</i>History</span></div>
+      <div class="body"><div class="form">
+          <div class="f w"><label>Title</label><div class="in">The Expanse<span class="ico">🔓</span></div></div>
+          <div class="f"><label>Sort title</label><div class="in">Expanse, The<span class="ico">🔓</span></div></div>
+          <div class="f w"><label>Overview</label><div class="in tall">In the 24th century, a detective, a ship's officer and a corporate pilot are drawn into a conspiracy that spans the solar system.<span class="ico">🔓</span></div></div>
+          <div class="f"><label>Genres</label><div class="in"><span class="chip">Science fiction ✕</span><span class="chip">Drama ✕</span><span class="ico">＋</span></div></div>
+          <div class="f"><label>Tags</label><div class="in"><span class="chip">Rewatch ✕</span><span class="ico">＋</span></div></div>
+        </div>
+        <div class="qf"><h4>Quick Facts</h4>
+          <div class="r"><span class="i">✓</span><div><b>TheTVDB</b><small>Matched · series 280619</small></div></div>
+          <div class="r"><span class="i">▶</span><div><b>62 of 62</b><small>Episodes owned</small></div></div>
+          <div class="r"><span class="i">⛁</span><div><b>84 GB</b><small>62 files</small></div></div>
+        </div>
+      </div>
+      <div class="foot"><span class="btn" style="color:#f87171;border-color:#5a2424;gap:8px">🗑 Delete</span><div class="where"><b>Changes save to Library</b><small>File write-back off</small></div><span class="cnt">No changes yet</span><span class="btn">Discard</span><span class="btn p" style="opacity:.45">Save changes</span></div>
+    </div>
+    <span class="mk" style="left:94px;top:34px">1</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>On the show, the tile is the item.</b> It gets the purple edge a current dropdown has today, so it is clear that nothing below the show is selected.</span></li>
+  </ol>
+</section>
+
+<section class="shot">
+  <h2>D. A narrow window (1024 px wide)</h2>
+  <p class="sub">The same episode when the browser is narrower than the editor. Nothing folds away.</p>
+  <div class="frame"><div class="vp narrow">
+    <div class="win">
+      <div class="hero" style="--herobg:linear-gradient(120deg,#14203a,#3d5a8a)">
+        <div class="showtile"><span class="p g1"></span><div><small>Show</small><b>The Expanse</b></div></div>
+        <div class="main">
+          <div class="kicker">TV episode · Season 2</div><h3 style="font-size:22px">S02E03 · Static</h3>
+          <div class="facts"><span>Aired 8 Feb 2017 · 42 min</span><span class="chip ok">✓ Matched</span></div>
+          <div class="sels" style="margin-top:10px">
+            <div class="sel" style="min-width:190px"><span class="t g2"></span><div><small>Season</small><span class="n">Season 2</span></div><span class="v">▾</span></div>
+            <div class="sel on" style="min-width:190px"><span class="t g3"></span><div><small>Episode 3</small><span class="n">Static</span></div><span class="v">▾</span></div>
+          </div>
+        </div>
+        <div class="links"><span class="x" style="margin:0">✕</span></div>
+      </div>
+      <div class="tabs"><span class="tab on"><i class="ti" style="--ic:#9a8cf0">▤</i>Details</span><span class="tab"><i class="ti" style="--ic:#e58fb4">◩</i>Artwork</span><span class="tab"><i class="ti" style="--ic:#4ec9a0">⌖</i>Match &amp; Identity</span><span class="tab"><i class="ti" style="--ic:#e8b24a">▭</i>Files</span><span class="tab"><i class="ti" style="--ic:#8aa0c8">↺</i>History</span></div>
+      <div class="body"><div class="form">
+          <div class="f w"><label>Title</label><div class="in">Static<span class="ico">🔓</span></div></div>
+          <div class="f w"><label>Overview</label><div class="in tall">Holden and the crew of the Rocinante investigate the growing crisis on Eros.<span class="ico">🔓</span></div></div>
+        </div></div>
+      <div class="foot"><span class="btn" style="color:#f87171;border-color:#5a2424;gap:8px">🗑 Delete</span><div class="where"><b>Changes save to Library</b><small>File write-back off</small></div><span class="cnt">No changes yet</span><span class="btn">Discard</span><span class="btn p" style="opacity:.45">Save changes</span></div>
+    </div>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>The header wraps instead of hiding levels.</b> The Show tile stays on its own line above the item, and the two dropdowns stay under the title.</span></li>
+  </ol>
+</section>
+
+<section class="shot">
+  <h2>E. A film's Details tab: only what you would edit</h2>
+  <p class="sub">The Matrix. The year, rating and runtime already sit in the header's facts line, so they are not repeated as fields.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="win">
+      <div class="hero" style="--herobg:linear-gradient(120deg,#0b1a12,#1d4a2c 70%,#2e7a48)">
+        <div class="cover g8" style="width:88px;height:132px"></div>
+        <div class="main">
+          <div class="kicker">Movie</div><h3>The Matrix</h3>
+          <div class="facts"><span>Lana Wachowski, Lilly Wachowski · 1999 · 2h 16m · ★ 8.3</span><span class="chip ok">✓ Matched</span></div>
+        </div>
+        <div class="links"><span class="lnk"><span class="logo l-tm">TM</span>TMDB ↗</span><span class="lnk"><span class="logo l-wd">W</span>Wikidata ↗</span><span class="lnk">Wikidata ↗</span><span class="x" style="margin:0">✕</span></div>
+      </div>
+      <div class="tabs"><span class="tab on"><i class="ti" style="--ic:#9a8cf0">▤</i>Details</span><span class="tab"><i class="ti" style="--ic:#e58fb4">◩</i>Artwork</span><span class="tab"><i class="ti" style="--ic:#4ec9a0">⌖</i>Match &amp; Identity</span><span class="tab"><i class="ti" style="--ic:#e8b24a">▭</i>Files</span><span class="tab"><i class="ti" style="--ic:#8aa0c8">↺</i>History</span></div>
+      <div class="body"><div class="form">
+          <div class="f w"><label>Title</label><div class="in">The Matrix<span class="ico">🔓</span></div></div>
+          <div class="f w"><label>Tagline</label><div class="in">Some men just want to watch the world burn.<span class="ico">🔓</span></div></div>
+          <div class="f w"><label>Description</label><div class="in tall">The Matrix is a 1999 science fiction action film written and directed by Lana Wachowski and Lilly Wachowski. A hacker discovers that reality as he knows it is a simulated construct.<span class="ico">🔓</span></div></div>
+          <div class="f w"><label>Genres</label><div class="in"><span class="chip">Action ✕</span><span class="chip">Science fiction ✕</span><span class="chip">Thriller ✕</span><span class="ico">＋</span></div></div>
+          <div class="f"><label>Tags</label><div class="in"><span class="chip">Favorite ✕</span><span class="chip">Rewatch ✕</span><span class="ico">＋</span></div></div>
+          <div class="f"><label>Sort title</label><div class="in">Matrix, The<span class="ico">🔓</span></div></div>
+        </div>
+        <div class="qf"><h4>Quick Facts</h4>
+          <div class="r"><span class="i">✓</span><div><b>TMDB</b><small>Matched · Q110247</small></div></div>
+          <div class="r"><span class="i">▣</span><div><b>4K HDR</b><small>Best quality you own</small></div></div>
+          <div class="r"><span class="i">⛁</span><div><b>58.2 GB</b><small>2 files</small></div></div>
+          <div class="r"><span class="i">◎</span><div><b>The Matrix</b><small>Universe</small></div></div>
+          <div class="r"><span class="i">↻</span><div><b>10 May 2025</b><small>Last refreshed</small></div></div>
+        </div>
+      </div>
+      <div class="foot"><span class="btn" style="color:#f87171;border-color:#5a2424;gap:8px">🗑 Delete</span><div class="where"><b>Changes save to Library</b><small>File write-back off</small></div><span class="cnt">No changes yet</span><span class="btn">Discard</span><span class="btn p" style="opacity:.45">Save changes</span></div>
+    </div>
+    <span class="mk" style="left:84px;top:228px">1</span>
+    <span class="mk" style="left:1316px;top:282px">2</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>Only fields people really change.</b> Title, tagline, description, genres, your own tags and the sort title. Each keeps its lock (keep my value when the provider refreshes) and a revert arrow once changed. Cast, crew, year, rating, content rating, runtime and release date come from the provider and are not shown as fields.</span></li>
+    <li><b>2</b><span><b>Quick Facts answer "what is this tied to and what do I own?"</b> The match with its provider ID, best quality, files and size, the Universe, and when the provider last refreshed. Facts already in the header are not repeated.</span></li>
+  </ol>
+</section>
+
+<section class="shot">
+  <h2>F. What each kind of item lets you edit</h2>
+  <p class="sub">Everything else shows as a fact or is changed in Match &amp; Identity.</p>
+  <div class="frame"><table class="t" style="min-width:860px">
+    <tr><th>Item</th><th>Editable on Details</th><th>Not here (and where it lives)</th></tr>
+    <tr><td>Film</td><td>Title, tagline, description, genres, tags, sort title, Explicit</td><td>Year, rating, runtime, cast and crew: facts. Which film it is: Match.</td></tr>
+    <tr><td>TV show</td><td>Title, description, genres, tags, sort title, Explicit</td><td>First aired, network, status: facts.</td></tr>
+    <tr><td>Season</td><td>Title (optional), description</td><td>Season number: Match &amp; Identity.</td></tr>
+    <tr><td>Episode</td><td>Title, description, tags</td><td>Air date, runtime: facts. Season and episode number: Match &amp; Identity.</td></tr>
+    <tr><td>Album</td><td>Title, album artist, genres, year, tags</td><td>Track count, length: facts.</td></tr>
+    <tr><td>Song</td><td>Title, artist, genres, tags, track and disc number</td><td>Length, bitrate: facts.</td></tr>
+    <tr><td>Book / audiobook</td><td>Title, author, narrator (audiobooks), series and position, description, genres, tags</td><td>Pages, ISBN, language: facts.</td></tr>
+    <tr><td>Comic issue</td><td>Title, series, description, writer, artist, genres, tags</td><td>Issue number, page count: facts / Match &amp; Identity.</td></tr>
+  </table></div>
+</section>
+
+<section class="shot">
+  <h2>G. Other Videos: a folder inside a folder</h2>
+  <p class="sub">Python Course › Functions. No Match &amp; Identity tab, no "Matched" mark and no provider links, because these videos have no database to match to.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="win">
+      <div class="hero" style="--herobg:linear-gradient(120deg,#0e1a2e,#1d3a5a 70%,#2a5a7a)">
+        <div class="showtile wide"><span class="ftile g5"><b>Folder</b></span><div><small>Folder</small><b>Python Course</b><em>4 folders · 38 videos</em></div></div>
+        <div class="main">
+          <div class="kicker">Folder in Python Course</div><h3>Functions</h3>
+          <div class="facts"><span>2 folders · 5 videos · 1h 52m · 2.1 GB</span></div>
+          <div class="sels">
+            <div class="sel on"><span class="t g5"></span><div><small>Folder</small><span class="n">Functions</span></div><span class="v">▾</span></div>
+            <div class="sel"><span class="t" style="background:#1E193A"></span><div><small>Video</small><span class="n" style="color:var(--fg3)">Choose a video</span></div><span class="v">▾</span></div>
+          </div>
+        </div>
+        <div class="links"><span class="x" style="margin:0">✕</span></div>
+      </div>
+      <div class="tabs"><span class="tab"><i class="ti" style="--ic:#9a8cf0">▤</i>Details</span><span class="tab on"><i class="ti" style="--ic:#4fb3d9">☰</i>Contents</span><span class="tab"><i class="ti" style="--ic:#e58fb4">◩</i>Artwork</span><span class="tab"><i class="ti" style="--ic:#e8b24a">▭</i>Files</span><span class="tab"><i class="ti" style="--ic:#8aa0c8">↺</i>History</span></div>
+      <div style="flex:1;overflow:hidden;padding:0 24px">
+        <table class="t">
+          <tr><th style="width:30px"><span class="cb"></span></th><th style="width:90px"></th><th>Name</th><th>Contains</th><th class="num">Length</th><th class="num">Size</th></tr>
+          <tr><td><span class="cb"></span></td><td><span class="ftile g4" style="width:32px;height:48px;border-radius:4px"></span></td><td><b>Closures</b></td><td>3 videos</td><td class="num">38 min</td><td class="num">610 MB</td></tr>
+          <tr><td><span class="cb"></span></td><td><span class="ftile g1" style="width:32px;height:48px;border-radius:4px"></span></td><td><b>Decorators</b></td><td>4 videos</td><td class="num">51 min</td><td class="num">820 MB</td></tr>
+          <tr><td><span class="cb"></span></td><td><span class="th g5" style="display:block;width:72px;height:40px"></span></td><td>01 Defining functions</td><td>Video</td><td class="num">14 min</td><td class="num">230 MB</td></tr>
+          <tr><td><span class="cb"></span></td><td><span class="th g7" style="display:block;width:72px;height:40px"></span></td><td>02 Arguments and defaults</td><td>Video</td><td class="num">11 min</td><td class="num">180 MB</td></tr>
+          <tr><td><span class="cb"></span></td><td><span class="th g2" style="display:block;width:72px;height:40px"></span></td><td>03 Return values</td><td>Video</td><td class="num">9 min</td><td class="num">150 MB</td></tr>
+        </table>
+      </div>
+      <div class="foot"><span class="btn" style="color:#f87171;border-color:#5a2424;gap:8px">🗑 Delete</span><div class="where"><b>Changes save to Library</b><small>File write-back off</small></div><span class="cnt">No changes yet</span><span class="btn">Discard</span><span class="btn p" style="opacity:.45">Save changes</span></div>
+    </div>
+    <span class="mk" style="left:84px;top:34px">1</span>
+    <span class="mk" style="left:590px;top:218px">2</span>
+    <span class="mk" style="left:84px;top:300px">3</span>
+    <span class="mk" style="left:700px;top:36px">4</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>The fixed tile is the top folder</b> and shows its automatic folder picture: the same portrait tile the home page uses, filled with one frame picked at random from any video inside. It stays put as you move around.</span></li>
+    <li><b>2</b><span><b>Folder and Video dropdowns.</b> The Folder list shows every folder below the top one, in alphabetical order, indented by depth. The Video list shows the videos in the chosen folder.</span></li>
+    <li><b>3</b><span><b>Contents rolls up.</b> Folders first, A to Z (Lesson 2 comes before Lesson 10), each with its own tile picture and a count that includes everything inside it. Then the videos, with a frame from each as its picture. Tick rows to edit, move or delete them together.</span></li>
+    <li><b>4</b><span><b>Nothing to match.</b> No Match &amp; Identity tab, no "Matched" mark, no provider links. "Identify from a YouTube link" and "Change thumbnail" stay in the "..." menu of each video, where the Videos spec put them.</span></li>
+  </ol>
+</section>
+
+<section class="shot">
+  <h2>H. A folder's Details: rename it</h2>
+  <p class="sub">The same Details form a season of a TV show uses for its title. A folder is not always a season, so the word on screen is Folder.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="win">
+      <div class="hero" style="--herobg:linear-gradient(120deg,#0e1a2e,#1d3a5a 70%,#2a5a7a)">
+        <div class="showtile wide"><span class="ftile g5"><b>Folder</b></span><div><small>Folder</small><b>Python Course</b><em>4 folders · 38 videos</em></div></div>
+        <div class="main">
+          <div class="kicker">Folder in Python Course</div><h3>Functions</h3>
+          <div class="facts"><span>2 folders · 5 videos · 1h 52m · 2.1 GB</span></div>
+          <div class="sels">
+            <div class="sel on"><span class="t g5"></span><div><small>Folder</small><span class="n">Functions</span></div><span class="v">▾</span></div>
+            <div class="sel"><span class="t" style="background:#1E193A"></span><div><small>Video</small><span class="n" style="color:var(--fg3)">Choose a video</span></div><span class="v">▾</span></div>
+          </div>
+        </div>
+        <div class="links"><span class="x" style="margin:0">✕</span></div>
+      </div>
+      <div class="tabs"><span class="tab on"><i class="ti" style="--ic:#9a8cf0">▤</i>Details</span><span class="tab"><i class="ti" style="--ic:#4fb3d9">☰</i>Contents</span><span class="tab"><i class="ti" style="--ic:#e58fb4">◩</i>Artwork</span><span class="tab"><i class="ti" style="--ic:#e8b24a">▭</i>Files</span><span class="tab"><i class="ti" style="--ic:#8aa0c8">↺</i>History</span></div>
+      <div class="body"><div class="form">
+          <div class="f w"><label>Name</label><div class="in changed">Functions and scope<span class="ico"><span class="rev">↺</span></span></div></div>
+          <div class="f w"><label>Rename the folder on disk too</label><div class="in" style="gap:12px"><span class="sw"></span><span class="ro">Off. Only the name in Library changes. Shown only for folders Library manages.</span></div></div>
+          <div class="f w"><label>Description</label><div class="in tall">Everything about writing functions, from arguments to closures.<span class="ico">🔓</span></div></div>
+          <div class="f"><label>Tags</label><div class="in"><span class="chip">Course ✕</span><span class="ico">＋</span></div></div>
+        </div>
+        <div class="qf"><h4>Quick Facts</h4>
+          <div class="r"><span class="i">▤</span><div><b>2 folders · 5 videos</b><small>Rolls up everything inside</small></div></div>
+          <div class="r"><span class="i">⏱</span><div><b>1h 52m</b><small>Total length</small></div></div>
+          <div class="r"><span class="i">⛁</span><div><b>2.1 GB</b><small>7 files</small></div></div>
+          <div class="r"><span class="i">▭</span><div><b>…/Python Course/Functions</b><small>Where it lives</small></div></div>
+        </div>
+      </div>
+      <div class="foot"><span class="btn" style="color:#f87171;border-color:#5a2424;gap:8px">🗑 Delete</span><div class="where"><b>Changes save to Library</b><small>File write-back off</small></div><span class="cnt">1 change</span><span class="btn">Discard</span><span class="btn p">Save changes</span></div>
+    </div>
+    <span class="mk" style="left:84px;top:296px">1</span>
+    <span class="mk" style="left:84px;top:366px">2</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>Rename.</b> The name is the folder's name in Library. Folders stay in alphabetical order, so a rename moves the folder to its new place in the list.</span></li>
+    <li><b>2</b><span><b>Renaming on disk is a separate switch, off by default.</b> It only appears for folders in a Managed location, is listed last in Review and says it cannot be undone, like every file move.</span></li>
+  </ol>
+</section>
+
+<section class="shot">
+  <h2>I. A video's Artwork: pick a frame</h2>
+  <p class="sub">Other videos have no cover art. The picture is a frame from the video, chosen automatically, and you can choose another.</p>
+  <div class="frame"><div class="vp">
+    <div class="bgpage"></div><div class="dim"></div>
+    <div class="win">
+      <div class="hero" style="--herobg:linear-gradient(120deg,#0e1a2e,#1d3a5a 70%,#2a5a7a)">
+        <div class="showtile wide"><span class="ftile g5"><b>Folder</b></span><div><small>Folder</small><b>Python Course</b><em>4 folders · 38 videos</em></div></div>
+        <div class="main">
+          <div class="kicker">Video in Functions</div><h3>01 Defining functions</h3>
+          <div class="facts"><span>14 min · 230 MB · 1080p</span></div>
+          <div class="sels">
+            <div class="sel"><span class="t g5"></span><div><small>Folder</small><span class="n">Functions</span></div><span class="v">▾</span></div>
+            <div class="sel on"><span class="t g5"></span><div><small>Video</small><span class="n">01 Defining functions</span></div><span class="v">▾</span></div>
+          </div>
+        </div>
+        <div class="links"><span class="x" style="margin:0">✕</span></div>
+      </div>
+      <div class="tabs"><span class="tab"><i class="ti" style="--ic:#9a8cf0">▤</i>Details</span><span class="tab on"><i class="ti" style="--ic:#e58fb4">◩</i>Artwork</span><span class="tab"><i class="ti" style="--ic:#e8b24a">▭</i>Files</span><span class="tab"><i class="ti" style="--ic:#8aa0c8">↺</i>History</span></div>
+      <div class="body">
+        <div style="flex:1;min-width:0">
+          <div class="g5" style="aspect-ratio:16/9;max-height:300px;border-radius:10px;border:1px solid var(--line2)"></div>
+          <div class="scrub"><i></i></div><small style="color:var(--fg3)">Drag to choose any moment, 4:52 of 14:03</small>
+        </div>
+        <div style="width:420px;flex:none">
+          <div style="font-weight:600;margin-bottom:8px">Suggested frames</div>
+          <div class="fr"><div class="a g5 pref"><small>Preferred</small></div><div class="a g2"></div><div class="a g7"></div><div class="a g3"></div><div class="a g6"></div><div class="a g1"></div></div>
+          <div style="display:flex;gap:8px;margin-top:14px"><span class="btn sm">Upload a picture</span><span class="btn sm">Use this moment</span></div>
+        </div>
+      </div>
+      <div class="foot"><span class="btn" style="color:#f87171;border-color:#5a2424;gap:8px">🗑 Delete</span><div class="where"><b>Changes save to Library</b><small>File write-back off</small></div><span class="cnt">No changes yet</span><span class="btn">Discard</span><span class="btn p" style="opacity:.45">Save changes</span></div>
+    </div>
+    <span class="mk" style="left:100px;top:260px">1</span>
+    <span class="mk" style="left:960px;top:240px">2</span>
+  </div></div>
+  <ol class="notes">
+    <li><b>1</b><span><b>The picture is a frame from the video.</b> Order of choice: your own picture, then a cover or folder image beside the file, then the automatic frame. The automatic frame is never a black one. The slider picks any moment.</span></li>
+    <li><b>2</b><span><b>Suggested frames</b> are a few well-lit moments spread through the video. Clicking one makes it Preferred, like artwork elsewhere, and it waits for Save.</span></li>
+  </ol>
+</section>

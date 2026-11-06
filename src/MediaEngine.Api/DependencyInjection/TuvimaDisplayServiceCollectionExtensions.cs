@@ -20,6 +20,7 @@ public static class TuvimaDisplayServiceCollectionExtensions
     public static IServiceCollection AddTuvimaDisplay(this IServiceCollection services)
     {
         services.AddSingleton<IByteStreamer, ByteStreamer>();
+        services.AddSingleton<NewTagRule>();
         services.AddApiReadServices();
         services.AddSingleton<ILibraryItemCurationRepository, LibraryItemCurationRepository>();
         services.AddSingleton<ILibraryItemDeletionRepository, LibraryItemDeletionRepository>();

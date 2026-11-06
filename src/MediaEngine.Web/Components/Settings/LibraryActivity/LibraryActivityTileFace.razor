@@ -1,0 +1,32 @@
+@namespace MediaEngine.Web.Components.Settings.LibraryActivity
+
+<span class="lact-tile__face">
+    <AppMediaArtwork ImageUrl="@CoverUrl" Alt="" AspectRatio="@(MediaType == "Music" ? "1 / 1" : "2 / 3")" FallbackIcon="@Icon" FallbackText="@Title" />
+    @if (!string.IsNullOrWhiteSpace(StatusLabel))
+    {
+        <span class="lact-tile__label lact-tile__label--top">@StatusLabel</span>
+    }
+    <span class="lact-tile__title">@Title</span>
+    @if (!string.IsNullOrWhiteSpace(BottomLabel))
+    {
+        <span class="lact-tile__label lact-tile__label--bottom">@BottomLabel</span>
+    }
+</span>
+
+@code {
+    [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public string? CoverUrl { get; set; }
+    [Parameter] public string MediaType { get; set; } = string.Empty;
+    [Parameter] public string? StatusLabel { get; set; }
+    [Parameter] public string? BottomLabel { get; set; }
+
+    private string Icon => MediaType switch
+    {
+        "Music" => AppMaterialIcons.Outlined.MusicNote,
+        "Books" => AppMaterialIcons.Outlined.MenuBook,
+        "Audiobooks" => AppMaterialIcons.Outlined.Headphones,
+        "Comics" => AppMaterialIcons.Outlined.AutoStories,
+        "Videos" => AppMaterialIcons.Outlined.VideoLibrary,
+        _ => AppMaterialIcons.Outlined.Movie,
+    };
+}
