@@ -97,6 +97,11 @@
     --tl-font-size-xl: 1.5rem;
     --tl-font-size-dialog-title: 1.25rem;
     --tl-font-size-hero: 2rem;
+    --tl-icon-size-xs: 16px;
+    --tl-icon-size-sm: 20px;
+    --tl-icon-size-md: 24px;
+    --tl-icon-size-lg: 32px;
+    --tl-icon-size-xl: 40px;
     --tl-chip-height: 36px;
     --tl-chip-height-touch: 44px;
     --tl-font-size-title: 1.5rem;
@@ -141,7 +146,7 @@
     --tl-menu-width: 272px;
     --tl-menu-row-height: 44px;
     --tl-menu-row-font-size: 1rem;
-    --tl-menu-icon-size: 22px;
+    --tl-menu-icon-size: 24px;
     --tl-menu-item-height: var(--tl-menu-row-height);
     --tl-secondary-action-bg: rgba(76, 29, 149, 0.12);
     --tl-secondary-action-bg-hover: rgba(109, 40, 217, 0.2);
