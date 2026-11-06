@@ -37,7 +37,9 @@ public sealed class DialogAnatomyGuardrailTests
     {
         var dir = AppContext.BaseDirectory;
         while (dir is not null && !File.Exists(Path.Combine(dir, "MediaEngine.slnx")))
+        {
             dir = Path.GetDirectoryName(dir);
+        }
         Assert.NotNull(dir);
         return File.ReadAllText(Path.Combine(dir!, "src", "MediaEngine.Web", "Components", "Shared", file)).Replace("\r\n", "\n");
     }
