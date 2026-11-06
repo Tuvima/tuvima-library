@@ -24,7 +24,7 @@
         {
             @if (action.Key == "reaction-menu")
             {
-                <MediaRateControl UseUtilityGlyph="true" Positive="@(action.IsSelected || action.Children.Any(child => child.Key == "reaction-like" && child.IsSelected))" Negative="@(action.Children.Any(child => child.Key == "reaction-dislike" && child.IsSelected))" Selected="@(positive => SelectReaction(action.Children.First(child => child.Key == (positive ? "reaction-like" : "reaction-dislike"))))" />
+                <MediaRateControl Positive="@(action.IsSelected || action.Children.Any(child => child.Key == "reaction-like" && child.IsSelected))" Negative="@(action.Children.Any(child => child.Key == "reaction-dislike" && child.IsSelected))" Selected="@(positive => SelectReaction(action.Children.First(child => child.Key == (positive ? "reaction-like" : "reaction-dislike"))))" />
             }
             else
             {

@@ -2977,6 +2977,8 @@ button.app-menu-item {
     font-weight: 500; line-height: 1.3; max-width: min(var(--tl-tooltip-max-width), calc(100vw - 16px)); box-shadow: var(--tl-shadow-md);
     animation: tl-tooltip-in 100ms ease-out;
 }
+/* A rated title shows its state at rest on every surface (Look pass v2 A7). */
+.hero-icon-circle[data-rated="true"] { border-color: var(--tl-accent-primary); background: var(--tl-accent-primary-soft); color: var(--tl-accent-primary-hover); }
 @keyframes tl-tooltip-in { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .playback-tooltip { animation: none; } }
 .playback-popover-owner { display: contents; }
