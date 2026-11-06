@@ -7,7 +7,8 @@
     align-items: center;
     gap: var(--tl-space-5);
     min-height: 7.5rem;
-    padding: var(--tl-space-4) var(--tl-space-6);
+    /* The window's close button sits over the top right corner; keep the provider links clear of it. */
+    padding: var(--tl-space-4) 4.5rem var(--tl-space-4) var(--tl-space-6);
     border-bottom: 1px solid var(--tl-divider);
     background: var(--tl-bg-surface);
 }
