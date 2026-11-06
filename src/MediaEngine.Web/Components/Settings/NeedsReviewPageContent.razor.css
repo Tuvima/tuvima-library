@@ -7,18 +7,46 @@
 .review-pinned { overflow-x: auto; border: 1px solid color-mix(in srgb, var(--tl-status-warning) 42%, var(--tl-border-default)); border-radius: .65rem; background: var(--tl-bg-surface); }
 .review-load-error { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; }
 .review-row__badges { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .2rem; }
-.needs-review-page .needs-review-table td { vertical-align: middle; }
-.needs-review-page .needs-review-table .needs-review-table__tick { width: 2.5rem; }
+/* The grid: ONE padding rule for header and body cells, so a header's text starts exactly where its column's text starts. The table is
+   fixed-layout (set globally in app.css): Tick, Last tried and Actions have set widths; Item, Why and Best guess share what is left. */
+.needs-review-page .needs-review-table th, .needs-review-page .needs-review-table td { padding: var(--tl-space-2) var(--tl-space-4); text-align: start; vertical-align: middle; }
+.needs-review-page .needs-review-table th:nth-child(1) { width: 3rem; }
+.needs-review-page .needs-review-table th:nth-child(5) { width: 6.5rem; }
+.needs-review-page .needs-review-table th:nth-child(6) { width: 9.5rem; }
+.needs-review-page .needs-review-table .needs-review-table__tick { padding-inline-end: 0; }
+/* Words wrap at spaces; a word breaks only when it is longer than its whole column (never mid-word otherwise). */
+.needs-review-page .needs-review-table td { overflow-wrap: break-word; }
 .needs-review-page .needs-review-table__item, .needs-review-page .needs-review-table__why, .needs-review-page .needs-review-table__guess { min-width: 0; }
-.needs-review-page .needs-review-table__item strong, .needs-review-page .needs-review-table__why strong, .needs-review-page .needs-review-table__guess-name { display: block; overflow: hidden; text-overflow: ellipsis; }
+.needs-review-page .needs-review-table__item strong, .needs-review-page .needs-review-table__why strong, .needs-review-page .needs-review-table__guess-name { display: block; }
 .needs-review-page .needs-review-table small { display: block; color: var(--tl-text-secondary); font-size: var(--tl-font-size-xs); }
 .needs-review-page .needs-review-table__why strong { color: var(--tl-status-warning); font-size: var(--tl-font-size-secondary); }
-.needs-review-page .needs-review-table__tried { white-space: nowrap; color: var(--tl-text-secondary); font-size: var(--tl-font-size-secondary); }
-.needs-review-page .needs-review-table__actions { white-space: nowrap; text-align: right; }
+/* Item: title, the kind, then ONE line for the folder (the last two folder names; the full path is in the shared tooltip). */
+.needs-review-page .needs-review-table .needs-review-table__path-tip, .needs-review-page .needs-review-table .needs-review-table__path-tip[data-tooltip-wrapper-target="true"] { display: flex; min-width: 0; max-width: 100%; }
+.needs-review-page .needs-review-table .needs-review-table__path { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.needs-review-page .needs-review-table__tried { color: var(--tl-text-secondary); font-size: var(--tl-font-size-secondary); }
+.needs-review-page .needs-review-table__tried-date, .needs-review-page .needs-review-table__tried-time { display: block; white-space: nowrap; }
+.needs-review-page .needs-review-table__actions-row { display: flex; align-items: center; justify-content: flex-end; gap: var(--tl-space-2); }
 .needs-review-page .needs-review-table__suggestion td { padding-top: 0; }
-/* The table fits its box at every width: fixed columns, the three text columns share what is left. */
-.needs-review-page .needs-review-table th:nth-child(1) { width: 3rem; }
-.needs-review-page .needs-review-table th:nth-child(5) { width: 7rem; }
-.needs-review-page .needs-review-table th:nth-child(6) { width: 8.5rem; }
-.needs-review-page .needs-review-table td { overflow-wrap: anywhere; }
+@media (max-width: 1180px) {
+    .needs-review-page .needs-review-table th, .needs-review-page .needs-review-table td { padding-inline: var(--tl-space-3); }
+    .needs-review-page .needs-review-table th:nth-child(1) { width: 2.75rem; }
+    .needs-review-page .needs-review-table th:nth-child(5) { width: 5.5rem; }
+    .needs-review-page .needs-review-table th:nth-child(6) { width: 8rem; }
+}
 @media (max-width: 840px) { .needs-review-page__search { max-width: none; } }
+/* Phone: AppTable's cards mode stacks each row as a card (no horizontal scroll): tick, item and actions across the top; why, best guess and last tried beneath. */
+html[data-form-factor="phone"] .needs-review-page .needs-review-table tr.needs-review-table__row {
+    grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+    grid-template-areas: "tick item actions" ". why why" ". guess guess" ". tried tried";
+    align-items: start;
+    row-gap: var(--tl-space-2);
+}
+html[data-form-factor="phone"] .needs-review-page .needs-review-table td { padding: 0; }
+html[data-form-factor="phone"] .needs-review-page .needs-review-table td.needs-review-table__tick { grid-area: tick; }
+html[data-form-factor="phone"] .needs-review-page .needs-review-table td.needs-review-table__item { grid-area: item; }
+html[data-form-factor="phone"] .needs-review-page .needs-review-table td.needs-review-table__actions { grid-area: actions; justify-self: end; }
+html[data-form-factor="phone"] .needs-review-page .needs-review-table td.needs-review-table__why { grid-area: why; }
+html[data-form-factor="phone"] .needs-review-page .needs-review-table td.needs-review-table__guess { grid-area: guess; }
+html[data-form-factor="phone"] .needs-review-page .needs-review-table td.needs-review-table__tried { grid-area: tried; }
+html[data-form-factor="phone"] .needs-review-page .needs-review-table td.needs-review-table__tried::before { content: attr(data-label) ": "; }
+html[data-form-factor="phone"] .needs-review-page .needs-review-table .needs-review-table__tried-date, html[data-form-factor="phone"] .needs-review-page .needs-review-table .needs-review-table__tried-time { display: inline; }
