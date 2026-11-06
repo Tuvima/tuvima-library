@@ -10977,4 +10977,136 @@
   <data name="SetupVaultOffer_AddFromLibraries" xml:space="preserve">
     <value>To add a private library, go back to the Libraries step, press Add library and choose the Vault tab.</value>
   </data>
+  <data name="LibraryActivity_Active" xml:space="preserve">
+    <value>Active</value>
+  </data>
+  <data name="LibraryActivity_AllCount" xml:space="preserve">
+    <value>All {0}</value>
+  </data>
+  <data name="LibraryActivity_AllLibraries" xml:space="preserve">
+    <value>All libraries</value>
+  </data>
+  <data name="LibraryActivity_AreaListen" xml:space="preserve">
+    <value>Listen</value>
+  </data>
+  <data name="LibraryActivity_AreaRead" xml:space="preserve">
+    <value>Read</value>
+  </data>
+  <data name="LibraryActivity_AreaWatch" xml:space="preserve">
+    <value>Watch</value>
+  </data>
+  <data name="LibraryActivity_Areas" xml:space="preserve">
+    <value>Library areas</value>
+  </data>
+  <data name="LibraryActivity_Background" xml:space="preserve">
+    <value>Background</value>
+  </data>
+  <data name="LibraryActivity_CountsFound" xml:space="preserve">
+    <value>{0} found</value>
+  </data>
+  <data name="LibraryActivity_DateRange" xml:space="preserve">
+    <value>Date range</value>
+  </data>
+  <data name="LibraryActivity_Empty" xml:space="preserve">
+    <value>Nothing has been added yet</value>
+  </data>
+  <data name="LibraryActivity_EmptyHelp" xml:space="preserve">
+    <value>New imports will appear here.</value>
+  </data>
+  <data name="LibraryActivity_FilesFound" xml:space="preserve">
+    <value>{0} files found</value>
+  </data>
+  <data name="LibraryActivity_FilterByKind" xml:space="preserve">
+    <value>Filter by kind</value>
+  </data>
+  <data name="LibraryActivity_History" xml:space="preserve">
+    <value>History</value>
+  </data>
+  <data name="LibraryActivity_HistoryFilters" xml:space="preserve">
+    <value>History filters</value>
+  </data>
+  <data name="LibraryActivity_Idle" xml:space="preserve">
+    <value>Idle</value>
+  </data>
+  <data name="LibraryActivity_ItemsFailed" xml:space="preserve">
+    <value>These items could not be loaded.</value>
+  </data>
+  <data name="LibraryActivity_LastCompletedScan" xml:space="preserve">
+    <value>Last completed scan {0}</value>
+  </data>
+  <data name="LibraryActivity_Live" xml:space="preserve">
+    <value>Live</value>
+  </data>
+  <data name="LibraryActivity_LoadFailed" xml:space="preserve">
+    <value>Activity could not be loaded</value>
+  </data>
+  <data name="LibraryActivity_LoadFailedHelp" xml:space="preserve">
+    <value>Check that the Library server is running, then try again.</value>
+  </data>
+  <data name="LibraryActivity_NeedReview" xml:space="preserve">
+    <value>{0} need review</value>
+  </data>
+  <data name="LibraryActivity_NoMatch" xml:space="preserve">
+    <value>Nothing matches that search</value>
+  </data>
+  <data name="LibraryActivity_NoMatchHelp" xml:space="preserve">
+    <value>Try a different title.</value>
+  </data>
+  <data name="LibraryActivity_NothingInBatch" xml:space="preserve">
+    <value>Nothing to show for this batch.</value>
+  </data>
+  <data name="LibraryActivity_OpenTitle" xml:space="preserve">
+    <value>Open {0}</value>
+  </data>
+  <data name="LibraryActivity_PercentProcessed" xml:space="preserve">
+    <value>{0}% processed</value>
+  </data>
+  <data name="LibraryActivity_Processing" xml:space="preserve">
+    <value>{0} processing</value>
+  </data>
+  <data name="LibraryActivity_Queued" xml:space="preserve">
+    <value>{0} queued</value>
+  </data>
+  <data name="LibraryActivity_Ready" xml:space="preserve">
+    <value>{0} ready</value>
+  </data>
+  <data name="LibraryActivity_ReviewItems" xml:space="preserve">
+    <value>Review {0} items →</value>
+  </data>
+  <data name="LibraryActivity_ReviewOneItem" xml:space="preserve">
+    <value>Review 1 item →</value>
+  </data>
+  <data name="LibraryActivity_SearchTitles" xml:space="preserve">
+    <value>Search titles</value>
+  </data>
+  <data name="LibraryActivity_ShowMore" xml:space="preserve">
+    <value>Show more</value>
+  </data>
+  <data name="LibraryActivity_ShowOlder" xml:space="preserve">
+    <value>Show older</value>
+  </data>
+  <data name="LibraryActivity_SortByTime" xml:space="preserve">
+    <value>Sort by time</value>
+  </data>
+  <data name="LibraryActivity_Title" xml:space="preserve">
+    <value>Activity</value>
+  </data>
+  <data name="LibraryActivity_TryAgain" xml:space="preserve">
+    <value>Try again</value>
+  </data>
+  <data name="LibraryActivity_Type" xml:space="preserve">
+    <value>Type</value>
+  </data>
+  <data name="LibraryActivity_UpToDate" xml:space="preserve">
+    <value>Everything is up to date</value>
+  </data>
+  <data name="LibraryActivity_Updating" xml:space="preserve">
+    <value>Updating your library</value>
+  </data>
+  <data name="LibraryActivity_WhenAdded" xml:space="preserve">
+    <value>When {0} was added</value>
+  </data>
+  <data name="LibraryActivity_WorkingNow" xml:space="preserve">
+    <value>Working now</value>
+  </data>
 </root>

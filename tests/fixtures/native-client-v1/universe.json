@@ -123,6 +123,7 @@
               "artistPersonId": null,
               "isUpdatingDetails": false
             },
+            "isNew": false,
             "isSettling": false,
             "universeQid": null
           },
@@ -228,6 +229,7 @@
               "artistPersonId": null,
               "isUpdatingDetails": false
             },
+            "isNew": false,
             "isSettling": false,
             "universeQid": null
           }
@@ -348,6 +350,7 @@
               "artistPersonId": null,
               "isUpdatingDetails": false
             },
+            "isNew": false,
             "isSettling": false,
             "universeQid": null
           },
@@ -453,6 +456,7 @@
               "artistPersonId": null,
               "isUpdatingDetails": false
             },
+            "isNew": false,
             "isSettling": false,
             "universeQid": null
           }
@@ -580,6 +584,7 @@
               "artistPersonId": null,
               "isUpdatingDetails": false
             },
+            "isNew": false,
             "isSettling": false,
             "universeQid": null
           }

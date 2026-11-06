@@ -1,6 +1,6 @@
 # Spec: Library activity
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-11-06 (locked by Shy) · **Related docs:** [Libraries and folder picker](libraries-and-folder-picker.md) · [Libraries redesign](libraries-redesign.md) · [Library pages](library-pages.md) · [Library access](library-access.md) · [Look pass](look-pass.md) · Mockups: `../design/mockups/library-activity.html`
+> **Status:** Built, awaiting your Local checks · **Version:** 1 · **Last updated:** 2026-11-06 (locked by Shy) · **Related docs:** [Libraries and folder picker](libraries-and-folder-picker.md) · [Libraries redesign](libraries-redesign.md) · [Library pages](library-pages.md) · [Library access](library-access.md) · [Look pass](look-pass.md) · Mockups: `../design/mockups/library-activity.html`
 
 > Shy's reference pictures (5 and 6 Nov) stay on SHY-DESKTOP and are not committed. The tile size and overlays follow the One tile design spec as it finally stands; the mockups draw its draft values (214 × 321 desktop tile).
 

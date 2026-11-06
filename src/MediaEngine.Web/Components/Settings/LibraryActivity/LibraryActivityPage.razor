@@ -1,0 +1,145 @@
+@namespace MediaEngine.Web.Components.Settings.LibraryActivity
+@using MediaEngine.Contracts.Settings
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient Api
+@inject IStringLocalizer<SharedStrings> L
+@inject IngestionLiveDashboardState Dashboard
+@inject ShellActivityState Shell
+@implements IAsyncDisposable
+
+@* The Library Activity page (spec library-activity, administrators only). Working now at the top while something runs, History as a vertical
+   timeline underneath. With nothing running it opens on History. The library tab of one library shows this same page filtered to it. *@
+<div class="lact-page" data-testid="library-activity-page">
+    <header class="lact-header">
+        <h1 class="lact-title-main">@L["LibraryActivity_Title"]</h1>
+        <span class="lact-live @(Working ? "is-working" : null)" data-testid="lact-live"><span class="lact-live__dot" aria-hidden="true"></span> @(Working ? L["LibraryActivity_Live"] : L["LibraryActivity_Idle"])</span>
+    </header>
+
+    @if (LibraryId is null)
+    {
+        <div class="lact-chips" role="group" aria-label="@L["LibraryActivity_Areas"]" data-testid="lact-chips">
+            <AppToggleChip Pressed="@(_area is null)" OnClick="@(() => PickAreaAsync(null))">@L["LibraryActivity_AllLibraries"]</AppToggleChip>
+            @foreach (var area in Areas)
+            {
+                <AppToggleChip Pressed="@(_area == area.Key)" OnClick="@(() => PickAreaAsync(area.Key))">@L[area.LabelKey]</AppToggleChip>
+            }
+        </div>
+    }
+
+    <LibraryActivityProgressCard Queue="Dashboard.QueueProgress"
+                                 Presentation="Dashboard.Presentation"
+                                 MediaTypes="MediaTypes"
+                                 LastCompleted="_lastCompleted" />
+
+    <LibraryActivityWorkingNow Items="WorkingItems" Background="BackgroundNames" />
+
+    <LibraryActivityHistory LibraryIds="LibraryIds"
+                            RefreshToken="_refresh"
+                            LastCompletedChanged="OnLastCompleted" />
+</div>
+
+@code {
+    private static readonly (string Key, string LabelKey, string[] MediaTypes)[] Areas =
+    [
+        ("watch", "LibraryActivity_AreaWatch", ["Movies", "TV", "Videos"]),
+        ("listen", "LibraryActivity_AreaListen", ["Music", "Audiobooks"]),
+        ("read", "LibraryActivity_AreaRead", ["Books", "Comics"]),
+    ];
+
+    /// <summary>When set, the page is one library's Activity tab: filtered to that library, with no area chips.</summary>
+    [Parameter] public string? LibraryId { get; set; }
+
+    private IReadOnlyList<LibraryFolderDto> _libraries = [];
+    private string? _area;
+    private int _refresh;
+    private bool _wasRunning;
+    private bool _disposed;
+    private DateTimeOffset? _lastCompleted;
+
+    private bool Working => Dashboard.QueueProgress is { State: "working" } || Dashboard.Presentation is { IsRunning: true };
+
+    private IReadOnlyList<string> LibraryIds
+    {
+        get
+        {
+            if (LibraryId is not null)
+            {
+                return [LibraryId];
+            }
+
+            return _area is null
+                ? []
+                : _libraries.Where(library => string.Equals(library.Area, _area, StringComparison.OrdinalIgnoreCase)).Select(library => library.Id).ToList();
+        }
+    }
+
+    private IReadOnlySet<string>? MediaTypes
+        => _area is null ? null : Areas.First(area => area.Key == _area).MediaTypes.ToHashSet(StringComparer.Ordinal);
+
+    private IReadOnlyList<MediaEngine.Contracts.Ingestion.IngestionMediaGroupDto> WorkingItems
+        => (Dashboard.Presentation?.CurrentMedia ?? [])
+            .Where(item => MediaTypes is null || MediaTypes.Contains(item.MediaType))
+            .ToList();
+
+    // AI, enrichment and maintenance have no bar of their own; they count in the card's total and are named here (D7).
+    private IReadOnlyList<string> BackgroundNames
+        => Shell.Current.Items.Where(item => item.Kind != ShellActivityKind.Ingestion).Select(item => item.Label).Distinct().ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Dashboard.OnChanged += OnDashboardChanged;
+        Shell.Changed += OnShellChanged;
+        await Dashboard.InitializeAsync();
+        _wasRunning = Working;
+        var config = await Api.GetLibrariesAsync();
+        _libraries = config?.Libraries ?? [];
+    }
+
+    private Task PickAreaAsync(string? area)
+    {
+        _area = area;
+        return Task.CompletedTask;
+    }
+
+    private Task OnLastCompleted(DateTimeOffset? value)
+    {
+        _lastCompleted = value;
+        return Task.CompletedTask;
+    }
+
+    // When a run starts or finishes, History is read again so the newest entry turns Active, then Completed, without a reload.
+    private void OnDashboardChanged()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _ = InvokeAsync(() =>
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            var running = Working;
+            if (running != _wasRunning)
+            {
+                _wasRunning = running;
+                _refresh++;
+            }
+
+            StateHasChanged();
+        });
+    }
+
+    private void OnShellChanged() => _ = InvokeAsync(() => { if (!_disposed) StateHasChanged(); });
+
+    public async ValueTask DisposeAsync()
+    {
+        _disposed = true;
+        Dashboard.OnChanged -= OnDashboardChanged;
+        Shell.Changed -= OnShellChanged;
+        await Dashboard.StopAsync();
+    }
+}

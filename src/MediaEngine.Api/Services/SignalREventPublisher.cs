@@ -1,5 +1,7 @@
 using MediaEngine.Api.Realtime;
 using MediaEngine.Api.Services.Events;
+using MediaEngine.Contracts.Ingestion;
+using MediaEngine.Contracts.Realtime;
 using MediaEngine.Domain.Contracts;
 using Microsoft.AspNetCore.SignalR;
 
@@ -24,14 +26,17 @@ public sealed class SignalREventPublisher : IEventPublisher
     private readonly IntercomAudienceRegistry? _audiences;
     private readonly IIntercomAudienceAuthorizer? _authorization;
     private readonly ILogger<SignalREventPublisher>? _logger;
+    private readonly IActivityRunRecorder? _runs;
 
     public SignalREventPublisher(
         IHubContext<Intercom> collection,
         IntercomAudienceRegistry? audiences = null,
         IIntercomAudienceAuthorizer? authorization = null,
         ApplicationEventProjectionPublisher? external = null,
-        ILogger<SignalREventPublisher>? logger = null)
+        ILogger<SignalREventPublisher>? logger = null,
+        IActivityRunRecorder? runs = null)
     {
+        _runs = runs;
         ArgumentNullException.ThrowIfNull(collection);
         _collection = collection;
         _audiences = audiences;
@@ -53,6 +58,8 @@ public sealed class SignalREventPublisher : IEventPublisher
             await _external.ProjectAsync(eventName, payload, ct).ConfigureAwait(false);
         }
 
+        await RecordRunAsync(payload, ct).ConfigureAwait(false);
+
         foreach (var connection in _audiences?.Snapshot() ?? [])
         {
             try
@@ -73,6 +80,33 @@ public sealed class SignalREventPublisher : IEventPublisher
                 _logger?.LogWarning(exception, "Dashboard event delivery failed for {EventName} on {ConnectionId}.",
                     eventName, connection.ConnectionId);
             }
+        }
+    }
+
+    // Activity runs (spec library-activity D21): a removal joins the library's open "removed" run, and when the ingestion queue returns to
+    // idle the runs that were being filled close after a short quiet minute instead of waiting out the full five. Never throws.
+    private async Task RecordRunAsync<TPayload>(TPayload payload, CancellationToken ct) where TPayload : notnull
+    {
+        if (_runs is null)
+        {
+            return;
+        }
+
+        try
+        {
+            switch (payload)
+            {
+                case MediaRemovedEvent removed:
+                    await _runs.RecordRemovedAsync(removed.AssetId, removed.LibraryId, removed.FilePath, ct).ConfigureAwait(false);
+                    break;
+                case IngestionQueueProgressDto { State: "idle" }:
+                    await _runs.CloseQuietRunsAsync(TimeSpan.FromMinutes(1), ct).ConfigureAwait(false);
+                    break;
+            }
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            _logger?.LogWarning(exception, "The activity run could not be recorded for {PayloadType}.", typeof(TPayload).Name);
         }
     }
 }

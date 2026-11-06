@@ -1,0 +1,29 @@
+@namespace MediaEngine.Web.Components.Settings.LibraryActivity
+@inject IStringLocalizer<SharedStrings> L
+
+@* One standard tile of the Activity page (spec library-activity D13, One tile design spec): the title on the art, a flush label in the
+   top-left corner for what Library is doing ("Getting artwork") and a flush label in the bottom-left corner for the count or step. No
+   caption under the art. Square art (albums) keeps the poster's height. A tile with a page opens it on click. *@
+<div class="lact-tile @(IsSquare ? "is-square" : null)" data-testid="activity-tile" data-media-type="@MediaType">
+    @if (!string.IsNullOrWhiteSpace(Route))
+    {
+        <a href="@Route" class="lact-tile__link" aria-label="@L["LibraryActivity_OpenTitle", Title]">
+            <LibraryActivityTileFace Title="@Title" CoverUrl="@CoverUrl" MediaType="@MediaType" StatusLabel="@StatusLabel" BottomLabel="@BottomLabel" />
+        </a>
+    }
+    else
+    {
+        <LibraryActivityTileFace Title="@Title" CoverUrl="@CoverUrl" MediaType="@MediaType" StatusLabel="@StatusLabel" BottomLabel="@BottomLabel" />
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter] public string? CoverUrl { get; set; }
+    [Parameter] public string MediaType { get; set; } = string.Empty;
+    [Parameter] public string? Route { get; set; }
+    [Parameter] public string? StatusLabel { get; set; }
+    [Parameter] public string? BottomLabel { get; set; }
+
+    private bool IsSquare => MediaType == "Music";
+}
