@@ -63,6 +63,69 @@ public sealed class SettingsLayoutPolishCssTests
         Assert.Contains("overflow: visible;", rail, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void SettingsFrameHeader_PutsAPageActionAtTheTopRightLevelWithTheTitle()
+    {
+        var css = Read("src/MediaEngine.Web/Components/Settings/Frame/SettingsPageFrame.razor.css");
+
+        var actions = Rule(css, ".settings-frame__header ::deep .sidebar-page-header .app-page-header__actions");
+        Assert.Contains("align-self: flex-start;", actions, StringComparison.Ordinal);
+        var header = Rule(css, ".settings-frame__header ::deep .sidebar-page-header");
+        Assert.Contains("flex-direction: row;", header, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void LibrariesPage_PutsAddLibraryInTheFrameHeaderNotAsARowOfItsOwnBelowTheStatusLine()
+    {
+        var overview = Read("src/MediaEngine.Web/Components/Settings/Libraries/LibrariesOverview.razor");
+
+        // Inside the frame the button is handed to the header; only a table drawn without the frame keeps the row.
+        Assert.Contains("HeaderActions?.Set(", overview, StringComparison.Ordinal);
+        Assert.Contains("@if (HeaderActions is null && CanAddLibrary)", overview, StringComparison.Ordinal);
+        var status = Read("src/MediaEngine.Web/Components/Settings/LibrariesTab.razor");
+        Assert.Contains("<LibraryStatusLine", status, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(390)]
+    [InlineData(360)]
+    [InlineData(320)]
+    public void ViewPageToolbarColumn_FitsTheScreenWithEqual16pxGuttersAtPhoneWidths(int width)
+    {
+        Assert.InRange(width, 320, 640);
+        var css = Read("src/MediaEngine.Web/Components/Pages/ViewContentPage.razor.css");
+
+        // The column is one track that may shrink below its widest child, so nothing can push the right edge past the screen.
+        var page = Rule(css, ".view-content-page");
+        Assert.Contains("grid-template-columns: minmax(0, 1fr);", page, StringComparison.Ordinal);
+        Assert.Contains("min-width: 0;", page, StringComparison.Ordinal);
+
+        var phone = css[css.IndexOf("@media (max-width: 640px)", StringComparison.Ordinal)..];
+        var gutters = Regex.Match(phone, @"\.view-content-page:not\(\.view-content-page--fill-height\)\s*\{(?<body>[^}]*)\}").Groups["body"].Value;
+        Assert.Matches(@"padding:\s*\d+px 16px \d+px;", gutters);
+
+        var actions = Regex.Match(phone, @"\.view-content-page__actions\s*\{(?<body>[^}]*)\}").Groups["body"].Value;
+        Assert.Contains("align-items: stretch;", actions, StringComparison.Ordinal);
+        Assert.Contains("flex-direction: column;", actions, StringComparison.Ordinal);
+        Assert.Contains("width: 100%;", actions, StringComparison.Ordinal);
+
+        var header = css[css.IndexOf("@media (max-width: 900px)", StringComparison.Ordinal)..];
+        Assert.Contains("grid-template-columns: minmax(0, 1fr);", header, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DiscoveryFilterBar_ChipRowScrollsInsideItsOwnBox_AndTheBarNeverWidensItsColumn()
+    {
+        var css = Read("src/MediaEngine.Web/Components/Shared/AppDiscoveryFilterBar.razor.css");
+
+        var narrow = css[css.IndexOf("@media(max-width:1050px)", StringComparison.Ordinal)..];
+        Assert.Contains(".app-discovery-filter{grid-template-columns:minmax(0,1fr)}", narrow, StringComparison.Ordinal);
+        Assert.Contains(".app-discovery-filter__tabs{flex:1;min-width:0}", narrow, StringComparison.Ordinal);
+        var phone = css[css.IndexOf("@media(max-width:640px)", StringComparison.Ordinal)..];
+        Assert.Contains(".app-discovery-filter__tabs{width:100%;overflow-x:auto}", phone, StringComparison.Ordinal);
+        Assert.Contains(".app-discovery-filter__search ::deep input{width:100%;min-width:0;", css, StringComparison.Ordinal);
+    }
+
     private static string Rule(string css, string selector)
     {
         var match = Regex.Match(css, "(?m)^" + Regex.Escape(selector) + @"\s*\{(?<body>[^}]*)\}");

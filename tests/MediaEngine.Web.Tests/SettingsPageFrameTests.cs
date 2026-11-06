@@ -52,6 +52,54 @@ public sealed class SettingsPageFrameTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task Frame_DrawsAPagesHeaderActionAtTheRightOfTheTitleRow_AndDropsItWhenThePageClearsIt()
+    {
+        SettingsHeaderActions? slot = null;
+        // The frame hands its slot to the page through a cascading value; a page sets it and the header draws it.
+        var cut = Render<SettingsPageFrame>(parameters => parameters
+            .Add(frame => frame.Title, "Libraries")
+            .Add(frame => frame.ChildContent, (RenderFragment)(builder =>
+            {
+                builder.OpenComponent<HeaderActionProbe>(0);
+                builder.AddAttribute(1, nameof(HeaderActionProbe.OnSlot), new Action<SettingsHeaderActions>(actions => slot = actions));
+                builder.CloseComponent();
+            })));
+
+        Assert.NotNull(slot);
+        var header = cut.Find("[data-settings-frame-slot='header']");
+        Assert.Equal("Add thing", header.QuerySelector(".app-page-header__actions button")!.TextContent);
+        Assert.Empty(cut.Find("[data-settings-frame-slot='content']").QuerySelectorAll("#header-probe-button"));
+
+        await cut.InvokeAsync(() => slot!.Set(null));
+
+        Assert.Empty(cut.FindAll(".app-page-header__actions"));
+    }
+
+    private sealed class HeaderActionProbe : ComponentBase
+    {
+        private readonly RenderFragment _button = builder =>
+        {
+            builder.OpenElement(0, "button");
+            builder.AddAttribute(1, "id", "header-probe-button");
+            builder.AddContent(2, "Add thing");
+            builder.CloseElement();
+        };
+
+        [CascadingParameter] public SettingsHeaderActions? Actions { get; set; }
+
+        [Parameter] public Action<SettingsHeaderActions>? OnSlot { get; set; }
+
+        protected override void OnInitialized()
+        {
+            Actions?.Set(_button);
+            if (Actions is not null)
+            {
+                OnSlot?.Invoke(Actions);
+            }
+        }
+    }
+
+    [Fact]
     public void Frame_WithEverySlot_DrawsNoticesThenBreadcrumbThenHeaderThenPageNoticeThenTabsThenContent()
     {
         var cut = Render<SettingsPageFrame>(parameters => parameters

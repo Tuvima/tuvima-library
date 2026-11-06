@@ -567,6 +567,76 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         Assert.DoesNotContain(cut.FindAll("button"), button => Text(button) == "Add library");
     }
 
+    // Libraries v3 D22: Add library sits at the top right of the page header, on the title row, never in the page content.
+    private IRenderedComponent<SettingsPageFrame> RenderInFrame(bool readOnly)
+    {
+        var kinds = LibraryKindsTestData.Catalog;
+        var configuration = BuildConfiguration();
+        return Render<SettingsPageFrame>(parameters => parameters
+            .Add(frame => frame.Title, "Libraries")
+            .Add(frame => frame.ChildContent, (RenderFragment)(builder =>
+            {
+                builder.OpenComponent<LibrariesOverview>(0);
+                builder.AddAttribute(1, nameof(LibrariesOverview.Kinds), kinds);
+                builder.AddAttribute(2, nameof(LibrariesOverview.Configuration), configuration);
+                builder.AddAttribute(3, nameof(LibrariesOverview.ReadOnly), readOnly);
+                builder.CloseComponent();
+            })));
+    }
+
+    [Fact]
+    public void AddLibraryIsInThePageHeaderRowBesideTheTitleAndNotInThePageContent()
+    {
+        var cut = RenderInFrame(readOnly: false);
+
+        var header = cut.Find("[data-settings-frame-slot='header']");
+        var inHeader = header.QuerySelectorAll(".app-page-header__actions button").Where(button => Text(button) == "Add library").ToList();
+        Assert.Single(inHeader);
+        Assert.NotNull(header.QuerySelector("h1"));
+        var content = cut.Find("[data-settings-frame-slot='content']");
+        Assert.DoesNotContain(content.QuerySelectorAll("button"), button => Text(button) == "Add library");
+        Assert.Empty(content.QuerySelectorAll(".libs__header"));
+    }
+
+    [Fact]
+    public void TheHeaderAddLibraryButtonDoesNotAppearWhereEditingIsNotAllowed()
+    {
+        var cut = RenderInFrame(readOnly: true);
+
+        Assert.Empty(cut.FindAll(".app-page-header__actions"));
+        Assert.DoesNotContain(cut.FindAll("button"), button => Text(button) == "Add library");
+    }
+
+    [Fact]
+    public void OutsideTheSettingsFrameAddLibraryKeepsARowOfItsOwnAboveTheCollectionCard()
+    {
+        var cut = Render<LibrariesOverview>(parameters => parameters.Add(x => x.Kinds, LibraryKindsTestData.Catalog).Add(x => x.Configuration, BuildConfiguration()));
+
+        Assert.Single(cut.FindAll(".libs__header button"), button => Text(button) == "Add library");
+    }
+
+    [Fact]
+    public void LeavingTheLibrariesPageTakesAddLibraryOutOfTheHeader()
+    {
+        var actions = new SettingsHeaderActions();
+        var cut = Render<CascadingValue<SettingsHeaderActions>>(parameters => parameters
+            .Add(value => value.Value, actions)
+            .Add(value => value.ChildContent, (RenderFragment)(builder =>
+            {
+                builder.OpenComponent<LibrariesOverview>(0);
+                builder.AddAttribute(1, nameof(LibrariesOverview.Kinds), LibraryKindsTestData.Catalog);
+                builder.AddAttribute(2, nameof(LibrariesOverview.Configuration), BuildConfiguration());
+                builder.CloseComponent();
+            })));
+        Assert.NotNull(actions.Content);
+
+        cut.Render(parameters => parameters
+            .Add(value => value.Value, actions)
+            .Add(value => value.ChildContent, (RenderFragment)(_ => { })));
+
+        Assert.Null(actions.Content);
+    }
+
     [Fact]
     public async Task OnATelevisionTheLibrariesAreUnavailable()
     {
