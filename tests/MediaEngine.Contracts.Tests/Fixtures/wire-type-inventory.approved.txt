@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1461; api=0; web-client=55
+# scopes: contracts=1463; api=0; web-client=55
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -6151,6 +6151,16 @@
   kind=class | converter=default | number-handling=default | unmapped=default
   RetentionDays: System.Int32 | json=retention_days | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   DefaultRetentionDays: System.Int32 | json=default_retention_days | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.LocalAssets.ViewOnThisDayDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Years: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.LocalAssets.ViewOnThisDayYearDto> | json=years | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+
+[contracts] MediaEngine.Contracts.LocalAssets.ViewOnThisDayYearDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Year: System.Int32 | json=year | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Count: System.Int32 | json=count | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Cover: MediaEngine.Contracts.LocalAssets.LocalAssetDto | json=cover | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
 
 [contracts] MediaEngine.Contracts.LocalAssets.ViewOtherHouseholdDto
   kind=class | converter=default | number-handling=default | unmapped=default

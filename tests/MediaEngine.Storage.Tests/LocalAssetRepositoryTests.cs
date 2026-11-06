@@ -482,6 +482,38 @@ public sealed class LocalAssetRepositoryTests : IDisposable
         Assert.Equal(ids.Last(), captureTimeline.Items.First().Id);
     }
 
+    [Fact]
+    public async Task OnThisDayFindsEarlierYearsOfTheSameMonthAndDayInOnlyTheAuthorizedLibraries()
+    {
+        var library = Guid.NewGuid(); var owner = await CreateOwnership(library);
+        var otherLibrary = Guid.NewGuid(); var otherOwner = await CreateOwnership(otherLibrary);
+        var dates = new[]
+        {
+            new DateTimeOffset(2019, 7, 4, 10, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2021, 7, 4, 18, 30, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 7, 4, 9, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2021, 7, 5, 9, 0, 0, TimeSpan.Zero),
+        };
+        var ids = new List<Guid>();
+        for (var n = 0; n < dates.Length; n++)
+        {
+            var item = await AddImage(owner, library, (char)('a' + n), $"day{n}.jpg"); ids.Add(item.ItemId);
+            using var connection = _database.CreateConnection();
+            connection.Execute("UPDATE local_items SET captured_at=@capture WHERE id=@id;", new { capture = dates[n], id = item.ItemId });
+        }
+        var other = await AddImage(otherOwner, otherLibrary, '9', "private.jpg");
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("UPDATE local_items SET captured_at=@capture WHERE id=@id;", new { capture = dates[0], id = other.ItemId });
+        }
+
+        var page = _repository.QueryTimeline(new LocalAssetTimelineQuery([library], OnThisDay: new LocalAssetOnThisDay(7, 4, 2026)));
+
+        // This year's photo and the next day's photo are left out, and so is the other person's library.
+        Assert.Equal(new[] { ids[0], ids[1] }.Order(), page.Items.Select(item => item.Id).Order());
+        Assert.Empty(_repository.QueryTimeline(new LocalAssetTimelineQuery([library], OnThisDay: new LocalAssetOnThisDay(12, 25, 2026))).Items);
+    }
+
     private Task<LocalAssetUpsertResult> AddImage(
         (Guid ProfileId, Guid SpaceId) owner,
         Guid libraryId,

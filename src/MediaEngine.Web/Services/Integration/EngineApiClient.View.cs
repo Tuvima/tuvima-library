@@ -164,6 +164,7 @@ public sealed partial class EngineApiClient
         AddQuery(query, "to", options.To?.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
         AddQuery(query, "q", options.Search?.Trim());
         AddQuery(query, "missing", options.IncludeMissing ? "true" : null);
+        AddQuery(query, "sort", options.Sort);
         foreach (var kind in options.Kinds ?? [])
         {
             AddQuery(query, "kind", kind);
@@ -212,6 +213,9 @@ public sealed partial class EngineApiClient
             AddQuery(query, "field", $"{field.FieldId:D}:{field.Value}");
         }
     }
+
+    public Task<ViewOnThisDayDto?> GetViewOnThisDayAsync(DateOnly today, CancellationToken ct = default) =>
+        GetAsync<ViewOnThisDayDto>("GET /view/assets/on-this-day", $"/view/assets/on-this-day?month={today.Month}&day={today.Day}&year={today.Year}", ct: ct);
 
     public Task<ViewTimelineIndexDto?> GetViewTimelineIndexAsync(ViewAssetQueryOptions options, CancellationToken ct = default)
     {

@@ -23,6 +23,8 @@ public partial interface IEngineApiClient
     Task<ViewTrashOutcome<ViewTrashEmptyResultDto>> EmptyViewTrashAsync(string fingerprint, CancellationToken ct = default);
     Task<ViewPreferencesDto?> UpdateViewPreferencesAsync(ViewScopeKind scope, Guid? scopeProfileId, ViewTimelineDensity timelineDensity, bool viewerInfoOpen = true, CancellationToken ct = default);
     Task<ViewAssetTimelinePageDto?> GetViewAssetsAsync(ViewAssetQueryOptions options, CancellationToken ct = default);
+    /// <summary>Earlier years with photos or videos taken on today's month and day; the Engine reads only your own space and the Shared Library.</summary>
+    Task<ViewOnThisDayDto?> GetViewOnThisDayAsync(DateOnly today, CancellationToken ct = default);
     Task<ViewTimelineIndexDto?> GetViewTimelineIndexAsync(ViewAssetQueryOptions options, CancellationToken ct = default);
     /// <summary>The profiles that added items in the scope, with counts (the "added by" filter chips). Reads the scope, kinds and lifecycle of <paramref name="options"/>.</summary>
     Task<IReadOnlyList<ViewAddedByDto>?> GetViewAssetsAddedByAsync(ViewAssetQueryOptions options, CancellationToken ct = default);
@@ -128,7 +130,8 @@ public sealed record ViewAssetQueryOptions(
     DateTimeOffset? To = null,
     ViewDocumentFilterDto? Documents = null,
     IReadOnlyList<Guid>? AddedBy = null,
-    bool IncludeMissing = false);
+    bool IncludeMissing = false,
+    string? Sort = null);
 
 public sealed record ViewUploadResult(bool Success, ViewUploadResponseDto? Upload = null, string? ErrorMessage = null);
 

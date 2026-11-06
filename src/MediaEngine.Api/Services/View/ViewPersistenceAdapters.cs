@@ -310,7 +310,8 @@ public sealed class ViewAssetQueryService(ILocalAssetRepository assets) : IViewA
             documentFilter,
             plan.ExcludedContentKinds,
             plan.AddedByProfileIds,
-            IncludeMissing: plan.IncludeMissing), ct);
+            IncludeMissing: plan.IncludeMissing,
+            OnThisDay: plan.OnThisDay), ct);
         return Task.FromResult(new ViewAssetTimelinePageDto(
             page.Items,
             plan.SortByAddedAt ? null

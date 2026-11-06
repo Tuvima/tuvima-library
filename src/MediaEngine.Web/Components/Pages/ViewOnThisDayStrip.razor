@@ -1,0 +1,39 @@
+@using MediaEngine.Contracts.LocalAssets
+@namespace MediaEngine.Web.Components.Pages
+@inject IStringLocalizer<SharedStrings> L
+@* The On this day strip: one card per earlier year with a photo taken on today's month and day. Hidden when there is nothing to show. *@
+@if (Years.Count > 0)
+{
+    <section class="view-on-this-day" aria-label="@L["ViewOnThisDay_Title"].Value">
+        <h2>@L["ViewOnThisDay_Title"]</h2>
+        <ul>
+            @foreach (var entry in Years)
+            {
+                <li>
+                    <AppNativeButton Type="button" Class="view-on-this-day__card" InlineStyle="display: grid; gap: 4px; width: 9rem; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer;" AriaLabel="@Label(entry)" OnClick="@(_ => OnOpenYear.InvokeAsync(entry.Year))">
+                        <img src="@ThumbnailUrl(entry.Cover)" alt="" loading="lazy" />
+                        <strong>@YearsAgo(entry.Year)</strong>
+                        <small>@Count(entry)</small>
+                    </AppNativeButton>
+                </li>
+            }
+        </ul>
+    </section>
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<ViewOnThisDayYearDto> Years { get; set; } = [];
+    [Parameter, EditorRequired] public Func<LocalAssetDto, string> ThumbnailUrl { get; set; } = _ => string.Empty;
+    [Parameter, EditorRequired] public int CurrentYear { get; set; }
+    [Parameter] public EventCallback<int> OnOpenYear { get; set; }
+
+    private string YearsAgo(int year) => CurrentYear - year == 1
+        ? L["ViewOnThisDay_OneYearAgo"].Value
+        : L["ViewOnThisDay_YearsAgo", CurrentYear - year].Value;
+
+    private string Count(ViewOnThisDayYearDto entry) => entry.Count == 1
+        ? L["ViewOnThisDay_OnePhoto"].Value
+        : L["ViewOnThisDay_Photos", entry.Count].Value;
+
+    private string Label(ViewOnThisDayYearDto entry) => $"{YearsAgo(entry.Year)}, {Count(entry)}";
+}

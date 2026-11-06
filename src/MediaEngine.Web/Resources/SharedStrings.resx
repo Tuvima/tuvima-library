@@ -11160,4 +11160,31 @@
   <data name="ViewScopeSwitch_Viewing" xml:space="preserve">
     <value>Viewing</value>
   </data>
+  <data name="ViewPage_RecentlyAdded" xml:space="preserve">
+    <value>Recently added</value>
+  </data>
+  <data name="ViewPage_NothingAddedYet" xml:space="preserve">
+    <value>Nothing added yet</value>
+  </data>
+  <data name="ViewOnThisDay_Title" xml:space="preserve">
+    <value>On this day</value>
+  </data>
+  <data name="ViewOnThisDay_OneYearAgo" xml:space="preserve">
+    <value>1 year ago</value>
+  </data>
+  <data name="ViewOnThisDay_YearsAgo" xml:space="preserve">
+    <value>{0} years ago</value>
+  </data>
+  <data name="ViewOnThisDay_OnePhoto" xml:space="preserve">
+    <value>1 photo</value>
+  </data>
+  <data name="ViewOnThisDay_Photos" xml:space="preserve">
+    <value>{0} photos</value>
+  </data>
+  <data name="ViewPage_DayChipLabel" xml:space="preserve">
+    <value>Photos from {0}</value>
+  </data>
+  <data name="ViewPage_ClearDay" xml:space="preserve">
+    <value>Show all dates</value>
+  </data>
 </root>

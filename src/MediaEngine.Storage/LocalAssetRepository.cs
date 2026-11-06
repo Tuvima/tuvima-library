@@ -344,6 +344,9 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
             query.From,
             query.To,
             query.TimelineEligibleOnly,
+            HasOnThisDay = query.OnThisDay is null ? 0 : 1,
+            OnThisDayMonthDay = query.OnThisDay is { } day ? $"{day.Month:00}-{day.Day:00}" : string.Empty,
+            OnThisDayBeforeYear = query.OnThisDay?.BeforeYear.ToString("0000", System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
             Take = query.Limit + 1,
         });
         AddKindAndAddedByParameters(parameters, query);
@@ -438,6 +441,8 @@ public sealed class LocalAssetRepository(IDatabaseConnection database) : ILocalA
                     OR COALESCE(li.captured_at, li.created_at) < @AnchorBefore)
                AND (@From IS NULL OR COALESCE(li.captured_at, li.created_at) >= @From)
                AND (@To IS NULL OR COALESCE(li.captured_at, li.created_at) <= @To)
+               AND (@HasOnThisDay = 0 OR (strftime('%m-%d', COALESCE(li.captured_at, li.created_at)) = @OnThisDayMonthDay
+                    AND strftime('%Y', COALESCE(li.captured_at, li.created_at)) < @OnThisDayBeforeYear))
                AND (@WithoutLocation = 0 OR @LocationSearch IS NULL OR lm.location_name LIKE @LocationSearch ESCAPE '~'
                     OR printf('%.3f,%.3f', ROUND(lm.latitude, 3), ROUND(lm.longitude, 3)) LIKE @LocationSearch ESCAPE '~')
                AND (@WithoutLocation = 0 OR lm.latitude IS NULL OR lm.longitude IS NULL
