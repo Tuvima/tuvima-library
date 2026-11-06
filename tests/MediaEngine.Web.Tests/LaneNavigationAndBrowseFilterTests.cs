@@ -82,7 +82,7 @@ public sealed class LaneNavigationAndBrowseFilterTests
         Assert.DoesNotContain("var(--tl-bottom-dock-height", sectionShellStyles, StringComparison.Ordinal);
         Assert.Contains(".media-section-shell__content", sectionShellStyles, StringComparison.Ordinal);
         Assert.Contains("overflow-y: auto", sectionShellStyles, StringComparison.Ordinal);
-        Assert.Contains("::deep .browse-multi-select__option", multiSelectStyles, StringComparison.Ordinal);
+        Assert.Contains("<AppPopover", multiSelect, StringComparison.Ordinal);
         Assert.Contains("display: grid;", multiSelectStyles, StringComparison.Ordinal);
         Assert.Contains("width: 100%;", multiSelectStyles, StringComparison.Ordinal);
         Assert.DoesNotContain("<MudMenu", multiSelect, StringComparison.Ordinal);

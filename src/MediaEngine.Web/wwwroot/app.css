@@ -5768,6 +5768,107 @@ html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-right {
     margin-bottom: calc(var(--tl-bottom-dock-height, 0px) + var(--tl-audio-dock-height, 0px));
 }
 
+/* Browse multi-select panel (drawn in the top layer by AppPopover; global because the panel leaves the component's DOM). */
+.browse-multi-select__panel {
+    width: min(304px, calc(100vw - 24px));
+    padding: 10px;
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: var(--tl-radius-md);
+    color: var(--tl-text-primary);
+    background: var(--tl-bg-surface-elevated);
+    box-shadow: var(--tl-shadow-lg, 0 8px 24px rgb(0 0 0 / 0.3));
+    font-family: var(--font-ui);
+}
+
+.browse-multi-select__search {
+    display: grid;
+    min-height: var(--tl-control-height-md);
+    grid-template-columns: 20px minmax(0, 1fr);
+    align-items: center;
+    gap: 9px;
+    padding: 0 11px;
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: var(--tl-radius-md);
+    background: var(--tl-bg-page);
+    color: var(--tl-text-secondary);
+}
+
+.browse-multi-select__search input {
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--tl-text-primary);
+    font: inherit;
+    font-size: var(--tl-font-size-md);
+}
+
+.browse-multi-select__options {
+    max-height: min(340px, 52vh);
+    margin-top: 8px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.browse-multi-select__option {
+    display: grid;
+    width: 100%;
+    min-height: var(--tl-control-height-md);
+    grid-template-columns: 20px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    padding: 6px 8px;
+    border: 0;
+    border-radius: var(--tl-radius-md);
+    background: transparent;
+    color: var(--tl-text-primary);
+    font: inherit;
+    font-size: var(--tl-font-size-md);
+    line-height: 1.2;
+    cursor: pointer;
+    text-align: left;
+}
+
+.browse-multi-select__option:hover,
+.browse-multi-select__option:focus-visible {
+    background: var(--tl-bg-surface-hover);
+}
+
+.browse-multi-select__option .tl-icon-root {
+    color: var(--tl-accent-primary);
+    font-size: var(--tl-icon-size-md);
+}
+
+.browse-multi-select__option strong {
+    display: block;
+    font-size: inherit;
+    font-weight: 600;
+}
+
+.browse-multi-select__option small {
+    display: block;
+    margin-top: 3px;
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-xs);
+}
+
+.browse-multi-select__empty,
+.browse-multi-select__help {
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-xs);
+}
+
+.browse-multi-select__empty {
+    padding: 14px 8px;
+}
+
+.browse-multi-select__help {
+    margin-top: 8px;
+    padding: 9px 8px 1px;
+    border-top: 1px solid var(--tl-border-subtle);
+}
+
 /* Details page, phone pass. Everything here is scoped to the phone form factor; tablet and desktop keep the
    existing hero, tab and list rules. Phones never carry an editor entry point, and nothing relies on hover. */
 
@@ -6307,3 +6408,4 @@ html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module__rail .
 html[data-form-factor="phone"] .tl-detail-page .tl-detail-primary-module__rail .tl-detail-primary-module__item--wide {
     width: min(86vw, 320px);
 }
+
