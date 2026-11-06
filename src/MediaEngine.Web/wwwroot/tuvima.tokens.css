@@ -97,6 +97,8 @@
     --tl-font-size-xl: 1.5rem;
     --tl-font-size-dialog-title: 1.25rem;
     --tl-font-size-hero: 2rem;
+    --tl-chip-height: 36px;
+    --tl-chip-height-touch: 44px;
     --tl-font-size-title: 1.5rem;
     --tl-font-size-shelf-title: 1.25rem;
     --tl-line-height-title: 1.25;
