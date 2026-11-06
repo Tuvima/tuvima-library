@@ -311,18 +311,18 @@ public sealed class DetailComposerServiceTests
     {
         var source = ReadDetailComposerSource();
 
-        Assert.Contains("DetailEntityType.Movie => [\"overview\", \"cast\", \"details\"]", source);
+        Assert.Contains("DetailEntityType.Movie => [\"overview\", \"cast\"]", source);
         Assert.DoesNotContain("DetailEntityType.Movie => [\"overview\", \"people\"", source);
-        Assert.Contains("DetailEntityType.TvShow => [\"overview\", \"cast\", \"details\"]", source);
-        Assert.Contains("DetailEntityType.TvSeason => [\"overview\", \"cast\", \"details\"]", source);
-        Assert.Contains("DetailEntityType.Book => [\"overview\", \"credits\", \"details\"]", source);
-        Assert.Contains("DetailEntityType.Audiobook => [\"overview\", \"tracks\", \"details\"]", source);
+        Assert.Contains("DetailEntityType.TvShow => [\"overview\", \"cast\"]", source);
+        Assert.Contains("DetailEntityType.TvSeason => [\"overview\", \"cast\"]", source);
+        Assert.Contains("DetailEntityType.Book => [\"overview\", \"credits\"]", source);
+        Assert.Contains("DetailEntityType.Audiobook => [\"overview\", \"tracks\"]", source);
         Assert.DoesNotContain("DetailEntityType.Audiobook when hasChapters", source);
-        Assert.DoesNotContain("DetailEntityType.Book or DetailEntityType.Audiobook => [\"overview\", \"credits\", \"chapters\", \"universe\", \"editions\", \"details\"]", source);
-        Assert.Contains("DetailEntityType.ComicIssue => [\"overview\", \"credits\", \"details\"]", source);
+        Assert.DoesNotContain("DetailEntityType.Book or DetailEntityType.Audiobook => [\"overview\", \"credits\", \"chapters\", \"universe\", \"editions\"]", source);
+        Assert.Contains("DetailEntityType.ComicIssue => [\"overview\", \"credits\"]", source);
         Assert.DoesNotContain("\"universe\", \"related\"", source);
         Assert.Contains("DetailEntityType.Person => [\"overview\"]", source);
-        Assert.Contains("DetailEntityType.Collection => [\"overview\", \"details\"]", source);
+        Assert.Contains("DetailEntityType.Collection => [\"overview\"]", source);
         Assert.Contains("entityType == DetailEntityType.Collection", source);
         Assert.Contains("? []", source);
         Assert.Contains("BuildStandardCollectionMetadata(works)", source);
@@ -334,7 +334,7 @@ public sealed class DetailComposerServiceTests
         Assert.Contains("Kind = $\"{lane}_count\"", source);
         Assert.DoesNotContain("BuildCollectionLaneActions", source);
         Assert.DoesNotContain("Key = $\"collection-{lane}\"", source);
-        Assert.Contains("DetailEntityType.MusicAlbum => [\"overview\", \"details\"]", source);
+        Assert.Contains("DetailEntityType.MusicAlbum => [\"overview\"]", source);
         Assert.DoesNotContain("DetailEntityType.MusicTrack", source);
         Assert.DoesNotContain("HasUniverseRelationship", source);
         Assert.DoesNotContain("sync-settings", source);
@@ -1417,7 +1417,7 @@ public sealed class DetailComposerServiceTests
             DetailEntityType.MusicAlbum,
             DetailPresentationContext.Listen);
 
-        Assert.Equal(["overview", "details"], tabs.Select(tab => tab.Key));
+        Assert.Equal(["overview"], tabs.Select(tab => tab.Key));
         Assert.DoesNotContain(tabs, tab => tab.Key == "tracks");
         Assert.DoesNotContain(tabs, tab => tab.Key == "credits");
     }
@@ -1430,7 +1430,7 @@ public sealed class DetailComposerServiceTests
             DetailEntityType.Audiobook,
             DetailPresentationContext.Listen);
 
-        Assert.Equal(["overview", "tracks", "details"], tabs.Select(tab => tab.Key));
+        Assert.Equal(["overview", "tracks"], tabs.Select(tab => tab.Key));
         Assert.DoesNotContain(tabs, tab => tab.Key == "chapters");
         Assert.DoesNotContain(tabs, tab => tab.Key == "credits");
     }

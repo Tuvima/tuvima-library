@@ -96,6 +96,16 @@ internal sealed partial class DetailCompositionOrchestrator
                 detail.HeroUrl,
                 artworkFallback.BackgroundUrl);
         var bannerUrl = entityType == DetailEntityType.TvEpisode ? null : StringHelpers.FirstNonBlankOr(string.Empty, detail.BannerUrl, artworkFallback.BannerUrl);
+        // An Other video's only picture is a frame taken from the video: it fills the page's background like an episode still,
+        // rather than sitting as a small picture inside a portrait cover (videos spec, details page D18).
+        if (entityType != DetailEntityType.TvEpisode
+            && string.Equals(detail.MediaType, "Videos", StringComparison.OrdinalIgnoreCase)
+            && string.IsNullOrWhiteSpace(backdropUrl) && string.IsNullOrWhiteSpace(bannerUrl)
+            && !string.IsNullOrWhiteSpace(foregroundArtworkUrl))
+        {
+            backdropUrl = foregroundArtworkUrl;
+        }
+
         if (entityType == DetailEntityType.TvEpisode)
         {
             foregroundArtworkUrl = backdropUrl;
