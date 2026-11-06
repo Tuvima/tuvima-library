@@ -21,8 +21,9 @@
     flex: 0 0 auto;
 }
 
+/* The tile holds the picture and its short label only (the title sits once, in the header beside it), so it is narrow. */
 .tl-rail__level--tile {
-    flex: 0 0 13.5rem;
+    flex: 0 0 8.5rem;
     max-width: none;
 }
 
@@ -32,7 +33,7 @@
 }
 
 .tl-rail__skeleton--tile {
-    flex: 0 0 13.5rem;
+    flex: 0 0 8.5rem;
 }
 
 .tl-rail__crumb {
@@ -66,6 +67,10 @@
 .tl-rail__crumb.is-current {
     border-color: var(--tl-accent-primary, #8852FC);
     background: color-mix(in srgb, var(--tl-accent-primary, #8852FC) 14%, var(--tl-bg-surface));
+}
+
+.tl-rail__crumb.is-placeholder {
+    padding-left: var(--tl-space-3);
 }
 
 .tl-rail__crumb.is-placeholder .tl-rail__text > span {

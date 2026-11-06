@@ -5,7 +5,8 @@ namespace MediaEngine.Web.Services.Integration;
 /// <c>show</c>, <c>season</c>, <c>album</c> or <c>series</c>. <see cref="WorkIds"/> are the titles the page lists: the Engine uses them
 /// only for a group it cannot find by id, and still checks each one.
 /// </summary>
-public sealed record LibraryGroupTarget(Guid GroupId, string Kind, string Title, IReadOnlyList<Guid> WorkIds);
+/// <param name="IsVideoFolder">The group is a folder of Other videos (it is called a folder in menus and dialogs, never a show or Series).</param>
+public sealed record LibraryGroupTarget(Guid GroupId, string Kind, string Title, IReadOnlyList<Guid> WorkIds, bool IsVideoFolder = false);
 
 /// <summary>The four kinds of group Delete reaches (spec Delete a show, season, album or Series).</summary>
 public static class LibraryGroupKinds

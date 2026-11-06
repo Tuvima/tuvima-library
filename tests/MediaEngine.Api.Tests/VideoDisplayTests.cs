@@ -1,18 +1,19 @@
 using MediaEngine.Api.Services.Details;
 using MediaEngine.Api.Services.Display;
+using MediaEngine.Domain.Services;
 
 namespace MediaEngine.Api.Tests;
 
 /// <summary>Videos appear in Watch as one card per series and one per standalone video, and play like episodes.</summary>
 public sealed class VideoDisplayTests
 {
-    private static DisplayWorkRow Video(Guid? root, string title, string? season = null, string? episode = null, string? show = null) =>
+    private static DisplayWorkRow Video(Guid? root, string title, string? season = null, string? episode = null, string? show = null, string mediaType = "Videos") =>
         new()
         {
             WorkId = Guid.NewGuid(),
             AssetId = Guid.NewGuid(),
             RootWorkId = root ?? Guid.Empty,
-            MediaType = "Videos",
+            MediaType = mediaType,
             CreatedAt = DateTimeOffset.Parse("2026-10-01T12:00:00Z"),
             Title = title,
             ShowName = show,
@@ -51,6 +52,56 @@ public sealed class VideoDisplayTests
         Assert.Equal("Video", single.MediaType);
         Assert.Equal(standalone.WorkId, single.WorkId);
         Assert.Contains(single.Actions, action => action.WebUrl == $"/watch/player/{standalone.WorkId:D}");
+    }
+
+    [Fact]
+    public void ACourseFolderCard_OpensAsAFolderAndCountsSectionsAndVideos_NeverSeasonsOrEpisodes()
+    {
+        var root = Guid.NewGuid();
+        var works = new[]
+        {
+            Video(root, "Welcome", "1", "1", "Python Course"),
+            Video(root, "Variables", "1", "2", "Python Course"),
+            Video(root, "Loops", "2", "1", "Python Course"),
+        };
+
+        var card = Assert.Single(new DisplayCardBuilder().BuildVideoCards(works));
+
+        Assert.Equal("Open folder", Assert.Single(card.Actions).Label);
+        Assert.Equal("2 sections", card.Subtitle);
+        Assert.Contains("3 videos", card.Facts);
+        Assert.Equal("Video folder", card.GroupSummary!.RelationshipLabel);
+        Assert.All(card.PreviewItems, item => Assert.Null(item.Position));
+        var said = card.Facts.Append(card.Subtitle).Append(card.Actions[0].Label).Append(card.GroupSummary.RelationshipLabel);
+        Assert.All(said, text => Assert.False(VideoFolderWording.UsesTvWording(text), $"The card says \"{text}\"."));
+    }
+
+    [Fact]
+    public void ACourseWithOneSectionCountsOnlyItsVideos()
+    {
+        var root = Guid.NewGuid();
+        var works = new[] { Video(root, "Welcome", "1", "1", "Python Course"), Video(root, "Variables", "1", "2", "Python Course") };
+
+        var card = Assert.Single(new DisplayCardBuilder().BuildVideoCards(works));
+
+        Assert.Equal("2 videos", card.Subtitle);
+    }
+
+    [Fact]
+    public void ATvShowCard_KeepsOpenShowSeasonsAndEpisodes()
+    {
+        var root = Guid.NewGuid();
+        var works = new[]
+        {
+            Video(root, "Pilot", "1", "1", "Le Continental", "TV"),
+            Video(root, "Second", "2", "1", "Le Continental", "TV"),
+        };
+
+        var card = Assert.Single(new DisplayCardBuilder().BuildTvShowCards(works));
+
+        Assert.Equal("Open Show", Assert.Single(card.Actions).Label);
+        Assert.Equal("2 seasons", card.Subtitle);
+        Assert.Contains("2 episodes", card.Facts);
     }
 
     [Fact]

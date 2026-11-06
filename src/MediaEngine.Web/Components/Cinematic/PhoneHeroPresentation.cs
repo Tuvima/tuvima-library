@@ -98,6 +98,16 @@ public static partial class PhoneHeroPresentation
                 line.Add(parts.Runtime);
                 break;
             default:
+                if (IsVideoKind(kind))
+                {
+                    // A video or a folder of videos: year, length, then "14 sections" and "88 videos"; never seasons or episodes (item 17).
+                    line.Add(parts.Year);
+                    line.Add(parts.Runtime);
+                    line.Add(parts.Sections);
+                    line.Add(parts.Videos);
+                    break;
+                }
+
                 line.Add(subtitle);
                 line.Add(parts.Year);
                 line.Add(parts.Pages);
@@ -178,7 +188,7 @@ public static partial class PhoneHeroPresentation
                 // Videos, Other videos and YouTube play like a movie; anything else keeps the Engine's wording and is
                 // never presented as something to read.
                 return IsVideoKind(kind)
-                    ? (started ? new("Resume", left ?? percent) : new("Play", null))
+                    ? new(VideoFolderWording.PlayButton(started), started ? left ?? percent : null)
                     : new(engineLabel, null);
         }
     }
@@ -234,11 +244,11 @@ public static partial class PhoneHeroPresentation
         _ => "Item",
     };
 
-    private sealed record Parts(string? Year, string? Runtime, string? Rating, string? ContentRating, string? Seasons, string? Tracks, string? Pages);
+    private sealed record Parts(string? Year, string? Runtime, string? Rating, string? ContentRating, string? Seasons, string? Tracks, string? Pages, string? Sections, string? Videos);
 
     private static Parts Parse(IReadOnlyList<string> pills)
     {
-        string? year = null, runtime = null, rating = null, contentRating = null, seasons = null, tracks = null, pages = null;
+        string? year = null, runtime = null, rating = null, contentRating = null, seasons = null, tracks = null, pages = null, sections = null, videos = null;
         foreach (var raw in pills.Where(value => !string.IsNullOrWhiteSpace(value)).Select(value => value.Trim()))
         {
             if (raw.StartsWith('★'))
@@ -268,6 +278,14 @@ public static partial class PhoneHeroPresentation
                 {
                     pages ??= Count(n, "page");
                 }
+                else if (noun.StartsWith("section"))
+                {
+                    sections ??= VideoFolderWording.SectionCount(n);
+                }
+                else if (noun.StartsWith("video"))
+                {
+                    videos ??= VideoFolderWording.VideoCount(n);
+                }
             }
             else if (MinutesRegex().Match(raw) is { Success: true } minutes
                 && double.TryParse(minutes.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var m))
@@ -284,13 +302,13 @@ public static partial class PhoneHeroPresentation
             }
         }
 
-        return new Parts(year, runtime, rating, contentRating, seasons, tracks, pages);
+        return new Parts(year, runtime, rating, contentRating, seasons, tracks, pages, sections, videos);
     }
 
     [GeneratedRegex(@"\bS(\d+)\s*E(\d+)\b", RegexOptions.IgnoreCase)]
     private static partial Regex PositionRegex();
 
-    [GeneratedRegex(@"^(\d+)\s+(seasons?|tracks?|pages?)$", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"^(\d+)\s+(seasons?|tracks?|pages?|sections?|videos?)$", RegexOptions.IgnoreCase)]
     private static partial Regex CountRegex();
 
     [GeneratedRegex(@"^(\d+(?:\.\d+)?)\s*min(?:ute)?s?$", RegexOptions.IgnoreCase)]

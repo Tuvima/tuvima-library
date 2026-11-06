@@ -4,6 +4,7 @@ using MediaEngine.Api.Services.Details.Internals;
 using MediaEngine.Api.Services.ReadServices;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Domain.Aggregates;
+using MediaEngine.Domain.Services;
 using MediaEngine.Providers.Services;
 using MediaEngine.Storage;
 using MediaEngine.TestSupport;
@@ -100,6 +101,43 @@ public sealed class VideoSeriesDetailTests : IDisposable
         Assert.Equal("Video", sequence!.ItemLabel);
         Assert.Equal("Videos", sequence.ItemPluralLabel);
         Assert.DoesNotContain(sequence.Groups, group => group.Title.StartsWith("Season", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ACoursePage_NeverUsesSeasonEpisodeShowOrAPositionInAnyLabelItShows(bool sections)
+    {
+        var series = SeedSeries(sections);
+
+        var page = await ComposeAsync(series);
+
+        Assert.NotNull(page);
+        var said = new List<(string Where, string? Text)>
+        {
+            ("subtitle", page!.Subtitle),
+            ("kind fact", page.Facts?.MediaKind),
+            ("primary module", page.PrimaryModule.Title),
+        };
+        said.AddRange(page.PrimaryActions.Select(action => ("primary button", (string?)action.Label)));
+        said.AddRange(page.Metadata.Select(pill => ("pill " + pill.Kind, (string?)pill.Label)));
+        var sequence = page.SequencePlacement;
+        Assert.NotNull(sequence);
+        said.Add(("container label", sequence!.ContainerLabel));
+        said.Add(("item label", sequence.ItemLabel));
+        said.Add(("items label", sequence.ItemPluralLabel));
+        said.Add(("group label", sequence.GroupLabel));
+        said.AddRange(sequence.Groups.Select(group => ("section title", (string?)group.Title)));
+        foreach (var (where, text) in said)
+        {
+            Assert.False(VideoFolderWording.UsesTvWording(text), $"The course page says \"{text}\" in its {where}.");
+        }
+
+        Assert.Equal("Video folder", page.Facts?.MediaKind);
+        Assert.Equal("Play", Assert.Single(page!.PrimaryActions).Label);
+        Assert.Contains(page.Metadata, pill => pill.Kind == "episode_count" && pill.Label == (sections ? "6 videos" : "3 videos"));
+        Assert.Equal("Folder", sequence.ContainerLabel);
+        Assert.Equal("Section", sequence.GroupLabel);
     }
 
     [Theory]

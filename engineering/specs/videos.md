@@ -91,6 +91,8 @@ Approved scope: the Videos packets (V0 to V6) were approved by Shy on 2026-10-13
 
 > **Amendment note (library setup WP10, 2026-10-23):** this two-card step and the YouTube switch are replaced by the Add folder wizard (What is it? / Library / Folder / How) and its kind cards, where the kind decides the lookup and plain kinds can be named custom libraries; see D53 here and [Simpler library setup](library-setup-groups.md) D6, D23 and D51.
 
+> **Wording note (Shy, 2026-11-06, details page spec v4.1 item 17 and WP13; local check item 27):** wherever this spec says a folder of videos behaves "like TV" with "episodes" and "seasons", the behaviour stays (order, sections, progress, resume, up next, mark watched) but the words change. A folder of Videos or Other videos is a plain ordered list of **videos**, its sub-folders are named **sections**, its button says **Play** or **Resume** (never "S1 E1" or "Watch S1 E1") and its tile and hero button say **Open folder**. It never says Show, Season or Episode, on Home, Watch, search, Needs Review, the details page or the editor, and has no Match tab. TV shows keep Seasons and Episodes. One shared helper owns the words (`VideoFolderWording` in the Domain project); the Engine's media type `Videos` decides what is a folder.
+
 **Watch.** A new shelf "Videos". Series cards use the existing group-tile rules; standalone videos are plain video tiles. Series page: cover, description, "How we identified this", sections, episode list with progress rings, Resume, Up Next, mark watched. Standalone page: like a movie page without cast or rating. Playback uses the existing Watch player (resume, chapters, subtitles, fallback streaming) unchanged.
 
 | Situation | What the person sees |

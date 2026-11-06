@@ -1,4 +1,5 @@
 using MediaEngine.Contracts.Metadata;
+using MediaEngine.Domain.Services;
 
 namespace MediaEngine.Web.Services.Editing;
 
@@ -19,6 +20,7 @@ public static class EditorHeaderRules
         var label = scope switch
         {
             "series" when tv => "TV show",
+            "series" when VideoFolderWording.IsVideoFolderMediaType(mediaType) => VideoFolderWording.KindLabel,
             "season" => "TV season",
             "episode" => "TV episode",
             "album" => "Album",

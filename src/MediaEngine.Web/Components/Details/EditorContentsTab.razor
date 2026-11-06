@@ -202,7 +202,8 @@
 
     private string SentinelId => $"tl-contents-more-{ParentId:N}";
 
-    private string Heading => Family.Kind switch
+    // A folder of Other videos lists "Videos and sections", never Books and issues, Seasons or Episodes (item 17).
+    private string Heading => Family.IsVideoFolder ? VideoFolderWording.ContentsHeading : Family.Kind switch
     {
         EditorFamilyKind.Show => L["EditorContents_HeadingShow"].Value,
         EditorFamilyKind.Album => L["EditorContents_HeadingAlbum"].Value,

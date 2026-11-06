@@ -1,6 +1,7 @@
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Display;
 using MediaEngine.Domain.Enums;
+using MediaEngine.Domain.Services;
 using MediaEngine.Web.Models.ViewDTOs;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
@@ -64,6 +65,13 @@ public sealed record MediaTileActionTarget(Guid Id, string Title, ProfileEntityK
     public static string? GoToKind(MediaTileViewModel item)
     {
         ArgumentNullException.ThrowIfNull(item);
+
+        // A folder of Other videos is built like a show but is a folder (item 17).
+        if (VideoFolderWording.IsVideoFolderMediaType(item.MediaKind))
+        {
+            return "folder";
+        }
+
         if (item.EpisodeContext is not null || item.Subject == DisplaySubjectKind.TvEpisode || item.Subject == DisplaySubjectKind.TvShow)
         {
             return "show";
