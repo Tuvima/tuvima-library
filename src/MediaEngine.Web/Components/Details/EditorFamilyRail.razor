@@ -26,7 +26,7 @@
         <div class="tl-rail-tile" aria-busy="@(busy ? "true" : null)">
             @if (levels.Count == 0)
             {
-                <span class="tl-rail__skeleton tl-rail__skeleton--tile"><AppSkeleton Height="6.75rem" Width="13.5rem" /></span>
+                <span class="tl-rail__skeleton tl-rail__skeleton--tile"><AppSkeleton Height="6.75rem" Width="8.5rem" /></span>
             }
             else
             {
@@ -105,14 +105,20 @@
                     aria-expanded="@(hasChoices ? (isOpen ? "true" : "false") : null)"
                     aria-current="@(isCurrent && !placeholder ? "true" : null)"
                     data-level="@level.Label"
+                    aria-label="@(isTile ? $"{level.Label}: {level.CurrentTitle}" : null)"
                     OnClick="() => ClickCrumbAsync(index, level, hasChoices)">
-                <span class="tl-rail__thumb" data-kind="@level.Label" aria-hidden="true">
-                    @if (!string.IsNullOrWhiteSpace(level.CurrentImageUrl))
-                    {
-                        <AppImage Src="@level.CurrentImageUrl" Alt="" Width="@(isTile ? 56 : 32)" Height="@(isTile ? 84 : 32)" ObjectFit="AppObjectFit.Cover" Class="tl-rail__img" />
-                    }
-                </span>
-                <span class="tl-rail__text"><small>@level.Label</small><span>@level.CurrentTitle</span></span>
+                @* The fixed tile is the picture and its short label only: the title is said once, in the header beside it. A level nothing is chosen
+                   at yet ("Choose an episode") is a plain labeled select with no empty picture. *@
+                @if (!placeholder)
+                {
+                    <span class="tl-rail__thumb" data-kind="@level.Label" aria-hidden="true">
+                        @if (!string.IsNullOrWhiteSpace(level.CurrentImageUrl))
+                        {
+                            <AppImage Src="@level.CurrentImageUrl" Alt="" Width="@(isTile ? 56 : 32)" Height="@(isTile ? 84 : 32)" ObjectFit="AppObjectFit.Cover" Class="tl-rail__img" />
+                        }
+                    </span>
+                }
+                <span class="tl-rail__text"><small>@level.Label</small>@if (!isTile) {<span>@level.CurrentTitle</span>}</span>
                 @if (waiting > 0)
                 {
                     <span class="tl-rail__dot" role="img" aria-label="@L["EditorRail_ChangesWaiting"]" title="@L["EditorRail_ChangesWaiting"]"></span>

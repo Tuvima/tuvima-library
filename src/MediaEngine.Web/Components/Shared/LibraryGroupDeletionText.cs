@@ -1,4 +1,5 @@
 using MediaEngine.Contracts.Items;
+using MediaEngine.Domain.Services;
 using MediaEngine.Web.Services.Formatting;
 
 namespace MediaEngine.Web.Components.Shared;
@@ -29,7 +30,8 @@ public static class LibraryGroupDeletionText
         var type = items.Select(item => item.MediaType).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? string.Empty;
         var singular = type.ToLowerInvariant() switch
         {
-            "tv" or "videos" => "episode",
+            "tv" => "episode",
+            "videos" => VideoFolderWording.ItemLabel.ToLowerInvariant(),
             "music" => "track",
             "books" => "book",
             "audiobooks" => "audiobook",
@@ -44,9 +46,15 @@ public static class LibraryGroupDeletionText
     {
         var count = group.TitlesOwned;
         var titles = $"{DisplayFormat.FormatCount(count)} {Noun(items, count)}";
-        return group.Kind == "show" && group.SubGroups.Count > 0
-            ? $"{DisplayFormat.FormatCount(group.SubGroups.Count)} {(group.SubGroups.Count == 1 ? "season" : "seasons")} · {titles}"
-            : titles;
+        if (group.Kind != "show" || group.SubGroups.Count == 0)
+        {
+            return titles;
+        }
+
+        // A folder of Other videos has sections, not seasons (item 17).
+        var isVideoFolder = items.Any(item => VideoFolderWording.IsVideoFolderMediaType(item.MediaType));
+        var subGroups = group.SubGroups.Count;
+        return $"{DisplayFormat.FormatCount(subGroups)} {(isVideoFolder ? (subGroups == 1 ? "section" : "sections") : subGroups == 1 ? "season" : "seasons")} · {titles}";
     }
 
     /// <summary>"Season 3: 6 of 10 episodes owned" for every part that is only partly owned; empty when all of it is.</summary>

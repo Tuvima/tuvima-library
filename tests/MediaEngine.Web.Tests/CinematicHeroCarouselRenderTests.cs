@@ -347,5 +347,76 @@ public sealed class CinematicHeroCarouselRenderTests : AsyncBunitContext
         Assert.False(Renderer.UnhandledException.IsCompleted);
     }
 
+    [Theory]
+    [InlineData("Video", DisplayContinuationState.Unstarted, "Play")]
+    [InlineData("Videos", DisplayContinuationState.InProgress, "Resume")]
+    [InlineData("Other videos", DisplayContinuationState.InProgress, "Resume")]
+    [InlineData("YouTube", DisplayContinuationState.Unstarted, "Play")]
+    public void AVideoOnTheDesktopHero_SaysPlayOrResume_AndNeverReading(string kind, DisplayContinuationState state, string expected)
+    {
+        var hero = new DiscoveryHeroViewModel
+        {
+            Title = "Test Drive (Part 1)",
+            MediaKind = kind,
+            PrimaryActionLabel = state == DisplayContinuationState.InProgress ? "Continue Reading" : "Read",
+            PrimaryNavigationUrl = "/watch/player/x",
+            ContinuationState = state,
+            ProgressPct = state == DisplayContinuationState.InProgress ? 12 : null,
+            StatusText = state == DisplayContinuationState.InProgress ? "12% watched" : null,
+        };
+
+        var cut = Render<CinematicHeroCarousel>(p => p.Add(c => c.Items, [hero]));
+
+        Assert.StartsWith(expected, cut.Find(".tl-detail-action--primary").TextContent.Trim());
+        Assert.DoesNotContain("Read", cut.Markup, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Book", cut.Markup, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(cut.FindAll(".tl-detail-hero--read"));
+        if (state == DisplayContinuationState.InProgress)
+        {
+            Assert.Equal("Continue Watching", cut.Find(".cinematic-hero-carousel__context").TextContent);
+        }
+    }
+
+    [Theory]
+    [InlineData("Podcast")]
+    [InlineData("")]
+    public void AKindTheHeroDoesNotKnow_NeverReadsAsABook(string kind)
+    {
+        var hero = new DiscoveryHeroViewModel
+        {
+            Title = "Something",
+            MediaKind = kind,
+            PrimaryActionLabel = "Continue",
+            PrimaryNavigationUrl = "/x",
+            ContinuationState = DisplayContinuationState.InProgress,
+            ProgressPct = 40,
+        };
+
+        var cut = Render<CinematicHeroCarousel>(p => p.Add(c => c.Items, [hero]));
+
+        Assert.DoesNotContain("Reading", cut.Markup, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Continue Listening", cut.Markup, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(cut.FindAll(".tl-detail-hero--read"));
+        Assert.Equal("Continue", cut.Find(".cinematic-hero-carousel__context").TextContent);
+    }
+
+    [Fact]
+    public void AVideoFolderOnTheDesktopHero_SaysOpenFolderWithSectionsAndVideos_NeverShowSeasonsOrEpisodes()
+    {
+        var hero = new DiscoveryHeroViewModel
+        {
+            Title = "Blazor From Start to Finish",
+            MediaKind = "Videos",
+            PrimaryActionLabel = "Open folder",
+            PrimaryNavigationUrl = "/details/tvshow/x",
+            MetaPills = ["2024", "14 sections", "88 videos"],
+        };
+
+        var cut = Render<CinematicHeroCarousel>(p => p.Add(c => c.Items, [hero]));
+
+        Assert.Equal("Open folder", cut.Find(".tl-detail-action--primary").TextContent.Trim());
+        Assert.False(MediaEngine.Domain.Services.VideoFolderWording.UsesTvWording(cut.Find(".cinematic-hero-surface").TextContent));
+    }
+
     private static DiscoveryHeroViewModel Hero(string title) => new() { Title = title, MediaKind = "Movie", PrimaryActionLabel = "Watch" };
 }

@@ -173,6 +173,7 @@
         "music" => AppMaterialIcons.Outlined.Album,
         "audiobook" => AppMaterialIcons.Outlined.Headphones,
         var other when PhoneHeroPresentation.IsVideoKind(other) => AppMaterialIcons.Outlined.Movie,
-        _ => AppMaterialIcons.Outlined.MenuBook,
+        "book" or "books" or "ebook" or "comic" or "comics" => AppMaterialIcons.Outlined.MenuBook,
+        _ => AppMaterialIcons.Outlined.Image, // An unknown kind never gets the book icon.
     };
 }

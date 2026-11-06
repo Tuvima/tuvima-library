@@ -525,7 +525,9 @@ else if (Model is not null)
                 targets.Add(new LibraryGroupTarget(seasonId, LibraryGroupKinds.Season, season.Title, season.Items.Where(item => item.IsOwned && Guid.TryParse(item.Id, out _)).Select(item => Guid.Parse(item.Id)).ToList()));
             }
 
-            targets.Add(new LibraryGroupTarget(id, kind, Model.Title, owned));
+            var isVideoFolder = kind == LibraryGroupKinds.Show
+                && VideoFolderWording.IsVideoFolderList(Model.SequencePlacement?.ContainerLabel, Model.SequencePlacement?.ItemLabel);
+            targets.Add(new LibraryGroupTarget(id, kind, Model.Title, owned, isVideoFolder));
             return targets;
         }
     }
@@ -545,6 +547,7 @@ else if (Model is not null)
     private static string GroupDeleteLabel(LibraryGroupTarget target) => target.Kind switch
     {
         LibraryGroupKinds.Season => $"Delete {target.Title}…",
+        LibraryGroupKinds.Show when target.IsVideoFolder => "Delete folder…",
         LibraryGroupKinds.Show => "Delete show…",
         LibraryGroupKinds.Album => "Delete album…",
         _ => "Delete Series…",

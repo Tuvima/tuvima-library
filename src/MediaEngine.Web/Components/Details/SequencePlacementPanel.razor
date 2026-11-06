@@ -60,7 +60,7 @@
                     <AppCssElement Tag="div"
                                    Class="tl-series-detail__control tl-series-detail__control--group"
                                    >
-                        <span class="sr-only">@(IsSeasonContainer ? "Season" : "Arc / sub-series")</span>
+                        <span class="sr-only">@(IsSeasonContainer ? "Season" : IsVideoFolder ? VideoFolderWording.SectionLabel : "Arc / sub-series")</span>
                         <AppSelect Value="@SelectedGroupKey"
                                    ValueChanged="SelectGroup"
                                    Options="@GroupSelectOptions"
@@ -651,7 +651,9 @@ else
         && Placement.CurrentItem.EntityType is DetailEntityType.TvShow or DetailEntityType.TvSeason or DetailEntityType.TvEpisode;
     private bool ShowGroupSelector => IsSeasonContainer
         || (VisibleGroups.Count > 1 && !string.IsNullOrWhiteSpace(Placement.GroupLabel));
-    private string HeadingLabel => IsSeasonContainer ? "Season" : "Series";
+    // A folder of Other videos is a plain list of videos whose sub-folders are named sections (item 17): never Season, Series or Show.
+    private bool IsVideoFolder => VideoFolderWording.IsVideoFolderList(Placement.ContainerLabel, Placement.ItemLabel);
+    private string HeadingLabel => IsSeasonContainer ? "Season" : IsVideoFolder ? VideoFolderWording.ContainerLabel : "Series";
     private string HeadingValue => IsSeasonContainer
         ? SeasonHeading
         : ContainerTitleDisplay;
@@ -672,8 +674,8 @@ else
     private string ShowDetailRoute => Guid.TryParse(Placement.ContainerId, out var showId)
         ? $"/details/tvshow/{showId:D}?context=watch"
         : "#";
-    private string GroupSelectorAriaLabel => IsSeasonContainer ? "Choose season" : "Choose series section";
-    private string SourceKindLabel => IsSeasonContainer ? "Show" : "Series";
+    private string GroupSelectorAriaLabel => IsSeasonContainer ? "Choose season" : IsVideoFolder ? "Choose section" : "Choose series section";
+    private string SourceKindLabel => IsSeasonContainer ? "Show" : IsVideoFolder ? VideoFolderWording.ContainerLabel : "Series";
     private bool HasExpandableSeriesDescription => _hasExpandableSeriesDescription;
     private string SeriesDescriptionClass => $"tl-series-information__copy{(_seriesDescriptionExpanded ? " is-expanded" : string.Empty)}";
     private IReadOnlyDictionary<string, object> SeriesDescriptionToggleAttributes => new Dictionary<string, object>

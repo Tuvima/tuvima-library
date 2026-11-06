@@ -1,5 +1,6 @@
 using Bunit;
 using MediaEngine.Contracts.Metadata;
+using MediaEngine.Domain.Services;
 using MediaEngine.Web.Components.Details;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Editing;
@@ -98,7 +99,11 @@ public sealed class EditorFamilyRailTests : AsyncBunitContext
     {
         var (_, rail) = await ShowAsync();
 
-        Assert.Equal(["Le Continental", "Season 1", "Episode 2"], rail.FindAll(".tl-rail__crumb[data-level]").Select(crumb => crumb.QuerySelector(".tl-rail__text > span")!.TextContent.Trim()));
+        // The show is a tile with only its picture and its short label (the title is said once, in the header); later levels name their item.
+        Assert.Equal(["Show: Le Continental", "Season 1", "Episode 2"], rail.FindAll(".tl-rail__crumb[data-level]")
+            .Select(crumb => crumb.GetAttribute("aria-label") ?? crumb.QuerySelector(".tl-rail__text > span")!.TextContent.Trim()));
+        Assert.Equal("Show", Crumb(rail, "Show").QuerySelector(".tl-rail__text > small")!.TextContent.Trim());
+        Assert.Empty(Crumb(rail, "Show").QuerySelectorAll(".tl-rail__text > span"));
         Assert.Equal("Episode 2", Crumb(rail, "Episode").GetAttribute("data-level"));
         Assert.Equal("true", Crumb(rail, "Episode").GetAttribute("aria-current"));
         Assert.Equal("false", Crumb(rail, "Season").GetAttribute("aria-expanded"));
@@ -136,6 +141,8 @@ public sealed class EditorFamilyRailTests : AsyncBunitContext
 
         // Its episode, chosen from the empty "Choose an episode" dropdown the rail offers under a season.
         Assert.Equal("Choose an episode", Crumb(rail, "Episode").QuerySelector(".tl-rail__text > span")!.TextContent.Trim());
+        // Nothing is chosen at that level yet, so it is a plain labeled select with no empty picture.
+        Assert.Empty(Crumb(rail, "Episode").QuerySelectorAll(".tl-rail__thumb"));
         Pick(rail, "Episode", "Episode 3");
         rail.WaitForAssertion(() => Assert.Equal(EpisodeThree, host.Session.ActiveItem!.EntityId));
         host.Session.Pending.SetField(EpisodeThree, "description", "Edited third.");
@@ -278,7 +285,10 @@ public sealed class EditorFamilyRailTests : AsyncBunitContext
         // The show is a fixed tile (no list), the dropdowns are listboxes, and there is no separate rail row above the header.
         var tile = cut.Find(".tl-editor-header__tile .tl-rail__crumb--tile");
         Assert.Null(tile.GetAttribute("aria-haspopup"));
-        Assert.Equal("Le Continental", tile.QuerySelector(".tl-rail__text > span")!.TextContent.Trim());
+        // The tile is the picture and the short label "Show": the title is not repeated under it (the header says it once).
+        Assert.Equal("Show", tile.QuerySelector(".tl-rail__text")!.TextContent.Trim());
+        Assert.Equal("Show: Le Continental", tile.GetAttribute("aria-label"));
+        Assert.DoesNotContain("Le Continental", tile.TextContent);
         Assert.All(cut.FindAll(".tl-editor-header__selects .tl-rail__crumb"), crumb => Assert.Equal("listbox", crumb.GetAttribute("aria-haspopup")));
         Assert.Empty(cut.FindAll(".tl-editor-window__top"));
         Assert.Empty(cut.FindAll(".tl-rail__sep"));
@@ -309,6 +319,50 @@ public sealed class EditorFamilyRailTests : AsyncBunitContext
         tile.Find(".tl-rail__crumb--tile").Click();
 
         tile.WaitForAssertion(() => Assert.Contains(_opened, item => item.EntityId == ShowId));
+    }
+
+    [Fact]
+    public async Task AFolderOfOtherVideos_IsAFolderWithSectionsAndVideos_NeverAShowWithSeasonsAndEpisodes()
+    {
+        var folder = Guid.NewGuid();
+        var section = Guid.NewGuid();
+        var video = Guid.NewGuid();
+        var api = EngineApiClientStub.Create(stub =>
+        {
+            stub.SetHandler(nameof(IEngineApiClient.GetMediaEditorNavigatorAsync), _ => Task.FromResult<MediaEditorNavigatorDto?>(new MediaEditorNavigatorDto
+            {
+                Enabled = true,
+                MediaType = "Videos",
+                ContainerEntityId = folder,
+                SelectedEntityId = video,
+                Nodes =
+                [
+                    new() { NodeId = folder, EntityId = folder, NodeKind = "work", Title = "Python Course", Depth = 0, IsRoot = true, IsLeaf = false, IsOwned = true },
+                    new() { NodeId = section, EntityId = section, ParentNodeId = folder, NodeKind = "work", Title = "Week 1", Depth = 1, IsRoot = false, IsLeaf = false, IsOwned = true },
+                ],
+            }));
+            stub.SetHandler(nameof(IEngineApiClient.GetMediaEditorOwnedChildrenAsync), args => Task.FromResult(new MediaEditorOwnedChildSearchDto
+            {
+                ParentEntityId = (Guid)args![0]!,
+                Page = 1,
+                PageSize = 50,
+                TotalCount = 1,
+                Items = [new MediaEditorOwnedChildDto { WorkId = video, AssetId = Guid.NewGuid(), Title = "Welcome", MatchedNumber = "1", SourceFileName = "welcome.mp4", SourceFilePath = "/library/welcome.mp4", MatchState = "matched" }],
+            }));
+        });
+        var trail = new List<EditTrailItem> { new(folder, "Python Course", EditTrailKinds.Show), new(section, "Week 1", EditTrailKinds.Season), new(video, "Welcome", EditTrailKinds.Episode) };
+        var host = await OpenAsync(api, video, trail, "Videos");
+
+        var rail = Render<EditorFamilyRail>(parameters => parameters
+            .Add(rail => rail.Family, host.Family)
+            .Add(rail => rail.Flow, host.Flow));
+
+        rail.WaitForAssertion(() => Assert.NotEmpty(rail.FindAll(".tl-rail__crumb[data-level]")));
+        Assert.True(host.Family.IsVideoFolder);
+        var words = rail.FindAll(".tl-rail__crumb[data-level]").Select(crumb => crumb.GetAttribute("data-level")!).ToList();
+        Assert.Equal("Folder", words[0]);
+        Assert.All(words, word => Assert.False(VideoFolderWording.UsesTvWording(word), $"The rail says \"{word}\"."));
+        Assert.All(words, word => Assert.NotEqual("Book", word.Split(' ')[0]));
     }
 
     private static string LevelOf(AngleSharp.Dom.IElement crumb) => crumb.GetAttribute("data-level")!.Split(' ')[0];

@@ -1,3 +1,4 @@
+using MediaEngine.Domain.Services;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Integration;
 
@@ -17,6 +18,7 @@ public static class EditorDeleteRules
     public static LibraryGroupTarget? GroupFor(Guid entityId, string title, string? scopeId, string? mediaType)
     {
         var tv = string.Equals(mediaType, "TV", StringComparison.OrdinalIgnoreCase);
+        var videoFolder = VideoFolderWording.IsVideoFolderMediaType(mediaType);
         var kind = (scopeId ?? string.Empty).ToLowerInvariant() switch
         {
             "series" when tv => LibraryGroupKinds.Show,
@@ -25,7 +27,7 @@ public static class EditorDeleteRules
             "album" => LibraryGroupKinds.Album,
             _ => null,
         };
-        return kind is null || entityId == Guid.Empty ? null : new LibraryGroupTarget(entityId, kind, title, []);
+        return kind is null || entityId == Guid.Empty ? null : new LibraryGroupTarget(entityId, kind, title, [], videoFolder && kind == LibraryGroupKinds.Series);
     }
 
     /// <summary>The "..." entry for the item being edited: "Delete episode…", "Delete season…", "Delete show…".</summary>
@@ -35,6 +37,7 @@ public static class EditorDeleteRules
             LibraryGroupKinds.Show => "Delete show…",
             LibraryGroupKinds.Season => "Delete season…",
             LibraryGroupKinds.Album => "Delete album…",
+            _ when group.IsVideoFolder => "Delete folder…",
             _ => "Delete Series…",
         }
         : (scopeId ?? string.Empty).ToLowerInvariant() switch

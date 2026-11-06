@@ -1,4 +1,5 @@
 using MediaEngine.Contracts.Metadata;
+using MediaEngine.Domain.Services;
 using MediaEngine.Web.Services.Integration;
 
 namespace MediaEngine.Web.Services.Editing;
@@ -135,6 +136,9 @@ public sealed class EditorFamilyState
     /// <summary>Which family is shown; <see cref="EditorFamilyKind.None"/> while loading an unknown item and for any item without one.</summary>
     public EditorFamilyKind Kind { get; private set; }
 
+    /// <summary>True when the family is a folder of Other videos: a plain list of videos with named sections, never Show, Season, Episode or Book (item 17).</summary>
+    public bool IsVideoFolder { get; private set; }
+
     /// <summary>True while the shape of the family is being read (the column shows row skeletons; the right side is usable at once).</summary>
     public bool Loading { get; private set; }
 
@@ -163,6 +167,7 @@ public sealed class EditorFamilyState
         _rootId = Guid.Empty;
         _requestedFor = Guid.Empty;
         Kind = EditorFamilyKind.None;
+        IsVideoFolder = false;
         Loading = false;
         Changed?.Invoke();
     }
@@ -237,6 +242,7 @@ public sealed class EditorFamilyState
             // No family: the Engine does not know the id as a library item (a person, a collection, a Universe), or it could not be reached.
             // The right side never waits on this, so the column simply stays out of the way.
             Kind = EditorFamilyKind.None;
+            IsVideoFolder = false;
             _rootId = Guid.Empty;
             Changed?.Invoke();
             return;
@@ -321,6 +327,7 @@ public sealed class EditorFamilyState
         _requestedFor = Guid.Empty;
         _nodes.Clear();
         Kind = EditorFamilyKind.None;
+        IsVideoFolder = false;
         await EnsureAsync(entityId, open);
     }
 
@@ -380,7 +387,7 @@ public sealed class EditorFamilyState
         for (var index = 0; index < chain.Count; index++)
         {
             var step = chain[index];
-            var label = LabelOf(step.Kind, index == 0, step.Node?.Detail);
+            var label = LabelOf(step.Kind, index == 0, step.Node?.Detail, step.Node?.IsParent ?? false);
             if (index == 0)
             {
                 levels.Add(new RailLevel(label, step.Id, step.Title, step.Image, [ToOption(root)], Guid.Empty, false, false, 0));
@@ -413,7 +420,7 @@ public sealed class EditorFamilyState
                     EditorFamilyKind.Album => EditTrailKinds.Track,
                     _ => "Item",
                 };
-            var childLabel = LabelOf(childKind, false, null);
+            var childLabel = LabelOf(childKind, false, null, childrenAreParents);
             var children = (childrenAreParents ? tail.Parents : tail.Leaves).Select(id => ToOption(_nodes[id])).ToList();
             var more = !childrenAreParents && tail.HasMore;
             levels.Add(new RailLevel(
@@ -432,8 +439,16 @@ public sealed class EditorFamilyState
     }
 
     // "Show", "Season", "Episode 3": the kind in small type above the item's name in the rail.
-    private static string LabelOf(string kind, bool isRoot, string? number)
+    private string LabelOf(string kind, bool isRoot, string? number, bool isParent)
     {
+        // A folder of Other videos: the folder, its named sections, then its videos.
+        if (IsVideoFolder)
+        {
+            var isSection = !isRoot && (isParent || kind == EditTrailKinds.Season);
+            var videoName = isRoot ? VideoFolderWording.ContainerLabel : isSection ? VideoFolderWording.SectionLabel : VideoFolderWording.ItemLabel;
+            return string.IsNullOrWhiteSpace(number) || isRoot || isSection ? videoName : $"{videoName} {number}";
+        }
+
         var name = kind switch
         {
             EditTrailKinds.Show => "Show",
@@ -670,6 +685,7 @@ public sealed class EditorFamilyState
         _nodes.Clear();
         _rootId = Guid.Empty;
         Kind = EditorFamilyKind.None;
+        IsVideoFolder = VideoFolderWording.IsVideoFolderMediaType(navigator.MediaType);
         var root = navigator.Nodes.FirstOrDefault(node => node.IsRoot);
         if (!navigator.Enabled || root is null || root.IsLeaf
             || string.Equals(navigator.MediaType, "Movies", StringComparison.OrdinalIgnoreCase))

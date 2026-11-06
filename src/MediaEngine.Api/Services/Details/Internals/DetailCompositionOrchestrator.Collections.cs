@@ -356,6 +356,17 @@ internal sealed partial class DetailCompositionOrchestrator
             collectionBanner = null;
             collectionCover = tvInProgressEpisode.BackgroundUrl;
         }
+        // A folder of Other videos has no portrait cover of its own: its picture is a frame taken from a video, which fills the page's
+        // background like a film's backdrop instead of sitting as a small picture inside a cover (item 17 and D18). With no frame the
+        // folder's own picture stays as it was.
+        var isVideoFolder = entityType == DetailEntityType.TvShow && VideoFolderWording.IsVideoFolderMediaType(works.FirstOrDefault()?.MediaType);
+        if (isVideoFolder && tvInProgressEpisode is null
+            && string.IsNullOrWhiteSpace(collectionBackdrop) && string.IsNullOrWhiteSpace(collectionBanner)
+            && !string.IsNullOrWhiteSpace(collectionCover))
+        {
+            collectionBackdrop = collectionCover;
+        }
+
         var collectionLogo = StringHelpers.FirstNonBlankOr(string.Empty, row.LogoUrl, GetValue(values, "logo_url"), GetValue(values, "logo"));
         IReadOnlyList<CreditGroupViewModel> contributorGroups = IsStructuralContainer(entityType) || placementOnly
             ? []
@@ -487,9 +498,9 @@ internal sealed partial class DetailCompositionOrchestrator
             Title = collectionTitle,
             Subtitle = entityType == DetailEntityType.TvShow ? ResolveTvContext(works) switch
             {
-                { Reason: TvEpisodeSelectionReason.AllOwnedCompleted } => "All owned episodes watched",
-                { Reason: TvEpisodeSelectionReason.RemainingOwned } => "Earlier owned episodes remain unwatched",
-                { HasGap: true } => "Next available episode - intervening episodes are not in the library",
+                { Reason: TvEpisodeSelectionReason.AllOwnedCompleted } => isVideoFolder ? "All owned videos watched" : "All owned episodes watched",
+                { Reason: TvEpisodeSelectionReason.RemainingOwned } => isVideoFolder ? "Earlier owned videos remain unwatched" : "Earlier owned episodes remain unwatched",
+                { HasGap: true } => isVideoFolder ? "Next available video - intervening videos are not in the library" : "Next available episode - intervening episodes are not in the library",
                 _ => BuildCollectionSubtitle(entityType, displayWorks, values),
             } : BuildCollectionSubtitle(entityType, displayWorks, values),
             Tagline = entityType == DetailEntityType.TvShow

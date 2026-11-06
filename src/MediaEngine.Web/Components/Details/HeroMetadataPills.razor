@@ -346,8 +346,9 @@
         "type" => "Type",
         "page_count" => "Length",
         "track_count" => "Tracks",
-        "season_count" => "Seasons",
-        "episode_count" => "Episodes",
+        // A folder of Other videos counts sections and videos in the same slots (item 17).
+        "season_count" => item.Label.Contains("section", StringComparison.OrdinalIgnoreCase) ? "Sections" : "Seasons",
+        "episode_count" => item.Label.Contains("video", StringComparison.OrdinalIgnoreCase) ? "Videos" : "Episodes",
         "item_count" => "Items",
         "read_count" => "Read",
         "watch_count" => "Watch",

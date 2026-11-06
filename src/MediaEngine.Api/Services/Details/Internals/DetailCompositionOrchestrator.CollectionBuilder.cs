@@ -592,7 +592,7 @@ internal sealed partial class DetailCompositionOrchestrator
             .Where(entry => !string.IsNullOrWhiteSpace(entry.Season))
             .GroupBy(entry => entry.Season!, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(group => group.Key, group => group.Max(entry => entry.Value), StringComparer.OrdinalIgnoreCase);
-        var isVideoFolder = entityType == DetailEntityType.TvShow && string.Equals(works.FirstOrDefault()?.MediaType, "Videos", StringComparison.OrdinalIgnoreCase);
+        var isVideoFolder = entityType == DetailEntityType.TvShow && VideoFolderWording.IsVideoFolderMediaType(works.FirstOrDefault()?.MediaType);
         var groups = entityType == DetailEntityType.TvShow
             ? items
                 .GroupBy(item => item.GroupKey ?? "season-1")
@@ -1048,6 +1048,7 @@ internal sealed partial class DetailCompositionOrchestrator
                 .OrderBy(year => year, StringComparer.OrdinalIgnoreCase)
                 .FirstOrDefault();
             var ownedEpisodeCount = works.Count(work => work.IsOwned && InferMediaItemEntityType(work) == DetailEntityType.TvEpisode);
+            var videoFolder = VideoFolderWording.IsVideoFolderMediaType(works.FirstOrDefault()?.MediaType);
 
             tvPlaybackValues ??= new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             AddPlain(pills, StringHelpers.FirstNonBlankOr(string.Empty,
@@ -1065,7 +1066,9 @@ internal sealed partial class DetailCompositionOrchestrator
                 GetValue(values, "release_year"),
                 firstOwnedYear), "year");
             AddPlain(pills, ownedEpisodeCount > 0
-                ? $"{ownedEpisodeCount.ToString(CultureInfo.InvariantCulture)} {(ownedEpisodeCount == 1 ? "episode" : "episodes")}"
+                ? videoFolder
+                    ? VideoFolderWording.VideoCount(ownedEpisodeCount)
+                    : $"{ownedEpisodeCount.ToString(CultureInfo.InvariantCulture)} {(ownedEpisodeCount == 1 ? "episode" : "episodes")}"
                 : null, "episode_count");
             AddPlain(pills, StringHelpers.FirstNonBlankOr(string.Empty,
                 FormatTrackDuration(StringHelpers.FirstNonBlankOr(string.Empty,
@@ -1197,7 +1200,7 @@ internal sealed partial class DetailCompositionOrchestrator
         IReadOnlyList<CollectionWorkSummary> works)
         => entityType switch
         {
-            DetailEntityType.TvShow => BuildTvShowWatchActions(works, heroProgress),
+            DetailEntityType.TvShow => BuildTvShowWatchActions(works, heroProgress, VideoFolderWording.IsVideoFolderMediaType(works.FirstOrDefault()?.MediaType)),
             DetailEntityType.MusicAlbum => BuildMusicAlbumActions(),
             DetailEntityType.Collection or DetailEntityType.BookSeries or DetailEntityType.ComicSeries or DetailEntityType.MovieSeries
                 => [new DetailAction
@@ -1219,7 +1222,8 @@ internal sealed partial class DetailCompositionOrchestrator
 
     private static IReadOnlyList<DetailAction> BuildTvShowWatchActions(
         IReadOnlyList<CollectionWorkSummary> works,
-        ProgressViewModel? heroProgress)
+        ProgressViewModel? heroProgress,
+        bool videoFolder = false)
     {
         var episode = SelectActiveTvEpisode(works) ?? SelectFirstOwnedTvEpisode(works);
         if (episode is null || !Guid.TryParse(episode.Id, out var episodeId))
@@ -1230,14 +1234,15 @@ internal sealed partial class DetailCompositionOrchestrator
 
         if (works.Where(work => work.IsOwned).All(work => work.ProgressPercent >= 99.5))
         {
-            return [new DetailAction { Key = "watch", Label = $"Rewatch {FormatSeasonEpisode(episode.Season ?? "?", episode.Episode ?? "?")}",
+            return [new DetailAction { Key = "watch", Label = videoFolder ? VideoFolderWording.PlayLabel : $"Rewatch {FormatSeasonEpisode(episode.Season ?? "?", episode.Episode ?? "?")}",
                 Route = $"/watch/player/{episodeId:D}?restart=true", Icon = "play_arrow" }];
         }
 
         return BuildWatchActions(
             $"/watch/player/{episodeId:D}",
             heroProgress,
-            FormatSeasonEpisode(episode.Season ?? "?", episode.Episode ?? "?"));
+            videoFolder ? null : FormatSeasonEpisode(episode.Season ?? "?", episode.Episode ?? "?"),
+            videoFolder);
     }
 
     private static TvEpisodePlaybackContext ResolveTvContext(IReadOnlyList<CollectionWorkSummary> works)

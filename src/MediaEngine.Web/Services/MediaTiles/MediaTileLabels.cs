@@ -1,3 +1,4 @@
+using MediaEngine.Domain.Services;
 using MediaEngine.Web.Models.ViewDTOs;
 
 namespace MediaEngine.Web.Services.MediaTiles;
@@ -77,6 +78,13 @@ public static class MediaTileLabels
     {
         ArgumentNullException.ThrowIfNull(item);
         var one = count == 1;
+
+        // A folder of Other videos is built like a show but holds videos: never "episodes" (item 17).
+        if (VideoFolderWording.IsVideoFolderMediaType(item.MediaKind))
+        {
+            return VideoFolderWording.VideoNoun(count);
+        }
+
         if (item.Presentation == MediaTilePresentation.TvSeries)
         {
             return one ? "episode" : "episodes";

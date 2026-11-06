@@ -683,7 +683,8 @@ public sealed class MediaTileComposerService
         {
             return null;
         }
-        return card.EpisodeContext is not null ? "New Episode" : "New";
+        // A video in a folder of Other videos is a video, never an episode (item 17).
+        return card.EpisodeContext is not null && !Components.Cinematic.PhoneHeroPresentation.IsVideoKind(card.MediaType) ? "New Episode" : "New";
     }
 
     private static string? BadgeLabel(IReadOnlyList<DisplayCardBadgeDto> badges, string kind) =>

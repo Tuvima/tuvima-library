@@ -247,7 +247,8 @@ else if (Slides.Count > 0)
         {
             DetailEntityType.Movie or DetailEntityType.TvShow => "Continue Watching",
             DetailEntityType.Book or DetailEntityType.ComicIssue => "Continue Reading",
-            _ => "Continue Listening",
+            DetailEntityType.Audiobook or DetailEntityType.MusicAlbum => "Continue Listening",
+            _ => "Continue", // An unknown kind never reads as something to read or listen to.
         }
         : string.Empty; // "Featured content" label removed (Home, detail and tiles spec D4).
 
@@ -288,7 +289,8 @@ else if (Slides.Count > 0)
             {
                 DetailEntityType.Movie or DetailEntityType.TvShow => DetailProgressKind.Watching,
                 DetailEntityType.Audiobook or DetailEntityType.MusicAlbum => DetailProgressKind.Listening,
-                _ => DetailProgressKind.Reading,
+                DetailEntityType.Book or DetailEntityType.ComicIssue => DetailProgressKind.Reading,
+                _ => DetailProgressKind.Watching,
             },
         }
         : null;
@@ -300,7 +302,8 @@ else if (Slides.Count > 0)
         DetailEntityType.Movie or DetailEntityType.TvShow => "tl-detail-hero--watch",
         DetailEntityType.MusicAlbum => "tl-detail-hero--music",
         DetailEntityType.Audiobook => "tl-detail-hero--listen",
-        _ => "tl-detail-hero--read",
+        DetailEntityType.Book or DetailEntityType.ComicIssue => "tl-detail-hero--read",
+        _ => "tl-detail-hero--watch",
     };
     // A frame taken from an Other video always fills the hero, however small it is.
     private HomeHeroFraming Framing => PhoneHeroPresentation.IsVideoKind(ActiveHero.MediaKind)
@@ -310,8 +313,11 @@ else if (Slides.Count > 0)
         MediaTileArtworkUrl.Sized(ActiveHero.HeroBackgroundImageUrl ?? ActiveHero.BackgroundImageUrl, "l") is not null);
     private string HeroStyle => $"--cinematic-hero-accent: {ActiveHero.AccentColor}; --hero-image-position:{Framing.Position}; --mobile-image-position:{Framing.Position};";
     private bool IsOpenAction => ActiveHero.PrimaryActionLabel.StartsWith("Open", StringComparison.OrdinalIgnoreCase);
+    // Videos, Other videos and YouTube read Play, or Resume with the time left on the progress line, never Reading.
+    private bool IsVideoHero => PhoneHeroPresentation.IsVideoKind(ActiveHero.MediaKind);
     private string LandingPrimaryLabel => ActiveEntityType switch
     {
+        _ when IsVideoHero && !IsOpenAction => VideoFolderWording.PlayButton(IsContinuation),
         DetailEntityType.MusicAlbum when !IsOpenAction => "Play",
         DetailEntityType.Audiobook when IsContinuation => "Resume",
         DetailEntityType.Audiobook when !IsOpenAction => "Listen",
@@ -342,11 +348,12 @@ else if (Slides.Count > 0)
         "tv" => DetailEntityType.TvShow,
         "music" => DetailEntityType.MusicAlbum,
         "audiobook" => DetailEntityType.Audiobook,
-        "comic" => DetailEntityType.ComicIssue,
+        "comic" or "comics" => DetailEntityType.ComicIssue,
         "book" or "books" or "ebook" => DetailEntityType.Book,
         // Videos, Other videos and YouTube play like a movie; they must never read as a book.
         var other when PhoneHeroPresentation.IsVideoKind(other) => DetailEntityType.Movie,
-        _ => DetailEntityType.Book,
+        // A kind nobody listed is never presented as something to read (D18).
+        _ => DetailEntityType.Work,
     };
 
     private ArtworkSet ActiveArtwork
@@ -830,6 +837,11 @@ else if (Slides.Count > 0)
             return "episode_count";
         if (value.Contains("season", StringComparison.OrdinalIgnoreCase))
             return "season_count";
+        // A folder of Other videos counts "14 sections" and "88 videos" with the pills a show uses for seasons and episodes.
+        if (value.EndsWith(" sections", StringComparison.OrdinalIgnoreCase) || value.EndsWith(" section", StringComparison.OrdinalIgnoreCase))
+            return "season_count";
+        if (value.EndsWith(" videos", StringComparison.OrdinalIgnoreCase) || value.EndsWith(" video", StringComparison.OrdinalIgnoreCase))
+            return "episode_count";
         if (value.Contains("page", StringComparison.OrdinalIgnoreCase))
             return "page_count";
         if (value.Contains("track", StringComparison.OrdinalIgnoreCase))

@@ -147,7 +147,7 @@ internal sealed partial class DetailCompositionOrchestrator
         return new DetailFactsViewModel
         {
             AiResults = BuildAiResults(canonicalValues),
-            MediaKind = FormatEntityType(entityType),
+            MediaKind = entityType == DetailEntityType.TvShow && VideoFolderWording.IsVideoFolderMediaType(works.FirstOrDefault()?.MediaType) ? VideoFolderWording.KindLabel : FormatEntityType(entityType),
             Year = displayedYear ?? string.Empty,
             ReleaseDate = displayedReleaseDate ?? string.Empty,
             Rating = StringHelpers.FirstNonBlankOr(string.Empty, FormatRating(GetValue(canonicalValues, MetadataFieldConstants.Rating)), GetValue(canonicalValues, MetadataFieldConstants.Rating)),
@@ -711,9 +711,10 @@ internal sealed partial class DetailCompositionOrchestrator
             ],
         };
 
-    private static IReadOnlyList<DetailAction> BuildWatchActions(string route, ProgressViewModel? progress, string? episodePosition = null)
+    private static IReadOnlyList<DetailAction> BuildWatchActions(string route, ProgressViewModel? progress, string? episodePosition = null, bool videoFolder = false)
     {
-        var verb = progress is null ? "Watch" : "Resume";
+        // A folder of Other videos says Play or Resume and never carries a season or episode number (item 17).
+        var verb = videoFolder ? VideoFolderWording.PlayButton(progress is not null) : progress is null ? "Watch" : "Resume";
         var watch = new DetailAction
         {
             Key = "watch",
@@ -859,7 +860,8 @@ internal sealed partial class DetailCompositionOrchestrator
         {
             DetailPrimaryModuleKind.Tracks => "Tracks",
             DetailPrimaryModuleKind.Chapters => "Chapters",
-            DetailPrimaryModuleKind.Episodes => "Episodes",
+            // A folder of Other videos lists "Videos", never "Episodes" (item 17).
+            DetailPrimaryModuleKind.Episodes => sequencePlacement is not null && VideoFolderWording.IsVideoFolderList(sequencePlacement.ContainerLabel, sequencePlacement.ItemLabel) ? VideoFolderWording.UnnamedSectionTitle : "Episodes",
             DetailPrimaryModuleKind.Works => "Works in Your Library",
             DetailPrimaryModuleKind.CollectionItems => "Items",
             DetailPrimaryModuleKind.Sequence => sequencePlacement?.ItemPluralLabel ?? "Series",
