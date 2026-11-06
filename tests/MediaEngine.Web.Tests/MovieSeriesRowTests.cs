@@ -1,5 +1,6 @@
 using Bunit;
 using MediaEngine.Contracts.Details;
+using MediaEngine.Contracts.Display;
 using MediaEngine.Web.Components.Details;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Editing;
@@ -119,6 +120,29 @@ public sealed class MovieSeriesRowTests : AsyncBunitContext
         Assert.False(row.ClassList.Contains("is-collapsed"));
         Assert.Null(row.QuerySelector("button.app-collapsible-row__toggle"));
         Assert.Equal("28 Days Later", row.QuerySelector(".app-collapsible-row__title")!.TextContent);
+    }
+
+    [Fact]
+    public void ASeriesRow_ShowsNoCheckmarksOnItsMovies()
+    {
+        var movies = new[]
+        {
+            Item(DetailEntityType.Movie, 1, "Movie 1", current: false),
+            Item(DetailEntityType.Movie, 2, "Movie 2"),
+            Item(DetailEntityType.Movie, 3, "Movie 3", current: true),
+        };
+        movies[0] = new SequenceItemViewModel
+        {
+            Id = movies[0].Id, EntityType = movies[0].EntityType, Title = movies[0].Title, IsOwned = true,
+            PositionLabel = movies[0].PositionLabel, PositionNumber = movies[0].PositionNumber, PositionSort = movies[0].PositionSort,
+            ProgressState = LibraryProgressState.Completed,
+        };
+
+        var cut = Render<SequencePlacementPanel>(p => p
+            .Add(c => c.Placement, Placement(DetailEntityType.Movie, movies))
+            .Add(c => c.DetailSurface, true));
+
+        Assert.Empty(cut.FindAll(".tl-series-item__completed-badge"));
     }
 
     private sealed class NoHistory : IDetailsOverlayHistory

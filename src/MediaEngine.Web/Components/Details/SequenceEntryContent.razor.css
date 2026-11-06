@@ -170,6 +170,10 @@
     font-size: 1rem;
 }
 
+:where(.tl-detail-page) .tl-series-item.is-missing {
+    opacity: 0.6;
+}
+
 :where(.tl-detail-page) .tl-series-item.is-missing .tl-series-item__art {
     border-style: dashed;
     border-color: rgba(255,255,255,0.32);
