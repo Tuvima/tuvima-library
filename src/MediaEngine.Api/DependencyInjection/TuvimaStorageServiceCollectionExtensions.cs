@@ -266,6 +266,8 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IMediaAssetLibraryCountRepository, MediaAssetLibraryCountRepository>();
         // One library's events, read from the tables that already hold them (Library pages D16).
         services.AddSingleton<ILibraryActivityReadRepository, LibraryActivityReadRepository>();
+        // The runs History reads (spec library-activity WP1): one entry per scan, refresh, fix or removal.
+        services.AddSingleton<IActivityRunStore, ActivityRunRepository>();
         services.AddSingleton<MediaEngine.Domain.Contracts.IFilingHold, FolderFirstCheckFilingHold>();
         services.AddSingleton<MediaEngine.Ingestion.Services.UnmatchedFileMarker>();
         services.AddSingleton<MediaEditorCommitRepository>();

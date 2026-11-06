@@ -257,14 +257,23 @@ public sealed class WorkReadinessRepository : IWorkReadinessRepository
                                           w.parent_work_id)
                                       ELSE w.parent_work_id END
                               AND cv.key = 'title' AND TRIM(cv.value) <> '')
-                       END AS GroupTitle
+                       END AS GroupTitle,
+                       -- The show or album itself, so a stacked tile in Activity opens its page.
+                       CASE WHEN w.media_type = 'TV' THEN
+                           COALESCE(
+                               (SELECT gp.id FROM works p
+                                INNER JOIN works gp ON gp.id = p.parent_work_id
+                                WHERE p.id = w.parent_work_id),
+                               w.parent_work_id)
+                            WHEN w.media_type = 'Music' THEN w.parent_work_id
+                       END AS GroupWorkId
                 FROM works w
                 WHERE w.id IN @ids;
                 """, new { ids = ToBlobs(batch) });
 
             foreach (var row in rows)
             {
-                result[row.WorkId] = new WorkReadinessDetails(row.WorkId, row.CollectionId, row.MediaType, row.Title, row.AssetId, row.GroupTitle);
+                result[row.WorkId] = new WorkReadinessDetails(row.WorkId, row.CollectionId, row.MediaType, row.Title, row.AssetId, row.GroupTitle, row.GroupWorkId);
             }
         }
 
@@ -390,5 +399,6 @@ public sealed class WorkReadinessRepository : IWorkReadinessRepository
         public string Title { get; set; } = string.Empty;
         public Guid? AssetId { get; set; }
         public string? GroupTitle { get; set; }
+        public Guid? GroupWorkId { get; set; }
     }
 }
