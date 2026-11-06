@@ -354,7 +354,10 @@
                 {
                     <div class="tl-match__meta">@line</div>
                 }
-                <div class="tl-match__provider-name">@FormatProvider(facts.Provider)</div>
+                <div class="tl-match__provider-name">
+                    <AppProviderLogo FallbackText="@ProviderInitial(facts.Provider)" Size="AppControlSize.Compact" AltText="" Class="tl-match__provider-logo" />
+                    <span>@FormatProvider(facts.Provider)</span>
+                </div>
                 @if (active && Subject is not null)
                 {
                     @BeforeAfter(candidate)
@@ -685,6 +688,8 @@
         _manualPlaced = $"Season {numbers.Season.ToString(CultureInfo.InvariantCulture)}, episode {numbers.Episode.ToString(CultureInfo.InvariantCulture)} staged as this item's own details. {NotSavedYet}";
         return Task.CompletedTask;
     }
+
+    private static string ProviderInitial(string name) => FormatProvider(name) is { Length: > 0 } label ? label[..1].ToUpperInvariant() : "?";
 
     private static string FormatProvider(string name) => ProviderCatalogueService.FormatProviderLabel(name);
 
