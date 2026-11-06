@@ -66,6 +66,8 @@
     private bool _useRetail = true;
     private bool _moveParent;
     private bool _moveFiles;
+    // Whether saving this match checks the item's Wikidata link again (v4.1, WP6). On is how a retail match has always behaved.
+    private bool _recheckWikidata = true;
     private PlaceState _place = PlaceState.None;
     private string? _placeReason;
     private LibraryMoveDestination? _destination;
@@ -143,6 +145,7 @@
         _group = Subject.TargetGroup;
         _query = Subject.Title;
         _leftOut = [];
+        _recheckWikidata = true;
         _provider = string.Empty;
         _selected = null;
         _siblings = null;
@@ -459,6 +462,10 @@
                 <AppSwitchRow Label="Use as the retail match"
                               Description="Which provider record this item is. It does not move the item."
                               Value="@_useRetail" ValueChanged="@(value => { _useRetail = value; _staged = false; })" Disabled="@(!CanEdit)" />
+                <AppSwitchRow Label="Check the Wikidata link again"
+                              Description="@(_recheckWikidata ? "Wikidata is looked up again for this match, unless you set the link yourself." : "The Wikidata link stays exactly as it is.")"
+                              Value="@_recheckWikidata" ValueChanged="@(value => { _recheckWikidata = value; _staged = false; })"
+                              Disabled="@(!CanEdit || !_useRetail)" />
                 @if (_siblingTarget is not null)
                 {
                     <AppSwitchRow Label="@SiblingsLabel"
@@ -1117,6 +1124,7 @@
         if (_useRetail)
         {
             var request = EditorMatchRules.RequestFor(_selected, Subject, _group);
+            request.ClearAutoAlignedWikidata = _recheckWikidata;
             var facts = EditorMatchRules.FactsOf(_selected);
             pending.SetTarget(EditSessionChangeKinds.Identity, id, EditSessionIdentityTarget.Serialize(request), label: $"{facts.Title} ({facts.Provider})", before: MatchBefore(Subject));
         }
