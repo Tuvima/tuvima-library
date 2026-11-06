@@ -4246,6 +4246,73 @@ MediaEngine.Contracts.Items.MediaEngine.Contracts.Items.VideoSeriesTargetDto
   Title: System.String | nullability=not-null | accessors=get,init
   VideoCount: System.Int32 | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.ActivityCoverDto
+  Url: System.String | nullability=nullable | accessors=get,init
+  MediaType: System.String | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.ActivityGroupDto
+  GroupKey: System.String | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  MediaType: System.String | nullability=not-null | accessors=get,init
+  ItemCount: System.Int32 | nullability=not-null | accessors=get,init
+  CoverUrl: System.String | nullability=nullable | accessors=get,init
+  Route: System.String | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.ActivityPurgeRequest
+  OlderThan: System.DateTimeOffset | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.ActivityPurgeResultDto
+  Removed: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.ActivityRunCountDto
+  MediaType: System.String | nullability=not-null | accessors=get,init
+  Count: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.ActivityRunDto
+  Id: System.Guid | nullability=not-null | accessors=get,init
+  LibraryId: System.String | nullability=not-null | accessors=get,init
+  LibraryName: System.String | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  Status: System.String | nullability=not-null | accessors=get,init
+  StartedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+  EndedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+  ItemCount: System.Int32 | nullability=not-null | accessors=get,init
+  Counts: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Library.ActivityRunCountDto> | nullability=not-null | accessors=get,init
+  Covers: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Library.ActivityCoverDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.ActivityRunGroupsDto
+  RunId: System.Guid | nullability=not-null | accessors=get,init
+  Groups: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Library.ActivityGroupDto> | nullability=not-null | accessors=get,init
+  HasMore: System.Boolean | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.ActivityRunKindNames
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.ActivityRunStatusNames
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.ActivityRunsDto
+  Runs: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Library.ActivityRunDto> | nullability=not-null | accessors=get,init
+  HasMore: System.Boolean | nullability=not-null | accessors=get,init
+  LastCompletedAt: System.DateTimeOffset? | nullability=nullable | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.ActivityTitleCardDto
+  GroupKey: System.String | nullability=not-null | accessors=get,init
+  Title: System.String | nullability=not-null | accessors=get,init
+  MediaType: System.String | nullability=not-null | accessors=get,init
+  CoverUrl: System.String | nullability=nullable | accessors=get,init
+  Route: System.String | nullability=nullable | accessors=get,init
+  TotalCount: System.Int32 | nullability=not-null | accessors=get,init
+  Markers: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Library.ActivityTitleMarkerDto> | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.ActivityTitleMarkerDto
+  RunId: System.Guid | nullability=not-null | accessors=get,init
+  Kind: System.String | nullability=not-null | accessors=get,init
+  StartedAt: System.DateTimeOffset | nullability=not-null | accessors=get,init
+  ItemCount: System.Int32 | nullability=not-null | accessors=get,init
+
+MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.ActivityTitleSearchDto
+  Titles: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Library.ActivityTitleCardDto> | nullability=not-null | accessors=get,init
+
 MediaEngine.Contracts.Library.MediaEngine.Contracts.Library.FolderFirstCheckDto
   State: System.String | nullability=not-null | accessors=get,set
   Tried: System.Int32 | nullability=not-null | accessors=get,set
