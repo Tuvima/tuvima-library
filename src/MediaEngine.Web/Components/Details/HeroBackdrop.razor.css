@@ -218,7 +218,6 @@
     font-size: var(--tl-font-size-md);
     font-weight: 700;
     letter-spacing: 0;
-    text-transform: uppercase;
     text-shadow: 0 0.3rem 1.2rem rgba(0, 0, 0, 0.62);
 }
 

@@ -510,7 +510,7 @@
 .collection-flow__name { width: 100%; max-width: 1040px; margin: 0 auto; }
 .collection-flow__start { display: flex; flex-direction: column; gap: 22px; }
 .collection-flow__field { display: flex; flex-direction: column; gap: 8px; }
-.collection-flow__label { color: var(--tl-text-muted); font-size: var(--tl-font-size-xs); letter-spacing: .04em; text-transform: uppercase; }
+.collection-flow__label { color: var(--tl-text-muted); font-size: var(--tl-font-size-xs); letter-spacing: .04em;}
 
 .collection-flow__ways { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
 .collection-flow__cols { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(280px, .9fr); gap: 18px; align-items: start; }

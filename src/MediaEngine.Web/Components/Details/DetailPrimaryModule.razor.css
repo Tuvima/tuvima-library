@@ -162,7 +162,6 @@
     color: rgba(255, 255, 255, 0.48);
     font-size: var(--tl-font-size-xs);
     letter-spacing: 0.1em;
-    text-transform: uppercase;
 }
 
 .tl-detail-primary-module__role-filter select {
@@ -340,7 +339,6 @@
     letter-spacing: 0.07em;
     line-height: 1;
     text-overflow: ellipsis;
-    text-transform: uppercase;
     white-space: nowrap;
     backdrop-filter: blur(0.55rem);
 }

@@ -194,7 +194,7 @@
                                      Class="tl-u-font-family-jetbrains-mono-monospace tl-u-font-size-xs">
                                 @result.Confidence.ToString("F2")
                             </AppChip>
-                            <AppText Typo="AppTypo.caption" Class="tl-u-color-tl-text-faint tl-u-margin-top-4px tl-u-font-family-jetbrains-mono-monospace tl-u-font-size-xs">
+                            <AppText Typo="AppTypo.caption" Class="tl-u-color-tl-text-muted tl-u-margin-top-4px tl-u-font-family-jetbrains-mono-monospace tl-u-font-size-xs">
                                 @result.Qid
                             </AppText>
                         </div>
@@ -360,7 +360,7 @@
                                         @subline
                                         @if (!string.IsNullOrEmpty(subline) && !string.IsNullOrEmpty(tertiary))
                                         {
-                                            <span class="tl-u-color-tl-text-faint tl-u-margin-0-6px">&middot;</span>
+                                            <span class="tl-u-color-tl-text-muted tl-u-margin-0-6px">&middot;</span>
                                         }
                                         @tertiary
                                     </AppText>
@@ -384,19 +384,19 @@
                                 </AppChip>
                                 @if (result.Confidence > 0 && Math.Abs(result.Confidence - result.CompositeScore) > 0.01)
                                 {
-                                    <AppText Typo="AppTypo.caption" Class="tl-u-color-tl-text-faint tl-u-margin-top-2px tl-u-font-family-jetbrains-mono-monospace tl-u-font-size-xs"
+                                    <AppText Typo="AppTypo.caption" Class="tl-u-color-tl-text-muted tl-u-margin-top-2px tl-u-font-family-jetbrains-mono-monospace tl-u-font-size-xs"
                                              title="Raw provider confidence score">
                                         raw: @result.Confidence.ToString("F2")
                                     </AppText>
                                 }
                                 @if (!string.IsNullOrEmpty(result.ProviderItemId))
                                 {
-                                    <AppText Typo="AppTypo.caption" Class="tl-u-color-tl-text-faint tl-u-margin-top-2px tl-u-font-family-jetbrains-mono-monospace tl-u-font-size-xs">
+                                    <AppText Typo="AppTypo.caption" Class="tl-u-color-tl-text-muted tl-u-margin-top-2px tl-u-font-family-jetbrains-mono-monospace tl-u-font-size-xs">
                                         @(result.ProviderItemId.Length > 20 ? result.ProviderItemId[..17] + "..." : result.ProviderItemId)
                                     </AppText>
                                 }
                                 <AppMaterialIcon Icon="@(isExpanded ? AppMaterialIcons.Filled.ExpandLess : AppMaterialIcons.Filled.ExpandMore)"
-                                         Size="AppSize.Small" Class="tl-u-color-tl-text-faint tl-u-margin-top-2px" />
+                                         Size="AppSize.Small" Class="tl-u-color-tl-text-muted tl-u-margin-top-2px" />
                             </div>
                         </div>
 

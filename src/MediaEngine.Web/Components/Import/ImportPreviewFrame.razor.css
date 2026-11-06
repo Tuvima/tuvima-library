@@ -48,7 +48,6 @@
     color: var(--tl-text-muted);
     font-size: var(--tl-font-size-xs);
     letter-spacing: .04em;
-    text-transform: uppercase;
 }
 
 .import-frame__fact dd {

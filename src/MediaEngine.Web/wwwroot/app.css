@@ -542,7 +542,6 @@ body {
     font-weight: 700 !important;
     line-height: 1.4 !important;
     letter-spacing: 0.02em !important;
-    text-transform: uppercase !important;
 }
 
 .tl-table tbody td,
@@ -1947,7 +1946,6 @@ input.app-control.tl-input-slot,
     letter-spacing: 0.02em;
     line-height: 1.35;
     text-align: left;
-    text-transform: uppercase;
 }
 
 .app-table tbody tr:hover {
@@ -2419,7 +2417,7 @@ input.app-control.tl-input-slot,
 
 .app-error-state__details {
     margin-top: var(--tl-space-2) !important;
-    color: var(--tl-text-faint) !important;
+    color: var(--tl-text-muted) !important;
     font-size: var(--tl-font-size-xs) !important;
 }
 
@@ -2481,7 +2479,6 @@ input.app-control.tl-input-slot,
 .tl-u-color-tl-border-strong { color: var(--tl-border-strong) !important; }
 .tl-u-color-tl-status-info { color: var(--tl-status-info) !important; }
 
-.tl-u-color-tl-text-faint { color: var(--tl-text-faint) !important; }
 .tl-u-color-tl-text-muted { color: var(--tl-text-muted) !important; }
 .tl-u-color-tl-text-primary { color: var(--tl-text-primary) !important; }
 .tl-u-color-tl-text-secondary { color: var(--tl-text-secondary) !important; }
@@ -2600,7 +2597,7 @@ input.app-control.tl-input-slot,
 .tl-u-text-align-center { text-align: center !important; }
 .tl-u-text-decoration-none { text-decoration: none !important; }
 .tl-u-text-overflow-ellipsis { text-overflow: ellipsis !important; }
-.tl-u-text-transform-uppercase { text-transform: uppercase !important; }
+.tl-u-text-transform-uppercase {}
 
 .tl-u-transition-border-color-0-2s { transition: border-color 0.2s !important; }
 .tl-u-vertical-align-top { vertical-align: top !important; }
@@ -4061,7 +4058,6 @@ input[type="reset"],
     font-weight: 700;
     line-height: 1;
     letter-spacing: 0.08em;
-    text-transform: uppercase;
 }
 
 .app-overflow-menu__trigger:where(:not(.hero-icon-circle)) {
@@ -4750,7 +4746,6 @@ input[type="reset"],
     font-weight: 700;
     line-height: 1.4;
     letter-spacing: .04em;
-    text-transform: uppercase;
 }
 
 @media (max-width: 640px) {
@@ -5765,7 +5760,7 @@ body:has(.tl-editor-window) .tl-details-overlay__scroller,body:has(.tl-editor-wi
 /* The quiet facts in the side column of a plugin or integration page (Plugins and Integrations screens v6 D60). Global because the
    facts are drawn by the page that owns them, not by the column component. */
 .app-detail-columns__side dl { margin: 0; }
-.app-detail-columns__side dt { margin-top: 12px; color: var(--tl-text-muted); font-size: var(--tl-font-size-xs, .75rem); letter-spacing: .08em; text-transform: uppercase; }
+.app-detail-columns__side dt { margin-top: 12px; color: var(--tl-text-muted); font-size: var(--tl-font-size-xs, .75rem); letter-spacing: .08em;}
 .app-detail-columns__side dd { margin: 2px 0 6px; color: var(--tl-text-primary); overflow-wrap: anywhere; }
 /* MapLibre builds these class names itself, so no component names them: keep the controls above the phone docks. */
 html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-left,

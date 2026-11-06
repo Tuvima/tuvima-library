@@ -87,7 +87,6 @@
     font-weight: 700;
     line-height: 1.35;
     letter-spacing: 0.12em;
-    text-transform: uppercase;
     min-height: 1.35rem;
 }
 
@@ -113,7 +112,6 @@
     font-size: var(--tl-font-size-xs);
     font-weight: 700;
     letter-spacing: 0.18em;
-    text-transform: uppercase;
 }
 
 :where(.tl-detail-page) .tl-detail-hero-credit-stack__value {

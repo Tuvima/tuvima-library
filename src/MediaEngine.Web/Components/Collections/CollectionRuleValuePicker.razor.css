@@ -12,7 +12,7 @@
 .collection-rule-value-picker__search:focus-within { border-color: var(--tl-accent-primary-border); box-shadow: 0 0 0 2px color-mix(in srgb, var(--tl-accent-primary) 14%, transparent); }
 .collection-rule-value-picker__status { padding: 20px 6px; color: var(--tl-text-muted); text-align: center; }
 .collection-rule-value-picker__options { max-height: min(350px, 48vh); overflow-y: auto; overscroll-behavior: contain; }
-.collection-rule-value-picker__group { display: block; padding: 11px 7px 5px; color: var(--tl-text-muted); font-size: var(--tl-font-size-xs); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.collection-rule-value-picker__group { display: block; padding: 11px 7px 5px; color: var(--tl-text-muted); font-size: var(--tl-font-size-xs); font-weight: 700; letter-spacing: .08em;}
 
 ::deep .collection-rule-value-picker__select-all, ::deep .collection-rule-value-picker__option { display: grid; width: 100%; align-items: center; gap: 10px; border: 0; border-radius: 7px; background: transparent; color: var(--tl-text-primary); text-align: left; }
 ::deep .collection-rule-value-picker__select-all { min-height: 40px; grid-template-columns: 22px minmax(0, 1fr); margin-top: 8px; padding: 6px 7px; border-bottom: 1px solid var(--tl-divider); border-radius: 0; color: var(--tl-accent-primary); font-family: var(--font-ui); font-weight: var(--tl-control-font-weight); line-height: var(--tl-control-line-height); letter-spacing: var(--tl-control-letter-spacing); }

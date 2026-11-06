@@ -134,7 +134,6 @@
     color: var(--tl-text-muted);
     font-size: var(--tl-font-size-xs);
     letter-spacing: 0.08em;
-    text-transform: uppercase;
 }
 
 .universal-search-overlay__empty section > div {

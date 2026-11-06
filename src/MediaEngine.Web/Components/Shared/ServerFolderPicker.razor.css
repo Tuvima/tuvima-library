@@ -76,7 +76,6 @@ input.server-folder-picker__address-field { padding: 0 12px; }
     color: var(--tl-text-muted);
     font-size: var(--tl-font-size-xs);
     letter-spacing: 0.04em;
-    text-transform: uppercase;
 }
 
 .server-folder-picker__locations h3:first-child { margin-top: 0; }

@@ -252,7 +252,6 @@
     font-size: var(--tl-font-size-xs);
     font-weight: 700;
     letter-spacing: 0.28em;
-    text-transform: uppercase;
 }
 
 :where(.tl-detail-page) .tl-series-heading strong {
@@ -283,7 +282,6 @@
     font-size: var(--tl-font-size-sm);
     font-weight: 700;
     letter-spacing: 0.34em;
-    text-transform: uppercase;
 }
 
 :where(.tl-detail-page) .tl-series-position-summary {
@@ -345,14 +343,12 @@
 
 :where(.tl-detail-page) .tl-series-position-summary__center.is-stacked .tl-series-position-summary__total {
     line-height: 1;
-    text-transform: uppercase;
 }
 
 :where(.tl-detail-page) .tl-series-position-summary__center.is-comic-position .tl-series-position-summary__total {
     font-size: clamp(0.78rem, 1.1vw, 0.95rem);
     letter-spacing: 0.12em;
     line-height: 1;
-    text-transform: uppercase;
 }
 
 :where(.tl-detail-page) .tl-series-position-summary__number {
@@ -619,7 +615,6 @@
     text-decoration-color: rgba(135, 169, 255, 0.72);
     text-decoration-thickness: 1px;
     text-underline-offset: 0.28rem;
-    text-transform: uppercase;
 }
 
 :where(.tl-detail-page) .tl-series-show-link:hover,
@@ -741,7 +736,6 @@
     font-weight: 600;
     line-height: 1.3;
     letter-spacing: 0.08em;
-    text-transform: uppercase;
     text-shadow: none;
     overflow-wrap: normal;
 }
@@ -868,7 +862,6 @@
     font-weight: 700;
     letter-spacing: 0.13em;
     text-overflow: ellipsis;
-    text-transform: uppercase;
     white-space: nowrap;
 }
 
@@ -1188,7 +1181,6 @@
         letter-spacing: 0.22em;
         line-height: 1.2;
         text-overflow: ellipsis;
-        text-transform: uppercase;
         white-space: nowrap;
     }
 

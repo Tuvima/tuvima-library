@@ -187,7 +187,6 @@
     font-weight: 700;
     letter-spacing: 0.16em;
     text-align: center;
-    text-transform: uppercase;
     background:
         linear-gradient(145deg, rgba(255,255,255,0.035), rgba(255,255,255,0.01)),
         repeating-linear-gradient(135deg, rgba(255,255,255,0.035) 0 0.45rem, transparent 0.45rem 0.9rem);

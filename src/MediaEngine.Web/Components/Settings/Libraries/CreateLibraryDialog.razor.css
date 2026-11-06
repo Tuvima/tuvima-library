@@ -20,7 +20,6 @@
     font-size: var(--tl-font-size-sm);
     font-weight: 600;
     letter-spacing: 0.06em;
-    text-transform: uppercase;
 }
 
 /* A plain visible sentence under a field, in place of an "i" button. */

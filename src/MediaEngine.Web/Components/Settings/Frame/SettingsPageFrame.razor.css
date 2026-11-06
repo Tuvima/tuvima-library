@@ -86,7 +86,7 @@
     flex: 0 0 auto;
     width: 15px;
     height: 15px;
-    color: var(--tl-text-faint);
+    color: var(--tl-text-muted);
     font-size: 15px;
 }
 

@@ -12,7 +12,6 @@
     font-size: var(--tl-font-size-xs);
     font-weight: 700;
     letter-spacing: 0.08em;
-    text-transform: uppercase;
     white-space: nowrap;
 }
 
@@ -111,7 +110,6 @@
     font-weight: 700;
     letter-spacing: 0.12em;
     text-align: left;
-    text-transform: uppercase;
     cursor: pointer;
 }
 
@@ -293,7 +291,6 @@
     font-weight: 700;
     letter-spacing: 0.12em;
     text-align: left;
-    text-transform: uppercase;
     cursor: pointer;
 }
 

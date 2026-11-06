@@ -316,7 +316,6 @@
     font-size: var(--tl-font-size-dialog-title);
     font-weight: 600;
     letter-spacing: 0.08em;
-    text-transform: uppercase;
 }
 
 .layout-shell__appbar,
@@ -363,7 +362,6 @@
     font-weight: 600;
     letter-spacing: 0.04em;
     line-height: 1;
-    text-transform: uppercase;
 }
 
 .layout-shell__nav-link::after {

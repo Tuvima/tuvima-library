@@ -352,7 +352,6 @@
     color: rgba(226, 232, 240, 0.48);
     font-size: var(--tl-font-size-xs);
     letter-spacing: 0.08em;
-    text-transform: uppercase;
 }
 
 :where(.tl-detail-page) .tl-overview-facts dd {
@@ -371,7 +370,6 @@
     color: rgba(226, 232, 240, 0.58);
     font-size: var(--tl-font-size-xs);
     letter-spacing: 0.08em;
-    text-transform: uppercase;
 }
 
 @media (width < 840px) {
@@ -419,7 +417,6 @@
     font-weight: 700;
     letter-spacing: 0.12em;
     line-height: 1;
-    text-transform: uppercase;
 }
 
 .tl-overview-section__heading > span {
