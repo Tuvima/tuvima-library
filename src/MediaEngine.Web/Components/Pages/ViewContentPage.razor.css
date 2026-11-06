@@ -1,5 +1,8 @@
 .view-content-page {
     display: grid;
+    /* One column that may shrink below its content: an auto column grew to the widest child (the chip row, the search placeholder) and pushed
+       the right edge of every button and field past the screen. */
+    grid-template-columns: minmax(0, 1fr);
     align-content: start;
     gap: 24px;
     min-width: 0;
@@ -70,7 +73,7 @@
 
 @media (max-width: 900px) {
     .view-content-page__header {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
         align-items: start;
     }
 
@@ -83,12 +86,14 @@
 @media (max-width: 640px) {
     .view-content-page:not(.view-content-page--fill-height) {
         gap: 20px;
-        padding: 20px 15px 36px;
+        padding: 20px 16px 36px;
     }
 
+    /* The toolbar buttons span the column; the column itself never outgrows the screen minus the two 16px gutters. */
     .view-content-page__actions {
         align-items: stretch;
         flex-direction: column;
+        width: 100%;
     }
 
     .view-content-page__actions ::deep > label:not(.view-add-media) {

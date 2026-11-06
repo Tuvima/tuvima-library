@@ -1,5 +1,6 @@
 @namespace MediaEngine.Web.Components.Settings
 @using MediaEngine.Web.Components.Shared.Shell
+@implements IDisposable
 @inject IStringLocalizer<SharedStrings> L
 
 @* The one frame every Settings page sits in: administrator notices, breadcrumb, title and one-line description,
@@ -31,7 +32,7 @@
             }
         </AppBreadcrumbs>
 
-        <SidebarPageHeader Eyebrow="@Eyebrow" Title="@Title" Subtitle="@Description" />
+        <SidebarPageHeader Eyebrow="@Eyebrow" Title="@Title" Subtitle="@Description" Actions="@_headerActions.Content" />
     </div>
 
     @if (PageNotice is not null)
@@ -54,11 +55,20 @@
                       Class="tl-sp-mb-4"
                       data-testid="settings-advanced-warning">@L["SettingsPageFrame_AdvancedWarning"]</AppAlert>
         }
-        @ChildContent
+        <CascadingValue Value="_headerActions" IsFixed="true">@ChildContent</CascadingValue>
     </div>
 </div>
 
 @code {
+    // A page inside the frame may put one action at the top right of the header (Libraries' Add library).
+    private readonly SettingsHeaderActions _headerActions = new();
+
+    protected override void OnInitialized() => _headerActions.Changed += OnHeaderActionsChanged;
+
+    private void OnHeaderActionsChanged() => _ = InvokeAsync(StateHasChanged);
+
+    public void Dispose() => _headerActions.Changed -= OnHeaderActionsChanged;
+
     /// <summary>Administrator attention lines drawn above the breadcrumb. Nothing is drawn when null.</summary>
     [Parameter] public RenderFragment? Notices { get; set; }
 

@@ -412,7 +412,7 @@ public sealed class ViewPhotosTouchTests : AsyncBunitContext
         var pageStyles = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Pages", "ViewPage.razor.css"));
         Assert.DoesNotContain("min-width: 440px", pageStyles, StringComparison.Ordinal);
         var barStyles = File.ReadAllText(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Shared", "AppDiscoveryFilterBar.razor.css"));
-        Assert.Contains("@media(max-width:1050px){.app-discovery-filter{grid-template-columns:1fr}.app-discovery-filter__controls{justify-content:flex-end}.app-discovery-filter__tabs{flex:1;min-width:0}", barStyles, StringComparison.Ordinal);
+        Assert.Contains("@media(max-width:1050px){.app-discovery-filter{grid-template-columns:minmax(0,1fr)}.app-discovery-filter__controls{justify-content:flex-end;min-width:0}.app-discovery-filter__tabs{flex:1;min-width:0}", barStyles, StringComparison.Ordinal);
     }
 
     [Fact]

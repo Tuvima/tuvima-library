@@ -125,6 +125,8 @@
 }
 
 .settings-frame__header ::deep .sidebar-page-header .app-page-header__actions {
+    /* A page's header action (Libraries' Add library) sits at the top right, level with the eyebrow and title. */
+    align-self: flex-start;
     align-items: center;
     padding-bottom: 2px;
 }

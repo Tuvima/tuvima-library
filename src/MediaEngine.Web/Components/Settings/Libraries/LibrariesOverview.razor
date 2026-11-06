@@ -9,6 +9,7 @@
 @inject DashboardSessionAccessor Session
 @using Microsoft.JSInterop
 @using MediaEngine.Web.Services.Integration
+@implements IDisposable
 
 @* The Libraries overview (Libraries and folder picker D1, D3, D4, D15): area chips (All, Watch, Listen, Read, View) over one table. Each row has an icon tile, the name
    with its content type, an area tag, what it holds, a folder-count button that lists the real paths, a status and one labeled Edit button. The Import folder is the
@@ -27,17 +28,12 @@
         var areas = Areas;
     }
 
-    @* Header with Add library at the top right, then the collection card, then the filter row (Libraries v3 D22). *@
-    <div class="libs__header">
-        @if (CanAddLibrary)
-        {
-            <AppButton Label="@L["Common_AddLibrary"].Value"
-                       StartIcon="@AppMaterialIcons.Outlined.Add"
-                       ButtonStyle="AppButtonStyle.Filled"
-                       Tone="AppUiTone.Primary"
-                       OnClick="@(() => OpenAddLibraryAsync(_area))" />
-        }
-    </div>
+    @* Add library sits at the top right of the page header, on the title row (Libraries v3 D22); the Settings frame draws it there. Inside the frame
+       nothing is drawn here; drawn on its own (no frame around it) the button keeps a row of its own above the collection card. *@
+    @if (HeaderActions is null && CanAddLibrary)
+    {
+        <div class="libs__header">@_addLibraryAction</div>
+    }
     <LibrariesSummary Rows="@everyRow" />
 
     <div class="libs__filters">
@@ -207,18 +203,35 @@
     /// <summary>Files waiting in the Import folder; null while not known (reads "Nothing waiting").</summary>
     [Parameter] public int? ImportWaiting { get; set; }
 
+    /// <summary>The Settings frame's header slot; null when this table is drawn without that frame.</summary>
+    [CascadingParameter] public SettingsHeaderActions? HeaderActions { get; set; }
+
     private string _search = string.Empty;
     private string _status = string.Empty;
     private string? _area;
     private string? _lastAreaParameter;
     private string? _newLibraryId;
+    // One fragment for the life of the page, so the frame can tell it has not changed; it reads the chosen area when pressed.
+    private RenderFragment? _addLibraryAction;
 
     private const string StoragePrefix = "tuvima.libraries.area";
 
     private string StorageKey => $"{StoragePrefix}.{Session.ActiveProfileId?.ToString("N") ?? "device"}";
 
+    protected override void OnInitialized() =>
+        _addLibraryAction = @<AppButton Label="@L["Common_AddLibrary"].Value"
+                                        StartIcon="@AppMaterialIcons.Outlined.Add"
+                                        ButtonStyle="AppButtonStyle.Filled"
+                                        Tone="AppUiTone.Primary"
+                                        OnClick="@(() => OpenAddLibraryAsync(_area))" />;
+
+    public void Dispose() => HeaderActions?.Set(null);
+
     protected override void OnParametersSet()
     {
+        // Add library goes to the page header while this page is inside the Settings frame (and only for someone who can add).
+        HeaderActions?.Set(CanAddLibrary ? _addLibraryAction : null);
+
         // An address that names an area wins; leaving the address alone keeps the chip the person already chose.
         if (!string.Equals(_lastAreaParameter, Area, StringComparison.Ordinal))
         {
