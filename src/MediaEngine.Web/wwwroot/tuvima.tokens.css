@@ -104,6 +104,7 @@
     --tl-icon-size-xl: 40px;
     --tl-chip-height: 36px;
     --tl-chip-height-touch: 44px;
+    --tl-touch-min: 44px;
     --tl-font-size-title: 1.5rem;
     --tl-font-size-shelf-title: 1.25rem;
     --tl-line-height-title: 1.25;

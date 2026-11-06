@@ -90,6 +90,14 @@
 .app-dialog-shell__back,
 .app-dialog-shell__close {
     margin: 0;
+    width: var(--tl-control-height-md, 44px);
+    height: var(--tl-control-height-md, 44px);
+    min-width: var(--tl-control-height-md, 44px);
+    min-height: var(--tl-control-height-md, 44px);
+}
+
+.app-dialog-shell__close .tl-icon-root {
+    font-size: var(--tl-icon-size-md, 24px);
 }
 
 .app-dialog-shell__icon,
