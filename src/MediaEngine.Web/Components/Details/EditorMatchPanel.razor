@@ -47,6 +47,7 @@
     private CancellationTokenSource? _searchCts;
     private Guid _startedFor;
     private string _query = string.Empty;
+    private IReadOnlyList<string> _leftOut = [];
     private string _mode = EditorMatchFacts.SearchTitle;
     private string _year = string.Empty;
     private string? _providerNote;
@@ -141,6 +142,7 @@
         _startedFor = Subject.EntityId;
         _group = Subject.TargetGroup;
         _query = Subject.Title;
+        _leftOut = [];
         _provider = string.Empty;
         _selected = null;
         _siblings = null;
@@ -163,6 +165,22 @@
             _query = _context!.ParsedTitle!;
         }
 
+        CleanQuery();
+
+        await SearchAsync();
+    }
+
+    private void CleanQuery()
+    {
+        var cleaned = EditorSearchNoise.Clean(_query);
+        _query = cleaned.Query;
+        _leftOut = cleaned.LeftOut;
+    }
+
+    private async Task PutLeftOutBackAsync()
+    {
+        _query = $"{_query} {string.Join(' ', _leftOut)}".Trim();
+        _leftOut = [];
         await SearchAsync();
     }
 
@@ -245,6 +263,13 @@
                 <AppButton Label="Search" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Search"
                            Disabled="@_loading" OnClick="SearchAsync" />
             </div>
+            @if (_leftOut.Count > 0)
+            {
+                <p class="tl-match__leftout" data-testid="match-left-out">
+                    <span>Left out of the search: @string.Join(", ", _leftOut)</span>
+                    <AppButton Label="Put them back" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" OnClick="PutLeftOutBackAsync" />
+                </p>
+            }
             @if (_providers.Count > 0)
             {
                 <div class="tl-match__provider">
