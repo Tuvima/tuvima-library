@@ -204,8 +204,7 @@ else
             else if (IsMusicTimelineView)
             {
                 <section class="listen-section">
-                    <AppTimelineResults Items="@MusicTimelineTiles"
-                                        TileSizePx="@_albumTileSizePx"
+                    <AppTimelineResults Items="@MusicTimelineTiles"
                                         YearSemantic="Original album release year" />
                 </section>
             }
@@ -256,19 +255,7 @@ else
                                     <AppSelectItem T="string" Value="@("year")">@L["Common_Year"]</AppSelectItem>
                                 </AppSelect>
                             </label>
-                            <label class="listen-tile-size" title="@L["ListenPage_AdjustAlbumTileSize"].Value">
-                                <span>@L["Common_TileSize"]</span>
-                                <span class="listen-tile-size__control">
-                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PhotoSizeSelectSmall" />
-                                    <AppNativeInput Type="range"
-                                                    Value="@_albumTileSizePx"
-                                                    Min="96"
-                                                    Max="208"
-                                                    Step="8"
-                                                    AriaLabel="@L["ListenPage_AlbumTileSize"].Value"
-                                                    OnInput="UpdateAlbumTileSize" />
-                                </span>
-                            </label>
+
                         </div>
                     </div>
 
@@ -291,10 +278,7 @@ else
                     }
                     else
                     {
-                        <MediaTileGrid Items="@AlbumTiles"
-                                       ShowCompactCaptions="true"
-                                       TileSizePx="@_albumTileSizePx"
-                                       Class="listen-card-grid listen-card-grid--albums" />
+                        <MediaTileGrid Items="@AlbumTiles" SquaresOnly="true" />
                     }
                 </section>
             }
@@ -475,10 +459,7 @@ else
                     }
                     else
                     {
-                        <MediaTileGrid Items="@PlaylistTiles"
-                                       ShowCompactCaptions="true"
-                                       TileSizePx="@_albumTileSizePx"
-                                       Class="listen-card-grid" />
+                        <MediaTileGrid Items="@PlaylistTiles" SquaresOnly="true" />
                     }
                 </section>
             }
@@ -790,16 +771,7 @@ else
                             <div class="audiobooks-view-controls">
                                 @if (_audiobookLayout == LibraryLayoutMode.Card)
                                 {
-                                    <label class="audiobooks-tile-size" title="@L["ListenPage_AdjustAudiobookTileSize"].Value">
-                                        <span>@L["Common_TileSize"]</span>
-                                        <AppNativeInput Type="range"
-                                                        Value="@_audiobookTileSizePx"
-                                                        Min="128"
-                                                        Max="248"
-                                                        Step="8"
-                                                        AriaLabel="@L["ListenPage_AudiobookTileSize"].Value"
-                                                        OnInput="UpdateAudiobookTileSize" />
-                                    </label>
+
                                 }
                                 <div class="audiobooks-layout-toggle" role="group" aria-label="@L["ListenPage_AudiobookLayout"].Value">
                                     <AppNativeButton Type="button" Class="@AudiobookLayoutToggleClass(LibraryLayoutMode.Card)" aria-pressed="@(_audiobookLayout == LibraryLayoutMode.Card ? "true" : "false")" OnClick="@(() => _audiobookLayout = LibraryLayoutMode.Card)">
@@ -939,8 +911,7 @@ else
                         }
                         else if (_audiobookView == "timeline")
                         {
-                            <AppTimelineResults Items="@AudiobookBrowseTiles"
-                                                TileSizePx="@_audiobookTileSizePx"
+                            <AppTimelineResults Items="@AudiobookBrowseTiles"
                                                 YearSemantic="Original work publication year" />
                         }
                         else if (AudiobookBrowseItems.Count == 0)
@@ -951,10 +922,7 @@ else
                         {
                             @if (_audiobookLayout == LibraryLayoutMode.Card)
                             {
-                                <MediaTileGrid Items="@AudiobookBrowseTiles"
-                                               ShowCompactCaptions="true"
-                                               TileSizePx="@_audiobookTileSizePx"
-                                               Class="listen-card-grid listen-card-grid--audiobooks" />
+                                <MediaTileGrid Items="@AudiobookBrowseTiles" SquaresOnly="true" />
                             }
                             else
                             {

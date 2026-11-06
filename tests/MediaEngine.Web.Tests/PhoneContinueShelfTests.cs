@@ -46,7 +46,6 @@ public sealed class PhoneContinueShelfTests : AsyncBunitContext
             ContinuationState = state,
             SortTimestamp = Now.AddMinutes(-minutesAgo),
             DetailsNavigationUrl = "/details/work/x",
-            HoverMode = MediaTileHoverMode.GlowOnly,
             EpisodeContext = episode,
         };
 

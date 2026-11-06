@@ -118,12 +118,7 @@
         else
         {
             <MediaTileGrid Items="@_tiles"
-                           HoverMode="MediaTileHoverMode.GlowOnly"
-                           HideMediaKindBadges="true"
-                           HideSourceBadges="true"
-                           HideGroupKind="true"
-                           ShowCompactCaptions="true"
-                           TileSizePx="@TileSizePx"
+                           SquaresOnly="@SquaresOnly"
                            Class="shelf-grid-page__grid" />
 
             @if (_hasMore)

@@ -66,7 +66,6 @@
 
 @code {
     [Parameter, EditorRequired] public IReadOnlyList<MediaTileViewModel> Items { get; set; } = [];
-    [Parameter] public int TileSizePx { get; set; } = 168;
     [Parameter] public string YearSemantic { get; set; } = "Release / publication year";
     [Parameter] public string ItemNoun { get; set; } = "item";
 
@@ -83,7 +82,8 @@
     private int? _selectedYear;
     private int? _pendingJump;
     private int _jumpVersion;
-    private int TimelineArtworkSizePx => Math.Clamp((int)Math.Round(TileSizePx * 0.55 / 4, MidpointRounding.AwayFromZero) * 4, 72, 104);
+    // The timeline is a dated list with small artwork, not a tile grid, so it has its own fixed artwork size.
+    private const int TimelineArtworkSizePx = 92;
     private string RootClass => $"app-timeline app-timeline--art-{TimelineArtworkSizePx}";
     private IReadOnlyList<IGrouping<int, MediaTileViewModel>> Groups = [];
     private IReadOnlyList<TimelinePeriod> Years => (Index?.Select(p => new TimelinePeriod(p.Year, DisplayYear(p.Year), p.Count))

@@ -275,24 +275,6 @@
                                 <AppSelectItem T="string" @key="option.Value" Value="@option.Value">@option.Label</AppSelectItem>
                             }
                         </AppSelect>
-                        @if (!UseListLayout)
-                        {
-                            <label class="browse-shell__tile-size" title="@L["MediaBrowseShell_AdjustTileSize"].Value">
-                                <span>@L["Common_TileSize"]</span>
-                                <span class="browse-shell__tile-size-readout">@L["MediaBrowseShell_CardSize", TileSizeLabel]</span>
-                                <span class="browse-shell__tile-size-control">
-                                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PhotoSizeSelectSmall" />
-                                    <AppNativeInput Type="range"
-                                                    Value="@TileSizePx"
-                                                    Min="@TileSizeMinPx"
-                                                    Max="@TileSizeMaxPx"
-                                                    Step="8"
-                                                    AriaLabel="@L["Common_TileSize"].Value"
-                                                    OnInput="OnTileSizeChanged" />
-                                </span>
-                            </label>
-                        }
-
                         @if (SupportsLayoutToggle && !IsTimelineGrouping)
                         {
                             <div class="browse-shell__layout-toggle" role="group" aria-label="@L["MediaBrowseShell_ViewMode"].Value">
@@ -421,7 +403,6 @@
         <AppTimelineResults Items="@_cards"
                             Grouping="@_timelineGrouping" ShowGroupingControl="false" Descending="@(_sortBy != "oldest")"
                             Index="@_timelineIndex" OnJumpYear="JumpTimelineYearAsync"
-                            TileSizePx="@TileSizePx"
                             YearSemantic="@CurrentTab.YearSemantic"
                             ItemNoun="@CurrentTab.TimelineItemNoun" />
     }
@@ -432,12 +413,6 @@
     else
     {
         <MediaTileGrid Items="@_cards"
-                       HoverMode="@GridHoverMode"
-                       HideMediaKindBadges="true"
-                       HideSourceBadges="true"
-                       HideGroupKind="true"
-                       ShowCompactCaptions="true"
-                       TileSizePx="@TileSizePx"
                        Class="browse-shell__grid" />
     }
 
@@ -493,7 +468,6 @@
 
     private readonly HashSet<Guid> _selectedItems = [];
     private readonly List<MediaTileViewModel> _cards = [];
-    private readonly Dictionary<string, int> _tileSizes = new(StringComparer.OrdinalIgnoreCase);
 
     private string _activeTabId = string.Empty;
     private string _grouping = "all";
@@ -693,24 +667,6 @@
         "finished" => "Finished",
         _ => _status,
     };
-    private MediaTileHoverMode GridHoverMode => MediaTileHoverMode.GlowOnly;
-    private int TileSizePx => _tileSizes.TryGetValue(_activeTabId, out var size) ? size : DefaultTileSizePx;
-    private string TileSizeLabel
-    {
-        get
-        {
-            var position = (double)(TileSizePx - TileSizeMinPx) / Math.Max(1, TileSizeMaxPx - TileSizeMinPx);
-            return position < 0.34 ? "Small" : position > 0.66 ? "Large" : "Medium";
-        }
-    }
-    private int TileSizeMinPx => string.Equals(CurrentTab.MediaType, "Music", StringComparison.OrdinalIgnoreCase) ? 96 : 128;
-    private int TileSizeMaxPx => string.Equals(CurrentTab.MediaType, "Music", StringComparison.OrdinalIgnoreCase) ? 208 : 248;
-    private int DefaultTileSizePx => CurrentTab.MediaType switch
-    {
-        "Music" => 136,
-        "Audiobooks" => 176,
-        _ => 128,
-    };
     private string EmptyStateTitle =>
         _unmatched
             ? "Nothing unmatched here."
@@ -880,11 +836,6 @@
         _selectedThemes.UnionWith(state.Themes ?? []);
         var query = System.Web.HttpUtility.ParseQueryString(new Uri(address).Query);
         _requestedTrackId = Guid.TryParse(query["track"], out var trackId) ? trackId : null;
-        if (state.TileSize is int tileSize)
-        {
-            _tileSizes[_activeTabId] = Math.Clamp(tileSize, TileSizeMinPx, TileSizeMaxPx);
-        }
-
         ClearActiveGroupState();
     }
 
@@ -1737,15 +1688,6 @@
         await NavigateAndReloadAsync(reloadData: true);
     }
 
-    private void OnTileSizeChanged(ChangeEventArgs args)
-    {
-        if (int.TryParse(args.Value?.ToString(), out var requestedSize))
-        {
-            _tileSizes[_activeTabId] = Math.Clamp(requestedSize, TileSizeMinPx, TileSizeMaxPx);
-            _ = NavigateAndReloadAsync(reloadData: false, replace: true);
-        }
-    }
-
     private async Task OnSearchChanged(string _)
     {
         ClearActiveGroupState();
@@ -2212,11 +2154,6 @@
             queryParts.Add($"sort={Uri.EscapeDataString(_sortBy)}");
         }
 
-        if (TileSizePx != DefaultTileSizePx)
-        {
-            queryParts.Add($"tile={TileSizePx}");
-        }
-
         return queryParts.Count == 0 ? path : $"{path}?{string.Join("&", queryParts)}";
     }
 
@@ -2407,7 +2344,6 @@
         Presentation = card.Presentation,
         SurfaceKind = card.SurfaceKind,
         HoverLayout = card.HoverLayout,
-        HoverMode = card.HoverMode,
         TileTextMode = card.TileTextMode,
         PreviewPlacement = card.PreviewPlacement,
         TileImageUrl = card.TileImageUrl,

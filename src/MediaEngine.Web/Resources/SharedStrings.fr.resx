@@ -433,9 +433,6 @@
   <data name="Common_Display" xml:space="preserve">
     <value>Affichage</value>
   </data>
-  <data name="Common_TileSize" xml:space="preserve">
-    <value>Taille des vignettes</value>
-  </data>
   <data name="Common_Cards" xml:space="preserve">
     <value>Cartes</value>
   </data>

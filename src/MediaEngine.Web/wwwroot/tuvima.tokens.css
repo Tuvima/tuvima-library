@@ -272,7 +272,15 @@
     --tl-dialog-title-size: 1.25rem;
     /* Hero height on desktop (Look pass 4.5): one token; confirm the value on the real app. */
     --tl-hero-height: 70svh;
-    --tl-tile-menu-button: 36px;
+    /* One tile size everywhere (One tile design D1, D2): posters 214 x 321, squares the same height as posters in mixed rows (321 x 321)
+       and the poster width on pages that hold only squares (Listen: 214 x 214), landscape 320 x 180. A wider window shows more columns,
+       never bigger tiles. Phones use 112 x 168. Text inside a tile is never smaller than the floor. */
+    --tl-tile-poster-w: 214px;
+    --tl-tile-square-w: 321px;
+    --tl-tile-square-solo-w: 214px;
+    --tl-tile-landscape-w: 320px;
+    --tl-tile-text-floor: 13px;
+    --tl-tile-menu-button: 44px;
     --tl-layer-menu: var(--tl-z-dropdown);
     --tl-layer-dialog: var(--tl-z-modal);
     --tl-layer-toast: var(--tl-z-toast);
@@ -413,6 +421,14 @@ html[data-form-factor="phone"] {
     --tl-phone-dock-height: 56px;
     --tl-phone-dock-gap: 8px;
     --tl-bottom-dock-height: calc(var(--tl-phone-dock-height) + var(--tl-phone-dock-gap) + max(var(--tl-phone-dock-gap), var(--tl-safe-area-bottom)));
+}
+
+/* Phones: three posters across at 112 x 168; squares follow the same rule (168 in mixed rows, 112 on a squares-only page). */
+html[data-form-factor="phone"] {
+    --tl-tile-poster-w: 112px;
+    --tl-tile-square-w: 168px;
+    --tl-tile-square-solo-w: 112px;
+    --tl-tile-landscape-w: min(72vw, 320px);
 }
 
 /* A phone held sideways has no room for the chips row; the menu still lists every section. */

@@ -29,7 +29,6 @@ public sealed class MediaTilePhoneRenderTests : AsyncBunitContext
         Shape = MediaTileShape.Portrait,
         SurfaceKind = MediaTileSurfaceKind.CoverPortrait,
         HoverLayout = MediaTileHoverLayout.BannerPopover,
-        HoverMode = MediaTileHoverMode.Expanded,
         TileImageUrl = "/art/lighthouse.jpg",
         HoverImageUrl = "/art/lighthouse-wide.jpg",
         Description = "A quiet coastal discovery.",
@@ -40,28 +39,12 @@ public sealed class MediaTilePhoneRenderTests : AsyncBunitContext
     private Task Init(string formFactor, bool touch) =>
         _device.InitialiseAsync(new DeviceContextSnapshot(formFactor == "phone" ? "mobile" : "web", formFactor, touch));
 
-    [Theory]
-    [InlineData("phone", true)]
-    [InlineData("tablet", true)]
-    public async Task TouchRendersNoHoverPanelNoHoverScriptAndShowsTheTitleUnderTheArt(string formFactor, bool touch)
-    {
-        await Init(formFactor, touch);
-
-        var cut = Render<MediaTile>(p => p.Add(c => c.Item, CinematicMovie()).Add(c => c.IsHomeSurface, true));
-
-        Assert.Empty(cut.FindAll(".media-tile-hover-panel"));
-        Assert.Equal("Beyond the Last Lighthouse", cut.Find(".media-tile-caption__title").TextContent.Trim());
-        Assert.Contains("2024", cut.Find(".media-tile-caption").TextContent);
-        Assert.Single(cut.FindAll("a.media-tile-link"));
-        Assert.Empty(JSInterop.Invocations["registerMediaTileHover"]);
-    }
-
     [Fact]
     public async Task MouseDesktopRendersNoHoverPanelAndRegistersNoHoverScript()
     {
         await Init("desktop", touch: false);
 
-        var cut = Render<MediaTile>(p => p.Add(c => c.Item, CinematicMovie()).Add(c => c.IsHomeSurface, true));
+        var cut = Render<MediaTile>(p => p.Add(c => c.Item, CinematicMovie()));
 
         // No tile grows on hover any more (Home, detail and tiles spec D1), so there is no panel and no hover script.
         Assert.Empty(cut.FindAll(".media-tile-hover-panel"));
@@ -81,58 +64,22 @@ public sealed class MediaTilePhoneRenderTests : AsyncBunitContext
         Shape = MediaTileShape.Portrait,
         SurfaceKind = MediaTileSurfaceKind.CoverPortrait,
         HoverLayout = MediaTileHoverLayout.BannerPopover,
-        HoverMode = MediaTileHoverMode.Expanded,
         TileImageUrl = "/art/lost.jpg",
         HoverImageUrl = "/art/lost-wide.jpg",
         DetailsNavigationUrl = "/details/tvshow/lost",
         NavigationUrl = "/details/tvshow/lost",
     };
 
-    [Theory]
-    [InlineData("phone", true)]
-    [InlineData("desktop", false)]
-    public async Task AKeptShowCard_ShowsAMutedKeptLabelUnderItsTitle_NotOnTheGroupKindChip(string formFactor, bool touch)
-    {
-        await Init(formFactor, touch);
-
-        var cut = Render<MediaTile>(p => p.Add(c => c.Item, KeptShow()).Add(c => c.IsHomeSurface, true));
-
-        var label = Assert.Single(cut.FindAll(".media-tile-caption .media-tile-caption__year"), element => element.TextContent.Trim() == "Kept");
-        Assert.NotNull(label);
-        // The chip that names the group's kind never carries it, so the two cannot overlap.
-        Assert.DoesNotContain("Kept", string.Concat(cut.FindAll(".media-tile-group-indicators").Select(element => element.TextContent)));
-        Assert.DoesNotContain(cut.FindAll(".media-tile-group-kind"), element => element.TextContent.Contains("Kept"));
-    }
-
     [Fact]
     public async Task ACardThatIsNotKept_ShowsNoKeptLabel()
     {
         await Init("phone", touch: true);
 
-        var cut = Render<MediaTile>(p => p.Add(c => c.Item, CinematicMovie()).Add(c => c.IsHomeSurface, true));
+        var cut = Render<MediaTile>(p => p.Add(c => c.Item, CinematicMovie()));
 
         Assert.DoesNotContain("Kept", cut.Markup);
     }
 
-    [Fact]
-    public void PhoneShelfSizingPeekAndGutterLiveInTheStyleSheets()
-    {
-        static string Css(string path) => File.ReadAllText(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src/MediaEngine.Web", path)));
-
-        var tile = Css("Components/MediaTiles/MediaTile.razor.css");
-        var scroller = Css("Components/MediaTiles/MediaShelfScroller.razor.css");
-        var group = Css("Components/MediaTiles/MediaGroupTile.razor.css");
-        var home = Css("Components/Pages/LibraryBrowsePage.razor.css");
-
-        Assert.Contains("calc((100vw - 32px) / 2.6 * 1.5)", tile);
-        Assert.Contains("calc((100vw - 32px) / 2.4)", tile);
-        Assert.Contains("calc(min(86vw, 320px) * 9 / 16)", tile);
-        Assert.Contains("--media-group-tile-width: min(72vw, 300px);", group);
-        Assert.Contains(":root[data-form-factor=\"phone\"] .media-tile-shelf-track", scroller);
-        Assert.Contains("margin-inline: calc(-1 * var(--media-shelf-gutter, 16px));", scroller);
-        Assert.Contains("scroll-padding-inline: var(--media-shelf-gutter, 16px);", scroller);
-        Assert.Contains("--phone-shelf-height: var(--home-shelf-height);", home);
-    }
     [Fact]
     public async Task ATileWithoutAWidthList_StillOffersSharpScreensTheMediumCopy()
     {

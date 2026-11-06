@@ -104,7 +104,6 @@ public sealed class LaneNavigationAndBrowseFilterTests
         Assert.Contains("ShowTitleBlock=\"false\"", lanePage, StringComparison.Ordinal);
         Assert.Contains("ShowTabNavigation=\"false\"", lanePage, StringComparison.Ordinal);
         Assert.Contains("<AppPageState Kind=\"AppPageStateKind.Loading\"", lanePage, StringComparison.Ordinal);
-        Assert.Contains("GridHoverMode => MediaTileHoverMode.GlowOnly", browseShell, StringComparison.Ordinal);
         Assert.Contains("if (IsPersonGrouping)", browseShell, StringComparison.Ordinal);
         Assert.Contains("MediaPersonGroupTileComposer.Compose", browseShell, StringComparison.Ordinal);
         Assert.Contains("group.PersonId ?? group.ArtistPersonId", browseShell, StringComparison.Ordinal);
@@ -157,15 +156,6 @@ public sealed class LaneNavigationAndBrowseFilterTests
         Assert.Contains("ShowLabel=\"false\"", browseShell, StringComparison.Ordinal);
         Assert.DoesNotContain("OnClick=\"@context.ToggleAsync\"", multiSelect, StringComparison.Ordinal);
         Assert.DoesNotContain(".. IsSeriesOnly ? new[] { \"Series only\" }", browseShell, StringComparison.Ordinal);
-        Assert.Contains("ShowCompactCaptions=\"true\"", browseShell, StringComparison.Ordinal);
-        Assert.Contains("HideGroupKind=\"true\"", browseShell, StringComparison.Ordinal);
-        Assert.Contains("browse-shell__tile-size", browseShell, StringComparison.Ordinal);
-        Assert.Contains("TileSizePx", browseShell, StringComparison.Ordinal);
-        Assert.Contains("SectionType == MediaHubSectionType.Listen", mediaShelf, StringComparison.Ordinal);
-        Assert.Contains("ShowCompactCaptions=\"true\"", mediaShelf, StringComparison.Ordinal);
-        Assert.Contains("HideGroupKind=\"@HideGroupKind\"", mediaShelf, StringComparison.Ordinal);
-        Assert.Contains("Shelf.Key, \"tv-shows\"", mediaShelf, StringComparison.Ordinal);
-        Assert.Contains("MediaTileHoverMode.GlowOnly", mediaShelf, StringComparison.Ordinal);
         Assert.DoesNotContain("<CinematicHeroCarousel", collections, StringComparison.Ordinal);
         Assert.Contains("Nav.NavigateTo(target.Route)", hub, StringComparison.Ordinal);
 

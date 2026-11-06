@@ -2,13 +2,14 @@
 @using System.Globalization
 @using MediaEngine.Contracts.Collections
 @using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.MediaTiles
 @inject NavigationManager Nav
 @inject IStringLocalizer<SharedStrings> L
 
-@* The one tile for every group of titles (curated collection, Series, Universe, imported list, pack set):
-   a landscape picture with a fanned stack of covers and a small corner word naming the kind, then the name
-   and the shared icon-plus-count line below, like every other tile's text. Custom artwork replaces the
-   stack. One hover for all: lift and glow, no popover. People groups use PersonTile instead. *@
+@* The one tile for every group of titles (curated collection, Series, Universe, imported list, pack set), in the landscape size:
+   a picture with a fanned stack of covers, the name on the art, the kind as the status label top-left and the count as the bottom
+   label bottom-left (One tile design D9, D10, D11). Nothing sits under it. Custom artwork replaces the stack. The hover is the one
+   thin outline. People groups use PersonTile instead. *@
 <AppCssElement Tag="div" Css="@($"display: contents; {TileStyle}")">
     <article class="media-group-tile" aria-label="@Item.Title">
         <a class="media-group-tile__link"
@@ -47,18 +48,24 @@
                     </span>
                 }
 
-                <span class="media-group-tile__kind">@KindWord</span>
+                <span class="media-group-tile__scrim" aria-hidden="true"></span>
+                <span class="media-group-tile__kind media-tile-label media-tile-label--status">@KindWord</span>
+                @if (MediaTileLabels.GroupCount(Item) is { } groupCount)
+                {
+                    <span class="media-group-tile__count media-tile-label media-tile-label--bottom">@groupCount</span>
+                }
+                <span class="media-group-tile__text">
+                    <span class="media-group-tile__name">@Item.Title</span>
+                    @if (SourceLine is { Length: > 0 } sourceLine)
+                    {
+                        <span class="media-group-tile__source" data-group-source>@sourceLine</span>
+                    }
+                    @if (UnmatchedBadge is { Length: > 0 } unmatchedBadge)
+                    {
+                        <span class="media-group-tile__badge" data-unmatched-badge>@unmatchedBadge</span>
+                    }
+                </span>
             </span>
-            <span class="media-group-tile__name">@Item.Title</span>
-            <MediaCountLine Counts="@Counts" />
-            @if (SourceLine is { Length: > 0 } sourceLine)
-            {
-                <span class="media-group-tile__source" data-group-source>@sourceLine</span>
-            }
-            @if (UnmatchedBadge is { Length: > 0 } unmatchedBadge)
-            {
-                <span class="media-group-tile__badge" data-unmatched-badge>@unmatchedBadge</span>
-            }
         </a>
     </article>
 </AppCssElement>

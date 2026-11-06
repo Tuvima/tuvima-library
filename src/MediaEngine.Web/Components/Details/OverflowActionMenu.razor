@@ -21,7 +21,7 @@
                              aria-expanded="@(_sheetOpen ? "true" : "false")"
                              OnClick="OpenSheetAsync">
                 @if (UsePlaybackGlyph) { <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.More" /> }
-                else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoreHoriz" /> }
+                else { <AppMaterialIcon Icon="@TriggerIcon" /> }
                 @if (!string.IsNullOrWhiteSpace(Label)) { <span>@Label</span> }
             </AppNativeButton>
         </div>
@@ -29,14 +29,14 @@
         {
             <AppDialogFrame Open="true" Title="@L["Common_More"].Value" DialogOptions="SheetOptions" Class="tl-detail-more-sheet" OnCancel="CloseSheetAsync">
                 <div class="tl-detail-more-sheet__items" role="menu" aria-label="@L["Common_MoreActions"].Value">
-                    <ManageActionsMenu Actions="MenuActions" Note="@EditNote" OnActionSelected="SelectFromSheetAsync" />
+                    <ManageActionsMenu Actions="MenuActions" Note="@EditNote" KeepOrder="KeepOrder" OnActionSelected="SelectFromSheetAsync" />
                 </div>
             </AppDialogFrame>
         }
     }
     else
     {
-        <AppOverflowMenu Icon="@AppMaterialIcons.Outlined.MoreHoriz"
+        <AppOverflowMenu Icon="@TriggerIcon"
                          Label="@Label"
                          AriaLabel="@L["Common_MoreActions"].Value"
                          Class="tl-detail-overflow tl-detail-more-action"
@@ -46,10 +46,10 @@
                          TransformOrigin="AppOrigin.TopLeft">
             <TriggerContent>
                 @if (UsePlaybackGlyph) { <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.More" /> }
-                else { <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoreHoriz" /> }
+                else { <AppMaterialIcon Icon="@TriggerIcon" /> }
             </TriggerContent>
             <ChildContent>
-            <ManageActionsMenu Actions="MenuActions" Note="@EditNote" OnActionSelected="OnActionSelected" />
+            <ManageActionsMenu Actions="MenuActions" Note="@EditNote" KeepOrder="KeepOrder" OnActionSelected="OnActionSelected" />
             </ChildContent>
         </AppOverflowMenu>
     }
@@ -63,7 +63,11 @@
     [Parameter] public string? Label { get; set; }
     [Parameter] public string ButtonClass { get; set; } = "tl-detail-person-more-action";
     [Parameter] public bool UsePlaybackGlyph { get; set; }
+    /// <summary>The mark on the button. Detail pages use the horizontal dots; a cover uses the vertical three dots (One tile design D3).</summary>
+    [Parameter] public string TriggerIcon { get; set; } = AppMaterialIcons.Outlined.MoreHoriz;
     [Parameter] public EventCallback<DetailAction> OnActionSelected { get; set; }
+    /// <summary>True when the rows are already in the wanted order (a cover's menu), so they are not regrouped.</summary>
+    [Parameter] public bool KeepOrder { get; set; }
 
     /// <summary>
     /// Editing is desktop-only (details overlay spec D10). Where the device cannot edit (tablet, phone, TV, unknown)

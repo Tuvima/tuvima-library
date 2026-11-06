@@ -529,41 +529,6 @@
     flex-wrap: wrap;
 }
 
-.browse-shell__tile-size {
-    display: grid;
-    min-height: 48px;
-    grid-template-rows: auto minmax(20px, 1fr);
-    align-content: center;
-    gap: 4px;
-    padding: 0 3px;
-    color: rgba(215, 224, 240, 0.78);
-    font-family: var(--font-ui);
-    font-size: var(--tl-font-size-sm);
-    font-weight: 600;
-    white-space: nowrap;
-    flex: 1 1 170px;
-    max-width: none;
-    grid-column: 2;
-    grid-row: 2;
-}
-
-.browse-shell__tile-size-control {
-    display: block;
-    align-items: center;
-    gap: 8px;
-}
-
-.browse-shell__tile-size-control ::deep .tl-icon-root {
-    display: none;
-}
-
-.browse-shell__tile-size-control ::deep input[type="range"] {
-    width: 100%;
-    min-width: 0;
-    accent-color: var(--tl-accent-primary);
-    cursor: ew-resize;
-}
-
 .browse-shell__groupings ::deep .browse-shell__grouping-button {
     display: inline-flex;
     align-items: center;
@@ -655,7 +620,6 @@
 .browse-shell__grid {
     --media-tile-hover-clearance: 0px;
     --media-tile-hover-lift: 0px;
-    --media-tile-media-height: clamp(172px, 10vw, 236px);
     display: flex;
     flex-wrap: wrap;
     align-items: flex-start;
@@ -667,20 +631,6 @@
 
 .browse-shell__grid ::deep .media-tile.is-landscape {
     width: clamp(320px, 21.5vw, 520px);
-}
-
-.browse-shell__grid.is-size-controlled ::deep .media-tile.is-landscape,
-.browse-shell__grid.is-size-controlled ::deep .media-tile.is-square,
-.browse-shell__grid.is-size-controlled ::deep .media-tile.is-portrait {
-    width: min(calc(100vw - 22px), var(--media-grid-tile-size));
-}
-
-.browse-shell__grid ::deep .media-tile.is-square {
-    --media-tile-media-height: clamp(152px, 9.4vw, 218px);
-}
-
-.browse-shell__grid ::deep .media-tile.is-portrait {
-    --media-tile-media-height: clamp(198px, 12vw, 276px);
 }
 
 .browse-shell__list {
@@ -833,11 +783,6 @@
         max-width: 230px;
     }
 
-    .browse-shell__tile-size {
-        flex: 1 1 168px;
-        max-width: none;
-    }
-
     .browse-shell__layout-toggle ::deep .browse-shell__layout-button {
         flex: 1;
         min-width: 0;
@@ -855,10 +800,6 @@
         width: auto !important;
         min-width: 0 !important;
     }
-
-    .browse-shell__grid {
-        --media-tile-media-height: clamp(154px, 42vw, 210px);
-    }
 }
 
 @media (max-width: 620px) {
@@ -873,9 +814,8 @@
     }
 
     .browse-shell__multi-select,
-    .browse-shell__sort,
-    .browse-shell__tile-size,
-    .browse-shell__layout-toggle {
+.browse-shell__sort,
+.browse-shell__layout-toggle {
         flex: 1 1 100%;
         width: 100%;
         max-width: none;
@@ -909,11 +849,6 @@
         grid-row: 3;
     }
 
-    .browse-shell__tile-size {
-        grid-column: 1;
-        grid-row: 4;
-    }
-
     .browse-shell__layout-toggle {
         grid-column: 1;
         grid-row: 5;
@@ -928,11 +863,6 @@
     .browse-shell__layout-toggle ::deep .browse-shell__layout-button {
         flex: 1;
     }
-}
-
-/* Card size reads as text inside the phone sheet (the app.css sheet rules show it), where the slider has no tooltip to name it. */
-.browse-shell__tile-size-readout {
-    display: none;
 }
 
 /* On phones the browse-mode strip is a scroller: its track must be allowed to shrink to the screen. */

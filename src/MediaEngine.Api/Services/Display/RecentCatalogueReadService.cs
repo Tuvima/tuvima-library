@@ -48,7 +48,7 @@ internal sealed class RecentCatalogueReadService(
                 var full = windowed.Count == 0 ? next : next.Except(windowed).ToList();
                 var filter = new DisplayRecentGroupFilter(
                     full.Where(g => g.IsRoot).Select(g => g.Id).ToList(),
-                    full.Where(g => !g.IsRoot).Select(g => g.Id).ToList());
+                    full.Where(g => !g.IsRoot).SelectMany(g => g.MemberWorkIds ?? [g.Id]).ToList());
                 var rows = await authorization.FilterRecentWorksAsync(await reader.LoadAsync(ct, groups: filter, lean: true), profileId, ct);
                 ApplyAdditions(rows, additions);
                 loaded.AddRange(rows);
@@ -194,17 +194,23 @@ internal sealed class RecentCatalogueReadService(
         var groups = new Dictionary<(bool IsRoot, Guid Id), DateTimeOffset>();
         var members = new Dictionary<(bool IsRoot, Guid Id), HashSet<Guid>>();
         var tvGroups = new HashSet<(bool IsRoot, Guid Id)>();
-        foreach (var candidate in candidates)
+        var inScope = candidates.Where(candidate => DisplayRecentCursor.IncludesMedia(type, candidate.MediaType)).ToList();
+        // One Home tile per Series of books, audiobooks or comics (One tile design D14): a Series with two or more titles is one group.
+        var rolledSeries = inScope
+            .Where(candidate => candidate.CollectionId.HasValue && IsRolledUpKind(DisplayMediaRules.NormalizeDisplayKind(candidate.MediaType)))
+            .GroupBy(candidate => candidate.CollectionId!.Value)
+            .Where(group => group.Select(candidate => candidate.WorkId).Distinct().Count() >= 2)
+            .ToDictionary(group => group.Key, group => (IReadOnlyList<Guid>)group.Select(candidate => candidate.WorkId).Distinct().ToList());
+        foreach (var candidate in inScope)
         {
-            if (!DisplayRecentCursor.IncludesMedia(type, candidate.MediaType))
-            {
-                continue;
-            }
             var kind = DisplayMediaRules.NormalizeDisplayKind(candidate.MediaType);
             var key = kind switch
             {
                 "TV" => (true, candidate.RootWorkId != Guid.Empty ? candidate.RootWorkId : candidate.CollectionId ?? candidate.WorkId),
                 "Music" => (true, candidate.RootWorkId == Guid.Empty ? candidate.WorkId : candidate.RootWorkId),
+                // A folder of videos is one tile with its count; a loose video stays single (D14).
+                "Video" => (true, candidate.RootWorkId != Guid.Empty ? candidate.RootWorkId : candidate.CollectionId ?? candidate.WorkId),
+                _ when candidate.CollectionId is { } series && rolledSeries.ContainsKey(series) && IsRolledUpKind(kind) => (false, series),
                 _ => (false, candidate.WorkId)
             };
             // No listed time means the real one comes from metadata claims: keep the group in play.
@@ -221,13 +227,17 @@ internal sealed class RecentCatalogueReadService(
             }
         }
         return groups
-            .Select(g => new RecentGroup(g.Key.IsRoot, g.Key.Id, g.Value, "catalogue:" + g.Key.Id.ToString("N"), tvGroups.Contains(g.Key), members[g.Key].Count))
+            .Select(g => new RecentGroup(g.Key.IsRoot, g.Key.Id, g.Value, "catalogue:" + g.Key.Id.ToString("N"), tvGroups.Contains(g.Key), members[g.Key].Count,
+                !g.Key.IsRoot && rolledSeries.TryGetValue(g.Key.Id, out var seriesMembers) ? seriesMembers : null))
             .Where(g => g.AddedAt == DateTimeOffset.MaxValue || DisplayRecentCursor.IsAfter(g.AddedAt, g.Key, boundary))
             .OrderByDescending(g => g.AddedAt).ThenBy(g => g.Key, StringComparer.Ordinal)
             .ToList();
     }
 
-    internal sealed record RecentGroup(bool IsRoot, Guid Id, DateTimeOffset AddedAt, string Key, bool IsTv = false, int Members = 0);
+    internal sealed record RecentGroup(bool IsRoot, Guid Id, DateTimeOffset AddedAt, string Key, bool IsTv = false, int Members = 0, IReadOnlyList<Guid>? MemberWorkIds = null);
+
+    /// <summary>Books, audiobooks and comics roll up per Series on Home; movies and everything else stay one tile each.</summary>
+    private static bool IsRolledUpKind(string kind) => kind is "Book" or "Audiobook" or "Comic";
 
     public static IReadOnlyList<DisplayRecentItemDto> Compose(IReadOnlyList<DisplayWorkRow> rows, DisplayCardBuilder cards, string type, DisplayRecentBoundary? boundary, int take, IReadOnlyDictionary<Guid, DisplayJourneyRow>? progress = null, IReadOnlyDictionary<Guid, DisplayTvShowSummary>? tvSummaries = null)
     {
@@ -253,7 +263,20 @@ internal sealed class RecentCatalogueReadService(
                 Subject = DisplaySubjectKind.Album
             });
         }
-        result.AddRange(filtered.Where(r => DisplayMediaRules.NormalizeDisplayKind(r.MediaType) is not ("TV" or "Music"))
+        // One tile per Series with its count (One tile design D14): 100 new books of one Series are one tile, "100 books".
+        var seriesRows = filtered
+            .Where(r => r.CollectionId.HasValue && IsRolledUpKind(DisplayMediaRules.NormalizeDisplayKind(r.MediaType)))
+            .GroupBy(r => r.CollectionId!.Value)
+            .Where(g => g.Select(r => r.WorkId).Distinct().Count() >= 2)
+            .SelectMany(g => g)
+            .ToList();
+        var seriesCards = cards.BuildCollectionCards(seriesRows, "recent");
+        result.AddRange(seriesCards);
+        var rolledSeriesIds = seriesCards.Select(card => card.Id).ToHashSet();
+        // A folder of videos is one tile with its count; a loose video stays a single tile.
+        result.AddRange(cards.BuildVideoCards(filtered.Where(r => DisplayMediaRules.NormalizeDisplayKind(r.MediaType) == "Video").ToList(), progress));
+        result.AddRange(filtered.Where(r => DisplayMediaRules.NormalizeDisplayKind(r.MediaType) is not ("TV" or "Music" or "Video")
+                && !(r.CollectionId is { } rolled && rolledSeriesIds.Contains(rolled) && IsRolledUpKind(DisplayMediaRules.NormalizeDisplayKind(r.MediaType))))
             .GroupBy(r => r.WorkId).Select(g => cards.FromWork(g.OrderByDescending(r => r.CreatedAt).ThenBy(r => r.WorkId).ThenBy(r => r.AssetId).First(), "recent", progress?.GetValueOrDefault(g.Key))));
         return result.Select(card => new DisplayRecentItemDto("catalogue:" + card.Id.ToString("N"), card.SortTimestamp, card, null))
             .Where(item => DisplayRecentCursor.IsAfter(item.AddedAt, item.Key, boundary))

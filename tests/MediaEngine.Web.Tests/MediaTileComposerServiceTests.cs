@@ -33,7 +33,6 @@ public sealed class MediaTileComposerServiceTests
         Assert.Equal("1 item", tile.Subtitle);
         Assert.Equal("/listen/music/playlists/99999999-9999-9999-9999-999999999999", tile.NavigationUrl);
         Assert.Equal(MediaTileShape.Square, tile.Shape);
-        Assert.Equal(MediaTileHoverMode.GlowOnly, tile.HoverMode);
         Assert.True(tile.IsCollection);
         Assert.Contains("size=s", tile.TileImageUrl, StringComparison.Ordinal);
         Assert.Contains("size=m", tile.HoverImageUrl, StringComparison.Ordinal);
@@ -270,7 +269,6 @@ public sealed class MediaTileComposerServiceTests
 
         var mapped = MediaTileComposerService.FromDisplayCard(card);
 
-        Assert.Equal(MediaTileHoverMode.Expanded, mapped.HoverMode);
     }
 
     [Fact]
@@ -382,7 +380,6 @@ public sealed class MediaTileComposerServiceTests
         Assert.Equal(MediaTileShape.Portrait, mapped.Shape);
         Assert.Equal(MediaTileSurfaceKind.CoverPortrait, mapped.SurfaceKind);
         Assert.Equal(MediaTileHoverLayout.BannerPopover, mapped.HoverLayout);
-        Assert.Equal(MediaTileHoverMode.Expanded, mapped.HoverMode);
         Assert.Equal("/shows/expanse-cover-s.jpg", mapped.TileImageUrl);
         Assert.Equal("/episodes/still-m.jpg", mapped.HoverImageUrl);
     }
@@ -467,7 +464,6 @@ public sealed class MediaTileComposerServiceTests
 
         Assert.True(mapped.IsCollection);
         Assert.Equal(MediaTilePresentation.BookSeries, mapped.Presentation);
-        Assert.Equal(MediaTileHoverMode.Expanded, mapped.HoverMode);
         Assert.Equal("Open Series", mapped.PrimaryActionLabel);
         Assert.True(mapped.UseLandscapeGroupTile);
     }

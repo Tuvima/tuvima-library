@@ -101,7 +101,6 @@ public partial class ListenPage
     private string _albumGenreFilter = "all";
     private bool _albumFavoriteOnly;
     private bool _albumArtOnly;
-    private int _albumTileSizePx = 136;
     private string _artistSearch = string.Empty;
     private string _artistSort = "name";
     private string _audiobookSearch = string.Empty;
@@ -111,7 +110,6 @@ public partial class ListenPage
     private bool _audiobookInProgressOnly;
     private bool _audiobookUnreadOnly;
     private LibraryLayoutMode _audiobookLayout = LibraryLayoutMode.Card;
-    private int _audiobookTileSizePx = 160;
     private string? _audiobookSeriesFocus;
     private string? _lastHandledTrackContext;
     private string? _selectedArtistName;
@@ -3038,22 +3036,6 @@ public partial class ListenPage
         _audiobookSearch = args.Value?.ToString() ?? string.Empty;
     }
 
-    private void UpdateAlbumTileSize(ChangeEventArgs args)
-    {
-        if (int.TryParse(args.Value?.ToString(), out var requestedSize))
-        {
-            _albumTileSizePx = Math.Clamp(requestedSize, 96, 208);
-        }
-    }
-
-    private void UpdateAudiobookTileSize(ChangeEventArgs args)
-    {
-        if (int.TryParse(args.Value?.ToString(), out var requestedSize))
-        {
-            _audiobookTileSizePx = Math.Clamp(requestedSize, 128, 248);
-        }
-    }
-
     private void SetAudiobookInProgress(bool selected)
     {
         _audiobookInProgressOnly = selected;
@@ -3158,7 +3140,6 @@ public partial class ListenPage
             HoverLayout = string.IsNullOrWhiteSpace(backgroundMedium)
                 ? MediaTileHoverLayout.ArtOnlyPopover
                 : MediaTileHoverLayout.BannerPopover,
-            HoverMode = MediaTileHoverMode.Expanded,
             TileTextMode = MediaTileTextMode.CoverOnly,
             TileImageUrl = small,
             TileImageSrcSet = MediaTileArtworkUrl.SrcSet(small, medium),
@@ -3404,7 +3385,6 @@ public partial class ListenPage
             HoverLayout = !string.IsNullOrWhiteSpace(backgroundMedium) || !string.IsNullOrWhiteSpace(bannerMedium)
                 ? MediaTileHoverLayout.BannerPopover
                 : MediaTileHoverLayout.ArtOnlyPopover,
-            HoverMode = MediaTileHoverMode.Expanded,
             TileTextMode = MediaTileTextMode.CoverOnly,
             TileImageUrl = small,
             TileImageSrcSet = MediaTileArtworkUrl.SrcSet(small, medium),

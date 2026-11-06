@@ -66,7 +66,6 @@ public sealed class MediaTileComposerService
             HoverArtworkShape = MediaTileShape.Square,
             Presentation = MediaTilePresentation.Album,
             SurfaceKind = MediaTileSurfaceKind.CoverSquare,
-            HoverMode = MediaTileHoverMode.GlowOnly,
             TileTextMode = MediaTileTextMode.Caption,
             TileImageUrl = smallArtwork ?? playlist.CoverArtworkUrl,
             TileImageSrcSet = MediaTileArtworkUrl.SrcSet(smallArtwork, mediumArtwork),
@@ -365,7 +364,6 @@ public sealed class MediaTileComposerService
             Presentation = presentation,
             SurfaceKind = surfaceKind,
             HoverLayout = hoverLayout,
-            HoverMode = SupportsExpandedHover(bucket, isTypedGroup) ? MediaTileHoverMode.Expanded : MediaTileHoverMode.Preview,
             TileTextMode = string.Equals(card.TileTextMode, "coverOnly", StringComparison.OrdinalIgnoreCase) ? MediaTileTextMode.CoverOnly : MediaTileTextMode.Caption,
             PreviewPlacement = string.Equals(card.PreviewPlacement, "bottom", StringComparison.OrdinalIgnoreCase)
                 ? MediaTilePreviewPlacement.Bottom
@@ -530,15 +528,6 @@ public sealed class MediaTileComposerService
         "listen" => new(AppMaterialIcons.Filled.Headphones, "Listen", count.Count),
         _ => new(AppMaterialIcons.Filled.MoreHoriz, "Other", count.Count),
     };
-
-    private static bool SupportsExpandedHover(MediaTileBucket bucket, bool isTypedGroup) =>
-        isTypedGroup
-        || bucket is MediaTileBucket.Movie
-            or MediaTileBucket.Tv
-            or MediaTileBucket.Book
-            or MediaTileBucket.Comic
-            or MediaTileBucket.Audiobook
-            or MediaTileBucket.Music;
 
     private static MediaTileSurfaceKind ResolveHeroSurfaceKind(DisplayArtworkDto artwork, MediaTileSurfaceKind fallback = MediaTileSurfaceKind.CoverPortrait)
     {

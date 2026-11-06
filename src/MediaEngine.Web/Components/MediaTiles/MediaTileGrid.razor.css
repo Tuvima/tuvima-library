@@ -1,9 +1,8 @@
 .media-tile-grid {
-    --media-tile-hover-lift: clamp(26px, 3vw, 34px);
     display: flex;
     flex-wrap: wrap;
     align-items: flex-start;
-    gap: clamp(18px, 2vw, 28px);
+    gap: clamp(14px, 1.4vw, 20px);
     overflow: visible;
 }
 
@@ -16,42 +15,10 @@
     contain-intrinsic-size: auto 360px;
 }
 
-.media-tile-grid--size-96 { --media-grid-tile-size: 96px; }
-.media-tile-grid--size-104 { --media-grid-tile-size: 104px; }
-.media-tile-grid--size-112 { --media-grid-tile-size: 112px; }
-.media-tile-grid--size-120 { --media-grid-tile-size: 120px; }
-.media-tile-grid--size-128 { --media-grid-tile-size: 128px; }
-.media-tile-grid--size-136 { --media-grid-tile-size: 136px; }
-.media-tile-grid--size-144 { --media-grid-tile-size: 144px; }
-.media-tile-grid--size-152 { --media-grid-tile-size: 152px; }
-.media-tile-grid--size-160 { --media-grid-tile-size: 160px; }
-.media-tile-grid--size-168 { --media-grid-tile-size: 168px; }
-.media-tile-grid--size-176 { --media-grid-tile-size: 176px; }
-.media-tile-grid--size-184 { --media-grid-tile-size: 184px; }
-.media-tile-grid--size-192 { --media-grid-tile-size: 192px; }
-.media-tile-grid--size-200 { --media-grid-tile-size: 200px; }
-.media-tile-grid--size-208 { --media-grid-tile-size: 208px; }
-.media-tile-grid--size-216 { --media-grid-tile-size: 216px; }
-.media-tile-grid--size-224 { --media-grid-tile-size: 224px; }
-.media-tile-grid--size-232 { --media-grid-tile-size: 232px; }
-.media-tile-grid--size-240 { --media-grid-tile-size: 240px; }
-.media-tile-grid--size-248 { --media-grid-tile-size: 248px; }
-
-.media-tile-grid.is-size-controlled ::deep .media-tile.is-portrait,
-.media-tile-grid.is-size-controlled ::deep .media-tile.is-square,
-.media-tile-grid.is-size-controlled ::deep .media-tile.is-landscape {
-    width: min(calc(100vw - 22px), var(--media-grid-tile-size));
-}
-
-.media-tile-grid.is-size-controlled ::deep .media-group-tile {
-    --media-group-tile-width: calc(var(--media-grid-tile-size) * 1.75);
-}
-
-.media-tile-grid.is-size-controlled ::deep .media-square-tile {
-    width: min(calc(100vw - 22px), var(--media-grid-tile-size));
-}
+/* One size everywhere (One tile design D1, D2): a wider window shows more columns, never bigger tiles. A squares-only page keeps its squares as wide as a poster. */
+.media-tile-grid--squares-only { --tl-tile-square-w: var(--tl-tile-square-solo-w); }
 
 .media-tile-grid ::deep .person-tile {
     flex: 0 0 auto;
-    width: min(calc(100vw - 22px), var(--media-grid-tile-size, 150px));
+    width: var(--tl-tile-poster-w);
 }

@@ -36,7 +36,6 @@ public sealed class MediaTileShelfViewAllTileTests : AsyncBunitContext
         Shape = MediaTileShape.Portrait,
         TileImageUrl = "/art.jpg",
         DetailsNavigationUrl = "/details/work/x",
-        HoverMode = MediaTileHoverMode.GlowOnly,
     };
 
     private IRenderedComponent<MediaTileShelf> RenderShelf(string? seeAllRoute) =>

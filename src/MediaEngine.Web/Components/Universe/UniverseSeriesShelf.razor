@@ -26,7 +26,7 @@
         {
             @if (entry.Tile is not null)
             {
-                <MediaTile Item="@entry.Tile" HoverMode="@MediaTileHoverPolicy.ForShelf(entry.Tile)" ShowCompactCaption="true" @key="entry.Key" />
+                <MediaTile Item="@entry.Tile" @key="entry.Key" />
             }
             else if (entry.Missing is not null)
             {
@@ -49,7 +49,7 @@
 
     @if (_alsoShelf is not null)
     {
-        <MediaTileShelf Shelf="@_alsoShelf" ShowCompactCaptions="true" KeepCurrentTileSize="true" />
+        <MediaTileShelf Shelf="@_alsoShelf" />
     }
 </section>
 

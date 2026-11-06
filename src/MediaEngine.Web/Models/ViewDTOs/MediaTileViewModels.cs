@@ -60,15 +60,6 @@ public enum MediaTilePreviewPlacement
     Bottom,
 }
 
-public enum MediaTileHoverMode
-{
-    None,
-    GlowOnly,
-    Preview,
-    Expanded,
-    Overlay,
-}
-
 public sealed record MediaTileMediaCountViewModel(string Icon, string Label, int Count);
 
 public sealed record MediaTilePersonViewModel
@@ -154,7 +145,6 @@ public sealed class MediaTileViewModel
     public MediaTilePresentation Presentation { get; init; } = MediaTilePresentation.Default;
     public MediaTileSurfaceKind SurfaceKind { get; init; } = MediaTileSurfaceKind.CoverPortrait;
     public MediaTileHoverLayout HoverLayout { get; init; } = MediaTileHoverLayout.ArtOnlyPopover;
-    public MediaTileHoverMode HoverMode { get; init; } = MediaTileHoverMode.Expanded;
     public MediaTileTextMode TileTextMode { get; init; } = MediaTileTextMode.Caption;
     public MediaTilePreviewPlacement PreviewPlacement { get; init; } = MediaTilePreviewPlacement.Smart;
     public string? TileImageUrl { get; init; }

@@ -3,34 +3,19 @@
 <div class="@GridClass">
     @foreach (var item in Items)
     {
-        <MediaTile Item="@item"
-                   HoverMode="@HoverMode"
-                   HideMediaKindBadge="@HideMediaKindBadges"
-                   HideSourceBadge="@HideSourceBadges"
-                   HideGroupIndicators="@HideGroupIndicators"
-                   HideGroupKind="@HideGroupKind"
-                   HideGroupCount="@HideGroupCount"
-                   ShowCompactCaption="@ShowCompactCaptions"
-                   @key="item.RenderKey" />
+        <MediaTile Item="@item" @key="item.RenderKey" />
     }
 </div>
 
 @code {
     [Parameter, EditorRequired] public IReadOnlyList<MediaTileViewModel> Items { get; set; } = [];
-    [Parameter] public MediaTileHoverMode? HoverMode { get; set; } = MediaTileHoverMode.GlowOnly;
-    [Parameter] public bool HideMediaKindBadges { get; set; }
-    [Parameter] public bool HideSourceBadges { get; set; }
-    [Parameter] public bool HideGroupIndicators { get; set; }
-    [Parameter] public bool HideGroupKind { get; set; }
-    [Parameter] public bool HideGroupCount { get; set; }
-    [Parameter] public bool ShowCompactCaptions { get; set; }
-    [Parameter] public int? TileSizePx { get; set; }
+
+    /// <summary>
+    /// True on a page that holds only squares (Listen albums, playlists, audiobooks): they are as wide as a poster there (One tile design D2).
+    /// In any row that mixes squares with posters they stay at poster height.
+    /// </summary>
+    [Parameter] public bool SquaresOnly { get; set; }
     [Parameter] public string? Class { get; set; }
 
-    private int? ResolvedTileSizePx => TileSizePx is > 0
-        ? Math.Clamp((int)Math.Round(TileSizePx.Value / 8d, MidpointRounding.AwayFromZero) * 8, 96, 248)
-        : null;
-
-    private string GridClass =>
-        $"media-tile-grid {(ResolvedTileSizePx.HasValue ? $"is-size-controlled media-tile-grid--size-{ResolvedTileSizePx.Value}" : string.Empty)} {Class}".Trim();
+    private string GridClass => $"media-tile-grid {(SquaresOnly ? "media-tile-grid--squares-only" : string.Empty)} {Class}".Trim();
 }

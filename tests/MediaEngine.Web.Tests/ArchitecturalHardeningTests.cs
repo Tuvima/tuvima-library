@@ -310,15 +310,6 @@ public sealed class ArchitecturalHardeningTests
         Assert.Equal("failed", state.Error);
     }
 
-    [Fact]
-    public void PerformanceSourceGuardrails_RemainInPlace()
-    {
-        var appJs = File.ReadAllText(Path.Combine(RepoRoot, "src/MediaEngine.Web/wwwroot/app.js"));
-
-        Assert.Contains("__mediaTileHoverFrame", appJs);
-        Assert.Contains("cancelAnimationFrame", appJs);
-    }
-
     private static HttpClient CreateHttpClient(Func<HttpRequestMessage, HttpResponseMessage> responder) =>
         new(new StubHttpMessageHandler(responder))
         {

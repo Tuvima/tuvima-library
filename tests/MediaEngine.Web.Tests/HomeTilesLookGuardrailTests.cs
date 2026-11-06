@@ -44,8 +44,6 @@ public sealed class HomeTilesLookGuardrailTests
     public void NoTileGrowsOnHover(string kind)
     {
         var tile = new MediaTileViewModel { Id = Guid.NewGuid(), Title = "Title", MediaKind = kind };
-        Assert.NotEqual(MediaTileHoverMode.Expanded, MediaTileHoverPolicy.ForShelf(tile));
-        Assert.NotEqual(MediaTileHoverMode.Expanded, MediaTileHoverPolicy.Resolve(tile, MediaTileHoverMode.Expanded, isHomeSurface: true));
         var tokens = Read("src/MediaEngine.Web/wwwroot/tuvima.tokens.css");
         Assert.Contains("--tl-hover-media-scale: 1;", tokens, StringComparison.Ordinal);
         Assert.Contains("--tl-hover-artwork-scale: 1;", tokens, StringComparison.Ordinal);

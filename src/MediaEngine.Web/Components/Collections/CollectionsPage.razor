@@ -63,34 +63,22 @@
                 @if (UniverseTiles.Count > 0)
                 {
                     @* Universes sit in their own row at the top, so a whole world is in front of you without touching a filter. *@
-                    <MediaTileShelf Shelf="@OverviewUniversesShelf"
-                                    HoverMode="MediaTileHoverMode.GlowOnly"
-                                    HideMediaKindBadges="true"
-                                    HideSourceBadges="true" />
+                    <MediaTileShelf Shelf="@OverviewUniversesShelf" />
                 }
 
                 @if (OverviewAutomaticTiles.Count > 0)
                 {
-                    <MediaTileShelf Shelf="@OverviewAutomaticShelf"
-                                    HoverMode="MediaTileHoverMode.GlowOnly"
-                                    HideMediaKindBadges="true"
-                                    HideSourceBadges="true" />
+                    <MediaTileShelf Shelf="@OverviewAutomaticShelf" />
                 }
 
                 @if (CuratedTiles.Count > 0)
                 {
-                    <MediaTileShelf Shelf="@OverviewCuratedShelf"
-                                    HoverMode="MediaTileHoverMode.GlowOnly"
-                                    HideMediaKindBadges="true"
-                                    HideSourceBadges="true" />
+                    <MediaTileShelf Shelf="@OverviewCuratedShelf" />
                 }
 
                 @if (ShelfTiles.Count > 0)
                 {
-                    <MediaTileShelf Shelf="@OverviewShelvesShelf"
-                                    HoverMode="MediaTileHoverMode.GlowOnly"
-                                    HideMediaKindBadges="true"
-                                    HideSourceBadges="true" />
+                    <MediaTileShelf Shelf="@OverviewShelvesShelf" />
                 }
 
                 @if (VisiblePeopleRoles.Count > 0)
@@ -256,19 +244,6 @@
                                     }
                                 </AppSelect>
 
-                                @if (_activeSection != CollectionsSectionConfiguration.People)
-                                {
-                                    <label class="collections-tile-size">
-                                        <span>@L["Common_TileSize"]</span>
-                                        <AppNativeInput Type="range"
-                                                        Value="@_tileSize"
-                                                        Min="136"
-                                                        Max="248"
-                                                        Step="8"
-                                                        AriaLabel="@L["CollectionsPage_CollectionTileSize"].Value"
-                                                        OnInput="OnTileSizeChanged" />
-                                    </label>
-                                }
                                 </div>
                                 </ChildContent>
                                 </BrowseFilterSheet>
@@ -317,10 +292,7 @@
                         {
                             @if (laneShelf.Items.Count > 0)
                             {
-                                <MediaTileShelf Shelf="@laneShelf"
-                                                HoverMode="MediaTileHoverMode.GlowOnly"
-                                                HideMediaKindBadges="true"
-                                                HideSourceBadges="true" />
+                                <MediaTileShelf Shelf="@laneShelf" />
                             }
                             else
                             {
@@ -339,12 +311,6 @@
                 else
                 {
                     <MediaTileGrid Items="@VisibleTiles"
-                                   HoverMode="MediaTileHoverMode.GlowOnly"
-                                   HideMediaKindBadges="true"
-                                   HideSourceBadges="true"
-                                   HideGroupIndicators="true"
-                                   ShowCompactCaptions="true"
-                                   TileSizePx="@_tileSize"
                                    Class="browse-shell__grid" />
 
                     @if (VisibleTiles.Count < ActiveTiles.Count)
@@ -374,7 +340,6 @@
     [Parameter] public string? MembershipQuery { get; set; }
     [Parameter] public string? RoleQuery { get; set; }
     [Parameter] public string? SortQuery { get; set; }
-    [Parameter] public int? TileQuery { get; set; }
 
     private readonly List<CollectionManagementCatalogViewModel> _collections = [];
     private readonly List<ContentGroupViewModel> _shelves = [];
@@ -389,7 +354,6 @@
     private string _membership = "all";
     private string _role = "all";
     private string _sortBy = "title";
-    private int _tileSize = 176;
     private int _visibleTileCount = TilePageSize;
     private int _peopleOffset;
     private bool _peopleHasMore;
@@ -1026,9 +990,6 @@
         _membership = MembershipQuery ?? "all";
         _role = RoleQuery ?? "all";
         _sortBy = ResolveSort(SortQuery);
-        _tileSize = TileQuery.HasValue
-            ? Math.Clamp(TileQuery.Value, 136, 248)
-            : 176;
         _visibleTileCount = TilePageSize;
     }
 
@@ -1085,15 +1046,6 @@
             await ReloadPeopleForFiltersAsync();
     }
 
-    private void OnTileSizeChanged(ChangeEventArgs args)
-    {
-        if (int.TryParse(args.Value?.ToString(), out var tileSize))
-        {
-            _tileSize = Math.Clamp(tileSize, 136, 248);
-            NavigateWithFilters();
-        }
-    }
-
     private void NavigateWithFilters()
     {
         _visibleTileCount = TilePageSize;
@@ -1110,8 +1062,6 @@
             query.Add($"role={Uri.EscapeDataString(_role)}");
         if (_sortBy != ResolveSort(null))
             query.Add($"sort={Uri.EscapeDataString(_sortBy)}");
-        if (_tileSize != 176 && _activeSection != CollectionsSectionConfiguration.People)
-            query.Add($"tile={_tileSize}");
 
         var route = _activeSection == CollectionsSectionConfiguration.Overview
             ? "/collections"

@@ -225,7 +225,6 @@
 .browse-shell__grid {
     --media-tile-hover-clearance: 0px;
     --media-tile-hover-lift: 0px;
-    --media-tile-media-height: clamp(172px, 10vw, 236px);
     display: flex;
     flex-wrap: wrap;
     align-items: flex-start;

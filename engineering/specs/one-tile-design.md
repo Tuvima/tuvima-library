@@ -1,6 +1,6 @@
 # Spec: One tile design, everywhere
 
-> **Status:** Locked (Shy approved 2026-11-06) · **Version:** 1 · **Last updated:** 2026-11-06 · **Related docs:** [Home, detail page and tile redesign](home-detail-and-tiles.md) (this spec replaces its tile hover, size and caption decisions; see Gaps and drift) · [Library area pages](library-area-pages.md) · [One shared look](one-shared-look.md) · [Look pass](look-pass.md) (section 4.4 menus) · Local check 2026-11-05 bugs 15, 16, 24 and questions 23, 24 · Mockups: [one-tile-design.html](../design/mockups/one-tile-design.html)
+> **Status:** In progress (built in the cloud 2026-11-06, awaiting Local checks; Locked, Shy approved 2026-11-06) · **Version:** 1 · **Last updated:** 2026-11-06 · **Related docs:** [Home, detail page and tile redesign](home-detail-and-tiles.md) (this spec replaces its tile hover, size and caption decisions; see Gaps and drift) · [Library area pages](library-area-pages.md) · [One shared look](one-shared-look.md) · [Look pass](look-pass.md) (section 4.4 menus) · Local check 2026-11-05 bugs 15, 16, 24 and questions 23, 24 · Mockups: [one-tile-design.html](../design/mockups/one-tile-design.html)
 >
 > **Follows [Look pass v2](look-pass-v2.md)** (a pointer only, no decision above changes): near-black surfaces, purple as an accent only (the hover outline is the accent), 44 px controls and tap targets, Material icons, phone menus opening as bottom sheets, and one tooltip style. Where this spec says the tile "..." menu is the same on a phone, it opens as the shared bottom sheet.
 

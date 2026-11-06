@@ -433,9 +433,6 @@
   <data name="Common_Display" xml:space="preserve">
     <value>Visualización</value>
   </data>
-  <data name="Common_TileSize" xml:space="preserve">
-    <value>Tamaño de las miniaturas</value>
-  </data>
   <data name="Common_Cards" xml:space="preserve">
     <value>Tarjetas</value>
   </data>
