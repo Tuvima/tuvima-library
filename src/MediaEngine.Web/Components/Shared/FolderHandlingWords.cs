@@ -33,7 +33,8 @@ public static class FolderHandlingWords
         var last = path.TrimEnd('\\', '/').Split('\\', '/')[^1];
         if (last.EndsWith(':'))
         {
-            last = last.TrimEnd(':');
+            // A bare drive root (C:\) is a place, not a name: the friendly name stays empty.
+            return string.Empty;
         }
 
         return last.Length > maxLength ? last[..maxLength] : last;

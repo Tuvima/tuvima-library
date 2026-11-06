@@ -196,6 +196,21 @@ public sealed class ServerFolderPickerBehaviourTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task TheFriendlyNameStartsEmptyOnABareDriveRootAndFollowsAChosenFolder()
+    {
+        _root = WholeDrive;
+        var host = Render<AppDialogHost>();
+        var parameters = new AppDialogParameters<ServerFolderPicker> { { picker => picker.ShowFolderName, true } };
+        await host.InvokeAsync(() => Services.GetRequiredService<IAppDialogService>().ShowAsync<ServerFolderPicker>(string.Empty, parameters));
+        host.WaitForElement(".server-folder-picker__folder");
+
+        Assert.Equal(string.Empty, host.Find("[data-folder-name] input").GetAttribute("value") ?? string.Empty);
+
+        Row(host, "Movies").Click();
+        host.WaitForAssertion(() => Assert.Equal("Movies", host.Find("[data-folder-name] input").GetAttribute("value")));
+    }
+
+    [Fact]
     public async Task BrowsingNeverChecksAFolderAndNeverShowsAnOverlapMessage()
     {
         var host = await OpenPickerAsync();
