@@ -34,7 +34,8 @@ public sealed record AddFolderPlan(
     string? NewLibraryName = null,
     bool CreateNewLibrary = false,
     string? Access = null,
-    string? SuccessMessage = null);
+    string? SuccessMessage = null,
+    string? Label = null);
 
 /// <summary>Which Engine calls to use: the signed-in Settings ones, or the first-run setup ones (which carry the setup session).</summary>
 public sealed record FolderAddScope(bool Embedded, string? SetupSession)
@@ -133,6 +134,7 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
         ApplyKindLookup(library, type);
         // The Engine makes the first managed folder the library's destination when it saves.
         var source = NewSource(selected, managed);
+        source.Label = string.IsNullOrWhiteSpace(plan.Label) ? null : plan.Label.Trim();
 
         library.Sources.Add(source);
 
@@ -417,6 +419,36 @@ public sealed class LibraryFolderAddService(IEngineApiClient apiClient, IAppDial
         var dialog = await dialogs.ShowAsync<ConvertFolderDialog>(string.Empty, parameters, SheetOptions());
         return await dialog.Result is { Canceled: false, Data: ConvertFolderDialog.Convert };
     }
+
+    /// <summary>
+    /// Switch to Managed (Libraries v3 D27): checks the folder can be written, counts what is there, shows the Preview and the plain-words Review, then queues the
+    /// Engine's organising job, which renames and reorganizes the files inside the same folder. Nothing happens unless the person confirms.
+    /// </summary>
+    public async Task<SwitchToManagedOutcome> SwitchToManagedAsync(LibrarySourceDto source)
+    {
+        var writable = await ValidateAsync(FolderAddScope.Settings, source.Path, ServerFolderSelectionModes.ManagedLibrary, source.Id);
+        if (writable is null || !writable.CanSelect)
+        {
+            return new SwitchToManagedOutcome(false, writable?.Issues.FirstOrDefault()?.Message ?? apiClient.LastError ?? "Library can't write to this folder, so it stays Read-only.");
+        }
+
+        var quick = await apiClient.PreviewFolderConversionAsync(new FolderConversionPreviewRequest { SourceId = source.Id, Quick = true });
+        if (quick is null)
+        {
+            return new SwitchToManagedOutcome(false, apiClient.LastError ?? "Library could not count the files in this folder, so it was not changed.");
+        }
+
+        if (!await AskToConvertAsync(source, quick, alreadyManaged: false))
+        {
+            return new SwitchToManagedOutcome(false, null);
+        }
+
+        var followUp = await StartConversionAsync(source);
+        return new SwitchToManagedOutcome(followUp.Started, followUp.Started ? null : followUp.Notice);
+    }
+
+    /// <summary>What Switch to Managed did: <see cref="Started"/> when the job was queued, <see cref="Error"/> when it could not be.</summary>
+    public sealed record SwitchToManagedOutcome(bool Started, string? Error);
 
     // Queues the organising job for a folder, makes it Managed in the same step, and says so.
     public async Task<FolderFollowUp> StartConversionAsync(LibrarySourceDto source)

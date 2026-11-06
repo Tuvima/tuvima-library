@@ -1354,6 +1354,17 @@ public sealed class FolderKindChangeTests : IDisposable
             Database.RunStartupChecks();
 
             Config = new ConfigurationDirectoryLoader(Path.Combine(Root, "config"));
+            // These tests cover a kind that holds several libraries. The shipped kinds hold one (Libraries v3 D17), so Videos and Other audio are made multi kinds here,
+            // the way a kind added in config would be.
+            var kindList = new LibraryKindsConfiguration();
+            foreach (var multi in kindList.Kinds.Where(kind => kind.Key is "other_videos" or "other_audio"))
+            {
+                multi.AllowsMultiple = true;
+                multi.MaxLibraries = LibraryKindRules.MaxPlainLibraries;
+            }
+
+            Directory.CreateDirectory(Path.Combine(Root, "config"));
+            File.WriteAllText(Path.Combine(Root, "config", "library_kinds.json"), JsonSerializer.Serialize(kindList));
             Config.SaveLibraries(new LibrariesConfiguration
             {
                 StorageLocations =
@@ -1405,7 +1416,7 @@ public sealed class FolderKindChangeTests : IDisposable
                 Grouping = LibraryKindGroupings.FolderAndTags,
                 NamingTemplate = "default",
             };
-            var kinds = new FixedKinds([.. LibraryKindsConfiguration.BuiltIn(), vaultKind]);
+            var kinds = new FixedKinds([.. kindList.Kinds, vaultKind]);
             var visibilityRule = new LibraryVisibilityRule(new HouseholdLibraryAccessRepository(Database), vaultLibraries);
             Visibility = new SwitchableVisibility(new VisibilityAfterMoveReadService(
                 _accounts, new ProfileRepository(Database), _profileAccess, new MediaAssetLibraryCountRepository(Database), vaultLibraries, Config, visibilityRule));

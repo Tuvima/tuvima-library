@@ -142,15 +142,14 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
     private static string[] ChipTexts(IRenderedComponent<LibrariesTab> cut) => cut.FindAll(".lib-chip").Select(Text).ToArray();
 
     [Fact]
-    public void TheOverviewShowsAreaChipsWithCountsOverOneTableAndTheRailListsTheSameAreasAndLibraries()
+    public void TheOverviewShowsAreaChipsWithCountsOverOneTableAndNoRail()
     {
         var cut = Open();
 
         Assert.Equal(["All5", "Watch1", "Listen1", "Read0", "View3"], ChipTexts(cut));
         Assert.Single(cut.FindAll("table"));
         Assert.Empty(cut.FindAll(".libs__group"));
-        Assert.Equal(["Watch", "Listen", "Read", "View"], cut.FindAll(".librail__area").Select(Text).ToArray());
-        Assert.Equal([MoviesId, AudiobooksId], cut.FindAll(".librail__lib[data-library]").Select(link => link.GetAttribute("data-library")!).Take(2).ToArray());
+        Assert.Empty(cut.FindAll(".librail, .libraries__layout"));
         Assert.DoesNotContain("Vault", cut.Markup);
     }
 
@@ -305,16 +304,13 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         Assert.Equal("2 folders", Text(Row(cut, MoviesId).QuerySelectorAll("td")[2]));
     }
 
-    // 3. The rail never goes away: on a library's own page it still lists every library and highlights the open one (Libraries redesign A1).
+    // 3. No rail on a library's own page either (Libraries v3 D22); the page's own header carries the way back.
     [Fact]
-    public void TheRailStaysOnALibrarysPageAndHighlightsTheOpenLibrary()
+    public void ALibrarysPageHasNoRail()
     {
         var cut = OpenAndSettle(MoviesId);
 
-        Assert.Equal(["Watch", "Listen", "Read", "View"], cut.FindAll(".librail__area").Select(Text).ToArray());
-        Assert.Equal(MoviesId, cut.Find(".librail__lib.librail__on").GetAttribute("data-library"));
-        cut.Find($".librail__lib[data-library='{AudiobooksId}']").GetAttribute("href");
-        Assert.Equal($"/settings/libraries/{AudiobooksId}", cut.Find($".librail__lib[data-library='{AudiobooksId}']").GetAttribute("href"));
+        Assert.Empty(cut.FindAll(".librail, .libraries__layout"));
     }
 
     // 4. The whole row opens the library.
@@ -409,8 +405,6 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         var review = Row(cut, MoviesId).QuerySelector("a[data-status=needs-review]")!;
         Assert.Equal("3 need review", Text(review));
         Assert.Equal($"/settings/review?library={MoviesId}", review.GetAttribute("href"));
-        // The rail carries the same total beside the library.
-        Assert.Equal("15", Text(cut.Find($".librail__lib[data-library='{MoviesId}'] .librail__count")));
     }
 
     [Fact]
@@ -453,7 +447,6 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
 
         var shown = Render<LibrariesOverview>(parameters => parameters.Add(x => x.Kinds, kinds).Add(x => x.Configuration, configuration).Add(x => x.ShowVault, true));
         var hidden = Render<LibrariesOverview>(parameters => parameters.Add(x => x.Kinds, kinds).Add(x => x.Configuration, configuration));
-        var rail = Render<LibrariesRail>(parameters => parameters.Add(x => x.Kinds, kinds).Add(x => x.Configuration, configuration));
 
         Assert.Equal(["all", "watch", "listen", "read", "view", "vault"], shown.FindAll(".lib-chip").Select(chip => chip.GetAttribute("data-area")!).ToArray());
         Assert.Equal(["Movies"], shown.FindAll("tr[data-area=watch] .libs__link").Select(Text).ToArray());
@@ -463,9 +456,6 @@ public sealed class LibrariesOverviewTests : AsyncBunitContext
         Assert.Equal(["Movies"], hidden.FindAll("tr[data-area=watch] .libs__link").Select(Text).ToArray());
         Assert.DoesNotContain("Vault", hidden.Markup);
         Assert.DoesNotContain("Private", hidden.Markup);
-        // The rail is the same: no Vault group, row, count or word for someone who may not open it.
-        Assert.DoesNotContain("Vault", rail.Markup);
-        Assert.DoesNotContain("Private", rail.Markup);
     }
 
     // 8. Empty area, search, status filter, loading and error.

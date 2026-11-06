@@ -90,6 +90,19 @@
                 </div>
             }
 
+            @if (ActiveFolders.Count >= 2)
+            {
+                @* The Folders filter (Libraries v3 D18): a library with two or more folders can be narrowed to the titles of one. *@
+                <div class="browse-shell__folders" data-folders-filter>
+                    <AppSelect Label="@L["MediaBrowseShell_Folders"].Value"
+                               AriaLabel="@L["MediaBrowseShell_Folders"].Value"
+                               Value="@(ActiveFolderId ?? string.Empty)"
+                               ValueChanged="@((string? value) => OnFolderChanged(value))"
+                               Options="@FolderOptions"
+                               Size="AppControlSize.Compact" />
+                </div>
+            }
+
             <div class="browse-shell__filter-surface">
                 <div class="browse-shell__filter-search-row">
                     <AppTextField @key="_searchInputVersion"
@@ -524,6 +537,26 @@
 
     // The library the browse asks for: the tab's own library, or the chip chosen on a gathering tab.
     private Guid? ActiveLibraryId => _libraryChip ?? CurrentTab.LibraryId;
+
+    // The Folders filter (Libraries v3 D18): offered only when the library in view has two or more folders; null is "All folders".
+    private string? _folder;
+
+    private IReadOnlyList<MediaEngine.Contracts.Display.BrowseFolderDto> ActiveFolders =>
+        _libraryChip is Guid chip
+            ? CurrentTab.LibraryChips.FirstOrDefault(item => item.Id == chip)?.Folders ?? []
+            : CurrentTab.Folders;
+
+    private string? ActiveFolderId => ActiveFolders.Any(item => item.Id == _folder) ? _folder : null;
+
+    private IReadOnlyList<AppSelectOption> FolderOptions =>
+        [new("", L["MediaBrowseShell_AllFolders"].Value), .. ActiveFolders.Select(item => new AppSelectOption(item.Id, item.Name))];
+
+    private async Task OnFolderChanged(string? folderId)
+    {
+        _folder = string.IsNullOrEmpty(folderId) ? null : folderId;
+        ClearActiveGroupState();
+        await NavigateAndReloadAsync(reloadData: true, replace: true);
+    }
 
     private BrowseTabPreset CurrentTab =>
         Preset.Tabs.FirstOrDefault(tab => string.Equals(tab.Id, _activeTabId, StringComparison.OrdinalIgnoreCase))
@@ -1002,6 +1035,7 @@
         _status,
         _unmatched,
         _libraryChip,
+        _folder,
         _sortBy,
         _layout,
         _activeProfileId?.ToString("N") ?? string.Empty);
@@ -1028,6 +1062,7 @@
             sort: _sortBy,
             libraryId: ActiveLibraryId,
             unmatched: _unmatched ? true : null,
+            folder: ActiveFolderId,
             ct: ct);
 
         if (ct.IsCancellationRequested) return true;
@@ -1092,6 +1127,7 @@
             sort: _sortBy,
             libraryId: ActiveLibraryId,
             unmatched: _unmatched ? true : null,
+            folder: ActiveFolderId,
             ct: ct);
 
         // A newer browse request (or leaving the page) cancelled this one; the newer load owns the state.
@@ -1162,8 +1198,8 @@
         var mediaType = CurrentTab.MediaType;
 
         var groups = systemGroupField is not null
-            ? await ApiClient.GetSystemViewGroupsAsync(mediaType, systemGroupField, libraryId: ActiveLibraryId, unmatched: _unmatched ? true : null)
-            : await ApiClient.GetContentGroupsAsync(libraryId: ActiveLibraryId, unmatched: _unmatched ? true : null);
+            ? await ApiClient.GetSystemViewGroupsAsync(mediaType, systemGroupField, libraryId: ActiveLibraryId, unmatched: _unmatched ? true : null, folder: ActiveFolderId)
+            : await ApiClient.GetContentGroupsAsync(libraryId: ActiveLibraryId, unmatched: _unmatched ? true : null, folder: ActiveFolderId);
         if (systemGroupField is null)
         {
             groups = groups
@@ -1195,7 +1231,8 @@
                 profileId: _activeProfileId,
                 sort: _sortBy,
                 libraryId: ActiveLibraryId,
-                unmatched: _unmatched ? true : null);
+                unmatched: _unmatched ? true : null,
+                folder: ActiveFolderId);
 
             if (qualifyingPage is not null)
             {
@@ -1306,7 +1343,8 @@
             limit: 1,
             profileId: _activeProfileId,
             libraryId: ActiveLibraryId,
-            unmatched: _unmatched ? true : null);
+            unmatched: _unmatched ? true : null,
+            folder: ActiveFolderId);
         _facets = facetPage?.Facets;
     }
 
@@ -1665,6 +1703,7 @@
         _status = string.Empty;
         _unmatched = false;
         _libraryChip = null;
+        _folder = null;
         _selectedYears.Clear();
         _selectedVibes.Clear();
         _selectedThemes.Clear();
@@ -1801,6 +1840,7 @@
     private async Task OnLibraryChipChanged(Guid? libraryId)
     {
         _libraryChip = libraryId;
+        _folder = null;
         _unmatched = false;
         ClearActiveGroupState();
         await NavigateAndReloadAsync(reloadData: true, replace: true);

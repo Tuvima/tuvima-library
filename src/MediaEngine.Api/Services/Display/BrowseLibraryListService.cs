@@ -18,6 +18,31 @@ public sealed class BrowseLibraryListService(
     // The areas browse tabs live in, in tab order. View and Vault are their own places and have no browse tab here.
     private static readonly string[] Areas = [LibraryAreas.Watch, LibraryAreas.Listen, LibraryAreas.Read];
 
+    // The Folders filter exists only when the library has two or more folders (Libraries v3 D18): each folder by its friendly name, else its note, else its last path part.
+    private static IReadOnlyList<BrowseFolderDto>? FoldersOf(LibraryFolderConfig library)
+    {
+        var sources = library.CataloguedSources.ToList();
+        return sources.Count < 2
+            ? null
+            : [.. sources.Select(source => new BrowseFolderDto(source.Id, FolderName(source)))];
+    }
+
+    private static string FolderName(LibrarySourceConfig source)
+    {
+        if (!string.IsNullOrWhiteSpace(source.Label))
+        {
+            return source.Label.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(source.Notes))
+        {
+            return source.Notes.Trim();
+        }
+
+        var leaf = Path.GetFileName(source.Path.TrimEnd('\\', '/'));
+        return string.IsNullOrWhiteSpace(leaf) ? source.Path : leaf;
+    }
+
     public async Task<IReadOnlyList<BrowseLibraryDto>> ListAsync(CancellationToken ct)
     {
         var access = await display.LoadLibraryAccessAsync(ct).ConfigureAwait(false);
@@ -46,7 +71,8 @@ public sealed class BrowseLibraryListService(
                 entry.Library.KindKey,
                 entry.Library.Area,
                 entry.MediaType,
-                entry.Library.CataloguedSources.Any()))
+                entry.Library.CataloguedSources.Any(),
+                FoldersOf(entry.Library)))
             .ToList();
     }
 }

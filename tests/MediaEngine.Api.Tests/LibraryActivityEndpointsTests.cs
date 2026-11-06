@@ -66,7 +66,7 @@ public sealed class LibraryActivityEndpointsTests : IAsyncLifetime
                 Library(_films, "Films", false, "Movies", _filmsSource, FilmsPath),
                 Library(_shows, "Shows", false, "TV", _showsSource, ShowsPath),
                 Library(_family, "Family", false, "Videos", Guid.NewGuid(), Path.Combine(_root, "media", "family")),
-                Library(_vault, "Private", false, "Videos", Guid.NewGuid(), Path.Combine(_root, "media", "private")),
+                Library(_vault, "Private", true, "Videos", Guid.NewGuid(), Path.Combine(_root, "media", "private")),
             ],
             StorageLocations = [new ServerStorageLocationConfig { Id = "media", Label = "Media", Path = Path.Combine(_root, "media"), AllowWrite = true }],
         }));

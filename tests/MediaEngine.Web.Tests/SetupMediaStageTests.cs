@@ -168,14 +168,14 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         cut.FindAll("button").Single(x => Text(x) == "Add library").Click();
 
         _dialogs.WaitForElement(".create-library[data-step='1']");
-        Assert.Equal(["Watch", "Listen", "Read", "View"], _dialogs.Find("[data-area-rows]").QuerySelectorAll("button strong").Select(Text).ToArray());
+        Assert.Equal(["Watch", "Listen", "Read", "View"], _dialogs.Find("[data-area-tiles]").QuerySelectorAll(".lib-tile__name").Select(Text).ToArray());
         Assert.DoesNotContain("Vault", _dialogs.Markup, StringComparison.OrdinalIgnoreCase);
         DialogButton("Next").Click();
         _dialogs.WaitForElement(".create-library[data-step='2']");
-        Assert.Contains("Movies", Text(_dialogs.Find("[aria-label='Content type']")), StringComparison.Ordinal);
+        Assert.Contains("Movies", Text(_dialogs.Find("[data-kind-tiles]")), StringComparison.Ordinal);
         DialogButton("Next").Click();
         _dialogs.WaitForElement(".create-library[data-step='3'] .server-folder-picker");
-        Assert.NotNull(_dialogs.Find(".server-folder-picker__top [data-library-name] input"));
+        Assert.NotNull(_dialogs.Find(".server-folder-picker input"));
         _dialogs.WaitForAssertion(() => Assert.False(DialogButton("Add library").HasAttribute("disabled")));
 
         DialogButton("Add library").Click();
@@ -186,24 +186,21 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal(1, _created));
     }
 
-    // Edit opens the same window as Settings; the new name is reviewed, then saved through the setup session.
+    // Edit opens the same window as Settings. A library is never renamed (Libraries v3 D17): it shows its folders and their handling, and nothing is saved until a change is made.
     [Fact]
-    public void EditRenamesTheLibraryThroughTheSameWindowAsSettingsAndSavesThroughSetup()
+    public void EditOpensTheSameWindowAsSettingsWithNoLibraryNameFieldAndSavesNothingUntilSomethingChanges()
     {
         AddMoviesLibrary();
         var cut = RenderStage(hasLibraries: true);
 
         cut.Find("button[aria-label='Edit Movies']").Click();
-        _dialogs.WaitForElement(".lib-edit__name input");
-        _dialogs.Find(".lib-edit__name input").Input("Family films");
-        DialogButton("Save changes").Click();
-        _dialogs.WaitForElement("[data-review]");
-        DialogButton("Save").Click();
+        _dialogs.WaitForElement(".lib-edit");
 
-        _dialogs.WaitForAssertion(() => Assert.Single(_setupSaves));
-        Assert.Equal("Family films", Assert.Single(_setupSaves[0].Libraries).Name);
-        cut.WaitForAssertion(() => Assert.Equal(["Family films"], Names(cut)));
-        Assert.Equal(1, _created);
+        Assert.Empty(_dialogs.FindAll(".lib-edit__name"));
+        Assert.Single(_dialogs.FindAll("[data-folder-rows] .lib-edit__folder"));
+        Assert.Contains("Read-only", Text(_dialogs.Find(".lib-edit__tag")), StringComparison.Ordinal);
+        Assert.Empty(_setupSaves);
+        Assert.Equal(["Movies"], Names(cut));
     }
 
     // Setup scans nothing and moves nothing, so the Edit window leaves out Scan now and Move to Vault there.
@@ -214,7 +211,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         var cut = RenderStage(hasLibraries: true);
 
         cut.Find("button[aria-label='Edit Movies']").Click();
-        _dialogs.WaitForElement(".lib-edit__name input");
+        _dialogs.WaitForElement(".lib-edit");
 
         Assert.DoesNotContain(_dialogs.FindAll("button"), button => Text(button) == "Scan now");
         Assert.Contains(_dialogs.FindAll("button"), button => Text(button) == "Remove library");
@@ -228,7 +225,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         var cut = RenderStage(hasLibraries: true);
 
         cut.Find("button[aria-label='Edit Movies']").Click();
-        _dialogs.WaitForElement(".lib-edit__name input");
+        _dialogs.WaitForElement(".lib-edit");
         DialogButton("Remove library").Click();
         _dialogs.WaitForAssertion(() => Assert.Contains("Remove Movies?", _dialogs.Markup, StringComparison.Ordinal));
         Assert.Empty(_setupSaves);
@@ -246,7 +243,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         var cut = RenderStage(hasLibraries: true);
 
         cut.Find("button[aria-label='Edit Movies']").Click();
-        _dialogs.WaitForElement(".lib-edit__name input");
+        _dialogs.WaitForElement(".lib-edit");
         DialogButton("Remove library").Click();
         _dialogs.WaitForAssertion(() => Assert.Contains("Remove Movies?", _dialogs.Markup, StringComparison.Ordinal));
         DialogButton("Keep").Click();
@@ -365,7 +362,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
 
     // The folder picker opens at one shared size, with the name in its footer, for every caller (local check 2026-11-01, item 7).
     [Fact]
-    public void EveryFolderPickerCallerUsesTheOneSharedDialogSizeAndAddLibraryPutsTheNameInThePickersFooter()
+    public void EveryFolderPickerCallerUsesTheOneSharedDialogSizeAndTheFolderWindowCarriesTheFriendlyNameAndHandling()
     {
         var root = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "MediaEngine.Web", "Components");
         foreach (var file in Directory.GetFiles(root, "*.razor", SearchOption.AllDirectories).Where(file => File.ReadAllText(file).Contains("ShowAsync<ServerFolderPicker>", StringComparison.Ordinal)))
@@ -376,8 +373,9 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         }
 
         var create = File.ReadAllText(Path.Combine(root, "Settings", "Libraries", "CreateLibraryDialog.razor"));
-        Assert.Contains("<TopContent>", create, StringComparison.Ordinal);
-        Assert.Contains("MaxWidth = ServerFolderPicker.DialogOptions.MaxWidth", create, StringComparison.Ordinal);
+        Assert.Contains("ShowFolderName=\"true\"", create, StringComparison.Ordinal);
+        Assert.Contains("OfferHandling=", create, StringComparison.Ordinal);
+        Assert.Contains("DialogOptions => ServerFolderPicker.DialogOptions", create, StringComparison.Ordinal);
     }
 
     // Add-folder v2 (A4 for View and the Vault): setup's View folders go through the one Add library pop-up and the View folder dialog, the Vault step draws the same area card,
@@ -392,7 +390,7 @@ public sealed class SetupMediaStageTests : AsyncBunitContext
         var eligibility = File.ReadAllText(Path.Combine(root, "Setup", "SetupVaultEligibility.cs"));
 
         Assert.Contains("AppDialogParameters<AddViewFolderDialog>", createDialog, StringComparison.Ordinal);
-        Assert.Contains("AppDialogParameters<ServerFolderPicker>", viewDialog, StringComparison.Ordinal);
+        Assert.Contains("<ServerFolderPicker", viewDialog, StringComparison.Ordinal);
         Assert.DoesNotContain("<SetupAreaCards", vaultStep, StringComparison.Ordinal);
         Assert.Contains("EffectiveAdministrator != true", eligibility, StringComparison.Ordinal);
         Assert.DoesNotContain("<AppTable", vaultStep, StringComparison.Ordinal);

@@ -539,6 +539,16 @@ public static class JsonConfigValidator
                 ValidateLibrarySource(source, sourcePrefix, sourceIds, normalizedPaths, errors);
             }
 
+            // A folder's friendly name is unique within its library (Libraries v3 D18).
+            var duplicateLabel = library.Sources
+                .Where(source => !string.IsNullOrWhiteSpace(source.Label))
+                .GroupBy(source => source.Label!.Trim(), StringComparer.OrdinalIgnoreCase)
+                .FirstOrDefault(group => group.Count() > 1);
+            if (duplicateLabel is not null)
+            {
+                errors.Add($"{prefix}.sources must not repeat the label '{duplicateLabel.Key}'.");
+            }
+
             ValidatePrimaryDestination(library, prefix, errors);
         }
 
@@ -666,6 +676,11 @@ public static class JsonConfigValidator
         else if (!string.IsNullOrWhiteSpace(source.Path))
         {
             errors.Add($"{prefix}.path must be an absolute path.");
+        }
+
+        if (source.Label is { Length: > 60 })
+        {
+            errors.Add($"{prefix}.label must be 60 characters or fewer.");
         }
 
         if (!LibrarySourceManagementModes.IsValid(source.ManagementMode))

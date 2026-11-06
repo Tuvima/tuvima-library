@@ -1,6 +1,6 @@
 .collection-rule-builder {
-    --rule-accent: var(--tl-palette-primary);
-    --rule-soft: color-mix(in srgb, var(--tl-palette-primary) 12%, transparent);
+    --rule-accent: var(--tl-accent-primary);
+    --rule-soft: color-mix(in srgb, var(--tl-accent-primary) 12%, transparent);
     display: flex;
     flex-direction: column;
     gap: 16px;

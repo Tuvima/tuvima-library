@@ -20,7 +20,10 @@ public sealed record LibraryTypeOption(
     string? NamingTemplate = null,
     bool AllowsMultiple = false,
     int MaxLibraries = 1,
-    string DefaultHandling = "read_only");
+    string DefaultHandling = "read_only",
+    string Explainer = "",
+    IReadOnlyList<string>? Examples = null,
+    string LibraryDoes = "");
 
 /// <summary>Keys the Libraries addresses and the Dashboard know by name: the Import folder row and the View group.</summary>
 public static class LibraryTypeCatalog
@@ -128,7 +131,10 @@ public sealed class LibraryKindCatalog
         NamingTemplate: kind.NamingTemplate,
         AllowsMultiple: kind.AllowsMultiple,
         MaxLibraries: Math.Max(1, kind.MaxLibraries),
-        DefaultHandling: string.IsNullOrWhiteSpace(kind.DefaultHandling) ? "read_only" : kind.DefaultHandling);
+        DefaultHandling: string.IsNullOrWhiteSpace(kind.DefaultHandling) ? "read_only" : kind.DefaultHandling,
+        Explainer: string.IsNullOrWhiteSpace(kind.Explainer) ? kind.Tooltip : kind.Explainer,
+        Examples: kind.Examples,
+        LibraryDoes: kind.LibraryDoes);
 
     /// <summary>The label as it reads in the middle of a sentence: "TV Shows" is "TV shows", and "&amp;" reads "and".</summary>
     internal static string PluralLabelFor(string label)

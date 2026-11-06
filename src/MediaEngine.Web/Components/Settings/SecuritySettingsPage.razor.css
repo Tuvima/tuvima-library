@@ -82,7 +82,7 @@
 }
 
 .security-sheet__warning {
-    color: var(--tl-palette-warning);
+    color: var(--tl-status-warning);
 }
 
 /* Quiet one-line reminder after "Not now": calm, no alert colour. */

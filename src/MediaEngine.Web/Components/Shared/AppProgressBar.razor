@@ -28,7 +28,17 @@
     [Parameter] public string? Class { get; set; }
     [Parameter] public string? Style { get; set; }
 
-    private string AccentStyle => $"{Style};--app-progress-accent: {(AccentColor ?? $"var(--tl-palette-{Color.ToString().ToLowerInvariant()})")};";
+    private string AccentToken => Color switch
+    {
+        AppColor.Secondary => "--tl-accent-secondary",
+        AppColor.Info => "--tl-status-info",
+        AppColor.Success or AppColor.Tertiary => "--tl-status-success",
+        AppColor.Warning => "--tl-status-warning",
+        AppColor.Error => "--tl-status-danger",
+        _ => "--tl-accent-primary",
+    };
+
+    private string AccentStyle => $"{Style};--app-progress-accent: {(AccentColor ?? $"var({AccentToken})")};";
     private double ClampedValue => Math.Clamp(Value ?? 0, 0, 100);
 
     private string? FillStyle =>

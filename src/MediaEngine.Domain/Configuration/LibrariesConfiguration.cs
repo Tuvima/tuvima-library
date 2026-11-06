@@ -284,6 +284,10 @@ public sealed class LibrarySourceConfig
     [JsonPropertyName("include_subdirectories")]
     public bool IncludeSubdirectories { get; set; } = true;
 
+    /// <summary>The folder's friendly name (Libraries v3 D18), at most 60 characters and unique within its library; shown only when the library has two or more folders.</summary>
+    [JsonPropertyName("label")]
+    public string? Label { get; set; }
+
     /// <summary>Derived from <see cref="ManagementMode"/> whenever the file is saved: managed is writable, as-is is read-only.</summary>
     [JsonPropertyName("access_mode")]
     public string AccessMode { get; set; } = LibrarySourceAccessModes.ReadOnly;

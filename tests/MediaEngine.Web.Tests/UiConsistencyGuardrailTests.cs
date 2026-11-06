@@ -109,7 +109,7 @@ public sealed partial class UiConsistencyGuardrailTests
         var tokens = Read("src/MediaEngine.Web/wwwroot/tuvima.tokens.css");
         Assert.Contains("--tl-control-font-size-sm: 0.8125rem;", tokens, StringComparison.Ordinal);
         Assert.Contains("--tl-control-font-size-md: 0.875rem;", tokens, StringComparison.Ordinal);
-        Assert.Contains("--tl-control-font-size-lg: 0.9375rem;", tokens, StringComparison.Ordinal);
+        Assert.DoesNotContain("--tl-control-font-size-lg", tokens, StringComparison.Ordinal);
         Assert.Contains("--tl-control-font-weight: var(--tl-font-weight-semibold);", tokens, StringComparison.Ordinal);
         Assert.Contains("--tl-control-line-height: 1.25;", tokens, StringComparison.Ordinal);
         Assert.Contains("--tl-control-letter-spacing: 0;", tokens, StringComparison.Ordinal);
@@ -127,7 +127,7 @@ public sealed partial class UiConsistencyGuardrailTests
         Assert.Contains(".app-button.app-control--normal", css, StringComparison.Ordinal);
         Assert.Contains("font-size: var(--tl-control-font-size-md)", css, StringComparison.Ordinal);
         Assert.Contains(".app-button.app-control--large", css, StringComparison.Ordinal);
-        Assert.Contains("font-size: var(--tl-control-font-size-lg)", css, StringComparison.Ordinal);
+        Assert.Contains("font-size: var(--tl-font-size-md)", css, StringComparison.Ordinal);
 
         var segmentedRule = CssRule(css, ".app-segmented-control__item");
         Assert.Contains("font-family: var(--font-ui)", segmentedRule, StringComparison.Ordinal);

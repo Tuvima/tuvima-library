@@ -14,6 +14,11 @@ public static class SettingsContractExtensions
     /// <summary>The label people see for a folder: its Label, else the folder name, else (a drive root) the full path.</summary>
     public static string DisplayName(this LibrarySourceDto source)
     {
+        if (!string.IsNullOrWhiteSpace(source.Label))
+        {
+            return source.Label;
+        }
+
         if (!string.IsNullOrWhiteSpace(source.Notes))
         {
             return source.Notes;

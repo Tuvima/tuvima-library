@@ -160,27 +160,29 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
     [InlineData(SettingsSave)]
     [InlineData(SetupSave)]
     [InlineData(Mutation)]
-    public async Task TwoNamedOtherVideosLibrariesAreAccepted(string door)
+    public async Task TwoNamedLibrariesOfAKindAddedInConfigAreAccepted(string door)
     {
-        var saved = await SaveAsync(door, [Other("Videos")], Other("Lectures"));
+        AddPodcastsPlugin();
+        var saved = await SaveAsync(door, [Podcast("Shows")], Podcast("Lectures"));
 
         Assert.Equal(200, saved.Status);
-        Assert.Equal(["Videos", "Lectures"], _loader.LoadLibraries().Libraries.Select(library => library.Name).ToArray());
+        Assert.Equal(["Shows", "Lectures"], _loader.LoadLibraries().Libraries.Select(library => library.Name).ToArray());
     }
 
     [Theory]
     [InlineData(SettingsSave)]
     [InlineData(SetupSave)]
     [InlineData(Mutation)]
-    public async Task ASixthOtherVideosLibraryIsRefusedWithASentenceSayingHowManyAreAllowed(string door)
+    public async Task ASixthLibraryOfAKindAddedInConfigIsRefusedWithASentenceSayingHowManyAreAllowed(string door)
     {
-        var five = Enumerable.Range(1, 5).Select(number => Other($"Collection {number}")).ToList();
+        AddPodcastsPlugin();
+        var five = Enumerable.Range(1, 5).Select(number => Podcast($"Collection {number}")).ToList();
 
-        var saved = await SaveAsync(door, five, Other("Collection 6"));
+        var saved = await SaveAsync(door, five, Podcast("Collection 6"));
 
         Assert.Equal(400, saved.Status);
         Assert.Contains("allows at most 5", saved.Text, StringComparison.Ordinal);
-        Assert.Contains("other_videos", saved.Text, StringComparison.Ordinal);
+        Assert.Contains("podcasts", saved.Text, StringComparison.Ordinal);
         Assert.Equal(5, _loader.LoadLibraries().Libraries.Count);
     }
 
@@ -188,9 +190,10 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
     [InlineData(SettingsSave)]
     [InlineData(SetupSave)]
     [InlineData(Mutation)]
-    public async Task ASecondOtherVideosLibraryWithTheSameNameIgnoringCaseIsRefused(string door)
+    public async Task ASecondLibraryOfAMultiKindWithTheSameNameIgnoringCaseIsRefused(string door)
     {
-        var saved = await SaveAsync(door, [Other("Lectures")], Other("LECTURES"));
+        AddPodcastsPlugin();
+        var saved = await SaveAsync(door, [Podcast("Lectures")], Podcast("LECTURES"));
 
         Assert.Equal(400, saved.Status);
         Assert.Contains("already used", saved.Text, StringComparison.Ordinal);
@@ -220,12 +223,13 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
     [InlineData(SettingsSave)]
     [InlineData(SetupSave)]
     [InlineData(Mutation)]
-    public async Task AStaleOldVideosLibraryNeverBlocksASave_AndIsMadeConsistentByIt(string door)
+    public async Task AStaleLibraryWithTheYoutubeLookupOnNeverBlocksASave_AndIsMadeConsistentByIt(string door)
     {
-        var old = Other("Old videos");
+        AddPodcastsPlugin();
+        var old = Podcast("Old shows");
         old.YoutubeLookup = true;
 
-        var saved = await SaveAsync(door, [old], Other("Lectures"));
+        var saved = await SaveAsync(door, [old], Podcast("Lectures"));
 
         Assert.Equal(200, saved.Status);
         Assert.All(_loader.LoadLibraries().Libraries, library => Assert.False(library.YoutubeLookup));
@@ -277,6 +281,8 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
 
     // ---- Harness ----
 
+    private static LibraryFolderConfig Podcast(string name) => Standard("podcasts", name, LibraryAreas.Listen, "Music");
+
     private static LibraryFolderConfig Other(string name) => Standard("other_videos", name, LibraryAreas.Watch, "Videos");
 
     private static LibraryFolderConfig Standard(string kindKey, string name, string area, string mediaType) => new()
@@ -304,7 +310,8 @@ public sealed class LibrarySaveKindRulesEndpointTests : IDisposable
               "id": "json.podcasts", "name": "Podcasts", "version": "1.0.0", "kind": "declarative",
               "declarative": { "library_kinds": [{
                 "key": "podcasts", "area": "listen", "label": "Podcasts", "icon": "Podcasts", "format": "Music", "lookup": "none",
-                "grouping": "folder_and_tags", "naming_template": "default", "misfit": "keep", "tooltip": "Episodes of shows you follow."
+                "grouping": "folder_and_tags", "naming_template": "default", "misfit": "keep", "tooltip": "Episodes of shows you follow.",
+                "allows_multiple": true, "max_libraries": 5
               }] }
             }
             """);

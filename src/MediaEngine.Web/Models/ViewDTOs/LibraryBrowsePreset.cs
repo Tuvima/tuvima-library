@@ -28,7 +28,7 @@ public sealed record BrowseGroupingOption(
     string? Description = null);
 
 /// <summary>One library chip on a gathering tab: the library's id and the name on the chip.</summary>
-public sealed record BrowseLibraryChip(Guid Id, string Label);
+public sealed record BrowseLibraryChip(Guid Id, string Label, IReadOnlyList<MediaEngine.Contracts.Display.BrowseFolderDto>? Folders = null);
 
 public sealed record BrowseTabPreset
 {
@@ -44,6 +44,9 @@ public sealed record BrowseTabPreset
 
     /// <summary>The library this tab browses (a <c>BrowseLibraryDto</c> id); null for a fixed tab such as Playlists.</summary>
     public Guid? LibraryId { get; init; }
+
+    /// <summary>The folders of this tab's library when it has two or more, for the Folders filter (Libraries v3 D18); empty otherwise.</summary>
+    public IReadOnlyList<MediaEngine.Contracts.Display.BrowseFolderDto> Folders { get; init; } = [];
 
     /// <summary>
     /// The libraries a gathering tab (Watch's Videos) can narrow to, one chip each after "All"; empty for every other tab. Only libraries the

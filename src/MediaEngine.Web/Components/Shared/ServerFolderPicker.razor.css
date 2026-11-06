@@ -6,7 +6,7 @@
     /* One width wherever the picker opens (Add library, Vault, Settings), so it never changes shape between screens. */
     width: min(calc(100vw - 32px), 1100px);
     max-width: 100%;
-    min-height: min(680px, 72vh);
+    min-height: 0;
     font-family: var(--app-font-sans);
 }
 
@@ -391,3 +391,8 @@ input.server-folder-picker__address-field { padding: 0 12px; }
     .server-folder-picker__browser { padding: 14px; }
     .server-folder-picker__search { max-width: none; }
 }
+
+/* The friendly name sits first in the folder step (Libraries v3 D18); the handling choice sits under the folder list (D19). */
+.server-folder-picker__name { display: grid; gap: 4px; padding: 16px 28px 0; }
+.server-folder-picker__name-hint { color: var(--tl-text-secondary); font-size: var(--tl-font-size-sm); }
+.server-folder-picker__handling { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px; }

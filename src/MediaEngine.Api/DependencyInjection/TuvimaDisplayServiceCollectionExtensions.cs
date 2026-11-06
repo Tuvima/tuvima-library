@@ -54,6 +54,7 @@ public static class TuvimaDisplayServiceCollectionExtensions
         services.TryAddSingleton<IHeroPluginSlides, HeroPluginSlides>();
         services.AddScoped<DisplayComposerService>();
         services.AddScoped<BrowseLibraryListService>();
+        services.AddSingleton<BrowseFolderScope>();
         services.AddScoped<RecentCatalogueReadService>();
         services.AddScoped<DisplayRecentComposerService>();
         services.AddScoped<ProfileStateAccessService>();

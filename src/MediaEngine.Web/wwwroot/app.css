@@ -1792,7 +1792,7 @@ input.app-control.tl-input-slot,
 }
 
 .app-button.app-control--large {
-    font-size: var(--tl-control-font-size-lg) !important;
+    font-size: var(--tl-font-size-md) !important;
 }
 
 .app-button.app-control--compact .tl-icon-root {
@@ -2874,7 +2874,7 @@ input.app-control.tl-input-slot,
     background: transparent !important;
     font-family: var(--font-ui) !important;
     font-size: var(--tl-menu-row-font-size) !important;
-    font-weight: 600 !important;
+    font-weight: 500 !important;
     line-height: 1.25 !important;
     box-shadow: none !important;
     transition: color var(--tl-motion-duration-fast) var(--tl-motion-ease-standard),
@@ -2936,7 +2936,7 @@ button.app-menu-item {
 
 .app-menu-item.app-tone--error,
 .app-menu-item.app-tone--error .tl-icon-root {
-    color: var(--tl-status-danger) !important;
+    color: var(--tl-text-danger) !important;
 }
 
 .app-menu-item.app-tone--error:hover,
@@ -2963,10 +2963,13 @@ button.app-menu-item {
 .playback-tooltip-owner[data-tooltip-wrapper-target="true"]:focus-visible { outline:2px solid var(--playback-focus-ring,var(--tl-accent-primary)); outline-offset:2px; }
 .playback-tooltip {
     position: fixed; z-index: 1600; max-width: calc(100vw - 16px); pointer-events: none;
-    background: var(--playback-surface, #101821); border: 1px solid var(--playback-border);
-    border-radius: 6px; color: var(--playback-text, #fff); padding: 7px 10px; font-size: var(--tl-font-size-xs);
-    line-height: 1.35; box-shadow: 0 4px 16px #0006;
+    background: var(--tl-tooltip-surface); border: 1px solid var(--tl-tooltip-border);
+    border-radius: var(--tl-tooltip-radius); color: var(--tl-tooltip-text); padding: 6px 10px; font-size: var(--tl-tooltip-font-size);
+    font-weight: 500; line-height: 1.3; max-width: min(var(--tl-tooltip-max-width), calc(100vw - 16px)); box-shadow: var(--tl-shadow-md);
+    animation: tl-tooltip-in 100ms ease-out;
 }
+@keyframes tl-tooltip-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .playback-tooltip { animation: none; } }
 .playback-popover-owner { display: contents; }
 .playback-popover-trigger {
     align-items: center; background: transparent; border: 1px solid transparent; border-radius: 8px;
@@ -4255,7 +4258,8 @@ input[type="reset"],
 
 /* The picker host is fit-content by default, which squeezed the picker; give it a real width. */
 .tl-dialog.server-folder-picker-host { width: min(calc(100vw - 32px), 1100px) !important; }
-.tl-dialog.server-folder-picker-host .app-dialog-shell { width: 100%; }
+.tl-dialog.server-folder-picker-host .app-dialog-shell { width: 100%; height: min(680px, calc(100dvh - 32px)); max-height: none; }
+.tl-dialog.server-folder-picker-host .app-dialog-shell__body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 @media (max-width: 520px){
     .tl-dialog.server-folder-picker-host {
         width: 100%;
@@ -5072,6 +5076,34 @@ input[type="reset"],
 /* Equal-width kind cards with left-aligned content: the Metadata cell has a fixed width, so cards do not resize with their provider icons. */
 .lib-choice__kind .lib-choice__kind-option { flex: 1 1 0; justify-content: flex-start; }
 .lib-choice__kind .lib-meta { min-width: 112px; justify-content: flex-end; }
+.lib-choice__kind > .lib-peek { display: flex; flex: 1 1 0; min-width: 0; }
+.lib-choice__kind > .lib-peek > .lib-choice__kind-option { flex: 1 1 auto; }
+
+/* Add library tiles (Libraries v3 D23): the tile button is rendered by AppNativeButton, so its look lives here. */
+.lib-tile-host .lib-tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--tl-space-2);
+    box-sizing: border-box;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    padding: var(--tl-space-3);
+    border: 1px solid var(--tl-border-subtle);
+    border-radius: var(--tl-radius-md, 10px);
+    background: transparent;
+    color: var(--tl-text-primary);
+    font: inherit;
+    text-align: center;
+    cursor: pointer;
+}
+
+.lib-tile-host .lib-tile:hover,
+.lib-tile-host .lib-tile:focus-visible { border-color: var(--tl-accent-primary); background: color-mix(in srgb, var(--tl-accent-primary) 8%, transparent); }
+.lib-tile-host .lib-tile:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
+.lib-tile-host .lib-tile.is-selected { border-color: var(--tl-accent-primary); background: color-mix(in srgb, var(--tl-accent-primary) 14%, transparent); }
+.lib-tile-host .lib-tile.is-disabled { opacity: 0.55; cursor: not-allowed; }
 .lib-choice__info { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; color: var(--tl-text-muted); font-size: var(--tl-font-size-dialog-title); }
 .lib-choice__options { display: grid; gap: 10px; }
 .lib-choice__lead, .lib-choice__question { margin: 0; }

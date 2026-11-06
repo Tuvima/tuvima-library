@@ -1,6 +1,6 @@
 /* One Now-panel row. The column template is the panel's (--ingestion-now-columns), shared with its header row, so the columns line up for every media type. */
 .ingestion-media-list-row {
-    --ingestion-card-accent: var(--tl-palette-info);
+    --ingestion-card-accent: var(--tl-status-info);
     position: relative;
     display: grid;
     grid-template-columns: var(--ingestion-now-columns, minmax(14rem, 2.2fr) minmax(7.5rem, .8fr) minmax(9rem, 1.1fr) minmax(8.5rem, .9fr) 11.5rem);
@@ -14,15 +14,15 @@
     transition: background .14s ease, box-shadow .14s ease;
 }
 
-.ingestion-media-list-row.is-finishing { --ingestion-card-accent: var(--tl-palette-primary); }
-.ingestion-media-list-row.is-ready { --ingestion-card-accent: var(--tl-palette-success); }
-.ingestion-media-list-row.is-review { --ingestion-card-accent: var(--tl-palette-warning); }
-.ingestion-media-list-row.is-failed { --ingestion-card-accent: var(--tl-palette-error); }
+.ingestion-media-list-row.is-finishing { --ingestion-card-accent: var(--tl-accent-primary); }
+.ingestion-media-list-row.is-ready { --ingestion-card-accent: var(--tl-status-success); }
+.ingestion-media-list-row.is-review { --ingestion-card-accent: var(--tl-status-warning); }
+.ingestion-media-list-row.is-failed { --ingestion-card-accent: var(--tl-status-danger); }
 
 .ingestion-media-list-row:hover,
 .ingestion-media-list-row:focus-within {
     background: var(--app-hover-overlay);
-    box-shadow: inset 3px 0 0 var(--tl-palette-primary);
+    box-shadow: inset 3px 0 0 var(--tl-accent-primary);
 }
 
 .ingestion-media-list-row__identity {
@@ -73,7 +73,7 @@
 }
 
 .ingestion-media-list-row:has(.ingestion-media-list-row__open:focus-visible) {
-    outline: 2px solid var(--tl-palette-primary);
+    outline: 2px solid var(--tl-accent-primary);
     outline-offset: -2px;
 }
 
@@ -83,10 +83,10 @@
 .ingestion-media-list-row__step { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .ingestion-media-list-row__copy strong { font-size: var(--tl-font-size-sm); }
 .ingestion-media-list-row__copy small,
-.ingestion-media-list-row__format small { min-height: 1.1rem; color: var(--tl-palette-text-secondary); font-size: var(--tl-font-size-xs); }
+.ingestion-media-list-row__format small { min-height: 1.1rem; color: var(--tl-text-secondary); font-size: var(--tl-font-size-xs); }
 .ingestion-media-list-row__format strong { display: flex; align-items: center; gap: .42rem; font-size: var(--tl-font-size-secondary); }
 .ingestion-media-list-row__format ::deep .tl-icon-root { flex: none; font-size: 1.1rem; }
-.ingestion-media-list-row__step { min-width: 0; color: var(--tl-palette-text-secondary); font-size: var(--tl-font-size-xs); }
+.ingestion-media-list-row__step { min-width: 0; color: var(--tl-text-secondary); font-size: var(--tl-font-size-xs); }
 
 .ingestion-media-list-row__status {
     display: flex;
