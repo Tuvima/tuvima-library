@@ -961,6 +961,9 @@ else
     {
         if (_activeSection == SettingsSection.Libraries)
             return LibrariesLevel.Title;
+        // Needs Review is named by its own heading (universal editor v3 mock, screen 2), not by the Libraries page it is a tab of.
+        if (_activeSection == SettingsSection.Review)
+            return CurrentLocation?.Tab is { } reviewTab ? TabLabel(reviewTab) : SettingsNav.GetItem(_activeSection).Label;
         return CurrentLocation?.Page.Label ?? SettingsNav.GetItem(_activeSection).Label;
     }
 
@@ -1017,11 +1020,19 @@ else
             _ => "Who can sign in, and which profile each sign-in opens.",
         },
         SettingsSection.Backups => "Protect your Library configuration and recover it when needed.",
-        SettingsSection.Review => "Resolve items Library could not identify confidently.",
+        SettingsSection.Review => ReviewDescription,
         SettingsSection.ProviderTester => "Try a search against each metadata provider and see what comes back.",
         // Temporary: the Enrichment Tester is removed at beta (Developer tools spec, section 4).
         SettingsSection.EnrichmentTester => "Development builds only: run one item through enrichment step by step.",
         _ => "Settings",
+    };
+
+    // The count is the shell's own Needs Review count, so the sentence and the tab badge always agree.
+    private string ReviewDescription => Attention.ReviewCount switch
+    {
+        <= 0 => "Nothing needs a person right now.",
+        1 => "1 item needs a person. Not matched files and uncertain matches are listed together.",
+        var count => $"{count:N0} items need a person. Not matched files and uncertain matches are listed together.",
     };
 
     private bool IsOperationsView(SettingsSection section) => _activeSection == section;

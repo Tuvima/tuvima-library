@@ -5483,6 +5483,11 @@ dialog.app-native-dialog.tl-editor-dialog{width:100vw;max-width:none;height:100d
 /* Needs Review: the shared tooltip wrapper is a component root, so this page's scoped CSS never reaches it; without this the folder line ran into the next column. */
 .needs-review-table__path-tip, .needs-review-table__path-tip[data-tooltip-wrapper-target="true"] { display: flex; width: 100%; min-width: 0; max-width: 100%; }
 
+/* Needs Review: the row picture and the green "Use this" shortcut are component roots (AppImage, AppButton), so the page's scoped CSS never reaches them.
+   "Use this" is a small green chip-shaped text button in the status colours; the shared text button would otherwise force it grey. */
+.needs-review-table__thumb-img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.needs-review-table__use-this.app-button--text.app-control--compact { min-width: 0; padding-block: 2px; padding-inline: var(--tl-space-2) !important; color: var(--tl-status-success) !important; background: var(--tl-status-success-soft) !important; border-radius: var(--tl-radius-sm) !important; font-size: var(--tl-font-size-xs); }
+
 /* The View page's hidden drop-target file input is a framework component's root, so the page's scoped CSS never reaches it. */
 .view-drop-target__input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; overflow: hidden; }
 

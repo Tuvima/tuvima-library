@@ -9999,23 +9999,41 @@
   <data name="NeedsReviewList_AllLibraries" xml:space="preserve">
     <value>All libraries</value>
   </data>
-  <data name="NeedsReviewList_TickToTryAgain" xml:space="preserve">
-    <value>Tick rows to try them again or keep them as they are.</value>
+  <data name="NeedsReviewList_TryAgainAll" xml:space="preserve">
+    <value>Try again for all</value>
   </data>
-  <data name="NeedsReviewList_NSelected" xml:space="preserve">
-    <value>{0} selected</value>
+  <data name="NeedsReviewList_KeepAll" xml:space="preserve">
+    <value>Keep all as they are</value>
   </data>
-  <data name="NeedsReviewList_KeepAsTheyAre" xml:space="preserve">
-    <value>Keep as they are</value>
+  <data name="NeedsReviewList_KeepAllTitle" xml:space="preserve">
+    <value>Keep all as they are?</value>
   </data>
-  <data name="NeedsReviewList_TryAgainN" xml:space="preserve">
-    <value>Try again ({0})</value>
+  <data name="NeedsReviewList_KeepAllMessage" xml:space="preserve">
+    <value>{0} items will be left as they are. Files stop being looked up again, and items the Engine was unsure about leave this list.</value>
+  </data>
+  <data name="NeedsReviewList_KeepAllConfirm" xml:space="preserve">
+    <value>Keep all</value>
+  </data>
+  <data name="NeedsReviewList_KeepAllCancel" xml:space="preserve">
+    <value>Cancel</value>
   </data>
   <data name="NeedsReviewList_Caption" xml:space="preserve">
     <value>Items that need review, with why, the best guess and when each was last tried</value>
   </data>
-  <data name="NeedsReviewList_SelectAll" xml:space="preserve">
-    <value>Select all</value>
+  <data name="NeedsReviewList_Picture" xml:space="preserve">
+    <value>Picture</value>
+  </data>
+  <data name="NeedsReviewList_Today" xml:space="preserve">
+    <value>Today</value>
+  </data>
+  <data name="NeedsReviewList_Yesterday" xml:space="preserve">
+    <value>Yesterday</value>
+  </data>
+  <data name="NeedsReviewList_DaysAgo" xml:space="preserve">
+    <value>{0} days ago</value>
+  </data>
+  <data name="NeedsReviewList_NotYet" xml:space="preserve">
+    <value>Not yet</value>
   </data>
   <data name="NeedsReviewList_Item" xml:space="preserve">
     <value>Item</value>
@@ -10053,8 +10071,8 @@
   <data name="NeedsReviewList_UseThis" xml:space="preserve">
     <value>Use this</value>
   </data>
-  <data name="NeedsReviewList_NoGuess" xml:space="preserve">
-    <value>No guess yet. Fix searches from the file name.</value>
+  <data name="NeedsReviewList_None" xml:space="preserve">
+    <value>None</value>
   </data>
   <data name="NeedsReviewList_KeepAsItIs" xml:space="preserve">
     <value>Keep as it is</value>
