@@ -176,7 +176,7 @@ public sealed class SubjectEditorTests : AsyncBunitContext
     // -- Details --------------------------------------------------------------------------------
 
     [Fact]
-    public async Task APersonsDetails_ListTheEditableFields_AndTheProviderFactsReadOnly()
+    public async Task APersonsDetails_ListOnlyTheEditableFields()
     {
         var editor = await StartAsync(Person());
         var cut = RenderPanel(editor);
@@ -186,9 +186,8 @@ public sealed class SubjectEditorTests : AsyncBunitContext
 
         Assert.Single(cut.FindAll(".tl-editor-field[data-field-key='name'] input"));
         Assert.Single(cut.FindAll(".tl-editor-field[data-field-key='biography'] textarea"));
-        var fact = cut.Find(".tl-editor-field--locked[data-field-key='occupation']");
-        Assert.Contains("Actor", fact.TextContent);
-        Assert.Empty(fact.QuerySelectorAll("input, textarea"));
+        // Provider facts are not repeated here: the header and Quick Facts carry them (editor v4.1 D1).
+        Assert.Empty(cut.FindAll(".tl-editor-field--locked[data-field-key='occupation']"));
     }
 
     [Fact]
