@@ -1,0 +1,51 @@
+@namespace MediaEngine.Web.Components.Pages
+@using Microsoft.AspNetCore.Components.Forms
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@* Makes the whole page a drop target for files: a dashed outline shows while files are dragged over the window, and what is dropped
+   comes back through OnFiles, the same as files picked with a button. Drags that carry no files (a photo tile dragged to a Gallery) are left alone. *@
+<div class="view-drop-target" @ref="_overlay" aria-hidden="true"></div>
+<InputFile @ref="_input" class="view-drop-target__input" OnChange="ChangedAsync" multiple tabindex="-1" aria-hidden="true" />
+
+@code {
+    [Parameter] public EventCallback<IReadOnlyList<IBrowserFile>> OnFiles { get; set; }
+    [Parameter] public int MaxFiles { get; set; } = 200;
+
+    private const int MaxFilesPerDrop = 500;
+    private ElementReference _overlay;
+    private InputFile? _input;
+    private IJSObjectReference? _module;
+    private IJSObjectReference? _handle;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _input?.Element is not { } element)
+            return;
+        _module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/view-dropzone.js");
+        _handle = await _module.InvokeAsync<IJSObjectReference>("attach", _overlay, element);
+    }
+
+    private async Task ChangedAsync(InputFileChangeEventArgs args)
+    {
+        var files = args.GetMultipleFiles(Math.Min(MaxFiles, MaxFilesPerDrop));
+        if (files.Count > 0)
+            await OnFiles.InvokeAsync(files);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (_handle is not null)
+                await _handle.InvokeVoidAsync("dispose");
+            if (_handle is not null)
+                await _handle.DisposeAsync();
+            if (_module is not null)
+                await _module.DisposeAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+            // The browser tab is already gone, so there is nothing left to release.
+        }
+    }
+}

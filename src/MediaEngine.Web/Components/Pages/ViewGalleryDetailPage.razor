@@ -6,6 +6,7 @@
 @inject IEngineApiClient ApiClient
 @inject ViewWorkspaceService Workspace
 @inject ViewRibbonVoice Snackbar
+@inject ViewDropUploader DropUploader
 @inject UIOrchestratorService Orchestrator
 @inject ViewMediaGrantService MediaGrants
 @inject NavigationManager Nav
@@ -18,6 +19,7 @@
 <PageTitle>@L["Common_Library", _gallery is null ? L["ViewGalleryDetailPage_GalleryTitle"].Value : _gallery.Name]</PageTitle>
 
 <ViewSectionShell>
+    @if (IsOwner && _gallery?.Kind == ViewGalleryKind.Manual && !DeviceContext.IsPhone) { <ViewDropTarget OnFiles="DropFilesAsync" /> }
     <div class="view-feature-page">
         @if (_loading)
         {
@@ -180,6 +182,25 @@
     private Guid? _profileId;
     private bool _loading = true;
     private bool _loadingMore;
+    private bool _dropping;
+    // Photos and videos dropped anywhere on the page are added to the Library and to this Gallery.
+    private async Task DropFilesAsync(IReadOnlyList<IBrowserFile> files)
+    {
+        if (_dropping || _gallery is null || !IsOwner || _gallery.Kind != ViewGalleryKind.Manual) return;
+        _dropping = true;
+        try
+        {
+            var result = await DropUploader.UploadAsync(files);
+            if (result.ItemIds.Count > 0 && await ApiClient.AddViewGalleryItemsAsync(_gallery.Id, result.ItemIds) is not null)
+            {
+                DropUploader.Report(result, _gallery.Name);
+                await Workspace.LoadGalleriesAsync(force: true);
+                await OnParametersSetAsync();
+            }
+            else DropUploader.Report(result);
+        }
+        finally { _dropping = false; }
+    }
     private IEnumerable<LocalAssetDto> SelectedItems => _page?.Items.Where(item => _selected.Contains(item.Id)) ?? [];
     private bool AllSelectedFavorite => SelectedItems.Any() && SelectedItems.All(item => item.Favorite);
     private async Task FavoriteSelectionAsync()

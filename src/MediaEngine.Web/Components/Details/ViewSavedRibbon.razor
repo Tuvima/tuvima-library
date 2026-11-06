@@ -9,8 +9,12 @@
 @if (Ribbon.Message is { } message)
 {
     <div class="tl-saved-ribbon" role="@(Ribbon.IsError ? "alert" : "status")" aria-live="polite" data-view-ribbon="true">
-        <AppMaterialIcon Icon="@(Ribbon.IsError ? AppMaterialIcons.Outlined.Warning : AppMaterialIcons.Outlined.Check)" Size="AppSize.Small" />
+        <AppMaterialIcon Icon="@(Ribbon.IsError ? AppMaterialIcons.Outlined.Warning : Ribbon.InProgress ? AppMaterialIcons.Outlined.FileUpload : AppMaterialIcons.Outlined.Check)" Size="AppSize.Small" />
         <span>@message</span>
+        @if (Ribbon.InProgress)
+        {
+            <AppProgressBar Value="@((double)(Ribbon.ProgressDone ?? 0) / Ribbon.ProgressTotal!.Value * 100)" Decorative="true" Class="tl-saved-ribbon__progress" />
+        }
         <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
                        Size="AppControlSize.Compact"
                        Tone="AppUiTone.Neutral"
@@ -37,7 +41,7 @@
         _timer?.Cancel();
         _timer?.Dispose();
         _timer = null;
-        if (Ribbon.Message is not null && !Ribbon.IsError)
+        if (Ribbon.Message is not null && !Ribbon.IsError && !Ribbon.InProgress)
         {
             _timer = new CancellationTokenSource();
             var token = _timer.Token;

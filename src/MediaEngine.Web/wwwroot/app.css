@@ -5591,6 +5591,7 @@ body:has(.tl-editor-window) .tl-details-overlay__scroller,body:has(.tl-editor-wi
 .review-changes--page .review-changes__footer{position:sticky;bottom:0;margin-top:auto;border-top:1px solid var(--tl-divider);padding:var(--tl-space-3) 0;background:var(--tl-bg-surface,var(--tl-bg))}
 .tl-saved-ribbon{position:fixed;top:4.5rem;left:50%;z-index:60;display:flex;align-items:center;gap:var(--tl-space-2);padding:var(--tl-space-1) var(--tl-space-2) var(--tl-space-1) var(--tl-space-3);transform:translateX(-50%);border:1px solid var(--tl-border-subtle);border-radius:var(--tl-radius-pill);background:var(--tl-bg-surface,var(--tl-bg));box-shadow:var(--tl-shadow-md);color:var(--tl-text-primary);font-size:var(--tl-font-size-sm)}
 .tl-saved-ribbon>:first-child{color:var(--tl-success,#2e7d32)}
+.tl-saved-ribbon__progress{flex:1 1 8rem;min-width:8rem}
 /* The saved ribbon's named steps and the glow on changed parts (editor v3, D7). */
 .tl-saved-ribbon[data-steps=true]{flex-wrap:wrap;max-width:min(36rem,calc(100vw - 2rem));border-radius:var(--tl-radius-lg,.75rem)}
 .tl-saved-ribbon__steps{display:flex;flex-wrap:wrap;flex:1 1 100%;gap:var(--tl-space-1) var(--tl-space-3);margin:0;padding:0;list-style:none;color:var(--tl-text-secondary)}
