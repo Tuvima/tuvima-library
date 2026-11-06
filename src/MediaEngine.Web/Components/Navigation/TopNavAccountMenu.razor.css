@@ -114,7 +114,7 @@
     background: transparent !important;
     font-family: var(--font-ui) !important;
     font-size: var(--tl-menu-row-font-size) !important;
-    font-weight: 600 !important;
+    font-weight: var(--tl-menu-row-font-weight) !important;
     line-height: 1.25 !important;
     text-decoration: none !important;
 }
@@ -184,8 +184,8 @@
     color: var(--tl-text-primary, #dbe4ed);
     background: transparent;
     font-family: var(--font-ui);
-    font-size: var(--tl-font-size-md);
-    font-weight: 600;
+    font-size: var(--tl-menu-row-font-size);
+    font-weight: var(--tl-menu-row-font-weight);
     line-height: 1.25;
     text-align: left;
     cursor: pointer;
