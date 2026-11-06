@@ -302,7 +302,11 @@ else if (Slides.Count > 0)
         DetailEntityType.Audiobook => "tl-detail-hero--listen",
         _ => "tl-detail-hero--read",
     };
-    private HomeHeroFraming Framing => HomeHeroFraming.Resolve(ActiveHero.BackgroundWidthPx, ActiveHero.BackgroundHeightPx,
+    // A frame taken from an Other video always fills the hero, however small it is.
+    private HomeHeroFraming Framing => PhoneHeroPresentation.IsVideoKind(ActiveHero.MediaKind)
+        ? new(false, "center center")
+        : FramingFromArtwork;
+    private HomeHeroFraming FramingFromArtwork => HomeHeroFraming.Resolve(ActiveHero.BackgroundWidthPx, ActiveHero.BackgroundHeightPx,
         MediaTileArtworkUrl.Sized(ActiveHero.HeroBackgroundImageUrl ?? ActiveHero.BackgroundImageUrl, "l") is not null);
     private string HeroStyle => $"--cinematic-hero-accent: {ActiveHero.AccentColor}; --hero-image-position:{Framing.Position}; --mobile-image-position:{Framing.Position};";
     private bool IsOpenAction => ActiveHero.PrimaryActionLabel.StartsWith("Open", StringComparison.OrdinalIgnoreCase);
@@ -361,7 +365,7 @@ else if (Slides.Count > 0)
             {
                 BackdropUrl = backdrop,
                 BannerUrl = ActiveHero.BannerImageUrl,
-                CoverUrl = MediaTileArtworkUrl.Sized(ActiveHero.PreviewImageUrl, "m") ?? ActiveHero.PreviewImageUrl,
+                CoverUrl = MediaTileArtworkUrl.Sized(ActiveHero.PreviewImageUrl, "l") ?? MediaTileArtworkUrl.Sized(ActiveHero.PreviewImageUrl, "m") ?? ActiveHero.PreviewImageUrl,
                 PosterUrl = MediaTileArtworkUrl.Sized(ActiveHero.PreviewImageUrl, "m") ?? ActiveHero.PreviewImageUrl,
                 LogoUrl = ActiveHero.LogoUrl,
                 PrimaryColor = ActiveHero.AccentColor,
