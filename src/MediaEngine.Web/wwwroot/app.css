@@ -5472,6 +5472,11 @@ dialog.app-native-dialog.tl-editor-dialog{width:100vw;max-width:none;height:100d
     font-family: var(--font-ui);
 }
 
+/* Tag editor suggestion rows: the rows are shared buttons inside the popover, so they are styled here (global) and read left to right. */
+.sme-tag-editor__suggestions { display: grid; max-height: 16rem; overflow-y: auto; }
+.sme-tag-editor__suggestions .sme-tag-editor__suggestion { justify-content: flex-start; width: 100%; text-align: left; }
+.sme-tag-editor__suggestions .sme-tag-editor__suggestion .tl-button-label { text-align: left; }
+
 /* The View page's hidden drop-target file input is a framework component's root, so the page's scoped CSS never reaches it. */
 .view-drop-target__input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; overflow: hidden; }
 
