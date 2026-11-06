@@ -11193,6 +11193,33 @@
   <data name="ViewDrop_AddedMany" xml:space="preserve">
     <value>Added {0} items.</value>
   </data>
+  <data name="ViewDrop_NotAddedToDocuments" xml:space="preserve">
+    <value>{0}: Documents keeps documents and pictures only. {1}</value>
+  </data>
+  <data name="ViewDocumentsDrop_PictureTitle" xml:space="preserve">
+    <value>This is a picture</value>
+  </data>
+  <data name="ViewDocumentsDrop_PictureSubtitle" xml:space="preserve">
+    <value>Library keeps pictures in Photos, so they show up in your timeline and galleries.</value>
+  </data>
+  <data name="ViewDocumentsDrop_PictureCount" xml:space="preserve">
+    <value>{0} pictures were dropped. Add them to Photos?</value>
+  </data>
+  <data name="ViewDocumentsDrop_PictureOne" xml:space="preserve">
+    <value>{0} was dropped. Add it to Photos?</value>
+  </data>
+  <data name="ViewDocumentsDrop_AddToPhotos" xml:space="preserve">
+    <value>Add to Photos</value>
+  </data>
+  <data name="ViewDocumentsDrop_DontAskAgain" xml:space="preserve">
+    <value>Don't ask again</value>
+  </data>
+  <data name="ViewDocumentsDrop_DontAskAgainHint" xml:space="preserve">
+    <value>Next time, pictures dropped here go to Photos. This only applies to your profile.</value>
+  </data>
+  <data name="ViewDocumentsDrop_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
   <data name="ViewDrop_AlreadyThere" xml:space="preserve">
     <value>{0} already in your library.</value>
   </data>

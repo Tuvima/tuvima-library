@@ -127,6 +127,27 @@ public sealed partial class EngineApiClient
         catch (Exception ex) { RecordExceptionFailure(endpoint, ex, true); return false; }
     }
 
+    public async Task<bool> GetViewDocumentsPicturesToPhotosAsync(CancellationToken ct = default) =>
+        (await GetAsync<ViewDocumentsPicturesDto>("GET /view/preferences/documents-pictures", "/view/preferences/documents-pictures", ct: ct))?.ToPhotos ?? false;
+
+    public async Task<bool> SetViewDocumentsPicturesToPhotosAsync(bool toPhotos, CancellationToken ct = default)
+    {
+        const string endpoint = "PUT /view/preferences/documents-pictures";
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Put, "/view/preferences/documents-pictures")
+            {
+                Content = JsonContent.Create(new ViewDocumentsPicturesDto(toPhotos)),
+            };
+            using var response = await _http.SendAsync(request, ct);
+            if (!response.IsSuccessStatusCode) { await RecordHttpFailureAsync(endpoint, response, ct); return false; }
+            ClearFailure(endpoint);
+            return true;
+        }
+        catch (OperationCanceledException) { return false; }
+        catch (Exception ex) { RecordExceptionFailure(endpoint, ex, true); return false; }
+    }
+
     /// <summary>Sends a change and returns the new value, or the Engine's own reason (such as "a tag named X already exists").</summary>
     private async Task<ViewCatalogueResult<T>> SendCatalogueAsync<T>(
         HttpMethod method, string endpoint, string path, object body, CancellationToken ct)

@@ -52,13 +52,14 @@ public sealed class ViewDropUploader(IEngineApiClient api, ViewRibbonState ribbo
         IsDocument(fileName) ? "It is a document." : "It is a " + (Path.GetExtension(fileName).TrimStart('.').ToUpperInvariant() is { Length: > 0 } ext ? ext + " " : string.Empty) + "file.";
 
     /// <summary>Sorts a drop into files to upload and files to turn away.</summary>
-    public static (IReadOnlyList<IBrowserFile> Valid, IReadOnlyList<ViewDropRejection> Rejected) Sort(IEnumerable<IBrowserFile> files)
+    public static (IReadOnlyList<IBrowserFile> Valid, IReadOnlyList<ViewDropRejection> Rejected) Sort(IEnumerable<IBrowserFile> files, Func<string, bool>? accepts = null)
     {
+        accepts ??= IsPhotoOrVideo;
         var valid = new List<IBrowserFile>();
         var rejected = new List<ViewDropRejection>();
         foreach (var file in files)
         {
-            if (IsPhotoOrVideo(file.Name))
+            if (accepts(file.Name))
             {
                 valid.Add(file);
             }
@@ -71,9 +72,10 @@ public sealed class ViewDropUploader(IEngineApiClient api, ViewRibbonState ribbo
         return (valid, rejected);
     }
 
-    public async Task<ViewDropResult> UploadAsync(IReadOnlyList<IBrowserFile> files, CancellationToken ct = default)
+    /// <summary>Uploads the files the page accepts (photos and videos unless <paramref name="accepts"/> says otherwise) and turns the rest away.</summary>
+    public async Task<ViewDropResult> UploadAsync(IReadOnlyList<IBrowserFile> files, CancellationToken ct = default, Func<string, bool>? accepts = null)
     {
-        var (valid, rejected) = Sort(files);
+        var (valid, rejected) = Sort(files, accepts);
         var itemIds = new List<Guid>();
         var failed = new List<string>();
         var duplicates = 0;
@@ -112,7 +114,7 @@ public sealed class ViewDropUploader(IEngineApiClient api, ViewRibbonState ribbo
     }
 
     /// <summary>Says on the ribbon what a drop came to. A rejected or failed file shows as an error, and valid files in the same drop are still reported.</summary>
-    public void Report(ViewDropResult result, string? destination = null)
+    public void Report(ViewDropResult result, string? destination = null, string notAddedKey = "ViewDrop_NotAdded")
     {
         var parts = new List<string>();
         if (result.Added > 0)
@@ -130,7 +132,7 @@ public sealed class ViewDropUploader(IEngineApiClient api, ViewRibbonState ribbo
         var problems = new List<string>();
         foreach (var rejection in result.Rejected.Take(2))
         {
-            problems.Add(L["ViewDrop_NotAdded", rejection.FileName, rejection.Reason].Value);
+            problems.Add(L[notAddedKey, rejection.FileName, rejection.Reason].Value);
         }
 
         problems.AddRange(result.Failed.Take(2));

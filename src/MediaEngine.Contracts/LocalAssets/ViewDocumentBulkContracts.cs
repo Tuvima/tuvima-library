@@ -87,3 +87,7 @@ public sealed record ViewDocumentBulkResultDto(
 /// <summary>The remembered Documents sort for the signed-in profile. A blank sort means the default order.</summary>
 public sealed record ViewDocumentsSortDto(
     [property: JsonPropertyName("sort")] string? Sort);
+
+/// <summary>Whether this profile asked Library to stop asking and file pictures dropped on Documents into Photos.</summary>
+public sealed record ViewDocumentsPicturesDto(
+    [property: JsonPropertyName("to_photos")] bool ToPhotos);
