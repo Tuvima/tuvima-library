@@ -5570,6 +5570,7 @@ body:has(.tl-editor-window) .tl-details-overlay__scroller,body:has(.tl-editor-wi
 .tl-match__searchrow{display:flex;align-items:flex-start;gap:var(--tl-space-2)}
 .tl-match__searchrow>:first-child{flex:1 1 auto;min-width:0}
 .tl-match__provider{display:flex;align-items:center;gap:var(--tl-space-2)}
+.tl-match__why{border-collapse:collapse;margin-top:var(--tl-space-2);font-size:var(--tl-font-size-sm);color:var(--tl-text-secondary)}.tl-match__why caption{text-align:left;color:var(--tl-text-muted);padding-bottom:var(--tl-space-1)}.tl-match__why th{text-align:left;font-weight:400;padding-right:var(--tl-space-4)}.tl-match__why td{text-align:right}
 .tl-match__provider-name{display:flex;align-items:center;gap:var(--tl-space-2)}
 .tl-match__provider-label,.tl-match__meta,.tl-match__provider-name{color:var(--tl-text-muted);font-size:var(--tl-font-size-sm)}
 .tl-match__leftout{display:flex;flex-wrap:wrap;align-items:center;gap:var(--tl-space-2);margin:0;color:var(--tl-text-muted);font-size:var(--tl-font-size-sm)}

@@ -42,3 +42,23 @@ public sealed class EditorTvMatchScoreTests
     [InlineData(30, "weak")]
     public void BandsFollowThePercentage(int percent, string band) => Assert.Equal(band, EditorTvMatchScore.Band(percent));
 }
+
+public sealed class EditorMatchWhyRowsTests
+{
+    [Fact]
+    public void TheTableListsTitleAlwaysAndOtherFactsOnlyWhenTheyWereCompared()
+    {
+        var candidate = new MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto
+        {
+            MatchScores = new MediaEngine.Contracts.Search.FieldMatchScoresDto { TitleScore = 0.94, YearScore = 1, AuthorScore = 0 },
+        };
+
+        var rows = EditorMatchFacts.WhyRows(candidate);
+
+        Assert.Equal([("Title", 94), ("Year", 100)], rows);
+    }
+
+    [Fact]
+    public void NoScoresMeansNoTable() =>
+        Assert.Empty(EditorMatchFacts.WhyRows(new MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto()));
+}

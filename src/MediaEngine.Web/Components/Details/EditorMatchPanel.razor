@@ -362,6 +362,18 @@
                 {
                     @BeforeAfter(candidate)
                 }
+                @if (active && EditorMatchFacts.WhyRows(candidate) is { Count: > 0 } why)
+                {
+                    <table class="tl-match__why" data-testid="match-why-table">
+                        <caption>Why this answer</caption>
+                        <tbody>
+                            @foreach (var row in why)
+                            {
+                                <tr><th scope="row">@row.Label</th><td>@row.Percent%</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                }
             </div>
             @ConfidenceBar(candidate)
             <AppButton Label="@(active ? "Selected" : "Select")" ButtonStyle="@(active ? AppButtonStyle.Filled : AppButtonStyle.Outlined)" Tone="@(active ? AppUiTone.Primary : AppUiTone.Neutral)" Size="AppControlSize.Compact"
