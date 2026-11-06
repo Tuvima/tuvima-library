@@ -52,11 +52,11 @@
 }
 
 .network-test-dialog__check.is-passed ::deep > .tl-icon-root {
-    color: var(--tl-palette-success);
+    color: var(--tl-status-success);
 }
 
 .network-test-dialog__check.is-failed ::deep > .tl-icon-root {
-    color: var(--tl-palette-error);
+    color: var(--tl-status-danger);
 }
 
 .network-test-dialog__check.is-skipped ::deep > .tl-icon-root {

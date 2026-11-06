@@ -51,9 +51,9 @@
 .network-settings ::deep .network-status-card__value { display: block; margin-top: 12px; color: var(--tl-text-primary); font-size: var(--tl-font-size-md); }
 .network-settings ::deep .network-status-card__value.is-healthy,
 .network-settings ::deep .network-status-card__value.is-available,
-.network-settings ::deep .network-status-card__value.is-enabled { color: var(--tl-palette-success); }
+.network-settings ::deep .network-status-card__value.is-enabled { color: var(--tl-status-success); }
 
-.network-settings ::deep .network-status-card__value.is-unavailable { color: var(--tl-palette-warning); }
+.network-settings ::deep .network-status-card__value.is-unavailable { color: var(--tl-status-warning); }
 .network-settings ::deep .network-status-card p { min-height: 2.4em; margin: 8px 0 0; color: var(--tl-text-muted); font-size: var(--tl-font-size-xs); line-height: 1.4; }
 
 .network-settings ::deep .network-facts {
@@ -74,18 +74,18 @@
 
 .network-settings ::deep .network-mode-list { display: grid; gap: 8px; margin-top: 12px; }
 .network-settings ::deep .network-mode-option { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; padding: 12px; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); cursor: pointer; }
-.network-settings ::deep .network-mode-option:has(input:checked) { border-color: var(--tl-palette-primary); background: color-mix(in srgb, var(--tl-palette-primary) 9%, transparent); }
+.network-settings ::deep .network-mode-option:has(input:checked) { border-color: var(--tl-accent-primary); background: color-mix(in srgb, var(--tl-accent-primary) 9%, transparent); }
 .network-settings ::deep .network-mode-option span,
 .network-settings ::deep .network-mode-option strong,
 .network-settings ::deep .network-mode-option small,
 .network-settings ::deep .network-mode-option em { display: block; }
 .network-settings ::deep .network-mode-option small { margin-top: 3px; color: var(--tl-text-muted); font-style: normal; }
-.network-settings ::deep .network-mode-option em { margin-top: 5px; color: var(--tl-palette-warning); font-size: var(--tl-font-size-xs); }
+.network-settings ::deep .network-mode-option em { margin-top: 5px; color: var(--tl-status-warning); font-size: var(--tl-font-size-xs); }
 .network-settings ::deep .network-manual-rule { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 14px; }
 .network-settings ::deep .network-manual-rule > div { padding: 10px 12px; border-bottom: 1px solid var(--tl-border-subtle); }
 .network-settings ::deep .network-manual-rule dt { color: var(--tl-text-muted); font-size: var(--tl-font-size-xs); }
 .network-settings ::deep .network-manual-rule dd { margin: 4px 0 0; font-weight: 700; }
-.network-settings ::deep .network-manual-rule__summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; padding: 12px; border: 1px solid var(--tl-palette-primary); border-radius: 10px; background: color-mix(in srgb, var(--tl-palette-primary) 8%, transparent); }
+.network-settings ::deep .network-manual-rule__summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; padding: 12px; border: 1px solid var(--tl-accent-primary); border-radius: 10px; background: color-mix(in srgb, var(--tl-accent-primary) 8%, transparent); }
 
 .network-settings ::deep .network-setting-rows { margin-top: 12px; }
 .network-settings ::deep .network-setting-row,
