@@ -1,0 +1,6 @@
+/* Every tile has one fixed size and icon size, so none looks bigger than another (Libraries v3 D23). */
+.lib-tile-host { min-width: 0; }
+
+.lib-kind-tile { width: 48px; height: 48px; font-size: 28px; }
+.lib-tile__name { font-weight: 600; overflow-wrap: anywhere; }
+.lib-tile__badge { color: var(--tl-text-secondary); }

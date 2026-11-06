@@ -47,6 +47,18 @@ public sealed class LibraryKindDto
     [JsonPropertyName("tooltip")]
     public string Tooltip { get; set; } = string.Empty;
 
+    /// <summary>One plain sentence on what belongs in the kind, shown on its hover card in Add library (Libraries v3 D24); empty falls back to <see cref="Tooltip"/>.</summary>
+    [JsonPropertyName("explainer")]
+    public string Explainer { get; set; } = string.Empty;
+
+    /// <summary>Two or three examples for the hover card.</summary>
+    [JsonPropertyName("examples")]
+    public List<string> Examples { get; set; } = [];
+
+    /// <summary>One line on what Library does with the kind ("Looks up posters and details"), for the hover card.</summary>
+    [JsonPropertyName("library_does")]
+    public string LibraryDoes { get; set; } = string.Empty;
+
     /// <summary>Position among the kinds of its area.</summary>
     [JsonPropertyName("order")]
     public int Order { get; set; }

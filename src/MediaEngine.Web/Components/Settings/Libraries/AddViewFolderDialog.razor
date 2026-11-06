@@ -15,43 +15,29 @@
    pre-filled, and Add folder stays off until both are valid, so a View folder can never be saved with no storage behind it. *@
 <AppDialogShell Eyebrow="@L["Nav_View"].Value"
                 Title="@Heading"
-                Subtitle="@($"Pick the folder on the Library server that holds your {Noun}.")"
+                Subtitle="@($"Pick the folder on the Library server that holds your {Noun}. Give it a friendly name if you like.")"
                 Size="Large"
+                HostClass="@ServerFolderPicker.HostClass"
                 OnClose="@(() => Dialog.Cancel())">
     <ChildContent>
         <div class="add-view-folder">
-            <section class="add-view-folder__section">
-                <span class="add-view-folder__caption" id="add-view-folder-caption">@L["Common_Folder"]</span>
-                <div class="add-view-folder__folder">
-                    <div class="add-view-folder__path" data-folder-path aria-labelledby="add-view-folder-caption">
-                        @if (_folder is { } chosen)
-                        {
-                            <AppMaterialIcon Icon="@(FolderUsable ? AppMaterialIcons.Outlined.CheckCircle : AppMaterialIcons.Outlined.WarningAmber)" />
-                            <span class="add-view-folder__text">@chosen.Path</span>
-                        }
-                        else
-                        {
-                            <span class="add-view-folder__text add-view-folder__text--empty">@L["AddViewFolderDialog_BrowseForAFolder"]</span>
-                        }
-                    </div>
-                    <AppButton Label="@L["AddViewFolderDialog_Browse"].Value" StartIcon="@AppMaterialIcons.Outlined.FolderOpen" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_saving" OnClick="BrowseFolderAsync" />
-                </div>
-                @if (_folder is { } problem && !FolderUsable)
-                {
-                    <AppAlert Tone="AppUiTone.Warning" Dense="true">@FolderProblemText(problem)</AppAlert>
-                }
-                else if (ServerFolderResultText.For(_folder) is { } accessible)
-                {
-                    <p class="add-view-folder__check" data-folder-result="accessible"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" />@accessible</p>
-                }
+            @* The same folder window as Add library's third step (Libraries v3 D20, D21): friendly name at the top, the shared picker, and the handling
+               labels. A View folder is shared with everyone and read where it is, so only Read-only is offered. *@
+            <div class="add-view-folder__picker" data-folder-step>
+                <ServerFolderPicker Inline="true"
+                                    HideConfirm="true"
+                                    MediaType="@Kind.MediaTypes.FirstOrDefault()"
+                                    KindLabel="@LibraryTypeCatalog.AddChoiceLabel(Kind)"
+                                    SelectionMode="@ServerFolderSelectionModes.PersonalSpaceExisting"
+                                    SetupSession="@SetupSession"
+                                    ShowFolderName="true"
+                                    FolderName="@_name"
+                                    FolderNameChanged="NameChanged"
+                                    OfferHandling="true"
+                                    ManagedAllowed="false"
+                                    OnPathChanged="PathChosen" />
                 <p class="add-view-folder__line">@L["AddViewFolderDialog_LibraryScansThisFolderAnd"]</p>
-            </section>
-
-            <section class="add-view-folder__section">
-                <span class="add-view-folder__caption">@L["Common_FolderName"]</span>
-                <AppTextField Label="@L["Common_FolderName"].Value" HideLabel="true" Value="@_name" ValueChanged="NameChanged" MaxLength="80" ReadOnly="@_saving" />
-                <p class="add-view-folder__line">@L["AddViewFolderDialog_ThisIsHowItAppears"]</p>
-            </section>
+            </div>
 
             @if (!StorageReady)
             {
@@ -75,11 +61,6 @@
                 </section>
             }
 
-            @if (_folder is null)
-            {
-                <p class="add-view-folder__line" data-choose-folder>@L["AddViewFolderDialog_ChooseAFolderToContinue"]</p>
-            }
-
             @if (!string.IsNullOrWhiteSpace(_error))
             {
                 <AppAlert Tone="AppUiTone.Error">@_error</AppAlert>
@@ -95,17 +76,10 @@
 </AppDialogShell>
 
 @code {
-    private const int MaxNameLength = 80;
+    private const int MaxNameLength = FolderHandlingWords.MaxFolderNameLength;
 
-    /// <summary>The centred dialog the host opens this with.</summary>
-    public static AppDialogOptions DialogOptions { get; } = new()
-    {
-        MaxWidth = AppMaxWidth.Medium,
-        FullWidth = true,
-        CloseButton = false,
-        NoHeader = true,
-        CloseOnEscapeKey = true,
-    };
+    /// <summary>The centred dialog the host opens this with: the one folder window (Libraries v3 D21).</summary>
+    public static AppDialogOptions DialogOptions => ServerFolderPicker.DialogOptions;
 
     [CascadingParameter] private IAppDialogContext Dialog { get; set; } = default!;
 
@@ -114,9 +88,9 @@
     [Parameter, EditorRequired] public LibrariesConfigurationDto Configuration { get; set; } = default!;
     [Parameter] public string? SetupSession { get; set; }
 
-    private ServerFolderValidationResultDto? _folder;
+    // The folder path the window has selected so far (a plain choice; View checks it when the folder is added).
+    private string _chosenPath = string.Empty;
     private string _name = string.Empty;
-    private bool _nameTouched;
     private bool _saving;
     private string? _error;
 
@@ -124,7 +98,7 @@
     private string? _storageLocationId;
     private string _storageRelative = "View";
 
-    private string Heading => $"Choose your {LibraryTypeCatalog.AddChoiceLabel(Kind)} folder";
+    private string Heading => "Where is it?";
 
     // "Photos" reads "photos" in the middle of a sentence; "Personal videos" and "Documents" follow the same rule.
     private string Noun => Kind.Key == "photos" ? "photos and videos" : char.ToLowerInvariant(Kind.PluralLabel[0]) + Kind.PluralLabel[1..];
@@ -143,7 +117,7 @@
         }
     }
 
-    private bool FolderUsable => _folder is { CanSelect: true, Exists: true, HasRead: true };
+    private bool FolderUsable => !string.IsNullOrWhiteSpace(_chosenPath);
 
     private bool CanAdd => !_saving
         && FolderUsable
@@ -155,17 +129,20 @@
     {
         _storageWritable = [.. Configuration.StorageLocations.Where(location => location.AllowWrite)];
         _storageLocationId = StorageReady ? null : _storageWritable.FirstOrDefault()?.Id;
-        _name = LibraryTypeCatalog.AddChoiceLabel(Kind);
     }
 
-    private void NameChanged(string? value)
+    private void NameChanged(string value)
     {
-        _name = value ?? string.Empty;
-        _nameTouched = true;
+        _name = value;
     }
 
-    private static string FolderProblemText(ServerFolderValidationResultDto folder) =>
-        folder.Issues.FirstOrDefault(issue => issue.Severity == "error")?.Message ?? "Library can't use this folder. Choose another one.";
+    private Task PathChosen(string path)
+    {
+        _chosenPath = path;
+        _error = null;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
 
     private async Task<ServerFolderValidationResultDto?> PickAsync(string title, string help, string mode, string? start)
     {
@@ -182,20 +159,6 @@
         return await dialog.Result is { Canceled: false, Data: ServerFolderValidationResultDto selected } ? selected : null;
     }
 
-    private async Task BrowseFolderAsync()
-    {
-        var selected = await PickAsync(Heading, $"Choose the folder on the Library server that holds your {Noun}.", ServerFolderSelectionModes.PersonalSpaceExisting, _folder?.Path);
-        if (selected is null) return;
-        _folder = selected;
-        _error = null;
-        if (!_nameTouched && selected.CanSelect && !string.IsNullOrWhiteSpace(selected.Path))
-        {
-            // The server may be Windows or Linux, so the last name is read at either kind of slash.
-            var last = selected.Path.TrimEnd('\\', '/').Split('\\', '/')[^1];
-            if (!string.IsNullOrWhiteSpace(last)) _name = last.Length > MaxNameLength ? last[..MaxNameLength] : last;
-        }
-    }
-
     private async Task BrowseStorageAsync()
     {
         var selected = await PickAsync("Where View keeps its files", "Choose the folder on the Library server where View keeps its files.", ServerFolderSelectionModes.PersonalSpaceManaged, StoragePath);
@@ -207,11 +170,20 @@
 
     private async Task AddAsync()
     {
-        if (!CanAdd || _folder is not { } folder) return;
+        if (!CanAdd) return;
         _saving = true;
         _error = null;
         try
         {
+            // Looked at once, when Add folder is pressed: the picker itself reads nothing but the folder list.
+            var request = new ValidateServerFolderRequest { ManualPath = _chosenPath, SelectionMode = ServerFolderSelectionModes.PersonalSpaceExisting, KindKey = Kind.Key };
+            var folder = SetupSession is not null ? await Api.ValidateSetupServerFolderAsync(request, SetupSession) : await Api.ValidateServerFolderAsync(request);
+            if (folder is not { CanSelect: true, Exists: true, HasRead: true })
+            {
+                _error = folder?.Issues.FirstOrDefault(issue => issue.Severity == "error")?.Message ?? Api.LastError ?? "Library can't use this folder. Choose another one.";
+                return;
+            }
+
             if (!StorageReady && !await SaveStorageAsync()) return;
 
             // Shared with everyone and read where it is: a linked folder, subfolders included. Documents never join the Photos timeline.

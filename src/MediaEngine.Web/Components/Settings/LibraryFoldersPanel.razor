@@ -523,12 +523,12 @@
         if (library is null || target is null || _saving) return;
         var dialog = await DialogService.ShowAsync<LibraryTextEditDialog>(string.Empty, new AppDialogParameters<LibraryTextEditDialog>
         {
-            { component => component.Label, "Folder label" },
+            { component => component.Label, "Folder name" },
             { component => component.Value, target.DisplayName() },
         }, new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Small });
         if (await dialog.Result is not { Canceled: false, Data: string label }) return;
-        target.Notes = label;
-        await SaveAsync(library, "Label saved.");
+        target.Label = label.Trim();
+        await SaveAsync(library, "Name saved.");
     }
 
     private async Task ChooseImportFolderAsync()
@@ -608,7 +608,7 @@
         var confirmed = await DialogService.ShowMessageBoxAsync(
             "Remove this folder?",
             $"{source.DisplayName()} stops being part of {NameOf(library)}. Your files stay on disk."
-                + (IsVideosSelected ? " To move it to Photos and personal videos, remove it here and add it again there; folders are never moved automatically." : string.Empty),
+                + (IsVideosSelected ? " To move it to Photos and Videos, remove it here and add it again there; folders are never moved automatically." : string.Empty),
             yesText: "Remove", cancelText: "Keep", options: AppDialogOptions.DestructiveConfirm);
         if (confirmed != true) return;
         library.Sources.RemoveAll(item => item.Id == source.Id);

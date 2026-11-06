@@ -34,8 +34,12 @@
                     }
                 </span>
                 <div class="folder-table__folder-text">
-                    <strong>@name</strong>
+                    @if (Library.Sources.Count > 1)
+                    {
+                        <strong>@name</strong>
+                    }
                     <span class="folder-table__path" title="@source.Path">@source.Path</span>
+                    <span class="folder-table__tag" data-handling="@(managed ? "managed" : "read_only")">@FolderHandlingWords.LabelFor(managed)</span>
                     @if (job is not null)
                     {
                         <FolderJobStatusLine Job="@job"
@@ -241,7 +245,7 @@
     // and tooltip say it in words too, so the state is never colour alone.
     private string HandlingTitle(LibrarySourceDto source) => IsOrganising(source)
         ? IsMerging(source) || (JobFor(source) is { } job && FolderJobFormat.IsMerge(job) && FolderJobFormat.IsOpen(job)) ? "Merging" : "Converting"
-        : IsManaged(source) ? "Managed: Library has full access" : "Read-only: Library never changes these files";
+        : IsManaged(source) ? $"{FolderHandlingWords.Managed}: {FolderHandlingWords.ManagedExplainer}" : $"{FolderHandlingWords.ReadOnly}: {FolderHandlingWords.ReadOnlyExplainer}";
 
     private string HandlingIconClass(LibrarySourceDto source) =>
         $"folder-table__icon {(IsOrganising(source) ? "is-converting" : IsManaged(source) ? "is-managed" : "is-readonly")}";

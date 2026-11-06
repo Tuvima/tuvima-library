@@ -1150,15 +1150,19 @@ public static class CollectionEndpoints
         group.MapGet("/content-groups", async (
             Guid? libraryId,
             bool? unmatched,
+            string? folder,
             ICollectionRepository collectionRepo,
             ICollectionBrowseReadService browseReadService,
             IDisplayProjectionReadService display,
             IUnmatchedAssetRepository unmatchedAssets,
+            BrowseFolderScope folderScope,
             CancellationToken ct) =>
         {
             var collections = await collectionRepo.GetContentGroupsAsync(ct);
-            // libraryId and unmatched narrow the works after authorization, exactly as /display/browse does (BrowseNarrowing).
-            var visibleWorkIds = await BrowseNarrowing.VisibleWorkIdsAsync(display, unmatchedAssets, libraryId, unmatched == true, ct);
+            // libraryId and unmatched narrow the works after authorization, exactly as /display/browse does (BrowseNarrowing); folder narrows them to one folder of the library.
+            var visibleWorkIds = BrowseFolderScope.Narrow(
+                await BrowseNarrowing.VisibleWorkIdsAsync(display, unmatchedAssets, libraryId, unmatched == true, ct),
+                await folderScope.WorksAsync(folder, libraryId, ct));
             var primaryAssetIds = await browseReadService.GetPrimaryAssetIdsAsync(
                 collections.SelectMany(collection => collection.Works)
                     .Where(work => visibleWorkIds.Contains(work.Id))
@@ -1338,13 +1342,17 @@ public static class CollectionEndpoints
             string? groupField,
             Guid? libraryId,
             bool? unmatched,
+            string? folder,
             ICollectionBrowseReadService browseReadService,
             IDisplayProjectionReadService display,
             IUnmatchedAssetRepository unmatchedAssets,
+            BrowseFolderScope folderScope,
             CancellationToken ct) =>
         {
-            // libraryId and unmatched narrow the works after authorization, exactly as /display/browse does (BrowseNarrowing).
-            var visibleWorkIds = await BrowseNarrowing.VisibleWorkIdsAsync(display, unmatchedAssets, libraryId, unmatched == true, ct);
+            // libraryId and unmatched narrow the works after authorization, exactly as /display/browse does (BrowseNarrowing); folder narrows them to one folder of the library.
+            var visibleWorkIds = BrowseFolderScope.Narrow(
+                await BrowseNarrowing.VisibleWorkIdsAsync(display, unmatchedAssets, libraryId, unmatched == true, ct),
+                await folderScope.WorksAsync(folder, libraryId, ct));
             var result = await browseReadService.GetSystemViewGroupsAsync(
                 mediaType, groupField, ct, visibleWorkIds);
             var normalizedGroups = NormalizeSystemViewGroups(result, mediaType, groupField);

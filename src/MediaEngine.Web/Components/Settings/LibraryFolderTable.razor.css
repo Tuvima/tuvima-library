@@ -135,3 +135,12 @@
     /* Only the folder that holds the marker shows a chip on a phone; the actions menu moves it. */
     .folder-table__marker:not(.is-marked) { display: none; }
 }
+
+.folder-table__tag {
+    align-self: flex-start;
+    font-size: var(--tl-font-size-sm);
+    padding: 0 0.5rem;
+    border-radius: 0;
+    border: 1px solid var(--tl-border-subtle);
+    opacity: 0.85;
+}

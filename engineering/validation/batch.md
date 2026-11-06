@@ -2270,6 +2270,28 @@ Results and the 61 findings are in `engineering/validation/local-check-2026-11-0
 | Libraries v2 L9: Import folder row | [669](https://github.com/Tuvima/tuvima-library/pull/669) | The first row is Import folder: Not set, then set (Up to date, 1 folder), then a waiting count when files wait. It stays under every chip; Edit opens a one-folder window. | Awaiting |
 | Libraries v2: Home chips | [669](https://github.com/Tuvima/tuvima-library/pull/669) | On Home, choose Listen in the Recently added chips: Pick up where you left off narrows to Listen too; reload and the choice is remembered for the profile. | Awaiting |
 
+| Libraries v3 L1: Add library for every kind | Libraries v3 build (PR) | Open Add library and add one of every kind (Movies, TV Shows, Music, Books, Videos, Photos and Videos and so on). Three steps of square tiles, no name field. Each result is named for its kind. Adding a second Movies folder from Add library adds a folder to Movies and does not make a second library. | Awaiting |
+
+| Libraries v3 L2: second folder and the Folders filter | Libraries v3 build (PR) | Add a second Movies folder. Both friendly names show on the Folders tab, in the folder pop-over and in Edit. On the Movies page a Folders filter appears (only with two or more folders) and choosing one narrows the list to that folder. Note: the choice is not saved in the address or per profile yet. | Awaiting |
+
+| Libraries v3 L3: Read-only and Managed tags | Libraries v3 build (PR) | Check the Read-only / Managed tag and its one-sentence explanation in the folder window, Edit, the pop-over and the Folders tab. Choose Managed on a folder that already has files: the heads-up line appears and Add still works. | Awaiting |
+
+| Libraries v3 L4: one window everywhere | Libraries v3 build (PR) | Open Add library, Add folder (library page), Edit > Add folder and the View folder step side by side. Same size and layout at each step; at 1440 the window is about 1100 by 680. | Awaiting |
+
+| Libraries v3 L5: Libraries page without the rail | Libraries v3 build (PR) | At 1280 and 1440 wide: no left list, full-width table, Add library top right, chips filter the table. Sign in as an unlocked administrator with the Vault on and check the Vault chip. | Awaiting |
+
+| Libraries v3 L6: Photos and Videos on a phone dump | Libraries v3 build (PR) | Add a real phone or camera dump to Photos and Videos with the shared folder window. One choice, no name field, each file sorted by what it is. View must allow a Read-only folder. | Awaiting |
+
+| Libraries v3 L7: first-run setup | Libraries v3 build (PR) | Run setup from a fresh state: Add library uses the same folder window and fixed size; View and the Vault step still work. | Awaiting |
+
+| Libraries v3 L8: tile hover cards | Libraries v3 build (PR) | Hover and keyboard-focus every tile in Add library (areas and kinds): a card with what belongs there, examples and what Library does appears and closes on mouse-out, focus-out and Esc. Check the card is not clipped at the window edge (it opens below the tile). | Awaiting |
+
+| Libraries v3 L9: a new kind appears with no code | Libraries v3 build (PR) | Add a test kind (for example Podcasts) to the kind list only: it appears as a tile in Add library with its own hover card. | Awaiting |
+
+| Libraries v3 L10: pop-ups above everything (not in this build) | Libraries v3 build (PR) | Belongs to the combined local-check fix build (bug 28). Open a menu, the folder pop-over and a dropdown inside Edit and the Libraries table: each sits above its parent and is not clipped; tooltips are quick and on top. | Awaiting |
+
+| Libraries v3 L11: switch a folder to Managed | Libraries v3 build (PR) | Switch a copy of a real folder to Managed from Edit: Preview counts match, files are renamed in place on the same drive, pause, cancel and an Engine restart all behave. Note what can and cannot be played while it runs. | Awaiting |
+
 | Library activity L1: spinner and progress | (this build) | On a small test library, start a scan. The spinner turns blue; click it and Activity opens with one progress card moving, Working now tiles with status labels, and a History entry saying Active. Failure: it lands on Libraries, or there is one bar per library. | Awaiting |
 | Library activity L2: finishing | (this build) | Let the scan finish. The spinner turns green; the card is replaced by "Everything is up to date"; the entry turns Completed (about 1 to 5 minutes later, after the quiet period) and shows its covers. | Awaiting |
 | Library activity L3: open an entry | (this build) | Open a finished entry: two rows of standard tiles, episodes stacked into one tile per show, scrolling loads more, square and portrait art are the same height. | Awaiting |

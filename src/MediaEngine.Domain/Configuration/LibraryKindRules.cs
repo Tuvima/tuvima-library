@@ -123,6 +123,11 @@ public static partial class LibraryKindRules
             return $"{name} needs a \"tooltip\" of up to {MaxTooltipLength} characters.";
         }
 
+        if (kind.Explainer is { Length: > 200 } || kind.LibraryDoes is { Length: > 120 } || kind.Examples is { Count: > 4 })
+        {
+            return $"{name} has a hover card that is too long: an \"explainer\" of up to 200 characters, up to 4 \"examples\" and a \"library_does\" of up to 120 characters.";
+        }
+
         if (kind.Order < 0)
         {
             return $"{name} needs an \"order\" of 0 or more.";

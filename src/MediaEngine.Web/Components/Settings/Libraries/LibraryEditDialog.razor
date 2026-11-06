@@ -11,7 +11,7 @@
 @inject DashboardSessionAccessor Session
 @inject MediaEngine.Web.Services.Vault.NsfwModeState Nsfw
 
-@* Edit (Libraries and folder picker D4): one window for a library's name and folders, with the fixed footer (Cancel, Save changes). Nothing is saved until Save
+@* Edit (Libraries and folder picker D4, Libraries v3 D17 to D19, D27): one window for a library's folders (the library's own name is fixed by its kind and never edited), with the fixed footer (Cancel, Save changes). Nothing is saved until Save
    changes, which first shows Review: the plain list of what will happen. Removing a folder never deletes files. Scan now, Move to Vault (administrators) and
    Remove library (asks once) sit here too, so the table row needs only one Edit button. The Import folder uses the same window with its one folder. *@
 <AppDialogShell Title="@Title" Subtitle="@Lead" Size="Large" OnClose="@(() => Dialog.Cancel())">
@@ -28,35 +28,50 @@
             }
             else
             {
-                @if (!Import)
-                {
-                    <div class="lib-edit__name">
-                        <AppTextField Label="@L["LibraryEditDialog_LibraryName"].Value"
-                                      Value="@_name"
-                                      ValueChanged="@((string? value) => _name = value ?? string.Empty)"
-                                      MaxLength="@CreateLibraryDialog.MaxNameLength"
-                                      ReadOnly="@_saving"
-                                      Error="@(NameProblem is not null)"
-                                      ErrorText="@NameProblem" />
-                    </div>
-                }
-
                 <div class="lib-edit__folders" role="list" aria-label="@L["LibraryEditDialog_Folders"].Value" data-folder-rows>
                     @foreach (var source in KeptSources)
                     {
                         var issue = IssueFor(source.Path);
                         <div class="lib-edit__folder" role="listitem" data-source="@source.Id">
                             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" />
-                            <span class="lib-edit__path" title="@source.Path">@source.Path</span>
+                            <span class="lib-edit__body">
+                                @if (ShowFolderNames)
+                                {
+                                    @* With two or more folders each one's friendly name shows above its path, and can be edited here (Libraries v3 D18). *@
+                                    <AppTextField Label="@L["LibraryEditDialog_FriendlyName"].Value"
+                                                  Value="@LabelOf(source)"
+                                                  ValueChanged="@((string? value) => _labels[source.Id] = value ?? string.Empty)"
+                                                  MaxLength="@FolderHandlingWords.MaxFolderNameLength"
+                                                  ReadOnly="@_saving"
+                                                  Error="@(LabelProblem(source) is not null)"
+                                                  ErrorText="@LabelProblem(source)" />
+                                }
+                                <span class="lib-edit__path" title="@source.Path">@source.Path</span>
+                            </span>
+                            @if (!Import)
+                            {
+                                <span class="lib-edit__tag" data-handling="@(IsManaged(source) ? "managed" : "read-only")" title="@FolderHandlingWords.ExplainerFor(IsManaged(source))">@HandlingText(source)</span>
+                            }
                             <span class="lib-edit__state" data-state="@(issue is null ? "online" : "offline")">@(issue ?? L["LibraryFoldersPopover_Online"].Value)</span>
                             <AppRowMenu AriaLabel="@L["LibraryEditDialog_ActionsFor", source.Path].Value" Items="@FolderMenu(source)" />
                         </div>
                     }
                     @foreach (var added in _added)
                     {
+                        var info = AddedInfoOf(added);
                         <div class="lib-edit__folder lib-edit__folder--new" role="listitem" data-added="@added.Path">
                             <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CreateNewFolder" />
-                            <span class="lib-edit__path" title="@added.Path">@added.Path</span>
+                            <span class="lib-edit__body">
+                                @if (ShowFolderNames && !string.IsNullOrWhiteSpace(info.Label))
+                                {
+                                    <strong class="lib-edit__label">@info.Label</strong>
+                                }
+                                <span class="lib-edit__path" title="@added.Path">@added.Path</span>
+                            </span>
+                            @if (!Import)
+                            {
+                                <span class="lib-edit__tag" data-handling="@(info.Managed ? "managed" : "read-only")" title="@FolderHandlingWords.ExplainerFor(info.Managed)">@FolderHandlingWords.LabelFor(info.Managed)</span>
+                            }
                             <span class="lib-edit__state">@L["LibraryEditDialog_WillBeAdded"]</span>
                             <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Tooltip="@L["LibraryEditDialog_DontAdd"].Value" AriaLabel="@L["LibraryEditDialog_DontAddPath", added.Path].Value" OnClick="@(() => _added.Remove(added))" />
                         </div>
@@ -126,7 +141,11 @@
 
     public static AppDialogOptions DialogOptions { get; } = new() { MaxWidth = AppMaxWidth.Large, FullWidth = true, CloseButton = false, NoHeader = true, CloseOnEscapeKey = true };
 
-    private string _name = string.Empty;
+    // Friendly names edited in this window (source id to name) and the name and handling chosen for each folder about to be added (by path).
+    private readonly Dictionary<string, string> _labels = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, (string? Label, bool Managed)> _addedInfo = new(StringComparer.OrdinalIgnoreCase);
+    private string? _pickLabel;
+    private bool _pickManaged;
     private readonly HashSet<string> _removed = new(StringComparer.Ordinal);
     private readonly List<ServerFolderValidationResultDto> _added = [];
     private bool _review;
@@ -148,31 +167,39 @@
 
     private IReadOnlyList<LibrarySourceDto> KeptSources => [.. Sources.Where(source => !_removed.Contains(source.Id))];
 
-    protected override void OnInitialized() => _name = Library?.Name ?? string.Empty;
+    // The folder names show only once the library has two or more folders (Libraries v3 D18).
+    private bool ShowFolderNames => !Import && KeptSources.Count + _added.Count >= 2;
+
+    private static bool IsManaged(LibrarySourceDto source) => string.Equals(source.ManagementMode, "managed_by_tuvima", StringComparison.OrdinalIgnoreCase);
+
+    private string HandlingText(LibrarySourceDto source) =>
+        string.Equals(source.ConversionState, "converting", StringComparison.OrdinalIgnoreCase) ? L["LibraryEditDialog_Converting"].Value : FolderHandlingWords.LabelFor(IsManaged(source));
+
+    private string LabelOf(LibrarySourceDto source) => _labels.TryGetValue(source.Id, out var label) ? label : source.Label ?? source.DisplayName();
+
+    private (string? Label, bool Managed) AddedInfoOf(ServerFolderValidationResultDto added) => _addedInfo.TryGetValue(added.Path, out var info) ? info : (null, false);
 
     private string? IssueFor(string path) => PathIssues is not null && PathIssues.TryGetValue(path, out var issue) ? issue : null;
 
-    private string? NameProblem
+    // A friendly name is at most 60 characters and unique within the library (Libraries v3 D18).
+    private string? LabelProblem(LibrarySourceDto source)
     {
-        get
-        {
-            if (Import || Library is null) return null;
-            var name = _name.Trim();
-            if (name.Length == 0) return L["LibraryEditDialog_NameRequired"].Value;
-            if (name.Length > CreateLibraryDialog.MaxNameLength) return L["LibraryEditDialog_NameTooLong", CreateLibraryDialog.MaxNameLength].Value;
-            var taken = Configuration.Libraries.Any(other => other.Id != Library.Id
-                && other.IsVault == Library.IsVault
-                && string.Equals(other.Area, Library.Area, StringComparison.OrdinalIgnoreCase)
-                && string.Equals(other.Name?.Trim(), name, StringComparison.OrdinalIgnoreCase));
-            return taken ? L["LibraryEditDialog_NameTaken", name].Value : null;
-        }
+        if (!_labels.TryGetValue(source.Id, out var label)) return null;
+        var name = label.Trim();
+        if (name.Length > FolderHandlingWords.MaxFolderNameLength) return L["LibraryEditDialog_NameTooLong", FolderHandlingWords.MaxFolderNameLength].Value;
+        var taken = KeptSources.Any(other => other.Id != source.Id && string.Equals(LabelOf(other).Trim(), name, StringComparison.OrdinalIgnoreCase))
+            || _added.Any(added => string.Equals(AddedInfoOf(added).Label?.Trim(), name, StringComparison.OrdinalIgnoreCase));
+        return name.Length > 0 && taken ? L["LibraryEditDialog_NameTaken", name].Value : null;
     }
 
-    private bool NameChanged => !Import && Library is not null && !string.Equals(_name.Trim(), Library.Name?.Trim(), StringComparison.Ordinal);
+    private bool LabelsChanged => !Import && KeptSources.Any(source => _labels.TryGetValue(source.Id, out var label)
+        && !string.Equals(label.Trim(), (source.Label ?? source.DisplayName()).Trim(), StringComparison.Ordinal));
 
-    private bool HasChanges => NameChanged || _removed.Count > 0 || _added.Count > 0;
+    private bool HasLabelProblem => KeptSources.Any(source => LabelProblem(source) is not null);
 
-    private bool CanReview => HasChanges && NameProblem is null && !_saving;
+    private bool HasChanges => LabelsChanged || _removed.Count > 0 || _added.Count > 0;
+
+    private bool CanReview => HasChanges && !HasLabelProblem && !_saving;
 
     private bool JobRunning(LibrarySourceDto source) =>
         string.Equals(source.ConversionState, "converting", StringComparison.OrdinalIgnoreCase)
@@ -189,6 +216,11 @@
         {
             new() { Label = L["LibraryEditDialog_OpenInPicker"].Value, Icon = AppMaterialIcons.Outlined.FolderOpen, Disabled = _saving, OnClick = EventCallback.Factory.Create(this, () => OpenInPickerAsync(source)) },
         };
+        if (CanSwitchToManaged(source))
+        {
+            items.Add(new() { Label = L["LibraryEditDialog_SwitchToManaged"].Value, Icon = AppMaterialIcons.Outlined.Tune, Disabled = _saving || running, OnClick = EventCallback.Factory.Create(this, () => SwitchToManagedAsync(source)) });
+        }
+
         if (CanOfferVault)
         {
             items.Add(new() { Label = L["LibraryEditDialog_MoveToVault"].Value, Icon = AppMaterialIcons.Outlined.Lock, Disabled = _saving || running, OnClick = EventCallback.Factory.Create(this, () => MoveToVaultAsync(source)) });
@@ -211,7 +243,11 @@
         get
         {
             var lines = new List<string>();
-            if (NameChanged) lines.Add(L["LibraryEditDialog_ReviewRename", _name.Trim()].Value);
+            foreach (var source in KeptSources.Where(source => _labels.TryGetValue(source.Id, out var label) && !string.Equals(label.Trim(), (source.Label ?? source.DisplayName()).Trim(), StringComparison.Ordinal)))
+            {
+                lines.Add(L["LibraryEditDialog_ReviewRenameFolder", source.Path, _labels[source.Id].Trim()].Value);
+            }
+
             foreach (var added in _added) lines.Add(Import ? L["LibraryEditDialog_ReviewUseImport", added.Path].Value : L["LibraryEditDialog_ReviewAddFolder", added.Path].Value);
             foreach (var source in Sources.Where(source => _removed.Contains(source.Id)))
             {
@@ -235,7 +271,6 @@
     private async Task<ServerFolderValidationResultDto?> PickAsync(string? start)
     {
         var kind = Import ? null : Kinds.Find(Library?.KindKey);
-        var managed = Import || kind?.DefaultHandling == "managed";
         var parameters = new AppDialogParameters<ServerFolderPicker>
         {
             { component => component.Title, Import ? L["LibraryEditDialog_ChooseImport"].Value : L["LibraryEditDialog_ChooseYourFolder", kind?.Label ?? L["LibraryEditDialog_LibraryLower"].Value].Value },
@@ -243,11 +278,18 @@
                 ? L["LibraryEditDialog_HelpImport"].Value
                 : L["LibraryEditDialog_HelpMore", Library?.Name ?? string.Empty].Value },
             { component => component.ConfirmLabel, L["LibraryEditDialog_ChooseFolder"].Value },
-            { component => component.SelectionMode, managed && !IsVault ? ServerFolderSelectionModes.ManagedLibrary : ServerFolderSelectionModes.ExistingLibrary },
+            { component => component.SelectionMode, Import ? ServerFolderSelectionModes.ManagedLibrary : ServerFolderSelectionModes.ExistingLibrary },
             { component => component.MediaType, kind?.MediaTypes.FirstOrDefault() },
             { component => component.SetupSession, Scope.SetupSession },
             { component => component.InitialPath, start },
+            { component => component.ShowFolderName, !Import },
+            { component => component.OfferHandling, !Import && !IsVault },
+            { component => component.ManagedAllowed, kind is not null && LibraryKindLook.LooksUp(kind) },
+            { component => component.FolderNameChanged, EventCallback.Factory.Create<string>(this, value => _pickLabel = value) },
+            { component => component.OnHandlingChanged, EventCallback.Factory.Create<string>(this, value => _pickManaged = value == FolderHandlingWords.ManagedKey) },
         };
+        _pickLabel = null;
+        _pickManaged = false;
         var dialog = await DialogService.ShowAsync<ServerFolderPicker>(string.Empty, parameters, ServerFolderPicker.DialogOptions);
         return await dialog.Result is { Canceled: false, Data: ServerFolderValidationResultDto selected } ? selected : null;
     }
@@ -264,6 +306,7 @@
 
         _error = null;
         _added.Add(selected);
+        _addedInfo[selected.Path] = (string.IsNullOrWhiteSpace(_pickLabel) ? null : _pickLabel.Trim(), _pickManaged);
     }
 
     // Open in picker: the picker starts on the folder; choosing another one swaps it in (the old one is removed, the new one added) when Save changes is pressed.
@@ -272,6 +315,7 @@
         if (await PickAsync(source.Path) is not { } selected || string.Equals(selected.Path, source.Path, StringComparison.OrdinalIgnoreCase)) return;
         _removed.Add(source.Id);
         _added.Add(selected);
+        _addedInfo[selected.Path] = (string.IsNullOrWhiteSpace(_pickLabel) ? source.Label : _pickLabel.Trim(), _pickManaged);
         _error = null;
     }
 
@@ -296,6 +340,24 @@
         var dialog = await DialogService.ShowAsync<MoveToVaultDialog>(string.Empty, parameters, MoveToVaultDialog.DialogOptions);
         await dialog.Result;
         Dialog.Close(AppDialogResult.Ok(true));
+    }
+
+    // A Read-only folder of a kind whose rules allow it can be switched to Managed from here (Libraries v3 D27). Setup has no files to tidy yet, Vault folders are
+    // handled by the Vault, and a folder that is already Managed or busy with a job is left alone.
+    private bool CanSwitchToManaged(LibrarySourceDto source) => !Import && !Scope.Embedded && !IsVault && !IsManaged(source) && !JobRunning(source)
+        && Kinds.Find(Library?.KindKey) is { } kind && LibraryKindLook.LooksUp(kind);
+
+    // Preview, then Review in plain words, then the Engine tidies the folder in place as a job that can be paused and cancelled; "Converting" shows until it ends.
+    private async Task SwitchToManagedAsync(LibrarySourceDto source)
+    {
+        var outcome = await AddService.SwitchToManagedAsync(source);
+        if (outcome.Error is not null)
+        {
+            _error = outcome.Error;
+            return;
+        }
+
+        if (outcome.Started) Dialog.Close(AppDialogResult.Ok(true));
     }
 
     // Remove library asks once; the folders' files stay on disk.
@@ -399,12 +461,16 @@
     {
         if (Library is null) return;
         var current = Configuration;
-        if (NameChanged || _removed.Count > 0)
+        if (LabelsChanged || _removed.Count > 0)
         {
             var copy = JsonSerializer.Deserialize<LibraryFolderDto>(JsonSerializer.Serialize(Library));
             if (copy is null) return;
-            copy.Name = _name.Trim();
             copy.Sources.RemoveAll(source => _removed.Contains(source.Id));
+            foreach (var source in copy.Sources)
+            {
+                if (_labels.TryGetValue(source.Id, out var label)) source.Label = string.IsNullOrWhiteSpace(label) ? null : label.Trim();
+            }
+
             var saved = await AddService.SaveLibraryAsync(Scope, current, copy);
             if (saved is null)
             {
@@ -416,16 +482,16 @@
             current = saved;
         }
 
-        var kind = Kinds.Find(Library.KindKey);
-        var managed = kind?.DefaultHandling == "managed" && !IsVault;
         foreach (var folder in _added)
         {
+            var info = AddedInfoOf(folder);
             var plan = new AddFolderPlan(
                 Library.KindKey,
                 folder,
-                managed ? AddFolderHandling.Managed : AddFolderHandling.ReadOnly,
+                info.Managed && !IsVault ? AddFolderHandling.Managed : AddFolderHandling.ReadOnly,
                 MarkNewMediaHere: false,
-                LibraryId: Library.Id);
+                LibraryId: Library.Id,
+                Label: info.Label);
             var result = await AddService.AddAsync(plan, Kinds, current, Scope);
             if (!result.Saved)
             {

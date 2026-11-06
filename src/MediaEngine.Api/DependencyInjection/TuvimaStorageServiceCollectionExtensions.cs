@@ -258,6 +258,7 @@ public static class TuvimaStorageServiceCollectionExtensions
         services.AddSingleton<IImportUploadRepository, ImportUploadRepository>();
         services.AddSingleton<IUnmatchedAssetRepository, UnmatchedAssetRepository>();
         services.AddSingleton<ILibraryFolderTitleCountRepository, LibraryFolderTitleCountRepository>();
+        services.AddSingleton<ILibraryFolderWorkRepository, LibraryFolderWorkRepository>();
         // The first check of a newly added folder (Library setup D35, D61). The hold is registered here, before the ingestion modules,
         // so their "nothing is ever held" default does not apply.
         services.AddSingleton<FolderFirstCheckSignal>();
