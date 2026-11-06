@@ -34,6 +34,26 @@ public static class ReaderFileRateLimitPartition
             _ => Options(perAddress));
     }
 
+    /// <summary>
+    /// A short key for the person's session when the request comes from the Dashboard with its service credential and
+    /// a session; otherwise <c>null</c>. Everyone behind the Dashboard shares one address, so counting by address would
+    /// let one busy profile (or one open page) lock every other profile out.
+    /// </summary>
+    public static string? SessionKey(HttpContext context)
+    {
+        var recognizer = context.RequestServices?.GetService<DashboardServiceCredentialRecognizer>();
+        if (recognizer is not null
+            && context.Request.Headers.TryGetValue(TuvimaAuthDefaults.ServiceHeader, out var presented)
+            && recognizer.Matches(presented.ToString())
+            && context.Request.Headers.TryGetValue(TuvimaAuthDefaults.SessionHeader, out var session)
+            && !string.IsNullOrWhiteSpace(session.ToString()))
+        {
+            return "session:" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(session.ToString())));
+        }
+
+        return null;
+    }
+
     private static FixedWindowRateLimiterOptions Options(RateLimitPolicy policy) => new()
     {
         PermitLimit = policy.PermitLimit,

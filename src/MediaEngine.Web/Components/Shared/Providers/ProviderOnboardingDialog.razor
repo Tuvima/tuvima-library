@@ -22,17 +22,8 @@
                 <span><strong>@Catalogue.DisplayName</strong><small>@ProviderPurpose</small></span>
             </div>
 
-            @if (_result?.Success == true)
-            {
-                <div class="provider-onboarding__success" role="status">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" />
-                    <div><h3>@SuccessTitle</h3><p>@_result.Message</p></div>
-                </div>
-            }
-            else
-            {
                 <section class="provider-onboarding__step" aria-live="polite">
-                    @if (KeyLink is not null || Notices.Count > 0)
+                    @if (!SavedKeyView && (KeyLink is not null || Notices.Count > 0))
                     {
                         <div class="provider-onboarding__step-action">
                             @if (KeyLink is not null)
@@ -46,7 +37,7 @@
                         </div>
                     }
 
-                    @if (Instructions.Count > 0)
+                    @if (!SavedKeyView && Instructions.Count > 0)
                     {
                         <ol class="provider-onboarding__instructions">
                             @foreach (var instruction in Instructions)
@@ -56,12 +47,37 @@
                         </ol>
                     }
 
-                    @if (UserFields.Count > 0)
+                    @if (SavedKeyView)
+                    {
+                        <div class="provider-onboarding__saved" data-testid="provider-saved-key">
+                            <div class="provider-onboarding__saved-key">
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Key" />
+                                <div><strong>@L["ProviderOnboardingDialog_AKeyIsSaved"]</strong><small aria-hidden="true">••••••••••••</small></div>
+                            </div>
+                            <div class="provider-onboarding__saved-actions">
+                                <AppButton Label="@L["ProviderOnboardingDialog_ReplaceKey"].Value" ButtonStyle="AppButtonStyle.Outlined" Disabled="@_busy" OnClick="StartReplace" data-action="replace-key" />
+                                @if (CanRemove)
+                                {
+                                    @if (_confirmRemove)
+                                    {
+                                        <span class="provider-onboarding__confirm">@L["ProviderOnboardingDialog_RemoveThisKey"]</span>
+                                        <AppButton Label="@L["ProviderOnboardingDialog_RemoveKey"].Value" ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" Disabled="@_busy" OnClick="RemoveAsync" data-action="confirm-remove-key" />
+                                        <AppButton Label="@L["ProviderOnboardingDialog_Keep"].Value" ButtonStyle="AppButtonStyle.Text" Disabled="@_busy" OnClick="@(() => _confirmRemove = false)" />
+                                    }
+                                    else
+                                    {
+                                        <AppButton Label="@L["ProviderOnboardingDialog_RemoveKey"].Value" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Error" Disabled="@_busy" OnClick="@(() => _confirmRemove = true)" data-action="remove-key" />
+                                    }
+                                }
+                            </div>
+                        </div>
+                    }
+                    else if (UserFields.Count > 0)
                     {
                         <ProviderCredentialForm Fields="@UserFields"
                                                 Values="@_credentials"
                                                 FieldErrors="@FieldErrors"
-                                                Replacing="@(Operation == ProviderOnboardingOperation.Replace)"
+                                                Replacing="@(Operation == ProviderOnboardingOperation.Replace || _replacing)"
                                                 ValuesChanged="CredentialsChanged" />
                     }
 
@@ -90,6 +106,13 @@
                         </AppAlert>
                     }
                 </section>
+
+            @if (_result?.Success == true)
+            {
+                <div class="provider-onboarding__success" role="status">
+                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.CheckCircle" />
+                    <div><h3>@SuccessTitle</h3><p>@_result.Message</p></div>
+                </div>
             }
         </div>
     </ChildContent>
@@ -98,7 +121,7 @@
             <div class="provider-onboarding__footer-start">
                 @if (_result?.Success != true)
                 {
-                    <AppButton Label="@L["Search_Cancel"].Value" Disabled="@_busy" OnClick="Cancel" />
+                    <AppButton Label="@(SavedKeyView ? L["Common_Close"].Value : L["Search_Cancel"].Value)" Disabled="@_busy" OnClick="Cancel" />
                 }
             </div>
             <div class="provider-onboarding__footer-end">
@@ -131,6 +154,18 @@
     private readonly Dictionary<string, string> _credentials = new(StringComparer.OrdinalIgnoreCase);
     private ProviderCredentialOperationResultDto? _result;
     private bool _busy;
+    private bool _replacing;
+    private bool _confirmRemove;
+
+    // A saved key is only ever shown masked: the Engine never sends it back. Opening a source that has one shows that view
+    // (Test connection, Replace key, Remove key) instead of an empty key box; Replace key switches to the entry form.
+    private bool SavedKeyView => !_replacing
+        && Operation == ProviderOnboardingOperation.Connect
+        && UserFields.Any(credential => credential.Configured)
+        && _result?.Success != true;
+
+    // The Engine has no remove action while first-run setup is open, so Remove key is offered only in Settings.
+    private bool CanRemove => string.IsNullOrWhiteSpace(SetupSession);
 
     private ProviderOnboardingDto Onboarding => Catalogue.Onboarding ?? new ProviderOnboardingDto();
     private IReadOnlyList<ProviderOnboardingActionDto> StepActions => Onboarding.Steps
@@ -162,7 +197,7 @@
     private string ProviderPurpose => Onboarding.SupportedLanes.Count > 0
         ? $"Supports {string.Join(", ", Onboarding.SupportedLanes)}."
         : "Metadata provider";
-    private string SubmitLabel => Operation == ProviderOnboardingOperation.Test ? "Test connection" : "Test and save";
+    private string SubmitLabel => Operation == ProviderOnboardingOperation.Test || SavedKeyView ? "Test connection" : "Test and save";
     private string SuccessTitle => Operation == ProviderOnboardingOperation.Test
         ? "Connection verified"
         : "Key saved";
@@ -224,6 +259,51 @@
         }
     };
 
+    private void StartReplace()
+    {
+        _replacing = true;
+        _confirmRemove = false;
+        _result = null;
+    }
+
+    private async Task RemoveAsync()
+    {
+        if (_busy) return;
+        _busy = true;
+        try
+        {
+            var removed = await ApiClient.RemoveProviderCredentialsAsync(Catalogue.Name);
+            if (removed is { Success: true })
+            {
+                DialogInstance.Close(AppDialogResult.Ok(new ProviderOnboardingDialogResult(true, "removed", "The saved key was removed.")));
+                return;
+            }
+
+            _confirmRemove = false;
+            _result = removed ?? new ProviderCredentialOperationResultDto
+            {
+                Success = false,
+                Status = "engine_unavailable",
+                Message = L["ProviderOnboardingDialog_TheEngineDidNotReturn"].Value,
+            };
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException or InvalidOperationException or System.Text.Json.JsonException)
+        {
+            Logger.LogWarning(exception, "Removing the {Provider} key could not reach the Engine.", Catalogue.Name);
+            _confirmRemove = false;
+            _result = new ProviderCredentialOperationResultDto
+            {
+                Success = false,
+                Status = "engine_unavailable",
+                Message = L["ProviderOnboardingDialog_TheDashboardCouldNotReach"].Value,
+            };
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
     private Task CredentialsChanged()
     {
         _result = null;
@@ -246,7 +326,7 @@
             // The Engine's save action checks the key with the service first and stores it only when that
             // succeeds (ProviderCredentialService.SaveAsync), so Test is a single call: a good key is saved,
             // a bad one is refused. Only the explicit Test operation stays test-only.
-            _result = Operation == ProviderOnboardingOperation.Test
+            _result = Operation == ProviderOnboardingOperation.Test || SavedKeyView
                 ? !string.IsNullOrWhiteSpace(SetupSession)
                     ? await ApiClient.TestSetupProviderCredentialsAsync(Catalogue.Name, request, SetupSession)
                     : await ApiClient.TestProviderCredentialsAsync(Catalogue.Name, request)

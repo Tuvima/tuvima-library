@@ -3,10 +3,11 @@ GET https://lrclib.net/api/get?track_name=Fixture%20song&artist_name=Artist&albu
 GET https://lrclib.net/api/get?track_name=Fixture%20song&artist_name=Artist&album_name=Album&duration=180
 GET https://lrclib.net/api/get?track_name=Fixture%20song&artist_name=Artist&album_name=Album&duration=180
 GET https://lrclib.net/api/get?track_name=Fixture%20song&artist_name=Artist&album_name=Album&duration=180
-GET https://lrclib.net/api/get?track_name=Fixture%20song&artist_name=Artist&album_name=Album
+GET https://lrclib.net/api/search?track_name=Fixture%20song&artist_name=Artist
 GET https://lrclib.net/api/get?track_name=Fixture%20song&artist_name=Artist&album_name=Album&duration=180
 GET https://lrclib.net/api/get?track_name=Fixture%20song&artist_name=Artist&album_name=Album&duration=180
-GET https://lrclib.net/api/get?track_name=Fixture%20song
+GET https://lrclib.net/api/search?track_name=Fixture%20song&artist_name=Artist
+GET https://lrclib.net/api/search?track_name=Fixture%20song
 GET https://lrclib.net/api/get?track_name=Fixture%20song&artist_name=Artist&album_name=Album&duration=181
 == results ==
 -- plain-only
@@ -20,14 +21,14 @@ download: txt->txt Just words
 lrclib|Lyrics|8|https://lrclib.net/api/get?track_name=Fixture%20song&artist_name=Artist&album_name=Album&duration=180|en|lrc|0.82|False|-|False|-|False|[00:01.00]X
 download: lrc->lrc [00:01.00]X
 -- synced-no-request-duration
-lrclib|Lyrics|9|https://lrclib.net/api/get?track_name=Fixture%20song&artist_name=Artist&album_name=Album|en|lrc|0.82|False|-|False|-|False|[00:01.00]X
+lrclib|Lyrics|9|https://lrclib.net/api/search?track_name=Fixture%20song&artist_name=Artist|en|lrc|0.82|False|-|False|-|False|[00:01.00]X
 download: lrc->lrc [00:01.00]X
 -- instrumental
 lrclib|Lyrics|10|https://lrclib.net/api/get?track_name=Fixture%20song&artist_name=Artist&album_name=Album&duration=180|en|txt|1|False|1|False|-|True|-
 download: null
 -- empty
 -- no-id-title-only
-lrclib|Lyrics|fb05d872544f604bfef4a05d0b4117ae7dcfe562d20231cdf168c6484d9d6fcb|https://lrclib.net/api/get?track_name=Fixture%20song|und|txt|0.82|False|-|False|-|False|No id
+lrclib|Lyrics|f1da7d53e34e919b6ee4f1fd2b3cf092daed051dcae1ac508bb63b5e791a76ab|https://lrclib.net/api/search?track_name=Fixture%20song|und|txt|0.82|False|-|False|-|False|No id
 download: txt->txt No id
 -- rounded-duration
 lrclib|Lyrics|12|https://lrclib.net/api/get?track_name=Fixture%20song&artist_name=Artist&album_name=Album&duration=181|en|lrc|1|False|1|False|-|False|[00:01.00]X

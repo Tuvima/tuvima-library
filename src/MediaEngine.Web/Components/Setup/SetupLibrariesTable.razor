@@ -60,7 +60,7 @@
                     <tr @key="row.Key" data-library="@row.Key">
                         <td data-card-role="title"><span class="setup-libs__name"><span class="@LibraryKindLook.TileClass(row.Type)"><AppMaterialIcon Icon="@row.Type.Icon" /></span><strong>@row.Name</strong></span></td>
                         <td data-card-role="subtitle">@row.AreaLabel</td>
-                        <td class="setup-libs__path">
+                        <td class="@(row.Library is { Sources.Count: > 0 } ? "setup-libs__folders" : "setup-libs__path")">
                             @if (row.Library is { Sources.Count: > 0 } library)
                             {
                                 <LibraryFoldersPopover Sources="@library.Sources" LibraryName="@row.Name" />

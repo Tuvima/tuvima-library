@@ -83,6 +83,18 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
             });
         }
 
+        if (operationFacts.Stalled > 0)
+        {
+            attention.Add(new IngestionAttentionItemDto
+            {
+                Kind = "waiting",
+                Count = operationFacts.Stalled,
+                Label = $"{operationFacts.Stalled:N0} {Pluralize("file", operationFacts.Stalled)} waiting",
+                Description = "Not picked up yet; Library will try again",
+                Route = null,
+            });
+        }
+
         if (operationFacts.TextTrackWaiting > 0)
         {
             attention.Add(new IngestionAttentionItemDto
@@ -1215,14 +1227,18 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         return await conn.QuerySingleAsync<CurrentOperationFacts>(new CommandDefinition($"""
             SELECT
                 COUNT(CASE WHEN status IN ('leased','running','processing','active') THEN 1 END) + (SELECT COUNT(*) FROM identity_jobs WHERE state IN ('RetailSearching','BridgeSearching','Hydrating','UniverseEnriching') AND {VaultSql.NotVaultEntity("identity_jobs.entity_id")}) AS Active,
-                COUNT(CASE WHEN status IN ('pending','queued') THEN 1 END) + (SELECT COUNT(*) FROM identity_jobs WHERE state IN ('Queued','RetailMatched','QidResolved') AND {VaultSql.NotVaultEntity("identity_jobs.entity_id")}) AS Queued,
+                COUNT(CASE WHEN status IN ('pending','queued') AND updated_at >= @staleBefore THEN 1 END) + (SELECT COUNT(*) FROM identity_jobs WHERE state IN ('Queued','RetailMatched','QidResolved') AND {VaultSql.NotVaultEntity("identity_jobs.entity_id")}) AS Queued,
+                COUNT(CASE WHEN status IN ('pending','queued') AND updated_at < @staleBefore AND operation_type = 'ingestion.file' THEN 1 END) AS Stalled,
                 COUNT(CASE WHEN status IN ('retry_waiting','failed_retryable','interrupted') THEN 1 END) AS RetryWaiting,
                 COUNT(CASE WHEN status IN ('pending','queued','leased','running','processing','active','retry_waiting','failed_retryable','interrupted')
                              AND (LOWER(operation_type) LIKE '%lyric%' OR LOWER(operation_type) LIKE '%subtitle%' OR LOWER(COALESCE(capability_id,'')) LIKE '%lyric%' OR LOWER(COALESCE(capability_id,'')) LIKE '%subtitle%') THEN 1 END) AS TextTrackWaiting
             FROM media_operations
             WHERE {VaultSql.NotVaultEntity("media_operations.entity_id")};
-            """, cancellationToken: ct)).ConfigureAwait(false);
+            """, new { staleBefore = DateTimeOffset.UtcNow.Subtract(StaleQueuedAfter).ToString("O") }, cancellationToken: ct)).ConfigureAwait(false);
     }
+
+    /// <summary>A queued file nobody has touched for this long no longer holds the whole queue "working"; it is shown as waiting.</summary>
+    private static readonly TimeSpan StaleQueuedAfter = TimeSpan.FromMinutes(10);
 
     private async Task<int> ReadPendingReviewCountAsync(CancellationToken ct)
     {
@@ -1719,5 +1735,5 @@ public sealed class IngestionPresentationReadService : IIngestionPresentationRea
         public DateTimeOffset UpdatedAt { get; set; }
     }
 
-    private sealed class CurrentOperationFacts { public int Active { get; set; } public int Queued { get; set; } public int RetryWaiting { get; set; } public int TextTrackWaiting { get; set; } }
+    private sealed class CurrentOperationFacts { public int Active { get; set; } public int Queued { get; set; } public int Stalled { get; set; } public int RetryWaiting { get; set; } public int TextTrackWaiting { get; set; } }
 }

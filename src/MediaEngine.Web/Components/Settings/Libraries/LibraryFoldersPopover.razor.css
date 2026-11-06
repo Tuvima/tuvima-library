@@ -5,6 +5,8 @@
 .lib-folders__item { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; }
 .lib-folders__path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lib-folders__state { color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
+.lib-folders__item[data-state="online"] .lib-folders__state { color: var(--tl-status-success); }
+.lib-folders__item[data-state="online"] .lib-folders__state::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-inline-end: 6px; border-radius: 50%; background: currentColor; }
 .lib-folders__item[data-state="offline"] .lib-folders__state { color: var(--tl-status-warning); }
 .lib-folders__foot { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
 /* Phones: the list is a bottom sheet (D13). */

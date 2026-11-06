@@ -50,8 +50,8 @@
                     <div class="setup-source-row">
                         <AppProviderLogo ImageUrl="@provider.IconPath" Icon="@provider.MaterialIcon" AccentColor="@provider.AccentColor" FallbackText="@Initials(provider.DisplayName)" AltText="" />
                         <div><strong>@provider.DisplayName</strong><small>@Purpose(provider)</small></div>
-                        @StatusBadge(provider)
-                        @ConnectButton(provider)
+                        <span class="setup-source-row__status">@StatusBadge(provider)</span>
+                        <span class="setup-source-row__action">@ConnectButton(provider)</span>
                     </div>
                 }
             </div>

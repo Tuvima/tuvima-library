@@ -30,9 +30,11 @@
     }
     else
     {
-        <section class="needs-review-page__filters" aria-label="@L["NeedsReviewPageContent_NeedsReviewSearch"].Value">
+        <AppFilterRow Class="needs-review-page__filters" AriaLabel="@L["NeedsReviewPageContent_NeedsReviewSearch"].Value">
             <AppTextField Value="@_search"
                           ValueChanged="OnSearchChanged"
+                          Label="@L["NeedsReviewPageContent_SearchItemsNeedingReview"].Value"
+                          HideLabel="true"
                           Placeholder="@L["NeedsReviewPageContent_SearchItemsNeedingReview"].Value"
                           Adornment="AppAdornment.Start"
                           AdornmentIcon="@AppMaterialIcons.Outlined.Search"
@@ -46,13 +48,14 @@
             {
                 <AppSelect T="string"
                            Label="@L["NeedsReviewList_Library"].Value"
+                           HideLabel="true"
                            Value="@(Library ?? AllLibrariesKey)"
                            ValueChanged="OnLibraryChanged"
                            Options="@_libraryOptions"
                            FullWidth="false"
                            Class="needs-review-page__library" />
             }
-        </section>
+        </AppFilterRow>
 
         @if (_loading && _rows.Count == 0)
         {
@@ -105,7 +108,7 @@
                         <thead>
                             <tr>
                                 <th class="needs-review-table__tick">
-                                    <AppCheckbox Value="@AllVisibleSelected" ValueChanged="SetAllVisibleAsync" Label="@L["NeedsReviewList_SelectAll"].Value" />
+                                    <AppCheckbox Value="@AllVisibleSelected" ValueChanged="SetAllVisibleAsync" Label="@L["NeedsReviewList_SelectAll"].Value" HideLabel="true" />
                                 </th>
                                 <th>@L["NeedsReviewList_Item"]</th>
                                 <th>@L["NeedsReviewList_Why"]</th>
@@ -132,7 +135,7 @@
                                     }
                                 <tr class="needs-review-table__row" data-key="@row.Key" data-kind="@row.Kind">
                                     <td class="needs-review-table__tick">
-                                        <AppCheckbox Value="@_selected.Contains(row.Key)" ValueChanged="@((bool on) => Toggle(row, on))" Label="@($"Select {title}")" />
+                                        <AppCheckbox Value="@_selected.Contains(row.Key)" ValueChanged="@((bool on) => Toggle(row, on))" Label="@($"Select {title}")" HideLabel="true" />
                                     </td>
                                     <td class="needs-review-table__item">
                                         <strong>@title</strong>

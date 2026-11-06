@@ -315,7 +315,13 @@ builder.Services.AddSingleton<IConfigurationLoader>(configLoader);
 // -- Rate limiting -------------------------------------------------------------
 {
     var rateLimits = configLoader.LoadCore().RateLimiting;
-    string[] globalLimiterExemptPaths = ["/system/status", "/health", "/health/live"];
+    // The light status checks the Dashboard repeats every few seconds are exempt, so a busy page can never turn the
+    // whole app into "Engine unavailable".
+    string[] globalLimiterExemptPaths =
+    [
+        "/system/status", "/health", "/health/live",
+        "/auth/bootstrap/status", "/ingestion/queue-progress", "/api/v1/companion/devices",
+    ];
     string[] globalLimiterExemptPrefixes =
     [
         "/swagger",
@@ -399,7 +405,7 @@ builder.Services.AddSingleton<IConfigurationLoader>(configLoader);
                 }));
         options.AddPolicy("general", context =>
             RateLimitPartition.GetFixedWindowLimiter(
-                context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                ReaderFileRateLimitPartition.SessionKey(context) ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
                 _ => new FixedWindowRateLimiterOptions
                 {
                     PermitLimit = rateLimits.General.PermitLimit,

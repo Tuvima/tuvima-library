@@ -1,8 +1,8 @@
 .activity-log__toolbar {
     display: flex;
     flex-wrap: wrap;
-    /* The selects carry a label above their box and the filter tabs do not, so line everything up along the bottom edge. */
-    align-items: flex-end;
+    /* No control draws a label above itself (the shared filter row), so everything lines up on one centre line. */
+    align-items: center;
     gap: var(--tl-space-3);
     margin-bottom: var(--tl-space-3);
 }

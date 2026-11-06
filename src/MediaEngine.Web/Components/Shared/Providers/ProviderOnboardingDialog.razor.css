@@ -128,3 +128,28 @@
         min-width: 0;
     }
 }
+
+.provider-onboarding__saved {
+    display: grid;
+    gap: var(--tl-space-3);
+}
+
+.provider-onboarding__saved-key {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-3);
+    color: var(--tl-text-primary);
+}
+
+.provider-onboarding__saved-key small {
+    display: block;
+    color: var(--tl-text-muted);
+    letter-spacing: 0.2em;
+}
+
+.provider-onboarding__saved-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-2, 8px);
+}

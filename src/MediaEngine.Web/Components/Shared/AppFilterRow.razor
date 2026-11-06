@@ -1,0 +1,18 @@
+@namespace MediaEngine.Web.Components.Shared
+
+@* The one layout for a row of filters (search box, chips, drop-downs, sort) above a list. Every control sits on one line with a common
+   centre line. A control inside the row never draws a label above itself: its closed value says what it is ("All libraries", "Newest first")
+   and its label stays for screen readers (HideLabel). A label above only some of the controls pushes those controls lower than their
+   neighbours, which is the misalignment this row exists to prevent; FilterRowGuardrailTests enforces it. *@
+<div class="@RootClass" role="group" aria-label="@AriaLabel" @attributes="AdditionalAttributes">
+    @ChildContent
+</div>
+
+@code {
+    [Parameter] public string? AriaLabel { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
+
+    private string RootClass => string.Join(" ", new[] { "app-filter-row", Class }.Where(value => !string.IsNullOrWhiteSpace(value)));
+}

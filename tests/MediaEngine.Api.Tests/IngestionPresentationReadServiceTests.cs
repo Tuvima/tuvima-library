@@ -720,6 +720,43 @@ public sealed class IngestionPresentationReadServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Snapshot_AFileQueuedForOverTenMinutesDoesNotHoldTheQueueWorking_ItShowsAsWaiting()
+    {
+        var stale = DateTimeOffset.UtcNow.AddMinutes(-30).ToString("O");
+        using (var conn = _db.CreateConnection())
+        {
+            conn.Execute("""
+                INSERT INTO media_operations (id,operation_type,operation_kind,status,stage,position_key,created_at,updated_at,idempotency_key,source_path)
+                VALUES (@id,'ingestion.file','ingestion','pending','discovered',1,@old,@old,@key,'/media/tv/Course/guide.pdf');
+                """, new { id = Guid.NewGuid(), old = stale, key = Guid.NewGuid().ToString() });
+        }
+
+        var snapshot = await new IngestionPresentationReadService(_db).GetSnapshotAsync();
+
+        Assert.False(snapshot.IsRunning);
+        Assert.Equal(0, snapshot.QueuedOperations);
+        Assert.Contains(snapshot.Attention, item => item.Kind == "waiting" && item.Count == 1 && item.Label.Contains("waiting", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Snapshot_AFreshlyQueuedFileStillCountsAsWorking()
+    {
+        var now = DateTimeOffset.UtcNow.ToString("O");
+        using (var conn = _db.CreateConnection())
+        {
+            conn.Execute("""
+                INSERT INTO media_operations (id,operation_type,operation_kind,status,stage,position_key,created_at,updated_at,idempotency_key,source_path)
+                VALUES (@id,'ingestion.file','ingestion','pending','discovered',1,@now,@now,@key,'/media/tv/Show/ep1.mkv');
+                """, new { id = Guid.NewGuid(), now, key = Guid.NewGuid().ToString() });
+        }
+
+        var snapshot = await new IngestionPresentationReadService(_db).GetSnapshotAsync();
+
+        Assert.True(snapshot.IsRunning);
+        Assert.Equal(1, snapshot.QueuedOperations);
+    }
+
+    [Fact]
     public async Task UnmatchedWorkShowsAsUnmatchedAndNotACompletedAddition_UntilItBecomesReady()
     {
         var work = AddStandalone("Audiobooks", "A forty-file book", presented: true, ready: false);
