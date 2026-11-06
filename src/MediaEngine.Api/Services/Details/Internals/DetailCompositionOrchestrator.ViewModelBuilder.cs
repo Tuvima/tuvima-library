@@ -713,8 +713,13 @@ internal sealed partial class DetailCompositionOrchestrator
 
     private static IReadOnlyList<DetailAction> BuildWatchActions(string route, ProgressViewModel? progress, string? episodePosition = null, bool videoFolder = false)
     {
-        // A folder of Other videos says Play or Resume and never carries a season or episode number (item 17).
-        var verb = videoFolder ? VideoFolderWording.PlayButton(progress is not null) : progress is null ? "Watch" : "Resume";
+        var verb = progress is null ? "Watch" : "Resume";
+        if (videoFolder)
+        {
+            // A folder of Other videos says Play or Resume and never carries a season or episode number (item 17).
+            verb = VideoFolderWording.PlayButton(progress is not null);
+        }
+
         var watch = new DetailAction
         {
             Key = "watch",
