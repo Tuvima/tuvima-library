@@ -163,9 +163,8 @@
         {
             // A failed item starts from its file name, not from the title the failed match left behind.
             _query = _context!.ParsedTitle!;
+            CleanQuery();
         }
-
-        CleanQuery();
 
         await SearchAsync();
     }
@@ -1045,8 +1044,8 @@
         {
             // Nothing to preview a move against (a movie or a book with no list). The Engine checks the folder again when you save.
             _files = FilesState.Unknown;
-            // A file in a Managed folder moves with its match; a Read-only folder never moves (the Engine decides when you save).
-            _moveFiles = true;
+            // No move is staged without a preview that says the file can move: staging one for a Read-only folder would make the Engine refuse the whole save.
+            _moveFiles = false;
             return;
         }
 

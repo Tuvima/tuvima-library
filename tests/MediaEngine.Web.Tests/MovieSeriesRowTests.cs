@@ -133,8 +133,13 @@ public sealed class MovieSeriesRowTests : AsyncBunitContext
         };
         movies[0] = new SequenceItemViewModel
         {
-            Id = movies[0].Id, EntityType = movies[0].EntityType, Title = movies[0].Title, IsOwned = true,
-            PositionLabel = movies[0].PositionLabel, PositionNumber = movies[0].PositionNumber, PositionSort = movies[0].PositionSort,
+            Id = movies[0].Id,
+            EntityType = movies[0].EntityType,
+            Title = movies[0].Title,
+            IsOwned = true,
+            PositionLabel = movies[0].PositionLabel,
+            PositionNumber = movies[0].PositionNumber,
+            PositionSort = movies[0].PositionSort,
             ProgressState = LibraryProgressState.Completed,
         };
 

@@ -13,15 +13,17 @@ public static partial class EditorSearchNoise
         public bool HasLeftOut => LeftOut.Count > 0;
     }
 
-    [GeneratedRegex(@"\[[^\]]*\]|\([^)]*(?:p|rip|hdr|dts|aac|x26[45])[^)]*\)", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\[[^\]]*(?:\d{3,4}[pi]|rip|hdr|dts|aac|x26[45]|web|blu|remux|yts|rarbg|hevc)[^\]]*\]", RegexOptions.IgnoreCase)]
     private static partial Regex Bracketed();
 
-    [GeneratedRegex(@"(?<![A-Za-z0-9])(?:(?:480|576|720|1080|2160)[pi]|4k|uhd|hdr10\+?|hdr|dv|x26[45]|h\.?26[45]|hevc|avc|xvid|divx|blu-?ray|bdrip|brrip|dvdrip|web-?dl|web-?rip|webrip|hdtv|remux|proper|repack|extended|unrated|dts(?:-hd)?|truehd|atmos|aac(?:2\.0)?|ac3|ddp?5\.1|flac|10-?bit)(?![A-Za-z0-9])", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"(?<![A-Za-z0-9])(?:(?:480|576|720|1080|2160)[pi]|4k|uhd|hdr10\+?|hdr|x26[45]|h\.?26[45]|hevc|xvid|divx|blu-?ray|bdrip|brrip|dvdrip|web-?dl|web-?rip|webrip|hdtv|remux|repack|dts(?:-hd)?|truehd|aac(?:2\.0)?|ac3|ddp?5\.1|10-?bit)(?![A-Za-z0-9])", RegexOptions.IgnoreCase)]
     private static partial Regex Token();
 
     public static Result Clean(string? query)
     {
-        var text = (query ?? string.Empty).Replace('.', ' ').Replace('_', ' ');
+        var raw = query ?? string.Empty;
+        // Only a release-style name (dots between words, no spaces) has its dots read as spaces.
+        var text = raw.Contains(' ') ? raw : raw.Replace('.', ' ').Replace('_', ' ');
         var left = new List<string>();
         text = Bracketed().Replace(text, match => { left.Add(match.Value.Trim()); return " "; });
         text = Token().Replace(text, match => { left.Add(match.Value); return " "; });

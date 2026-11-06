@@ -104,6 +104,7 @@ internal sealed partial class DetailCompositionOrchestrator
             && !string.IsNullOrWhiteSpace(foregroundArtworkUrl))
         {
             backdropUrl = foregroundArtworkUrl;
+            foregroundArtworkUrl = backdropUrl;
         }
 
         if (entityType == DetailEntityType.TvEpisode)

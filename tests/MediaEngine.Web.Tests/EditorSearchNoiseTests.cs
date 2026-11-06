@@ -7,7 +7,7 @@ public sealed class EditorSearchNoiseTests
     [Fact]
     public void ReleaseNoiseIsLeftOutAndRemembered()
     {
-        var result = EditorSearchNoise.Clean("Blade.Runner.2049.2160p.UHD.BluRay.x265-GROUP [YTS]");
+        var result = EditorSearchNoise.Clean("Blade.Runner.2049.2160p.UHD.BluRay.x265-GROUP.[YTS]");
 
         Assert.Equal("Blade Runner 2049 GROUP", result.Query.Replace("-", " ").Replace("  ", " ").Trim());
         Assert.Contains("2160p", result.LeftOut);
@@ -32,5 +32,15 @@ public sealed class EditorSearchNoiseTests
 
         Assert.Equal("1080p", result.Query);
         Assert.Empty(result.LeftOut);
+    }
+
+    [Theory]
+    [InlineData("Dune (Part One)")]
+    [InlineData("The Extended Mind")]
+    [InlineData("[REC] 2")]
+    [InlineData("Mr. Robot")]
+    public void OrdinaryTitlesAreNeverChanged(string title)
+    {
+        Assert.Equal(title, EditorSearchNoise.Clean(title).Query);
     }
 }
