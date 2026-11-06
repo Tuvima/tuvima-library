@@ -5046,6 +5046,11 @@ input[type="reset"],
 .video-settings-menu .video-settings-menu__choice { border-color: rgba(255, 255, 255, .12); }
 .playback-sheet-list { overflow-x: hidden; max-height: min(80vh, 640px); scrollbar-width: thin; }
 
+/* Unified player D10: the Playback speed page inside Settings (slider with the current value above it and a Reset to 1x button). */
+.video-settings-menu__speed { display: grid; gap: 12px; padding: 16px 20px 20px; }
+.video-settings-menu__speed output { text-align: center; font-size: var(--tl-control-font-size-md); font-weight: var(--tl-font-weight-semibold); }
+.video-settings-menu__speed button { min-height: 44px; border: 1px solid var(--playback-border); border-radius: var(--tl-radius-sm); background: transparent; color: inherit; font: inherit; cursor: pointer; }
+
 /* Unified player D12: on touch the style menu uses 48 px rows and choices, with nothing that depends on hover. */
 @media (pointer: coarse) { .video-settings-menu .video-settings-menu__swatch { inline-size: 48px; block-size: 48px; } .video-settings-menu .video-settings-menu__choice, .video-settings-menu .video-settings-menu__row { min-height: 48px; } .video-settings-menu__group { flex-wrap: wrap; } }
 

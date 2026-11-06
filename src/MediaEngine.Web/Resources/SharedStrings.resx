@@ -9696,6 +9696,9 @@
   <data name="PlayerSettings_Audio" xml:space="preserve">
     <value>Audio</value>
   </data>
+  <data name="PlayerSettings_PlaybackSpeed" xml:space="preserve">
+    <value>Playback speed</value>
+  </data>
   <data name="PlayerSettings_Styling" xml:space="preserve">
     <value>Styling…</value>
   </data>

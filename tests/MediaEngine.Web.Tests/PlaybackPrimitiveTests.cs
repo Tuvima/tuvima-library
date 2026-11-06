@@ -385,7 +385,9 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("PlaybackControlCatalog.BuildToolStrip", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/PlaybackFullPlayer.razor")), StringComparison.Ordinal);
         Assert.Contains("<PlaybackRelativeSkipButton", videoHost, StringComparison.Ordinal);
         Assert.Contains("<PlaybackPrimaryButton", videoHost, StringComparison.Ordinal);
-        Assert.Contains("<PlaybackSpeedControl", videoHost, StringComparison.Ordinal);
+        // Unified player D10: video speed lives inside Settings, not as its own bar button.
+        Assert.DoesNotContain("<PlaybackSpeedControl", videoHost, StringComparison.Ordinal);
+        Assert.Contains("PlaybackRateChanged=", videoHost, StringComparison.Ordinal);
         Assert.Contains("<PlaybackPopover", videoHost, StringComparison.Ordinal);
 
         foreach (var css in playbackStyles)
