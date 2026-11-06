@@ -232,9 +232,9 @@ public partial interface IEngineApiClient
         IReadOnlyCollection<string>? libraryIds, IReadOnlyCollection<string>? kinds, DateTimeOffset? from, DateTimeOffset? to,
         string? search, bool newestFirst, int offset, int limit, CancellationToken ct = default);
 
-    /// <summary>GET /library/activity/runs/{runId}/groups: one opened batch as stacked tiles, a page at a time.</summary>
+    /// <summary>GET /library/activity/runs/{entryId}/groups: one opened batch as stacked tiles, a page at a time.</summary>
     Task<MediaEngine.Contracts.Library.ActivityRunGroupsDto?> GetActivityRunGroupsAsync(
-        Guid runId, string? mediaType, int offset, int limit, CancellationToken ct = default);
+        Guid entryId, string? mediaType, int offset, int limit, CancellationToken ct = default);
 
     /// <summary>GET /library/activity/titles: the instant title search, each title once with its own dated markers.</summary>
     Task<MediaEngine.Contracts.Library.ActivityTitleSearchDto?> SearchActivityTitlesAsync(

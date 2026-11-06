@@ -81,9 +81,21 @@ public static class LibraryActivityText
     public static string Ago(DateTimeOffset when, DateTimeOffset now)
     {
         var span = now - when;
-        if (span < TimeSpan.FromMinutes(1)) return "just now";
-        if (span < TimeSpan.FromHours(1)) return Unit((int)span.TotalMinutes, "minute");
-        if (span < TimeSpan.FromDays(1)) return Unit((int)span.TotalHours, "hour");
+        if (span < TimeSpan.FromMinutes(1))
+        {
+            return "just now";
+        }
+
+        if (span < TimeSpan.FromHours(1))
+        {
+            return Unit((int)span.TotalMinutes, "minute");
+        }
+
+        if (span < TimeSpan.FromDays(1))
+        {
+            return Unit((int)span.TotalHours, "hour");
+        }
+
         return Unit((int)span.TotalDays, "day");
 
         static string Unit(int amount, string name) => $"{amount} {name}{(amount == 1 ? string.Empty : "s")} ago";

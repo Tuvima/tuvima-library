@@ -466,10 +466,10 @@ public sealed partial class EngineApiClient
             ct: ct);
 
     public Task<MediaEngine.Contracts.Library.ActivityRunGroupsDto?> GetActivityRunGroupsAsync(
-        Guid runId, string? mediaType, int offset, int limit, CancellationToken ct = default) =>
+        Guid entryId, string? mediaType, int offset, int limit, CancellationToken ct = default) =>
         GetAsync<MediaEngine.Contracts.Library.ActivityRunGroupsDto>(
-            "GET /library/activity/runs/{runId}/groups",
-            $"/library/activity/runs/{runId:D}/groups" + ActivityQuery(null, null, null, null, null,
+            "GET /library/activity/runs/{entryId}/groups",
+            $"/library/activity/runs/{entryId:D}/groups" + ActivityQuery(null, null, null, null, null,
                 ("media_type", mediaType),
                 ("offset", offset.ToString(System.Globalization.CultureInfo.InvariantCulture)),
                 ("limit", limit.ToString(System.Globalization.CultureInfo.InvariantCulture))),

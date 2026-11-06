@@ -57,7 +57,7 @@ public sealed record ActivityCoverDto(
 /// added files read as a few dozen tiles.
 /// </summary>
 public sealed record ActivityRunGroupsDto(
-    [property: JsonPropertyName("run_id")] Guid RunId,
+    [property: JsonPropertyName("entry_id")] Guid EntryId,
     [property: JsonPropertyName("groups")] IReadOnlyList<ActivityGroupDto> Groups,
     [property: JsonPropertyName("has_more")] bool HasMore);
 
@@ -89,7 +89,7 @@ public sealed record ActivityTitleCardDto(
 
 /// <summary>One dated marker on a searched title's own timeline: the batch, when it started and how much of the title it added.</summary>
 public sealed record ActivityTitleMarkerDto(
-    [property: JsonPropertyName("run_id")] Guid RunId,
+    [property: JsonPropertyName("entry_id")] Guid EntryId,
     [property: JsonPropertyName("kind")] string Kind,
     [property: JsonPropertyName("started_at")] DateTimeOffset StartedAt,
     [property: JsonPropertyName("item_count")] int ItemCount);

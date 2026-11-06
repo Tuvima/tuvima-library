@@ -383,6 +383,7 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         builder.Services.AddAuthorization();
         builder.Services.AddSingleton<IRequestAuthorityResolver>(Authorities());
         builder.Services.AddSingleton(composer);
+        builder.Services.AddSingleton(new NewTagRule(new ActivityRunRepository(_database), TimeProvider.System));
         foreach (var inferredOnly in new[]
         {
             typeof(BrowseLibraryListService), typeof(DisplayRecentComposerService), typeof(ContributorShelfReadService),

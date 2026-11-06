@@ -62,29 +62,29 @@ public sealed class ActivityRunRepository(IDatabaseConnection db) : IActivityRun
     public Task AddItemAsync(ActivityRunItemRecord item, DateTimeOffset at, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
-        using var connection = db.CreateConnection();
-        using var transaction = connection.BeginTransaction();
-        connection.Execute("""
+        return db.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            token.ThrowIfCancellationRequested();
+            connection.Execute("""
             INSERT INTO activity_run_items (id, run_id, work_id, asset_id, media_type, title, group_key, group_title, group_work_id, created_at)
             VALUES (@Id, @RunId, @WorkId, @AssetId, @MediaType, @Title, @GroupKey, @GroupTitle, @GroupWorkId, @created);
             """, new
-        {
-            item.Id,
-            item.RunId,
-            item.WorkId,
-            item.AssetId,
-            item.MediaType,
-            item.Title,
-            item.GroupKey,
-            item.GroupTitle,
-            item.GroupWorkId,
-            created = Iso(item.CreatedAt),
-        }, transaction);
-        connection.Execute("""
+            {
+                item.Id,
+                item.RunId,
+                item.WorkId,
+                item.AssetId,
+                item.MediaType,
+                item.Title,
+                item.GroupKey,
+                item.GroupTitle,
+                item.GroupWorkId,
+                created = Iso(item.CreatedAt),
+            }, transaction);
+            connection.Execute("""
             UPDATE activity_runs SET item_count = item_count + 1, last_activity_at = @at WHERE id = @runId;
             """, new { runId = item.RunId, at = Iso(at) }, transaction);
-        transaction.Commit();
-        return Task.CompletedTask;
+        }, ct);
     }
 
     public Task<int> CompleteQuietRunsAsync(DateTimeOffset quietBefore, CancellationToken ct = default)

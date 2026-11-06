@@ -125,7 +125,7 @@ public sealed record ActivityTitleHit(
     string MediaType,
     Guid? GroupWorkId,
     Guid? FirstWorkId,
-    Guid RunId,
+    Guid EntryId,
     string LibraryId,
     string Kind,
     DateTimeOffset StartedAt,

@@ -1,4 +1,6 @@
 using MediaEngine.Api.Services;
+using MediaEngine.Api.Services.Display;
+using MediaEngine.Contracts.Display;
 using MediaEngine.Domain.Contracts;
 using MediaEngine.Storage;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -134,12 +136,60 @@ public sealed class ActivityRunRecorderTests : IDisposable
         Assert.Equal("course", first.Title);
     }
 
-    private async Task AddMovieAsync(string title)
+    private async Task<Guid> AddMovieAsync(string title)
     {
+        var work = Guid.NewGuid();
         var asset = Guid.NewGuid();
         _store.Known[asset] = new ActivityAssetContext(Library, $"/movies/{title}.mkv");
-        await _recorder.RecordAddedAsync(Guid.NewGuid(), asset, "Movies", title, null, null);
+        await _recorder.RecordAddedAsync(work, asset, "Movies", title, null, null);
+        return work;
     }
+
+    [Fact]
+    public async Task NewTag_ItemsFromALibrarysFirstImport_AreNeverNew()
+    {
+        var first = await AddMovieAsync("First");
+
+        var page = await new NewTagRule(_real, _clock).MarkAsync(GridOf(first), CancellationToken.None);
+
+        Assert.False(Assert.Single(page.Items).IsNew);
+    }
+
+    [Fact]
+    public async Task NewTag_AnItemFromALaterImport_IsNewForFourteenDaysAndThenNot()
+    {
+        await AddMovieAsync("First");
+        _clock.Advance(TimeSpan.FromMinutes(10));
+        var later = await AddMovieAsync("Later");
+        _clock.Advance(TimeSpan.FromMinutes(10));
+        await _recorder.CloseQuietRunsAsync(TimeSpan.Zero);
+        var rule = new NewTagRule(_real, _clock);
+
+        _clock.Advance(TimeSpan.FromDays(13));
+        Assert.True(Assert.Single((await rule.MarkAsync(GridOf(later), CancellationToken.None)).Items).IsNew);
+
+        _clock.Advance(TimeSpan.FromDays(2));
+        Assert.False(Assert.Single((await rule.MarkAsync(GridOf(later), CancellationToken.None)).Items).IsNew);
+    }
+
+    [Fact]
+    public async Task NewTag_ACardNoImportRecorded_IsNotNew()
+    {
+        var page = await new NewTagRule(_real, _clock).MarkAsync(GridOf(Guid.NewGuid()), CancellationToken.None);
+
+        Assert.False(Assert.Single(page.Items).IsNew);
+    }
+
+    private static DisplayGridPageDto GridOf(Guid workId) => new(
+        "watch", "recent", "Recent", null, [CardFor(workId)], 1, 0, 10, false, null, "added", "added", null, [], []);
+
+    private static DisplayCardDto CardFor(Guid workId) => new(
+        Id: Guid.NewGuid(), WorkId: workId, AssetId: null, CollectionId: null, MediaType: "Movies", GroupingType: "work",
+        Title: "Card", Subtitle: null, Facts: [],
+        Artwork: new DisplayArtworkDto(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null,
+            null, null, null, null, null, null, null, null, null),
+        PreferredShape: "portrait", Presentation: "default", TileTextMode: "coverOnly", PreviewPlacement: "bottom",
+        Progress: null, Actions: [], Flags: new DisplayCardFlagsDto(true, false, false, false), SortTimestamp: DateTimeOffset.UtcNow);
 
     private sealed class ClockStub(DateTimeOffset start) : TimeProvider
     {

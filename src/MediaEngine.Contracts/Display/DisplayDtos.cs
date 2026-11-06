@@ -134,6 +134,12 @@ public sealed record DisplayCardDto(
     public bool IsSettling { get; init; }
 
     /// <summary>
+    /// The Engine's answer to the New tag (Library activity D14): true for 14 days after a later import added the item, false otherwise.
+    /// Null only when a card was built without the rule; tiles then fall back to a short added-recently check.
+    /// </summary>
+    public bool? IsNew { get; init; }
+
+    /// <summary>
     /// The Wikidata ID of the Universe this title's Series belongs to, set only when that Universe page can open
     /// (the same rule as the detail page's Universe icon). Tiles use it for "Open Universe" in the "..." menu; null draws no row.
     /// </summary>

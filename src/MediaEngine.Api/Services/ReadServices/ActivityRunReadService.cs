@@ -34,18 +34,18 @@ public sealed class ActivityRunReadService(IActivityRunStore store, IConfigurati
         return new ActivityRunsDto(runs, page.Count > limit, last);
     }
 
-    public async Task<ActivityRunGroupsDto?> ListGroupsAsync(Guid runId, string? mediaType, int offset, int limit, CancellationToken ct = default)
+    public async Task<ActivityRunGroupsDto?> ListGroupsAsync(Guid entryId, string? mediaType, int offset, int limit, CancellationToken ct = default)
     {
-        if (await store.GetRunAsync(runId, ct).ConfigureAwait(false) is null)
+        if (await store.GetRunAsync(entryId, ct).ConfigureAwait(false) is null)
         {
             return null;
         }
 
         var take = Math.Clamp(limit <= 0 ? 24 : limit, 1, MaximumLimit);
-        var groups = await store.ListGroupsAsync(runId, string.IsNullOrWhiteSpace(mediaType) ? null : mediaType, offset, take + 1, ct)
+        var groups = await store.ListGroupsAsync(entryId, string.IsNullOrWhiteSpace(mediaType) ? null : mediaType, offset, take + 1, ct)
             .ConfigureAwait(false);
         return new ActivityRunGroupsDto(
-            runId,
+            entryId,
             groups.Take(take).Select(ToDto).ToList(),
             groups.Count > take);
     }
@@ -60,7 +60,7 @@ public sealed class ActivityRunReadService(IActivityRunStore store, IConfigurati
                 var first = group.OrderByDescending(hit => hit.StartedAt).First();
                 var markers = group
                     .OrderByDescending(hit => hit.StartedAt)
-                    .Select(hit => new ActivityTitleMarkerDto(hit.RunId, hit.Kind, hit.StartedAt, hit.ItemCount))
+                    .Select(hit => new ActivityTitleMarkerDto(hit.EntryId, hit.Kind, hit.StartedAt, hit.ItemCount))
                     .ToList();
                 var asGroup = new ActivityRunGroup(
                     first.GroupKey, first.GroupTitle, first.MediaType, first.GroupWorkId, first.FirstWorkId, null,
