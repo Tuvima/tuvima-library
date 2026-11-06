@@ -74,7 +74,7 @@ else if (Slides.Count > 0)
                     </div>
                 }
 
-                @if (!string.IsNullOrEmpty(CarouselContextLabel))
+                @if (!string.IsNullOrEmpty(CarouselContextLabel) && !IsVideoHero)
                 {
                     <div class="cinematic-hero-carousel__context" title="@ActiveHero.SuggestedReason">@CarouselContextLabel</div>
                 }
@@ -85,20 +85,37 @@ else if (Slides.Count > 0)
                                    Subtitle="@DisplaySubtitle"
                                    Synopsis="@DisplaySummary"
                                    Class="cinematic-hero__content">
+                    <IdentityBeforeTitle>
+                        @* A video's label sits right over its title ("Video folder", "Video", "Continue Watching"), as in the Home hero mock. *@
+                        @if (!string.IsNullOrEmpty(CarouselContextLabel) && IsVideoHero)
+                        {
+                            <div class="cinematic-hero-carousel__context cinematic-hero-carousel__context--above-title" title="@ActiveHero.SuggestedReason">@CarouselContextLabel</div>
+                        }
+                    </IdentityBeforeTitle>
                     <MetadataContent>
-                        <HeroMetadataPills Metadata="@LandingMetadata"
-                                           EntityType="@ActiveEntityType"
-                                           IsWatchHero="@IsWatchHero"
-                                           UsePrimaryHeroChrome="true"
-                                           RenderHeroBrandInMetadata="false" />
+                        @* A video's facts are the one muted line under its title, so no pills repeat them. *@
+                        @if (!IsVideoHero)
+                        {
+                            <HeroMetadataPills Metadata="@LandingMetadata"
+                                               EntityType="@ActiveEntityType"
+                                               IsWatchHero="@IsWatchHero"
+                                               UsePrimaryHeroChrome="true"
+                                               RenderHeroBrandInMetadata="false" />
+                        }
                     </MetadataContent>
                     <ActionContent>
-                        <HeroActionRow PrimaryActions="@LandingPrimaryActions"
-                                       SecondaryActions="@LandingMyListAction"
-                                       OverflowActions="@NoActions"
-                                       Progress="@LandingProgress"
-                                       UsePrimaryHeroChrome="true"
-                                       OnActionSelected="OpenLandingActionAsync" />
+                        <div class="@ActionsClass">
+                            <HeroActionRow PrimaryActions="@LandingPrimaryActions"
+                                           SecondaryActions="@LandingMyListAction"
+                                           OverflowActions="@NoActions"
+                                           Progress="@LandingProgress"
+                                           UsePrimaryHeroChrome="true"
+                                           OnActionSelected="OpenLandingActionAsync" />
+                            @if (ShowsFolderLink)
+                            {
+                                <a class="cinematic-hero-carousel__folder-link" href="@ActiveDetailsUrl">@VideoFolderWording.OpenLabel</a>
+                            }
+                        </div>
                     </ActionContent>
                     <SupplementalContent>
                         @if (Density == CinematicHeroDensity.CompactAudio && ActiveHero.PreviewItems.Count > 0)
@@ -238,7 +255,10 @@ else if (Slides.Count > 0)
     private string? DisplaySummary => ActiveHero.EpisodeContext is not null
         ? ActiveHero.Description
         : StringHelpers.FirstNonBlank(ActiveHero.Tagline, ActiveHero.Tldr, ActiveHero.Description);
-    private string? DisplaySubtitle => ActiveHero.EpisodeContext is not null || !IsWatchHero ? ActiveHero.Subtitle : null;
+    // A video's muted line is built for it (folder counts and next up, time left or length); other watch heroes keep no subtitle.
+    private string? DisplaySubtitle => IsVideoHero
+        ? PhoneHeroPresentation.VideoLine(ActiveHero)
+        : ActiveHero.EpisodeContext is not null || !IsWatchHero ? ActiveHero.Subtitle : null;
     private bool IsSuggested => !IsContinuation && !string.IsNullOrWhiteSpace(ActiveHero.SuggestedBy);
     private string CarouselContextLabel => IsSuggested
         ? $"Suggested by {ActiveHero.SuggestedBy}{(ActiveHero.SuggestedByAi ? " · AI" : string.Empty)}"
@@ -250,7 +270,8 @@ else if (Slides.Count > 0)
             DetailEntityType.Audiobook or DetailEntityType.MusicAlbum => "Continue Listening",
             _ => "Continue", // An unknown kind never reads as something to read or listen to.
         }
-        : string.Empty; // "Featured content" label removed (Home, detail and tiles spec D4).
+        // "Featured content" label removed (Home, detail and tiles spec D4); a video still says what it is ("Video folder", "Video").
+        : IsVideoHero ? PhoneHeroPresentation.VideoLabel(ActiveHero) ?? string.Empty : string.Empty;
 
     private IReadOnlyList<MetadataPill> LandingMetadata => ActiveHero.MetaPills
         .Where(value => !string.IsNullOrWhiteSpace(value))
@@ -315,6 +336,11 @@ else if (Slides.Count > 0)
     private bool IsOpenAction => ActiveHero.PrimaryActionLabel.StartsWith("Open", StringComparison.OrdinalIgnoreCase);
     // Videos, Other videos and YouTube read Play, or Resume with the time left on the progress line, never Reading.
     private bool IsVideoHero => PhoneHeroPresentation.IsVideoKind(ActiveHero.MediaKind);
+    // A folder of videos whose button plays a video also offers its folder as a quiet link beside the + (it hides when there is no room).
+    private bool ShowsFolderLink => IsVideoHero && !IsOpenAction && VideoFolderWording.IsVideoFolderMediaType(ActiveHero.MediaKind);
+    private string ActionsClass => ShowsFolderLink
+        ? "cinematic-hero-carousel__actions cinematic-hero-carousel__actions--with-link"
+        : "cinematic-hero-carousel__actions";
     private string LandingPrimaryLabel => ActiveEntityType switch
     {
         _ when IsVideoHero && !IsOpenAction => VideoFolderWording.PlayButton(IsContinuation),

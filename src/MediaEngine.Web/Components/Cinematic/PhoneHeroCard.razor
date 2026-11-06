@@ -36,6 +36,11 @@
                     {
                         <span class="phone-hero__tag">@L["Common_StillBeingMatched"]</span>
                     }
+                    else if (PhoneHeroPresentation.VideoLabel(Hero) is { } videoLabel)
+                    {
+                        @* A video says what it is ("Video folder", "Video") or that it is being continued, over its title. *@
+                        <span class="phone-hero__tag">@videoLabel</span>
+                    }
                 </div>
                 @* The logo zone is a fixed two-line box: a logo scales to fit inside it, and a title with no logo is drawn as text in it. *@
                 <div class="phone-hero__title-zone">
@@ -45,7 +50,7 @@
                     }
                     <h1 class="@(string.IsNullOrWhiteSpace(Art.LogoUrl) ? "phone-hero__title" : "phone-hero__title sr-only")">@Hero.Title</h1>
                 </div>
-                <p class="phone-hero__meta">@PhoneHeroPresentation.MetaLine(Hero)</p>
+                <p class="phone-hero__meta">@PhoneHeroPresentation.HeroLine(Hero)</p>
                 <div class="phone-hero__progress-slot">
                     @if (ProgressPercent is > 0 and < 99.5)
                     {

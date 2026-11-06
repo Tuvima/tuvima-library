@@ -1446,7 +1446,8 @@ public sealed class DisplayCardBuilder
         return score;
     }
 
-    private static Guid TvShowGroupId(DisplayWorkRow work)
+    /// <summary>The root a show or a folder of videos is grouped under: the work's root, else its collection, else the work itself.</summary>
+    internal static Guid TvShowGroupId(DisplayWorkRow work)
     {
         if (work.RootWorkId != Guid.Empty)
         {
