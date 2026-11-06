@@ -5463,6 +5463,9 @@ dialog.app-native-dialog.tl-editor-dialog{width:100vw;max-width:none;height:100d
     font-family: var(--font-ui);
 }
 
+/* The View page's hidden drop-target file input is a framework component's root, so the page's scoped CSS never reaches it. */
+.view-drop-target__input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; overflow: hidden; }
+
 /* tv form factor: 10-foot presentation for remote-driven televisions. Larger root type, 56px dock targets, 14px dock
    labels, a wider shelf gutter and a readable hero line length. Phone and desktop layouts are untouched. */
 html[data-form-factor="tv"] {
