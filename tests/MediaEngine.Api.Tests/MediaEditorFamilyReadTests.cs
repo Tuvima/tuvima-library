@@ -220,6 +220,24 @@ public sealed class MediaEditorFamilyReadTests : IDisposable
     }
 
     [Theory]
+    [InlineData("tvdb_episode_id")]
+    [InlineData("tmdb_episode_id")]
+    [InlineData("tvdb_season_id")]
+    public async Task OwnedChildren_AnEpisodeCarryingOnlyItsOwnEpisodeId_CountsAsMatched(string key)
+    {
+        SeedShow(showMatched: true);
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@id, @key, '777', datetime('now'));", new { id = _strayId, key });
+        }
+
+        var reader = new MediaEditorOwnedChildReadService(_database);
+        var result = await reader.SearchAsync(_showId, null, 1, 50, null, null, null, null, null, CancellationToken.None);
+
+        Assert.Equal("matched", result!.Items.Single(item => item.WorkId == _strayId).MatchState);
+    }
+
+    [Theory]
     [InlineData("TV", "1", 1, "No show, season or episode")]
     [InlineData("Music", "3", null, "No album or song")]
     [InlineData("Books", null, null, "No book or issue")]
