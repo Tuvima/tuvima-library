@@ -1,4 +1,5 @@
-/* The pop-over's header (universal editor v4 D3): picture, kind line, title, one line of facts, provider links. It never scrolls away. */
+/* The pop-over's header (universal editor v4 D3; v4.1 D1): picture, kind line, title, one line of facts, provider links and, for an item with a
+   family, the fixed tile at the left and the dropdowns under the title. It never scrolls away. */
 .tl-editor-header {
     position: relative;
     display: flex;
@@ -9,6 +10,17 @@
     padding: var(--tl-space-4) var(--tl-space-6);
     border-bottom: 1px solid var(--tl-divider);
     background: var(--tl-bg-surface);
+}
+
+.tl-editor-header--family {
+    min-height: 9.5rem;
+    align-items: stretch;
+}
+
+.tl-editor-header__tile {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: flex-start;
 }
 
 .tl-editor-header__cover {
@@ -44,6 +56,24 @@
     min-width: 0;
 }
 
+.tl-editor-header--family .tl-editor-header__body {
+    min-width: 14rem;
+}
+
+.tl-editor-header__line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-1) var(--tl-space-3);
+}
+
+/* Season and Episode (a Universe's kinds) sit under the title, at the foot of the header. */
+.tl-editor-header__selects {
+    display: flex;
+    margin-top: auto;
+    padding-top: var(--tl-space-2);
+}
+
 .tl-editor-header__kicker {
     color: var(--tl-accent-primary, #8852FC);
     font-size: var(--tl-font-size-xs, 0.75rem);
@@ -74,7 +104,6 @@
 .tl-editor-header__chips {
     display: flex;
     gap: var(--tl-space-2);
-    margin-top: var(--tl-space-1);
 }
 
 .tl-editor-header__links {

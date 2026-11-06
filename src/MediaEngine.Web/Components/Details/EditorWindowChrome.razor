@@ -1,21 +1,14 @@
 @namespace MediaEngine.Web.Components.Details
 @inject IStringLocalizer<SharedStrings> L
 
-@* The frame of every editor window (universal editor v4 D2, D3, D16; photos and documents editor D1): the rail of dropdowns (only where the item has
-   a family), the item's header, the tab bar, one scroll area for the tool, and the fixed footer that says where changes go, how many are waiting
-   and holds Discard and Save changes in the same place. It knows nothing about what is being edited, so the library editor (EditorPanelHost) and the
+@* The frame of every editor window (universal editor v4 D2, D3, D16; photos and documents editor D1; header revision v4.1 D1): the item's header
+   (which holds the family's tile and dropdowns where the item has a family), the tab bar, one scroll area for the tool, and the fixed footer that
+   says where changes go, how many are waiting and holds Discard and Save changes in the same place. It knows nothing about what is being edited, so the library editor (EditorPanelHost) and the
    View editor (photos, videos, documents, galleries) draw exactly the same window and a guardrail can insist that nothing draws its own. *@
-<div class="@(Framed ? (RailVisible ? "tl-editor-panel tl-editor-window tl-editor-window--framed tl-editor-window--rail" : "tl-editor-panel tl-editor-window tl-editor-window--framed") : "tl-editor-panel tl-editor-window")"
+<div class="@(Framed ? "tl-editor-panel tl-editor-window tl-editor-window--framed" : "tl-editor-panel tl-editor-window")"
      data-tool="@ActiveKey.ToLowerInvariant()">
     @if (Framed)
     {
-        @if (RailVisible)
-        {
-            <div class="tl-editor-window__top">
-                @Rail
-            </div>
-        }
-
         @ItemHeader
         <AppIconButton Icon="@AppMaterialIcons.Outlined.Close"
                        Size="AppControlSize.Large"
@@ -115,10 +108,6 @@
 
     /// <summary>True for the v4 frame (rail, header, where-line); false for the plain title bar used while several ticked items are edited together or Review is open.</summary>
     [Parameter] public bool Framed { get; set; }
-
-    [Parameter] public bool RailVisible { get; set; }
-
-    [Parameter] public RenderFragment? Rail { get; set; }
 
     [Parameter] public RenderFragment? ItemHeader { get; set; }
 

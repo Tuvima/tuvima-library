@@ -1,5 +1,6 @@
-/* The rail of the Universe editor (universal editor v4 D10, WP11): the Universe, then one dropdown per kind of thing it holds. It looks like the
-   family rail of other items, with its own class names so the two never share a rule. */
+/* The Universe in the editor's header (universal editor v4 D10, WP11; header revision v4.1 D1): the Universe is a fixed tile at the left, then one
+   dropdown per kind of thing it holds under the title. It looks like the family of other items, with its own class names so the two never share
+   a rule. */
 .tl-urail {
     position: relative;
     display: flex;
@@ -12,13 +13,18 @@
 
 .tl-urail__level {
     position: relative;
-    flex: 0 1 12rem;
+    flex: 1 1 10rem;
+    max-width: 13rem;
     min-width: 0;
 }
 
-.tl-urail__sep {
+.tl-urail-tile {
     flex: 0 0 auto;
-    color: var(--tl-text-muted);
+}
+
+.tl-urail__level--tile {
+    flex: 0 0 13.5rem;
+    max-width: none;
 }
 
 .tl-urail__crumb {
@@ -47,6 +53,26 @@
 .tl-urail__option:focus-visible {
     outline: var(--tl-focus-ring-width) solid var(--tl-focus-ring);
     outline-offset: var(--tl-focus-ring-offset);
+}
+
+/* The fixed tile for the Universe: its kind in small type above its name. */
+.tl-urail__crumb--tile {
+    align-items: flex-start;
+    height: 6.75rem;
+    padding: var(--tl-space-3);
+}
+
+.tl-urail__crumb--tile .tl-urail__text {
+    gap: var(--tl-space-1);
+}
+
+.tl-urail__crumb--tile .tl-urail__text > span {
+    display: -webkit-box;
+    overflow: hidden;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
 }
 
 .tl-urail__crumb.is-current {

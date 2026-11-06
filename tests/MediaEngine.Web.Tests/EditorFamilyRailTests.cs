@@ -6,6 +6,7 @@ using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
 using MediaEngine.Web.Tests.Support;
+using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -236,7 +237,7 @@ public sealed class EditorFamilyRailTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task ARailInAPanelHost_SitsAboveTheHeaderTheTabsTheContentAndTheFooter_ForTheTabOrder()
+    public async Task TheFamily_SitsInsideTheHeader_TheShowAsAFixedTileAndSeasonAndEpisodeAsDropdownsUnderTheTitle()
     {
         var api = EngineApiClientStub.Create(stub => EditTrailTestData.RegisterFamily(stub));
         var host = await OpenAsync(api, EpisodeTwo, EpisodeTwoTrail);
@@ -245,32 +246,70 @@ public sealed class EditorFamilyRailTests : AsyncBunitContext
         var cut = Render<EditorPanelHost>(parameters => parameters
             .Add(panel => panel.Mode, host.Mode)
             .Add(panel => panel.Flow, host.Flow)
-            .Add(panel => panel.RailVisible, true)
-            .Add(panel => panel.RailContent, builder =>
-            {
-                builder.OpenComponent<EditorFamilyRail>(0);
-                builder.AddComponentParameter(1, nameof(EditorFamilyRail.Family), host.Family);
-                builder.AddComponentParameter(2, nameof(EditorFamilyRail.Flow), host.Flow);
-                builder.CloseComponent();
-            })
             .Add(panel => panel.ItemHeader, builder =>
             {
                 builder.OpenComponent<EditorItemHeader>(0);
                 builder.AddComponentParameter(1, nameof(EditorItemHeader.Flow), host.Flow);
                 builder.AddComponentParameter(2, nameof(EditorItemHeader.Fields), host.Mode.Fields);
                 builder.AddComponentParameter(3, nameof(EditorItemHeader.Family), host.Family);
+                builder.AddComponentParameter(4, nameof(EditorItemHeader.HasFamily), true);
+                builder.AddComponentParameter(5, nameof(EditorItemHeader.Tile), (RenderFragment)(inner =>
+                {
+                    inner.OpenComponent<EditorFamilyRail>(0);
+                    inner.AddComponentParameter(1, nameof(EditorFamilyRail.Family), host.Family);
+                    inner.AddComponentParameter(2, nameof(EditorFamilyRail.Flow), host.Flow);
+                    inner.AddComponentParameter(3, nameof(EditorFamilyRail.Part), EditorFamilyRailPart.Tile);
+                    inner.CloseComponent();
+                }));
+                builder.AddComponentParameter(6, nameof(EditorItemHeader.Selects), (RenderFragment)(inner =>
+                {
+                    inner.OpenComponent<EditorFamilyRail>(0);
+                    inner.AddComponentParameter(1, nameof(EditorFamilyRail.Family), host.Family);
+                    inner.AddComponentParameter(2, nameof(EditorFamilyRail.Flow), host.Flow);
+                    inner.AddComponentParameter(3, nameof(EditorFamilyRail.Part), EditorFamilyRailPart.Selects);
+                    inner.CloseComponent();
+                }));
                 builder.CloseComponent();
             })
             .Add(panel => panel.ChildContent, _ => builder => builder.AddMarkupContent(0, "<div class=\"content-marker\"></div>")));
-        cut.WaitForElement(".tl-rail__crumb");
+        cut.WaitForAssertion(() => Assert.Equal(["Show"], cut.FindAll("header.tl-editor-header .tl-editor-header__tile .tl-rail__crumb").Select(LevelOf)));
+        cut.WaitForAssertion(() => Assert.Equal(["Season", "Episode"], cut.FindAll("header.tl-editor-header .tl-editor-header__selects .tl-rail__crumb").Select(LevelOf)));
+
+        // The show is a fixed tile (no list), the dropdowns are listboxes, and there is no separate rail row above the header.
+        var tile = cut.Find(".tl-editor-header__tile .tl-rail__crumb--tile");
+        Assert.Null(tile.GetAttribute("aria-haspopup"));
+        Assert.Equal("Le Continental", tile.QuerySelector(".tl-rail__text > span")!.TextContent.Trim());
+        Assert.All(cut.FindAll(".tl-editor-header__selects .tl-rail__crumb"), crumb => Assert.Equal("listbox", crumb.GetAttribute("aria-haspopup")));
+        Assert.Empty(cut.FindAll(".tl-editor-window__top"));
+        Assert.Empty(cut.FindAll(".tl-rail__sep"));
+        // A show's seasons and episodes draw no second picture beside the show's tile.
+        Assert.Empty(cut.FindAll(".tl-editor-header__cover"));
 
         var html = cut.Markup;
-        var rail = html.IndexOf("tl-rail\"", StringComparison.Ordinal);
         var header = html.IndexOf("tl-editor-header", StringComparison.Ordinal);
         var tools = html.IndexOf("tl-editor-window__tabs", StringComparison.Ordinal);
         var content = html.IndexOf("content-marker", StringComparison.Ordinal);
         var footer = html.IndexOf("tl-editor-window__footer", StringComparison.Ordinal);
-        Assert.True(rail >= 0 && rail < header && header < tools && tools < content && content < footer);
+        Assert.True(header >= 0 && header < tools && tools < content && content < footer);
         Assert.Contains("Discard", cut.Find(".tl-editor-window__cancel").TextContent);
     }
+
+    [Fact]
+    public async Task TheShowTile_IsTheItemBeingEdited_WhenTheShowItselfIsOpen_AndStillGoesToTheShowFromAnEpisode()
+    {
+        var api = EngineApiClientStub.Create(stub => EditTrailTestData.RegisterFamily(stub));
+        var host = await OpenAsync(api, EpisodeTwo, EpisodeTwoTrail);
+        var tile = Render<EditorFamilyRail>(parameters => parameters
+            .Add(rail => rail.Family, host.Family)
+            .Add(rail => rail.Flow, host.Flow)
+            .Add(rail => rail.Part, EditorFamilyRailPart.Tile));
+        tile.WaitForElement(".tl-rail__crumb--tile");
+        Assert.Null(tile.Find(".tl-rail__crumb--tile").GetAttribute("aria-current"));
+
+        tile.Find(".tl-rail__crumb--tile").Click();
+
+        tile.WaitForAssertion(() => Assert.Contains(_opened, item => item.EntityId == ShowId));
+    }
+
+    private static string LevelOf(AngleSharp.Dom.IElement crumb) => crumb.GetAttribute("data-level")!.Split(' ')[0];
 }

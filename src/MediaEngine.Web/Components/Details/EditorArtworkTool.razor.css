@@ -22,23 +22,20 @@
     font-size: var(--tl-font-size-sm);
 }
 
-.tl-art-picker__preferred {
-    color: var(--tl-accent-primary);
-    font-size: var(--tl-font-size-sm);
-}
-
-/* ---- Role cards ------------------------------------------------------------------------------------- */
+/* ---- Role tabs: one clean row, each with its number of versions ------------------------------------------ */
 
 .tl-art-picker__levels {
     display: flex;
-    flex-direction: column;
-    gap: var(--tl-space-2);
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-2) var(--tl-space-6);
 }
 
 .tl-art-picker__level {
     display: flex;
-    flex-direction: column;
-    gap: var(--tl-space-1);
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-2) var(--tl-space-3);
     min-width: 0;
 }
 
@@ -49,9 +46,9 @@
 }
 
 .tl-art-picker__roles {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
-    gap: var(--tl-space-3);
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--tl-space-2);
 }
 
 .tl-art-picker__face {
@@ -59,17 +56,31 @@
     min-width: 0;
 }
 
+/* A tab never wraps or crushes its words: it is as wide as its label and its count. */
 .tl-art-picker__face--role {
-    display: flex;
+    display: inline-flex;
+    flex: 0 0 auto;
     align-items: center;
-    gap: var(--tl-space-3);
-    padding: var(--tl-space-2);
+    gap: var(--tl-space-2);
+    box-sizing: border-box;
+    min-height: 2.75rem;
+    padding: 0 var(--tl-space-4);
     border: 1px solid var(--tl-border-default);
-    border-radius: var(--tl-radius-md);
+    border-radius: var(--tl-radius-pill);
     background: var(--tl-bg-surface-raised);
-    color: var(--tl-text-primary);
-    text-align: left;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+    white-space: nowrap;
     cursor: pointer;
+}
+
+.tl-art-picker__face--role strong {
+    color: var(--tl-text-primary);
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.tl-art-picker__face--role:hover {
+    background: var(--tl-bg-surface-hover);
 }
 
 .tl-art-picker__face--role.is-active {
@@ -77,11 +88,54 @@
     background: var(--tl-accent-primary-soft);
 }
 
-.tl-art-picker__role-text {
+.tl-art-picker__tab-count {
+    min-width: 1.5rem;
+    padding: 0 var(--tl-space-2);
+    border-radius: var(--tl-radius-pill);
+    background: var(--tl-bg-shell);
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-xs);
+    line-height: 1.5rem;
+    text-align: center;
+}
+
+.tl-art-picker__face--role.is-active .tl-art-picker__tab-count {
+    background: var(--tl-accent-primary);
+    color: var(--tl-on-accent);
+}
+
+.tl-art-picker__tab-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: var(--tl-radius-round);
+    background: var(--tl-accent-primary);
+}
+
+/* ---- One row of actions ----------------------------------------------------------------------------------- */
+
+.tl-art-picker__actions {
     display: flex;
-    flex-direction: column;
-    gap: var(--tl-space-1);
-    min-width: 0;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-2);
+}
+
+.tl-art-picker__actions-sep {
+    align-self: stretch;
+    width: 1px;
+    margin: var(--tl-space-1) var(--tl-space-1);
+    background: var(--tl-divider);
+}
+
+.tl-art-picker__action {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+/* Preferred says the shown picture is the one the item uses; it is the accent edge of the row while it is. */
+.tl-art-picker__prefer.is-on {
+    border-color: var(--tl-accent-primary);
+    color: var(--tl-text-primary);
 }
 
 /* ---- Thumbnails keep each role's real shape ------------------------------------------------------------ */
@@ -114,32 +168,35 @@
     opacity: .7;
 }
 
-/* ---- Preview ---------------------------------------------------------------------------------------- */
+/* ---- Preview: most of the tab's width, the picture at its real shape ----------------------------------------- */
 
 .tl-art-picker__main {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(14rem, 20rem);
-    gap: var(--tl-space-4);
-    align-items: start;
-}
-
-.tl-art-picker__preview,
-.tl-art-picker__side {
     display: flex;
     flex-direction: column;
     gap: var(--tl-space-3);
     min-width: 0;
-    padding: var(--tl-space-3);
+}
+
+.tl-art-picker__preview {
+    position: relative;
+    min-width: 0;
     border: 1px solid var(--tl-border-default);
     border-radius: var(--tl-radius-md);
-    background: var(--tl-bg-surface-raised);
+    background: var(--tl-bg-shell);
 }
 
 .tl-art-picker__tools {
+    position: absolute;
+    top: var(--tl-space-3);
+    right: var(--tl-space-3);
+    z-index: 1;
     display: flex;
     align-items: center;
-    justify-content: flex-end;
-    gap: var(--tl-space-2);
+    gap: var(--tl-space-1);
+    padding: var(--tl-space-1);
+    border: 1px solid var(--tl-border-default);
+    border-radius: var(--tl-radius-pill);
+    background: var(--tl-bg-surface-raised);
 }
 
 .tl-art-picker__zoom {
@@ -151,9 +208,9 @@
 
 .tl-art-picker__stage {
     display: flex;
-    height: min(26rem, 46vh);
+    height: min(28rem, 42vh);
     overflow: auto;
-    border-radius: var(--tl-radius-sm);
+    border-radius: var(--tl-radius-md);
     background: var(--tl-bg-shell);
 }
 
@@ -196,15 +253,6 @@
     width: 70%;
 }
 
-.tl-art-picker__reach {
-    display: flex;
-    align-items: center;
-    gap: var(--tl-space-2);
-    margin: 0;
-    color: var(--tl-text-secondary);
-    font-size: var(--tl-font-size-sm);
-}
-
 .tl-art-picker__preview.is-full {
     position: fixed;
     inset: 0;
@@ -214,18 +262,42 @@
 }
 
 .tl-art-picker__preview.is-full .tl-art-picker__stage {
-    flex: 1 1 auto;
-    height: auto;
+    height: 100%;
+    border-radius: 0;
 }
 
-/* ---- File facts and actions --------------------------------------------------------------------------- */
+/* ---- The slim line under the preview: what it reaches, whether it waits for Save, and the file's facts ---------- */
+
+.tl-art-picker__info {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-1) var(--tl-space-5);
+    min-width: 0;
+}
+
+.tl-art-picker__reach {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-2);
+    margin: 0;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+}
+
+.tl-art-picker__state {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-2);
+}
 
 .tl-art-picker__facts {
-    display: grid;
-    grid-template-columns: max-content minmax(0, 1fr);
-    gap: var(--tl-space-1) var(--tl-space-3);
+    display: flex;
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+    gap: var(--tl-space-1) var(--tl-space-2);
     margin: 0;
-    padding-top: var(--tl-space-3);
+    padding-top: var(--tl-space-2);
     border-top: 1px solid var(--tl-border-subtle);
     color: var(--tl-text-secondary);
     font-size: var(--tl-font-size-sm);
@@ -236,7 +308,7 @@
 }
 
 .tl-art-picker__facts dd {
-    margin: 0;
+    margin: 0 var(--tl-space-4) 0 0;
     overflow-wrap: anywhere;
     color: var(--tl-text-primary);
     font-weight: var(--tl-font-weight-semibold);
@@ -255,7 +327,7 @@
     position: relative;
     display: block;
     flex: 0 0 auto;
-    height: 5.5rem;
+    height: 5.75rem;
     padding: 0;
     overflow: hidden;
     border: 2px solid transparent;
@@ -264,9 +336,9 @@
     cursor: pointer;
 }
 
-.tl-art-picker__strip--portrait .tl-art-picker__face--version { height: 8rem; }
-.tl-art-picker__strip--wide .tl-art-picker__face--version { height: 3.5rem; }
-.tl-art-picker__strip--square .tl-art-picker__face--version { height: 6rem; }
+.tl-art-picker__strip--portrait .tl-art-picker__face--version { height: 8.5rem; }
+.tl-art-picker__strip--wide .tl-art-picker__face--version { height: 4.5rem; }
+.tl-art-picker__strip--square .tl-art-picker__face--version { height: 7rem; }
 
 .tl-art-picker__face--version img {
     width: 100%;
@@ -274,8 +346,10 @@
     object-fit: cover;
 }
 
+/* The selected (Preferred) version: the accent edge and a ring, with its chip. */
 .tl-art-picker__face--version.is-preferred {
     border-color: var(--tl-accent-primary);
+    box-shadow: 0 0 0 2px var(--tl-accent-primary-soft);
 }
 
 .tl-art-picker__face--add {
@@ -404,10 +478,4 @@
     flex-direction: column;
     gap: var(--tl-space-1);
     min-width: 0;
-}
-
-@media (max-width: 840px) {
-    .tl-art-picker__main {
-        grid-template-columns: minmax(0, 1fr);
-    }
 }

@@ -98,6 +98,14 @@ public sealed record RailLevel(
     bool Loading,
     int Remaining);
 
+/// <summary>The parts of the family the editor header draws on their own: the fixed tile (the show, album or series) and the dropdowns under the title.</summary>
+public enum EditorFamilyRailPart
+{
+    All,
+    Tile,
+    Selects,
+}
+
 /// <summary>
 /// The family of the item being edited (universal editor v3 WP2, D3; v4 D2 draws it as a rail of dropdowns): this show, album or series and only that, as show &gt; seasons
 /// &gt; episodes (plus files with no episode), album &gt; tracks, or series &gt; books or issues. The shape (the root and its seasons, albums

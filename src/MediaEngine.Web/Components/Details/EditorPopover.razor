@@ -18,7 +18,7 @@
 @* The universal editor's pop-over (v3 D1, D6), drawn once by the app layout so it can open over any page or list. It is a native modal
    dialog (opened with showModal by app-dialog.js), so it stacks above the details overlay, makes everything behind it inert, traps focus
    and keeps the page where it was. The page behind is never put into an "editing" state. After Save the slim ribbon proves the save.
-   Its frame is the v4 one (D2, D3, D16): a rail of dropdowns for the item's family, the item's header, the tab bar and a fixed footer. *@
+   Its frame is the v4 one (D2, D3, D16): the item's header (with the item's family, as a tile and dropdowns, inside it), the tab bar and a fixed footer. *@
 <EditSavedRibbon Flow="Editor.Flow" />
 @if (Editor.IsOpen)
 {
@@ -40,7 +40,6 @@
                          ShowHistory="@(binding?.ShowHistory == true)"
                          ShowContents="@EditorHeaderRules.HasContents(mode.Fields.ScopeId, Editor.Family.Kind != EditorFamilyKind.None)"
                          ShowFiles="@(binding?.ShowHistory == true && mode.Fields.SubjectKind is null)"
-                         RailVisible="@(Editor.Family.Visible || Editor.Universe.Visible)"
                          ItemHeader="@(Editor.Batch.Panel == BulkPanelKind.None ? ItemHeaderFragment(flow, mode) : null)"
                          FooterStart="@(Editor.Batch.Panel == BulkPanelKind.None && (CanDeleteActive || CanDeleteThing) ? DeleteButtonFragment(flow, mode) : null)">
             <HeaderContent>
@@ -49,16 +48,6 @@
                     <span class="tl-editor-popover__editing" title="@editing.Title">@L["EditorPopover_EditingItem", editing.Title]</span>
                 }
             </HeaderContent>
-            <RailContent>
-                @if (Editor.Universe.Visible)
-                {
-                    <EditorUniverseRail State="Editor.Universe" Flow="flow" />
-                }
-                else
-                {
-                    <EditorFamilyRail Family="Editor.Family" Flow="flow" CanMatch="@mode.Fields.CanMatch" />
-                }
-            </RailContent>
             <ChildContent Context="tool">
                 @if (Editor.Batch.Panel != BulkPanelKind.None && tool == EditTool.Details)
                 {
@@ -164,9 +153,32 @@
 @code {
     private RenderFragment ItemHeaderFragment(EditSessionFlow flow, EditingModeContext mode) => __builder =>
     {
+        @* The family sits inside the header (v4.1 D1): a fixed tile at the left, the dropdowns under the title. A Universe draws its own kinds. *@
         <EditorItemHeader Flow="flow" Fields="mode.Fields" Family="Editor.Family" Unmatched="@IsActiveUnmatched"
                           UniverseName="@Editor.Universe.UniverseName"
-                          CanDelete="false" />
+                          HasFamily="@(Editor.Family.Visible || Editor.Universe.Visible)"
+                          CanDelete="false">
+            <Tile>
+                @if (Editor.Universe.Visible)
+                {
+                    <EditorUniverseRail State="Editor.Universe" Flow="flow" Part="EditorFamilyRailPart.Tile" />
+                }
+                else
+                {
+                    <EditorFamilyRail Family="Editor.Family" Flow="flow" CanMatch="@mode.Fields.CanMatch" Part="EditorFamilyRailPart.Tile" />
+                }
+            </Tile>
+            <Selects>
+                @if (Editor.Universe.Visible)
+                {
+                    <EditorUniverseRail State="Editor.Universe" Flow="flow" Part="EditorFamilyRailPart.Selects" />
+                }
+                else
+                {
+                    <EditorFamilyRail Family="Editor.Family" Flow="flow" CanMatch="@mode.Fields.CanMatch" Part="EditorFamilyRailPart.Selects" />
+                }
+            </Selects>
+        </EditorItemHeader>
     };
 
     // Delete sits bottom-left of the footer as a red button (v4.1 D3). It asks once and then happens at once; it does not wait for Save.

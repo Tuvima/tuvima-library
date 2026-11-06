@@ -9,11 +9,13 @@
 @inject IAppDialogService Dialogs
 @inject IStringLocalizer<SharedStrings> L
 
-@* The Artwork tool of the pop-over editor (universal editor v4, section 3b), drawn inside its window.
-   Role cards across the top (Poster, Background, Logo, ... with Preferred and the number of versions), a large zoomable preview at the
-   role's real shape with file facts and actions beside it, and a versions strip below. Clicking a version makes it Preferred and moves it
-   to the front (D19). "Add artwork" opens Provider, Upload or Link in place of the preview, with Language and Size filters.
-   Everything waits for Save changes except Delete, which asks first and happens at once. *@
+@* The Artwork tool of the pop-over editor (universal editor v4, section 3b; v4.1 WP3), drawn inside its window.
+   One clean row of role tabs across the top (Poster, Background, Logo, ... each with its number of versions), then one row of actions
+   (Upload, From URL, Choose from Library, Preferred, Remove, Refresh), then a large zoomable preview at the role's real shape with the file's
+   facts in a slim line, and a strip of versions below. Clicking a version makes it Preferred and moves it to the front (D19). Upload, From URL,
+   Choose from Library and Refresh open their source in place of the preview, with Language and Size filters for the provider's pictures.
+   Choose from Library opens the Library's own picture picker above the window. Everything waits for Save changes except Remove, which asks
+   first and happens at once. *@
 @if (Picker is { ActiveSlot: { } slot } picker)
 {
     var tabs = picker.Tabs;
@@ -23,7 +25,8 @@
              role="region"
              aria-label="@L["EditorArtworkTool_Artwork"].Value">
         <div class="tl-art-picker__body">
-            @RoleCards(picker, tabs, slot)
+            @RoleTabs(picker, tabs, slot)
+            @ActionRow(picker, slot, preferred)
 
             @if (picker.CanFetchAllStills)
             {
@@ -53,7 +56,7 @@
             {
                 <div class="tl-art-picker__main">
                     @Preview(picker, slot, preferred, label)
-                    @Side(picker, slot, preferred, label)
+                    @Info(picker, slot, preferred)
                 </div>
                 @Strip(picker, slot, label)
             }
@@ -65,6 +68,7 @@
     private const string SourceProviders = "providers";
     private const string SourceUpload = "upload";
     private const string SourceLink = "link";
+    private const string SourceLibrary = "library";
 
     private static readonly double[] ZoomSteps = [1, 1.5, 2, 3];
 
@@ -72,7 +76,8 @@
     [
         new(SourceProviders, "Provider", AppMaterialIcons.Outlined.Search),
         new(SourceUpload, "Upload", AppMaterialIcons.Outlined.CloudUpload),
-        new(SourceLink, "Link", AppMaterialIcons.Outlined.Link),
+        new(SourceLink, "From URL", AppMaterialIcons.Outlined.Link),
+        new(SourceLibrary, "Library", AppMaterialIcons.Outlined.PhotoLibrary),
     ];
 
     // People, series, curated collections and universes have no provider artwork to offer, so Provider is left out for them.
@@ -88,7 +93,6 @@
     private bool _opened;
     private string? _lastRequestedSlot;
     private bool _adding;
-    private bool _replacing;
     private bool _full;
     private int _zoomIndex;
     private bool _makePreferred = true;
@@ -157,11 +161,11 @@
         }
     }
 
-    // -- Role cards -------------------------------------------------------------------------------------
+    // -- Role tabs ----------------------------------------------------------------------------------------
 
-    private RenderFragment RoleCards(ArtworkPickerSession picker, IReadOnlyList<ArtworkPickerTab> tabs, string active) => __builder =>
+    private RenderFragment RoleTabs(ArtworkPickerSession picker, IReadOnlyList<ArtworkPickerTab> tabs, string active) => __builder =>
     {
-        // A show has pictures at three levels (its own, its seasons', its episodes' stills): one row of cards per level.
+        // A show has pictures at three levels (its own, its seasons', its episodes' stills): one row of tabs per level.
         var groups = ArtworkPickerRules.GroupByLevel(tabs);
         <div class="tl-art-picker__levels" role="group" aria-label="@L["EditorArtworkTool_ArtworkToChange"].Value">
             @foreach (var group in groups)
@@ -177,28 +181,21 @@
                             var isActive = string.Equals(tab.Slot, active, StringComparison.OrdinalIgnoreCase);
                             var count = picker.VersionCount(tab.Slot);
                             var hasPicture = picker.PreferredVersion(tab.Slot) is not null;
-                            var url = hasPicture ? picker.RolePictureUrl(tab.Slot) : null;
-                            var shape = ShapeClass(tab.Slot, picker);
                             var staged = picker.IsSlotStaged(tab.Slot);
                             @ThumbButton(
                                 "tl-art-picker__role",
                                 $"tl-art-picker__face tl-art-picker__face--role{(isActive ? " is-active" : string.Empty)}",
-                                $"{tab.Label}, {(hasPicture ? "Preferred chosen" : "No artwork")}, {VersionsText(count)}",
+                                $"{tab.Label}, {(hasPicture ? "Preferred chosen" : "No artwork")}, {VersionsText(count)}{(staged ? ", changed, not saved" : string.Empty)}",
                                 isActive,
                                 picker.Busy,
                                 () => SelectSlotAsync(tab.Slot),
                                 @<text>
-                                    <span class="@($"tl-art-picker__thumb tl-art-picker__thumb--{shape}")">
-                                        @if (!string.IsNullOrWhiteSpace(url))
-                                        {
-                                            <img src="@MediaTileArtworkUrl.ForDrawnSize(url, 96)" srcset="@MediaTileArtworkUrl.SrcSetForDrawnSize(url, 96)" alt="" loading="lazy" decoding="async" />
-                                        }
-                                    </span>
-                                    <span class="tl-art-picker__role-text">
-                                        <strong>@tab.Label</strong>
-                                        <span class="@(hasPicture ? "tl-art-picker__preferred" : "tl-art-picker__muted")">@(hasPicture ? "Preferred" : "No artwork")</span>
-                                        <span class="tl-art-picker__muted">@VersionsText(count)@(staged ? " · Changed, not saved" : string.Empty)</span>
-                                    </span>
+                                    <strong>@tab.Label</strong>
+                                    <span class="tl-art-picker__tab-count" aria-hidden="true">@count</span>
+                                    @if (staged)
+                                    {
+                                        <span class="tl-art-picker__tab-dot" title="Changed, not saved" aria-hidden="true"></span>
+                                    }
                                 </text>)
                         }
                     </div>
@@ -207,7 +204,73 @@
         </div>
     };
 
-    // -- Preview, facts and actions ---------------------------------------------------------------------
+    // -- One row of actions -------------------------------------------------------------------------------
+
+    private RenderFragment ActionRow(ArtworkPickerSession picker, string slot, ArtworkPickerPicture? preferred) => __builder =>
+    {
+        var providers = Mode?.Fields.ProvidersAvailable != false;
+        var hasVersions = picker.VersionCount(slot) > 0;
+        <div class="tl-art-picker__actions" role="toolbar" aria-label="Artwork actions">
+            <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                       Tone="AppUiTone.Neutral"
+                       StartIcon="@AppMaterialIcons.Outlined.CloudUpload"
+                       Class="tl-art-picker__action tl-art-picker__upload"
+                       Disabled="@picker.Busy"
+                       OnClick="@(() => BeginAddAsync(SourceUpload))">
+                Upload
+            </AppButton>
+            <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                       Tone="AppUiTone.Neutral"
+                       StartIcon="@AppMaterialIcons.Outlined.Link"
+                       Class="tl-art-picker__action tl-art-picker__url"
+                       Disabled="@picker.Busy"
+                       OnClick="@(() => BeginAddAsync(SourceLink))">
+                From URL
+            </AppButton>
+            <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                       Tone="AppUiTone.Neutral"
+                       StartIcon="@AppMaterialIcons.Outlined.PhotoLibrary"
+                       Class="tl-art-picker__action tl-art-picker__library"
+                       Disabled="@(picker.Busy || !picker.CanChooseFromLibrary)"
+                       OnClick="@(() => BeginAddAsync(SourceLibrary))">
+                Choose from Library
+            </AppButton>
+            <span class="tl-art-picker__actions-sep" aria-hidden="true"></span>
+            @* Clicking a version makes it Preferred (D19); this button says it is, and makes the first version Preferred when none is. *@
+            <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                       Tone="AppUiTone.Neutral"
+                       StartIcon="@(preferred is not null ? AppMaterialIcons.Outlined.Check : AppMaterialIcons.Outlined.Image)"
+                       Class="@(preferred is not null ? "tl-art-picker__action tl-art-picker__prefer is-on" : "tl-art-picker__action tl-art-picker__prefer")"
+                       aria-pressed="@(preferred is not null ? "true" : "false")"
+                       Disabled="@(picker.Busy || preferred is not null || !hasVersions)"
+                       OnClick="@(() => PreferFirstAsync(picker, slot))">
+                Preferred
+            </AppButton>
+            <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                       Tone="AppUiTone.Error"
+                       StartIcon="@AppMaterialIcons.Outlined.Delete"
+                       Class="tl-art-picker__action tl-art-picker__delete"
+                       title="Remove this version from the item"
+                       Disabled="@(picker.Busy || preferred is null)"
+                       OnClick="@(() => DeleteAsync(preferred))">
+                Remove
+            </AppButton>
+            @if (providers)
+            {
+                <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                           Tone="AppUiTone.Neutral"
+                           StartIcon="@AppMaterialIcons.Outlined.Refresh"
+                           Class="tl-art-picker__action tl-art-picker__refresh"
+                           title="Ask the providers this item is matched with for pictures again"
+                           Disabled="@picker.Busy"
+                           OnClick="@(() => BeginAddAsync(SourceProviders, refresh: true))">
+                    Refresh
+                </AppButton>
+            }
+        </div>
+    };
+
+    // -- Preview and the file's facts ---------------------------------------------------------------------
 
     private RenderFragment Preview(ArtworkPickerSession picker, string slot, ArtworkPickerPicture? preferred, string label) => __builder =>
     {
@@ -216,12 +279,6 @@
         var zoom = ZoomSteps[_zoomIndex];
         var fit = shape is "landscape" or "wide" ? "width" : "height";
         <div class="@($"tl-art-picker__preview{(_full ? " is-full" : string.Empty)}")">
-            <div class="tl-art-picker__tools" role="group" aria-label="Zoom">
-                <AppIconButton Icon="@AppMaterialIcons.Outlined.Remove" Tooltip="Zoom out" Disabled="@(_zoomIndex == 0 || url is null)" OnClick="ZoomOut" />
-                <span class="tl-art-picker__zoom" aria-live="polite">@((zoom * 100).ToString("0", CultureInfo.InvariantCulture))%</span>
-                <AppIconButton Icon="@AppMaterialIcons.Outlined.Add" Tooltip="Zoom in" Disabled="@(_zoomIndex == ZoomSteps.Length - 1 || url is null)" OnClick="ZoomIn" />
-                <AppIconButton Icon="@AppMaterialIcons.Outlined.Fullscreen" Tooltip="@(_full ? "Leave full screen" : "Full screen")" Disabled="@(url is null)" OnClick="ToggleFull" />
-            </div>
             <div class="tl-art-picker__stage">
                 @if (url is not null)
                 {
@@ -237,56 +294,37 @@
                     </span>
                 }
             </div>
+            <div class="tl-art-picker__tools" role="group" aria-label="Zoom">
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.Remove" Tooltip="Zoom out" Disabled="@(_zoomIndex == 0 || url is null)" OnClick="ZoomOut" />
+                <span class="tl-art-picker__zoom" aria-live="polite">@((zoom * 100).ToString("0", CultureInfo.InvariantCulture))%</span>
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.Add" Tooltip="Zoom in" Disabled="@(_zoomIndex == ZoomSteps.Length - 1 || url is null)" OnClick="ZoomIn" />
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.Fullscreen" Tooltip="@(_full ? "Leave full screen" : "Full screen")" Disabled="@(url is null)" OnClick="ToggleFull" />
+            </div>
+        </div>
+    };
+
+    // A slim line under the preview: what the change reaches, whether it is waiting for Save, and the file's name, source, size and type.
+    private RenderFragment Info(ArtworkPickerSession picker, string slot, ArtworkPickerPicture? preferred) => __builder =>
+    {
+        <div class="tl-art-picker__info">
             <p class="tl-art-picker__reach">
                 <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Info" />
                 <span>@ArtworkPickerRules.ReachFor(slot, picker.MediaType, picker.SubjectKind)</span>
             </p>
-        </div>
-    };
-
-    private RenderFragment Side(ArtworkPickerSession picker, string slot, ArtworkPickerPicture? preferred, string label) => __builder =>
-    {
-        <div class="tl-art-picker__side">
-            <AppButton ButtonStyle="AppButtonStyle.Filled"
-                       Tone="AppUiTone.Primary"
-                       StartIcon="@AppMaterialIcons.Outlined.Add"
-                       FullWidth="true"
-                       Class="tl-art-picker__add"
-                       Disabled="@picker.Busy"
-                       OnClick="@(() => BeginAdd(replacing: false))">
-                Add artwork
-            </AppButton>
-            <AppButton ButtonStyle="AppButtonStyle.Outlined"
-                       Tone="AppUiTone.Neutral"
-                       StartIcon="@AppMaterialIcons.Outlined.Refresh"
-                       FullWidth="true"
-                       Class="tl-art-picker__replace"
-                       Disabled="@(picker.Busy || preferred is null)"
-                       OnClick="@(() => BeginAdd(replacing: true))">
-                Replace
-            </AppButton>
-            <AppButton ButtonStyle="AppButtonStyle.Outlined"
-                       Tone="AppUiTone.Error"
-                       StartIcon="@AppMaterialIcons.Outlined.Delete"
-                       FullWidth="true"
-                       Class="tl-art-picker__delete"
-                       Disabled="@(picker.Busy || preferred is null)"
-                       OnClick="@(() => DeleteAsync(preferred))">
-                Delete this version
-            </AppButton>
-            @if (picker.IsStaged)
-            {
-                <AppButton ButtonStyle="AppButtonStyle.Text"
-                           Tone="AppUiTone.Neutral"
-                           FullWidth="true"
-                           Class="tl-art-picker__undo"
-                           Disabled="@picker.Busy"
-                           OnClick="picker.UndoStaged">
-                    @L["EditorArtworkTool_UndoThisChoice"]
-                </AppButton>
-            }
-
-            <p class="tl-art-picker__status" role="status">@StatusText(picker)</p>
+            <div class="tl-art-picker__state">
+                <p class="tl-art-picker__status" role="status">@StatusText(picker)</p>
+                @if (picker.IsStaged)
+                {
+                    <AppButton ButtonStyle="AppButtonStyle.Text"
+                               Tone="AppUiTone.Neutral"
+                               Size="AppControlSize.Compact"
+                               Class="tl-art-picker__undo"
+                               Disabled="@picker.Busy"
+                               OnClick="picker.UndoStaged">
+                        @L["EditorArtworkTool_UndoThisChoice"]
+                    </AppButton>
+                }
+            </div>
 
             @if (preferred is not null)
             {
@@ -349,7 +387,7 @@
                 "Add version",
                 false,
                 picker.Busy,
-                () => { BeginAdd(replacing: false); return Task.CompletedTask; },
+                () => BeginAddAsync(),
                 @<text><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Add" /><span>Add version</span></text>)
         </div>
     };
@@ -363,7 +401,7 @@
         var providers = Mode?.Fields.ProvidersAvailable != false;
         <div class="tl-art-picker__add-panel">
             <div class="tl-art-picker__add-head">
-                <strong>@(_replacing ? $"Replace the {label.ToLowerInvariant()}" : $"Add a {label.ToLowerInvariant()}")</strong>
+                <strong>@($"Add a {label.ToLowerInvariant()}")</strong>
                 <span class="tl-art-picker__muted">@label · @ShapeText(shape)</span>
                 <AppSegmentedControl Class="tl-art-picker__sources"
                                      AriaLabel="@L["EditorArtworkTool_WhereToFindArtwork"].Value"
@@ -396,6 +434,18 @@
                                    Disabled="@(picker.Busy || string.IsNullOrWhiteSpace(_address))"
                                    OnClick="PasteLinkAsync">
                             @L["EditorArtworkTool_FetchPicture"]
+                        </AppButton>
+                    </div>
+                    break;
+                case SourceLibrary:
+                    <p class="tl-art-picker__hint">Choose a picture that is already in your Library: this item's other pictures, its family's and, for a Universe, its other things'.</p>
+                    <div>
+                        <AppButton ButtonStyle="AppButtonStyle.Outlined"
+                                   StartIcon="@AppMaterialIcons.Outlined.PhotoLibrary"
+                                   Class="tl-art-picker__open-library"
+                                   Disabled="@(picker.Busy || !picker.CanChooseFromLibrary)"
+                                   OnClick="@(() => OpenLibraryAsync(closeIfNone: false))">
+                            Choose from Library
                         </AppButton>
                     </div>
                     break;
@@ -526,18 +576,15 @@
                 <strong>Selected: @description</strong>
                 <span class="tl-art-picker__muted">@($"Added as a new version. {ArtworkPickerRules.ReachFor(slot, picker.MediaType, picker.SubjectKind)}")</span>
             </div>
-            @if (!_replacing)
-            {
-                <AppCheckbox Value="@_makePreferred"
-                             ValueChanged="@((bool value) => _makePreferred = value)"
-                             Label="@($"Make it the Preferred {label.ToLowerInvariant()}")" />
-            }
+            <AppCheckbox Value="@_makePreferred"
+                         ValueChanged="@((bool value) => _makePreferred = value)"
+                         Label="@($"Make it the Preferred {label.ToLowerInvariant()}")" />
             <AppButton ButtonStyle="AppButtonStyle.Filled"
                        Tone="AppUiTone.Primary"
                        Class="tl-art-picker__use"
                        Disabled="@picker.Busy"
                        OnClick="AddVersionAsync">
-                @(_replacing ? "Use this one" : "Add version")
+                Add version
             </AppButton>
         </div>
     };
@@ -630,25 +677,72 @@
 
     private void ToggleFull() => _full = !_full;
 
-    private void BeginAdd(bool replacing)
+    // Opens the add panel on a source. Refresh asks the providers again even when their pictures are already listed; Choose from Library opens
+    // the Library's picker at once, and a picker closed without a choice goes back to the preview.
+    private async Task BeginAddAsync(string? source = null, bool refresh = false)
     {
+        var providers = Mode?.Fields.ProvidersAvailable != false;
         _adding = true;
-        _replacing = replacing;
         _makePreferred = true;
         _address = string.Empty;
         _languageSeeded = false;
-        _source = Mode?.Fields.ProvidersAvailable == false ? SourceUpload : SourceProviders;
-        if (_source == SourceProviders && Picker is { Provider: null, ProviderLoading: false } picker)
+        _source = source is null || (source == SourceProviders && !providers) ? providers ? SourceProviders : SourceUpload : source;
+        if (_source == SourceProviders && Picker is { ProviderLoading: false } picker && (refresh || picker.Provider is null))
         {
-            _ = picker.LoadProviderAsync();
+            await picker.LoadProviderAsync();
+        }
+        else if (_source == SourceLibrary)
+        {
+            await OpenLibraryAsync(closeIfNone: true);
         }
     }
 
     private void EndAdd()
     {
         _adding = false;
-        _replacing = false;
         Picker?.DiscardPick();
+    }
+
+    // "Choose from Library": the Library's own picture picker, opened above the editor window (the dialog service stacks it in front of the
+    // modal editor). What is chosen is added to this item as an unchosen version, the same as an upload, and picked here; it is only made
+    // Preferred, and so staged, by Add version.
+    private async Task OpenLibraryAsync(bool closeIfNone)
+    {
+        if (Picker is not { } picker || picker.LibraryQuery() is not { } query || picker.LibraryTarget() is not { } target)
+        {
+            return;
+        }
+
+        var label = ArtworkPickerRules.LabelFor(picker.ActiveSlot ?? string.Empty, CoverLabel(picker));
+        var dialog = await Dialogs.ShowAsync<ArtworkAssetPickerDialog>(
+            string.Empty,
+            new AppDialogParameters<ArtworkAssetPickerDialog>
+            {
+                { component => component.Query, query },
+                { component => component.TargetItem, target },
+                { component => component.TargetSummary, $"{target.DisplayTitle} > {label}" },
+                { component => component.DeferLinks, false },
+            },
+            new AppDialogOptions { NoHeader = true, FullWidth = true, MaxWidth = AppMaxWidth.Large, Position = AppDialogPosition.Center, BackdropClick = false, CloseOnEscapeKey = true });
+        if (await dialog.Result is { Canceled: false, Data: List<Guid> { Count: > 0 } added })
+        {
+            await picker.UseLibraryPicturesAsync(added);
+        }
+        else if (closeIfNone && !picker.HasPick)
+        {
+            EndAdd();
+        }
+    }
+
+    // The Preferred button when no version is Preferred: the first one becomes it (a click on any version does the same).
+    private Task PreferFirstAsync(ArtworkPickerSession picker, string slot)
+    {
+        if (picker.Versions(slot).FirstOrDefault() is { } first)
+        {
+            picker.MakePreferred(first);
+        }
+
+        return Task.CompletedTask;
     }
 
     private async Task SelectSlotAsync(string slot)
@@ -660,7 +754,6 @@
 
         _address = string.Empty;
         _adding = false;
-        _replacing = false;
         _full = false;
         _zoomIndex = 0;
         _languageSeeded = false;
@@ -683,10 +776,9 @@
 
     private async Task AddVersionAsync()
     {
-        if (Picker is not null && await Picker.UseAsync(_replacing || _makePreferred))
+        if (Picker is not null && await Picker.UseAsync(_makePreferred))
         {
             _adding = false;
-            _replacing = false;
         }
     }
 
