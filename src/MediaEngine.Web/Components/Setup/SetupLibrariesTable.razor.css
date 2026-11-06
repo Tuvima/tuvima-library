@@ -6,4 +6,6 @@
 .setup-libs__empty p { margin: 0; }
 .setup-libs__name { display: inline-flex; align-items: center; gap: 10px; }
 .setup-libs__path { color: var(--tl-text-muted); max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The folder list opens from this cell, so the cell must not clip it (the text path above does). */
+.setup-libs__folders { color: var(--tl-text-muted); overflow: visible; }
 .setup-libs__actions { white-space: nowrap; text-align: right; }

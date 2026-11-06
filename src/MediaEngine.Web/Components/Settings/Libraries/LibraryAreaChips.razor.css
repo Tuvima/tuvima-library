@@ -1,8 +1,9 @@
+/* The chip is the root of the shared native button, so its rules must reach into that child component (::deep); without it none of them applied. */
 .lib-chips { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
-.lib-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: transparent; color: var(--lib-area-colour, var(--tl-text-secondary, var(--tl-text-muted))); font: inherit; font-weight: 600; cursor: pointer; }
-.lib-chip:hover { background: color-mix(in srgb, var(--lib-area-colour, var(--tl-accent-primary)) 10%, transparent); }
-.lib-chip:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
-.lib-chip.is-on { border-color: var(--lib-area-colour, var(--tl-accent-primary)); background: color-mix(in srgb, var(--lib-area-colour, var(--tl-accent-primary)) 16%, transparent); }
-.lib-chip__count { color: var(--tl-text-muted); font-weight: 400; font-size: var(--tl-font-size-sm); }
+.lib-chips ::deep .lib-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: transparent; color: var(--lib-area-colour, var(--tl-text-secondary, var(--tl-text-muted))); font: inherit; font-weight: 600; cursor: pointer; }
+.lib-chips ::deep .lib-chip:hover { background: color-mix(in srgb, var(--lib-area-colour, var(--tl-accent-primary)) 10%, transparent); }
+.lib-chips ::deep .lib-chip:focus-visible { outline: 2px solid var(--tl-accent-primary); outline-offset: 2px; }
+.lib-chips ::deep .lib-chip.is-on { border-color: var(--lib-area-colour, var(--tl-accent-primary)); background: color-mix(in srgb, var(--lib-area-colour, var(--tl-accent-primary)) 16%, transparent); }
+.lib-chips ::deep .lib-chip__count { color: var(--tl-text-muted); font-weight: 400; font-size: var(--tl-font-size-sm); }
 /* Phones: the chips scroll sideways in one row instead of wrapping (D13). */
-@media (max-width: 600px) { .lib-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; } .lib-chip { flex: 0 0 auto; } }
+@media (max-width: 600px) { .lib-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; } .lib-chips ::deep .lib-chip { flex: 0 0 auto; } }

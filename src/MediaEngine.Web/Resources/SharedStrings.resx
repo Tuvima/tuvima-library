@@ -8694,6 +8694,21 @@
   <data name="AudiobookBookmarkDialog_ThatBookmarkIsNoLonger" xml:space="preserve">
     <value>That bookmark is no longer available to delete.</value>
   </data>
+  <data name="ProviderOnboardingDialog_AKeyIsSaved" xml:space="preserve">
+    <value>A key is saved</value>
+  </data>
+  <data name="ProviderOnboardingDialog_ReplaceKey" xml:space="preserve">
+    <value>Replace key</value>
+  </data>
+  <data name="ProviderOnboardingDialog_RemoveKey" xml:space="preserve">
+    <value>Remove key</value>
+  </data>
+  <data name="ProviderOnboardingDialog_RemoveThisKey" xml:space="preserve">
+    <value>Remove this key?</value>
+  </data>
+  <data name="ProviderOnboardingDialog_Keep" xml:space="preserve">
+    <value>Keep</value>
+  </data>
   <data name="ProviderOnboardingDialog_TheEngineDidNotReturn" xml:space="preserve">
     <value>The Engine did not return a provider connection result.</value>
   </data>
