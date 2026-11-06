@@ -58,7 +58,7 @@
                          ActivePanelIndexChanged="@(index => OnTabIndex(index))">
                     @foreach (var tab in Tabs)
                     {
-                        <AppTabPanel Text="@tab.Label" Icon="@tab.Icon" Disabled="@TabsDisabled">
+                        <AppTabPanel Text="@tab.Label" Icon="@tab.Icon" Class="@($"tl-editor-tab tl-editor-tab--{tab.Key.ToLowerInvariant()}")" Disabled="@TabsDisabled">
                             @if (tab.Key == ActiveKey)
                             {
                                 @body

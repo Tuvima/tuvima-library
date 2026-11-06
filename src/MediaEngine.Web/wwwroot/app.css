@@ -5878,6 +5878,9 @@ html[data-form-factor="phone"] .view-map .maplibregl-ctrl-bottom-right {
     border-top: 1px solid var(--tl-border-subtle);
 }
 
+.tl-editor-tab{padding-inline:var(--tl-space-5, 1.5rem)}
+.tl-editor-tab svg{color:var(--tl-editor-tab-icon,currentColor)}
+.tl-editor-tab--details{--tl-editor-tab-icon:#9a8cf0}.tl-editor-tab--contents{--tl-editor-tab-icon:#4fb3d9}.tl-editor-tab--artwork{--tl-editor-tab-icon:#e58fb4}.tl-editor-tab--match{--tl-editor-tab-icon:#4ec9a0}.tl-editor-tab--files{--tl-editor-tab-icon:#e8b24a}.tl-editor-tab--history{--tl-editor-tab-icon:#8aa0c8}
 /* Details page, phone pass. Everything here is scoped to the phone form factor; tablet and desktop keep the
    existing hero, tab and list rules. Phones never carry an editor entry point, and nothing relies on hover. */
 
