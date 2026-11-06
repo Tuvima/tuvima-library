@@ -62,3 +62,14 @@ public sealed class EditorMatchWhyRowsTests
     public void NoScoresMeansNoTable() =>
         Assert.Empty(EditorMatchFacts.WhyRows(new MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto()));
 }
+
+public sealed class EditorBestGuessTests
+{
+    [Theory]
+    [InlineData(0.0, false)]
+    [InlineData(0.59, false)]
+    [InlineData(0.6, true)]
+    [InlineData(0.95, true)]
+    public void BestGuessNeedsReasonableConfidence(double confidence, bool expected) =>
+        Assert.Equal(expected, EditorMatchFacts.IsConfidentGuess(new MediaEngine.Contracts.Matching.ItemCanonicalRetailCandidateDto { Confidence = confidence }));
+}

@@ -336,7 +336,8 @@
 
     private RenderFragment ResultRow(ItemCanonicalRetailCandidateDto candidate, int index) => __builder =>
     {
-        var best = index == 0;
+        // "Best guess" is said only when the Engine is reasonably sure (v4.1); a weak top answer is just the first result.
+        var best = index == 0 && EditorMatchFacts.IsConfidentGuess(candidate);
         var active = ReferenceEquals(candidate, _selected);
         var facts = EditorMatchRules.FactsOf(candidate);
         var line = string.Join(" · ", new[] { facts.Creator, facts.Parent, facts.Year, facts.Edition }.Where(part => !string.IsNullOrWhiteSpace(part)));

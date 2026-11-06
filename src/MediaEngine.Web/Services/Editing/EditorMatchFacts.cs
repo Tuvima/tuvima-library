@@ -71,6 +71,13 @@ public static partial class EditorMatchFacts
         return rows;
     }
 
+    /// <summary>The least confidence, in percent, at which the top result may be called the best guess.</summary>
+    public const int BestGuessThresholdPercent = 60;
+
+    /// <summary>True when the Engine gave a confidence and it reaches the best-guess threshold.</summary>
+    public static bool IsConfidentGuess(ItemCanonicalRetailCandidateDto candidate) =>
+        HasConfidence(candidate) && ConfidencePercent(candidate) >= BestGuessThresholdPercent;
+
     /// <summary>Whether the Engine said anything about how sure it is.</summary>
     public static bool HasConfidence(ItemCanonicalRetailCandidateDto candidate) => candidate.CompositeScore > 0 || candidate.Confidence > 0;
 
