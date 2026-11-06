@@ -5477,6 +5477,9 @@ dialog.app-native-dialog.tl-editor-dialog{width:100vw;max-width:none;height:100d
 .sme-tag-editor__suggestions .sme-tag-editor__suggestion { justify-content: flex-start; width: 100%; text-align: left; }
 .sme-tag-editor__suggestions .sme-tag-editor__suggestion .tl-button-label { text-align: left; }
 
+/* The View import button's file input is a framework component's root, so the page's scoped CSS never reaches it (it showed as a native Choose Files box). */
+.view-import__input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+
 /* The View page's hidden drop-target file input is a framework component's root, so the page's scoped CSS never reaches it. */
 .view-drop-target__input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; overflow: hidden; }
 
