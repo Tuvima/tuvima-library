@@ -1,6 +1,6 @@
 # Spec: One look, version 2 (near-black surfaces, one type and icon ladder, one tooltip)
 
-> **Status:** Locked · **Version:** 1 · **Last updated:** 2026-11-06 · **Related docs:** [Look pass](look-pass.md) · [Uniformity review](../design/look-pass/uniformity-review-2026-11-06.md) · [Mockup](../design/mockups/look-pass-v2/unified-look-mockup.html) · [Before and after](../design/mockups/look-pass-v2/settings-before-after.html) · [One tile design](one-tile-design.md) · [Design system](../design/design-system.md)
+> **Status:** Locked · **Version:** 1.1 · **Last updated:** 2026-11-06 · **Related docs:** [Look pass](look-pass.md) · [Uniformity review](../design/look-pass/uniformity-review-2026-11-06.md) · [Mockup](../design/mockups/look-pass-v2/unified-look-mockup.html) · [Before and after](../design/mockups/look-pass-v2/settings-before-after.html) · [One tile design](one-tile-design.md) · [Design system](../design/design-system.md)
 
 ## 1. Goal
 
@@ -26,6 +26,7 @@ The whole app looks and feels like one product: a calm neutral near-black backgr
 - **D5.** On phones every menu is a bottom sheet by default (52 px rows).
 - **D6.** Tooltip: menu-gray bubble, 13 px / 500, 6 px corners, no arrow, max 280 px, Top or Bottom only, 150 ms hover, 0 ms on keyboard focus, 300 ms warm window, long-press 500 ms on touch with a 1.5 s linger. No browser `title=` hints remain, guarded by a test.
 - **D7.** Editing stays desktop-only; Edit and Delete never appear in phone sheets (Never rule 1).
+- **D9 (Shy 2026-11-06, 119).** Players follow the same rules: packet A13.
 - **D8.** Standards from this spec are handed to the Tiles, View review, Editor and local-check fix threads; the Libraries and Activity builds follow them without taking their work.
 
 ## 4. UI behaviour
@@ -65,9 +66,10 @@ None. Colors, sizes and icons live in the token file and shared parts.
 - **A9 Touch floor (Standard).** Coarse-pointer rule: 44 px minimum for chips, avatar button, tile buttons, Places toolbar; one touch token. *Depends on:* A5. *Done when:* `tools/validate-touch-targets.js` reports zero at 360 and 768 on Home, Watch, View, Settings, a detail page and the editor.
 - **A10 Contrast and focus (Mechanical).** Danger text token at 4.5:1 on #2F3039; accent text uses `#A46FFF`; remove the global outline reset (`native-utilities.css:7`). *Depends on:* WP0. *Done when:* a contrast test over the token pairs passes and the focus ring shows on every control in the preview page.
 - **A11 Tooltip (Standard).** Rename to `app-tooltip` with `--tl-tooltip-*` tokens and D6 behavior; replace the 133 `title=` hints; retire `AppNativeButton.Title`; add `TooltipGuardrailTests` (allowlist: img, iframe, abbr, time, SVG title). *Depends on:* A1. *Done when:* the guardrail passes and a tooltip shows above a dialog.
+- **A13 Players (Standard).** Player text uses the type ladder (remove stray 19 and 22 px); pop-outs and panels (speed, audio, subtitles, queue, context panels) and player menus use the menu gray `#2F3039`, the menu radius and 44 px rows, with a dark scrim over video allowed but no blue tint (retire `--playback-popover-surface` `rgba(18,22,35,.96)` and the `--playback-*` surface family in favor of the shared tokens); square action buttons instead of round (`PlaybackSongActions.razor.css:3`); one icon family; A11 tooltip; pop-outs become bottom sheets on phones. Coordinates with the thread validating players against their mockups. *Depends on:* WP0, A1, A4, A11. *Done when:* no `--playback-*` surface token differs from the shared tokens, and a player pop-out measures 44 px rows on the preview page.
 - **A12 Visual proof (Standard).** Before/after of one Home shelf, one Settings page, the View places toolbar, the detail hero and a tooltip at 360, 768 and 1440 (added to Look pass WP15). *Depends on:* WP0, A1 to A11.
 
-Order: WP0, A1, A4, A10 first; then A2, A5, A6, A11; then A3, A7, A8, A9; A12 last. A1 and A8 touch files Look pass WP2 to WP4 own, so coordinate with that build.
+Order: WP0, A1, A4, A10 first; then A2, A5, A6, A11; then A3, A7, A8, A9; A12 last (A13 with the third wave). A1 and A8 touch files Look pass WP2 to WP4 own, so coordinate with that build.
 
 ## 7. Local checks
 
