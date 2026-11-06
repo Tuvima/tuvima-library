@@ -695,7 +695,7 @@ public sealed class EditorFamilyState
                 Detail = null,
                 Matched = !string.Equals(node.MatchState, "unmatched", StringComparison.OrdinalIgnoreCase),
                 Reason = node.MatchReason,
-                ImageUrl = node.ArtworkUrl,
+                ImageUrl = string.IsNullOrWhiteSpace(node.ArtworkUrl) ? null : EngineImageProxyPath.ToBrowserUrl(node.ArtworkUrl, null),
                 IsParent = true,
                 Expanded = node.IsRoot,
                 Direct = navigator.MediaType == "TV" && node.IsRoot ? DirectLeaves.NoEpisode : DirectLeaves.Items,
