@@ -4036,6 +4036,20 @@ html[data-form-factor="phone"] .app-discovery-filter__tabs[data-scroll-more-star
     min-height: 36px;
 }
 
+/* Touch floor (Look pass v2 A9): on touch screens small icon buttons and chips never drop below 44px. */
+@media (hover: none), (pointer: coarse) {
+    .sme-close,
+    .sme-artwork-gallery-check,
+    .listen-icon-button,
+    .tl-embedded-audio__row-play,
+    .settings-notice__dismiss,
+    .lib-chip,
+    .lib-kind-tile {
+        min-width: var(--tl-touch-min);
+        min-height: var(--tl-touch-min);
+    }
+}
+
 /* Shared touch, safe-area, and coarse-pointer contract. */
 @media (hover: none), (pointer: coarse){
     button,
