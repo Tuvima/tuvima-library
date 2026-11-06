@@ -19,6 +19,12 @@
     width: min(100%, 640px);
 }
 
+/* The Plugin file editor window (Plugins v6 D66): wide enough for the text and a 260 px Checks column side by side. */
+.app-dialog-shell--editor {
+    width: min(calc(100vw - 48px), 1100px);
+    height: min(86dvh, 820px);
+}
+
 .app-dialog-shell--provider {
     width: min(calc(100vw - 32px), 1440px);
     max-height: min(94dvh, 1000px);

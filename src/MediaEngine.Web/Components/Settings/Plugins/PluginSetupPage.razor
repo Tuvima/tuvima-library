@@ -41,7 +41,7 @@ else
         else
         {
             <AppDetailColumns Side="@SideColumn()" SideLabel="About this plugin">
-                @foreach (var card in _page.Cards.Where(card => card.Key is not ("file" or "about")))
+                @foreach (var card in _page.Cards.Where(card => card.Key is not ("file" or "about") && !IsDuplicateConnection(card)))
                 {
                     <div @key="card.Key"
                          id="@CardId(card.Key)"
@@ -125,6 +125,9 @@ else
     /// <summary>In the side column, under the facts: who turned it on, what it needs, what needs it (term and description elements) and removing it.</summary>
     [Parameter] public RenderFragment? AboutExtra { get; set; }
 
+    /// <summary>Inside the folded "More details" under the side column: who turned it on and similar.</summary>
+    [Parameter] public RenderFragment? MoreExtra { get; set; }
+
     /// <summary>Raised after anything that the tiles should show (a key added, a setting saved, a test run).</summary>
     [Parameter] public EventCallback Changed { get; set; }
 
@@ -180,6 +183,12 @@ else
             // The circuit ended; there is nothing left to scroll.
         }
     }
+
+    // A plugin whose keys live on its own rows (such as a list of servers) has no key of its own, so a second Connection card above the
+    // table would only repeat each row's key state (v6 D64).
+    private bool IsDuplicateConnection(PluginSetupCardDto card) =>
+        card.Key == "access" && card.Credentials.Count == 0
+        && (_page?.Cards.Any(other => other.Controls.Any(control => control.Control == PluginSetupValues.GroupListControl)) ?? false);
 
     private PluginSetupCardDto? FlaggedCard() => _page?.Cards.FirstOrDefault(card => card.NeedsAttention);
 
@@ -561,7 +570,7 @@ else
         };
         var dialog = await DialogService.ShowAsync<ProviderOnboardingDialog>(string.Empty, parameters, new AppDialogOptions
         {
-            MaxWidth = AppMaxWidth.Large,
+            MaxWidth = AppMaxWidth.Small, // the one Connect dialog is a short card, not a wide window (v6 D62)
             FullWidth = true,
             CloseButton = false,
             CloseOnEscapeKey = true,
@@ -604,12 +613,13 @@ else
     // ------------------------------------------------------------------------------------------------ What it provides
 
     private RenderFragment ProvidesCard(PluginSetupCardDto card) => @<AppCard Title="@card.Title" Class="plugin-page__card" data-testid="plugin-provides-card">
-        <PluginProvidesLine Plugin="@Plugin" />
-        @if (card.MediaTypes.Count > 0)
+        @* Icon tiles with the name and one sentence (v6 D72); the plain lists only appear when the plugin declared no kinds. *@
+        <PluginProvidesLine Plugin="@Plugin" Mode="PluginProvidesMode.Card" />
+        @if (Plugin.Provides.Count == 0 && card.MediaTypes.Count > 0)
         {
             <p class="plugin-card__line" data-testid="plugin-works-on">Works on: @string.Join(", ", card.MediaTypes)</p>
         }
-        @if (card.Supplies.Count > 0)
+        @if (Plugin.Provides.Count == 0 && card.Supplies.Count > 0)
         {
             <ul class="plugin-card__list" data-testid="plugin-supplies">
                 @foreach (var supply in card.Supplies)
@@ -658,6 +668,13 @@ else
         @{
             var about = _page?.Cards.FirstOrDefault(candidate => candidate.Key == "about");
         }
+        @{
+            var version = about?.Facts.FirstOrDefault(fact => fact.Label == "Version")?.Value;
+            var from = about?.Facts.FirstOrDefault(fact => fact.Label == "From")?.Value;
+            var more = about?.Facts.Where(fact => fact.Label is not ("Version" or "From")).ToList() ?? [];
+            var access = _page?.Cards.FirstOrDefault(candidate => candidate.Key == "access")?.Access;
+        }
+        @* Four quiet facts (v6 D60): where it is used, who can use it, its version and origin, and removing it. The rest is one fold away. *@
         <dl data-testid="plugin-side-facts">
             @if (ProvidesExtra is not null)
             {
@@ -665,21 +682,32 @@ else
                 <dd>@ProvidesExtra</dd>
             }
             @SettingsExtra
-            @if (about is not null)
+            @if (!string.IsNullOrWhiteSpace(version) || !string.IsNullOrWhiteSpace(from))
             {
-                @foreach (var fact in about.Facts)
-                {
-                    <dt>@fact.Label</dt>
-                    <dd>@fact.Value</dd>
-                }
-                @if (_page?.Cards.FirstOrDefault(candidate => candidate.Key == "access")?.Access is { } access)
-                {
-                    <dt>Weight</dt>
-                    <dd data-testid="plugin-weight">@WeightWords(access.WeightClass)</dd>
-                }
+                <dt>Version</dt>
+                <dd data-testid="plugin-version">@string.Join(" · ", new[] { version, from }.Where(part => !string.IsNullOrWhiteSpace(part)))</dd>
             }
             @AboutExtra
         </dl>
+        @if (more.Count > 0 || access is not null || MoreExtra is not null)
+        {
+            <details class="plugin-more" data-testid="plugin-more-details">
+                <summary>More details</summary>
+                <dl>
+                    @foreach (var fact in more)
+                    {
+                        <dt>@fact.Label</dt>
+                        <dd>@fact.Value</dd>
+                    }
+                    @if (access is not null)
+                    {
+                        <dt>Weight</dt>
+                        <dd data-testid="plugin-weight">@WeightWords(access.WeightClass)</dd>
+                    }
+                    @MoreExtra
+                </dl>
+            </details>
+        }
         @if (about is not null && !string.IsNullOrWhiteSpace(about.Text))
         {
             <p class="plugin-card__line" data-testid="plugin-about-text">@about.Text</p>

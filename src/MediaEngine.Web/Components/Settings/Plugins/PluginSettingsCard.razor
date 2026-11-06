@@ -36,7 +36,10 @@
         @if (HasDraftableControls && CanChange)
         {
             <footer class="plugin-settings__savebar">
-                <AppButton Label="@L["PluginPage_Cancel"]" Disabled="@(!HasUnsavedChanges || _saving)" OnClick="Discard" />
+                @if (HasUnsavedChanges)
+                {
+                    <AppButton Label="@L["PluginPage_Cancel"]" Disabled="@_saving" OnClick="Discard" />
+                }
                 <AppButton Label="@(_saving ? "Saving…" : "Save changes")" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary"
                            Disabled="@(!HasUnsavedChanges || _saving)" OnClick="SaveAsync" data-testid="plugin-settings-save" />
             </footer>
@@ -110,6 +113,7 @@
     }
 
     private RenderFragment RenderControls(IReadOnlyList<PluginSetupControlDto> controls) => @<text>
+        @{ var severalGroups = controls.Select(control => control.Group).Distinct(StringComparer.Ordinal).Count() > 1; }
         @foreach (var heading in controls.Select(control => control.Group).Distinct(StringComparer.Ordinal))
         {
             var inGroup = controls.Where(control => control.Group == heading && PluginSetupValues.IsShown(control, CurrentValueOf)).ToList();
@@ -119,7 +123,7 @@
             }
 
             <section class="plugin-settings__group" data-testid="plugin-settings-group">
-                @if (!string.IsNullOrWhiteSpace(heading))
+                @if (severalGroups && !string.IsNullOrWhiteSpace(heading))
                 {
                     <h4>@heading</h4>
                 }
