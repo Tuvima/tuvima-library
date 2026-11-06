@@ -339,6 +339,9 @@ else if (Slides.Count > 0)
         "music" => DetailEntityType.MusicAlbum,
         "audiobook" => DetailEntityType.Audiobook,
         "comic" => DetailEntityType.ComicIssue,
+        "book" or "books" or "ebook" => DetailEntityType.Book,
+        // Videos, Other videos and YouTube play like a movie; they must never read as a book.
+        var other when PhoneHeroPresentation.IsVideoKind(other) => DetailEntityType.Movie,
         _ => DetailEntityType.Book,
     };
 

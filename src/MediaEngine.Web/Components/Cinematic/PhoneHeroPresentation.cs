@@ -168,9 +168,26 @@ public static partial class PhoneHeroPresentation
                 return new("Play album", null);
             case "audiobook":
                 return started ? new("Continue Listening", left ?? percent) : new("Listen", null);
-            default:
+            case "book":
+            case "books":
+            case "ebook":
+            case "comic":
+            case "comics":
                 return started ? new("Continue Reading", percent is null ? null : $"{percent} read") : new("Start Reading", null);
+            default:
+                // Videos, Other videos and YouTube play like a movie; anything else keeps the Engine's wording and is
+                // never presented as something to read.
+                return IsVideoKind(kind)
+                    ? (started ? new("Resume", left ?? percent) : new("Play", null))
+                    : new(engineLabel, null);
         }
+    }
+
+    /// <summary>True for the video kinds that are neither a movie nor a TV show: Videos, Other videos and YouTube.</summary>
+    public static bool IsVideoKind(string? mediaKind)
+    {
+        var kind = (mediaKind ?? string.Empty).Trim().ToLowerInvariant();
+        return kind.Contains("video", StringComparison.Ordinal) || kind.Contains("youtube", StringComparison.Ordinal);
     }
 
     private static bool IsStarted(DiscoveryHeroViewModel hero)
@@ -212,7 +229,9 @@ public static partial class PhoneHeroPresentation
         "music" => "Album",
         "audiobook" => "Audiobook",
         "comic" => "Comic",
-        _ => "Book",
+        "book" or "books" or "ebook" => "Book",
+        var other when IsVideoKind(other) => "Video",
+        _ => "Item",
     };
 
     private sealed record Parts(string? Year, string? Runtime, string? Rating, string? ContentRating, string? Seasons, string? Tracks, string? Pages);
