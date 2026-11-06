@@ -22,6 +22,13 @@ public static class PlaybackArtworkUrl
             : string.Join(", ", urls.Select((url, index) => $"{url} {index + 1}x"));
     }
 
+    /// <summary>The medium cover again for a retry after a failed load; attempt 0 is the plain address. The extra value only avoids a cached failure.</summary>
+    public static string? ForItemRetry(ListenQueueItem? item, int attempt)
+    {
+        var url = ForItem(item);
+        return url is null || attempt <= 0 ? url : url + (url.Contains('?') ? "&" : "?") + "retry=" + attempt;
+    }
+
     public static string? ForItem(ListenQueueItem? item, string size = "m") => item is null ? null
         : item.PlaybackExperience == PlaybackExperience.Audiobook
             ? AudiobookCover(item.AudiobookWorkId ?? item.AlbumWorkId ?? item.WorkId, item.CoverUrl, size)

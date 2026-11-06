@@ -129,7 +129,7 @@
                         <PlaybackPopover Title="@L["Glossary_Bookmarks"].Value" ToolId="video-bookmarks" Kind="video" Surface="video" ShowHeading="false" ItemKey="@VideoInstanceKey">
                             <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Bookmark" /></TriggerContent>
                             <ChildContent>
-                                <VideoBookmarkPane Position="@Playback.CurrentTimeSeconds" Current="@Playback.CurrentTimeSeconds"
+                                <VideoBookmarkPane OnClose="CloseSettingsAsync" Position="@Playback.CurrentTimeSeconds" Current="@Playback.CurrentTimeSeconds"
                                                    Bookmarks="@_savedRail" Everyones="@_everyonesRail" IsAdministrator="@CanShareBookmarks" AllowEveryones="@AllowEveryonesBookmarks" AllowFind="@AllowFindBookmarks"
                                                    Filter="@BookmarkFilter" FilterChanged="ChangeBookmarkFilterAsync"
                                                    ShowOnBar="@ShowBookmarksOnBar" ShowOnBarChanged="ChangeShowBookmarksOnBarAsync"
@@ -160,7 +160,7 @@
                                      OpenChanged="HandleSettingsOpenChangedAsync" TriggerClass="@(_captionTracks.Any(track => track.Selected) ? "is-on" : null)">
                         <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Settings" /></TriggerContent>
                         <ChildContent>
-                            <VideoSettingsMenu NoSubtitleSource="@_noSubtitleSource" IsAdministrator="@CanShareBookmarks" Look="@_profileSubtitles"
+                            <VideoSettingsMenu AudioSummary="@AudioSummary" SubtitlesSummary="@SubtitlesSummary" NoSubtitleSource="@_noSubtitleSource" IsAdministrator="@CanShareBookmarks" Look="@_profileSubtitles"
                                                StyleChanged="ChangeSubtitleStyleAsync" OnClose="CloseSettingsAsync">
                                 <Audio>
                                     <PlaybackSheetList>
@@ -363,6 +363,19 @@
         (Playback.CurrentManifest?.SubtitleTracks ?? [])
             .Where(track => !string.IsNullOrWhiteSpace(track.DeliveryUrl))
             .ToList();
+    // The right-hand side of the Settings rows (unified player D9): what is chosen now.
+    private string AudioSummary
+    {
+        get
+        {
+            if (AudioTracks.Count == 0) return string.Empty;
+            var index = _selectedAudioTrackIndex ?? Math.Max(0, AudioTracks.ToList().FindIndex(track => track.IsDefault));
+            return AudioTrackLabel(AudioTracks[Math.Clamp(index, 0, AudioTracks.Count - 1)], index);
+        }
+    }
+
+    private string SubtitlesSummary => _captionTracks.FirstOrDefault(track => track.Selected)?.Label ?? L["Common_Off"].Value;
+
     private IReadOnlyList<PlaybackTrackDto> AudioTracks => Playback.CurrentManifest?.AudioTracks ?? [];
     // Profile defaults (Settings > Playback > Subtitles & audio). The size and background reach the cues through
     // --tl-subtitle-size / --tl-subtitle-bg, which wwwroot/app.css derives from these two attributes.

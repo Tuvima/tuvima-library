@@ -3070,11 +3070,11 @@ button.app-menu-item {
     .video-playback-host.is-expanded .playback-video-chrome .playback-video-chrome__bottom { bottom: max(6px, var(--tl-safe-area-bottom)); gap: 0; }
     .video-playback-host.is-expanded .playback-seek-rail--video { gap: 4px; }
 }
-/* Desktop video bar (player-controls-v3 D1, D2): one size set from the tokens (38 px glyph in a 56 px target, Play 44 px, title 22 px at 1440 wide).
+/* Desktop video bar (player-controls-v3 D1, D2; unified player D1: title left, Play in the true centre, tools right): one size set from the tokens (38 px glyph in a 56 px target, Play 44 px, title 22 px at 1440 wide).
    The title truncates before any icon shrinks. Hover or focus: the icon grows a little (skipped under reduced motion) and its name shows above it (AppTooltip). */
 @media (min-width: 840px) {
-    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 16px; }
-    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls .playback-video-controls__identity { text-align: center; font-size: var(--playback-title-size); line-height: var(--playback-control-target); }
+    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 16px; }
+    .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls .playback-video-controls__identity { text-align: left; font-size: var(--playback-title-size); line-height: var(--playback-control-target); }
     .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls button { position: relative; min-width: var(--playback-control-target); height: var(--playback-control-target); }
     .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls .playback-icon-button-shell--surface-video { width: var(--playback-control-target); flex: 0 0 var(--playback-control-target); }
     .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls .playback-primary-button-shell { --playback-primary-size: var(--playback-control-target); --playback-primary-icon-size: var(--playback-play-glyph); }
@@ -3106,10 +3106,26 @@ button.app-menu-item {
     .video-playback-host.is-expanded .playback-video-chrome .playback-video-controls button:not(:disabled):focus-visible .tl-icon-root { transform: none; }
 }
 /* Video Bookmarks panel quick list (video-player-controls-and-bookmarks D6, D7) */
-.video-bookmark-pane { display:grid; gap:10px; width:min(380px,92vw); }
-.video-bookmark-pane .video-bookmark-pane__add { display:flex; align-items:center; gap:8px; width:100%; padding:10px 14px; border:0; border-radius:var(--tl-radius-sm,6px); background:var(--tl-accent-primary); color:#fff; font-weight:600; cursor:pointer; }
-.video-bookmark-pane__note,.video-bookmark-pane__edit input { width:100%; padding:8px 10px; border:1px solid var(--playback-border); border-radius:var(--tl-radius-sm,6px); background:transparent; color:inherit; }
-.video-bookmark-pane__list { display:grid; align-content:start; gap:2px; height:min(52svh,520px); margin:0; padding:0; overflow:auto; list-style:none; }
+/* Bookmarks panel (unified player D9a): header with count, timeline switch, full-width add button, tabs, search, rows with a time chip, footer line.
+   As tall as its content; only the list scrolls, and only past about 80% of the player height. Nothing scrolls sideways. */
+.video-bookmark-pane { display:grid; gap:12px; width:min(400px,92vw); max-height:min(80svh,720px); overflow:hidden; padding:16px 16px 12px; box-sizing:border-box; grid-template-rows:auto auto auto auto auto auto minmax(0,1fr) auto auto; }
+.video-bookmark-pane > * { min-width:0; }
+.video-bookmark-pane__header { display:flex; align-items:center; gap:8px; }
+.video-bookmark-pane__header h3 { margin:0; flex:1; font-size:var(--tl-font-size-dialog-title); font-weight:600; }
+.video-bookmark-pane__header-icon { color:var(--tl-accent-primary); }
+.video-bookmark-pane__count { min-width:22px; padding:1px 8px; border-radius:6px; background:var(--playback-accent-soft); color:var(--playback-text); font-size:var(--tl-font-size-secondary); text-align:center; }
+.video-bookmark-pane .video-bookmark-pane__close { display:grid; place-items:center; width:44px; height:44px; margin:-8px -8px -8px 0; border:0; background:transparent; color:inherit; cursor:pointer; }
+.video-bookmark-pane .video-bookmark-pane__add { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; min-height:44px; padding:8px 14px; border:1px solid var(--tl-accent-primary); border-radius:var(--tl-radius-sm,6px); background:transparent; color:var(--tl-accent-primary); font-weight:600; cursor:pointer; }
+.video-bookmark-pane .video-bookmark-pane__add:hover { background:var(--playback-accent-soft); }
+.video-bookmark-pane__note,.video-bookmark-pane__search,.video-bookmark-pane__edit input { width:100%; box-sizing:border-box; min-height:44px; padding:8px 10px; border:1px solid var(--playback-border); border-radius:var(--tl-radius-sm,6px); background:transparent; color:inherit; }
+.video-bookmark-pane__filter { display:flex; gap:20px; border-bottom:1px solid var(--playback-border); }
+.video-bookmark-pane .video-bookmark-pane__tab { min-height:44px; padding:0 2px; border:0; border-bottom:3px solid transparent; background:transparent; color:var(--playback-text-secondary); font:inherit; cursor:pointer; }
+.video-bookmark-pane__tab.is-selected { border-bottom-color:var(--tl-accent-primary); color:var(--playback-text); }
+.video-bookmark-pane__list { display:grid; align-content:start; gap:2px; min-height:0; margin:0; padding:0; overflow-x:hidden; overflow-y:auto; list-style:none; }
+.video-bookmark-pane .video-bookmark-pane__time { min-width:64px; min-height:32px; padding:0 10px; border:0; border-radius:6px; background:var(--tl-accent-primary); color:#fff; font-weight:600; font-variant-numeric:tabular-nums; cursor:pointer; }
+.video-bookmark-pane .video-bookmark-pane__time.is-global { background:var(--playback-surface-hover); color:var(--playback-text); }
+.video-bookmark-pane .video-bookmark-pane__action--icon { display:grid; place-items:center; min-width:44px; min-height:44px; padding:0; }
+.video-bookmark-pane__hint { margin:0; color:var(--playback-text-secondary); font-size:var(--tl-font-size-secondary); }
 .video-bookmark-pane__empty { padding:12px 4px; color:var(--playback-text-secondary); font-size:var(--tl-font-size-sm); }
 .video-bookmark-pane__row { display:flex; align-items:center; gap:10px; padding:6px 8px; border-radius:var(--tl-radius-sm,6px); }
 .video-bookmark-pane__row.is-near { background:var(--playback-accent-soft); }
@@ -5000,11 +5016,14 @@ input[type="reset"],
 .playback-popover--settings .playback-popover-content { padding: 0; }
 .video-settings-menu { font-size: var(--tl-font-size-dialog-title); white-space: nowrap; }
 .video-settings-menu h3, .video-settings-menu h4 { margin: 0; font-size: var(--tl-font-size-dialog-title); font-weight: 600; }
-.video-settings-menu__columns { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(max-content, 1fr); }
-.video-settings-menu__column { display: flex; flex-direction: column; min-width: 0; }
-.video-settings-menu__column + .video-settings-menu__column { border-left: 1px solid var(--playback-border); }
-.video-settings-menu__column > h3, .video-settings-menu__header { padding: 14px 20px; border-bottom: 1px solid var(--playback-border); }
-.video-settings-menu__column .playback-sheet-row, .video-settings-menu .video-settings-menu__row { min-height: 52px; padding: 10px 20px; font-size: inherit; }
+.video-settings-menu { min-width: min(380px, calc(100vw - 32px)); }
+.video-settings-menu__rows, .video-settings-menu__page { display: flex; flex-direction: column; }
+.video-settings-menu .video-settings-menu__row { justify-content: space-between; gap: 24px; min-height: 44px; padding: 8px 20px; }
+.video-settings-menu__row-label { color: var(--playback-text); }
+.video-settings-menu__row-value { display: inline-flex; align-items: center; gap: 4px; min-width: 0; color: var(--playback-text-secondary); overflow: hidden; text-overflow: ellipsis; }
+.video-settings-menu__page .playback-sheet-row { min-height: 44px; padding: 8px 20px; }
+.video-settings-menu__header { padding: 6px 12px 6px 20px; border-bottom: 1px solid var(--playback-border); }
+.video-settings-menu__page .playback-sheet-row, .video-settings-menu .video-settings-menu__row { min-height: 44px; padding: 8px 20px; font-size: inherit; }
 .video-settings-menu .video-settings-menu__row { display: flex; align-items: center; width: 100%; border: 0; background: transparent; color: inherit; cursor: pointer; text-align: left; }
 .video-settings-menu .video-settings-menu__row:hover, .video-settings-menu .video-settings-menu__row:focus-visible { background: var(--playback-surface-hover); }
 .video-settings-menu__notice { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0; padding: 12px 20px; color: var(--playback-text-secondary); }
@@ -5034,8 +5053,7 @@ input[type="reset"],
 .playback-popover-content { overflow-x: hidden; }
 .playback-popover-content:not(:has(.playback-sheet-list)) { overflow-y: auto; scrollbar-width: thin; }
 .playback-popover--settings .playback-popover-surface { min-width: 380px; }
-.video-settings-menu__column > h3, .video-settings-menu__header { border-bottom: 1px solid rgba(255, 255, 255, .06); }
-.video-settings-menu__column + .video-settings-menu__column { border-left: 1px solid rgba(255, 255, 255, .06); }
+.video-settings-menu__header { border-bottom: 1px solid rgba(255, 255, 255, .06); }
 .video-settings-menu .video-settings-menu__choice { border-color: rgba(255, 255, 255, .12); }
 .playback-sheet-list { overflow-x: hidden; max-height: min(80vh, 640px); scrollbar-width: thin; }
 

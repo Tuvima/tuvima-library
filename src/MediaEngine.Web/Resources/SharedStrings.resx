@@ -9862,7 +9862,16 @@
     <value>Little dots where bookmarks were added. The bookmark list works either way.</value>
   </data>
   <data name="VideoBookmarkPane_AddHere" xml:space="preserve">
-    <value>Add bookmark here · {0}</value>
+    <value>+ Bookmark at {0}</value>
+  </data>
+  <data name="VideoBookmarkPane_ShowOnTimeline" xml:space="preserve">
+    <value>Show on timeline</value>
+  </data>
+  <data name="VideoBookmarkPane_Search" xml:space="preserve">
+    <value>Search bookmarks</value>
+  </data>
+  <data name="VideoBookmarkPane_Hint" xml:space="preserve">
+    <value>Select a time to jump to that moment.</value>
   </data>
   <data name="VideoBookmarkPane_AddFailed" xml:space="preserve">
     <value>Couldn’t save · Try again</value>
@@ -9872,9 +9881,6 @@
   </data>
   <data name="VideoBookmarkPane_Show" xml:space="preserve">
     <value>Show bookmarks</value>
-  </data>
-  <data name="VideoBookmarkPane_All" xml:space="preserve">
-    <value>All</value>
   </data>
   <data name="VideoBookmarkPane_Mine" xml:space="preserve">
     <value>Mine</value>
@@ -9896,9 +9902,6 @@
   </data>
   <data name="VideoBookmarkPane_Cancel" xml:space="preserve">
     <value>Cancel</value>
-  </data>
-  <data name="VideoBookmarkPane_ShowOnBar" xml:space="preserve">
-    <value>Show bookmarks on the bar</value>
   </data>
   <data name="BookmarkFind_Back" xml:space="preserve">
     <value>Back</value>

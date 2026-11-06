@@ -4,23 +4,19 @@
 @using MediaEngine.Web.Services.Playback
 @inject IStringLocalizer<SharedStrings> L
 
-@* The video player's one Settings menu (player-controls-v3 D3, D4, D5). It replaces the old "CC" button. The main page shows Audio and
-   Subtitles side by side, each as wide as its longest line and with no descriptions. "Styling…" opens a second page (size, font,
-   shadow, colour, background) with a back arrow and a close. *@
+@* The video player's one Settings menu (unified player D9, D10; replaces the two-column layout of player-controls-v3 D3). The main page is one
+   column under a "Settings" title row with a close: each row has its label on the left and the current choice on the right (Audio, Subtitles,
+   Subtitle style). A row opens its own page with a back arrow and a close. The panel is as tall as its content. *@
 <div class="video-settings-menu" data-settings-page="@(ShowStyling ? "styling" : "main")">
     @if (ShowStyling)
     {
         <header class="video-settings-menu__header">
             @if (!StylingOnly)
             {
-                <AppNativeButton Type="button" Class="video-settings-menu__nav" AriaLabel="@L["Common_Back"].Value" OnClick="@(() => _styling = false)">
-                    <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ArrowBack" />
-                </AppNativeButton>
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowBack" Class="video-settings-menu__nav" AriaLabel="@L["Common_Back"].Value" OnClick="@(() => _styling = false)" />
             }
             <h3>@L["PlayerSettings_StylingTitle"]</h3>
-            <AppNativeButton Type="button" Class="video-settings-menu__nav" AriaLabel="@L["Common_Close"].Value" OnClick="OnClose">
-                <PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Close" />
-            </AppNativeButton>
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Class="video-settings-menu__nav" AriaLabel="@L["Common_Close"].Value" OnClick="OnClose" />
         </header>
         <div class="video-settings-menu__styling">
             <AppCssElement Tag="p" Class="video-settings-menu__preview" Css="@PreviewStyle" aria-live="polite"><span>@L["PlayerSettings_PreviewLine"]</span></AppCssElement>
@@ -34,15 +30,20 @@
             <AppButton ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" Label="@L["PlayerSettings_Reset"].Value" OnClick="ResetAsync" />
         </div>
     }
-    else
+    else if (_page is "audio" or "subtitles")
     {
-        <div class="video-settings-menu__columns">
-            <section class="video-settings-menu__column" aria-label="@L["PlayerSettings_Audio"].Value">
-                <h3>@L["PlayerSettings_Audio"]</h3>
+        <header class="video-settings-menu__header">
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowBack" Class="video-settings-menu__nav" AriaLabel="@L["Common_Back"].Value" OnClick="@(() => _page = null)" />
+            <h3>@(_page == "audio" ? L["PlayerSettings_Audio"] : L["Common_Subtitles"])</h3>
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Class="video-settings-menu__nav" AriaLabel="@L["Common_Close"].Value" OnClick="OnClose" />
+        </header>
+        <section class="video-settings-menu__page" aria-label="@(_page == "audio" ? L["PlayerSettings_Audio"].Value : L["Common_Subtitles"].Value)">
+            @if (_page == "audio")
+            {
                 @Audio
-            </section>
-            <section class="video-settings-menu__column" aria-label="@L["Common_Subtitles"].Value">
-                <h3>@L["Common_Subtitles"]</h3>
+            }
+            else
+            {
                 @Subtitles
                 @if (NoSubtitleSource)
                 {
@@ -51,10 +52,28 @@
                         @if (IsAdministrator) { <a href="/settings/plugins">@L["PlayerSettings_Plugins"]</a> }
                     </p>
                 }
-                <AppNativeButton Type="button" Class="video-settings-menu__row" OnClick="@(() => _styling = true)" AriaLabel="@L["PlayerSettings_StylingTitle"].Value">
-                    <span>@L["PlayerSettings_Styling"]</span>
-                </AppNativeButton>
-            </section>
+            }
+        </section>
+    }
+    else
+    {
+        <header class="video-settings-menu__header">
+            <h3>@L["PlayerSettings_Title"]</h3>
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Class="video-settings-menu__nav" AriaLabel="@L["Common_Close"].Value" OnClick="OnClose" />
+        </header>
+        <div class="video-settings-menu__rows">
+            <AppNativeButton Type="button" Class="video-settings-menu__row" OnClick="@(() => _page = "audio")" AriaLabel="@L["PlayerSettings_Audio"].Value">
+                <span class="video-settings-menu__row-label">@L["PlayerSettings_Audio"]</span>
+                <span class="video-settings-menu__row-value">@AudioSummary<AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></span>
+            </AppNativeButton>
+            <AppNativeButton Type="button" Class="video-settings-menu__row" OnClick="@(() => _page = "subtitles")" AriaLabel="@L["Common_Subtitles"].Value">
+                <span class="video-settings-menu__row-label">@L["Common_Subtitles"]</span>
+                <span class="video-settings-menu__row-value">@SubtitlesSummary<AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></span>
+            </AppNativeButton>
+            <AppNativeButton Type="button" Class="video-settings-menu__row" OnClick="@(() => _styling = true)" AriaLabel="@L["PlayerSettings_StylingTitle"].Value">
+                <span class="video-settings-menu__row-label">@L["PlayerSettings_Styling"]</span>
+                <span class="video-settings-menu__row-value"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></span>
+            </AppNativeButton>
         </div>
     }
 </div>
@@ -62,6 +81,14 @@
 @code {
     [Parameter] public RenderFragment? Audio { get; set; }
     [Parameter] public RenderFragment? Subtitles { get; set; }
+
+    /// <summary>The current audio choice shown on the right of the Audio row (for example "English 5.1").</summary>
+    [Parameter] public string? AudioSummary { get; set; }
+
+    /// <summary>The current subtitle choice shown on the right of the Subtitles row ("Off" or a language).</summary>
+    [Parameter] public string? SubtitlesSummary { get; set; }
+
+    private string? _page;
 
     /// <summary>True when the Engine says no subtitle source is switched on. The Subtitles column then says so instead of offering a search.</summary>
     [Parameter] public bool NoSubtitleSource { get; set; }

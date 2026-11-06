@@ -15,9 +15,18 @@
 }
 else
 {
+    <header class="video-bookmark-pane__header">
+        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Bookmark" Class="video-bookmark-pane__header-icon" />
+        <h3>@L["Glossary_Bookmarks"]</h3>
+        <span class="video-bookmark-pane__count" aria-label="@(TotalCount.ToString(System.Globalization.CultureInfo.InvariantCulture))">@TotalCount</span>
+        @if (OnClose.HasDelegate)
+        {
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Class="video-bookmark-pane__close" AriaLabel="@L["Common_Close"].Value" OnClick="OnClose" />
+        }
+    </header>
+    <AppSwitchRow T="bool" Label="@L["VideoBookmarkPane_ShowOnTimeline"].Value" Value="@ShowOnBar" ValueChanged="@(value => ShowOnBarChanged.InvokeAsync(value))" Color="AppColor.Primary" />
     <AppNativeButton Type="button" Class="video-bookmark-pane__add" OnClick="AddAsync" Disabled="@_saving"
                      AriaLabel="@($"Add bookmark here at {PlaybackSeekRail.Time(Position)}")">
-        <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Bookmark" />
         <span>@(_failed ? L["VideoBookmarkPane_AddFailed"].Value : L["VideoBookmarkPane_AddHere", PlaybackSeekRail.Time(Position)].Value)</span>
     </AppNativeButton>
     <div @onkeydown="NoteKeyDown" @onkeydown:stopPropagation="true">
@@ -25,8 +34,19 @@ else
     </div>
     @if (ShowFilter)
     {
-        <AppSegmentedControl Options="FilterOptions" Value="@EffectiveFilter" ValueChanged="@(value => FilterChanged.InvokeAsync(value))"
-                             AriaLabel="@L["VideoBookmarkPane_Show"].Value" Class="video-bookmark-pane__filter" />
+        <div class="video-bookmark-pane__filter" role="tablist" aria-label="@L["VideoBookmarkPane_Show"].Value">
+            @foreach (var tab in Tabs)
+            {
+                <AppButton ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" role="tab" Class="@($"video-bookmark-pane__tab {(tab.Value == EffectiveFilter ? "is-selected" : null)}")" aria-selected="@(tab.Value == EffectiveFilter ? "true" : "false")"
+                           Label="@tab.Label" OnClick="@(() => FilterChanged.InvokeAsync(tab.Value))" />
+            }
+        </div>
+    }
+    @if (Bookmarks.Count + Everyones.Count > 0)
+    {
+        <div @onkeydown:stopPropagation="true">
+            <InputText @bind-Value="_search" class="video-bookmark-pane__search" type="search" placeholder="@L["VideoBookmarkPane_Search"].Value" aria-label="@L["VideoBookmarkPane_Search"].Value" />
+        </div>
     }
     <ul class="video-bookmark-pane__list" aria-label="@L["Glossary_Bookmarks"].Value">
         @{ var rows = Rows(); var nearest = NearestId(rows); }
@@ -37,7 +57,6 @@ else
         @foreach (var bookmark in rows)
         {
             <li class="video-bookmark-pane__row @(bookmark.Id == nearest ? "is-near" : null) @(bookmark.Id == _glowId ? "is-glow" : null)" @key="bookmark.Id">
-                <span class="video-bookmark-pane__dot @(bookmark.IsGlobal ? "is-global" : null)" aria-hidden="true"></span>
                 @if (_editId == bookmark.Id)
                 {
                     <div class="video-bookmark-pane__edit" @onkeydown:stopPropagation="true">
@@ -52,8 +71,9 @@ else
                 }
                 else
                 {
+                    <AppNativeButton Type="button" Class="@($"video-bookmark-pane__time {(bookmark.IsGlobal ? "is-global" : null)}")" OnClick="@(() => Play.InvokeAsync(bookmark.Seconds))" AriaLabel="@($"Play from {PlaybackSeekRail.Time(bookmark.Seconds)}")">@PlaybackSeekRail.Time(bookmark.Seconds)</AppNativeButton>
                     <span class="video-bookmark-pane__copy">
-                        <strong>@PlaybackSeekRail.Time(bookmark.Seconds)@(string.IsNullOrWhiteSpace(bookmark.DisplayName) ? null : $" · {bookmark.DisplayName}")</strong>
+                        <strong>@(string.IsNullOrWhiteSpace(bookmark.DisplayName) ? PlaybackSeekRail.Time(bookmark.Seconds) : bookmark.DisplayName)</strong>
                         <span>@Owner(bookmark)</span>
                     </span>
                     @if (_confirmId == bookmark.Id)
@@ -63,29 +83,32 @@ else
                     }
                     else
                     {
-                        <AppNativeButton Type="button" Class="video-bookmark-pane__action" OnClick="@(() => Play.InvokeAsync(bookmark.Seconds))" AriaLabel="@($"Play from {PlaybackSeekRail.Time(bookmark.Seconds)}")">@L["Common_Play"]</AppNativeButton>
                         @if (IsAdministrator && !bookmark.IsGlobal && IsEveryonesView && Promote is not null)
                         {
                             <AppNativeButton Type="button" Class="video-bookmark-pane__action" OnClick="@(() => PromoteAsync(bookmark))">@L["VideoBookmarkPane_Promote"]</AppNativeButton>
                         }
                         @if (IsAdministrator && bookmark.IsGlobal && Update is not null)
                         {
-                            <AppNativeButton Type="button" Class="video-bookmark-pane__action" OnClick="@(() => BeginEdit(bookmark))">@L["Common_Edit"]</AppNativeButton>
+                            <AppNativeButton Type="button" Class="video-bookmark-pane__action video-bookmark-pane__action--icon" OnClick="@(() => BeginEdit(bookmark))">
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Edit" /><span class="sr-only">@L["Common_Edit"]</span>
+                            </AppNativeButton>
                         }
                         @if (CanDelete(bookmark))
                         {
-                            <AppNativeButton Type="button" Class="video-bookmark-pane__action" OnClick="@(() => _confirmId = bookmark.Id)" AriaLabel="@($"Delete bookmark at {PlaybackSeekRail.Time(bookmark.Seconds)}")">@L["Common_Delete"]</AppNativeButton>
+                            <AppNativeButton Type="button" Class="video-bookmark-pane__action video-bookmark-pane__action--icon" OnClick="@(() => _confirmId = bookmark.Id)" AriaLabel="@($"Delete bookmark at {PlaybackSeekRail.Time(bookmark.Seconds)}")">
+                                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Delete" /><span class="sr-only">@L["Common_Delete"]</span>
+                            </AppNativeButton>
                         }
                     }
                 }
             </li>
         }
     </ul>
-    <AppSwitchRow T="bool" Label="@L["VideoBookmarkPane_ShowOnBar"].Value" Value="@ShowOnBar" ValueChanged="@(value => ShowOnBarChanged.InvokeAsync(value))" Color="AppColor.Primary" />
     @if (AllowFind && FindView is not null)
     {
         <AppNativeButton Type="button" Class="video-bookmark-pane__find" OnClick="@(() => _finding = true)">@L["VideoBookmarkPane_Find"]</AppNativeButton>
     }
+    <p class="video-bookmark-pane__hint">@L["VideoBookmarkPane_Hint"]</p>
 }
 </div>
 
@@ -105,6 +128,8 @@ else
     /// <summary>The remembered filter: All, Mine, Global or Everyones.</summary>
     [Parameter] public string Filter { get; set; } = PlaybackPreferenceValues.All;
     [Parameter] public EventCallback<string> FilterChanged { get; set; }
+    /// <summary>Closes the whole panel (the header's close button; not drawn when no handler is set).</summary>
+    [Parameter] public EventCallback OnClose { get; set; }
     [Parameter] public bool ShowOnBar { get; set; }
     [Parameter] public EventCallback<bool> ShowOnBarChanged { get; set; }
     /// <summary>Saves a personal bookmark at the time with an optional note; true when it was saved.</summary>
@@ -123,7 +148,7 @@ else
     [Parameter] public bool AllowFind { get; set; }
     [Parameter] public RenderFragment<EventCallback>? FindView { get; set; }
 
-    private string? _note, _editLabel, _editNote, _editDescription;
+    private string? _note, _editLabel, _editNote, _editDescription, _search;
     private bool _saving, _failed;
     private Guid? _confirmId, _editId, _glowId;
     private bool _finding;
@@ -137,27 +162,49 @@ else
     /// <summary>The filter only appears when there is a choice to make: both kinds are present, or Everyone's is available.</summary>
     private bool ShowFilter => (HasMine && HasGlobal) || EveryonesAvailable;
 
+    // Unified player D9a: Mine and Global tabs (and Everyone's for an administrator); the old "All" view is gone. A title with only Global
+    // bookmarks opens on Global.
     private string EffectiveFilter => Filter switch
     {
-        PlaybackPreferenceValues.Mine when HasMine || !HasGlobal => PlaybackPreferenceValues.Mine,
         PlaybackPreferenceValues.Global when HasGlobal => PlaybackPreferenceValues.Global,
         PlaybackPreferenceValues.Everyones when EveryonesAvailable => PlaybackPreferenceValues.Everyones,
-        _ => PlaybackPreferenceValues.All,
+        _ when !HasMine && HasGlobal => PlaybackPreferenceValues.Global,
+        _ => PlaybackPreferenceValues.Mine,
     };
 
-    private IReadOnlyList<AppSelectOption> FilterOptions => EveryonesAvailable
-        ? [new(PlaybackPreferenceValues.All, L["VideoBookmarkPane_All"].Value), new(PlaybackPreferenceValues.Mine, L["VideoBookmarkPane_Mine"].Value),
-           new(PlaybackPreferenceValues.Global, L["VideoBookmarkPane_Global"].Value), new(PlaybackPreferenceValues.Everyones, L["VideoBookmarkPane_Everyones"].Value)]
-        : [new(PlaybackPreferenceValues.All, L["VideoBookmarkPane_All"].Value), new(PlaybackPreferenceValues.Mine, L["VideoBookmarkPane_Mine"].Value),
-           new(PlaybackPreferenceValues.Global, L["VideoBookmarkPane_Global"].Value)];
+    private int TotalCount => Bookmarks.Count;
 
-    private IReadOnlyList<PlaybackRailBookmark> Rows() => EffectiveFilter switch
+    private IReadOnlyList<AppSelectOption> Tabs
     {
-        PlaybackPreferenceValues.Mine => Bookmarks.Where(bookmark => !bookmark.IsGlobal).ToList(),
-        PlaybackPreferenceValues.Global => Bookmarks.Where(bookmark => bookmark.IsGlobal).ToList(),
-        PlaybackPreferenceValues.Everyones => Everyones.OrderBy(bookmark => bookmark.Seconds).ToList(),
-        _ => Bookmarks,
-    };
+        get
+        {
+            var tabs = new List<AppSelectOption>
+            {
+                new(PlaybackPreferenceValues.Mine, $"{L["VideoBookmarkPane_Mine"].Value} ({Bookmarks.Count(bookmark => !bookmark.IsGlobal)})"),
+                new(PlaybackPreferenceValues.Global, $"{L["VideoBookmarkPane_Global"].Value} ({Bookmarks.Count(bookmark => bookmark.IsGlobal)})"),
+            };
+            if (EveryonesAvailable) tabs.Add(new(PlaybackPreferenceValues.Everyones, L["VideoBookmarkPane_Everyones"].Value));
+            return tabs;
+        }
+    }
+
+    private IReadOnlyList<PlaybackRailBookmark> Rows()
+    {
+        IEnumerable<PlaybackRailBookmark> rows = EffectiveFilter switch
+        {
+            PlaybackPreferenceValues.Global => Bookmarks.Where(bookmark => bookmark.IsGlobal),
+            PlaybackPreferenceValues.Everyones => Everyones.OrderBy(bookmark => bookmark.Seconds),
+            _ => Bookmarks.Where(bookmark => !bookmark.IsGlobal),
+        };
+        if (!string.IsNullOrWhiteSpace(_search))
+        {
+            var term = _search.Trim();
+            rows = rows.Where(bookmark => (bookmark.DisplayName?.Contains(term, StringComparison.OrdinalIgnoreCase) ?? false)
+                || PlaybackSeekRail.Time(bookmark.Seconds).Contains(term, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return rows.ToList();
+    }
 
     private string Owner(PlaybackRailBookmark bookmark) =>
         bookmark.IsGlobal ? L["VideoBookmarkPane_Global"].Value
