@@ -13,13 +13,18 @@
             <div class="playback-desktop__left">
                 <div class="playback-desktop__stack">
                 <div class="playback-desktop__art">
-                    @if (PlaybackArtworkUrl.ForItem(item) is not null)
+                    @* The picture is never an empty hole (unified player D7a): a tile with the media icon stands in until the image has loaded,
+                       and a failed load is tried once more a moment later. *@
+                    @if (!_artLoaded)
+                    {
+                        <span class="playback-desktop__art-placeholder" aria-hidden="true"><AppMaterialIcon Icon="@(IsBook ? AppMaterialIcons.Outlined.MenuBook : AppMaterialIcons.Outlined.MusicNote)" /></span>
+                    }
+                    @if (PlaybackArtworkUrl.ForItem(item) is { } artworkUrl)
                     {
                         @* Drawn up to 520px (medium copy) *@
-                        <img src="@PlaybackArtworkUrl.ForItem(item)"
+                        <img @key="@($"{item.WorkId}:{_artAttempt}")" src="@PlaybackArtworkUrl.ForItemRetry(item, _artAttempt)" @onload="HandleArtLoaded" @onerror="HandleArtErrorAsync"
                              data-image-display="desktop-now-playing-artwork" alt="" decoding="async" />
                     }
-                    else { <AppMaterialIcon Icon="@(IsBook ? AppMaterialIcons.Outlined.MenuBook : AppMaterialIcons.Outlined.MusicNote)" /> }
                 </div>
                 <PlaybackQualityBadge Item="@item" BrowserStreamUrl="@Snapshot.CurrentBrowserStreamUrl" />
                 <div class="playback-desktop__identity">
@@ -82,6 +87,32 @@
     [Parameter] public EventCallback OnCollapse { get; set; }
     [Parameter] public RenderFragment? ActionsContent { get; set; }
     [Parameter] public string? OverallProgress { get; set; }
+    private Guid _artItemKey;
+    private bool _artLoaded;
+    private int _artAttempt;
+
+    protected override void OnParametersSet()
+    {
+        var key = Current?.WorkId ?? Guid.Empty;
+        if (key == _artItemKey) return;
+        _artItemKey = key;
+        _artLoaded = false;
+        _artAttempt = 0;
+    }
+
+
+    private void HandleArtLoaded() => _artLoaded = true;
+
+    private async Task HandleArtErrorAsync()
+    {
+        if (_artAttempt >= 2) return;
+        var key = _artItemKey;
+        await Task.Delay(TimeSpan.FromMilliseconds(1200));
+        if (key != _artItemKey) return;
+        _artAttempt++;
+        await InvokeAsync(StateHasChanged);
+    }
+
     private ListenQueueItem? Current => Snapshot.CurrentIndex >= 0 && Snapshot.CurrentIndex < Snapshot.Queue.Count ? Snapshot.Queue[Snapshot.CurrentIndex] : null;
     // Unified player D7: the details line for an audiobook names the chapter, "Chapter 4 of 21 · chapter title".
     private AudiobookChapterWindow? ChapterNow => IsBook && Current is { } now

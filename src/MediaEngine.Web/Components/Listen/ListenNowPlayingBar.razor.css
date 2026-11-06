@@ -52,6 +52,14 @@
 
 .listen-player-shell ::deep .media-rate-control { --media-rate-trigger-size:44px; color:var(--playback-text); }
 .listen-player-shell ::deep .media-rate-control .hero-icon-circle:hover { color:var(--playback-accent-hover); }
-.listen-player__scope { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:2px 4px 0; font-size:var(--tl-font-size-sm); color:var(--playback-muted,#9EA4BC); }
+/* Audiobook bar (unified player D5): the chapter line and the Chapter | Book switch sit in their own strip above the rail, taken out of the grid
+   so they cannot push Play and the tools into an extra row below the window. The dock is taller by that strip; the Dashboard measures it
+   (--tl-audio-dock-height) so pages and the Now Playing scene stay clear of it. */
+.listen-player__scope { position:absolute; top:6px; left:16px; right:16px; z-index:1; display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:28px; font-size:var(--tl-font-size-sm); color:var(--playback-muted,#9EA4BC); pointer-events:none; }
+.listen-player__scope-switch { pointer-events:auto; }
+.listen-player__scope-label { min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.listen-player-shell ::deep .listen-player--audiobook { height:calc(132px + var(--tl-safe-area-bottom)); min-height:calc(132px + var(--tl-safe-area-bottom)); padding-top:60px; }
+.listen-player-shell ::deep .listen-player--audiobook .playback-seek-rail--dock { top:34px; }
+@media (max-width:720px) { .listen-player__scope { display:none; } .listen-player-shell ::deep .listen-player--audiobook { height:calc(88px + var(--tl-safe-area-bottom)); min-height:calc(88px + var(--tl-safe-area-bottom)); padding-top:32px; } .listen-player-shell ::deep .listen-player--audiobook .playback-seek-rail--dock { top:0; } }
 .listen-player__scope-label small { font-size:inherit; opacity:.85; }
 .listen-player__scope-switch { display:inline-flex; gap:2px; padding:2px; border-radius:var(--tl-radius-sm,6px); background:#30364A; }

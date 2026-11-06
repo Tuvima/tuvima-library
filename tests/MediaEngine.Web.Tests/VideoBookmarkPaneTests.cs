@@ -27,7 +27,7 @@ public sealed class VideoBookmarkPaneTests : AsyncBunitContext
         var cut = Render<VideoBookmarkPane>(parameters => parameters
             .Add(component => component.Position, 822d)
             .Add(component => component.Add, (Func<double, string?, Task<bool>>)((seconds, note) => { saved = (seconds, note); return Task.FromResult(true); })));
-        Assert.Contains("Add bookmark here · 13:42", cut.Markup);
+        Assert.Contains("+ Bookmark at 13:42", cut.Markup);
 
         cut.Find("input.video-bookmark-pane__note").Change("The reveal");
         await cut.Find("button.video-bookmark-pane__add").ClickAsync();
@@ -69,10 +69,10 @@ public sealed class VideoBookmarkPaneTests : AsyncBunitContext
             .Add(component => component.Bookmarks, both)
             .Add(component => component.Filter, PlaybackPreferenceValues.Global));
 
-        Assert.Equal(["All", "Mine", "Global"], cut.FindAll(".video-bookmark-pane__filter button").Select(button => button.TextContent.Trim()).ToArray());
+        Assert.Equal(["Mine (1)", "Global (1)"], cut.FindAll(".video-bookmark-pane__filter button").Select(button => button.TextContent.Trim()).ToArray());
         var row = Assert.Single(cut.FindAll("li.video-bookmark-pane__row"));
         Assert.Contains("Famous scene", row.TextContent);
-        Assert.Contains("is-global", row.QuerySelector(".video-bookmark-pane__dot")!.ClassName);
+        Assert.Contains("is-global", row.QuerySelector(".video-bookmark-pane__time")!.ClassName);
     }
 
     [Fact]
@@ -83,7 +83,7 @@ public sealed class VideoBookmarkPaneTests : AsyncBunitContext
             .Add(component => component.Bookmarks, new[] { Mark(10), Mark(20, global: true) })
             .Add(component => component.FilterChanged, EventCallback.Factory.Create<string>(this, value => chosen = value)));
 
-        await cut.FindAll(".video-bookmark-pane__filter button").First(button => button.TextContent.Trim() == "Mine").ClickAsync();
+        await cut.FindAll(".video-bookmark-pane__filter button").First(button => button.TextContent.Trim().StartsWith("Mine", StringComparison.Ordinal)).ClickAsync();
 
         Assert.Equal(PlaybackPreferenceValues.Mine, chosen);
     }
@@ -91,19 +91,56 @@ public sealed class VideoBookmarkPaneTests : AsyncBunitContext
     [Fact]
     public void TheList_ShowsOwners_AndOnlyPermittedDeletes()
     {
-        var cut = Render<VideoBookmarkPane>(parameters => parameters
+        var marks = new[] { Mark(100, "Mine one"), Mark(750, "For all", global: true) };
+        var mine = Render<VideoBookmarkPane>(parameters => parameters
             .Add(component => component.Current, 740d)
-            .Add(component => component.Bookmarks, new[] { Mark(100, "Mine one"), Mark(750, "For all", global: true) })
+            .Add(component => component.Filter, PlaybackPreferenceValues.Mine)
+            .Add(component => component.Bookmarks, marks)
             .Add(component => component.Delete, (Func<PlaybackRailBookmark, Task<bool>>)(_ => Task.FromResult(true))));
+        var mineRow = Assert.Single(mine.FindAll("li.video-bookmark-pane__row"));
+        Assert.Contains("Mine", mineRow.TextContent);
+        Assert.Contains("Delete", mineRow.TextContent);
 
-        var rows = cut.FindAll("li.video-bookmark-pane__row");
-        Assert.Equal(2, rows.Count);
-        Assert.Contains("Mine", rows[0].TextContent);
-        Assert.Contains("Global", rows[1].TextContent);
-        Assert.Contains("is-near", rows[1].ClassName);
-        Assert.Contains("Delete", rows[0].TextContent);
-        Assert.DoesNotContain("Delete", rows[1].TextContent); // Global bookmarks are read-only for everyone but an administrator.
-        Assert.DoesNotContain("Edit", rows[1].TextContent);
+        var global = Render<VideoBookmarkPane>(parameters => parameters
+            .Add(component => component.Current, 740d)
+            .Add(component => component.Filter, PlaybackPreferenceValues.Global)
+            .Add(component => component.Bookmarks, marks)
+            .Add(component => component.Delete, (Func<PlaybackRailBookmark, Task<bool>>)(_ => Task.FromResult(true))));
+        var globalRow = Assert.Single(global.FindAll("li.video-bookmark-pane__row"));
+        Assert.Contains("Global", globalRow.TextContent);
+        Assert.Contains("is-near", globalRow.ClassName);
+        Assert.DoesNotContain("Delete", globalRow.TextContent); // Global bookmarks are read-only for everyone but an administrator.
+        Assert.DoesNotContain("Edit", globalRow.TextContent);
+    }
+
+    [Fact]
+    public void ThePane_HasAHeaderWithTheCount_TheTimelineSwitch_TheSearch_AndTheFooterLine()
+    {
+        var cut = Render<VideoBookmarkPane>(parameters => parameters
+            .Add(component => component.Bookmarks, new[] { Mark(10, label: "Opening aerial shot"), Mark(300, label: "Return to this explanation") }));
+
+        Assert.Equal("2", cut.Find(".video-bookmark-pane__count").TextContent.Trim());
+        Assert.Contains("Show on timeline", cut.Markup);
+        Assert.NotEmpty(cut.FindAll("input.video-bookmark-pane__search"));
+        Assert.Contains("Select a time to jump to that moment.", cut.Find(".video-bookmark-pane__hint").TextContent);
+        Assert.Equal(2, cut.FindAll("li.video-bookmark-pane__row").Count);
+
+        cut.Find("input.video-bookmark-pane__search").Change("aerial");
+
+        var row = Assert.Single(cut.FindAll("li.video-bookmark-pane__row"));
+        Assert.Contains("Opening aerial shot", row.TextContent);
+    }
+
+    [Fact]
+    public async Task TheCloseButton_ClosesThePanel_WhenTheHostGivesAHandler()
+    {
+        var closed = false;
+        var cut = Render<VideoBookmarkPane>(parameters => parameters
+            .Add(component => component.OnClose, EventCallback.Factory.Create(this, () => closed = true)));
+
+        await cut.Find("button.video-bookmark-pane__close").ClickAsync();
+
+        Assert.True(closed);
     }
 
     [Fact]
@@ -205,7 +242,7 @@ public sealed class VideoBookmarkPaneTests : AsyncBunitContext
                 builder.CloseElement();
             })));
 
-        Assert.Contains("Show bookmarks on the bar", cut.Markup);
+        Assert.Contains("Show on timeline", cut.Markup);
         await cut.Find("input[role=switch]").ChangeAsync(true);
         Assert.True(shown);
 

@@ -7,7 +7,9 @@
 .playback-desktop__stack { width:min(100%,520px); height:100%; min-height:0; display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:4px; }
 .playback-desktop--book .playback-desktop__stack { width:min(100%,340px); }
 .playback-desktop__art { min-height:0; flex:1 1 0; display:flex; align-items:center; justify-content:flex-start; max-height:520px; width:100%; }
-.playback-desktop__art img { display:block; width:auto; height:auto; max-height:100%; max-width:100%; object-fit:contain; object-position:left center; box-shadow:0 24px 70px #0006; border-radius:8px; }
+.playback-desktop__art { position:relative; }
+.playback-desktop__art-placeholder { position:absolute; left:0; top:50%; transform:translateY(-50%); width:min(100%,max-content); aspect-ratio:1; height:min(100%,320px); display:grid; place-items:center; border-radius:8px; background:linear-gradient(135deg,#8b5cf6,#38bdf8); color:#fff; font-size:96px; box-shadow:0 24px 70px #0006; }
+.playback-desktop__art img { position:relative; z-index:1; display:block; width:auto; height:auto; max-height:100%; max-width:100%; object-fit:contain; object-position:left center; box-shadow:0 24px 70px #0006; border-radius:8px; }
 .playback-desktop__identity { width:100%; flex:0 0 auto; min-width:0; text-align:left; }
 .playback-desktop__title { display:flex; align-items:center; gap:12px; }
 .playback-desktop__title h1 { margin:0; font-size:clamp(40px,2.5vw,44px); line-height:1.15; overflow-wrap:anywhere; }

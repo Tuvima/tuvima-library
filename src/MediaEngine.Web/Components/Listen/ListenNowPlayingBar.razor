@@ -800,6 +800,7 @@
         _ = InvokeAsync(async () =>
         {
             ObserveLyricsPresentation();
+            await StepAsideForNewAudiobookAsync();
             var playbackRequestVersion = Playback.PlaybackRequestVersion;
             if ((_rateMenuOpen || _sleepMenuOpen) && _transientPlaybackRequestVersion != playbackRequestVersion)
             {
@@ -1687,10 +1688,36 @@
         if (Current()) await LoadFavoriteAsync();
     }
 
+    // Unified player D6: an audiobook started from a details window must not stay under it. The window is a modal dialog, so it would hide the
+    // bar and block the player; step it aside, show Now Playing, and open the same details page again when the person closes Now Playing.
+    // Optional: a host rendered without the details overlay (some tests, the pop-out window) simply never steps one aside.
+    private DetailsOverlayState? DetailsOverlay => Services.GetService<DetailsOverlayState>();
+    private long _lastAudiobookRequestVersion = -1;
+    private string? _returnToDetailsUri;
+
+    private async Task StepAsideForNewAudiobookAsync()
+    {
+        var version = Playback.PlaybackRequestVersion;
+        if (!Playback.IsAudiobookMode || Playback.IsVideoMode || version == _lastAudiobookRequestVersion) return;
+        _lastAudiobookRequestVersion = version;
+        if (DetailsOverlay is not { IsOpen: true } overlay || overlay.Current.OverlayUri is not { } detailsUri) return;
+        if (!await overlay.DismissAsync()) return;
+        _returnToDetailsUri = detailsUri;
+        Playback.SetPresentationSurface(PlaybackPresentationSurface.NowPlaying);
+    }
+
+    private void ReturnToDetailsAfterNowPlaying()
+    {
+        if (_returnToDetailsUri is not { } uri) return;
+        _returnToDetailsUri = null;
+        if (DetailsOverlay is { IsOpen: false }) Nav.NavigateTo(Nav.ToAbsoluteUri(uri).ToString());
+    }
+
     private async Task CloseNowPlaying()
     {
         Tools?.Close(); CloseRateMenu(); CloseSleepMenu();
         Playback.SetPresentationSurface(PlaybackPresentationSurface.Docked);
+        ReturnToDetailsAfterNowPlaying();
         if (_artButton is not null) await _artButton.Element.FocusAsync();
     }
 
