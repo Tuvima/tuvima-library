@@ -19,11 +19,6 @@
     var pending = Flow.Session.Pending.Changes.GroupBy(change => change.EntityId).ToDictionary(group => group.Key, group => group.Count());
     var busy = State.Loading || Flow.Switching;
     <nav class="tl-urail" aria-label="@L["EditorUniverse_Universe"].Value" aria-busy="@(busy ? "true" : null)">
-        @if (_open is not null)
-        {
-            @* A click anywhere else closes the open list. *@
-            <div class="tl-urail__scrim" @onclick="CloseAll"></div>
-        }
         <div class="tl-urail__level">
             <AppButton ButtonStyle="AppButtonStyle.Text"
                        Class="@(onUniverse ? "tl-urail__crumb is-current" : "tl-urail__crumb")"
@@ -101,87 +96,90 @@
     private RenderFragment RenderPanel(EditorUniverseKindDto kind, UniverseKindList list, IReadOnlyList<(string Name, string Description)> staged, Guid activeId, Dictionary<Guid, int> pending) => __builder =>
     {
         var searchable = kind.Count > 6 || list.HasMore || !string.IsNullOrWhiteSpace(list.Search);
-        <div class="tl-urail__panel tl-popover-open" role="listbox" aria-label="@kind.Label" @onkeydown="OnKeyDown">
-            <AppButton ButtonStyle="AppButtonStyle.Text"
-                       Tone="AppUiTone.Primary"
-                       Size="AppControlSize.Compact"
-                       StartIcon="@AppMaterialIcons.Outlined.Add"
-                       Class="tl-urail__add"
-                       Disabled="@(Flow is null || Flow.Saving || Flow.Switching)"
-                       OnClick="() => AddAsync(kind, list, staged)">@($"Add {kind.Singular.ToLowerInvariant()}")</AppButton>
-            @if (searchable)
-            {
-                <div class="tl-urail__search">
-                    <AppSearchField Value="@list.Search"
-                                    ValueChanged="value => State.OpenListAsync(kind.Key, value)"
-                                    Placeholder="@($"Find {kind.Singular.ToLowerInvariant()}")"
-                                    Label="@($"Find {kind.Singular.ToLowerInvariant()}")"
-                                    HideLabel="true"
-                                    Size="AppControlSize.Compact"
-                                    DebounceInterval="150" />
-                </div>
-            }
-            <ul class="tl-urail__options">
-                @foreach (var (name, _) in staged)
+        @* Drawn through the shared popover so it sits in the top layer above the editor window; a click anywhere else or Escape closes it. *@
+        <AppPopover Open="true" OpenChanged="@(open => PopoverChanged(open, kind.Key))" Class="tl-urail__surface">
+            <div class="tl-urail__panel" role="listbox" aria-label="@kind.Label" @onkeydown="OnKeyDown">
+                <AppButton ButtonStyle="AppButtonStyle.Text"
+                           Tone="AppUiTone.Primary"
+                           Size="AppControlSize.Compact"
+                           StartIcon="@AppMaterialIcons.Outlined.Add"
+                           Class="tl-urail__add"
+                           Disabled="@(Flow is null || Flow.Saving || Flow.Switching)"
+                           OnClick="() => AddAsync(kind, list, staged)">@($"Add {kind.Singular.ToLowerInvariant()}")</AppButton>
+                @if (searchable)
                 {
-                    <li>
-                        <span class="tl-urail__option is-staged">
-                            <span class="tl-urail__text"><span>@name</span><small>New. Added when you save.</small></span>
-                        </span>
-                    </li>
+                    <div class="tl-urail__search">
+                        <AppSearchField Value="@list.Search"
+                                        ValueChanged="value => State.OpenListAsync(kind.Key, value)"
+                                        Placeholder="@($"Find {kind.Singular.ToLowerInvariant()}")"
+                                        Label="@($"Find {kind.Singular.ToLowerInvariant()}")"
+                                        HideLabel="true"
+                                        Size="AppControlSize.Compact"
+                                        DebounceInterval="150" />
+                    </div>
                 }
-                @foreach (var thing in list.Items)
-                {
-                    var selected = thing.Id == activeId;
-                    var waiting = pending.GetValueOrDefault(thing.Id);
-                    <li @key="@($"thing{thing.Id:N}")">
-                        <AppButton ButtonStyle="AppButtonStyle.Text"
-                                   role="option"
-                                   Class="@(selected ? "tl-urail__option is-selected" : "tl-urail__option")"
-                                   aria-selected="@(selected ? "true" : "false")"
-                                   OnClick="() => PickThingAsync(thing)">
-                            <span class="tl-urail__thumb" aria-hidden="true">
-                                @if (!string.IsNullOrWhiteSpace(thing.PictureUrl))
-                                {
-                                    <AppImage Src="@thing.PictureUrl" Alt="" Width="32" Height="32" ObjectFit="AppObjectFit.Cover" Class="tl-urail__img" />
-                                }
+                <ul class="tl-urail__options">
+                    @foreach (var (name, _) in staged)
+                    {
+                        <li>
+                            <span class="tl-urail__option is-staged">
+                                <span class="tl-urail__text"><span>@name</span><small>New. Added when you save.</small></span>
                             </span>
-                            <span class="tl-urail__text">
-                                <span>@thing.Label</span>
-                                @if (thing.Hidden)
+                        </li>
+                    }
+                    @foreach (var thing in list.Items)
+                    {
+                        var selected = thing.Id == activeId;
+                        var waiting = pending.GetValueOrDefault(thing.Id);
+                        <li @key="@($"thing{thing.Id:N}")">
+                            <AppButton ButtonStyle="AppButtonStyle.Text"
+                                       role="option"
+                                       Class="@(selected ? "tl-urail__option is-selected" : "tl-urail__option")"
+                                       aria-selected="@(selected ? "true" : "false")"
+                                       OnClick="() => PickThingAsync(thing)">
+                                <span class="tl-urail__thumb" aria-hidden="true">
+                                    @if (!string.IsNullOrWhiteSpace(thing.PictureUrl))
+                                    {
+                                        <AppImage Src="@thing.PictureUrl" Alt="" Width="32" Height="32" ObjectFit="AppObjectFit.Cover" Class="tl-urail__img" />
+                                    }
+                                </span>
+                                <span class="tl-urail__text">
+                                    <span>@thing.Label</span>
+                                    @if (thing.Hidden)
+                                    {
+                                        <small>Hidden</small>
+                                    }
+                                    else if (thing.AddedByUser)
+                                    {
+                                        <small>Added by you</small>
+                                    }
+                                </span>
+                                @if (waiting > 0)
                                 {
-                                    <small>Hidden</small>
+                                    <span class="tl-urail__waiting">@(waiting == 1 ? "1 change" : $"{waiting} changes")</span>
                                 }
-                                else if (thing.AddedByUser)
-                                {
-                                    <small>Added by you</small>
-                                }
-                            </span>
-                            @if (waiting > 0)
-                            {
-                                <span class="tl-urail__waiting">@(waiting == 1 ? "1 change" : $"{waiting} changes")</span>
-                            }
-                        </AppButton>
-                    </li>
-                }
-                @if (list.Loading)
-                {
-                    <li class="tl-urail__note"><AppSkeleton Height="1.5rem" Width="70%" /></li>
-                }
-                else if (list.Items.Count == 0 && staged.Count == 0)
-                {
-                    <li class="tl-urail__note">@(string.IsNullOrWhiteSpace(list.Search) ? $"No {kind.Label.ToLowerInvariant()} yet." : "Nothing matches.")</li>
-                }
+                            </AppButton>
+                        </li>
+                    }
+                    @if (list.Loading)
+                    {
+                        <li class="tl-urail__note"><AppSkeleton Height="1.5rem" Width="70%" /></li>
+                    }
+                    else if (list.Items.Count == 0 && staged.Count == 0)
+                    {
+                        <li class="tl-urail__note">@(string.IsNullOrWhiteSpace(list.Search) ? $"No {kind.Label.ToLowerInvariant()} yet." : "Nothing matches.")</li>
+                    }
 
-                @if (list.HasMore && !list.Loading)
-                {
-                    <li class="tl-urail__more" role="none">
-                        <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
-                                   OnClick="() => State.LoadMoreAsync(kind.Key)">@($"Show more ({Math.Max(0, list.Total - list.Items.Count)} left)")</AppButton>
-                    </li>
-                }
-            </ul>
-        </div>
+                    @if (list.HasMore && !list.Loading)
+                    {
+                        <li class="tl-urail__more" role="none">
+                            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
+                                       OnClick="() => State.LoadMoreAsync(kind.Key)">@($"Show more ({Math.Max(0, list.Total - list.Items.Count)} left)")</AppButton>
+                        </li>
+                    }
+                </ul>
+            </div>
+        </AppPopover>
     };
 
     protected override void OnParametersSet()
@@ -223,6 +221,15 @@
     }
 
     private void CloseAll() => _open = null;
+
+    // The shared popover reports an outside click or Escape; only the list that is still open closes.
+    private void PopoverChanged(bool open, string key)
+    {
+        if (!open && _open == key)
+        {
+            CloseAll();
+        }
+    }
 
     // Escape closes the open list; the pop-over itself stays open.
     private void OnKeyDown(KeyboardEventArgs args)

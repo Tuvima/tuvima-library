@@ -62,22 +62,9 @@
     font-size: var(--tl-font-size-sm);
 }
 
+/* The surface itself (position, width, background, border) is drawn by AppPopover in the top layer; its styles are global in app.css. */
 .top-nav-account-menu__panel {
-    position: absolute;
-    z-index: var(--tl-z-popover, 1600);
-    top: calc(100% + 0.75rem);
-    right: 0;
-    width: min(var(--tl-menu-width), calc(100vw - 1rem));
-    padding: 0.55rem;
-    overflow: hidden;
-    border: 1px solid rgba(150, 164, 192, 0.16);
-    border-radius: var(--tl-radius-lg, 12px);
     color: var(--tl-text-primary, #e5edf5);
-    background:
-        radial-gradient(circle at 100% 0, rgba(124, 77, 255, 0.12), transparent 42%),
-        rgba(12, 17, 28, 0.98);
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.52), 0 0 0 1px rgba(0, 0, 0, 0.18);
-    backdrop-filter: blur(20px) saturate(125%);
     font-family: var(--font-ui);
     font-size: var(--tl-font-size-md);
 }
@@ -233,12 +220,6 @@
 
     .top-nav-account-menu__trigger-copy {
         display: none;
-    }
-
-    .top-nav-account-menu__panel {
-        right: max(-0.25rem, calc(-1 * var(--tl-safe-area-right, 0px)));
-        max-height: calc(100dvh - var(--app-topbar-height, 65px) - var(--tl-bottom-dock-height, 0px) - 1rem);
-        overflow-y: auto;
     }
 }
 

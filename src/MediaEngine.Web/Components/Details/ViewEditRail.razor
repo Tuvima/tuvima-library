@@ -10,10 +10,6 @@
 @if (Session.Rail is { } rail)
 {
     <nav class="tl-rail" aria-label="@L["EditorRail_Label"]">
-        @if (_open)
-        {
-            <div class="tl-rail__scrim" @onclick="Close"></div>
-        }
         <div class="tl-rail__level">
             <AppButton ButtonStyle="AppButtonStyle.Text" Class="tl-rail__crumb" aria-current="false" data-level="gallery" OnClick="@(() => { })" Disabled="true">
                 <span class="tl-rail__thumb" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.PhotoAlbum" Size="AppSize.Small" /></span>
@@ -45,25 +41,28 @@
             </AppButton>
             @if (_open)
             {
-                <div class="tl-rail__panel tl-popover-open" role="listbox" aria-label="@rail.GalleryName">
-                    <ul class="tl-rail__options">
-                        @foreach (var member in rail.Members)
-                        {
-                            var selected = Session.Active.Items.Count == 1 && Session.Active.Items[0].Id == member.Id;
-                            <li @key="member.Id">
-                                <AppButton ButtonStyle="AppButtonStyle.Text" role="option" aria-selected="@(selected ? "true" : "false")" Class="tl-rail__option"
-                                           OnClick="@(() => PickAsync(member))">
-                                    <span class="tl-rail__thumb" aria-hidden="true"><AppImage Src="@member.ThumbnailUrl" Alt="" Width="32" Height="32" ObjectFit="AppObjectFit.Cover" Class="tl-rail__img" /></span>
-                                    <span class="tl-rail__text"><span>@ViewEditStage.DisplayTitle(member)</span></span>
-                                    @if (selected)
-                                    {
-                                        <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" Size="AppSize.Small" />
-                                    }
-                                </AppButton>
-                            </li>
-                        }
-                    </ul>
-                </div>
+                @* Drawn through the shared popover so it sits in the top layer above the editor window. *@
+                <AppPopover Open="true" OpenChanged="PopoverChanged" Class="tl-rail__surface">
+                    <div class="tl-rail__panel" role="listbox" aria-label="@rail.GalleryName">
+                        <ul class="tl-rail__options">
+                            @foreach (var member in rail.Members)
+                            {
+                                var selected = Session.Active.Items.Count == 1 && Session.Active.Items[0].Id == member.Id;
+                                <li @key="member.Id">
+                                    <AppButton ButtonStyle="AppButtonStyle.Text" role="option" aria-selected="@(selected ? "true" : "false")" Class="tl-rail__option"
+                                               OnClick="@(() => PickAsync(member))">
+                                        <span class="tl-rail__thumb" aria-hidden="true"><AppImage Src="@member.ThumbnailUrl" Alt="" Width="32" Height="32" ObjectFit="AppObjectFit.Cover" Class="tl-rail__img" /></span>
+                                        <span class="tl-rail__text"><span>@ViewEditStage.DisplayTitle(member)</span></span>
+                                        @if (selected)
+                                        {
+                                            <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" Size="AppSize.Small" />
+                                        }
+                                    </AppButton>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                </AppPopover>
             }
         </div>
     </nav>
@@ -85,6 +84,15 @@
     private void Toggle() => _open = !_open;
 
     private void Close() => _open = false;
+
+    // The shared popover reports an outside click or Escape.
+    private void PopoverChanged(bool open)
+    {
+        if (!open)
+        {
+            Close();
+        }
+    }
 
     private async Task PickAsync(LocalAssetDto member)
     {

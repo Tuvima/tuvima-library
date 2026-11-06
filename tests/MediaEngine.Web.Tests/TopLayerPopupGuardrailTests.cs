@@ -12,14 +12,8 @@ public sealed class TopLayerPopupGuardrailTests
 
     private static readonly IReadOnlyDictionary<string, string> LegacyOwnPanels = new Dictionary<string, string>(StringComparer.Ordinal)
     {
-        ["Components/Collections/CollectionRuleValuePicker.razor"] = "Collection rule picker inside the collection editor.",
-        ["Components/Details/EditorFamilyRail.razor"] = "Editor rail drop-down inside the editor window.",
-        ["Components/Details/EditorUniverseRail.razor"] = "Editor rail drop-down inside the editor window.",
         ["Components/Details/ManageActionsMenu.razor"] = "Details actions menu.",
-        ["Components/Details/ViewEditRail.razor"] = "Editor rail drop-down inside the editor window.",
         ["Components/Listen/SongActions.razor"] = "Song actions in the player.",
-        ["Components/MediaEditor/MediaEditorTagEditor.razor"] = "Tag editor suggestions.",
-        ["Components/Navigation/TopNavAccountMenu.razor"] = "Account menu in the top bar.",
         ["Components/Shared/MediaRateControl.razor"] = "Rate control flyout.",
         ["Components/Shared/PlaybackPopover.razor"] = "The playback pop-over itself (player build).",
         ["Components/Shared/ServerFolderPicker.razor"] = "Server folder picker.",

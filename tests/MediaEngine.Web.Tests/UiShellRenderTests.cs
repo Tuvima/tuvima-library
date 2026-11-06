@@ -344,11 +344,15 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);", css);
         Assert.Contains("grid-column: 2;", css);
         Assert.Contains("font-family: var(--font-ui);", accountCss);
-        Assert.Contains("z-index: var(--tl-z-popover, 1600);", accountCss);
+        // The menu is drawn in the top layer by the shared popover; its surface rules are global.
+        var appCss = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "wwwroot", "app.css"));
+        Assert.Contains("<AppPopover", accountSource);
+        Assert.DoesNotContain("top: calc(100% + 0.75rem);", accountCss);
+        Assert.Contains(".tl-popover.top-nav-account-menu__surface", appCss);
         Assert.Contains(".top-nav-account-menu__panel ::deep .top-nav-account-menu__item", accountCss);
         Assert.Contains("display: flex;", accountCss);
         Assert.Contains("width: 100%;", accountCss);
-        Assert.Contains("border-radius: var(--tl-radius-lg, 12px);", accountCss);
+        Assert.Contains("border-radius: var(--tl-radius-lg, 12px) !important;", appCss);
     }
 
     [Fact]

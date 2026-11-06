@@ -1,6 +1,7 @@
 using Bunit;
 using MediaEngine.Contracts.Metadata;
 using MediaEngine.Web.Components.Details;
+using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
@@ -178,7 +179,8 @@ public sealed class EditorFamilyRailTests : AsyncBunitContext
         rail.WaitForAssertion(() => Assert.Empty(rail.FindAll(".tl-rail__panel")));
 
         Crumb(rail, "Season").Click();
-        rail.Find(".tl-rail__scrim").Click();
+        // A click anywhere else is heard by the shared popover, which reports it as a dismissal.
+        await rail.InvokeAsync(() => rail.FindComponent<AppPopover>().Instance.Dismiss());
         rail.WaitForAssertion(() => Assert.Empty(rail.FindAll(".tl-rail__panel")));
     }
 

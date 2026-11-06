@@ -5404,6 +5404,65 @@ dialog.app-native-dialog.tl-editor-dialog{width:100vw;max-width:none;height:100d
 .tl-detail-page .tl-detail-actions .hero-icon-circle { position: relative; }
 .tl-detail-page .tl-detail-actions .hero-icon-circle::after { content: attr(data-phone-label); position: absolute; top: calc(100% + 0.2rem); left: 50%; max-width: 5.5rem; overflow: hidden; transform: translateX(-50%); color: var(--tl-text-secondary); font-size: var(--tl-font-size-sm); line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; pointer-events: none; }
 
+/* Account menu surface (drawn in the top layer by AppPopover; global because the surface leaves the component's DOM). */
+.tl-popover.top-nav-account-menu__surface {
+    width: min(var(--tl-menu-width), calc(100vw - 1rem));
+    padding: 0.55rem;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border: 1px solid rgba(150, 164, 192, 0.16) !important;
+    border-radius: var(--tl-radius-lg, 12px) !important;
+    color: var(--tl-text-primary, #e5edf5) !important;
+    background:
+        radial-gradient(circle at 100% 0, rgba(124, 77, 255, 0.12), transparent 42%),
+        rgba(12, 17, 28, 0.98) !important;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.52), 0 0 0 1px rgba(0, 0, 0, 0.18) !important;
+    backdrop-filter: blur(20px) saturate(125%);
+    font-family: var(--font-ui);
+    font-size: var(--tl-font-size-md);
+}
+
+/* Editor rail drop-down lists (drawn in the top layer by AppPopover so the editor window cannot clip them; global because the surface leaves the component's DOM). */
+.tl-popover.tl-rail__surface,
+.tl-popover.tl-urail__surface {
+    box-sizing: border-box;
+    width: 21rem;
+    max-width: calc(100vw - 2rem);
+    padding: 0;
+    border: 1px solid var(--tl-border-default) !important;
+    border-radius: var(--tl-radius-md) !important;
+    color: var(--tl-text-primary) !important;
+    background: var(--tl-bg-surface-raised, var(--tl-bg-surface)) !important;
+    box-shadow: var(--tl-shadow-lg) !important;
+    font-family: var(--font-ui);
+}
+
+/* Collection rule value picker panel (drawn in the top layer by AppPopover; global because the surface leaves the component's DOM). */
+.tl-popover.collection-rule-value-picker__surface {
+    box-sizing: border-box;
+    width: min(520px, calc(100vw - 48px));
+    padding: 0;
+    border: 1px solid var(--tl-accent-primary-border) !important;
+    border-radius: var(--tl-radius-lg) !important;
+    color: var(--tl-text-primary) !important;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--tl-bg-surface-raised) 96%, #141b32), var(--tl-bg-surface)) !important;
+    box-shadow: var(--tl-shadow-lg) !important;
+    font-family: var(--font-ui);
+}
+
+/* Tag editor suggestions (drawn in the top layer by AppPopover; global because the surface leaves the component's DOM). */
+.tl-popover.sme-tag-editor__suggestions-surface {
+    box-sizing: border-box;
+    padding: 0;
+    border: 1px solid rgba(151, 170, 205, 0.2) !important;
+    border-radius: 0.5rem !important;
+    color: var(--tl-text-primary) !important;
+    background: rgb(10, 20, 36) !important;
+    box-shadow: 0 0.8rem 2rem rgba(0, 0, 0, 0.35) !important;
+    font-family: var(--font-ui);
+}
+
 /* tv form factor: 10-foot presentation for remote-driven televisions. Larger root type, 56px dock targets, 14px dock
    labels, a wider shelf gutter and a readable hero line length. Phone and desktop layouts are untouched. */
 html[data-form-factor="tv"] {

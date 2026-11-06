@@ -19,11 +19,6 @@
     var busy = Family.Loading || Flow.Switching;
     var hiddenCount = Math.Max(0, levels.Count - 2);
     <nav class="tl-rail" aria-label="@L["EditorRail_Label"]" aria-busy="@(busy ? "true" : null)">
-        @if (_open >= 0 || _foldOpen)
-        {
-            @* A click anywhere else closes the open list. *@
-            <div class="tl-rail__scrim" @onclick="CloseAll"></div>
-        }
         @if (levels.Count == 0)
         {
             @* The family is still being read: grey crumbs hold the place while the right side is already usable. *@
@@ -43,19 +38,22 @@
                     </AppButton>
                     @if (_foldOpen)
                     {
-                        <div class="tl-rail__panel tl-popover-open" role="listbox" aria-label="@L["EditorRail_EarlierLevels"]" @onkeydown="OnKeyDown">
-                            <ul class="tl-rail__options">
-                                @foreach (var level in levels.Take(hiddenCount))
-                                {
-                                    <li>
-                                        <AppButton ButtonStyle="AppButtonStyle.Text" role="option" aria-selected="false" Class="tl-rail__option"
-                                                         OnClick="() => PickAsync(level.CurrentId, true, true)">
-                                            <span class="tl-rail__text"><small>@level.Label</small><span>@level.CurrentTitle</span></span>
-                                        </AppButton>
-                                    </li>
-                                }
-                            </ul>
-                        </div>
+                        @* Drawn through the shared popover (top layer); a click anywhere else or Escape closes it. *@
+                        <AppPopover Open="true" OpenChanged="FoldPopoverChanged" Class="tl-rail__surface">
+                            <div class="tl-rail__panel" role="listbox" aria-label="@L["EditorRail_EarlierLevels"]" @onkeydown="OnKeyDown">
+                                <ul class="tl-rail__options">
+                                    @foreach (var level in levels.Take(hiddenCount))
+                                    {
+                                        <li>
+                                            <AppButton ButtonStyle="AppButtonStyle.Text" role="option" aria-selected="false" Class="tl-rail__option"
+                                                             OnClick="() => PickAsync(level.CurrentId, true, true)">
+                                                <span class="tl-rail__text"><small>@level.Label</small><span>@level.CurrentTitle</span></span>
+                                            </AppButton>
+                                        </li>
+                                    }
+                                </ul>
+                            </div>
+                        </AppPopover>
                     }
                 </div>
                 <span class="tl-rail__sep tl-rail__sep--fold" aria-hidden="true">&rsaquo;</span>
@@ -146,79 +144,81 @@
                 || (option.Number?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false))
             .ToList();
         var searchable = level.Options.Count > 6 || level.HasMore;
-        <div class="tl-rail__panel tl-popover-open" role="listbox" aria-label="@level.Label" @onkeydown="OnKeyDown">
-            @if (searchable)
-            {
-                <div class="tl-rail__search">
-                <AppSearchField Value="@_search"
-                                ValueChanged="OnSearchChanged"
-                                Placeholder="@($"Find {(level.Label is "Episode" ? "an" : "a")} {level.Label.ToLowerInvariant()}")"
-                                Label="@($"Find {level.Label.ToLowerInvariant()}")"
-                                HideLabel="true"
-                                Size="AppControlSize.Compact"
-                                DebounceInterval="150" />
-                </div>
-            }
-            <ul class="tl-rail__options">
-                @foreach (var option in options)
+        <AppPopover Open="true" OpenChanged="@(open => PopoverChanged(open, index))" Class="tl-rail__surface">
+            <div class="tl-rail__panel" role="listbox" aria-label="@level.Label" @onkeydown="OnKeyDown">
+                @if (searchable)
                 {
-                    var selected = option.EntityId == level.CurrentId;
-                    var waiting = pending.GetValueOrDefault(option.EntityId);
-                    <li @key="@($"option{option.EntityId:N}")">
-                        <AppButton ButtonStyle="AppButtonStyle.Text"
-                                id="@OptionId(option.EntityId)"
-                                role="option"
-                                Class="@(selected ? "tl-rail__option is-selected" : "tl-rail__option")"
-                                aria-selected="@(selected ? "true" : "false")"
-                                data-matched="@(option.Matched ? "true" : "false")"
-                                OnClick="() => PickAsync(option.EntityId, option.Matched, level.CurrentId != option.EntityId && Family.IsParentOf(option.EntityId))">
-                            <span class="tl-rail__thumb tl-rail__thumb--option" data-kind="@level.Label" aria-hidden="true">
-                                @if (!string.IsNullOrWhiteSpace(option.ImageUrl))
+                    <div class="tl-rail__search">
+                    <AppSearchField Value="@_search"
+                                    ValueChanged="OnSearchChanged"
+                                    Placeholder="@($"Find {(level.Label is "Episode" ? "an" : "a")} {level.Label.ToLowerInvariant()}")"
+                                    Label="@($"Find {level.Label.ToLowerInvariant()}")"
+                                    HideLabel="true"
+                                    Size="AppControlSize.Compact"
+                                    DebounceInterval="150" />
+                    </div>
+                }
+                <ul class="tl-rail__options">
+                    @foreach (var option in options)
+                    {
+                        var selected = option.EntityId == level.CurrentId;
+                        var waiting = pending.GetValueOrDefault(option.EntityId);
+                        <li @key="@($"option{option.EntityId:N}")">
+                            <AppButton ButtonStyle="AppButtonStyle.Text"
+                                    id="@OptionId(option.EntityId)"
+                                    role="option"
+                                    Class="@(selected ? "tl-rail__option is-selected" : "tl-rail__option")"
+                                    aria-selected="@(selected ? "true" : "false")"
+                                    data-matched="@(option.Matched ? "true" : "false")"
+                                    OnClick="() => PickAsync(option.EntityId, option.Matched, level.CurrentId != option.EntityId && Family.IsParentOf(option.EntityId))">
+                                <span class="tl-rail__thumb tl-rail__thumb--option" data-kind="@level.Label" aria-hidden="true">
+                                    @if (!string.IsNullOrWhiteSpace(option.ImageUrl))
+                                    {
+                                        <AppImage Src="@option.ImageUrl" Alt="" Width="52" Height="30" ObjectFit="AppObjectFit.Cover" Class="tl-rail__img" />
+                                    }
+                                </span>
+                                <span class="tl-rail__text">
+                                    <span>@(string.IsNullOrWhiteSpace(option.Number) ? option.Title : $"{option.Number} · {option.Title}")</span>
+                                    @if (!option.Matched)
+                                    {
+                                        <small title="@option.Reason">@L["EditorRail_NotMatched"]</small>
+                                    }
+                                </span>
+                                @if (waiting > 0)
                                 {
-                                    <AppImage Src="@option.ImageUrl" Alt="" Width="52" Height="30" ObjectFit="AppObjectFit.Cover" Class="tl-rail__img" />
+                                    <span class="tl-rail__waiting">@(waiting == 1 ? L["EditorRail_OneChange"].Value : string.Format(L["EditorRail_ManyChanges"].Value, waiting))</span>
                                 }
-                            </span>
-                            <span class="tl-rail__text">
-                                <span>@(string.IsNullOrWhiteSpace(option.Number) ? option.Title : $"{option.Number} · {option.Title}")</span>
-                                @if (!option.Matched)
+                                @if (option.Matched)
                                 {
-                                    <small title="@option.Reason">@L["EditorRail_NotMatched"]</small>
+                                    <span class="tl-rail__mark tl-rail__mark--ok" title="@L["EditorFamily_Matched"]"><span aria-hidden="true">&#10003;</span><span class="sr-only">@L["EditorFamily_Matched"]</span></span>
                                 }
-                            </span>
-                            @if (waiting > 0)
-                            {
-                                <span class="tl-rail__waiting">@(waiting == 1 ? L["EditorRail_OneChange"].Value : string.Format(L["EditorRail_ManyChanges"].Value, waiting))</span>
-                            }
-                            @if (option.Matched)
-                            {
-                                <span class="tl-rail__mark tl-rail__mark--ok" title="@L["EditorFamily_Matched"]"><span aria-hidden="true">&#10003;</span><span class="sr-only">@L["EditorFamily_Matched"]</span></span>
-                            }
-                            else
-                            {
-                                <span class="tl-rail__mark tl-rail__mark--warn" aria-hidden="true">&#9888;</span>
-                            }
-                        </AppButton>
-                    </li>
-                }
-                @if (level.Loading)
-                {
-                    <li class="tl-rail__note"><AppSkeleton Height="1.5rem" Width="70%" /></li>
-                }
-                else if (options.Count == 0 && !level.HasMore)
-                {
-                    <li class="tl-rail__note">@(string.IsNullOrWhiteSpace(_search) ? L["EditorRail_NothingHere"] : L["EditorRail_NothingMatches"])</li>
-                }
+                                else
+                                {
+                                    <span class="tl-rail__mark tl-rail__mark--warn" aria-hidden="true">&#9888;</span>
+                                }
+                            </AppButton>
+                        </li>
+                    }
+                    @if (level.Loading)
+                    {
+                        <li class="tl-rail__note"><AppSkeleton Height="1.5rem" Width="70%" /></li>
+                    }
+                    else if (options.Count == 0 && !level.HasMore)
+                    {
+                        <li class="tl-rail__note">@(string.IsNullOrWhiteSpace(_search) ? L["EditorRail_NothingHere"] : L["EditorRail_NothingMatches"])</li>
+                    }
 
-                @if (level.HasMore)
-                {
-                    <li class="tl-rail__more" role="none">
-                        <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
-                                   id="@MoreId(level.ParentId)"
-                                   OnClick="() => Family.LoadMoreAsync(level.ParentId)">@string.Format(L["EditorRail_ShowMore"].Value, level.Remaining)</AppButton>
-                    </li>
-                }
-            </ul>
-        </div>
+                    @if (level.HasMore)
+                    {
+                        <li class="tl-rail__more" role="none">
+                            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
+                                       id="@MoreId(level.ParentId)"
+                                       OnClick="() => Family.LoadMoreAsync(level.ParentId)">@string.Format(L["EditorRail_ShowMore"].Value, level.Remaining)</AppButton>
+                        </li>
+                    }
+                </ul>
+            </div>
+        </AppPopover>
     };
 
     protected override void OnParametersSet()
@@ -267,6 +267,23 @@
     }
 
     private void OnSearchChanged(string? value) => _search = value;
+
+    // The shared popover reports an outside click or Escape; only the list that is still open closes.
+    private void PopoverChanged(bool open, int index)
+    {
+        if (!open && _open == index)
+        {
+            CloseAll();
+        }
+    }
+
+    private void FoldPopoverChanged(bool open)
+    {
+        if (!open && _foldOpen)
+        {
+            CloseAll();
+        }
+    }
 
     private void CloseAll()
     {
