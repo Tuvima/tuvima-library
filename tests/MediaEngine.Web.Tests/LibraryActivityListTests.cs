@@ -97,7 +97,8 @@ public sealed class LibraryActivityListTests : LiveLibraryTestContext
     {
         var cut = RenderList();
 
-        var labels = cut.FindAll(".recently-added-filters .app-select__label, .recently-added-filters label").Select(label => label.TextContent.Trim()).ToArray();
+        // The labels stay for screen readers only (the shared filter row draws none above its controls).
+        var labels = cut.FindAll(".recently-added-filters [aria-label]").Select(element => element.GetAttribute("aria-label")!.Trim()).ToArray();
         Assert.Contains(labels, label => label.Contains("Media type", StringComparison.Ordinal));
         Assert.Contains(labels, label => label.Contains("Status", StringComparison.Ordinal));
         Assert.Contains(labels, label => label.Contains("Date range", StringComparison.Ordinal));

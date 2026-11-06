@@ -20,19 +20,21 @@
 @inject IStringLocalizer<SharedStrings> L
 
 <div class="recently-added-page">
-    <section class="recently-added-filters" aria-label="@L["RecentlyAddedPageContent_LibraryActivityFilters"].Value">
+    <AppFilterRow Class="recently-added-filters" AriaLabel="@L["RecentlyAddedPageContent_LibraryActivityFilters"].Value">
         <AppTextField Value="@_search"
                       ValueChanged="OnSearchChanged"
                       OnDebounceIntervalElapsed="OnSearchDebounced"
                       DebounceInterval="350"
+                      Label="@L["RecentlyAddedPageContent_SearchTitlesFilesOrMetadata"].Value"
+                      HideLabel="true"
                       Placeholder="@L["RecentlyAddedPageContent_SearchTitlesFilesOrMetadata"].Value"
                       Adornment="AppAdornment.Start"
                       AdornmentIcon="@AppMaterialIcons.Outlined.Search"
                       Class="recently-added-filters__search" />
-        <AppSelect Label="@L["Common_MediaType"].Value" Value="@_mediaType" ValueChanged="OnMediaTypeChanged" Options="MediaTypeOptions" />
-        <AppSelect Label="@L["Models_Status"].Value" Value="@_status" ValueChanged="OnStatusChanged" Options="StatusFilterOptions" />
-        <AppSelect Label="@L["RecentlyAddedPageContent_DateRange"].Value" Value="@_dateRange" ValueChanged="OnDateRangeChanged" Options="DateRangeOptions" />
-    </section>
+        <AppSelect Label="@L["Common_MediaType"].Value" HideLabel="true" Value="@_mediaType" ValueChanged="OnMediaTypeChanged" Options="MediaTypeOptions" />
+        <AppSelect Label="@L["Models_Status"].Value" HideLabel="true" Value="@_status" ValueChanged="OnStatusChanged" Options="StatusFilterOptions" />
+        <AppSelect Label="@L["RecentlyAddedPageContent_DateRange"].Value" HideLabel="true" Value="@_dateRange" ValueChanged="OnDateRangeChanged" Options="DateRangeOptions" />
+    </AppFilterRow>
 
     @* One list, newest first: what is being added right now sits at the top, then what was added (the old Now and Added panels and
        Recently Added, merged). The type, status and date filters above narrow all of it. *@
