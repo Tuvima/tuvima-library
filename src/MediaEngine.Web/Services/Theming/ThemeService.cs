@@ -5,5 +5,5 @@ public sealed class ThemeService
 {
     public bool IsDarkMode => true;
     public string TextPrimary => "#F5F7FB";
-    public string Background => "#0B0920";
+    public string Background => "#101115";
 }

@@ -479,7 +479,7 @@
         .media-tile-hover-panel.is-cover-led .media-tile-hover-facts { max-height: 2.2em; }
     }
 }
-.media-tile-episode-caption { display:grid; gap:4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--tl-font-size-caption); color: var(--tl-palette-text-secondary); padding-top: .2rem; }
+.media-tile-episode-caption { display:grid; gap:4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--tl-font-size-caption); color: var(--tl-text-secondary); padding-top: .2rem; }
 
 /* Viewport previews do not participate in the resting shelf's geometry. */
 .media-tile-hover-panel { display: none; position: fixed; z-index: 1450; left: var(--media-tile-hover-left, 12px); top: var(--media-tile-hover-top, 12px); width: min(calc(100vw - 24px), 440px); max-height: var(--media-tile-hover-max-height, calc(100svh - 24px)); overflow: hidden; border: 1px solid var(--tl-accent-primary); border-radius: var(--tl-radius-md); background: var(--tl-bg-elevated, #15181f); color: var(--tl-text-primary); opacity: 0; visibility: hidden; pointer-events: none; transform: scale(.97); transform-origin: var(--media-tile-hover-origin-x, 50%) center; transition: opacity .2s ease, transform .2s ease; box-shadow: 0 24px 64px rgba(0,0,0,.65); }
