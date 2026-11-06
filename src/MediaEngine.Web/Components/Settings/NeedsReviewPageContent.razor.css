@@ -21,7 +21,6 @@
 .needs-review-page .needs-review-table small { display: block; color: var(--tl-text-secondary); font-size: var(--tl-font-size-xs); }
 .needs-review-page .needs-review-table__why strong { color: var(--tl-status-warning); font-size: var(--tl-font-size-secondary); }
 /* Item: title, the kind, then ONE line for the folder (the last two folder names; the full path is in the shared tooltip). */
-.needs-review-page .needs-review-table .needs-review-table__path-tip, .needs-review-page .needs-review-table .needs-review-table__path-tip[data-tooltip-wrapper-target="true"] { display: flex; min-width: 0; max-width: 100%; }
 .needs-review-page .needs-review-table .needs-review-table__path { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .needs-review-page .needs-review-table__tried { color: var(--tl-text-secondary); font-size: var(--tl-font-size-secondary); }
 .needs-review-page .needs-review-table__tried-date, .needs-review-page .needs-review-table__tried-time { display: block; white-space: nowrap; }
