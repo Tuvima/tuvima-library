@@ -5001,38 +5001,44 @@ input[type="reset"],
 .video-playback-host__media::cue { color: var(--tl-subtitle-color); background: var(--tl-subtitle-bg); font-family: var(--tl-subtitle-font); font-size: var(--tl-subtitle-size); text-shadow: var(--tl-subtitle-shadow); }
 /* Player controls v3 D3, D4: the Settings menu. Each popup is as wide as its longest line (the popover is sized by playback-popover.js), has no descriptions, and keeps two columns for Audio and Subtitles. */
 .playback-popover--settings .playback-popover-content { padding: 0; }
-.video-settings-menu { font-size: var(--tl-font-size-dialog-title); white-space: nowrap; }
-.video-settings-menu h3, .video-settings-menu h4 { margin: 0; font-size: var(--tl-font-size-dialog-title); font-weight: 600; }
-.video-settings-menu { min-width: min(380px, calc(100vw - 32px)); }
-.video-settings-menu__rows, .video-settings-menu__page { display: flex; flex-direction: column; }
-.video-settings-menu .video-settings-menu__row { justify-content: space-between; gap: 24px; min-height: 44px; padding: 8px 20px; }
-.video-settings-menu__row-label { color: var(--playback-text); }
-.video-settings-menu__row-value { display: inline-flex; align-items: center; gap: 4px; min-width: 0; color: var(--playback-text-secondary); overflow: hidden; text-overflow: ellipsis; }
-.video-settings-menu__page .playback-sheet-row { min-height: 44px; padding: 8px 20px; }
-.video-settings-menu__header { padding: 6px 12px 6px 20px; border-bottom: 1px solid var(--playback-border); }
-.video-settings-menu__page .playback-sheet-row, .video-settings-menu .video-settings-menu__row { min-height: 44px; padding: 8px 20px; font-size: inherit; }
-.video-settings-menu .video-settings-menu__row { display: flex; align-items: center; width: 100%; border: 0; background: transparent; color: inherit; cursor: pointer; text-align: left; }
-.video-settings-menu .video-settings-menu__row:hover, .video-settings-menu .video-settings-menu__row:focus-visible { background: var(--playback-surface-hover); }
-.video-settings-menu__notice { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0; padding: 12px 20px; color: var(--playback-text-secondary); }
-.video-settings-menu__notice a { color: var(--tl-accent-primary); }
-.video-settings-menu__header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.video-settings-menu .video-settings-menu__nav { display: grid; place-items: center; width: 44px; height: 44px; border: 0; background: transparent; color: inherit; cursor: pointer; }
-.video-settings-menu__styling { display: grid; }
-.video-settings-menu__preview { margin: 0; padding: 18px 20px; display: grid; place-items: center; background: #05070d; text-align: center; }
-.video-settings-menu__preview span { padding: 2px 10px; border-radius: 4px; background: var(--preview-bg, transparent); }
+.player-settings-menu { font-size: var(--tl-font-size-dialog-title); white-space: nowrap; }
+.player-settings-menu h3, .player-settings-menu h4 { margin: 0; font-size: var(--tl-font-size-dialog-title); font-weight: 600; }
+.player-settings-menu { min-width: min(380px, calc(100vw - 32px)); }
+.player-settings-menu__rows, .player-settings-menu__page { display: flex; flex-direction: column; }
+.player-settings-menu .player-settings-menu__row { justify-content: space-between; gap: 24px; min-height: 44px; padding: 8px 20px; }
+.player-settings-menu__row-label { color: var(--playback-text); }
+.player-settings-menu__row-value { display: inline-flex; align-items: center; gap: 4px; min-width: 0; color: var(--playback-text-secondary); overflow: hidden; text-overflow: ellipsis; }
+.player-settings-menu__page .playback-sheet-row { min-height: 44px; padding: 8px 20px; }
+.player-settings-menu__header { padding: 6px 12px 6px 20px; border-bottom: 1px solid var(--playback-border); }
+.player-settings-menu__page .playback-sheet-row, .player-settings-menu .player-settings-menu__row { min-height: 44px; padding: 8px 20px; font-size: inherit; }
+.player-settings-menu .player-settings-menu__row { display: flex; align-items: center; width: 100%; border: 0; background: transparent; color: inherit; cursor: pointer; text-align: left; }
+.player-settings-menu .player-settings-menu__row:hover, .player-settings-menu .player-settings-menu__row:focus-visible { background: var(--playback-surface-hover); }
+/* Unified player D10: the audiobook menu's "Show bookmarks on the bar" switch sits in the same 44 px row rhythm as the other rows. */
+.player-settings-menu .player-settings-menu__switch { min-height: 44px; padding: 8px 20px; color: var(--playback-text); }
+/* Unified player D10: the audiobook Settings gear is a 44 px target in the dock, the More menu and the full player, underlined while the speed is not 1x or a sleep timer is running. */
+.audiobook-settings { display: inline-flex; }
+.audiobook-settings .playback-popover-trigger { position: relative; width: 44px; height: 44px; }
+.audiobook-settings .playback-popover-trigger.is-on::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: 2px; height: 3px; border-radius: 2px; background: var(--tl-accent-primary); }
+.player-settings-menu__notice { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0; padding: 12px 20px; color: var(--playback-text-secondary); }
+.player-settings-menu__notice a { color: var(--tl-accent-primary); }
+.player-settings-menu__header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.player-settings-menu .player-settings-menu__nav { display: grid; place-items: center; width: 44px; height: 44px; border: 0; background: transparent; color: inherit; cursor: pointer; }
+.player-settings-menu__styling { display: grid; }
+.player-settings-menu__preview { margin: 0; padding: 18px 20px; display: grid; place-items: center; background: #05070d; text-align: center; }
+.player-settings-menu__preview span { padding: 2px 10px; border-radius: 4px; background: var(--preview-bg, transparent); }
 /* Unified player D12: colour swatches and opacity sliders on the style menu. */
-.video-settings-menu__choices { display: contents; }
-.video-settings-menu__swatches { display: flex; flex-wrap: wrap; gap: 8px; }
-.video-settings-menu .video-settings-menu__swatch { inline-size: 32px; block-size: 32px; padding: 0; border: 2px solid rgba(255, 255, 255, .25); border-radius: 50%; background: var(--swatch); cursor: pointer; }
-.video-settings-menu .video-settings-menu__swatch.is-selected { border-color: var(--tl-accent-primary); box-shadow: 0 0 0 3px var(--tl-accent-primary); }
-.video-settings-menu__group--slider { align-items: flex-start; }
-.video-settings-menu__group--slider .app-field__label { display: none; }
-.video-settings-menu__slider { flex: 1; min-width: 0; }
+.player-settings-menu__choices { display: contents; }
+.player-settings-menu__swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.player-settings-menu .player-settings-menu__swatch { inline-size: 32px; block-size: 32px; padding: 0; border: 2px solid rgba(255, 255, 255, .25); border-radius: 50%; background: var(--swatch); cursor: pointer; }
+.player-settings-menu .player-settings-menu__swatch.is-selected { border-color: var(--tl-accent-primary); box-shadow: 0 0 0 3px var(--tl-accent-primary); }
+.player-settings-menu__group--slider { align-items: flex-start; }
+.player-settings-menu__group--slider .app-field__label { display: none; }
+.player-settings-menu__slider { flex: 1; min-width: 0; }
 .video-playback-host__aa { font-weight: 700; font-size: var(--tl-font-size-lg); }
-.video-settings-menu__group { display: flex; align-items: center; gap: 8px; padding: 10px 20px; }
-.video-settings-menu__group > h4 { min-width: 6.5em; font-weight: 500; color: var(--playback-text-secondary); }
-.video-settings-menu .video-settings-menu__choice { min-height: 44px; padding: 6px 16px; border: 1px solid var(--playback-border); border-radius: 4px; background: transparent; color: inherit; font-size: var(--tl-font-size-lg); cursor: pointer; }
-.video-settings-menu .video-settings-menu__choice.is-selected { border-color: var(--tl-accent-primary); background: var(--playback-accent-soft); }
+.player-settings-menu__group { display: flex; align-items: center; gap: 8px; padding: 10px 20px; }
+.player-settings-menu__group > h4 { min-width: 6.5em; font-weight: 500; color: var(--playback-text-secondary); }
+.player-settings-menu .player-settings-menu__choice { min-height: 44px; padding: 6px 16px; border: 1px solid var(--playback-border); border-radius: 4px; background: transparent; color: inherit; font-size: var(--tl-font-size-lg); cursor: pointer; }
+.player-settings-menu .player-settings-menu__choice.is-selected { border-color: var(--tl-accent-primary); background: var(--playback-accent-soft); }
 
 /* Unified player D9: one panel shell for Settings, Speed, Subtitles, Chapters and Bookmarks. Rounded dark panel, faint dividers instead of boxed borders,
    as tall as its content; the only scroll area is a long list inside it, and nothing scrolls sideways. */
@@ -5040,17 +5046,17 @@ input[type="reset"],
 .playback-popover-content { overflow-x: hidden; }
 .playback-popover-content:not(:has(.playback-sheet-list)) { overflow-y: auto; scrollbar-width: thin; }
 .playback-popover--settings .playback-popover-surface { min-width: 380px; }
-.video-settings-menu__header { border-bottom: 1px solid rgba(255, 255, 255, .06); }
-.video-settings-menu .video-settings-menu__choice { border-color: rgba(255, 255, 255, .12); }
+.player-settings-menu__header { border-bottom: 1px solid rgba(255, 255, 255, .06); }
+.player-settings-menu .player-settings-menu__choice { border-color: rgba(255, 255, 255, .12); }
 .playback-sheet-list { overflow-x: hidden; max-height: min(80vh, 640px); scrollbar-width: thin; }
 
 /* Unified player D10: the Playback speed page inside Settings (slider with the current value above it and a Reset to 1x button). */
-.video-settings-menu__speed { display: grid; gap: 12px; padding: 16px 20px 20px; }
-.video-settings-menu__speed output { text-align: center; font-size: var(--tl-control-font-size-md); font-weight: var(--tl-font-weight-semibold); }
-.video-settings-menu__speed button { min-height: 44px; border: 1px solid var(--playback-border); border-radius: var(--tl-radius-sm); background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.player-settings-menu__speed { display: grid; gap: 12px; padding: 16px 20px 20px; }
+.player-settings-menu__speed output { text-align: center; font-size: var(--tl-control-font-size-md); font-weight: var(--tl-font-weight-semibold); }
+.player-settings-menu__speed button { min-height: 44px; border: 1px solid var(--playback-border); border-radius: var(--tl-radius-sm); background: transparent; color: inherit; font: inherit; cursor: pointer; }
 
 /* Unified player D12: on touch the style menu uses 48 px rows and choices, with nothing that depends on hover. */
-@media (pointer: coarse) { .video-settings-menu .video-settings-menu__swatch { inline-size: 48px; block-size: 48px; } .video-settings-menu .video-settings-menu__choice, .video-settings-menu .video-settings-menu__row { min-height: 48px; } .video-settings-menu__group { flex-wrap: wrap; } }
+@media (pointer: coarse) { .player-settings-menu .player-settings-menu__swatch { inline-size: 48px; block-size: 48px; } .player-settings-menu .player-settings-menu__choice, .player-settings-menu .player-settings-menu__row { min-height: 48px; } .player-settings-menu__group { flex-wrap: wrap; } }
 
 /* Unified player D7: a paused Now Playing page dims its backdrop after a short pause. */
 .playback-desktop--paused::before { filter: blur(34px) brightness(.28); transition: filter .4s ease 1.2s; }

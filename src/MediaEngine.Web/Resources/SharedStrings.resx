@@ -1689,9 +1689,6 @@
   <data name="PlaybackFullPlayer_PlayerViews" xml:space="preserve">
     <value>Player views</value>
   </data>
-  <data name="PlaybackFullPlayer_MoreAudiobookControls" xml:space="preserve">
-    <value>More audiobook controls</value>
-  </data>
   <data name="Common_AudiobookControls" xml:space="preserve">
     <value>Audiobook controls</value>
   </data>
@@ -9698,6 +9695,12 @@
   </data>
   <data name="PlayerSettings_PlaybackSpeed" xml:space="preserve">
     <value>Playback speed</value>
+  </data>
+  <data name="PlayerSettings_SleepTimer" xml:space="preserve">
+    <value>Sleep timer</value>
+  </data>
+  <data name="PlayerSettings_ShowBookmarksOnBar" xml:space="preserve">
+    <value>Show bookmarks on the bar</value>
   </data>
   <data name="PlayerSettings_Styling" xml:space="preserve">
     <value>Styling…</value>

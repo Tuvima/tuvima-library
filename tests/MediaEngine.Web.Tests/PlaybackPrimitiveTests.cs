@@ -56,18 +56,18 @@ public sealed class PlaybackPrimitiveTests
         AssertContainsKeys(music, PlaybackControlKey.Queue, PlaybackControlKey.History, PlaybackControlKey.Lyrics, PlaybackControlKey.Shuffle, PlaybackControlKey.Repeat);
         Assert.DoesNotContain(music, control => control.Key == PlaybackControlKey.SleepTimer);
 
-        AssertContainsKeys(audiobook, PlaybackControlKey.SkipBack, PlaybackControlKey.SkipForward, PlaybackControlKey.Speed, PlaybackControlKey.Chapters, PlaybackControlKey.History, PlaybackControlKey.Bookmarks, PlaybackControlKey.SleepTimer);
-        Assert.DoesNotContain(audiobook, control => control.Key == PlaybackControlKey.Queue);
-        Assert.Contains(audiobook, control => control.Key == PlaybackControlKey.Speed && control.ValueText == "1.5x");
-        Assert.Contains(audiobook, control => control.Key == PlaybackControlKey.SleepTimer && control.IsActive && control.BadgeText == "30m");
+        // Unified player D10: speed and the sleep timer live inside the one Settings menu, so an audiobook has a Settings button and no Speed or Sleep button.
+        AssertContainsKeys(audiobook, PlaybackControlKey.SkipBack, PlaybackControlKey.SkipForward, PlaybackControlKey.Settings, PlaybackControlKey.Chapters, PlaybackControlKey.History, PlaybackControlKey.Bookmarks);
+        Assert.DoesNotContain(audiobook, control => control.Key is PlaybackControlKey.Queue or PlaybackControlKey.Speed or PlaybackControlKey.SleepTimer);
+        Assert.Contains(audiobook, control => control.Key == PlaybackControlKey.Settings && control.IsActive && control.BadgeText == "30m");
         Assert.Contains(audiobook, control => control.Key == PlaybackControlKey.Chapters && !control.IsDisabled);
 
         var sleepChoice = PlaybackControlCatalog.BuildToolStrip(
             PlaybackExperience.Audiobook,
             PlaybackControlSurface.Bottom,
             new PlaybackControlState(ActiveSheet: "chapters", IsSleepTimerActive: false, SleepTimerValueText: null))
-            .Single(control => control.Key == PlaybackControlKey.SleepTimer);
-        Assert.Null(sleepChoice.Sheet);
+            .Single(control => control.Key == PlaybackControlKey.Settings);
+        Assert.Equal("settings", sleepChoice.Sheet);
         Assert.False(sleepChoice.IsSelected);
         Assert.False(sleepChoice.IsActive);
 
@@ -93,13 +93,23 @@ public sealed class PlaybackPrimitiveTests
             SleepTimerValueText: "12m",
             HistoryCount: 2));
 
+        // Player controls v3 D7 and unified player D10: Chapters, Settings, Bookmarks (History is merged into the Chapters panel).
         Assert.Equal(
-            new[] { PlaybackControlKey.Chapters, PlaybackControlKey.Bookmarks, PlaybackControlKey.Speed, PlaybackControlKey.SleepTimer, PlaybackControlKey.History },
+            new[] { PlaybackControlKey.Chapters, PlaybackControlKey.Settings, PlaybackControlKey.Bookmarks, PlaybackControlKey.History },
             controls.Select(control => control.Key));
         Assert.False(controls.Single(control => control.Key == PlaybackControlKey.Chapters).IsDisabled);
-        var sleep = controls.Single(control => control.Key == PlaybackControlKey.SleepTimer);
-        Assert.Equal("12m", sleep.BadgeText);
-        Assert.Contains("12m remaining", sleep.AriaLabel, StringComparison.Ordinal);
+        var settings = controls.Single(control => control.Key == PlaybackControlKey.Settings);
+        Assert.True(settings.IsActive);
+        Assert.Equal("12m", settings.BadgeText);
+        Assert.Contains("12m remaining", settings.AriaLabel, StringComparison.Ordinal);
+
+        var atNormalSpeed = PlaybackControlCatalog.BuildAudiobookDockToolStrip(new PlaybackControlState(HasChapters: true))
+            .Single(control => control.Key == PlaybackControlKey.Settings);
+        Assert.False(atNormalSpeed.IsActive);
+        var fasterOnly = PlaybackControlCatalog.BuildAudiobookDockToolStrip(new PlaybackControlState(HasChapters: true, PlaybackRate: 1.5d))
+            .Single(control => control.Key == PlaybackControlKey.Settings);
+        Assert.True(fasterOnly.IsActive);
+        Assert.Equal("Settings", fasterOnly.AriaLabel);
 
         var noChapters = PlaybackControlCatalog.BuildAudiobookDockToolStrip(new PlaybackControlState());
         var unavailable = noChapters.Single(control => control.Key == PlaybackControlKey.Chapters);
@@ -181,14 +191,20 @@ public sealed class PlaybackPrimitiveTests
         var strip = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackControlStrip.razor"));
         var speed = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackSpeedControl.razor"));
         var sleep = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerControl.razor"));
+        var sleepChoices = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerChoices.cs"));
         var bookmark = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/AudiobookBookmarkDialog.razor"));
 
         Assert.Contains("<PlaybackControlStrip", bar, StringComparison.Ordinal);
         Assert.Contains("<PlaybackFullPlayer", popup, StringComparison.Ordinal);
-        Assert.Contains("SpeedChanged=\"SetAudiobookSpeedAsync\"", bar, StringComparison.Ordinal);
+        Assert.Contains("PlaybackRateChanged=\"SetAudiobookSpeedAsync\"", bar, StringComparison.Ordinal);
+        Assert.Contains("<AudiobookSettingsPopover", bar, StringComparison.Ordinal);
+        Assert.Contains("<AudiobookSettingsPopover", full, StringComparison.Ordinal);
         Assert.Contains("ListenPlaybackCommandActions.SetSpeed", full, StringComparison.Ordinal);
         Assert.Contains("SleepTimerState=\"@Playback.SleepTimerState\"", bar, StringComparison.Ordinal);
         Assert.Contains("SleepTimerAvailability=\"@Playback.SleepTimerAvailability\"", bar, StringComparison.Ordinal);
+        // The audiobook controls no longer draw a Speed or a Sleep button of their own.
+        Assert.DoesNotContain("SpeedChanged=", bar + full, StringComparison.Ordinal);
+        Assert.DoesNotContain("<PlaybackSleepTimerControl", bar + full, StringComparison.Ordinal);
         Assert.Contains("SleepTimerChanged=\"SetAudiobookSleepTimerSelectionAsync\"", bar, StringComparison.Ordinal);
         Assert.Contains("SleepTimerState=\"Snapshot.SleepTimerState\"", full, StringComparison.Ordinal);
         Assert.Contains("SleepTimerChanged=", full, StringComparison.Ordinal);
@@ -200,8 +216,8 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("<PlaybackSleepTimerControl", strip, StringComparison.Ordinal);
         Assert.Contains("<PlaybackPopover", speed, StringComparison.Ordinal);
         Assert.Contains("<AppRangeSlider", speed, StringComparison.Ordinal);
-        Assert.Contains("Availability.CanEndCurrent", sleep, StringComparison.Ordinal);
-        Assert.Contains("Availability.CanEndNext", sleep, StringComparison.Ordinal);
+        Assert.Contains("availability.CanEndCurrent", sleepChoices, StringComparison.Ordinal);
+        Assert.Contains("availability.CanEndNext", sleepChoices, StringComparison.Ordinal);
         Assert.Contains("SelectionChanged.InvokeAsync(selection)", sleep, StringComparison.Ordinal);
         Assert.DoesNotContain("<AppRangeSlider", sleep, StringComparison.Ordinal);
         Assert.Contains("<AudiobookBookmarkDialog", bar, StringComparison.Ordinal);

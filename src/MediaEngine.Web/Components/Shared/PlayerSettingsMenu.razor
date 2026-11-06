@@ -1,0 +1,270 @@
+@namespace MediaEngine.Web.Components.Shared
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Services.Playback
+@inject IStringLocalizer<SharedStrings> L
+
+@* The one Settings menu for every player (unified player D9, D10; replaces the two-column layout of player-controls-v3 D3). The main page is one
+   column under a "Settings" title row with a close: each row has its label on the left and the current choice on the right. Video lists Audio,
+   Subtitles, Playback speed and Subtitle style; an audiobook lists Playback speed, Sleep timer and a Show bookmarks on the bar switch; music has no
+   rows. A row opens its own page with a back arrow and a close; the speed page is shared by video and audiobook. The panel is as tall as its content. *@
+<div class="player-settings-menu" data-settings-page="@(ShowStyling ? "styling" : "main")">
+    @if (ShowStyling)
+    {
+        <header class="player-settings-menu__header">
+            @if (!StylingOnly)
+            {
+                <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowBack" Class="player-settings-menu__nav" AriaLabel="@L["Common_Back"].Value" OnClick="@(() => _styling = false)" />
+            }
+            <h3>@L["PlayerSettings_StylingTitle"]</h3>
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Class="player-settings-menu__nav" AriaLabel="@L["Common_Close"].Value" OnClick="OnClose" />
+        </header>
+        <div class="player-settings-menu__styling">
+            <AppCssElement Tag="p" Class="player-settings-menu__preview" Css="@PreviewStyle" aria-live="polite"><span>@L["PlayerSettings_PreviewLine"]</span></AppCssElement>
+            <PlayerSettingsChoiceGroup Title="@L["PlayerSettings_Size"].Value" Options="@SizeOptions" Current="@NormalizedSize" ValueSelected="@(value => Change(s => s.SubtitleSize = value))" />
+            <PlayerSettingsChoiceGroup Title="@L["PlayerSettings_Font"].Value" Options="@FontOptions" Current="@(Look?.SubtitleFont ?? PlaybackPreferenceValues.FontDefault)" ValueSelected="@(value => Change(s => s.SubtitleFont = value))" />
+            <PlayerSettingsChoiceGroup Title="@L["PlayerSettings_Shadow"].Value" Options="@OnOffOptions" Current="@(Look?.SubtitleShadow == true ? "on" : "off")" ValueSelected="@(value => Change(s => s.SubtitleShadow = value == "on"))" />
+            <PlayerSettingsChoiceGroup Swatches="true" Title="@L["PlayerSettings_Colour"].Value" Options="@ColourOptions" Current="@(Look?.SubtitleColor ?? PlaybackPreferenceValues.ColorWhite)" ValueSelected="@(value => Change(s => s.SubtitleColor = value))" />
+            <PlayerSettingsSliderGroup Title="@L["PlayerSettings_TextOpacity"].Value" Stops="@PlaybackPreferenceValues.TextOpacityStops" Value="@((int)Math.Round(SubtitleStyleCss.TextOpacity(Look) * 100))" ValueSelected="@(value => Change(s => s.SubtitleTextOpacity = value))" />
+            <PlayerSettingsChoiceGroup Swatches="true" Title="@L["PlayerSettings_BackgroundColour"].Value" Options="@ColourOptions" Current="@(Look?.SubtitleBackgroundColor ?? PlaybackPreferenceValues.ColorBlack)" ValueSelected="@(value => Change(s => s.SubtitleBackgroundColor = value))" />
+            <PlayerSettingsSliderGroup Title="@L["PlayerSettings_BackgroundOpacity"].Value" Stops="@PlaybackPreferenceValues.BackgroundOpacityStops" Value="@((int)Math.Round(SubtitleStyleCss.BackgroundOpacity(Look) * 100))" ValueSelected="@ChangeBackgroundOpacity" />
+            <AppButton ButtonStyle="AppButtonStyle.Text" Size="AppControlSize.Compact" Label="@L["PlayerSettings_Reset"].Value" OnClick="ResetAsync" />
+        </div>
+    }
+    else if (_page is "audio" or "subtitles")
+    {
+        <header class="player-settings-menu__header">
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowBack" Class="player-settings-menu__nav" AriaLabel="@L["Common_Back"].Value" OnClick="@(() => _page = null)" />
+            <h3>@(_page == "audio" ? L["PlayerSettings_Audio"] : L["Common_Subtitles"])</h3>
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Class="player-settings-menu__nav" AriaLabel="@L["Common_Close"].Value" OnClick="OnClose" />
+        </header>
+        <section class="player-settings-menu__page" aria-label="@(_page == "audio" ? L["PlayerSettings_Audio"].Value : L["Common_Subtitles"].Value)">
+            @if (_page == "audio")
+            {
+                @Audio
+            }
+            else
+            {
+                @Subtitles
+                @if (NoSubtitleSource)
+                {
+                    <p class="player-settings-menu__notice" role="status" data-subtitles-state="no-source">
+                        <span>@L["PlayerSettings_NoSubtitleSource"]</span>
+                        @if (IsAdministrator) { <a href="/settings/plugins">@L["PlayerSettings_Plugins"]</a> }
+                    </p>
+                }
+            }
+        </section>
+    }
+    else if (_page == "sleep" && SleepTimerState is not null)
+    {
+        <header class="player-settings-menu__header">
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowBack" Class="player-settings-menu__nav" AriaLabel="@L["Common_Back"].Value" OnClick="@(() => _page = null)" />
+            <h3>@L["PlayerSettings_SleepTimer"]</h3>
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Class="player-settings-menu__nav" AriaLabel="@L["Common_Close"].Value" OnClick="OnClose" />
+        </header>
+        <section class="player-settings-menu__page player-settings-menu__sleep" aria-label="@L["PlayerSettings_SleepTimer"].Value">
+            <PlaybackSheetList>
+                @foreach (var option in SleepOptions)
+                {
+                    var choice = option;
+                    var selected = choice.Value == SleepSelectedValue;
+                    <PlaybackSheetRow Appearance="outlined" OnClick="@(() => ChooseSleepAsync(choice.Value))" IsActive="@selected" disabled="@choice.Disabled"
+                                      Title="@choice.Title" AriaLabel="@(choice.AccessibleLabel ?? choice.Label)" data-sleep-choice="@choice.Value">
+                        <span class="playback-sheet-row__copy"><strong>@choice.Label</strong></span>
+                        @if (selected) { <AppMaterialIcon Icon="@AppMaterialIcons.Filled.Check" /> }
+                    </PlaybackSheetRow>
+                }
+            </PlaybackSheetList>
+        </section>
+    }
+    else if (_page == "speed")
+    {
+        <header class="player-settings-menu__header">
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowBack" Class="player-settings-menu__nav" AriaLabel="@L["Common_Back"].Value" OnClick="@(() => _page = null)" />
+            <h3>@L["PlayerSettings_PlaybackSpeed"]</h3>
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Class="player-settings-menu__nav" AriaLabel="@L["Common_Close"].Value" OnClick="OnClose" />
+        </header>
+        <section class="player-settings-menu__page player-settings-menu__speed" aria-label="@L["PlayerSettings_PlaybackSpeed"].Value">
+            <output aria-live="polite">@SpeedLabel</output>
+            <AppRangeSlider Value="@PlaybackRate" Min="0.5" Max="3" Step="0.05" SnapValueToStep="false" InputStep="0.05" ShowTicks="false" Surface="video" AriaLabel="@L["PlaybackSpeedControl_PlaybackSpeed"].Value" ValueFormatter="PlaybackRateOptions.FormatLabel" ValueChanged="PlaybackRateChanged" />
+            <AppNativeButton Type="button" OnClick="@(() => PlaybackRateChanged.InvokeAsync(1d))" AriaLabel="@L["PlaybackSpeedControl_ResetPlaybackSpeedTo1"].Value">@L["PlaybackSpeedControl_ResetTo1"]</AppNativeButton>
+        </section>
+    }
+    else
+    {
+        <header class="player-settings-menu__header">
+            <h3>@L["PlayerSettings_Title"]</h3>
+            <AppIconButton Icon="@AppMaterialIcons.Outlined.Close" Class="player-settings-menu__nav" AriaLabel="@L["Common_Close"].Value" OnClick="OnClose" />
+        </header>
+        <div class="player-settings-menu__rows">
+            @if (Experience == PlaybackExperience.Video)
+            {
+                <AppNativeButton Type="button" Class="player-settings-menu__row" OnClick="@(() => _page = "audio")" AriaLabel="@L["PlayerSettings_Audio"].Value" data-settings-row="audio">
+                    <span class="player-settings-menu__row-label">@L["PlayerSettings_Audio"]</span>
+                    <span class="player-settings-menu__row-value">@AudioSummary<AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></span>
+                </AppNativeButton>
+                <AppNativeButton Type="button" Class="player-settings-menu__row" OnClick="@(() => _page = "subtitles")" AriaLabel="@L["Common_Subtitles"].Value" data-settings-row="subtitles">
+                    <span class="player-settings-menu__row-label">@L["Common_Subtitles"]</span>
+                    <span class="player-settings-menu__row-value">@SubtitlesSummary<AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></span>
+                </AppNativeButton>
+            }
+            @if (Experience != PlaybackExperience.Music && PlaybackRateChanged.HasDelegate)
+            {
+                <AppNativeButton Type="button" Class="player-settings-menu__row" OnClick="@(() => _page = "speed")" AriaLabel="@L["PlayerSettings_PlaybackSpeed"].Value" data-settings-row="speed">
+                    <span class="player-settings-menu__row-label">@L["PlayerSettings_PlaybackSpeed"]</span>
+                    <span class="player-settings-menu__row-value">@SpeedLabel<AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></span>
+                </AppNativeButton>
+            }
+            @if (Experience == PlaybackExperience.Audiobook && SleepTimerState is not null && SleepTimerChanged.HasDelegate)
+            {
+                <AppNativeButton Type="button" Class="player-settings-menu__row" OnClick="@(() => _page = "sleep")" AriaLabel="@L["PlayerSettings_SleepTimer"].Value" data-settings-row="sleep">
+                    <span class="player-settings-menu__row-label">@L["PlayerSettings_SleepTimer"]</span>
+                    <span class="player-settings-menu__row-value">@PlaybackSleepTimerChoices.RowValue(SleepTimerState)<AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></span>
+                </AppNativeButton>
+            }
+            @if (Experience == PlaybackExperience.Audiobook && ShowBookmarksOnBarChanged.HasDelegate)
+            {
+                <AppSwitchRow T="bool" Class="player-settings-menu__switch" Label="@L["PlayerSettings_ShowBookmarksOnBar"].Value" Value="@ShowBookmarksOnBar"
+                              ValueChanged="@(value => ShowBookmarksOnBarChanged.InvokeAsync(value))" Color="AppColor.Primary" />
+            }
+            @if (Experience == PlaybackExperience.Video)
+            {
+                <AppNativeButton Type="button" Class="player-settings-menu__row" OnClick="@(() => _styling = true)" AriaLabel="@L["PlayerSettings_StylingTitle"].Value" data-settings-row="styling">
+                    <span class="player-settings-menu__row-label">@L["PlayerSettings_Styling"]</span>
+                    <span class="player-settings-menu__row-value"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></span>
+                </AppNativeButton>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    /// <summary>Which player this menu belongs to; it decides the rows. Video is the default; music has no rows.</summary>
+    [Parameter] public PlaybackExperience Experience { get; set; } = PlaybackExperience.Video;
+
+    [Parameter] public RenderFragment? Audio { get; set; }
+    [Parameter] public RenderFragment? Subtitles { get; set; }
+
+    /// <summary>The current audio choice shown on the right of the Audio row (for example "English 5.1").</summary>
+    [Parameter] public string? AudioSummary { get; set; }
+
+    /// <summary>The current subtitle choice shown on the right of the Subtitles row ("Off" or a language).</summary>
+    [Parameter] public string? SubtitlesSummary { get; set; }
+
+    private string? _page;
+
+    /// <summary>The current playback rate; the Playback speed row shows it on the right (for example "1.0x").</summary>
+    [Parameter] public double PlaybackRate { get; set; } = 1d;
+
+    /// <summary>Asks the host to change the playback rate. The Playback speed row is drawn only when the host listens.</summary>
+    [Parameter] public EventCallback<double> PlaybackRateChanged { get; set; }
+
+    /// <summary>The audiobook sleep timer's state; the Sleep timer row is drawn only with this and <see cref="SleepTimerChanged"/>.</summary>
+    [Parameter] public AudiobookSleepTimerStateDto? SleepTimerState { get; set; }
+    [Parameter] public AudiobookSleepTimerAvailabilityDto SleepTimerAvailability { get; set; } = new();
+    [Parameter] public IReadOnlyList<int> SleepTimerOptionsMinutes { get; set; } = [];
+    [Parameter] public int? SleepTimerDefaultMinutes { get; set; }
+    [Parameter] public bool SleepTimerOffersEndOfChapter { get; set; } = true;
+
+    /// <summary>Asks the host to set, change or cancel (Off) the sleep timer.</summary>
+    [Parameter] public EventCallback<AudiobookSleepTimerSelectionDto> SleepTimerChanged { get; set; }
+
+    /// <summary>The profile's "Show bookmarks on the bar" choice (the same setting the video bookmark pane's "Show on timeline" switch uses).</summary>
+    [Parameter] public bool ShowBookmarksOnBar { get; set; }
+
+    /// <summary>Asks the host to save the bookmark-markers choice. The switch is drawn only when the host listens.</summary>
+    [Parameter] public EventCallback<bool> ShowBookmarksOnBarChanged { get; set; }
+
+    private IReadOnlyList<AppSelectOption> SleepOptions => SleepTimerState is null ? [] : PlaybackSleepTimerChoices.Options(
+        SleepTimerState, SleepTimerOptionsMinutes, SleepTimerDefaultMinutes, SleepTimerOffersEndOfChapter, SleepTimerAvailability);
+    private string SleepSelectedValue => SleepTimerState is null ? AudiobookSleepTimerModes.Off : PlaybackSleepTimerChoices.SelectedValue(SleepTimerState, SleepTimerDefaultMinutes);
+
+    // Choosing a length (or Off) sends it to the host and goes back to the main page, where the row shows the new choice.
+    private async Task ChooseSleepAsync(string value)
+    {
+        var selection = PlaybackSleepTimerChoices.SelectionFor(value, SleepTimerAvailability);
+        if (selection is null) return;
+        _page = null;
+        await SleepTimerChanged.InvokeAsync(selection);
+    }
+
+    private string SpeedLabel => PlaybackRateOptions.IsValid(PlaybackRate) ? PlaybackRateOptions.FormatLabel(PlaybackRate) : string.Empty;
+
+    /// <summary>True when the Engine says no subtitle source is switched on. The Subtitles column then says so instead of offering a search.</summary>
+    [Parameter] public bool NoSubtitleSource { get; set; }
+
+    /// <summary>Administrators also see the Plugins link in the "no source" line.</summary>
+    [Parameter] public bool IsAdministrator { get; set; }
+
+    /// <summary>The profile's subtitle look (null until it has loaded).</summary>
+    [Parameter] public SubtitleLanguageSettingsDto? Look { get; set; }
+
+    /// <summary>Asks the host to change one styling field and save it.</summary>
+    [Parameter] public Func<Action<SubtitleLanguageSettingsDto>, Task>? StyleChanged { get; set; }
+
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private bool _styling;
+
+    /// <summary>Unified player D12: the style page as its own menu (the "Aa" button), with no back arrow.</summary>
+    [Parameter] public bool StylingOnly { get; set; }
+
+    private bool ShowStyling => StylingOnly || _styling;
+
+    private Task ResetAsync() => Change(s =>
+    {
+        s.SubtitleSize = PlaybackPreferenceValues.Medium;
+        s.SubtitleFont = PlaybackPreferenceValues.FontDefault;
+        s.SubtitleShadow = false;
+        s.SubtitleColor = PlaybackPreferenceValues.ColorWhite;
+        s.SubtitleTextOpacity = PlaybackPreferenceValues.DefaultTextOpacity;
+        s.SubtitleBackground = true;
+        s.SubtitleBackgroundColor = PlaybackPreferenceValues.ColorBlack;
+        s.SubtitleBackgroundOpacity = PlaybackPreferenceValues.DefaultBackgroundOpacity;
+    });
+
+    // The background slider's first stop (0) is "no background": it turns the switch off but remembers the last opacity, so sliding back up restores a visible backing.
+    private Task ChangeBackgroundOpacity(int percent) => Change(s =>
+    {
+        s.SubtitleBackground = percent > 0;
+        if (percent > 0) s.SubtitleBackgroundOpacity = percent;
+    });
+
+    // The live preview line changes as each choice changes, so the person sees the result before closing the menu.
+    private string PreviewStyle
+    {
+        get
+        {
+            var size = NormalizedSize == PlaybackPreferenceValues.Small ? "0.9rem" : NormalizedSize == PlaybackPreferenceValues.Large ? "1.5rem" : "1.15rem";
+            var family = (Look?.SubtitleFont ?? PlaybackPreferenceValues.FontDefault) switch
+            {
+                var f when string.Equals(f, PlaybackPreferenceValues.FontSerif, StringComparison.OrdinalIgnoreCase) => "serif",
+                var f when string.Equals(f, PlaybackPreferenceValues.FontMono, StringComparison.OrdinalIgnoreCase) => "monospace",
+                _ => "inherit",
+            };
+            var color = SubtitleStyleCss.TextColor(Look);
+            var shadow = Look?.SubtitleShadow == true ? "0 2px 4px #000" : "none";
+            var background = SubtitleStyleCss.BackgroundColor(Look);
+            return $"font-size:{size};font-family:{family};color:{color};text-shadow:{shadow};--preview-bg:{background}";
+        }
+    }
+
+    private string NormalizedSize => Look?.SubtitleSize switch
+    {
+        var size when string.Equals(size, PlaybackPreferenceValues.Small, StringComparison.OrdinalIgnoreCase) => PlaybackPreferenceValues.Small,
+        var size when string.Equals(size, PlaybackPreferenceValues.Large, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(size, PlaybackPreferenceValues.ExtraLarge, StringComparison.OrdinalIgnoreCase) => PlaybackPreferenceValues.Large,
+        _ => PlaybackPreferenceValues.Medium,
+    };
+
+    private Task Change(Action<SubtitleLanguageSettingsDto> change) => StyleChanged is null ? Task.CompletedTask : StyleChanged(change);
+
+    private IReadOnlyList<(string Label, string Value)> SizeOptions => [(L["PlayerSettings_Small"].Value, PlaybackPreferenceValues.Small), (L["PlayerSettings_Medium"].Value, PlaybackPreferenceValues.Medium), (L["PlayerSettings_Large"].Value, PlaybackPreferenceValues.Large)];
+    private IReadOnlyList<(string Label, string Value)> FontOptions => [(L["PlayerSettings_Default"].Value, PlaybackPreferenceValues.FontDefault), (L["PlayerSettings_Serif"].Value, PlaybackPreferenceValues.FontSerif), (L["PlayerSettings_Mono"].Value, PlaybackPreferenceValues.FontMono)];
+    private IReadOnlyList<(string Label, string Value)> ColourOptions => [
+        (L["PlayerSettings_White"].Value, PlaybackPreferenceValues.ColorWhite), (L["PlayerSettings_Black"].Value, PlaybackPreferenceValues.ColorBlack),
+        (L["PlayerSettings_Blue"].Value, PlaybackPreferenceValues.ColorBlue), (L["PlayerSettings_Teal"].Value, PlaybackPreferenceValues.ColorTeal),
+        (L["PlayerSettings_Green"].Value, PlaybackPreferenceValues.ColorGreen), (L["PlayerSettings_Yellow"].Value, PlaybackPreferenceValues.ColorYellow),
+        (L["PlayerSettings_Red"].Value, PlaybackPreferenceValues.ColorRed), (L["PlayerSettings_Magenta"].Value, PlaybackPreferenceValues.ColorMagenta)];
+    private IReadOnlyList<(string Label, string Value)> OnOffOptions => [(L["Common_Off"].Value, "off"), (L["PlayerSettings_On"].Value, "on")];
+}

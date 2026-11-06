@@ -47,6 +47,7 @@ public static class PlaybackUtilityGlyphMap
             PlaybackControlKey.Bookmarks => PlaybackUtilityGlyphKind.Bookmark,
             PlaybackControlKey.SleepTimer => PlaybackUtilityGlyphKind.Sleep,
             PlaybackControlKey.Speed => PlaybackUtilityGlyphKind.Speed,
+            PlaybackControlKey.Settings => PlaybackUtilityGlyphKind.Settings,
             PlaybackControlKey.Mute => PlaybackUtilityGlyphKind.Mute,
             PlaybackControlKey.Volume => PlaybackUtilityGlyphKind.Volume,
             PlaybackControlKey.Shuffle => PlaybackUtilityGlyphKind.Shuffle,
@@ -67,7 +68,7 @@ public static class PlaybackUtilityGlyphMap
 
         return key is PlaybackControlKey.Queue or PlaybackControlKey.History or PlaybackControlKey.Lyrics
             or PlaybackControlKey.Chapters or PlaybackControlKey.Bookmarks or PlaybackControlKey.SleepTimer
-            or PlaybackControlKey.Speed or PlaybackControlKey.Mute or PlaybackControlKey.Volume
+            or PlaybackControlKey.Speed or PlaybackControlKey.Settings or PlaybackControlKey.Mute or PlaybackControlKey.Volume
             or PlaybackControlKey.Shuffle or PlaybackControlKey.Repeat or PlaybackControlKey.Captions
             or PlaybackControlKey.AudioTrack or PlaybackControlKey.Quality or PlaybackControlKey.Fullscreen
             or PlaybackControlKey.PictureInPicture or PlaybackControlKey.Cast or PlaybackControlKey.Favorite

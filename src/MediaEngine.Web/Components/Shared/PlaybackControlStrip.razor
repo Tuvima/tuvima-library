@@ -28,6 +28,10 @@
                                        Disabled="@control.IsDisabled"
                                        Class="playback-control-strip__sleep" />
         }
+        else if (control.Key == PlaybackControlKey.Settings && SettingsContent is not null)
+        {
+            @SettingsContent(control)
+        }
         else
         {
             <PlaybackIconButton Control="@control"
@@ -60,6 +64,13 @@
 
     [Parameter]
     public EventCallback<PlaybackControlDefinition> OnControl { get; set; }
+
+    /// <summary>
+    /// Draws the Settings gear where the catalog puts it (audiobook: after Chapters, before Bookmarks). The host supplies the menu behind it,
+    /// because what it lists depends on the player (unified player D10). Without it the gear is an ordinary button that reports through OnControl.
+    /// </summary>
+    [Parameter]
+    public RenderFragment<PlaybackControlDefinition>? SettingsContent { get; set; }
 
     [Parameter]
     public double SpeedValue { get; set; } = 1d;
