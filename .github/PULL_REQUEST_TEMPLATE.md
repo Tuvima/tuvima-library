@@ -6,7 +6,7 @@
 
 ## Motivation
 
-<!-- Why is this change needed? Link to an issue if applicable: Fixes #123 -->
+<!-- Why is this change needed? Link bugs this delivers, one per line: Fixes #123 (or Part of #123 if only partly fixed). After merge, post the closure note on each issue. -->
 
 ## Changes
 
@@ -44,4 +44,5 @@
 - [ ] Docker build succeeds (`docker build -t test .`)
 - [ ] New dependencies are AGPLv3-compatible (see `CLAUDE.md` section 6.1)
 - [ ] No secrets, API keys, or local paths committed
+- [ ] Closure note posted on each linked issue (plain English; UI bugs also mock and live side by side)
 - [ ] Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `chore:`)
