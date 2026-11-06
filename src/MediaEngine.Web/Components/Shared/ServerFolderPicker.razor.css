@@ -3,18 +3,23 @@
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
-    /* One width wherever the picker opens (Add library, Vault, Settings), so it never changes shape between screens. */
-    width: min(calc(100vw - 32px), 1100px);
+    /* The window around the picker (the folder-picker host in app.css: 1100 px, or the screen minus 32 px) sets the one width; the picker fills it. A fixed width here ignored the window's border and scrollbar and pushed the right edge out of view. */
+    width: 100%;
     max-width: 100%;
+    min-width: 0;
     min-height: 0;
     font-family: var(--app-font-sans);
 }
 
 .server-folder-picker__target { margin: 0; padding: 14px 28px 0; color: var(--tl-text-secondary); }
 
+/* Embedded in the Add library window: the same full-width column, free to shrink to the window. */
+.server-folder-picker__inline { box-sizing: border-box; width: 100%; min-width: 0; }
+
 /* The address bar spans the whole dialog above the location list and the browser. */
 .server-folder-picker__pathbar {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 6px;
     padding: 20px 28px;
     border-bottom: 1px solid var(--tl-border-subtle);
@@ -192,6 +197,7 @@ input.server-folder-picker__address-field { padding: 0 12px; }
 }
 
 .server-folder-picker__list {
+    min-width: 0;
     height: min(300px, 40vh);
     max-height: min(420px, 48vh);
     overflow-y: auto;
@@ -340,7 +346,7 @@ input.server-folder-picker__address-field { padding: 0 12px; }
 .server-folder-picker__safety { margin: 0; flex: 1 1 240px; color: var(--tl-text-muted); font-size: var(--tl-font-size-sm); }
 
 /* Host fields above the path box: the library name is large and the first thing you type (D5). */
-.server-folder-picker__top { display: grid; gap: 12px; padding: 20px 28px 0; }
+.server-folder-picker__top { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 20px 28px 0; }
 @media (max-width: 600px) { .server-folder-picker__top { padding: 12px 14px 0; } }
 .server-folder-picker__top ::deep input { font-size: var(--tl-font-size-lg, 1.125rem); }
 
@@ -392,6 +398,6 @@ input.server-folder-picker__address-field { padding: 0 12px; }
 }
 
 /* The friendly name sits first in the folder step (Libraries v3 D18); the handling choice sits under the folder list (D19). */
-.server-folder-picker__name { display: grid; gap: 4px; padding: 16px 28px 0; }
+.server-folder-picker__name { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 16px 28px 0; }
 .server-folder-picker__name-hint { color: var(--tl-text-secondary); font-size: var(--tl-font-size-sm); }
 .server-folder-picker__handling { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px; }
