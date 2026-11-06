@@ -12,7 +12,6 @@ public sealed class TopLayerPopupGuardrailTests
 
     private static readonly IReadOnlyDictionary<string, string> LegacyOwnPanels = new Dictionary<string, string>(StringComparer.Ordinal)
     {
-        ["Components/Browse/BrowseMultiSelect.razor"] = "Browse filter drop-down; moves to the shared popover with the filter row.",
         ["Components/Collections/CollectionRuleValuePicker.razor"] = "Collection rule picker inside the collection editor.",
         ["Components/Details/EditorFamilyRail.razor"] = "Editor rail drop-down inside the editor window.",
         ["Components/Details/EditorUniverseRail.razor"] = "Editor rail drop-down inside the editor window.",
