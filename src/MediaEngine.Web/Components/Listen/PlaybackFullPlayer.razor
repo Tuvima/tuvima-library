@@ -71,7 +71,7 @@
                 <div class="playback-full__middle">
                     @if (_tool == "bookmarks") { @BookmarksContent }
                     else if (_tool == "output") { <PlaybackOutputPanel Snapshot="displayed" Commands="Commands" /> }
-                    else { <PlaybackPanelCard Snapshot="displayed" Commands="Commands" PanelKey="@_tool" FullPlayer="true"
+                    else { <PlaybackPanelCard Snapshot="displayed" Commands="Commands" PanelKey="@_tool" FullPlayer="true" ShowChaptersFooter="@(!IsPopup)"
                         ShowTabs="@(!IsBook && _tool is "queue" or "history")" PanelChanged="PanelSelectedAsync" /> }
                 </div>
             }

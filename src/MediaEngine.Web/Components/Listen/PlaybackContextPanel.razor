@@ -12,10 +12,10 @@
 {
     case "queue":
     case "history" when !IsAudiobook:
-        <QueuePanel Snapshot="@Snapshot" Commands="@Commands" ShowTabs="@ShowTabs" ActiveTab="@(_key == "history" ? "history" : "upnext")" />
+        <QueuePanel Snapshot="@Snapshot" Commands="@Commands" ShowTabs="@ShowTabs" ShowFooter="@ShowQueueSource" ActiveTab="@(_key == "history" ? "history" : "upnext")" />
         break;
     case "chapters":
-        <ChaptersPanel Snapshot="@Snapshot" Commands="@Commands" />
+        <ChaptersPanel Snapshot="@Snapshot" Commands="@Commands" ShowFooter="@ShowChaptersFooter" />
         break;
     default:
         <div class="listen-context-sidebar" aria-label="@L["PlaybackContextPanel_PlaybackContextPanel"].Value">
@@ -61,6 +61,12 @@
 
     /// <summary>True when the Queue draws its own Up next and History tabs; false when the host (the Now playing scene) has already drawn them.</summary>
     [Parameter] public bool ShowTabs { get; set; }
+
+    /// <summary>False leaves the Queue's "Playing from ..." line out (the Now playing scene already says it beside the cover).</summary>
+    [Parameter] public bool ShowQueueSource { get; set; } = true;
+
+    /// <summary>False leaves the Chapters "Timeline shows" control out (the pop-out window cannot reach the main window's choice).</summary>
+    [Parameter] public bool ShowChaptersFooter { get; set; } = true;
 
     /// <summary>Kept for the hosts that still pass it; the lists now choose their own tabs.</summary>
     [Parameter] public EventCallback<string> OnTabChanged { get; set; }

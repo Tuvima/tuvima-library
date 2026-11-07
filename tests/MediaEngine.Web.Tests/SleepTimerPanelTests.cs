@@ -28,6 +28,11 @@ public sealed class SleepTimerPanelTests : AsyncBunitContext
         {
             var entry = (callback, state, period);
             _timers.Add(entry);
+            if (period == TimeSpan.FromSeconds(1))
+            {
+                LastTick = () => callback(state);
+            }
+
             return new ManualTimer(() => _timers.Remove(entry));
         }
 
@@ -40,6 +45,9 @@ public sealed class SleepTimerPanelTests : AsyncBunitContext
                 timer.Callback(timer.State);
             }
         }
+
+        /// <summary>The newest one-second tick, kept after its timer is disposed so a test can fire a tick that was already on its way.</summary>
+        public Action? LastTick { get; private set; }
 
         public int RunningTicks => _timers.Count(timer => timer.Period == TimeSpan.FromSeconds(1));
     }
@@ -265,7 +273,7 @@ public sealed class SleepTimerPanelTests : AsyncBunitContext
         await cut.Find("[data-sleep-custom-set]").ClickAsync();
 
         Assert.Empty(_selections);
-        Assert.Equal("Enter a whole number of minutes from 1 to 720.", cut.Find("[data-sleep-custom-error]").TextContent);
+        Assert.Equal("That isn't a whole number from 1 to 720.", cut.Find("[data-sleep-custom-error]").TextContent);
         Assert.Equal("alert", cut.Find("[data-sleep-custom-error]").GetAttribute("role"));
         Assert.Equal("true", cut.Find("[data-sleep-custom-input]").GetAttribute("aria-invalid"));
         Assert.Equal("Custom duration", cut.Find(".playback-panel__title").TextContent);
@@ -366,6 +374,21 @@ public sealed class SleepTimerPanelTests : AsyncBunitContext
         await panel.InvokeAsync(() => panel.Instance.CloseAsync());
 
         cut.WaitForAssertion(() => Assert.Equal(0, _clock.RunningTicks));
+    }
+
+    [Fact]
+    public async Task Countdown_ATickThatFiresJustAfterThePanelClosedDoesNothing()
+    {
+        var cut = await OpenAsync(Running(TimeSpan.FromMinutes(10)));
+        var panel = cut.FindComponent<PlaybackPanel>();
+        await panel.InvokeAsync(() => panel.Instance.CloseAsync());
+        cut.WaitForAssertion(() => Assert.Equal(0, _clock.RunningTicks));
+
+        var exception = Record.Exception(() => _clock.LastTick!());
+        await Task.Delay(50);
+
+        Assert.Null(exception);
+        Assert.Empty(cut.FindAll("[data-sleep-countdown]"));
     }
 
     [Fact]
@@ -481,7 +504,7 @@ public sealed class SleepTimerPanelTests : AsyncBunitContext
     }
 
     [Fact]
-    public void BarTools_AudiobooksAlwaysHaveTheSleepTimerAndMusicOnlyWhileOneRuns()
+    public void BarTools_AudiobooksAlwaysHaveTheSleepTimerAndMusicNeverDoes()
     {
         var book = PlaybackControlCatalog.BuildBarTools(PlaybackBarMedia.Audiobook, new PlaybackBarState(HasChapters: true));
         Assert.Contains(book, tool => tool.Key == PlaybackControlKey.SleepTimer && !tool.IsActive);
@@ -489,10 +512,9 @@ public sealed class SleepTimerPanelTests : AsyncBunitContext
         var idleMusic = PlaybackControlCatalog.BuildBarTools(PlaybackBarMedia.Music, new PlaybackBarState(HasQueue: true));
         Assert.DoesNotContain(idleMusic, tool => tool.Key == PlaybackControlKey.SleepTimer);
 
-        var runningMusic = PlaybackControlCatalog.BuildBarTools(PlaybackBarMedia.Music, new PlaybackBarState(HasQueue: true, IsSleepTimerActive: true));
-        var moon = Assert.Single(runningMusic, tool => tool.Key == PlaybackControlKey.SleepTimer);
-        Assert.True(moon.IsActive);
-        Assert.True(runningMusic.ToList().FindIndex(tool => tool.Key == PlaybackControlKey.SleepTimer) > runningMusic.ToList().FindIndex(tool => tool.Key == PlaybackControlKey.Queue));
+        // The Engine only starts a sleep timer for audiobooks, so a music bar offers no moon even when a stale timer state says one is on.
+        var staleMusic = PlaybackControlCatalog.BuildBarTools(PlaybackBarMedia.Music, new PlaybackBarState(HasQueue: true, IsSleepTimerActive: true));
+        Assert.DoesNotContain(staleMusic, tool => tool.Key == PlaybackControlKey.SleepTimer);
 
         var runningBook = PlaybackControlCatalog.BuildBarTools(PlaybackBarMedia.Audiobook, new PlaybackBarState(HasChapters: true, IsSleepTimerActive: true));
         Assert.True(Assert.Single(runningBook, tool => tool.Key == PlaybackControlKey.SleepTimer).IsActive);

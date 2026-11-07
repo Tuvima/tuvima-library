@@ -11,7 +11,7 @@
 @* The Chapters panel for audiobooks (unified player v2 D20; mockup screen 10). The book's cover, title and author; "Chapter 8 of 24" and "Book · 32% complete"; one
    compact row per chapter (number, title, length, a check on finished chapters, and for the one playing: elapsed and remaining time, a progress line and the sound
    bars). Selecting a row plays that chapter. The footer holds "Timeline shows Chapter | Whole book", which is the choice the bar's timeline uses. *@
-<PlaybackListPanel ScrollKey="@ScrollKey">
+<PlaybackListPanel ScrollKey="@ScrollKey" ShowFooter="@(ShowFooter && Scope is not null)">
     <Identity>
         @if (Item is { } book)
         {
@@ -44,28 +44,15 @@
         {
             <p class="chp__empty">@L["PlaybackContextPanel_NoTimedChaptersWereFound"]</p>
         }
+        @{ var currentNumber = CurrentNumber; }
         @for (var position = 0; position < _chapters.Count; position++)
         {
             var chapter = _chapters[position];
             var number = position + 1;
-            var isCurrent = number == CurrentNumber;
-            var done = number < CurrentNumber;
-            <PlaybackListRow @key="chapter.Index" Variant="chapter" Title="@ChapterTitle(chapter, number)" Length="@Length(chapter, position)"
-                             Secondary="@(isCurrent ? CurrentTimes(chapter, position) : null)" ProgressPercent="@(isCurrent ? CurrentPercent(chapter, position) : null)" IsCurrent="isCurrent"
-                             AriaLabel="@L["ChaptersPanel_PlayLabel", ChapterTitle(chapter, number)].Value"
-                             OnClick="@(() => PlayChapterAsync(chapter))">
-                <Leading><span class="chp__number">@number</span></Leading>
-                <Trailing>
-                    @if (isCurrent)
-                    {
-                        <PlaybackActivityMark IsPlaying="@IsPlaybackActive" Size="compact" />
-                    }
-                    else if (done)
-                    {
-                        <span class="chp__done" data-chapter-done role="img" aria-label="@L["ChaptersPanel_Finished"].Value"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Check" /></span>
-                    }
-                </Trailing>
-            </PlaybackListRow>
+            var isCurrent = number == currentNumber;
+            <ChaptersPanelRow @key="chapter.Index" Chapter="chapter" Number="number" Title="@ChapterTitle(chapter, number)" Length="@Length(chapter, position)"
+                              Secondary="@(isCurrent ? CurrentTimes(chapter, position) : null)" ProgressPercent="@(isCurrent ? CurrentPercent(chapter, position) : null)"
+                              IsCurrent="isCurrent" IsDone="@(number < currentNumber)" IsPlaying="@IsPlaybackActive" OnPlay="PlayChapterAsync" />
         }
         @if (_failure is not null)
         {

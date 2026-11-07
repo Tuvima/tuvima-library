@@ -53,15 +53,6 @@
     margin-left: auto;
 }
 
-.chp__number {
-    font-variant-numeric: tabular-nums;
-}
-
-.chp__done {
-    color: var(--playback-accent-hover);
-    display: inline-flex;
-}
-
 .chp__empty {
     color: var(--playback-text-secondary);
     font: 400 14px/1.45 var(--font-ui);

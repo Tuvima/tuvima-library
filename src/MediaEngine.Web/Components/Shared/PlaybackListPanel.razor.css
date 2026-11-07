@@ -19,8 +19,17 @@
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
-    padding: 4px 8px;
+    padding: 0 8px;
     scrollbar-width: thin;
+}
+
+.playback-list-panel--inset .playback-list-panel__scroll {
+    padding-bottom: 4px;
+    padding-top: 4px;
+}
+
+.playback-list-panel__scroll:focus:not(:focus-visible) {
+    outline: none;
 }
 
 .playback-list-panel__footer {

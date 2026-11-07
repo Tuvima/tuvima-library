@@ -2,6 +2,7 @@ using Bunit;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Web.Components.Listen;
 using MediaEngine.Web.Components.Shared;
+using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Playback;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -36,6 +37,44 @@ public sealed class PlaybackContextPanelTests : AsyncBunitContext
         var css = File.ReadAllText(Path.Combine(directory!.FullName, "src/MediaEngine.Web/Components/Listen/PlaybackDesktopScene.razor.css"));
         Assert.DoesNotContain("line-clamp", css);
         Assert.Contains("overflow-wrap:anywhere", css);
+    }
+
+    [Fact]
+    public void TheNowPlayingSceneDoesNotRepeatWhereTheQueueCameFromBesideTheCover()
+    {
+        var song = new ListenQueueItem { QueueEntryId = Guid.NewGuid(), WorkId = Guid.NewGuid(), AssetId = Guid.NewGuid(), MediaType = "Music", Title = "Song" };
+        var snapshot = new ListenPlaybackSnapshot { Queue = [song, song with { QueueEntryId = Guid.NewGuid() }], CurrentIndex = 0, SourceLabel = "Northern Lights" };
+
+        var scene = Render<PlaybackDesktopScene>(p => p.Add(x => x.Snapshot, snapshot).Add(x => x.Commands, new RecordingSink()).Add(x => x.PanelKey, "queue"));
+        var card = Render<PlaybackPanelCard>(p => p.Add(x => x.Snapshot, snapshot).Add(x => x.Commands, new RecordingSink()).Add(x => x.PanelKey, "queue"));
+
+        Assert.NotEmpty(scene.FindAll("[data-queue-heading]"));
+        Assert.Empty(scene.FindAll("[data-queue-source]"));
+        Assert.Single(card.FindAll("[data-queue-source]"));
+    }
+
+    [Fact]
+    public void ThePopOutPlayerLeavesOutTheChaptersTimelineChoiceThatLivesInTheMainWindow()
+    {
+        var asset = Guid.NewGuid();
+        var chapters = Enumerable.Range(0, 3).Select(i => new PlaybackChapterDto { Index = i, AssetId = asset, Title = $"Chapter {i + 1}", StartSeconds = i * 60d, EndSeconds = (i + 1) * 60d }).ToList();
+        var snapshot = new ListenPlaybackSnapshot
+        {
+            ProfileId = Guid.NewGuid(),
+            Queue = [new() { WorkId = Guid.NewGuid(), AssetId = asset, MediaType = "Audiobook", Title = "Book", Chapters = chapters }],
+            CurrentIndex = 0,
+            Experience = PlayerExperienceModes.Audiobook,
+            DurationSeconds = 180,
+        };
+        var playback = new PlaybackSessionController(null!, null!, preferences: new Preferences(snapshot.ProfileId!.Value));
+        Services.AddSingleton(playback);
+        Services.AddSingleton(provider => new PlaybackTimelineScope(provider.GetRequiredService<Microsoft.JSInterop.IJSRuntime>(), playback));
+
+        var main = Render<PlaybackPanelCard>(p => p.Add(x => x.Snapshot, snapshot).Add(x => x.Commands, new RecordingSink()).Add(x => x.PanelKey, "chapters"));
+        var popOut = Render<PlaybackPanelCard>(p => p.Add(x => x.Snapshot, snapshot).Add(x => x.Commands, new RecordingSink()).Add(x => x.PanelKey, "chapters").Add(x => x.ShowChaptersFooter, false));
+
+        Assert.NotEmpty(main.FindAll("[data-chapters-footer]"));
+        Assert.Empty(popOut.FindAll("[data-chapters-footer]"));
     }
 
     [Fact]
@@ -79,6 +118,14 @@ public sealed class PlaybackContextPanelTests : AsyncBunitContext
         Assert.Equal("Lyrics", tabs[0].GetAttribute("aria-label"));
         Assert.Equal(string.Empty, tabs[0].TextContent.Trim());
         Assert.Equal(new[] { "Up Next", "History" }, tabs.Skip(1).Select(e => e.TextContent.Trim()).ToArray());
+    }
+
+    private sealed class Preferences(Guid profile) : IUserPlaybackPreferencesAccessor
+    {
+        public Guid? ActiveProfileId => profile;
+        public Task<UserPlaybackSettingsDto?> GetAsync(CancellationToken ct = default) => Task.FromResult<UserPlaybackSettingsDto?>(UserPlaybackSettingsDto.CreateDefaults(profile));
+        public void UpdateCache(UserPlaybackSettingsDto settings) { }
+        public void Invalidate() { }
     }
 
     private sealed class RecordingSink : IPlaybackCommandSink, IPlaybackIdentityNavigationSink

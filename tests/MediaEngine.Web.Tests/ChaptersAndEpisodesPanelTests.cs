@@ -138,6 +138,68 @@ public sealed class ChaptersAndEpisodesPanelTests : AsyncBunitContext
     }
 
     [Fact]
+    public void Chapters_APositionTickRedrawsOnlyThePlayingRowNotTheRestOfAHundredsOfChapters()
+    {
+        var asset = Guid.NewGuid();
+        var chapters = Enumerable.Range(0, 200)
+            .Select(index => new PlaybackChapterDto { Index = index, AssetId = asset, Title = $"Chapter title {index + 1}", StartSeconds = index * 600d, EndSeconds = (index + 1) * 600d })
+            .ToList();
+        var snapshot = Book() with { DurationSeconds = 200 * 600d, CurrentTimeSeconds = 100 * 600d + 30 };
+        snapshot = snapshot with { Queue = [snapshot.Queue[0] with { AssetId = asset, Chapters = chapters }] };
+        var cut = Render<ChaptersPanel>(p => p.Add(x => x.Snapshot, snapshot).Add(x => x.Commands, new RecordingPlaybackSink()));
+        var rows = cut.FindComponents<ChaptersPanelRow>();
+        Assert.Equal(200, rows.Count);
+        var before = rows.Select(row => row.RenderCount).ToList();
+
+        cut.Render(p => p.Add(x => x.Snapshot, snapshot with { CurrentTimeSeconds = snapshot.CurrentTimeSeconds + 1 }));
+
+        var redrawn = cut.FindComponents<ChaptersPanelRow>().Where((row, index) => row.RenderCount != before[index]).ToList();
+        Assert.True(redrawn.Count <= 2, $"A one second tick redrew {redrawn.Count} of 200 chapter rows.");
+
+        // Moving into the next chapter still moves the playing mark and the check, and redraws only the rows that changed.
+        var beforeMove = cut.FindComponents<ChaptersPanelRow>().Select(row => row.RenderCount).ToList();
+        cut.Render(p => p.Add(x => x.Snapshot, snapshot with { CurrentTimeSeconds = 101 * 600d + 5 }));
+        Assert.Equal("true", cut.FindAll("[data-playback-list-row='chapter']")[101].GetAttribute("aria-current"));
+        var movedRows = cut.FindComponents<ChaptersPanelRow>().Where((row, index) => row.RenderCount != beforeMove[index]).Count();
+        Assert.True(movedRows <= 3, $"Moving to the next chapter redrew {movedRows} rows.");
+    }
+
+    [Fact]
+    public async Task TimelineScope_AChoiceMadeWhileTheStoredValueIsBeingReadWinsOverIt()
+    {
+        var storage = new GatedStorageJs { Stored = "chapter" };
+        var scope = new PlaybackTimelineScope(storage, new PlaybackSessionController(null!, null!, preferences: new ProfilePreferences(Guid.NewGuid())));
+
+        var loading = scope.EnsureLoadedAsync();
+        await storage.ReadStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await scope.SetWholeBookAsync(true);
+        storage.Release.TrySetResult();
+        await loading;
+
+        Assert.True(scope.WholeBook);
+    }
+
+    [Fact]
+    public async Task TimelineScope_AProfileSwitchDuringTheReadReloadsForTheNewProfile()
+    {
+        var first = Guid.NewGuid();
+        var second = Guid.NewGuid();
+        var preferences = new SwitchableProfilePreferences(first);
+        var storage = new GatedStorageJs();
+        storage.ByKey[PlaybackTimelineScope.StorageKey(first)] = "chapter";
+        storage.ByKey[PlaybackTimelineScope.StorageKey(second)] = "book";
+        var scope = new PlaybackTimelineScope(storage, new PlaybackSessionController(null!, null!, preferences: preferences));
+
+        var loading = scope.EnsureLoadedAsync();
+        await storage.ReadStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        preferences.Profile = second;
+        storage.Release.TrySetResult();
+        await loading;
+
+        Assert.True(scope.WholeBook);
+    }
+
+    [Fact]
     public async Task TimelineScope_IsRememberedForEachProfileSeparately()
     {
         var storage = new MemoryStorageJs();
@@ -291,6 +353,43 @@ public sealed class ChaptersAndEpisodesPanelTests : AsyncBunitContext
         Assert.Empty(cut.FindAll("[role='tab']"));
     }
 
+    [Fact]
+    public void Episodes_AFolderOfVideosNeverUsesTvWordingAndAutoplaysTheNextVideo()
+    {
+        var lesson = new ListenQueueItem { WorkId = Guid.NewGuid(), AssetId = Guid.NewGuid(), MediaType = "Videos", Title = "Ball handling", Duration = "9:00", QueueEntryId = Guid.NewGuid() };
+        var cut = Render<EpisodesPanel>(p => p.Add(x => x.Upcoming, [lesson, lesson with { QueueEntryId = Guid.NewGuid(), Title = "Shooting" }]).Add(x => x.Lessons, true).Add(x => x.FolderVideos, true));
+
+        Assert.Equal("Autoplay next video", cut.Find(".eps__autoplay").TextContent.Trim());
+        // What a person reads or hears: the visible text and every accessible name.
+        var words = cut.Nodes.OfType<AngleSharp.Dom.IElement>().SelectMany(root => root.QuerySelectorAll("*").Append(root))
+            .Select(element => element.GetAttribute("aria-label")).Where(label => label is not null).Append(cut.Find(".playback-list-panel").TextContent);
+        var spoken = string.Join(" | ", words);
+        Assert.DoesNotContain("episode", spoken, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("season", spoken, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Episodes_ACourseAutoplaysTheNextLessonAndATvShowTheNextEpisode()
+    {
+        var lesson = new ListenQueueItem { WorkId = Guid.NewGuid(), AssetId = Guid.NewGuid(), MediaType = "Videos", Title = "Ball handling", QueueEntryId = Guid.NewGuid() };
+        var course = Render<EpisodesPanel>(p => p.Add(x => x.Upcoming, [lesson]).Add(x => x.Lessons, true));
+        Assert.Equal("Autoplay next lesson", course.Find(".eps__autoplay").TextContent.Trim());
+
+        var (_, show) = RenderEpisodes();
+        Assert.Equal("Autoplay next episode", show.Find(".eps__autoplay").TextContent.Trim());
+    }
+
+    [Fact]
+    public void Episodes_OneEpisodeOrOneLessonIsCountedInTheSingular()
+    {
+        var lesson = new ListenQueueItem { WorkId = Guid.NewGuid(), AssetId = Guid.NewGuid(), MediaType = "Videos", Title = "Ball handling", QueueEntryId = Guid.NewGuid() };
+        Assert.Equal("1 lesson", Render<EpisodesPanel>(p => p.Add(x => x.Upcoming, [lesson]).Add(x => x.Lessons, true)).Find("[data-episodes-count]").TextContent);
+
+        IReadOnlyList<VideoOwnedEpisode> one = [Episode("1", 1, "The First Wish")];
+        var show = Render<EpisodesPanel>(p => p.Add(x => x.Episodes, one).Add(x => x.CurrentWorkId, one[0].WorkId));
+        Assert.Equal("1 episode", show.Find("[data-episodes-count]").TextContent);
+    }
+
     [Theory]
     [InlineData("TV", "3", "Episodes")]
     [InlineData("Videos", null, "Lessons")]
@@ -303,12 +402,46 @@ public sealed class ChaptersAndEpisodesPanelTests : AsyncBunitContext
         Assert.Equal(expected, EpisodesPanel.Title(localizer, VideoPresentationResolver.IsTvEpisode(item)));
     }
 
+    private sealed class SwitchableProfilePreferences(Guid profile) : IUserPlaybackPreferencesAccessor
+    {
+        public Guid Profile { get; set; } = profile;
+        public Guid? ActiveProfileId => Profile;
+        public Task<UserPlaybackSettingsDto?> GetAsync(CancellationToken ct = default) => Task.FromResult<UserPlaybackSettingsDto?>(UserPlaybackSettingsDto.CreateDefaults(Profile));
+        public void UpdateCache(UserPlaybackSettingsDto settings) { }
+        public void Invalidate() { }
+    }
+
     private sealed class ProfilePreferences(Guid profile) : IUserPlaybackPreferencesAccessor
     {
         public Guid? ActiveProfileId => profile;
         public Task<UserPlaybackSettingsDto?> GetAsync(CancellationToken ct = default) => Task.FromResult<UserPlaybackSettingsDto?>(UserPlaybackSettingsDto.CreateDefaults(profile));
         public void UpdateCache(UserPlaybackSettingsDto settings) { }
         public void Invalidate() { }
+    }
+
+    // Holds the first browser-storage read until the test releases it, so a choice or a profile switch can land while the read is in flight.
+    private sealed class GatedStorageJs : IJSRuntime
+    {
+        public string? Stored { get; set; }
+        public Dictionary<string, string?> ByKey { get; } = [];
+        public TaskCompletionSource ReadStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public ValueTask<TValue> InvokeAsync<TValue>(string identifier, object?[]? args) => InvokeAsync<TValue>(identifier, CancellationToken.None, args);
+
+        public async ValueTask<TValue> InvokeAsync<TValue>(string identifier, CancellationToken cancellationToken, object?[]? args)
+        {
+            if (identifier != "localStorage.getItem")
+            {
+                return default!;
+            }
+
+            var key = (string)args![0]!;
+            var value = ByKey.TryGetValue(key, out var keyed) ? keyed : Stored;
+            ReadStarted.TrySetResult();
+            await Release.Task;
+            return (TValue)(object?)value!;
+        }
     }
 
     private sealed class MemoryStorageJs : IJSRuntime

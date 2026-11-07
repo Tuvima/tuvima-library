@@ -70,7 +70,7 @@
                         { <AppNativeButton Type="button" role="tab" aria-selected="@(PanelKey == tab.Key ? "true" : "false")" OnClick="@(() => PanelChanged.InvokeAsync(tab.Key))">@tab.Title</AppNativeButton> }
                     }
                 </div>
-                <PlaybackPanelCard Snapshot="@Snapshot" Commands="@Commands" PanelKey="@PanelKey" ShowTabs="false" />
+                <PlaybackPanelCard Snapshot="@Snapshot" Commands="@Commands" PanelKey="@PanelKey" ShowTabs="false" ShowQueueSource="false" />
             </section>
         </div>
     </AppCssElement>

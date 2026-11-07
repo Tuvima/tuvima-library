@@ -14,7 +14,7 @@
     background: transparent;
     border: 0;
     border-radius: 6px;
-    color: var(--playback-text);
+    color: var(--playback-text-secondary);
     cursor: pointer;
     font: 400 14px/1.45 var(--font-ui);
     letter-spacing: 0;
@@ -24,6 +24,7 @@
 
 .qp__heading ::deep .qp__clear:hover:not(:disabled) {
     background: var(--playback-state-hover);
+    color: var(--playback-text);
 }
 
 .qp__heading ::deep .qp__clear:disabled {

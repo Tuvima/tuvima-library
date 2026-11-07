@@ -527,6 +527,19 @@ public sealed class PlaybackIdentityTests : AsyncBunitContext
         Assert.Equal("extra", menu.LastElementChild!.Id);
     }
 
+    [Fact]
+    public async Task TheItemMenuGetsItsArrowKeysFromTheSharedRovingFocusScript()
+    {
+        var roving = JSInterop.SetupModule("./js/roving-focus.js");
+        roving.Mode = JSRuntimeMode.Loose;
+        var cut = Render<PlaybackItemMenu>(p => p.Add(m => m.Media, PlaybackBarMedia.Music).Add(m => m.Item, Item(PlaybackBarMedia.Music)));
+
+        await cut.InvokeAsync(() => cut.FindComponent<PlaybackPanel>().Instance.OpenAsync(true));
+
+        cut.WaitForAssertion(() => Assert.Single(roving.Invocations["attachMenu"]));
+        Assert.NotNull(cut.Find("[data-playback-item-menu] [data-playback-menu-roving]"));
+    }
+
     private static string RepoPath(params string[] parts)
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

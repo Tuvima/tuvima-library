@@ -5229,12 +5229,6 @@
   <data name="Common_BackTo" xml:space="preserve">
     <value>Back to {0}</value>
   </data>
-  <data name="ListeningSettingsPage_DefaultLength" xml:space="preserve">
-    <value>Default length</value>
-  </data>
-  <data name="ListeningSettingsPage_TheLengthShownFirstWhen" xml:space="preserve">
-    <value>The length shown first when you open the sleep timer.</value>
-  </data>
   <data name="Common_Off" xml:space="preserve">
     <value>Off</value>
   </data>
@@ -11439,6 +11433,12 @@
   <data name="EpisodesPanel_LessonCount" xml:space="preserve">
     <value>{0} lessons</value>
   </data>
+  <data name="EpisodesPanel_EpisodeCountOne" xml:space="preserve">
+    <value>1 episode</value>
+  </data>
+  <data name="EpisodesPanel_LessonCountOne" xml:space="preserve">
+    <value>1 lesson</value>
+  </data>
   <data name="EpisodesPanel_PlayLabel" xml:space="preserve">
     <value>Play {0}</value>
   </data>
@@ -11456,6 +11456,12 @@
   </data>
   <data name="EpisodesPanel_Autoplay" xml:space="preserve">
     <value>Autoplay next episode</value>
+  </data>
+  <data name="EpisodesPanel_AutoplayVideo" xml:space="preserve">
+    <value>Autoplay next video</value>
+  </data>
+  <data name="EpisodesPanel_AutoplayLesson" xml:space="preserve">
+    <value>Autoplay next lesson</value>
   </data>
   <data name="SleepTimer_Title" xml:space="preserve">
     <value>Sleep timer</value>
@@ -11506,7 +11512,7 @@
     <value>Enter a whole number of minutes from {0} to {1}.</value>
   </data>
   <data name="SleepTimer_CustomError" xml:space="preserve">
-    <value>Enter a whole number of minutes from {0} to {1}.</value>
+    <value>That isn't a whole number from {0} to {1}.</value>
   </data>
   <data name="SleepTimer_CustomSet" xml:space="preserve">
     <value>Set timer</value>

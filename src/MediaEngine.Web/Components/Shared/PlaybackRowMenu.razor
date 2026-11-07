@@ -8,6 +8,7 @@
         <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.More" /></TriggerContent>
         <ChildContent>
             <div class="prm" role="menu" aria-label="@Title" data-playback-row-menu>
+                <PlaybackMenuRoving />
                 @foreach (var item in Items)
                 {
                     var chosen = item;

@@ -160,6 +160,21 @@ public sealed class PlaybackListPanelTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task Queue_TheRowMenuGetsItsArrowKeysFromTheSharedRovingFocusScript()
+    {
+        var roving = JSInterop.SetupModule("./js/roving-focus.js");
+        roving.Mode = JSRuntimeMode.Loose;
+        var cut = RenderQueue(Queue(2), new RecordingPlaybackSink());
+
+        await cut.InvokeAsync(() => cut.FindComponents<PlaybackRowMenu>()[0].Instance.OpenAsync());
+
+        cut.WaitForAssertion(() => Assert.Single(roving.Invocations["attachMenu"]));
+        Assert.NotNull(cut.Find("[data-playback-row-menu] [data-playback-menu-roving]"));
+        await cut.InvokeAsync(() => cut.FindComponent<PlaybackPanel>().Instance.CloseAsync());
+        cut.WaitForAssertion(() => Assert.Single(roving.Invocations["detachMenu"]));
+    }
+
+    [Fact]
     public async Task Queue_GoToArtistAsksTheMainPlayerToOpenThatArtist()
     {
         var snapshot = Queue(2);
@@ -263,5 +278,89 @@ public sealed class PlaybackListPanelTests : AsyncBunitContext
 
         Assert.Equal("Up next · 200", cut.Find("[data-queue-heading]").TextContent);
         Assert.True(cut.FindAll("[data-playback-list-row='queue']").Count < 200, "A 200 song queue must not draw 200 rows.");
+    }
+
+    [Fact]
+    public void Queue_WithTabsOpensOnTheHistoryTabWhenTheHostAsksForIt()
+    {
+        var cut = RenderQueue(Queue(2), new RecordingPlaybackSink(), showTabs: true, tab: "history");
+
+        var tabs = cut.FindAll("[role='tab']");
+        Assert.Equal(new[] { "false", "true" }, tabs.Select(tab => tab.GetAttribute("aria-selected")));
+        Assert.Contains("Played songs appear here for this session.", cut.Markup);
+        Assert.Empty(cut.FindAll("[data-queue-clear]"));
+    }
+
+    [Fact]
+    public void Queue_AChangedRequestMovesAnOpenPanelButTheListenersOwnClickWinsUntilThen()
+    {
+        var snapshot = Queue(2);
+        var cut = RenderQueue(snapshot, new RecordingPlaybackSink(), showTabs: true, tab: "upnext");
+        Assert.Equal("true", cut.FindAll("[role='tab']")[0].GetAttribute("aria-selected"));
+
+        cut.FindAll("[role='tab']")[1].Click();
+        Assert.Equal("true", cut.FindAll("[role='tab']")[1].GetAttribute("aria-selected"));
+        cut.Render();
+        Assert.Equal("true", cut.FindAll("[role='tab']")[1].GetAttribute("aria-selected"));
+
+        cut.Render(p => p.Add(x => x.ActiveTab, "history"));
+        cut.Render(p => p.Add(x => x.ActiveTab, "upnext"));
+        Assert.Equal("true", cut.FindAll("[role='tab']")[0].GetAttribute("aria-selected"));
+    }
+
+    [Fact]
+    public async Task Queue_RemovingARowMovesFocusToTheNextRowsHandleThenAgainOnceTheNewQueueHasDrawn()
+    {
+        var module = JSInterop.SetupModule("./js/playback-queue-drag.js");
+        module.Mode = JSRuntimeMode.Loose;
+        var snapshot = Queue(3);
+        var cut = RenderQueue(snapshot, new RecordingPlaybackSink());
+
+        await ChooseRowAction(cut, 0, "remove");
+
+        var first = Assert.Single(module.Invocations["focusHandle"]);
+        Assert.Equal(snapshot.Queue[2].QueueEntryId.ToString(), first.Arguments[1]);
+        var next = snapshot with { Queue = snapshot.Queue.Where((_, index) => index != 1).ToList(), QueueRevision = snapshot.QueueRevision + 1 };
+        cut.Render(p => p.Add(x => x.Snapshot, next));
+        Assert.Equal(2, module.Invocations["focusHandle"].Count);
+        Assert.Equal(snapshot.Queue[2].QueueEntryId.ToString(), module.Invocations["focusHandle"][1].Arguments[1]);
+    }
+
+    [Fact]
+    public async Task Queue_RemovingTheLastRowFallsBackToThePreviousOneAndTheOnlyRowToTheList()
+    {
+        var module = JSInterop.SetupModule("./js/playback-queue-drag.js");
+        module.Mode = JSRuntimeMode.Loose;
+        var snapshot = Queue(2);
+        var cut = RenderQueue(snapshot, new RecordingPlaybackSink());
+
+        await ChooseRowAction(cut, 1, "remove");
+        Assert.Equal(snapshot.Queue[1].QueueEntryId.ToString(), Assert.Single(module.Invocations["focusHandle"]).Arguments[1]);
+
+        var alone = RenderQueue(Queue(1), new RecordingPlaybackSink());
+        await ChooseRowAction(alone, 0, "remove");
+        Assert.Null(module.Invocations["focusHandle"][1].Arguments[1]);
+    }
+
+    [Fact]
+    public void Queue_DrawsNoFooterStripWithoutASourceOrWhenTheHostLeavesItOut()
+    {
+        Assert.NotEmpty(RenderQueue(Queue(2), new RecordingPlaybackSink()).FindAll(".playback-list-panel__footer"));
+        Assert.Empty(RenderQueue(Queue(2, source: null), new RecordingPlaybackSink()).FindAll(".playback-list-panel__footer"));
+        var left = Render<QueuePanel>(p => p.Add(x => x.Snapshot, Queue(2)).Add(x => x.Commands, new RecordingPlaybackSink()).Add(x => x.ShowFooter, false));
+        Assert.Empty(left.FindAll(".playback-list-panel__footer"));
+        Assert.Empty(left.FindAll("[data-queue-source]"));
+    }
+
+    [Theory]
+    [InlineData("lyrics", true, "lyrics")]
+    [InlineData("queue", true, "queue")]
+    [InlineData("chapters", false, "chapters")]
+    [InlineData("history", true, "queue")]
+    [InlineData("history", false, "ordinary")]
+    [InlineData("anything-else", true, "ordinary")]
+    public void TheBarsCompactPanelsUseTheKindThatMatchesTheirContent(string key, bool isMusic, string expected)
+    {
+        Assert.Equal(expected, ListenNowPlayingBar.CompactPanelKind(key, isMusic));
     }
 }

@@ -63,7 +63,7 @@
         }
     </ChildContent>
     <Footer>
-        <div class="eps__autoplay"><AppSwitchRow Label="@L["EpisodesPanel_Autoplay"].Value" Value="AutoplayNextEpisode" ValueChanged="AutoplayChanged" /></div>
+        <div class="eps__autoplay"><AppSwitchRow Label="@AutoplayLabel" Value="AutoplayNextEpisode" ValueChanged="AutoplayChanged" /></div>
     </Footer>
 </PlaybackListPanel>
 
@@ -101,9 +101,13 @@
     private IReadOnlyList<AppSelectOption> Seasons => Episodes.DistinctBy(item => item.SeasonKey).Select(item => new AppSelectOption(item.SeasonKey, item.SeasonTitle)).ToList();
     private IReadOnlyList<VideoOwnedEpisode> ShownEpisodes => Episodes.Where(item => item.SeasonKey == _season).ToList();
     private string ScrollKey => $"{CurrentWorkId}:{_season}";
-    private string CountText => ShownEpisodes.Count > 0
-        ? L[Lessons ? "EpisodesPanel_LessonCount" : "EpisodesPanel_EpisodeCount", ShownEpisodes.Count].Value
-        : L[Lessons ? "EpisodesPanel_LessonCount" : "EpisodesPanel_EpisodeCount", Upcoming.Count].Value;
+    private int ShownCount => ShownEpisodes.Count > 0 ? ShownEpisodes.Count : Upcoming.Count;
+    private string CountText => ShownCount == 1
+        ? L[Lessons ? "EpisodesPanel_LessonCountOne" : "EpisodesPanel_EpisodeCountOne"].Value
+        : L[Lessons ? "EpisodesPanel_LessonCount" : "EpisodesPanel_EpisodeCount", ShownCount].Value;
+
+    // A folder of videos says "video", a course "lesson", a TV show "episode" (issue 703: a folder's videos never use TV wording).
+    private string AutoplayLabel => L[FolderVideos ? "EpisodesPanel_AutoplayVideo" : Lessons ? "EpisodesPanel_AutoplayLesson" : "EpisodesPanel_Autoplay"].Value;
     private string CurrentStatus => IsPlaying ? L["EpisodesPanel_Playing"].Value : L["EpisodesPanel_Paused"].Value;
     private string CurrentTimes => L["EpisodesPanel_PositionOf", PlaybackSeekRail.Time(Position), PlaybackSeekRail.Time(Duration)].Value;
     private double? CurrentPercent => Duration > 0 && double.IsFinite(Duration) ? Math.Clamp(Position / Duration * 100d, 0d, 100d) : null;

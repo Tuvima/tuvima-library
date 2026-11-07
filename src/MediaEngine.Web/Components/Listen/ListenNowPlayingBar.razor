@@ -163,15 +163,15 @@
                         break;
                     case PlaybackControlKey.SleepTimer:
                         @* The moon opens the Sleep timer panel directly (unified player v2 D16, mockup screen 6). *@
-                        <SleepTimerPanel Surface="dock" Title="@tool.AriaLabel" ItemKey="@DockItemKey" IsOn="@tool.IsActive" State="@Playback.SleepTimerState" Availability="@Playback.SleepTimerAvailability"
-                                         Chapters="@CurrentChapters" OffersEndOfChapter="@Playback.AllowEndOfChapterSleepTimer" SelectionChanged="SetAudiobookSleepTimerSelectionAsync"
+                        <SleepTimerPanel Surface="dock" ItemKey="@DockItemKey" IsOn="@tool.IsActive" State="@Playback.SleepTimerState" Availability="@Playback.SleepTimerAvailability"
+                                         Chapters="@SleepTimerChapters" OffersEndOfChapter="@Playback.AllowEndOfChapterSleepTimer" SelectionChanged="SetAudiobookSleepTimerSelectionAsync"
                                          Open="@(_settingsMenuOpen && _settingsMenuSurface == "dock" && _settingsMenuTool == "sleep")" OpenChanged="@(state => HandleBarSettingsOpenChangedAsync("sleep", state))" />
                         break;
                 }
             </ToolContent>
         </PlaybackShell>
         <PlaybackPanel @ref="_compactContext" Title="@ContextToolTitle" ToolId="audio-compact-context" ItemKey="@DockItemKey"
-                         Kind="@(_compactPanelKey == "lyrics" ? "lyrics" : CompactIsList ? _compactPanelKey : "ordinary")" Trigger="@_compactToolTrigger" ShowHeading="@CompactIsList"
+                         Kind="@CompactPanelKind(_compactPanelKey, Playback.IsMusicMode)" Trigger="@_compactToolTrigger" ShowHeading="@CompactIsList"
                          OpenChanged="@(open => DockToolChangedAsync(_compactPanelKey, open))">
             <ListenContextSidebar @key="_compactPanelKey" ActivePanelKey="@_compactPanelKey"
                                  ShowTabs="@(_compactPanelKey is "queue" || _compactPanelKey == "history" && Playback.IsMusicMode)" />
@@ -253,6 +253,19 @@
     private bool _openCompactToolPending;
     private string ContextToolTitle => _compactPanelKey switch { "lyrics" => "Lyrics", "chapters" => L["Common_Chapters"].Value, "history" => Playback.IsMusicMode ? L["Common_Queue"].Value : "History", _ => L["Common_Queue"].Value };
     private bool CompactIsList => _compactPanelKey is "queue" or "chapters" || _compactPanelKey == "history" && Playback.IsMusicMode;
+
+    /// <summary>
+    /// The panel kind the compact tool panel is drawn as. A music "history" request is the Queue panel opened on its History tab, so it gets the Queue's
+    /// 440 x 440 size (mockup screen 8); an audiobook's history is the ordinary listening-history list.
+    /// </summary>
+    public static string CompactPanelKind(string key, bool isMusic) => key switch
+    {
+        "lyrics" => "lyrics",
+        "queue" => "queue",
+        "chapters" => "chapters",
+        "history" when isMusic => "queue",
+        _ => "ordinary",
+    };
     private bool HasUsableChapters => CurrentChapters.Count > 1;
     private bool IsCurrentDockSnapshot(ListenPlaybackSnapshot snapshot) => !_disposed && snapshot.ProfileId == Playback.ActiveProfileId
         && snapshot.PlaybackRequestVersion == Playback.PlaybackRequestVersion && snapshot.CurrentIndex >= 0 && snapshot.CurrentIndex < snapshot.Queue.Count
@@ -464,6 +477,9 @@
         _ => "Repeat off",
     };
     private PlaybackExperience CurrentMiniPlayerExperience => Playback.IsAudiobookMode ? PlaybackExperience.Audiobook : PlaybackExperience.Music;
+    // The chapters the Sleep timer counts and stops at: every chapter the book has, as on the phone player, so a one-chapter book offers End of chapter in both.
+    private IReadOnlyList<PlaybackChapterDto> SleepTimerChapters => Playback.CurrentItem?.Chapters ?? [];
+
     private IReadOnlyList<PlaybackChapterDto> CurrentChapters =>
         Playback.CurrentItem is { Chapters.Count: > 1 } item ? item.Chapters : [];
     private IReadOnlyList<PlaybackControlDefinition> AudiobookDockControls => SelectWorkspacePanels(

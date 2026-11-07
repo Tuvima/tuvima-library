@@ -2298,6 +2298,43 @@ public sealed class PlaybackSessionControllerTests
     }
 
     [Theory]
+    [InlineData(20)]
+    [InlineData(90)]
+    public void RestoreState_KeepsARunningTimerWhoseLengthWasNeverOneOfTheOptionPresets(int minutes)
+    {
+        // Unified player v2 D16: the presets are fixed and Custom duration takes any whole number from 1 to 720, so a stored timer is judged by the limits
+        // alone and not by the old option list.
+        var profileId = Guid.NewGuid();
+        var workId = Guid.NewGuid();
+        var asset = Guid.NewGuid();
+        var item = CreateAudiobookItem("Book", "stream://book") with { WorkId = workId, AudiobookWorkId = workId, AssetId = asset };
+        var playback = new PlaybackSessionController(null!, null!, preferences: new ActiveProfilePlaybackPreferences(profileId));
+        var stored = new AudiobookSleepTimerStateDto
+        {
+            Mode = AudiobookSleepTimerModes.Timer,
+            ChosenMinutes = minutes,
+            DeadlineUtc = DateTimeOffset.UtcNow.AddMinutes(minutes),
+            TimerGeneration = 3,
+            ProfileId = profileId,
+            WorkId = workId,
+            BoundAssetId = asset,
+            TimerSessionId = Guid.NewGuid(),
+        };
+
+        playback.RestoreState(new ListenPlaybackSnapshot
+        {
+            Queue = [item],
+            CurrentIndex = 0,
+            Experience = PlayerExperienceModes.Audiobook,
+            SleepTimerState = stored,
+        });
+
+        Assert.Equal(AudiobookSleepTimerModes.Timer, playback.SleepTimerState.Mode);
+        Assert.Equal(minutes, playback.SleepTimerState.ChosenMinutes);
+        Assert.Equal(stored.TimerSessionId, playback.SleepTimerState.TimerSessionId);
+    }
+
+    [Theory]
     [InlineData("30", 30)]
     [InlineData("5", 5)]
     [InlineData("Off", null)]

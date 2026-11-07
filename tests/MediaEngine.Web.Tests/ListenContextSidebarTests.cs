@@ -70,6 +70,19 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
     }
 
     [Fact]
+    public void TheBarsHistoryControlOpensTheQueueOnItsHistoryTab()
+    {
+        var playback = CreatePlayback(CreateItem("Current song", "Artist"), CreateItem("Next song", "Artist"));
+        AddWorkspaceServices(playback, EngineApiClientStub.CreateDefault());
+
+        var history = Render<ListenContextSidebar>(parameters => parameters.Add(component => component.ActivePanelKey, "history").Add(component => component.ShowTabs, true));
+        var queue = Render<ListenContextSidebar>(parameters => parameters.Add(component => component.ActivePanelKey, "queue").Add(component => component.ShowTabs, true));
+
+        Assert.Equal("true", history.FindAll("[role='tab']")[1].GetAttribute("aria-selected"));
+        Assert.Equal("true", queue.FindAll("[role='tab']")[0].GetAttribute("aria-selected"));
+    }
+
+    [Fact]
     public async Task StaleQueueClearCannotClearTheSuccessorSession()
     {
         var playback = CreatePlayback(
@@ -552,6 +565,8 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
             MediaType = "Audiobook",
             AssetId = Guid.NewGuid(),
             StreamUrl = "stream://test-audiobook",
+            // A one-chapter book: the bar offers End of chapter exactly as the phone player does.
+            Chapters = [new() { Index = 0, AssetId = Guid.NewGuid(), Title = "Only chapter", StartSeconds = 0, EndSeconds = 600 }],
         };
         var playback = new PlaybackSessionController(null!, null!, preferences: preferences);
         playback.RestoreState(new ListenPlaybackSnapshot
@@ -616,6 +631,12 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         Assert.Equal(AudiobookSleepTimerModes.Timer, playback.SleepTimerState.Mode);
         Assert.Equal(15, playback.SleepTimerState.ChosenMinutes);
         Assert.Equal(stableOffCalls, jsRuntime.OffCalls);
+
+        // The moon's accessible name says the timer is on while it runs (the bar no longer overrides the panel's own wording), and a one-chapter book still
+        // hands its chapter to the panel.
+        cut.WaitForAssertion(() => Assert.NotEmpty(cut.FindAll("[data-playback-zone='tools'] button[aria-label='Sleep timer, on']")));
+        Assert.Empty(cut.FindAll("[data-playback-zone='tools'] button[aria-label='Sleep timer']"));
+        Assert.Single(cut.FindComponent<SleepTimerPanel>().Instance.Chapters);
 
         // Unified player v2 A4 and D16: the timer lives in the session, so opening Now playing and closing it again neither resets nor moves the
         // deadline, and the bar's Sleep timer panel keeps showing the session's own state.

@@ -18,7 +18,7 @@
    artist, length, and a "..." menu (Play next, Move up, Move down, Remove, Go to album, Go to artist). Dragging reorders; Move up and Move down are the keyboard and
    menu way to do the same through the same queue command. History lists what played this session with "3 min ago" and a Play action. The footer says where the queue
    came from. Rows are a fixed 52 px and only the ones on screen are drawn, so a 200 song queue is as light as a short one and never touches the bar. *@
-<PlaybackListPanel @ref="_list" ScrollKey="@ScrollKey" PanelId="@(ShowTabs ? PlaybackListTabs.PanelId(_idPrefix) : null)" LabelledBy="@(ShowTabs ? PlaybackListTabs.TabId(_idPrefix, Tab) : null)">
+<PlaybackListPanel @ref="_list" Inset="true" ScrollKey="@ScrollKey" ShowFooter="@(ShowFooter && !string.IsNullOrWhiteSpace(Snapshot.SourceLabel))" PanelId="@(ShowTabs ? PlaybackListTabs.PanelId(_idPrefix) : null)" LabelledBy="@(ShowTabs ? PlaybackListTabs.TabId(_idPrefix, Tab) : null)">
     <Header>
         @if (ShowTabs)
         {
@@ -67,6 +67,8 @@
 
     private sealed record UpcomingRow(ListenQueueItem Item, int Index);
 
+    private sealed record PendingFocus(Guid? Row, long QueueRevision, DateTimeOffset Until);
+
     [Parameter, EditorRequired] public ListenPlaybackSnapshot Snapshot { get; set; } = new();
     [Parameter, EditorRequired] public IPlaybackCommandSink Commands { get; set; } = null!;
 
@@ -83,11 +85,15 @@
     private readonly CancellationTokenSource _lifetime = new();
     private PlaybackListPanel? _list;
     private string _tab = UpNextTab;
+    private string? _requestedTab;
+    private bool _tabRequested;
     private Guid? _dragOccurrence;
     private ListenPlaybackSnapshot? _dragSnapshot, _historyConfirmation;
     private string? _announcement, _failure;
     private Task? _relativeTimeLoop;
     private IJSObjectReference? _dragModule;
+    private bool _attaching, _disposed;
+    private PendingFocus? _pendingFocus;
     private ElementReference? _dragRoot;
 
     private string Tab => ShowTabs ? _tab : ActiveTab == HistoryTab ? HistoryTab : UpNextTab;
@@ -115,22 +121,54 @@
 
     protected override void OnInitialized() => _relativeTimeLoop = RefreshRelativeTimesAsync();
 
+    // The tab the host asks for: the bar's History control opens the History tab, and a change of the request moves a panel that is already open.
+    // After that the listener's own tab clicks win until the host asks for something else.
+    protected override void OnParametersSet()
+    {
+        if (_tabRequested && ActiveTab == _requestedTab) return;
+        _tabRequested = true;
+        _requestedTab = ActiveTab;
+        if (ActiveTab is not null) _tab = ActiveTab == HistoryTab ? HistoryTab : UpNextTab;
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (_dragModule is not null || _list is null) return;
+        if (_pendingFocus is { } pending)
+        {
+            if (DateTimeOffset.UtcNow > pending.Until) _pendingFocus = null;
+            else if (Snapshot.QueueRevision != pending.QueueRevision)
+            {
+                _pendingFocus = null;
+                await FocusAsync(pending.Row);
+            }
+        }
+        if (_dragModule is not null || _attaching || _disposed || _list is null) return;
+        _attaching = true;
         try
         {
+            var module = await JS.InvokeAsync<IJSObjectReference>("import", "./js/playback-queue-drag.js");
+            if (_disposed)
+            {
+                // The panel closed while the script was loading: nothing will ever detach from this copy, so release it here, once.
+                await module.DisposeAsync();
+                return;
+            }
+            _dragModule = module;
             _dragRoot = _list.Element;
-            _dragModule = await JS.InvokeAsync<IJSObjectReference>("import", "./js/playback-queue-drag.js");
-            await _dragModule.InvokeVoidAsync("attach", _dragRoot);
+            await module.InvokeVoidAsync("attach", _dragRoot);
         }
         catch (InvalidOperationException)
         {
-            // Prerendering has no browser yet; dragging attaches once the panel is live, and Move up and Move down never need it.
+            // Prerendering has no browser yet (dragging attaches once the panel is live, and Move up and Move down never need it), or the panel closed between
+            // loading the script and attaching it (ObjectDisposedException); disposal already released the script.
         }
         catch (JSDisconnectedException)
         {
             // The circuit closed while the panel was drawing; there is nothing left to attach to.
+        }
+        finally
+        {
+            _attaching = false;
         }
     }
 
@@ -152,14 +190,17 @@
 
     public async ValueTask DisposeAsync()
     {
+        _disposed = true;
         _lifetime.Cancel();
         if (_relativeTimeLoop is not null) await _relativeTimeLoop;
         _lifetime.Dispose();
-        if (_dragModule is null) return;
+        var module = _dragModule;
+        _dragModule = null;
+        if (module is null) return;
         try
         {
-            if (_dragRoot is { } root) await _dragModule.InvokeVoidAsync("detach", root);
-            await _dragModule.DisposeAsync();
+            if (_dragRoot is { } root) await module.InvokeVoidAsync("detach", root);
+            await module.DisposeAsync();
         }
         catch (InvalidOperationException)
         {
@@ -205,7 +246,7 @@
                 }
                 else
                 {
-                    <Virtualize Items="@upcoming" ItemSize="RowHeightPx" OverscanCount="6" Context="row">
+                    <Virtualize Items="@upcoming" ItemSize="RowHeightPx" OverscanCount="12" Context="row">
                         @UpcomingRowView(snapshot, row, upcoming.Count)
                     </Virtualize>
                 }
@@ -251,16 +292,66 @@
         return items;
     }
 
-    private Task QueueActionAsync(ListenPlaybackSnapshot shown, UpcomingRow row, string key) => key switch
+    private async Task QueueActionAsync(ListenPlaybackSnapshot shown, UpcomingRow row, string key)
     {
-        "play-next" => MoveAsync(shown, row.Item.QueueEntryId, 0),
-        "move-up" => MoveAsync(shown, row.Item.QueueEntryId, row.Index - 1),
-        "move-down" => MoveAsync(shown, row.Item.QueueEntryId, row.Index + 1),
-        "remove" => SendAsync(shown, new() { Action = ListenPlaybackCommandActions.RemoveUpcoming, QueueEntryId = row.Item.QueueEntryId }),
-        "go-album" => GoToAsync(shown, row.Item, "album", row.Item.AlbumWorkId, ListenPlaybackIdentityRoutes.Album(row.Item)),
-        "go-artist" => GoToAsync(shown, row.Item, "artist", row.Item.ArtistPersonId, ListenPlaybackIdentityRoutes.Artist(row.Item)),
-        _ => Task.CompletedTask,
-    };
+        switch (key)
+        {
+            case "play-next":
+                var afterPlayNext = NeighbourOf(row);
+                await MoveAsync(shown, row.Item.QueueEntryId, 0);
+                await KeepFocusAsync(afterPlayNext, shown);
+                break;
+            case "move-up":
+                await MoveAsync(shown, row.Item.QueueEntryId, row.Index - 1);
+                break;
+            case "move-down":
+                await MoveAsync(shown, row.Item.QueueEntryId, row.Index + 1);
+                break;
+            case "remove":
+                var afterRemove = NeighbourOf(row);
+                await SendAsync(shown, new() { Action = ListenPlaybackCommandActions.RemoveUpcoming, QueueEntryId = row.Item.QueueEntryId });
+                await KeepFocusAsync(afterRemove, shown);
+                break;
+            case "go-album":
+                await GoToAsync(shown, row.Item, "album", row.Item.AlbumWorkId, ListenPlaybackIdentityRoutes.Album(row.Item));
+                break;
+            case "go-artist":
+                await GoToAsync(shown, row.Item, "artist", row.Item.ArtistPersonId, ListenPlaybackIdentityRoutes.Artist(row.Item));
+                break;
+        }
+    }
+
+    // The row after the one acted on, else the one before it; null leaves the list itself to take focus.
+    private Guid? NeighbourOf(UpcomingRow row)
+    {
+        var rows = UpcomingRows;
+        return (row.Index + 1 < rows.Count ? rows[row.Index + 1] : row.Index > 0 ? rows[row.Index - 1] : null)?.Item.QueueEntryId;
+    }
+
+    // Remove and Play next take the acted-on row's "..." button away (or move it), which would drop keyboard focus to the page. Focus goes to the
+    // neighbouring row's drag handle instead, now and again once the new queue has drawn.
+    private async Task KeepFocusAsync(Guid? neighbour, ListenPlaybackSnapshot shown)
+    {
+        _pendingFocus = new PendingFocus(neighbour, shown.QueueRevision, DateTimeOffset.UtcNow.AddSeconds(2));
+        await FocusAsync(neighbour);
+    }
+
+    private async Task FocusAsync(Guid? row)
+    {
+        if (_dragModule is null || _list is null) return;
+        try
+        {
+            await _dragModule.InvokeVoidAsync("focusHandle", _list.Element, row?.ToString());
+        }
+        catch (InvalidOperationException)
+        {
+            // No browser to focus in (prerendering), or the panel closed while focus was moving (ObjectDisposedException).
+        }
+        catch (JSDisconnectedException)
+        {
+            // The circuit closed; there is nothing left to focus.
+        }
+    }
 
     // The pop-out window hands album and artist navigation to the main player window; everything else opens in this window and closes the panel.
     private async Task GoToAsync(ListenPlaybackSnapshot shown, ListenQueueItem item, string kind, Guid? id, string? route)

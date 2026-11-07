@@ -49,13 +49,13 @@
     <div class="stv__divider" role="separator"></div>
     @if (OffersEndOfChapter && Chapters.Count > 0)
     {
-        <AppNativeButton Type="button" Class="stv__row" data-sleep-row="end-of-chapter" Disabled="@(!Availability.CanEndCurrent)" Tooltip="@EndOfChapterReason"
+        <AppNativeButton Type="button" Class="stv__row" data-sleep-row="end-of-chapter" data-return-key="sleep-end-of-chapter" Disabled="@(!Availability.CanEndCurrent)" Tooltip="@EndOfChapterReason"
                          AriaLabel="@EndOfChapterLabel" OnClick="@(() => SelectionChanged.InvokeAsync(PlaybackSleepTimerChoices.ForEndOfChapter()))">
             <span class="stv__label">@L["SleepTimer_EndOfChapter"]</span>
             <span class="stv__value"><span class="stv__chevron"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.ChevronRight" /></span></span>
         </AppNativeButton>
     }
-    <AppNativeButton Type="button" Class="stv__row" data-sleep-row="custom" OnClick="OpenCustom">
+    <AppNativeButton Type="button" Class="stv__row" data-sleep-row="custom" data-return-key="sleep-custom" OnClick="OpenCustom">
         <span class="stv__label">@L["SleepTimer_Custom"]</span>
         <span class="stv__value"><span class="stv__chevron"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.ChevronRight" /></span></span>
     </AppNativeButton>
@@ -94,7 +94,21 @@
     protected override void OnInitialized()
     {
         // The countdown redraws each second from the session's deadline; the timer exists only while the panel body does, so a closed panel costs nothing.
-        _tick = Clock.CreateTimer(_ => _ = InvokeAsync(Tick), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+        _tick = Clock.CreateTimer(_ => _ = TickAsync(), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
+    }
+
+    // A tick can fire just as the panel closes, after the renderer has let go of this part; that tick has nothing left to draw.
+    private async Task TickAsync()
+    {
+        if (_disposed) return;
+        try
+        {
+            await InvokeAsync(Tick);
+        }
+        catch (ObjectDisposedException)
+        {
+            // The panel closed between the timer firing and the redraw.
+        }
     }
 
     private void Tick()

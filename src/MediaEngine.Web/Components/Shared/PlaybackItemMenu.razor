@@ -16,6 +16,7 @@
     <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.More" /></TriggerContent>
     <ChildContent>
         <div class="playback-item-menu" role="menu" aria-label="@MoreLabel" data-playback-item-menu>
+            <PlaybackMenuRoving />
             @foreach (var row in Rows)
             {
                 @if (row.DividerBefore)

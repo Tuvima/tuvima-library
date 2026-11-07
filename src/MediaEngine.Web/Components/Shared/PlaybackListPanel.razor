@@ -3,7 +3,7 @@
 @* The body of the list panels (unified player v2 D18 to D20; mockup screens 8 to 10), drawn inside a PlaybackPanel: an optional header strip (the Queue tabs, the
    Season line), an optional identity row (the book), the one scrolling list, and a fixed footer. Only the list scrolls, so the header, identity and footer stay
    put while 200 rows go by. The scrolling region carries the scroll key the panel script uses to bring the current row to the middle when the panel opens. *@
-<div class="playback-list-panel" data-playback-list-panel @ref="_root">
+<div class="@(Inset ? "playback-list-panel playback-list-panel--inset" : "playback-list-panel")" data-playback-list-panel @ref="_root">
     @if (Header is not null)
     {
         <div class="playback-list-panel__header">@Header</div>
@@ -13,10 +13,10 @@
         <div class="playback-list-panel__identity">@Identity</div>
     }
     <div class="playback-sheet-list playback-list-panel__scroll" id="@PanelId" role="@(string.IsNullOrWhiteSpace(PanelId) ? null : "tabpanel")" aria-labelledby="@LabelledBy"
-         data-playback-context-scroll-key="@ScrollKey" data-playback-list-scroll>
+         data-playback-context-scroll-key="@ScrollKey" data-playback-list-scroll tabindex="-1">
         @ChildContent
     </div>
-    @if (Footer is not null)
+    @if (Footer is not null && ShowFooter)
     {
         <div class="playback-list-panel__footer">@Footer</div>
     }
@@ -39,6 +39,12 @@
 
     /// <summary>Fixed under the list: "Playing from ...", the Autoplay switch, the Timeline control.</summary>
     [Parameter] public RenderFragment? Footer { get; set; }
+
+    /// <summary>True adds 4 px above and below the rows (the Queue, mockup screen 8); the Episodes and Chapters lists run 0 / 8 (screens 9 and 10).</summary>
+    [Parameter] public bool Inset { get; set; }
+
+    /// <summary>False when the footer has nothing to say right now, so no empty strip or hairline is drawn under the list.</summary>
+    [Parameter] public bool ShowFooter { get; set; } = true;
 
     /// <summary>Set when the list is a tab panel: its id (the tab's aria-controls) and the id of the tab that labels it.</summary>
     [Parameter] public string? PanelId { get; set; }

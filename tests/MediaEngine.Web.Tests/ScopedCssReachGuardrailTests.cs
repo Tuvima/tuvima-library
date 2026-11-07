@@ -65,14 +65,24 @@ public sealed class ScopedCssReachGuardrailTests
         foreach (var cssPath in Directory.EnumerateFiles(web, "*.razor.css", SearchOption.AllDirectories).OrderBy(path => path, StringComparer.Ordinal))
         {
             var relative = Relative(cssPath);
-            if (relative.Split('/').Any(segment => segment is "bin" or "obj" or "vendor")) continue;
+            if (relative.Split('/').Any(segment => segment is "bin" or "obj" or "vendor"))
+            {
+                continue;
+            }
+
             var razorPath = cssPath[..^4];
-            if (!File.Exists(razorPath)) continue;
+            if (!File.Exists(razorPath))
+            {
+                continue;
+            }
 
             var razor = File.ReadAllText(razorPath);
             foreach (var name in UnscopedClasses(File.ReadAllText(cssPath)).OrderBy(name => name, StringComparer.Ordinal))
             {
-                if (OnlyPassedToChildComponents(razor, name)) offenders.Add($"{Relative(razorPath)}: {name}");
+                if (OnlyPassedToChildComponents(razor, name))
+                {
+                    offenders.Add($"{Relative(razorPath)}: {name}");
+                }
             }
         }
         return offenders;
@@ -85,13 +95,20 @@ public sealed class ScopedCssReachGuardrailTests
         foreach (Match rule in Rule.Matches(Comments.Replace(css, "")))
         {
             var head = rule.Groups[1].Value.Trim();
-            if (head.StartsWith('@') || head.Length == 0) continue;
+            if (head.StartsWith('@') || head.Length == 0)
+            {
+                continue;
+            }
+
             foreach (var selector in SplitTopLevel(head))
             {
                 var deep = selector.IndexOf("::deep", StringComparison.Ordinal);
                 var scoped = deep < 0 ? selector : selector[..deep];
                 scoped = Attributes.Replace(Functional.Replace(scoped, ""), "");
-                foreach (Match name in ClassName.Matches(scoped)) names.Add(name.Groups[1].Value);
+                foreach (Match name in ClassName.Matches(scoped))
+                {
+                    names.Add(name.Groups[1].Value);
+                }
             }
         }
         return names;
@@ -125,11 +142,23 @@ public sealed class ScopedCssReachGuardrailTests
         {
             var open = razor.LastIndexOf('<', use.Index);
             var close = razor.LastIndexOf('>', use.Index);
-            if (open <= close) return false;
+            if (open <= close)
+            {
+                return false;
+            }
+
             var tag = TagName.Match(razor[open..]);
-            if (!tag.Success || !char.IsUpper(tag.Groups[1].Value[0])) return false;
+            if (!tag.Success || !char.IsUpper(tag.Groups[1].Value[0]))
+            {
+                return false;
+            }
+
             var attribute = AttributeName.Matches(razor[open..use.Index]).LastOrDefault();
-            if (attribute is null || !attribute.Groups[1].Value.EndsWith("Class", StringComparison.Ordinal)) return false;
+            if (attribute is null || !attribute.Groups[1].Value.EndsWith("Class", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
             onComponent = true;
         }
         return onComponent;

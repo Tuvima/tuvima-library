@@ -19,6 +19,7 @@ public sealed class PlaybackTimelineScope
     private bool _hasLoaded;
     private bool _wholeBook;
     private bool _loading;
+    private int _choiceVersion;
 
     public PlaybackTimelineScope(IJSRuntime js, PlaybackSessionController playback, ILogger<PlaybackTimelineScope>? logger = null)
     {
@@ -36,11 +37,13 @@ public sealed class PlaybackTimelineScope
     /// <summary>True when the active profile chose the whole book. Reads as the chapter until <see cref="EnsureLoadedAsync"/> has read the profile's choice.</summary>
     public bool WholeBook => _hasLoaded && _loadedFor == _playback.ActiveProfileId && _wholeBook;
 
-    /// <summary>Reads the active profile's choice once per profile; a different profile has its own.</summary>
+    /// <summary>
+    /// Reads the active profile's choice once per profile; a different profile has its own. A choice made while the read is in flight wins over the stored
+    /// value, and when the profile changes during the read it is read again for the new one.
+    /// </summary>
     public async Task EnsureLoadedAsync()
     {
-        var profile = _playback.ActiveProfileId;
-        if (_hasLoaded && _loadedFor == profile || _loading)
+        if (_loading)
         {
             return;
         }
@@ -48,18 +51,37 @@ public sealed class PlaybackTimelineScope
         _loading = true;
         try
         {
-            var stored = await _js.InvokeAsync<string?>("localStorage.getItem", StorageKey(profile));
-            _wholeBook = string.Equals(stored, "book", StringComparison.Ordinal);
-            _loadedFor = profile;
-            _hasLoaded = true;
-            Changed?.Invoke();
-        }
-        catch (Exception ex) when (ex is JSException or InvalidOperationException or JSDisconnectedException)
-        {
-            _logger?.LogDebug(ex, "The Chapter or Book choice could not be read; the timeline shows the chapter.");
-            _wholeBook = false;
-            _loadedFor = profile;
-            _hasLoaded = true;
+            while (true)
+            {
+                var profile = _playback.ActiveProfileId;
+                if (_hasLoaded && _loadedFor == profile)
+                {
+                    return;
+                }
+
+                var version = _choiceVersion;
+                var wholeBook = false;
+                try
+                {
+                    var stored = await _js.InvokeAsync<string?>("localStorage.getItem", StorageKey(profile));
+                    wholeBook = string.Equals(stored, "book", StringComparison.Ordinal);
+                }
+                catch (Exception ex) when (ex is JSException or InvalidOperationException or JSDisconnectedException)
+                {
+                    _logger?.LogDebug(ex, "The Chapter or Book choice could not be read; the timeline shows the chapter.");
+                }
+
+                if (version != _choiceVersion)
+                {
+                    // Someone chose Chapter or Whole book while the stored value was being read; that choice is newer and already applied.
+                    continue;
+                }
+
+                _wholeBook = wholeBook;
+                _loadedFor = profile;
+                _hasLoaded = true;
+                Changed?.Invoke();
+            }
         }
         finally { _loading = false; }
     }
@@ -68,6 +90,7 @@ public sealed class PlaybackTimelineScope
     public async Task SetWholeBookAsync(bool wholeBook)
     {
         var profile = _playback.ActiveProfileId;
+        _choiceVersion++;
         _wholeBook = wholeBook;
         _loadedFor = profile;
         _hasLoaded = true;

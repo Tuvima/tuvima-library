@@ -92,11 +92,8 @@ public static partial class PlaybackControlCatalog
                 {
                     tools.Add(BarTool(PlaybackControlKey.Queue, "Queue", "queue", state));
                 }
-                // Unified player v2 D16: music has a Sleep timer tool only while a sleep timer is running for audio; audiobooks always have it.
-                if (state.IsSleepTimerActive)
-                {
-                    tools.Add(BarTool(PlaybackControlKey.SleepTimer, "Sleep timer", "sleep-timer", state, isActive: true));
-                }
+                // Music has no Sleep timer tool: the Engine only starts a sleep timer for audiobooks, so nothing could ever start one here. Music sleep timers are
+                // not supported yet (follow-up for Shy: D16 mentions music, but the timer controller allows audiobooks only).
                 if (state.CanBookmark)
                 {
                     tools.Add(BarTool(PlaybackControlKey.Bookmarks, "Bookmarks", "bookmarks", state));
