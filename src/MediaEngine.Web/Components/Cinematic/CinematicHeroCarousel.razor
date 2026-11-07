@@ -241,9 +241,19 @@ else if (Slides.Count > 0)
 
     private DiscoveryHeroViewModel ActiveHero => Slides[Math.Clamp(_activeIndex, 0, Slides.Count - 1)];
     private bool IsPaused => DeviceContext.IsPhone || _prefersReducedMotion || _userPaused || _hoverPaused || _focusPaused || _touchPaused || Slides.Count < 2;
-    private bool UsesLandscapeArtwork => ActiveHero.SurfaceKind == MediaTileSurfaceKind.BannerLandscape;
-    private bool UsesLandscapeBackground => UsesLandscapeArtwork
-        && !string.IsNullOrWhiteSpace(StringHelpers.FirstNonBlank(ActiveHero.HeroBackgroundImageUrl, ActiveHero.BackgroundImageUrl, ActiveHero.BannerImageUrl));
+    private bool UsesLandscapeArtwork => ActiveHero.SurfaceKind == MediaTileSurfaceKind.BannerLandscape || VideoFrameUrl is not null;
+    private bool UsesLandscapeBackground => UsesLandscapeArtwork && !string.IsNullOrWhiteSpace(ActiveBackdropUrl);
+    // The landscape picture behind the hero: the Engine's backdrop or banner, else (for a video) its extracted frame.
+    private string? ActiveBackdropUrl => StringHelpers.FirstNonBlank(ActiveHero.HeroBackgroundImageUrl, ActiveHero.BackgroundImageUrl, ActiveHero.BannerImageUrl)
+        ?? VideoFrameUrl;
+    // An Other video has no portrait cover: its picture is a frame taken from the video, so it fills the hero like a film's backdrop.
+    // A stand-in picture (too narrow to be a real frame) is not used.
+    private string? VideoFrameUrl => IsVideoHero
+        && string.IsNullOrWhiteSpace(StringHelpers.FirstNonBlank(ActiveHero.HeroBackgroundImageUrl, ActiveHero.BackgroundImageUrl, ActiveHero.BannerImageUrl))
+        && !string.IsNullOrWhiteSpace(ActiveHero.PreviewImageUrl)
+        && ActiveHero.CoverWidthPx is { } frameWidth && frameWidth >= PhoneHeroPresentation.MinUsableCoverWidthPx
+            ? ActiveHero.PreviewImageUrl
+            : null;
     private bool UsesLogo => UsesLandscapeArtwork && !string.IsNullOrWhiteSpace(ActiveHero.LogoUrl);
     private bool IsWatchHero => ActiveEntityType is DetailEntityType.Movie or DetailEntityType.TvShow;
     private bool IsContinuation => ActiveEntityType != DetailEntityType.MusicAlbum
@@ -312,8 +322,15 @@ else if (Slides.Count > 0)
         }
         : null;
 
-    private string CarouselClass => $"cinematic-hero-carousel cinematic-hero-carousel--{Density.ToString().ToLowerInvariant()}{(IsPaused ? " is-rotation-paused" : string.Empty)}";
-    private string HeroClass => $"cinematic-hero cinematic-hero--landing cinematic-hero--{Density.ToString().ToLowerInvariant()} {HeroMediaClass}";
+    private string CarouselClass => $"cinematic-hero-carousel cinematic-hero-carousel--{Density.ToString().ToLowerInvariant()}{(IsPaused ? " is-rotation-paused" : string.Empty)}{(IsCoverLed ? " cinematic-hero-carousel--cover-led" : string.Empty)}";
+    private string HeroClass => $"cinematic-hero cinematic-hero--landing cinematic-hero--{Density.ToString().ToLowerInvariant()} {HeroMediaClass}{CoverLedClass}";
+    // Books, comics and audiobooks shown from their cover (no landscape backdrop) get one large cover beside the text, over a blurred copy of the
+    // cover; below the narrow breakpoint the cover sits above the text instead. Films, TV and videos keep their own framing (issue 709).
+    private bool IsCoverLed => ActiveEntityType is DetailEntityType.Book or DetailEntityType.ComicIssue or DetailEntityType.Audiobook
+        && ActiveArtwork.HeroArtwork.Mode == HeroArtworkMode.ArtworkFallback;
+    private string CoverLedClass => !IsCoverLed
+        ? string.Empty
+        : ActiveEntityType == DetailEntityType.Audiobook ? " cinematic-hero--cover-led cinematic-hero--cover-led-square" : " cinematic-hero--cover-led";
     private string HeroMediaClass => ActiveEntityType switch
     {
         DetailEntityType.Movie or DetailEntityType.TvShow => "tl-detail-hero--watch",
@@ -380,7 +397,7 @@ else if (Slides.Count > 0)
     {
         get
         {
-            var backdrop = StringHelpers.FirstNonBlank(ActiveHero.HeroBackgroundImageUrl, ActiveHero.BackgroundImageUrl, ActiveHero.BannerImageUrl);
+            var backdrop = ActiveBackdropUrl;
             var fallback = StringHelpers.FirstNonBlank(ActiveHero.PreviewImageUrl, backdrop);
             var hasBackdrop = !string.IsNullOrWhiteSpace(backdrop) && UsesLandscapeArtwork && !Framing.CoverLed;
             var source = hasBackdrop ? backdrop : fallback;

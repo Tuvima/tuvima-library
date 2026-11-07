@@ -28,7 +28,7 @@
     padding: 0;
     border: 2px solid var(--tl-border-subtle);
     border-radius: var(--tl-radius-sm);
-    background: var(--tl-surface-variant);
+    background: var(--tl-bg-surface-raised);
 }
 
 .tl-bulk__cover[aria-pressed="true"] {

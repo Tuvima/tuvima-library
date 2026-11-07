@@ -68,7 +68,7 @@
     padding: 0.2rem 0;
     border: 0;
     background: transparent;
-    color: var(--tl-accent, #a78bfa);
+    color: var(--tl-accent-primary, #a78bfa);
     font: inherit;
     font-weight: 600;
     cursor: pointer;

@@ -1,3 +1,4 @@
+using MediaEngine.Contracts.Display;
 using MediaEngine.Domain.Services;
 using MediaEngine.Web.Models.ViewDTOs;
 
@@ -71,6 +72,19 @@ public static class MediaTileLabels
 
         var count = item.PreviewTotalCount.Value;
         return $"{count} {Noun(item, count)}";
+    }
+
+    /// <summary>
+    /// The heading of an episode tile ("S3 E8 · Episode title"). A video from a Videos or Other videos library says its number and title
+    /// instead ("3 · Ball handling"): it never carries a season or an S/E code (issue 703).
+    /// </summary>
+    public static string EpisodeHeading(MediaTileViewModel item, DisplayEpisodeContextDto episode)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        ArgumentNullException.ThrowIfNull(episode);
+        return VideoFolderWording.IsVideoItemMediaType(item.MediaKind)
+            ? VideoFolderWording.NumberedTitle(episode.EpisodeNumber?.ToString(System.Globalization.CultureInfo.InvariantCulture), episode.EpisodeTitle)
+            : $"S{episode.SeasonNumber} E{episode.EpisodeNumber} · {episode.EpisodeTitle}";
     }
 
     /// <summary>The noun for what a group holds, singular for one.</summary>

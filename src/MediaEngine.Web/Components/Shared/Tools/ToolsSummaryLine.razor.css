@@ -14,6 +14,6 @@
     font-size: var(--tl-font-size-sm);
 }
 
-.tools-summary__part[data-tone="ready"] { color: var(--tl-success, #2e9d5b); background: color-mix(in srgb, var(--tl-success, #2e9d5b) 14%, transparent); }
-.tools-summary__part[data-tone="attention"] { color: var(--tl-warning, #c98a00); background: color-mix(in srgb, var(--tl-warning, #c98a00) 14%, transparent); }
-.tools-summary__part[data-tone="busy"] { color: var(--tl-info, #3b82c4); background: color-mix(in srgb, var(--tl-info, #3b82c4) 14%, transparent); }
+.tools-summary__part[data-tone="ready"] { color: var(--tl-status-success, #2e9d5b); background: color-mix(in srgb, var(--tl-status-success, #2e9d5b) 14%, transparent); }
+.tools-summary__part[data-tone="attention"] { color: var(--tl-status-warning, #c98a00); background: color-mix(in srgb, var(--tl-status-warning, #c98a00) 14%, transparent); }
+.tools-summary__part[data-tone="busy"] { color: var(--tl-status-info, #3b82c4); background: color-mix(in srgb, var(--tl-status-info, #3b82c4) 14%, transparent); }

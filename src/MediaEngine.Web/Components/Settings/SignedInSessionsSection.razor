@@ -13,7 +13,7 @@
 
 @* A member sees their own signed-in browsers. An administrator sees everyone the Engine lets them look after, grouped by
    person. Either way each browser has its own Sign out. *@
-<SettingsSectionPanel Title="@L["SignedInSessionsSection_SignedInBrowsers"].Value" Icon="@AppMaterialIcons.Outlined.Logout"
+<SettingsSectionPanel Title="@L["SignedInSessionsSection_SignedInBrowsers"].Value"
                       Description="@(ManagesOthers ? "Where people are signed in right now. Sign one out to end that sign-in at once." : "Where you are signed in right now. Sign one out to end that sign-in at once.")">
     @if (_loading)
     {

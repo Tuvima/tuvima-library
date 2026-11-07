@@ -23,6 +23,6 @@
 }
 
 .accounts-page__user-code {
-    font-size: var(--tl-font-size-h4, 1.5rem);
+    font-size: var(--tl-font-size-lg, 1.5rem);
     letter-spacing: 0.15em;
 }

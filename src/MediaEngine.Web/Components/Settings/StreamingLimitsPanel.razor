@@ -12,7 +12,7 @@
 
     @if (!DeviceContext.IsMobile)
     {
-        <SettingsSectionPanel Title="@L["StreamingLimitsPanel_RemoteStreamingQuality"].Value" Icon="@AppMaterialIcons.Outlined.HighQuality">
+        <SettingsSectionPanel Title="@L["StreamingLimitsPanel_RemoteStreamingQuality"].Value">
             <AppSelect T="string" @bind-Value="Settings.Streaming.RemoteQuality"
                        Label="@L["StreamingLimitsPanel_Quality"].Value" Options="@QualityOptions" />
             <AppSwitchRow Label="@L["StreamingLimitsPanel_AutomaticUploadProtection"].Value"
@@ -25,7 +25,7 @@
         </SettingsSectionPanel>
     }
 
-    <SettingsSectionPanel Title="@L["StreamingLimitsPanel_UploadCapacity"].Value" Icon="@AppMaterialIcons.Outlined.Speed">
+    <SettingsSectionPanel Title="@L["StreamingLimitsPanel_UploadCapacity"].Value">
         <dl class="streaming-limits__bandwidth-grid">
             @Fact("Upload Capacity", FormatBandwidth(Status?.Bandwidth.UploadCapacityMbps))
             @Fact("Reserved", $"{Settings.Streaming.ReservedUploadMbps} Mbps")

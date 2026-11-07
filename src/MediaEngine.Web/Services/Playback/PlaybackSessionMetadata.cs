@@ -77,7 +77,9 @@ public sealed record PlaybackSessionMetadata(
         {
             case PlaybackBarMedia.Tv:
                 var show = StringHelpers.FirstNonBlankOr(string.Empty, context.ShowTitle, item.Album);
-                var episodeTitle = context.HideEpisodeTitle ? null : StringHelpers.FirstNonBlank(item.EpisodeTitle, item.Title);
+                // A folder video says "3 · Ball handling" and never a season (issue 703); EpisodeLabel is empty for it.
+                var episodeTitle = VideoPlayerWording.IsFolderVideo(item) ? VideoPlayerWording.TitleLine(item)
+                    : context.HideEpisodeTitle ? null : StringHelpers.FirstNonBlank(item.EpisodeTitle, item.Title);
                 var title = episodeTitle ?? (string.IsNullOrWhiteSpace(show) ? "Episode" : show);
                 var second = string.Join(PlaybackBarIdentity.PartSeparator, new[] { string.IsNullOrWhiteSpace(show) ? null : show, PlaybackBarIdentity.EpisodeLabel(item) }
                     .Where(part => !string.IsNullOrWhiteSpace(part)));

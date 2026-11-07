@@ -52,8 +52,7 @@ else if (_settings is not null)
 
         <div class="listening-settings-grid">
             <SettingsSectionPanel Title="@L["Common_Skip"].Value"
-                                  Description="@L["ListeningSettingsPage_HowFarThePlayerJumps"].Value"
-                                  Class="tl-card settings-section-card listening-settings-card">
+                                  Description="@L["ListeningSettingsPage_HowFarThePlayerJumps"].Value">
                 @IntSelectRow(
                     "Skip back",
                     "The amount used by the rewind control.",
@@ -75,13 +74,9 @@ else if (_settings is not null)
             </SettingsSectionPanel>
 
             <SettingsSectionPanel Title="@L["ListeningSettingsPage_SleepTimer"].Value"
-                                  Description="@L["ListeningSettingsPage_WhatTheSleepTimerOffers"].Value"
-                                  Class="tl-card settings-section-card listening-settings-card">
-                <div class="listening-preference-row">
-                    <div class="listening-preference-row__copy">
-                        <AppText Typo="AppTypo.body1">@L["ListeningSettingsPage_DefaultLength"]</AppText>
-                        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@L["ListeningSettingsPage_TheLengthShownFirstWhen"]</AppText>
-                    </div>
+                                  Description="@L["ListeningSettingsPage_WhatTheSleepTimerOffers"].Value">
+                <AppSettingRow Label="@L["ListeningSettingsPage_DefaultLength"].Value" Helper="@L["ListeningSettingsPage_TheLengthShownFirstWhen"].Value">
+                    <Control>
                     <AppSelect Value="@SleepTimerValue"
                                ValueChanged="@(value => UpdateAndSaveAsync(s => s.Listening.DefaultSleepTimer = value ?? PlaybackPreferenceValues.Off))"
                                Variant="AppVariant.Outlined"
@@ -96,18 +91,17 @@ else if (_settings is not null)
                             <AppSelectItem T="string" Value="@minutes.ToString(System.Globalization.CultureInfo.InvariantCulture)">@($"{minutes} minutes")</AppSelectItem>
                         }
                     </AppSelect>
-                </div>
-                <div class="listening-preference-row">
-                    <div class="listening-preference-row__copy">
-                        <AppText Typo="AppTypo.body1">@L["ListeningSettingsPage_OfferEndOfChapter"]</AppText>
-                        <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@L["ListeningSettingsPage_LetTheSleepTimerStop"]</AppText>
-                    </div>
+                    </Control>
+                </AppSettingRow>
+                <AppSettingRow Label="@L["ListeningSettingsPage_OfferEndOfChapter"].Value" Helper="@L["ListeningSettingsPage_LetTheSleepTimerStop"].Value">
+                    <Control>
                     <AppSwitchRow T="bool"
                                   Value="@_settings.Listening.AllowEndOfChapterSleepTimer"
                                   ValueChanged="@(value => UpdateAndSaveAsync(s => s.Listening.AllowEndOfChapterSleepTimer = value))"
                                   Color="AppColor.Primary"
                                   AriaLabel="@L["ListeningSettingsPage_OfferEndOfChapter"].Value" />
-                </div>
+                    </Control>
+                </AppSettingRow>
             </SettingsSectionPanel>
         </div>
     </div>
@@ -222,11 +216,8 @@ else if (_settings is not null)
         string description,
         int value,
         IReadOnlyList<int> options,
-        Func<int, Task> changed) => @<div class="listening-preference-row">
-        <div class="listening-preference-row__copy">
-            <AppText Typo="AppTypo.body1">@title</AppText>
-            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@description</AppText>
-        </div>
+        Func<int, Task> changed) => @<AppSettingRow Label="@title" Helper="@description">
+        <Control>
         <AppIntSelect Value="@value"
                       ValueChanged="@changed"
                       Variant="AppVariant.Outlined"
@@ -240,7 +231,8 @@ else if (_settings is not null)
                 <AppSelectItem T="int" Value="@option">@($"{option} seconds")</AppSelectItem>
             }
         </AppIntSelect>
-    </div>;
+        </Control>
+    </AppSettingRow>;
 
     private async Task UpdateAndSaveAsync(Action<UserPlaybackSettingsDto> change)
     {

@@ -78,13 +78,13 @@
     gap: var(--tl-space-3);
     align-items: start;
     padding: var(--tl-space-4);
-    border: 1px solid color-mix(in srgb, var(--tl-success) 45%, transparent);
+    border: 1px solid color-mix(in srgb, var(--tl-status-success) 45%, transparent);
     border-radius: var(--tl-radius-md);
-    background: color-mix(in srgb, var(--tl-success) 10%, transparent);
+    background: color-mix(in srgb, var(--tl-status-success) 10%, transparent);
 }
 
 .provider-onboarding__success ::deep .tl-icon-root {
-    color: var(--tl-success);
+    color: var(--tl-status-success);
     font-size: var(--tl-icon-size-lg);
 }
 

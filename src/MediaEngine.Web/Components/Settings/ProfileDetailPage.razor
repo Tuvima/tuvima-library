@@ -283,14 +283,14 @@
         @if (OnAccessTab && CanDelete)
         {
             <div class="profile-detail__group">
-                <AppCard>
+                <AppSettingsGroup Tone="AppSettingsGroupTone.Danger">
                 <ul class="profile-detail__list" role="list">
                     <li class="profile-detail__item">
                         @* The sheet asks what to do with their photos and then deletes; the Delete button in it is the confirmation. *@
                         <SettingsNavRow Key="delete" Icon="@AppMaterialIcons.Outlined.Delete" Title="@L["Users_DeleteProfileTooltip"].Value" Destructive="true" ShowChevron="false" OnClick="OpenDelete" />
                     </li>
                 </ul>
-                </AppCard>
+                </AppSettingsGroup>
             </div>
         }
     }

@@ -14,7 +14,6 @@
 }
 
 .settings-page-canvas {
-    --settings-section-icon-size: 28px;
     min-width: 0;
     font-family: var(--font-ui);
     font-size: var(--tl-font-size-md);
@@ -145,107 +144,6 @@
     padding-top: var(--tl-space-4, 16px);
 }
 
-.settings-page-canvas ::deep .settings-section-card {
-    height: 100%;
-    border-color: var(--tl-border-subtle);
-    border-radius: var(--tl-radius-lg, 12px);
-    background: var(--tl-bg-surface, rgba(17, 29, 49, .78));
-    box-shadow: none;
-}
-
-.settings-page-canvas ::deep .settings-section-card__header {
-    display: flex;
-    align-items: center;
-    min-height: var(--settings-section-icon-size) !important;
-    gap: 12px;
-    margin-bottom: var(--tl-space-4, 16px);
-}
-
-.settings-page-canvas ::deep .settings-section-card__heading {
-    display: flex;
-    min-width: 0;
-    flex-direction: column;
-}
-
-.settings-page-canvas ::deep .settings-section-header--divided {
-    margin-bottom: 0 !important;
-    padding-bottom: 14px;
-    border-bottom: 1px solid var(--tl-border-subtle);
-}
-
-.settings-page-canvas ::deep .settings-section-header__title {
-    margin: 0;
-}
-
-.settings-page-canvas ::deep .settings-section-header__actions {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-left: auto;
-    flex: 0 0 auto;
-    white-space: nowrap;
-}
-
-@media (max-width: 600px) {
-    .settings-page-canvas ::deep .settings-section-card__header {
-        flex-wrap: wrap;
-    }
-
-    .settings-page-canvas ::deep .settings-section-header__actions {
-        flex-basis: 100%;
-        margin-left: 0;
-    }
-}
-
-.settings-page-canvas ::deep .settings-section-card__title {
-    color: var(--tl-text-primary);
-    font-size: var(--tl-font-size-lg);
-    font-weight: 600;
-    line-height: 1.3;
-}
-
-.settings-page-canvas ::deep .settings-section-card__description {
-    margin-top: 3px;
-    color: var(--tl-text-muted);
-    font-size: var(--tl-font-size-sm);
-    font-weight: 400;
-    line-height: 1.45;
-}
-
-.settings-page-canvas ::deep .settings-section-card__header .tl-icon-root {
-    flex: 0 0 var(--settings-section-icon-size);
-    width: var(--settings-section-icon-size) !important;
-    height: var(--settings-section-icon-size) !important;
-    color: var(--tl-text-secondary);
-    font-size: var(--settings-section-icon-size) !important;
-}
-
-/* Shared, readable treatment for settings actions that expose a numeric
-   interval. Pages supply only the icon, value, label, and behavior. */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-.settings-page-canvas ::deep .settings-section-card__header .tl-typography {
-    font-size: var(--tl-font-size-lg);
-    font-weight: 600;
-    line-height: 1.3;
-}
-
 .settings-page-canvas ::deep .settings-experience-grid {
     display: grid;
     grid-template-columns: minmax(240px, 1.6fr) repeat(4, minmax(112px, 1fr));
@@ -360,8 +258,7 @@
 }
 
 .settings-page-canvas ::deep .tl-card .app-page-state--empty,
-.settings-page-canvas ::deep .app-card .app-page-state--empty,
-.settings-page-canvas ::deep .settings-section-card .app-page-state--empty {
+.settings-page-canvas ::deep .app-settings-group .app-page-state--empty {
     min-height: 0;
     align-items: flex-start;
     gap: 4px;
@@ -370,12 +267,12 @@
 }
 
 .settings-page-canvas ::deep .tl-card .app-page-state--empty .app-page-state__title,
-.settings-page-canvas ::deep .app-card .app-page-state--empty .app-page-state__title {
+.settings-page-canvas ::deep .app-settings-group .app-page-state--empty .app-page-state__title {
     font-size: var(--tl-font-size-sm);
 }
 
 .settings-page-canvas ::deep .tl-card .app-page-state--empty .app-page-state__message,
-.settings-page-canvas ::deep .app-card .app-page-state--empty .app-page-state__message {
+.settings-page-canvas ::deep .app-settings-group .app-page-state--empty .app-page-state__message {
     font-size: var(--tl-font-size-sm);
 }
 
@@ -434,40 +331,6 @@
 
 :where(.settings-admin-panel) ::deep .settings-tab-panel {
     padding-top: 16px !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-section-card--dense {
-    min-height: auto !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-section-card__header {
-    min-height: 26px !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-section-card__header .tl-icon-root {
-    width: var(--tl-icon-size-lg) !important;
-    height: var(--tl-icon-size-lg) !important;
-    font-size: var(--tl-icon-size-lg) !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-section-card__header .tl-typography {
-    font-size: var(--tl-font-size-lg) !important;
-    font-family: var(--font-ui) !important;
-    font-size: var(--tl-control-font-size-md) !important;
-    font-weight: var(--tl-control-font-weight) !important;
-    line-height: var(--tl-control-line-height) !important;
-    letter-spacing: var(--tl-control-letter-spacing) !important;
-    line-height: 1.25 !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-section-card--progress .settings-section-card__header .tl-icon-root,
-:where(.settings-admin-panel) ::deep .settings-section-card--progress .settings-section-card__header .tl-typography {
-    color: var(--tl-accent-primary) !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-section-card--quick .settings-section-card__header .tl-icon-root,
-:where(.settings-admin-panel) ::deep .settings-section-card--quick .settings-section-card__header .tl-typography {
-    color: #60a5fa !important;
 }
 
 :where(.settings-admin-panel) ::deep .settings-summary-strip {
@@ -546,42 +409,6 @@
     width: var(--tl-icon-size-md) !important;
     height: var(--tl-icon-size-md) !important;
     font-size: var(--tl-icon-size-md) !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-preference-row:nth-child(3n + 1) .settings-preference-row__icon,
-:where(.settings-admin-panel) ::deep .settings-section-card--progress .settings-preference-row:nth-child(3n + 1) .settings-preference-row__icon {
-    color: var(--tl-text-secondary) !important;
-    background: transparent !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-preference-row:nth-child(3n + 2) .settings-preference-row__icon {
-    color: var(--tl-text-secondary) !important;
-    background: transparent !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-preference-row:nth-child(3n) .settings-preference-row__icon {
-    color: var(--tl-text-secondary) !important;
-    background: transparent !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-section-card--quick .settings-preference-row:nth-child(1) .settings-preference-row__icon {
-    color: var(--tl-text-secondary) !important;
-    background: transparent !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-section-card--quick .settings-preference-row:nth-child(2) .settings-preference-row__icon {
-    color: var(--tl-text-secondary) !important;
-    background: transparent !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-section-card--quick .settings-preference-row:nth-child(3) .settings-preference-row__icon {
-    color: var(--tl-text-secondary) !important;
-    background: transparent !important;
-}
-
-:where(.settings-admin-panel) ::deep .settings-section-card--quick .settings-preference-row:nth-child(4) .settings-preference-row__icon {
-    color: var(--tl-text-secondary) !important;
-    background: transparent !important;
 }
 
 :where(.settings-admin-panel) ::deep .settings-preference-row__icon .tl-icon-root {

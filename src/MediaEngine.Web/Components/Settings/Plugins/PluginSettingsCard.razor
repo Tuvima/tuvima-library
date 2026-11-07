@@ -15,7 +15,7 @@
    the reason, and a saved control glows for a moment. Repeating groups act on their own rows and are not part of Save changes. *@
 <NavigationLock ConfirmExternalNavigation="@HasUnsavedChanges" />
 
-<AppCard Title="@Card.Title" Class="plugin-page__card" data-testid="plugin-settings-card">
+<AppSettingsGroup Heading="@Card.Title" Class="plugin-page__card" data-testid="plugin-settings-card">
     <div class="plugin-settings">
         @if (!string.IsNullOrWhiteSpace(_problem))
         {
@@ -45,7 +45,7 @@
             </footer>
         }
     </div>
-</AppCard>
+</AppSettingsGroup>
 
 @code {
     private readonly CancellationTokenSource _disposed = new();

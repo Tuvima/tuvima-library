@@ -271,6 +271,7 @@ public sealed class VideoPresentationResolver(IEngineApiClient api, UIOrchestrat
         {
             return [];
         }
+        var videoFolder = VideoFolderWording.IsVideoFolderList(sequence.ContainerLabel, sequence.ItemLabel);
         return sequence.OrderedItems.Concat(sequence.Groups.SelectMany(group => group.Items))
             .Where(item => item.IsOwned && item.EntityType == DetailEntityType.TvEpisode)
             .Where(item => Guid.TryParse(item.Id, out var id) && id != Guid.Empty)
@@ -278,7 +279,7 @@ public sealed class VideoPresentationResolver(IEngineApiClient api, UIOrchestrat
             .Select(item => new VideoOwnedEpisode(Guid.Parse(item.Id), item.EpisodeContext?.EpisodeTitle ?? item.Title,
                 item.EpisodeStillUrl, item.Description, item.Duration,
                 item.GroupKey ?? item.EpisodeContext?.SeasonNumber?.ToString() ?? "owned",
-                item.GroupTitle ?? (item.EpisodeContext?.SeasonNumber is int season ? $"Season {season}" : "Owned episodes"),
+                item.GroupTitle ?? (videoFolder ? VideoFolderWording.UnnamedSectionTitle : item.EpisodeContext?.SeasonNumber is int season ? $"Season {season}" : "Owned episodes"),
                 item.EpisodeContext?.SeasonNumber, item.EpisodeContext?.EpisodeNumber,
                 item.EpisodeStillWidthPx, item.EpisodeStillHeightPx)).ToList();
     }
@@ -298,7 +299,8 @@ public sealed class VideoPresentationResolver(IEngineApiClient api, UIOrchestrat
     {
         WorkId = work,
         AssetId = asset,
-        MediaType = "TvEpisode",
+        // A video from a Videos library stays a video (numbered, no season or episode code); everything else here is a TV episode.
+        MediaType = VideoFolderWording.IsVideoItemMediaType(detail.MediaType) ? detail.MediaType : "TvEpisode",
         Title = detail.EpisodeTitle ?? detail.Title,
         EpisodeTitle = detail.EpisodeTitle,
         Album = detail.ShowName ?? detail.Series,

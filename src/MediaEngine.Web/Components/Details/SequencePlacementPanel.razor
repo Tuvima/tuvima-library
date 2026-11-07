@@ -674,7 +674,7 @@ else
     private string ShowDetailRoute => Guid.TryParse(Placement.ContainerId, out var showId)
         ? $"/details/tvshow/{showId:D}?context=watch"
         : "#";
-    private string GroupSelectorAriaLabel => IsSeasonContainer ? "Choose season" : IsVideoFolder ? "Choose section" : "Choose series section";
+    private string GroupSelectorAriaLabel => IsSeasonContainer ? "Choose season" : IsVideoFolder ? VideoFolderWording.SectionLabel : "Choose series section";
     private string SourceKindLabel => IsSeasonContainer ? "Show" : IsVideoFolder ? VideoFolderWording.ContainerLabel : "Series";
     private bool HasExpandableSeriesDescription => _hasExpandableSeriesDescription;
     private string SeriesDescriptionClass => $"tl-series-information__copy{(_seriesDescriptionExpanded ? " is-expanded" : string.Empty)}";

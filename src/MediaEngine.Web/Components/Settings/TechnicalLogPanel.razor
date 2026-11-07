@@ -8,8 +8,8 @@
 
 @* The Engine's own log files, newest first, for bug reports (settings revamp D38). Server administrators only; the Engine
    enforces that, and the Settings shell only offers the page to administrators. *@
-<AppCard Title="@L["TechnicalLogPanel_TechnicalLog"].Value"
-         Description="@L["TechnicalLogPanel_WhatTheEngineWroteTo"].Value">
+<AppSettingsGroup Heading="@L["TechnicalLogPanel_TechnicalLog"].Value"
+         Helper="@L["TechnicalLogPanel_WhatTheEngineWroteTo"].Value">
     <AppFilterRow Class="technical-log__filters">
         <AppSelect Label="@L["Common_Time"].Value" HideLabel="true" Value="@_range" ValueChanged="OnRangeChanged" Options="RangeOptions" />
         <AppSelect Label="@L["Common_Level"].Value" HideLabel="true" Value="@_level" ValueChanged="OnLevelChanged" Options="LevelOptions" />
@@ -70,7 +70,7 @@
             </div>
         }
     }
-</AppCard>
+</AppSettingsGroup>
 
 @code {
     private static readonly IReadOnlyList<AppSelectOption> RangeOptions =

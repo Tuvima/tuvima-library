@@ -22,7 +22,7 @@
     aspect-ratio: 1;
     overflow: hidden;
     border-radius: var(--tl-radius-md);
-    background: var(--tl-bg-raised, var(--tl-bg-base));
+    background: var(--tl-bg-surface-raised, var(--tl-bg-root));
     color: var(--tl-text-secondary);
     transition: transform 120ms ease;
 }

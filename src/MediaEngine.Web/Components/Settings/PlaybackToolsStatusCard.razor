@@ -6,8 +6,8 @@
 @inject IStringLocalizer<SharedStrings> L
 
 @* The playback service's current facts (formerly the "Current status" card on Playback and Delivery), shown under Playback > Advanced. FFmpeg is reported once, in the playback checks above. *@
-<AppCard Title="@L["PlaybackToolsStatusCard_PlaybackToolsAndServices"].Value"
-         Description="@L["PlaybackToolsStatusCard_CurrentFactsReportedByThe"].Value"
+<AppSettingsGroup Heading="@L["PlaybackToolsStatusCard_PlaybackToolsAndServices"].Value"
+         Helper="@L["PlaybackToolsStatusCard_CurrentFactsReportedByThe"].Value"
          Class="playback-tools-status">
     @if (_loading)
     {
@@ -26,7 +26,7 @@
             </div>
         </dl>
     }
-</AppCard>
+</AppSettingsGroup>
 
 @code {
     private TranscodingSettings? _settings;
