@@ -464,6 +464,149 @@ public sealed class PlaybackRemoteTests : AsyncBunitContext
         Assert.Empty(cut.FindAll("[data-psp-row='play-on-device']"));
     }
 
+    // ---- The link is fetched ahead of the click, so the picker opens inside the gesture (Safari) ----
+
+    private int CastLinkRequests => _stub.Calls.Count(call => call == nameof(IEngineApiClient.CreateCastSessionAsync));
+
+    private static CastSessionAttempt ReadyUntil(DateTimeOffset expires) => new(new CastSessionDto
+    {
+        Status = CastSessionStatuses.Ready,
+        MediaPath = "/cast/v1/grant/media",
+        ContentType = "audio/mpeg",
+        ExpiresAt = expires,
+    }, 200, null);
+
+    [Fact]
+    public async Task WithAFreshLinkFetchedAhead_TheClickOpensThePickerInTheSameTurn_WithNoWaitForTheEngine()
+    {
+        var remote = Arrange(attempt: ReadyUntil(DateTimeOffset.UtcNow.AddHours(2)));
+        await remote.ProbeAsync(PlaybackRemoteController.AudioElementId);
+        await remote.PrefetchAsync(PlaybackRemoteController.AudioElementId, Asset, isVault: false);
+        Assert.Equal(1, CastLinkRequests);
+
+        var click = remote.ActivateAsync(PlaybackRemoteController.AudioElementId, Asset, isVault: false);
+
+        // Nothing has been awaited yet: the call to the page's script was already made, so the browser still counts the click as the person's gesture.
+        Assert.Single(Called("openPickerOn"));
+        await click;
+        Assert.Equal("http://192.168.1.5:5016/cast/v1/grant/media", Called("openPickerOn").Single().Arguments[1]);
+        Assert.Equal(1, CastLinkRequests);
+        Assert.False(remote.LastAttemptFailed);
+    }
+
+    [Fact]
+    public async Task WithoutALinkFetchedAhead_TheClickStillAsksTheEngineFirst()
+    {
+        var remote = Arrange(attempt: ReadyUntil(DateTimeOffset.UtcNow.AddHours(2)));
+        await remote.ProbeAsync(PlaybackRemoteController.AudioElementId);
+
+        var click = remote.ActivateAsync(PlaybackRemoteController.AudioElementId, Asset, isVault: false);
+        await click;
+
+        Assert.Equal(1, CastLinkRequests);
+        Assert.Single(Called("openPickerOn"));
+    }
+
+    [Fact]
+    public async Task AFetchedLinkBelongsToItsItemAndIsNotUsedForAnother()
+    {
+        var remote = Arrange(attempt: ReadyUntil(DateTimeOffset.UtcNow.AddHours(2)));
+        await remote.ProbeAsync(PlaybackRemoteController.AudioElementId);
+        await remote.PrefetchAsync(PlaybackRemoteController.AudioElementId, Asset, isVault: false);
+
+        await remote.ActivateAsync(PlaybackRemoteController.AudioElementId, Guid.NewGuid(), isVault: false);
+
+        Assert.Equal(2, CastLinkRequests);
+    }
+
+    [Fact]
+    public async Task ALinkAboutToExpireIsNotKept_AndAFreshOneIsAskedForAtTheClick()
+    {
+        var remote = Arrange(attempt: ReadyUntil(DateTimeOffset.UtcNow.AddMinutes(2)));
+        await remote.ProbeAsync(PlaybackRemoteController.AudioElementId);
+        await remote.PrefetchAsync(PlaybackRemoteController.AudioElementId, Asset, isVault: false);
+
+        await remote.ActivateAsync(PlaybackRemoteController.AudioElementId, Asset, isVault: false);
+
+        Assert.Equal(2, CastLinkRequests);
+        Assert.Single(Called("openPickerOn"));
+    }
+
+    [Fact]
+    public async Task APrefetchThatTheEngineRefuses_KeepsNothing_ShowsNothing_AndTheClickReportsTheReasonAsBefore()
+    {
+        var remote = Arrange(attempt: Refused);
+        await remote.ProbeAsync(PlaybackRemoteController.AudioElementId);
+        await remote.PrefetchAsync(PlaybackRemoteController.AudioElementId, Asset, isVault: false);
+        Assert.False(remote.LastAttemptFailed);
+
+        await remote.ActivateAsync(PlaybackRemoteController.AudioElementId, Asset, isVault: false);
+
+        Assert.Equal(2, CastLinkRequests);
+        Assert.Empty(Called("openPickerOn"));
+        Assert.True(remote.LastAttemptFailed);
+    }
+
+    [Fact]
+    public async Task NothingIsFetchedAheadForAVaultItemNoItemOrWhileAReceiverPlays()
+    {
+        var remote = Arrange(attempt: ReadyUntil(DateTimeOffset.UtcNow.AddHours(2)));
+        await remote.PrefetchAsync(PlaybackRemoteController.AudioElementId, Asset, isVault: true);
+        await remote.PrefetchAsync(PlaybackRemoteController.AudioElementId, null, isVault: false);
+        await remote.OnRemoteStateChanged("remote", "Living room TV");
+        await remote.PrefetchAsync(PlaybackRemoteController.AudioElementId, Asset, isVault: false);
+
+        Assert.Equal(0, CastLinkRequests);
+    }
+
+    [Fact]
+    public async Task NothingIsFetchedAheadInABrowserThatCannotPrompt()
+    {
+        var remote = Arrange(support: "unsupported", attempt: ReadyUntil(DateTimeOffset.UtcNow.AddHours(2)));
+
+        await remote.PrefetchAsync(PlaybackRemoteController.AudioElementId, Asset, isVault: false);
+
+        Assert.Equal(0, CastLinkRequests);
+    }
+
+    [Fact]
+    public async Task OpeningTheMenuFetchesTheLinkAhead_AndChoosingTheRowThenAsksTheEngineNothingMore()
+    {
+        Arrange(attempt: ReadyUntil(DateTimeOffset.UtcNow.AddHours(2)));
+        var cut = await OpenMenuAsync(PlaybackBarMedia.Music, Item("Music"));
+        Retry.Until(() => CastLinkRequests == 1);
+
+        await cut.InvokeAsync(() => MenuRow(cut).Click());
+
+        Retry.Until(() => Called("openPickerOn").Count == 1);
+        Assert.Equal(1, CastLinkRequests);
+    }
+
+    [Fact]
+    public async Task OpeningThePlaybackSettingsFetchesTheLinkAhead_AndChoosingTheRowThenAsksTheEngineNothingMore()
+    {
+        Arrange(attempt: ReadyUntil(DateTimeOffset.UtcNow.AddHours(2)));
+        var cut = await OpenSettingsAsync(PlaybackBarMedia.Movie, new() { AssetId = Asset });
+        Retry.Until(() => CastLinkRequests == 1);
+
+        await cut.InvokeAsync(() => SettingsRow(cut).Click());
+
+        Retry.Until(() => Called("openPickerOn").Count == 1);
+        Assert.Equal(1, CastLinkRequests);
+    }
+
+    [Fact]
+    public async Task OpeningTheMenuOrThePanelForAVaultItemFetchesNothing()
+    {
+        Arrange(attempt: ReadyUntil(DateTimeOffset.UtcNow.AddHours(2)));
+        await OpenMenuAsync(PlaybackBarMedia.Music, Item("Music", vault: true));
+        await OpenSettingsAsync(PlaybackBarMedia.Movie, new() { AssetId = Asset, IsVault = true });
+
+        await Task.Delay(200);
+
+        Assert.Equal(0, CastLinkRequests);
+    }
+
     private static class Retry
     {
         public static void Until(Func<bool> condition)

@@ -13,7 +13,7 @@
    facts). The footer is "Reset playback preferences". Audio and subtitles are not here; they have their own panel (D12). Skip lengths are the same
    per-profile preferences Settings, Playback used to hold. A row shows only when the media and the app support it. *@
 <PlaybackPanel @ref="_panel" Title="@L["PlaybackSettings_Title"].Value" ToolId="@EffectiveToolId" Kind="settings" Surface="@Surface" ItemKey="@ItemKey"
-               Trigger="@Trigger" TriggerClass="@TriggerClass" Open="@Open" OpenChanged="OpenChanged" Footer="@(ShowsReset ? MainFooter : null)"
+               Trigger="@Trigger" TriggerClass="@TriggerClass" Open="@Open" OpenChanged="HandlePanelOpenChangedAsync" Footer="@(ShowsReset ? MainFooter : null)"
                TriggerContent="@(ShowTrigger ? GearGlyph : null)">
     <ChildContent>
         <div class="psp" data-playback-settings>
@@ -150,11 +150,20 @@
         _ => null,
     };
 
+    // The cast link is fetched while the panel is open, so choosing the row can open the browser's picker inside the click (Safari).
+    private async Task HandlePanelOpenChangedAsync(bool open)
+    {
+        if (open && ShowsRemoteRow && _remote is not null) _ = _remote.PrefetchAsync(PlaybackRemoteController.VideoElementId, RemoteAssetId, RemoteIsVault);
+        await OpenChanged.InvokeAsync(open);
+    }
+
     private async Task ActivateRemoteAsync()
     {
         if (_remote is null) return;
+        // The picker is asked for first (with a link fetched ahead of time that is at once), then the panel closes.
+        var activation = _remote.ActivateAsync(PlaybackRemoteController.VideoElementId, RemoteAssetId, RemoteIsVault);
         if (_panel is not null) await _panel.CloseAsync();
-        await _remote.ActivateAsync(PlaybackRemoteController.VideoElementId, RemoteAssetId, RemoteIsVault);
+        await activation;
     }
 
     private string EffectiveToolId => ToolId ?? _generatedId;

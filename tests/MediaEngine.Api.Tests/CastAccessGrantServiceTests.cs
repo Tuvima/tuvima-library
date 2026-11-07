@@ -343,6 +343,63 @@ public sealed class CastAccessGrantServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task ChangingThePasswordStopsASessionGrant_BecauseTheSecurityStampNoLongerMatches()
+    {
+        var paired = await PairAsync();
+        var signedIn = await SignInAsync(paired.Account);
+        var service = CreateSessionService();
+        var grant = await service.CreateForSessionAsync(Guid.NewGuid(), null, signedIn.Authority, 3600);
+        Assert.NotNull(await service.ValidateAsync(grant.Value));
+
+        await SetPasswordStampAsync(paired.Account.Id, "a-new-stamp-after-a-password-change");
+
+        Assert.Null(await service.ValidateAsync(grant.Value));
+    }
+
+    [Fact]
+    public async Task ATemporaryPasswordThatRunsOutStopsASessionGrant()
+    {
+        var paired = await PairAsync();
+        var signedIn = await SignInAsync(paired.Account);
+        var service = CreateSessionService();
+        var grant = await service.CreateForSessionAsync(Guid.NewGuid(), null, signedIn.Authority, 3600);
+        Assert.NotNull(await service.ValidateAsync(grant.Value));
+
+        using (var connection = _database.CreateConnection())
+        {
+            await connection.ExecuteAsync(
+                "UPDATE accounts SET must_change_password = 1, temporary_password_expires_at = @expires WHERE id = @account;",
+                new { account = paired.Account.Id, expires = _clock.GetUtcNow().AddMinutes(10).ToString("O") });
+        }
+
+        // Still inside the temporary password's window.
+        Assert.NotNull(await service.ValidateAsync(grant.Value));
+
+        _clock.Advance(TimeSpan.FromMinutes(11));
+
+        Assert.Null(await service.ValidateAsync(grant.Value));
+    }
+
+    [Theory]
+    [InlineData("ProfilePin")]
+    [InlineData("ProfileEntry")]
+    public async Task ASessionFromARetiredSignInMethodNeverBacksASessionGrant(string method)
+    {
+        var paired = await PairAsync();
+        var signedIn = await SignInAsync(paired.Account);
+        var service = CreateSessionService();
+        var grant = await service.CreateForSessionAsync(Guid.NewGuid(), null, signedIn.Authority, 3600);
+        using (var connection = _database.CreateConnection())
+        {
+            await connection.ExecuteAsync("UPDATE auth_sessions SET authentication_method = @method WHERE id = @id;", new { method, id = signedIn.Session.Id });
+        }
+
+        Assert.Null(await service.ValidateAsync(grant.Value));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            service.CreateForSessionAsync(Guid.NewGuid(), null, signedIn.Authority, 3600));
+    }
+
+    [Fact]
     public async Task ASessionWaitingForAProfilePickStopsTheGrant()
     {
         var paired = await PairAsync();
@@ -456,10 +513,24 @@ public sealed class CastAccessGrantServiceTests : IDisposable
         Assert.Null(await hls.ValidateAsync(sessionGrant.Value, packageId));
     }
 
-    private sealed record SignedIn(AuthSession Session, RequestAuthority Authority);
+    private sealed record SignedIn(AuthSession Session, RequestAuthority Authority, string SecurityStamp);
+
+    private Task SetPasswordStampAsync(Guid accountId, string stamp) =>
+        _identities.UpsertAccountCredentialAsync(new AccountCredential
+        {
+            Id = Guid.NewGuid(),
+            AccountId = accountId,
+            Kind = AccountCredentialKind.Password,
+            SecretHash = "not-a-real-hash",
+            SecurityStamp = stamp,
+            CreatedAt = _clock.GetUtcNow(),
+            UpdatedAt = _clock.GetUtcNow(),
+        });
 
     private async Task<SignedIn> SignInAsync(Account account, TimeSpan? sessionLife = null)
     {
+        var stamp = Guid.NewGuid().ToString("N");
+        await SetPasswordStampAsync(account.Id, stamp);
         var session = new AuthSession
         {
             Id = Guid.NewGuid(),
@@ -469,8 +540,8 @@ public sealed class CastAccessGrantServiceTests : IDisposable
             DeviceId = "browser",
             DeviceName = "Browser",
             Client = "web",
-            AuthenticationMethod = "password",
-            SecurityStamp = Guid.NewGuid().ToString("N"),
+            AuthenticationMethod = "Password",
+            SecurityStamp = stamp,
             CreatedAt = _clock.GetUtcNow(),
             LastSeenAt = _clock.GetUtcNow(),
             ExpiresAt = _clock.GetUtcNow().Add(sessionLife ?? TimeSpan.FromDays(1)),
@@ -482,7 +553,7 @@ public sealed class CastAccessGrantServiceTests : IDisposable
             AccountEnabled: true, ActiveProfileInUserHousehold: true,
             AccountAuthorizationVersion: account.AuthorizationVersion,
             ProfileAuthorizationVersion: grantRow.AuthorizationVersion);
-        return new SignedIn(session, authority);
+        return new SignedIn(session, authority, stamp);
     }
 
     private CastAccessGrantService CreateSessionService() =>

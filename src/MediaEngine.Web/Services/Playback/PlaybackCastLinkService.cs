@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 namespace MediaEngine.Web.Services.Playback;
 
 /// <summary>What asking for a cast link came to: the address a receiver can fetch, or why there is none (for the log; the person sees one calm line).</summary>
-public sealed record PlaybackCastLink(string? Url, string? ContentType, string? Reason)
+public sealed record PlaybackCastLink(string? Url, string? ContentType, string? Reason, DateTimeOffset? ExpiresAt = null)
 {
     public bool IsReady => !string.IsNullOrEmpty(Url);
 }
@@ -14,7 +14,8 @@ public sealed record PlaybackCastLink(string? Url, string? ContentType, string? 
 /// <summary>
 /// Gets the Engine's existing short-lived cast link for one title (unified player v2 D28) and turns it into an address the receiver can use. The Engine
 /// answers a relative path under <c>/cast/v1/{grant}/</c>; the receiver reaches it through the Dashboard's relay, so the address is the Dashboard's
-/// own, and a Dashboard opened as localhost cannot be reached by a TV. Nothing here changes what the Engine allows: when it refuses, this reports why
+/// own, and a Dashboard opened as localhost cannot be reached by a TV. The link is a short-lived secret for one title, bound to the live session or device,
+/// and it works wherever the server is reachable. Nothing here changes what the Engine allows: when it refuses, this reports why
 /// and the picker is not opened.
 /// </summary>
 public sealed class PlaybackCastLinkService(IEngineApiClient api, NavigationManager navigation, ILogger<PlaybackCastLinkService> logger)
@@ -55,6 +56,6 @@ public sealed class PlaybackCastLinkService(IEngineApiClient api, NavigationMana
             return new(null, null, "the Dashboard is open on this computer's own address, which a receiver cannot reach");
         }
 
-        return new(new Uri(dashboardBase, path).AbsoluteUri, session.ContentType, null);
+        return new(new Uri(dashboardBase, path).AbsoluteUri, session.ContentType, null, session.ExpiresAt);
     }
 }

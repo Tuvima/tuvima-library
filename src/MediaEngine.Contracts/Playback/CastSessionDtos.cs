@@ -30,7 +30,7 @@ public sealed record CastSessionRequestDto
 }
 
 /// <summary>
-/// A cast session for one title: relative paths under <c>/cast/v1/{grant}/</c> that a home-network TV can load with no
+/// A cast session for one title: relative paths under <c>/cast/v1/{grant}/</c> that a receiver can load with no
 /// sign-in. The grant is a short-lived secret that reads this one title only.
 /// </summary>
 public sealed record CastSessionDto

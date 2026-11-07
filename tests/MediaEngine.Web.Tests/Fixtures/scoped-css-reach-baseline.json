@@ -81,7 +81,8 @@
       "tl-urail__add",
       "tl-urail__crumb",
       "tl-urail__crumb--tile",
-      "tl-urail__img"
+      "tl-urail__img",
+      "tl-urail__option"
     ],
     "src/MediaEngine.Web/Components/Details/OverviewTab.razor": [
       "tl-overview-section__more"
@@ -97,6 +98,11 @@
     ],
     "src/MediaEngine.Web/Components/Import/ImportPreviewFrame.razor": [
       "import-frame__facts"
+    ],
+    "src/MediaEngine.Web/Components/Layout/ReconnectModal.razor": [
+      "components-pause-visible",
+      "components-reconnect-failed-visible",
+      "components-resume-failed-visible"
     ],
     "src/MediaEngine.Web/Components/Library/LibraryConfigurableTable.razor": [
       "media-type-badge",
@@ -170,6 +176,7 @@
     ],
     "src/MediaEngine.Web/Components/Pages/MyLibrary.razor": [
       "my-library-header__action-skeleton",
+      "my-library-header__avatar",
       "my-library-header__name-skeleton",
       "my-library-skeleton__tile",
       "my-library-skeleton__title"
@@ -205,6 +212,9 @@
     "src/MediaEngine.Web/Components/Pages/ViewPlacesPage.razor": [
       "view-atlas__map"
     ],
+    "src/MediaEngine.Web/Components/Pages/WatchPlayerPage.razor": [
+      "watch-player-state"
+    ],
     "src/MediaEngine.Web/Components/Rules/SharedRuleBuilder.razor": [
       "collection-rule-builder__add-condition",
       "collection-rule-builder__add-secondary",
@@ -228,6 +238,7 @@
       "add-files__folder"
     ],
     "src/MediaEngine.Web/Components/Settings/Libraries/LibrariesOverview.razor": [
+      "libs__link",
       "libs__link--button",
       "libs__lock"
     ],
@@ -242,7 +253,9 @@
       "access-rows"
     ],
     "src/MediaEngine.Web/Components/Settings/ManagedAccessUsers.razor": [
-      "access-drawer"
+      "access-drawer",
+      "access-notice",
+      "access-users"
     ],
     "src/MediaEngine.Web/Components/Settings/ManagedApplicationWebhooks.razor": [
       "application-webhook-secret"
@@ -261,6 +274,7 @@
       "offline-downloads-table"
     ],
     "src/MediaEngine.Web/Components/Settings/PluginSettingsTab.razor": [
+      "settings-plugin-card-focus",
       "settings-plugin-rows"
     ],
     "src/MediaEngine.Web/Components/Settings/ProfilesTab.razor": [
@@ -296,6 +310,7 @@
       "delete-library__more"
     ],
     "src/MediaEngine.Web/Components/Shared/MediaViewerShell.razor": [
+      "media-viewer",
       "media-viewer--video"
     ],
     "src/MediaEngine.Web/Components/Shared/Providers/ProviderOnboardingDialog.razor": [
@@ -315,6 +330,9 @@
     ],
     "src/MediaEngine.Web/Components/Universe/GlobalBackground.razor": [
       "global-bg-gradient"
+    ],
+    "src/MediaEngine.Web/Components/Universe/UniverseCastList.razor": [
+      "universe-cast__row"
     ],
     "src/MediaEngine.Web/Components/Vault/VaultImageViewer.razor": [
       "vault-viewer"

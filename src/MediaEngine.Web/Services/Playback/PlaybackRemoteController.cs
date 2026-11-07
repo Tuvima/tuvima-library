@@ -22,6 +22,10 @@ public sealed class PlaybackRemoteController : IAsyncDisposable
 
     private static readonly TimeSpan EndTimeout = TimeSpan.FromSeconds(2);
 
+    /// <summary>A fetched link is used only while at least this much of its life is left, and never kept longer than <see cref="UnstatedLinkLife"/> when the Engine gave no expiry.</summary>
+    private static readonly TimeSpan LinkMargin = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan UnstatedLinkLife = TimeSpan.FromMinutes(30);
+
     private readonly IJSRuntime _js;
     private readonly PlaybackCastLinkService _links;
     private readonly PlaybackSessionController _playback;
@@ -33,7 +37,10 @@ public sealed class PlaybackRemoteController : IAsyncDisposable
     private Guid? _remoteAssetId;
     private Guid? _followingAssetId;
     private TaskCompletionSource? _disconnected;
+    private CachedLink? _cached;
     private bool _disposed;
+
+    private sealed record CachedLink(Guid AssetId, PlaybackCastLink Link, DateTimeOffset UsableUntil);
 
     public PlaybackRemoteController(IJSRuntime js, PlaybackCastLinkService links, PlaybackSessionController playback, ILogger<PlaybackRemoteController> logger)
     {
@@ -104,8 +111,45 @@ public sealed class PlaybackRemoteController : IAsyncDisposable
     }
 
     /// <summary>
-    /// The row was pressed. While a receiver plays this brings playback back to the browser. Otherwise it asks the Engine for the cast link first;
-    /// when the Engine refuses, the picker is not opened and the reason is logged.
+    /// Gets the cast link for the playing item ahead of the click, when the menu or the Playback settings panel opens, and keeps it for that item until it
+    /// is about to expire. The click can then open the browser's picker at once, still inside the person's gesture (Safari drops the gesture while the
+    /// Engine is asked). Nothing is fetched for a Vault item, when nothing is playing, in a browser that cannot prompt, or while a receiver plays. When the
+    /// Engine refuses nothing is kept and nothing is shown: the click then asks again and reports the reason as before.
+    /// </summary>
+    public async Task PrefetchAsync(string elementId, Guid? assetId, bool isVault)
+    {
+        if (_disposed || Mode != PlaybackRemoteMode.Local || isVault || assetId is not { } asset || asset == Guid.Empty || FreshLinkFor(asset) is not null)
+        {
+            return;
+        }
+
+        try
+        {
+            await ProbeAsync(elementId);
+            if (Support == PlaybackRemoteSupport.Unsupported)
+            {
+                return;
+            }
+
+            var link = await _links.RequestAsync(asset);
+            if (link.IsReady && !_disposed)
+            {
+                _cached = new CachedLink(asset, link, link.ExpiresAt?.Subtract(LinkMargin) ?? DateTimeOffset.UtcNow.Add(UnstatedLinkLife));
+            }
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JSDisconnectedException or InvalidOperationException)
+        {
+            _logger.LogInformation(ex, "Play on another device: the cast link could not be fetched ahead of time.");
+        }
+    }
+
+    private PlaybackCastLink? FreshLinkFor(Guid asset) =>
+        _cached is { } cached && cached.AssetId == asset && cached.UsableUntil > DateTimeOffset.UtcNow ? cached.Link : null;
+
+    /// <summary>
+    /// The row was pressed. While a receiver plays this brings playback back to the browser. Otherwise it uses the link fetched ahead of time, when there
+    /// is a fresh one for this item, so the picker opens with no wait for the Engine; if not it asks the Engine for the cast link first. When the Engine
+    /// refuses, the picker is not opened and the reason is logged.
     /// </summary>
     public async Task ActivateAsync(string elementId, Guid? assetId, bool isVault)
     {
@@ -127,7 +171,9 @@ public sealed class PlaybackRemoteController : IAsyncDisposable
             return;
         }
 
-        var link = await _links.RequestAsync(asset);
+        // No await comes before the picker is asked for when a link is ready: the probe above has already finished, and the JavaScript call is issued
+        // in this same turn of the click.
+        var link = FreshLinkFor(asset) ?? await _links.RequestAsync(asset);
         if (!link.IsReady)
         {
             SetFailed(true);
@@ -149,6 +195,7 @@ public sealed class PlaybackRemoteController : IAsyncDisposable
         switch (result?.Outcome)
         {
             case "prompted":
+                _cached = null;
                 _remoteAssetId = asset;
                 SetFailed(false);
                 break;
@@ -157,6 +204,7 @@ public sealed class PlaybackRemoteController : IAsyncDisposable
                 RaiseChanged();
                 break;
             case "failed":
+                _cached = null;
                 _logger.LogInformation("Play on another device was not started: the browser's picker failed ({Reason}).", result.Reason);
                 SetFailed(true);
                 break;

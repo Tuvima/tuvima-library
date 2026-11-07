@@ -59,6 +59,7 @@ public sealed class CastDashboardSessionEndpointTests : IAsyncLifetime
     private Guid _video;
     private Guid _song;
     private Guid _vaultVideo;
+    private Guid _ratedVideo;
 
     public async Task InitializeAsync()
     {
@@ -80,6 +81,7 @@ public sealed class CastDashboardSessionEndpointTests : IAsyncLifetime
         _state = new PlaybackStateRepository(_database);
         _video = await SeedAsync("film.mp4", "Movies", withProbe: true);
         _song = await SeedAsync("song.mp3", "Music", withProbe: false);
+        _ratedVideo = await SeedAsync("rated.mp4", "Movies", withProbe: true, rating: "R");
         _vaultVideo = await SeedAsync("private.mp4", "Movies", withProbe: true);
         await MoveIntoTheVaultAsync(_vaultVideo);
         _sessionId = await SignInAsync();
@@ -217,6 +219,51 @@ public sealed class CastDashboardSessionEndpointTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ARangeRequestForASongAnswers206WithTheRightContentRange()
+    {
+        _authority.Current = _dashboard;
+        using var started = await StartCastAsync(_song, CastReceivers.BrowserRemotePlayback);
+        var session = (await started.Content.ReadFromJsonAsync<CastSessionDto>())!;
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, session.MediaPath);
+        request.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(1, 2);
+        using var response = await _client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.PartialContent, response.StatusCode);
+        Assert.Equal("audio/mpeg", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(1, response.Content.Headers.ContentRange?.From);
+        Assert.Equal(2, response.Content.Headers.ContentRange?.To);
+        Assert.Equal(4, response.Content.Headers.ContentRange?.Length);
+        Assert.Equal([1, 2], await response.Content.ReadAsByteArrayAsync());
+    }
+
+    [Fact]
+    public async Task AKidsLimitLoweredAfterTheGrantWasMadeStopsTheSessionGrantAtTheNextRequest()
+    {
+        _authority.Current = _dashboard;
+        using var started = await StartCastAsync(_ratedVideo, CastReceivers.BrowserRemotePlayback);
+        Assert.Equal(HttpStatusCode.OK, started.StatusCode);
+        var session = (await started.Content.ReadFromJsonAsync<CastSessionDto>())!;
+        using (var playing = await _client.GetAsync(session.MediaPath))
+        {
+            Assert.Equal(HttpStatusCode.OK, playing.StatusCode);
+        }
+
+        KidsLimitTestSupport.SetLimit(_database, "PG");
+
+        using var refused = await _client.GetAsync(session.MediaPath);
+        Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
+        Assert.Empty(await refused.Content.ReadAsStringAsync());
+        using var poster = await _client.GetAsync(session.PosterPath);
+        Assert.Equal(HttpStatusCode.Forbidden, poster.StatusCode);
+        // And a new cast of the same title is refused too, with no new grant.
+        var issued = _protection.GrantsIssued;
+        using var again = await StartCastAsync(_ratedVideo, CastReceivers.BrowserRemotePlayback);
+        Assert.Equal(HttpStatusCode.Forbidden, again.StatusCode);
+        Assert.Equal(issued, _protection.GrantsIssued);
+    }
+
+    [Fact]
     public async Task APairedPhoneStillCastsWithTheGoogleReceiver()
     {
         using var started = await StartCastAsync(_video, CastReceivers.GoogleCastDefault);
@@ -314,6 +361,17 @@ public sealed class CastDashboardSessionEndpointTests : IAsyncLifetime
     private async Task<Guid> SignInAsync()
     {
         var now = DateTimeOffset.UtcNow;
+        var stamp = Guid.NewGuid().ToString("N");
+        await _identities.UpsertAccountCredentialAsync(new AccountCredential
+        {
+            Id = Guid.NewGuid(),
+            AccountId = _paired.Account.Id,
+            Kind = AccountCredentialKind.Password,
+            SecretHash = "not-a-real-hash",
+            SecurityStamp = stamp,
+            CreatedAt = now,
+            UpdatedAt = now,
+        });
         var session = new AuthSession
         {
             Id = Guid.NewGuid(),
@@ -323,8 +381,8 @@ public sealed class CastDashboardSessionEndpointTests : IAsyncLifetime
             DeviceId = "browser",
             DeviceName = "Browser",
             Client = "web",
-            AuthenticationMethod = "password",
-            SecurityStamp = Guid.NewGuid().ToString("N"),
+            AuthenticationMethod = "Password",
+            SecurityStamp = stamp,
             CreatedAt = now,
             LastSeenAt = now,
             ExpiresAt = now.AddDays(1),
@@ -360,7 +418,7 @@ public sealed class CastDashboardSessionEndpointTests : IAsyncLifetime
             new { asset, vaultLibrary });
     }
 
-    private async Task<Guid> SeedAsync(string fileName, string mediaType, bool withProbe)
+    private async Task<Guid> SeedAsync(string fileName, string mediaType, bool withProbe, string? rating = null)
     {
         var workId = Guid.NewGuid();
         var editionId = Guid.NewGuid();
@@ -378,6 +436,15 @@ public sealed class CastDashboardSessionEndpointTests : IAsyncLifetime
                 VALUES (@assetId, @editionId, @hash, @path, 'Normal', @libraryId);
                 """,
                 new { workId, editionId, assetId, hash, path, mediaType, libraryId = _libraryId.ToString("D") });
+            if (rating is not null)
+            {
+                await connection.ExecuteAsync(
+                    """
+                    INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@workId, 'title', 'Rated title', CURRENT_TIMESTAMP);
+                    INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@workId, 'content_rating', @rating, CURRENT_TIMESTAMP);
+                    """,
+                    new { workId, rating });
+            }
         }
 
         if (withProbe)

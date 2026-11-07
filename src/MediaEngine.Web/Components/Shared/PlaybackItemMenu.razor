@@ -162,7 +162,12 @@
 
     private async Task HandleOpenChangedAsync(bool open)
     {
-        if (open) await LoadStatusAsync();
+        if (open)
+        {
+            // The cast link is fetched while the menu is open, so choosing the row can open the browser's picker inside the click (Safari).
+            if (ShowsRemoteRow && _remote is not null) _ = _remote.PrefetchAsync(PlaybackRemoteController.AudioElementId, Item?.AssetId, Item?.IsVault == true);
+            await LoadStatusAsync();
+        }
     }
 
     private async Task LoadStatusAsync()

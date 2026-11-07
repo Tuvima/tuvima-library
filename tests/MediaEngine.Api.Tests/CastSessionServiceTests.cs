@@ -374,6 +374,17 @@ public sealed class CastSessionServiceTests : IAsyncLifetime
     private async Task<RequestAuthority> SignInAsync()
     {
         var now = DateTimeOffset.UtcNow;
+        var stamp = Guid.NewGuid().ToString("N");
+        await _identities.UpsertAccountCredentialAsync(new AccountCredential
+        {
+            Id = Guid.NewGuid(),
+            AccountId = _paired.Account.Id,
+            Kind = AccountCredentialKind.Password,
+            SecretHash = "not-a-real-hash",
+            SecurityStamp = stamp,
+            CreatedAt = now,
+            UpdatedAt = now,
+        });
         var session = new AuthSession
         {
             Id = Guid.NewGuid(),
@@ -383,8 +394,8 @@ public sealed class CastSessionServiceTests : IAsyncLifetime
             DeviceId = "browser",
             DeviceName = "Browser",
             Client = "web",
-            AuthenticationMethod = "password",
-            SecurityStamp = Guid.NewGuid().ToString("N"),
+            AuthenticationMethod = "Password",
+            SecurityStamp = stamp,
             CreatedAt = now,
             LastSeenAt = now,
             ExpiresAt = now.AddDays(1),

@@ -12,11 +12,12 @@ using MediaEngine.Processors.Contracts;
 namespace MediaEngine.Api.Endpoints;
 
 /// <summary>
-/// Casting to a home-network TV or a browser's own device picker. A paired phone, or a signed-in Dashboard session, asks for a cast
+/// Casting to a TV or speaker, or to a browser's own device picker. A paired phone, or a signed-in Dashboard session, asks for a cast
 /// session (<c>POST /api/v1/playback/{assetId}/cast</c>); the receiver then loads the returned paths under <c>/cast/v1/{grant}/</c>
 /// with no sign-in. The grant is a short-lived secret for ONE title (see <see cref="CastAccessGrantService"/>); the receiver routes
-/// are anonymous on purpose, check the whole grant on every request, and serve GET, HEAD and OPTIONS only. The Dashboard relays them
-/// for home-network clients and nobody else. A Vault item never casts.
+/// are anonymous on purpose, check the whole grant on every request, and serve GET, HEAD and OPTIONS only. The grant is a short-lived
+/// secret for one title, bound to the live session or device that made it, and it works wherever the server is reachable: there is
+/// no location check (ADR 0009). A Vault item never casts.
 /// </summary>
 public static class CastEndpoints
 {
@@ -27,7 +28,7 @@ public static class CastEndpoints
         app.MapPost("/api/v1/playback/{assetId:guid}/cast", CreateSessionAsync)
             .WithName("CreateCastSession")
             .WithTags("Playback")
-            .WithSummary("Start a cast session for one video, song or audiobook: a short-lived, single-title link a home-network receiver can play with no sign-in.")
+            .WithSummary("Start a cast session for one video, song or audiobook: a short-lived, single-title link, bound to the live session or device, that a receiver can play with no sign-in.")
             .Produces<CastSessionDto>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)

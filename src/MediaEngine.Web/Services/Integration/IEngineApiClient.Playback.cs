@@ -26,7 +26,7 @@ public partial interface IEngineApiClient
         bool adaptive = false);
 
     /// <summary>
-    /// POST /api/v1/playback/{assetId}/cast  -  asks the Engine for a short-lived, single-title link a receiver on the home network can play with
+    /// POST /api/v1/playback/{assetId}/cast  -  asks the Engine for a short-lived, single-title link, bound to the live session or device, that a receiver can play with
     /// no sign-in (unified player v2 D28). The answer says why when the Engine refuses, so the caller can show a calm line and log the reason.
     /// </summary>
     Task<CastSessionAttempt> CreateCastSessionAsync(Guid assetId, CancellationToken ct = default);

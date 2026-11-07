@@ -4,13 +4,14 @@ using System.Text.Json;
 using MediaEngine.Api.Security;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Identity;
 using Microsoft.AspNetCore.DataProtection;
 using RegisteredApplication = MediaEngine.Domain.Entities.Application;
 
 namespace MediaEngine.Api.Services.Playback;
 
 /// <summary>
-/// The secret a home-network TV or browser receiver uses to play ONE title with no sign-in. It is a Data Protection payload
+/// The secret a TV, speaker or browser receiver uses to play ONE title with no sign-in. It is a Data Protection payload
 /// placed in the URL path (so relative HLS links keep working) and is not a bearer token: it reads one asset, over GET and HEAD only.
 ///
 /// There are two kinds, told apart by the binding's <c>Kind</c> field, and one can never be validated as the other:
@@ -166,8 +167,10 @@ public sealed class CastAccessGrantService
         // The session must be live right now; a cast made from a session that has just ended must not be created.
         var now = _timeProvider.GetUtcNow();
         var session = await _identities.GetSessionByIdAsync(sessionId, ct).ConfigureAwait(false);
-        if (session is null || !session.IsActive(now) || session.ProfilePending ||
-            session.AccountId != accountId || session.ActiveProfileId != profileId)
+        var sessionAccount = session is null ? null : await _accounts.GetByIdAsync(accountId, ct).ConfigureAwait(false);
+        if (session is null || sessionAccount is null || !session.IsActive(now) || session.ProfilePending ||
+            session.AccountId != accountId || session.ActiveProfileId != profileId ||
+            !await SessionIntegrity.HoldsAsync(_identities, session, sessionAccount, now, ct).ConfigureAwait(false))
         {
             throw new UnauthorizedAccessException("The Dashboard session is not live.");
         }
@@ -268,7 +271,8 @@ public sealed class CastAccessGrantService
     /// <summary>
     /// The checks for a SESSION grant, on every request: the managed session still exists and is live (not signed out, revoked or
     /// expired; <c>AuthSession.IsActive</c>), has not been left waiting for a profile pick, and is still the
-    /// same account and profile as the grant; the account is enabled; the profile is still active in its household; the account and
+    /// same account and profile as the grant; the account is enabled and the session still passes <see cref="SessionIntegrity"/>
+    /// (password security stamp, temporary password, retired sign-in methods; the same check sign-in validation uses); the profile is still active in its household; the account and
     /// profile authorisation versions are unchanged. The answer is a <see cref="PrincipalKind.Human"/> authority for that profile,
     /// so the catalogue's own limits (asset access, Kids) apply to it unchanged.
     /// </summary>
@@ -287,7 +291,9 @@ public sealed class CastAccessGrantService
             !session.IsActive(now) || session.ProfilePending ||
             session.AccountId != binding.AccountId || session.ActiveProfileId != binding.ProfileId ||
             account.AuthorizationVersion != binding.AccountAuthorizationVersion ||
-            profile.AuthorizationVersion != binding.ProfileAuthorizationVersion)
+            profile.AuthorizationVersion != binding.ProfileAuthorizationVersion ||
+            // The same list sign-in itself uses: a rotated password stamp, an expired temporary password or a retired sign-in method.
+            !await SessionIntegrity.HoldsAsync(_identities, session, account, now, ct).ConfigureAwait(false))
         {
             return null;
         }
