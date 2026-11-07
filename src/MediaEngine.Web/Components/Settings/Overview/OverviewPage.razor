@@ -93,7 +93,7 @@ else
                             <ul class="overview-page__taste-pills" role="list" data-overview-taste-genres>
                                 @foreach (var genre in TasteGenres)
                                 {
-                                    <li><AppChip Text="@genre" /></li>
+                                    <li><AppChip Text="@genre" data-overflow-tooltip="@genre" /></li>
                                 }
                             </ul>
                         }

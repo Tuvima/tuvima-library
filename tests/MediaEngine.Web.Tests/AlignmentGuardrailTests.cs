@@ -41,7 +41,7 @@ public sealed class AlignmentGuardrailTests
     ];
 
     // Today's count of rules that centre text in the body-copy, dialog and settings styles. It can only go down.
-    private const int CentredTextCeiling = 12;
+    private const int CentredTextCeiling = 11;
 
     private static readonly Regex Rule = new(@"([^{}]+)\{([^{}]*)\}", RegexOptions.Compiled);
 

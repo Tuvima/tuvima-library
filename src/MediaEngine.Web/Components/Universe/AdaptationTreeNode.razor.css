@@ -7,13 +7,13 @@
         gap: 10px;
         padding: 8px 10px;
         margin-bottom: 4px;
-        background: #111;
-        border: 1px solid #2a2a2a;
+        background: var(--tl-bg-surface);
+        border: 1px solid var(--tl-bg-surface-raised);
         border-radius: 8px;
         transition: border-color 0.15s;
     }
     .adaptation-card:hover {
-        border-color: #444;
+        border-color: var(--tl-border-strong);
     }
     .adapt-thumb {
         width: 40px;
@@ -26,8 +26,8 @@
         width: 40px;
         height: 56px;
         border-radius: 4px;
-        background: #1a1a1a;
-        border: 1px solid #333;
+        background: var(--tl-bg-surface);
+        border: 1px solid var(--tl-bg-surface-raised);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -38,7 +38,7 @@
         overflow: hidden;
     }
     .adaptation-children {
-        border-left: 2px solid #2a2a2a;
+        border-left: 2px solid var(--tl-bg-surface-raised);
         margin-left: 12px;
         padding-left: 0;
     }

@@ -1748,6 +1748,17 @@ input.app-control.tl-input-slot,
     background: var(--app-hover-overlay);
 }
 
+/* Numbers and durations: right-aligned with tabular numerals (Look v3 D15.4), in tables and in the shared number field. Mark a column's
+   header and cells with .app-table__num (or data-numeric). */
+.app-table th.app-table__num,
+.app-table td.app-table__num,
+.app-table th[data-numeric],
+.app-table td[data-numeric],
+.app-numeric-field {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
 /* AppTable cards mode (CardsOn). CSS cannot read a header cell's column, so consumers mark the header cell AND
    every body cell of that column with data-card-role="title|subtitle|value|actions|hidden". Cells with no role
    stack full width beneath the card (optional data-label prefixes them). The thead stays in the accessibility
@@ -1881,6 +1892,7 @@ input.app-control.tl-input-slot,
 }
 
 .app-chip {
+    max-width: 100%;
     min-height: 24px;
     padding: 0 var(--tl-space-2);
     border: 1px solid var(--tl-border-default);
@@ -1920,6 +1932,13 @@ input.app-control.tl-input-slot,
     color: var(--tl-text-primary);
     border-color: var(--tl-accent-primary-border);
     background: var(--tl-accent-primary-soft);
+}
+
+/* A long label is cut with an ellipsis inside the chip, never out of its card (the full text shows in the tooltip). */
+.app-chip > span:not(.tl-icon-root) {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .app-chip--clickable {
@@ -3080,11 +3099,8 @@ button.app-menu-item {
     :root:root .browse-filter-sheet__apply,
     :root:root .browse-shell__layout-button,
     :root:root .browse-multi-select__option,
-    :root:root .listen-icon-button,
     :root:root .listen-song-table__favorite-button,
-    :root:root .listen-song-table__icon-button,
     :root:root .listen-track-grid__favorite,
-    :root:root .tl-audio-item-table__icon-button,
     :root:root .listen-rail__more,
     :root:root .listen-rail__item,
     :root:root .listen-song-table-cards__more-button,
@@ -3716,7 +3732,6 @@ html[data-form-factor="phone"] .app-discovery-filter__tabs[data-scroll-more-star
 
 /* Icon-only buttons that were 25-34px stay compact with a mouse but never drop below 36px. */
 .sme-close,
-.listen-icon-button,
 .tl-embedded-audio__row-play {
     min-width: 36px;
     min-height: 36px;
@@ -3725,7 +3740,6 @@ html[data-form-factor="phone"] .app-discovery-filter__tabs[data-scroll-more-star
 /* Touch floor (Look pass v2 A9): on touch screens small icon buttons and chips never drop below 44px. */
 @media (hover: none), (pointer: coarse) {
     .sme-close,
-    .listen-icon-button,
     .tl-embedded-audio__row-play,
     .settings-notice__dismiss,
     .lib-chip,

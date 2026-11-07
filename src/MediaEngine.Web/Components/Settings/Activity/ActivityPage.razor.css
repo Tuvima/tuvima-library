@@ -106,7 +106,14 @@
 .activity-toolbar__dates {
     display: flex;
     flex: 0 0 auto;
+    align-items: center;
     gap: var(--tl-space-2, 8px);
+}
+
+.activity-toolbar__date-word {
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-secondary);
+    white-space: nowrap;
 }
 
 .activity-filters-popover__body {

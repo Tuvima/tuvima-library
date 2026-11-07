@@ -31,7 +31,7 @@
 .universe-contents__count {
     color: var(--tl-text-secondary);
     font-family: var(--font-ui);
-    font-size: 0.9rem;
+    font-size: var(--tl-font-size-sm);
 }
 
 .universe-contents__order {
@@ -65,7 +65,7 @@
     min-height: 1.2rem;
     color: var(--tl-text-secondary);
     font-family: var(--font-ui);
-    font-size: 0.8rem;
+    font-size: var(--tl-font-size-secondary);
     font-weight: 600;
 }
 
@@ -95,14 +95,14 @@
 .universe-contents__initial {
     color: var(--tl-text-secondary);
     font-family: var(--font-ui);
-    font-size: 2rem;
+    font-size: var(--tl-font-size-hero);
     font-weight: 600;
 }
 
 .universe-contents__name {
     color: var(--tl-text-primary);
     font-family: var(--font-ui);
-    font-size: 0.9rem;
+    font-size: var(--tl-font-size-sm);
     font-weight: 600;
     line-height: 1.25;
     overflow-wrap: anywhere;
@@ -114,7 +114,7 @@
     margin: 0;
     color: var(--tl-text-secondary);
     font-family: var(--font-ui);
-    font-size: 0.8rem;
+    font-size: var(--tl-font-size-secondary);
 }
 
 /* A tile opens the thing's own page; the link wraps the whole tile and adds nothing to its look. */

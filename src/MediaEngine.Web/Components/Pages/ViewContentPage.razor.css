@@ -8,7 +8,7 @@
     min-width: 0;
     min-height: 100%;
     padding: 28px clamp(20px, 2.2vw, 40px) 48px;
-    color: var(--tl-text-primary, #f8fafc);
+    color: var(--tl-text-primary);
     font-family: var(--font-ui, inherit);
 }
 
