@@ -3696,6 +3696,8 @@ MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorHeaderSupporti
   ShowAll: System.Boolean | nullability=not-null | accessors=get,init
   Files: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorHeaderSupportingFileDto> | nullability=not-null | accessors=get,init
 
+MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorKindNames
+
 MediaEngine.Contracts.Editing.MediaEngine.Contracts.Editing.EditorMatchBestGuessDto
   ProviderName: System.String | nullability=not-null | accessors=get,set
   ProviderItemId: System.String | nullability=not-null | accessors=get,set

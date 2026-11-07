@@ -84,6 +84,22 @@ public sealed partial class EditorV5HeaderGuardrailTests
         Assert.Contains("PaletteProvider.Current.EditorHeader", header, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void TheEditorsNarrowLayouts_AnswerToTheScreen_NotToAContainerThatIsAlwaysWideEnough()
+    {
+        // The editor window is at most 1280px wide, so a container query that switches below 1279px is true at every size and the layout never
+        // widens. The editor's own style sheets use the 1180px screen breakpoint, which is where the window becomes full screen.
+        var offenders = Directory.EnumerateFiles(Path.Combine(RepoRoot, "src", "MediaEngine.Web", "Components", "Details"), "Editor*.css", SearchOption.AllDirectories)
+            .Where(path => ContainerQuery().IsMatch(File.ReadAllText(path)))
+            .Select(path => Path.GetRelativePath(RepoRoot, path))
+            .ToList();
+
+        Assert.Empty(offenders);
+    }
+
+    [GeneratedRegex(@"@container\b")]
+    private static partial Regex ContainerQuery();
+
     [GeneratedRegex(@"\b(EditorContentsTab|EditorFilesTab|EditorFamilyRail)\b")]
     private static partial Regex RetiredPieces();
 

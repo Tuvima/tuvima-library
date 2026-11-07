@@ -1,5 +1,4 @@
 using MediaEngine.Contracts.Editing;
-using MediaEngine.Domain.Configuration;
 
 namespace MediaEngine.Web.Tests.Support;
 
@@ -57,7 +56,7 @@ internal static class EditorHeaderTestData
     /// <summary>Season 2, episode 3 of a show: home, a Season dropdown and an item dropdown, with two supporting files shown of twelve.</summary>
     public static EditorHeaderDto TvEpisode(int supportingTotal = 238, bool hasMore = false) => new()
     {
-        Kind = EditorKinds.TvEpisode,
+        Kind = EditorKindNames.TvEpisode,
         Root = new EditorHeaderRootDto { Id = ShowId, Title = ShowTitle, MediaType = "TV", CoverUrl = "/covers/show.jpg" },
         CurrentId = EpisodeThreeId,
         Label = ShowTitle,
@@ -104,13 +103,13 @@ internal static class EditorHeaderTestData
         FolderButton = new EditorHeaderFolderButtonDto { FolderName = "Season 02", PathLabel = "The Last Signal / Season 02" },
         Colors = new EditorCoverColorsDto { PrimaryHex = "#5a3a8a", SecondaryHex = "#2a1858" },
         FileFacts = new EditorFileFactsDto { FileCount = 1, Quality = "1080p", Container = "MKV", SizeBytes = 1_500_000_000, Folder = "Season 02" },
-        Config = Config(EditorKinds.TvEpisode),
+        Config = Config(EditorKindNames.TvEpisode),
     };
 
     /// <summary>A film on its own: nothing to move around in, so the header has no nav row unless it has supporting files.</summary>
     public static EditorHeaderDto Movie(bool withSupportingFiles = false) => new()
     {
-        Kind = EditorKinds.Movie,
+        Kind = EditorKindNames.Movie,
         Root = new EditorHeaderRootDto { Id = EpisodeOneId, Title = "Dune: Part One", MediaType = "Movies" },
         CurrentId = EpisodeOneId,
         Label = "Movie",
@@ -131,13 +130,13 @@ internal static class EditorHeaderTestData
                 }
                 : new EditorHeaderSupportingFilesDto(),
         },
-        Config = Config(EditorKinds.Movie, "details", "artwork", "match", "history"),
+        Config = Config(EditorKindNames.Movie, "details", "artwork", "match", "history"),
     };
 
     /// <summary>Lesson 2 of a course section: a Section dropdown and lessons with numbers and lengths, never season and episode codes.</summary>
     public static EditorHeaderDto CourseLesson() => new()
     {
-        Kind = EditorKinds.Video,
+        Kind = EditorKindNames.Video,
         Root = new EditorHeaderRootDto { Id = ShowId, Title = "Learn Watercolour", MediaType = "Videos" },
         CurrentId = EpisodeTwoId,
         Label = "Learn Watercolour",
@@ -163,6 +162,6 @@ internal static class EditorHeaderTestData
             ],
             SupportingFiles = new EditorHeaderSupportingFilesDto(),
         },
-        Config = Config(EditorKinds.Video, "details", "artwork", "history"),
+        Config = Config(EditorKindNames.Video, "details", "artwork", "history"),
     };
 }

@@ -1,7 +1,6 @@
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Contracts.Items;
 using MediaEngine.Contracts.Metadata;
-using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Services;
 using MediaEngine.Web.Services.Integration;
 using MediaEngine.Web.Services.Theming;
@@ -403,7 +402,7 @@ public sealed class ItemFieldEditSession
     private async Task LoadKindConfigAsync(string kind, CancellationToken ct)
     {
         KindConfig = null;
-        if (!EditorKinds.All.Contains(kind, StringComparer.Ordinal))
+        if (!EditorKindNames.All.Contains(kind, StringComparer.Ordinal))
         {
             return;
         }

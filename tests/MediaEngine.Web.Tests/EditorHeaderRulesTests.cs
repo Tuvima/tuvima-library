@@ -1,6 +1,4 @@
 using MediaEngine.Contracts.Editing;
-using MediaEngine.Domain.Configuration;
-using MediaEngine.Domain.Models;
 using MediaEngine.Web.Services.Editing;
 using MediaEngine.Web.Tests.Support;
 
@@ -12,60 +10,34 @@ namespace MediaEngine.Web.Tests;
 /// </summary>
 public sealed class EditorHeaderRulesTests
 {
-    private static readonly EditorHeaderPalette Palette = new() { PrimaryPercent = 55, SecondaryPercent = 70 };
-
-    // -- A4: the header gradient ---------------------------------------------------------------------------------------------------
+    // -- A4: the header gradient's colours ----------------------------------------------------------------------------------------------
 
     [Fact]
-    public void TheGradient_IsBuiltFromTheStoredCoverColours_MixedIntoTheWindowSurface()
+    public void TheGradient_IsMadeFromTheStoredCoverColours()
     {
-        var style = EditorHeaderGradient.Style(new EditorCoverColorsDto { PrimaryHex = "#5a3a8a", SecondaryHex = "#2a1858" }, Palette);
+        var colours = EditorHeaderGradient.Resolve(new EditorCoverColorsDto { PrimaryHex = "#5a3a8a", SecondaryHex = "#2a1858" });
 
-        Assert.NotNull(style);
-        Assert.Contains("#5a3a8a 55%", style, StringComparison.Ordinal);
-        Assert.Contains("#2a1858 70%", style, StringComparison.Ordinal);
-        Assert.Contains("var(--tl-bg-surface)", style, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void AGradientStrengthComesFromThePaletteConfig_NotFromTheDashboard()
-    {
-        var strong = EditorHeaderGradient.Style(new EditorCoverColorsDto { PrimaryHex = "#5a3a8a", SecondaryHex = "#2a1858" }, new EditorHeaderPalette { PrimaryPercent = 90, SecondaryPercent = 40 });
-
-        Assert.Contains("#5a3a8a 90%", strong, StringComparison.Ordinal);
-        Assert.Contains("#2a1858 40%", strong, StringComparison.Ordinal);
+        Assert.Equal(new EditorHeaderColours("#5a3a8a", "#2a1858"), colours);
     }
 
     [Fact]
     public void ACoverWithNoStoredColours_GetsNoGradient_SoTheHeaderIsThePlainWindowSurface()
     {
-        Assert.Null(EditorHeaderGradient.Style(null, Palette));
-        Assert.Null(EditorHeaderGradient.Style(new EditorCoverColorsDto(), Palette));
+        Assert.Null(EditorHeaderGradient.Resolve(null));
+        Assert.Null(EditorHeaderGradient.Resolve(new EditorCoverColorsDto()));
     }
 
     [Fact]
-    public void AColourThatIsNotAPlainHexValue_IsNeverWrittenIntoTheStyle()
+    public void AColourThatIsNotAPlainHexValue_IsNeverPassedOn()
     {
-        Assert.Null(EditorHeaderGradient.Style(new EditorCoverColorsDto { PrimaryHex = "red;background:url(x)" }, Palette));
+        Assert.Null(EditorHeaderGradient.Resolve(new EditorCoverColorsDto { PrimaryHex = "red;background:url(x)" }));
     }
 
     [Fact]
     public void WithOnlyOneUsableColour_TheGradientUsesItForBothEnds()
     {
-        var style = EditorHeaderGradient.Style(new EditorCoverColorsDto { SecondaryHex = "#2a1858" }, Palette);
-
-        Assert.NotNull(style);
-        Assert.Contains("#2a1858 55%", style, StringComparison.Ordinal);
-        Assert.Contains("#2a1858 70%", style, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void AStrengthOutsideZeroToOneHundred_IsHeldInsideIt()
-    {
-        var style = EditorHeaderGradient.Style(new EditorCoverColorsDto { PrimaryHex = "#5a3a8a" }, new EditorHeaderPalette { PrimaryPercent = 250, SecondaryPercent = -5 });
-
-        Assert.Contains("#5a3a8a 100%", style, StringComparison.Ordinal);
-        Assert.Contains("#5a3a8a 0%", style, StringComparison.Ordinal);
+        Assert.Equal(new EditorHeaderColours("#2a1858", "#2a1858"), EditorHeaderGradient.Resolve(new EditorCoverColorsDto { SecondaryHex = "#2a1858" }));
+        Assert.Equal(new EditorHeaderColours("#112233", "#112233"), EditorHeaderGradient.Resolve(new EditorCoverColorsDto { AccentHex = "#112233" }));
     }
 
     // -- The facts line --------------------------------------------------------------------------------------------------------------
@@ -146,7 +118,30 @@ public sealed class EditorHeaderRulesTests
     {
         Assert.Equal("episode", EditorNavText.ChooseWord(EditorHeaderTestData.TvEpisode()));
         Assert.Equal("video", EditorNavText.ChooseWord(EditorHeaderTestData.CourseLesson()));
-        Assert.Equal("song", EditorNavText.ChooseWord(new EditorHeaderDto { Kind = EditorKinds.Album }));
+        Assert.Equal("song", EditorNavText.ChooseWord(new EditorHeaderDto { Kind = EditorKindNames.Album }));
+    }
+
+    private static EditorHeaderDto SeriesOf(string itemKind) => new()
+    {
+        Kind = EditorKindNames.Series,
+        Level = new EditorHeaderLevelDto { Items = [new EditorNavItemDto { Id = Guid.NewGuid(), Kind = itemKind, Title = "One" }] },
+    };
+
+    [Theory]
+    [InlineData("movie", "movie")]
+    [InlineData("book", "book")]
+    [InlineData("audiobook", "audiobook")]
+    [InlineData("comic", "comic")]
+    [InlineData("track", "song")]
+    public void ASeriesDropdown_SaysTheWordOfItsOwnMembers_NotOneWordForEverySeries(string itemKind, string expected)
+    {
+        Assert.Equal(expected, EditorNavText.ChooseWord(SeriesOf(itemKind)));
+    }
+
+    [Fact]
+    public void ASeriesWithNoMembersRead_SaysItemRatherThanGuessingBook()
+    {
+        Assert.Equal("item", EditorNavText.ChooseWord(new EditorHeaderDto { Kind = EditorKindNames.Series }));
     }
 
     [Fact]
@@ -205,7 +200,8 @@ public sealed class EditorHeaderRulesTests
         var state = EditorFooterRules.For(new FileWriteSetting(FileWriteState.On), pending);
 
         Assert.Equal(EditorFooterStatus.WillMove, state.Status);
-        Assert.Equal("Managed folder · Inbox/ep3.mkv → Shows/The Last Signal/Season 02/S02E03.mkv", state.MoveDetail);
+        Assert.Equal("Inbox/ep3.mkv", state.MoveFrom);
+        Assert.Equal("Shows/The Last Signal/Season 02/S02E03.mkv", state.MoveTo);
     }
 
     [Fact]
@@ -217,7 +213,8 @@ public sealed class EditorHeaderRulesTests
         var state = EditorFooterRules.For(FileWriteSetting.Unknown, pending);
 
         Assert.Equal(EditorFooterStatus.WillMove, state.Status);
-        Assert.EndsWith(EditorFooterRules.MovedAndRenamed, state.MoveDetail, StringComparison.Ordinal);
+        Assert.Null(state.MoveFrom);
+        Assert.Null(state.MoveTo);
     }
 
     [Fact]
@@ -270,10 +267,10 @@ public sealed class EditorHeaderRulesTests
     {
         var header = new EditorHeaderDto
         {
-            Kind = EditorKinds.Movie,
+            Kind = EditorKindNames.Movie,
             Level = new EditorHeaderLevelDto { SupportingFiles = new EditorHeaderSupportingFilesDto() },
             FileFacts = new EditorFileFactsDto { IsMissing = true, Folder = "Dune (2021)" },
-            Config = EditorHeaderTestData.Config(EditorKinds.Movie),
+            Config = EditorHeaderTestData.Config(EditorKindNames.Movie),
         };
 
         var model = EditorQuickFactsBuilder.WithFileFacts(new QuickFactsModel(QuickFactsKind.Film, [], []), header);
@@ -286,10 +283,10 @@ public sealed class EditorHeaderRulesTests
     {
         var header = new EditorHeaderDto
         {
-            Kind = EditorKinds.Movie,
+            Kind = EditorKindNames.Movie,
             Level = new EditorHeaderLevelDto { SupportingFiles = new EditorHeaderSupportingFilesDto() },
             FileFacts = new EditorFileFactsDto { ReadOnly = true, Container = "MKV" },
-            Config = EditorHeaderTestData.Config(EditorKinds.Movie),
+            Config = EditorHeaderTestData.Config(EditorKindNames.Movie),
         };
 
         var model = EditorQuickFactsBuilder.WithFileFacts(new QuickFactsModel(QuickFactsKind.Film, [], []), header);
@@ -330,6 +327,12 @@ public sealed class EditorHeaderRulesTests
     public void TheFootersDeleteButton_IsAlwaysTheOneWordDelete()
     {
         Assert.Equal("Delete", EditorDeleteRules.FooterLabel);
+    }
+
+    [Fact]
+    public void TheTabsFixedOrder_IsDetailsArtworkMatchPreviewBookmarksHistory_WhateverTheConfigListingOrder()
+    {
+        Assert.Equal(["details", "artwork", "pictures", "match", "preview", "bookmarks", "history"], EditorTabRules.Order);
     }
 
     // -- Tabs: the kind says which, in the fixed order ----------------------------------------------------------------------------------

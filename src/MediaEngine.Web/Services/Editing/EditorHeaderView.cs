@@ -1,37 +1,29 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 using MediaEngine.Contracts.Editing;
-using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Models;
 using MediaEngine.Web.Services.Formatting;
 
 namespace MediaEngine.Web.Services.Editing;
 
+/// <summary>The two colours the header's gradient is made from, both plain <c>#rrggbb</c> values.</summary>
+public sealed record EditorHeaderColours(string Primary, string Secondary);
+
 /// <summary>
 /// The header's background (universal editor v5 D9): a gradient made from the cover's two main colours, mixed into the window surface so the
-/// title stays readable. How much of each colour is kept comes from <c>config/ui/palette.json</c> (D34); a cover with no stored colours
-/// gets no gradient at all, so the header is the plain window surface.
+/// title stays readable (the shared <c>AppWash</c> draws it). How much of each colour is kept comes from <c>config/ui/palette.json</c> (D34); a
+/// cover with no stored colours gets no gradient at all, so the header is the plain window surface.
 /// </summary>
 public static partial class EditorHeaderGradient
 {
     [GeneratedRegex("^#[0-9a-fA-F]{6}$")]
     private static partial Regex HexColour();
 
-    /// <summary>The header's <c>style</c> value, or null when the cover has no usable colour (the plain surface).</summary>
-    public static string? Style(EditorCoverColorsDto? colors, EditorHeaderPalette palette)
+    /// <summary>The colours the wash is made from, or null when the cover has no usable colour (the plain surface).</summary>
+    public static EditorHeaderColours? Resolve(EditorCoverColorsDto? colors)
     {
-        ArgumentNullException.ThrowIfNull(palette);
         var primary = Valid(colors?.PrimaryHex) ?? Valid(colors?.SecondaryHex) ?? Valid(colors?.AccentHex);
-        if (primary is null)
-        {
-            return null;
-        }
-
-        var secondary = Valid(colors?.SecondaryHex) ?? primary;
-        var first = Math.Clamp(palette.PrimaryPercent, 0, 100).ToString(CultureInfo.InvariantCulture);
-        var second = Math.Clamp(palette.SecondaryPercent, 0, 100).ToString(CultureInfo.InvariantCulture);
-        return $"background:linear-gradient(100deg,var(--tl-bg-surface) 0%,var(--tl-bg-surface) 30%,"
-            + $"color-mix(in srgb,{primary} {first}%,var(--tl-bg-surface)) 68%,color-mix(in srgb,{secondary} {second}%,var(--tl-bg-surface)) 100%)";
+        return primary is null ? null : new EditorHeaderColours(primary, Valid(colors?.SecondaryHex) ?? primary);
     }
 
     // Only a plain #rrggbb value reaches a style attribute: the Engine's colours are data, not markup.
@@ -51,14 +43,18 @@ public static class EditorTabRules
     /// <summary>The standard four, used while the Engine has not said which tabs a kind has.</summary>
     public static readonly IReadOnlyList<string> Standard = ["details", "artwork", "match", "history"];
 
+    /// <summary>The fixed order of every tab there is: Preview is a supporting file's (WP7) and Bookmarks a title's (WP15); Pictures takes Artwork's place for a Universe.</summary>
+    public static readonly IReadOnlyList<string> Order = ["details", "artwork", "pictures", "match", "preview", "bookmarks", "history"];
+
     public static IReadOnlyList<EditorTab> For(EditorHeaderConfigDto? config, ItemFieldEditSession fields, bool showHistory)
     {
         ArgumentNullException.ThrowIfNull(fields);
-        var wanted = config is { Tabs.Count: > 0 } ? config.Tabs : Standard;
+        // The config chooses which tabs a kind has; the order is the product's and fixed here (D34 leaves it out of configuration).
+        var wanted = (config is { Tabs.Count: > 0 } ? config.Tabs : Standard).Select(tab => tab.ToLowerInvariant()).ToHashSet(StringComparer.Ordinal);
         var tabs = new List<EditorTab>(wanted.Count);
-        foreach (var id in wanted)
+        foreach (var id in Order.Where(wanted.Contains))
         {
-            switch (id.ToLowerInvariant())
+            switch (id)
             {
                 case "details":
                     tabs.Add(new EditorTab(EditTool.Details, "Details"));
@@ -204,14 +200,30 @@ public static class EditorNavText
     };
 
     /// <summary>The word over the item dropdown's choice when nothing is chosen ("Episode", "Track", "Video").</summary>
-    public static string ChooseWord(EditorHeaderDto header) => header.Kind switch
+    public static string ChooseWord(EditorHeaderDto header)
     {
-        EditorKinds.TvShow or EditorKinds.TvSeason or EditorKinds.TvEpisode => "episode",
-        EditorKinds.Album or EditorKinds.Song => "song",
-        EditorKinds.Course or EditorKinds.CourseSection or EditorKinds.Video => "video",
-        EditorKinds.Series => "book",
-        _ => "item",
-    };
+        ArgumentNullException.ThrowIfNull(header);
+
+        // The items' own kind says the word, so a film Series says "movie" and a book Series says "book"; a header with no items yet falls back on its own kind.
+        var itemKind = header.Level.Items.Select(item => item.Kind).FirstOrDefault(kind => kind != "item");
+        return itemKind switch
+        {
+            "episode" => "episode",
+            "track" or "song" => "song",
+            "video" => "video",
+            "book" => "book",
+            "audiobook" => "audiobook",
+            "comic" => "comic",
+            "movie" => "movie",
+            _ => header.Kind switch
+            {
+                EditorKindNames.TvShow or EditorKindNames.TvSeason or EditorKindNames.TvEpisode => "episode",
+                EditorKindNames.Album or EditorKindNames.Song => "song",
+                EditorKindNames.Course or EditorKindNames.CourseSection or EditorKindNames.Video => "video",
+                _ => "item",
+            },
+        };
+    }
 
     /// <summary>A length in the dropdown's plain words: "12 min", "1 h 5 min". Null when the length is unknown.</summary>
     public static string? Length(double? seconds)
@@ -249,7 +261,7 @@ public static class EditorNavText
             return $"{DisplayFormat.FormatCount(files.TotalInRoot)} in all";
         }
 
-        var title = header.Kind is EditorKinds.Course or EditorKinds.CourseSection or EditorKinds.Video ? "course" : "show";
+        var title = header.Kind is EditorKindNames.Course or EditorKindNames.CourseSection or EditorKindNames.Video ? "course" : "show";
         return $"{DisplayFormat.FormatCount(files.Count)} in this {second.Label.ToLowerInvariant()} · {DisplayFormat.FormatCount(files.TotalInRoot)} in the {title}";
     }
 

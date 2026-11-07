@@ -64,16 +64,17 @@
                 @if (_open == Open.Second)
                 {
                     <AppPopover Open="true" OpenChanged="@(open => PopoverChanged(open, Open.Second))" Class="tl-hnav__surface tl-hnav__surface--second">
-                        <div class="tl-hnav__panel" role="listbox" aria-label="@second.Label" @onkeydown="OnKeyDown">
-                            <ul class="tl-hnav__options">
+                        <div class="tl-hnav__panel" @onkeydown="OnKeyDown">
+                            <ul class="tl-hnav__options" role="listbox" aria-label="@second.Label">
                                 @foreach (var entry in second.Entries)
                                 {
                                     var selected = entry.Id == second.CurrentId;
                                     var waiting = pending.GetValueOrDefault(entry.Id);
-                                    <li @key="@($"entry{entry.Id:N}")">
+                                    <li @key="@($"entry{entry.Id:N}")" role="none">
                                         <AppRowButton
                                                    id="@OptionId(entry.Id)"
                                                    role="option"
+                                                   @onfocusin="@(() => _cursor = OptionId(entry.Id))"
                                                    Class="@(selected ? "tl-hnav__option is-selected" : "tl-hnav__option")"
                                                    aria-selected="@(selected ? "true" : "false")"
                                                    OnClick="() => GoAsync(entry.Id, entry.Title, matched: true)">
@@ -170,6 +171,7 @@
     private bool _loading;
     private bool _focusPending;
     private string? _focusId;
+    private string? _cursor;
     private bool _disposed;
     private IJSObjectReference? _module;
     private DotNetObjectReference<MoreCallback>? _observed;
@@ -232,10 +234,10 @@
         var inline = files.Files;
         var word = EditorNavText.ChooseWord(header);
         <AppPopover Open="true" OpenChanged="@(open => PopoverChanged(open, Open.Item))" Class="tl-hnav__surface tl-hnav__surface--item">
-            <div class="tl-hnav__panel" role="listbox" aria-label="@Capitalise(word)" @onkeydown="OnKeyDown">
+            <div class="tl-hnav__panel" @onkeydown="OnKeyDown">
                 @if (_total > 1 || !string.IsNullOrWhiteSpace(_query))
                 {
-                    <div class="tl-hnav__search">
+                    <div class="tl-hnav__search" @onfocusin="@(() => _cursor = null)">
                         <AppSearchField Value="@_query"
                                         ValueChanged="SearchAsync"
                                         Placeholder="@string.Format(L["EditorNav_Find"].Value, word)"
@@ -247,14 +249,15 @@
                 }
 
                 <div class="tl-hnav__scroll">
-                    <ul class="tl-hnav__options">
+                    <ul class="tl-hnav__options" role="listbox" aria-label="@Capitalise(word)">
                         @foreach (var item in _items)
                         {
                             var waiting = pending.GetValueOrDefault(item.Id);
-                            <li @key="@($"item{item.Id:N}")">
+                            <li @key="@($"item{item.Id:N}")" role="none">
                                 <AppRowButton
                                            id="@OptionId(item.Id)"
                                            role="option"
+                                           @onfocusin="@(() => _cursor = OptionId(item.Id))"
                                            Class="@(item.IsCurrent ? "tl-hnav__option is-selected" : "tl-hnav__option")"
                                            aria-selected="@(item.IsCurrent ? "true" : "false")"
                                            data-state="@item.State"
@@ -280,41 +283,42 @@
                                 </AppRowButton>
                             </li>
                         }
-
-                        @if (_loading && _items.Count == 0)
-                        {
-                            <li class="tl-hnav__note"><AppSkeleton Height="1.5rem" Width="70%" /></li>
-                        }
-                        else if (_items.Count == 0 && header.Level.LevelId is null && header.SecondLevel is not null && string.IsNullOrWhiteSpace(_query))
-                        {
-                            <li class="tl-hnav__note">@string.Format(L["EditorNav_PickFirst"].Value, header.SecondLevel.Label.ToLowerInvariant())</li>
-                        }
-                        else if (_items.Count == 0 && !_hasMore && !(header.ShowItemDropdown && !header.Level.Items.Any() && files.Files.Count > 0 && string.IsNullOrWhiteSpace(_query)))
-                        {
-                            <li class="tl-hnav__note">@(string.IsNullOrWhiteSpace(_query) ? L["EditorRail_NothingHere"].Value : L["EditorRail_NothingMatches"].Value)</li>
-                        }
-
-                        @if (_hasMore)
-                        {
-                            <li class="tl-hnav__more" role="none" id="@MoreId">
-                                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
-                                           Disabled="@_loading"
-                                           OnClick="LoadMoreAsync">@string.Format(L["EditorNav_ShowingOf"].Value, _items.Count, _total)</AppButton>
-                            </li>
-                        }
                     </ul>
+
+                    @if (_loading && _items.Count == 0)
+                    {
+                        <div class="tl-hnav__note"><AppSkeleton Height="1.5rem" Width="70%" /></div>
+                    }
+                    else if (_items.Count == 0 && header.Level.LevelId is null && header.SecondLevel is not null && string.IsNullOrWhiteSpace(_query))
+                    {
+                        <div class="tl-hnav__note">@string.Format(L["EditorNav_PickFirst"].Value, header.SecondLevel.Label.ToLowerInvariant())</div>
+                    }
+                    else if (_items.Count == 0 && !_hasMore && !(header.ShowItemDropdown && !header.Level.Items.Any() && files.Files.Count > 0 && string.IsNullOrWhiteSpace(_query)))
+                    {
+                        <div class="tl-hnav__note">@(string.IsNullOrWhiteSpace(_query) ? L["EditorRail_NothingHere"].Value : L["EditorRail_NothingMatches"].Value)</div>
+                    }
+
+                    @if (_hasMore)
+                    {
+                        <div class="tl-hnav__more" id="@MoreId">
+                            <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact"
+                                       Disabled="@_loading"
+                                       OnClick="LoadMoreAsync">@string.Format(L["EditorNav_ShowingOf"].Value, _items.Count, _total)</AppButton>
+                        </div>
+                    }
 
                     @if (inline.Count > 0)
                     {
                         <hr class="tl-hnav__rule" />
-                        <div class="tl-hnav__heading">@L["EditorNav_SupportingFiles"] @(string.IsNullOrWhiteSpace(header.Level.LevelTitle) ? string.Empty : "· " + header.Level.LevelTitle)</div>
-                        <ul class="tl-hnav__options">
+                        <div class="tl-hnav__heading" id="tl-hnav-files-heading">@L["EditorNav_SupportingFiles"] @(string.IsNullOrWhiteSpace(header.Level.LevelTitle) ? string.Empty : "· " + header.Level.LevelTitle)</div>
+                        <ul class="tl-hnav__options" role="listbox" aria-labelledby="tl-hnav-files-heading">
                             @foreach (var file in inline)
                             {
-                                <li @key="@($"file{file.Id:N}")">
+                                <li @key="@($"file{file.Id:N}")" role="none">
                                     <AppRowButton
                                                id="@OptionId(file.Id)"
                                                role="option"
+                                               @onfocusin="@(() => _cursor = OptionId(file.Id))"
                                                Class="@(file.IsCurrent ? "tl-hnav__option is-selected" : "tl-hnav__option")"
                                                aria-selected="@(file.IsCurrent ? "true" : "false")"
                                                data-file-kind="@file.Kind"
@@ -340,6 +344,7 @@
                             <li>
                                 <AppRowButton
                                            id="tl-hnav-all-files"
+                                           @onfocusin="@(() => _cursor = "tl-hnav-all-files")"
                                            Class="tl-hnav__option tl-hnav__option--plain"
                                            OnClick="() => OpenAllFilesAsync(header, files)">
                                     <span class="tl-hnav__badge tl-hnav__badge--accent" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Collections" Size="AppIconSize.Control20" /></span>
@@ -360,6 +365,7 @@
                             <li>
                                 <AppRowButton
                                            id="tl-hnav-folder"
+                                           @onfocusin="@(() => _cursor = "tl-hnav-folder")"
                                            Class="tl-hnav__option tl-hnav__option--plain"
                                            OnClick="() => OpenFolderAsync(header)">
                                     <span class="tl-hnav__badge tl-hnav__badge--neutral" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Folder" Size="AppIconSize.Control20" /></span>
@@ -450,6 +456,7 @@
             ? Header?.SecondLevel?.Entries.FirstOrDefault(entry => entry.Id == Header.SecondLevel.CurrentId)?.Id ?? Header?.SecondLevel?.Entries.FirstOrDefault()?.Id
             : _items.FirstOrDefault(item => item.IsCurrent)?.Id ?? _items.FirstOrDefault()?.Id ?? Header?.Level.SupportingFiles.Files.FirstOrDefault()?.Id;
         _focusId = target is { } id ? OptionId(id) : null;
+        _cursor = _focusId;
         _focusPending = _focusId is not null;
     }
 
@@ -474,7 +481,8 @@
         _query = null;
     }
 
-    // Escape closes the open list and puts the cursor back on its button; the editor window itself stays open.
+    // Escape closes the open list and puts the cursor back on its button; the editor window itself stays open. Up, Down, Home and End move
+    // between the rows (the search box counts as before the first row); Enter and Space pick the focused row, which is a button.
     private void OnKeyDown(KeyboardEventArgs args)
     {
         if (args.Key == "Escape")
@@ -483,7 +491,62 @@
             _open = Open.None;
             CloseSearch();
             _focusPending = true;
+            return;
         }
+
+        var rows = NavigableIds();
+        if (rows.Count == 0)
+        {
+            return;
+        }
+
+        var at = _cursor is null ? -1 : rows.IndexOf(_cursor);
+        int? target = args.Key switch
+        {
+            "ArrowDown" => Math.Min(rows.Count - 1, at + 1),
+            "ArrowUp" when at > 0 => at - 1,
+            "ArrowUp" when at == 0 => 0,
+            "Home" when at >= 0 => 0,
+            "End" when at >= 0 => rows.Count - 1,
+            _ => null,
+        };
+        if (target is { } index)
+        {
+            _cursor = rows[index];
+            _focusId = _cursor;
+            _focusPending = true;
+        }
+    }
+
+    // The ids of the rows the arrow keys visit, top to bottom: the options, then (in the item list) "All supporting files" and the folder button.
+    private List<string> NavigableIds()
+    {
+        var ids = new List<string>();
+        if (Header is not { } header)
+        {
+            return ids;
+        }
+
+        if (_open == Open.Second)
+        {
+            ids.AddRange(header.SecondLevel?.Entries.Select(entry => OptionId(entry.Id)) ?? []);
+        }
+        else if (_open == Open.Item)
+        {
+            ids.AddRange(_items.Select(item => OptionId(item.Id)));
+            ids.AddRange(header.Level.SupportingFiles.Files.Select(file => OptionId(file.Id)));
+            if (header.Level.SupportingFiles.ShowAll)
+            {
+                ids.Add("tl-hnav-all-files");
+            }
+
+            if (header.FolderButton is not null)
+            {
+                ids.Add("tl-hnav-folder");
+            }
+        }
+
+        return ids;
     }
 
     private async Task SearchAsync(string? value)
@@ -492,25 +555,28 @@
         await ReadPageAsync(0, restart: true);
     }
 
+    // Only "show more" refuses while a read is in flight; a search always wins.
     private Task LoadMoreAsync() => _loading || !_hasMore ? Task.CompletedTask : ReadPageAsync(_items.Count, restart: false);
 
     // One page of the level, searched when a query is typed: the first 50 come with the header and each later page is read as the end scrolls into view.
     private async Task ReadPageAsync(int offset, bool restart)
     {
-        if (Header is not { } header || _loading)
+        if (Header is not { } header)
         {
             return;
         }
 
+        // A new read cancels the one in flight, and only the newest read may touch the list: a slow answer to an older search never lands on a newer one.
         _reads?.Cancel();
-        _reads = new CancellationTokenSource();
-        var token = _reads.Token;
+        var read = new CancellationTokenSource();
+        _reads = read;
+        var token = read.Token;
         _loading = true;
         StateHasChanged();
         try
         {
             var page = await Api.GetEditorNavLevelAsync(header.CurrentId, header.Level.LevelId, _query, offset, token);
-            if (page is null || token.IsCancellationRequested)
+            if (page is null || token.IsCancellationRequested || !ReferenceEquals(_reads, read))
             {
                 return;
             }
@@ -524,17 +590,24 @@
             _total = page.Total;
             _hasMore = page.HasMore;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (OperationCanceledException)
+        {
+            // A newer read took over, or the list closed; nothing to show for this one.
+        }
+        catch (Exception ex)
         {
             // The list keeps the pages it has; the dropdown is a convenience and the editor works without more rows.
             Logger.LogWarning(ex, "The editor's item list could not be read for {ItemId}", header.CurrentId);
         }
         finally
         {
-            _loading = false;
-            if (!_disposed)
+            if (ReferenceEquals(_reads, read))
             {
-                StateHasChanged();
+                _loading = false;
+                if (!_disposed)
+                {
+                    StateHasChanged();
+                }
             }
         }
     }

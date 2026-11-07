@@ -5,7 +5,6 @@ using MediaEngine.Contracts.Editing;
 using MediaEngine.Contracts.Metadata;
 using MediaEngine.Contracts.Settings;
 using MediaEngine.Contracts.WriteBack;
-using MediaEngine.Domain.Configuration;
 using MediaEngine.Web.Components.Details;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
@@ -40,6 +39,7 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
     private readonly List<Guid> _contextAsks = [];
     private readonly List<string> _familyReads = [];
     private bool _writeBackOn;
+    private string[] _tabs = [];
     private readonly IRenderedComponent<AppDialogHost> _dialogs;
 
     public DetailEditItemSwitchPageTests()
@@ -111,7 +111,7 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
         public ValueTask<bool> GoBackAsync(int steps) => ValueTask.FromResult(true);
     }
 
-    private static MediaEditorContextDto? ContextFor(Guid id)
+    private MediaEditorContextDto? ContextFor(Guid id)
     {
         if (id == ShowId)
         {
@@ -148,12 +148,12 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
     }
 
     // What the Engine says about the way around the show: a home button, a Season dropdown and, inside a season, its episodes.
-    private static EditorHeaderDto TvHeader(Guid id)
+    private EditorHeaderDto TvHeader(Guid id)
     {
         var season = id == EditTrailTestData.SeasonTwoId || id == EditTrailTestData.EpisodeThreeId
             ? EditTrailTestData.SeasonTwoId
             : id == ShowId ? (Guid?)null : SeasonOne;
-        var kind = id == ShowId ? EditorKinds.TvShow : id == SeasonOne || id == EditTrailTestData.SeasonTwoId ? EditorKinds.TvSeason : EditorKinds.TvEpisode;
+        var kind = id == ShowId ? EditorKindNames.TvShow : id == SeasonOne || id == EditTrailTestData.SeasonTwoId ? EditorKindNames.TvSeason : EditorKindNames.TvEpisode;
         var items = season == SeasonOne
             ? new List<EditorNavItemDto> { NavEpisode(EpisodeOne, "S01E01", "Episode 1", EditorNavItemStates.Matched, id), NavEpisode(EpisodeTwo, "S01E02", "Episode 2", EditorNavItemStates.NotMatched, id) }
             : season == EditTrailTestData.SeasonTwoId
@@ -191,7 +191,7 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
             Colors = id == EditTrailTestData.ShowId || id == SeasonOne || id == EpisodeOne || id == EpisodeTwo
                 ? new EditorCoverColorsDto { PrimaryHex = "#5a3a8a", SecondaryHex = "#2a1858" }
                 : null,
-            Config = EditorHeaderTestData.Config(kind),
+            Config = EditorHeaderTestData.Config(kind, _tabs),
         };
     }
 
@@ -201,7 +201,7 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
     // An album: the item dropdown lists its songs, and a song's header has the album as its home.
     private static EditorHeaderDto AlbumHeader(Guid id) => new()
     {
-        Kind = id == EditTrailTestData.AlbumId ? EditorKinds.Album : EditorKinds.Song,
+        Kind = id == EditTrailTestData.AlbumId ? EditorKindNames.Album : EditorKindNames.Song,
         Root = new EditorHeaderRootDto { Id = EditTrailTestData.AlbumId, Title = "OK Computer", MediaType = "Music" },
         CurrentId = id,
         Label = "OK Computer",
@@ -216,12 +216,12 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
             PageSize = 50,
             Items =
             [
-                new EditorNavItemDto { Id = EditTrailTestData.TrackOneId, Kind = "song", Number = 1, Title = "Airbag", State = EditorNavItemStates.Matched, IsCurrent = id == EditTrailTestData.TrackOneId },
-                new EditorNavItemDto { Id = EditTrailTestData.TrackTwoId, Kind = "song", Number = 2, Title = "Paranoid Android", State = EditorNavItemStates.Matched, IsCurrent = id == EditTrailTestData.TrackTwoId },
+                new EditorNavItemDto { Id = EditTrailTestData.TrackOneId, Kind = "track", Number = 1, Title = "Airbag", State = EditorNavItemStates.Matched, IsCurrent = id == EditTrailTestData.TrackOneId },
+                new EditorNavItemDto { Id = EditTrailTestData.TrackTwoId, Kind = "track", Number = 2, Title = "Paranoid Android", State = EditorNavItemStates.Matched, IsCurrent = id == EditTrailTestData.TrackTwoId },
             ],
             SupportingFiles = new EditorHeaderSupportingFilesDto(),
         },
-        Config = EditorHeaderTestData.Config(id == EditTrailTestData.AlbumId ? EditorKinds.Album : EditorKinds.Song),
+        Config = EditorHeaderTestData.Config(id == EditTrailTestData.AlbumId ? EditorKindNames.Album : EditorKindNames.Song),
     };
 
     private async Task<IRenderedComponent<DetailPage>> StartEditingAsync(DetailPageViewModel model)
@@ -441,6 +441,18 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
             .Select(element => element.ClassList.Contains("tl-editor-window__where") ? "status" : element.ClassList.Contains("tl-editor-window__changes") ? "count" : element.TextContent.Trim())
             .ToList();
         Assert.Equal(["Delete", "status", "count", "Discard", "Save changes"], order);
+    }
+
+    [Fact]
+    public async Task TheTabsKeepTheirFixedOrder_WhateverOrderTheConfigListsThem()
+    {
+        _tabs = ["history", "match", "artwork", "details"];
+
+        await StartEditingAsync(EditTrailTestData.EpisodePage());
+
+        _editor.WaitForAssertion(() => Assert.Equal(
+            ["Details", "Artwork", "Match", "History"],
+            _editor.FindAll(".tl-editor-window__tabs [role='tab']").Select(tab => tab.TextContent.Trim())));
     }
 
     [Fact]
