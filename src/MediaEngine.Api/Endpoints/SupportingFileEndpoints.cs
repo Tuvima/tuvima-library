@@ -10,10 +10,13 @@ namespace MediaEngine.Api.Endpoints;
 
 /// <summary>
 /// The Engine side of the supporting-files browser (universal editor v5 D15, D16, D30; screens E and F): one root title's files listed with
-/// search, Where, type and group filters, paging and counts, and the bulk actions the editor sends when it saves (set group, set role,
-/// Belongs to, tags, delete). Access follows the title: the list needs the right to read it, the bulk actions the right to edit it and an
-/// administrator, and a title the caller may not see (a Vault title without an unlocked Vault session, a library hidden from a Kids
-/// profile) answers "not found" before anything is read.
+/// search, Where, type and group filters, paging and counts, the preview of a bulk change (what would change and which files would move),
+/// and Delete. Saving a change is not here: set group, role, Belongs to and tags are a change of the editor's staged save
+/// (<c>/library/edit-session</c>, kind <c>supporting_files</c>), so one Save is all or nothing across title fields and supporting files.
+/// Delete asks once and happens at once, so it is its own action, and like every delete on disk it needs an administrator in person (no
+/// paired app or service application acting for one). Access follows the title: the list needs the right to read it, the others the right
+/// to edit it, and a title the caller may not see (a Vault title without an unlocked Vault session, a library hidden from a Kids profile)
+/// answers "not found" before anything is read.
 /// </summary>
 public static class SupportingFileEndpoints
 {
@@ -44,17 +47,17 @@ public static class SupportingFileEndpoints
         .RequireClientScope(ClientApiScopes.LibraryRead)
         .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.LibraryRead, "titleId");
 
-        files.MapPost("/titles/{titleId:guid}/bulk-update", async (
+        files.MapPost("/titles/{titleId:guid}/preview", async (
             Guid titleId,
             SupportingFileBulkUpdateRequest request,
             SupportingFileBulkService bulk,
             CancellationToken ct) =>
         {
-            var outcome = await bulk.UpdateAsync(titleId, request, ct);
+            var outcome = await bulk.PreviewAsync(titleId, request, ct);
             return outcome.Value is { } result ? Results.Ok(result) : Refusal(outcome.Problem, outcome.Message);
         })
-        .WithName("BulkUpdateSupportingFiles")
-        .WithSummary("Sets group, role, Belongs to or tags on several supporting files in one step; with preview true it only checks and plans the file moves.")
+        .WithName("PreviewSupportingFilesChange")
+        .WithSummary("Checks a group, role, Belongs to or tags change on several supporting files and plans the file moves, writing nothing.")
         .Produces<SupportingFileBulkUpdateResultDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status404NotFound)
@@ -80,7 +83,7 @@ public static class SupportingFileEndpoints
         .Produces<SupportingFileBulkDeleteResultDto>(StatusCodes.Status200OK)
         .ProducesProblem(StatusCodes.Status400BadRequest)
         .ProducesProblem(StatusCodes.Status404NotFound)
-        .RequireEffectiveAdministrator()
+        .RequireEffectiveAdministratorInPerson()
         .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataWrite, "titleId");
 
         return app;

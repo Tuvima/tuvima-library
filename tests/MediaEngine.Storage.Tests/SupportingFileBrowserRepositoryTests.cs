@@ -118,6 +118,111 @@ public sealed class SupportingFileBrowserRepositoryTests : IDisposable
         Assert.False(await _extras.RelocateFileAsync(Guid.NewGuid(), $"{Show}/elsewhere.pdf"));
     }
 
+    [Fact]
+    public async Task Search_IgnoresCaseForEveryLetter_NotJustAToZ()
+    {
+        await Seed("École-plan.pdf", "École guide");
+        await Seed("other.pdf", "Straße map");
+
+        Assert.Equal("École guide", Assert.Single(await _extras.SearchAsync(["école"], 20)).DisplayTitle);
+        Assert.Equal("École guide", Assert.Single(await _extras.SearchAsync(["ÉCOLE"], 20)).DisplayTitle);
+        Assert.Equal("École guide", Assert.Single(await _extras.SearchAsync(["éCOLE-plan"], 20)).DisplayTitle);
+        Assert.Equal("Straße map", Assert.Single(await _extras.SearchAsync(["MAP"], 20)).DisplayTitle);
+    }
+
+    [Fact]
+    public async Task Search_ReadsPageAfterPage_InTheSameOrder_ThroughTheOffset()
+    {
+        for (var index = 0; index < 7; index++)
+        {
+            await Seed($"worksheet-{index}.pdf", $"Worksheet {index}");
+        }
+
+        var first = await _extras.SearchAsync(["worksheet"], 3);
+        var second = await _extras.SearchAsync(["worksheet"], 3, offset: 3);
+        var third = await _extras.SearchAsync(["worksheet"], 3, offset: 6);
+        var past = await _extras.SearchAsync(["worksheet"], 3, offset: 9);
+
+        Assert.Equal(
+            Enumerable.Range(0, 7).Select(index => $"Worksheet {index}"),
+            first.Concat(second).Concat(third).Select(row => row.DisplayTitle));
+        Assert.Single(third);
+        Assert.Empty(past);
+    }
+
+    [Fact]
+    public async Task RelocateFile_ToANewPlace_MarksTheRowAsPlacedByAPerson_AndRecordsWhereItNowSits()
+    {
+        await Seed("guide.pdf", "Guide");
+        var row = (await _extras.GetByPathAsync($"{Show}/guide.pdf"))!;
+
+        await _extras.RelocateFileAsync(row.Id, $"{Show}/Season 02/guide.pdf", ExtraScope.ForSeason(2));
+
+        var after = (await _extras.GetByPathAsync($"{Show}/Season 02/guide.pdf"))!;
+        Assert.Equal(ItemExtraOrigins.UserExtra, after.Origin);
+        Assert.Equal(ExtraScope.ForSeason(2), after.InferredScope);
+        Assert.Null(after.Scope);
+    }
+
+    [Fact]
+    public async Task Restore_PutsBackTheFieldsTagsAndPathAChangeTouched()
+    {
+        await Seed("guide.pdf", "Guide");
+        var before = (await _extras.GetByPathAsync($"{Show}/guide.pdf"))!;
+        await _extras.UpdateOwnedAsync(before.Id, new ExtraOwnedUpdate { AddTags = ["maths", "old"] });
+        before = (await _extras.GetByPathAsync($"{Show}/guide.pdf"))!;
+
+        await _extras.UpdateOwnedAsync(before.Id, new ExtraOwnedUpdate
+        {
+            GroupName = ExtraValue<string>.Set("Homework"),
+            Scope = ExtraValue<ExtraScope>.Set(ExtraScope.ForSeason(2)),
+            AddTags = ["new"],
+            RemoveTags = ["old"],
+        });
+        await _extras.RelocateFileAsync(before.Id, $"{Show}/Season 02/guide.pdf", ExtraScope.ForSeason(2));
+
+        var restored = await _extras.RestoreAsync([before]);
+
+        Assert.Equal(1, restored);
+        Assert.Null(await _extras.GetByPathAsync($"{Show}/Season 02/guide.pdf"));
+        var after = (await _extras.GetByPathAsync($"{Show}/guide.pdf"))!;
+        Assert.Equal(ItemExtraOrigins.Rule, after.Origin);
+        Assert.Null(after.GroupName);
+        Assert.Null(after.Scope);
+        Assert.Equal(ExtraScope.Root, after.InferredScope);
+        Assert.Equal(["maths", "old"], after.TagList.Order());
+    }
+
+    [Fact]
+    public async Task ListFilesUnderFolders_ReturnsEveryMediaFileBelowEachFolder_InOneCall_IgnoringCaseAndSlashDirection()
+    {
+        InsertAsset("/library/tv/The Last Signal/Season 01/E01.mkv");
+        InsertAsset("/library/tv/The Last Signal/Pilot.mkv");
+        InsertAsset("/library/tv/Other Show/E01.mkv");
+        InsertAsset("/library/tv/The Last Signal Extras/Bonus.mkv");
+
+        var files = await new MediaAssetRepository(_db).ListFilesUnderFoldersAsync(
+            ["/LIBRARY/tv/the last signal", "\\library\\tv\\Other Show"]);
+
+        Assert.Equal(
+            ["/library/tv/Other Show/E01.mkv", "/library/tv/The Last Signal/Pilot.mkv", "/library/tv/The Last Signal/Season 01/E01.mkv"],
+            files.Select(file => file.FilePath).Order(StringComparer.Ordinal));
+        Assert.Empty(await new MediaAssetRepository(_db).ListFilesUnderFoldersAsync([]));
+    }
+
+    private void InsertAsset(string path)
+    {
+        using var connection = _db.CreateConnection();
+        var work = Guid.NewGuid();
+        var edition = Guid.NewGuid();
+        connection.Execute("INSERT INTO works (id, media_type) VALUES (@work, 'TV');", new { work = GuidSql.ToBlob(work) });
+        connection.Execute("INSERT INTO editions (id, work_id) VALUES (@edition, @work);", new { edition = GuidSql.ToBlob(edition), work = GuidSql.ToBlob(work) });
+        var asset = Guid.NewGuid();
+        connection.Execute(
+            "INSERT INTO media_assets (id, edition_id, content_hash, file_path_root) VALUES (@asset, @edition, @hash, @path);",
+            new { asset = GuidSql.ToBlob(asset), edition = GuidSql.ToBlob(edition), hash = $"hash-{asset:N}", path });
+    }
+
     // Every pass lists all the files found so far, as a rescan of the folder would.
     private Task Seed(string fileName, string title)
     {

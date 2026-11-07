@@ -102,7 +102,17 @@ public sealed class SupportingFileDiskService(
         return new SupportingFileMovePlan(from, to, null);
     }
 
-    /// <summary>Moves the file. Returns null when it moved, otherwise the reason it did not (the data change stays saved).</summary>
+    /// <summary>True when <paramref name="scope"/> is a real place of the title in <paramref name="itemFolder"/>: the title itself, one of its seasons, or an episode, lesson or section.</summary>
+    public async Task<bool> IsPlaceOfTitleAsync(string itemFolder, ExtraScope scope, CancellationToken ct = default) =>
+        scope.Level == ExtraScopeLevel.Root
+        || (await scanner.ListPlacesAsync(itemFolder, ct).ConfigureAwait(false)).Contains(scope);
+
+    /// <summary>
+    /// Moves the file. Returns null when it moved, otherwise the reason it did not (the data change stays saved). Supporting files are not
+    /// media assets, so the library's organise pipeline (which follows an asset by its hash) cannot carry them; what keeps a moved file from
+    /// being taken in as something new is the same as for the move a person makes by hand: the row is pointed at the new place straight
+    /// after (the caller does this), and the scanner is told about both places, so the title's folder is looked at again.
+    /// </summary>
     public string? Move(SupportingFileMovePlan plan)
     {
         ArgumentNullException.ThrowIfNull(plan);
@@ -115,6 +125,8 @@ public sealed class SupportingFileDiskService(
         {
             Directory.CreateDirectory(Path.GetDirectoryName(plan.To!)!);
             File.Move(plan.From!, plan.To!);
+            scanner.NoteFile(plan.To!);
+            scanner.NoteFile(plan.From!);
             return null;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

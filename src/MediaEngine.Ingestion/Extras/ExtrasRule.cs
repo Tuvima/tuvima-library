@@ -260,6 +260,48 @@ public static class ExtrasRule
         }
     }
 
+    /// <summary>
+    /// The places a supporting file of this title can belong to (universal editor v5 D30): the title itself, every season (a season folder,
+    /// or a season one of the title's own files names), and every episode, lesson or section one of the title's own files sits in. Empty
+    /// when the title folder is not there.
+    /// </summary>
+    public static IReadOnlyList<ExtraScope> ListPlaces(ExtrasLibraryContext context, string itemFolder)
+    {
+        var book = BookOf(context);
+        var root = TrimSeparators(Path.GetFullPath(itemFolder));
+        if (!Directory.Exists(root))
+        {
+            return [];
+        }
+
+        var places = new HashSet<ExtraScope> { ExtraScope.Root };
+        foreach (var directory in Directory.EnumerateDirectories(root))
+        {
+            var match = book.SeasonFolder.Match(Path.GetFileName(directory));
+            if (match.Success)
+            {
+                places.Add(ExtraScope.ForSeason(match.Groups["specials"].Success
+                    ? 0
+                    : int.Parse(match.Groups["season"].Value, System.Globalization.CultureInfo.InvariantCulture)));
+            }
+        }
+
+        foreach (var entry in ExtraPlacementInference.BuildIndex(context, book, root).Entries)
+        {
+            if (entry.Scope.Level != ExtraScopeLevel.Root && entry.Scope.Level != ExtraScopeLevel.None)
+            {
+                places.Add(entry.Scope);
+            }
+
+            if (entry.Scope is { Level: ExtraScopeLevel.Episode, Season: { } season })
+            {
+                places.Add(ExtraScope.ForSeason(season));
+            }
+        }
+
+        return [.. places];
+    }
+
     /// <summary>Every Extra in one title's folder, in natural order. An unreadable folder gives an empty list.</summary>
     public static IReadOnlyList<ExtraCandidate> ScanItemFolder(ExtrasLibraryContext context, string itemFolder)
     {

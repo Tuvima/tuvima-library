@@ -331,7 +331,7 @@ public sealed class ItemExtraRepository(IDatabaseConnection db, IExtrasConfigura
             DeleteRows(connection, transaction, "file_path = @filePath", new { filePath }, token) > 0, ct);
     }
 
-    public Task<IReadOnlyList<ItemExtra>> SearchAsync(IReadOnlyList<string> words, int limit, CancellationToken ct = default)
+    public Task<IReadOnlyList<ItemExtra>> SearchAsync(IReadOnlyList<string> words, int limit, int offset = 0, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(words);
         ct.ThrowIfCancellationRequested();
@@ -341,33 +341,49 @@ public sealed class ItemExtraRepository(IDatabaseConnection db, IExtrasConfigura
             return Task.FromResult<IReadOnlyList<ItemExtra>>([]);
         }
 
-        // Every word must be found in the title shown, the description or the file name (the last part of the path, either slash).
+        // Every word must be found in the title shown, the description or the file name. SQLite's own LIKE and lower() only fold A to Z,
+        // so both sides are folded by one function here and compared with instr: the same rule the in-memory list filter uses
+        // (ordinal, ignoring case), for every letter. The word is also never read as a pattern, so % and _ are plain text.
         var parameters = new DynamicParameters();
         parameters.Add("limit", limit);
+        parameters.Add("offset", Math.Max(0, offset));
         var clauses = new List<string>();
         for (var index = 0; index < terms.Count; index++)
         {
             var name = $"w{index.ToString(CultureInfo.InvariantCulture)}";
-            parameters.Add(name, "%" + EscapeLike(terms[index]) + "%");
+            parameters.Add(name, Fold(terms[index]));
             clauses.Add($$"""
-                (COALESCE(NULLIF(e.own_title, ''), e.title) LIKE @{{name}} ESCAPE '\'
-                 OR COALESCE(e.own_description, '') LIKE @{{name}} ESCAPE '\'
-                 OR replace(replace(e.file_path, char(92), '/'), rtrim(replace(e.file_path, char(92), '/'), replace(replace(e.file_path, char(92), '/'), '/', '')), '')
-                    LIKE @{{name}} ESCAPE '\')
+                (instr(tuvima_fold(COALESCE(NULLIF(e.own_title, ''), e.title)), @{{name}}) > 0
+                 OR instr(tuvima_fold(COALESCE(e.own_description, '')), @{{name}}) > 0
+                 OR instr(tuvima_file_name(e.file_path), @{{name}}) > 0)
                 """);
         }
 
         using var connection = db.CreateConnection();
+        connection.CreateFunction("tuvima_fold", (string? text) => Fold(text), isDeterministic: true);
+        connection.CreateFunction("tuvima_file_name", (string? path) => Fold(FileNameOf(path)), isDeterministic: true);
         var rows = connection.Query<Row>(new CommandDefinition(
             SelectSql + " WHERE e.origin <> 'user_episode' AND " + string.Join(" AND ", clauses)
-                + " ORDER BY COALESCE(NULLIF(e.own_title, ''), e.title) COLLATE NOCASE, e.file_path LIMIT @limit;",
+                + " ORDER BY COALESCE(NULLIF(e.own_title, ''), e.title) COLLATE NOCASE, e.file_path LIMIT @limit OFFSET @offset;",
             parameters,
             cancellationToken: ct)).ToList();
         return Task.FromResult<IReadOnlyList<ItemExtra>>(ToModels(connection, rows, ct));
     }
 
-    private static string EscapeLike(string text) =>
-        text.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("%", "\\%", StringComparison.Ordinal).Replace("_", "\\_", StringComparison.Ordinal);
+    /// <summary>The text as compared in a search: every letter in its upper-case form, which is how an ordinal ignore-case comparison reads it.</summary>
+    private static string Fold(string? text) => string.IsNullOrEmpty(text) ? string.Empty : text.ToUpperInvariant();
+
+    /// <summary>The last part of a path, with either slash.</summary>
+    private static string FileNameOf(string? path)
+    {
+        if (string.IsNullOrEmpty(path))
+        {
+            return string.Empty;
+        }
+
+        var cut = path.LastIndexOfAny(['/', '\\']);
+        return cut < 0 ? path : path[(cut + 1)..];
+    }
 
     public Task<int> RemoveManyAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct = default)
     {
@@ -391,17 +407,79 @@ public sealed class ItemExtraRepository(IDatabaseConnection db, IExtrasConfigura
         }, ct);
     }
 
-    public Task<bool> RelocateFileAsync(Guid id, string newFilePath, CancellationToken ct = default)
+    public Task<bool> RelocateFileAsync(Guid id, string newFilePath, ExtraScope? nowSitsIn = null, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(newFilePath);
         ct.ThrowIfCancellationRequested();
 
         return db.ExecuteWriteAsync((connection, transaction, token) =>
             connection.Execute(new CommandDefinition(
-                "UPDATE item_extras SET file_path = @newFilePath WHERE id = @id;",
-                new { id, newFilePath },
+                nowSitsIn is null
+                    ? "UPDATE item_extras SET file_path = @newFilePath WHERE id = @id;"
+                    : "UPDATE item_extras SET file_path = @newFilePath, origin = CASE WHEN origin = 'rule' THEN 'user_extra' ELSE origin END, inferred_scope = @inferredScope WHERE id = @id;",
+                new { id, newFilePath, inferredScope = nowSitsIn?.Key },
                 transaction,
                 cancellationToken: token)) > 0, ct);
+    }
+
+    public Task<int> RestoreAsync(IReadOnlyCollection<ItemExtra> snapshots, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(snapshots);
+        ct.ThrowIfCancellationRequested();
+        if (snapshots.Count == 0)
+        {
+            return Task.FromResult(0);
+        }
+
+        return db.ExecuteWriteAsync((connection, transaction, token) =>
+        {
+            var restored = 0;
+            foreach (var snapshot in snapshots)
+            {
+                token.ThrowIfCancellationRequested();
+                var changed = connection.Execute(new CommandDefinition(
+                    """
+                    UPDATE item_extras SET
+                        file_path = @filePath, origin = @origin, own_title = @ownTitle, own_description = @ownDescription,
+                        role = @role, extra_kind = @extraKind, scope = @scope, alongside = @alongside,
+                        place_season = @placeSeason, place_episode = @placeEpisode, place_track = @placeTrack,
+                        group_id = @groupId, group_source = @groupSource, inferred_scope = @inferredScope
+                    WHERE id = @id;
+                    """,
+                    new
+                    {
+                        id = snapshot.Id,
+                        filePath = snapshot.FilePath,
+                        origin = snapshot.Origin,
+                        ownTitle = snapshot.OwnTitle,
+                        ownDescription = snapshot.OwnDescription,
+                        role = snapshot.Role,
+                        extraKind = snapshot.ExtraKind,
+                        scope = snapshot.Scope?.Key,
+                        alongside = snapshot.Alongside?.Key,
+                        placeSeason = snapshot.PlaceSeason,
+                        placeEpisode = snapshot.PlaceEpisode,
+                        placeTrack = snapshot.PlaceTrack,
+                        groupId = snapshot.GroupId,
+                        groupSource = snapshot.GroupSource,
+                        inferredScope = snapshot.InferredScope.Key,
+                    },
+                    transaction,
+                    cancellationToken: token));
+                if (changed == 0)
+                {
+                    continue;
+                }
+
+                ApplyTags(
+                    connection, transaction, snapshot.Id,
+                    new ExtraOwnedUpdate { ReplaceTags = [.. snapshot.TagList] },
+                    token);
+                restored++;
+            }
+
+            return restored;
+        }, ct);
     }
 
     public Task<int> RemoveUnderFolderAsync(string folder, CancellationToken ct = default)

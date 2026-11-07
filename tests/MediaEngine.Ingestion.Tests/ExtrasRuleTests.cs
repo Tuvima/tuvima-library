@@ -55,6 +55,24 @@ public sealed class ExtrasRuleTests : IDisposable
     private IReadOnlyList<string> Titles(ExtrasLibraryContext context, string itemFolder) =>
         [.. ExtrasRule.ScanItemFolder(context, Path.Combine(_root, itemFolder)).Select(extra => Path.GetRelativePath(_root, extra.FilePath).Replace('\\', '/'))];
 
+    [Fact]
+    public void ListPlaces_NamesTheTitleItself_AndTheSeasonsTheFolderHolds_ButNoSeasonThatIsNotThere()
+    {
+        Touch("Show/Season 01/Show S01E01.mkv");
+        Touch("Show/Season 02/Show S02E01.mkv");
+        Touch("Show/Specials/Show S00E01.mkv");
+        Touch("Show/Guide.pdf");
+
+        var places = ExtrasRule.ListPlaces(Tv(), Path.Combine(_root, "Show"));
+
+        Assert.Contains(ExtraScope.Root, places);
+        Assert.Contains(ExtraScope.ForSeason(1), places);
+        Assert.Contains(ExtraScope.ForSeason(2), places);
+        Assert.Contains(ExtraScope.ForSeason(0), places);
+        Assert.DoesNotContain(ExtraScope.ForSeason(9), places);
+        Assert.Empty(ExtrasRule.ListPlaces(Tv(), Path.Combine(_root, "Not There")));
+    }
+
     // ── The Steph Curry MasterClass journey ─────────────────────────────────────────────────────────────────────────────────────────
 
     [Fact]

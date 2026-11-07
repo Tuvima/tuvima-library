@@ -106,6 +106,53 @@ public sealed class SupportingFileSearchTests : IDisposable
         Assert.Equal(response.Sections.Where(section => section.Key != UniversalSearchReadService.SupportingFilesKey).Sum(section => section.TotalCount), response.TotalCount);
     }
 
+    [Fact]
+    public async Task Search_ForAKidsProfile_StillFindsAVisibleFile_WhenMoreThan200HiddenFilesMatchFirst()
+    {
+        // 230 files of the Vault title sort before the one file of the visible show, so a fixed first page of 200 would hold only hidden rows.
+        var hidden = Enumerable.Range(0, 230)
+            .Select(number => _world.Row(Path.Combine(_vaultFolder, $"note-{number:000}.pdf"), ItemExtraKinds.Document, $"Aaa lighthouse note {number:000}", ExtraScope.Root) with { ItemFolder = _vaultFolder })
+            .ToList();
+        await _world.Extras.SyncItemFolderAsync(_vaultFolder, hidden, []);
+        var visible = await _world.SeedDiskFileAsync("zebra.pdf", "Zzz lighthouse guide");
+        var kids = CreateService(Human(restricted: true), _show);
+
+        var response = await kids.SearchAsync("lighthouse", 20, CancellationToken.None);
+
+        Assert.Equal([visible.Id], FilesIn(response).Select(hit => hit.Id));
+    }
+
+    [Fact]
+    public async Task Search_IgnoresCaseForLettersBeyondAToZ_InTitlesAndFileNames()
+    {
+        var school = await _world.SeedDiskFileAsync("École-plan.pdf", "École guide");
+        var service = CreateService(Human(admin: true), _show);
+
+        var lower = await service.SearchAsync("école", 20, CancellationToken.None);
+        var upper = await service.SearchAsync("ÉCOLE", 20, CancellationToken.None);
+        var byFileName = await service.SearchAsync("éCOLE-PLAN", 20, CancellationToken.None);
+
+        Assert.Equal([school.Id], FilesIn(lower).Select(hit => hit.Id));
+        Assert.Equal([school.Id], FilesIn(upper).Select(hit => hit.Id));
+        Assert.Equal([school.Id], FilesIn(byFileName).Select(hit => hit.Id));
+    }
+
+    [Fact]
+    public async Task Search_HidesAFile_WhenAnotherTitleSharesItsFolderAndTheCallerCannotSeeThatTitle()
+    {
+        await _world.SeedDiskFileAsync("guide.pdf", "Lighthouse guide");
+        // A second title whose media file sits in the same folder: the folder's files cannot be told apart by owner, so none are shown.
+        var sibling = Seed("Restricted sibling", Path.Combine(_world.Show, "Sibling.mkv"), "Movies");
+        var kids = CreateService(Human(restricted: true), _show);
+        var seesBoth = CreateService(Human(admin: true), _show, sibling);
+
+        var forKids = await kids.SearchAsync("lighthouse", 20, CancellationToken.None);
+        var forSomeoneWhoSeesBoth = await seesBoth.SearchAsync("lighthouse", 20, CancellationToken.None);
+
+        Assert.Empty(FilesIn(forKids));
+        Assert.Single(FilesIn(forSomeoneWhoSeesBoth));
+    }
+
     private static IReadOnlyList<UniversalSearchResultDto> FilesIn(UniversalSearchResponseDto response) =>
         response.Sections.Where(section => section.Key == UniversalSearchReadService.SupportingFilesKey).SelectMany(section => section.Results).ToList();
 

@@ -25,7 +25,9 @@ namespace MediaEngine.Api.Tests;
 
 /// <summary>
 /// The supporting-files routes over HTTP with the real services, the real data store and the real resource check
-/// (universal editor v5 WP4). The list needs the right to read the title; the bulk actions need an administrator and the right to edit it.
+/// (universal editor v5 WP4). The list needs the right to read the title; the preview needs an administrator and the right to edit it; Delete
+/// needs the same and an administrator in person (a paired app or service application acting for one is refused). Saving a change to the
+/// files is not a route here: it is a change of the editor's staged save, tested with the edit session.
 /// </summary>
 public sealed class SupportingFileEndpointTests : IDisposable
 {
@@ -67,7 +69,7 @@ public sealed class SupportingFileEndpointTests : IDisposable
     }
 
     [Fact]
-    public async Task BulkUpdate_ByAProfileThatIsNotAnAdministrator_Answers403_AndChangesNothing()
+    public async Task BulkActions_ByAProfileThatIsNotAnAdministrator_Answer403_AndChangeNothing()
     {
         await _world.SeedGeneratedFilesAsync();
         var title = SeedTitle(_allowedLibrary);
@@ -75,17 +77,17 @@ public sealed class SupportingFileEndpointTests : IDisposable
         await using var app = await StartAsync();
         using var client = app.CreateClient(administrator: false);
 
-        using var update = await client.PostAsync($"/api/v1/supporting-files/titles/{title}/bulk-update", Json(ids, """{"groupName":"Homework"}"""));
+        using var preview = await client.PostAsync($"/api/v1/supporting-files/titles/{title}/preview", Json(ids, """{"groupName":"Homework"}"""));
         using var delete = await client.PostAsync($"/api/v1/supporting-files/titles/{title}/bulk-delete", Json(ids, null));
 
-        Assert.Equal(HttpStatusCode.Forbidden, update.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, preview.StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, delete.StatusCode);
         Assert.Empty(await _world.Extras.ListGroupsAsync(_world.Show));
         Assert.Equal(SupportingFileTestWorld.GeneratedFiles, (await _world.Extras.ListAllInItemFolderAsync(_world.Show)).Count);
     }
 
     [Fact]
-    public async Task BulkUpdate_ForATitleInALibraryTheCallerCannotEdit_AnswersNotFound_AndChangesNothing()
+    public async Task Preview_ForATitleInALibraryTheCallerCannotEdit_AnswersNotFound_AndChangesNothing()
     {
         await _world.SeedGeneratedFilesAsync();
         var title = SeedTitle(_otherLibrary);
@@ -93,14 +95,14 @@ public sealed class SupportingFileEndpointTests : IDisposable
         await using var app = await StartAsync();
         using var client = app.CreateClient(administrator: true);
 
-        using var response = await client.PostAsync($"/api/v1/supporting-files/titles/{title}/bulk-update", Json(ids, """{"groupName":"Homework"}"""));
+        using var response = await client.PostAsync($"/api/v1/supporting-files/titles/{title}/preview", Json(ids, """{"groupName":"Homework"}"""));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Empty(await _world.Extras.ListGroupsAsync(_world.Show));
     }
 
     [Fact]
-    public async Task BulkUpdate_ByAnAdministrator_SetsTheGroupOfManyFilesInOneRequest()
+    public async Task Preview_ByAnAdministrator_ReportsTheChangeToManyFiles_AndWritesNothing()
     {
         await _world.SeedGeneratedFilesAsync();
         var title = SeedTitle(_allowedLibrary);
@@ -108,18 +110,18 @@ public sealed class SupportingFileEndpointTests : IDisposable
         await using var app = await StartAsync();
         using var client = app.CreateClient(administrator: true);
 
-        using var response = await client.PostAsync($"/api/v1/supporting-files/titles/{title}/bulk-update", Json(ids, """{"groupName":"Homework"}"""));
+        using var response = await client.PostAsync($"/api/v1/supporting-files/titles/{title}/preview", Json(ids, """{"groupName":"Homework"}"""));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         Assert.Equal(25, json.RootElement.GetProperty("changed").GetInt32());
         Assert.Equal(25, json.RootElement.GetProperty("results").GetArrayLength());
-        var group = Assert.Single(await _world.Extras.ListGroupsAsync(_world.Show));
-        Assert.Equal("Homework", group.Name);
+        Assert.True(json.RootElement.GetProperty("preview").GetBoolean());
+        Assert.Empty(await _world.Extras.ListGroupsAsync(_world.Show));
     }
 
     [Fact]
-    public async Task BulkUpdate_WithARoleThatDoesNotFitTheFile_Answers400WithAPlainReason()
+    public async Task Preview_WithARoleThatDoesNotFitTheFile_Answers400WithAPlainReason()
     {
         await _world.SeedGeneratedFilesAsync();
         var title = SeedTitle(_allowedLibrary);
@@ -127,32 +129,32 @@ public sealed class SupportingFileEndpointTests : IDisposable
         await using var app = await StartAsync();
         using var client = app.CreateClient(administrator: true);
 
-        using var response = await client.PostAsync($"/api/v1/supporting-files/titles/{title}/bulk-update", Json([worksheet.Id], """{"role":"trailer"}"""));
+        using var response = await client.PostAsync($"/api/v1/supporting-files/titles/{title}/preview", Json([worksheet.Id], """{"role":"trailer"}"""));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Contains("is not available for this kind of file", await response.Content.ReadAsStringAsync(), StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task BulkUpdate_WithNothingPicked_Answers400()
+    public async Task Preview_WithNothingPicked_Answers400()
     {
         var title = SeedTitle(_allowedLibrary);
         await using var app = await StartAsync();
         using var client = app.CreateClient(administrator: true);
 
-        using var response = await client.PostAsync($"/api/v1/supporting-files/titles/{title}/bulk-update", Json([], """{"groupName":"Homework"}"""));
+        using var response = await client.PostAsync($"/api/v1/supporting-files/titles/{title}/preview", Json([], """{"groupName":"Homework"}"""));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]
-    public async Task BulkDelete_ByAnAdministrator_RemovesTheFilesAndReportsWhatHappenedOnDisk()
+    public async Task BulkDelete_ByAnAdministratorInPerson_RemovesTheFilesAndReportsWhatHappenedOnDisk()
     {
         var title = SeedTitle(_allowedLibrary);
         var one = await _world.SeedDiskFileAsync("one.pdf", "One");
         var keep = await _world.SeedDiskFileAsync("keep.pdf", "Keep");
         await using var app = await StartAsync();
-        using var client = app.CreateClient(administrator: true);
+        using var client = app.CreateClient(administrator: true, principal: HumanAdministrator);
 
         using var response = await client.PostAsync($"/api/v1/supporting-files/titles/{title}/bulk-delete", Json([one.Id], null));
 
@@ -162,6 +164,38 @@ public sealed class SupportingFileEndpointTests : IDisposable
         Assert.Equal("deleted", json.RootElement.GetProperty("results")[0].GetProperty("disk").GetString());
         Assert.False(File.Exists(one.FilePath));
         Assert.True(File.Exists(keep.FilePath));
+    }
+
+    [Fact]
+    public async Task BulkDelete_ByAnAdministratorActingThroughAPairedApp_Answers403_AndKeepsTheFiles()
+    {
+        var title = SeedTitle(_allowedLibrary);
+        var one = await _world.SeedDiskFileAsync("one.pdf", "One");
+        await using var app = await StartAsync();
+
+        foreach (var principal in new[] { DelegatedAdministrator, ServiceApplication, HumanMember })
+        {
+            using var client = app.CreateClient(administrator: true, principal: principal);
+            using var response = await client.PostAsync($"/api/v1/supporting-files/titles/{title}/bulk-delete", Json([one.Id], null));
+
+            Assert.True(response.StatusCode == HttpStatusCode.Forbidden, $"{principal} must be refused, got {(int)response.StatusCode}.");
+        }
+
+        Assert.True(File.Exists(one.FilePath));
+        Assert.NotNull(await _world.Extras.GetAsync(one.Id));
+    }
+
+    [Fact]
+    public async Task ThereIsNoStandaloneRouteThatSavesAChangeToSupportingFiles()
+    {
+        // Saving group, role, Belongs to and tags is a change of the staged save (kind supporting_files), so one Save is all or nothing.
+        // The routes left are the list, the read-only preview and Delete.
+        await using var app = await StartAsync();
+        var routes = app.Patterns();
+
+        Assert.DoesNotContain(routes, route => route.Contains("bulk-update", StringComparison.Ordinal));
+        Assert.Contains(routes, route => route.EndsWith("/preview", StringComparison.Ordinal));
+        Assert.Contains(routes, route => route.EndsWith("/bulk-delete", StringComparison.Ordinal));
     }
 
     // ── Harness ─────────────────────────────────────────────────────────────
@@ -195,6 +229,26 @@ public sealed class SupportingFileEndpointTests : IDisposable
         return workId;
     }
 
+    private const string PrincipalHeader = "X-Test-Principal";
+    private const string HumanAdministrator = "human-administrator";
+    private const string HumanMember = "human-member";
+    private const string DelegatedAdministrator = "delegated-administrator";
+    private const string ServiceApplication = "service-application";
+
+    private static readonly IReadOnlyDictionary<string, RequestAuthority> Principals = new Dictionary<string, RequestAuthority>
+    {
+        // The Dashboard, signed in by a person: an administrator, and a member who is not one.
+        [HumanAdministrator] = new(PrincipalKind.Human, true, Guid.NewGuid(), MediaEngine.Domain.Aggregates.Profile.SeedProfileId, null, Guid.NewGuid(), null,
+            AccountEnabled: true, ActiveProfileInUserHousehold: true, ActiveProfileIsServerAdministrator: true),
+        [HumanMember] = new(PrincipalKind.Human, true, Guid.NewGuid(), MediaEngine.Domain.Aggregates.Profile.SeedProfileId, null, Guid.NewGuid(), null,
+            AccountEnabled: true, ActiveProfileInUserHousehold: true),
+        // A paired app acting for an administrator, and a service application: administrators in effect, but not in person.
+        [DelegatedAdministrator] = new(PrincipalKind.DelegatedUserClient, true, Guid.NewGuid(), MediaEngine.Domain.Aggregates.Profile.SeedProfileId,
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(),
+            AccountEnabled: true, ActiveProfileInUserHousehold: true, ApplicationEnabled: true, ActiveProfileIsServerAdministrator: true),
+        [ServiceApplication] = new(PrincipalKind.ServiceApplication, true, null, null, Guid.NewGuid(), ApplicationEnabled: true, ApplicationIsAdministrator: true),
+    };
+
     private async Task<TestApplication> StartAsync()
     {
         var authority = new RequestAuthority(
@@ -227,6 +281,8 @@ public sealed class SupportingFileEndpointTests : IDisposable
         builder.Services.AddSingleton<IProfileRepository>(new ProfileRepository(_world.Database));
         builder.Services.AddScoped<CatalogueResourceAuthorizationService>();
         builder.Services.AddSingleton<IRequestAuthorityResolver>(new FixedAuthorityResolver(authority));
+        // The real handler behind "an administrator in person" (the Delete route), over the same decisions the other routes use.
+        builder.Services.AddSingleton<IAuthorizationHandler, EffectiveAdministratorHandler>();
         builder.Services.AddSingleton<IAccountAccessDecisionService>(new LibraryAccess(_allowedLibrary));
         builder.Services.AddSingleton<MediaEngine.Domain.Contracts.IAuthorizationEvaluator, AllowAuthorizationEvaluator>();
 
@@ -242,14 +298,18 @@ public sealed class SupportingFileEndpointTests : IDisposable
 
     private sealed class FixedAuthorityResolver(RequestAuthority authority) : IRequestAuthorityResolver
     {
-        public ValueTask<RequestAuthority> ResolveAsync(HttpContext context, CancellationToken ct = default) => ValueTask.FromResult(authority);
+        public ValueTask<RequestAuthority> ResolveAsync(HttpContext context, CancellationToken ct = default) =>
+            ValueTask.FromResult(context.Request.Headers.TryGetValue(PrincipalHeader, out var name) && Principals.TryGetValue(name.ToString(), out var named)
+                ? named
+                : authority);
     }
 
     private sealed class LibraryAccess(Guid libraryId) : IAccountAccessDecisionService
     {
         public ValueTask<AuthorizationDecision> EvaluateFeatureAsync(RequestAuthority authority, AccountFeatureId feature, CancellationToken cancellationToken = default) => ValueTask.FromResult(AuthorizationDecision.Allow());
         public ValueTask<AuthorizationDecision> EvaluateLibraryAsync(RequestAuthority authority, Guid requestedLibraryId, CancellationToken cancellationToken = default) => ValueTask.FromResult(requestedLibraryId == libraryId ? AuthorizationDecision.Allow() : AuthorizationDecision.Deny(AuthorizationDenialReason.LibraryNotVisible));
-        public ValueTask<AuthorizationDecision> EvaluateAdministratorAsync(RequestAuthority authority, bool requireSurfaceUnlock, CancellationToken cancellationToken = default) => ValueTask.FromResult(AuthorizationDecision.Allow());
+        public ValueTask<AuthorizationDecision> EvaluateAdministratorAsync(RequestAuthority authority, bool requireSurfaceUnlock, CancellationToken cancellationToken = default) =>
+            ValueTask.FromResult(authority.IsEffectiveAdministrator ? AuthorizationDecision.Allow() : AuthorizationDecision.Deny(AuthorizationDenialReason.AdministratorRequired));
     }
 
     private sealed class AllowAuthorizationEvaluator : MediaEngine.Domain.Contracts.IAuthorizationEvaluator
@@ -279,9 +339,18 @@ public sealed class SupportingFileEndpointTests : IDisposable
 
     private sealed class TestApplication(WebApplication app, Uri address) : IAsyncDisposable
     {
-        public HttpClient CreateClient(bool administrator)
+        public IReadOnlyList<string> Patterns() => ((Microsoft.AspNetCore.Routing.IEndpointRouteBuilder)app).DataSources
+            .SelectMany(source => source.Endpoints).OfType<Microsoft.AspNetCore.Routing.RouteEndpoint>()
+            .Select(route => route.RoutePattern.RawText ?? string.Empty).ToList();
+
+        public HttpClient CreateClient(bool administrator, string? principal = null)
         {
             var client = new HttpClient { BaseAddress = address };
+            if (principal is not null)
+            {
+                client.DefaultRequestHeaders.Add(PrincipalHeader, principal);
+            }
+
             if (administrator)
             {
                 client.DefaultRequestHeaders.Add(TestAuthenticationHandler.AdministratorHeader, "1");

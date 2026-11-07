@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace MediaEngine.Contracts.Details;
 
 /// <summary>
@@ -162,41 +164,49 @@ public sealed class SupportingFileListDto
 public sealed class SupportingFileBulkChangesDto
 {
     /// <summary>Put the files in the group of this name; a name the title has no group for yet creates the group.</summary>
+    [JsonPropertyName("groupName")]
     public string? GroupName { get; init; }
 
     /// <summary>Take the files out of whatever group a person chose (a group read from a folder applies again).</summary>
+    [JsonPropertyName("clearGroup")]
     public bool ClearGroup { get; init; }
 
     /// <summary>The role to give (a role id from the list for the files' kind in <c>config/extras.json</c>).</summary>
+    [JsonPropertyName("role")]
     public string? Role { get; init; }
 
     /// <summary>Go back to the role guessed from the names.</summary>
+    [JsonPropertyName("clearRole")]
     public bool ClearRole { get; init; }
 
     /// <summary>The scope the files belong to now (a scope key). In a Managed folder the file moves when this is saved.</summary>
+    [JsonPropertyName("scopeKey")]
     public string? ScopeKey { get; init; }
 
     /// <summary>"Use folder location": go back to the scope read from the file's folder.</summary>
+    [JsonPropertyName("useFolderLocation")]
     public bool UseFolderLocation { get; init; }
 
+    [JsonPropertyName("addTags")]
     public IReadOnlyList<string> AddTags { get; init; } = [];
 
+    [JsonPropertyName("removeTags")]
     public IReadOnlyList<string> RemoveTags { get; init; } = [];
 }
 
-/// <summary>A bulk update of the supporting files of the title named in the route, called when the editor saves (universal editor v5 D16, D30).</summary>
+/// <summary>
+/// A bulk update of the supporting files of one title (universal editor v5 D16, D30). It is a change in the editor's staged save
+/// (<c>EditSessionChangeKinds.SupportingFiles</c>, whose entity is the title), and the same body asks for the preview that lists what would
+/// change and which files would move. Repeating a saved request changes nothing more.
+/// </summary>
 public sealed class SupportingFileBulkUpdateRequest
 {
-    /// <summary>The files to change, by id. An id that is not one of this title's files is refused by name; the others still change.</summary>
+    /// <summary>The files to change, by id. An id that is not one of this title's files is named in the answer; a staged save with one is refused as a whole.</summary>
+    [JsonPropertyName("ids")]
     public IReadOnlyList<string> Ids { get; init; } = [];
 
+    [JsonPropertyName("changes")]
     public SupportingFileBulkChangesDto Changes { get; init; } = new();
-
-    /// <summary>
-    /// True to check the change and plan any file moves without writing anything: the answer is what Review lists and what the amber
-    /// footer shows. Saving sends the same request with this false. Repeating a saved request changes nothing more.
-    /// </summary>
-    public bool Preview { get; init; }
 }
 
 /// <summary>What happened to one file named by a bulk action.</summary>
