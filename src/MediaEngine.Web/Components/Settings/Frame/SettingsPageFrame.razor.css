@@ -84,10 +84,10 @@
 
 .settings-frame__header ::deep .settings-breadcrumbs .tl-icon-root {
     flex: 0 0 auto;
-    width: 15px;
-    height: 15px;
+    width: var(--tl-icon-size-xs);
+    height: var(--tl-icon-size-xs);
     color: var(--tl-text-muted);
-    font-size: 15px;
+    font-size: var(--tl-icon-size-xs);
 }
 
 .settings-frame__header ::deep .sidebar-page-header {

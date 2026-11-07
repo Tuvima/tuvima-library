@@ -13,7 +13,7 @@
                              OnClick="@(() => ActiveKeyChanged.InvokeAsync(item.Key))">
                 @if (!string.IsNullOrWhiteSpace(item.Icon))
                 {
-                    <AppMaterialIcon Icon="@item.Icon" Size="AppSize.Small" />
+                    <AppMaterialIcon Icon="@item.Icon" Size="AppIconSize.Control20" />
                 }
                 <span>@item.Label</span>
                 @if (item.Count is not null)

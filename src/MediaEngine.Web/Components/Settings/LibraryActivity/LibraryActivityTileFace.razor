@@ -3,7 +3,7 @@
 @* The art of one tile: the picture fills it, a flush label sits in the top-left corner and another in the bottom-left. A title with no picture
    names itself on the stand-in (One tile design spec); a title with art shows no caption, because the art carries it. *@
 <span class="lact-tile__face">
-    <LibraryActivityPicture Url="@CoverUrl" DrawnPx="321" Icon="@Icon" IconSize="AppSize.Large" FallbackText="@Title" />
+    <LibraryActivityPicture Url="@CoverUrl" DrawnPx="321" Icon="@Icon" IconSize="AppIconSize.Tile32" FallbackText="@Title" />
     @if (!string.IsNullOrWhiteSpace(StatusLabel))
     {
         <span class="lact-tile__label lact-tile__label--top">@StatusLabel</span>

@@ -87,7 +87,7 @@
     }
 
     ::deep .media-tile-shelf-arrow .tl-icon-root {
-        font-size: 1.55rem;
+        font-size: var(--tl-icon-size-md);
     }
 
     @media (hover: none) {

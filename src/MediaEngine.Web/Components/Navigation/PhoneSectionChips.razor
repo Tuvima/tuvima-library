@@ -15,7 +15,7 @@
                class="@(current ? "phone-section-chips__chip is-selected" : "phone-section-chips__chip")"
                tabindex="@(IsTabStop(link) ? 0 : -1)"
                aria-current="@(current ? "page" : null)">
-                <AppMaterialIcon Icon="@link.Icon" Size="AppSize.Small" />
+                <AppMaterialIcon Icon="@link.Icon" Size="AppIconSize.Control20" />
                 <span>@L[link.LabelKey]</span>
             </a>
         }

@@ -198,7 +198,7 @@
 
 .listen-rail__delete-confirm ::deep .is-confirm { background: #15803d; }
 .listen-rail__delete-confirm ::deep .is-cancel { background: #b91c1c; }
-.listen-rail__delete-confirm ::deep .tl-icon-root { font-size: 15px; }
+.listen-rail__delete-confirm ::deep .tl-icon-root { font-size: var(--tl-icon-size-xs); }
 
 
 
@@ -518,7 +518,7 @@
 }
 
 .listen-filter-search ::deep .tl-icon-root {
-    font-size: 1.4rem;
+    font-size: var(--tl-icon-size-md);
 }
 
 .listen-filter-search ::deep .listen-filter-input {

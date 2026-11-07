@@ -21,7 +21,7 @@
         @* Each area chip is outlined in its own area colour (the same lib-chip look as the Libraries page); All libraries carries a small chevron. *@
         <div class="lact-chips" role="group" aria-label="@L["LibraryActivity_Areas"]" data-testid="lact-chips">
             <AppToggleChip Pressed="@(_area is null)" Class="@ChipClass(null)" OnClick="@(() => PickAreaAsync(null))">
-                @L["LibraryActivity_AllLibraries"]<AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ExpandMore" Size="AppSize.Small" />
+                @L["LibraryActivity_AllLibraries"]<AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ExpandMore" Size="AppIconSize.Control20" />
             </AppToggleChip>
             @foreach (var area in Areas)
             {

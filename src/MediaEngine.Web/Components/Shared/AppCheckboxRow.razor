@@ -3,7 +3,7 @@
     <span class="app-checkbox-row__copy"><span class="app-checkbox-row__label">@Label</span>@if (!string.IsNullOrWhiteSpace(Description)) { <span class="app-checkbox-row__description">@Description</span> }</span>
     <span class="app-checkbox__control">
         <input type="checkbox" class="tl-checkbox-input" checked="@Value" disabled="@Disabled" @onchange="ChangedAsync" />
-        <AppMaterialIcon Icon="@(Value ? AppMaterialIcons.Filled.CheckBox : AppMaterialIcons.Outlined.CheckBoxOutlineBlank)" Size="AppSize.Medium" Class="app-checkbox__glyph" />
+        <AppMaterialIcon Icon="@(Value ? AppMaterialIcons.Filled.CheckBox : AppMaterialIcons.Outlined.CheckBoxOutlineBlank)" Size="AppIconSize.Row24" Class="app-checkbox__glyph" />
     </span>
 </label>
 @code {

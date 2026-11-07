@@ -150,7 +150,7 @@
 
 .app-timeline__artwork ::deep .tl-icon-root {
     color: rgba(167, 182, 207, 0.54);
-    font-size: 1.7rem;
+    font-size: var(--tl-icon-size-md);
 }
 
 .app-timeline__item:hover .app-timeline__artwork,

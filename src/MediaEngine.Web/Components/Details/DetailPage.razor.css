@@ -355,7 +355,7 @@
 
 ::deep .tl-detail-watch-metadata-item--rating .tl-icon-root {
     color: #f6b94b;
-    font-size: 1.05em;
+    font-size: var(--tl-icon-size-xs);
 }
 
 ::deep .tl-detail-metadata-item {
@@ -445,7 +445,7 @@
 }
 
 ::deep .tl-detail-hero--watch .tl-detail-watch-metadata-item--rating .tl-icon-root {
-    font-size: 0.92rem;
+    font-size: var(--tl-icon-size-xs);
 }
 
 @media (width < 840px) {
@@ -571,7 +571,7 @@
 ::deep .tl-detail-hero--watch .tl-detail-watch-metadata-item .tl-icon-root {
     margin-right: 0.18rem;
     color: rgba(255, 255, 255, 0.62);
-    font-size: 1rem;
+    font-size: var(--tl-icon-size-xs);
 }
 
 ::deep .tl-detail-hero--watch .tl-detail-watch-metadata-item--rating .tl-icon-root {
@@ -958,7 +958,7 @@
 .tl-detail-stage ::deep .tl-detail-person-more-action .tl-icon-root {
     display: block;
     margin: 0;
-    font-size: 1.25rem;
+    font-size: var(--tl-icon-size-sm);
     line-height: 1;
     transform: none;
 }

@@ -99,7 +99,8 @@
     --tl-icon-size-sm: 20px;
     --tl-icon-size-md: 24px;
     --tl-icon-size-lg: 32px;
-    --tl-icon-size-xl: 40px;
+    --tl-icon-size-xl: 48px;
+    --tl-icon-size-2xl: 64px;
     --tl-chip-height: 36px;
     --tl-chip-height-touch: 44px;
     --tl-touch-min: 44px;

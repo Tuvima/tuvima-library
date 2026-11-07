@@ -33,16 +33,16 @@
             else
             {
                 <div class="tl-filesort__choices" role="group" aria-label="@L["EditorFileSort_Heading"].Value">
-                    <AppChoiceRow Title="@EditorFileSortRules.MainFileNoun(sorting.TitleKind)" Description="@L["EditorFileSort_MainFileHint"].Value"
-                                  Selected="@(_choice == SortChoice.Match)" Disabled="@(!CanChange)" OnClick="@(() => Pick(SortChoice.Match))" />
-                    <AppChoiceRow Title="@L["EditorFileSort_Extra"].Value"
-                                  Description="@(sorting.CanBeExtra ? L["EditorFileSort_ExtraHint"].Value : L["EditorFileSort_OnlyFilesCanBeExtras"].Value)"
-                                  Selected="@(_choice == SortChoice.Extra)" Disabled="@(!CanChange || !sorting.CanBeExtra)" OnClick="@(() => Pick(SortChoice.Extra))" />
-                    <AppChoiceRow Title="@L["EditorFileSort_Another"].Value"
-                                  Description="@(sorting.CanBeExtra ? L["EditorFileSort_AnotherHint"].Value : L["EditorFileSort_OnlyFilesCanBeExtras"].Value)"
-                                  Selected="@(_choice == SortChoice.Attach)" Disabled="@(!CanChange || !sorting.CanBeExtra)" OnClick="@(() => Pick(SortChoice.Attach))" />
-                    <AppChoiceRow Title="@L["EditorFileSort_Ignore"].Value" Description="@L["EditorFileSort_IgnoreHint"].Value"
-                                  Selected="@(_choice == SortChoice.Ignore)" Disabled="@(!CanChange)" OnClick="@(() => Pick(SortChoice.Ignore))" />
+                    <AppChoiceTile Label="@EditorFileSortRules.MainFileNoun(sorting.TitleKind)" Description="@L["EditorFileSort_MainFileHint"].Value" Icon="@AppMaterialIcons.Outlined.CheckCircle"
+                                   Selected="@(_choice == SortChoice.Match)" Disabled="@(!CanChange)" OnClick="@(() => Pick(SortChoice.Match))" />
+                    <AppChoiceTile Label="@L["EditorFileSort_Extra"].Value" Icon="@AppMaterialIcons.Outlined.Extension"
+                                   Description="@(sorting.CanBeExtra ? L["EditorFileSort_ExtraHint"].Value : L["EditorFileSort_OnlyFilesCanBeExtras"].Value)"
+                                   Selected="@(_choice == SortChoice.Extra)" Disabled="@(!CanChange || !sorting.CanBeExtra)" OnClick="@(() => Pick(SortChoice.Extra))" />
+                    <AppChoiceTile Label="@L["EditorFileSort_Another"].Value" Icon="@AppMaterialIcons.Outlined.DriveFileMove"
+                                   Description="@(sorting.CanBeExtra ? L["EditorFileSort_AnotherHint"].Value : L["EditorFileSort_OnlyFilesCanBeExtras"].Value)"
+                                   Selected="@(_choice == SortChoice.Attach)" Disabled="@(!CanChange || !sorting.CanBeExtra)" OnClick="@(() => Pick(SortChoice.Attach))" />
+                    <AppChoiceTile Label="@L["EditorFileSort_Ignore"].Value" Description="@L["EditorFileSort_IgnoreHint"].Value" Icon="@AppMaterialIcons.Outlined.VisibilityOff"
+                                   Selected="@(_choice == SortChoice.Ignore)" Disabled="@(!CanChange)" OnClick="@(() => Pick(SortChoice.Ignore))" />
                 </div>
 
                 @switch (_choice)

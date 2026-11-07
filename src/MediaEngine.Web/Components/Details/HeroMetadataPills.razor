@@ -68,7 +68,7 @@
                     @if (!string.IsNullOrWhiteSpace(item.Route))
                     {
                         <a class="@StatClass(item)" href="@item.Route">
-                            <AppMaterialIcon Icon="@IconFor(item)" Size="AppSize.Small" />
+                            <AppMaterialIcon Icon="@IconFor(item)" Size="AppIconSize.Control20" />
                             <span class="tl-detail-metadata-item__value">@item.Label</span>
                             <span class="tl-detail-metadata-item__label">@LabelFor(item)</span>
                         </a>
@@ -76,7 +76,7 @@
                     else
                     {
                         <span class="@StatClass(item)">
-                            <AppMaterialIcon Icon="@IconFor(item)" Size="AppSize.Small" />
+                            <AppMaterialIcon Icon="@IconFor(item)" Size="AppIconSize.Control20" />
                             <span class="tl-detail-metadata-item__value">@item.Label</span>
                             <span class="tl-detail-metadata-item__label">@LabelFor(item)</span>
                         </span>
@@ -281,7 +281,7 @@
         {
             builder.OpenComponent<AppMaterialIcon>(sequence++);
             builder.AddAttribute(sequence++, nameof(AppMaterialIcon.Icon), icon);
-            builder.AddAttribute(sequence++, nameof(AppMaterialIcon.Size), AppSize.Small);
+            builder.AddAttribute(sequence++, nameof(AppMaterialIcon.Size), AppIconSize.Control20);
             builder.CloseComponent();
         }
 

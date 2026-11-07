@@ -8,7 +8,7 @@
         @onclick="OnClick">
     @if (!string.IsNullOrWhiteSpace(Icon))
     {
-        <span class="app-choice-card__icon" aria-hidden="true"><AppMaterialIcon Icon="@Icon" Size="AppSize.Medium" /></span>
+        <span class="app-choice-card__icon" aria-hidden="true"><AppMaterialIcon Icon="@Icon" Size="AppIconSize.Row24" /></span>
     }
     <strong>@Title</strong>
     @if (!string.IsNullOrWhiteSpace(Description))

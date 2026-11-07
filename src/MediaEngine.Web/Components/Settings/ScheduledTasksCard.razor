@@ -37,7 +37,7 @@
                     <div class="scheduled-tasks__main">
                         <strong class="scheduled-tasks__name">@task.Name</strong>
                         <span class="scheduled-tasks__status scheduled-tasks__status--@status.ToString().ToLowerInvariant()" data-testid="task-status">
-                            <AppMaterialIcon Icon="@StatusIcon(status)" Size="AppSize.Small" aria-hidden="true" />
+                            <AppMaterialIcon Icon="@StatusIcon(status)" Size="AppIconSize.Control20" aria-hidden="true" />
                             @ScheduledTaskText.StatusLabel(status)
                         </span>
                         <span class="scheduled-tasks__what">

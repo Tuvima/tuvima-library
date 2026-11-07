@@ -118,7 +118,7 @@
 }
 
 .listen-context-sidebar__replay .tl-icon-root {
-    font-size: 19px;
+    font-size: var(--tl-icon-size-sm);
 }
 
 .listen-context-sidebar__date {

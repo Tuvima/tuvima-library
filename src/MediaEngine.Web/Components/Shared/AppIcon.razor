@@ -11,7 +11,7 @@
 
 @code {
     [Parameter] public string? Name { get; set; }
-    [Parameter] public string Size { get; set; } = "1rem";
+    [Parameter] public AppIconSize Size { get; set; } = AppIconSize.Inline16;
     [Parameter] public string? Class { get; set; }
     [Parameter] public string? Style { get; set; }
     [Parameter] public string? Title { get; set; }
@@ -45,7 +45,7 @@
             "; ",
             new[]
             {
-                $"--app-icon-size:{Size}",
+                $"--app-icon-size:{AppIconSizes.Token(Size)}",
                 $"--app-icon-mask:url('{path}')",
                 string.IsNullOrWhiteSpace(Style) ? null : Style,
             }.Where(value => !string.IsNullOrWhiteSpace(value)));

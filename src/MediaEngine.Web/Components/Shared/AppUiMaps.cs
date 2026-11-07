@@ -2,21 +2,6 @@ namespace MediaEngine.Web.Components.Shared;
 
 internal static class AppUiMaps
 {
-    public static AppSize ToAppSize(AppControlSize size) => size switch
-    {
-        AppControlSize.Compact => AppSize.Small,
-        AppControlSize.Large => AppSize.Large,
-        _ => AppSize.Medium,
-    };
-
-    public static AppSize ToAppSize(object? size) => size switch
-    {
-        AppSize appIconSize => appIconSize,
-        AppControlSize appSize => ToAppSize(appSize),
-        string text => ToAppSize(ToAppControlSize(text)),
-        _ => AppSize.Medium,
-    };
-
     public static AppControlSize ToAppControlSize(object? size) => size switch
     {
         AppControlSize appSize => appSize,

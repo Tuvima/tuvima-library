@@ -9,7 +9,7 @@
 @if (Ribbon.Message is { } message)
 {
     <div class="tl-saved-ribbon" role="@(Ribbon.IsError ? "alert" : "status")" aria-live="polite" data-view-ribbon="true">
-        <AppMaterialIcon Icon="@(Ribbon.IsError ? AppMaterialIcons.Outlined.Warning : Ribbon.InProgress ? AppMaterialIcons.Outlined.FileUpload : AppMaterialIcons.Outlined.Check)" Size="AppSize.Small" />
+        <AppMaterialIcon Icon="@(Ribbon.IsError ? AppMaterialIcons.Outlined.Warning : Ribbon.InProgress ? AppMaterialIcons.Outlined.FileUpload : AppMaterialIcons.Outlined.Check)" Size="AppIconSize.Control20" />
         <span>@message</span>
         @if (Ribbon.InProgress)
         {
