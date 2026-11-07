@@ -209,6 +209,10 @@ internal sealed class CatalogueResourceAuthorizationService(
         }, context.Response);
     }
 
+    /// <summary>True when the asset (or its edition, work, series or season) sits in a Vault library, whoever asks.</summary>
+    public async ValueTask<bool> IsVaultItemAsync(Guid assetId, CancellationToken ct = default) =>
+        await new VaultLibraryRepository(database).IsInVaultAsync(assetId, ct).ConfigureAwait(false);
+
     /// <summary>
     /// Real use of a Vault file that is not cleared through a request's own session, such as an adaptive-stream segment fetched with a
     /// path-scoped grant, restarts the unlocked session's idle timer the same way (Videos spec D33). It does nothing for an ordinary

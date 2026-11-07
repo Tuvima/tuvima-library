@@ -279,7 +279,9 @@ public sealed class PlaybackCapabilitiesService
             directPlay,
             BuildAudioTracks(probe),
             duration,
-            resume?.PositionSeconds);
+            resume?.PositionSeconds,
+            AudioExtensions.Contains(extension),
+            IsVaultAsset(assetId));
     }
 
     /// <summary>
@@ -1067,4 +1069,6 @@ public sealed record CastMediaPlan(
     bool DirectPlay,
     IReadOnlyList<PlaybackTrackDto> AudioTracks,
     double? DurationSeconds,
-    double? ResumeSeconds);
+    double? ResumeSeconds,
+    bool IsAudio = false,
+    bool IsVault = false);

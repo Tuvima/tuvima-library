@@ -77,9 +77,13 @@ public sealed class ScopedCssReachGuardrailTests
             }
 
             var razor = File.ReadAllText(razorPath);
-            foreach (var name in UnscopedClasses(File.ReadAllText(cssPath)).OrderBy(name => name, StringComparer.Ordinal))
+            var css = File.ReadAllText(cssPath);
+            foreach (var name in UnscopedClasses(css).OrderBy(name => name, StringComparer.Ordinal))
             {
-                if (OnlyPassedToChildComponents(razor, name))
+                var reach = Reach(razor, name);
+                // A class used on an HTML element of the component's own markup AND handed to a child component is reached on the first only; it is fine once the
+                // rules are also written after '::deep' (the 'plain rule, .root ::deep plain rule' pair).
+                if (reach.OnComponent && (!reach.OnHtml || !HasDeepRule(css, name)))
                 {
                     offenders.Add($"{Relative(razorPath)}: {name}");
                 }
@@ -114,6 +118,9 @@ public sealed class ScopedCssReachGuardrailTests
         return names;
     }
 
+    private static bool HasDeepRule(string css, string name) =>
+        Regex.IsMatch(Comments.Replace(css, ""), @"::deep[^{},]*\." + Regex.Escape(name) + @"(?![\w-])");
+
     private static IEnumerable<string> SplitTopLevel(string list)
     {
         var depth = 0;
@@ -133,35 +140,42 @@ public sealed class ScopedCssReachGuardrailTests
         yield return list[start..];
     }
 
-    // True when every use of the class in the markup is a Class-like attribute of a component tag (<AppNativeButton Class="...">, TriggerClass="...") and none is on
-    // an HTML element, so no element of this component's own markup can carry both the class and the isolation attribute.
-    private static bool OnlyPassedToChildComponents(string razor, string name)
+    // Where the class is used in the markup. OnComponent: handed to a child component's Class-like attribute (<AppNativeButton Class="...">, TriggerClass="..."); that
+    // element belongs to the child, so the parent's isolation attribute never reaches it and a rule written before '::deep' cannot match it. OnHtml: also (or only)
+    // on an HTML element of the component's own markup. Both together mean the rule reaches the HTML element only: the plain <div> row works, the <AppNativeButton>
+    // row beside it silently does not, as '.psp__row:disabled' once did.
+    private static (bool OnComponent, bool OnHtml) Reach(string razor, string name)
     {
         var onComponent = false;
+        var onHtml = false;
         foreach (Match use in Regex.Matches(razor, @"(?<![\w-])" + Regex.Escape(name) + @"(?![\w-])"))
         {
             var open = razor.LastIndexOf('<', use.Index);
             var close = razor.LastIndexOf('>', use.Index);
             if (open <= close)
             {
-                return false;
+                onHtml = true;
+                continue;
             }
 
             var tag = TagName.Match(razor[open..]);
             if (!tag.Success || !char.IsUpper(tag.Groups[1].Value[0]))
             {
-                return false;
+                onHtml = true;
+                continue;
             }
 
             var attribute = AttributeName.Matches(razor[open..use.Index]).LastOrDefault();
-            if (attribute is null || !attribute.Groups[1].Value.EndsWith("Class", StringComparison.Ordinal))
+            if (attribute is not null && attribute.Groups[1].Value.EndsWith("Class", StringComparison.Ordinal))
             {
-                return false;
+                onComponent = true;
             }
-
-            onComponent = true;
+            else
+            {
+                onHtml = true;
+            }
         }
-        return onComponent;
+        return (onComponent, onHtml);
     }
 
     private static JsonDocument ReadBaseline() => JsonDocument.Parse(File.ReadAllText(Path.Combine(RepoRoot, "tests", "MediaEngine.Web.Tests", "Fixtures", "scoped-css-reach-baseline.json")));

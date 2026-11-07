@@ -418,6 +418,8 @@ builder.Services.AddScoped<PlaybackLyricsSelectionOwner>();
 builder.Services.AddScoped<PlaybackIdentityNavigationOwner>();
 builder.Services.AddScoped<PlaybackLyricsPresenter>();
 builder.Services.AddScoped<PlaybackTransientToolCoordinator>();
+builder.Services.AddScoped<PlaybackCastLinkService>();
+builder.Services.AddScoped<PlaybackRemoteController>();
 builder.Services.AddScoped<VideoPresentationResolver>();
 builder.Services.AddScoped<IListenPlaybackCommandChannel, BroadcastListenPlaybackCommandChannel>();
 builder.Services.AddScoped<IAudiobookBookmarkActions>(services =>

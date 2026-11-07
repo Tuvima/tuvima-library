@@ -115,7 +115,7 @@
     min-width: 0;
 }
 
-.plr__main {
+.plr__main, .plr ::deep .plr__main {
     background: transparent;
     border: 0;
     color: inherit;
@@ -128,22 +128,22 @@
     width: 100%;
 }
 
-button.plr__main {
+button.plr__main, .plr ::deep button.plr__main {
     cursor: pointer;
 }
 
-button.plr__main::after {
+button.plr__main::after, .plr ::deep button.plr__main::after {
     border-radius: 6px;
     content: "";
     inset: 0;
     position: absolute;
 }
 
-button.plr__main:focus-visible {
+button.plr__main:focus-visible, .plr ::deep button.plr__main:focus-visible {
     outline: none;
 }
 
-button.plr__main:focus-visible::after {
+button.plr__main:focus-visible::after, .plr ::deep button.plr__main:focus-visible::after {
     outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
     outline-offset: -2px;
 }

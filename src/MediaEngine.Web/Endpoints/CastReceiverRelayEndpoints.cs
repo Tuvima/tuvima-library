@@ -7,7 +7,8 @@ namespace MediaEngine.Web.Endpoints;
 /// <summary>
 /// The Dashboard side of casting. A cast receiver (a Chromecast or Google TV) cannot send a bearer token, so the Engine
 /// serves it one title at a time from a secret link, <c>/cast/v1/{grant}/...</c>, that carries its own signed grant. The Engine
-/// itself answers that address only on this computer; this relay is the one way a TV on the home network reaches it.
+/// is not what a TV is pointed at; this relay is how a receiver reaches it, through the Dashboard's own address. The link is a short-lived secret for one title,
+/// bound to the live session or device, and it works wherever the Dashboard is reachable: the relay has no location check (ADR 0009).
 /// <para>
 /// It forwards only the range headers (never <c>Authorization</c> or a cookie, so a stray credential cannot ride along), and copies back
 /// only the media and CORS headers the receiver needs. The grant itself is checked by the Engine on every request.

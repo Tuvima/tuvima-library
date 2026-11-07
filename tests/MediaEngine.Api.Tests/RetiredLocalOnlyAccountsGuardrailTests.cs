@@ -19,10 +19,10 @@ public sealed class RetiredLocalOnlyAccountsGuardrailTests
         "AuthenticatePinAsync",
     ];
 
-    // The session check names the retired "ProfileEntry" method so it can refuse any session that still claims it.
+    // The one shared session check (SessionIntegrity) names the retired "ProfileEntry" method so it can refuse any session that still claims it.
     private static readonly (string Path, string Name)[] Allowed =
     [
-        ("src/MediaEngine.Identity/FirstPartyIdentityService.cs", "ProfileEntry"),
+        ("src/MediaEngine.Identity/SessionIntegrity.cs", "ProfileEntry"),
     ];
 
     private static readonly HashSet<string> Extensions = new(StringComparer.OrdinalIgnoreCase)
