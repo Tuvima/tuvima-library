@@ -1,3 +1,4 @@
+using Dapper;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.Playback;
 using MediaEngine.Contracts.Playback;
@@ -91,6 +92,37 @@ public sealed partial class AuthorizedDisplayProjectionReadServiceTests
         Assert.False(await admin.DeleteAudiobookBookmarkAsync(null, shared.Id));
         Assert.Contains(await admin.GetAudiobookBookmarksAsync(null, shape.Normal.WorkId), row => row.Id == shared.Id);
         Assert.True(await admin.DeleteAudiobookBookmarkAsync(null, personal.Id));
+    }
+
+    [Fact]
+    public async Task Bookmarks_OnAMusicTrack_RoundTrip_WithTheSameVisibilityRuleAsOtherMedia()
+    {
+        var shape = await SeedVaultAsync(administrator: false, hasAStaleHiddenRowOnTheVaultLibrary: false);
+        using (var connection = _database.CreateConnection())
+        {
+            connection.Execute("UPDATE works SET media_type = 'Music' WHERE id = @workId;", new { workId = shape.Normal.WorkId });
+        }
+
+        var other = AddOtherProfile();
+        var theirs = await BookmarkOf(other, shape.Normal.WorkId, shape.Normal.AssetId, 95);
+        var (player, _) = BookmarkPlayer(shape.Account, NewVaultSession(shape.Account));
+
+        var made = await player.CreateAudiobookBookmarkAsync(null, shape.Normal.WorkId, BookmarkAt(shape.Normal.AssetId, 42));
+        Assert.Equal(42, made.PositionSeconds);
+        var listed = await player.GetAudiobookBookmarksAsync(null, shape.Normal.WorkId);
+        Assert.Equal([made.Id, theirs.Id], listed.Select(row => row.Id));
+        Assert.True(listed.Single(row => row.Id == made.Id).IsYours);
+        var another = listed.Single(row => row.Id == theirs.Id);
+        Assert.False(another.IsYours);
+        Assert.True(another.InEveryone);
+        Assert.Equal(Guid.Empty, another.ProfileId);
+
+        var renamed = await player.UpdateOwnAudiobookBookmarkAsync(null, made.Id, new UpdateAudiobookBookmarkRequestDto { Label = "The riff" });
+        Assert.Equal("The riff", renamed!.Label);
+        Assert.Null(await player.UpdateOwnAudiobookBookmarkAsync(null, theirs.Id, new UpdateAudiobookBookmarkRequestDto { Label = "Hijacked" }));
+        Assert.False(await player.DeleteAudiobookBookmarkAsync(null, theirs.Id));
+        Assert.True(await player.DeleteAudiobookBookmarkAsync(null, made.Id));
+        Assert.Equal([theirs.Id], (await player.GetAudiobookBookmarksAsync(null, shape.Normal.WorkId)).Select(row => row.Id));
     }
 
     [Fact]

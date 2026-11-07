@@ -398,7 +398,7 @@
         RepeatMode: Playback.RepeatMode,
         PlaybackRate: Playback.PlaybackRate,
         HasChapters: CurrentChapters.Count > 0,
-        CanBookmark: Playback.IsAudiobookMode && Playback.CurrentItem?.AssetId is not null,
+        CanBookmark: CanBookmarkCurrent,
         IsSleepTimerActive: Playback.SleepTimerState.Mode != AudiobookSleepTimerModes.Off,
         HasQueue: Playback.HasQueue,
         ActiveSheet: IsNowPlayingPage ? "now-playing" : null);
@@ -546,18 +546,22 @@
     private (Guid Profile, Guid Work, Guid Asset)? _barMarkersKey;
     private int _barMarkersVersion;
     private bool ShowBookmarksOnBar => _playerSettings?.General.ShowBookmarksOnBar == true;
+    // An audiobook with a file, or a music track with a file while a profile is active (unified player v2 D3, D21, D26): music Bookmarks are the track's
+    // own, keyed by the track's work and file.
+    private bool CanBookmarkCurrent => Playback.CurrentItem?.AssetId is { } assetId && assetId != Guid.Empty
+        && (Playback.IsAudiobookMode || (Playback.IsMusicMode && PlaybackPreferences.ActiveProfileId is { } profile && profile != Guid.Empty));
     private string BookmarkChoice => _playerSettings?.General.BookmarkFilter ?? PlaybackPreferenceValues.All;
     private IReadOnlyList<PlaybackRailBookmark> BarRailBookmarks => PlaybackRailBookmark.From(_barBookmarks, Playback.DurationSeconds);
 
     private IReadOnlyList<PlaybackRailBookmark> BarMarkers(AudiobookChapterWindow? scope) =>
-        Playback.IsAudiobookMode && _barMarkersKey is { } key && key.Asset == Playback.CurrentItem?.AssetId
+        CanBookmarkCurrent && _barMarkersKey is { } key && key.Asset == Playback.CurrentItem?.AssetId
             ? AudiobookBarMarkers.ForBar(_barBookmarks, ShowBookmarksOnBar, BookmarkChoice, Playback.DurationSeconds, scope)
             : [];
 
     /// <summary>Loads the profile's playback settings and, while the markers are on, the book file's bookmarks, once per book file (or when forced).</summary>
     private async Task RefreshBarMarkersAsync(bool force = false)
     {
-        if (_disposed || !Playback.IsAudiobookMode || Playback.CurrentItem is not { AssetId: Guid assetId } item
+        if (_disposed || !CanBookmarkCurrent || Playback.CurrentItem is not { AssetId: Guid assetId } item
             || PlaybackPreferences.ActiveProfileId is not Guid profileId)
         {
             return;
@@ -582,7 +586,7 @@
         }
         catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or OperationCanceledException)
         {
-            Logger.LogInformation(ex, "The bookmark markers for the audiobook bar could not be loaded; the bar shows none.");
+            Logger.LogInformation(ex, "The bookmark markers for the bar could not be loaded; the bar shows none.");
         }
     }
 
@@ -1809,6 +1813,7 @@
     /// </summary>
     private async Task<bool> AddAudiobookBookmarkAsync(double seconds, string? note)
     {
+        if (Playback.IsMusicMode) return await AddMusicBookmarkAsync(seconds, note);
         if (!Playback.IsAudiobookMode || Playback.CurrentItem is not { AssetId: Guid assetId } item
             || assetId == Guid.Empty || PlaybackPreferences.ActiveProfileId is not Guid profileId
             || Playback.AudiobookBookSessionLeaseId is not Guid sessionLeaseId)
@@ -1848,6 +1853,35 @@
                 Logger.LogDebug(ex, "The bookmark lease could not be released; it was probably released already.");
             }
         }
+    }
+
+    /// <summary>
+    /// Saves a bookmark on the playing music track at the moment the button was pressed. A song has no chapters and no owner lease, so the press goes
+    /// straight to the Engine, which checks the profile and the file.
+    /// </summary>
+    private async Task<bool> AddMusicBookmarkAsync(double seconds, string? note)
+    {
+        if (!CanBookmarkCurrent || Playback.CurrentItem is not { AssetId: Guid assetId } item
+            || PlaybackPreferences.ActiveProfileId is not Guid profileId
+            || Services.GetService<IEngineApiClient>() is not { } api
+            || !double.IsFinite(seconds) || seconds < 0)
+        {
+            return false;
+        }
+
+        var duration = Playback.DurationSeconds;
+        var request = new CreateAudiobookBookmarkRequestDto
+        {
+            ProfileId = profileId,
+            AssetId = assetId,
+            PositionSeconds = duration > 0 ? Math.Min(seconds, duration) : seconds,
+            DurationSeconds = duration > 0 ? duration : null,
+            Note = note,
+        };
+        var result = await api.CreateAudiobookBookmarkWithOutcomeAsync(item.WorkId, request, profileId);
+        if (result.Outcome != AudiobookBookmarkOperationOutcome.Success) return false;
+        await RefreshBarMarkersAsync(force: true);
+        return true;
     }
 
     /// <summary>Renames the person's own bookmark and changes its note; the Engine refuses another profile's row.</summary>
