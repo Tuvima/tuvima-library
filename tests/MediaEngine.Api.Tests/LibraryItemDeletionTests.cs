@@ -583,6 +583,26 @@ public sealed class LibraryItemDeletionTests : IDisposable
     }
 
     [Fact]
+    public async Task BookmarkFrames_AreRemovedWithTheirFile_AndOtherFilesKeepTheirs()
+    {
+        var media = _world.WriteFile(_world.Managed, "Dune.mkv");
+        var other = _world.WriteFile(_world.Managed, "Arrival.mkv");
+        var (duneId, duneAssets) = _world.AddWork("Dune", [media]);
+        var (_, arrivalAssets) = _world.AddWork("Arrival", [other]);
+        var cache = new MediaEngine.Api.Services.Playback.BookmarkFrameCache(_world.AssetPaths);
+        var duneFrame = Guid.NewGuid();
+        var arrivalFrame = Guid.NewGuid();
+        cache.Write(duneAssets[0], duneFrame, [0xFF, 0xD8, 0xFF, 0xD9]);
+        cache.Write(arrivalAssets[0], arrivalFrame, [0xFF, 0xD8, 0xFF, 0xD9]);
+
+        await DeleteAsync(duneId);
+
+        Assert.False(cache.Exists(duneAssets[0], duneFrame));
+        Assert.False(Directory.Exists(cache.FolderFor(duneAssets[0])));
+        Assert.True(cache.Exists(arrivalAssets[0], arrivalFrame));
+    }
+
+    [Fact]
     public async Task ARunningJob_DelaysTheDeleteUntilItLetsGo()
     {
         using var world = new LibraryItemDeletionTestWorld(leaseWaitLimit: TimeSpan.FromSeconds(20));

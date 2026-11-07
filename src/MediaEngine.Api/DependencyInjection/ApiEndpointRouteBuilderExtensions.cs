@@ -42,6 +42,7 @@ public static class ApiEndpointRouteBuilderExtensions
         app.MapViewClientEndpoints();
         app.MapPlaybackEndpoints();
         app.MapPlayerEndpoints();
+        app.MapBookmarkFrameEndpoints();
         app.MapCompanionEndpoints();
         app.MapPlaybackTelemetryEndpoints();
         app.MapPlaybackSegmentEndpoints();
