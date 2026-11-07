@@ -29,6 +29,17 @@
     ]
   },
 
+  "_comment_scrub_previews": "Scrub previews (Unified player v2 D9a): one frame every interval_seconds, tile_width px wide, tiled columns x rows per sprite sheet, made ahead of time one file at a time. 'enabled' is the Settings > Playback > Advanced switch; turning it off removes the cache.",
+  "scrub_previews": {
+    "enabled": true,
+    "interval_seconds": 10,
+    "tile_width": 320,
+    "columns": 10,
+    "rows": 10,
+    "backfill_per_pass": 5,
+    "backfill_interval_minutes": 2
+  },
+
   "quality_profiles": [
     { "name": "mobile-small", "resolution": "540p", "codec": "h264", "audio_codec": "aac", "container": "mp4", "bitrate": "1M", "size_guidance": "400-700 MB for a typical 2-hour movie" },
     { "name": "mobile-standard", "resolution": "720p", "codec": "h264", "audio_codec": "aac", "container": "mp4", "bitrate": "2M", "size_guidance": "Offline-friendly quality" },

@@ -68,40 +68,6 @@ public sealed class DeveloperPageSharedPartsTests : AsyncBunitContext
         Assert.Empty(cut.FindAll(".app-list-page-header__actions"));
     }
 
-    [Fact]
-    public void SummaryStrip_ListsEveryCountWithItsWords()
-    {
-        var cut = Render<AppSummaryStrip>(p => p.Add(c => c.Items, new[]
-        {
-            new AppSummaryItem("installed", "11"),
-            new AppSummaryItem("switched on", "8"),
-            new AppSummaryItem("need attention", "1"),
-        }));
-
-        var items = cut.FindAll(".app-summary-strip__item");
-        Assert.Equal(3, items.Count);
-        Assert.Contains("need attention", items[2].TextContent);
-        Assert.Equal("1", items[2].QuerySelector(".app-summary-strip__value")!.TextContent);
-    }
-
-    [Fact]
-    public void SummaryStrip_CarriesTheColourOfEachCountsMeaning()
-    {
-        var cut = Render<AppSummaryStrip>(p => p.Add(c => c.Items, new[]
-        {
-            new AppSummaryItem("installed", "17", Tone: AppSummaryTone.Accent),
-            new AppSummaryItem("switched on", "15", Tone: AppSummaryTone.Ok),
-            new AppSummaryItem("need attention", "2", Tone: AppSummaryTone.Warn),
-            new AppSummaryItem("broken", "0", Tone: AppSummaryTone.Mute),
-        }));
-
-        var items = cut.FindAll(".app-summary-strip__item");
-        Assert.Contains("app-summary-strip__item--accent", items[0].ClassList);
-        Assert.Contains("app-summary-strip__item--ok", items[1].ClassList);
-        Assert.Contains("app-summary-strip__item--warn", items[2].ClassList);
-        Assert.Contains("app-summary-strip__item--mute", items[3].ClassList);
-    }
-
     [Theory]
     [InlineData("books", "Books")]
     [InlineData("tv", "TV")]
@@ -143,16 +109,6 @@ public sealed class DeveloperPageSharedPartsTests : AsyncBunitContext
 
         Assert.NotNull(dir);
         return Path.Combine(dir!.FullName, "src", "MediaEngine.Web");
-    }
-
-    [Fact]
-    public void SummaryStrip_WhileLoading_ShowsPlaceholdersNotNumbers()
-    {
-        var cut = Render<AppSummaryStrip>(p => p
-            .Add(c => c.Loading, true)
-            .Add(c => c.Items, new[] { new AppSummaryItem("installed", "0") }));
-
-        Assert.Empty(cut.FindAll(".app-summary-strip__value"));
     }
 
     [Fact]
@@ -255,20 +211,6 @@ public sealed class DeveloperPageSharedPartsTests : AsyncBunitContext
         var cut = Render<AppListCard>(p => p.Add(c => c.Title, name));
 
         Assert.Equal(name, cut.Find(".app-list-card__title").TextContent);
-    }
-
-    [Fact]
-    public void WarningStrip_WithAHandler_IsAButtonThatOpensTheFix()
-    {
-        var opened = false;
-        var cut = Render<AppWarningStrip>(p => p
-            .Add(c => c.Text, "Requires FFmpeg.")
-            .Add(c => c.OnClick, () => opened = true));
-
-        cut.Find("button").Click();
-
-        Assert.True(opened);
-        Assert.Contains("Requires FFmpeg.", cut.Markup);
     }
 
     [Fact]

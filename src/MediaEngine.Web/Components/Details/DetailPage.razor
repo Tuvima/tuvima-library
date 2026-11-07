@@ -1480,6 +1480,13 @@ else if (Model is not null)
                 resumePositionSeconds,
                 startItem.ChapterIndex,
                 Model.Title));
+
+        // Unified player v1 D6: the player is always on top. The details window is a modal layer, so left open it would cover the bar that
+        // just started (issue #705). Closing it returns to the page the person came from; an unsaved edit still gets its own question.
+        if (Overlay is { IsOpen: true } overlay)
+        {
+            await overlay.DismissAsync();
+        }
     }
 
     private IReadOnlyDictionary<string, object>? AudiobookActionAttributes(DetailAction action)

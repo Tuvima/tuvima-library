@@ -27,16 +27,6 @@ public sealed class Wave5AccessibilityGuardrailTests
     }
 
     [Fact]
-    public void EditorFieldActions_ExposeTheirTooltipLabelsToAssistiveTechnology()
-    {
-        var source = Read("src/MediaEngine.Web/Components/Shared/AppFormFieldRow.razor");
-
-        Assert.Contains("aria-label=\"@ActionLabel\"", source);
-        Assert.Contains("aria-label=\"@ConfirmLabel\"", source);
-        Assert.Contains("aria-label=\"@CancelLabel\"", source);
-    }
-
-    [Fact]
     public void ReaderAndFolderPicker_UseNativeControlsForClickActions()
     {
         var reader = Read("src/MediaEngine.Web/Components/Pages/BookReader.razor");

@@ -1,0 +1,58 @@
+/* The item actions menu rows (unified player v2 D23; mockup screen 12): 44 px rows, a 24 px glyph then the label at 16 / 500, 12 px apart, with
+   hairline separators between groups. The panel frame (272 px, the item's name above) comes from PlaybackPanel. */
+.playback-item-menu {
+    display: flex;
+    flex-direction: column;
+}
+
+.playback-item-menu__row {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    box-sizing: border-box;
+    color: var(--playback-text);
+    cursor: pointer;
+    display: flex;
+    font: 500 16px/1.25 var(--font-ui);
+    gap: 12px;
+    min-height: var(--playback-panel-row-height);
+    padding: 4px 10px;
+    text-align: left;
+    width: 100%;
+}
+
+.playback-item-menu__row:hover {
+    background: var(--playback-state-hover);
+}
+
+.playback-item-menu__row:active {
+    background: var(--playback-state-pressed);
+}
+
+.playback-item-menu__row:focus-visible {
+    outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
+    outline-offset: -2px;
+}
+
+.playback-item-menu__label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.playback-item-menu__divider {
+    background: var(--playback-hairline);
+    height: 1px;
+    margin: 6px 8px;
+}
+
+/* The glyph is drawn by PlaybackUtilityGlyph: the menu asks for the mockup's 24 px size and 1.8 stroke, as the bar's buttons do. */
+.playback-item-menu__row ::deep .playback-utility-glyph {
+    flex-basis: var(--playback-control-glyph);
+    height: var(--playback-control-glyph);
+    stroke-width: 1.8;
+    width: var(--playback-control-glyph);
+}

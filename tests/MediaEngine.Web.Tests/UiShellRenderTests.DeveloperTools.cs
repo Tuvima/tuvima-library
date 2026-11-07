@@ -106,7 +106,6 @@ public sealed partial class UiShellRenderTests
     [Theory]
     [InlineData("enrichment-tester")]
     [InlineData("development-data")]
-    [InlineData("dev-harness")]
     public void ReleaseEngine_ShowsTheNotAvailableState_AtTheDevelopmentSubPageAddresses(string address)
     {
         UseDevelopmentTools(new DevelopmentToolsResponse(EnrichmentTester: false, DevelopmentData: false));

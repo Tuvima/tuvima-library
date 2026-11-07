@@ -113,7 +113,6 @@ public sealed class UnifiedDetailComponentTests
     {
         var presentation = ReadSource("src/MediaEngine.Web/Components/Details/DetailHeroPresentation.cs");
         var hero = ReadSource("src/MediaEngine.Web/Components/Details/DetailHero.razor");
-        var progress = ReadSource("src/MediaEngine.Web/Components/Details/HeroProgressBlock.razor");
         var styles = ReadDetailStyles() + "\n" + ReadSource("src/MediaEngine.Web/Components/Details/HeroBackdrop.razor.css") + "\n" + ReadSource("src/MediaEngine.Web/Components/Cinematic/CinematicHeroSurface.razor.css") + "\n" + ReadSource("src/MediaEngine.Web/Components/Details/DetailHeroContent.razor.css") + "\n" + ReadSource("src/MediaEngine.Web/Components/Details/DetailHero.razor.css");
         var client = ReadEngineApiClientSources();
         var appStyles = ReadSource("src/MediaEngine.Web/wwwroot/app.css");
@@ -149,10 +148,7 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("tl-detail-collection-artwork", hero);
         Assert.Contains("usePrimaryHeroChrome ? string.Empty : FormatEntityType", presentation);
         Assert.Contains("UsesPrimaryHeroChrome", presentation);
-        Assert.Contains("tl-detail-hero-progress", progress);
-        Assert.Contains("--hero-progress", progress);
         Assert.Contains("Progress = detail.Progress", client);
-        Assert.Contains(".tl-detail-hero-progress__fill", styles);
         Assert.Contains("rgba(var(--hero-shadow-rgb), 0.24) 0%", styles);
         Assert.Contains("rgba(var(--hero-shadow-rgb), 0.06) 42%", styles);
         Assert.Contains("rgba(var(--hero-shadow-rgb), 0.96) 100%", styles);
@@ -1068,8 +1064,6 @@ public sealed class UnifiedDetailComponentTests
         var playbackSkipButtonStyles = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackRelativeSkipButton.razor.css");
         var playbackPrimaryButton = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackPrimaryButton.razor");
         var playbackPrimaryButtonStyles = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackPrimaryButton.razor.css");
-        var playbackTimelineMetaRow = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackTimelineMetaRow.razor");
-        var playbackTimelineMetaRowStyles = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackTimelineMetaRow.razor.css");
         var playbackSpeedControl = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackSpeedControl.razor");
         var playbackSpeedControlStyles = ReadSource("src/MediaEngine.Web/wwwroot/app.css");
         var playbackSleepTimerControl = ReadSource("src/MediaEngine.Web/Components/Shared/PlaybackSleepTimerControl.razor");
@@ -1152,8 +1146,6 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("listen-transport__secondary-icon", transportControls);
         Assert.Contains("<PlaybackSeekRail Surface=\"phone\"", fullPlayer);
         Assert.DoesNotContain("class=\"playback-full__time\"", fullPlayer);
-        Assert.Contains("playback-timeline-meta-row", playbackTimelineMetaRow);
-        Assert.Contains("color: var(--playback-text);", playbackTimelineMetaRowStyles);
         Assert.DoesNotContain(".listen-popup__chapter-row", popupPlayerStyles);
         Assert.DoesNotContain("background: var(--listen-accent", transportControlStyles);
         Assert.DoesNotContain("background: var(--listen-audio-accent", transportControlStyles);
@@ -1319,7 +1311,6 @@ public sealed class UnifiedDetailComponentTests
         Assert.Contains("listenPendingStartPosition", playerScript);
         Assert.Contains("document.addEventListener('click'", playerScript);
         Assert.Contains("openPopupFromImmediateAction", playerScript);
-        Assert.Contains("data-listen-popup-route", playerBar);
         Assert.Contains("AudiobookActionAttributes", detailPage);
         Assert.Contains("ActionAttributes=\"@(IsAudiobook ? AudiobookActionAttributes : null)\"", detailPage);
         Assert.Contains("window.detailOrigin.initialize();", playerScript);

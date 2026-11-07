@@ -27,7 +27,7 @@ public sealed class SongActionsMenuTests : AsyncBunitContext
         var cut = Render<SongActions>(p => p
             .Add(c => c.Item, new ListenQueueItem { WorkId = Guid.NewGuid(), Title = "Song" })
             .Add(c => c.ShowRating, showRating));
-        await cut.InvokeAsync(() => cut.FindComponent<PlaybackPopover>().Instance.OpenAsync(true));
+        await cut.InvokeAsync(() => cut.FindComponent<PlaybackPanel>().Instance.OpenAsync(true));
 
         Assert.Equal(showRating ? 0 : 1, cut.FindAll("button[role=menuitemcheckbox]")
             .Count(e => e.TextContent.Contains("I like this song")));

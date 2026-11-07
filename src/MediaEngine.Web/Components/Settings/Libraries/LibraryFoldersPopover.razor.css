@@ -1,5 +1,4 @@
 .lib-folders { position: relative; display: inline-block; }
-.lib-folders__panel { width: min(440px, 80vw); border: 1px solid var(--tl-border-subtle); border-radius: var(--tl-radius-md, 10px); background: var(--tl-bg-surface-raised); box-shadow: var(--tl-shadow-lg, 0 8px 24px rgb(0 0 0 / 0.3)); }
 .lib-folders__inner { padding: 8px; }
 .lib-folders__list { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
 .lib-folders__item { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; }

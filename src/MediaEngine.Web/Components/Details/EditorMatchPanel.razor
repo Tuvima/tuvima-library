@@ -262,8 +262,6 @@
                                       Placeholder="Year" Immediate="true" OnKeyDown="OnQueryKey" aria-label="Year" />
                     </div>
                 }
-                <AppButton Label="Search" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Search"
-                           Disabled="@_loading" OnClick="SearchAsync" />
             </div>
             @if (_leftOut.Count > 0)
             {
@@ -272,18 +270,25 @@
                     <AppButton Label="Put them back" ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" OnClick="PutLeftOutBackAsync" />
                 </p>
             }
-            @if (_providers.Count > 0)
-            {
-                <div class="tl-match__provider">
-                    <span class="tl-match__provider-label">Search in</span>
-                    <AppSelect Value="@_provider" ValueChanged="OnProviderChanged" Options="@ProviderOptions" HideLabel="true"
-                               AriaLabel="Search in" Disabled="@_loading" FullWidth="false" />
+            @* The Match row (Look v3 D15.5): one flex line on one centre line. The provider dropdown and the icon-only Search sit at the start,
+               the "what to match" segmented control at the end; a label never wraps in a cell (it shortens with an ellipsis). *@
+            <div class="tl-match__matchrow" data-testid="match-row">
+                <div class="tl-match__matchrow-start">
+                    @if (_providers.Count > 0)
+                    {
+                        <AppSelect Value="@_provider" ValueChanged="OnProviderChanged" Options="@ProviderOptions" HideLabel="true"
+                                   AriaLabel="Search in" Disabled="@_loading" FullWidth="false" />
+                    }
+                    <AppIconButton Icon="@AppMaterialIcons.Outlined.Search" Tooltip="Search" Size="AppControlSize.Compact"
+                                   Disabled="@_loading" OnClick="SearchAsync" />
                 </div>
-            }
-            @if (Tabs.Count > 1)
-            {
-                <AppSegmentedControl Options="@TabOptions" Value="@_group" ValueChanged="OnTabChanged" AriaLabel="What to match" Disabled="@_loading" />
-            }
+                @if (Tabs.Count > 1)
+                {
+                    <div class="tl-match__matchrow-end">
+                        <AppSegmentedControl Options="@TabOptions" Value="@_group" ValueChanged="OnTabChanged" AriaLabel="What to match" Disabled="@_loading" />
+                    </div>
+                }
+            </div>
 
             @if (_loading)
             {

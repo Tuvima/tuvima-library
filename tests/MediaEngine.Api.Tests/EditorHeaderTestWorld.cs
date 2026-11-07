@@ -217,6 +217,9 @@ internal sealed class EditorHeaderTestWorld : IDisposable
 
         public Task<bool> SyncItemFolderAsync(string itemFolder, CancellationToken ct = default) => Task.FromResult(true);
 
+        public Task<IReadOnlyList<ExtraScope>> ListPlacesAsync(string itemFolder, CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<ExtraScope>>([]);
+
         public Task<string?> ResolveScopeFolderAsync(string itemFolder, ExtraScope scope, CancellationToken ct = default) =>
             Task.FromResult<string?>(null);
 

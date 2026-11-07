@@ -154,10 +154,13 @@ public sealed class VideoFolderDetailWordingTests : AsyncBunitContext
     [Fact]
     public void TheLockScreenNeverShowsASeasonForAFolderVideo()
     {
-        var metadata = VideoMediaSessionMetadata.Create(QueueVideo("Videos", "3", "Ball handling") with { SeasonNumber = "1", Album = "Basketball course" }, "Basketball course", new Uri("http://localhost/"));
+        var item = QueueVideo("Videos", "3", "Ball handling") with { SeasonNumber = "1", Album = "Basketball course" };
+        var metadata = PlaybackSessionMetadata.Create(new PlaybackSessionContext(PlaybackBarMedia.Tv, item, new Uri("http://localhost/"), ShowTitle: "Basketball course"));
 
+        Assert.NotNull(metadata);
         Assert.Equal("3 · Ball handling", metadata.Title);
-        Assert.Equal("Basketball course", metadata.Album);
+        Assert.Equal("Basketball course", metadata.Artist);
+        Assert.DoesNotContain("S1", metadata.Artist, StringComparison.Ordinal);
     }
 
     private IRenderedComponent<SequencePlacementPanel> RenderPanel(SequencePlacementViewModel placement) =>

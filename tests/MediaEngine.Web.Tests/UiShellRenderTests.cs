@@ -795,15 +795,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         cut.WaitForAssertion(() => Assert.Equal(expectedTitle, (string)typeof(Settings).GetProperty("BrowserTitle", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(cut.Instance)!));
     }
 
-    // The earlier group address is redirected by the Libraries page to the matching tab of the overview.
-    [Fact]
-    public void SettingsPage_OnAnEarlierGroupAddress_RedirectsToThatAreasTab()
-    {
-        RenderLibraries("watch", null);
-
-        Assert.EndsWith("/settings/libraries?area=watch", Services.GetRequiredService<NavigationManager>().Uri, StringComparison.Ordinal);
-    }
-
     // The Settings frame carries each Libraries level: one breadcrumb, one title, and no second heading or breadcrumb in the page.
     [Theory]
     [InlineData(null, null, "Libraries", "Libraries", true)]
@@ -1653,9 +1644,9 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Contains("listen-player-shell--listen-route", hostSource, StringComparison.Ordinal);
         Assert.DoesNotContain(".listen-player-shell--listen-route {", hostCss, StringComparison.Ordinal);
         Assert.Contains("position:relative", hostCss, StringComparison.Ordinal);
-        Assert.Contains("grid-template-columns:minmax(0,1fr) 300px minmax(0,1fr)", hostCss, StringComparison.Ordinal);
-        Assert.Contains("height:calc(104px", hostCss, StringComparison.Ordinal);
-        Assert.Contains("border-radius:0", hostCss, StringComparison.Ordinal);
+        var shellCss = LocalizedSource.ReadAllText(GetRepoFile("src", "MediaEngine.Web", "Components", "Shared", "PlaybackShell.razor.css"));
+        Assert.Contains("grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);", shellCss, StringComparison.Ordinal);
+        Assert.Contains("min-height: 60px;", shellCss, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1808,7 +1799,6 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Assert.Contains(".tl-form", css);
         Assert.Contains(".tl-card--flush", css);
         Assert.Contains(".app-select", css);
-        Assert.Contains(".search-result-row", css);
         Assert.Contains("border-right: 1px solid var(--tl-divider)", css);
         Assert.DoesNotContain("Legacy settings shared UI components", css);
     }

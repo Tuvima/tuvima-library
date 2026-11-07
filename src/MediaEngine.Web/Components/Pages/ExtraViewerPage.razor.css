@@ -120,13 +120,11 @@
     object-fit: contain;
 }
 
-.tl-extra-viewer__lightbox-close,
 .tl-extra-viewer__lightbox-prev,
 .tl-extra-viewer__lightbox-next {
     position: absolute;
 }
 
-.tl-extra-viewer__lightbox-close { top: 1rem; right: 1rem; }
 .tl-extra-viewer__lightbox-prev { left: 1rem; top: 50%; }
 .tl-extra-viewer__lightbox-next { right: 1rem; top: 50%; }
 

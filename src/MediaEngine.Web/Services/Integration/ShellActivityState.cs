@@ -391,6 +391,7 @@ public sealed class ShellActivityState : IDisposable
         "view.document_text_read" => "Reading document text",
         "view.document_ocr" => "Reading scanned documents",
         "writeback.metadata" => "Writing media metadata",
+        "playback.scrub_previews" => "Preparing scrub previews",
         "organise_folder" => "Organising a folder",
         _ => operationKind?.ToLowerInvariant() switch
         {

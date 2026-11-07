@@ -1,16 +1,21 @@
-.app-native-dialog{border:0;padding:0;color:var(--tl-text-primary,#f5f5f5);background:var(--tl-bg-surface,#1e1e1e);border-radius:var(--tl-radius-lg,12px);box-shadow:0 24px 80px #0009;width:calc(100% - 64px);max-width:600px;max-height:calc(100dvh - 64px);overflow:auto;margin:auto;overscroll-behavior:contain}
-.app-native-dialog::backdrop{background:rgba(0,0,0,.5)}
-.app-native-dialog--extrasmall{max-width:444px}.app-native-dialog--small{max-width:600px}.app-native-dialog--medium{max-width:960px}.app-native-dialog--large{max-width:1280px}.app-native-dialog--extralarge{max-width:1920px}.app-native-dialog--extraextralarge{max-width:2560px}.app-native-dialog--false{max-width:none}
+/* Window and Sheet (Look v3 D14): one frame, three widths, 12 px corners; under 600 px every Window is a Sheet. */
+.app-native-dialog{border:0;padding:0;color:var(--tl-text-primary);background:var(--tl-bg-surface);border-radius:var(--tl-window-radius,12px);box-shadow:var(--tl-shadow-lg);width:calc(100% - 64px);max-width:var(--tl-window-s,480px);max-height:calc(100dvh - 64px);overflow:auto;margin:auto;overscroll-behavior:contain}
+.app-native-dialog::backdrop{background:var(--tl-scrim-soft)}
+.app-native-dialog--win-s{max-width:var(--tl-window-s,480px)}.app-native-dialog--win-m{max-width:var(--tl-window-m,640px)}.app-native-dialog--win-l{max-width:var(--tl-window-l,900px)}
 .app-native-dialog--fullscreen{width:100vw;max-width:none;height:100dvh;max-height:none;border-radius:0;margin:0}
 .app-native-dialog--position-topcenter,.app-native-dialog--position-topleft,.app-native-dialog--position-topright{margin-top:32px}
 .app-native-dialog--position-bottomcenter,.app-native-dialog--position-bottomleft,.app-native-dialog--position-bottomright{margin-bottom:32px}
 .app-native-dialog--position-topleft,.app-native-dialog--position-bottomleft,.app-native-dialog--position-centerleft{margin-left:32px}
 .app-native-dialog--position-topright,.app-native-dialog--position-bottomright,.app-native-dialog--position-centerright{margin-right:32px}
-.app-native-dialog__header{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;gap:16px}.app-native-dialog__header h2{margin:0;font-size:var(--tl-font-size-dialog-title);font-weight:600}.app-native-dialog__header button{border:0;background:transparent;color:inherit;font-size:var(--tl-font-size-xl);width:var(--tl-control-height-md,44px);height:var(--tl-control-height-md,44px);border-radius:50%;cursor:pointer}.app-native-dialog__header button:focus-visible{outline:2px solid var(--tl-accent-primary,#7765e3);outline-offset:2px}
-@media(max-width:600px){.app-native-dialog{width:calc(100% - 16px);max-height:calc(100dvh - 16px)}.app-native-dialog--fullscreen{width:100vw;max-height:none}}
-/* Bottom-sheet presentation (AppDialogOptions.Sheet): anchored to the bottom edge, full width, grip + swipe-down. */
-.app-native-dialog.app-native-dialog--sheet{margin:auto 0 0;width:100%;max-width:none;max-height:calc(100dvh - env(safe-area-inset-top,0px) - 24px);box-sizing:border-box;border-radius:var(--tl-radius-lg,12px) var(--tl-radius-lg,12px) 0 0;padding:0 env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);transform:translateY(var(--sheet-drag,0px))}
+.app-native-dialog__header{display:flex;align-items:flex-start;justify-content:space-between;padding:20px 24px 16px;gap:16px}.app-native-dialog__header h2{margin:0;font-size:var(--tl-font-size-dialog-title);line-height:1.25;font-weight:600}.app-native-dialog__close{flex:none;margin:-8px -8px 0 0}
+/* Sheet: the Window on phones (and any narrow window). From the bottom, 16 px top corners, a handle, the same anatomy. No page opts out. */
+.app-native-dialog.app-native-dialog--sheet{margin:auto 0 0;width:100%;max-width:none;max-height:calc(100dvh - env(safe-area-inset-top,0px) - 24px);box-sizing:border-box;border-radius:var(--tl-sheet-radius,16px) var(--tl-sheet-radius,16px) 0 0;padding:0 env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);transform:translateY(var(--sheet-drag,0px))}
+@media(max-width:600px){
+.app-native-dialog:not(.app-native-dialog--fullscreen){margin:auto 0 0;width:100%;max-width:none;max-height:calc(100dvh - env(safe-area-inset-top,0px) - 24px);box-sizing:border-box;border-radius:var(--tl-sheet-radius,16px) var(--tl-sheet-radius,16px) 0 0;padding:0 env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+.app-native-dialog:not(.app-native-dialog--fullscreen):not(.app-native-dialog--sheet)::before{content:"";display:block;width:36px;height:4px;border-radius:2px;background:var(--tl-border-strong);opacity:.6;margin:12px auto 0}
+.app-native-dialog__header{padding:8px 16px 12px}
+}
 .app-native-dialog__grip{position:sticky;top:0;z-index:1;display:flex;align-items:center;justify-content:center;height:28px;background:inherit;touch-action:none;cursor:grab}
-.app-native-dialog__grip span{width:40px;height:4px;border-radius:2px;background:var(--tl-text-secondary,#a0a0a0);opacity:.6}
+.app-native-dialog__grip span{width:36px;height:4px;border-radius:2px;background:var(--tl-border-strong);opacity:.6}
 @media(prefers-reduced-motion:no-preference){.app-native-dialog.app-native-dialog--sheet[open]{animation:app-native-dialog-sheet-up .22s ease-out}}
 @keyframes app-native-dialog-sheet-up{from{transform:translateY(100%)}to{transform:translateY(var(--sheet-drag,0px))}}

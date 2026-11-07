@@ -171,7 +171,7 @@ public sealed class PlaybackFullPlayerTests : AsyncBunitContext
         var sink = new Sink();
         var cut = Render<PlaybackFullPlayer>(p => p.Add(x => x.Snapshot, snapshot).Add(x => x.Commands, sink).Add(x => x.IsPopup, true));
         await Activate(cut, PlaybackControlKey.Queue);
-        await cut.InvokeAsync(() => cut.FindComponents<PlaybackPopover>().Single(p => p.Instance.Title == "Queue actions for Upcoming").Instance.OpenAsync(true));
+        await cut.InvokeAsync(() => cut.FindComponents<PlaybackPanel>().Single(p => p.Instance.Title == "Queue actions for Upcoming").Instance.OpenAsync(true));
         await cut.Find("button[aria-label='Remove Upcoming from queue']").ClickAsync();
         var remove = Assert.Single(sink.Commands);
         Assert.Same(snapshot, remove.Snapshot);

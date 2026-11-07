@@ -14,8 +14,8 @@ public sealed class TopLayerPopupGuardrailTests
     {
         ["Components/Details/ManageActionsMenu.razor"] = "Details actions menu.",
         ["Components/Listen/SongActions.razor"] = "Song actions in the player.",
+        ["Components/Shared/PlaybackItemMenu.razor"] = "Item actions menu of the bar; PlaybackPanel draws it in the top layer, this file only holds the rows.",
         ["Components/Shared/MediaRateControl.razor"] = "Rate control flyout.",
-        ["Components/Shared/PlaybackPopover.razor"] = "The playback pop-over itself (player build).",
         ["Components/Shared/ServerFolderPicker.razor"] = "Server folder picker.",
     };
 

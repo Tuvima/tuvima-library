@@ -1,0 +1,80 @@
+@namespace MediaEngine.Web.Components.Settings
+@using MediaEngine.Contracts.Playback
+@using MediaEngine.Web.Services.Formatting
+@using MediaEngine.Web.Services.Integration
+@inject IEngineApiClient ApiClient
+@inject IAppToastService Snackbar
+@inject IStringLocalizer<SharedStrings> L
+
+@* Settings > Playback > Advanced. The server-side switch for scrub previews (Unified player v2 D9a): the Engine makes a picture every
+   10 seconds of each video ahead of time so the timeline can show where you are. Turning it off removes the pictures; the space they
+   use is shown beside the switch. *@
+<SettingsSectionPanel Title="@L["ScrubPreviewSettingsCard_ScrubPreviews"].Value"
+                      Description="@L["ScrubPreviewSettingsCard_PicturesMadeAheadOfTime"].Value">
+    @if (_loading)
+    {
+        <AppSkeleton Size="AppControlSize.Large" />
+    }
+    else if (_status is null)
+    {
+        <AppErrorState Title="@L["ScrubPreviewSettingsCard_Unavailable"].Value"
+                       Message="@L["ScrubPreviewSettingsCard_EngineDidNotAnswer"].Value" />
+    }
+    else
+    {
+        <AppSwitchRow Label="@L["ScrubPreviewSettingsCard_GenerateScrubPreviews"].Value"
+                      Description="@HelperText"
+                      Value="@_status.Enabled"
+                      ValueChanged="@SetEnabledAsync"
+                      Disabled="@_busy" />
+    }
+</SettingsSectionPanel>
+
+@code {
+    private ScrubPreviewStatusDto? _status;
+    private bool _loading = true;
+    private bool _busy;
+
+    /// <summary>The line under the switch: what the previews cost on disk, and a plain note when none can be made yet.</summary>
+    internal static string BuildHelperText(ScrubPreviewStatusDto status, IStringLocalizer<SharedStrings> text)
+    {
+        var used = DisplayFormat.FormatFileSize(status.BytesUsed) ?? "0 B";
+        var line = string.Format(System.Globalization.CultureInfo.CurrentCulture, text["ScrubPreviewSettingsCard_UsesSpace"].Value, used);
+        return status.Enabled && !status.FfmpegAvailable
+            ? $"{line} {text["ScrubPreviewSettingsCard_FfmpegMissing"].Value}"
+            : line;
+    }
+
+    private string HelperText => _status is null ? string.Empty : BuildHelperText(_status, L);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _status = await ApiClient.GetScrubPreviewStatusAsync();
+        _loading = false;
+    }
+
+    private async Task SetEnabledAsync(bool enabled)
+    {
+        if (_busy)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            var saved = await ApiClient.SetScrubPreviewsEnabledAsync(enabled);
+            if (saved is null)
+            {
+                Snackbar.Add(L["ScrubPreviewSettingsCard_CouldNotChange"].Value, AppSeverity.Error);
+                return;
+            }
+
+            _status = saved;
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

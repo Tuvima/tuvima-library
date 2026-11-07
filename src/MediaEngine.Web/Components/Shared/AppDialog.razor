@@ -6,7 +6,7 @@
 }
 else
 {
-    <AppDialogFrame Title="@Title" Open="@Visible" DialogOptions="@ResolvedOptions" Class="@ResolvedClass" OnCancel="CloseAsync">@Content</AppDialogFrame>
+    <AppDialogFrame Title="@Title" Open="@Visible" DialogOptions="@SizedOptions" Class="@ResolvedClass" OnCancel="CloseAsync">@Content</AppDialogFrame>
 }
 @code {
     [CascadingParameter] public IAppDialogContext? Context { get; set; }
@@ -29,6 +29,7 @@ else
     [Parameter] public string? Class { get; set; }
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
     private AppDialogOptions ResolvedOptions => Options ?? new() { MaxWidth = AppMaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true, NoHeader = true };
+    private AppDialogOptions SizedOptions => ResolvedOptions with { Size = AppWindowSizing.Resolve(ResolvedOptions, ResolvedSize) };
     private string ResolvedTitle => !string.IsNullOrWhiteSpace(Title) ? Title : Context?.Title ?? string.Empty;
     private string ResolvedSize => (Options ?? Context?.Options)?.MaxWidth switch
     {

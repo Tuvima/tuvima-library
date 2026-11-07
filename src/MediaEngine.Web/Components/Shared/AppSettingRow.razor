@@ -11,7 +11,7 @@
         </div>
         @if (Control is not null) { <div class="app-setting-row__control">@Control</div> }
     </div>
-    @if (Status is not null) { <div class="app-setting-row__status">@Status</div> }
+    @if (Status is not null || ReserveStatus) { <div class="app-setting-row__status" role="status">@Status</div> }
 </div>
 @code {
     [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
@@ -20,6 +20,12 @@
     [Parameter] public RenderFragment? Control { get; set; }
     /// <summary>A reserved full-width line under the row (never inside the control column).</summary>
     [Parameter] public RenderFragment? Status { get; set; }
+    /// <summary>Keeps the status line's height even while it is empty, so text that appears later never moves the row below (Look v3 D15.6).</summary>
+    [Parameter] public bool ReserveStatus { get; set; }
+    /// <summary>The row holds a picture, so it sits on the 64 px step of the row-height ladder.</summary>
+    [Parameter] public bool Media { get; set; }
+    /// <summary>The label and helper take the shared 200 px label column, so the labels of stacked rows line up.</summary>
+    [Parameter] public bool LabelColumn { get; set; }
     [Parameter] public AppSettingsGroupTone Tone { get; set; } = AppSettingsGroupTone.Default;
     /// <summary>The id of the control, so the label is a real label for it.</summary>
     [Parameter] public string? For { get; set; }
@@ -28,5 +34,5 @@
     [Parameter] public string? Class { get; set; }
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
-    private string RootClass => string.Join(" ", new[] { "app-setting-row", Tone == AppSettingsGroupTone.Danger ? "app-setting-row--danger" : null, StackOnPhone ? "app-setting-row--stack-on-phone" : null, Class }.Where(v => !string.IsNullOrWhiteSpace(v)));
+    private string RootClass => string.Join(" ", new[] { "app-setting-row", Tone == AppSettingsGroupTone.Danger ? "app-setting-row--danger" : null, StackOnPhone ? "app-setting-row--stack-on-phone" : null, Media ? "app-setting-row--media" : null, LabelColumn ? "app-setting-row--label-column" : null, Class }.Where(v => !string.IsNullOrWhiteSpace(v)));
 }

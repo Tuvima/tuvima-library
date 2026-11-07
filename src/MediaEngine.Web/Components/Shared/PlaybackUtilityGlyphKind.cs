@@ -27,11 +27,26 @@ public enum PlaybackUtilityGlyphKind
     Collapse,
     Close,
     More,
+    Back,
     Like,
     Dislike,
     Add,
     Check,
     Settings,
+    Previous,
+    Next,
+    Play,
+    Pause,
+    NowPlaying,
+    Episodes,
+    AudioSubtitles,
+    Playlist,
+    Clock,
+    Disc,
+    Person,
+    Reset,
+    Book,
+    Film,
 }
 
 public static class PlaybackUtilityGlyphMap
@@ -63,6 +78,13 @@ public static class PlaybackUtilityGlyphMap
             PlaybackControlKey.Expand => PlaybackUtilityGlyphKind.Expand,
             PlaybackControlKey.Resume => PlaybackUtilityGlyphKind.Restore,
             PlaybackControlKey.More => PlaybackUtilityGlyphKind.More,
+            PlaybackControlKey.PreviousItem => PlaybackUtilityGlyphKind.Previous,
+            PlaybackControlKey.NextItem => PlaybackUtilityGlyphKind.Next,
+            PlaybackControlKey.NowPlaying => PlaybackUtilityGlyphKind.NowPlaying,
+            PlaybackControlKey.Episodes => PlaybackUtilityGlyphKind.Episodes,
+            PlaybackControlKey.AudioSubtitles => PlaybackUtilityGlyphKind.AudioSubtitles,
+            PlaybackControlKey.Like => PlaybackUtilityGlyphKind.Like,
+            PlaybackControlKey.Dislike => PlaybackUtilityGlyphKind.Dislike,
             _ => default,
         };
 
@@ -72,6 +94,9 @@ public static class PlaybackUtilityGlyphMap
             or PlaybackControlKey.Shuffle or PlaybackControlKey.Repeat or PlaybackControlKey.Captions
             or PlaybackControlKey.AudioTrack or PlaybackControlKey.Quality or PlaybackControlKey.Fullscreen
             or PlaybackControlKey.PictureInPicture or PlaybackControlKey.Cast or PlaybackControlKey.Favorite
-            or PlaybackControlKey.Close or PlaybackControlKey.Expand or PlaybackControlKey.Resume or PlaybackControlKey.More;
+            or PlaybackControlKey.Close or PlaybackControlKey.Expand or PlaybackControlKey.Resume or PlaybackControlKey.More
+            or PlaybackControlKey.PreviousItem or PlaybackControlKey.NextItem or PlaybackControlKey.NowPlaying
+            or PlaybackControlKey.Episodes or PlaybackControlKey.AudioSubtitles
+            or PlaybackControlKey.Like or PlaybackControlKey.Dislike;
     }
 }

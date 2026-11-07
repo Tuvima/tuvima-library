@@ -1,0 +1,156 @@
+@namespace MediaEngine.Web.Components.Shared
+@using MediaEngine.Domain.Enums
+@using Microsoft.Extensions.DependencyInjection
+@implements IDisposable
+@inject IServiceProvider Services
+
+@* The actions beside the title in the bar's identity zone (unified player v2 D5; mockup screen 1 marker 4): square 44 px buttons, 8 px apart.
+   Music: Favorite, Like, Dislike and More. Audiobooks, TV and movies: Favorite (where the item supports it) and More. Favorite and a rating are
+   separate buttons: Like clears Dislike and the other way round, and pressing an active rating removes it (MediaReactionService.ToggleRating).
+   Favorite also stays selected beside Like, as the song actions always did. *@
+<div class="playback-identity-actions" role="group" aria-label="@GroupLabel" data-playback-identity-actions>
+    @if (CanFavorite)
+    {
+        <PlaybackIconButton Control="@FavoriteControl" Surface="@Surface" Appearance="bare" OnClick="FavoriteAsync" />
+    }
+    @if (Media == PlaybackBarMedia.Music)
+    {
+        <PlaybackIconButton Control="@LikeControl" Surface="@Surface" Appearance="bare" OnClick="@(() => RateAsync(true))" />
+        <PlaybackIconButton Control="@DislikeControl" Surface="@Surface" Appearance="bare" OnClick="@(() => RateAsync(false))" />
+    }
+    <PlaybackItemMenu Media="@Media" Item="@Item" Surface="@Surface" ShowWorkId="@ShowWorkId" SeasonId="@SeasonId" Snapshot="@Snapshot" Commands="@Commands"
+                      IsCurrent="@IsCurrent" NavigationCompleted="@NavigationCompleted" OnPlaybackSettings="@OnPlaybackSettings" ExtraRows="@ExtraMenuRows" />
+</div>
+
+@code {
+    [Parameter, EditorRequired] public PlaybackBarMedia Media { get; set; }
+    [Parameter, EditorRequired] public ListenQueueItem? Item { get; set; }
+
+    /// <summary>"dock" (the music and audiobook bar) or "video" (over the picture).</summary>
+    [Parameter] public string Surface { get; set; } = "dock";
+
+    /// <summary>A TV episode's show and season once the presentation context has loaded. Favorite for TV is the show's, so it appears only then.</summary>
+    [Parameter] public Guid? ShowWorkId { get; set; }
+    [Parameter] public Guid? SeasonId { get; set; }
+
+    /// <summary>When the host keeps the Favorite state itself (the music bar shares it with Now playing) it passes it here; otherwise this component reads and writes it.</summary>
+    [Parameter] public bool? IsFavorite { get; set; }
+    [Parameter] public EventCallback FavoriteChanged { get; set; }
+
+    [Parameter] public ListenPlaybackSnapshot? Snapshot { get; set; }
+    [Parameter] public IPlaybackCommandSink? Commands { get; set; }
+    [Parameter] public Func<bool>? IsCurrent { get; set; }
+    [Parameter] public EventCallback<string?> NavigationCompleted { get; set; }
+    [Parameter] public EventCallback OnPlaybackSettings { get; set; }
+
+    /// <summary>Rows the host adds to the end of the item actions menu (packet 15: "Play on another device...").</summary>
+    [Parameter] public RenderFragment? ExtraMenuRows { get; set; }
+
+    private MediaReactionService? _reactions;
+    private MediaReaction _reaction;
+    private (Guid Id, ProfileEntityKind Kind, Guid? Profile)? _loaded;
+    private long _version;
+
+    private Guid? Profile => Snapshot?.ProfileId ?? Services.GetService<PlaybackSessionController>()?.ActiveProfileId;
+    private bool Current() => IsCurrent?.Invoke() != false;
+
+    /// <summary>What Favorite is stored against: the song, the audiobook, the movie, or a TV episode's show.</summary>
+    private (Guid Id, ProfileEntityKind Kind)? FavoriteSubject => Item is null ? null : Media switch
+    {
+        PlaybackBarMedia.Music when Item.WorkId != Guid.Empty => (Item.WorkId, ProfileEntityKind.Song),
+        PlaybackBarMedia.Audiobook when (Item.AudiobookWorkId ?? Item.WorkId) != Guid.Empty => (Item.AudiobookWorkId ?? Item.WorkId, ProfileEntityKind.Audiobook),
+        PlaybackBarMedia.Movie when Item.WorkId != Guid.Empty => (Item.WorkId, ProfileEntityKind.Movie),
+        PlaybackBarMedia.Tv when ShowWorkId is { } show && show != Guid.Empty => (show, ProfileEntityKind.TvShow),
+        _ => null,
+    };
+
+    private bool CanFavorite => FavoriteSubject is not null;
+    private bool Favorited => IsFavorite ?? _reaction == MediaReaction.Love;
+    private bool Liked => _reaction is MediaReaction.Like or MediaReaction.Love;
+    private bool Disliked => _reaction == MediaReaction.Dislike;
+
+    private string GroupLabel => Media == PlaybackBarMedia.Music ? "Song actions" : "Item actions";
+    private string FavoriteLabel => (Media == PlaybackBarMedia.Music, Favorited) switch
+    {
+        (true, true) => "Remove song from Favorites",
+        (true, false) => "Add song to Favorites",
+        (false, true) => "Remove from Favorites",
+        _ => "Add to Favorites",
+    };
+
+    private PlaybackControlDefinition FavoriteControl => new(PlaybackControlKey.Favorite, "Favorite",
+        FavoriteLabel, string.Empty, PlaybackControlPlacement.Utility, "favorite",
+        IsActive: Favorited, IsSelected: Favorited);
+    private PlaybackControlDefinition LikeControl => new(PlaybackControlKey.Like, "Like", "Like", string.Empty, PlaybackControlPlacement.Utility, "like",
+        IsActive: Liked, IsSelected: Liked);
+    private PlaybackControlDefinition DislikeControl => new(PlaybackControlKey.Dislike, "Dislike", "Dislike", string.Empty, PlaybackControlPlacement.Utility, "dislike",
+        IsActive: Disliked, IsSelected: Disliked);
+
+    protected override void OnInitialized()
+    {
+        _reactions = Services.GetService<MediaReactionService>();
+        if (_reactions is not null) _reactions.Changed += Changed;
+    }
+
+    protected override Task OnParametersSetAsync() => LoadAsync();
+
+    private void Changed() => _ = InvokeAsync(async () =>
+    {
+        await LoadAsync(force: true);
+        StateHasChanged();
+    });
+
+    /// <summary>Reads the reaction for the subject. Music needs it for Like and Dislike as well as Favorite; the other media only for Favorite.</summary>
+    private async Task LoadAsync(bool force = false)
+    {
+        var subject = FavoriteSubject;
+        var profile = Profile;
+        if (_reactions is null || subject is not { } target)
+        {
+            _reaction = MediaReaction.Neutral;
+            _loaded = null;
+            return;
+        }
+        if (!force && _loaded == (target.Id, target.Kind, profile)) return;
+        var version = ++_version;
+        var result = await _reactions.GetReactionAsync(target.Id, profile, target.Kind);
+        if (version != _version || FavoriteSubject != subject || profile != Profile) return;
+        _reaction = result;
+        _loaded = (target.Id, target.Kind, profile);
+    }
+
+    private async Task FavoriteAsync()
+    {
+        if (FavoriteChanged.HasDelegate)
+        {
+            await FavoriteChanged.InvokeAsync();
+            return;
+        }
+        if (!Current() || FavoriteSubject is not { } subject || _reactions is null) return;
+        var profile = Profile;
+        if (profile is null)
+        {
+            Services.GetService<IAppToastService>()?.Add("Favorites need an active profile.", AppSeverity.Warning);
+            return;
+        }
+        var current = await _reactions.GetReactionAsync(subject.Id, profile, subject.Kind);
+        if (!Current() || FavoriteSubject != subject || profile != Profile) return;
+        await _reactions.SetReactionAsync(subject.Id, current == MediaReaction.Love ? MediaReaction.Neutral : MediaReaction.Love, profile, subject.Kind);
+    }
+
+    private async Task RateAsync(bool positive)
+    {
+        if (!Current() || FavoriteSubject is not { } subject || _reactions is null) return;
+        var profile = Profile;
+        var current = await _reactions.GetReactionAsync(subject.Id, profile, subject.Kind);
+        if (!Current() || FavoriteSubject != subject || profile != Profile) return;
+        await _reactions.SetReactionAsync(subject.Id,
+            MediaReactionService.ToggleRating(current, positive ? MediaReaction.Like : MediaReaction.Dislike), profile, subject.Kind);
+    }
+
+    public void Dispose()
+    {
+        ++_version;
+        if (_reactions is not null) _reactions.Changed -= Changed;
+    }
+}

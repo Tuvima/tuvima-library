@@ -727,10 +727,6 @@
       "important": 0,
       "deep": 0
     },
-    "src/MediaEngine.Web/Components/Shared/PlaybackPopoutShell.razor.css": {
-      "important": 0,
-      "deep": 0
-    },
     "src/MediaEngine.Web/Components/Shared/PlaybackPositionList.razor.css": {
       "important": 0,
       "deep": 1
@@ -1127,7 +1123,7 @@
     },
     "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor.css": {
       "important": 0,
-      "deep": 29
+      "deep": 14
     },
     "src/MediaEngine.Web/Components/Listen/ListenSongTable.razor.css": {
       "important": 0,
@@ -1665,14 +1661,6 @@
       "important": 1,
       "deep": 31
     },
-    "src/MediaEngine.Web/Components/Shared/PlaybackMiniPlayer.razor.css": {
-      "important": 0,
-      "deep": 0
-    },
-    "src/MediaEngine.Web/Components/Shared/PlaybackPopoutShell.razor.css": {
-      "important": 0,
-      "deep": 0
-    },
     "src/MediaEngine.Web/Components/Shared/PlaybackPositionList.razor.css": {
       "important": 0,
       "deep": 1
@@ -1692,6 +1680,10 @@
     "src/MediaEngine.Web/Components/Shared/PlaybackSeekRail.razor.css": {
       "important": 0,
       "deep": 8
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackShell.razor.css": {
+      "important": 0,
+      "deep": 13
     },
     "src/MediaEngine.Web/Components/Shared/PlaybackSheetHandleButton.razor.css": {
       "important": 0,
@@ -1820,6 +1812,10 @@
     "src/MediaEngine.Web/Components/Shared/Shell/SidebarPageHeader.razor.css": {
       "important": 0,
       "deep": 0
+    },
+    "src/MediaEngine.Web/Components/Shared/PlaybackItemMenu.razor.css": {
+      "important": 0,
+      "deep": 1
     }
   },
   "lineExceptions": {},
@@ -3799,6 +3795,30 @@
       "destination": "src/MediaEngine.Web/wwwroot/native-fields.css",
       "reason": "Native adorned fields own their inner input height and minimum; reserve two original global control-sizing priorities so a bordered frame includes its border rather than overflowing.",
       "important": 2
+    },
+    {
+      "selectors": [
+        ".playback-shell ::deep .playback-popover-trigger",
+        ".playback-shell ::deep .playback-song-actions button",
+        ".playback-shell ::deep .playback-utility-glyph",
+        ".playback-shell__text ::deep a",
+        ".playback-shell__timeline ::deep .playback-seek-rail--dock"
+      ],
+      "source": "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor.css",
+      "deep": 15,
+      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackShell.razor.css",
+      "reason": "The persistent bar is now drawn by one shared shell for music, audiobooks, TV and movies; the dock rules that styled the audio bar's trigger buttons, glyphs, song actions and links moved there with the markup (the audio bar went from 29 to 14 deep rules).",
+      "important": 0
+    },
+    {
+      "selectors": [
+        ".playback-item-menu__row ::deep .playback-utility-glyph"
+      ],
+      "source": "src/MediaEngine.Web/Components/Shared/PlaybackShell.razor.css",
+      "deep": 1,
+      "destination": "src/MediaEngine.Web/Components/Shared/PlaybackItemMenu.razor.css",
+      "reason": "The item actions menu rows ask the shared glyph for the mockup's 24 px size; the identity zone's own text and action rules left the bar shell, which keeps two fewer deep rules than it was budgeted.",
+      "important": 0
     }
   ],
   "finalBundleBytes": 1283347,

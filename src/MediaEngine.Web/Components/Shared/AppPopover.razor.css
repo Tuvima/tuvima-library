@@ -1,1 +1,9 @@
-.app-popover-marker{display:none}.app-popover{position:fixed;inset:auto;margin:0;border:0;padding:0;pointer-events:auto;z-index:var(--tl-zindex-popover,1200);min-width:140px;background:var(--tl-bg-surface,#1e1e1e);color:var(--tl-text-primary,#fff);box-shadow:0 8px 24px #0007;border-radius:var(--tl-radius-md,8px);overflow:auto;overscroll-behavior:contain;box-sizing:border-box}.app-popover[hidden]{display:none}
+.app-popover-marker{display:none}
+/* Pop-out (Look v3 D14): anchored to its control, no scrim, the raised surface, 8 px corners; closes on an outside press or Escape (app-popover.js). */
+.app-popover{position:fixed;inset:auto;margin:0;border:0;padding:0;pointer-events:auto;z-index:var(--tl-zindex-popover,1200);min-width:140px;background:var(--tl-bg-surface-elevated);color:var(--tl-text-primary);box-shadow:var(--tl-shadow-md);border-radius:var(--tl-popout-radius,8px);overflow:auto;overscroll-behavior:contain;box-sizing:border-box}.app-popover[hidden]{display:none}
+.app-popover.app-popout--menu{width:var(--tl-popout-menu,272px)}
+.app-popover.app-popout--panel{width:var(--tl-popout-panel,400px)}
+/* On phones a sized Pop-out is a Sheet: from the bottom, 16 px top corners, a handle (app-popover.js adds the class and skips anchoring). */
+.app-popover.app-popout--sheet{inset:auto 0 0 0;width:100%;max-width:none;max-height:calc(100dvh - 24px);border-radius:var(--tl-sheet-radius,16px) var(--tl-sheet-radius,16px) 0 0;padding-bottom:env(safe-area-inset-bottom,0px)}
+.app-popover.app-popout--sheet::backdrop{background:var(--tl-scrim-soft)}
+.app-popover.app-popout--sheet::before{content:"";display:block;width:36px;height:4px;border-radius:2px;background:var(--tl-border-strong);opacity:.6;margin:8px auto 4px}

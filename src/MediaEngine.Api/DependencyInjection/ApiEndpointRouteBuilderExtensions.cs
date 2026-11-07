@@ -34,6 +34,7 @@ public static class ApiEndpointRouteBuilderExtensions
         app.MapLibraryFolderActionEndpoints();
         app.MapFolderFirstCheckEndpoints();
         app.MapStreamEndpoints();
+        app.MapScrubPreviewEndpoints();
         app.MapHlsStreamEndpoints();
         app.MapCastEndpoints();
         app.MapViewEndpoints();

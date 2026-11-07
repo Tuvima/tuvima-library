@@ -100,10 +100,6 @@
     box-shadow: none;
 }
 
-
-
-
-
 .browse-shell__tabs-frame ::deep .tl-tabs-panels {
     display: none;
 }
@@ -323,54 +319,6 @@
     font-size: var(--tl-font-size-sm);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 .browse-shell__toggle-stack {
     display: grid;
     min-height: 3.5rem;
@@ -430,8 +378,6 @@
     border-color: color-mix(in srgb, var(--tl-accent-primary) 62%, rgba(128, 146, 180, 0.25));
     background: color-mix(in srgb, var(--tl-accent-primary) 10%, rgba(8, 16, 31, 0.5));
 }
-
-
 
 .browse-shell__display-controls {
     display: grid;
@@ -497,10 +443,6 @@
     color: var(--tl-text-muted);
     font-size: var(--tl-font-size-xs);
 }
-
-
-
-
 
 .browse-shell__sort {
     width: 100%;
@@ -786,10 +728,6 @@
         padding: 0 0.55rem;
         font-size: var(--tl-font-size-secondary);
     }
-
-    
-
-    
 
     .browse-shell__tabs-frame ::deep .tl-tab {
         flex: 1 1 0 !important;
