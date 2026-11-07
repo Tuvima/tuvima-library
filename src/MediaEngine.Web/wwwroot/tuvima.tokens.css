@@ -240,6 +240,8 @@
     --playback-tool-width: 400px;
     --playback-tool-radius: 12px;
     --playback-popover-surface: var(--tl-bg-surface-elevated);
+    /* The small activity badge on a context row's artwork (queue and history rows). */
+    --playback-activity-badge-surface: rgba(11, 23, 40, 0.84);
     /* Unified player v2 D7, D11: one panel system. Menu 272 wide, Panel 360 to 420 wide, Wide (Audio & subtitles) 560; over video the same surface at 96% opacity. */
     --playback-panel-menu-width: 272px;
     --playback-panel-width: 400px;

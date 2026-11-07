@@ -79,7 +79,7 @@ public static partial class PlaybackControlCatalog
                 if (state.CanFullscreen)
                 {
                     var label = state.IsFullscreen ? "Exit fullscreen" : "Fullscreen";
-                    tools.Add(new(PlaybackControlKey.Fullscreen, label, label, string.Empty, PlaybackControlPlacement.Utility, "fullscreen", IsActive: state.IsFullscreen));
+                    tools.Add(new(PlaybackControlKey.Fullscreen, label, label, PlaybackUtilityGlyphKind.Fullscreen, PlaybackControlPlacement.Utility, "fullscreen", IsActive: state.IsFullscreen));
                 }
                 break;
         }

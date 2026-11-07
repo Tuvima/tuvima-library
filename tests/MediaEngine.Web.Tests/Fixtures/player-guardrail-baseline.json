@@ -1,75 +1,30 @@
 {
-  "reason": "Older player code written before this guardrail existed. Fix each entry when its file is next edited and delete it; nothing new may be added. materialIcons: icons that must become PlaybackUtilityGlyph stroke glyphs (the shared bar buttons and catalog still draw Material icons, and ListenSongTable, ListenNavigationSection and the Watch bookmark panes still use them). literalColors: hex and rgb colors with no token yet (black video letterbox, white glyphs on the primary button and seek notice, the subtitle sample preview gradient, the context-row activity badge). playbackColorDefinitions: scoped video-surface remaps of --playback-state-hover and the dock primary glyph, which belong in tuvima.tokens.css.",
+  "reason": "Older player code written before this guardrail existed. Fix each entry when its file is next edited and delete it; nothing new may be added. Each entry carries its own reason.",
   "materialIcons": {
-    "src/MediaEngine.Web/Components/Listen/ListenNavigationSection.razor": [
-      "appmaterialicon"
-    ],
-    "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor": [
-      "appmaterialicons."
-    ],
-    "src/MediaEngine.Web/Components/Listen/ListenSongTable.razor": [
-      "appmaterialicon",
-      "appmaterialicons."
-    ],
-    "src/MediaEngine.Web/Components/Listen/PlaybackContextPanel.razor": [
-      "appmaterialicon",
-      "appmaterialicons."
-    ],
-    "src/MediaEngine.Web/Components/Shared/PlaybackControlCatalog.cs": [
-      "appmaterialicons."
-    ],
-    "src/MediaEngine.Web/Components/Shared/PlaybackIconButton.razor": [
-      "appmaterialicon"
-    ],
-    "src/MediaEngine.Web/Components/Shared/PlaybackPrimaryButton.razor": [
-      "appmaterialicon",
-      "appmaterialicons."
-    ],
-    "src/MediaEngine.Web/Components/Shared/PlaybackToolSheet.razor": [
-      "appmaterialicon"
-    ],
-    "src/MediaEngine.Web/Components/Watch/BookmarkFindView.razor": [
-      "appmaterialicon",
-      "appmaterialicons."
-    ],
-    "src/MediaEngine.Web/Components/Watch/VideoBookmarkPane.razor": [
-      "appmaterialicon",
-      "appmaterialicons."
-    ],
-    "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor": [
-      "appmaterialicon",
-      "appmaterialicons."
-    ]
+    "src/MediaEngine.Web/Components/Watch/BookmarkFindView.razor": {
+      "reason": "deleted by WP8 (the old video bookmark pane is replaced by the Bookmarks panel)",
+      "hits": [
+        "appmaterialicon",
+        "appmaterialicons."
+      ]
+    },
+    "src/MediaEngine.Web/Components/Watch/VideoBookmarkPane.razor": {
+      "reason": "deleted by WP8 (the old video bookmark pane is replaced by the Bookmarks panel)",
+      "hits": [
+        "appmaterialicon",
+        "appmaterialicons."
+      ]
+    }
   },
   "literalColors": {
-    "src/MediaEngine.Web/Components/Shared/PlaybackContextRow.razor.css": [
-      "background: rgba(11,23,40,.84)"
-    ],
-    "src/MediaEngine.Web/Components/Shared/PlaybackPrimaryButton.razor.css": [
-      "color: #fff"
-    ],
-    "src/MediaEngine.Web/Components/Shared/PlaybackSeekRail.razor.css": [
-      "color: #fff"
-    ],
-    "src/MediaEngine.Web/Components/Watch/SubtitleAppearanceView.razor.css": [
-      "background: rgb(36 59 102)",
-      "background: rgb(78 107 140)",
-      "background: rgb(91 59 74)"
-    ],
-    "src/MediaEngine.Web/Components/Watch/VideoPlaybackHost.razor.css": [
-      "background: #000",
-      "color: #fff"
-    ]
+    "src/MediaEngine.Web/Components/Watch/SubtitleAppearanceView.razor.css": {
+      "reason": "data, not style: the sample picture behind the subtitle preview stands in for a video frame so the person can judge the subtitle colors they choose",
+      "hits": [
+        "background: rgb(36 59 102)",
+        "background: rgb(78 107 140)",
+        "background: rgb(91 59 74)"
+      ]
+    }
   },
-  "playbackColorDefinitions": {
-    "src/MediaEngine.Web/Components/Shared/PlaybackIconButton.razor.css": [
-      "--playback-state-hover"
-    ],
-    "src/MediaEngine.Web/Components/Shared/PlaybackPrimaryButton.razor.css": [
-      "--playback-primary-glyph"
-    ],
-    "src/MediaEngine.Web/Components/Shared/PlaybackShell.razor.css": [
-      "--playback-state-hover"
-    ]
-  }
+  "playbackColorDefinitions": {}
 }

@@ -100,7 +100,7 @@
         PlaybackControlKey.Mute,
         IsMuted ? "Unmute" : "Mute",
         IsMuted ? "Unmute" : "Mute",
-        string.Empty,
+        IsMuted ? PlaybackUtilityGlyphKind.Mute : PlaybackUtilityGlyphKind.Volume,
         PlaybackControlPlacement.Utility,
         "toggle-mute",
         IsActive: IsMuted);

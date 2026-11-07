@@ -58,9 +58,11 @@
 }
 
 .playback-tool-sheet ::deep .playback-tool-sheet__header-icon {
+    --playback-glyph-size: 24px;
     color: var(--playback-text-secondary);
-    font-size: var(--tl-icon-size-lg) !important;
+    display: grid;
     height: 28px;
+    place-items: center;
     width: 28px;
 }
 

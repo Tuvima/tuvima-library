@@ -43,7 +43,7 @@ public static partial class PlaybackControlCatalog
             PlaybackControlKey.PlayPause,
             playing ? "Pause" : "Play",
             playing ? "Pause" : "Play",
-            string.Empty,
+            playing ? PlaybackUtilityGlyphKind.Pause : PlaybackUtilityGlyphKind.Play,
             PlaybackControlPlacement.Transport,
             "toggle-play",
             IsDisabled: state.Disabled);
@@ -55,7 +55,7 @@ public static partial class PlaybackControlCatalog
             var repeat = BarRepeat(state.RepeatMode);
             return
             [
-                new(PlaybackControlKey.Shuffle, "Shuffle", state.ShuffleEnabled ? "Shuffle on" : "Shuffle off", string.Empty,
+                new(PlaybackControlKey.Shuffle, "Shuffle", state.ShuffleEnabled ? "Shuffle on" : "Shuffle off", PlaybackUtilityGlyphKind.Shuffle,
                     PlaybackControlPlacement.Transport, "shuffle", IsActive: state.ShuffleEnabled, IsSelected: state.ShuffleEnabled),
                 previous,
                 play,
@@ -69,10 +69,10 @@ public static partial class PlaybackControlCatalog
         return
         [
             previous,
-            new(PlaybackControlKey.SkipBack, $"Skip back {back} s", $"Skip back {back} seconds", string.Empty,
+            new(PlaybackControlKey.SkipBack, $"Skip back {back} s", $"Skip back {back} seconds", PlaybackUtilityGlyphKind.SkipBack,
                 PlaybackControlPlacement.Transport, "skip-back", ValueText: back.ToString(System.Globalization.CultureInfo.InvariantCulture), IsDisabled: state.Disabled),
             play,
-            new(PlaybackControlKey.SkipForward, $"Skip forward {forward} s", $"Skip forward {forward} seconds", string.Empty,
+            new(PlaybackControlKey.SkipForward, $"Skip forward {forward} s", $"Skip forward {forward} seconds", PlaybackUtilityGlyphKind.SkipForward,
                 PlaybackControlPlacement.Transport, "skip-forward", ValueText: forward.ToString(System.Globalization.CultureInfo.InvariantCulture), IsDisabled: state.Disabled),
             next,
         ];
@@ -127,7 +127,7 @@ public static partial class PlaybackControlCatalog
                 break;
         }
 
-        tools.Add(new(PlaybackControlKey.Volume, "Volume", "Volume", string.Empty, PlaybackControlPlacement.Utility, "set-volume"));
+        tools.Add(new(PlaybackControlKey.Volume, "Volume", "Volume", PlaybackUtilityGlyphKind.Volume, PlaybackControlPlacement.Utility, "set-volume"));
 
         if (media is PlaybackBarMedia.Music or PlaybackBarMedia.Audiobook)
         {
@@ -139,11 +139,11 @@ public static partial class PlaybackControlCatalog
             if (state.CanFullscreen)
             {
                 var label = state.IsFullscreen ? "Exit fullscreen" : "Fullscreen";
-                tools.Add(new(PlaybackControlKey.Fullscreen, label, label, string.Empty, PlaybackControlPlacement.Utility, "fullscreen", IsActive: state.IsFullscreen));
+                tools.Add(new(PlaybackControlKey.Fullscreen, label, label, PlaybackUtilityGlyphKind.Fullscreen, PlaybackControlPlacement.Utility, "fullscreen", IsActive: state.IsFullscreen));
             }
         }
 
-        tools.Add(new(PlaybackControlKey.Close, "Close", "Close", string.Empty, PlaybackControlPlacement.Utility, "close"));
+        tools.Add(new(PlaybackControlKey.Close, "Close", "Close", PlaybackUtilityGlyphKind.Close, PlaybackControlPlacement.Utility, "close"));
         return tools;
     }
 
@@ -159,7 +159,7 @@ public static partial class PlaybackControlCatalog
         var command = isNext
             ? media == PlaybackBarMedia.Audiobook ? "play-next-chapter" : "play-next"
             : media == PlaybackBarMedia.Audiobook ? "play-previous-chapter" : "play-previous";
-        return new(isNext ? PlaybackControlKey.NextItem : PlaybackControlKey.PreviousItem, label, label, string.Empty,
+        return new(isNext ? PlaybackControlKey.NextItem : PlaybackControlKey.PreviousItem, label, label, isNext ? PlaybackUtilityGlyphKind.Next : PlaybackUtilityGlyphKind.Previous,
             PlaybackControlPlacement.Transport, command, IsDisabled: !enabled);
     }
 
@@ -171,7 +171,7 @@ public static partial class PlaybackControlCatalog
             PlayerRepeatModes.All => ("Repeat all", true, null),
             _ => ("Repeat off", false, (string?)null),
         };
-        return new(PlaybackControlKey.Repeat, "Repeat", label, string.Empty, PlaybackControlPlacement.Transport, "repeat",
+        return new(PlaybackControlKey.Repeat, "Repeat", label, PlaybackUtilityGlyphKind.Repeat, PlaybackControlPlacement.Transport, "repeat",
             BadgeText: badge, IsActive: active, IsSelected: active);
     }
 
@@ -187,7 +187,7 @@ public static partial class PlaybackControlCatalog
             key,
             label,
             valueText is null ? label : $"{label} {valueText}",
-            string.Empty,
+            PlaybackUtilityGlyphMap.For(key),
             PlaybackControlPlacement.ToolStrip,
             $"open-{sheet}",
             sheet,

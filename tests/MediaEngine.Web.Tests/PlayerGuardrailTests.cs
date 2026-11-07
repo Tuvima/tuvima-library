@@ -21,6 +21,8 @@ public sealed class PlayerGuardrailTests
     private static readonly Regex MaterialIcon = new(@"AppMaterialIcons\.|AppMaterialIcon\b|material-symbols|material-icons", RegexOptions.IgnoreCase);
     private static readonly Regex ColorDeclaration = new(@"(?<![\w-])(background|background-color|color|border-color)\s*:\s*([^;}]*)", RegexOptions.IgnoreCase);
     private static readonly Regex LiteralColor = new(@"#[0-9a-fA-F]{3,8}\b|\b(?:rgba?|hsla?)\([^)]*\)", RegexOptions.IgnoreCase);
+    // A --playback-* that only points at another token, var(--tl-x) or var(--playback-y) with an optional token fallback, adds no color of its own (a surface remap).
+    private static readonly Regex TokenAlias = new(@"^var\(\s*--[\w-]+\s*(,\s*var\(\s*--[\w-]+\s*\)\s*)?\)$");
     private static readonly Regex PlaybackDeclaration = new(@"(?<![\w-])(--playback-[\w-]+)\s*:\s*([^;}]*)");
     private static readonly HashSet<string> ColorWords = new(StringComparer.Ordinal)
     {
@@ -105,6 +107,7 @@ public sealed class PlayerGuardrailTests
         {
             var css = Comments.Replace(File.ReadAllText(path), string.Empty);
             var hits = PlaybackDeclaration.Matches(css)
+                .Where(m => !TokenAlias.IsMatch(m.Groups[2].Value.Trim()))
                 .Where(m => IsColorTokenName(m.Groups[1].Value) || LiteralColor.Matches(m.Groups[2].Value).Any(color => !IsPlainBlackOrWhiteTransparency(color.Value)))
                 .Select(m => m.Groups[1].Value)
                 .Distinct(StringComparer.Ordinal)
@@ -117,7 +120,7 @@ public sealed class PlayerGuardrailTests
         }
 
         AssertAgainstBaseline("playbackColorDefinitions", found,
-            "A --playback-* surface, text, border or state color is defined once, in src/MediaEngine.Web/wwwroot/tuvima.tokens.css (spec D6, A14); a player stylesheet uses it with var(...) and never redefines it. Component-local sizes such as --playback-glyph-size are fine");
+            "A --playback-* surface, text, border or state color value is defined once, in src/MediaEngine.Web/wwwroot/tuvima.tokens.css (spec D6, A14); a player stylesheet uses it with var(...). A player stylesheet may remap one token to another (--playback-x: var(--tl-y)) and may set component-local sizes such as --playback-glyph-size, but never a literal color");
     }
 
     [Fact]
@@ -203,6 +206,13 @@ public sealed class PlayerGuardrailTests
         Assert.DoesNotContain(files, f => f.Contains("/obj/", StringComparison.Ordinal) || f.Contains("/bin/", StringComparison.Ordinal));
     }
 
+    // Files that sit in a player folder but are library browsing, not the player. Each has a reason; the player rules do not apply to them.
+    private static readonly Dictionary<string, string> NotPlayerFiles = new(StringComparer.Ordinal)
+    {
+        ["ListenSongTable"] = "the song list of the Listen library pages (a table of tracks with sort and row menus), not part of the player",
+        ["ListenNavigationSection"] = "the Listen page's side navigation (Library, Formats, Your library), not part of the player",
+    };
+
     private static List<string> PlayerFiles(params string[] extensions)
     {
         var components = Path.Combine(Web, "Components");
@@ -214,6 +224,7 @@ public sealed class PlayerGuardrailTests
         return files
             .Where(path => extensions.Any(extension => path.EndsWith(extension, StringComparison.Ordinal)))
             .Where(path => !IsBuildOutput(path))
+            .Where(path => !NotPlayerFiles.ContainsKey(Path.GetFileName(path).Split('.')[0]))
             .Order(StringComparer.Ordinal)
             .ToList();
     }
@@ -246,9 +257,17 @@ public sealed class PlayerGuardrailTests
     private static HashSet<string> ReadBaseline(string section)
     {
         using var document = JsonDocument.Parse(File.ReadAllText(Path.Combine(RepoRoot, "tests", "MediaEngine.Web.Tests", "Fixtures", "player-guardrail-baseline.json")));
-        return document.RootElement.GetProperty(section).EnumerateObject()
-            .SelectMany(file => file.Value.EnumerateArray().Select(hit => $"{file.Name}: {hit.GetString()}"))
-            .ToHashSet(StringComparer.Ordinal);
+        var entries = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var file in document.RootElement.GetProperty(section).EnumerateObject())
+        {
+            Assert.False(string.IsNullOrWhiteSpace(file.Value.GetProperty("reason").GetString()), $"{file.Name} in the \"{section}\" baseline needs a reason.");
+            foreach (var hit in file.Value.GetProperty("hits").EnumerateArray())
+            {
+                entries.Add($"{file.Name}: {hit.GetString()}");
+            }
+        }
+
+        return entries;
     }
 
     private static bool IsColorTokenName(string name) =>

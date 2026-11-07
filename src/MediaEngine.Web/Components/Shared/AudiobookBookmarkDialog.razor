@@ -15,7 +15,7 @@
 <div class="audiobook-bookmark-dialog-layer @(Embedded ? "is-embedded" : IsMobile ? "is-mobile" : null)" @ref="_gestureRoot" @onclick="StopPropagation" @onclick:stopPropagation="true">
     <PlaybackToolSheet Title="@L["Glossary_Bookmarks"].Value"
                        Subtitle="@WorkTitle"
-                       Icon="@AppMaterialIcons.Outlined.Bookmarks"
+                       Glyph="PlaybackUtilityGlyphKind.Bookmark"
                        Surface="@Surface"
                        Modal="@(!Embedded)"
                        Class="audiobook-bookmark-dialog-sheet"

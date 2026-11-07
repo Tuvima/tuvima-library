@@ -24,7 +24,7 @@ public sealed class PlaybackPresentationPrimitiveTests : AsyncBunitContext
     public void IconUtilitiesKeepStateNamesAndBothToggleStatesWithoutVisibleValues(bool active, string expected)
     {
         var control = new PlaybackControlDefinition(PlaybackControlKey.Shuffle, "Shuffle", active ? "Shuffle on" : "Shuffle off",
-            string.Empty, PlaybackControlPlacement.Utility, "shuffle", ValueText: "visible value", BadgeText: "badge", IsActive: active);
+            PlaybackUtilityGlyphKind.Shuffle, PlaybackControlPlacement.Utility, "shuffle", ValueText: "visible value", BadgeText: "badge", IsActive: active);
         var cut = Render<PlaybackIconButton>(parameters => parameters.Add(component => component.Control, control).Add(component => component.Surface, "phone"));
         var button = cut.Find("button");
         Assert.Equal(control.AriaLabel, button.GetAttribute("aria-label"));
@@ -61,7 +61,7 @@ public sealed class PlaybackPresentationPrimitiveTests : AsyncBunitContext
     public void OrdinaryUtilityIsNotPretendedToBeAToggle()
     {
         var cut = Render<PlaybackIconButton>(parameters => parameters.Add(component => component.Control,
-            new PlaybackControlDefinition(PlaybackControlKey.Bookmarks, "Bookmark", "Add bookmark", string.Empty,
+            new PlaybackControlDefinition(PlaybackControlKey.Bookmarks, "Bookmark", "Add bookmark", PlaybackUtilityGlyphKind.Bookmark,
                 PlaybackControlPlacement.ToolStrip, "bookmark", IsActive: true)));
         Assert.Null(cut.Find("button").GetAttribute("aria-pressed"));
     }

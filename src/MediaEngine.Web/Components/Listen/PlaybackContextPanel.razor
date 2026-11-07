@@ -39,7 +39,7 @@
                                                    Title="@(entry.ChapterTitle ?? entry.Title)" Subtitle="@AudiobookHistorySubtitle(entry)"
                                                    OnClick="@(() => ResumeAsync(Snapshot, entry))"
                                                    AriaLabel="@($"Resume {entry.ChapterTitle ?? entry.Title} at {FormatTime(entry.PositionSeconds)}")">
-                                    <Actions><AppNativeButton Type="button" Class="listen-context-sidebar__replay" AriaLabel="@($"Resume {entry.ChapterTitle ?? entry.Title}")" Tooltip="@L["Common_Resume"].Value" OnClick="@(() => ResumeAsync(Snapshot, entry))"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Replay" /></AppNativeButton></Actions>
+                                    <Actions><AppNativeButton Type="button" Class="listen-context-sidebar__replay" AriaLabel="@($"Resume {entry.ChapterTitle ?? entry.Title}")" Tooltip="@L["Common_Resume"].Value" OnClick="@(() => ResumeAsync(Snapshot, entry))"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Reset" /></AppNativeButton></Actions>
                                 </PlaybackContextRow>
                             }
                         }

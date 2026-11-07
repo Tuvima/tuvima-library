@@ -17,7 +17,7 @@
         }
         else
         {
-            <AppMaterialIcon Icon="@Icon" Class="playback-primary-button__icon" />
+            <span class="playback-primary-button__icon" aria-hidden="true"><PlaybackUtilityGlyph Glyph="@(ShowsPause ? PlaybackUtilityGlyphKind.Pause : PlaybackUtilityGlyphKind.Play)" /></span>
         }
     </AppNativeButton>
     </AppTooltip>
@@ -72,10 +72,6 @@
     private string ButtonClass => IsPhone ? "playback-phone-play" : IsBar ? "playback-bar-play" : "playback-primary-button";
 
     private string NormalizedAppearance => Appearance is "dock" or "video" ? Appearance : "standard";
-
-    private string Icon => IsPlaying && !NeedsUserGestureToStart
-        ? AppMaterialIcons.Filled.Pause
-        : AppMaterialIcons.Filled.PlayArrow;
 
     private string ResolvedAriaLabel => string.IsNullOrWhiteSpace(AriaLabel) || AriaLabel == "Play or pause"
         ? IsPlaying && !NeedsUserGestureToStart ? "Pause" : "Play"

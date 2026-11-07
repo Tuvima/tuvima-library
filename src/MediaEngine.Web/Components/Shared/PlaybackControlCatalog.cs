@@ -107,7 +107,7 @@ public sealed record PlaybackControlDefinition(
     PlaybackControlKey Key,
     string Label,
     string AriaLabel,
-    string Icon,
+    PlaybackUtilityGlyphKind Glyph,
     PlaybackControlPlacement Placement,
     string Command,
     string? Sheet = null,
@@ -126,8 +126,8 @@ public static partial class PlaybackControlCatalog
     {
         var controls = new List<PlaybackControlDefinition>
         {
-            new(PlaybackControlKey.PlayPause, state.IsPlaying ? "Pause" : "Play", state.IsPlaying ? "Pause" : "Play", state.IsPlaying ? AppMaterialIcons.Filled.Pause : AppMaterialIcons.Filled.PlayArrow, PlaybackControlPlacement.Transport, "toggle-play"),
-            new(PlaybackControlKey.Timeline, "Playback position", "Playback position", AppMaterialIcons.Outlined.Timeline, PlaybackControlPlacement.Timeline, "seek"),
+            new(PlaybackControlKey.PlayPause, state.IsPlaying ? "Pause" : "Play", state.IsPlaying ? "Pause" : "Play", state.IsPlaying ? PlaybackUtilityGlyphKind.Pause : PlaybackUtilityGlyphKind.Play, PlaybackControlPlacement.Transport, "toggle-play"),
+            new(PlaybackControlKey.Timeline, "Playback position", "Playback position", PlaybackUtilityGlyphKind.Timeline, PlaybackControlPlacement.Timeline, "seek"),
         };
 
         if (state.CanPrevious)
@@ -143,24 +143,24 @@ public static partial class PlaybackControlCatalog
         {
             var back = Math.Clamp(state.SkipBackSeconds, 1, 999);
             var forward = Math.Clamp(state.SkipForwardSeconds, 1, 999);
-            controls.Add(new(PlaybackControlKey.SkipBack, $"Back {back}", $"Skip back {back} seconds", AppMaterialIcons.Outlined.Replay, PlaybackControlPlacement.Transport, "skip-back", ValueText: back.ToString()));
-            controls.Add(new(PlaybackControlKey.SkipForward, $"Forward {forward}", $"Skip forward {forward} seconds", AppMaterialIcons.Outlined.Forward, PlaybackControlPlacement.Transport, "skip-forward", ValueText: forward.ToString()));
+            controls.Add(new(PlaybackControlKey.SkipBack, $"Back {back}", $"Skip back {back} seconds", PlaybackUtilityGlyphKind.SkipBack, PlaybackControlPlacement.Transport, "skip-back", ValueText: back.ToString()));
+            controls.Add(new(PlaybackControlKey.SkipForward, $"Forward {forward}", $"Skip forward {forward} seconds", PlaybackUtilityGlyphKind.SkipForward, PlaybackControlPlacement.Transport, "skip-forward", ValueText: forward.ToString()));
         }
 
         if (surface == PlaybackControlSurface.PictureInPicture)
         {
             if (experience == PlaybackExperience.Video)
             {
-                controls.Add(new(PlaybackControlKey.Resume, "Restore", "Restore video", string.Empty, PlaybackControlPlacement.Utility, "restore-video"));
+                controls.Add(new(PlaybackControlKey.Resume, "Restore", "Restore video", PlaybackUtilityGlyphKind.Restore, PlaybackControlPlacement.Utility, "restore-video"));
             }
             return controls.Where(control => control.Key is PlaybackControlKey.PlayPause or PlaybackControlKey.Timeline or PlaybackControlKey.SkipBack or PlaybackControlKey.SkipForward or PlaybackControlKey.Resume).ToList();
         }
 
-        controls.Add(new(PlaybackControlKey.Mute, state.IsMuted ? "Unmute" : "Mute", state.IsMuted ? "Unmute" : "Mute", string.Empty, PlaybackControlPlacement.Utility, "toggle-mute", IsActive: state.IsMuted));
-        controls.Add(new(PlaybackControlKey.Volume, "Volume", "Volume", string.Empty, PlaybackControlPlacement.Utility, "set-volume"));
+        controls.Add(new(PlaybackControlKey.Mute, state.IsMuted ? "Unmute" : "Mute", state.IsMuted ? "Unmute" : "Mute", PlaybackUtilityGlyphKind.Mute, PlaybackControlPlacement.Utility, "toggle-mute", IsActive: state.IsMuted));
+        controls.Add(new(PlaybackControlKey.Volume, "Volume", "Volume", PlaybackUtilityGlyphKind.Volume, PlaybackControlPlacement.Utility, "set-volume"));
         if (state.CanCast)
         {
-            controls.Add(new(PlaybackControlKey.Cast, "Device", "Playback device", string.Empty, PlaybackControlPlacement.Utility, "cast"));
+            controls.Add(new(PlaybackControlKey.Cast, "Device", "Playback device", PlaybackUtilityGlyphKind.Cast, PlaybackControlPlacement.Utility, "cast"));
         }
 
         AddExperienceControls(controls, experience, surface, state);
@@ -267,7 +267,7 @@ public static partial class PlaybackControlCatalog
         };
 
         var key = isNext ? PlaybackControlKey.NextItem : PlaybackControlKey.PreviousItem;
-        var icon = isNext ? AppMaterialIcons.Filled.SkipNext : AppMaterialIcons.Filled.SkipPrevious;
+        var icon = isNext ? PlaybackUtilityGlyphKind.Next : PlaybackUtilityGlyphKind.Previous;
         var command = isNext
             ? experience == PlaybackExperience.Audiobook ? "play-next-chapter" : "play-next"
             : experience == PlaybackExperience.Audiobook ? "play-previous-chapter" : "play-previous";
@@ -295,8 +295,8 @@ public static partial class PlaybackControlCatalog
                 {
                     controls.Add(Tool(PlaybackControlKey.Lyrics, "Lyrics", "lyrics", state));
                 }
-                controls.Add(new(PlaybackControlKey.Shuffle, "Shuffle", state.IsShuffleEnabled ? "Shuffle on" : "Shuffle off", string.Empty, PlaybackControlPlacement.ToolStrip, "shuffle", IsActive: state.IsShuffleEnabled));
-                controls.Add(new(PlaybackControlKey.Repeat, "Repeat", state.RepeatMode == "one" ? "Repeat one" : state.IsRepeatEnabled ? "Repeat all" : "Repeat off", string.Empty, PlaybackControlPlacement.ToolStrip, "repeat", IsActive: state.IsRepeatEnabled));
+                controls.Add(new(PlaybackControlKey.Shuffle, "Shuffle", state.IsShuffleEnabled ? "Shuffle on" : "Shuffle off", PlaybackUtilityGlyphKind.Shuffle, PlaybackControlPlacement.ToolStrip, "shuffle", IsActive: state.IsShuffleEnabled));
+                controls.Add(new(PlaybackControlKey.Repeat, "Repeat", state.RepeatMode == "one" ? "Repeat one" : state.IsRepeatEnabled ? "Repeat all" : "Repeat off", PlaybackUtilityGlyphKind.Repeat, PlaybackControlPlacement.ToolStrip, "repeat", IsActive: state.IsRepeatEnabled));
                 break;
             case PlaybackExperience.Audiobook:
                 // Speed and the sleep timer live inside the one Settings menu (unified player D10), not as buttons of their own.
@@ -353,11 +353,11 @@ public static partial class PlaybackControlCatalog
                 }
                 if (state.CanFullscreen)
                 {
-                    controls.Add(new(PlaybackControlKey.Fullscreen, "Fullscreen", "Fullscreen", string.Empty, PlaybackControlPlacement.Utility, "fullscreen"));
+                    controls.Add(new(PlaybackControlKey.Fullscreen, "Fullscreen", "Fullscreen", PlaybackUtilityGlyphKind.Fullscreen, PlaybackControlPlacement.Utility, "fullscreen"));
                 }
                 if (state.CanPictureInPicture)
                 {
-                    controls.Add(new(PlaybackControlKey.PictureInPicture, "PiP", "Picture in picture", string.Empty, PlaybackControlPlacement.Utility, "picture-in-picture"));
+                    controls.Add(new(PlaybackControlKey.PictureInPicture, "PiP", "Picture in picture", PlaybackUtilityGlyphKind.PictureInPicture, PlaybackControlPlacement.Utility, "picture-in-picture"));
                 }
                 break;
         }
@@ -377,7 +377,7 @@ public static partial class PlaybackControlCatalog
             key,
             label,
             ValueText is null ? label : $"{label} {ValueText}",
-            string.Empty,
+            PlaybackUtilityGlyphMap.For(key),
             PlaybackControlPlacement.ToolStrip,
             $"open-{sheet}",
             sheet,
