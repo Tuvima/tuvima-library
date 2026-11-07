@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1532; api=0; web-client=56
+# scopes: contracts=1539; api=0; web-client=56
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -4817,6 +4817,78 @@
   Things: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorUniverseThingDto> | json=things | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"universe_id":"11111111-2222-3333-4444-555555555555","universe_qid":"sample","universe_name":"sample","kinds":[],"kind_key":"sample","total":7,"offset":7,"has_more":true,"things":[]}
 
+[contracts] MediaEngine.Contracts.Editing.EditorWikidataConflictDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Conflict: System.Boolean | json=conflict | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Reason: System.String | json=reason | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  WikidataLabel: System.String | json=wikidata_label | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  WikidataYear: System.String | json=wikidata_year | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  WikidataType: System.String | json=wikidata_type | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  ProviderName: System.String | json=provider_name | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  ProviderYear: System.String | json=provider_year | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  ProviderTitle: System.String | json=provider_title | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  sample={"conflict":true,"reason":"sample","wikidata_label":"sample","wikidata_year":"sample","wikidata_type":"sample","provider_name":"sample","provider_year":"sample","provider_title":"sample"}
+
+[contracts] MediaEngine.Contracts.Editing.EditorWikidataConflictRequestDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Qid: System.String | json=qid | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProviderId: System.String | json=provider_id | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProviderName: System.String | json=provider_name | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProviderItemId: System.String | json=provider_item_id | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProviderTitle: System.String | json=provider_title | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  ProviderYear: System.String | json=provider_year | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"qid":"sample","provider_id":"sample","provider_name":"sample","provider_item_id":"sample","provider_title":"sample","provider_year":"sample"}
+
+[contracts] MediaEngine.Contracts.Editing.EditorWikidataEvidenceDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Fact: System.String | json=fact | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Label: System.String | json=label | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  State: System.String | json=state | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Yours: System.String | json=yours | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  Wikidata: System.String | json=wikidata | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  sample={"fact":"sample","label":"sample","state":"sample","yours":"sample","wikidata":"sample"}
+
+[contracts] MediaEngine.Contracts.Editing.EditorWikidataIdentityDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  EntityId: System.Guid | json=entity_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Qid: System.String | json=qid | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  Label: System.String | json=label | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  Description: System.String | json=description | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  Type: System.String | json=type | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  Year: System.String | json=year | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  Url: System.String | json=url | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  Offline: System.Boolean | json=offline | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"entity_id":"11111111-2222-3333-4444-555555555555","qid":"sample","label":"sample","description":"sample","type":"sample","year":"sample","url":"sample","offline":true}
+
+[contracts] MediaEngine.Contracts.Editing.EditorWikidataResultDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Qid: System.String | json=qid | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Label: System.String | json=label | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Description: System.String | json=description | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  Type: System.String | json=type | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  Fact: System.String | json=fact | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  Year: System.String | json=year | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  Relation: System.String | json=relation | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  CanApply: System.Boolean | json=can_apply | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Reason: System.String | json=reason | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  Url: System.String | json=url | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  Evidence: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorWikidataEvidenceDto> | json=evidence | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"qid":"sample","label":"sample","description":"sample","type":"sample","fact":"sample","year":"sample","relation":"sample","can_apply":true,"reason":"sample","url":"sample","evidence":[]}
+
+[contracts] MediaEngine.Contracts.Editing.EditorWikidataSearchRequestDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Query: System.String | json=query | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Paste: System.String | json=paste | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"query":"sample","paste":"sample"}
+
+[contracts] MediaEngine.Contracts.Editing.EditorWikidataSearchResultDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  EntityId: System.Guid | json=entity_id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Results: System.Collections.Generic.IReadOnlyList<MediaEngine.Contracts.Editing.EditorWikidataResultDto> | json=results | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  FromPaste: System.Boolean | json=from_paste | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  MessageCode: System.String | json=message_code | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  sample={"entity_id":"11111111-2222-3333-4444-555555555555","results":[],"from_paste":true,"message_code":"sample"}
+
 [contracts] MediaEngine.Contracts.Editing.EpisodeSiblingMatchPreviewDto
   kind=class | converter=default | number-handling=default | unmapped=default
   EntityId: System.Guid | json=entity_id | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
@@ -7381,10 +7453,9 @@
   RequiredFields: System.Collections.Generic.Dictionary<System.String, System.String> | json=required_fields | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   SuggestedFields: System.Collections.Generic.Dictionary<System.String, System.String> | json=suggested_fields | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   BridgeIds: System.Collections.Generic.Dictionary<System.String, System.String> | json=bridge_ids | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  ClearAutoAlignedWikidata: System.Boolean | json=clear_auto_aligned_wikidata | nullability=not-null | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ReviewItemId: System.Guid? | json=review_item_id | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   ExpectedIdentityRevision: System.String | json=expected_identity_revision | nullability=nullable | accessors=get,set | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"target_kind":"sample","target_field_group":"sample","target_scope_id":"sample","provider_id":"sample","provider_name":"sample","provider_item_id":"sample","cover_url":"sample","required_fields":{},"suggested_fields":{},"bridge_ids":{},"clear_auto_aligned_wikidata":true,"review_item_id":"11111111-2222-3333-4444-555555555555","expected_identity_revision":"sample"}
+  sample={"target_kind":"sample","target_field_group":"sample","target_scope_id":"sample","provider_id":"sample","provider_name":"sample","provider_item_id":"sample","cover_url":"sample","required_fields":{},"suggested_fields":{},"bridge_ids":{},"review_item_id":"11111111-2222-3333-4444-555555555555","expected_identity_revision":"sample"}
 
 [contracts] MediaEngine.Contracts.Matching.ReplaceWikidataMatchRequestDto
   kind=class | converter=default | number-handling=default | unmapped=default

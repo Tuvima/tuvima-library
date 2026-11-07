@@ -2259,6 +2259,7 @@ public static partial class MetadataEndpoints
         MapEditorMusicMatchEndpoints(group);
         MapMatchContextEndpoints(group);
         MapEditorHeaderEndpoints(group);
+        MapEditorWikidataEndpoints(group);
         MapFileSortingEndpoints(group);
         MapArtworkWritebackEndpoints(group);
         MapArtworkWritebackStatusesEndpoint(group);

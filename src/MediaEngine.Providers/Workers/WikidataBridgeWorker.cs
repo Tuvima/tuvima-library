@@ -59,6 +59,7 @@ public sealed partial class WikidataBridgeWorker
     private readonly IEntityCapabilityStateRepository? _capabilityStates;
     private readonly IRetailMatchScoringService? _retailMatchScoring;
     private readonly IImageEnrichmentService? _imageEnrichment;
+    private readonly IItemCanonicalRepository? _itemCanonical;
     private readonly ILogger<WikidataBridgeWorker> _logger;
 
     /// <summary>
@@ -105,9 +106,11 @@ public sealed partial class WikidataBridgeWorker
         IPipelineExecutionSnapshotProvider? configurationSnapshots = null,
         IRetailMatchScoringService? retailMatchScoring = null,
         IImageEnrichmentService? imageEnrichment = null,
-        IExternalLookupGuard? lookupGuard = null)
+        IExternalLookupGuard? lookupGuard = null,
+        IItemCanonicalRepository? itemCanonical = null)
     {
         _lookupGuard = lookupGuard;
+        _itemCanonical = itemCanonical;
         _jobRepo = jobRepo;
         _candidateRepo = candidateRepo;
         _outcomeFactory = outcomeFactory;

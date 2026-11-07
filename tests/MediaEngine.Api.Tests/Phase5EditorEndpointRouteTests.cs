@@ -110,8 +110,10 @@ public sealed class Phase5EditorEndpointRouteTests
         Assert.Contains("ResolveWorkIdForAssetAsync(context.AssetId, ct)", canonical, StringComparison.Ordinal);
         Assert.Contains("HierarchyExternalIdentifierMutation", canonical + ReadSource("src/MediaEngine.Application/ReadModels/MediaEditorReadModels.cs"), StringComparison.Ordinal);
         Assert.Contains("var postAlignmentWorkId = ClaimScopeCatalog.IsParentScoped(BridgeIdKeys.WikidataQid, lineage.MediaType)", canonical, StringComparison.Ordinal);
-        Assert.Contains("LoadWorkWikidataStateAsync(postAlignmentWorkId, ct)", canonical, StringComparison.Ordinal);
-        Assert.Contains("UpdateWorkWikidataMatchStateAsync(postAlignmentWorkId", canonical, StringComparison.Ordinal);
+        // The Wikidata state reset is one helper so a person-set link survives a retail rematch (universal editor v5 3c).
+        Assert.Contains("ResetAutomaticWikidataStateAsync(itemCanonicalData, collectionRepo, postAlignmentWorkId, ct)", canonical, StringComparison.Ordinal);
+        Assert.Contains("LoadWorkWikidataStateAsync(workId, ct)", canonical, StringComparison.Ordinal);
+        Assert.Contains("UpdateWorkWikidataMatchStateAsync(workId", canonical, StringComparison.Ordinal);
         Assert.Contains("JsonPropertyName(\"hierarchy_changed\")", models, StringComparison.Ordinal);
         Assert.Contains("JsonPropertyName(\"previous_path\")", models, StringComparison.Ordinal);
         Assert.Contains("BridgeIdKeys.TvdbEpisodeId", ReadSource("src/MediaEngine.Api/Endpoints/MetadataEndpoints.TvdbMatching.cs"), StringComparison.Ordinal);

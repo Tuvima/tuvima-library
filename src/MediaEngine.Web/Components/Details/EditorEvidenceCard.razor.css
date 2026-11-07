@@ -1,0 +1,25 @@
+/* The evidence table shared by "Why this match" and "Alignment evidence" (editor v5, 3c). */
+.tl-evidence__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--tl-font-size-sm);
+}
+
+.tl-evidence__table th,
+.tl-evidence__table td {
+    padding: var(--tl-space-1) var(--tl-space-2);
+    border-bottom: 1px solid var(--tl-divider);
+    text-align: left;
+}
+
+.tl-evidence__table tbody th {
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.tl-evidence__mark[data-state="agrees"] {
+    color: var(--tl-status-success);
+}
+
+.tl-evidence__mark[data-state="differs"] {
+    color: var(--tl-status-warning);
+}

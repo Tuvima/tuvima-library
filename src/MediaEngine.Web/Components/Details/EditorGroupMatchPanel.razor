@@ -370,7 +370,6 @@
             var subject = new EditorMatchSubject(line.EntityId, mediaType, scope, group, line.Title, null, null, null,
                 new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase), []);
             var request = EditorMatchRules.RequestFor(candidate, subject, group);
-            request.ClearAutoAlignedWikidata = true;
             var facts = EditorMatchRules.FactsOf(candidate);
             EditorMatchStaging.Unstage(Pending, EditSessionChangeKinds.MatchRemoval, line.EntityId);
             Pending.SetTarget(
