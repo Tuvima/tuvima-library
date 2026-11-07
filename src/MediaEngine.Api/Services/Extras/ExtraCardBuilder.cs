@@ -97,7 +97,8 @@ public static class ExtraCardBuilder
     }
 
     /// <summary>One supporting file as the editor and the browser read it: what a person set and what the folder says, side by side.</summary>
-    public static SupportingFileDto ToSupportingFile(ItemExtra extra, Func<string, bool> fileExists, ExtrasConfiguration? rules = null)
+    public static SupportingFileDto ToSupportingFile(
+        ItemExtra extra, Func<string, bool> fileExists, ExtrasConfiguration? rules = null, int itemCount = 1, long? sizeBytes = null)
     {
         ArgumentNullException.ThrowIfNull(extra);
         ArgumentNullException.ThrowIfNull(fileExists);
@@ -126,9 +127,10 @@ public static class ExtraCardBuilder
             AlongsideKey = extra.EffectiveAlongside?.Key,
             InferredAlongsideKey = extra.InferredAlongside?.Key,
             Tags = extra.TagList,
-            SizeBytes = extra.SizeBytes,
+            SizeBytes = sizeBytes ?? extra.SizeBytes,
             PageCount = extra.PageCount,
             DurationSeconds = extra.DurationSeconds,
+            ItemCount = itemCount,
             IsMissing = extra.IsMissingFromDisk || !fileExists(extra.FilePath),
         };
     }

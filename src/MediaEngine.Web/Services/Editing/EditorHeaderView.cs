@@ -65,6 +65,9 @@ public static class EditorTabRules
                 case "match" when fields.CanMatch || EditorUniverseRules.IsUniverseSubject(fields.SubjectKind):
                     tabs.Add(new EditorTab(EditTool.Match, EditorUniverseRules.MatchTabLabel(fields.SubjectKind)));
                     break;
+                case "preview" when fields.SupportingFile is not null:
+                    tabs.Add(new EditorTab(EditTool.Preview, "Preview"));
+                    break;
                 case "history" when showHistory:
                     tabs.Add(new EditorTab(EditTool.History, "History"));
                     break;
@@ -84,14 +87,19 @@ public static class EditorHeaderFacts
 {
     public const string MatchState = "match_state";
 
+    /// <summary>The chip that says an item is a supporting file (universal editor v5 WP7); like the match state it is a chip, not text.</summary>
+    public const string SupportingFileChip = "supporting_file_chip";
+
+    /// <param name="file">For a supporting file: its read, which gives the type, pages or length and size.</param>
     public static IReadOnlyList<string> Parts(
-        EditorHeaderConfigDto? config, Func<string[], string?> field, ItemQuickFactsDto? totals = null, EditorHeaderDto? header = null)
+        EditorHeaderConfigDto? config, Func<string[], string?> field, ItemQuickFactsDto? totals = null, EditorHeaderDto? header = null,
+        EditorSupportingFileDto? file = null)
     {
         ArgumentNullException.ThrowIfNull(field);
         var parts = new List<string>();
         foreach (var key in config?.FactsLine ?? [])
         {
-            var text = Piece(key, field, totals, header);
+            var text = file is not null && FilePiece(key, file) is { } filePiece ? filePiece : Piece(key, field, totals, header);
             if (!string.IsNullOrWhiteSpace(text))
             {
                 parts.Add(text.Trim());
@@ -100,6 +108,24 @@ public static class EditorHeaderFacts
 
         return parts;
     }
+
+    /// <summary>True when the kind's facts line carries the "Supporting file" chip.</summary>
+    public static bool ShowsSupportingFileChip(EditorHeaderConfigDto? config) =>
+        config?.FactsLine.Contains(SupportingFileChip, StringComparer.Ordinal) == true;
+
+    // The pieces of a supporting file's line: "PDF · 18 pages · 2.4 MB".
+    private static string? FilePiece(string key, EditorSupportingFileDto file) => key switch
+    {
+        "file_type" => Clean(file.TypeLabel),
+        "pages_or_length" => file.File.ItemCount > 1
+            ? $"{DisplayFormat.FormatCount(file.File.ItemCount)} pictures"
+            : file.File.PageCount is > 0
+                ? $"{DisplayFormat.FormatCount(file.File.PageCount.Value)} {(file.File.PageCount == 1 ? "page" : "pages")}"
+                : file.File.DurationSeconds is > 0 ? DisplayFormat.FormatDurationHoursMinutesRounded(file.File.DurationSeconds.Value) : null,
+        "size" => file.File.SizeBytes > 0 ? DisplayFormat.FormatFileSize(file.File.SizeBytes) : null,
+        SupportingFileChip => string.Empty,
+        _ => null,
+    };
 
     /// <summary>True when the kind's facts line carries the match state (the chip).</summary>
     public static bool ShowsMatchState(EditorHeaderConfigDto? config) =>

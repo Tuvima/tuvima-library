@@ -154,9 +154,11 @@ internal sealed class SupportingFileTestWorld : IDisposable
 
         public void NoteFile(string filePath) => Noted.Add(filePath);
 
+        /// <summary>The places the title has: the title itself and six seasons, unless a test adds more (episodes, sections, lessons).</summary>
+        public List<ExtraScope> Places { get; } = [ExtraScope.Root, .. Enumerable.Range(1, 6).Select(season => ExtraScope.ForSeason(season))];
+
         public Task<IReadOnlyList<ExtraScope>> ListPlacesAsync(string itemFolder, CancellationToken ct = default) =>
-            Task.FromResult<IReadOnlyList<ExtraScope>>(
-                [ExtraScope.Root, .. Enumerable.Range(1, 6).Select(season => ExtraScope.ForSeason(season))]);
+            Task.FromResult<IReadOnlyList<ExtraScope>>([.. Places]);
 
         public Task<int> SyncQueuedAsync(CancellationToken ct = default) => Task.FromResult(0);
 

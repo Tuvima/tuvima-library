@@ -20,6 +20,9 @@ public static class EditTrailKinds
     /// <summary>A character, place, faction or other thing of a Universe.</summary>
     public const string Thing = "Thing";
 
+    /// <summary>A supporting file of the title the trail ends in before it (universal editor v5 WP7); its id is the file's, not a work's.</summary>
+    public const string SupportingFile = "SupportingFile";
+
     /// <summary>The editor scope that edits an item of this kind (null for a kind with its own editor, such as a person).</summary>
     public static string? ScopeOf(string kind) => ScopeOf(kind, null);
 

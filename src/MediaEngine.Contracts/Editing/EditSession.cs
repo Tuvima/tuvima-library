@@ -71,7 +71,8 @@ public static class EditSessionChangeKinds
     public const string ThingAdd = "thing_add";
 
     /// <summary>
-    /// Group, role, Belongs to or tags set on several supporting files of one title at once (universal editor v5 D16, D30).
+    /// Group, role, Belongs to or tags set on several supporting files of one title at once (universal editor v5 D16, D30), and, for one file
+    /// at a time, its title, description and the episode it is shown alongside (WP7).
     /// <see cref="EditSessionChange.EntityId"/> is the title; <see cref="EditSessionChange.SupportingFiles"/> names the files and what changes.
     /// Library's own data, saved with the rest of the session and undone with it; in a Managed folder a changed Belongs to also moves the file
     /// (put back if a later change fails). Deleting files is not a staged change: it asks once and happens at once.

@@ -11528,4 +11528,100 @@
   <data name="EditorMatchResults_IdEmbeddedTitle" xml:space="preserve">
     <value>embedded title</value>
   </data>
+  <data name="EditorSupportingFile_Loading" xml:space="preserve">
+    <value>Loading this file's details</value>
+  </data>
+  <data name="EditorSupportingFile_ReadOnlyDevice" xml:space="preserve">
+    <value>You can look at these details here. Changing them needs a larger screen with a mouse.</value>
+  </data>
+  <data name="EditorSupportingFile_Description" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="EditorSupportingFile_SuggestDetails" xml:space="preserve">
+    <value>Suggest details from the document</value>
+  </data>
+  <data name="EditorSupportingFile_CharacterCount" xml:space="preserve">
+    <value>{0} of {1} characters</value>
+  </data>
+  <data name="EditorSupportingFile_TitleCleared" xml:space="preserve">
+    <value>Goes back to the name read from the file when you save.</value>
+  </data>
+  <data name="EditorSupportingFile_TitleSet" xml:space="preserve">
+    <value>Shown instead of the name read from the file.</value>
+  </data>
+  <data name="EditorSupportingFile_Group" xml:space="preserve">
+    <value>Group</value>
+  </data>
+  <data name="EditorSupportingFile_NoGroup" xml:space="preserve">
+    <value>No group</value>
+  </data>
+  <data name="EditorSupportingFile_CreateGroup" xml:space="preserve">
+    <value>Create "{0}"</value>
+  </data>
+  <data name="EditorSupportingFile_NewGroupHint" xml:space="preserve">
+    <value>New group. It is created when you save.</value>
+  </data>
+  <data name="EditorSupportingFile_GroupFromFolder" xml:space="preserve">
+    <value>From its folder. Pick another group to move it.</value>
+  </data>
+  <data name="EditorSupportingFile_Role" xml:space="preserve">
+    <value>Role</value>
+  </data>
+  <data name="EditorSupportingFile_BelongsTo" xml:space="preserve">
+    <value>Belongs to</value>
+  </data>
+  <data name="EditorSupportingFile_UseFolderLocation" xml:space="preserve">
+    <value>Use folder location</value>
+  </data>
+  <data name="EditorSupportingFile_ScopeFromFolder" xml:space="preserve">
+    <value>From its folder location ({0}).</value>
+  </data>
+  <data name="EditorSupportingFile_ScopeSetByYou" xml:space="preserve">
+    <value>Set by you.</value>
+  </data>
+  <data name="EditorSupportingFile_ScopeSetByYouReadOnly" xml:space="preserve">
+    <value>Set by you. The file stays where it is.</value>
+  </data>
+  <data name="EditorSupportingFile_MoveNote" xml:space="preserve">
+    <value>The file moves to the folder for its new place when you save.</value>
+  </data>
+  <data name="EditorSupportingFile_MoveCheckFailed" xml:space="preserve">
+    <value>Could not check whether the file moves. It is checked again when you save.</value>
+  </data>
+  <data name="EditorSupportingFile_ShownAlongside" xml:space="preserve">
+    <value>Shown alongside</value>
+  </data>
+  <data name="EditorSupportingFile_AlongsideNone" xml:space="preserve">
+    <value>Pick an episode, lesson or track to list this file with it.</value>
+  </data>
+  <data name="EditorSupportingFile_AlongsideGuessed" xml:space="preserve">
+    <value>Guessed from the file name. It is listed with that item.</value>
+  </data>
+  <data name="EditorSupportingFile_AlongsideChosen" xml:space="preserve">
+    <value>Also listed on that item's Extras.</value>
+  </data>
+  <data name="EditorSupportingFile_TagsHelp" xml:space="preserve">
+    <value>Tags are private to your Library. They are never written into the file.</value>
+  </data>
+  <data name="EditorSupportingFile_SuggestFilled" xml:space="preserve">
+    <value>Filled in from the document. Nothing is kept until you save.</value>
+  </data>
+  <data name="EditorSupportingFile_SuggestFilledTitle" xml:space="preserve">
+    <value>Filled in the title from the document. Nothing is kept until you save.</value>
+  </data>
+  <data name="EditorSupportingFile_SuggestFilledDescription" xml:space="preserve">
+    <value>Filled in the description from the document. Nothing is kept until you save.</value>
+  </data>
+  <data name="EditorSupportingFile_SuggestEmpty" xml:space="preserve">
+    <value>This document has no title or description of its own to suggest. Nothing was changed.</value>
+  </data>
+  <data name="EditorSupportingFile_SuggestFailed" xml:space="preserve">
+    <value>This document could not be read just now. Nothing was changed.</value>
+  </data>
+  <data name="EditorSupportingFile_Chip" xml:space="preserve">
+    <value>Supporting file</value>
+  </data>
+  <data name="EditorSupportingFile_HistoryNote" xml:space="preserve">
+    <value>Changes to a supporting file are not kept in the history yet. Its title's history lists the rest.</value>
+  </data>
 </root>

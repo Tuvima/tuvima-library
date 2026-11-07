@@ -14,6 +14,7 @@ public sealed class PendingEditList
     private readonly Dictionary<string, string> _labels = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _notes = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _before = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, SupportingFileStage> _supportingFiles = new(StringComparer.Ordinal);
 
     public event Action? Changed;
 
@@ -24,7 +25,12 @@ public sealed class PendingEditList
     public bool IsEmpty => _changes.Count == 0;
 
     /// <summary>How many things Save would do: one per staged field, and one per artwork, identity, relationship or file-move entry.</summary>
-    public int ChangeCount => _changes.Sum(change => change.Kind == EditSessionChangeKinds.Details ? Math.Max(1, change.Fields.Count) : 1);
+    public int ChangeCount => _changes.Sum(change => change.Kind switch
+    {
+        EditSessionChangeKinds.Details => Math.Max(1, change.Fields.Count),
+        EditSessionChangeKinds.SupportingFiles => _supportingFiles.TryGetValue(change.Id, out var stage) ? Math.Max(1, stage.ChangeCount) : 1,
+        _ => 1,
+    });
 
     /// <summary>Stages one details field for an item, replacing an earlier value staged for the same field.</summary>
     public void SetField(Guid entityId, string key, string? value, string? before = null)
@@ -100,9 +106,9 @@ public sealed class PendingEditList
     /// </summary>
     public void SetTarget(string kind, Guid entityId, string? targetId, string? token = null, string? label = null, string? note = null, string? before = null)
     {
-        if (kind is EditSessionChangeKinds.Details or EditSessionChangeKinds.Artwork or EditSessionChangeKinds.ExtraMove or EditSessionChangeKinds.VideoOrder or EditSessionChangeKinds.ThingAdd || !EditSessionChangeKinds.IsKnown(kind))
+        if (kind is EditSessionChangeKinds.Details or EditSessionChangeKinds.Artwork or EditSessionChangeKinds.ExtraMove or EditSessionChangeKinds.VideoOrder or EditSessionChangeKinds.ThingAdd or EditSessionChangeKinds.SupportingFiles || !EditSessionChangeKinds.IsKnown(kind))
         {
-            throw new ArgumentException("Use SetField, SetArtwork, SetExtraMove, SetVideoOrder or AddThing for details, artwork, Extras, video-order and added-thing changes.", nameof(kind));
+            throw new ArgumentException("Use SetField, SetArtwork, SetExtraMove, SetVideoOrder, AddThing or SetSupportingFile for details, artwork, Extras, video-order, added-thing and supporting-file changes.", nameof(kind));
         }
 
         var existing = Find(kind, entityId);
@@ -202,6 +208,79 @@ public sealed class PendingEditList
     public IReadOnlyList<EditSessionChange> ThingAdds(Guid universeId) =>
         [.. _changes.Where(change => change.Kind == EditSessionChangeKinds.ThingAdd && change.EntityId == universeId)];
 
+    /// <summary>
+    /// Stages what the editor changed on one supporting file, replacing whatever was staged for it; a stage with nothing in it takes the file's
+    /// entry out. The saved change is one <see cref="EditSessionChangeKinds.SupportingFiles"/> change per file, on the file's title.
+    /// </summary>
+    public void SetSupportingFile(SupportingFileStage stage)
+    {
+        ArgumentNullException.ThrowIfNull(stage);
+        var existing = FindSupportingFileChange(stage.FileId);
+        if (stage.IsEmpty)
+        {
+            if (existing is not null)
+            {
+                Remove(existing.Id);
+            }
+
+            return;
+        }
+
+        var next = new EditSessionChange
+        {
+            Id = existing?.Id ?? NewId(),
+            Kind = EditSessionChangeKinds.SupportingFiles,
+            EntityId = stage.TitleId,
+            TargetId = stage.FileId.ToString("D"),
+            SupportingFiles = stage.ToRequest(),
+        };
+        _supportingFiles[next.Id] = stage;
+        Replace(existing, next);
+    }
+
+    /// <summary>What is staged for one supporting file, or null.</summary>
+    public SupportingFileStage? FindSupportingFile(Guid fileId) =>
+        FindSupportingFileChange(fileId) is { } change && _supportingFiles.TryGetValue(change.Id, out var stage) ? stage : null;
+
+    /// <summary>Every supporting file with something staged, in the order they were staged.</summary>
+    public IReadOnlyList<SupportingFileStage> SupportingFileStages =>
+        [.. _changes.Where(change => change.Kind == EditSessionChangeKinds.SupportingFiles).Select(change => _supportingFiles.GetValueOrDefault(change.Id)).OfType<SupportingFileStage>()];
+
+    /// <summary>The staged change of one supporting file (the Review row's change id), or null.</summary>
+    public EditSessionChange? FindSupportingFileChange(Guid fileId) =>
+        _changes.FirstOrDefault(c => c.Kind == EditSessionChangeKinds.SupportingFiles
+            && string.Equals(c.TargetId, fileId.ToString("D"), StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Takes one field of a supporting file's staged change back out (Review's remove on its row). The file's entry goes when its last field does.</summary>
+    public bool ClearSupportingFileField(Guid fileId, string rowKey)
+    {
+        var stage = FindSupportingFile(fileId);
+        var field = SupportingFileFields.FieldOf(rowKey);
+        if (stage is null || stage.Row(field) is null)
+        {
+            return false;
+        }
+
+        SetSupportingFile(stage.Without(field));
+        return true;
+    }
+
+    /// <summary>Drops what is staged for supporting files that were deleted.</summary>
+    public int RemoveForSupportingFiles(IReadOnlyCollection<Guid> fileIds)
+    {
+        ArgumentNullException.ThrowIfNull(fileIds);
+        var removed = 0;
+        foreach (var id in fileIds)
+        {
+            if (FindSupportingFileChange(id) is { } change && Remove(change.Id))
+            {
+                removed++;
+            }
+        }
+
+        return removed;
+    }
+
     /// <summary>The staged order of one series or section, or null.</summary>
     public EditSessionChange? FindVideoOrder(Guid parentId) => Find(EditSessionChangeKinds.VideoOrder, parentId);
 
@@ -232,6 +311,7 @@ public sealed class PendingEditList
         var removed = _changes.RemoveAll(c => c.Id == changeId) > 0;
         if (removed)
         {
+            _supportingFiles.Remove(changeId);
             _labels.Remove(changeId);
             _notes.Remove(changeId);
             ForgetBefore(changeId);
@@ -250,6 +330,7 @@ public sealed class PendingEditList
         {
             gone.ForEach(id =>
             {
+                _supportingFiles.Remove(id);
                 _labels.Remove(id);
                 _notes.Remove(id);
                 ForgetBefore(id);
@@ -269,6 +350,7 @@ public sealed class PendingEditList
         }
 
         _changes.Clear();
+        _supportingFiles.Clear();
         _labels.Clear();
         _notes.Clear();
         _before.Clear();

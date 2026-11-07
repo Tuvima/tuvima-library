@@ -196,8 +196,25 @@
 
     private string Waiting(int count) => count == 1 ? L["EditorRail_OneChange"].Value : string.Format(L["EditorRail_ManyChanges"].Value, count);
 
-    private Dictionary<Guid, int> PendingByItem() =>
-        Flow?.Session.Pending.Changes.GroupBy(change => change.EntityId).ToDictionary(group => group.Key, group => group.Count()) ?? [];
+    // A supporting file's staged change waits on the file's own row, not on the title it belongs to.
+    private Dictionary<Guid, int> PendingByItem()
+    {
+        if (Flow is null)
+        {
+            return [];
+        }
+
+        var counts = Flow.Session.Pending.Changes
+            .Where(change => change.Kind != EditSessionChangeKinds.SupportingFiles)
+            .GroupBy(change => change.EntityId)
+            .ToDictionary(group => group.Key, group => group.Count());
+        foreach (var stage in Flow.Session.Pending.SupportingFileStages)
+        {
+            counts[stage.FileId] = Math.Max(1, stage.ChangeCount);
+        }
+
+        return counts;
+    }
 
     private EditorHeaderSupportingFileDto? CurrentFile(EditorHeaderDto header) =>
         header.Level.SupportingFiles.Files.FirstOrDefault(file => file.IsCurrent);
@@ -575,7 +592,7 @@
         StateHasChanged();
         try
         {
-            var page = await Api.GetEditorNavLevelAsync(header.CurrentId, header.Level.LevelId, _query, offset, token);
+            var page = await Api.GetEditorNavLevelAsync(header.CurrentId, header.Level.LevelId, _query, offset, CurrentFile(header)?.Id, token);
             if (page is null || token.IsCancellationRequested || !ReferenceEquals(_reads, read))
             {
                 return;

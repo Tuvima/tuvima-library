@@ -841,7 +841,7 @@ public sealed class EditorHeaderReadService(
         AlongsideOf(extra.EffectiveAlongside, mediaType));
 
     // "with lesson 02" in a course, "with episode 3" on a show, "with track 4" on an album: the words under the file's group.
-    private static EditorHeaderAlongsideDto? AlongsideOf(ExtraScope? alongside, string mediaType)
+    internal static EditorHeaderAlongsideDto? AlongsideOf(ExtraScope? alongside, string mediaType)
     {
         if (alongside is not { } scope || scope.Level is ExtraScopeLevel.None or ExtraScopeLevel.Root)
         {

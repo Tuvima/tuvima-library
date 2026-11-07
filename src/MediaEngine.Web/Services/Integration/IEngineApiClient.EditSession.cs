@@ -41,10 +41,12 @@ public partial interface IEngineApiClient
 
     /// <summary>
     /// GET /metadata/{id}/editor-nav/level - one searchable, paged list of the editor header's item dropdown: the items of a season, a section
-    /// or the whole title, with the supporting files that belong to it. <paramref name="levelId"/> null means the title itself. Null when the
+    /// or the whole title, with the supporting files that belong to it. <paramref name="levelId"/> null means the title itself.
+    /// <paramref name="supportingFileId"/> is the supporting file the editor is open on, so its row stays marked current. Null when the
     /// read fails; the dropdown then keeps the page it has.
     /// </summary>
-    Task<EditorHeaderLevelDto?> GetEditorNavLevelAsync(Guid entityId, Guid? levelId, string? query, int offset, CancellationToken ct = default);
+    Task<EditorHeaderLevelDto?> GetEditorNavLevelAsync(
+        Guid entityId, Guid? levelId, string? query, int offset, Guid? supportingFileId = null, CancellationToken ct = default);
 
     /// <summary>
     /// GET /metadata/editor-config?kind= - the editor's tabs, facts and search fields for a kind of item that does not open on a work (a

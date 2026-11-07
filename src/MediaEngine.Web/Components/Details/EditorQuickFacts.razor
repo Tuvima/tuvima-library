@@ -26,6 +26,11 @@
         {
             <div class="tl-quick-facts__note" data-note="@note" role="note">@note</div>
         }
+        @if (model.OffersPreview && OnPreview.HasDelegate)
+        {
+            <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" Class="tl-quick-facts__preview"
+                       StartIcon="@AppMaterialIcons.Outlined.Visibility" data-quick-facts-preview="true" OnClick="OnPreview">@model.PreviewLabel</AppButton>
+        }
     </aside>
 }
 
@@ -37,11 +42,21 @@
     /// <summary>The editor's loaded item: its fields, kind and the Engine's totals.</summary>
     [Parameter, EditorRequired] public ItemFieldEditSession? Fields { get; set; }
 
+    /// <summary>A supporting file's Preview button: opens its Preview tab. Without it the button is not drawn.</summary>
+    [Parameter] public EventCallback OnPreview { get; set; }
+
     protected override async Task OnParametersSetAsync()
     {
         if (Fields is not { Loaded: true } fields)
         {
             _model = QuickFactsModel.Empty;
+            return;
+        }
+
+        if (fields.SupportingFile is { } supportingFile)
+        {
+            // The file's own facts: nothing here depends on a library's write-back switch, because Library never writes into a supporting file.
+            _model = EditorQuickFactsBuilder.ForSupportingFile(supportingFile);
             return;
         }
 

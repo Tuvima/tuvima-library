@@ -30,15 +30,23 @@ public sealed record EditReviewRow(
     string? Before,
     string After,
     string? Warning,
-    bool NowYours = false)
+    bool NowYours = false,
+    Guid? ItemId = null)
 {
     public string RowId => FieldKey is null ? ChangeId : $"{ChangeId}:{FieldKey}";
+
+    /// <summary>
+    /// The item Edit goes to when it is not <see cref="EntityId"/>: the supporting file a staged change is about (its change names the title the
+    /// file belongs to). Null for every other row.
+    /// </summary>
+    public Guid? JumpId => Kind == EditSessionChangeKinds.SupportingFiles ? ItemId : null;
 
     /// <summary>The tool that holds this kind of change, so Edit can jump to it.</summary>
     public EditTool Tool => Kind switch
     {
         EditSessionChangeKinds.Details => EditTool.Details,
         EditSessionChangeKinds.ThingAdd => EditTool.Details,
+        EditSessionChangeKinds.SupportingFiles => EditTool.Details,
         EditSessionChangeKinds.Artwork => EditTool.Artwork,
         _ => EditTool.Match,
     };
@@ -83,6 +91,12 @@ public static class EditReviewRows
     public const string NotInASeries = "Not in a series";
 
     public const string FileMoveWarning = "Moves the files on disk. This cannot be undone.";
+
+    public const string SupportingFileMoveWarning = "Moves the file on disk to the folder for its new place. This cannot be undone.";
+
+    public const string CreateGroupNote = "Library only. No file is moved or renamed.";
+
+    public const string NoGroupYet = "No such group yet";
 
     public static string GroupTitle(EditReviewGroup group) => group switch
     {
@@ -194,6 +208,25 @@ public static class EditReviewRows
                 case EditSessionChangeKinds.VideoRename:
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.PhysicalFiles, label ?? item,
                         "File names", "As they are now", "Numbered to match the order", VideoRenameWarning));
+                    break;
+                case EditSessionChangeKinds.SupportingFiles when Guid.TryParse(change.TargetId, out var fileId) && pending.FindSupportingFile(fileId) is { } stage:
+                    foreach (var staged in stage.Rows)
+                    {
+                        rows.Add(new EditReviewRow(change.Id, staged.Key, change.EntityId, change.Kind, EditReviewGroup.Metadata, stage.ItemName,
+                            staged.Label, staged.Before, staged.After, null, ItemId: fileId));
+                        if (staged.Key == SupportingFileFields.Group && stage.CreatesGroup)
+                        {
+                            rows.Add(new EditReviewRow(change.Id, SupportingFileFields.CreateGroup, change.EntityId, change.Kind, EditReviewGroup.Metadata,
+                                stage.ItemName, "Create group", NoGroupYet, stage.GroupName ?? staged.After, CreateGroupNote, ItemId: fileId));
+                        }
+                    }
+
+                    if (stage.HasMove)
+                    {
+                        rows.Add(new EditReviewRow(change.Id, SupportingFileFields.Move, change.EntityId, change.Kind, EditReviewGroup.PhysicalFiles,
+                            stage.ItemName, "File moves", stage.MoveFrom!, stage.MoveTo!, SupportingFileMoveWarning, ItemId: fileId));
+                    }
+
                     break;
                 case EditSessionChangeKinds.FileMove:
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.PhysicalFiles, item,

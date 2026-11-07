@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Contracts.Metadata;
 
@@ -232,6 +233,48 @@ public sealed class EditorHeaderContractTests
         Assert.Equal(["Line one", "Line two"], root.GetProperty("first_lines").EnumerateArray().Select(line => line.GetString()));
         Assert.Equal(["pdf", "epub", "text", "none"],
             new[] { EditorSuggestDetailsSources.Pdf, EditorSuggestDetailsSources.Epub, EditorSuggestDetailsSources.Text, EditorSuggestDetailsSources.None });
+    }
+
+    [Fact]
+    public void SupportingFileEditor_UsesSnakeCaseNames_AndCarriesTheFormsChoices()
+    {
+        var title = Guid.NewGuid();
+        var read = new EditorSupportingFileDto
+        {
+            TitleId = title,
+            File = new SupportingFileDto { Id = Guid.NewGuid().ToString("D"), FileName = "Workbook.pdf", Title = "Workbook", PageCount = 18 },
+            Type = SupportingFileListDefaults.TypeDocument,
+            TypeLabel = "PDF",
+            Badge = "PDF",
+            MimeType = "application/pdf",
+            Folder = "Season 02/Documents",
+            ReadOnly = true,
+            Roles = [new EditorSupportingFileRoleDto { Id = "workbook", Label = "Workbook" }],
+            Groups = ["Documents"],
+            Places = [new EditorSupportingFilePlaceDto { Key = "episode:s2e3", Label = "S02E03", Level = "episode", ParentKey = "season:2" }],
+            ScopeLabel = "Season 02",
+            FolderScopeLabel = "Season 02 / Documents",
+            Config = new EditorHeaderConfigDto { Kind = "supporting_file", Tabs = ["details", "preview", "history"] },
+        };
+
+        using var document = JsonDocument.Parse(JsonSerializer.Serialize(read));
+        var root = document.RootElement;
+
+        Assert.Equal(title, root.GetProperty("title_id").GetGuid());
+        Assert.Equal("Workbook.pdf", root.GetProperty("file").GetProperty("FileName").GetString());
+        Assert.Equal("PDF", root.GetProperty("type_label").GetString());
+        Assert.Equal("application/pdf", root.GetProperty("mime_type").GetString());
+        Assert.Equal("Season 02/Documents", root.GetProperty("folder").GetString());
+        Assert.True(root.GetProperty("read_only").GetBoolean());
+        Assert.Equal("workbook", root.GetProperty("roles")[0].GetProperty("id").GetString());
+        Assert.Equal(["Documents"], root.GetProperty("groups").EnumerateArray().Select(group => group.GetString()));
+        var place = root.GetProperty("places")[0];
+        Assert.Equal("episode:s2e3", place.GetProperty("key").GetString());
+        Assert.Equal("season:2", place.GetProperty("parent_key").GetString());
+        Assert.Equal("Season 02 / Documents", root.GetProperty("folder_scope_label").GetString());
+        Assert.False(root.TryGetProperty("alongside_label", out _));
+        Assert.False(root.TryGetProperty("header", out _));
+        Assert.Equal(["details", "preview", "history"], root.GetProperty("config").GetProperty("tabs").EnumerateArray().Select(tab => tab.GetString()));
     }
 
     [Fact]

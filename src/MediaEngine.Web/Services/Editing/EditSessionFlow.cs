@@ -80,6 +80,12 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
     /// <summary>Raised after the item being edited changed, so the page can move the Artwork picker and the History block with it.</summary>
     public Func<Task>? ItemSwitched { get; set; }
 
+    /// <summary>
+    /// Moves the editor to a supporting file of the title being edited (Review's Edit on a file's row). Set by the editor host; unset, a file
+    /// row cannot be jumped to. True when the file is open afterwards.
+    /// </summary>
+    public Func<Guid, Task<bool>>? OpenSupportingFile { get; set; }
+
     /// <summary>The changes the last save did not accept, with the Engine's reasons. Empty when nothing failed.</summary>
     public IReadOnlyList<EditSessionFailure> Failures { get; private set; } = [];
 
@@ -132,7 +138,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
         {
             _session.SetTool(open);
         }
-        else if (tool is null && _mode.OpenSectionKind is null && _session.ActiveTool is EditTool.Artwork or EditTool.Match or EditTool.History)
+        else if (tool is null && _mode.OpenSectionKind is null && _session.ActiveTool is EditTool.Artwork or EditTool.Match or EditTool.History or EditTool.Preview)
         {
             _session.SetTool(null);
         }
@@ -156,6 +162,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
         {
             EditTool.Details => await _mode.ShowSectionAsync(EditingSection.Details),
             EditTool.History => await _mode.ShowSectionAsync(EditingSection.History),
+            EditTool.Preview => _mode.Fields.SupportingFile is not null && await _mode.ShowSectionAsync(EditingSection.Preview),
             EditTool.Artwork => _mode.Fields.CanEditArtwork && await _mode.ShowSectionAsync(EditingSection.Artwork),
             EditTool.Match => _mode.Fields.CanMatch && await _mode.ShowSectionAsync(EditingSection.Match),
             _ => false,
@@ -343,6 +350,11 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
     public bool RemoveReviewRow(EditReviewRow row)
     {
         ArgumentNullException.ThrowIfNull(row);
+        if (row.JumpId is { } fileId && row.FieldKey is { } fileKey)
+        {
+            return _session.Pending.ClearSupportingFileField(fileId, fileKey);
+        }
+
         return row.FieldKey is { } key ? _session.Pending.ClearField(row.EntityId, key) : _session.Pending.Remove(row.ChangeId);
     }
 
@@ -359,6 +371,22 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
         ArgumentNullException.ThrowIfNull(row);
         if (!_session.IsActive || Saving || !CanJumpTo(row))
         {
+            return;
+        }
+
+        // A supporting file is opened through the editor, which knows the title it belongs to.
+        if (row.JumpId is { } fileId)
+        {
+            if (_session.ActiveItem?.EntityId != fileId && (OpenSupportingFile is null || !await OpenSupportingFile(fileId)))
+            {
+                return;
+            }
+
+            if (_session.ActiveTool != row.Tool)
+            {
+                await SelectToolAsync(row.Tool);
+            }
+
             return;
         }
 
@@ -487,6 +515,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
                 EditSessionChangeKinds.SiblingMatch => "Other episodes",
                 EditSessionChangeKinds.ChildRematch => "Seasons and episodes",
                 EditSessionChangeKinds.ThingAdd => "New item",
+                EditSessionChangeKinds.SupportingFiles => "Supporting file",
                 _ => "Details",
             };
         }
@@ -499,6 +528,7 @@ public sealed class EditSessionFlow : IDetailsOverlayDismissGuard, IReviewSource
         EditingSection.Artwork => EditTool.Artwork,
         EditingSection.Match => EditTool.Match,
         EditingSection.History => EditTool.History,
+        EditingSection.Preview => EditTool.Preview,
         EditingSection.Details => EditTool.Details,
         _ => null,
     };
