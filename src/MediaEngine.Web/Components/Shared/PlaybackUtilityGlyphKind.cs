@@ -27,6 +27,7 @@ public enum PlaybackUtilityGlyphKind
     Collapse,
     Close,
     More,
+    Back,
     Like,
     Dislike,
     Add,

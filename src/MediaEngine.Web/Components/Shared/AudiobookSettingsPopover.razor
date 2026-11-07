@@ -9,7 +9,7 @@
    in the shared popover, so it draws in the top layer like the video player's Settings. The gear is underlined while the speed is not 1x or a
    sleep timer is running. *@
 <span class="audiobook-settings @Class" data-audiobook-settings>
-    <PlaybackPopover @ref="_popover" Title="@(Title ?? L["PlayerSettings_Title"].Value)" ToolId="@_id" Kind="settings" Surface="@Surface" ShowHeading="false"
+    <PlaybackPanel @ref="_popover" Title="@(Title ?? L["PlayerSettings_Title"].Value)" ToolId="@_id" Kind="settings" Surface="@Surface" ShowHeading="false"
                      Open="@Open" OpenChanged="HandleOpenChangedAsync" TriggerClass="@TriggerClassValue">
         <TriggerContent>
             @if (!string.IsNullOrWhiteSpace(TriggerText)) { <span>@TriggerText</span> }
@@ -22,12 +22,12 @@
                                 SleepTimerDefaultMinutes="@SleepTimerDefaultMinutes" SleepTimerOffersEndOfChapter="@SleepTimerOffersEndOfChapter" SleepTimerChanged="@SleepTimerChanged"
                                 ShowBookmarksOnBar="@ShowBookmarksOnBar" ShowBookmarksOnBarChanged="@ShowBookmarksOnBarChanged" />
         </ChildContent>
-    </PlaybackPopover>
+    </PlaybackPanel>
 </span>
 
 @code {
     private readonly string _id = $"audiobook-settings-{Guid.NewGuid():N}";
-    private PlaybackPopover? _popover;
+    private PlaybackPanel? _popover;
 
     /// <summary>The tooltip and accessible name of the gear. Defaults to "Settings".</summary>
     [Parameter] public string? Title { get; set; }

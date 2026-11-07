@@ -2982,23 +2982,14 @@ button.app-menu-item {
 }
 .playback-popover-trigger[aria-expanded="true"] { color: var(--tl-accent-primary); border-color: var(--tl-accent-primary); }
 .playback-popover-trigger:focus-visible { outline: 2px solid var(--playback-focus-ring); outline-offset: 2px; }
-.playback-popover:not(.playback-popover--sheet)::after { content:""; position:absolute; width:8px; height:8px; bottom:-4px; left:calc(var(--playback-caret-left,50%) - 4px); transform:rotate(45deg); border-right:1px solid var(--playback-border); border-bottom:1px solid var(--playback-border); background:var(--playback-surface); pointer-events:none; }
-.playback-popover { position: fixed; z-index: 1500; display: flex; max-height: var(--playback-tool-max-height); }
-.playback-popover-surface {
-    position: relative;
-    background: var(--playback-surface, #101821); border: 1px solid var(--playback-border);
-    border-radius: var(--playback-tool-radius); color: var(--playback-text); display: flex;
-    flex-direction: column; max-height: inherit; min-height: 0; overflow: hidden; width: 100%;
-    box-shadow: 0 18px 64px #0008; animation: playback-popover-enter var(--playback-tool-transition) ease-out;
-}
-@supports (backdrop-filter: blur(16px)){
-    .playback-popover-surface { background: var(--playback-popover-surface); backdrop-filter: blur(16px); }
-}
-.playback-panel-dismiss { position:absolute; top:6px; right:6px; display:grid; place-items:center; width:44px; height:44px; border:0; background:transparent; color:var(--playback-text); z-index:1; }
-.playback-popover-heading { font-size: var(--tl-font-size-lg); margin: 0; padding: 16px 18px 10px; }
-.playback-popover-content { padding:18px; flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; }
-.playback-popover-content:has(.playback-sheet-list) { display: flex; flex-direction: column; overflow: hidden; }
-.playback-popover-content .playback-sheet-list { flex: 1; min-height: 0; }
+/* Unified player v2 D11: the header buttons (back, close) of a PlaybackPanel and its phone sheet. 36 px targets inside the 44 px header rhythm; the panel frame itself is PlaybackPanel.razor.css. */
+.playback-panel__icon-button { display: grid; place-items: center; flex: none; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--playback-text); cursor: pointer; }
+.playback-panel__icon-button:hover { background: var(--playback-surface-hover); }
+.playback-panel__icon-button:focus-visible { outline: 2px solid var(--playback-focus-ring); outline-offset: 2px; }
+.playback-panel__dismiss { position: absolute; top: 6px; right: 6px; z-index: 1; }
+.playback-panel__body--legacy { padding: 18px; }
+.playback-panel--settings .playback-panel__body { padding: 0; }
+.playback-panel__body .playback-sheet-list { flex: 1; min-height: 0; }
 /* Unified player D8: the one volume control. A dark rounded box with a thick vertical track, accent fill and round knob opens above the speaker on hover or keyboard focus (video, audiobook and music). Phones use the hardware buttons. */
 .playback-volume { position: relative; display: inline-flex; align-items: center; }
 .playback-volume__button { display: inline-flex; }
@@ -3015,16 +3006,6 @@ button.app-menu-item {
 .playback-volume__panel .playback-range-slider__fill { background: var(--tl-accent-primary); }
 .playback-volume__panel .playback-range-slider__thumb { width: 18px; height: 18px; border-radius: 50%; background: #F7F7FA; }
 @media (pointer: coarse) and (hover: none) { .playback-volume__panel { display: none; } }
-/* The popup volume control is a measured pill, including at phone widths. */
-.playback-popover--volume .playback-popover-surface { width:36px; margin-inline:4px; border-radius:18px; overflow:visible; }
-.playback-popover--volume .playback-popover-content { padding:16px 0; overflow:visible; }
-.playback-popover--volume .playback-range-slider { margin-left:-4px; }
-@media (pointer:coarse) and (hover:none){ .playback-popover-owner[data-playback-popover-kind="volume"] { display:none; } }
-.playback-popover--volume .playback-popover-surface::after { display:none; }
-.playback-popover--sheet { display: block; max-height: none; }
-.playback-popover-backdrop { position: absolute; inset: 0; background: #0008; }
-.playback-popover--sheet .playback-tool-sheet { position: absolute; inset: auto 0 0; width: 100%; max-height: 82%; }
-.playback-popover--sheet .playback-tool-sheet--popup { border-radius: 12px 12px 0 0; }
 .playback-context-tabs { display: flex; border-bottom: 1px solid var(--playback-border); gap: 20px; }
 .playback-context-tabs [role="tab"] {
     background: transparent; border: 0; border-bottom: 3px solid transparent; color: var(--playback-text-secondary);
@@ -3101,14 +3082,12 @@ button.app-menu-item {
 .video-bookmark-pane .video-bookmark-pane__action:hover { color:var(--tl-accent-primary); }
 .video-bookmark-pane .video-bookmark-pane__action.is-danger { color:var(--tl-danger,#ff6b6b); }
 @media (prefers-reduced-motion:reduce) { .video-bookmark-pane__row.is-glow { animation:none; } }
-@keyframes playback-popover-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media (max-width: 720px){
-    .playback-popover .playback-context-tabs { gap: 4px; padding: 4px; border: 0; background: var(--playback-surface-hover); border-radius: 8px; }
-    .playback-popover .playback-context-tabs [role="tab"] { flex: 1; border: 0; border-radius: 6px; }
-    .playback-popover .playback-context-tabs [role="tab"][aria-selected="true"] { background: var(--playback-accent-soft); color: var(--playback-text); }
+    .playback-panel .playback-context-tabs { gap: 4px; padding: 4px; border: 0; background: var(--playback-surface-hover); border-radius: 8px; }
+    .playback-panel .playback-context-tabs [role="tab"] { flex: 1; border: 0; border-radius: 6px; }
+    .playback-panel .playback-context-tabs [role="tab"][aria-selected="true"] { background: var(--playback-accent-soft); color: var(--playback-text); }
 }
 @media (prefers-reduced-motion: reduce){
-    .playback-popover-surface { animation: none; }
     [data-playback-chrome] { transition: opacity 120ms linear; }
 }
 
@@ -4313,48 +4292,11 @@ input[type="reset"],
         display: none !important;
     }
 }
-/* Popout roots are emitted by child components, outside the page CSS scope. */
-.playback-popout-shell.listen-popup {
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    height: 100dvh;
-    min-height: 0;
-    overflow: hidden;
-    position: relative;
-    padding: 8px;
-    border: 1px solid var(--playback-border);
-    border-radius: 20px;
-    color: var(--playback-text);
-    background: linear-gradient(180deg, var(--playback-surface-elevated), var(--playback-bg));
-}
-
-.playback-popout-shell.listen-popup::before {
-    content: "";
-    position: absolute;
-    inset: -28px;
-    background-image: var(--listen-popup-cover);
-    background-position: center;
-    background-size: cover;
-    filter: blur(30px) saturate(1.08) brightness(.55);
-    opacity: 0.24;
-    pointer-events: none;
-}
-
-.playback-popout-shell.listen-popup > * {
-    position: relative;
-    z-index: 1;
-}
 
 .app-menu-item__check { margin-left:auto; }
 .app-menu-divider { height:1px; margin:4px 0; background:var(--tl-menu-divider); }
-.playback-popover-content:has(.app-menu-item) { border:1px solid var(--tl-menu-border); border-radius:var(--tl-radius-lg); overflow:hidden; }
 .hero-icon-circle { display:grid; place-items:center; width:48px; height:48px; padding:0; border:1.5px solid rgba(255,255,255,.55); border-radius:50%; background:rgba(0,0,0,.3); color:var(--playback-text); }
 
-/* Song and detail menus share content sizing, typography, and row geometry. */
-.playback-popover--menu .playback-popover-surface { width:max-content; min-width:var(--tl-menu-min-width); max-width:100%; border:1px solid var(--tl-menu-border); border-radius:var(--tl-radius-lg); background:var(--tl-menu-surface); color:var(--tl-text-primary); }
-.playback-popover--menu .playback-popover-content { padding:0; }
-.playback-popover--menu .playback-popover-content:has(.app-menu-item) { border:0; border-radius:0; }
 
 /* Portaled and fragment-owned control bridges. */
 .media-viewer .media-viewer__actions .tl-icon-button[aria-pressed="true"] { color:var(--tl-accent-primary); background:var(--playback-accent-soft); }
@@ -4971,7 +4913,6 @@ input[type="reset"],
 .video-playback-host[data-subtitle-shadow="true"] { --tl-subtitle-shadow: 0 1px 3px black, 0 0 6px black; }
 .video-playback-host__media::cue { color: var(--tl-subtitle-color); background: var(--tl-subtitle-bg); font-family: var(--tl-subtitle-font); font-size: var(--tl-subtitle-size); text-shadow: var(--tl-subtitle-shadow); }
 /* Player controls v3 D3, D4: the Settings menu. Each popup is as wide as its longest line (the popover is sized by playback-popover.js), has no descriptions, and keeps two columns for Audio and Subtitles. */
-.playback-popover--settings .playback-popover-content { padding: 0; }
 .player-settings-menu { font-size: var(--tl-font-size-dialog-title); white-space: nowrap; }
 .player-settings-menu h3, .player-settings-menu h4 { margin: 0; font-size: var(--tl-font-size-dialog-title); font-weight: 600; }
 .player-settings-menu { min-width: min(380px, calc(100vw - 32px)); }
@@ -5011,12 +4952,6 @@ input[type="reset"],
 .player-settings-menu .player-settings-menu__choice { min-height: 44px; padding: 6px 16px; border: 1px solid var(--playback-border); border-radius: 4px; background: transparent; color: inherit; font-size: var(--tl-font-size-lg); cursor: pointer; }
 .player-settings-menu .player-settings-menu__choice.is-selected { border-color: var(--tl-accent-primary); background: var(--playback-accent-soft); }
 
-/* Unified player D9: one panel shell for Settings, Speed, Subtitles, Chapters and Bookmarks. Rounded dark panel, faint dividers instead of boxed borders,
-   as tall as its content; the only scroll area is a long list inside it, and nothing scrolls sideways. */
-.playback-popover-surface { border: 0; border-radius: 16px; background: #121623; overflow: hidden; }
-.playback-popover-content { overflow-x: hidden; }
-.playback-popover-content:not(:has(.playback-sheet-list)) { overflow-y: auto; scrollbar-width: thin; }
-.playback-popover--settings .playback-popover-surface { min-width: 380px; }
 .player-settings-menu__header { border-bottom: 1px solid rgba(255, 255, 255, .06); }
 .player-settings-menu .player-settings-menu__choice { border-color: rgba(255, 255, 255, .12); }
 .playback-sheet-list { overflow-x: hidden; max-height: min(80vh, 640px); scrollbar-width: thin; }

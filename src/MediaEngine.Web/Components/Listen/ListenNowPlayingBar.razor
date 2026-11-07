@@ -159,12 +159,12 @@
                 }
             </ToolContent>
         </PlaybackShell>
-        <PlaybackPopover @ref="_compactContext" Title="@ContextToolTitle" ToolId="audio-compact-context" ItemKey="@DockItemKey"
+        <PlaybackPanel @ref="_compactContext" Title="@ContextToolTitle" ToolId="audio-compact-context" ItemKey="@DockItemKey"
                          Kind="@(_compactPanelKey == "lyrics" ? "lyrics" : "ordinary")" Trigger="@_compactToolTrigger" ShowHeading="false"
                          OpenChanged="@(open => DockToolChangedAsync(_compactPanelKey, open))">
             <ListenContextSidebar @key="_compactPanelKey" ActivePanelKey="@_compactPanelKey"
                                  ShowTabs="@(_compactPanelKey is "queue" or "chapters" || _compactPanelKey == "history" && (Playback.IsMusicMode || HasUsableChapters))" OnTabChanged="SelectDockTabAsync" />
-        </PlaybackPopover>
+        </PlaybackPanel>
 
         @if (Playback.PresentationSurface == PlaybackPresentationSurface.NowPlaying)
         {
@@ -174,10 +174,10 @@
                                       PanelChanged="SelectInlinePanelAsync" IsFavorite="@_isFavorite" FavoriteChanged="ToggleFavoriteAsync"
                                       OverallProgress="@DesktopOverallProgress" OnCollapse="CloseNowPlaying">
                     <ActionsContent>
-                        <PlaybackPopover Title="@(Playback.IsAudiobookMode ? "More audiobook actions" : "More song actions")" ToolId="now-playing-more" ItemKey="@DockItemKey">
+                        <PlaybackPanel Title="@(Playback.IsAudiobookMode ? "More audiobook actions" : "More song actions")" ToolId="now-playing-more" ItemKey="@DockItemKey">
                             <TriggerContent><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.More" /></TriggerContent>
                             <ChildContent><PersonalStatusMenuItems WorkId="@Playback.CurrentItem.WorkId" IsCurrent="@(() => IsCurrentDockSnapshot(dockSnapshot))" /></ChildContent>
-                        </PlaybackPopover>
+                        </PlaybackPanel>
                     </ActionsContent>
                 </PlaybackDesktopScene>
             }
@@ -236,7 +236,7 @@
         }
         await PanelCommands.SendAsync(shown, new() { Action = command, Value = value });
     });
-    private PlaybackPopover? _compactContext;
+    private PlaybackPanel? _compactContext;
     private ElementReference? _compactToolTrigger;
     private string _compactPanelKey = "queue";
     private bool _openCompactToolPending;

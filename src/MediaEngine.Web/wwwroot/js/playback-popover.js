@@ -1,6 +1,76 @@
+// Playback panels (unified player v2 D11). One owner decides what is open (PlaybackTransientToolCoordinator on the
+// Dashboard side); this module draws the open panel in the browser top layer, places it, and reports the ways a
+// person closes it: the trigger, outside click and Escape. There is no hover-open anywhere.
 const states = new WeakMap();
+const opened = []; // States whose panel is open, parents before the nested panels they own.
 const focusable = root => [...root.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled),[tabindex="0"]')]
     .filter(element => element.getClientRects().length && !element.closest('[inert],[aria-hidden="true"]'));
+
+const EDGE = 12;          // A panel stays at least this far inside the viewport.
+const GAP = 8;                   // Space between a panel and the bar or trigger it opens from.
+const MAX_HEIGHT_RATIO = 0.8;    // A panel is at most this share of the player or viewport height.
+const OPEN_ATTRIBUTE = 'data-playback-panel-open';
+
+/**
+ * Pure placement math, exported so it can be tested without a browser.
+ * trigger: {left,right,top,bottom}; panel: {width,height}; viewport: {x,y,width,height};
+ * area: {top,bottom} the player's own box (video) or the viewport; anchorTop: the top of the bar the panel opens above;
+ * alignRight: the x the panel's right edge lines up with (the tools zone's right edge, or the trigger's).
+ */
+export function computePlacement({ trigger, panel, viewport, area, anchorTop, alignRight, edge = EDGE, gap = GAP }) {
+    const areaTop = Math.max(viewport.y, area?.top ?? viewport.y) + edge;
+    const areaBottom = Math.min(viewport.y + viewport.height, area?.bottom ?? viewport.y + viewport.height) - edge;
+    const areaHeight = Math.max(0, areaBottom - areaTop);
+    const width = Math.min(panel.width, Math.max(0, viewport.width - edge * 2));
+    const spaceAbove = Math.max(0, (anchorTop ?? trigger.top) - gap - areaTop);
+    const spaceBelow = Math.max(0, areaBottom - (trigger.bottom + gap));
+    const cap = Math.max(0, Math.floor(Math.min(areaHeight * MAX_HEIGHT_RATIO, viewport.height * MAX_HEIGHT_RATIO)));
+    const wanted = Math.min(panel.height, cap);
+    // Open above the bar; flip below the trigger only when above is too short and below has more room.
+    const below = wanted > spaceAbove && spaceBelow > spaceAbove;
+    const room = below ? spaceBelow : spaceAbove;
+    const maxHeight = Math.max(0, Math.floor(Math.min(cap, room)));
+    const height = Math.min(panel.height, maxHeight);
+    const wantedLeft = (alignRight ?? trigger.right) - width;
+    const left = Math.max(viewport.x + edge, Math.min(wantedLeft, viewport.x + viewport.width - edge - width));
+    const top = below ? trigger.bottom + gap : Math.max(areaTop, (anchorTop ?? trigger.top) - gap - height);
+    return { left, top, width, maxHeight, placement: below ? 'below' : 'above' };
+}
+
+const containerFor = () => document.fullscreenElement || document.body;
+
+function showInTopLayer(panel) {
+    try {
+        if (panel.isConnected && typeof panel.showPopover === 'function' && !panel.matches?.(':popover-open')) panel.showPopover();
+    } catch (error) {
+        // A browser without the Popover API still shows the fixed-position panel above the page.
+        if (!(error instanceof DOMException)) throw error;
+    }
+}
+
+function leaveTopLayer(panel) {
+    try {
+        if (typeof panel.hidePopover === 'function' && panel.matches?.(':popover-open')) panel.hidePopover();
+    } catch (error) {
+        if (!(error instanceof DOMException)) throw error;
+    }
+}
+
+function publishOpen() {
+    const root = document.documentElement;
+    if (!root?.setAttribute) return;
+    if (opened.length) root.setAttribute(OPEN_ATTRIBUTE, 'true'); else root.removeAttribute?.(OPEN_ATTRIBUTE);
+}
+
+// True when `child` was opened from inside `parent` (directly, or through other nested panels).
+function isChildOf(child, parent) {
+    let owner = child.panel?.dataset?.playbackOwnedMenu;
+    for (let depth = 0; owner && depth < 8; depth++) {
+        if (owner === parent.panel?.id) return true;
+        owner = opened.find(candidate => candidate.panel?.id === owner)?.panel?.dataset?.playbackOwnedMenu;
+    }
+    return false;
+}
 
 export function attach(root, externalTrigger, owner) {
     if (!root) return;
@@ -8,46 +78,28 @@ export function attach(root, externalTrigger, owner) {
     if (!trigger) return;
     if (states.get(root)?.trigger === trigger) return;
     if (states.has(root)) detach(root);
-    const state = { trigger, owner, panel: null, marker: null, pinned: false, open: false, focusOnOpen: false,
-        restoreOnClose: false, hoverTimer: null, closeTimer: null, resizeObserver: null, mutationObserver: null, listeners: [] };
-    const pinnedDock = () => state.pinned && root.dataset?.playbackHoverPreview === 'true';
+    const state = { root, trigger, owner, panel: null, marker: null, open: false, focusOnOpen: false,
+        restoreOnClose: false, resizeObserver: null, mutationObserver: null, listeners: [] };
     const listen = (target, name, callback, options) => {
         target.addEventListener(name, callback, options);
         state.listeners.push(() => target.removeEventListener(name, callback, options));
     };
-    const cancel = () => { clearTimeout(state.hoverTimer); clearTimeout(state.closeTimer); };
-    const open = pinned => { cancel(); owner.invokeMethodAsync('OpenAsync', pinned); };
-    const close = restore => { cancel(); state.open = false; state.restoreOnClose = restore; releasePanel(state); owner.invokeMethodAsync('CloseFromBrowserAsync', restore); };
-    const enter = event => {
-        clearTimeout(state.closeTimer);
-        if (event.pointerType === 'touch' || !matchMedia('(hover:hover) and (pointer:fine)').matches || state.open) return;
-        state.hoverTimer = setTimeout(() => open(false), root.dataset.playbackHoverPreview === "true" ? 300 : 120);
-    };
-    const leave = event => {
-        clearTimeout(state.hoverTimer);
-        if (state.pinned || state.panel?.contains(event.relatedTarget) || trigger.contains(event.relatedTarget)) return;
-        state.closeTimer = setTimeout(() => close(false), root.dataset.playbackHoverPreview === "true" ? 200 : 300);
-    };
-    listen(trigger, 'pointerenter', enter);
-    listen(trigger, 'pointerleave', leave);
+    const open = () => { owner.invokeMethodAsync('OpenAsync', true); };
+    const close = restore => { state.open = false; state.restoreOnClose = restore; releasePanel(state); owner.invokeMethodAsync('CloseFromBrowserAsync', restore); };
+    state.close = close;
     listen(trigger, 'click', event => {
         event.preventDefault();
         state.focusOnOpen = event.detail === 0;
-        if (state.open && state.pinned) close(true); else open(true);
+        if (state.open) close(true); else open();
     });
     listen(document, 'pointerdown', event => {
-        if (!state.open || pinnedDock() || trigger.contains(event.target) || state.panel?.contains(event.target)
+        if (!state.open || trigger.contains(event.target) || state.panel?.contains(event.target)
             || event.target.closest?.('[data-playback-owned-menu]')?.dataset.playbackOwnedMenu === state.panel?.id) return;
         close(false); // The newly activated target retains its intended focus.
     }, true);
     listen(document, 'keydown', event => {
-        if (!state.open) return;
-        if (event.key !== 'Escape') {
-            if (!state.pinned && state.panel?.contains(event.target)) { cancel(); state.pinned = true; owner.invokeMethodAsync('OpenAsync', true); }
-            return;
-        }
-        if (pinnedDock() && !state.panel?.contains(event.target)) return;
-        if (state.panel?.querySelector('.tl-popover-open[data-playback-owned-menu]')) return; // Nested selector handles its own Escape first.
+        if (!state.open || event.key !== 'Escape') return;
+        if (state.panel?.querySelector('.tl-popover-open[data-playback-owned-menu]')) return; // A nested selector handles its own Escape first.
         if (state.panel?.id && document.querySelector(`[data-playback-popover-panel][data-playback-owned-menu="${state.panel.id}"]`)) return;
         event.preventDefault(); event.stopImmediatePropagation(); close(true);
     }, true);
@@ -60,71 +112,68 @@ export function attach(root, externalTrigger, owner) {
     const viewportChanged = () => owner.invokeMethodAsync('SetViewport', breakpoint.matches);
     listen(breakpoint, 'change', viewportChanged);
     viewportChanged();
-    state.enter = enter; state.leave = leave; state.close = close; state.cancel = cancel; state.pinnedDock = pinnedDock;
     states.set(root, state);
 }
 
 function releasePanel(state) {
     state.resizeObserver?.disconnect(); state.mutationObserver?.disconnect();
     if (state.panel) {
-        state.panel.removeEventListener('pointerenter', state.enter);
-        state.panel.removeEventListener('pointerleave', state.leave);
         state.panel.removeEventListener('pointerdown', state.onPanelPointerDown);
-        state.panel.removeEventListener('focusout', state.onFocusOut);
+        state.panel.removeAttribute?.('data-playback-panel-placed');
+        leaveTopLayer(state.panel);
         if (state.marker?.isConnected) state.marker.replaceWith(state.panel);
         else state.panel.remove(); // The owner already left; never retain an orphan portal.
     }
     state.panel = null; state.marker = null;
+    const index = opened.indexOf(state);
+    if (index >= 0) opened.splice(index, 1);
+    publishOpen();
 }
+
+const sizeOf = (element, fallback) => {
+    const box = element.getBoundingClientRect?.() ?? {};
+    return { width: box.width || fallback.width, height: box.height || fallback.height };
+};
 
 function position(state) {
     if (!state.open || !state.panel?.isConnected || !state.trigger.isConnected) return;
-    const container = document.fullscreenElement || document.body;
-    if (state.panel.parentNode !== container) container.append(state.panel);
-    const viewport = window.visualViewport;
-    const x = viewport?.offsetLeft || 0, y = viewport?.offsetTop || 0;
-    const width = viewport?.width || innerWidth, height = viewport?.height || innerHeight;
-    if (state.panel.classList.contains('playback-popover--volume')) {
-        const trigger=state.trigger.getBoundingClientRect();
-        Object.assign(state.panel.style, { width:'44px',height:'152px',maxHeight:'152px',
-            left:`${Math.max(x+8,Math.min(trigger.left+trigger.width/2-22,x+width-52))}px`,
-            top:`${Math.max(y+8,trigger.top-160)}px` });
-        return;
-    }
-    const isMenu = state.panel.classList.contains('playback-popover--menu');
-    const isSpeed = state.panel.classList.contains('playback-popover--speed');
-    const isSettings = state.panel.classList.contains('playback-popover--settings');
-    if (width <= 720 && !isMenu && !isSpeed) {
-        Object.assign(state.panel.style, { left: `${x}px`, top: `${y}px`, width: `${width}px`, height: `${height}px`, maxHeight: `${height}px` });
+    const panel = state.panel;
+    const container = containerFor();
+    if (panel.parentNode !== container) { container.append(panel); }
+    showInTopLayer(panel);
+    const visual = window.visualViewport;
+    const viewport = { x: visual?.offsetLeft || 0, y: visual?.offsetTop || 0, width: visual?.width || innerWidth, height: visual?.height || innerHeight };
+    if (panel.classList.contains('playback-panel--sheet')) {
+        // A bottom sheet fills the visual viewport; the sheet inside it sits on the bottom edge.
+        Object.assign(panel.style, { left: `${viewport.x}px`, top: `${viewport.y}px`, width: `${viewport.width}px`, height: `${viewport.height}px`, maxHeight: `${viewport.height}px` });
+        panel.setAttribute('data-playback-panel-placed', 'true');
         return;
     }
     const trigger = state.trigger.getBoundingClientRect();
-    state.panel.style.width = isMenu || isSpeed || isSettings ? 'max-content' : `${Math.min(width - 16, state.panel.classList.contains('playback-popover--lyrics') ? 460 : 400)}px`;
-    state.panel.style.maxWidth = `${width - 16}px`;
     const audioDock = state.trigger.closest('.listen-player');
-    const videoHost = state.panel.dataset?.playbackPopoverSurface === 'video' ? state.trigger.closest('.video-playback-host,.media-viewer__stage') : null;
-    const videoTop = videoHost ? Math.max(y, videoHost.getBoundingClientRect().top) : y;
-    const chromeTop = videoHost?.querySelector('[data-playback-chrome-bottom]')?.getBoundingClientRect().top;
+    const videoHost = panel.dataset?.playbackPopoverSurface === 'video' ? state.trigger.closest('.video-playback-host,.media-viewer__stage') : null;
+    const hostBox = videoHost?.getBoundingClientRect();
+    const chromeTop = (videoHost ?? state.trigger.closest('[data-playback-bar]'))?.querySelector?.('[data-playback-chrome-bottom],[data-playback-bar]')?.getBoundingClientRect().top;
     const anchorTop = audioDock ? Math.min(trigger.top, audioDock.getBoundingClientRect().top) : chromeTop ?? trigger.top;
-    const spaceAbove = Math.max(0, anchorTop - videoTop - 16);
-    const spaceBelow = Math.max(0, y + height - trigger.bottom - 16);
-    const openBelow = isMenu && spaceBelow > spaceAbove;
-    state.panel.style.maxHeight = `${Math.min(height * .7, 640, openBelow ? spaceBelow : spaceAbove)}px`;
-    state.panel.style.height = '';
-    const box = state.panel.getBoundingClientRect();
-    state.panel.style.left = `${Math.max(x + 8, Math.min(trigger.right - box.width, x + width - box.width - 8))}px`;
-    state.panel.style.top = `${openBelow ? trigger.bottom + 8 : Math.max(y + 8, anchorTop - box.height - 8)}px`;
-    const left = parseFloat(state.panel.style.left);
-    state.panel.style.setProperty('--playback-caret-left', `${Math.max(12, Math.min(box.width - 12, trigger.left + trigger.width / 2 - left))}px`);
+    const zone = state.trigger.closest('[data-playback-tools-zone]');
+    const isMenu = panel.classList.contains('playback-panel--menu');
+    const alignRight = !isMenu && zone ? zone.getBoundingClientRect().right : trigger.right;
+    // Measure at the CSS width, uncapped in height, so the cap reflects the real content.
+    panel.style.maxHeight = '';
+    const natural = sizeOf(panel, { width: 400, height: 0 });
+    const placed = computePlacement({ trigger, panel: natural, viewport, area: hostBox ? { top: hostBox.top, bottom: hostBox.bottom } : null, anchorTop, alignRight });
+    Object.assign(panel.style, { left: `${placed.left}px`, top: `${placed.top}px`, maxWidth: `${Math.max(0, viewport.width - EDGE * 2)}px`, maxHeight: `${placed.maxHeight}px` });
+    panel.dataset.playbackPanelPlacement = placed.placement;
+    panel.setAttribute('data-playback-panel-placed', 'true');
 }
 
-export function update(root, panel, open, pinned, restoreFocus = false) {
+export function update(root, panel, open, restoreFocus = false) {
     const state = states.get(root); if (!state) return;
-    state.open = open; state.pinned = pinned;
+    state.open = open;
     state.trigger.setAttribute('aria-expanded', open ? 'true' : 'false');
     if (!open) {
         state.restoreOnClose ||= restoreFocus;
-        state.cancel(); releasePanel(state);
+        releasePanel(state);
         if (state.restoreOnClose && state.trigger.isConnected) state.trigger.focus();
         state.restoreOnClose = false;
         return;
@@ -133,22 +182,18 @@ export function update(root, panel, open, pinned, restoreFocus = false) {
     if (panel !== state.panel) {
         releasePanel(state);
         state.panel = panel;
-        state.marker = document.createComment('playback-popover-position');
+        // Exactly one top-level panel at a time: opening another closes the others; a panel opened from inside a panel is its child.
+        for (const other of [...opened]) {
+            if (other !== state && !isChildOf(state, other)) other.close(false);
+        }
+        opened.push(state);
+        publishOpen();
+        state.marker = document.createComment('playback-panel-position');
         panel.before(state.marker);
         state.onPanelPointerDown = event => {
             if (event.target.closest('[data-playback-popover-backdrop]')) state.close(true);
-            else if (!state.pinned) { state.pinned = true; state.owner.invokeMethodAsync('OpenAsync', true); }
         };
-        state.onFocusOut = event => {
-            if (state.pinnedDock()) return;
-            // Blazor replacing the focused button (Delete -> Delete?) fires focusout with no target; a real click-away is handled by pointerdown.
-            if (!event.relatedTarget) return;
-            if (state.panel.classList.contains('playback-popover--sheet')) return;
-            if (event.relatedTarget?.closest?.('[data-playback-owned-menu]')?.dataset.playbackOwnedMenu === state.panel.id) return;
-            if (!state.panel.contains(event.relatedTarget) && !state.trigger.contains(event.relatedTarget)) state.close(false);
-        };
-        panel.addEventListener('pointerenter', state.enter); panel.addEventListener('pointerleave', state.leave);
-        panel.addEventListener('pointerdown', state.onPanelPointerDown); panel.addEventListener('focusout', state.onFocusOut);
+        panel.addEventListener('pointerdown', state.onPanelPointerDown);
         state.resizeObserver = new ResizeObserver(() => position(state));
         state.resizeObserver.observe(panel); state.resizeObserver.observe(state.trigger);
         const centerCurrent = () => {
@@ -156,9 +201,9 @@ export function update(root, panel, open, pinned, restoreFocus = false) {
             if (state.centeredKey === key) return;
             state.centeredKey = key;
             requestAnimationFrame(() => {
-            const current = panel.querySelector('[aria-current="true"]');
-            const scroller = current?.closest('.playback-sheet-list');
-            if (scroller && state.panel === panel) scroller.scrollTop = current.offsetTop - scroller.offsetTop - scroller.clientHeight / 2 + current.clientHeight / 2;
+                const current = panel.querySelector('[aria-current="true"]');
+                const scroller = current?.closest('.playback-sheet-list');
+                if (scroller && state.panel === panel) scroller.scrollTop = current.offsetTop - scroller.offsetTop - scroller.clientHeight / 2 + current.clientHeight / 2;
             });
         };
         state.centeredKey = null;
@@ -168,12 +213,12 @@ export function update(root, panel, open, pinned, restoreFocus = false) {
     }
     state.trigger.setAttribute('aria-controls', panel.id);
     position(state);
-    if (state.focusOnOpen && !panel.classList.contains('playback-popover--sheet')) {
+    if (state.focusOnOpen && !panel.classList.contains('playback-panel--sheet')) {
         (focusable(panel)[0] || panel).focus(); state.focusOnOpen = false;
     }
 }
 
 export function detach(root) {
     const state = states.get(root); if (!state) return;
-    state.cancel(); releasePanel(state); state.listeners.forEach(remove => remove()); states.delete(root);
+    releasePanel(state); state.listeners.forEach(remove => remove()); states.delete(root);
 }

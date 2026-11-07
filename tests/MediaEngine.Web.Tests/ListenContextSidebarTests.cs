@@ -60,14 +60,14 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
             .Add(component => component.Open, false)
             .Add(component => component.MenuOpenChanged, EventCallback.Factory.Create<bool>(this, value => requestedOpen = value)));
 
-        await closed.InvokeAsync(() => closed.FindComponent<PlaybackPopover>().Instance.OpenAsync(true));
+        await closed.InvokeAsync(() => closed.FindComponent<PlaybackPanel>().Instance.OpenAsync(true));
 
         Assert.True(requestedOpen);
-        Assert.Equal("true", closed.FindComponent<PlaybackPopover>().Find("button").GetAttribute("aria-expanded"));
+        Assert.Equal("true", closed.FindComponent<PlaybackPanel>().Find("button").GetAttribute("aria-expanded"));
         var opened = Render<PlaybackSpeedControl>(parameters => parameters
             .Add(component => component.Value, 1.25d)
             .Add(component => component.Open, true));
-        Assert.Equal("true", opened.FindComponent<PlaybackPopover>().Find("button").GetAttribute("aria-expanded"));
+        Assert.Equal("true", opened.FindComponent<PlaybackPanel>().Find("button").GetAttribute("aria-expanded"));
     }
 
     [Fact]
@@ -96,7 +96,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
         var playback = CreatePlayback(current, repeated, repeated);
         AddWorkspaceServices(playback, EngineApiClientStub.CreateDefault());
         var cut = Render<ListenContextSidebar>(parameters => parameters.Add(component => component.ActivePanelKey, "queue"));
-        await cut.InvokeAsync(() => cut.FindComponents<PlaybackPopover>().Last(p => p.Instance.Title == "Queue actions for Repeated song").Instance.OpenAsync(true));
+        await cut.InvokeAsync(() => cut.FindComponents<PlaybackPanel>().Last(p => p.Instance.Title == "Queue actions for Repeated song").Instance.OpenAsync(true));
         var remove = cut.FindComponents<AppNativeButton>().Where(button => button.Instance.AriaLabel == "Remove Repeated song from queue").Last().Instance.OnClick;
         var target = playback.Queue[2].QueueEntryId;
         await cut.InvokeAsync(() => playback.RemoveUpcomingAt(1));
@@ -526,7 +526,7 @@ public sealed class ListenContextSidebarTests : AsyncBunitContext
 
         // The phone full player has the same one Settings gear, and opening it uses the shared temporary-tool owner.
         var phoneFull = cut.FindComponent<PlaybackFullPlayer>();
-        var gear = phoneFull.FindComponent<AudiobookSettingsPopover>().FindComponent<PlaybackPopover>();
+        var gear = phoneFull.FindComponent<AudiobookSettingsPopover>().FindComponent<PlaybackPanel>();
         await cut.InvokeAsync(() => gear.Instance.OpenAsync(true));
         cut.WaitForAssertion(() => Assert.Equal("true", gear.Find("button").GetAttribute("aria-expanded")));
         Assert.NotEqual("audio-chapters", transientTools.OpenToolId);

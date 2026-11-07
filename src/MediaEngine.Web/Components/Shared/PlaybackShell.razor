@@ -73,7 +73,7 @@
             }
         </div>
 
-        <div class="playback-shell__tools" role="toolbar" aria-label="@ToolsLabel" data-playback-zone="tools">
+        <div class="playback-shell__tools" role="toolbar" aria-label="@ToolsLabel" data-playback-zone="tools" data-playback-tools-zone>
             @foreach (var tool in ToolControls)
             {
                 @if (OmittedTools.Contains(tool.Key))

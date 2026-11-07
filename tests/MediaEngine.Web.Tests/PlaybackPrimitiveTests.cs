@@ -214,7 +214,7 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("<PlaybackSpeedControl", strip, StringComparison.Ordinal);
         Assert.Contains("control.Key == PlaybackControlKey.SleepTimer", strip, StringComparison.Ordinal);
         Assert.Contains("<PlaybackSleepTimerControl", strip, StringComparison.Ordinal);
-        Assert.Contains("<PlaybackPopover", speed, StringComparison.Ordinal);
+        Assert.Contains("<PlaybackPanel", speed, StringComparison.Ordinal);
         Assert.Contains("<AppRangeSlider", speed, StringComparison.Ordinal);
         Assert.Contains("availability.CanEndCurrent", sleepChoices, StringComparison.Ordinal);
         Assert.Contains("availability.CanEndNext", sleepChoices, StringComparison.Ordinal);
@@ -387,7 +387,7 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("Icon=\"@Icon\"", toolSheet, StringComparison.Ordinal);
         Assert.Contains("aria-modal=\"@(Modal ? \"true\" : null)\"", toolSheet, StringComparison.Ordinal);
         Assert.Contains("@media (max-width: 720px)", toolSheetCss, StringComparison.Ordinal);
-        Assert.Contains("max-height: 82svh;", toolSheetCss, StringComparison.Ordinal);
+        Assert.Contains("max-height: 85svh;", toolSheetCss, StringComparison.Ordinal);
         Assert.DoesNotContain("BottomPanelTitle", listenBar, StringComparison.Ordinal);
         Assert.Contains("SleepTimerState=\"@Playback.SleepTimerState\"", listenBar, StringComparison.Ordinal);
         Assert.Contains("Playback.SetAudiobookSleepTimerAsync", listenBar, StringComparison.Ordinal);
@@ -404,7 +404,7 @@ public sealed class PlaybackPrimitiveTests
         // Unified player D10: video speed lives inside Settings, not as its own bar button.
         Assert.DoesNotContain("<PlaybackSpeedControl", videoHost, StringComparison.Ordinal);
         Assert.Contains("PlaybackRateChanged=", videoHost, StringComparison.Ordinal);
-        Assert.Contains("<PlaybackPopover", videoHost, StringComparison.Ordinal);
+        Assert.Contains("<PlaybackPanel", videoHost, StringComparison.Ordinal);
 
         foreach (var css in playbackStyles)
         {

@@ -228,6 +228,15 @@
     --playback-tool-width: 400px;
     --playback-tool-radius: 12px;
     --playback-popover-surface: var(--tl-bg-surface-elevated);
+    /* Unified player v2 D7, D11: one panel system. Menu 272 wide, Panel 360 to 420 wide, Wide (Audio & subtitles) 560; over video the same surface at 96% opacity. */
+    --playback-panel-menu-width: 272px;
+    --playback-panel-width: 400px;
+    --playback-panel-wide-width: 560px;
+    --playback-panel-radius: 8px;
+    --playback-panel-row-height: 44px;
+    --playback-panel-edge: 12px;
+    --playback-panel-surface-video: color-mix(in srgb, var(--tl-bg-surface-elevated) 96%, transparent);
+    --playback-panel-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
     --playback-popover-gap: 8px;
     --playback-popover-margin: 8px;
     --playback-tool-max-height: min(70dvh, 640px);
