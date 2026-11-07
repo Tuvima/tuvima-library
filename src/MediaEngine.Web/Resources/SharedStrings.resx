@@ -10952,6 +10952,30 @@
   <data name="PlaybackSettings_Reset" xml:space="preserve">
     <value>Reset playback preferences</value>
   </data>
+  <data name="PlaybackRemote_Row" xml:space="preserve">
+    <value>Play on another device…</value>
+  </data>
+  <data name="PlaybackRemote_Stop" xml:space="preserve">
+    <value>Stop playing on {0}</value>
+  </data>
+  <data name="PlaybackRemote_PlayingOn" xml:space="preserve">
+    <value>Playing on {0}</value>
+  </data>
+  <data name="PlaybackRemote_AnotherDevice" xml:space="preserve">
+    <value>another device</value>
+  </data>
+  <data name="PlaybackRemote_NotInBrowser" xml:space="preserve">
+    <value>Not available in this browser</value>
+  </data>
+  <data name="PlaybackRemote_NothingPlaying" xml:space="preserve">
+    <value>Nothing is playing</value>
+  </data>
+  <data name="PlaybackRemote_Vault" xml:space="preserve">
+    <value>Not available for Vault items</value>
+  </data>
+  <data name="PlaybackRemote_NotYet" xml:space="preserve">
+    <value>Can't play on another device yet</value>
+  </data>
   <data name="PlaybackSettings_NotSaved" xml:space="preserve">
     <value>Your playback preferences could not be saved. Try again.</value>
   </data>

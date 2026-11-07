@@ -6,7 +6,7 @@
     flex-direction: column;
 }
 
-.psp__row {
+.psp ::deep .psp__row {
     --playback-glyph-size: var(--playback-control-glyph);
     --playback-glyph-stroke: 1.8;
     align-items: center;
@@ -27,18 +27,32 @@
     width: 100%;
 }
 
-.psp__row:hover {
+.psp ::deep .psp__row:hover {
     background: var(--playback-state-hover);
 }
 
-.psp__row:active {
+.psp ::deep .psp__row:active {
     background: var(--playback-state-pressed);
 }
 
-.psp__row:focus-visible,
+.psp ::deep .psp__row:focus-visible,
 .psp__row--select:has(.psp__select:focus-visible) {
     outline: var(--playback-focus-ring-width) solid var(--playback-focus-ring);
     outline-offset: -2px;
+}
+
+/* Play on another device... when it cannot be used: the glyph and label dim, the reason under them (.psp__sub) does not. */
+.psp ::deep .psp__row:disabled {
+    cursor: default;
+}
+
+.psp ::deep .psp__row:disabled:hover {
+    background: transparent;
+}
+
+.psp ::deep .psp__row:disabled .playback-utility-glyph,
+.psp ::deep .psp__row:disabled .psp__label {
+    opacity: var(--playback-state-disabled-opacity);
 }
 
 .psp__label {
@@ -72,7 +86,7 @@
     cursor: pointer;
 }
 
-.psp__row ::deep .psp__select {
+.psp ::deep .psp__row .psp__select {
     appearance: none;
     background: transparent;
     border: 0;

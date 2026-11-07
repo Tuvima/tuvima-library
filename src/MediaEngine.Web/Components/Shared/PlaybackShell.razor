@@ -1,6 +1,9 @@
 @namespace MediaEngine.Web.Components.Shared
 @using System.Linq
 @using MediaEngine.Web.Services.Playback
+@implements IDisposable
+@inject IServiceProvider Services
+@inject IStringLocalizer<SharedStrings> L
 
 @* The one persistent bar for music, audiobooks, TV and movies (unified player v2 D1 to D6). Three zones in a grid whose outer columns are equal
    (1fr auto 1fr), so Play sits at the exact centre whatever the title or the tools take: identity on the left, transport in the middle, the
@@ -15,7 +18,7 @@
     <div class="playback-shell__row">
         <PlaybackIdentity @ref="_identity" Media="@Media" Compact="@Compact" Identity="@Identity" LinkContent="@LinkContent"
                           ArtworkSrc="@ArtworkSrc" ArtworkSrcSet="@ArtworkSrcSet" ArtworkAlt="@ArtworkAlt" ArtworkDisplay="@ArtworkDisplay" ArtworkIsPoster="@ArtworkIsPoster"
-                          ArtworkClick="@ArtworkClick" ArtworkLabel="@ArtworkLabel" Actions="@IdentityActions" ErrorText="@ErrorText" />
+                          ArtworkClick="@ArtworkClick" ArtworkLabel="@ArtworkLabel" Actions="@IdentityActions" ErrorText="@ErrorText" RemoteLine="@RemoteLine" />
 
         <div class="playback-shell__transport" role="group" aria-label="@TransportLabel" data-playback-zone="transport">
             @foreach (var control in TransportControls)
@@ -44,8 +47,9 @@
         <div class="playback-shell__tools" role="toolbar" aria-label="@ToolsLabel" data-playback-zone="tools" data-playback-tools-zone>
             @foreach (var tool in ToolControls)
             {
-                @if (OmittedTools.Contains(tool.Key))
+                @if (OmittedTools.Contains(tool.Key) || (tool.Key == PlaybackControlKey.Volume && _remote?.IsRemote == true))
                 {
+                    @* While a receiver plays, its own remote owns the volume, so the bar has none (unified player v2 D28). *@
                 }
                 else if (HostedTools.Contains(tool.Key) && ToolContent is not null)
                 {
@@ -144,6 +148,32 @@
     [Parameter(CaptureUnmatchedValues = true)] public IReadOnlyDictionary<string, object>? AdditionalAttributes { get; set; }
 
     private PlaybackIdentity? _identity;
+    private PlaybackRemoteController? _remote;
+
+    protected override void OnInitialized()
+    {
+        // Optional: a page that has no remote controller (a test host, a pop-out) draws the bar as it always did.
+        _remote = Services.GetService(typeof(PlaybackRemoteController)) as PlaybackRemoteController;
+        if (_remote is not null)
+        {
+            _remote.Changed += OnRemoteChanged;
+        }
+    }
+
+    private void OnRemoteChanged() => _ = InvokeAsync(StateHasChanged);
+
+    /// <summary>"Playing on Living room TV" while a receiver plays; the name is "another device" when the browser does not give one.</summary>
+    private string? RemoteLine => _remote is { IsRemote: true } remote
+        ? L["PlaybackRemote_PlayingOn", remote.DeviceName ?? L["PlaybackRemote_AnotherDevice"].Value].Value
+        : null;
+
+    public void Dispose()
+    {
+        if (_remote is not null)
+        {
+            _remote.Changed -= OnRemoteChanged;
+        }
+    }
 
     /// <summary>The artwork button, so a host can anchor a panel to it or return focus to it.</summary>
     public ElementReference? ArtworkElement => _identity?.ArtworkElement;

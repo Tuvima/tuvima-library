@@ -2,20 +2,33 @@ using System.Globalization;
 using MediaEngine.Contracts.Playback;
 using MediaEngine.Domain.Authorization;
 using MediaEngine.Domain.Contracts;
+using MediaEngine.Domain.Entities;
 using MediaEngine.Domain.Enums;
 
 namespace MediaEngine.Api.Services.Playback;
 
 /// <summary>
-/// Builds the cast session a paired phone hands to a home-network TV: how the title will be delivered (the file as it is, with
-/// byte ranges, or the prepared HLS package), the one-title <see cref="CastAccessGrant"/>, and the poster and subtitle paths
-/// behind it. It never creates an HLS grant for the phone; the TV only ever holds the cast grant.
+/// Builds the cast session a paired phone, or a signed-in Dashboard session, hands to a receiver: how the title will be delivered
+/// (the file as it is, with byte ranges, or the prepared HLS package), the one-title <see cref="CastAccessGrant"/>, and the poster
+/// and subtitle paths behind it. A video may use the HLS package; music and audiobooks are always the file as it is, with no subtitle
+/// tracks. A Vault item never casts. It never creates an HLS grant for the caller; the receiver only ever holds the cast grant.
 /// </summary>
 public sealed class CastSessionService
 {
     public const string ContentTypeMp4 = "video/mp4";
     public const string ContentTypeWebm = "video/webm";
     public const string ContentTypeHls = "application/x-mpegURL";
+
+    private static readonly Dictionary<string, string> AudioContentTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        [".mp3"] = "audio/mpeg",
+        [".m4a"] = "audio/mp4",
+        [".m4b"] = "audio/mp4",
+        [".aac"] = "audio/aac",
+        [".flac"] = "audio/flac",
+        [".ogg"] = "audio/ogg",
+        [".wav"] = "audio/wav",
+    };
 
     private readonly PlaybackCapabilitiesService _playback;
     private readonly AdaptiveHlsService _hls;
@@ -37,7 +50,14 @@ public sealed class CastSessionService
         _ffmpeg = ffmpeg;
     }
 
-    /// <summary>Null when the asset does not exist. Throws <see cref="UnauthorizedAccessException"/> unless the caller is a live paired device.</summary>
+    /// <summary>The content type a music or audiobook file is cast as, by extension. Null for anything that is not one of those audio files.</summary>
+    public static string? AudioContentTypeOf(string? extension) =>
+        extension is not null && AudioContentTypes.TryGetValue(extension, out var type) ? type : null;
+
+    /// <summary>
+    /// Null when the asset does not exist. Throws <see cref="UnauthorizedAccessException"/> for a Vault item, and unless the caller is
+    /// a live paired device or a live signed-in Dashboard session (<see cref="PrincipalKind.Human"/> with a managed session id).
+    /// </summary>
     public async Task<CastSessionDto?> CreateAsync(
         Guid assetId,
         RequestAuthority authority,
@@ -51,12 +71,19 @@ public sealed class CastSessionService
             return null;
         }
 
-        if (!plan.IsVideo)
+        // A Vault item never casts, on either path, however the caller is signed in.
+        if (plan.IsVault)
         {
-            return Unavailable(assetId, plan, "Casting works for videos only.");
+            throw new UnauthorizedAccessException("A Vault item cannot be cast.");
         }
 
-        if (!plan.Inspected)
+        var audioType = plan.IsAudio ? AudioContentTypeOf(plan.Extension) : null;
+        if (!plan.IsVideo && audioType is null)
+        {
+            return Unavailable(assetId, plan, "Casting works for videos, music and audiobooks only.");
+        }
+
+        if (audioType is null && !plan.Inspected)
         {
             return Unavailable(assetId, plan, "This video is still being prepared. Try again in a moment.");
         }
@@ -64,7 +91,13 @@ public sealed class CastSessionService
         string delivery;
         string contentType;
         Guid? packageId = null;
-        if (plan.DirectPlay)
+        if (audioType is not null)
+        {
+            // Music and audiobooks: the file as it is, with byte ranges, and the content type its extension gives.
+            delivery = PlaybackDeliveryModes.DirectStream;
+            contentType = audioType;
+        }
+        else if (plan.DirectPlay)
         {
             delivery = PlaybackDeliveryModes.DirectStream;
             contentType = string.Equals(plan.Extension, ".webm", StringComparison.OrdinalIgnoreCase) ? ContentTypeWebm : ContentTypeMp4;
@@ -101,9 +134,16 @@ public sealed class CastSessionService
             packageId = preparation.PackageId;
         }
 
-        var grant = await _grants.CreateAsync(assetId, packageId, authority, tokenId, scopes, plan.DurationSeconds, ct).ConfigureAwait(false);
+        // A signed-in Dashboard session gets a session grant; every other caller goes through the paired-device grant, which
+        // refuses anything that is not a live paired device.
+        var grant = authority.PrincipalKind == PrincipalKind.Human
+            ? await _grants.CreateForSessionAsync(assetId, packageId, authority, plan.DurationSeconds, ct).ConfigureAwait(false)
+            : await _grants.CreateAsync(assetId, packageId, authority, tokenId, scopes, plan.DurationSeconds, ct).ConfigureAwait(false);
         var segment = Uri.EscapeDataString(grant.Value);
-        var tracks = (await _textTracks.GetByAssetAsync(assetId, TextTrackKind.Subtitles, ct).ConfigureAwait(false))
+        IReadOnlyList<TextTrack> subtitleTracks = audioType is not null
+            ? []
+            : await _textTracks.GetByAssetAsync(assetId, TextTrackKind.Subtitles, ct).ConfigureAwait(false);
+        var tracks = subtitleTracks
             .Where(track => !string.IsNullOrWhiteSpace(track.LocalPath) && File.Exists(track.LocalPath))
             .OrderByDescending(track => track.IsPreferred)
             .ThenBy(track => track.Language, StringComparer.OrdinalIgnoreCase)

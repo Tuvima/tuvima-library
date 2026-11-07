@@ -2,7 +2,7 @@
    Audiobooks add their chapter label between the elapsed time and the rail. The rail itself is the "player" slider of AppRangeSlider. */
 .playback-seek-rail { display:flex; align-items:center; gap:10px; height:28px; min-width:0; color:var(--playback-text-secondary); font-family:var(--font-ui); font-size:12px; font-variant-numeric:tabular-nums; }
 .playback-seek-rail__start,.playback-seek-rail__end { flex:0 0 auto; white-space:nowrap; }
-.playback-seek-rail__label { flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--playback-text-secondary); }
+.playback-seek-rail__label, .playback-seek-rail ::deep .playback-seek-rail__label { flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--playback-text-secondary); }
 .playback-seek-rail ::deep .playback-seek-rail__label--action { padding:0; border:0; border-radius:4px; background:transparent; font:inherit; cursor:pointer; }
 .playback-seek-rail ::deep .playback-seek-rail__label--action:hover { color:var(--playback-text); }
 .playback-seek-rail ::deep .playback-seek-rail__label--action:focus-visible { outline:var(--playback-focus-ring-width) solid var(--playback-focus-ring); outline-offset:var(--playback-focus-ring-offset); }
