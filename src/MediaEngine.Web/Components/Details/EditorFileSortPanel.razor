@@ -488,7 +488,7 @@
                 <AppTextField Label="@L["EditorFileSort_SearchTitles"].Value" HideLabel="true" Value="@_query" ValueChanged="@(value => _query = value ?? string.Empty)"
                               Placeholder="@L["EditorFileSort_SearchTitles"].Value" Immediate="true" OnKeyDown="OnQueryKey"
                               aria-label="@L["EditorFileSort_SearchTitles"].Value" />
-                <AppButton Label="@L["EditorPlacementPicker_Search"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Search"
+                <AppButton Label="@L["EditorFileSort_Search"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" StartIcon="@AppMaterialIcons.Outlined.Search"
                            Disabled="@(_searching || _query.Trim().Length < 2)" OnClick="SearchAsync" />
             </div>
             @if (_searchProblem is not null)
@@ -497,7 +497,7 @@
             }
             else if (_searching)
             {
-                <div aria-busy="true" aria-label="@L["EditorPlacementPicker_Searching"].Value"><AppSkeleton Shape="AppSkeletonShape.Text" Width="60%" /></div>
+                <div aria-busy="true" aria-label="@L["EditorFileSort_Searching"].Value"><AppSkeleton Shape="AppSkeletonShape.Text" Width="60%" /></div>
             }
             else
             {

@@ -55,7 +55,7 @@ public sealed class EditorConfigurationProviderTests : IDisposable
     }
 
     [Theory]
-    [InlineData(EditorKinds.Movie, new[] { "title", "year" })]
+    [InlineData(EditorKinds.Movie, new[] { "title", "year", "provider_id" })]
     [InlineData(EditorKinds.TvShow, new[] { "show", "year" })]
     [InlineData(EditorKinds.Album, new[] { "artist", "album", "song" })]
     [InlineData(EditorKinds.Book, new[] { "title", "author", "isbn" })]

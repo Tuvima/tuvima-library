@@ -24,6 +24,7 @@
   "provider_id": "c0000014-0000-4000-8000-000000000022",
   "display_name": "Open Library",
   "requires_api_key": false,
+  "editor_match": { "default_for": ["book"] },
   "language_strategy": "source",
 
   "http_client": {

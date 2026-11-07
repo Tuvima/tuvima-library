@@ -3,5 +3,25 @@
   "conflict_threshold": 0.6,
   "conflict_epsilon": 0.05,
   "stale_claim_decay_days": 90,
-  "stale_claim_decay_factor": 0.8
+  "stale_claim_decay_factor": 0.8,
+  "match_verdict": {
+    "strong_min_score": 0.85,
+    "possible_min_score": 0.6,
+    "strong_min_agreeing_facts": 2,
+    "identity_facts": ["title", "number", "identifier"],
+    "runtime_tolerance_minutes": 2,
+    "track_length_tolerance_seconds": 3,
+    "evidence_facts": {
+      "movie": ["title", "year", "runtime", "identifier"],
+      "tv_show": ["title", "year"],
+      "tv_season": ["title", "year", "number"],
+      "tv_episode": ["title", "number", "runtime"],
+      "album": ["title", "creator", "year"],
+      "song": ["title", "creator", "track_length", "identifier"],
+      "book": ["title", "creator", "year", "identifier"],
+      "audiobook": ["title", "creator", "year", "runtime"],
+      "comic": ["title", "number", "year"],
+      "video": ["identifier"]
+    }
+  }
 }

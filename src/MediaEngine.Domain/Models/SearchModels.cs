@@ -158,6 +158,19 @@ public sealed record SearchRetailResult(
 /// <summary>A retail provider that can take a search: its internal name and the name a person reads.</summary>
 public sealed record RetailSearchProvider(string Name, string DisplayName);
 
+/// <summary>
+/// A retail provider that fits a kind of item, whether or not it can be asked right now (universal editor v5, D8): the Match tab lists
+/// every one with its state, the default first.
+/// </summary>
+/// <param name="Name">The provider's internal name.</param>
+/// <param name="DisplayName">The name a person reads.</param>
+/// <param name="Enabled">False when the provider is switched off in Settings.</param>
+/// <param name="NeedsKey">True when the provider needs a key and none is saved.</param>
+/// <param name="DefaultForKinds">The editor kinds this provider is the default for (from <c>editor_match.default_for</c>).</param>
+/// <param name="Order">Where the provider registers among the others; the tie-break after the default.</param>
+public sealed record RetailProviderInfo(
+    string Name, string DisplayName, bool Enabled, bool NeedsKey, IReadOnlyList<string> DefaultForKinds, int Order);
+
 // ── Apply Match ───────────────────────────────────────────────────────────────
 
 /// <summary>Request to apply a manually selected match to a libraryItem item.</summary>

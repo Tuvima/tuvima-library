@@ -1,76 +1,58 @@
 using System.Text.RegularExpressions;
-using MediaEngine.Domain.Configuration;
 
 namespace MediaEngine.Domain.Services;
 
-/// <summary>Search hints only. Never rewrites embedded titles or source names.</summary>
+/// <summary>Search hints only. Never rewrites embedded titles or source names. The noise words and the year rule come from <c>config/filename_cleaning.json</c>.</summary>
 public static class ReleaseTitleHints
 {
-    /// <summary>Tags that are also ordinary title words ("Magnum Opus"); they only count after " - " or "[".</summary>
-    private static readonly HashSet<string> AmbiguousTags = new(StringComparer.OrdinalIgnoreCase) { "opus" };
+    private static readonly TimeSpan Timeout = TimeSpan.FromMilliseconds(100);
 
-    /// <summary>Evidence the video naming list does not carry: older codecs and audio formats seen in release names.</summary>
-    private static readonly string[] BuiltInTags =
-    [
-        @"VC-?1", @"H[.]?26[45]", @"BDRemux", @"REMUX", @"TrueHD", @"DTS(?:-HD)?", @"DDP\d", @"WEB-DL", @"BluRay",
-    ];
+    private sealed record Compiled(FilenameCleaningRules Rules, Regex TechnicalSuffix, Regex YearSuffix, Regex BareYearSuffix);
 
     private static readonly object Gate = new();
-    private static Regex TechnicalSuffix = BuildTechnicalSuffix(new VideoTitleCleaningConfiguration().RemoveTags);
+    private static Compiled? _compiled;
 
-    /// <summary>
-    /// Replaces the format tags the cleaner recognises. The tags come from <c>remove_tags</c> in
-    /// <c>config/videos.json</c> so Videos folders and lookup names share one list.
-    /// </summary>
-    public static void UseTags(IEnumerable<string>? tags)
+    private static Compiled For(FilenameCleaningRules rules)
     {
-        var list = (tags ?? []).Where(t => !string.IsNullOrWhiteSpace(t)).ToList();
         lock (Gate)
         {
-            TechnicalSuffix = BuildTechnicalSuffix(list.Count == 0 ? new VideoTitleCleaningConfiguration().RemoveTags : list);
+            if (_compiled is { } built && ReferenceEquals(built.Rules, rules))
+            {
+                return built;
+            }
+
+            var year = rules.Configuration.Year.Pattern;
+            var strong = $@"(?:\s+[-–]\s+|[ ._]+|\s*\[)(?=(?:{rules.PlainFragments})(?:\b|[ ._-]))";
+            var weak = rules.AmbiguousFragments.Length == 0
+                ? ""
+                : $@"|(?:\s+[-–]\s+|\s*\[)(?=(?:{rules.AmbiguousFragments})(?:\b|[ ._-]))";
+            _compiled = new Compiled(
+                rules,
+                new Regex($@"(?i)(?:{strong}{weak})[^\r\n]*$", RegexOptions.CultureInvariant, Timeout),
+                new Regex($@"^(?<title>.+?)\s*[([](?<year>{year})[)\]]\s*$", RegexOptions.CultureInvariant, Timeout),
+                // "Movie.2019" with no brackets counts as a year only once a format tag followed it.
+                new Regex($@"^(?<title>.+?)[ ._](?<year>{year})$", RegexOptions.CultureInvariant, Timeout));
+            return _compiled;
         }
     }
 
-    private static Regex BuildTechnicalSuffix(IEnumerable<string> tags)
-    {
-        var plain = new List<string>(BuiltInTags);
-        var ambiguous = new List<string>();
-        foreach (var tag in tags)
-        {
-            var trimmed = tag.Trim();
-            (AmbiguousTags.Contains(trimmed) ? ambiguous : plain).Add(Regex.Escape(trimmed));
-        }
+    public static (string? Title, string? Year) Parse(string? value) => Parse(value, FilenameCleaner.Rules);
 
-        var strong = $@"(?:\s+[-–]\s+|[ ._]+|\s*\[)(?=(?:{string.Join('|', plain.Distinct())})(?:\b|[ ._-]))";
-        var weak = ambiguous.Count == 0
-            ? ""
-            : $@"|(?:\s+[-–]\s+|\s*\[)(?=(?:{string.Join('|', ambiguous)})(?:\b|[ ._-]))";
-        return new Regex($@"(?i)(?:{strong}{weak})[^\r\n]*$", RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
-    }
-
-    private static readonly Regex YearSuffix = new(
-        @"^(?<title>.+?)\s*[([](?<year>(?:18|19|20)\d{2})[)\]]\s*$",
-        RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
-
-    // "Movie.2019" with no brackets counts as a year only once a format tag followed it.
-    private static readonly Regex BareYearSuffix = new(
-        @"^(?<title>.+?)[ ._](?<year>(?:18|19|20)\d{2})$",
-        RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
-
-    public static (string? Title, string? Year) Parse(string? value)
+    public static (string? Title, string? Year) Parse(string? value, FilenameCleaningRules rules)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
             return (value, null);
         }
+        var compiled = For(rules);
         var trimmed = value.Trim();
-        var stripped = TechnicalSuffix.Replace(trimmed, "");
+        var stripped = compiled.TechnicalSuffix.Replace(trimmed, "");
         var cleaned = stripped.TrimEnd(' ', '-', '.', '_');
-        var match = YearSuffix.Match(cleaned);
+        var match = compiled.YearSuffix.Match(cleaned);
         // Only dotted or underscored release names ("Movie.2019.1080p"): "Blade Runner 2049 1080p" keeps its title.
         if (!match.Success && stripped.Length < trimmed.Length && !cleaned.Contains(' '))
         {
-            match = BareYearSuffix.Match(cleaned);
+            match = compiled.BareYearSuffix.Match(cleaned);
         }
         var year = match.Success ? match.Groups["year"].Value : null;
         if (match.Success)

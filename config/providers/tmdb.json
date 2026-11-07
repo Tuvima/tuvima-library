@@ -789,6 +789,7 @@
     }
   ],
   "requires_api_key": true,
+  "editor_match": { "default_for": ["movie"] },
   "custom_icon_name": null,
   "language_strategy": "localized",
   "settings_schema": {

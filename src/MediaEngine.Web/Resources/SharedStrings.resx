@@ -152,8 +152,6 @@
   <data name="TopBar_ServiceUnavailable" xml:space="preserve">
     <value>Library is temporarily unavailable.</value>
   </data>
-  <!-- Command Palette -->
-  <!-- Status Pill -->
   <data name="StatusPill_Verified" xml:space="preserve">
     <value>VERIFIED</value>
   </data>
@@ -181,11 +179,9 @@
   <data name="StatusPill_DeletesIn" xml:space="preserve">
     <value>Deletes in {0}d</value>
   </data>
-  <!-- Profile Tab -->
   <data name="Profile_Role" xml:space="preserve">
     <value>Role</value>
   </data>
-  <!-- Models Tab -->
   <data name="Models_Status" xml:space="preserve">
     <value>Status</value>
   </data>
@@ -201,21 +197,15 @@
   <data name="Models_Unload" xml:space="preserve">
     <value>Unload</value>
   </data>
-  <!-- AI Features Tab -->
   <data name="AiFeatures_Scheduled" xml:space="preserve">
     <value>Scheduled</value>
   </data>
-  <!-- AI Schedule Tab -->
   <data name="Schedule_Enabled" xml:space="preserve">
     <value>Enabled</value>
   </data>
-  <!-- Libraries Tab -->
   <data name="Libraries_Reset" xml:space="preserve">
     <value>Reset</value>
   </data>
-  <!-- Status Dashboard Tab -->
-  <!-- Security Tab -->
-  <!-- API Keys Tab -->
   <data name="ApiKeys_Label" xml:space="preserve">
     <value>Label</value>
   </data>
@@ -234,35 +224,27 @@
   <data name="ApiKeys_AllKeysRevoked" xml:space="preserve">
     <value>All</value>
   </data>
-  <!-- Users Tab -->
   <data name="Users_ColName" xml:space="preserve">
     <value>Name</value>
   </data>
   <data name="Users_DeleteProfileTooltip" xml:space="preserve">
     <value>Delete profile</value>
   </data>
-  <!-- Activity Tab -->
   <data name="Activity_Filter" xml:space="preserve">
     <value>Filter</value>
   </data>
   <data name="Activity_Clear" xml:space="preserve">
     <value>Clear</value>
   </data>
-  <!-- Maintenance Tab -->
-  <!-- Connectivity Tab -->
-  <!-- Server General Tab -->
   <data name="ServerGeneral_CountryLabel" xml:space="preserve">
     <value>Country</value>
   </data>
-  <!-- Vibe Vocabulary Tab -->
   <data name="Vibes_Add" xml:space="preserve">
     <value>Add</value>
   </data>
-  <!-- Wikidata Configuration Tab -->
   <data name="Wikidata_PeopleGroupTitle" xml:space="preserve">
     <value>People</value>
   </data>
-  <!-- Home Page -->
   <data name="Home_EmptyTitle" xml:space="preserve">
     <value>Your library is empty</value>
   </data>
@@ -281,14 +263,9 @@
   <data name="Home_CarouselNext" xml:space="preserve">
     <value>Next</value>
   </data>
-  <!-- Settings Page -->
-  <!-- Search Page -->
   <data name="Search_Title" xml:space="preserve">
     <value>Search your library</value>
   </data>
-  <!-- Provider Language Strategy -->
-  <!-- Stage 3 Universe Enrichment -->
-  <!-- Universe Explorer modes -->
   <data name="UniverseContents_Gathering" xml:space="preserve">
     <value>Still gathering details</value>
   </data>
@@ -385,7 +362,6 @@
   <data name="Universe_GuideFilterOrgs" xml:space="preserve">
     <value>Organizations</value>
   </data>
-  <!-- Wave 6 hardening -->
   <data name="Layout_SkipToContent" xml:space="preserve">
     <value>Skip to main content</value>
   </data>
@@ -401,7 +377,6 @@
   <data name="Listen_History" xml:space="preserve">
     <value>History</value>
   </data>
-  <!-- Ingestion dashboard -->
   <data name="Ingestion_Refresh" xml:space="preserve">
     <value>Refresh</value>
   </data>
@@ -1161,17 +1136,8 @@
   <data name="Common_EditingTools" xml:space="preserve">
     <value>Editing tools</value>
   </data>
-  <data name="EditingVideoIdentify_OnlineLookupIsSwitchedOff" xml:space="preserve">
-    <value>Online lookup is switched off for this library. Turn it on in Settings to identify videos from a YouTube link.</value>
-  </data>
-  <data name="EditingVideoIdentify_OnlyTheVideoSID" xml:space="preserve">
-    <value>Only the video's ID is sent to YouTube, never your file.</value>
-  </data>
   <data name="Common_IdentifyThisVideo" xml:space="preserve">
     <value>Identify this video</value>
-  </data>
-  <data name="EditingVideoIdentify_YouTubeLinkOrVideoID" xml:space="preserve">
-    <value>YouTube link or video ID</value>
   </data>
   <data name="Common_Identify" xml:space="preserve">
     <value>Identify</value>
@@ -7977,9 +7943,6 @@
   <data name="DetailsTab_FileDetailsCouldNotBe" xml:space="preserve">
     <value>File details could not be loaded.</value>
   </data>
-  <data name="EditingVideoIdentify_NoMatchWasFoundCheck" xml:space="preserve">
-    <value>No match was found. Check the link, and that online lookup is on for this library.</value>
-  </data>
   <data name="PersonalStatusMenuItems_ListeningStatusUpdated" xml:space="preserve">
     <value>Listening status updated.</value>
   </data>
@@ -9210,57 +9173,6 @@
   <data name="EditorTvMatchBrowser_BestGuess" xml:space="preserve">
     <value>Best guess</value>
   </data>
-  <data name="EditorPlacementPicker_Staged" xml:space="preserve">
-    <value>Staged: moves to {0}.</value>
-  </data>
-  <data name="EditorPlacementPicker_Undo" xml:space="preserve">
-    <value>Undo</value>
-  </data>
-  <data name="EditorPlacementPicker_SearchPlaces" xml:space="preserve">
-    <value>Search places</value>
-  </data>
-  <data name="EditorPlacementPicker_SearchFor" xml:space="preserve">
-    <value>Search for an {0}</value>
-  </data>
-  <data name="EditorPlacementPicker_Search" xml:space="preserve">
-    <value>Search</value>
-  </data>
-  <data name="EditorPlacementPicker_Searching" xml:space="preserve">
-    <value>Searching</value>
-  </data>
-  <data name="EditorPlacementPicker_Select" xml:space="preserve">
-    <value>Select</value>
-  </data>
-  <data name="EditorPlacementPicker_SelectPlace" xml:space="preserve">
-    <value>Select {0}</value>
-  </data>
-  <data name="EditorPlacementPicker_NothingMatches" xml:space="preserve">
-    <value>Nothing in your library matches that. A place has to exist before an item can move into it.</value>
-  </data>
-  <data name="EditorPlacementPicker_WhereItGoes" xml:space="preserve">
-    <value>Where it goes</value>
-  </data>
-  <data name="EditorPlacementPicker_MovesTo" xml:space="preserve">
-    <value>moves to</value>
-  </data>
-  <data name="EditorPlacementPicker_CheckingFiles" xml:space="preserve">
-    <value>Checking the files...</value>
-  </data>
-  <data name="EditorPlacementPicker_LeavesBehind" xml:space="preserve">
-    <value>Whatever it leaves behind stays in your library, even if it is left empty.</value>
-  </data>
-  <data name="EditorPlacementPicker_RenameFiles" xml:space="preserve">
-    <value>Rename and move the files</value>
-  </data>
-  <data name="EditorPlacementPicker_RenameFilesDescription" xml:space="preserve">
-    <value>Renames and moves the files to fit. Off unless you turn it on.</value>
-  </data>
-  <data name="EditorPlacementPicker_Cancel" xml:space="preserve">
-    <value>Cancel</value>
-  </data>
-  <data name="EditorPlacementPicker_UsePlace" xml:space="preserve">
-    <value>Use this place</value>
-  </data>
   <data name="ToolsSummaryLine_Downloading" xml:space="preserve">
     <value>{0} downloading</value>
   </data>
@@ -10121,12 +10033,6 @@
   </data>
   <data name="EditorFooter_Discard" xml:space="preserve">
     <value>Discard</value>
-  </data>
-  <data name="EditorLineUp_ApplyTo" xml:space="preserve">
-    <value>Apply to</value>
-  </data>
-  <data name="EditorLineUp_ReadOnly" xml:space="preserve">
-    <value>You can look at these matches, but you can't change them.</value>
   </data>
   <data name="EditorQuickFacts_Title" xml:space="preserve">
     <value>Quick Facts</value>
@@ -11177,5 +11083,56 @@
   </data>
   <data name="AudioSubtitles_NameForced" xml:space="preserve">
     <value>{0} · Forced</value>
+  </data>
+  <data name="EditorFileSort_Search" xml:space="preserve">
+    <value>Search</value>
+  </data>
+  <data name="EditorFileSort_Searching" xml:space="preserve">
+    <value>Searching</value>
+  </data>
+  <data name="EditorMatchPanel_Provider" xml:space="preserve">
+    <value>Provider</value>
+  </data>
+  <data name="EditorMatchPanel_Search" xml:space="preserve">
+    <value>Search</value>
+  </data>
+  <data name="EditorMatchPanel_MatchSource" xml:space="preserve">
+    <value>Match source</value>
+  </data>
+  <data name="EditorMatchPanel_ReadingMatch" xml:space="preserve">
+    <value>Reading this item's match</value>
+  </data>
+  <data name="BulkEditPanel_MatchOneAtATime" xml:space="preserve">
+    <value>Match one item at a time: open an item and use its Match tab.</value>
+  </data>
+  <data name="EditorMatchResults_LookingUp" xml:space="preserve">
+    <value>Looking up…</value>
+  </data>
+  <data name="EditorMatchResults_SearchResults" xml:space="preserve">
+    <value>Search results</value>
+  </data>
+  <data name="EditorMatchResults_SelectedResult" xml:space="preserve">
+    <value>Selected result</value>
+  </data>
+  <data name="EditorMatchResults_OpenSource" xml:space="preserve">
+    <value>Open source ↗</value>
+  </data>
+  <data name="EditorMatchResults_Editions" xml:space="preserve">
+    <value>Editions</value>
+  </data>
+  <data name="EditorMatchResults_EditionsAndReleases" xml:space="preserve">
+    <value>Editions and releases</value>
+  </data>
+  <data name="EditorMatchResults_ClosestToYourFile" xml:space="preserve">
+    <value>Closest to your file</value>
+  </data>
+  <data name="EditorMatchResults_YourFileMeasured" xml:space="preserve">
+    <value>Your file: {0} measured</value>
+  </data>
+  <data name="EditorMatchResults_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="EditorMatchResults_ApplyMatch" xml:space="preserve">
+    <value>Apply match</value>
   </data>
 </root>

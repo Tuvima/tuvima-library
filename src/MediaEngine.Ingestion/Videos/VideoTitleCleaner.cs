@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 using MediaEngine.Domain.Configuration;
+using MediaEngine.Domain.Services;
 
 namespace MediaEngine.Ingestion.Videos;
 
@@ -8,8 +9,9 @@ namespace MediaEngine.Ingestion.Videos;
 public sealed record CleanedVideoName(string Title, int? Number, string? YoutubeId);
 
 /// <summary>
-/// Turns a video file or folder name into a readable title using the rules in <c>config/videos.json</c>:
-/// a <c>[youtubeid]</c> suffix, separators, release tags and a leading number.
+/// Turns a video file or folder name into a readable title: a <c>[youtubeid]</c> suffix and a leading number follow
+/// <c>config/videos.json</c>; the separators and the release tags follow <c>config/filename_cleaning.json</c> (the one list the editor's
+/// pre-fill and the scan share).
 /// </summary>
 public static partial class VideoTitleCleaner
 {
@@ -70,8 +72,9 @@ public static partial class VideoTitleCleaner
     }
 
     /// <summary>Cleans a name. A folder name keeps its leading number (<paramref name="stripLeadingNumber"/> false).</summary>
-    public static CleanedVideoName Clean(string stem, VideoTitleCleaningConfiguration rules, bool stripLeadingNumber = true)
+    public static CleanedVideoName Clean(string stem, VideoTitleCleaningConfiguration rules, bool stripLeadingNumber = true, FilenameCleaningRules? cleaning = null)
     {
+        cleaning ??= FilenameCleaner.Rules;
         var youtubeId = FindYoutubeId(stem);
         var text = stem;
         if (rules.StripYoutubeIdSuffix && youtubeId is not null)
@@ -79,9 +82,9 @@ public static partial class VideoTitleCleaner
             text = text.Replace($"[{youtubeId}]", " ", StringComparison.Ordinal);
         }
 
-        text = ReplaceSeparators(text, rules.WordSeparators);
+        text = ReplaceSeparators(text, cleaning.Separators);
         text = WhitespaceRegex().Replace(text, " ").Trim(' ', '-', '_', '.');
-        text = StripTrailingTags(text, rules.RemoveTags);
+        text = StripTrailingTags(text, cleaning);
 
         int? number = null;
         if (stripLeadingNumber && rules.StripLeadingNumber)
@@ -146,14 +149,13 @@ public static partial class VideoTitleCleaner
         return sb.ToString();
     }
 
-    private static string StripTrailingTags(string text, IReadOnlyList<string> tags)
+    private static string StripTrailingTags(string text, FilenameCleaningRules cleaning)
     {
-        var tagSet = new HashSet<string>(tags, StringComparer.OrdinalIgnoreCase);
         var tokens = text.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
         while (tokens.Count > 1)
         {
             var last = tokens[^1].Trim('[', ']', '(', ')', '-');
-            if (tagSet.Contains(last))
+            if (cleaning.IsNoiseWord(last))
             {
                 tokens.RemoveAt(tokens.Count - 1);
                 continue;

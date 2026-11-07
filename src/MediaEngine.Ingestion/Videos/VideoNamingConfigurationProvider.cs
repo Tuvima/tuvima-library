@@ -1,7 +1,6 @@
 using System.Text.Json;
 using MediaEngine.Domain.Configuration;
 using MediaEngine.Domain.Contracts;
-using MediaEngine.Domain.Services;
 
 namespace MediaEngine.Ingestion.Videos;
 
@@ -45,8 +44,6 @@ public sealed class VideoNamingConfigurationProvider
                 }
 
                 _current = Load(path, writeTime);
-                // One list of format tags: the lookup name cleaner reads the same remove_tags as Videos folders.
-                ReleaseTitleHints.UseTags(_current.TitleCleaning.RemoveTags);
                 _loadedPath = path;
                 _loadedWriteTimeUtc = writeTime;
                 return _current;

@@ -26,6 +26,7 @@ public sealed class SynchronousIdentityPipelineService : IHydrationPipelineServi
     private readonly IEnrichmentConcurrencyLimiter _concurrency;
     private readonly ILogger<SynchronousIdentityPipelineService> _logger;
     private readonly IExternalLookupGuard? _lookupGuard;
+    private readonly IPinnedMatchGuard? _pinnedGuard;
 
     public SynchronousIdentityPipelineService(
         IIdentityJobRepository jobRepo,
@@ -35,9 +36,11 @@ public sealed class SynchronousIdentityPipelineService : IHydrationPipelineServi
         QuickHydrationWorker hydrationWorker,
         ILogger<SynchronousIdentityPipelineService> logger,
         IEnrichmentConcurrencyLimiter? concurrencyLimiter = null,
-        IExternalLookupGuard? lookupGuard = null)
+        IExternalLookupGuard? lookupGuard = null,
+        IPinnedMatchGuard? pinnedGuard = null)
     {
         _lookupGuard = lookupGuard;
+        _pinnedGuard = pinnedGuard;
         _jobRepo = jobRepo;
         _canonicalRepo = canonicalRepo;
         _retailWorker = retailWorker;
@@ -53,7 +56,7 @@ public sealed class SynchronousIdentityPipelineService : IHydrationPipelineServi
     /// </summary>
     public async ValueTask<Guid> EnqueueAsync(HarvestRequest request, CancellationToken ct = default)
     {
-        if (await IsInNoLookupLibraryAsync(request, ct))
+        if (await IsInNoLookupLibraryAsync(request, ct) || await IsPinnedAgainstAutomaticWorkAsync(request, ct))
         {
             return Guid.Empty;
         }
@@ -109,7 +112,7 @@ public sealed class SynchronousIdentityPipelineService : IHydrationPipelineServi
     public async Task<HydrationResult> RunSynchronousAsync(
         HarvestRequest request, CancellationToken ct = default)
     {
-        if (await IsInNoLookupLibraryAsync(request, ct))
+        if (await IsInNoLookupLibraryAsync(request, ct) || await IsPinnedAgainstAutomaticWorkAsync(request, ct))
         {
             return new HydrationResult();
         }
@@ -235,6 +238,27 @@ public sealed class SynchronousIdentityPipelineService : IHydrationPipelineServi
 
         _logger.LogInformation(
             "Identity work for {EntityType} {EntityId} was not started: its library never looks anything up.",
+            request.EntityType,
+            request.EntityId);
+        return true;
+    }
+
+    // A match a person applied is never re-identified by automatic work (a scan, a folder hint that now disagrees). Work the person
+    // asked for (a user resolution, a pre-resolved QID, a retail stage already settled) goes on.
+    private async Task<bool> IsPinnedAgainstAutomaticWorkAsync(HarvestRequest request, CancellationToken ct)
+    {
+        if (_pinnedGuard is null
+            || request.IsUserResolution
+            || request.SkipRetailStage
+            || !string.IsNullOrWhiteSpace(request.PreResolvedQid)
+            || request.EntityType is not (EntityType.MediaAsset or EntityType.Work)
+            || !await _pinnedGuard.IsPinnedAsync(request.EntityId, ct).ConfigureAwait(false))
+        {
+            return false;
+        }
+
+        _logger.LogInformation(
+            "Identity work for {EntityType} {EntityId} was not started: a person applied its match.",
             request.EntityType,
             request.EntityId);
         return true;
