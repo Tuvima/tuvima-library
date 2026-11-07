@@ -1,0 +1,282 @@
+/* The nav row of the editor's header (universal editor v5 1a items 2 to 6; mock-up screens A, B, D, K): the accent home button, the Season (or
+   Section) dropdown and the item dropdown. The lists themselves are drawn in the top layer by AppPopover; their surface is styled globally in
+   app.css (.tl-hnav__surface) and their rows here, because the rows are this component's own markup. The triggers and rows are AppRowButtons:
+   the shared button draws nothing, and the look below sits on its root element, which carries this component's scope. */
+.tl-hnav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.625rem;
+    margin-top: 0.875rem;
+}
+
+.tl-hnav__cell {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.tl-hnav__dot {
+    flex: 0 0 auto;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: var(--tl-radius-round);
+    background: var(--tl-accent-primary);
+}
+
+.tl-hnav__dot--home {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    box-shadow: 0 0 0 2px var(--tl-bg-surface);
+}
+
+/* The two dropdown buttons. */
+.tl-hnav__trigger {
+    gap: 0.625rem;
+    height: var(--tl-control-height-md);
+    min-width: 12.5rem;
+    max-width: 100%;
+    padding: 0 0.75rem 0 0.625rem;
+    border: 1px solid var(--tl-border-strong);
+    border-radius: var(--tl-radius-md);
+    background: color-mix(in srgb, var(--tl-bg-root) 78%, transparent);
+    color: var(--tl-text-primary);
+}
+
+.tl-hnav__trigger--item {
+    min-width: 26.25rem;
+    padding-left: 0.375rem;
+}
+
+.tl-hnav__trigger:hover {
+    background: color-mix(in srgb, var(--tl-bg-surface-hover) 85%, transparent);
+}
+
+.tl-hnav__trigger.is-open {
+    border-color: var(--tl-accent-primary);
+}
+
+.tl-hnav__text {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+    line-height: 1.15;
+    text-align: left;
+}
+
+.tl-hnav__text > small {
+    overflow: hidden;
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-xs);
+    font-weight: normal;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tl-hnav__text > span,
+.tl-hnav__text > b {
+    overflow: hidden;
+    font-size: var(--tl-font-size-sm);
+    font-weight: var(--tl-font-weight-semibold);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tl-hnav__placeholder {
+    color: var(--tl-text-muted);
+    font-weight: normal;
+}
+
+/* A still is 52 by 30 in the button and 88 by 50 in the list; a book, track or video without one gets a square block. */
+.tl-hnav__still {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    width: 3.25rem;
+    height: 1.875rem;
+    border-radius: var(--tl-radius-xs);
+    background: var(--tl-bg-surface-hover);
+}
+
+.tl-hnav__still--square {
+    width: 1.875rem;
+}
+
+.tl-hnav__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* The list: search, items, then the supporting files, "All supporting files" and the folder button (screens A, C, D). */
+.tl-hnav__panel {
+    box-sizing: border-box;
+    padding: var(--tl-space-2);
+}
+
+.tl-hnav__search {
+    margin-bottom: 0.375rem;
+}
+
+.tl-hnav__scroll {
+    max-height: min(32rem, 62vh);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.tl-hnav__options {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.tl-hnav__rule {
+    margin: 0.375rem 0;
+    border: 0;
+    border-top: 1px solid var(--tl-border-strong);
+}
+
+.tl-hnav__heading {
+    padding: var(--tl-space-2) var(--tl-space-2) var(--tl-space-1);
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-xs);
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.tl-hnav__option {
+    gap: 0.75rem;
+    width: 100%;
+    min-height: 2.75rem;
+    padding: 0.375rem var(--tl-space-2);
+    border-radius: var(--tl-radius-md);
+    color: var(--tl-text-primary);
+}
+
+/* A row with a still is 64 px tall (Look v3 D15); its title is a 16/500 control (D22). */
+.tl-hnav__option:has(.tl-hnav__still) {
+    min-height: 4rem;
+}
+
+.tl-hnav__option .tl-hnav__text > b {
+    font-size: var(--tl-font-size-md);
+    font-weight: var(--tl-font-weight-medium);
+}
+
+.tl-hnav__option:hover {
+    background: var(--tl-bg-surface-hover);
+}
+
+.tl-hnav__option .tl-hnav__still {
+    width: 5.5rem;
+    height: 3.125rem;
+    border-radius: var(--tl-radius-sm);
+}
+
+.tl-hnav__option .tl-hnav__still--square {
+    width: 3.125rem;
+}
+
+.tl-hnav__option.is-selected {
+    background: var(--tl-accent-primary-soft);
+}
+
+.tl-hnav__option.is-selected .tl-hnav__text > b {
+    color: var(--tl-accent-primary-hover);
+}
+
+.tl-hnav__option--plain {
+    color: var(--tl-text-secondary);
+}
+
+.tl-hnav__waiting {
+    flex: 0 0 auto;
+    margin-left: auto;
+    color: var(--tl-accent-primary-hover);
+    font-size: 0.8125rem;
+}
+
+.tl-hnav__mark {
+    flex: 0 0 auto;
+    min-width: 1rem;
+    margin-left: auto;
+    font-size: var(--tl-font-size-sm);
+    text-align: center;
+}
+
+.tl-hnav__waiting + .tl-hnav__mark {
+    margin-left: 0;
+}
+
+.tl-hnav__mark--ok {
+    color: var(--tl-status-success);
+}
+
+.tl-hnav__mark--warn {
+    color: var(--tl-status-warning);
+}
+
+/* The file-type badge: the extension in capitals, tinted by what kind of file it is (document, archive, picture, text, video). */
+.tl-hnav__badge {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 1.75rem;
+    border-radius: var(--tl-radius-sm);
+    background: var(--tl-bg-surface-hover);
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-xs);
+    font-weight: var(--tl-font-weight-semibold);
+}
+
+.tl-hnav__badge[data-kind="document"] {
+    background: var(--tl-status-danger-soft);
+    color: var(--tl-text-danger);
+}
+
+.tl-hnav__badge[data-kind="archive"] {
+    background: var(--tl-status-warning-soft);
+    color: var(--tl-status-warning);
+}
+
+.tl-hnav__badge[data-kind="image"] {
+    background: var(--tl-status-info-soft);
+    color: var(--tl-status-info);
+}
+
+.tl-hnav__badge[data-kind="clip"],
+.tl-hnav__badge[data-kind="video"] {
+    background: var(--tl-status-success-soft);
+    color: var(--tl-status-success);
+}
+
+.tl-hnav__badge--accent {
+    background: var(--tl-accent-primary-soft);
+    color: var(--tl-accent-primary-hover);
+}
+
+.tl-hnav__badge--neutral {
+    background: var(--tl-bg-surface-hover);
+    color: var(--tl-text-secondary);
+}
+
+.tl-hnav__note,
+.tl-hnav__more {
+    padding: var(--tl-space-1) var(--tl-space-2);
+    color: var(--tl-text-muted);
+    font-size: var(--tl-font-size-xs);
+}
+
+/* Under 1180 the nav row wraps under the title and each dropdown may take the whole row (screen K). */
+@media (max-width: 1180px) {
+    .tl-hnav__trigger--item {
+        min-width: 0;
+        flex: 1 1 18rem;
+    }
+}

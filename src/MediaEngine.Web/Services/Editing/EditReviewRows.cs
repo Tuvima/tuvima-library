@@ -17,6 +17,7 @@ public enum EditReviewGroup
 /// One line in Review changes: the item, what changes, and the before and after the person can compare. A details change with several
 /// fields becomes one row per field, so the count on Save matches the rows. <see cref="Before"/> is null when the Dashboard does not
 /// know the old value; staging records it when it can, and a row without one reads <see cref="AsItIsNow"/> so every row has a Before.
+/// <see cref="NowYours"/> marks a provider field the person changed: saving makes the value theirs, kept on every later refresh (editor v5 D5).
 /// </summary>
 public sealed record EditReviewRow(
     string ChangeId,
@@ -28,7 +29,8 @@ public sealed record EditReviewRow(
     string What,
     string? Before,
     string After,
-    string? Warning)
+    string? Warning,
+    bool NowYours = false)
 {
     public string RowId => FieldKey is null ? ChangeId : $"{ChangeId}:{FieldKey}";
 
@@ -56,6 +58,8 @@ public static class EditReviewRows
     public const string FileSortAttachNote = "The file stays where it is. It is filed as an Extra of the other title.";
 
     public const string FileSortIgnoreNote = "The file stays on disk. Library hides it and skips it in future scans. Add it back in Settings.";
+
+    public const string MatchRemovalNote = "Details you or the provider set, locked fields and pictures stay. The Wikidata match is not touched. Removing a match cannot be undone from here.";
 
     public const string SiblingMatchNote = "Each other episode in this season takes the episode with its own number. Matching cannot be undone from here.";
 
@@ -129,8 +133,11 @@ public static class EditReviewRows
                                      ?? (fields is { ExplicitMark: { } mark } && fields.EntityId == change.EntityId ? ExplicitText(mark.IsExplicit) : AsItIsNow);
                         }
 
+                        // A provider field with a value of its own becomes the person's; a blank value goes back to the provider, and a field
+                        // only the person fills (tags, sort title) was never the provider's.
+                        var nowYours = !isExplicit && !string.IsNullOrWhiteSpace(field.Value) && !IsOwnField(fields, change.EntityId, field.Key);
                         rows.Add(new EditReviewRow(change.Id, field.Key, change.EntityId, change.Kind, EditReviewGroup.Metadata, item,
-                            isExplicit ? "Explicit" : presented?.Label ?? ReadableKey(field.Key), before, after, null));
+                            isExplicit ? "Explicit" : presented?.Label ?? ReadableKey(field.Key), before, after, null, nowYours));
                     }
 
                     break;
@@ -141,7 +148,11 @@ public static class EditReviewRows
                     break;
                 case EditSessionChangeKinds.Identity:
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Identity, item,
-                        "Match", pending.Before(change.Id) ?? CurrentMatchText(fields, change.EntityId) ?? AsItIsNow, label ?? IdentityText(change.TargetId), null));
+                        "Match changed", pending.Before(change.Id) ?? CurrentMatchText(fields, change.EntityId) ?? AsItIsNow, label ?? IdentityText(change.TargetId), null));
+                    break;
+                case EditSessionChangeKinds.MatchRemoval:
+                    rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Identity, item,
+                        "Match removed", pending.Before(change.Id) ?? CurrentMatchText(fields, change.EntityId) ?? AsItIsNow, "No match", MatchRemovalNote));
                     break;
                 case EditSessionChangeKinds.SiblingMatch:
                     rows.Add(new EditReviewRow(change.Id, null, change.EntityId, change.Kind, EditReviewGroup.Identity, item,
@@ -194,6 +205,11 @@ public static class EditReviewRows
         // Stable: groups in the spec's order, each keeping the order the changes were staged in.
         return rows.OrderBy(row => row.Group).ToList();
     }
+
+    private static bool IsOwnField(ItemFieldEditSession? fields, Guid entityId, string key) =>
+        fields is { SubjectKind: { } kind } && fields.EntityId == entityId
+            ? EditorFieldLocks.IsOwnSubjectField(kind, key)
+            : EditorFieldLocks.IsOwnField(key);
 
     private static string FileSortNote(ExtraFileChoice choice) => choice.Action switch
     {

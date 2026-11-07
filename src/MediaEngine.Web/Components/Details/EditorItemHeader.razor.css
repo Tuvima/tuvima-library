@@ -1,21 +1,27 @@
-/* The pop-over's header (universal editor v4 D3; v4.1 D1): picture, kind line, title, one line of facts, provider links and, for an item with a
-   family, the fixed tile at the left and the dropdowns under the title. It never scrolls away. */
+/* The pop-over's header (universal editor v5 D1, D9; mock-up screens A, B, C, D, K): a 96 by 144 cover, the label, the title, one line of facts,
+   the nav row and, at the top right, the provider links. Its background is the gradient wash the component draws behind everything from the cover's colours;
+   with no colours it is the plain window surface. It never scrolls away. */
 .tl-editor-header {
     position: relative;
+    isolation: isolate;
     display: flex;
     flex: 0 0 auto;
-    align-items: center;
-    gap: var(--tl-space-5);
-    min-height: 7.5rem;
-    /* The window's close button sits over the top right corner; keep the provider links clear of it. */
-    padding: var(--tl-space-4) 4.5rem var(--tl-space-4) var(--tl-space-6);
+    align-items: flex-start;
+    gap: 1.375rem;
+    padding: var(--tl-space-5) var(--tl-space-6) 1.125rem;
     border-bottom: 1px solid var(--tl-divider);
     background: var(--tl-bg-surface);
 }
 
+.tl-editor-header__wash {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+}
+
 .tl-editor-header--family {
     min-height: 9.5rem;
-    align-items: stretch;
 }
 
 .tl-editor-header__tile {
@@ -30,17 +36,17 @@
     align-items: center;
     justify-content: center;
     overflow: hidden;
-    width: 4.5rem;
-    height: 6.75rem;
-    border-radius: var(--tl-radius-md);
+    width: 6rem;
+    height: 9rem;
+    border-radius: var(--tl-radius-lg);
     background: var(--tl-bg-surface-hover);
     color: var(--tl-text-muted);
-    box-shadow: var(--tl-shadow-md, 0 8px 24px rgba(0, 0, 0, 0.35));
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
 .tl-editor-header__cover--landscape {
-    width: 10rem;
-    height: 5.625rem;
+    width: 12.5rem;
+    height: 7.0625rem;
 }
 
 .tl-editor-header__img {
@@ -53,7 +59,6 @@
     display: flex;
     flex: 1 1 auto;
     flex-direction: column;
-    gap: var(--tl-space-1);
     min-width: 0;
 }
 
@@ -61,31 +66,21 @@
     min-width: 14rem;
 }
 
-.tl-editor-header__line {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--tl-space-1) var(--tl-space-3);
-}
-
-/* Season and Episode (a Universe's kinds) sit under the title, at the foot of the header. */
-.tl-editor-header__selects {
-    display: flex;
-    margin-top: auto;
-    padding-top: var(--tl-space-2);
-}
-
-.tl-editor-header__kicker {
-    color: var(--tl-accent-primary, #8852FC);
-    font-size: var(--tl-font-size-xs, 0.75rem);
+.tl-editor-header__label {
+    overflow: hidden;
+    color: var(--tl-text-secondary);
+    font-size: 0.8125rem;
     font-weight: var(--tl-font-weight-semibold);
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .tl-editor-header__title {
-    margin: 0;
+    margin: 2px 0 var(--tl-space-1);
     overflow: hidden;
-    font-size: var(--tl-font-size-xl, 1.5rem);
+    font-size: var(--tl-font-size-xl);
     font-weight: var(--tl-font-weight-semibold);
+    line-height: 1.2;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -93,6 +88,13 @@
 .tl-editor-header__title:focus-visible {
     outline: var(--tl-focus-ring-width) solid var(--tl-focus-ring);
     outline-offset: var(--tl-focus-ring-offset);
+}
+
+.tl-editor-header__line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tl-space-1) 0.625rem;
 }
 
 .tl-editor-header__facts {
@@ -105,23 +107,34 @@
     gap: var(--tl-space-2);
 }
 
-.tl-editor-header__links {
+/* A Universe's kinds sit under the title, at the foot of the header. */
+.tl-editor-header__selects {
     display: flex;
-    flex: 0 0 auto;
-    align-self: flex-start;
+    margin-top: auto;
+    padding-top: var(--tl-space-2);
+}
+
+/* Provider links and, beside them, room for the window's close button, which sits over the top right corner. */
+.tl-editor-header__links {
+    position: absolute;
+    top: var(--tl-space-5);
+    right: 4.25rem;
+    display: flex;
+    align-items: center;
     gap: var(--tl-space-2);
 }
 
 .tl-editor-header__link {
     display: inline-flex;
     align-items: center;
-    gap: var(--tl-space-1);
-    padding: var(--tl-space-1) var(--tl-space-3);
-    border: 1px solid var(--tl-border-default);
-    border-radius: var(--tl-radius-pill);
-    background: var(--tl-bg-surface-raised, var(--tl-bg-surface));
+    gap: 6px;
+    height: 2.25rem;
+    padding: 0 0.625rem;
+    border: 1px solid var(--tl-border-strong);
+    border-radius: var(--tl-radius-lg);
+    background: color-mix(in srgb, var(--tl-bg-root) 78%, transparent);
     color: var(--tl-text-primary);
-    font-size: var(--tl-font-size-xs, 0.75rem);
+    font-size: 0.8125rem;
     font-weight: var(--tl-font-weight-semibold);
     text-decoration: none;
 }
@@ -130,10 +143,25 @@
     background: var(--tl-bg-surface-hover);
 }
 
-.tl-editor-header__links {
-    align-items: center;
-}
+/* Under 1180 the window fills the screen and the provider links shrink to their logos (screen K). */
+@media (max-width: 1180px) {
+    .tl-editor-header__link-name {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
 
-.tl-editor-header__menu {
-    flex: 0 0 auto;
+    .tl-editor-header__link {
+        padding: 0 var(--tl-space-2);
+    }
+
+    .tl-editor-header__title {
+        white-space: normal;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
 }

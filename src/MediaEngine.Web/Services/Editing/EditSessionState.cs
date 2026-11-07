@@ -7,12 +7,6 @@ public enum EditTool
     Artwork,
     Match,
     History,
-
-    /// <summary>The item's files (universal editor v4 D3). Drawn as a plain placeholder until the Files tool is built.</summary>
-    Files,
-
-    /// <summary>The children of a show, season, album or series (universal editor v4 D3). Drawn as a plain placeholder until the Contents tool is built.</summary>
-    Contents,
 }
 
 /// <summary>One step of the item trail ("Le Continental > Season 1 > Episode 1").</summary>

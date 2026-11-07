@@ -30,6 +30,25 @@ public static class EditorDeleteRules
         return kind is null || entityId == Guid.Empty ? null : new LibraryGroupTarget(entityId, kind, title, [], videoFolder && kind == LibraryGroupKinds.Series);
     }
 
+    /// <summary>
+    /// How many supporting files go with the group, as the header's read counted them (universal editor v5 D29): a season's own, or the whole
+    /// title's for a show, album or Series. 0 when the header did not say, so the confirmation leaves the clause out rather than invent a number.
+    /// </summary>
+    public static int SupportingFilesIn(LibraryGroupTarget group, MediaEngine.Contracts.Editing.EditorHeaderDto? header)
+    {
+        ArgumentNullException.ThrowIfNull(group);
+        var files = header?.Level.SupportingFiles;
+        if (files is null)
+        {
+            return 0;
+        }
+
+        return group.Kind == LibraryGroupKinds.Season ? files.Count : files.TotalInRoot;
+    }
+
+    /// <summary>The Delete button in the editor's footer (universal editor v5 D29): always the one word.</summary>
+    public const string FooterLabel = "Delete";
+
     /// <summary>The "..." entry for the item being edited: "Delete episode…", "Delete season…", "Delete show…".</summary>
     public static string MenuLabel(LibraryGroupTarget? group, string? scopeId) => group is not null
         ? group.Kind switch

@@ -1,6 +1,7 @@
 using MediaEngine.Api.Http;
 using MediaEngine.Api.Security;
 using MediaEngine.Api.Services.EditSession;
+using MediaEngine.Api.Services.Matching;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Contracts.Paging;
 using MediaEngine.Domain.Authorization;
@@ -60,6 +61,55 @@ public static partial class MetadataEndpoints
           .ProducesProblem(StatusCodes.Status404NotFound)
           .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead)
           .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataRead);
+
+        group.MapGet("/{entityId:guid}/match-setup", async (
+            Guid entityId, EditorMatchSearchService match, CancellationToken ct) =>
+        {
+            var setup = await match.SetupAsync(entityId, ct);
+            return setup is null ? ApiErrors.NotFound("Match setup was not found.") : Results.Ok(setup);
+        }).WithName("GetEditorMatchSetup")
+          .WithSummary("What the Match tab's search opens on: the providers for the item's kind with their states, the boxes pre-filled from the file, and the local evidence. Makes no search.")
+          .Produces<EditorMatchSetupDto>(StatusCodes.Status200OK)
+          .ProducesProblem(StatusCodes.Status404NotFound)
+          .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataRead)
+          .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataRead);
+
+        group.MapPost("/{entityId:guid}/match-placement", async (
+            Guid entityId,
+            EditorMatchPlacementRequestDto request,
+            HttpContext http,
+            IRequestAuthorityResolver resolver,
+            IProfileRepository profiles,
+            [Microsoft.AspNetCore.Mvc.FromServices] EditorMatchPlacementService placement,
+            CatalogueResourceAuthorizationService resources,
+            CancellationToken ct) =>
+        {
+            var actor = await LibraryItemEndpoints.ResolveMoveActorAsync(http, resolver, profiles, ct);
+            if (actor is null)
+            {
+                return ApiErrors.NotFound("The editing session is unavailable.");
+            }
+
+            var plan = await placement.PlanAsync(entityId, request.Candidate, actor, LibraryItemEndpoints.CanEdit(http, resources), ct);
+            return plan is null ? ApiErrors.NotFound("Match placement was not found.") : Results.Ok(plan);
+        }).WithName("GetEditorMatchPlacement")
+          .WithSummary("Where applying a chosen match would put the item and its file: the album, season or series it names, and whether the file moves (Managed folder) or stays (Read-only). Reads only.")
+          .Produces<EditorMatchPlacementDto>(StatusCodes.Status200OK)
+          .ProducesProblem(StatusCodes.Status404NotFound)
+          .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataMatch)
+          .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataMatch);
+
+        group.MapPost("/{entityId:guid}/match-search", async (
+            Guid entityId, EditorMatchSearchRequestDto request, EditorMatchSearchService match, CancellationToken ct) =>
+        {
+            var found = await match.SearchAsync(entityId, request, ct);
+            return found is null ? ApiErrors.NotFound("Match search was not found.") : Results.Ok(found);
+        }).WithName("SearchEditorMatch")
+          .WithSummary("Searches one provider for the item and judges each result against the file (Strong, Possible or Check). Writes nothing.")
+          .Produces<EditorMatchSearchResultDto>(StatusCodes.Status200OK)
+          .ProducesProblem(StatusCodes.Status404NotFound)
+          .RequireAdministratorOrApplication(ApplicationPermissionIds.MetadataMatch)
+          .RequireAnyCatalogueEntityAccess(ApplicationPermissionIds.MetadataMatch);
 
         group.MapGet("/{entityId:guid}/supporting-files/{supportingFileId:guid}/suggest-details", async (
             Guid entityId, Guid supportingFileId, EditorHeaderReadService header, EditorSuggestDetailsService suggest, CancellationToken ct) =>

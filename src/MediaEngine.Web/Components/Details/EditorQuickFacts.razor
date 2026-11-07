@@ -55,12 +55,15 @@
         }
 
         var kind = EditorQuickFactsBuilder.KindOf(fields.MediaType, fields.ScopeId, fields.SubjectKind, fields.QuickFacts);
-        _model = EditorQuickFactsBuilder.Build(
-            kind,
-            keys => fields.Find(keys) is { } found ? found.DisplayValue ?? found.Value : null,
-            fields.QuickFacts,
-            _writeBack.State == FileWriteState.Off,
-            fields.MediaType);
+        _model = EditorQuickFactsBuilder.WithFileFacts(
+            EditorQuickFactsBuilder.Build(
+                kind,
+                keys => fields.Find(keys) is { } found ? found.DisplayValue ?? found.Value : null,
+                fields.QuickFacts,
+                _writeBack.State == FileWriteState.Off,
+                fields.MediaType),
+            fields.Header,
+            fields.Identity?.ProviderName);
     }
 
     private static string IconFor(string name) => name switch
@@ -80,6 +83,9 @@
         "LibraryBooks" => AppMaterialIcons.Outlined.LibraryBooks,
         "Hub" => AppMaterialIcons.Outlined.Hub,
         "RecordVoiceOver" => AppMaterialIcons.Outlined.RecordVoiceOver,
+        "Check" => AppMaterialIcons.Outlined.Check,
+        "InsertDriveFile" => AppMaterialIcons.Outlined.InsertDriveFile,
+        "Collections" => AppMaterialIcons.Outlined.Collections,
         _ => AppMaterialIcons.Outlined.Folder,
     };
 }

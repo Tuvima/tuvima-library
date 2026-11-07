@@ -1,42 +1,75 @@
 @namespace MediaEngine.Web.Components.Details
 @using MediaEngine.Web.Components.Shared
 @using MediaEngine.Web.Services.Editing
+@using MediaEngine.Web.Services.Theming
 @implements IDisposable
 @inject IStringLocalizer<SharedStrings> L
 
-@* The header of the pop-over (universal editor v4 D3, section 1a): the item's picture, its kind line ("The Expanse - TV episode"), its title, one
-   line of facts and links to its provider records where they are known. It names the item at once from the editor's own trail and fills the
-   facts in when the fields have loaded. A family (a show, an album, a series, a Universe) sits in the same header (v4.1 D1): its first level is a
-   fixed tile at the left and the later levels are dropdowns under the title, so there is no separate row. Read-only: nothing here is edited or
-   saved. *@
+@* The header of the pop-over (universal editor v5 D1, D9, 1a items 1 to 7, screens A, B, C, D, K). A 96 by 144 cover (a picture only, never a
+   button), the plain label above the title (the show, series or album it belongs to, or the kind word for a standalone item), the title, one
+   line of facts with the match state, the provider links with their logos and, in the nav row, the way around the family: the home button, the
+   Season (or Section) dropdown and the item dropdown. What shows in that row is told by the Engine's header (EditorHeaderDto), never decided
+   here from the kind. The background is a gradient from the cover's two main colours, darkened into the window surface by the palette config.
+   A Universe keeps its own tile and kind dropdowns, and an item the Engine builds no header for (a person, a collection) shows the plain
+   header. Read-only: nothing here is edited or saved. *@
 @if (Flow?.Session.ActiveItem is { } active)
 {
     var fields = Fields;
+    var header = fields.Loaded && !EditorUniverseRules.IsUniverseSubject(fields.SubjectKind) ? fields.Header : null;
     var subject = fields.Loaded ? fields.MatchSubject() : null;
     var title = string.IsNullOrWhiteSpace(subject?.Title) ? active.Title : subject!.Title;
     var isUniverse = EditorUniverseRules.IsUniverseSubject(fields.SubjectKind);
-    var kind = isUniverse
-        ? EditorUniverseRules.KindLine(fields.SubjectKind, fields.Find("kind")?.DisplayValue ?? fields.Find("kind")?.Value, UniverseName)
-        : EditorHeaderRules.KindLabel(fields.MediaType, fields.ScopeId, fields.ScopeLabel);
-    var trail = Flow.Session.Trail;
-    var parent = subject?.ParentLabel ?? (trail.Count > 1 && trail[0].EntityId != active.EntityId ? trail[0].Title : null);
-    var kicker = isUniverse ? kind : EditorHeaderRules.FactsLine(parent, kind);
-    var facts = fields.Loaded
-        ? EditorHeaderRules.FactsLine(FieldText("air_date", "release_date", "premiere_date") ?? subject?.Year, FieldText("runtime", "duration"), subject?.Creator)
-        : string.Empty;
-    var image = !string.IsNullOrWhiteSpace(active.ImageUrl) ? active.ImageUrl : Family.TrailTo(active.EntityId)?[^1].ImageUrl;
     var links = fields.Loaded && !isUniverse ? EditorHeaderRules.Links(fields.Identity, fields.MediaType, fields.ScopeId) : [];
+    var image = header?.Root.CoverUrl;
+    if (string.IsNullOrWhiteSpace(image))
+    {
+        image = !string.IsNullOrWhiteSpace(active.ImageUrl) ? active.ImageUrl : Family.TrailTo(active.EntityId)?[^1].ImageUrl;
+    }
+
+    string label;
+    string facts;
+    if (header is not null)
+    {
+        label = header.Label;
+        facts = string.Join(" · ", EditorHeaderFacts.Parts(header.Config, FieldText, fields.QuickFacts, header));
+    }
+    else
+    {
+        var kind = isUniverse
+            ? EditorUniverseRules.KindLine(fields.SubjectKind, fields.Find("kind")?.DisplayValue ?? fields.Find("kind")?.Value, UniverseName)
+            : EditorHeaderRules.KindLabel(fields.MediaType, fields.ScopeId, fields.ScopeLabel);
+        var trail = Flow.Session.Trail;
+        var parent = subject?.ParentLabel ?? (trail.Count > 1 && trail[0].EntityId != active.EntityId ? trail[0].Title : null);
+        label = isUniverse ? kind : EditorHeaderRules.FactsLine(parent, kind);
+        facts = fields.Loaded
+            ? EditorHeaderRules.FactsLine(FieldText("air_date", "release_date", "premiere_date") ?? subject?.Year, FieldText("runtime", "duration"), subject?.Creator)
+            : string.Empty;
+    }
+
+    var wash = EditorHeaderGradient.Resolve(header?.Colors);
+    var palette = PaletteProvider.Current.EditorHeader;
+    var showState = fields.Loaded && !isUniverse && fields.CanMatch && (header is null || EditorHeaderFacts.ShowsMatchState(header.Config));
     // The show's tile already carries its picture, so a show's seasons and episodes draw no second picture beside it; every other family keeps the item's own.
-    var showCover = !(HasFamily && Family.Kind == EditorFamilyKind.Show);
-    <header class="@(HasFamily ? "tl-editor-header tl-editor-header--family" : "tl-editor-header")" aria-busy="@(fields.Loading ? "true" : null)">
-        @if (HasFamily && Tile is not null)
+    var showCover = header is not null || !(HasFamily && Family.Kind == EditorFamilyKind.Show);
+    var kindKey = header?.Kind ?? string.Empty;
+    <header class="@(HasFamily && header is null ? "tl-editor-header tl-editor-header--family" : "tl-editor-header")"
+            data-kind="@kindKey"
+            data-gradient="@(wash is null ? "none" : "cover")"
+            aria-busy="@(fields.Loading ? "true" : null)">
+        @if (wash is not null)
+        {
+            <AppWash Class="tl-editor-header__wash" PrimaryHex="@wash.Primary" SecondaryHex="@wash.Secondary"
+                     PrimaryPercent="@palette.PrimaryPercent" SecondaryPercent="@palette.SecondaryPercent" />
+        }
+
+        @if (HasFamily && header is null && Tile is not null)
         {
             <div class="tl-editor-header__tile">@Tile</div>
         }
 
         @if (showCover)
         {
-            <div class="@(IsLandscape(fields.ScopeId) ? "tl-editor-header__cover tl-editor-header__cover--landscape" : "tl-editor-header__cover")" aria-hidden="true">
+            <div class="@(header is null && IsLandscape(fields.ScopeId) ? "tl-editor-header__cover tl-editor-header__cover--landscape" : "tl-editor-header__cover")" aria-hidden="true">
                 @if (!string.IsNullOrWhiteSpace(image))
                 {
                     <AppImage Src="@image" Alt="" DrawnPx="200" ObjectFit="AppObjectFit.Cover" Class="tl-editor-header__img" />
@@ -48,7 +81,7 @@
             </div>
         }
         <div class="tl-editor-header__body">
-            <div class="tl-editor-header__kicker">@kicker</div>
+            <div class="tl-editor-header__label">@label</div>
             <h2 id="tl-editor-panel-title" class="tl-editor-header__title" tabindex="-1" data-overflow-tooltip="@title">@title</h2>
             <div class="tl-editor-header__line">
                 @if (fields.Loading && !fields.Loaded)
@@ -60,7 +93,7 @@
                     <div class="tl-editor-header__facts">@facts</div>
                 }
 
-                @if (fields.Loaded && FamilyHasState)
+                @if (showState)
                 {
                     <div class="tl-editor-header__chips">
                         @if (Unmatched)
@@ -75,12 +108,16 @@
                 }
             </div>
 
-            @if (HasFamily && Selects is not null)
+            @if (header is not null)
+            {
+                <EditorHeaderNav Header="header" Flow="Flow" Hooks="Hooks" CanMatch="@fields.CanMatch" />
+            }
+            else if (HasFamily && Selects is not null)
             {
                 <div class="tl-editor-header__selects">@Selects</div>
             }
         </div>
-        @if (links.Count > 0 || CanDelete)
+        @if (links.Count > 0)
         {
             <div class="tl-editor-header__links">
                 @foreach (var link in links)
@@ -88,17 +125,9 @@
                     <AppLink Href="@link.Url" Target="_blank" Underline="AppUnderline.None" Class="tl-editor-header__link"
                              aria-label="@(string.Format(L["EditorHeader_OpenAt"].Value, link.Name))">
                         <AppProviderLogo FallbackText="@link.Name[..1]" Size="AppControlSize.Compact" AltText="" Class="tl-editor-header__link-logo" />
-                        <span>@link.Name</span>
+                        <span class="tl-editor-header__link-name">@link.Name</span>
                         <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.OpenInNew" Size="AppIconSize.Control20" />
                     </AppLink>
-                }
-
-                @if (CanDelete)
-                {
-                    @* The "..." of the item being edited (v4 D13). Delete asks once and then happens at once; it does not wait for Save. *@
-                    <AppOverflowMenu AriaLabel="@L["EditorHeader_MoreActions"].Value" Class="tl-editor-header__menu" Disabled="@(Flow?.Saving == true || Flow?.Switching == true)">
-                        <AppMenuItem Label="@DeleteLabel" Icon="@AppMaterialIcons.Outlined.Delete" Tone="AppUiTone.Error" OnClick="OnDelete" />
-                    </AppOverflowMenu>
                 }
             </div>
         }
@@ -115,13 +144,13 @@
 
     [Parameter, EditorRequired] public EditorFamilyState Family { get; set; } = default!;
 
-    /// <summary>The item has a family (a show, album, series or Universe): the header draws its tile and its dropdowns.</summary>
+    /// <summary>A Universe or an item with no header from the Engine has a family: the header draws its tile and its dropdowns.</summary>
     [Parameter] public bool HasFamily { get; set; }
 
-    /// <summary>The fixed tile of the family (the show, album, series or Universe), at the left of the header.</summary>
+    /// <summary>The fixed tile of a Universe, at the left of the header.</summary>
     [Parameter] public RenderFragment? Tile { get; set; }
 
-    /// <summary>The dropdowns of the family (Season, Episode; a Universe's kinds), under the title.</summary>
+    /// <summary>The dropdowns of a Universe (its kinds), under the title.</summary>
     [Parameter] public RenderFragment? Selects { get; set; }
 
     /// <summary>The name of the Universe being edited, for the kind line of a character, place or faction ("Faction in Dune").</summary>
@@ -130,19 +159,10 @@
     /// <summary>The item has no match yet (the pop-over knows, from the family and the page).</summary>
     [Parameter] public bool Unmatched { get; set; }
 
-    /// <summary>The item can be deleted from here: the "..." menu shows with its Delete entry. The caller checks the person and the device.</summary>
-    [Parameter] public bool CanDelete { get; set; }
+    /// <summary>Where the supporting-file rows and the folder button of the nav row lead.</summary>
+    [Parameter] public EditorHeaderHooks? Hooks { get; set; }
 
-    /// <summary>The Delete entry's words ("Delete episode…", "Delete show…").</summary>
-    [Parameter] public string DeleteLabel { get; set; } = "Delete from library…";
-
-    /// <summary>Delete was chosen in the menu.</summary>
-    [Parameter] public EventCallback OnDelete { get; set; }
-
-    // The matched mark is only said for an item that can be matched at all (a person or a collection is neither).
-    private bool FamilyHasState => Fields.CanMatch && !EditorUniverseRules.IsUniverseSubject(Fields.SubjectKind);
-
-    // Episodes and stills are wide; everything else is a portrait cover.
+    // Episodes and stills are wide; everything else is a portrait cover. Only the plain header (no Engine header) still uses this.
     private static bool IsLandscape(string scopeId) => string.Equals(scopeId, "episode", StringComparison.OrdinalIgnoreCase);
 
     private string? FieldText(params string[] keys)

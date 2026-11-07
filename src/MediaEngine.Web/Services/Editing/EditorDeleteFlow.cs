@@ -87,9 +87,13 @@ public static class EditorDeleteFlow
     public static LibraryGroupTarget? ActiveGroup(EditorHost editor)
     {
         ArgumentNullException.ThrowIfNull(editor);
-        return editor.Session.ActiveItem is { } active
-            ? EditorDeleteRules.GroupFor(active.EntityId, active.Title, editor.Mode.Fields.ScopeId, editor.Mode.Fields.MediaType)
-            : null;
+        if (editor.Session.ActiveItem is not { } active)
+        {
+            return null;
+        }
+
+        var group = EditorDeleteRules.GroupFor(active.EntityId, active.Title, editor.Mode.Fields.ScopeId, editor.Mode.Fields.MediaType);
+        return group is null ? null : group with { SupportingFileCount = EditorDeleteRules.SupportingFilesIn(group, editor.Mode.Fields.Header) };
     }
 
     /// <summary>

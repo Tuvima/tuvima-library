@@ -152,8 +152,6 @@
   <data name="TopBar_ServiceUnavailable" xml:space="preserve">
     <value>Library is temporarily unavailable.</value>
   </data>
-  <!-- Command Palette -->
-  <!-- Status Pill -->
   <data name="StatusPill_Verified" xml:space="preserve">
     <value>VERIFIED</value>
   </data>
@@ -181,11 +179,9 @@
   <data name="StatusPill_DeletesIn" xml:space="preserve">
     <value>Deletes in {0}d</value>
   </data>
-  <!-- Profile Tab -->
   <data name="Profile_Role" xml:space="preserve">
     <value>Role</value>
   </data>
-  <!-- Models Tab -->
   <data name="Models_Status" xml:space="preserve">
     <value>Status</value>
   </data>
@@ -201,21 +197,15 @@
   <data name="Models_Unload" xml:space="preserve">
     <value>Unload</value>
   </data>
-  <!-- AI Features Tab -->
   <data name="AiFeatures_Scheduled" xml:space="preserve">
     <value>Scheduled</value>
   </data>
-  <!-- AI Schedule Tab -->
   <data name="Schedule_Enabled" xml:space="preserve">
     <value>Enabled</value>
   </data>
-  <!-- Libraries Tab -->
   <data name="Libraries_Reset" xml:space="preserve">
     <value>Reset</value>
   </data>
-  <!-- Status Dashboard Tab -->
-  <!-- Security Tab -->
-  <!-- API Keys Tab -->
   <data name="ApiKeys_Label" xml:space="preserve">
     <value>Label</value>
   </data>
@@ -234,35 +224,27 @@
   <data name="ApiKeys_AllKeysRevoked" xml:space="preserve">
     <value>All</value>
   </data>
-  <!-- Users Tab -->
   <data name="Users_ColName" xml:space="preserve">
     <value>Name</value>
   </data>
   <data name="Users_DeleteProfileTooltip" xml:space="preserve">
     <value>Delete profile</value>
   </data>
-  <!-- Activity Tab -->
   <data name="Activity_Filter" xml:space="preserve">
     <value>Filter</value>
   </data>
   <data name="Activity_Clear" xml:space="preserve">
     <value>Clear</value>
   </data>
-  <!-- Maintenance Tab -->
-  <!-- Connectivity Tab -->
-  <!-- Server General Tab -->
   <data name="ServerGeneral_CountryLabel" xml:space="preserve">
     <value>Country</value>
   </data>
-  <!-- Vibe Vocabulary Tab -->
   <data name="Vibes_Add" xml:space="preserve">
     <value>Add</value>
   </data>
-  <!-- Wikidata Configuration Tab -->
   <data name="Wikidata_PeopleGroupTitle" xml:space="preserve">
     <value>People</value>
   </data>
-  <!-- Home Page -->
   <data name="Home_EmptyTitle" xml:space="preserve">
     <value>Your library is empty</value>
   </data>
@@ -281,14 +263,9 @@
   <data name="Home_CarouselNext" xml:space="preserve">
     <value>Next</value>
   </data>
-  <!-- Settings Page -->
-  <!-- Search Page -->
   <data name="Search_Title" xml:space="preserve">
     <value>Search your library</value>
   </data>
-  <!-- Provider Language Strategy -->
-  <!-- Stage 3 Universe Enrichment -->
-  <!-- Universe Explorer modes -->
   <data name="UniverseContents_Gathering" xml:space="preserve">
     <value>Still gathering details</value>
   </data>
@@ -385,7 +362,6 @@
   <data name="Universe_GuideFilterOrgs" xml:space="preserve">
     <value>Organizations</value>
   </data>
-  <!-- Wave 6 hardening -->
   <data name="Layout_SkipToContent" xml:space="preserve">
     <value>Skip to main content</value>
   </data>
@@ -401,7 +377,6 @@
   <data name="Listen_History" xml:space="preserve">
     <value>History</value>
   </data>
-  <!-- Ingestion dashboard -->
   <data name="Ingestion_Refresh" xml:space="preserve">
     <value>Refresh</value>
   </data>
@@ -1161,17 +1136,8 @@
   <data name="Common_EditingTools" xml:space="preserve">
     <value>Editing tools</value>
   </data>
-  <data name="EditingVideoIdentify_OnlineLookupIsSwitchedOff" xml:space="preserve">
-    <value>Online lookup is switched off for this library. Turn it on in Settings to identify videos from a YouTube link.</value>
-  </data>
-  <data name="EditingVideoIdentify_OnlyTheVideoSID" xml:space="preserve">
-    <value>Only the video's ID is sent to YouTube, never your file.</value>
-  </data>
   <data name="Common_IdentifyThisVideo" xml:space="preserve">
     <value>Identify this video</value>
-  </data>
-  <data name="EditingVideoIdentify_YouTubeLinkOrVideoID" xml:space="preserve">
-    <value>YouTube link or video ID</value>
   </data>
   <data name="Common_Identify" xml:space="preserve">
     <value>Identify</value>
@@ -1646,87 +1612,6 @@
   </data>
   <data name="PlaybackLyrics_Instrumental" xml:space="preserve">
     <value>Instrumental</value>
-  </data>
-  <data name="PlaybackLyrics_Synced" xml:space="preserve">
-    <value>Synced</value>
-  </data>
-  <data name="PlaybackLyrics_Unsynced" xml:space="preserve">
-    <value>Unsynced</value>
-  </data>
-  <data name="PlaybackLyrics_OpenNowPlaying" xml:space="preserve">
-    <value>Open Now playing</value>
-  </data>
-  <data name="PlaybackLyrics_ResumeFollowing" xml:space="preserve">
-    <value>Resume following</value>
-  </data>
-  <data name="PlaybackLyrics_SelectALine" xml:space="preserve">
-    <value>Select a line to jump to that moment.</value>
-  </data>
-  <data name="PlaybackLyrics_SeekToLine" xml:space="preserve">
-    <value>Seek to {0}</value>
-  </data>
-  <data name="PlaybackLyrics_SwitchOneOn" xml:space="preserve">
-    <value>Switch one on in Plugins and lyrics will appear here.</value>
-  </data>
-  <data name="PlaybackLyrics_AskAnAdministrator" xml:space="preserve">
-    <value>Ask an administrator to switch one on.</value>
-  </data>
-  <data name="PlaybackLyrics_FindLyrics" xml:space="preserve">
-    <value>Find lyrics</value>
-  </data>
-  <data name="PlaybackLyrics_AddFile" xml:space="preserve">
-    <value>Add a lyrics file</value>
-  </data>
-  <data name="PlaybackLyrics_FileWrongType" xml:space="preserve">
-    <value>That is not a lyrics file. Choose a .lrc or .txt file.</value>
-  </data>
-  <data name="PlaybackLyrics_FileTooBig" xml:space="preserve">
-    <value>That lyrics file is too big. Lyrics files must be 5 MB or smaller.</value>
-  </data>
-  <data name="PlaybackLyrics_FileUnreadable" xml:space="preserve">
-    <value>That lyrics file could not be read.</value>
-  </data>
-  <data name="PlaybackLyrics_FindAnother" xml:space="preserve">
-    <value>Find another</value>
-  </data>
-  <data name="PlaybackLyrics_AboutSources" xml:space="preserve">
-    <value>About lyrics sources</value>
-  </data>
-  <data name="PlaybackLyrics_SourceSynced" xml:space="preserve">
-    <value>Synced lyrics · {0}</value>
-  </data>
-  <data name="PlaybackLyrics_SourceUnsynced" xml:space="preserve">
-    <value>Unsynced lyrics · {0}</value>
-  </data>
-  <data name="PlaybackLyrics_SourceLocalFile" xml:space="preserve">
-    <value>Local file</value>
-  </data>
-  <data name="PlaybackLyrics_SourceSongTags" xml:space="preserve">
-    <value>Song tags</value>
-  </data>
-  <data name="PlaybackLyrics_SourceLrclib" xml:space="preserve">
-    <value>LRCLIB</value>
-  </data>
-  <data name="PlaybackLyrics_TimedToTheSong" xml:space="preserve">
-    <value>Timed to the song</value>
-  </data>
-  <data name="PlaybackLyrics_WordsOnly" xml:space="preserve">
-    <value>Words only</value>
-  </data>
-  <data name="PlaybackLyrics_InUse" xml:space="preserve">
-    <value>In use</value>
-  </data>
-  <data name="PlaybackLyrics_NoOtherLyrics" xml:space="preserve">
-    <value>No other lyrics were found.</value>
-  </data>
-  <data name="PlaybackLyrics_AboutOrigin" xml:space="preserve">
-    <value>Lyrics come from a .lrc file next to the song, or from LRCLIB, a free lyrics service. Library looks them up when it adds a song.</value>
-  </data>
-  <data name="PlaybackLyrics_AboutSynced" xml:space="preserve">
-    <value>Synced lyrics carry times, so the list follows the song and you can select a line to jump to it. Unsynced lyrics are plain text.</value>
-  </data>
-  <data name="PlaybackLyrics_AboutYours" xml:space="preserve">
-    <value>To use your own words, add a lyrics file. Choose Find another to see what else is available.</value>
   </data>
   <data name="PlaybackOutputPanel_Output" xml:space="preserve">
     <value>Output</value>
@@ -7953,9 +7838,6 @@
   <data name="DetailsTab_FileDetailsCouldNotBe" xml:space="preserve">
     <value>File details could not be loaded.</value>
   </data>
-  <data name="EditingVideoIdentify_NoMatchWasFoundCheck" xml:space="preserve">
-    <value>No match was found. Check the link, and that online lookup is on for this library.</value>
-  </data>
   <data name="PersonalStatusMenuItems_ListeningStatusUpdated" xml:space="preserve">
     <value>Listening status updated.</value>
   </data>
@@ -9186,57 +9068,6 @@
   <data name="EditorTvMatchBrowser_BestGuess" xml:space="preserve">
     <value>Best guess</value>
   </data>
-  <data name="EditorPlacementPicker_Staged" xml:space="preserve">
-    <value>Staged: moves to {0}.</value>
-  </data>
-  <data name="EditorPlacementPicker_Undo" xml:space="preserve">
-    <value>Undo</value>
-  </data>
-  <data name="EditorPlacementPicker_SearchPlaces" xml:space="preserve">
-    <value>Search places</value>
-  </data>
-  <data name="EditorPlacementPicker_SearchFor" xml:space="preserve">
-    <value>Search for an {0}</value>
-  </data>
-  <data name="EditorPlacementPicker_Search" xml:space="preserve">
-    <value>Search</value>
-  </data>
-  <data name="EditorPlacementPicker_Searching" xml:space="preserve">
-    <value>Searching</value>
-  </data>
-  <data name="EditorPlacementPicker_Select" xml:space="preserve">
-    <value>Select</value>
-  </data>
-  <data name="EditorPlacementPicker_SelectPlace" xml:space="preserve">
-    <value>Select {0}</value>
-  </data>
-  <data name="EditorPlacementPicker_NothingMatches" xml:space="preserve">
-    <value>Nothing in your library matches that. A place has to exist before an item can move into it.</value>
-  </data>
-  <data name="EditorPlacementPicker_WhereItGoes" xml:space="preserve">
-    <value>Where it goes</value>
-  </data>
-  <data name="EditorPlacementPicker_MovesTo" xml:space="preserve">
-    <value>moves to</value>
-  </data>
-  <data name="EditorPlacementPicker_CheckingFiles" xml:space="preserve">
-    <value>Checking the files...</value>
-  </data>
-  <data name="EditorPlacementPicker_LeavesBehind" xml:space="preserve">
-    <value>Whatever it leaves behind stays in your library, even if it is left empty.</value>
-  </data>
-  <data name="EditorPlacementPicker_RenameFiles" xml:space="preserve">
-    <value>Rename and move the files</value>
-  </data>
-  <data name="EditorPlacementPicker_RenameFilesDescription" xml:space="preserve">
-    <value>Renames and moves the files to fit. Off unless you turn it on.</value>
-  </data>
-  <data name="EditorPlacementPicker_Cancel" xml:space="preserve">
-    <value>Cancel</value>
-  </data>
-  <data name="EditorPlacementPicker_UsePlace" xml:space="preserve">
-    <value>Use this place</value>
-  </data>
   <data name="ToolsSummaryLine_Downloading" xml:space="preserve">
     <value>{0} downloading</value>
   </data>
@@ -10008,8 +9839,71 @@
   <data name="EditorRail_NothingMatches" xml:space="preserve">
     <value>Nothing matches that.</value>
   </data>
-  <data name="EditorRail_ShowMore" xml:space="preserve">
-    <value>Show more ({0} left)</value>
+  <data name="EditorNav_Label" xml:space="preserve">
+    <value>Move around this title</value>
+  </data>
+  <data name="EditorNav_Home" xml:space="preserve">
+    <value>Go to {0}</value>
+  </data>
+  <data name="EditorNav_Choose" xml:space="preserve">
+    <value>Choose {0}</value>
+  </data>
+  <data name="EditorNav_Find" xml:space="preserve">
+    <value>Find {0}</value>
+  </data>
+  <data name="EditorNav_Watched" xml:space="preserve">
+    <value>Watched</value>
+  </data>
+  <data name="EditorNav_PickFirst" xml:space="preserve">
+    <value>Choose a {0} first.</value>
+  </data>
+  <data name="EditorNav_ShowingOf" xml:space="preserve">
+    <value>Showing {0} of {1}</value>
+  </data>
+  <data name="EditorNav_SupportingFiles" xml:space="preserve">
+    <value>Supporting files</value>
+  </data>
+  <data name="EditorNav_FileMissing" xml:space="preserve">
+    <value>File not found</value>
+  </data>
+  <data name="EditorNav_AllFiles" xml:space="preserve">
+    <value>All supporting files ({0})</value>
+  </data>
+  <data name="EditorNav_Browse" xml:space="preserve">
+    <value>Browse files and folders</value>
+  </data>
+  <data name="EditorFooter_WriteBackOffTitle" xml:space="preserve">
+    <value>File write-back off</value>
+  </data>
+  <data name="EditorFooter_WriteBackOffDetail" xml:space="preserve">
+    <value>Edits save in Library. Original files stay unchanged.</value>
+  </data>
+  <data name="EditorFooter_WriteBackOnTitle" xml:space="preserve">
+    <value>File write-back on</value>
+  </data>
+  <data name="EditorFooter_WriteBackOnDetail" xml:space="preserve">
+    <value>Edits save in Library and are written into the file's own tags.</value>
+  </data>
+  <data name="EditorFooter_MoveDetail" xml:space="preserve">
+    <value>Managed folder · {0} → {1}</value>
+  </data>
+  <data name="EditorFooter_MoveDetailGeneric" xml:space="preserve">
+    <value>Managed folder · Moved and renamed to match the new details</value>
+  </data>
+  <data name="EditorFooter_EditsSaveHere" xml:space="preserve">
+    <value>Edits save in Library.</value>
+  </data>
+  <data name="EditorFooter_MoveTitle" xml:space="preserve">
+    <value>This file will move when you save</value>
+  </data>
+  <data name="EditorFooter_NoChanges" xml:space="preserve">
+    <value>No changes yet</value>
+  </data>
+  <data name="EditorFooter_OneUnsaved" xml:space="preserve">
+    <value>1 unsaved change</value>
+  </data>
+  <data name="EditorFooter_ManyUnsaved" xml:space="preserve">
+    <value>{0} unsaved changes</value>
   </data>
   <data name="EditorHeader_OpenAt" xml:space="preserve">
     <value>Open at {0}</value>
@@ -10020,122 +9914,8 @@
   <data name="EditorFooter_Discard" xml:space="preserve">
     <value>Discard</value>
   </data>
-  <data name="EditorFooter_SavesToLibrary" xml:space="preserve">
-    <value>Changes save to Library</value>
-  </data>
-  <data name="EditorFooter_WriteBack" xml:space="preserve">
-    <value>File write-back {0}</value>
-  </data>
-  <data name="EditorContents_TickedRows" xml:space="preserve">
-    <value>Ticked rows</value>
-  </data>
-  <data name="EditorContents_ChooseWhatToChange" xml:space="preserve">
-    <value>Choose what to change</value>
-  </data>
-  <data name="EditorLineUp_ApplyTo" xml:space="preserve">
-    <value>Apply to</value>
-  </data>
-  <data name="EditorLineUp_ReadOnly" xml:space="preserve">
-    <value>You can look at these matches, but you can't change them.</value>
-  </data>
-  <data name="EditorContents_MatchN" xml:space="preserve">
-    <value>Match these {0} {1}</value>
-  </data>
-  <data name="EditorContents_Loading" xml:space="preserve">
-    <value>Loading the contents</value>
-  </data>
-  <data name="EditorContents_LoadingMore" xml:space="preserve">
-    <value>Loading more</value>
-  </data>
-  <data name="EditorContents_CouldNotRead" xml:space="preserve">
-    <value>These could not be read.</value>
-  </data>
-  <data name="EditorContents_RestCouldNotRead" xml:space="preserve">
-    <value>The rest could not be read.</value>
-  </data>
-  <data name="EditorContents_Empty" xml:space="preserve">
-    <value>There is nothing in your library under this yet.</value>
-  </data>
-  <data name="EditorContents_Select" xml:space="preserve">
-    <value>Select</value>
-  </data>
-  <data name="EditorContents_Picture" xml:space="preserve">
-    <value>Picture</value>
-  </data>
-  <data name="EditorContents_Title" xml:space="preserve">
-    <value>Title</value>
-  </data>
-  <data name="EditorContents_Status" xml:space="preserve">
-    <value>Status</value>
-  </data>
-  <data name="EditorContents_Size" xml:space="preserve">
-    <value>Size</value>
-  </data>
-  <data name="EditorContents_Matched" xml:space="preserve">
-    <value>Matched</value>
-  </data>
-  <data name="EditorContents_NotMatched" xml:space="preserve">
-    <value>Not matched</value>
-  </data>
-  <data name="EditorContents_HeadingShow" xml:space="preserve">
-    <value>Seasons and episodes</value>
-  </data>
-  <data name="EditorContents_HeadingAlbum" xml:space="preserve">
-    <value>Songs</value>
-  </data>
-  <data name="EditorContents_HeadingSeries" xml:space="preserve">
-    <value>Books and issues</value>
-  </data>
-  <data name="EditorContents_Back" xml:space="preserve">
-    <value>Back to Contents</value>
-  </data>
-  <data name="EditorFiles_Loading" xml:space="preserve">
-    <value>Loading the files</value>
-  </data>
-  <data name="EditorFiles_CouldNotRead" xml:space="preserve">
-    <value>The files could not be read.</value>
-  </data>
-  <data name="EditorFiles_EmptyGrouping" xml:space="preserve">
-    <value>The files are on the episodes, songs and books inside. Open one from Contents to see its file.</value>
-  </data>
-  <data name="EditorFiles_Empty" xml:space="preserve">
-    <value>No files are stored for this item.</value>
-  </data>
-  <data name="EditorFiles_Name" xml:space="preserve">
-    <value>Name</value>
-  </data>
-  <data name="EditorFiles_Folder" xml:space="preserve">
-    <value>Folder</value>
-  </data>
-  <data name="EditorFiles_Size" xml:space="preserve">
-    <value>Size</value>
-  </data>
-  <data name="EditorFiles_Quality" xml:space="preserve">
-    <value>Quality</value>
-  </data>
-  <data name="EditorFiles_Access" xml:space="preserve">
-    <value>Access</value>
-  </data>
-  <data name="EditorFiles_ReadOnly" xml:space="preserve">
-    <value>Read-only</value>
-  </data>
-  <data name="EditorFiles_ReadOnlyTip" xml:space="preserve">
-    <value>Library only reads this file and never changes or deletes it.</value>
-  </data>
-  <data name="EditorFiles_OnlyFirst" xml:space="preserve">
-    <value>Only the first files are listed.</value>
-  </data>
   <data name="EditorQuickFacts_Title" xml:space="preserve">
     <value>Quick Facts</value>
-  </data>
-  <data name="EditorFiles_Actions" xml:space="preserve">
-    <value>Actions</value>
-  </data>
-  <data name="EditorFiles_DeleteFile" xml:space="preserve">
-    <value>Delete {0}…</value>
-  </data>
-  <data name="EditorHeader_MoreActions" xml:space="preserve">
-    <value>More actions for this item</value>
   </data>
   <data name="EditorFileSort_Heading" xml:space="preserve">
     <value>What is this file?</value>
@@ -11184,6 +10964,156 @@
   <data name="AudioSubtitles_NameForced" xml:space="preserve">
     <value>{0} · Forced</value>
   </data>
+  <data name="EditorFileSort_Search" xml:space="preserve">
+    <value>Search</value>
+  </data>
+  <data name="EditorFileSort_Searching" xml:space="preserve">
+    <value>Searching</value>
+  </data>
+  <data name="EditorMatchPanel_Provider" xml:space="preserve">
+    <value>Provider</value>
+  </data>
+  <data name="EditorMatchPanel_Search" xml:space="preserve">
+    <value>Search</value>
+  </data>
+  <data name="EditorMatchPanel_MatchSource" xml:space="preserve">
+    <value>Match source</value>
+  </data>
+  <data name="EditorMatchPanel_ReadingMatch" xml:space="preserve">
+    <value>Reading this item's match</value>
+  </data>
+  <data name="BulkEditPanel_MatchOneAtATime" xml:space="preserve">
+    <value>Match one item at a time: open an item and use its Match tab.</value>
+  </data>
+  <data name="EditorMatchResults_LookingUp" xml:space="preserve">
+    <value>Looking up…</value>
+  </data>
+  <data name="EditorMatchResults_SearchResults" xml:space="preserve">
+    <value>Search results</value>
+  </data>
+  <data name="EditorMatchResults_SelectedResult" xml:space="preserve">
+    <value>Selected result</value>
+  </data>
+  <data name="EditorMatchResults_OpenSource" xml:space="preserve">
+    <value>Open source ↗</value>
+  </data>
+  <data name="EditorMatchResults_Editions" xml:space="preserve">
+    <value>Editions</value>
+  </data>
+  <data name="EditorMatchResults_EditionsAndReleases" xml:space="preserve">
+    <value>Editions and releases</value>
+  </data>
+  <data name="EditorMatchResults_ClosestToYourFile" xml:space="preserve">
+    <value>Closest to your file</value>
+  </data>
+  <data name="EditorMatchResults_Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="EditorMatchResults_ApplyMatch" xml:space="preserve">
+    <value>Apply match</value>
+  </data>
+  <data name="EditorDetailsPanel_Revert" xml:space="preserve">
+    <value>Revert</value>
+  </data>
+  <data name="EditorDetailsPanel_YoursKept" xml:space="preserve">
+    <value>Unlocked · your value is kept on refresh</value>
+  </data>
+  <data name="EditorDetailsPanel_UnlockToEdit" xml:space="preserve">
+    <value>Unlock {0} to edit</value>
+  </data>
+  <data name="EditorDetailsPanel_Lock" xml:space="preserve">
+    <value>Lock {0}</value>
+  </data>
+  <data name="EditorDetailsPanel_Locked" xml:space="preserve">
+    <value>Locked</value>
+  </data>
+  <data name="EditorDetailsPanel_Unlocked" xml:space="preserve">
+    <value>Unlocked</value>
+  </data>
+  <data name="ReviewChangesView_NowYours" xml:space="preserve">
+    <value>now yours</value>
+  </data>
+  <data name="PlaybackLyrics_Synced" xml:space="preserve">
+    <value>Synced</value>
+  </data>
+  <data name="PlaybackLyrics_Unsynced" xml:space="preserve">
+    <value>Unsynced</value>
+  </data>
+  <data name="PlaybackLyrics_OpenNowPlaying" xml:space="preserve">
+    <value>Open Now playing</value>
+  </data>
+  <data name="PlaybackLyrics_ResumeFollowing" xml:space="preserve">
+    <value>Resume following</value>
+  </data>
+  <data name="PlaybackLyrics_SelectALine" xml:space="preserve">
+    <value>Select a line to jump to that moment.</value>
+  </data>
+  <data name="PlaybackLyrics_SeekToLine" xml:space="preserve">
+    <value>Seek to {0}</value>
+  </data>
+  <data name="PlaybackLyrics_SwitchOneOn" xml:space="preserve">
+    <value>Switch one on in Plugins and lyrics will appear here.</value>
+  </data>
+  <data name="PlaybackLyrics_AskAnAdministrator" xml:space="preserve">
+    <value>Ask an administrator to switch one on.</value>
+  </data>
+  <data name="PlaybackLyrics_FindLyrics" xml:space="preserve">
+    <value>Find lyrics</value>
+  </data>
+  <data name="PlaybackLyrics_AddFile" xml:space="preserve">
+    <value>Add a lyrics file</value>
+  </data>
+  <data name="PlaybackLyrics_FileWrongType" xml:space="preserve">
+    <value>That is not a lyrics file. Choose a .lrc or .txt file.</value>
+  </data>
+  <data name="PlaybackLyrics_FileTooBig" xml:space="preserve">
+    <value>That lyrics file is too big. Lyrics files must be 5 MB or smaller.</value>
+  </data>
+  <data name="PlaybackLyrics_FileUnreadable" xml:space="preserve">
+    <value>That lyrics file could not be read.</value>
+  </data>
+  <data name="PlaybackLyrics_FindAnother" xml:space="preserve">
+    <value>Find another</value>
+  </data>
+  <data name="PlaybackLyrics_AboutSources" xml:space="preserve">
+    <value>About lyrics sources</value>
+  </data>
+  <data name="PlaybackLyrics_SourceSynced" xml:space="preserve">
+    <value>Synced lyrics · {0}</value>
+  </data>
+  <data name="PlaybackLyrics_SourceUnsynced" xml:space="preserve">
+    <value>Unsynced lyrics · {0}</value>
+  </data>
+  <data name="PlaybackLyrics_SourceLocalFile" xml:space="preserve">
+    <value>Local file</value>
+  </data>
+  <data name="PlaybackLyrics_SourceSongTags" xml:space="preserve">
+    <value>Song tags</value>
+  </data>
+  <data name="PlaybackLyrics_SourceLrclib" xml:space="preserve">
+    <value>LRCLIB</value>
+  </data>
+  <data name="PlaybackLyrics_TimedToTheSong" xml:space="preserve">
+    <value>Timed to the song</value>
+  </data>
+  <data name="PlaybackLyrics_WordsOnly" xml:space="preserve">
+    <value>Words only</value>
+  </data>
+  <data name="PlaybackLyrics_InUse" xml:space="preserve">
+    <value>In use</value>
+  </data>
+  <data name="PlaybackLyrics_NoOtherLyrics" xml:space="preserve">
+    <value>No other lyrics were found.</value>
+  </data>
+  <data name="PlaybackLyrics_AboutOrigin" xml:space="preserve">
+    <value>Lyrics come from a .lrc file next to the song, or from LRCLIB, a free lyrics service. Library looks them up when it adds a song.</value>
+  </data>
+  <data name="PlaybackLyrics_AboutSynced" xml:space="preserve">
+    <value>Synced lyrics carry times, so the list follows the song and you can select a line to jump to it. Unsynced lyrics are plain text.</value>
+  </data>
+  <data name="PlaybackLyrics_AboutYours" xml:space="preserve">
+    <value>To use your own words, add a lyrics file. Choose Find another to see what else is available.</value>
+  </data>
   <data name="PlaybackSpeed_Title" xml:space="preserve">
     <value>Playback speed</value>
   </data>
@@ -11531,5 +11461,215 @@
   </data>
   <data name="SleepTimer_Cancel" xml:space="preserve">
     <value>Cancel timer</value>
+  </data>
+  <data name="EditorMatchPanel_MediaProviders" xml:space="preserve">
+    <value>Media providers</value>
+  </data>
+  <data name="EditorMatchPanel_Wikidata" xml:space="preserve">
+    <value>Wikidata</value>
+  </data>
+  <data name="EditorMatchPanel_ProviderOption" xml:space="preserve">
+    <value>{0} · {1}</value>
+  </data>
+  <data name="EditorMatchPanel_StateNeedsKey" xml:space="preserve">
+    <value>Needs a key</value>
+  </data>
+  <data name="EditorMatchPanel_StateOff" xml:space="preserve">
+    <value>Off</value>
+  </data>
+  <data name="EditorMatchPanel_StateReady" xml:space="preserve">
+    <value>Ready</value>
+  </data>
+  <data name="EditorMatchPanel_Optional" xml:space="preserve">
+    <value>optional</value>
+  </data>
+  <data name="EditorMatchPanel_CouldNotReachEngine" xml:space="preserve">
+    <value>Library could not reach the Engine. Try again.</value>
+  </data>
+  <data name="EditorMatchPanel_ManualPlacement" xml:space="preserve">
+    <value>Season {0}, episode {1} as this item's own details</value>
+  </data>
+  <data name="EditorMatchPanel_StagedMoves" xml:space="preserve">
+    <value>It will also move to {0}.</value>
+  </data>
+  <data name="EditorMatchPanel_StagedFilesStay" xml:space="preserve">
+    <value>Its files stay where they are, because they are in a folder Library only reads.</value>
+  </data>
+  <data name="EditorMatchPanel_NoMatch" xml:space="preserve">
+    <value>No match</value>
+  </data>
+  <data name="EditorMatchPanel_RemovalStaged" xml:space="preserve">
+    <value>Match removal staged.</value>
+  </data>
+  <data name="EditorMatchPanel_NotMatchedYet" xml:space="preserve">
+    <value>Not matched yet</value>
+  </data>
+  <data name="EditorMatchPanel_CouldNotReadSetup" xml:space="preserve">
+    <value>Library could not read what this item would be matched with. Try again.</value>
+  </data>
+  <data name="EditorMatchPanel_NoProvider" xml:space="preserve">
+    <value>No provider matches this kind of item. The details you enter stand on their own.</value>
+  </data>
+  <data name="EditorMatchPanel_Staged" xml:space="preserve">
+    <value>Staged: {0}. Nothing is saved until you press Save changes.</value>
+  </data>
+  <data name="EditorMatchPanel_CurrentMatch" xml:space="preserve">
+    <value>Current match</value>
+  </data>
+  <data name="EditorMatchPanel_Matched" xml:space="preserve">
+    <value>Matched</value>
+  </data>
+  <data name="EditorMatchPanel_ChosenByYou" xml:space="preserve">
+    <value>Chosen by you</value>
+  </data>
+  <data name="EditorMatchPanel_OpenSource" xml:space="preserve">
+    <value>Open source ↗</value>
+  </data>
+  <data name="EditorMatchPanel_RemoveMatch" xml:space="preserve">
+    <value>Remove match</value>
+  </data>
+  <data name="EditorMatchPanel_ChangeMatch" xml:space="preserve">
+    <value>Change match</value>
+  </data>
+  <data name="EditorMatchPanel_DirectedBy" xml:space="preserve">
+    <value>Directed by {0}</value>
+  </data>
+  <data name="EditorMatchPanel_WhyThisMatch" xml:space="preserve">
+    <value>Why this match</value>
+  </data>
+  <data name="EditorMatchPanel_MatchVerdict" xml:space="preserve">
+    <value>{0} match</value>
+  </data>
+  <data name="EditorMatchPanel_Field" xml:space="preserve">
+    <value>Field</value>
+  </data>
+  <data name="EditorMatchPanel_YourFile" xml:space="preserve">
+    <value>Your file</value>
+  </data>
+  <data name="EditorMatchPanel_MatchedRecord" xml:space="preserve">
+    <value>Matched record</value>
+  </data>
+  <data name="EditorMatchPanel_Result" xml:space="preserve">
+    <value>Result</value>
+  </data>
+  <data name="EditorMatchPanel_NotCheckedNote" xml:space="preserve">
+    <value>{0}: not in your file, so it was not checked.</value>
+  </data>
+  <data name="EditorMatchPanel_ChangingKeepsLocked" xml:space="preserve">
+    <value>Fields you changed stay yours; the rest update.</value>
+  </data>
+  <data name="EditorMatchPanel_Measured" xml:space="preserve">
+    <value>{0} measured</value>
+  </data>
+  <data name="EditorMatchPanel_Rounded" xml:space="preserve">
+    <value>{0} (rounded)</value>
+  </data>
+  <data name="EditorMatchPanel_FieldTitle" xml:space="preserve">
+    <value>Title</value>
+  </data>
+  <data name="EditorMatchPanel_FieldYear" xml:space="preserve">
+    <value>Year</value>
+  </data>
+  <data name="EditorMatchPanel_FieldSeason" xml:space="preserve">
+    <value>Season</value>
+  </data>
+  <data name="EditorMatchPanel_FieldEpisode" xml:space="preserve">
+    <value>Episode</value>
+  </data>
+  <data name="EditorMatchPanel_FieldRuntime" xml:space="preserve">
+    <value>Runtime</value>
+  </data>
+  <data name="EditorMatchPanel_Match" xml:space="preserve">
+    <value>Match</value>
+  </data>
+  <data name="EditorMatchPanel_MatchKind" xml:space="preserve">
+    <value>Match {0}</value>
+  </data>
+  <data name="EditorMatchPanel_YourFileLine" xml:space="preserve">
+    <value>Your file: {0}</value>
+  </data>
+  <data name="EditorMatchPanel_NeedsKeySentence" xml:space="preserve">
+    <value>{0} needs a key before it can be searched. Add it in Settings, or choose another provider.</value>
+  </data>
+  <data name="EditorMatchPanel_OffSentence" xml:space="preserve">
+    <value>{0} is switched off. Turn it on in Settings, or choose another provider.</value>
+  </data>
+  <data name="EditorMatchPanel_ChooseProvider" xml:space="preserve">
+    <value>Choose a provider to search.</value>
+  </data>
+  <data name="EditorMatchPanel_KindMovie" xml:space="preserve">
+    <value>movie</value>
+  </data>
+  <data name="EditorMatchPanel_KindBook" xml:space="preserve">
+    <value>book</value>
+  </data>
+  <data name="EditorMatchPanel_KindAudiobook" xml:space="preserve">
+    <value>audiobook</value>
+  </data>
+  <data name="EditorMatchPanel_KindComic" xml:space="preserve">
+    <value>comic</value>
+  </data>
+  <data name="EditorMatchPanel_KindShow" xml:space="preserve">
+    <value>show</value>
+  </data>
+  <data name="EditorMatchPanel_KindSeason" xml:space="preserve">
+    <value>season</value>
+  </data>
+  <data name="EditorMatchPanel_KindEpisode" xml:space="preserve">
+    <value>episode</value>
+  </data>
+  <data name="EditorMatchPanel_KindAlbum" xml:space="preserve">
+    <value>album</value>
+  </data>
+  <data name="EditorMatchPanel_KindSong" xml:space="preserve">
+    <value>song</value>
+  </data>
+  <data name="EditorMatchPanel_KindVideo" xml:space="preserve">
+    <value>video</value>
+  </data>
+  <data name="EditorMatchPanel_KindItem" xml:space="preserve">
+    <value>item</value>
+  </data>
+  <data name="EditorMatchPanel_MatchedToNow" xml:space="preserve">
+    <value>Matched to now</value>
+  </data>
+  <data name="EditorMatchPanel_Universe" xml:space="preserve">
+    <value>Universe</value>
+  </data>
+  <data name="EditorMatchPanel_OpenUniverse" xml:space="preserve">
+    <value>Open Universe</value>
+  </data>
+  <data name="EditorMatchResults_YourFileEvidence" xml:space="preserve">
+    <value>Your file: {0}</value>
+  </data>
+  <data name="EditorMatchResults_EvidenceNumber" xml:space="preserve">
+    <value>number {0}</value>
+  </data>
+  <data name="EditorMatchResults_EvidenceMeasured" xml:space="preserve">
+    <value>{0} measured</value>
+  </data>
+  <data name="EditorMatchResults_EvidenceIdentifier" xml:space="preserve">
+    <value>{0} {1}</value>
+  </data>
+  <data name="EditorMatchResults_IdYouTube" xml:space="preserve">
+    <value>YouTube ID</value>
+  </data>
+  <data name="EditorMatchResults_IdIsbn" xml:space="preserve">
+    <value>ISBN</value>
+  </data>
+  <data name="EditorMatchResults_IdIsrc" xml:space="preserve">
+    <value>ISRC</value>
+  </data>
+  <data name="EditorMatchResults_IdImdb" xml:space="preserve">
+    <value>IMDb ID</value>
+  </data>
+  <data name="EditorMatchResults_IdTmdb" xml:space="preserve">
+    <value>TMDB ID</value>
+  </data>
+  <data name="EditorMatchResults_IdMusicBrainz" xml:space="preserve">
+    <value>MusicBrainz ID</value>
+  </data>
+  <data name="EditorMatchResults_IdEmbeddedTitle" xml:space="preserve">
+    <value>embedded title</value>
   </data>
 </root>

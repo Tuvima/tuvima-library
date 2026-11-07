@@ -151,6 +151,53 @@ public sealed class FollowUpLookupTests
     }
 
     [Fact]
+    public async Task AnEmptyDetailAnswer_IsNeverCached_SoTheNextLookupAsksAgain()
+    {
+        var cache = new MemoryResponseCache();
+        var handler = Handler(_ => RecordingHandler.Json("""{ "results": [], "total": 0 }"""));
+        var cached = Detail.Replace("\"rules\"", "\"cache\": { \"store\": \"response_cache\" }, \"rules\"", StringComparison.Ordinal);
+        var adapter = Adapter(Provider(cached, "\"cache_ttl_hours\": 168,"), handler, cache);
+
+        await adapter.FetchAsync(Request());
+        await adapter.FetchAsync(Request());
+
+        Assert.Equal(2, handler.Lines.Count(line => line.Contains("/items/7", StringComparison.Ordinal)));
+        Assert.DoesNotContain(cache.Keys, key => key.Contains("items/7", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task AnEmptySearchAnswer_IsNeverCached_ButAFullOneIs()
+    {
+        var emptySearch = new RecordingHandler(request => RecordingHandler.Json("""{ "results": [] }"""));
+        var cache = new MemoryResponseCache();
+        var adapter = Adapter(Provider("[]", "\"cache_ttl_hours\": 168,"), emptySearch, cache);
+
+        await adapter.FetchAsync(Request());
+
+        Assert.Equal(0, cache.Count);
+
+        var fullCache = new MemoryResponseCache();
+        var full = Adapter(Provider("[]", "\"cache_ttl_hours\": 168,"), Handler(_ => null), fullCache);
+
+        await full.FetchAsync(Request());
+
+        Assert.Equal(1, fullCache.Count);
+    }
+
+    [Theory]
+    [InlineData("", true)]
+    [InlineData("   ", true)]
+    [InlineData("[]", true)]
+    [InlineData("{}", true)]
+    [InlineData("null", true)]
+    [InlineData("""{ "page": 1, "results": [], "total_results": 0 }""", true)]
+    [InlineData("""{ "results": [ { "name": "Widget" } ] }""", false)]
+    [InlineData("""{ "name": "Widget", "genres": [] }""", false)]
+    [InlineData("not json", false)]
+    public void EmptyAnswers_AreToldFromRecords(string body, bool empty) =>
+        Assert.Equal(empty, EmptyProviderAnswer.IsEmpty(body));
+
+    [Fact]
     public async Task MemoryCache_FetchesOncePerKeyAndForgetsFailures()
     {
         var calls = 0;
@@ -262,6 +309,10 @@ public sealed class FollowUpLookupTests
         private readonly Dictionary<string, string> _entries = [];
 
         public int LastTtl { get; private set; }
+
+        public int Count => _entries.Count;
+
+        public IReadOnlyCollection<string> Keys => _entries.Keys;
 
         public Task<CachedResponse?> FindAsync(string key, CancellationToken ct = default) =>
             Task.FromResult(_entries.TryGetValue(key, out var json)

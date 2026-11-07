@@ -62,6 +62,8 @@ public static class TuvimaProviderServiceCollectionExtensions
         services.AddSingleton<TimelineRecorder>();
         // The explicit "no outside contact" check every worker and sweep makes for a library that never looks anything up (Library setup D38).
         services.AddSingleton<IExternalLookupGuard, ConfiguredExternalLookupGuard>();
+        // A match a person applied is never re-identified by a scan or an automatic job (universal editor v5, D8).
+        services.AddSingleton<IPinnedMatchGuard, PinnedMatchGuard>();
         services.AddSingleton<CoverArtWorker>();
         services.AddSingleton<PersonImageEnrichmentWorker>();
         services.AddSingleton<PersonEnrichmentWorker>();
