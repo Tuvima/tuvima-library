@@ -341,6 +341,7 @@ public sealed class ExtraMoveEditSessionChangeHandlerTests : IDisposable
             return Task.FromResult(true);
         }
 
+        public Task<string?> ResolveScopeFolderAsync(string itemFolder, ExtraScope scope, CancellationToken ct = default) => Task.FromResult<string?>(null);
         public Task<ExtraEpisodePlacement?> GetEpisodePlacementAsync(string filePath, CancellationToken ct = default) => Task.FromResult<ExtraEpisodePlacement?>(null);
         public Task<bool> ClaimsFileAsync(string filePath, LibraryFolderEntry? library, CancellationToken ct = default) => Task.FromResult(false);
         public void NoteFile(string filePath) { }
