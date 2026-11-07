@@ -93,6 +93,33 @@ public sealed class MetadataClaimRepository : IMetadataClaimRepository
     }
 
     /// <inheritdoc/>
+    public async Task RetireCurrentClaimsAsync(
+        Guid entityId,
+        IReadOnlyCollection<string> fieldKeys,
+        CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        var keys = fieldKeys.Where(key => !string.IsNullOrWhiteSpace(key)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        if (keys.Length == 0)
+        {
+            return;
+        }
+
+        var supersededAt = DateTimeOffset.UtcNow.ToString("O");
+        await _db.ExecuteWriteAsync((conn, tx, _) =>
+        {
+            conn.Execute("""
+                UPDATE metadata_claims
+                SET is_current = 0,
+                    superseded_at = @supersededAt
+                WHERE entity_id = @entityId
+                  AND is_current = 1
+                  AND claim_key IN @keys;
+                """, new { entityId, keys, supersededAt }, tx);
+        }, ct).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
     public async Task ReplaceCurrentProviderClaimsAsync(
         Guid entityId,
         Guid providerId,
