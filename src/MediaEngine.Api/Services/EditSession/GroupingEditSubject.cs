@@ -71,12 +71,28 @@ public abstract class GroupingEditSubject(
         };
     }
 
-    public string? CheckField(string key, string? value) =>
-        key.Trim().ToLowerInvariant() is TitleKey or DescriptionKey ? null : $"'{key.Trim()}' cannot be changed here.";
+    public virtual bool ReadOnly => false;
+
+    /// <summary>The fields a person may write; a Series takes none and a Universe only its description override.</summary>
+    protected virtual bool CanWrite(string key) => key is TitleKey or DescriptionKey;
+
+    /// <summary>The plain reason a field the kind could otherwise take is refused (null for the generic "cannot be changed here").</summary>
+    protected virtual string? RefusalFor(string key) => null;
+
+    public string? CheckField(string key, string? value)
+    {
+        var normalized = key.Trim().ToLowerInvariant();
+        return CanWrite(normalized) ? null : RefusalFor(normalized) ?? $"'{key.Trim()}' cannot be changed here.";
+    }
 
     public async Task<Func<CancellationToken, Task>> ApplyFieldsAsync(
         Guid id, IReadOnlyList<EditSessionFieldChange> fields, CancellationToken ct = default)
     {
+        if (fields.Select(field => CheckField(field.Key, field.Value)).FirstOrDefault(reason => reason is not null) is { } refusal)
+        {
+            throw new InvalidOperationException(refusal);
+        }
+
         var before = await overrides.LoadAsync(id, ct).ConfigureAwait(false)
             ?? throw new InvalidOperationException(EditSessionReasons.Gone);
 
@@ -101,7 +117,11 @@ public abstract class GroupingEditSubject(
     }
 }
 
-/// <summary>A Series (or other provider-built grouping that is not a Universe): a title and description override, and a cover.</summary>
+/// <summary>
+/// A Series (or other provider-built grouping that is not a Universe). It is read-only (universal editor v5 D7, D24): its name, order and
+/// membership come from its members' own matches, so every field write is refused, and it has no picture of its own (its tile is the
+/// automatic stack of its members' covers).
+/// </summary>
 public sealed class SeriesEditSubject(ICollectionRepository collections, CollectionDisplayOverrideRepository overrides)
     : GroupingEditSubject(collections, overrides)
 {
@@ -109,12 +129,21 @@ public sealed class SeriesEditSubject(ICollectionRepository collections, Collect
 
     protected override string SourceLabel => "Provider";
 
-    protected override IReadOnlyList<string> ArtworkSlots => ["CoverArt", "Background"];
+    protected override IReadOnlyList<string> ArtworkSlots => [];
+
+    public override bool ReadOnly => true;
+
+    protected override bool CanWrite(string key) => false;
+
+    protected override string? RefusalFor(string key) => EditSessionReasons.SeriesIsReadOnly;
 
     protected override bool OwnsType(CollectionType type) => type is CollectionType.Series or CollectionType.ContentGroup;
 }
 
-/// <summary>A Universe: a name and description override (restorable), a cover and a background. There is no Match for a Universe.</summary>
+/// <summary>
+/// A Universe: mostly read-only (universal editor v5 D7). Its name is a provider fact and is never written; it takes a description override
+/// (restorable), a cover and a background. There is no Match for a Universe.
+/// </summary>
 public sealed class UniverseEditSubject(ICollectionRepository collections, CollectionDisplayOverrideRepository overrides)
     : GroupingEditSubject(collections, overrides)
 {
@@ -123,6 +152,10 @@ public sealed class UniverseEditSubject(ICollectionRepository collections, Colle
     protected override string SourceLabel => "Wikidata";
 
     protected override IReadOnlyList<string> ArtworkSlots => ["CoverArt", "Background"];
+
+    protected override bool CanWrite(string key) => key == DescriptionKey;
+
+    protected override string? RefusalFor(string key) => key == TitleKey ? EditSessionReasons.UniverseNameIsReadOnly : null;
 
     protected override bool OwnsType(CollectionType type) => type == CollectionType.Universe;
 }

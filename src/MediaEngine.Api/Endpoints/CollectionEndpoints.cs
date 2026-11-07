@@ -77,6 +77,11 @@ public static class CollectionEndpoints
             {
                 return ApiErrors.Forbidden("The active profile cannot access this collection.");
             }
+            if (collection.CollectionType is CollectionType.Series or CollectionType.ContentGroup)
+            {
+                // A Series is a grouping that comes from its members' matches and is never edited (universal editor v5 D7).
+                return ApiErrors.BadRequest(MediaEngine.Api.Services.EditSession.EditSessionReasons.SeriesIsReadOnly);
+            }
             if (body.Fields.Count == 0 || body.Fields.Keys.Any(key => key is not ("title" or "description")))
             {
                 return ApiErrors.BadRequest("Collection overrides support title and description only.");

@@ -179,22 +179,44 @@ public sealed class EditSubjectEditSessionTests : IDisposable
     // -- Series ------------------------------------------------------------------
 
     [Fact]
-    public async Task Series_Apply_StoresALocalOverrideAndLeavesTheCanonicalNameAlone()
+    public async Task Series_Apply_RefusesEveryFieldWriteAndStoresNothing()
     {
         var series = SeedGrouping(CollectionType.ContentGroup, "The Expanse", "Canonical description.");
 
         var result = await CreateService().RunAsync(
             Request(previewOnly: false, DetailsChange("d1", series, ("title", "Expanse"), ("description", "Mine."))), NoRefusals);
 
-        Assert.True(result.DataSaved);
-        var subject = (await _subjects.LoadAsync(series))!;
-        Assert.Equal(EditorSubjectKinds.Series, subject.Kind);
-        Assert.Equal(["CoverArt", "Background"], subject.ArtworkSlots);
-        var title = subject.Fields.Single(field => field.Key == "title");
-        Assert.Equal("Expanse", title.Value);
-        Assert.Equal("The Expanse", title.CanonicalValue);
-        Assert.True(title.IsOverridden);
+        Assert.False(result.Valid);
+        Assert.False(result.DataSaved);
+        Assert.Equal(EditSessionReasons.SeriesIsReadOnly, Assert.Single(result.Changes).Reason);
+        Assert.Empty(await _overrides.LoadAsync(series) ?? new Dictionary<string, string>());
         Assert.Equal("The Expanse", (await _collections.GetByIdAsync(series))!.DisplayName);
+    }
+
+    [Fact]
+    public async Task Series_Opens_WithItsFieldsButNoPicturesToChoose()
+    {
+        var series = SeedGrouping(CollectionType.ContentGroup, "The Expanse", "Canonical description.");
+
+        var subject = (await _subjects.LoadAsync(series))!;
+
+        Assert.Equal(EditorSubjectKinds.Series, subject.Kind);
+        Assert.Empty(subject.ArtworkSlots);
+        Assert.Equal("The Expanse", subject.Fields.Single(field => field.Key == "title").Value);
+    }
+
+    [Fact]
+    public async Task Series_Artwork_IsRefused_BecauseASeriesShowsItsMembersCovers()
+    {
+        var series = SeedGrouping(CollectionType.Series, "The Expanse", null);
+        var cover = SeedAsset("cover");
+        await _artwork.LinkAsync("Collection", series, new(cover, "Primary", Preferred: false, SourceAssetType: "CoverArt"), CancellationToken.None);
+
+        var result = await CreateService().RunAsync(Request(previewOnly: false, ArtworkChange("a1", series, "CoverArt", cover)), NoRefusals);
+
+        Assert.False(result.Valid);
+        Assert.Equal(EditSessionReasons.SeriesHasNoArtwork, Assert.Single(result.Changes).Reason);
+        Assert.Null(await _artwork.GetChosenAsync("Collection", series, "Primary", CancellationToken.None));
     }
 
     [Fact]
@@ -215,11 +237,11 @@ public sealed class EditSubjectEditSessionTests : IDisposable
         var universe = SeedGrouping(CollectionType.Universe, "Dune universe", "Canonical lore.");
 
         await CreateService().RunAsync(
-            Request(previewOnly: false, DetailsChange("d1", universe, ("title", "Arrakis"), ("description", "My words."))), NoRefusals);
+            Request(previewOnly: false, DetailsChange("d1", universe, ("description", "My words."))), NoRefusals);
 
         var local = (await _subjects.LoadAsync(universe))!;
         Assert.Equal(EditorSubjectKinds.Universe, local.Kind);
-        Assert.Equal("Arrakis", local.Fields.Single(field => field.Key == "title").Value);
+        Assert.Equal("Dune universe", local.Fields.Single(field => field.Key == "title").Value);
         Assert.True(local.Fields.Single(field => field.Key == "description").IsOverridden);
         var stored = await _collections.GetByIdAsync(universe);
         Assert.Equal("Dune universe", stored!.DisplayName);
@@ -227,7 +249,7 @@ public sealed class EditSubjectEditSessionTests : IDisposable
 
         // "Reset to canonical value": an empty value takes the local one away and the canonical one shows again.
         var reset = await CreateService().RunAsync(
-            Request(previewOnly: false, DetailsChange("d2", universe, ("title", string.Empty), ("description", string.Empty))), NoRefusals);
+            Request(previewOnly: false, DetailsChange("d2", universe, ("description", string.Empty))), NoRefusals);
 
         Assert.True(reset.DataSaved);
         var restored = (await _subjects.LoadAsync(universe))!;
@@ -238,18 +260,30 @@ public sealed class EditSubjectEditSessionTests : IDisposable
     }
 
     [Fact]
+    public async Task Universe_Name_IsAProviderFact_AndAWriteToItIsRefused()
+    {
+        var universe = SeedGrouping(CollectionType.Universe, "Dune universe", "Canonical lore.");
+
+        var result = await CreateService().RunAsync(
+            Request(previewOnly: false, DetailsChange("d1", universe, ("title", "Arrakis"))), NoRefusals);
+
+        Assert.False(result.Valid);
+        Assert.Equal(EditSessionReasons.UniverseNameIsReadOnly, Assert.Single(result.Changes).Reason);
+        Assert.Empty(await _overrides.LoadAsync(universe) ?? new Dictionary<string, string>());
+    }
+
+    [Fact]
     public async Task Universe_Undo_PutsTheLocalValuesBackExactly()
     {
         var universe = SeedGrouping(CollectionType.Universe, "Dune universe", null);
-        await CreateService().RunAsync(Request(previewOnly: false, DetailsChange("d1", universe, ("title", "Arrakis"))), NoRefusals);
+        await CreateService().RunAsync(Request(previewOnly: false, DetailsChange("d1", universe, ("description", "Mine"))), NoRefusals);
 
-        var undo = await _details.ApplyAsync(DetailsChange("d2", universe, ("title", "Other"), ("description", "Extra")));
+        var undo = await _details.ApplyAsync(DetailsChange("d2", universe, ("description", "Other")));
         Assert.NotNull(undo);
         await undo!(CancellationToken.None);
 
         var stored = await _overrides.LoadAsync(universe);
-        Assert.Equal("Arrakis", stored!["title"]);
-        Assert.False(stored.ContainsKey("description"));
+        Assert.Equal("Mine", stored!["description"]);
     }
 
     [Fact]
@@ -272,13 +306,13 @@ public sealed class EditSubjectEditSessionTests : IDisposable
             displayOverrides: _overrides);
 
         await CreateService().RunAsync(
-            Request(previewOnly: false, DetailsChange("d1", universe, ("title", "Arrakis"), ("description", "My words."))), NoRefusals);
+            Request(previewOnly: false, DetailsChange("d1", universe, ("description", "My words."))), NoRefusals);
         var local = await reader.LoadAsync("Q555", profile: null);
         await CreateService().RunAsync(
-            Request(previewOnly: false, DetailsChange("d2", universe, ("title", string.Empty), ("description", string.Empty))), NoRefusals);
+            Request(previewOnly: false, DetailsChange("d2", universe, ("description", string.Empty))), NoRefusals);
         var restored = await reader.LoadAsync("Q555", profile: null);
 
-        Assert.Equal(("Arrakis", "My words."), (local!.Name, local.Description));
+        Assert.Equal(("Dune universe", "My words."), (local!.Name, local.Description));
         Assert.Equal(("Dune universe", "Canonical lore."), (restored!.Name, restored.Description));
     }
 

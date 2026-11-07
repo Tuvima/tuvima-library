@@ -45,7 +45,14 @@ public sealed class ItemFieldEditSession
     /// <summary>The asset types the active scope can hold artwork for, such as CoverArt, Background and Logo.</summary>
     public IReadOnlyList<string> ArtworkSlots => _scope?.ArtworkSlots ?? [];
 
-    public bool CanEditArtwork => _scope?.CanEditArtwork == true;
+    public bool CanEditArtwork => _scope?.CanEditArtwork == true && !IsReadOnlySeries;
+
+    /// <summary>
+    /// True while the editor is on a Series (a show's grouping of books, films or comics, or a Series of the Library): read-only everywhere
+    /// (universal editor v5 D7, D24). Its fields are shown locked with no way to unlock them, it has no Artwork, and the window offers
+    /// Close instead of Save. A member of the Series is reached from the header's dropdown and is edited as any item is.
+    /// </summary>
+    public bool IsReadOnlySeries => EditorSeriesRules.IsSeries(SubjectKind, Header?.Kind ?? KindConfig?.Kind);
 
     /// <summary>The item that owns the artwork of the active scope (a season's own poster belongs to the season, not the show).</summary>
     public Guid ArtworkEntityId => _scope?.ArtworkOwnerEntityId ?? _scope?.FieldEntityId ?? Guid.Empty;
@@ -157,7 +164,7 @@ public sealed class ItemFieldEditSession
     public const string ExplicitFieldKey = "explicit";
 
     /// <summary>Whether the active scope lets this person change its fields at all (a read-only library or file says no).</summary>
-    public bool CanEditFields => _scope?.CanEditFields == true;
+    public bool CanEditFields => _scope?.CanEditFields == true && !IsReadOnlySeries;
 
     // The form lock (EditorFieldLocks): which provider fields the person has unlocked to type in, per item. This is only what the form
     // shows. It is never sent to the Engine and unlocking or locking a field stages nothing; a field becomes the person's own only when
@@ -466,7 +473,10 @@ public sealed class ItemFieldEditSession
         };
 
         var canonicalName = subject.Kind == EditorSubjectKinds.Universe ? "canonical" : null;
-        var rows = subject.Fields.Select(field => SubjectField(field, canonicalName, EditorFieldLocks.IsOwnSubjectField(subject.Kind, field.Key))).ToList();
+        var rows = subject.Fields
+            .Select(field => SubjectField(
+                field, canonicalName, EditorFieldLocks.IsOwnSubjectField(subject.Kind, field.Key), EditorFieldLocks.CanOverrideSubjectField(subject.Kind, field.Key)))
+            .ToList();
         var facts = subject.Facts.Select(fact => new MediaEditorDetailsFieldPresentation(
             fact.Label.ToLowerInvariant().Replace(' ', '_'), string.Empty, fact.Label, fact.Value, string.Empty, "text", "Provider",
             fact.SourceLabel, null, false, false, false, 3, fact.Value, fact.Value, false)).ToList();
@@ -483,7 +493,7 @@ public sealed class ItemFieldEditSession
         LoadError = null;
     }
 
-    private static MediaEditorDetailsFieldPresentation SubjectField(EditorSubjectFieldDto field, string? canonicalName, bool isOwnField) => new(
+    private static MediaEditorDetailsFieldPresentation SubjectField(EditorSubjectFieldDto field, string? canonicalName, bool isOwnField, bool canOverride) => new(
         field.Key,
         field.Key,
         field.Label,
@@ -498,7 +508,7 @@ public sealed class ItemFieldEditSession
         field.IsOverridden ? "Override" : "Canonical",
         field.SourceLabel,
         null,
-        true,
+        canOverride,
         field.IsOverridden,
         field.InputKind == EditorSubjectInputKinds.Chips,
         1,

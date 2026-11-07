@@ -1,4 +1,5 @@
 @namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Editing
 @using MediaEngine.Contracts.Items
 @using MediaEngine.Web.Components.MediaEditor
 @using MediaEngine.Web.Services.Editing
@@ -24,7 +25,14 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
     var facts = Rows(fields).Where(row => !editable.Contains(row)).ToList();
     <div class="tl-editor-details-layout">
     <div class="tl-editor-details">
-        @if (!canEdit)
+        @if (fields.IsReadOnlySeries)
+        {
+            @* A Series is a canonical grouping (v5 D7, screen H): nothing on it can be changed, so say why and where to go instead. *@
+            <AppAlert Severity="AppSeverity.Info" Dense="true" data-series-note="true">
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" Size="AppIconSize.Control20" /> @L["EditorSeries_ReadOnlyNotice"]
+            </AppAlert>
+        }
+        else if (!canEdit)
         {
             <AppAlert Severity="AppSeverity.Info" Dense="true">@L["Common_YouCanLookAtThese"]</AppAlert>
         }
@@ -51,14 +59,34 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
             @ExplicitRow(fields, session, explicitMark)
         }
 
-        @if (facts.Count > 0 && !canEdit)
+        @* A Universe keeps its provider facts (its name) locked beside the description it can override. *@
+        @if (facts.Count > 0 && (!canEdit || fields.SubjectKind == EditorSubjectKinds.Universe))
         {
             <section class="tl-editor-details__group" aria-label="@L["Common_ProviderFacts"].Value">
-                <h3 class="tl-editor-details__heading">@(fields.SubjectKind is null ? "From providers" : "Also on record")</h3>
+                @if (!fields.IsReadOnlySeries)
+                {
+                    <h3 class="tl-editor-details__heading">@(fields.SubjectKind is null ? "From providers" : "Also on record")</h3>
+                }
                 @foreach (var field in facts)
                 {
                     @FactRow(field)
                 }
+            </section>
+        }
+
+        @if (fields.IsReadOnlySeries && SeriesMembers(fields) is { Count: > 0 } members)
+        {
+            @* The Series' members in order, from the same list the header's dropdown shows. *@
+            <section class="tl-editor-details__group" aria-label="@EditorSeriesRules.MembersHeading(fields.Header!.Level.Items)" data-series-members="true">
+                <div class="tl-editor-field tl-editor-field--locked">
+                    <div class="tl-editor-field__label"><span>@EditorSeriesRules.MembersHeading(fields.Header!.Level.Items)</span></div>
+                    <ol class="tl-editor-details__members">
+                        @foreach (var line in members)
+                        {
+                            <li>@line</li>
+                        }
+                    </ol>
+                </div>
             </section>
         }
 
@@ -78,6 +106,9 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
 
     /// <summary>Extra read-only content shown under the fields (the Universe's Series list).</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private static IReadOnlyList<string> SeriesMembers(ItemFieldEditSession fields) =>
+        fields.Header is { } header ? EditorSeriesRules.MemberLines(header.Level.Items) : [];
 
     private static string Canonical(MediaEditorDetailsFieldPresentation field) => field.CanonicalName ?? "provider's";
 

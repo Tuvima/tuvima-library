@@ -20,7 +20,8 @@ public sealed class DetailsEditSessionChangeHandler(
     EditSubjectDirectory? subjects = null,
     IMetadataClaimRepository? claimRepository = null,
     ICanonicalValueRepository? canonicalRepository = null,
-    IEntityTimelineRepository? timeline = null) : IEditSessionChangeHandler
+    IEntityTimelineRepository? timeline = null,
+    EditorSeriesGuard? seriesGuard = null) : IEditSessionChangeHandler
 {
     /// <summary>
     /// The Explicit mark (hides a video or a series of videos from every content-limited profile) rides on a details change under this
@@ -75,7 +76,15 @@ public sealed class DetailsEditSessionChangeHandler(
         }
 
         var state = await itemCanonicalRepository.LoadDisplayOverridesAsync(change.EntityId, ct).ConfigureAwait(false);
-        return state.WorkExists ? null : EditSessionReasons.Gone;
+        if (!state.WorkExists)
+        {
+            return EditSessionReasons.Gone;
+        }
+
+        // A Series of books, comics or films is a grouping that comes from its members' matches: nothing on it can be written.
+        return seriesGuard is not null && await seriesGuard.IsSeriesAsync(change.EntityId, ct).ConfigureAwait(false)
+            ? EditSessionReasons.SeriesIsReadOnly
+            : null;
     }
 
     public async Task<Func<CancellationToken, Task>?> ApplyAsync(EditSessionChange change, CancellationToken ct = default)
@@ -89,6 +98,11 @@ public sealed class DetailsEditSessionChangeHandler(
         if (!state.WorkExists)
         {
             throw new InvalidOperationException(EditSessionReasons.Gone);
+        }
+
+        if (seriesGuard is not null && await seriesGuard.IsSeriesAsync(change.EntityId, ct).ConfigureAwait(false))
+        {
+            throw new InvalidOperationException(EditSessionReasons.SeriesIsReadOnly);
         }
 
         var explicitField = change.Fields.FirstOrDefault(field => IsExplicitKey(field.Key));

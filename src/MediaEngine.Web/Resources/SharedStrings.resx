@@ -9677,6 +9677,15 @@
   <data name="EditorFooter_MoveDetailGeneric" xml:space="preserve">
     <value>Managed folder · Moved and renamed to match the new details</value>
   </data>
+  <data name="EditorSeries_ReadOnlyNotice" xml:space="preserve">
+    <value>A Series is a canonical grouping and is never edited. To change a book, film or comic in it, pick it from the dropdown above. The Series name, order and members come from their own matches.</value>
+  </data>
+  <data name="EditorSeries_ReadOnlyTitle" xml:space="preserve">
+    <value>Read-only</value>
+  </data>
+  <data name="EditorSeries_ReadOnlyDetail" xml:space="preserve">
+    <value>Series come from their members' matches.</value>
+  </data>
   <data name="EditorFooter_EditsSaveHere" xml:space="preserve">
     <value>Edits save in Library.</value>
   </data>

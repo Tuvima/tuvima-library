@@ -33,6 +33,14 @@ public static class EditorFieldLocks
         || (string.Equals(subjectKind, EditorSubjectKinds.FictionalEntity, StringComparison.Ordinal) && IsUniverseThingChoice(key))
         || IsOwnField(key);
 
+    /// <summary>
+    /// False for a field the person can never override: a Universe's name is a provider fact (universal editor v5 D7), shown locked with no
+    /// unlock. Everything else a subject lists (a Universe's description, a thing's name, a person's biography) can be overridden once unlocked.
+    /// </summary>
+    public static bool CanOverrideSubjectField(string subjectKind, string? key) =>
+        !(string.Equals(subjectKind, EditorSubjectKinds.Universe, StringComparison.Ordinal)
+          && string.Equals(key?.Trim(), "title", StringComparison.OrdinalIgnoreCase));
+
     private static bool IsUniverseThingChoice(string? key) =>
         string.Equals(key?.Trim(), "belongs_to", StringComparison.OrdinalIgnoreCase)
         || string.Equals(key?.Trim(), "visibility", StringComparison.OrdinalIgnoreCase);

@@ -120,12 +120,10 @@ public sealed class SubjectEditorTests : AsyncBunitContext
 
     }
 
-    [Theory]
-    [InlineData(EditorSubjectKinds.Series)]
-    [InlineData(EditorSubjectKinds.Collection)]
-    public async Task ASeriesOrCollection_OffersDetailsAndArtwork_ButNoMatch(string kind)
+    [Fact]
+    public async Task ACuratedCollection_OffersDetailsAndArtwork_ButNoMatch()
     {
-        var editor = await StartAsync(Grouping(kind));
+        var editor = await StartAsync(Grouping(EditorSubjectKinds.Collection));
 
         var bar = RenderBar(editor);
 
@@ -243,25 +241,6 @@ public sealed class SubjectEditorTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task RevertingASeriesOverride_ShowsTheProvidersValueAgain_AndLocksTheField()
-    {
-        var editor = await StartAsync(Grouping(EditorSubjectKinds.Series, overridden: true, title: "My Dune"));
-        var cut = RenderPanel(editor);
-        await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
-        var title = cut.WaitForElement(".tl-editor-field[data-field-key='title']");
-        Assert.Equal("My Dune", title.QuerySelector("input")!.GetAttribute("value"));
-
-        title.QuerySelector("button.tl-editor-field__reset")!.Click();
-
-        cut.WaitForAssertion(() =>
-        {
-            var back = cut.Find(".tl-editor-field[data-field-key='title']");
-            Assert.Equal("true", back.GetAttribute("data-locked"));
-            Assert.Equal("Dune", back.QuerySelector("input")!.GetAttribute("value"));
-        });
-    }
-
-    [Fact]
     public async Task AUniverseThingsNameDescriptionAndAliases_OpenLocked_ButWhereItBelongsAndVisibilityDoNot()
     {
         var editor = await StartAsync(new EditorSubjectDto
@@ -311,44 +290,33 @@ public sealed class SubjectEditorTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task ASeriesOverride_OffersTheProvidersValueBack()
-    {
-        var editor = await StartAsync(Grouping(EditorSubjectKinds.Series, overridden: true));
-        var cut = RenderPanel(editor);
-        await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
-        var title = cut.WaitForElement(".tl-editor-field[data-field-key='title']");
-
-        Assert.Equal("yours", cut.LockStateOf("title"));
-        title.QuerySelectorAll("button").Single(button => button.GetAttribute("aria-label") == "Reset to provider value").Click();
-
-        cut.WaitForAssertion(() =>
-        {
-            Assert.True(editor.Session.Pending.TryGetField(SubjectId, "title", out var staged));
-            Assert.True(string.IsNullOrEmpty(staged));
-            Assert.Contains("provider's value", cut.Find(".tl-editor-field[data-field-key='title'] .tl-editor-field__note").TextContent);
-        });
-    }
-
-    [Fact]
     public async Task AUniverseOverride_OffersTheCanonicalValueBack()
     {
-        var editor = await StartAsync(Grouping(EditorSubjectKinds.Universe, overridden: true));
+        var universe = Grouping(EditorSubjectKinds.Universe);
+        universe.Fields[1] = new EditorSubjectFieldDto
+        {
+            Key = "description",
+            Label = "Description",
+            InputKind = EditorSubjectInputKinds.TextArea,
+            Value = "My words.",
+            CanonicalValue = "A desert world.",
+            IsOverridden = true,
+        };
+        var editor = await StartAsync(universe);
         var cut = RenderPanel(editor);
         await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
-        var title = cut.WaitForElement(".tl-editor-field[data-field-key='title']");
+        var description = cut.WaitForElement(".tl-editor-field[data-field-key='description']");
 
-        title.QuerySelectorAll("button").Single(button => button.GetAttribute("aria-label") == "Reset to canonical value").Click();
+        description.QuerySelectorAll("button").Single(button => button.GetAttribute("aria-label") == "Reset to canonical value").Click();
 
-        cut.WaitForAssertion(() => Assert.Contains("canonical value", cut.Find(".tl-editor-field[data-field-key='title'] .tl-editor-field__note").TextContent));
+        cut.WaitForAssertion(() => Assert.Contains("canonical value", cut.Find(".tl-editor-field[data-field-key='description'] .tl-editor-field__note").TextContent));
     }
 
     // -- Review changes and saving --------------------------------------------------------------
 
     [Theory]
     [InlineData(EditorSubjectKinds.Person, "name", "Name", "Timothée Chalamet", "Timothy Chalamet")]
-    [InlineData(EditorSubjectKinds.Series, "title", "Name", "Dune Novels", "Dune books")]
     [InlineData(EditorSubjectKinds.Collection, "title", "Name", "Road trip", "Road trip 2")]
-    [InlineData(EditorSubjectKinds.Universe, "title", "Name", "Dune", "Arrakis")]
     public async Task ReviewChanges_ShowsOneRowForTheStagedField_AndSaveSendsItForTheSubject(
         string kind, string key, string label, string before, string after)
     {
