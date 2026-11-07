@@ -72,7 +72,7 @@ public sealed class FilenameCleaningConfigurationProvider
     /// Reads a rules file. Anything the file leaves out is filled from <paramref name="fallback"/> (the shipped rules); with no fallback the
     /// file must state every rule. Null, with the reason, when the file is unreadable or a pattern in it does not compile.
     /// </summary>
-    public static FilenameCleaningRules? TryRead(string json, FilenameCleaningRules? fallback, out string? problem)
+    public static FilenameCleaningRules? TryRead(string json, FilenameCleaningRules? fallback, out string? problem, Action<string>? warn = null)
     {
         problem = null;
         try
@@ -90,7 +90,7 @@ public sealed class FilenameCleaningConfigurationProvider
                 FillMissing(read, document.RootElement, fallback.Configuration);
             }
 
-            return FilenameCleaningRules.Compile(read, out problem);
+            return FilenameCleaningRules.Compile(read, out problem, warn);
         }
         catch (JsonException ex)
         {
@@ -164,7 +164,7 @@ public sealed class FilenameCleaningConfigurationProvider
 
         try
         {
-            var read = TryRead(File.ReadAllText(path), BuiltIn, out var problem);
+            var read = TryRead(File.ReadAllText(path), BuiltIn, out var problem, _warn);
             if (read is not null)
             {
                 return read;

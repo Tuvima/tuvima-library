@@ -63,6 +63,15 @@
     margin-inline-start: auto;
 }
 
+/* The tick on the chosen row: a fixed slot, so rows do not shift when the choice moves. */
+.tl-matchres__tick {
+    display: inline-flex;
+    flex: 0 0 1.5rem;
+    align-items: center;
+    justify-content: center;
+    color: var(--tl-status-success, #2e7d32);
+}
+
 .tl-matchres__actions {
     display: flex;
     justify-content: flex-end;

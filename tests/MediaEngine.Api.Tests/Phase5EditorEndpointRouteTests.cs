@@ -133,7 +133,7 @@ public sealed class Phase5EditorEndpointRouteTests
         var builder = ReadSource("src/MediaEngine.Api/Services/Canonical/CanonicalCandidateBuilder.cs");
 
         Assert.Contains("BuildRetailSearchContext(", canonical, StringComparison.Ordinal);
-        Assert.Contains("SearchFields: retailSearch.SearchFields", canonical, StringComparison.Ordinal);
+        Assert.Contains("SearchFields: MergeLookupFields(retailSearch.SearchFields", canonical, StringComparison.Ordinal);
         Assert.DoesNotContain("Episode matching must stay inside the selected series/season context.", builder, StringComparison.Ordinal);
     }
 

@@ -581,100 +581,17 @@ public static partial class ItemCanonicalEndpoints
         group.MapPost("/{entityId:guid}/video-identify", async (
             Guid entityId,
             VideoIdentifyRequest request,
-            IVideoSeriesRepository series,
-            IItemCanonicalRepository itemCanonicalData,
-            IMediaAssetRepository assets,
-            ILibraryFolderResolver libraries,
-            IVideoOnlineLookup lookup,
-            IProviderAudienceGate audienceGate,
-            IMetadataClaimRepository claimRepo,
-            ICanonicalValueRepository canonicalRepo,
-            ISystemActivityRepository activityRepo,
+            IVideoIdentifyWriter writer,
             CancellationToken ct) =>
         {
-            var workId = await itemCanonicalData.ResolveWorkIdForAssetAsync(entityId, ct) ?? entityId;
-            var membership = await series.GetMembershipAsync(workId, ct);
-            if (membership is null || membership.AssetId == Guid.Empty)
+            var outcome = await writer.ApplyAsync(entityId, request.Link, ct);
+            return outcome.Status switch
             {
-                return ApiErrors.NotFound("That is not a video.");
-            }
-
-            if (!YoutubeLink.TryGetVideoId(request.Link, out var videoId))
-            {
-                return ApiErrors.BadRequest("That does not look like a YouTube link. Paste the video's link or its 11-character ID.");
-            }
-
-            var asset = await assets.FindByIdAsync(membership.AssetId, ct);
-            if (asset is null || libraries.ResolveForPath(asset.FilePathRoot)?.YoutubeLookup != true)
-            {
-                return ApiErrors.Conflict("Online lookup is switched off for this library. Turn it on in Settings first.");
-            }
-
-            // YouTube is never asked about a Vault video, even if its library's switch says yes (Videos spec D21, D26).
-            if (!await audienceGate.MayAskAboutItemAsync("youtube", membership.AssetId, ct))
-            {
-                return ApiErrors.Conflict("Online lookup from YouTube is not available for this library.");
-            }
-
-            var info = await lookup.LookupAsync(videoId, ct);
-            if (info is null || string.IsNullOrWhiteSpace(info.Title))
-            {
-                return ApiErrors.NotFound("No match found for that video.");
-            }
-
-            var now = DateTimeOffset.UtcNow;
-            var claims = new List<MetadataClaim>();
-            var canonicals = new List<CanonicalValue>();
-            void Lock(string key, string? value)
-            {
-                if (string.IsNullOrWhiteSpace(value))
-                {
-                    return;
-                }
-
-                claims.Add(new MetadataClaim
-                {
-                    Id = Guid.NewGuid(),
-                    EntityId = membership.AssetId,
-                    ProviderId = WellKnownProviders.UserManual,
-                    ClaimKey = key,
-                    ClaimValue = value,
-                    ClaimedAt = now,
-                    Confidence = 1.0,
-                    IsUserLocked = true,
-                });
-                canonicals.Add(new CanonicalValue
-                {
-                    EntityId = membership.AssetId,
-                    Key = key,
-                    Value = value,
-                    LastScoredAt = now,
-                    WinningProviderId = WellKnownProviders.UserManual,
-                });
-            }
-
-            Lock(MetadataFieldConstants.YoutubeVideoId, videoId);
-            Lock(MetadataFieldConstants.VideoLookupSource, "youtube");
-            Lock(MetadataFieldConstants.Title, info.Title);
-            Lock(MetadataFieldConstants.Network, info.Channel);
-            Lock(MetadataFieldConstants.Description, info.Description);
-            if (info.Published is { } published)
-            {
-                Lock(MetadataFieldConstants.OriginalReleaseDate, published.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture));
-                Lock(MetadataFieldConstants.Year, published.Year.ToString(System.Globalization.CultureInfo.InvariantCulture));
-            }
-
-            await claimRepo.InsertBatchAsync(claims, ct);
-            await canonicalRepo.UpsertBatchAsync(canonicals, ct);
-            await activityRepo.LogAsync(new SystemActivityEntry
-            {
-                OccurredAt = now,
-                ActionType = SystemActionType.MetadataManualOverride,
-                EntityId = workId,
-                EntityType = "Work",
-                Detail = "Identified a video from a YouTube link.",
-            }, ct);
-            return Results.Ok(new VideoIdentifyResponse { Title = info.Title });
+                VideoIdentifyStatus.Ok => Results.Ok(new VideoIdentifyResponse { Title = outcome.Info!.Title! }),
+                VideoIdentifyStatus.NotAVideo or VideoIdentifyStatus.NotFound => ApiErrors.NotFound(outcome.Message!),
+                VideoIdentifyStatus.BadLink => ApiErrors.BadRequest(outcome.Message!),
+                _ => ApiErrors.Conflict(outcome.Message!),
+            };
         })
         .WithName("IdentifyVideoFromLink")
         .WithSummary("Look a video up on YouTube from a pasted link or ID and save the match. Only the ID leaves the machine.")
@@ -1593,7 +1510,7 @@ public static partial class ItemCanonicalEndpoints
                     LocalAuthor: retailSearch.LocalAuthor,
                     LocalYear: retailSearch.LocalYear,
                     FileHints: retailSearch.FileHints,
-                    SearchFields: retailSearch.SearchFields,
+                    SearchFields: MergeLookupFields(retailSearch.SearchFields, request.LookupFields),
                     ProviderName: request.ProviderName),
                 ct);
 
@@ -1735,6 +1652,27 @@ public static partial class ItemCanonicalEndpoints
             year,
             fields.Count == 0 ? null : fields,
             BuildRetailSearchFields(policy, fields, queryOverride));
+    }
+
+    // Identifiers the Match tab typed for a direct lookup ride along as search fields, so the provider's own id strategy can run.
+    private static IReadOnlyDictionary<string, string>? MergeLookupFields(
+        IReadOnlyDictionary<string, string>? fields, IReadOnlyDictionary<string, string>? lookup)
+    {
+        if (lookup is not { Count: > 0 })
+        {
+            return fields;
+        }
+
+        var merged = new Dictionary<string, string>(fields ?? new Dictionary<string, string>(), StringComparer.OrdinalIgnoreCase);
+        foreach (var (key, value) in lookup)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                merged[key] = value;
+            }
+        }
+
+        return merged;
     }
 
     internal static IReadOnlyDictionary<string, string>? BuildRetailSearchFields(

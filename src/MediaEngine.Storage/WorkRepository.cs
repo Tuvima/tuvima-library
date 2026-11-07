@@ -903,6 +903,63 @@ public sealed class WorkRepository : IWorkRepository
     }
 
     /// <inheritdoc/>
+    public Task RemoveExternalIdentifiersAsync(Guid workId, IReadOnlyCollection<string> keys, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+        if (keys.Count == 0)
+        {
+            return Task.CompletedTask;
+        }
+
+        return _db.ExecuteWriteAsync((conn, tx, innerCt) =>
+        {
+            string? currentJson;
+            using (var read = conn.CreateCommand())
+            {
+                read.Transaction = tx;
+                read.CommandText = "SELECT external_identifiers FROM works WHERE id = @id;";
+                read.Parameters.AddWithValue("@id", GuidSql.ToBlob(workId));
+                currentJson = read.ExecuteScalar() as string;
+            }
+
+            if (string.IsNullOrWhiteSpace(currentJson))
+            {
+                return;
+            }
+
+            Dictionary<string, string> identifiers;
+            try
+            {
+                identifiers = JsonSerializer.Deserialize<Dictionary<string, string>>(currentJson)
+                    ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            }
+            catch (JsonException)
+            {
+                _logger?.LogWarning("Existing external_identifiers JSON for Work {WorkId} is malformed; left as it is", workId);
+                return;
+            }
+
+            var changed = false;
+            foreach (var key in identifiers.Keys.Where(k => keys.Contains(k, StringComparer.OrdinalIgnoreCase)).ToList())
+            {
+                changed |= identifiers.Remove(key);
+            }
+
+            if (!changed)
+            {
+                return;
+            }
+
+            using var write = conn.CreateCommand();
+            write.Transaction = tx;
+            write.CommandText = "UPDATE works SET external_identifiers = @json WHERE id = @id;";
+            write.Parameters.AddWithValue("@id", GuidSql.ToBlob(workId));
+            write.Parameters.AddWithValue("@json", JsonSerializer.Serialize(identifiers, JsonOptions));
+            write.ExecuteNonQuery();
+        }, ct);
+    }
+
+    /// <inheritdoc/>
     public Task<WorkLineage?> GetLineageByAssetAsync(
         Guid assetId,
         CancellationToken ct = default)

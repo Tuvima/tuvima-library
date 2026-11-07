@@ -10,6 +10,18 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace MediaEngine.Api.Services.Matching;
 
+/// <summary>Decides the editor kind of an item (the same decision the editor's header makes), so the Match tab never trusts a kind sent by the Dashboard.</summary>
+public interface IEditorMatchKindResolver
+{
+    Task<string?> ResolveAsync(Guid entityId, CancellationToken ct);
+}
+
+/// <summary>The header's own kind decision, shared with the Match tab.</summary>
+public sealed class HeaderEditorMatchKindResolver(MediaEngine.Api.Services.EditSession.EditorHeaderReadService header) : IEditorMatchKindResolver
+{
+    public Task<string?> ResolveAsync(Guid entityId, CancellationToken ct) => header.ResolveKindAsync(entityId, ct);
+}
+
 /// <summary>The providers that fit a kind of item, with whether each is switched on and whether it still needs a key.</summary>
 public interface IEditorMatchProviderCatalog
 {

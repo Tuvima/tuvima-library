@@ -98,6 +98,29 @@ public sealed class EditorMatchVerdictCalculatorTests
             _calculator.Identifier(found, new Dictionary<string, string>()).State);
     }
 
+    private static readonly EditorMatchIdentifierDto[] FoundIsbn = [new() { Kind = EditorMatchIdentifierKinds.Isbn, Value = "978-0-441-17271-9" }];
+
+    [Fact]
+    public void AnAgreeingIdentifier_WithADifferingTitle_ReadsPossible_NotCheck() =>
+        Assert.Equal(EditorMatchVerdicts.Possible, _calculator.Verdict([
+            _calculator.Title("Dune", "Duna"),
+            _calculator.Identifier(FoundIsbn, new Dictionary<string, string> { ["isbn"] = "9780441172719" }),
+        ]));
+
+    [Fact]
+    public void ADifferingIdentifier_WithAnAgreeingTitle_StillReadsCheck() =>
+        Assert.Equal(EditorMatchVerdicts.Check, _calculator.Verdict([
+            _calculator.Title("Dune", "Dune"),
+            _calculator.Identifier(FoundIsbn, new Dictionary<string, string> { ["isbn"] = "9780000000000" }),
+        ]));
+
+    [Fact]
+    public void AnAgreeingIdentifier_DoesNotHideADifferingNumber() =>
+        Assert.Equal(EditorMatchVerdicts.Check, _calculator.Verdict([
+            _calculator.Identifier(FoundIsbn, new Dictionary<string, string> { ["isbn"] = "9780441172719" }),
+            new MatchFactCheck(MatchFactNames.Number, EditorMatchEvidenceStates.Differs, "3", "5", "Number differs"),
+        ]));
+
     [Theory]
     [InlineData(EditorMatchEvidenceStates.Agrees, 0.95, EditorMatchVerdicts.Strong)]
     [InlineData(EditorMatchEvidenceStates.Agrees, 0.7, EditorMatchVerdicts.Possible)]

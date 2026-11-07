@@ -44,6 +44,34 @@ public sealed class ProviderEditorMatchConfigurationTests
     }
 
     [Theory]
+    [InlineData("tmdb", "movie", true)]
+    [InlineData("tmdb", "tv_episode", false)]
+    [InlineData("tvdb", "tv_episode", true)]
+    [InlineData("tvdb", "movie", false)]
+    [InlineData("youtube", "video", true)]
+    [InlineData("youtube", "movie", false)]
+    [InlineData("musicbrainz", "song", true)]
+    [InlineData("musicbrainz", "book", false)]
+    public void EachProvider_ListsTheKindsItIsOfferedFor_SoNoCodeNamesAProvider(string provider, string kind, bool offered) =>
+        Assert.Equal(offered, Shipped(provider).EditorMatch!.Kinds.Contains(kind, StringComparer.OrdinalIgnoreCase));
+
+    [Theory]
+    [InlineData("apple_api", "isbn", "isbn")]
+    [InlineData("comicvine", "comicvine", "comic_vine_id")]
+    [InlineData("musicbrainz", "isrc", "isrc")]
+    [InlineData("musicbrainz", "musicbrainz", "musicbrainz_recording_id")]
+    public void AProviderThatCanLookAnIdentifierUp_NamesTheSearchFieldItNeeds(string provider, string identifier, string field) =>
+        Assert.Equal(field, Shipped(provider).EditorMatch!.IdLookup[identifier]);
+
+    [Theory]
+    [InlineData("tmdb")]
+    [InlineData("tvdb")]
+    [InlineData("openlibrary")]
+    [InlineData("youtube")]
+    public void AProviderWithNoIdLookup_TakesATypedIdentifierAsEvidenceOnly(string provider) =>
+        Assert.Empty(Shipped(provider).EditorMatch!.IdLookup);
+
+    [Theory]
     [InlineData("tmdb")]
     [InlineData("tvdb")]
     [InlineData("openlibrary")]

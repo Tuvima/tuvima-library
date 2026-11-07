@@ -61,7 +61,7 @@ public static class EditorMatchRules
         return null;
     }
 
-    /// <summary>What the Engine is asked to save for a chosen result (never moves anything, spec D6).</summary>
+    /// <summary>What the Engine is asked to save for a chosen result (the Identity change only; the move it brings is staged separately, spec D6 and D8).</summary>
     public static ReplaceRetailMatchRequestDto RequestFor(ItemCanonicalRetailCandidateDto candidate, EditorMatchSubject subject, string group) => new()
     {
         TargetKind = TargetKindOf(group),

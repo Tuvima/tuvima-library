@@ -15,6 +15,7 @@ public static class EditSessionReasons
     public const string NotRunBecauseCheckFailed = "Not saved, because another change failed its check.";
 
     public const string MatchUnreadable = "The match you chose could not be read. Pick it again.";
+    public const string NoMatchToRemove = "This item has no match to remove.";
     public const string SessionUnavailable = "The editing session is unavailable. Sign in again and retry.";
     public const string NoDestination = "The album, season or series to move to is missing.";
     public const string NoFiles = "This item has no files to move.";

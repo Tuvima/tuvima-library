@@ -36,9 +36,10 @@ public sealed class PinnedMatchGuard(ICanonicalValueRepository canonicals, ILogg
 public static class PinnedMatchGuardJobs
 {
     /// <summary>
-    /// Settles every leased automatic job whose item carries a match a person applied (closed as Ready without Universe, with nothing
-    /// asked of any provider) and returns the jobs that may go on. A user-resolution job never reaches the queue as Queued, so a
-    /// Queued job is always an automatic one. With no guard every job goes on.
+    /// Settles every leased automatic job whose item carries a match a person applied: its retail stage is skipped (nothing is asked of a
+    /// retail provider) and the job moves on as <see cref="IdentityJobState.RetailMatched"/>, so the Wikidata bridge, hydration and enrichment
+    /// still run for the matched record. Returns the jobs that still need the retail stage. A user-resolution job never reaches the queue as
+    /// Queued, so a Queued job is always an automatic one. With no guard every job goes on.
     /// </summary>
     public static async Task<IReadOnlyList<IdentityJob>> SettlePinnedJobsAsync(
         this IPinnedMatchGuard? guard,
@@ -61,10 +62,10 @@ public static class PinnedMatchGuardJobs
             if (await guard.IsPinnedAsync(job.EntityId, ct).ConfigureAwait(false))
             {
                 logger.LogInformation(
-                    "Identity job {JobId} for {EntityId} was closed: a person applied this match, so a scan does not re-identify it.",
+                    "Identity job {JobId} for {EntityId} skips the retail stage: a person applied this match, so a scan does not re-identify it.",
                     job.Id,
                     job.EntityId);
-                await jobRepo.UpdateStateAsync(job.Id, IdentityJobState.ReadyWithoutUniverse, ct: ct).ConfigureAwait(false);
+                await jobRepo.UpdateStateAsync(job.Id, IdentityJobState.RetailMatched, ct: ct).ConfigureAwait(false);
                 continue;
             }
 

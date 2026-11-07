@@ -8,7 +8,7 @@
   "provider_id": "c0000011-0000-4000-8000-000000000019",
   "display_name": "YouTube",
   "requires_api_key": false,
-  "editor_match": { "default_for": ["video"] },
+  "editor_match": { "default_for": ["video"], "kinds": ["video"] },
   "capability_tags": ["title", "channel", "thumbnail", "description", "upload_date"],
   "provider_capabilities": ["metadata", "artwork"],
   "available_fields": ["title", "network", "cover", "description", "original_release_date"],

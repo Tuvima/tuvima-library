@@ -30,16 +30,17 @@
                 @foreach (var result in Results)
                 {
                     var active = ReferenceEquals(result, Selected);
-                    <div class="@(active ? "tl-match__row is-active tl-matchres__row" : "tl-match__row tl-matchres__row")" role="listitem" data-testid="match-result">
+                    @* The whole row is the button; the tick marks the chosen one. *@
+                    <AppRowButton Class="@(active ? "tl-match__row is-active tl-matchres__row" : "tl-match__row tl-matchres__row")" role="listitem" aria-pressed="@(active ? "true" : "false")"
+                                  data-testid="match-result" OnClick="@(() => SelectedChanged.InvokeAsync(result))">
                         @Art(result.ImageUrl)
-                        <div class="tl-match__text">
-                            <div class="tl-match__title"><span>@result.Title</span></div>
-                            <div class="tl-match__meta">@Line(result)</div>
-                        </div>
+                        <span class="tl-match__text">
+                            <span class="tl-match__title"><span>@result.Title</span></span>
+                            <span class="tl-match__meta">@Line(result)</span>
+                        </span>
                         <AppChip Text="@VerdictText(result.Verdict)" Tone="@VerdictTone(result.Verdict)" />
-                        <AppButton Label="@(active ? "Selected" : "Select")" ButtonStyle="@(active ? AppButtonStyle.Filled : AppButtonStyle.Outlined)"
-                                   Tone="@(active ? AppUiTone.Primary : AppUiTone.Neutral)" Size="AppControlSize.Compact" Disabled="@active" OnClick="@(() => SelectedChanged.InvokeAsync(result))" />
-                    </div>
+                        @Tick(active)
+                    </AppRowButton>
                 }
             </div>
 
@@ -72,13 +73,13 @@
                 @foreach (var edition in work.Editions)
                 {
                     var picked = ReferenceEquals(edition, Edition);
-                    <div class="@(picked ? "tl-match__row is-active" : "tl-match__row")" role="listitem">
-                        <div class="tl-match__text">
-                            <div class="tl-match__title"><span>@EditionLine(edition)</span> @if (edition.IsSuggested) { <AppChip Text="@L["EditorMatchResults_ClosestToYourFile"].Value" Tone="AppUiTone.Success" /> }</div>
-                        </div>
-                        <AppButton Label="@(picked ? "Selected" : "Select")" ButtonStyle="@(picked ? AppButtonStyle.Filled : AppButtonStyle.Outlined)"
-                                   Tone="@(picked ? AppUiTone.Primary : AppUiTone.Neutral)" Size="AppControlSize.Compact" Disabled="@picked" OnClick="@(() => EditionChanged.InvokeAsync(edition))" />
-                    </div>
+                    <AppRowButton Class="@(picked ? "tl-match__row is-active" : "tl-match__row")" role="listitem" aria-pressed="@(picked ? "true" : "false")"
+                                  OnClick="@(() => EditionChanged.InvokeAsync(edition))">
+                        <span class="tl-match__text">
+                            <span class="tl-match__title"><span>@EditionLine(edition)</span> @if (edition.IsSuggested) { <AppChip Text="@L["EditorMatchResults_ClosestToYourFile"].Value" Tone="AppUiTone.Success" /> }</span>
+                        </span>
+                        @Tick(picked)
+                    </AppRowButton>
                 }
             </div>
         }
@@ -92,9 +93,9 @@
                 {
                     <span class="tl-matchres__reason" data-state="@reason.State">@Mark(reason.State) @reason.Text@(string.IsNullOrWhiteSpace(reason.Note) ? null : $" ({reason.Note})")</span>
                 }
-                @if (!string.IsNullOrWhiteSpace(Evidence?.MeasuredText))
+                @if (EvidenceParts().Count > 0)
                 {
-                    <span class="tl-match__meta tl-matchres__evidence">@L["EditorMatchResults_YourFileMeasured", Evidence!.MeasuredText!]</span>
+                    <span class="tl-match__meta tl-matchres__evidence" data-testid="match-evidence">@L["EditorMatchResults_YourFileEvidence", string.Join(" · ", EvidenceParts())]</span>
                 }
             </div>
         }
@@ -153,6 +154,61 @@
         {
             <span class="tl-match__art tl-match__art--empty" aria-hidden="true"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Image" /></span>
         }
+    };
+
+    private RenderFragment Tick(bool shown) => __builder =>
+    {
+        <span class="tl-matchres__tick" aria-hidden="true">
+            @if (shown)
+            {
+                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Check" />
+            }
+        </span>
+    };
+
+    // What the Engine read from the file, shown beside the verdict: the title and number its name says, the measured length, and any
+    // identifier found in the name, the tags or the folders (YouTube ID, ISBN, ISRC, an embedded title).
+    private List<string> EvidenceParts()
+    {
+        var parts = new List<string>();
+        if (Evidence is null)
+        {
+            return parts;
+        }
+
+        if (!string.IsNullOrWhiteSpace(Evidence.FileTitle))
+        {
+            parts.Add(Evidence.FileTitle);
+        }
+
+        if (Evidence.Number is { } number)
+        {
+            parts.Add(L["EditorMatchResults_EvidenceNumber", number].Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(Evidence.MeasuredText))
+        {
+            parts.Add(L["EditorMatchResults_EvidenceMeasured", Evidence.MeasuredText].Value);
+        }
+
+        foreach (var identifier in Evidence.Identifiers.Where(item => !string.IsNullOrWhiteSpace(item.Value)))
+        {
+            parts.Add(L["EditorMatchResults_EvidenceIdentifier", IdentifierName(identifier.Kind), identifier.Value].Value);
+        }
+
+        return parts;
+    }
+
+    private string IdentifierName(string kind) => kind switch
+    {
+        EditorMatchIdentifierKinds.YouTube => L["EditorMatchResults_IdYouTube"].Value,
+        EditorMatchIdentifierKinds.Isbn => L["EditorMatchResults_IdIsbn"].Value,
+        EditorMatchIdentifierKinds.Isrc => L["EditorMatchResults_IdIsrc"].Value,
+        EditorMatchIdentifierKinds.Imdb => L["EditorMatchResults_IdImdb"].Value,
+        EditorMatchIdentifierKinds.Tmdb => L["EditorMatchResults_IdTmdb"].Value,
+        EditorMatchIdentifierKinds.MusicBrainz => L["EditorMatchResults_IdMusicBrainz"].Value,
+        EditorMatchIdentifierKinds.EmbeddedTitle => L["EditorMatchResults_IdEmbeddedTitle"].Value,
+        _ => kind,
     };
 
     private static string Line(EditorMatchResultDto result) =>

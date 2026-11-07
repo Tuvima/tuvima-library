@@ -623,17 +623,16 @@ public sealed class SearchService : ISearchService
     }
 
     /// <summary>
-    /// Every retail provider that fits the media type, switched on or not, with whether it needs a key it does not have. The same fit
-    /// the retail search uses (TV has one source, TheTVDB), so the Match tab never offers a provider the search would refuse.
+    /// Every retail provider that fits the media type, switched on or not, with whether it needs a key it does not have. Which kinds of
+    /// item each may be offered for is the provider file's <c>editor_match.kinds</c>, not a name checked here.
     /// </summary>
     public IReadOnlyList<RetailProviderInfo> ListRetailProviders(MediaType mediaType)
     {
         var configs = _configLoader.LoadAllProviders();
         return [.. _providers
             .Where(provider => !ExcludedFromRetail.Contains(provider.Name)
-                && (mediaType != MediaType.TV || string.Equals(provider.Name, "tvdb", StringComparison.OrdinalIgnoreCase))
                 && provider.CanHandle(mediaType)
-                && provider.CanHandle(EntityType.Work))
+                && (provider.CanHandle(EntityType.Work) || provider.CanHandle(EntityType.MediaAsset)))
             .Select(provider =>
             {
                 var config = configs.FirstOrDefault(item => string.Equals(item.Name, provider.Name, StringComparison.OrdinalIgnoreCase));
@@ -643,7 +642,9 @@ public sealed class SearchService : ISearchService
                     config?.Enabled == true,
                     config is { RequiresApiKey: true } && !MediaEngine.Domain.Configuration.IdentificationSourceRules.HasKey(config),
                     config?.EditorMatch?.DefaultFor ?? [],
-                    config?.RegistrationOrder ?? 0);
+                    config?.RegistrationOrder ?? 0,
+                    config?.EditorMatch?.Kinds ?? [],
+                    config?.EditorMatch?.IdLookup ?? new Dictionary<string, string>());
             })];
     }
 

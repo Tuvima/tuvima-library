@@ -23,15 +23,35 @@ public sealed class EditorMatchSearchService(
     IEditorMatchProviderCatalog catalog,
     IEditorMatchCandidateSearch search,
     IEditorConfigurationSource editorConfiguration,
-    EditorMatchVerdictCalculator calculator)
+    EditorMatchVerdictCalculator calculator,
+    IEditorMatchKindResolver kinds,
+    IVideoIdentifyWriter videos)
 {
     /// <summary>The sentence shown for an item no provider matches.</summary>
     public const string NoProviderText = "No provider matches this kind of item. The details you enter stand on their own.";
 
     private const int MaxCandidates = 10;
 
-    /// <summary>What the Match tab needs to open its search; null when no such item is in the Library.</summary>
-    public async Task<EditorMatchSetupDto?> SetupAsync(Guid entityId, string kind, CancellationToken ct = default)
+    /// <summary>
+    /// What the Match tab needs to open its search; null when no such item is in the Library. The kind of item is decided here, from the
+    /// same rules as the editor's header, never taken from the caller.
+    /// </summary>
+    public async Task<EditorMatchSetupDto?> SetupAsync(Guid entityId, CancellationToken ct = default)
+    {
+        var kind = await kinds.ResolveAsync(entityId, ct).ConfigureAwait(false);
+        return kind is null ? null : await SetupForKindAsync(entityId, kind, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Runs a search for the item, whatever kind of item it is; null when no such item is in the Library.</summary>
+    public async Task<EditorMatchSearchResultDto?> SearchAsync(Guid entityId, EditorMatchSearchRequestDto request, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var kind = await kinds.ResolveAsync(entityId, ct).ConfigureAwait(false);
+        return kind is null ? null : await SearchForKindAsync(entityId, kind, request, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>As <see cref="SetupAsync(Guid, CancellationToken)"/> for a kind already decided.</summary>
+    public async Task<EditorMatchSetupDto?> SetupForKindAsync(Guid entityId, string kind, CancellationToken ct = default)
     {
         // A kind with no provider (a course, a supporting file, a Series) is told so without reading anything: the id may not even be a work.
         if (EditorMatchKinds.For(kind) is null)
@@ -64,12 +84,16 @@ public sealed class EditorMatchSearchService(
             EntityId = entityId,
             Kind = kind,
             FileName = read.FileName,
+            // A local video with no known YouTube ID has no provider to offer on its own, but the paste field stays: a pasted link or ID is
+            // looked up directly. Both the message and the field are sent; the Dashboard shows the message and keeps the field.
+            NoProvider = plan.NeedsPastedId,
+            NoProviderMessage = plan.NeedsPastedId ? NoProviderText : null,
             Providers = plan.Providers,
             Fields = plan.Fields
                 .Select(field => new EditorMatchFieldDto
                 {
                     Key = field,
-                    Label = EditorMatchFieldIds.Label(field),
+                    Label = EditorMatchFieldIds.Label(field, kind),
                     Value = read.Fields.TryGetValue(field, out var filled) ? filled.Value : string.Empty,
                     From = read.Fields.TryGetValue(field, out var from) ? from.From : null,
                 })
@@ -78,22 +102,23 @@ public sealed class EditorMatchSearchService(
         };
     }
 
-    /// <summary>Runs a search; null when no such item is in the Library.</summary>
-    public async Task<EditorMatchSearchResultDto?> SearchAsync(Guid entityId, EditorMatchSearchRequestDto request, CancellationToken ct = default)
+    /// <summary>As <see cref="SearchAsync(Guid, EditorMatchSearchRequestDto, CancellationToken)"/> for a kind already decided.</summary>
+    public async Task<EditorMatchSearchResultDto?> SearchForKindAsync(
+        Guid entityId, string kindId, EditorMatchSearchRequestDto request, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        if (EditorMatchKinds.For(request.Kind) is null)
+        if (EditorMatchKinds.For(kindId) is null)
         {
             return new EditorMatchSearchResultDto { EntityId = entityId, Message = NoProviderText };
         }
 
-        var read = await reader.ReadAsync(entityId, request.Kind, ct).ConfigureAwait(false);
+        var read = await reader.ReadAsync(entityId, kindId, ct).ConfigureAwait(false);
         if (read is null)
         {
             return null;
         }
 
-        var plan = Plan(request.Kind, read);
+        var plan = Plan(kindId, read);
         if (plan is null)
         {
             return Empty(entityId, string.Empty, read, NoProviderText);
@@ -116,13 +141,19 @@ public sealed class EditorMatchSearchService(
         }
 
         var fields = Clean(request.Fields);
-        if (!HasSearchWords(fields))
+        if (string.Equals(kindId, EditorKinds.Video, StringComparison.OrdinalIgnoreCase))
+        {
+            return await SearchVideoAsync(entityId, provider, fields, read, ct).ConfigureAwait(false);
+        }
+
+        var lookup = LookupFor(plan, provider, fields);
+        if (!HasSearchWords(fields, lookup))
         {
             return Empty(entityId, provider.Name, read, "Enter something to search for.");
         }
 
-        var kind = EditorMatchKinds.For(request.Kind)!;
-        var asked = BuildRequest(request.Kind, kind, provider.Name, fields, read);
+        var kind = EditorMatchKinds.For(kindId)!;
+        var asked = BuildRequest(kindId, kind, provider.Name, fields, read, lookup);
         var outcome = await search.SearchAsync(entityId, asked, ct).ConfigureAwait(false);
         if (outcome.Response is null)
         {
@@ -135,9 +166,9 @@ public sealed class EditorMatchSearchService(
         {
             // Nothing found and nothing failed: try once more with the punctuation taken out ("Spider-Man: Homecoming" against "Spider Man Homecoming").
             var plain = WithoutPunctuation(fields);
-            if (!SameFields(plain, fields) && HasSearchWords(plain))
+            if (!SameFields(plain, fields) && HasSearchWords(plain, lookup))
             {
-                var second = await search.SearchAsync(entityId, BuildRequest(request.Kind, kind, provider.Name, plain, read), ct).ConfigureAwait(false);
+                var second = await search.SearchAsync(entityId, BuildRequest(kindId, kind, provider.Name, plain, read, lookup), ct).ConfigureAwait(false);
                 if (second.Response is { RetailCandidates.Count: > 0 } found)
                 {
                     response = found;
@@ -149,7 +180,7 @@ public sealed class EditorMatchSearchService(
         var failed = response.ProviderErrors.Count > 0
             ? new[] { new EditorMatchFailedProviderDto { Name = provider.Name, DisplayName = provider.DisplayName } }
             : [];
-        var results = Judge(request.Kind, response.RetailCandidates, read, fields);
+        var results = Judge(kindId, response.RetailCandidates, read, fields);
         return new EditorMatchSearchResultDto
         {
             EntityId = entityId,
@@ -167,7 +198,11 @@ public sealed class EditorMatchSearchService(
         };
     }
 
-    private sealed record SearchPlan(IReadOnlyList<EditorMatchProviderDto> Providers, IReadOnlyList<string> Fields);
+    private sealed record SearchPlan(
+        IReadOnlyList<EditorMatchProviderDto> Providers,
+        IReadOnlyList<string> Fields,
+        IReadOnlyDictionary<string, RetailProviderInfo> Infos,
+        bool NeedsPastedId = false);
 
     // The providers and boxes of this kind of item; null when no provider matches it.
     private SearchPlan? Plan(string kind, EditorMatchLocalRead read)
@@ -180,14 +215,11 @@ public sealed class EditorMatchSearchService(
 
         var fields = editorConfiguration.Current.KindFor(kind).MatchFields.ToList();
         var isVideo = string.Equals(kind, EditorKinds.Video, StringComparison.OrdinalIgnoreCase);
+        var needsPastedId = false;
         if (isVideo)
         {
-            // A local video has nothing to look up unless a YouTube ID is known.
-            if (!read.Evidence.Identifiers.Any(item => item.Kind == EditorMatchIdentifierKinds.YouTube))
-            {
-                return null;
-            }
-
+            // A video is looked up by its YouTube ID. With none known, the person can still paste a link or an ID.
+            needsPastedId = !read.Evidence.Identifiers.Any(item => item.Kind == EditorMatchIdentifierKinds.YouTube);
             fields = [EditorMatchFieldIds.ProviderId];
         }
 
@@ -196,9 +228,9 @@ public sealed class EditorMatchSearchService(
             return null;
         }
 
+        // Which kinds a provider is offered for is the provider file's editor_match.kinds; none listed means every kind of its media types.
         var listed = catalog.List(mapping.MediaType)
-            .Where(info => !isVideo || string.Equals(info.Name, "youtube", StringComparison.OrdinalIgnoreCase))
-            .Where(info => !IsTv(kind) || string.Equals(info.Name, "tvdb", StringComparison.OrdinalIgnoreCase))
+            .Where(info => info.Kinds is not { Count: > 0 } || info.Kinds.Contains(kind, StringComparer.OrdinalIgnoreCase))
             .OrderBy(info => info.Order)
             .ToList();
         if (listed.Count == 0)
@@ -216,14 +248,15 @@ public sealed class EditorMatchSearchService(
                 IsDefault = info == first,
             })
             .ToList();
-        return new SearchPlan(providers, fields);
+        return new SearchPlan(providers, fields, listed.ToDictionary(info => info.Name, StringComparer.OrdinalIgnoreCase), needsPastedId);
     }
 
     private static bool IsTv(string kind) => kind.StartsWith("tv_", StringComparison.OrdinalIgnoreCase);
 
     // The canonical search's own request: the boxes become the draft fields it scores against, and the words searched.
     private static ItemCanonicalSearchRequestDto BuildRequest(
-        string kindId, EditorMatchKind kind, string provider, IReadOnlyDictionary<string, string> fields, EditorMatchLocalRead read)
+        string kindId, EditorMatchKind kind, string provider, IReadOnlyDictionary<string, string> fields, EditorMatchLocalRead read,
+        IReadOnlyDictionary<string, string> lookup)
     {
         string Get(string key) => fields.TryGetValue(key, out var value) ? value : string.Empty;
         var draft = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -246,9 +279,7 @@ public sealed class EditorMatchSearchService(
             case EditorKinds.Book:
                 Put(MetadataFieldConstants.Title, Get(EditorMatchFieldIds.Title));
                 Put(MetadataFieldConstants.Author, Get(EditorMatchFieldIds.Author));
-                words = !string.IsNullOrWhiteSpace(Get(EditorMatchFieldIds.Isbn))
-                    ? Get(EditorMatchFieldIds.Isbn)
-                    : $"{Get(EditorMatchFieldIds.Title)} {Get(EditorMatchFieldIds.Author)}";
+                words = $"{Get(EditorMatchFieldIds.Title)} {Get(EditorMatchFieldIds.Author)}";
                 break;
             case EditorKinds.Audiobook:
                 Put(MetadataFieldConstants.Title, Get(EditorMatchFieldIds.Title));
@@ -285,13 +316,13 @@ public sealed class EditorMatchSearchService(
                 words = $"{Get(EditorMatchFieldIds.Artist)} {Get(EditorMatchFieldIds.Song)}";
                 break;
             default:
-                words = Get(EditorMatchFieldIds.ProviderId);
                 break;
         }
 
-        if (string.IsNullOrWhiteSpace(words))
+        // A typed identifier is never search words: it either drives the provider's own id lookup (lookup) or it is evidence only.
+        if (string.IsNullOrWhiteSpace(words) && lookup.Count > 0)
         {
-            words = Get(EditorMatchFieldIds.ProviderId);
+            words = lookup.Values.First();
         }
 
         return new ItemCanonicalSearchRequestDto
@@ -300,10 +331,11 @@ public sealed class EditorMatchSearchService(
             TargetKind = kind.TargetKind,
             TargetFieldGroup = kind.TargetFieldGroup,
             DraftFields = draft,
-            QueryOverride = words.Trim(),
+            QueryOverride = (words ?? string.Empty).Trim(),
             SearchMode = "retail_only",
             MaxCandidates = MaxCandidates,
             ProviderName = provider,
+            LookupFields = lookup.Count == 0 ? null : new Dictionary<string, string>(lookup, StringComparer.OrdinalIgnoreCase),
         };
     }
 
@@ -312,9 +344,56 @@ public sealed class EditorMatchSearchService(
             .Where(pair => !string.IsNullOrWhiteSpace(pair.Key) && !string.IsNullOrWhiteSpace(pair.Value))
             .ToDictionary(pair => pair.Key.Trim(), pair => pair.Value.Trim(), StringComparer.OrdinalIgnoreCase);
 
-    // A box with only a year, an issue number or a provider ID gives a search nothing to look for by itself, except an ID.
-    private static bool HasSearchWords(IReadOnlyDictionary<string, string> fields) =>
-        fields.Any(pair => pair.Key is not (EditorMatchFieldIds.Year or EditorMatchFieldIds.Issue) && !string.IsNullOrWhiteSpace(pair.Value));
+    // A year, an issue number, an ISBN or a provider ID gives a search nothing to look for by itself; only an identifier the provider can
+    // look up directly (lookup) does. Otherwise the identifier is evidence for the verdict and nothing more.
+    private static bool HasSearchWords(IReadOnlyDictionary<string, string> fields, IReadOnlyDictionary<string, string> lookup) =>
+        lookup.Count > 0
+        || fields.Any(pair => pair.Key is not (EditorMatchFieldIds.Year or EditorMatchFieldIds.Issue or EditorMatchFieldIds.ProviderId or EditorMatchFieldIds.Isbn)
+                              && !string.IsNullOrWhiteSpace(pair.Value));
+
+    // The typed identifiers this provider can look up directly, by the search field its lookup needs (editor_match.id_lookup).
+    private static Dictionary<string, string> LookupFor(SearchPlan plan, EditorMatchProviderDto provider, IReadOnlyDictionary<string, string> fields)
+    {
+        var found = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var idLookup = plan.Infos.TryGetValue(provider.Name, out var info) ? info.IdLookup : null;
+        if (idLookup is not { Count: > 0 })
+        {
+            return found;
+        }
+
+        foreach (var (box, kindOfId) in new[] { (EditorMatchFieldIds.Isbn, EditorMatchIdentifierKinds.Isbn), (EditorMatchFieldIds.ProviderId, (string?)null) })
+        {
+            if (!fields.TryGetValue(box, out var typed) || string.IsNullOrWhiteSpace(typed))
+            {
+                continue;
+            }
+
+            var kindName = kindOfId ?? ClassifyId(typed, provider.Name);
+            if (kindName is not null && idLookup.TryGetValue(kindName, out var field))
+            {
+                found[field] = typed.Trim();
+            }
+        }
+
+        return found;
+    }
+
+    // What kind of identifier a typed Provider ID is: an IMDb ID, a MusicBrainz ID, or (digits) the chosen provider's own ID.
+    internal static string? ClassifyId(string typed, string providerName)
+    {
+        var text = typed.Trim();
+        if (text.Length >= 9 && text.StartsWith("tt", StringComparison.OrdinalIgnoreCase) && text[2..].All(char.IsAsciiDigit))
+        {
+            return EditorMatchIdentifierKinds.Imdb;
+        }
+
+        if (Guid.TryParse(text, out _))
+        {
+            return EditorMatchIdentifierKinds.MusicBrainz;
+        }
+
+        return text.Length > 0 && text.All(char.IsAsciiDigit) ? providerName.ToLowerInvariant() : null;
+    }
 
     private static Dictionary<string, string> WithoutPunctuation(IReadOnlyDictionary<string, string> fields) =>
         fields.ToDictionary(
@@ -346,6 +425,87 @@ public sealed class EditorMatchSearchService(
         Message = message,
         Evidence = read.Evidence,
     };
+
+    // A video is looked up by its YouTube ID: the one the Library already knows, or a link or ID pasted into the box. One result comes back
+    // (or none), judged on the identifier that was asked for and the title; Apply match stages it like every other match.
+    private async Task<EditorMatchSearchResultDto> SearchVideoAsync(
+        Guid entityId, EditorMatchProviderDto provider, IReadOnlyDictionary<string, string> fields, EditorMatchLocalRead read, CancellationToken ct)
+    {
+        fields.TryGetValue(EditorMatchFieldIds.ProviderId, out var pasted);
+        if (string.IsNullOrWhiteSpace(pasted))
+        {
+            return Empty(entityId, provider.Name, read, "Paste a YouTube link or the video's 11-character ID.");
+        }
+
+        var outcome = await videos.LookupAsync(entityId, pasted, ct).ConfigureAwait(false);
+        if (!outcome.IsOk)
+        {
+            return Empty(entityId, provider.Name, read, outcome.Message ?? "The video could not be looked up.");
+        }
+
+        var info = outcome.Info!;
+        var id = outcome.VideoId!;
+        var year = info.Published?.Year.ToString(CultureInfo.InvariantCulture);
+        var candidate = new ItemCanonicalRetailCandidateDto
+        {
+            CandidateId = $"youtube:{id}",
+            ProviderId = provider.Name,
+            ProviderName = provider.Name,
+            ProviderItemId = id,
+            Title = info.Title!,
+            Year = year,
+            Description = info.Description,
+            CompositeScore = 1.0,
+            RequiredFields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { [MetadataFieldConstants.Title] = info.Title! },
+            SuggestedFields = VideoSuggested(info, year),
+            ExtraFields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { ["youtube_id"] = id },
+        };
+        var evidence = read.Evidence;
+        var checks = new List<MatchFactCheck>
+        {
+            calculator.Title(evidence.FileTitle, info.Title),
+            calculator.Identifier(
+                [new EditorMatchIdentifierDto { Kind = EditorMatchIdentifierKinds.YouTube, Value = id }],
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { ["youtube_id"] = id }),
+        };
+        var result = new EditorMatchResultDto
+        {
+            Candidate = candidate,
+            ProviderName = provider.DisplayName,
+            Title = info.Title!,
+            Year = year,
+            Creator = info.Channel,
+            Description = info.Description,
+            SourceUrl = SourceUrl(candidate, false),
+            KindText = "Video",
+            Verdict = calculator.Verdict(checks),
+            Reasons = [.. checks.Select(check => new EditorMatchReasonDto { Fact = check.Fact, State = check.State, Text = check.Text, Note = check.Note })],
+        };
+        return new EditorMatchSearchResultDto
+        {
+            EntityId = entityId,
+            Provider = provider.Name,
+            Query = id,
+            Results = [result],
+            Evidence = read.Evidence,
+        };
+    }
+
+    private static Dictionary<string, string> VideoSuggested(VideoOnlineInfo info, string? year)
+    {
+        var suggested = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(info.Channel))
+        {
+            suggested[MetadataFieldConstants.Network] = info.Channel!;
+        }
+
+        if (!string.IsNullOrWhiteSpace(year))
+        {
+            suggested[MetadataFieldConstants.Year] = year!;
+        }
+
+        return suggested;
+    }
 
     // ── Judging the results ──────────────────────────────────────────────────────────────────────────────────
 
@@ -438,7 +598,7 @@ public sealed class EditorMatchSearchService(
                     creator),
                 MatchFactNames.Runtime => calculator.Runtime(evidence.MeasuredSeconds, seconds is null ? null : seconds / 60d),
                 MatchFactNames.TrackLength => calculator.TrackLength(evidence.MeasuredSeconds, seconds),
-                MatchFactNames.Identifier => calculator.Identifier(IdentifiersFor(evidence, fields), RecordIds(candidate)),
+                MatchFactNames.Identifier => calculator.Identifier(IdentifiersFor(evidence, fields, candidate.ProviderId), RecordIds(candidate)),
                 _ => new MatchFactCheck(fact, EditorMatchEvidenceStates.NotChecked, null, null, "Not checked"),
             });
         }
@@ -485,7 +645,7 @@ public sealed class EditorMatchSearchService(
 
     // The identifiers found with the file, and one the person typed into the Provider ID or ISBN box.
     private static IReadOnlyCollection<EditorMatchIdentifierDto> IdentifiersFor(
-        EditorMatchLocalEvidenceDto evidence, IReadOnlyDictionary<string, string> fields)
+        EditorMatchLocalEvidenceDto evidence, IReadOnlyDictionary<string, string> fields, string providerName)
     {
         var found = evidence.Identifiers.ToList();
         if (fields.TryGetValue(EditorMatchFieldIds.Isbn, out var isbn) && !found.Any(item => item.Kind == EditorMatchIdentifierKinds.Isbn))
@@ -495,9 +655,13 @@ public sealed class EditorMatchSearchService(
 
         if (fields.TryGetValue(EditorMatchFieldIds.ProviderId, out var typed))
         {
-            var kind = typed.StartsWith("tt", StringComparison.OrdinalIgnoreCase) ? EditorMatchIdentifierKinds.Imdb
-                : typed.All(char.IsAsciiDigit) ? EditorMatchIdentifierKinds.Tmdb
-                : null;
+            var kind = ClassifyId(typed, providerName) switch
+            {
+                EditorMatchIdentifierKinds.Imdb => EditorMatchIdentifierKinds.Imdb,
+                EditorMatchIdentifierKinds.MusicBrainz => EditorMatchIdentifierKinds.MusicBrainz,
+                "tmdb" => EditorMatchIdentifierKinds.Tmdb,
+                _ => null,
+            };
             if (kind is not null && !found.Any(item => item.Kind == kind))
             {
                 found.Add(new EditorMatchIdentifierDto { Kind = kind, Value = typed });

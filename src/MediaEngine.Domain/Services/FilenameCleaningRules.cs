@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using MediaEngine.Domain.Configuration;
@@ -20,6 +21,8 @@ public sealed class FilenameCleaningRules
     private readonly Regex[] _noiseTokenPatterns;
     private readonly string[] _editionMarkers;
     private readonly Regex _releaseStyleTags;
+    private readonly Action<string> _warn;
+    private readonly ConcurrentDictionary<string, byte> _timedOut = new(StringComparer.Ordinal);
 
     private FilenameCleaningRules(
         FilenameCleaningConfiguration configuration,
@@ -33,8 +36,10 @@ public sealed class FilenameCleaningRules
         Regex[] seasonEpisode,
         Regex seasonFolder,
         Regex[] trackPatterns,
-        string[] editionMarkers)
+        string[] editionMarkers,
+        Action<string> warn)
     {
+        _warn = warn;
         Configuration = configuration;
         _noiseTokens = noiseTokens;
         _noiseTokenPatterns = noiseTokenPatterns;
@@ -73,8 +78,12 @@ public sealed class FilenameCleaningRules
 
     public IReadOnlyList<Regex> TrackPatterns { get; }
 
-    /// <summary>Compiles the rules. Null (with the reason) when a pattern does not compile or a rule the readers cannot work without is empty.</summary>
-    public static FilenameCleaningRules? Compile(FilenameCleaningConfiguration configuration, out string? problem)
+    /// <summary>
+    /// Compiles the rules. Null (with the reason) when a pattern does not compile or a rule the readers cannot work without is empty.
+    /// <paramref name="warn"/> hears of a pattern that ran out of time on a name (once per pattern); the name is then read as if the pattern
+    /// had not matched.
+    /// </summary>
+    public static FilenameCleaningRules? Compile(FilenameCleaningConfiguration configuration, out string? problem, Action<string>? warn = null)
     {
         ArgumentNullException.ThrowIfNull(configuration);
         problem = null;
@@ -167,7 +176,8 @@ public sealed class FilenameCleaningRules
 
             var editions = Words(configuration.EditionMarkers).OrderByDescending(marker => marker.Length).ToArray();
             return new FilenameCleaningRules(
-                configuration, noiseTokens, tokenPatterns, plainFragments, ambiguousFragments, releaseTags, releaseStyleTags, year, seasonEpisode, seasonFolder, tracks, editions);
+                configuration, noiseTokens, tokenPatterns, plainFragments, ambiguousFragments, releaseTags, releaseStyleTags, year, seasonEpisode, seasonFolder, tracks, editions,
+                warn ?? (message => System.Diagnostics.Trace.TraceWarning(message)));
         }
         catch (ArgumentException ex)
         {
@@ -186,7 +196,7 @@ public sealed class FilenameCleaningRules
 
         var trimmed = token.Trim();
         return _noiseTokens.Contains(trimmed)
-            || _noiseTokenPatterns.Any(pattern => pattern.IsMatch(trimmed));
+            || _noiseTokenPatterns.Any(pattern => Guard(pattern.ToString(), () => pattern.IsMatch(trimmed), false));
     }
 
     /// <summary>
@@ -198,17 +208,20 @@ public sealed class FilenameCleaningRules
         edition = FindEdition(text);
         // A release-style name (dots between words, no spaces) has no ordinary words among its tags, so the ambiguous ones count too.
         var tags = text.Contains(' ') ? ReleaseTags : _releaseStyleTags;
-        var stripped = tags.Replace(Brackets.Replace(text, " "), string.Empty);
+        var unbracketed = Guard(Brackets.ToString(), () => Brackets.Replace(text, " "), text);
+        var stripped = Guard(tags.ToString(), () => tags.Replace(unbracketed, string.Empty), unbracketed);
         return edition is null ? stripped : RemoveMarkerAfterYear(stripped, edition);
     }
 
     /// <summary><see cref="StripTags(string, out string?)"/> without the edition.</summary>
     public string StripTags(string text) => StripTags(text, out _);
 
-    public string StripYear(string text) => Year.Replace(text, " ");
+    public string StripYear(string text) => Guard(Year.ToString(), () => Year.Replace(text, " "), text);
 
     /// <summary>The year the name carries, or null.</summary>
-    public string? FindYear(string text) => Year.Match(text) is { Success: true } match ? match.Groups["y"].Value : null;
+    public string? FindYear(string text) => MatchYear(text) is { Success: true } match ? match.Groups["y"].Value : null;
+
+    private Match MatchYear(string text) => Guard(Year.ToString(), () => Year.Match(text), Match.Empty);
 
     /// <summary>
     /// The edition marker a name carries: one in brackets, or one after the year or after the release noise starts
@@ -221,28 +234,29 @@ public sealed class FilenameCleaningRules
             return null;
         }
 
-        foreach (Match group in Brackets.Matches(text))
+        var groups = Guard(Brackets.ToString(), () => Brackets.Matches(text).Select(group => group.Value).ToList(), []);
+        foreach (var group in groups)
         {
-            if (MarkerIn(group.Value) is { } inBrackets)
+            if (MarkerIn(group) is { } inBrackets)
             {
                 return inBrackets;
             }
         }
 
-        var yearMatch = Year.Match(text);
+        var yearMatch = MatchYear(text);
         if (yearMatch.Success && MarkerIn(text[(yearMatch.Index + yearMatch.Length)..]) is { } afterYear)
         {
             return afterYear;
         }
 
-        var tailStart = ReleaseTags.Match(text);
+        var tailStart = Guard(ReleaseTags.ToString(), () => ReleaseTags.Match(text), Match.Empty);
         return tailStart.Success ? MarkerIn(tailStart.Value) : null;
     }
 
     // A marker written after the year ("Movie.2019.Remastered") is not part of the title, so it leaves with the noise.
     private string RemoveMarkerAfterYear(string text, string marker)
     {
-        var yearMatch = Year.Match(text);
+        var yearMatch = MatchYear(text);
         if (!yearMatch.Success)
         {
             return text;
@@ -250,7 +264,8 @@ public sealed class FilenameCleaningRules
 
         var cut = yearMatch.Index + yearMatch.Length;
         var pattern = MarkerPattern(marker);
-        return text[..cut] + Regex.Replace(text[cut..], pattern, " ", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, PatternTimeout);
+        var tail = text[cut..];
+        return text[..cut] + Guard(pattern, () => Regex.Replace(tail, pattern, " ", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, PatternTimeout), tail);
     }
 
     /// <summary>
@@ -286,7 +301,7 @@ public sealed class FilenameCleaningRules
     {
         foreach (var pattern in TrackPatterns)
         {
-            var match = pattern.Match(name);
+            var match = Guard(pattern.ToString(), () => pattern.Match(name), Match.Empty);
             if (!match.Success)
             {
                 continue;
@@ -294,7 +309,7 @@ public sealed class FilenameCleaningRules
 
             int? track = int.TryParse(match.Groups["track"].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var t) ? t : null;
             int? disc = match.Groups["disc"] is { Success: true } d && int.TryParse(d.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) ? n : null;
-            var rest = pattern.Replace(name, string.Empty, 1).Trim(' ', '-', '_', '.');
+            var rest = Guard(pattern.ToString(), () => pattern.Replace(name, string.Empty, 1), name).Trim(' ', '-', '_', '.');
             return (disc, track, rest.Length == 0 ? name.Trim() : rest);
         }
 
@@ -305,13 +320,33 @@ public sealed class FilenameCleaningRules
     {
         foreach (var marker in _editionMarkers)
         {
-            if (Regex.IsMatch(text, MarkerPattern(marker), RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, PatternTimeout))
+            var pattern = MarkerPattern(marker);
+            if (Guard(pattern, () => Regex.IsMatch(text, pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, PatternTimeout), false))
             {
                 return char.ToUpperInvariant(marker[0]) + marker[1..];
             }
         }
 
         return null;
+    }
+
+    // A pattern that runs out of time on a name is read as "no match" for that name and reported once, so a bad pattern in the file cannot
+    // stall or fail a scan or the editor's pre-fill, and the log is not flooded by it either.
+    private T Guard<T>(string pattern, Func<T> run, T fallback)
+    {
+        try
+        {
+            return run();
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            if (_timedOut.TryAdd(pattern, 0))
+            {
+                _warn($"A file-name cleaning pattern took too long on a name and was skipped: {pattern}");
+            }
+
+            return fallback;
+        }
     }
 
     private static string MarkerPattern(string marker) =>
