@@ -3,7 +3,7 @@
 @inject IStringLocalizer<SharedStrings> L
 
 <div class="network-panel">
-    <SettingsSectionPanel Title="@L["LocalNetworkSettingsPanel_Address"].Value" Icon="@AppMaterialIcons.Outlined.Lan">
+    <SettingsSectionPanel Title="@L["LocalNetworkSettingsPanel_Address"].Value">
         <dl class="network-facts network-facts--compact">
             <div><dt>@L["LocalNetworkSettingsPanel_NameOnYourNetwork"]</dt><dd>@(Settings.Local.PreferredServerName).local</dd></div>
             <div><dt>@L["LocalNetworkSettingsPanel_LocalAddress"]</dt><dd>@(Status?.PreferredLocalAddress ?? "Unavailable")</dd></div>

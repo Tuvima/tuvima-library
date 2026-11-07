@@ -7,7 +7,7 @@
 @inject IStringLocalizer<SharedStrings> L
 
 <div class="tl-page security-settings">
-    <SettingsSectionPanel Title="@PanelTitle" Description="@PanelDescription" Icon="@PanelIcon">
+    <SettingsSectionPanel Title="@PanelTitle" Description="@PanelDescription">
         @if (_authLoading)
         {
             <AppSkeleton Size="AppControlSize.Large" Class="security-settings__skeleton" />

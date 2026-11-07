@@ -14,7 +14,7 @@
     border: 1px solid var(--tl-border-subtle);
     border-radius: var(--tl-radius-xl, 12px);
     background: var(--tl-bg-surface-raised, #151E2F);
-    transition: border-color var(--tl-motion-fast, 140ms) ease, background-color var(--tl-motion-fast, 140ms) ease;
+    transition: border-color var(--tl-motion-duration-fast, 140ms) ease, background-color var(--tl-motion-duration-fast, 140ms) ease;
     --kind-accent: var(--tl-accent-primary);
 }
 

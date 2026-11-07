@@ -12,13 +12,16 @@
 <div class="settings-listening-page" data-home-section="lanes">
     <div class="listening-settings-grid">
         <SettingsSectionPanel Title="@L["HomeLanesSettings_Lanes"].Value"
-                              Description="@L["HomeLanesSettings_CollectionsCanShowAsRows"].Value"
-                              Class="tl-card settings-section-card listening-settings-card">
-            <AppSelect Label="@L["HomeLanesSettings_Page"].Value"
-                       Value="@_place"
-                       ValueChanged="SelectPlaceAsync"
-                       Options="Places"
-                       Size="AppControlSize.Compact" />
+                              Description="@L["HomeLanesSettings_CollectionsCanShowAsRows"].Value">
+            <AppSettingRow Label="@L["HomeLanesSettings_Page"].Value">
+                <Control>
+                    <AppSelect AriaLabel="@L["HomeLanesSettings_Page"].Value"
+                               Value="@_place"
+                               ValueChanged="SelectPlaceAsync"
+                               Options="Places"
+                               Size="AppControlSize.Compact" />
+                </Control>
+            </AppSettingRow>
         </SettingsSectionPanel>
 
         @if (_loading)
@@ -38,8 +41,7 @@
             @if (_settings.CanManageShared)
             {
                 <SettingsSectionPanel Title="@L["HomeLanesSettings_SharedLanes"].Value"
-                                      Description="@L["HomeLanesSettings_CollectionsShownHereForEveryone"].Value"
-                                      Class="tl-card settings-section-card listening-settings-card">
+                                      Description="@L["HomeLanesSettings_CollectionsShownHereForEveryone"].Value">
                     @if (_settings.Shared.Count == 0)
                     {
                         <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@L["HomeLanesSettings_NoSharedLaneIsShown"]</AppText>
@@ -48,11 +50,8 @@
                     {
                         var position = index;
                         var lane = _settings.Shared[index];
-                        <div class="listening-preference-row" data-lane-id="@lane.CollectionId">
-                            <div class="listening-preference-row__copy">
-                                <AppText Typo="AppTypo.body1">@lane.Name</AppText>
-                                <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@(lane.Visible ? "Shown for everyone" : "Hidden for everyone")</AppText>
-                            </div>
+                        <AppSettingRow Label="@(lane.Name)" Helper="@(lane.Visible ? "Shown for everyone" : "Hidden for everyone")" data-lane-id="@lane.CollectionId">
+                            <Control>
                             <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowUpward"
                                            Tooltip="@L["Common_MoveUp"].Value"
                                            AriaLabel="@($"Move {lane.Name} up")"
@@ -68,7 +67,8 @@
                                           ValueChanged="@(value => SetSharedVisibleAsync(position, value))"
                                           Color="AppColor.Primary"
                                           AriaLabel="@($"Show {lane.Name} for everyone")" />
-                        </div>
+                            </Control>
+                        </AppSettingRow>
                     }
                 </SettingsSectionPanel>
             }
@@ -76,16 +76,13 @@
             @if (_settings.Mine.Count > 0)
             {
                 <SettingsSectionPanel Title="@L["HomeLanesSettings_YourOwnLanes"].Value"
-                                      Description="@L["HomeLanesSettings_YourPrivateCollectionsShownOn"].Value"
-                                      Class="tl-card settings-section-card listening-settings-card">
+                                      Description="@L["HomeLanesSettings_YourPrivateCollectionsShownOn"].Value">
                     @for (var index = 0; index < _settings.Mine.Count; index++)
                     {
                         var position = index;
                         var lane = _settings.Mine[index];
-                        <div class="listening-preference-row" data-lane-id="@lane.CollectionId">
-                            <div class="listening-preference-row__copy">
-                                <AppText Typo="AppTypo.body1">@lane.Name</AppText>
-                            </div>
+                        <AppSettingRow Label="@(lane.Name)" data-lane-id="@lane.CollectionId">
+                            <Control>
                             <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowUpward"
                                            Tooltip="@L["Common_MoveUp"].Value"
                                            AriaLabel="@($"Move {lane.Name} up")"
@@ -96,7 +93,8 @@
                                            AriaLabel="@($"Move {lane.Name} down")"
                                            Disabled="@(position == _settings.Mine.Count - 1)"
                                            OnClick="@(() => MoveOwnAsync(position, 1))" />
-                        </div>
+                            </Control>
+                        </AppSettingRow>
                     }
                 </SettingsSectionPanel>
             }
@@ -104,20 +102,18 @@
             @if (_settings.HiddenByMe.Count > 0)
             {
                 <SettingsSectionPanel Title="@L["HomeLanesSettings_LanesYouHid"].Value"
-                                      Description="@L["HomeLanesSettings_YouChoseHideThisLane"].Value"
-                                      Class="tl-card settings-section-card listening-settings-card">
+                                      Description="@L["HomeLanesSettings_YouChoseHideThisLane"].Value">
                     @foreach (var lane in _settings.HiddenByMe)
                     {
                         var hidden = lane;
-                        <div class="listening-preference-row" data-lane-id="@hidden.CollectionId">
-                            <div class="listening-preference-row__copy">
-                                <AppText Typo="AppTypo.body1">@hidden.Name</AppText>
-                            </div>
+                        <AppSettingRow Label="@(hidden.Name)" data-lane-id="@hidden.CollectionId">
+                            <Control>
                             <AppButton Label="@L["HomeLanesSettings_ShowAgain"].Value"
                                        ButtonStyle="AppButtonStyle.Text"
                                        Size="AppControlSize.Compact"
                                        OnClick="@(() => ShowAgainAsync(hidden))" />
-                        </div>
+                            </Control>
+                        </AppSettingRow>
                     }
                 </SettingsSectionPanel>
             }
@@ -125,8 +121,7 @@
             @if (!_settings.CanManageShared && _settings.Mine.Count == 0 && _settings.HiddenByMe.Count == 0)
             {
                 <SettingsSectionPanel Title="@L["HomeLanesSettings_NothingToChangeHere"].Value"
-                                      Description="@L["HomeLanesSettings_SharedLanesAreSetBy"].Value"
-                                      Class="tl-card settings-section-card listening-settings-card" />
+                                      Description="@L["HomeLanesSettings_SharedLanesAreSetBy"].Value" />
             }
         }
     </div>

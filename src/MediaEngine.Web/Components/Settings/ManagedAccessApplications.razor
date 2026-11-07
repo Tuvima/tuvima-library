@@ -340,7 +340,7 @@
         {
             <AppAlert Severity="AppSeverity.Warning">@health.LastProblem</AppAlert>
         }
-        <AppCard Title="Application" Class="plugin-page__card">
+        <AppSettingsGroup Heading="Application" Class="plugin-page__card">
             <section class="access-form-section">
                 @if (!string.IsNullOrWhiteSpace(app.Description)) { <p data-testid="integration-description">@app.Description</p> }
                 <AppTextField @bind-Value="_name" Label="Name" FullWidth="true" />
@@ -355,14 +355,13 @@
                     <AppTextField @bind-Value="_clientIds" Label="Native client IDs" HelpText="Comma-separated registered client IDs allowed to use this application." FullWidth="true" />
                 }
             </section>
-        </AppCard>
+        </AppSettingsGroup>
     </text>;
 
-    private static readonly AppIconTone[] GroupTones = [AppIconTone.Accent, AppIconTone.Info, AppIconTone.Watch, AppIconTone.Listen, AppIconTone.Read, AppIconTone.View];
 
     // Permissions by area, as switches with one plain line each and a coloured icon (v6 D68).
     private RenderFragment AccessTab() => @<text>
-        <AppCard Title="Permission preset" Class="plugin-page__card">
+        <AppSettingsGroup Heading="Permission preset" Class="plugin-page__card">
             <section class="access-form-section">
                 <AppSelect Native="true" Value="@_presetId" ValueChanged="ApplyPreset" Disabled="@_saving" aria-label="Permission preset">
                     <option value="custom">Custom</option>
@@ -373,14 +372,11 @@
                     <AppAlert Severity="AppSeverity.Warning">Administrator applications receive every currently available registered permission and automatically include newly available permissions.</AppAlert>
                 }
             </section>
-        </AppCard>
-        @{ var groupIndex = 0; }
+        </AppSettingsGroup>
         @foreach (var group in CompatiblePermissions.GroupBy(permission => permission.Category))
         {
-            var tone = GroupTones[groupIndex++ % GroupTones.Length];
-            <AppCard Class="plugin-page__card">
+            <AppSettingsGroup Heading="@group.Key" Class="plugin-page__card">
                 <div class="access-permission-group" data-testid="integration-permission-group">
-                    <div class="access-permission-group__head"><AppIconTile MaterialIcon="@AppMaterialIcons.Outlined.Lock" Tone="@tone" /><strong>@group.Key</strong></div>
                     @foreach (var permission in group)
                     {
                         <div class="access-permission-row @(permission.IsAvailable ? null : "is-unavailable")">
@@ -390,12 +386,12 @@
                         </div>
                     }
                 </div>
-            </AppCard>
+            </AppSettingsGroup>
         }
     </text>;
 
     // Keys are a table: tick, name, created, last used, and a menu with Rotate and Revoke (each asks first).
-    private RenderFragment KeysTab(ApplicationResponse app) => @<AppCard Title="Keys" Class="plugin-page__card">
+    private RenderFragment KeysTab(ApplicationResponse app) => @<AppSettingsGroup Heading="Keys" Class="plugin-page__card">
         <div class="access-keys-head">
             <small>A key lets an app or service use this integration. A new key is shown once.</small>
             @if (!DeviceContext.IsPhone)
@@ -434,7 +430,7 @@
                 </tbody>
             </AppTable>
         }
-    </AppCard>;
+    </AppSettingsGroup>;
 
     private IReadOnlyList<AppRowMenuItem> KeyActions(ApplicationCredentialResponse credential) =>
     [
@@ -484,7 +480,7 @@
         await dialog.Result;
     }
 
-    private RenderFragment ActivityTab(ApplicationResponse app) => @<AppCard Title="Activity" Class="plugin-page__card">
+    private RenderFragment ActivityTab(ApplicationResponse app) => @<AppSettingsGroup Heading="Activity" Class="plugin-page__card">
         <section class="access-form-section">
             <small>@(app.LastUsedAt is null ? "Never used." : $"Last used {app.LastUsedAt.Value.ToLocalTime():g}.")</small>
             <small>@app.Credentials.Count(credential => credential.RevokedAt is null) active keys@(CredentialExpirySummary(app) is { } expiry ? $" · {expiry}" : null)</small>
@@ -493,7 +489,7 @@
                 <AppAlert Severity="AppSeverity.Warning">@health.LastProblem</AppAlert>
             }
         </section>
-    </AppCard>;
+    </AppSettingsGroup>;
 
     // The List view (Plugins and Integrations screens v3 D27): status, kind, access, keys, last used and Manage on one 56 px row.
     private RenderFragment IntegrationRows(IReadOnlyList<ApplicationResponse> apps) => @<AppTable Class="access-rows" data-testid="integration-rows">

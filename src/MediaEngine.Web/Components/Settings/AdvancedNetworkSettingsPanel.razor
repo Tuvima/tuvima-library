@@ -7,7 +7,6 @@
 @inject IStringLocalizer<SharedStrings> L
 
 <div class="network-panel network-advanced">
-    <AppCard>
     <details class="network-advanced-card">
         <summary><span class="network-advanced-card__icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SettingsEthernet" /></span><span><strong>Ports &amp; Binding</strong><small>@L["AdvancedNetworkSettingsPanel_InspectTheLocalDashboardListener"]</small></span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></summary>
         <div class="network-advanced-card__body">
@@ -32,9 +31,7 @@
             </dl>
         </div>
     </details>
-    </AppCard>
 
-    <AppCard>
     <details class="network-advanced-card">
         <summary><span class="network-advanced-card__icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Router" /></span><span><strong>Port Forwarding &amp; Router Mapping</strong><small>@L["AdvancedNetworkSettingsPanel_AdvancedDirectAccessThroughYour"]</small></span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></summary>
         <div class="network-advanced-card__body network-advanced-fields">
@@ -64,9 +61,7 @@
             </div>
         </div>
     </details>
-    </AppCard>
 
-    <AppCard>
     <details class="network-advanced-card">
         <summary><span class="network-advanced-card__icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Language" /></span><span><strong>@L["AdvancedNetworkSettingsPanel_ReverseProxyTrust"]</strong><small>@L["AdvancedNetworkSettingsPanel_AcceptForwardedClientAndHTTPS"]</small></span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></summary>
         <div class="network-advanced-card__body network-advanced-fields">
@@ -76,9 +71,7 @@
             <AppButton Label="@L["AdvancedNetworkSettingsPanel_SaveProxyTrust"].Value" ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" OnClick="SaveProxySettingsAsync" />
         </div>
     </details>
-    </AppCard>
 
-    <AppCard>
     <details class="network-advanced-card">
         <summary><span class="network-advanced-card__icon"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Science" /></span><span><strong>@L["AdvancedNetworkSettingsPanel_Diagnostics"]</strong><small>@L["AdvancedNetworkSettingsPanel_ObservedNetworkFactsWithoutAssuming"]</small></span><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.ChevronRight" /></summary>
         <div class="network-advanced-card__body">
@@ -90,19 +83,16 @@
             </dl>
         </div>
     </details>
-    </AppCard>
 
     <AppAlert Tone="AppUiTone.Warning" Icon="@AppMaterialIcons.Outlined.WarningAmber" Class="network-advanced-warning">
         <strong>@L["AdvancedNetworkSettingsPanel_AdvancedSettingsAreIntendedFor"]</strong>
         <span>@L["AdvancedNetworkSettingsPanel_TailscaleOrADocumentedReverse"]</span>
     </AppAlert>
 
-    <AppCard>
         <div class="network-danger-row">
             <div><strong>@L["AdvancedNetworkSettingsPanel_ResetNetworkSettings"]</strong><span>@L["AdvancedNetworkSettingsPanel_RestoreLocalFirstDefaultsAnd"]</span></div>
             <AppButton Label="@L["AdvancedNetworkSettingsPanel_ResetNetworkSettings"].Value" Tone="AppUiTone.Error" OnClick="OpenReset" />
         </div>
-    </AppCard>
 </div>
 
 <NetworkPortChangeDialog @bind-Visible="_portDialogOpen"

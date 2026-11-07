@@ -88,7 +88,7 @@ public sealed class ReadingSettingsPageTests : AsyncBunitContext
             Assert.Contains("Sepia", cut.Markup);
             Assert.Contains("Scrolled", cut.Markup);
             Assert.NotEmpty(cut.FindAll(".reading-sample"));
-            Assert.Equal(2, cut.FindAll(".reading-settings-card").Count);
+            Assert.Equal(2, cut.FindAll(".app-settings-group").Count);
         });
     }
 
@@ -195,7 +195,7 @@ public sealed class ReadingSettingsPageTests : AsyncBunitContext
             Assert.Contains("Reading settings could not be loaded.", cut.Markup);
             Assert.NotEmpty(cut.FindAll(".app-error-state__retry"));
             Assert.Empty(cut.FindAll("input"));
-            Assert.Empty(cut.FindAll(".reading-settings-card"));
+            Assert.Empty(cut.FindAll(".app-settings-group"));
         });
         Assert.DoesNotContain(_apiCalls, call => call.Call == "put");
 

@@ -13,11 +13,11 @@ public sealed class LookRatchetGuardrailTests
     private const int NativeControlCeiling = 374;
     private const int AdHocFontSizeCeiling = 147;
     private const int HandTypedHexCeiling = 853;
-    private const int ForcedOverrideCeiling = 1501;
+    private const int ForcedOverrideCeiling = 1301;
     private const int HandTypedLayerCeiling = 307;
     // Class names made at runtime by a library or by joining a state name, so no source file spells them out.
     private static readonly HashSet<string> BuiltAtRuntime = ["maplibregl-ctrl-bottom-left", "maplibregl-ctrl-bottom-right", "notifications-page__channel--needs_attention"];
-    private const int OldAppVariableCeiling = 164;
+    private const int OldAppVariableCeiling = 159;
     private const int DeadStyleClassCeiling = 0;
 
     private static IEnumerable<(string Relative, string Text)> WebFiles(params string[] extensions)
@@ -86,6 +86,26 @@ public sealed class LookRatchetGuardrailTests
     {
         var count = WebFiles(".css", ".razor", ".cs", ".js").Sum(f => Regex.Matches(f.Text, @"var\(--app-").Count);
         Assert.True(count <= OldAppVariableCeiling, $"Uses of the old --app-* variables rose to {count} (ceiling {OldAppVariableCeiling}). Use the --tl-* tokens.");
+    }
+
+    [Fact]
+    public void NoTokenAliasIsDefinedAtTheRoot()
+    {
+        // Look v3 D10: one name per token. A :root property that only forwards to another token is an alias; component-scoped
+        // variables set per class (tones, pills, control heights) are not aliases and stay.
+        var web = Path.Combine(FindRepoRoot(), "src", "MediaEngine.Web", "wwwroot");
+        var aliases = new List<string>();
+        foreach (var file in new[] { "app.css", "tuvima.tokens.css" })
+        {
+            var css = File.ReadAllText(Path.Combine(web, file));
+            foreach (Match root in Regex.Matches(css, @":root\s*\{(?<body>[^}]*)\}"))
+            {
+                aliases.AddRange(Regex.Matches(root.Groups["body"].Value, @"(--app-[\w-]+)\s*:\s*var\(--(?:tl|font)-[\w-]+\)\s*;")
+                    .Select(m => $"{file}: {m.Groups[1].Value}"));
+            }
+        }
+
+        Assert.True(aliases.Count == 0, "Token aliases are retired; use the --tl-* token directly: " + string.Join(", ", aliases));
     }
 
     [Fact]

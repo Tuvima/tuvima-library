@@ -12,7 +12,7 @@
    (SMTP) the server is set up with. It shows only once outgoing email is configured. It moved here from Sign-in Methods. *@
 @if (_email is { Configured: true })
 {
-    <AppCard Title="@L["NotificationsEmailTest_Email"].Value" Description="@L["NotificationsEmailTest_SendsOnlyToTheEmail"].Value" Class="tl-sp-mb-3">
+    <AppSettingsGroup Heading="@L["NotificationsEmailTest_Email"].Value" Helper="@L["NotificationsEmailTest_SendsOnlyToTheEmail"].Value">
         <div data-testid="notifications-email-test">
             <AppDefinitionList>
                 <div><dt>@L["NotificationsEmailTest_SMTPServer"]</dt><dd>@_email.SmtpHost:@_email.SmtpPort</dd></div>
@@ -24,7 +24,7 @@
                        Disabled="@(_sending || !_email.Ready)"
                        OnClick="SendTestEmailAsync" Class="tl-sp-mt-3" data-testid="notifications-email-test-send" />
         </div>
-    </AppCard>
+    </AppSettingsGroup>
 }
 
 @code {

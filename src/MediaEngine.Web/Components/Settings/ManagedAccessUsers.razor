@@ -11,7 +11,7 @@
 @implements IDisposable
 @inject IStringLocalizer<SharedStrings> L
 
-<SettingsSectionPanel Title="@L["ManagedAccessUsers_UsersAndSignIn"].Value" Description="The sign-ins people use to get into the Library. Each one opens a profile; what a person may see and do is set on their profile, under Profiles." Icon="@AppMaterialIcons.Outlined.Group">
+<SettingsSectionPanel Title="@L["ManagedAccessUsers_UsersAndSignIn"].Value" Description="The sign-ins people use to get into the Library. Each one opens a profile; what a person may see and do is set on their profile, under Profiles.">
     @if (!CanManage)
     {
         <AppAlert Severity="AppSeverity.Warning">@L["ManagedAccessUsers_AdministratorAccessIsRequiredTo"]</AppAlert>

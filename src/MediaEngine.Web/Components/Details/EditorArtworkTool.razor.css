@@ -101,7 +101,7 @@
 
 .tl-art-picker__face--role.is-active .tl-art-picker__tab-count {
     background: var(--tl-accent-primary);
-    color: var(--tl-on-accent);
+    color: var(--tl-text-on-accent);
 }
 
 .tl-art-picker__tab-dot {
@@ -258,7 +258,7 @@
     inset: 0;
     z-index: 1000;
     border-radius: 0;
-    background: var(--tl-bg-base);
+    background: var(--tl-bg-root);
 }
 
 .tl-art-picker__preview.is-full .tl-art-picker__stage {
@@ -371,7 +371,7 @@
     padding: 0 var(--tl-space-2);
     border-radius: var(--tl-radius-sm);
     background: var(--tl-accent-primary);
-    color: var(--tl-on-accent);
+    color: var(--tl-text-on-accent);
     font-size: var(--tl-font-size-xs);
     font-weight: var(--tl-font-weight-semibold);
 }

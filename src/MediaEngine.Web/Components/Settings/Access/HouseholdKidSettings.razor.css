@@ -4,7 +4,7 @@
 .kid-settings__row { display: flex; flex-direction: column; align-items: stretch; gap: 4px; min-height: var(--tl-tap-target-min, 44px); padding: 4px 0; }
 .kid-settings__row--switch { flex-direction: row; align-items: center; gap: 8px; }
 .kid-settings__row--switch > :first-child { flex: 1; min-width: 0; }
-.kid-settings__label { display: inline-flex; align-items: center; gap: 6px; font-family: 'Tuvima Sans', var(--tl-font-sans, system-ui, sans-serif); color: var(--tl-text-secondary); }
+.kid-settings__label { display: inline-flex; align-items: center; gap: 6px; font-family: 'Tuvima Sans', var(--font-ui, system-ui, sans-serif); color: var(--tl-text-secondary); }
 .kid-settings__error { margin: 0; color: var(--tl-status-error, var(--tl-text-primary)); font-size: var(--tl-font-size-sm); }
 
 @media (min-width: 600px) {

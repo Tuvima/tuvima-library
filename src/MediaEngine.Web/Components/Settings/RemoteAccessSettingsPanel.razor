@@ -10,7 +10,7 @@
     </header>
 
     <div id="remote-connection-mode">
-    <SettingsSectionPanel Title="@L["RemoteAccessSettingsPanel_HowTheInternetReachesLibrary"].Value" Icon="@AppMaterialIcons.Outlined.Public"
+    <SettingsSectionPanel Title="@L["RemoteAccessSettingsPanel_HowTheInternetReachesLibrary"].Value"
                           Description="@L["RemoteAccessSettingsPanel_LocalAccessWorksWithoutRouter"].Value">
         <div class="network-mode-list" role="radiogroup" aria-label="@L["RemoteAccessSettingsPanel_HowTheInternetReachesLibrary"].Value">
             @Mode("local-only", "Not set up — Default", "No public router mapping or remote tunnel is attempted.")
@@ -25,7 +25,7 @@
 
     @if (Settings.Remote.ConnectionMode == "tailscale")
     {
-        <SettingsSectionPanel Title="@L["RemoteAccessSettingsPanel_TailscaleServe"].Value" Icon="@AppMaterialIcons.Outlined.VpnLock">
+        <SettingsSectionPanel Title="@L["RemoteAccessSettingsPanel_TailscaleServe"].Value">
             <dl class="network-facts">
                 @Fact("Status", Display(Status?.TailscaleState))
                 @Fact("Private HTTPS address", Status?.TailnetAddress ?? "Not detected")
@@ -39,7 +39,7 @@
     @if (Settings.Remote.ConnectionMode is "custom" or "direct-only")
     {
         <div id="remote-public-address">
-        <SettingsSectionPanel Title="@L["RemoteAccessSettingsPanel_HTTPSReverseProxy"].Value" Icon="@AppMaterialIcons.Outlined.Language"
+        <SettingsSectionPanel Title="@L["RemoteAccessSettingsPanel_HTTPSReverseProxy"].Value"
                               Description="@L["RemoteAccessSettingsPanel_TheAddressMustHaveA"].Value">
             <AppTextField T="string" @bind-Value="Settings.Remote.PublicHostname"
                           Label="@L["RemoteAccessSettingsPanel_PublicHTTPSAddress"].Value" Placeholder="https://tuvima.example.com"

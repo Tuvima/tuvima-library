@@ -13,8 +13,8 @@
 @* Export for a bug report (settings revamp D23). The filters are sent in a body, never in the address. Keys, tokens,
    sign-in details and file and folder names are hidden by the Engine unless the file-name switch is turned on. *@
 <div class="log-export">
-    <AppCard Title="@L["LogExportPanel_ExportLogsForABug"].Value"
-             Description="@L["LogExportPanel_ChooseWhatToIncludeCheck"].Value">
+    <AppSettingsGroup Heading="@L["LogExportPanel_ExportLogsForABug"].Value"
+             Helper="@L["LogExportPanel_ChooseWhatToIncludeCheck"].Value">
         <div class="log-export__filters">
             <AppSelect Label="@L["Common_Time"].Value" Value="@_range" ValueChanged="OnRangeChanged" Options="RangeOptions" />
             <AppSelect Label="@L["Common_Level"].Value" Value="@_level" ValueChanged="OnLevelChanged" Options="LevelOptions" />
@@ -78,7 +78,7 @@
                        OnClick="DownloadAsync"
                        data-testid="export-download" />
         </div>
-    </AppCard>
+    </AppSettingsGroup>
 </div>
 
 @code {

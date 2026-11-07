@@ -11,8 +11,7 @@
     </div>
 
     <SettingsSectionPanel Title="@L["NetworkOverviewPanel_ConnectionStatus"].Value"
-                          Description="@L["NetworkOverviewPanel_ALiveSummaryOfHow"].Value"
-                          Icon="@AppMaterialIcons.Outlined.WifiTethering">
+                          Description="@L["NetworkOverviewPanel_ALiveSummaryOfHow"].Value">
         <div class="network-status-grid">
             @StatusCard("Local Access", Status?.LocalAccess ?? "Unavailable", "Devices on your network can reach Library.", AppMaterialIcons.Outlined.Home)
             @StatusCard("Connection", Display(Status?.ConnectionType), "The active route to your server.", AppMaterialIcons.Outlined.Cable)

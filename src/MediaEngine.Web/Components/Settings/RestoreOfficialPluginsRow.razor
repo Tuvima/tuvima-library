@@ -9,9 +9,9 @@
    not on the Plugins tiles. The button opens a short dialog that lists each Tuvima plugin file that is missing, damaged or edited. *@
 @if (Session.Authority?.EffectiveAdministrator == true)
 {
-    <AppCard Title="@L["RestorePlugins_Title"].Value" Description="@L["RestorePlugins_Description"].Value" Class="tl-sp-mb-3" data-testid="restore-plugins-row">
+    <AppSettingsGroup Heading="@L["RestorePlugins_Title"].Value" Helper="@L["RestorePlugins_Description"].Value" data-testid="restore-plugins-row">
         <AppButton Label="@L["RestorePlugins_Open"].Value" ButtonStyle="AppButtonStyle.Outlined" OnClick="OpenAsync" data-testid="restore-plugins-open" />
-    </AppCard>
+    </AppSettingsGroup>
 }
 
 @code {

@@ -23,7 +23,6 @@ public sealed class SettingsPageFrameTests : AsyncBunitContext
     {
         var cut = Render<SettingsPageFrame>(parameters => parameters
             .Add(frame => frame.Breadcrumbs, Trail)
-            .Add(frame => frame.Eyebrow, "Personal")
             .Add(frame => frame.Title, "Security")
             .Add(frame => frame.Description, "Password, email and extra protection.")
             .AddChildContent("<p id=\"page-body\">Body</p>"));
@@ -32,7 +31,7 @@ public sealed class SettingsPageFrameTests : AsyncBunitContext
         Assert.Equal("Security", cut.Find("nav.settings-breadcrumbs span[aria-current='page']").TextContent);
         Assert.Equal("Security", cut.Find("h1").TextContent);
         Assert.Contains("Password, email and extra protection.", cut.Markup, StringComparison.Ordinal);
-        Assert.Contains("Personal", cut.Find(".app-page-header__eyebrow").TextContent, StringComparison.Ordinal);
+        Assert.Empty(cut.FindAll(".app-page-header__eyebrow"));
         Assert.NotNull(cut.Find("[data-settings-frame-slot='content'] #page-body"));
     }
 

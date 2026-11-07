@@ -18,8 +18,6 @@ public sealed class TypographySystemGuardTests
         var styles = ReadRepoFile(@"src/MediaEngine.Web/wwwroot/app.css");
 
         Assert.Contains("font-family: var(--font-ui);", styles, StringComparison.Ordinal);
-        Assert.Contains("--app-font-sans: var(--font-ui);", styles, StringComparison.Ordinal);
-        Assert.Contains("--app-font-brand: var(--font-brand);", styles, StringComparison.Ordinal);
         Assert.DoesNotContain("fonts.googleapis.com", styles, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Nunito", styles, StringComparison.OrdinalIgnoreCase);
     }

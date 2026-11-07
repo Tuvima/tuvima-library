@@ -1051,12 +1051,8 @@ else
             await InvokeAsync(StateHasChanged);
     }
 
-    private RenderFragment DangerPanel(PluginSummaryResponse plugin) => @<AppCard Class="settings-plugin-danger-card">
+    private RenderFragment DangerPanel(PluginSummaryResponse plugin) => @<AppSettingsGroup Heading="Danger zone" Helper="Destructive plugin actions are kept separate from everyday settings." Tone="AppSettingsGroupTone.Danger" Class="settings-plugin-danger-card">
         <div class="settings-plugin-danger-header">
-            <div>
-                <AppText Typo="AppTypo.subtitle1">Danger Zone</AppText>
-                <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Destructive plugin actions are kept separate from everyday settings.</AppText>
-            </div>
             @if (!plugin.Removable)
             {
                 <AppText Typo="AppTypo.caption" Color="AppColor.Secondary">Official plugins can be switched off, but not removed.</AppText>
@@ -1108,7 +1104,7 @@ else
                            OnClick="@(() => BeginDeleteAsync(plugin))" />
             }
         </div>
-    </AppCard>;
+    </AppSettingsGroup>;
 
     protected override async Task OnInitializedAsync()
     {

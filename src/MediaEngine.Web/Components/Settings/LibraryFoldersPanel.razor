@@ -34,17 +34,17 @@
         <p class="library-folders__phone-note">@PhoneNote</p>
         @if (_unknownType)
         {
-            <AppCard Class="library-folders__detail">
+            <div class="library-folders__detail">
                 <div class="library-folders__empty">
                     <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.FolderOpen" />
                     <strong>@L["LibraryFoldersPanel_ThisLibraryTypeDoesNot"]</strong>
                     <span><a href="/settings/libraries">@L["Common_BackToLibraries"]</a></span>
                 </div>
-            </AppCard>
+            </div>
         }
         else if (ImportSelected)
         {
-            <AppCard Class="library-folders__detail">
+            <div class="library-folders__detail">
                 <header class="library-folders__detail-header">
                     <span class="library-folders__icon library-folders__icon--import"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.MoveToInbox" /></span>
                     <div>
@@ -137,11 +137,11 @@
                         <p class="library-folders__hint library-folders__hint--merge">@L["LibraryFoldersPanel_ToBringInAWhole"]</p>
                     }
                 }
-            </AppCard>
+            </div>
         }
         else
         {
-            <AppCard Class="library-folders__detail">
+            <div class="library-folders__detail">
                 @* Dropping files on this type's page puts them in the Import folder (Library setup D44). *@
                 <LibraryUploadZone Kinds="@Kinds"
                                    Configuration="@_configuration"
@@ -181,7 +181,7 @@
                     @LibraryBody(SelectedLibrary, true)
                 }
                 </LibraryUploadZone>
-            </AppCard>
+            </div>
         }
 
     }

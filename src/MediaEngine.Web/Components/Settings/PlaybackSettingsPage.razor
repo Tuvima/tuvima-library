@@ -56,8 +56,7 @@ else if (_settings is not null)
 
         <div class="playback-settings-grid">
             <SettingsSectionPanel Title="@L["PlaybackSettingsPage_Autoplay"].Value"
-                                  Description="@L["PlaybackSettingsPage_WhatHappensWhenAnEpisode"].Value"
-                                  Class="tl-card settings-section-card playback-settings-card">
+                                  Description="@L["PlaybackSettingsPage_WhatHappensWhenAnEpisode"].Value">
                 @BoolRow(
                     "Autoplay next episode",
                     "Start the next episode after a short countdown. Turn off to choose it yourself.",
@@ -66,8 +65,7 @@ else if (_settings is not null)
             </SettingsSectionPanel>
 
             <SettingsSectionPanel Title="@L["Common_Resume"].Value"
-                                  Description="@L["PlaybackSettingsPage_WhereAMovieOrEpisode"].Value"
-                                  Class="tl-card settings-section-card playback-settings-card">
+                                  Description="@L["PlaybackSettingsPage_WhereAMovieOrEpisode"].Value">
                 @BoolRow(
                     "Resume where you left off",
                     "Continue from your last saved position.",
@@ -76,8 +74,7 @@ else if (_settings is not null)
             </SettingsSectionPanel>
 
             <SettingsSectionPanel Title="@L["Common_Skip"].Value"
-                                  Description="@L["PlaybackSettingsPage_HowFarThePlayerSkip"].Value"
-                                  Class="tl-card settings-section-card playback-settings-card">
+                                  Description="@L["PlaybackSettingsPage_HowFarThePlayerSkip"].Value">
                 @IntSelectRow(
                     "Skip back",
                     "The amount used by the rewind control.",
@@ -93,8 +90,7 @@ else if (_settings is not null)
             </SettingsSectionPanel>
 
             <SettingsSectionPanel Title="@L["PlaybackSettingsPage_BarTitle"].Value"
-                                  Description="@L["PlaybackSettingsPage_BarDescription"].Value"
-                                  Class="tl-card settings-section-card playback-settings-card">
+                                  Description="@L["PlaybackSettingsPage_BarDescription"].Value">
                 @BoolRow(
                     L["PlaybackSettingsPage_ChapterMarks"].Value,
                     L["PlaybackSettingsPage_ChapterMarksHint"].Value,
@@ -111,26 +107,22 @@ else if (_settings is not null)
             {
                 @* Only the person themselves chooses this; an administrator editing another profile does not see it. *@
                 <SettingsSectionPanel Title="@L["Common_Spoilers"].Value"
-                                      Description="@L["PlaybackSettingsPage_HowMuchOfAStory"].Value"
-                                      Class="tl-card settings-section-card playback-settings-card">
-                    <div class="playback-preference-row" data-spoiler-level>
-                        <div class="playback-preference-row__copy">
-                            <AppText Typo="AppTypo.body1">@L["Universe_GuideFilterCharacters"]</AppText>
-                            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@L["PlaybackSettingsPage_UpToWhereIAm"]</AppText>
-                        </div>
-                        <AppSegmentedControl Options="SpoilerLevelOptions"
+                                      Description="@L["PlaybackSettingsPage_HowMuchOfAStory"].Value">
+                    <AppSettingRow Label="@L["Universe_GuideFilterCharacters"].Value" Helper="@L["PlaybackSettingsPage_UpToWhereIAm"].Value" data-spoiler-level>
+<Control>
+<AppSegmentedControl Options="SpoilerLevelOptions"
                                              Value="@SpoilerLevelValue"
                                              ValueChanged="SaveSpoilerLevelAsync"
                                              AriaLabel="@L["Common_Spoilers"].Value"
                                              Class="playback-preference-row__control" />
-                    </div>
+</Control>
+</AppSettingRow>
                 </SettingsSectionPanel>
             }
 
             <div id="subtitles" class="playback-subtitles-group" data-playback-section="subtitles">
                 <SettingsSectionPanel Title="@L["PlaybackSettingsPage_SubtitlesAudio"].Value"
-                                      Description="@L["PlaybackSettingsPage_WhichLanguagePlaysFirstAnd"].Value"
-                                      Class="tl-card settings-section-card playback-settings-card">
+                                      Description="@L["PlaybackSettingsPage_WhichLanguagePlaysFirstAnd"].Value">
                     @StringSelectRow(
                         "Audio language",
                         "The audio track the player starts with when a title has more than one.",
@@ -174,8 +166,7 @@ else if (_settings is not null)
                 </SettingsSectionPanel>
 
                 <SettingsSectionPanel Title="@L["PlaybackSettingsPage_SubtitleAppearance"].Value"
-                                      Description="@L["PlaybackSettingsPage_HowSubtitlesLookOverThe"].Value"
-                                      Class="tl-card settings-section-card playback-settings-card">
+                                      Description="@L["PlaybackSettingsPage_HowSubtitlesLookOverThe"].Value">
                     <div class="subtitle-preview"
                          data-subtitle-size="@NormalizedSubtitleSize"
                          data-subtitle-background="@(Subtitles.SubtitleBackground ? "true" : "false")"
@@ -183,17 +174,15 @@ else if (_settings is not null)
                          aria-label="@L["PlaybackSettingsPage_SampleOfTheSubtitleStyle"].Value">
                         <p class="subtitle-preview__line"><span class="subtitle-preview__text">@L["PlaybackSettingsPage_TheRainHadStoppedBy"]</span></p>
                     </div>
-                    <div class="playback-preference-row">
-                        <div class="playback-preference-row__copy">
-                            <AppText Typo="AppTypo.body1">@L["Common_TextSize"]</AppText>
-                            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@L["PlaybackSettingsPage_HowLargeSubtitlesAreIn"]</AppText>
-                        </div>
-                        <AppSegmentedControl Options="SubtitleSizeOptions"
+                    <AppSettingRow Label="@L["Common_TextSize"].Value" Helper="@L["PlaybackSettingsPage_HowLargeSubtitlesAreIn"].Value">
+<Control>
+<AppSegmentedControl Options="SubtitleSizeOptions"
                                              Value="@NormalizedSubtitleSize"
                                              ValueChanged="@(value => UpdateAndSaveAsync(s => s.Subtitles.SubtitleSize = value))"
                                              AriaLabel="@L["Common_TextSize"].Value"
                                              Class="playback-preference-row__control" />
-                    </div>
+</Control>
+</AppSettingRow>
                     @BoolRow(
                         "Background",
                         "Put a dark box behind subtitles. Turn off to show the text with a soft shadow only.",
@@ -356,13 +345,11 @@ else if (_settings is not null)
         }
     }
 
-    private RenderFragment BoolRow(string title, string description, bool value, Func<bool, Task> changed) => @<div class="playback-preference-row">
-        <div class="playback-preference-row__copy">
-            <AppText Typo="AppTypo.body1">@title</AppText>
-            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@description</AppText>
-        </div>
-        <AppSwitchRow T="bool" Value="@value" ValueChanged="@changed" Color="AppColor.Primary" AriaLabel="@title" />
-    </div>;
+    private RenderFragment BoolRow(string title, string description, bool value, Func<bool, Task> changed) => @<AppSettingRow Label="@title" Helper="@description">
+        <Control>
+            <AppSwitchRow T="bool" Value="@value" ValueChanged="@changed" Color="AppColor.Primary" AriaLabel="@title" />
+        </Control>
+    </AppSettingRow>;
 
     private static IReadOnlyList<AppSelectOption> LanguageOptionsFor(string? current) =>
         PlaybackLanguageOptions.WithCurrent(current).Select(language => new AppSelectOption(language, language)).ToList();
@@ -373,11 +360,8 @@ else if (_settings is not null)
         string value,
         IReadOnlyList<AppSelectOption> options,
         Func<string, Task> changed,
-        bool wide = false) => @<div class="playback-preference-row">
-        <div class="playback-preference-row__copy">
-            <AppText Typo="AppTypo.body1">@title</AppText>
-            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@description</AppText>
-        </div>
+        bool wide = false) => @<AppSettingRow Label="@title" Helper="@description">
+        <Control>
         <AppSelect Value="@value"
                    ValueChanged="@(selected => changed(selected ?? value))"
                    Variant="AppVariant.Outlined"
@@ -391,18 +375,16 @@ else if (_settings is not null)
                 <AppSelectItem T="string" Value="@option.Value">@option.Label</AppSelectItem>
             }
         </AppSelect>
-    </div>;
+        </Control>
+    </AppSettingRow>;
 
     private RenderFragment IntSelectRow(
         string title,
         string description,
         int value,
         IReadOnlyList<int> options,
-        Func<int, Task> changed) => @<div class="playback-preference-row">
-        <div class="playback-preference-row__copy">
-            <AppText Typo="AppTypo.body1">@title</AppText>
-            <AppText Typo="AppTypo.body2" Color="AppColor.Secondary">@description</AppText>
-        </div>
+        Func<int, Task> changed) => @<AppSettingRow Label="@title" Helper="@description">
+        <Control>
         <AppIntSelect Value="@value"
                       ValueChanged="@changed"
                       Variant="AppVariant.Outlined"
@@ -416,7 +398,8 @@ else if (_settings is not null)
                 <AppSelectItem T="int" Value="@option">@($"{option} seconds")</AppSelectItem>
             }
         </AppIntSelect>
-    </div>;
+        </Control>
+    </AppSettingRow>;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
