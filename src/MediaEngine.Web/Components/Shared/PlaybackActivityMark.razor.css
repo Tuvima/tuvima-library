@@ -1,6 +1,6 @@
 .playback-activity-mark {
     align-items: end;
-    color: var(--playback-blue, #547dff);
+    color: var(--playback-blue);
     display: inline-flex;
     gap: 2px;
     height: 18px;

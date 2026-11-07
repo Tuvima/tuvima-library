@@ -2083,9 +2083,6 @@
         }
     }
 
-    private static string FallbackIconFor(ListenQueueItem item)
-        => IsAudiobook(item) ? AppMaterialIcons.Outlined.Headphones : AppMaterialIcons.Outlined.Album;
-
     private static string PlayerSubtitleFor(ListenQueueItem item, string? sourceLabel)
     {
         if (IsAudiobook(item))

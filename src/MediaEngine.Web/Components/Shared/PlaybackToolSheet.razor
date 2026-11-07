@@ -11,9 +11,9 @@
         {
             @HeaderButton(PlaybackUtilityGlyphKind.Back, L["Common_Back"].Value, OnBack)
         }
-        else if (!string.IsNullOrWhiteSpace(Icon))
+        else if (Glyph is { } glyph)
         {
-            <AppMaterialIcon Icon="@Icon" Class="playback-tool-sheet__header-icon" />
+            <span class="playback-tool-sheet__header-icon" aria-hidden="true"><PlaybackUtilityGlyph Glyph="glyph" /></span>
         }
         <div class="playback-tool-sheet__heading">
             @if (TitleAdornment is not null)
@@ -51,8 +51,9 @@
     [Parameter]
     public string? Subtitle { get; set; }
 
+    /// <summary>A stroke glyph drawn before the title when there is no Back button.</summary>
     [Parameter]
-    public string? Icon { get; set; }
+    public PlaybackUtilityGlyphKind? Glyph { get; set; }
 
     [Parameter]
     public string Surface { get; set; } = "panel";

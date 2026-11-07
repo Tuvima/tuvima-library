@@ -11,7 +11,7 @@
 }
 
 .playback-primary-button-shell--appearance-dock {
-    --playback-primary-glyph:#fff;
+    --playback-primary-glyph: var(--tl-on-scrim);
     --playback-primary-size:60px;
     --playback-primary-visual-size:var(--playback-primary-size);
     height: var(--playback-primary-size);
@@ -36,7 +36,7 @@
     border: 2.5px solid var(--playback-accent);
     border-radius: var(--tl-radius-round);
     box-shadow: var(--playback-primary-shadow);
-    color: var(--playback-primary-glyph, #fff) !important;
+    color: var(--playback-primary-glyph, var(--tl-on-scrim)) !important;
     cursor: pointer;
     display: inline-flex;
     height: var(--playback-primary-visual-size, var(--playback-primary-size));
@@ -108,8 +108,9 @@
 }
 
 .playback-primary-button-shell ::deep .playback-primary-button__icon {
-    color: var(--playback-primary-glyph, #fff) !important;
-    font-size: var(--playback-primary-icon-size) !important;
+    --playback-glyph-size: var(--playback-primary-icon-size);
+    --playback-glyph-stroke: 1.8;
+    color: var(--playback-primary-glyph, var(--tl-on-scrim)) !important;
     height: var(--playback-primary-icon-size);
     line-height: 1;
     display: block;
@@ -128,11 +129,10 @@
     background: transparent !important;
     border: 2.5px solid var(--playback-accent);
     box-shadow: none;
-    color: #fff !important;
+    color: var(--tl-on-scrim) !important;
 }
 .playback-primary-button-shell--appearance-video ::deep .playback-primary-button__icon {
-    color: #fff !important;
-    fill: #fff !important;
+    color: var(--tl-on-scrim) !important;
 }
 
 /* The persistent bar's Play (unified player v2 D6): a 32 px stroke glyph in a 48 px target. No ring, no glow, no lift; the shared hover,

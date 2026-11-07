@@ -73,7 +73,7 @@
                 <div class="video-playback-host__skip-segment">
                     <span>@SegmentDescription(segment.Kind)</span>
                     <AppTooltip Text="@SkipLabel(segment.Kind)"><AppNativeButton Type="button" Class="video-playback-host__icon"
-                        AriaLabel="@SkipLabel(segment.Kind)" OnClick="@(() => SeekOnHostAsync(segment.EndSeconds!.Value))"><AppMaterialIcon Icon="@AppMaterialIcons.Outlined.SkipNext" /></AppNativeButton></AppTooltip>
+                        AriaLabel="@SkipLabel(segment.Kind)" OnClick="@(() => SeekOnHostAsync(segment.EndSeconds!.Value))"><PlaybackUtilityGlyph Glyph="PlaybackUtilityGlyphKind.Next" /></AppNativeButton></AppTooltip>
                 </div>
             }
             <PlaybackShell Media="@BarMedia" Surface="video" Phone="@IsPhoneVideo" Class="video-playback-host__bar" AriaLabel="@L["VideoPlaybackHost_VideoPlayback"].Value"

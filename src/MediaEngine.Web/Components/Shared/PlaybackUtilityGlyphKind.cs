@@ -59,56 +59,49 @@ public enum PlaybackUtilityGlyphKind
     OpenExternal,
     Drag,
     ChevronUp,
+    Timeline,
 }
 
 public static class PlaybackUtilityGlyphMap
 {
-    public static bool TryFromControlKey(PlaybackControlKey key, out PlaybackUtilityGlyphKind glyph)
+    /// <summary>The stroke glyph a control draws (unified player v2 D6): every control key has one, so the catalog never falls back to a Material icon.</summary>
+    public static PlaybackUtilityGlyphKind For(PlaybackControlKey key) => key switch
     {
-        glyph = key switch
-        {
-            PlaybackControlKey.Queue => PlaybackUtilityGlyphKind.Queue,
-            PlaybackControlKey.History => PlaybackUtilityGlyphKind.History,
-            PlaybackControlKey.Lyrics => PlaybackUtilityGlyphKind.Lyrics,
-            PlaybackControlKey.Chapters => PlaybackUtilityGlyphKind.Chapters,
-            PlaybackControlKey.Bookmarks => PlaybackUtilityGlyphKind.Bookmark,
-            PlaybackControlKey.SleepTimer => PlaybackUtilityGlyphKind.Sleep,
-            PlaybackControlKey.Speed => PlaybackUtilityGlyphKind.Speed,
-            PlaybackControlKey.Settings => PlaybackUtilityGlyphKind.Settings,
-            PlaybackControlKey.Mute => PlaybackUtilityGlyphKind.Mute,
-            PlaybackControlKey.Volume => PlaybackUtilityGlyphKind.Volume,
-            PlaybackControlKey.Shuffle => PlaybackUtilityGlyphKind.Shuffle,
-            PlaybackControlKey.Repeat => PlaybackUtilityGlyphKind.Repeat,
-            PlaybackControlKey.Captions => PlaybackUtilityGlyphKind.Captions,
-            PlaybackControlKey.AudioTrack => PlaybackUtilityGlyphKind.AudioTrack,
-            PlaybackControlKey.Quality => PlaybackUtilityGlyphKind.Quality,
-            PlaybackControlKey.Fullscreen => PlaybackUtilityGlyphKind.Fullscreen,
-            PlaybackControlKey.PictureInPicture => PlaybackUtilityGlyphKind.PictureInPicture,
-            PlaybackControlKey.Cast => PlaybackUtilityGlyphKind.Cast,
-            PlaybackControlKey.Favorite => PlaybackUtilityGlyphKind.Favorite,
-            PlaybackControlKey.Close => PlaybackUtilityGlyphKind.Close,
-            PlaybackControlKey.Expand => PlaybackUtilityGlyphKind.Expand,
-            PlaybackControlKey.Resume => PlaybackUtilityGlyphKind.Restore,
-            PlaybackControlKey.More => PlaybackUtilityGlyphKind.More,
-            PlaybackControlKey.PreviousItem => PlaybackUtilityGlyphKind.Previous,
-            PlaybackControlKey.NextItem => PlaybackUtilityGlyphKind.Next,
-            PlaybackControlKey.NowPlaying => PlaybackUtilityGlyphKind.NowPlaying,
-            PlaybackControlKey.Episodes => PlaybackUtilityGlyphKind.Episodes,
-            PlaybackControlKey.AudioSubtitles => PlaybackUtilityGlyphKind.AudioSubtitles,
-            PlaybackControlKey.Like => PlaybackUtilityGlyphKind.Like,
-            PlaybackControlKey.Dislike => PlaybackUtilityGlyphKind.Dislike,
-            _ => default,
-        };
-
-        return key is PlaybackControlKey.Queue or PlaybackControlKey.History or PlaybackControlKey.Lyrics
-            or PlaybackControlKey.Chapters or PlaybackControlKey.Bookmarks or PlaybackControlKey.SleepTimer
-            or PlaybackControlKey.Speed or PlaybackControlKey.Settings or PlaybackControlKey.Mute or PlaybackControlKey.Volume
-            or PlaybackControlKey.Shuffle or PlaybackControlKey.Repeat or PlaybackControlKey.Captions
-            or PlaybackControlKey.AudioTrack or PlaybackControlKey.Quality or PlaybackControlKey.Fullscreen
-            or PlaybackControlKey.PictureInPicture or PlaybackControlKey.Cast or PlaybackControlKey.Favorite
-            or PlaybackControlKey.Close or PlaybackControlKey.Expand or PlaybackControlKey.Resume or PlaybackControlKey.More
-            or PlaybackControlKey.PreviousItem or PlaybackControlKey.NextItem or PlaybackControlKey.NowPlaying
-            or PlaybackControlKey.Episodes or PlaybackControlKey.AudioSubtitles
-            or PlaybackControlKey.Like or PlaybackControlKey.Dislike;
-    }
+        PlaybackControlKey.PlayPause => PlaybackUtilityGlyphKind.Play,
+        PlaybackControlKey.Timeline => PlaybackUtilityGlyphKind.Timeline,
+        PlaybackControlKey.PreviousItem => PlaybackUtilityGlyphKind.Previous,
+        PlaybackControlKey.NextItem => PlaybackUtilityGlyphKind.Next,
+        PlaybackControlKey.SkipBack => PlaybackUtilityGlyphKind.SkipBack,
+        PlaybackControlKey.SkipForward => PlaybackUtilityGlyphKind.SkipForward,
+        PlaybackControlKey.SkipIntro or PlaybackControlKey.SkipCredits => PlaybackUtilityGlyphKind.SkipForward,
+        PlaybackControlKey.Volume => PlaybackUtilityGlyphKind.Volume,
+        PlaybackControlKey.Mute => PlaybackUtilityGlyphKind.Mute,
+        PlaybackControlKey.Queue => PlaybackUtilityGlyphKind.Queue,
+        PlaybackControlKey.History => PlaybackUtilityGlyphKind.History,
+        PlaybackControlKey.Lyrics => PlaybackUtilityGlyphKind.Lyrics,
+        PlaybackControlKey.Chapters => PlaybackUtilityGlyphKind.Chapters,
+        PlaybackControlKey.Bookmarks => PlaybackUtilityGlyphKind.Bookmark,
+        PlaybackControlKey.SleepTimer => PlaybackUtilityGlyphKind.Sleep,
+        PlaybackControlKey.Speed => PlaybackUtilityGlyphKind.Speed,
+        PlaybackControlKey.Settings => PlaybackUtilityGlyphKind.Settings,
+        PlaybackControlKey.Cast => PlaybackUtilityGlyphKind.Cast,
+        PlaybackControlKey.More => PlaybackUtilityGlyphKind.More,
+        PlaybackControlKey.Captions => PlaybackUtilityGlyphKind.Captions,
+        PlaybackControlKey.AudioTrack => PlaybackUtilityGlyphKind.AudioTrack,
+        PlaybackControlKey.Quality => PlaybackUtilityGlyphKind.Quality,
+        PlaybackControlKey.Fullscreen => PlaybackUtilityGlyphKind.Fullscreen,
+        PlaybackControlKey.PictureInPicture => PlaybackUtilityGlyphKind.PictureInPicture,
+        PlaybackControlKey.Shuffle => PlaybackUtilityGlyphKind.Shuffle,
+        PlaybackControlKey.Repeat => PlaybackUtilityGlyphKind.Repeat,
+        PlaybackControlKey.Favorite => PlaybackUtilityGlyphKind.Favorite,
+        PlaybackControlKey.Close => PlaybackUtilityGlyphKind.Close,
+        PlaybackControlKey.Expand => PlaybackUtilityGlyphKind.Expand,
+        PlaybackControlKey.Resume => PlaybackUtilityGlyphKind.Restore,
+        PlaybackControlKey.AudioSubtitles => PlaybackUtilityGlyphKind.AudioSubtitles,
+        PlaybackControlKey.Episodes => PlaybackUtilityGlyphKind.Episodes,
+        PlaybackControlKey.NowPlaying => PlaybackUtilityGlyphKind.NowPlaying,
+        PlaybackControlKey.Like => PlaybackUtilityGlyphKind.Like,
+        PlaybackControlKey.Dislike => PlaybackUtilityGlyphKind.Dislike,
+        _ => throw new ArgumentOutOfRangeException(nameof(key), key, "Every playback control key needs a stroke glyph."),
+    };
 }

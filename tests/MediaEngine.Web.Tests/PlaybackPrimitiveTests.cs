@@ -324,7 +324,7 @@ public sealed class PlaybackPrimitiveTests
         Assert.DoesNotContain("Playback device unavailable", listenBar, StringComparison.Ordinal);
         Assert.Contains("place-items: center;", shellStyles, StringComparison.Ordinal);
         Assert.Contains("object-fit: contain;", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackIdentity.razor.css")), StringComparison.Ordinal);
-        Assert.Contains("font-size:var(--tl-icon-size-md)", videoStyles, StringComparison.Ordinal);
+        Assert.Contains("--playback-glyph-size:var(--tl-icon-size-md)", videoStyles, StringComparison.Ordinal);
         Assert.Contains("--playback-primary-icon-size:24px", LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackVideoChrome.razor.css")), StringComparison.Ordinal);
         Assert.Contains("object-fit:contain", videoStyles, StringComparison.Ordinal);
         Assert.Contains("<TimelineContent>@DockTimeline</TimelineContent>", listenBar, StringComparison.Ordinal);
@@ -378,7 +378,7 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("--playback-accent: var(--tl-accent-primary);", tokens, StringComparison.Ordinal);
         Assert.Contains("--playback-tool-width: 400px;", tokens, StringComparison.Ordinal);
         Assert.Contains("Role=\"@(Modal ? \"dialog\" : \"region\")\"", toolSheet, StringComparison.Ordinal);
-        Assert.Contains("Icon=\"@Icon\"", toolSheet, StringComparison.Ordinal);
+        Assert.Contains("PlaybackUtilityGlyph Glyph=\"glyph\"", toolSheet, StringComparison.Ordinal);
         Assert.Contains("Modal=\"Modal\"", toolSheet, StringComparison.Ordinal);
         Assert.Contains("@media (max-width: 720px)", toolSheetCss, StringComparison.Ordinal);
         Assert.Contains("max-height: 85svh;", toolSheetCss, StringComparison.Ordinal);

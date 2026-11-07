@@ -34,8 +34,8 @@
     background: var(--playback-surface-elevated);
 }
 
-.listen-context-sidebar ::deep .listen-context-sidebar__replay .tl-icon-root {
-    font-size: var(--tl-icon-size-sm);
+.listen-context-sidebar ::deep .listen-context-sidebar__replay .playback-utility-glyph {
+    --playback-glyph-size: 20px;
 }
 
 .listen-context-sidebar__date {

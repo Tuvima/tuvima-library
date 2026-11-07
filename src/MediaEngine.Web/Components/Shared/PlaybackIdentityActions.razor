@@ -91,11 +91,11 @@
     };
 
     private PlaybackControlDefinition FavoriteControl => new(PlaybackControlKey.Favorite, "Favorite",
-        FavoriteLabel, string.Empty, PlaybackControlPlacement.Utility, "favorite",
+        FavoriteLabel, PlaybackUtilityGlyphKind.Favorite, PlaybackControlPlacement.Utility, "favorite",
         IsActive: Favorited, IsSelected: Favorited);
-    private PlaybackControlDefinition LikeControl => new(PlaybackControlKey.Like, "Like", "Like", string.Empty, PlaybackControlPlacement.Utility, "like",
+    private PlaybackControlDefinition LikeControl => new(PlaybackControlKey.Like, "Like", "Like", PlaybackUtilityGlyphKind.Like, PlaybackControlPlacement.Utility, "like",
         IsActive: Liked, IsSelected: Liked);
-    private PlaybackControlDefinition DislikeControl => new(PlaybackControlKey.Dislike, "Dislike", "Dislike", string.Empty, PlaybackControlPlacement.Utility, "dislike",
+    private PlaybackControlDefinition DislikeControl => new(PlaybackControlKey.Dislike, "Dislike", "Dislike", PlaybackUtilityGlyphKind.Dislike, PlaybackControlPlacement.Utility, "dislike",
         IsActive: Disliked, IsSelected: Disliked);
 
     protected override void OnInitialized()

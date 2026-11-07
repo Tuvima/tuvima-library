@@ -13,15 +13,8 @@
                      aria-expanded="@AriaExpanded"
                      @attributes="AdditionalAttributes">
         <span class="playback-icon-button__visual" aria-hidden="true">
-            @if (PlaybackUtilityGlyphMap.TryFromControlKey(Control.Key, out var glyph))
-            {
-                @* The speaker shows its loud form until the sound is muted (unified player v2 D10); the crossed form means muted. *@
-                <PlaybackUtilityGlyph Glyph="@(GlyphOverride ?? (Control.Key == PlaybackControlKey.Mute && !Control.IsActive ? PlaybackUtilityGlyphKind.Volume : glyph))" />
-            }
-            else
-            {
-                <AppMaterialIcon Icon="@Control.Icon" Class="playback-icon-button__icon" />
-            }
+            @* The speaker shows its loud form until the sound is muted (unified player v2 D10); the crossed form means muted. *@
+            <PlaybackUtilityGlyph Glyph="@(GlyphOverride ?? (Control.Key == PlaybackControlKey.Mute && !Control.IsActive ? PlaybackUtilityGlyphKind.Volume : Control.Glyph))" />
             @if (!string.IsNullOrWhiteSpace(Control.BadgeText) && Control.Key == PlaybackControlKey.Repeat)
             {
                 <span class="playback-icon-button__badge">@Control.BadgeText</span>
