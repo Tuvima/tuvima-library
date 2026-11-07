@@ -17,6 +17,25 @@
     </header>
 
     <div class="design-system-preview__grid">
+        <AppCard Title="Settings group" Description="AppSettingsGroup and AppSettingRow: rows on the page background, hairlines between, control at the right end.">
+            <AppSettingsGroup Heading="Playback" Helper="How this profile plays things.">
+                <AppSettingRow Label="Skip intros" Helper="Jump past title sequences." LeadingIcon="@AppMaterialIcons.Outlined.Settings">
+                    <Control><AppSwitchRow Value="true" AriaLabel="Skip intros" /></Control>
+                </AppSettingRow>
+                <AppSettingRow Label="Language">
+                    <Control><AppSelect T="string" Value="localized" Options="@LanguageOptions" AriaLabel="Language" /></Control>
+                    <Status>Saved just now.</Status>
+                </AppSettingRow>
+                <AppSettingRow Label="Rescan folder" Helper="Looks for new files.">
+                    <Control><AppButton Label="Rescan" Size="AppControlSize.Compact" /></Control>
+                </AppSettingRow>
+            </AppSettingsGroup>
+            <AppSettingsGroup Heading="Danger zone" Tone="AppSettingsGroupTone.Danger">
+                <AppSettingRow Label="Delete library" Helper="This cannot be undone." Tone="AppSettingsGroupTone.Danger">
+                    <Control><AppButton Label="Delete" Size="AppControlSize.Compact" /></Control>
+                </AppSettingRow>
+            </AppSettingsGroup>
+        </AppCard>
         <AppCard Title="Form Controls" Description="Shared field wrappers own first-party UI control sizing and alignment.">
             <div class="design-system-preview__form-grid">
                 @foreach (var size in Sizes)
