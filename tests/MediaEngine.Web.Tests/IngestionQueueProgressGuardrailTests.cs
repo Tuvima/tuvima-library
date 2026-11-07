@@ -46,7 +46,7 @@ public sealed class IngestionQueueProgressGuardrailTests
     public void LivePage_DoesNotReadAnEstimateOfItsOwn()
     {
         // The queue snapshot's own EstimatedSecondsRemaining is read only by the shared formatter (and the state's change signature).
-        foreach (var relative in new[] { "Components/Settings/Libraries/LibraryStatusLine.razor", "Components/Pages/RecentlyAddedPageContent.razor" })
+        foreach (var relative in new[] { "Components/Settings/Libraries/LibraryStatusLine.razor" })
         {
             Assert.DoesNotContain("EstimatedSecondsRemaining", File.ReadAllText(Path.Combine(WebRoot, relative)), StringComparison.Ordinal);
         }

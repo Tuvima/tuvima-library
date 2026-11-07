@@ -7,9 +7,9 @@
 @inject IJSRuntime JS
 @inject IStringLocalizer<SharedStrings> L
 
-<div class="view-document-viewer" role="dialog" aria-modal="true" aria-label="@Title" tabindex="-1" @ref="_root" @onkeydown="HandleKeyDown">
+<AppViewer @ref="_viewer" Class="view-document-viewer" Surface="AppViewerSurface.Page" Label="@Title" tabindex="-1" OnKeyDown="HandleKeyDown"
+           OnClose="Close" CloseLabel="@L["ViewDocumentViewer_CloseDocument"].Value">
     <header class="view-document-viewer__bar">
-        <AppIconButton Icon="@AppMaterialIcons.Outlined.ArrowBack" Tooltip="@L["Common_BackToDocuments"].Value" AriaLabel="@L["ViewDocumentViewer_CloseDocument"].Value" OnClick="Close" />
         <div class="view-document-viewer__title">
             <h2>@Title</h2>
             <p>@ChipSummary</p>
@@ -98,7 +98,7 @@
             }
         </div>
     }
-</div>
+</AppViewer>
 
 @code {
     private enum ViewerMode { Pdf, Text }
@@ -119,7 +119,9 @@
     [Parameter] public bool CanEditDetails { get; set; }
     [Parameter] public EventCallback OnEditDetails { get; set; }
 
-    private ElementReference _root, _scroller, _pages;
+    private AppViewer? _viewer;
+    private ElementReference _root => _viewer?.Root ?? default;
+    private ElementReference _scroller, _pages;
     private IJSObjectReference? _module;
     private DotNetObjectReference<ViewDocumentViewer>? _self;
     private ViewerMode _mode;

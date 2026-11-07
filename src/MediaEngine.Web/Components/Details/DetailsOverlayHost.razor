@@ -11,12 +11,7 @@
 @* The details overlay frame (spec D1): a modal window over the page the person came from (a bottom sheet on phones).
    The browser makes everything outside it inert and unreachable, app-dialog.js locks the page scroll, returns focus to
    the element that opened it, and routes Esc, the backdrop and the sheet's grip to RequestCancel, which asks the guards. *@
-<dialog @ref="_dialog"
-        class="@RootClass"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="@TitleId"
-        data-details-overlay>
+<AppViewer @ref="_viewer" Native="true" Surface="AppViewerSurface.Page" Class="@RootClass" LabelledBy="@TitleId" data-details-overlay="">
     @if (IsSheet)
     {
         <div class="tl-details-overlay__grip" data-app-dialog-grip aria-hidden="true"><span></span></div>
@@ -34,14 +29,15 @@
             @ChildContent
         </div>
     </div>
-</dialog>
+</AppViewer>
 
 @code {
     private const string TitleId = "tl-details-overlay-title";
 
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
-    private ElementReference _dialog;
+    private AppViewer? _viewer;
+    private ElementReference _dialog => _viewer?.Root ?? default;
     private readonly string _frameId = Guid.NewGuid().ToString("N");
     private IJSObjectReference? _module;
     private DotNetObjectReference<DetailsOverlayHost>? _self;

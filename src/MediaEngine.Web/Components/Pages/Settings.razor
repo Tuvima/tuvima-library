@@ -516,7 +516,7 @@ else
         }
 
         await LoadAuthorityAsync();
-        ResolveSectionAndNormalize();
+        ResolveSection();
         if (_leavingSettings)
         {
             return;
@@ -547,7 +547,7 @@ else
             await ExitAdministrationAsync();
         }
         _wasAdministrationRoute = IsAdministrationRoute(Section);
-        ResolveSectionAndNormalize();
+        ResolveSection();
         if (!IsProfileDetailRoute)
         {
             _profileBreadcrumbName = null;
@@ -686,7 +686,7 @@ else
     // Administration pages need the administrator gate.
     private bool RequiresAdministratorSurface => SettingsNav.GetItem(_activeSection).AdminOnly;
 
-    private void ResolveSectionAndNormalize()
+    private void ResolveSection()
     {
         // A profile or authority change can reach this while the router has already moved to another settings page (or another tab of the same page) but has not
         // handed this component the new Section, Subsection and Detail yet. Redirecting from that stale Section sends the page to the old address, and the
@@ -716,7 +716,8 @@ else
 
         if (!resolution.RequestedSectionAllowed)
         {
-            Nav.NavigateTo(resolution.CanonicalRoute, replace: true);
+            // A page this person may not see is not found, the same as one that does not exist.
+            Nav.NavigateTo("/not-found", replace: true);
             return;
         }
 
@@ -752,25 +753,6 @@ else
         {
             Nav.NavigateTo("/not-found", replace: true);
             return;
-        }
-
-        var currentPath = NormalizePath(Nav.ToBaseRelativePath(RoutedPageAddress.AbsoluteFor(Nav, Overlay)));
-        var targetRoute = _activeSection == SettingsSection.Libraries && IsLibraryRouteSegment(Subsection)
-            ? $"/settings/libraries/{_activeSubsection}{(string.IsNullOrWhiteSpace(Detail) ? string.Empty : "/" + Detail.Trim().ToLowerInvariant())}"
-            : IsProfileDetailRoute
-            ? $"/settings/profiles/{_activeSubsection}{(ProfileTab.Length == 0 ? string.Empty : "/" + ProfileTab)}"
-            : IsIntegrationDetailRoute
-            ? $"/settings/integrations/{Uri.EscapeDataString(_activeSubsection)}{(IntegrationDetailTab.Length == 0 ? string.Empty : "/" + IntegrationDetailTab)}"
-            : IsPluginDetailRoute
-            ? $"/settings/plugins/{Uri.EscapeDataString(_activeSubsection)}{(PluginDetailTab.Length == 0 ? string.Empty : "/" + PluginDetailTab)}"
-            : string.IsNullOrWhiteSpace(Subsection)
-            ? resolution.CanonicalRoute
-            : SettingsNav.RouteFor(_activeSection, _activeSubsection);
-        var targetPath = NormalizePath(targetRoute);
-
-        if (!string.Equals(currentPath, targetPath, StringComparison.OrdinalIgnoreCase))
-        {
-            Nav.NavigateTo(targetRoute, replace: true);
         }
     }
 
@@ -833,7 +815,7 @@ else
         {
             await LoadAuthorityAsync();
             await LoadDevelopmentToolsAsync();
-            ResolveSectionAndNormalize();
+            ResolveSection();
             StateHasChanged();
         });
     }

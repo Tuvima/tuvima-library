@@ -414,9 +414,6 @@
   <data name="Ingestion_StatusPending" xml:space="preserve">
     <value>Pending</value>
   </data>
-  <data name="Ingestion_ActivityReview" xml:space="preserve">
-    <value>Needs review</value>
-  </data>
   <data name="PluginPage_NotFoundTitle" xml:space="preserve">
     <value>This page isn't available</value>
   </data>
@@ -2541,33 +2538,6 @@
   <data name="RecentlyAddedPage_RecentlyAddedLibrary" xml:space="preserve">
     <value>Recently Added · Library</value>
   </data>
-  <data name="RecentlyAddedPageContent_LibraryActivity" xml:space="preserve">
-    <value>Library activity</value>
-  </data>
-  <data name="RecentlyAddedPageContent_ItemsBeingAddedAndCompleted" xml:space="preserve">
-    <value>Items being added and completed additions.</value>
-  </data>
-  <data name="RecentlyAddedPageContent_ViewProcessingQueue" xml:space="preserve">
-    <value>View processing queue</value>
-  </data>
-  <data name="RecentlyAddedPageContent_AddedToLibrary" xml:space="preserve">
-    <value>Added to library</value>
-  </data>
-  <data name="RecentlyAddedPageContent_LibraryActivityFilters" xml:space="preserve">
-    <value>Library activity filters</value>
-  </data>
-  <data name="RecentlyAddedPageContent_SearchTitlesFilesOrMetadata" xml:space="preserve">
-    <value>Search titles, files, or metadata...</value>
-  </data>
-  <data name="RecentlyAddedPageContent_DateRange" xml:space="preserve">
-    <value>Date range</value>
-  </data>
-  <data name="RecentlyAddedPageContent_NoRecentAdditionsFound" xml:space="preserve">
-    <value>No recent additions found</value>
-  </data>
-  <data name="RecentlyAddedPageContent_NoHistoricalItemsMatchThese" xml:space="preserve">
-    <value>No historical items match these filters.</value>
-  </data>
   <data name="Common_OpenDetails" xml:space="preserve">
     <value>Open details</value>
   </data>
@@ -3891,30 +3861,6 @@
   <data name="ApprovalDialog_SendsDataOut" xml:space="preserve">
     <value>Sends data out:</value>
   </data>
-  <data name="AvailablePluginsPanel_ThePluginDirectoryCouldNot" xml:space="preserve">
-    <value>The plugin directory could not be loaded from the Engine.</value>
-  </data>
-  <data name="AvailablePluginsPanel_AvailablePlugins" xml:space="preserve">
-    <value>Available plugins</value>
-  </data>
-  <data name="AvailablePluginsPanel_PluginsOtherPeopleHaveShared" xml:space="preserve">
-    <value>Plugins other people have shared, from a public list on GitHub.</value>
-  </data>
-  <data name="AvailablePluginsPanel_CheckNow" xml:space="preserve">
-    <value>Check now</value>
-  </data>
-  <data name="AvailablePluginsPanel_LookForAvailablePlugins" xml:space="preserve">
-    <value>Look for available plugins</value>
-  </data>
-  <data name="AvailablePluginsPanel_TheListIsCheckedAt" xml:space="preserve">
-    <value>The list is checked at most once a day, and when you press Check now. Nothing about you or your Library is sent.</value>
-  </data>
-  <data name="AvailablePluginsPanel_NoPluginsAreListedRight" xml:space="preserve">
-    <value>No plugins are listed right now</value>
-  </data>
-  <data name="AvailablePluginsPanel_PluginsThatShipWithThe" xml:space="preserve">
-    <value>Plugins that ship with the Library are already installed above.</value>
-  </data>
   <data name="BackupContentsSummary_MediaFilesAndFoldersAre" xml:space="preserve">
     <value>Media files and folders are not included.</value>
   </data>
@@ -4509,21 +4455,6 @@
   <data name="Common_AddProvider" xml:space="preserve">
     <value>Add provider</value>
   </data>
-  <data name="IngestionMediaDrawer_ChildDetailsWillAppearAs" xml:space="preserve">
-    <value>Child details will appear as files are identified.</value>
-  </data>
-  <data name="IngestionMediaDrawer_CloseIngestionDetails" xml:space="preserve">
-    <value>Close ingestion details</value>
-  </data>
-  <data name="IngestionMediaDrawer_AdditionProgress" xml:space="preserve">
-    <value>Addition progress</value>
-  </data>
-  <data name="IngestionMediaDrawer_MediaProcessingStatus" xml:space="preserve">
-    <value>Media processing status</value>
-  </data>
-  <data name="IngestionMediaDrawer_OpenItem" xml:space="preserve">
-    <value>Open item</value>
-  </data>
   <data name="Common_Now" xml:space="preserve">
     <value>Now</value>
   </data>
@@ -4634,12 +4565,6 @@
   </data>
   <data name="Common_CheckThatTheLibraryServer" xml:space="preserve">
     <value>Check that the Library server is running, then try again.</value>
-  </data>
-  <data name="LibraryActivityTab_NothingHasHappenedInThis" xml:space="preserve">
-    <value>Nothing has happened in this library yet</value>
-  </data>
-  <data name="LibraryActivityTab_ScansImportsRenamesAndAnything" xml:space="preserve">
-    <value>Scans, imports, renames and anything that needs review will show up here.</value>
   </data>
   <data name="Common_ActivityNewestFirst" xml:space="preserve">
     <value>Activity, newest first</value>
@@ -7122,9 +7047,6 @@
   <data name="SetupWelcomeStage_Change" xml:space="preserve">
     <value>Change</value>
   </data>
-  <data name="LibraryActivityTab_RunningNow" xml:space="preserve">
-    <value>Running now</value>
-  </data>
   <data name="SetupWelcomeStage_Cancel" xml:space="preserve">
     <value>Cancel</value>
   </data>
@@ -8316,12 +8238,6 @@
   <data name="AdvancedNetworkSettingsPanel_NetworkSettingsResetRemoteAccess" xml:space="preserve">
     <value>Network settings reset. Remote access is off.</value>
   </data>
-  <data name="AvailablePluginsPanel_ThePluginDirectoryCouldNot2" xml:space="preserve">
-    <value>The plugin directory could not be checked.</value>
-  </data>
-  <data name="AvailablePluginsPanel_ThePluginDirectorySwitchCould" xml:space="preserve">
-    <value>The plugin directory switch could not be saved.</value>
-  </data>
   <data name="BackupDestinationsSection_TheBackupSettingsCouldNot" xml:space="preserve">
     <value>The backup settings could not be saved.</value>
   </data>
@@ -8372,9 +8288,6 @@
   </data>
   <data name="HomeSettingsPage_YourHomeSettingsCouldNot" xml:space="preserve">
     <value>Your Home settings could not be saved. Nothing was changed.</value>
-  </data>
-  <data name="IngestionMediaDrawer_ChildDetailsCouldNotBe" xml:space="preserve">
-    <value>Child details could not be loaded. Try again.</value>
   </data>
   <data name="LibraryFileHandlingTab_EnterAPatternForExample" xml:space="preserve">
     <value>Enter a pattern, for example the Library standard one.</value>
@@ -9177,9 +9090,6 @@
   <data name="PluginProvides_EveryType" xml:space="preserve">
     <value>Every type</value>
   </data>
-  <data name="ProviderAccess_Title" xml:space="preserve">
-    <value>Access</value>
-  </data>
   <data name="ProviderAccess_NoKeyNeeded" xml:space="preserve">
     <value>No key needed</value>
   </data>
@@ -9195,18 +9105,6 @@
   <data name="ProviderAccess_Replace" xml:space="preserve">
     <value>Replace key</value>
   </data>
-  <data name="ProviderAccess_Test" xml:space="preserve">
-    <value>Test connection</value>
-  </data>
-  <data name="ProviderAccess_Testing" xml:space="preserve">
-    <value>Testing…</value>
-  </data>
-  <data name="ProviderAccess_Remove" xml:space="preserve">
-    <value>Remove key</value>
-  </data>
-  <data name="ProviderAccess_GetKey" xml:space="preserve">
-    <value>Get a key at {0}</value>
-  </data>
   <data name="CreateLibraryDialog_NothingCanIdentifyFilms" xml:space="preserve">
     <value>Nothing can identify films yet. Connect TMDB or TheTVDB first.</value>
   </data>
@@ -9218,9 +9116,6 @@
   </data>
   <data name="CreateLibraryDialog_ConnectASource" xml:space="preserve">
     <value>Connect a source</value>
-  </data>
-  <data name="SetupAreaCards_Add" xml:space="preserve">
-    <value>Add</value>
   </data>
   <data name="SetupAreaCards_ChangeFolder" xml:space="preserve">
     <value>Change folder</value>
@@ -9281,9 +9176,6 @@
   </data>
   <data name="EncodeSettingsTab_FFmpegDetails" xml:space="preserve">
     <value>FFmpeg and the other media tools are managed on Tools.</value>
-  </data>
-  <data name="RecentlyAddedPageContent_AddingToLibrary" xml:space="preserve">
-    <value>Adding to library</value>
   </data>
   <data name="LibraryStatusLine_ToolsAndRequirements" xml:space="preserve">
     <value>Tools and requirements</value>

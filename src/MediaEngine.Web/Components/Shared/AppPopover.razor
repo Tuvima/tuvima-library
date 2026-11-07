@@ -4,7 +4,7 @@
 @inject IJSRuntime JS
 @inject AppPopoverService Popovers
 <span @ref="_marker" class="app-popover-marker" aria-hidden="true"></span>
-<div @ref="_surface" popover="manual" class="tl-popover app-popover @(Open ? "tl-popover-open" : null) @Class" style="@Style" hidden="@(!Open)">
+<div @ref="_surface" popover="manual" class="tl-popover app-popover @SizeClass @(Open ? "tl-popover-open" : null) @Class" data-popout-size="@SizeName" style="@Style" hidden="@(!Open)" role="@Role" aria-label="@(string.IsNullOrWhiteSpace(Role) ? null : AriaLabel)">
     @ChildContent
 </div>
 @code {
@@ -12,12 +12,19 @@
     [Parameter] public EventCallback<bool> OpenChanged { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
     [Parameter] public string? Class { get; set; }
+    /// <summary>The Pop-out size (Look v3 D14): Menu 272 px or Panel 400 px, on phones a Sheet. Left empty, the popover keeps its caller's own width (a typed select, an autocomplete).</summary>
+    /// <summary>The surface's own role, for a tool panel that is a small dialog ("dialog") with its <see cref="AriaLabel"/>.</summary>
+    [Parameter] public string? Role { get; set; }
+    [Parameter] public string? AriaLabel { get; set; }
+    [Parameter] public AppPopoutSize Size { get; set; } = AppPopoutSize.None;
     [Parameter] public string? Style { get; set; }
     [Parameter] public AppOrigin AnchorOrigin { get; set; } = AppOrigin.BottomLeft;
     [Parameter] public AppOrigin TransformOrigin { get; set; } = AppOrigin.TopLeft;
     [Parameter] public bool MatchAnchorWidth { get; set; }
     [Parameter] public bool FocusOnOpen { get; set; }
     [Parameter] public ElementReference? Anchor { get; set; }
+    private string? SizeName => Size == AppPopoutSize.None ? null : Size.ToString().ToLowerInvariant();
+    private string? SizeClass => Size == AppPopoutSize.None ? null : $"app-popout app-popout--{SizeName}";
     private ElementReference _marker, _surface;
     private IJSObjectReference? _module;
     private DotNetObjectReference<AppPopover>? _self;

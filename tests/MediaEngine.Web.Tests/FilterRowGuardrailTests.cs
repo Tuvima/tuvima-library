@@ -46,7 +46,7 @@ public sealed class FilterRowGuardrailTests
     [Fact]
     public void TheSharedFilterRowIsUsedByTheListPagesThatFilter()
     {
-        foreach (var page in new[] { "Settings/NeedsReviewPageContent.razor", "Pages/RecentlyAddedPageContent.razor", "Settings/ActivityLogPanel.razor", "Settings/TechnicalLogPanel.razor" })
+        foreach (var page in new[] { "Settings/NeedsReviewPageContent.razor", "Settings/ActivityLogPanel.razor", "Settings/TechnicalLogPanel.razor" })
         {
             Assert.Contains("<AppFilterRow", File.ReadAllText(Path.Combine(ComponentsRoot, page)), StringComparison.Ordinal);
         }

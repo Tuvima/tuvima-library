@@ -12,11 +12,7 @@
 
 @if (_open)
 {
-    <div class="@OverlayClass"
-         role="dialog"
-         aria-modal="true"
-         aria-labelledby="universal-search-title"
-         @onkeydown="HandleOverlayKeyDown">
+    <AppViewer Class="@OverlayClass" Surface="AppViewerSurface.Page" LabelledBy="universal-search-title" OnKeyDown="HandleOverlayKeyDown">
         <AppNativeButton Type="button"
                          Class="universal-search-overlay__backdrop"
                          AriaLabel="@L["UniversalSearchOverlay_CloseSearch"].Value"
@@ -127,7 +123,7 @@
             </div>
         </div>
         </AppFocusTrap>
-    </div>
+    </AppViewer>
 }
 
 @code {

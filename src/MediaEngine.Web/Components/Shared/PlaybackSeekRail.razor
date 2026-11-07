@@ -26,7 +26,7 @@
                                 @onclick="@(() => ToggleBookmark(bookmark.Id))" @onfocus="@(() => HoverBookmark(bookmark.Id))"></button>
                         @if (open)
                         {
-                            <div class="playback-seek-rail__quicklook" role="dialog" aria-label="@L["PlaybackSeekRail_Bookmark"].Value" style="@CardStyle(bookmark.Seconds)">
+                            <div class="playback-seek-rail__quicklook" role="group" aria-label="@L["PlaybackSeekRail_Bookmark"].Value" style="@CardStyle(bookmark.Seconds)">
                                 <strong>@Time(bookmark.Seconds)@if (bookmark.IsGlobal) { <span> @L["Common_Everyone"]</span> }</strong>
                                 @if (!string.IsNullOrWhiteSpace(bookmark.Label)) { <p><b>@bookmark.Label</b></p> }
                                 @if (!string.IsNullOrWhiteSpace(bookmark.Note)) { <p>@bookmark.Note</p> }

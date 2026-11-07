@@ -143,7 +143,7 @@
                     <AppNativeButton Type="button"
                                      Class="layout-shell__my-list"
                                      AriaLabel="@L["TopBar_MyList"]"
-                                     OnClick="@(_ => OpenForMe())">
+                                     OnClick="@(_ => OpenMyLibrary())">
                         <AppMaterialIcon Icon="@(IsMyListOpen ? AppMaterialIcons.Filled.Bookmark : AppMaterialIcons.Outlined.BookmarkBorder)"
                                  Class="layout-shell__my-list-icon" />
                     </AppNativeButton>
@@ -664,9 +664,9 @@
 
     // The top bar button is a bookmark, gold while My List is open; clicking it again closes the list and returns Home
     // (Home, detail and tiles spec D6).
-    private bool IsMyListOpen => Nav.ToBaseRelativePath(Nav.Uri).StartsWith("for-me?view=my-list", StringComparison.OrdinalIgnoreCase);
+    private bool IsMyListOpen => Nav.ToBaseRelativePath(Nav.Uri).StartsWith(ShellDock.MyLibraryPath.TrimStart('/'), StringComparison.OrdinalIgnoreCase);
 
-    private void OpenForMe() => Nav.NavigateTo(IsMyListOpen ? "/" : "/for-me?view=my-list");
+    private void OpenMyLibrary() => Nav.NavigateTo(IsMyListOpen ? "/" : ShellDock.MyLibraryPath);
 
     private void OpenSearch() => _searchOverlay?.Open();
 
