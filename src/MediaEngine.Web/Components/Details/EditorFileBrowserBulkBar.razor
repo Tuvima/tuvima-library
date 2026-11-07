@@ -1,0 +1,122 @@
+@namespace MediaEngine.Web.Components.Details
+@using MediaEngine.Contracts.Editing
+@using MediaEngine.Web.Components.Shared
+@using MediaEngine.Web.Services.Editing
+@implements IDisposable
+@inject IStringLocalizer<SharedStrings> L
+
+@* The bulk actions on the ticked rows (universal editor v5 screen E, note 5): Set group, Set role, Belongs to, Add tags and Delete. All but Delete
+   only stage a change, one per ticked file, for Review changes; Delete asks once in the dialog and happens at once. Set role is offered when the
+   ticked files are of one kind, because the roles are a short list by kind (D14). Belongs to checks with the Engine which files would move in a
+   Managed folder; a Read-only folder never moves a file (D30). *@
+@if (State.Ticked.Count > 0)
+{
+    <div class="tl-fbbulk" role="toolbar" aria-label="@L["EditorBrowser_BulkActions"].Value" data-testid="file-browser-bulk">
+        <b class="tl-fbbulk__count">@string.Format(L["EditorBrowser_Selected"].Value, State.Ticked.Count)</b>
+
+        <span class="tl-fbbulk__slot" data-bulk="group"><AppOverflowMenu Label="@L["EditorBrowser_SetGroup"].Value" EndIcon="@AppMaterialIcons.Outlined.ExpandMore" Class="tl-fbbulk__menu">
+            <AppMenuItem Label="@L["EditorSupportingFile_NoGroup"].Value" OnClick="@(() => State.StageGroup(null))" />
+            @foreach (var name in State.GroupNames)
+            {
+                <AppMenuItem Label="@name" OnClick="@(() => State.StageGroup(name))" />
+            }
+            <AppMenuItem Label="@L["EditorBrowser_NewGroup"].Value" Icon="@AppMaterialIcons.Outlined.Add" DividerBefore="true" OnClick="@(() => Ask(Asking.Group))" />
+        </AppOverflowMenu></span>
+
+        <span class="tl-fbbulk__slot" data-bulk="role"><AppOverflowMenu Label="@L["EditorBrowser_SetRole"].Value" EndIcon="@AppMaterialIcons.Outlined.ExpandMore" Class="tl-fbbulk__menu"
+                         Disabled="@(State.FacetsForTicked is null)">
+            @foreach (var role in State.FacetsForTicked?.Roles ?? [])
+            {
+                <AppMenuItem Label="@role.Label" OnClick="@(() => State.StageRole(role.Id))" />
+            }
+        </AppOverflowMenu></span>
+        @if (State.TickedTypes.Count > 1)
+        {
+            <span class="tl-fbbulk__note" data-testid="file-browser-role-note">@L["EditorBrowser_RoleOneType"]</span>
+        }
+
+        <span class="tl-fbbulk__slot" data-bulk="scope"><AppOverflowMenu Label="@L["EditorBrowser_BelongsTo"].Value" EndIcon="@AppMaterialIcons.Outlined.ExpandMore" Class="tl-fbbulk__menu"
+                         Disabled="@(State.Places.Count == 0)">
+            <AppMenuItem Label="@L["EditorSupportingFile_UseFolderLocation"].Value" Icon="@AppMaterialIcons.Outlined.Replay"
+                         OnClick="@(() => State.StageScopeAsync(SupportingFileBulkStaging.FolderScopeValue))" />
+            @foreach (var place in State.Places.Where(place => place.Level is "root" or "season" or "folder" or "album"))
+            {
+                <AppMenuItem Label="@place.Label" DividerBefore="@(place.Level == "root")" OnClick="@(() => State.StageScopeAsync(place.Key))" />
+            }
+        </AppOverflowMenu></span>
+
+        <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" data-bulk="tags"
+                   OnClick="@(() => Ask(Asking.Tags))">@L["EditorBrowser_AddTags"]</AppButton>
+
+        <AppButton ButtonStyle="AppButtonStyle.Outlined" Tone="AppUiTone.Error" Size="AppControlSize.Compact" data-bulk="delete"
+                   OnClick="@(() => OnDelete.InvokeAsync())">@L["EditorBrowser_Delete"]</AppButton>
+
+        <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" data-bulk="clear"
+                   OnClick="@(() => State.ClearTicks())">@L["EditorBrowser_ClearTicks"]</AppButton>
+
+        @if (_asking != Asking.None)
+        {
+            <div class="tl-fbbulk__ask" data-testid="file-browser-bulk-ask">
+                <AppTextField Label="@AskLabel" HideLabel="true" Value="@_text" ValueChanged="@(value => _text = value ?? string.Empty)" Immediate="true"
+                              Placeholder="@AskLabel" MaxLength="80" AutoFocus="true" aria-label="@AskLabel" />
+                <AppButton ButtonStyle="AppButtonStyle.Filled" Tone="AppUiTone.Primary" Size="AppControlSize.Compact" Disabled="@string.IsNullOrWhiteSpace(_text)"
+                           OnClick="ApplyAsk">@L["EditorBrowser_Apply"]</AppButton>
+                <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact" OnClick="@(() => _asking = Asking.None)">@L["Search_Cancel"]</AppButton>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private enum Asking { None, Group, Tags }
+
+    private Asking _asking;
+    private string _text = string.Empty;
+
+    [Parameter, EditorRequired] public EditorFileBrowserState State { get; set; } = default!;
+
+    /// <summary>Delete was pressed; the dialog asks once and deletes.</summary>
+    [Parameter] public EventCallback OnDelete { get; set; }
+
+    private string AskLabel => _asking == Asking.Group ? L["EditorBrowser_NewGroupName"].Value : L["EditorBrowser_TagsToAdd"].Value;
+
+    private void Ask(Asking what)
+    {
+        _asking = what;
+        _text = string.Empty;
+    }
+
+    private void ApplyAsk()
+    {
+        var text = _text.Trim();
+        if (text.Length == 0)
+        {
+            return;
+        }
+
+        if (_asking == Asking.Group)
+        {
+            State.StageGroup(text);
+        }
+        else if (_asking == Asking.Tags)
+        {
+            State.StageTags(text.Split([';', ','], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        }
+
+        _asking = Asking.None;
+        _text = string.Empty;
+    }
+
+    protected override void OnInitialized() => State.Changed += OnChanged;
+
+    protected override async Task OnParametersSetAsync() => await State.EnsureFacetsAsync();
+
+    // The roles and places of the ticked files' kind are read once, the first time a tick needs them.
+    private void OnChanged() => _ = InvokeAsync(async () =>
+    {
+        await State.EnsureFacetsAsync();
+        StateHasChanged();
+    });
+
+    public void Dispose() => State.Changed -= OnChanged;
+}

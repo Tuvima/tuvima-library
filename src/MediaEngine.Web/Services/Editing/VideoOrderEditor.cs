@@ -172,6 +172,40 @@ public sealed class VideoOrderEditor
         _lists[list].Current.AddRange(result);
     }
 
+    /// <summary>
+    /// Shows again what was staged earlier (switching items keeps every item's changes): a video moved into another section comes back in that
+    /// section first, then the order of each list is applied.
+    /// </summary>
+    public void Restore(PendingEditList pending)
+    {
+        ArgumentNullException.ThrowIfNull(pending);
+        foreach (var move in pending.Changes.Where(change => change.Kind == EditSessionChangeKinds.VideoSeries && Guid.TryParse(change.TargetId, out _)))
+        {
+            var to = IndexOfList(Guid.Parse(move.TargetId!));
+            for (var from = 0; to >= 0 && from < _lists.Count; from++)
+            {
+                var at = _lists[from].Current.FindIndex(row => row.Id == move.EntityId);
+                if (at >= 0 && from != to)
+                {
+                    Drop(from, at, to, _lists[to].Current.Count);
+                    break;
+                }
+            }
+        }
+
+        foreach (var list in _lists)
+        {
+            if (pending.FindVideoOrder(list.ParentId) is { } order)
+            {
+                var byId = list.Current.ToDictionary(row => row.Id);
+                var restored = order.OrderedIds.Where(byId.ContainsKey).Select(id => byId[id]).ToList();
+                restored.AddRange(list.Current.Where(row => !order.OrderedIds.Contains(row.Id)));
+                list.Current.Clear();
+                list.Current.AddRange(restored);
+            }
+        }
+    }
+
     /// <summary>Puts every list back as it was saved.</summary>
     public void Reset()
     {

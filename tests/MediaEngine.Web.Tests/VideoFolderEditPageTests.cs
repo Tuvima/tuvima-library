@@ -378,8 +378,8 @@ public sealed class VideoFolderEditPageTests : AsyncBunitContext
         await StartEditingAsync(VideoPage(WarmUpId, "Warm Up"));
 
         _editor.WaitForElement("#tl-hnav-item").Click();
-        _editor.WaitForAssertion(() => Assert.Equal(2, _editor.FindAll(".tl-hnav__option").Count));
-        var codes = _editor.FindAll(".tl-hnav__option .tl-hnav__text > small").Select(code => code.TextContent.Trim()).ToList();
+        _editor.WaitForAssertion(() => Assert.Equal(2, _editor.FindAll(".tl-hnav__option:not(#tl-hnav-reorder)").Count));
+        var codes = _editor.FindAll(".tl-hnav__option:not(#tl-hnav-reorder) .tl-hnav__text > small").Select(code => code.TextContent.Trim()).ToList();
         Assert.Equal(["01", "02"], codes);
         Assert.DoesNotContain(codes, code => code.Contains('S', StringComparison.Ordinal) && code.Contains('E', StringComparison.Ordinal));
     }

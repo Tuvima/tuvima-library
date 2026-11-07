@@ -1,0 +1,69 @@
+.tl-fbrowser {
+    display: grid;
+    gap: var(--tl-space-3);
+    min-height: 24rem;
+}
+
+.tl-fbrowser__filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--tl-space-2);
+    align-items: center;
+}
+
+.tl-fbrowser ::deep .tl-fbrowser__search {
+    flex: 1 1 14rem;
+    min-width: 12rem;
+}
+
+.tl-fbrowser ::deep .tl-fbrowser__select {
+    flex: 0 1 12rem;
+    min-width: 9rem;
+}
+
+.tl-fbrowser__body {
+    display: grid;
+    grid-template-columns: 13.75rem minmax(0, 1fr);
+    gap: var(--tl-space-4);
+    align-items: start;
+}
+
+.tl-fbrowser__main {
+    display: grid;
+    gap: var(--tl-space-3);
+    min-width: 0;
+}
+
+.tl-fbrowser__busy {
+    display: grid;
+    gap: var(--tl-space-2);
+}
+
+.tl-fbrowser__count {
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+}
+
+.tl-fbrowser__hint {
+    margin-right: auto;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+}
+
+.tl-fbrowser__pager {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--tl-space-1);
+}
+
+.tl-fbrowser__page {
+    min-width: 3.5rem;
+    text-align: center;
+    font-size: var(--tl-font-size-sm);
+}
+
+@media (max-width: 840px) {
+    .tl-fbrowser__body {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
