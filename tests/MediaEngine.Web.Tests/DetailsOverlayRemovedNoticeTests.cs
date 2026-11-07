@@ -138,6 +138,7 @@ public sealed class DetailsOverlayRemovedNoticeTests : AsyncBunitContext
     private void TypeTitle(string text)
     {
         OpenDetails();
+        _editor.UnlockField("title");
         _editor.Find("input[aria-label='Title']").Input(text);
     }
 

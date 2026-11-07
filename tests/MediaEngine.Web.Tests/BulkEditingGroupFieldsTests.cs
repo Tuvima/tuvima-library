@@ -130,11 +130,31 @@ public sealed class BulkEditingGroupFieldsTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task TwelveSongs_TheProviderFieldsStartLocked_ButTagsAndTheExplicitMarkAreTheirOwn()
+    {
+        var (panel, _, _) = await OpenAsync(TwelveSongs());
+
+        foreach (var key in new[] { "album_artist", "genre", "year", "disc_number" })
+        {
+            Assert.Equal("true", panel.Find($"[data-field-key='{key}']").GetAttribute("data-locked"));
+        }
+
+        foreach (var key in new[] { "custom_tags", "explicit" })
+        {
+            var own = panel.Find($"[data-field-key='{key}']");
+            Assert.Equal("false", own.GetAttribute("data-locked"));
+            Assert.Empty(own.QuerySelectorAll("[data-lock-state]"));
+        }
+    }
+
+    [Fact]
     public async Task TwelveSongs_SavingAlbumArtistAndDisc_StagesAChangeForEverySong()
     {
         var (panel, pending, _) = await OpenAsync(TwelveSongs());
 
+        panel.UnlockField("disc_number");
         panel.Find("[data-field-key='disc_number'] input").Input("2");
+        panel.UnlockField("album_artist");
         var artist = panel.Find("[data-field-key='album_artist']");
         artist.QuerySelector("input[aria-label='Tag to add']")!.Input("Various Artists");
         artist.QuerySelector("form")!.Submit();

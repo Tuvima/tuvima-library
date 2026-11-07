@@ -26,6 +26,7 @@ public sealed class SynchronousIdentityPipelineService : IHydrationPipelineServi
     private readonly IEnrichmentConcurrencyLimiter _concurrency;
     private readonly ILogger<SynchronousIdentityPipelineService> _logger;
     private readonly IExternalLookupGuard? _lookupGuard;
+    private readonly IPinnedMatchGuard? _pinnedGuard;
 
     public SynchronousIdentityPipelineService(
         IIdentityJobRepository jobRepo,
@@ -35,9 +36,11 @@ public sealed class SynchronousIdentityPipelineService : IHydrationPipelineServi
         QuickHydrationWorker hydrationWorker,
         ILogger<SynchronousIdentityPipelineService> logger,
         IEnrichmentConcurrencyLimiter? concurrencyLimiter = null,
-        IExternalLookupGuard? lookupGuard = null)
+        IExternalLookupGuard? lookupGuard = null,
+        IPinnedMatchGuard? pinnedGuard = null)
     {
         _lookupGuard = lookupGuard;
+        _pinnedGuard = pinnedGuard;
         _jobRepo = jobRepo;
         _canonicalRepo = canonicalRepo;
         _retailWorker = retailWorker;
@@ -58,6 +61,8 @@ public sealed class SynchronousIdentityPipelineService : IHydrationPipelineServi
             return Guid.Empty;
         }
 
+        // A pinned match skips only the retail stage: the Wikidata bridge, hydration and enrichment still run for the matched record.
+        var pinned = await IsPinnedAgainstAutomaticWorkAsync(request, ct);
         var job = new IdentityJob
         {
             EntityId = request.EntityId,
@@ -71,7 +76,7 @@ public sealed class SynchronousIdentityPipelineService : IHydrationPipelineServi
             job.State = nameof(IdentityJobState.QidResolved);
             job.ResolvedQid = request.PreResolvedQid;
         }
-        else if (request.SkipRetailStage)
+        else if (request.SkipRetailStage || pinned)
         {
             job.State = nameof(IdentityJobState.RetailMatched);
         }
@@ -114,6 +119,7 @@ public sealed class SynchronousIdentityPipelineService : IHydrationPipelineServi
             return new HydrationResult();
         }
 
+        var pinned = await IsPinnedAgainstAutomaticWorkAsync(request, ct);
         var job = new IdentityJob
         {
             EntityId = request.EntityId,
@@ -140,8 +146,8 @@ public sealed class SynchronousIdentityPipelineService : IHydrationPipelineServi
                     request.EntityId, request.PreResolvedQid, job.MediaType, token),
                 ct);
         }
-        // Path B: Skip retail, run bridge (user confirmed a retail match, now auto-resolve Wikidata)
-        else if (request.SkipRetailStage)
+        // Path B: Skip retail, run bridge (user confirmed a retail match, or a person pinned it; now auto-resolve Wikidata)
+        else if (request.SkipRetailStage || pinned)
         {
             job.State = nameof(IdentityJobState.RetailMatched);
             await PersistInitialJobAsync(job, request.IsUserResolution, ct);
@@ -235,6 +241,27 @@ public sealed class SynchronousIdentityPipelineService : IHydrationPipelineServi
 
         _logger.LogInformation(
             "Identity work for {EntityType} {EntityId} was not started: its library never looks anything up.",
+            request.EntityType,
+            request.EntityId);
+        return true;
+    }
+
+    // A match a person applied is never re-identified by automatic work (a scan, a folder hint that now disagrees): the retail stage is
+    // skipped and nothing else is. Work the person asked for (a user resolution, a pre-resolved QID, a retail stage already settled) goes on as asked.
+    private async Task<bool> IsPinnedAgainstAutomaticWorkAsync(HarvestRequest request, CancellationToken ct)
+    {
+        if (_pinnedGuard is null
+            || request.IsUserResolution
+            || request.SkipRetailStage
+            || !string.IsNullOrWhiteSpace(request.PreResolvedQid)
+            || request.EntityType is not (EntityType.MediaAsset or EntityType.Work)
+            || !await _pinnedGuard.IsPinnedAsync(request.EntityId, ct).ConfigureAwait(false))
+        {
+            return false;
+        }
+
+        _logger.LogInformation(
+            "Identity work for {EntityType} {EntityId} skips the retail stage: a person applied its match.",
             request.EntityType,
             request.EntityId);
         return true;

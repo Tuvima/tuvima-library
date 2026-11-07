@@ -30,7 +30,7 @@ public sealed class AlignmentGuardrailTests
     private static readonly string[] SharedPartSelectorStems =
     [
         ".app-setting-row", ".app-settings-group", ".app-field", ".app-action-bar", ".app-filter-bar", ".app-switch-row",
-        ".app-dialog-shell__footer", ".app-segmented-control", ".tl-match__matchrow",
+        ".app-dialog-shell__footer", ".app-segmented-control", ".tl-matchrow",
     ];
 
     // Written allowlist: "file :: selector fragment :: property" with the reason it is not an alignment nudge. Keep it short; add nothing without a reason.
@@ -114,10 +114,28 @@ public sealed class AlignmentGuardrailTests
     public void TheMatchRow_IsOneNonWrappingFlexLine_OnTheCentreLine()
     {
         var css = File.ReadAllText(Path.Combine(WebRoot(), "Components", "Details", "EditorMatchPanel.razor.css"));
-        var row = Rules(css).Single(rule => rule.Selector.Trim() == ".tl-match__matchrow").Body;
+        var row = Rules(css).Single(rule => rule.Selector.Trim() == ".tl-matchrow").Body;
         Assert.Contains("display: flex", row, StringComparison.Ordinal);
         Assert.Contains("align-items: center", row, StringComparison.Ordinal);
         Assert.DoesNotContain("wrap", row, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void WindowFooters_KeepCancelWithThePrimary_OnlyAMarkedQuietActionGoesFarLeft()
+    {
+        // Shy 2026-11-07, as in the Look v3 mock: Delete, Discard and Save changes sit together on the right; only an
+        // app-footer-start action (such as Reset) is pushed to the far left. No rule may push a footer's first button aside.
+        var css = File.ReadAllText(Path.Combine(WebRoot(), "wwwroot", "app.css"));
+        var pushes = Rules(css)
+            .Where(rule => rule.Selector.Contains("__footer", StringComparison.Ordinal) && Regex.IsMatch(rule.Body, @"margin-inline-end\s*:\s*auto"))
+            .Select(rule => rule.Selector.Trim())
+            .ToList();
+        Assert.NotEmpty(pushes);
+        Assert.All(pushes, selector =>
+        {
+            Assert.Contains(".app-footer-start", selector, StringComparison.Ordinal);
+            Assert.DoesNotContain(":first-child", selector, StringComparison.Ordinal);
+        });
     }
 
     private static void Collect(string file, string selector, string body, List<string> offenders)

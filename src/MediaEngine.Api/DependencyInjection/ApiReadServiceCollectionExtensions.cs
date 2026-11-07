@@ -49,6 +49,7 @@ public static class ApiReadServiceCollectionExtensions
         services.AddScoped<IRetailMatchWriter>(sp => sp.GetRequiredService<RetailMatchWriter>());
         services.AddSingleton<EditSessionCallerAccessor>();
         services.AddSingleton<IEditSessionChangeHandler, IdentityEditSessionChangeHandler>();
+        services.AddSingleton<IEditSessionChangeHandler, MatchRemovalEditSessionChangeHandler>();
         services.AddSingleton<IEditSessionChangeHandler, ExtraMoveEditSessionChangeHandler>();
         services.AddSingleton<IEditSessionChangeHandler, SupportingFilesEditSessionChangeHandler>();
         services.AddSingleton<VideoOrderWriter>();
@@ -103,6 +104,15 @@ public static class ApiReadServiceCollectionExtensions
         services.AddSingleton<MediaEngine.Domain.Contracts.IEditorConfigurationSource>(sp => sp.GetRequiredService<EditorConfigurationProvider>());
         services.AddScoped<EditorHeaderReadService>();
         services.AddScoped<EditorCurrentMatchService>();
+        // The Match tab's search: the providers and boxes for an item, and results judged against the file (config/scoring.json match_verdict).
+        services.AddScoped(sp => new MediaEngine.Api.Services.Matching.EditorMatchVerdictCalculator(
+            sp.GetRequiredService<MediaEngine.Domain.Contracts.IConfigurationLoader>().LoadScoring().MatchVerdict));
+        services.AddScoped<MediaEngine.Api.Services.Matching.EditorMatchLocalEvidenceReader>();
+        services.AddScoped<MediaEngine.Api.Services.Matching.IVideoIdentifyWriter, MediaEngine.Api.Services.Matching.VideoIdentifyWriter>();
+        services.AddScoped<MediaEngine.Api.Services.Matching.IEditorMatchKindResolver, MediaEngine.Api.Services.Matching.HeaderEditorMatchKindResolver>();
+        services.AddScoped<MediaEngine.Api.Services.Matching.IEditorMatchProviderCatalog, MediaEngine.Api.Services.Matching.RetailEditorMatchProviderCatalog>();
+        services.AddScoped<MediaEngine.Api.Services.Matching.IEditorMatchCandidateSearch, MediaEngine.Api.Services.Matching.CanonicalEditorMatchCandidateSearch>();
+        services.AddScoped<MediaEngine.Api.Services.Matching.EditorMatchSearchService>();
         services.AddScoped<EditorSuggestDetailsService>();
         services.AddScoped<EditorFolderTreeService>();
         services.AddSingleton<MediaEditorFileCoverageRepository>();

@@ -13,7 +13,7 @@
    bars). Selecting a row plays that chapter. The footer holds "Timeline shows Chapter | Whole book", which is the choice the bar's timeline uses. *@
 <PlaybackListPanel ScrollKey="@ScrollKey" ShowFooter="@(ShowFooter && Scope is not null)">
     <Identity>
-        @if (Item is { } book)
+        @if (ShowIdentity && Item is { } book)
         {
             <div class="chp__book" data-chapters-identity>
                 <div class="chp__cover" aria-hidden="true">
@@ -79,6 +79,9 @@
 
     [Parameter, EditorRequired] public ListenPlaybackSnapshot Snapshot { get; set; } = new();
     [Parameter, EditorRequired] public IPlaybackCommandSink Commands { get; set; } = null!;
+
+    /// <summary>False leaves the book's cover, title and "Chapter 8 of 24" line out (the Now playing page already shows them beside the list).</summary>
+    [Parameter] public bool ShowIdentity { get; set; } = true;
 
     /// <summary>False leaves the "Timeline shows" footer out.</summary>
     [Parameter] public bool ShowFooter { get; set; } = true;

@@ -42,7 +42,7 @@
       "tabs": ["details", "artwork", "match", "history"],
       "facts_line": ["year", "runtime", "rating", "match_state"],
       "quick_facts": ["match_state", "file_quality", "container", "size", "folder", "supporting_file_count"],
-      "match_fields": ["title", "year"]
+      "match_fields": ["title", "year", "provider_id"]
     },
     "album": {
       "tabs": ["details", "artwork", "match", "history"],

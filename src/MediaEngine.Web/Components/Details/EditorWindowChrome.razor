@@ -1,9 +1,9 @@
 @namespace MediaEngine.Web.Components.Details
 @inject IStringLocalizer<SharedStrings> L
 
-@* The frame of every editor window (universal editor v4 D2, D3, D16; photos and documents editor D1; header revision v4.1 D1): the item's header
-   (which holds the family's tile and dropdowns where the item has a family), the tab bar, one scroll area for the tool, and the fixed footer that
-   says where changes go, how many are waiting and holds Discard and Save changes in the same place. It knows nothing about what is being edited, so the library editor (EditorPanelHost) and the
+@* The frame of every editor window (universal editor v4 D2, D3, D16; v5 D10 and screen J; photos and documents editor D1): the item's header
+   (which holds the way around the family), the tab bar, one scroll area for the tool, and the fixed footer: Delete at the left, the file status
+   text, the unsaved count, Discard and Save changes (primary last), always in the same places. It knows nothing about what is being edited, so the library editor (EditorPanelHost) and the
    View editor (photos, videos, documents, galleries) draw exactly the same window and a guardrail can insist that nothing draws its own. *@
 <div class="@(Framed ? "tl-editor-panel tl-editor-window tl-editor-window--framed" : "tl-editor-panel tl-editor-window")"
      data-tool="@ActiveKey.ToLowerInvariant()">
@@ -78,7 +78,7 @@
                 @Where
             }
 
-            <span class="tl-editor-window__changes" role="status">@(ChangeCount == 0 ? "No changes yet" : $"{ChangeCount} {(ChangeCount == 1 ? "change" : "changes")} waiting")</span>
+            <span class="tl-editor-window__changes" role="status">@(ChangeCount == 0 ? L["EditorFooter_NoChanges"].Value : ChangeCount == 1 ? L["EditorFooter_OneUnsaved"].Value : string.Format(L["EditorFooter_ManyUnsaved"].Value, ChangeCount))</span>
             <div class="tl-editor-window__actions">
                 <AppButton ButtonStyle="AppButtonStyle.Outlined"
                            Tone="AppUiTone.Neutral"
@@ -92,10 +92,9 @@
                            Tone="AppUiTone.Primary"
                            Size="AppControlSize.Large"
                            Class="tl-editor-window__save"
-                           StartIcon="@AppMaterialIcons.Outlined.Check"
                            Disabled="@(ChangeCount == 0 || Saving)"
                            OnClick="OnSave">
-                    @(Saving ? "Saving..." : ChangeCount == 0 ? "Save changes" : $"Save {ChangeCount} {(ChangeCount == 1 ? "change" : "changes")}")
+                    @(Saving ? "Saving..." : "Save changes")
                 </AppButton>
             </div>
         </footer>

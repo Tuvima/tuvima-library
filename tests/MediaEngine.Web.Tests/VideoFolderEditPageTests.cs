@@ -126,6 +126,47 @@ public sealed class VideoFolderEditPageTests : AsyncBunitContext
             InitialScope = initial,
             AvailableTabs = ["details", "artwork", "links", "history"],
             Scopes = scopes,
+            Header = HeaderFor(launch),
+        };
+    }
+
+    // What the Engine says about the way around the folder: the folder is home, Section is the second dropdown, and the videos of a section are the items.
+    private static EditorHeaderDto HeaderFor(Guid launch)
+    {
+        var kind = launch == SeriesId ? EditorKindNames.Course : launch == SectionId ? EditorKindNames.CourseSection : EditorKindNames.Video;
+        var inSection = launch != SeriesId;
+        return new EditorHeaderDto
+        {
+            Kind = kind,
+            Root = new EditorHeaderRootDto { Id = SeriesId, Title = SeriesTitle, MediaType = "Videos" },
+            CurrentId = launch,
+            Label = SeriesTitle,
+            ShowHome = true,
+            HomeId = SeriesId,
+            HomeIsCurrent = launch == SeriesId,
+            SecondLevel = new EditorHeaderSecondLevelDto
+            {
+                Label = "Section",
+                CurrentId = inSection ? SectionId : null,
+                Entries = [new EditorHeaderLevelEntryDto { Id = SectionId, Title = SectionTitle, Number = 1, ItemCount = 2 }],
+            },
+            ShowItemDropdown = inSection,
+            Level = new EditorHeaderLevelDto
+            {
+                LevelId = inSection ? SectionId : null,
+                LevelTitle = inSection ? SectionTitle : string.Empty,
+                Total = inSection ? 2 : 0,
+                PageSize = 50,
+                Items = inSection
+                    ?
+                    [
+                        new EditorNavItemDto { Id = WarmUpId, Kind = "video", Number = 1, Title = "Warm Up", State = EditorNavItemStates.Matched, IsCurrent = launch == WarmUpId },
+                        new EditorNavItemDto { Id = DribblingId, Kind = "video", Number = 2, Title = "Dribbling", State = EditorNavItemStates.Matched, IsCurrent = launch == DribblingId },
+                    ]
+                    : [],
+                SupportingFiles = new EditorHeaderSupportingFilesDto(),
+            },
+            Config = EditorHeaderTestData.Config(kind, kind == EditorKindNames.Video ? ["details", "artwork", "history"] : ["details", "history"]),
         };
     }
 
@@ -249,18 +290,17 @@ public sealed class VideoFolderEditPageTests : AsyncBunitContext
 
     private EditSessionFlow Flow() => Services.GetRequiredService<EditorHost>().Flow;
 
+    // The level is "Section" (the second dropdown) or "Video" (the item dropdown): the list opens, the row is picked, the editor switches to it.
     private void Choose(string name, string level)
     {
-        _editor.WaitForAssertion(() => Assert.Contains(_editor.FindAll(".tl-rail__crumb"), crumb => LevelOf(crumb) == level));
-        _editor.FindAll(".tl-rail__crumb").First(candidate => LevelOf(candidate) == level).Click();
-        _editor.WaitForAssertion(() => Assert.Contains(_editor.FindAll(".tl-rail__option"), option => OptionName(option) == name));
-        _editor.FindAll(".tl-rail__option").First(option => OptionName(option) == name).Click();
+        var trigger = level == "Section" ? "#tl-hnav-second" : "#tl-hnav-item";
+        _editor.WaitForElement(trigger).Click();
+        _editor.WaitForAssertion(() => Assert.Contains(_editor.FindAll(".tl-hnav__option"), option => OptionName(option) == name));
+        _editor.FindAll(".tl-hnav__option").First(option => OptionName(option) == name).Click();
     }
 
-    private static string LevelOf(AngleSharp.Dom.IElement crumb) => (crumb.GetAttribute("data-level") ?? string.Empty).Split(' ')[0];
-
     private static string OptionName(AngleSharp.Dom.IElement option) =>
-        option.QuerySelector(".tl-rail__text > span")!.TextContent.Trim().Split(" · ").Last();
+        option.QuerySelector(".tl-hnav__text > b")!.TextContent.Trim();
 
     // -- A2: a video of a Videos folder opens from its page and from the dropdown -------------------------------------------------
 
@@ -317,11 +357,40 @@ public sealed class VideoFolderEditPageTests : AsyncBunitContext
     }
 
     [Fact]
+    public async Task AVideoOfACourse_OffersDetailsArtworkAndHistory_ButNoMatch()
+    {
+        await StartEditingAsync(VideoPage(WarmUpId, "Warm Up"));
+
+        Assert.Equal(["Details", "Artwork", "History"], _editor.FindAll(".tl-editor-window__tabs [role='tab']").Select(tab => tab.TextContent.Trim()));
+    }
+
+    [Fact]
+    public async Task TheCourseFolderItself_OffersOnlyDetailsAndHistory()
+    {
+        await StartEditingAsync(FolderPage());
+
+        Assert.Equal(["Details", "History"], _editor.FindAll(".tl-editor-window__tabs [role='tab']").Select(tab => tab.TextContent.Trim()));
+    }
+
+    [Fact]
+    public async Task ALessonsItemDropdown_ListsNumbersAndNeverSeasonAndEpisodeCodes()
+    {
+        await StartEditingAsync(VideoPage(WarmUpId, "Warm Up"));
+
+        _editor.WaitForElement("#tl-hnav-item").Click();
+        _editor.WaitForAssertion(() => Assert.Equal(2, _editor.FindAll(".tl-hnav__option").Count));
+        var codes = _editor.FindAll(".tl-hnav__option .tl-hnav__text > small").Select(code => code.TextContent.Trim()).ToList();
+        Assert.Equal(["01", "02"], codes);
+        Assert.DoesNotContain(codes, code => code.Contains('S', StringComparison.Ordinal) && code.Contains('E', StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task AVideosEditor_NamesItsLevelsSectionAndVideo_NeverSeasonOrEpisode()
     {
         await StartEditingAsync(VideoPage(WarmUpId, "Warm Up"));
 
-        _editor.WaitForAssertion(() => Assert.Equal(["Folder", "Section", "Video"], _editor.FindAll(".tl-rail__crumb[data-level]").Select(LevelOf)));
+        _editor.WaitForAssertion(() => Assert.Equal("Section", _editor.Find("#tl-hnav-second").GetAttribute("data-level")));
+        Assert.Equal("video", _editor.Find("#tl-hnav-item").GetAttribute("data-level"));
         var text = _editor.Markup;
         Assert.DoesNotContain("Season", text, StringComparison.Ordinal);
         Assert.DoesNotContain("Episode", text, StringComparison.Ordinal);

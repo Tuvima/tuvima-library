@@ -199,6 +199,9 @@ public sealed class EditorHost : IDisposable
     /// <summary>The rail of the Universe editor: the Universe, its kinds with counts, and the things of each kind (universal editor v4, WP11).</summary>
     public EditorUniverseState Universe { get; }
 
+    /// <summary>Where the header's supporting-file rows and the folder button lead; the viewer and the folder browser register here when they are built.</summary>
+    public EditorHeaderHooks HeaderHooks { get; } = new();
+
     /// <summary>How the window asks "Save or discard?" (set by the layout's pop-over, which owns the dialogs). Unset, unsaved input keeps the person where they are.</summary>
     public Func<Task<SaveOrDiscardChoice>>? AskSaveOrDiscard { get; set; }
 
@@ -751,6 +754,9 @@ public sealed class EditorHost : IDisposable
 
     // The rail follows the item being edited: a new family is read when the item is not in the tree, and the parents above the item
     // (the page's trail, the Engine's scope chain) are opened so the item is in view. Films, standalone items, people and the like get none.
+    // WP12: the rail itself is gone (the header's nav row replaced it), so this only keeps the family tree that the header cover (TrailTo), the
+    // delete flow (ParentOf) and the bulk panel still read. Cut it to those reads, and drop the Universe rail branch, when the family state is
+    // reworked; it was left whole here because the Universe editor and the bulk panel share it and WP9 is changing the Match side of that state.
     private void SyncFamily()
     {
         if (_disposed)

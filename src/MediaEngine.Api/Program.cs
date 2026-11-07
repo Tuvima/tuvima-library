@@ -573,6 +573,9 @@ catch (DataStoreUpgradeException exception)
 // A restored backup is imported into the fresh data store before anything is served; the previous data store was put aside as a pre-restore copy.
 app.Services.GetRequiredService<IPendingRestoreImportService>().ImportIfPending();
 
+// The file-name cleaning rules (config/filename_cleaning.json) are installed before the first scan reads a name.
+_ = app.Services.GetRequiredService<MediaEngine.Domain.Services.FilenameCleaningConfigurationProvider>().Current;
+
 // The Vault's folders are known before anything is served, scanned or logged.
 await app.Services.GetRequiredService<VaultLocationGuardRefreshService>().RefreshAsync().ConfigureAwait(false);
 

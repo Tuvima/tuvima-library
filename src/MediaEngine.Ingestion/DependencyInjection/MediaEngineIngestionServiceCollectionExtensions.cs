@@ -99,7 +99,21 @@ public static class MediaEngineIngestionServiceCollectionExtensions
         services.TryAddSingleton<FolderMergeRunner>();
         services.TryAddSingleton<FolderMergePreviewer>();
         services.TryAddSingleton<ILibraryScanner, LibraryScanner>();
-        services.TryAddSingleton(sp => new MediaEngine.Ingestion.Videos.VideoNamingConfigurationProvider(sp.GetRequiredService<IConfigurationLoader>()));
+        // The file-name cleaning rules (config/filename_cleaning.json): one list for the editor's pre-fill, the Videos title cleaner and the scan.
+        services.TryAddSingleton(sp =>
+        {
+            var logger = sp.GetService<Microsoft.Extensions.Logging.ILoggerFactory>()?.CreateLogger("FilenameCleaning");
+            var provider = new MediaEngine.Domain.Services.FilenameCleaningConfigurationProvider(
+                sp.GetRequiredService<IConfigurationLoader>(),
+                message => { if (logger is not null) { logger.LogWarning("{Message}", message); } else { System.Diagnostics.Trace.TraceWarning(message); } });
+            MediaEngine.Domain.Services.FilenameCleaner.Use(provider);
+            return provider;
+        });
+        services.TryAddSingleton(sp =>
+        {
+            _ = sp.GetRequiredService<MediaEngine.Domain.Services.FilenameCleaningConfigurationProvider>();
+            return new MediaEngine.Ingestion.Videos.VideoNamingConfigurationProvider(sp.GetRequiredService<IConfigurationLoader>());
+        });
         services.TryAddSingleton<IVideoLibraryReader>(sp => new MediaEngine.Ingestion.Videos.VideoLibraryReader(
             sp.GetRequiredService<MediaEngine.Ingestion.Videos.VideoNamingConfigurationProvider>(),
             sp.GetService<IWorkRepository>(),

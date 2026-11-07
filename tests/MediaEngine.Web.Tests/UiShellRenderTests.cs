@@ -80,6 +80,7 @@ public sealed partial class UiShellRenderTests : AsyncBunitContext
         Services.AddScoped<ContextSidebarPreferences>();
         Services.AddScoped<IContextSidebarPreferences>(services => services.GetRequiredService<ContextSidebarPreferences>());
         Services.AddScoped<ListenContextSidebarState>();
+        Services.AddScoped<NowPlayingLauncher>();
         Services.AddScoped<ContextSidebarCoordinator>();
         Services.AddScoped<MediaReactionService>();
         Services.AddScoped<SavedItemService>();

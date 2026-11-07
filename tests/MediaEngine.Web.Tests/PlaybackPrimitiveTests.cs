@@ -187,7 +187,6 @@ public sealed class PlaybackPrimitiveTests
         var root = FindRepoRoot();
         var bar = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor"));
         var sidebar = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/PlaybackContextPanel.razor"));
-        var popup = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Pages/ListenPlayerPopupPage.razor"));
         var full = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/PlaybackFullPlayer.razor"));
         var strip = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackControlStrip.razor"));
         var speed = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/PlaybackSpeedPanel.razor"));
@@ -197,7 +196,7 @@ public sealed class PlaybackPrimitiveTests
         var bookmark = LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Shared/AudiobookBookmarkDialog.razor"));
 
         Assert.Contains("<PlaybackShell", bar, StringComparison.Ordinal);
-        Assert.Contains("<PlaybackFullPlayer", popup, StringComparison.Ordinal);
+        Assert.Contains("<PlaybackFullPlayer", bar, StringComparison.Ordinal);
         Assert.Contains("RateChanged=\"SetAudiobookSpeedAsync\"", bar, StringComparison.Ordinal);
         Assert.Contains("<PlaybackSpeedPanel", bar, StringComparison.Ordinal);
         Assert.Contains("<PlaybackSpeedPanel", full, StringComparison.Ordinal);
@@ -225,7 +224,6 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("SelectionChanged.InvokeAsync(selection)", sleep, StringComparison.Ordinal);
         Assert.DoesNotContain("<AppRangeSlider", sleep + sleepView, StringComparison.Ordinal);
         Assert.Contains("<AudiobookBookmarkDialog", bar, StringComparison.Ordinal);
-        Assert.Contains("<AudiobookBookmarkDialog", popup, StringComparison.Ordinal);
         Assert.Contains("Actions.RequestDeleteAsync(context, bookmarkId, authorizedAssetIds)", bookmark, StringComparison.Ordinal);
         Assert.Contains("Actions.ConfirmDeleteAsync(context, authorizedAssetIds)", bookmark, StringComparison.Ordinal);
         Assert.Contains("OpenDockPanelAsync(control.Sheet)", bar, StringComparison.Ordinal);
@@ -236,7 +234,7 @@ public sealed class PlaybackPrimitiveTests
         Assert.Contains("PlaybackContextRow Variant=\"history\"", sidebar, StringComparison.Ordinal);
         Assert.Contains("Subtitle=\"@AudiobookHistorySubtitle(entry)\"", sidebar, StringComparison.Ordinal);
         Assert.Contains("Elapsed session \u00b7 {FormatTime(interval)}", sidebar, StringComparison.Ordinal);
-        Assert.DoesNotContain("add-audiobook-bookmark", popup, StringComparison.Ordinal);
+        Assert.DoesNotContain("add-audiobook-bookmark", bar, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -387,7 +385,6 @@ public sealed class PlaybackPrimitiveTests
             .EnumerateFiles(Path.Combine(root, "src/MediaEngine.Web/Components"), "*Playback*.razor.css", SearchOption.AllDirectories)
             .Select(File.ReadAllText)
             .Append(LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Listen/ListenNowPlayingBar.razor.css")))
-            .Append(LocalizedSource.ReadAllText(Path.Combine(root, "src/MediaEngine.Web/Components/Pages/ListenPlayerPopupPage.razor.css")))
             .ToList();
 
         Assert.Contains("--playback-accent: var(--tl-accent-primary);", tokens, StringComparison.Ordinal);

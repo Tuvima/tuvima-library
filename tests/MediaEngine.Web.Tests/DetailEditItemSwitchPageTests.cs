@@ -1,7 +1,10 @@
 using Bunit;
+using MediaEngine.Contracts.Authentication;
 using MediaEngine.Contracts.Details;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Contracts.Metadata;
+using MediaEngine.Contracts.Settings;
+using MediaEngine.Contracts.WriteBack;
 using MediaEngine.Web.Components.Details;
 using MediaEngine.Web.Components.Shared;
 using MediaEngine.Web.Models.ViewDTOs;
@@ -35,6 +38,8 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
     private readonly List<string> _writes = [];
     private readonly List<Guid> _contextAsks = [];
     private readonly List<string> _familyReads = [];
+    private bool _writeBackOn;
+    private string[] _tabs = [];
     private readonly IRenderedComponent<AppDialogHost> _dialogs;
 
     public DetailEditItemSwitchPageTests()
@@ -54,6 +59,20 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
             stub.SetHandler(nameof(IEngineApiClient.GetItemHistoryWithStatusAsync), _ =>
                 Task.FromResult((new List<LibraryItemHistoryDto>(), (string?)null)));
             stub.SetHandler(nameof(IEngineApiClient.GetItemEditorSuggestionsAsync), _ => Task.FromResult<IReadOnlyList<string>>([]));
+            stub.SetHandler(nameof(IEngineApiClient.GetFileWriteScheduleAsync), _ => Task.FromResult<FileWriteScheduleDto?>(new FileWriteScheduleDto { Enabled = true }));
+            stub.SetHandler(nameof(IEngineApiClient.GetLibrariesAsync), _ => Task.FromResult<LibrariesConfigurationDto?>(new LibrariesConfigurationDto
+            {
+                Libraries =
+                [
+                    new LibraryFolderDto
+                    {
+                        Id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                        Name = "TV",
+                        MediaTypes = ["TV", "Music", "Movies"],
+                        OrganizationPolicy = new LibraryOrganizationPolicyDto { WriteTags = _writeBackOn },
+                    },
+                ],
+            }));
             foreach (var write in new[] { nameof(IEngineApiClient.SaveItemDisplayOverridesAsync), nameof(IEngineApiClient.RunEditSessionAsync) })
             {
                 var name = write;
@@ -92,26 +111,26 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
         public ValueTask<bool> GoBackAsync(int steps) => ValueTask.FromResult(true);
     }
 
-    private static MediaEditorContextDto? ContextFor(Guid id)
+    private MediaEditorContextDto? ContextFor(Guid id)
     {
         if (id == ShowId)
         {
-            return EditTrailTestData.TvContext(id, "series");
+            return WithHeader(EditTrailTestData.TvContext(id, "series"), TvHeader(id));
         }
 
         if (id == SeasonOne || id == EditTrailTestData.SeasonTwoId)
         {
-            return EditTrailTestData.TvContext(id, "season");
+            return WithHeader(EditTrailTestData.TvContext(id, "season"), TvHeader(id));
         }
 
         if (id == EpisodeOne || id == EpisodeTwo || id == EditTrailTestData.EpisodeThreeId)
         {
-            return EditTrailTestData.TvContext(id, "episode");
+            return WithHeader(EditTrailTestData.TvContext(id, "episode"), TvHeader(id));
         }
 
         if (id == EditTrailTestData.AlbumId)
         {
-            return EditTrailTestData.AlbumContext(id, "album");
+            return WithHeader(EditTrailTestData.AlbumContext(id, "album"), AlbumHeader(id));
         }
 
         if (id == EditingModeTestData.MovieId)
@@ -119,8 +138,91 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
             return EditingModeTestData.MovieContext();
         }
 
-        return id == EditTrailTestData.TrackOneId || id == EditTrailTestData.TrackTwoId ? EditTrailTestData.AlbumContext(id, "track") : null;
+        return id == EditTrailTestData.TrackOneId || id == EditTrailTestData.TrackTwoId ? WithHeader(EditTrailTestData.AlbumContext(id, "track"), AlbumHeader(id)) : null;
     }
+
+    private static MediaEditorContextDto WithHeader(MediaEditorContextDto context, EditorHeaderDto header)
+    {
+        context.Header = header;
+        return context;
+    }
+
+    // What the Engine says about the way around the show: a home button, a Season dropdown and, inside a season, its episodes.
+    private EditorHeaderDto TvHeader(Guid id)
+    {
+        var season = id == EditTrailTestData.SeasonTwoId || id == EditTrailTestData.EpisodeThreeId
+            ? EditTrailTestData.SeasonTwoId
+            : id == ShowId ? (Guid?)null : SeasonOne;
+        var kind = id == ShowId ? EditorKindNames.TvShow : id == SeasonOne || id == EditTrailTestData.SeasonTwoId ? EditorKindNames.TvSeason : EditorKindNames.TvEpisode;
+        var items = season == SeasonOne
+            ? new List<EditorNavItemDto> { NavEpisode(EpisodeOne, "S01E01", "Episode 1", EditorNavItemStates.Matched, id), NavEpisode(EpisodeTwo, "S01E02", "Episode 2", EditorNavItemStates.NotMatched, id) }
+            : season == EditTrailTestData.SeasonTwoId
+                ? [NavEpisode(EditTrailTestData.EpisodeThreeId, "S02E03", "Episode 3", EditorNavItemStates.NotMatched, id)]
+                : [];
+        return new EditorHeaderDto
+        {
+            Kind = kind,
+            Root = new EditorHeaderRootDto { Id = ShowId, Title = EditTrailTestData.ShowTitle, MediaType = "TV" },
+            CurrentId = id,
+            Label = EditTrailTestData.ShowTitle,
+            ShowHome = true,
+            HomeId = ShowId,
+            HomeIsCurrent = id == ShowId,
+            SecondLevel = new EditorHeaderSecondLevelDto
+            {
+                Label = "Season",
+                CurrentId = season,
+                Entries =
+                [
+                    new EditorHeaderLevelEntryDto { Id = SeasonOne, Title = "Season 1", Number = 1, ItemCount = 2 },
+                    new EditorHeaderLevelEntryDto { Id = EditTrailTestData.SeasonTwoId, Title = "Season 2", Number = 2, ItemCount = 1 },
+                ],
+            },
+            ShowItemDropdown = id != ShowId,
+            Level = new EditorHeaderLevelDto
+            {
+                LevelId = season,
+                LevelTitle = season == SeasonOne ? "Season 1" : season is null ? string.Empty : "Season 2",
+                Total = items.Count,
+                PageSize = 50,
+                Items = items,
+                SupportingFiles = new EditorHeaderSupportingFilesDto(),
+            },
+            Colors = id == EditTrailTestData.ShowId || id == SeasonOne || id == EpisodeOne || id == EpisodeTwo
+                ? new EditorCoverColorsDto { PrimaryHex = "#5a3a8a", SecondaryHex = "#2a1858" }
+                : null,
+            Config = EditorHeaderTestData.Config(kind, _tabs),
+        };
+    }
+
+    private static EditorNavItemDto NavEpisode(Guid id, string code, string title, string state, Guid current) =>
+        EditorHeaderTestData.Episode(id, code, title, state, current: id == current);
+
+    // An album: the item dropdown lists its songs, and a song's header has the album as its home.
+    private static EditorHeaderDto AlbumHeader(Guid id) => new()
+    {
+        Kind = id == EditTrailTestData.AlbumId ? EditorKindNames.Album : EditorKindNames.Song,
+        Root = new EditorHeaderRootDto { Id = EditTrailTestData.AlbumId, Title = "OK Computer", MediaType = "Music" },
+        CurrentId = id,
+        Label = "OK Computer",
+        ShowHome = id != EditTrailTestData.AlbumId,
+        HomeId = EditTrailTestData.AlbumId,
+        ShowItemDropdown = true,
+        Level = new EditorHeaderLevelDto
+        {
+            LevelId = EditTrailTestData.AlbumId,
+            LevelTitle = "OK Computer",
+            Total = 2,
+            PageSize = 50,
+            Items =
+            [
+                new EditorNavItemDto { Id = EditTrailTestData.TrackOneId, Kind = "track", Number = 1, Title = "Airbag", State = EditorNavItemStates.Matched, IsCurrent = id == EditTrailTestData.TrackOneId },
+                new EditorNavItemDto { Id = EditTrailTestData.TrackTwoId, Kind = "track", Number = 2, Title = "Paranoid Android", State = EditorNavItemStates.Matched, IsCurrent = id == EditTrailTestData.TrackTwoId },
+            ],
+            SupportingFiles = new EditorHeaderSupportingFilesDto(),
+        },
+        Config = EditorHeaderTestData.Config(id == EditTrailTestData.AlbumId ? EditorKindNames.Album : EditorKindNames.Song),
+    };
 
     private async Task<IRenderedComponent<DetailPage>> StartEditingAsync(DetailPageViewModel model)
     {
@@ -134,28 +236,24 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
 
     private EditSessionFlow FlowOf(IRenderedComponent<DetailPage> cut) => Services.GetRequiredService<EditorHost>().Flow;
 
-    // Picks an item from one dropdown of the rail across the top (the level is "Show", "Season", "Episode", "Album" or "Song"): the dropdown
-    // is opened, the item is picked, and a season or album opens as it is picked, so its own list can be used next.
+    // Picks an item from a dropdown of the header's nav row: the level is "Show" (the home button), "Season" (the second-level dropdown) or
+    // "Episode" or "Song" (the item dropdown). The list is opened, the row is picked, and the editor switches to it in the same window.
     private void Choose(IRenderedComponent<DetailPage> cut, string name, string level)
     {
-        _editor.WaitForAssertion(() => Assert.Contains(_editor.FindAll(".tl-rail__crumb"), crumb => LevelOf(crumb) == level));
-        var crumb = _editor.FindAll(".tl-rail__crumb").First(candidate => LevelOf(candidate) == level);
-        crumb.Click();
         if (level == "Show")
         {
-            // The only show has nothing to choose from, so clicking it goes straight to it.
+            _editor.WaitForElement(".tl-hnav__home").Click();
             return;
         }
 
-        _editor.WaitForAssertion(() => Assert.Contains(_editor.FindAll(".tl-rail__option"), option => OptionName(option) == name));
-        _editor.FindAll(".tl-rail__option").First(option => OptionName(option) == name).Click();
+        var trigger = level == "Season" ? "#tl-hnav-second" : "#tl-hnav-item";
+        _editor.WaitForElement(trigger).Click();
+        _editor.WaitForAssertion(() => Assert.Contains(_editor.FindAll(".tl-hnav__option"), option => OptionName(option) == name));
+        _editor.FindAll(".tl-hnav__option").First(option => OptionName(option) == name).Click();
     }
 
-    private static string LevelOf(AngleSharp.Dom.IElement crumb) => (crumb.GetAttribute("data-level") ?? string.Empty).Split(' ')[0];
-
-    // "2 · Episode 2" is the option for Episode 2; the number leads when the item has one.
     private static string OptionName(AngleSharp.Dom.IElement option) =>
-        option.QuerySelector(".tl-rail__text > span")!.TextContent.Trim().Split(" \u00B7 ").Last();
+        option.QuerySelector(".tl-hnav__text > b")!.TextContent.Trim();
 
     // The pop-over opens on Details by itself.
     private void OpenDetails(IRenderedComponent<DetailPage> cut) => _editor.WaitForElement("input[aria-label='Title']");
@@ -172,7 +270,6 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
         Choose(cut, "Episode 2", "Episode");
         _editor.WaitForAssertion(() => Assert.Equal(EpisodeTwo, flow.Session.ActiveItem!.EntityId));
 
-        Assert.Equal([ShowId, SeasonOne, EpisodeTwo], flow.Session.Trail.Select(step => step.EntityId));
         Assert.Equal(address, Services.GetRequiredService<NavigationManager>().Uri);
         Assert.Equal("Le Continental", cut.Find(".tl-detail-page h1").TextContent.Trim());
         Assert.DoesNotContain(_writes, write => !write.EndsWith(":check", StringComparison.Ordinal));
@@ -189,6 +286,7 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
 
         _editor.WaitForElement("[data-field-key='title'] input[aria-label='Season']");
         Assert.Equal("season", flow.Mode().Fields.ScopeId);
+        _editor.UnlockField("title");
         _editor.Find("[data-field-key='title'] input").Input("Premiere");
 
         _editor.WaitForAssertion(() => Assert.True(flow.Session.Pending.TryGetField(SeasonOne, "title", out _)));
@@ -207,7 +305,7 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
         _editor.WaitForAssertion(() => Assert.Equal(EpisodeOne, flow.Session.ActiveItem!.EntityId));
         flow.Session.Pending.SetField(EpisodeOne, "description", "The first night.");
 
-        _editor.WaitForAssertion(() => Assert.Equal("Save 2 changes", _editor.Find("button.tl-editor-window__save").TextContent.Trim()));
+        _editor.WaitForAssertion(() => Assert.Equal("Save changes", _editor.Find("button.tl-editor-window__save").TextContent.Trim()));
         var items = flow.ReviewRows().Select(row => row.Item).Distinct().ToList();
         Assert.Equal(["Le Continental", "Episode 1"], items);
     }
@@ -232,39 +330,141 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
         _editor.WaitForAssertion(() => Assert.Equal(EditTrailTestData.EpisodeThreeId, flow.Session.ActiveItem!.EntityId));
         flow.Session.Pending.SetField(EditTrailTestData.EpisodeThreeId, "description", "The third one.");
 
-        _editor.WaitForAssertion(() => Assert.Equal("Save 3 changes", _editor.Find("button.tl-editor-window__save").TextContent.Trim()));
-        // Every row that has a change waiting carries the purple dot, and nothing was written on the way.
-        // The rail's own crumbs carry the dot for the show and the episode being edited.
-        var dotted = _editor.FindAll(".tl-rail__crumb").Where(crumb => crumb.QuerySelector(".tl-rail__dot") is not null).Select(LevelOf).ToList();
-        Assert.Contains("Show", dotted);
-        Assert.Contains("Episode", dotted);
+        _editor.WaitForAssertion(() => Assert.Equal("Save changes", _editor.Find("button.tl-editor-window__save").TextContent.Trim()));
+        // The home button and the item dropdown carry the purple dot for the show and the episode that have a change waiting, and nothing was written on the way.
+        Assert.NotEmpty(_editor.FindAll(".tl-hnav__dot--home"));
+        Assert.NotEmpty(_editor.FindAll("#tl-hnav-item .tl-hnav__dot"));
         Assert.DoesNotContain(_writes, write => !write.EndsWith(":check", StringComparison.Ordinal));
     }
 
     [Fact]
-    public async Task AnEpisodesPopOver_HasTheRailAHeaderTheTabsAndAFooterThatSaysWhereChangesGo()
+    public async Task AnEpisodesPopOver_HasTheNavRowAHeaderTheTabsAndAFooterThatSaysWhereChangesGo()
     {
         await StartEditingAsync(EditTrailTestData.EpisodePage());
 
-        _editor.WaitForAssertion(() => Assert.Equal(["Show", "Season", "Episode"], _editor.FindAll(".tl-rail__crumb[data-level]").Select(LevelOf)));
-        // The header names the item, its show and its kind at once.
+        _editor.WaitForAssertion(() => Assert.NotEmpty(_editor.FindAll(".tl-hnav__home")));
+        Assert.Equal("Season", _editor.Find("#tl-hnav-second").GetAttribute("data-level"));
+        Assert.Equal("episode", _editor.Find("#tl-hnav-item").GetAttribute("data-level"));
+        // The header names the item, and its show above the title.
         Assert.Equal("Episode 2", _editor.Find(".tl-editor-header__title").TextContent.Trim());
-        _editor.WaitForAssertion(() => Assert.Contains(EditTrailTestData.ShowTitle, _editor.Find(".tl-editor-header__kicker").TextContent));
-        Assert.Equal(["Details", "Artwork", "Match & Identity"], _editor.FindAll(".tl-editor-window__tabs [role='tab']").Select(tab => tab.TextContent.Trim()).Take(3));
-        // The footer: where changes save, how many wait, Discard and Save changes.
-        Assert.Contains("Changes save to Library", _editor.Find(".tl-editor-window__where").TextContent);
+        _editor.WaitForAssertion(() => Assert.Contains(EditTrailTestData.ShowTitle, _editor.Find(".tl-editor-header__label").TextContent));
+        Assert.Equal(["Details", "Artwork", "Match", "History"], _editor.FindAll(".tl-editor-window__tabs [role='tab']").Select(tab => tab.TextContent.Trim()));
+        // The footer: whether edits reach the files, how many wait, Discard and Save changes.
+        Assert.Contains("Edits save in Library", _editor.Find(".tl-editor-window__where").TextContent);
         Assert.Equal("No changes yet", _editor.Find(".tl-editor-window__changes").TextContent.Trim());
         Assert.Equal("Discard", _editor.Find("button.tl-editor-window__cancel").TextContent.Trim());
         Assert.NotEmpty(_editor.FindAll("button.tl-editor-window__save"));
     }
 
     [Fact]
-    public async Task AShowsPopOver_OffersContents_AndAnEpisodesDoesNot()
+    public async Task AnEpisodesHeader_DrawsAGradientFromTheCoversColours_AndAnAlbumWithNoColoursStaysPlain()
+    {
+        await StartEditingAsync(EditTrailTestData.EpisodePage());
+
+        _editor.WaitForAssertion(() => Assert.Equal("cover", _editor.Find(".tl-editor-header").GetAttribute("data-gradient")));
+        var wash = _editor.Find(".tl-editor-header__wash");
+        Assert.Contains("#5a3a8a", wash.GetAttribute("style"), StringComparison.Ordinal);
+        Assert.Contains("#2a1858", wash.GetAttribute("style"), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ACoverWithNoStoredColours_LeavesTheHeaderAsThePlainWindowSurface()
+    {
+        await StartEditingAsync(EditTrailTestData.AlbumPage());
+
+        _editor.WaitForAssertion(() => Assert.NotEmpty(_editor.FindAll("#tl-hnav-item")));
+        Assert.Equal("none", _editor.Find(".tl-editor-header").GetAttribute("data-gradient"));
+        Assert.Empty(_editor.FindAll(".tl-editor-header__wash"));
+    }
+
+    [Fact]
+    public async Task WithWriteBackOff_TheFooterSaysEditsSaveInLibraryAndTheOriginalFilesStayUnchanged()
+    {
+        _writeBackOn = false;
+        await StartEditingAsync(EditTrailTestData.EpisodePage());
+
+        _editor.WaitForAssertion(() => Assert.Equal("writebackoff", _editor.Find("[data-footer-status]").GetAttribute("data-footer-status")));
+        var text = _editor.Find(".tl-editor-window__where").TextContent;
+        Assert.Contains("File write-back off", text, StringComparison.Ordinal);
+        Assert.Contains("Edits save in Library. Original files stay unchanged.", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task WithWriteBackOn_TheFooterSaysEditsAreAlsoWrittenIntoTheFilesOwnTags()
+    {
+        _writeBackOn = true;
+        await StartEditingAsync(EditTrailTestData.EpisodePage());
+
+        _editor.WaitForAssertion(() => Assert.Equal("writebackon", _editor.Find("[data-footer-status]").GetAttribute("data-footer-status")));
+        var text = _editor.Find(".tl-editor-window__where").TextContent;
+        Assert.Contains("File write-back on", text, StringComparison.Ordinal);
+        Assert.Contains("written into the file's own tags", text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AStagedFileMove_TurnsTheFooterAmber_NamesTheMove_AndDiscardingPutsTheSentenceBack()
+    {
+        _writeBackOn = false;
+        var cut = await StartEditingAsync(EditTrailTestData.EpisodePage());
+        var flow = FlowOf(cut);
+        _editor.WaitForAssertion(() => Assert.Equal("writebackoff", _editor.Find("[data-footer-status]").GetAttribute("data-footer-status")));
+
+        flow.Session.Pending.SetTarget(EditSessionChangeKinds.FileMove, EpisodeTwo, "target", label: "TV/Le Continental/Season 1/S01E02.mkv", before: "Inbox/ep2.mkv");
+
+        _editor.WaitForAssertion(() => Assert.Equal("willmove", _editor.Find("[data-footer-status]").GetAttribute("data-footer-status")));
+        var where = _editor.Find(".tl-editor-window__where");
+        Assert.Contains("tl-editor-window__where--warn", where.ClassList);
+        Assert.Contains("This file will move when you save", where.TextContent, StringComparison.Ordinal);
+        Assert.Contains("Inbox/ep2.mkv", where.TextContent, StringComparison.Ordinal);
+
+        flow.Session.Pending.Discard();
+
+        _editor.WaitForAssertion(() => Assert.Equal("writebackoff", _editor.Find("[data-footer-status]").GetAttribute("data-footer-status")));
+        Assert.DoesNotContain("tl-editor-window__where--warn", _editor.Find(".tl-editor-window__where").ClassList);
+    }
+
+    [Fact]
+    public async Task TheFooterReadsDeleteThenTheStatusThenTheCountThenDiscardThenSave()
+    {
+        var administrator = Guid.NewGuid();
+        Services.GetRequiredService<DashboardSessionAccessor>().Set("test-session-token", administrator, administrator, Guid.NewGuid(),
+            new DashboardAuthorityResponse(administrator, administrator, true, true, 1, 1, true, true, null, 1, [], [], []));
+        var cut = await StartEditingAsync(EditTrailTestData.EpisodePage());
+        var flow = FlowOf(cut);
+        flow.Session.Pending.SetField(EpisodeTwo, "description", "A change.");
+        flow.Session.Pending.SetField(EpisodeTwo, "title", "Renamed");
+
+        _editor.WaitForAssertion(() => Assert.Equal("2 unsaved changes", _editor.Find(".tl-editor-window__changes").TextContent.Trim()));
+        var footer = _editor.Find("footer.tl-editor-window__footer");
+        Assert.Equal("Delete", footer.QuerySelector("button.tl-editor-window__delete")?.TextContent.Trim());
+        Assert.Equal("Save changes", footer.QuerySelector("button.tl-editor-window__save")!.TextContent.Trim());
+        var order = footer.QuerySelectorAll("button, .tl-editor-window__where, .tl-editor-window__changes")
+            .Select(element => element.ClassList.Contains("tl-editor-window__where") ? "status" : element.ClassList.Contains("tl-editor-window__changes") ? "count" : element.TextContent.Trim())
+            .ToList();
+        Assert.Equal(["Delete", "status", "count", "Discard", "Save changes"], order);
+    }
+
+    [Fact]
+    public async Task TheTabsKeepTheirFixedOrder_WhateverOrderTheConfigListsThem()
+    {
+        _tabs = ["history", "match", "artwork", "details"];
+
+        await StartEditingAsync(EditTrailTestData.EpisodePage());
+
+        _editor.WaitForAssertion(() => Assert.Equal(
+            ["Details", "Artwork", "Match", "History"],
+            _editor.FindAll(".tl-editor-window__tabs [role='tab']").Select(tab => tab.TextContent.Trim())));
+    }
+
+    [Fact]
+    public async Task NoPopOverOffersAContentsOrFilesTab_TheNavRowTakesTheirPlace()
     {
         await StartEditingAsync(EditTrailTestData.ShowPage());
 
-        _editor.WaitForAssertion(() => Assert.Contains("Contents", _editor.FindAll(".tl-editor-window__tabs [role='tab']").Select(tab => tab.TextContent.Trim())));
-        Assert.Equal("Contents", _editor.FindAll(".tl-editor-window__tabs [role='tab']").Select(tab => tab.TextContent.Trim()).ElementAt(1));
+        _editor.WaitForAssertion(() => Assert.NotEmpty(_editor.FindAll("#tl-hnav-second")));
+        var tabs = _editor.FindAll(".tl-editor-window__tabs [role='tab']").Select(tab => tab.TextContent.Trim()).ToList();
+        Assert.DoesNotContain("Contents", tabs);
+        Assert.DoesNotContain("Files", tabs);
     }
 
     [Fact]
@@ -298,23 +498,24 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task AnAlbumPage_SwitchesBetweenItsArtistItselfAndItsTracks()
+    public async Task AnAlbumPage_SwitchesBetweenTheAlbumItselfAndItsSongs()
     {
         var cut = await StartEditingAsync(EditTrailTestData.AlbumPage());
         var flow = FlowOf(cut);
-        Assert.Equal([EditTrailTestData.ArtistId, EditTrailTestData.AlbumId], flow.Session.Trail.Select(step => step.EntityId));
-        _editor.WaitForAssertion(() => Assert.Equal(["Album", "Song"], _editor.FindAll(".tl-rail__crumb").Select(LevelOf)));
+        // An album has no home button of its own (it is the home); its songs are in the item dropdown.
+        _editor.WaitForAssertion(() => Assert.NotEmpty(_editor.FindAll("#tl-hnav-item")));
+        Assert.Empty(_editor.FindAll(".tl-hnav__home"));
 
         Choose(cut, "Paranoid Android", "Song");
 
         _editor.WaitForAssertion(() => Assert.Equal(EditTrailTestData.TrackTwoId, flow.Session.ActiveItem!.EntityId));
         Assert.Equal("track", flow.Mode().Fields.ScopeId);
-        // The tree is the album's own family: the artist is not part of it.
-        Assert.Equal([EditTrailTestData.AlbumId, EditTrailTestData.TrackTwoId], flow.Session.Trail.Select(step => step.EntityId));
+        // On the song, the album is one click away through the home button.
+        _editor.WaitForAssertion(() => Assert.NotEmpty(_editor.FindAll(".tl-hnav__home")));
     }
 
     [Fact]
-    public async Task AMoviePage_HasNoFamilyColumn_AndTheToolsUseTheFullWidth()
+    public async Task AMoviePage_HasNoNavRow_AndTheToolsUseTheFullWidth()
     {
         var movie = new DetailPageViewModel
         {
@@ -327,7 +528,7 @@ public sealed class DetailEditItemSwitchPageTests : AsyncBunitContext
 
         var cut = await StartEditingAsync(movie);
 
-        Assert.Empty(_editor.FindAll(".tl-rail"));
+        Assert.Empty(_editor.FindAll(".tl-hnav"));
         Assert.Contains("Dune: Part One", _editor.Find(".tl-editor-header__title").TextContent);
     }
 

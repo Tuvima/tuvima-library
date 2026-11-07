@@ -173,6 +173,16 @@ public sealed class EditorHeaderReadService(
 
     // -- Family ---------------------------------------------------------------------------------------------------------------------
 
+    /// <summary>
+    /// The editor's kind of this item (<c>movie</c>, <c>tv_episode</c>, <c>video</c> ...), decided here from the item's family and
+    /// <c>config/editor.json</c> and nowhere else, so the Match tab never takes the kind from the Dashboard. Null when no such item exists.
+    /// </summary>
+    public async Task<string?> ResolveKindAsync(Guid workId, CancellationToken ct = default)
+    {
+        var family = await ReadFamilyAsync(workId, ct).ConfigureAwait(false);
+        return family is null ? null : ResolveKind(family.MediaType, family.Current);
+    }
+
     private async Task<Family?> ReadFamilyAsync(Guid workId, CancellationToken ct)
     {
         var navigator = await navigation.GetNavigatorAsync(workId, ct).ConfigureAwait(false);

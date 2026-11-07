@@ -31,6 +31,7 @@
   "provider_id": "b6000006-0000-4000-8000-000000000007",
   "display_name": "MusicBrainz",
   "requires_api_key": false,
+  "editor_match": { "default_for": ["album", "song"], "kinds": ["album", "song"], "id_lookup": {"isrc": "isrc", "musicbrainz": "musicbrainz_recording_id"} },
   "language_strategy": "source",
 
   "http_client": {

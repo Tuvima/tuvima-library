@@ -29,6 +29,14 @@ public sealed class ItemCanonicalSearchRequestDto
     /// <summary>Searches only this retail provider (the editor's "Search in" choice, by its <c>name</c>). Null or empty searches every provider that fits the item.</summary>
     [JsonPropertyName("provider_name")]
     public string? ProviderName { get; set; }
+
+    /// <summary>
+    /// Identifiers the person typed that the chosen provider can look up directly, by the search field its lookup strategy needs
+    /// (<c>isbn</c>, <c>isrc</c>, <c>comic_vine_id</c> ...). They go to the provider as search fields, never as search words.
+    /// </summary>
+    [JsonPropertyName("lookup_fields")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Dictionary<string, string>? LookupFields { get; set; }
 }
 
 /// <summary>A retail provider the editor can search in.</summary>

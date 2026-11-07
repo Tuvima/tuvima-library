@@ -262,8 +262,8 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
         {
             var save = cut.Find("button.tl-editor-window__save");
             Assert.False(save.HasAttribute("disabled"));
-            Assert.Equal("Save 3 changes", save.TextContent.Trim());
-            Assert.Equal("3 changes waiting", cut.Find(".tl-editor-window__changes").TextContent.Trim());
+            Assert.Equal("Save changes", save.TextContent.Trim());
+            Assert.Equal("3 unsaved changes", cut.Find(".tl-editor-window__changes").TextContent.Trim());
         });
     }
 
@@ -274,7 +274,7 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
 
         var cut = RenderBar(editor);
 
-        Assert.Equal(["Details", "Artwork", "Match & Identity", "History"], cut.FindAll(".tl-editor-window__tabs [role='tab']").Select(tool => tool.TextContent.Trim()));
+        Assert.Equal(["Details", "Artwork", "Match", "History"], cut.FindAll(".tl-editor-window__tabs [role='tab']").Select(tool => tool.TextContent.Trim()));
     }
 
     [Fact]
@@ -287,7 +287,7 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
         var noArtwork = EditingModeTestData.MovieContext();
         noArtwork.Scopes[0].CanEditArtwork = false;
         var second = await StartEditorAsync(noArtwork);
-        Assert.Equal(["Details", "Match & Identity", "History"], RenderBar(second).FindAll(".tl-editor-window__tabs [role='tab']").Select(tool => tool.TextContent.Trim()));
+        Assert.Equal(["Details", "Match", "History"], RenderBar(second).FindAll(".tl-editor-window__tabs [role='tab']").Select(tool => tool.TextContent.Trim()));
     }
 
     [Fact]
@@ -615,7 +615,9 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
         var cut = RenderPanel(editor);
         await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
 
-        cut.WaitForElement("input[aria-label='Title']").Input("Dune 2");
+        cut.WaitForElement("input[aria-label='Title']");
+        cut.UnlockField("title");
+        cut.Find("input[aria-label='Title']").Input("Dune 2");
 
         cut.WaitForAssertion(() =>
         {
@@ -632,7 +634,9 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
         var editor = await StartEditorAsync();
         var cut = RenderPanel(editor);
         await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
-        var title = cut.WaitForElement("input[aria-label='Title']");
+        cut.WaitForElement("input[aria-label='Title']");
+        cut.UnlockField("title");
+        var title = cut.Find("input[aria-label='Title']");
 
         title.Input("Dune 2");
         cut.WaitForAssertion(() => Assert.Equal(1, editor.Session.Pending.Count));
@@ -657,13 +661,13 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task AnOverriddenField_ShowsAPurpleDot_AndResetStagesAnEmptyValue()
+    public async Task AnOverriddenField_IsYours_AndRevertStagesAnEmptyValue()
     {
         var editor = await StartEditorAsync(MovieWithTitleOverride());
         var cut = RenderPanel(editor);
         await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
         var title = cut.WaitForElement(".tl-editor-field[data-field-key='title']");
-        Assert.NotNull(title.QuerySelector(".tl-editor-field__dot"));
+        Assert.Equal("yours", cut.LockStateOf("title"));
 
         title.QuerySelectorAll("button").Single(button => button.GetAttribute("aria-label") == "Reset to provider value").Click();
 
@@ -676,62 +680,147 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
         Assert.Empty(_overrideSaves);
     }
 
-    // -- Lock and revert on every field, and Quick Facts (universal editor v4, WP4) --------------------------------
+    // -- Locks by default (editor v5 D5, WP6) ------------------------------------------------------
+    // Two meanings are kept apart: the form lock only stops accidental typing (a field nobody changed stays the provider's), and a changed
+    // field is "yours" (kept on every provider refresh, with Revert).
 
     [Fact]
-    public async Task EveryEditableField_HasALock()
+    public async Task EveryProviderField_OpensLocked_WithAnAccentLockToClickAndADimmedValue()
     {
         var editor = await StartEditorAsync();
         var cut = RenderPanel(editor);
         await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
         cut.WaitForElement(".tl-editor-details");
 
-        var editable = cut.FindAll(".tl-editor-field[data-field-key]:not(.tl-editor-field--locked)");
+        var providerFields = cut.FindAll(".tl-editor-field[data-field-key]:not([data-field-key='custom_tags'])");
 
-        Assert.NotEmpty(editable);
-        Assert.All(editable, field => Assert.NotNull(field.QuerySelector("button.tl-editor-field__lock-toggle")));
-        Assert.Empty(cut.FindAll(".tl-editor-field--locked button.tl-editor-field__lock-toggle"));
+        Assert.NotEmpty(providerFields);
+        Assert.All(providerFields, field =>
+        {
+            Assert.Equal("true", field.GetAttribute("data-locked"));
+            Assert.Contains("tl-editor-field--form-locked", field.ClassName, StringComparison.Ordinal);
+            var toggle = field.QuerySelector("button.tl-editor-field__lock-toggle")!;
+            // The name says which field it unlocks, and it is a plain button (it has no pressed state).
+            var label = field.QuerySelector(".tl-editor-field__label > span")!.TextContent.Trim();
+            Assert.Equal($"Unlock {label} to edit", toggle.GetAttribute("aria-label"));
+            Assert.Null(toggle.GetAttribute("aria-pressed"));
+            Assert.Equal("locked", field.QuerySelector("[data-lock-state]")!.GetAttribute("data-lock-state"));
+        });
+        // A locked text box can be focused and copied from but not typed in: read-only, not disabled.
+        var locked = cut.FindAll(".tl-editor-field[data-field-key='title'] input, .tl-editor-field[data-field-key='description'] textarea");
+        Assert.Equal(2, locked.Count);
+        Assert.All(locked, input =>
+        {
+            Assert.True(input.HasAttribute("readonly"));
+            Assert.False(input.HasAttribute("disabled"));
+        });
+        // Locked chips are a named group of read-only chips.
+        var chips = cut.Find(".tl-editor-field[data-field-key='genre'] .tl-editor-field__chips");
+        Assert.Equal("group", chips.GetAttribute("role"));
+        Assert.Equal("Genres", chips.GetAttribute("aria-label"));
+        Assert.True(editor.Session.Pending.IsEmpty);
     }
 
     [Fact]
-    public async Task LockingAField_KeepsItsCurrentValue_AndUnlockingTakesTheLockBack()
+    public async Task UnlockingAField_StagesNothing_AndLockingItAgainStagesNothing()
     {
         var editor = await StartEditorAsync();
         var cut = RenderPanel(editor);
         await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
         var field = cut.WaitForElement(".tl-editor-field[data-field-key='title']");
-        Assert.Equal("false", field.GetAttribute("data-locked"));
-        Assert.False(editor.Session.Pending.TryGetField(MovieId, "title", out _));
 
         field.QuerySelector("button.tl-editor-field__lock-toggle")!.Click();
 
         cut.WaitForAssertion(() =>
         {
-            Assert.True(editor.Session.Pending.TryGetField(MovieId, "title", out var kept));
-            Assert.Equal("Dune: Part One", kept);
-            var locked = cut.Find(".tl-editor-field[data-field-key='title']");
-            Assert.Equal("true", locked.GetAttribute("data-locked"));
-            Assert.Equal("false", locked.GetAttribute("data-changed"));
-            Assert.Empty(locked.QuerySelectorAll("button.tl-editor-field__reset"));
+            var open = cut.Find(".tl-editor-field[data-field-key='title']");
+            Assert.Equal("false", open.GetAttribute("data-locked"));
+            Assert.Equal("false", open.GetAttribute("data-changed"));
+            Assert.Equal("unlocked", cut.LockStateOf("title"));
+            Assert.Equal("Lock Title", open.QuerySelector("button.tl-editor-field__lock-toggle")!.GetAttribute("aria-label"));
+            Assert.False(cut.Find("input[aria-label='Title']").HasAttribute("readonly"));
         });
+        Assert.True(editor.Session.Pending.IsEmpty);
 
         cut.Find(".tl-editor-field[data-field-key='title'] button.tl-editor-field__lock-toggle").Click();
 
         cut.WaitForAssertion(() =>
         {
-            Assert.False(editor.Session.Pending.TryGetField(MovieId, "title", out _));
-            Assert.Equal("false", cut.Find(".tl-editor-field[data-field-key='title']").GetAttribute("data-locked"));
+            Assert.Equal("true", cut.Find(".tl-editor-field[data-field-key='title']").GetAttribute("data-locked"));
+            Assert.True(cut.Find("input[aria-label='Title']").HasAttribute("readonly"));
         });
+        Assert.True(editor.Session.Pending.IsEmpty);
     }
 
     [Fact]
-    public async Task AChangedField_ShowsARevertArrow_ThatPutsTheSavedValueBack_AndItsLockIsFixedOn()
+    public async Task UnlockingAFieldAndTyping_StagesTheChange_AndTheFieldIsYours()
     {
         var editor = await StartEditorAsync();
         var cut = RenderPanel(editor);
         await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
-        var field = cut.WaitForElement(".tl-editor-field[data-field-key='title']");
-        Assert.Empty(field.QuerySelectorAll("button.tl-editor-field__reset"));
+        cut.UnlockField("description");
+
+        cut.Find(".tl-editor-field[data-field-key='description'] textarea").Input("My own synopsis.");
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.True(editor.Session.Pending.TryGetField(MovieId, "description", out var staged));
+            Assert.Equal("My own synopsis.", staged);
+            var changed = cut.Find(".tl-editor-field[data-field-key='description']");
+            Assert.Equal("true", changed.GetAttribute("data-changed"));
+            Assert.Equal("false", changed.GetAttribute("data-locked"));
+            Assert.Equal("yours", cut.LockStateOf("description"));
+            Assert.Contains("kept on refresh", changed.TextContent, StringComparison.Ordinal);
+            Assert.NotNull(changed.QuerySelector("button.tl-editor-field__reset"));
+            Assert.Empty(changed.QuerySelectorAll("button.tl-editor-field__lock-toggle"));
+        });
+        Assert.Empty(_overrideSaves);
+    }
+
+    [Fact]
+    public async Task ReLockingAnUnlockedFieldYouDidNotChange_JustRelocksIt()
+    {
+        var editor = await StartEditorAsync();
+        var cut = RenderPanel(editor);
+        await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
+        cut.UnlockField("title");
+        // Typing the value it already has takes the staged change back out, so nothing is left waiting.
+        cut.Find("input[aria-label='Title']").Input("Dune 2");
+        cut.WaitForAssertion(() => Assert.Equal(1, editor.Session.Pending.Count));
+        cut.Find("input[aria-label='Title']").Input("Dune: Part One");
+        cut.WaitForAssertion(() => Assert.True(editor.Session.Pending.IsEmpty));
+        Assert.Equal("unlocked", cut.LockStateOf("title"));
+
+        cut.Find(".tl-editor-field[data-field-key='title'] button.tl-editor-field__lock-toggle").Click();
+
+        cut.WaitForAssertion(() => Assert.Equal("locked", cut.LockStateOf("title")));
+        Assert.True(editor.Session.Pending.IsEmpty);
+    }
+
+    [Fact]
+    public async Task TagsAreTheLibrarysOwn_AndNeverShowALock()
+    {
+        var editor = await StartEditorAsync();
+        var cut = RenderPanel(editor);
+        await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
+
+        var tags = cut.WaitForElement(".tl-editor-field[data-field-key='custom_tags']");
+
+        Assert.Equal("false", tags.GetAttribute("data-locked"));
+        Assert.Empty(tags.QuerySelectorAll("button.tl-editor-field__lock-toggle"));
+        Assert.Empty(tags.QuerySelectorAll("[data-lock-state]"));
+        Assert.NotNull(tags.QuerySelector(".sme-tag-editor__add"));
+        Assert.False(tags.QuerySelector(".sme-tag-editor__add")!.HasAttribute("disabled"));
+    }
+
+    [Fact]
+    public async Task AChangedField_ShowsRevert_WhichPutsTheSavedValueBack_AndLocksItAgain()
+    {
+        var editor = await StartEditorAsync();
+        var cut = RenderPanel(editor);
+        await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
+        cut.UnlockField("title");
+        Assert.Empty(cut.Find(".tl-editor-field[data-field-key='title']").QuerySelectorAll("button.tl-editor-field__reset"));
 
         cut.Find("input[aria-label='Title']").Input("Dune 2");
 
@@ -739,9 +828,8 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
         {
             var changed = cut.Find(".tl-editor-field[data-field-key='title']");
             Assert.Equal("true", changed.GetAttribute("data-changed"));
-            Assert.Equal("true", changed.GetAttribute("data-locked"));
-            Assert.NotNull(changed.QuerySelector("button.tl-editor-field__reset"));
-            Assert.True(changed.QuerySelector("button.tl-editor-field__lock-toggle")!.HasAttribute("disabled"));
+            Assert.Equal("false", changed.GetAttribute("data-locked"));
+            Assert.Equal("Revert", changed.QuerySelector("button.tl-editor-field__reset")!.TextContent.Trim());
         });
 
         cut.Find(".tl-editor-field[data-field-key='title'] button.tl-editor-field__reset").Click();
@@ -751,20 +839,22 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
             Assert.False(editor.Session.Pending.TryGetField(MovieId, "title", out _));
             var back = cut.Find(".tl-editor-field[data-field-key='title']");
             Assert.Equal("false", back.GetAttribute("data-changed"));
+            Assert.Equal("true", back.GetAttribute("data-locked"));
             Assert.Equal("Dune: Part One", cut.Find("input[aria-label='Title']").GetAttribute("value"));
         });
     }
 
     [Fact]
-    public async Task ASavedOverride_IsLockedAndChanged_AndItsArrowGoesBackToTheProvidersValue()
+    public async Task ASavedOverride_OpensAsYours_AndRevertSendsItBackToTheProvidersValueAndLocksIt()
     {
         var editor = await StartEditorAsync(MovieWithTitleOverride());
         var cut = RenderPanel(editor);
         await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
         var title = cut.WaitForElement(".tl-editor-field[data-field-key='title']");
 
-        Assert.Equal("true", title.GetAttribute("data-locked"));
+        Assert.Equal("false", title.GetAttribute("data-locked"));
         Assert.Equal("true", title.GetAttribute("data-changed"));
+        Assert.Equal("yours", cut.LockStateOf("title"));
 
         title.QuerySelector("button.tl-editor-field__reset")!.Click();
 
@@ -772,9 +862,73 @@ public sealed class UniversalEditorWindowTests : AsyncBunitContext
         {
             Assert.True(editor.Session.Pending.TryGetField(MovieId, "title", out var staged));
             Assert.True(string.IsNullOrEmpty(staged));
-            Assert.Equal("false", cut.Find(".tl-editor-field[data-field-key='title']").GetAttribute("data-locked"));
+            var relocked = cut.Find(".tl-editor-field[data-field-key='title']");
+            Assert.Equal("true", relocked.GetAttribute("data-locked"));
+            Assert.Equal("locked", cut.LockStateOf("title"));
+            // It shows the provider's value again, not the saved one it is about to lose.
+            Assert.Equal("Dune: Part One", cut.Find("input[aria-label='Title']").GetAttribute("value"));
         });
     }
+
+    [Fact]
+    public async Task ReviewChanges_NamesAChangedProviderField_AsNowYours_ButNotAnOwnField()
+    {
+        var editor = await StartEditorAsync();
+        var cut = RenderBar(editor);
+        cut.UnlockField("description");
+        cut.Find(".tl-editor-field[data-field-key='description'] textarea").Input("My own synopsis.");
+        cut.WaitForAssertion(() => Assert.Equal(1, editor.Session.Pending.Count));
+        editor.Session.Pending.SetField(MovieId, "custom_tags", "epic; sandworms");
+
+        cut.Find("button.tl-editor-window__save").Click();
+
+        cut.WaitForElement(".review-changes");
+        var rows = cut.FindAll(".review-changes__row");
+        var description = Assert.Single(rows, row => row.GetAttribute("data-row")!.EndsWith(":description", StringComparison.Ordinal));
+        var tags = Assert.Single(rows, row => row.GetAttribute("data-row")!.EndsWith(":custom_tags", StringComparison.Ordinal));
+        Assert.NotNull(description.QuerySelector("[data-now-yours]"));
+        Assert.Contains("now yours", description.QuerySelector(".review-changes__what")!.TextContent, StringComparison.Ordinal);
+        Assert.Null(tags.QuerySelector("[data-now-yours]"));
+    }
+
+    [Fact]
+    public async Task TheSortTitle_IsAlwaysThere_OpenToType_AndStagesLikeAnyOwnField()
+    {
+        var context = EditingModeTestData.MovieContext();
+        context.Scopes[0].FieldSnapshot.AllowedOverrideKeys.Add("sort_title");
+        var editor = await StartEditorAsync(context);
+        var cut = RenderPanel(editor);
+        await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
+
+        var sortTitle = cut.WaitForElement(".tl-editor-field[data-field-key='sort_title']");
+
+        Assert.Equal("false", sortTitle.GetAttribute("data-locked"));
+        Assert.Empty(sortTitle.QuerySelectorAll("[data-lock-state]"));
+        Assert.False(sortTitle.QuerySelector("input")!.HasAttribute("readonly"));
+
+        sortTitle.QuerySelector("input")!.Input("Dune, Part One");
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.True(editor.Session.Pending.TryGetField(MovieId, "sort_title", out var staged));
+            Assert.Equal("Dune, Part One", staged);
+        });
+    }
+
+    [Fact]
+    public async Task AReadOnlyItem_OffersNoUnlock()
+    {
+        var context = EditingModeTestData.MovieContext();
+        context.Scopes[0].CanEditFields = false;
+        var editor = await StartEditorAsync(context);
+        var cut = RenderPanel(editor);
+        await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
+        cut.WaitForElement(".tl-editor-details");
+
+        Assert.Empty(cut.FindAll("button.tl-editor-field__lock-toggle"));
+    }
+
+    // -- Quick Facts (universal editor v4, WP4) ----------------------------------------------------
 
     [Fact]
     public async Task AFilm_ShowsRuntimeYearSizeAndQuality_BesideTheForm()

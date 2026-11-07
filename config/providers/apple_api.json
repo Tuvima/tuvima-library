@@ -524,6 +524,7 @@
     }
   ],
   "requires_api_key": false,
+  "editor_match": { "default_for": ["audiobook"], "kinds": ["audiobook", "book", "album", "song"], "id_lookup": {"isbn": "isbn"} },
   "custom_icon_name": null,
   "language_strategy": "localized",
   "settings_schema": {

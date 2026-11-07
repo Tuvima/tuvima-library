@@ -390,7 +390,7 @@ public sealed class UniversePageTests : AsyncBunitContext
         Assert.Equal(["Details", "Pictures", "Match", "History"], _editor.FindAll(".tl-editor-window__tabs [role='tab']").Select(button => button.TextContent.Trim()));
         // A Universe draws its own rail of kinds, never the family rail of a show or an album.
         _editor.WaitForAssertion(() => Assert.Single(_editor.FindAll(".tl-urail")));
-        Assert.Empty(_editor.FindAll(".tl-rail"));
+        Assert.Empty(_editor.FindAll(".tl-hnav"));
         Assert.Contains("Dune", _editor.Find(".tl-editor-header__title").TextContent);
     }
 
@@ -423,12 +423,13 @@ public sealed class UniversePageTests : AsyncBunitContext
     {
         var cut = await StartEditingAsync();
 
-        _editor.WaitForElement(".tl-editor-field[data-field-key='title'] input").Input("Arrakis");
+        _editor.UnlockField("title");
+        _editor.Find(".tl-editor-field[data-field-key='title'] input").Input("Arrakis");
 
         _editor.WaitForAssertion(() =>
         {
             Assert.NotEqual("Arrakis", cut.Find(".universe-hero__title").TextContent.Trim());
-            Assert.Contains("Save 1 change", _editor.Find("button.tl-editor-window__save").TextContent);
+            Assert.Contains("Save changes", _editor.Find("button.tl-editor-window__save").TextContent);
         });
         Assert.Empty(_sessions);
     }
@@ -441,7 +442,7 @@ public sealed class UniversePageTests : AsyncBunitContext
 
         var title = _editor.WaitForElement(".tl-editor-field[data-field-key='title']");
 
-        Assert.NotNull(title.QuerySelector(".tl-editor-field__dot"));
+        Assert.Equal("yours", _editor.LockStateOf("title"));
         Assert.Contains(title.QuerySelectorAll("button"), button => button.GetAttribute("aria-label") == "Reset to canonical value");
     }
 

@@ -148,7 +148,7 @@ public sealed class DetailArtworkPickerPageTests : AsyncBunitContext
         _editor.WaitForAssertion(() => Assert.NotEmpty(_editor.FindAll(".tl-art-picker__version:not(.tl-art-picker__add-version)")));
         _editor.FindAll(".tl-art-picker__version:not(.tl-art-picker__add-version)").Last().Click();
 
-        _editor.WaitForAssertion(() => Assert.Equal("Save 1 change", _editor.Find("button.tl-editor-window__save").TextContent.Trim()));
+        _editor.WaitForAssertion(() => Assert.Equal("Save changes", _editor.Find("button.tl-editor-window__save").TextContent.Trim()));
         Assert.Contains("stored-backdrop", cut.Find(".tl-detail-hero").InnerHtml);
         Assert.DoesNotContain("preview-backdrop", cut.Find(".tl-detail-hero").InnerHtml);
         Assert.Empty(_writes);
@@ -163,7 +163,7 @@ public sealed class DetailArtworkPickerPageTests : AsyncBunitContext
         _editor.WaitForAssertion(() => Assert.NotEmpty(_editor.FindAll(".tl-art-picker__version:not(.tl-art-picker__add-version)")));
         _editor.FindAll(".tl-art-picker__version:not(.tl-art-picker__add-version)").Last().Click();
 
-        _editor.WaitForAssertion(() => Assert.Equal("Save 1 change", _editor.Find("button.tl-editor-window__save").TextContent.Trim()));
+        _editor.WaitForAssertion(() => Assert.Equal("Save changes", _editor.Find("button.tl-editor-window__save").TextContent.Trim()));
         Assert.Contains("stored-backdrop", cut.Find(".tl-detail-hero").InnerHtml);
         Assert.Empty(_writes);
     }

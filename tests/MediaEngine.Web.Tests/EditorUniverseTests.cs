@@ -209,7 +209,7 @@ public sealed class EditorUniverseTests
         Assert.Equal("Pictures", EditorUniverseRules.ArtworkTabLabel(EditorSubjectKinds.FictionalEntity));
         Assert.Equal("Artwork", EditorUniverseRules.ArtworkTabLabel(EditorSubjectKinds.Person));
         Assert.Equal("Match", EditorUniverseRules.MatchTabLabel(EditorSubjectKinds.Universe));
-        Assert.Equal("Match & Identity", EditorUniverseRules.MatchTabLabel(null));
+        Assert.Equal("Match", EditorUniverseRules.MatchTabLabel(null));
         Assert.Equal("Faction in Dune", EditorUniverseRules.KindLine(EditorSubjectKinds.FictionalEntity, "Faction", "Dune"));
         Assert.Equal("Universe", EditorUniverseRules.KindLine(EditorSubjectKinds.Universe, null, "Dune"));
     }

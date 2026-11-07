@@ -258,7 +258,7 @@ public sealed partial class ConfigDrivenAdapter
 
         response.EnsureSuccessStatusCode();
         var responseBody = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-        if (useResponseCache && _responseCache is not null && !string.IsNullOrWhiteSpace(responseBody))
+        if (useResponseCache && _responseCache is not null && !EmptyProviderAnswer.IsEmpty(responseBody))
         {
             var etag = response.Headers.ETag?.Tag?.Trim('"');
             await _responseCache.UpsertAsync(
