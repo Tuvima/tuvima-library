@@ -94,12 +94,18 @@
             }
             <PlaybackShell Media="@BarMedia" Surface="video" Class="video-playback-host__bar" AriaLabel="@L["VideoPlaybackHost_VideoPlayback"].Value"
                            State="@BarState" Identity="@BarIdentity"
-                           ArtworkSrc="@PlaybackArtworkUrl.ForDrawnSize(Playback.CurrentItem, 112)" ArtworkSrcSet="@PlaybackArtworkUrl.SrcSetForDrawnSize(Playback.CurrentItem, 112)"
+                           ArtworkSrc="@BarArtwork.Src" ArtworkSrcSet="@BarArtwork.SrcSet" ArtworkIsPoster="@BarArtwork.IsPoster"
                            ArtworkAlt="" ArtworkDisplay="video-bar-thumbnail"
                            Volume="@Playback.Volume" IsMuted="@(PlaybackMuteDisplay.ShowsMuted(Playback.IsMuted, Playback.Volume, Playback.VolumeReported))"
                            CommitVolumeOnChange="false" OnToggleMute="ToggleMuteAsync" OnVolumeChanged="SetVolumeOnHostAsync"
                            OnTransport="HandleBarTransportAsync" OnTool="HandleBarToolAsync"
                            HostedTools="@HostedBarTools" OmittedTools="@OmittedBarTools">
+                <LinkContent Context="link">
+                    <MediaEngine.Web.Components.Listen.PlaybackIdentityLink Href="@PlaybackItemRoutes.ForVideoLink(link.Kind, link.Id, BarShowWorkId, Playback.CurrentItem)" Text="@link.Text" />
+                </LinkContent>
+                <IdentityActions>
+                    <PlaybackIdentityActions Media="@BarMedia" Item="@Playback.CurrentItem" Surface="video" ShowWorkId="@BarShowWorkId" SeasonId="@BarSeasonId" />
+                </IdentityActions>
                 <TimelineContent>
             <PlaybackSeekRail Position="@Playback.CurrentTimeSeconds" Duration="@Playback.DurationSeconds" ValueChanged="SeekOnHostAsync" ChapterTicks="@ShownChapterTicks" ChapterLabel="ChapterTickLabel" Surface="video"
                                Bookmarks="@ShownRailBookmarks" BookmarkJump="JumpToRailBookmarkAsync" BookmarkDelete="DeleteBookmarkAsync" Notice="@_bookmarkNotice"
@@ -439,8 +445,13 @@
                 IsMuted: PlaybackMuteDisplay.ShowsMuted(Playback.IsMuted, Playback.Volume, Playback.VolumeReported));
     // The persistent bar (unified player v2 D1 to D6). PlaybackShell draws it from PlaybackControlCatalog; these are the host's answers.
     private PlaybackBarMedia BarMedia => IsTvEpisode ? PlaybackBarMedia.Tv : PlaybackBarMedia.Movie;
+    // The episode as the presentation context lists it, for its still and its season; both are known only once that context has loaded.
+    private VideoOwnedEpisode? CurrentOwnedEpisode => _presentationContext?.Episodes.FirstOrDefault(episode => episode.WorkId == Playback.CurrentItem?.WorkId);
+    private Guid? BarShowWorkId => _presentationContext is { ShowWorkId: { } show } && show != Guid.Empty ? show : null;
+    private Guid? BarSeasonId => Guid.TryParse(CurrentOwnedEpisode?.SeasonKey, out var season) && season != Guid.Empty ? season : null;
+    private PlaybackSlotArtwork BarArtwork => PlaybackArtworkUrl.ForBarSlot(BarMedia, Playback.CurrentItem, CurrentOwnedEpisode?.StillUrl);
     private PlaybackBarIdentity BarIdentity => Playback.CurrentItem is { } item
-        ? PlaybackBarIdentity.Build(BarMedia, item, _presentationContext?.ShowTitle)
+        ? PlaybackBarIdentity.Build(BarMedia, item, _presentationContext?.ShowTitle, showWorkId: BarShowWorkId)
         : new(string.Empty, null, null, []);
     private PlaybackBarState BarState => new(
         IsPlaying: VideoIsPlaying,

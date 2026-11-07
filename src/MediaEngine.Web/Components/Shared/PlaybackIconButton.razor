@@ -87,7 +87,7 @@
         Control.IsSelected ? "is-selected" : null,
     }.Where(value => !string.IsNullOrWhiteSpace(value)));
 
-    private string? AriaPressed => Control.Key is PlaybackControlKey.Mute or PlaybackControlKey.Shuffle or PlaybackControlKey.Repeat or PlaybackControlKey.Favorite
+    private string? AriaPressed => Control.Key is PlaybackControlKey.Mute or PlaybackControlKey.Shuffle or PlaybackControlKey.Repeat or PlaybackControlKey.Favorite or PlaybackControlKey.Like or PlaybackControlKey.Dislike
         ? Control.IsActive ? "true" : "false" : null;
     private string? AriaExpanded => Control.Sheet is not null || Control.Key == PlaybackControlKey.More
         ? Control.IsSelected ? "true" : "false" : null;

@@ -81,11 +81,13 @@ public sealed class PlaybackShellTests : AsyncBunitContext
         // There is no layout engine here, so the grid itself is checked: equal outer columns keep Play at the exact centre.
         var css = RepoFile("src", "MediaEngine.Web", "Components", "Shared", "PlaybackShell.razor.css");
         Assert.Contains("grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);", css, StringComparison.Ordinal);
-        Assert.Contains("overflow: hidden;", css, StringComparison.Ordinal);
-        Assert.Contains("text-overflow: ellipsis;", css, StringComparison.Ordinal);
-        Assert.Contains("white-space: nowrap;", css, StringComparison.Ordinal);
         Assert.Contains("flex-wrap: nowrap;", css, StringComparison.Ordinal);
-        Assert.Contains(".playback-shell__identity { min-width: 240px; }", css, StringComparison.Ordinal);
+        // The identity zone (PlaybackIdentity) keeps 240 px and ends a long title in an ellipsis.
+        var identityCss = RepoFile("src", "MediaEngine.Web", "Components", "Shared", "PlaybackIdentity.razor.css");
+        Assert.Contains("min-width: 240px;", identityCss, StringComparison.Ordinal);
+        Assert.Contains("overflow: hidden;", identityCss, StringComparison.Ordinal);
+        Assert.Contains("text-overflow: ellipsis;", identityCss, StringComparison.Ordinal);
+        Assert.Contains("white-space: nowrap;", identityCss, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -97,7 +99,7 @@ public sealed class PlaybackShellTests : AsyncBunitContext
 
         Assert.Equal(Labels(shortTitle.Find("[data-playback-zone='transport']")), Labels(longTitle.Find("[data-playback-zone='transport']")));
         Assert.Equal(Labels(shortTitle.Find("[data-playback-zone='tools']")), Labels(longTitle.Find("[data-playback-zone='tools']")));
-        Assert.Contains(LongTitle, longTitle.Find(".playback-shell__title").TextContent);
+        Assert.Contains(LongTitle, longTitle.Find(".playback-identity__title").TextContent);
     }
 
     [Fact]
