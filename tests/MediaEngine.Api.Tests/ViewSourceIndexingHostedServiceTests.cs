@@ -214,6 +214,35 @@ public sealed class ViewSourceIndexingHostedServiceTests : IDisposable
         });
     }
 
+    [Fact]
+    public async Task ASharedFolder_IsScannedAtStartAndWhenAllFoldersAreCheckedAgain_AndItsFilesAreDispatchedToTheSharedLibrary()
+    {
+        var personalRoot = Directory.CreateDirectory(Path.Combine(_root, "personal-folder")).FullName;
+        var sharedRoot = Directory.CreateDirectory(Path.Combine(_root, "shared-folder")).FullName;
+        var personalLibrary = Guid.NewGuid();
+        AddSource(personalLibrary, personalRoot, true);
+        var sharedLibrary = AddSharedLinkedSource(sharedRoot);
+        var factory = new FakeWatcherFactory();
+        var indexer = new RecordingIndexer();
+        using var service = Service(indexer, factory);
+        await service.StartAsync(CancellationToken.None);
+        await WaitUntilAsync(() => factory.Watchers.Count == 2 && indexer.Scans.Count == 2);
+        Assert.Contains(sharedLibrary, indexer.Scans);
+
+        service.RequestReconcileAll();
+
+        await WaitUntilAsync(() => indexer.Scans.Count == 4);
+        Assert.Equal(2, indexer.Scans.Count(id => id == sharedLibrary));
+
+        var arrived = Path.Combine(sharedRoot, "new-photo.jpg");
+        File.WriteAllBytes(arrived, [1, 2, 3]);
+        var sharedWatcher = factory.Watchers.Single(watcher => watcher.Source.LibraryId == sharedLibrary);
+        sharedWatcher.Raise(new ViewSourceFileEvent(arrived, ViewSourceFileEventKind.Created));
+        await indexer.FirstSuccessfulDispatch.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        Assert.Equal((sharedLibrary, Path.GetFullPath(arrived)), Assert.Single(indexer.SuccessfulDispatches));
+        await service.StopAsync(CancellationToken.None);
+    }
+
     private ServerStorageLocationConfig StorageRoot() => new()
     {
         Id = "view-tests",
@@ -258,6 +287,18 @@ public sealed class ViewSourceIndexingHostedServiceTests : IDisposable
             Guid.NewGuid(), space.Id, ViewSourceType.Folder, "Test source", $"test:{libraryId:N}",
             null, now, now, ViewSourceStorageMode.Linked, ExternalPath: path,
             IncludeSubdirectories: includeSubdirectories, Enabled: true)).GetAwaiter().GetResult();
+    }
+
+    private Guid AddSharedLinkedSource(string path)
+    {
+        var shared = new ViewSharedLibraryRepository(_database);
+        var library = shared.GetAsync().GetAwaiter().GetResult();
+        var now = DateTimeOffset.UtcNow;
+        var id = Guid.NewGuid();
+        shared.UpsertSourceAsync(new ViewSharedSource(
+            id, library.LibraryId, ViewSourceType.Folder, "Family photos", $"shared:linked:{id:N}", null, now, now,
+            ViewSourceStorageMode.Linked, ExternalPath: path, Enabled: true)).GetAwaiter().GetResult();
+        return library.LibraryId;
     }
 
     private static async Task WaitUntilAsync(Func<bool> condition)

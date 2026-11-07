@@ -66,7 +66,7 @@
 .collection-rule-builder__picker-search { width: 100%; }
 .collection-rule-builder__picker-search ::deep .tl-input-control { min-height: 44px; }
 
-.collection-rule-builder__picker-families { display: flex; align-items: center; gap: 8px; overflow-x: auto; margin: 16px 0 12px; }
+.collection-rule-builder__picker-families { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; margin: 16px 0 12px; }
 .collection-rule-builder__picker-families ::deep button { display: inline-flex; align-items: center; gap: 9px; min-height: 48px; padding: 0 18px; border: 1px solid color-mix(in srgb, var(--tl-divider) 72%, transparent); border-radius: var(--tl-control-radius); background: color-mix(in srgb, var(--tl-bg-surface) 58%, transparent); color: var(--tl-text-secondary); font-size: var(--tl-font-size-sm); font-weight: 700; letter-spacing: .005em; white-space: nowrap; }
 .collection-rule-builder__picker-families ::deep button.is-selected { border-color: var(--tl-accent-primary-border); color: var(--rule-accent); background: var(--rule-soft); }
 .collection-rule-builder__picker-families ::deep .tl-icon-root { font-size: 22px; }

@@ -102,10 +102,30 @@ public sealed class ViewLibraryService(
         Guid libraryId,
         CancellationToken ct = default)
     {
+        // A library id is either a person's Personal Space or a household's Shared library. Both are walked the same way.
         var space = await spaces.GetByLibraryAsync(libraryId, ct);
-        if (space is null)
+        IReadOnlyList<(ViewSource Source, string Path)> folders;
+        if (space is not null)
         {
-            return null;
+            folders = (await spaces.GetSourcesAsync(space.Id, ct))
+                .Where(source => source.Enabled)
+                .Select(source => (source, storage.GetSourcePath(space, source)))
+                .ToList();
+        }
+        else
+        {
+            var sharedFolders = await storage.GetSharedSourcesAsync(libraryId, ct);
+            if (sharedFolders.Count == 0)
+            {
+                return null;
+            }
+
+            // The Shared Timeline and named Shared folders are filled by moves and contributions, which register their own
+            // items; only the folders an administrator added are read from disk.
+            folders = sharedFolders
+                .Where(folder => folder.Source.Enabled && !IsSharedTransferSource(folder.Source.SourceKey))
+                .Select(folder => (ToSource(folder.Source), folder.Path))
+                .ToList();
         }
 
         var filesSeen = 0;
@@ -115,9 +135,8 @@ public sealed class ViewLibraryService(
         var duplicates = 0;
         var errors = 0;
 
-        foreach (var source in (await spaces.GetSourcesAsync(space.Id, ct)).Where(source => source.Enabled))
+        foreach (var (source, sourcePath) in folders)
         {
-            var sourcePath = storage.GetSourcePath(space, source);
             if (!Directory.Exists(sourcePath))
             {
                 continue;
@@ -163,7 +182,7 @@ public sealed class ViewLibraryService(
 
                 try
                 {
-                    var result = await IndexGroupAsync(space, source, group, ct);
+                    var result = await IndexGroupAsync(space, libraryId, source, group, ct);
                     if (result.ItemAdded)
                     {
                         itemsAdded++;
@@ -184,7 +203,14 @@ public sealed class ViewLibraryService(
                 }
             }
 
-            await spaces.SetSourceSkippedFileCountAsync(space.Id, source.Id, skipped, ct);
+            if (space is not null)
+            {
+                await spaces.SetSourceSkippedFileCountAsync(space.Id, source.Id, skipped, ct);
+            }
+            else
+            {
+                await storage.SetSharedSourceSkippedFileCountAsync(source.Id, skipped, ct);
+            }
         }
 
         if (activityRecorder is not null)
@@ -228,7 +254,13 @@ public sealed class ViewLibraryService(
         ct.ThrowIfCancellationRequested();
 
         var space = await spaces.GetByLibraryAsync(libraryId, ct);
+        IReadOnlyList<(ViewSharedSource Source, string Path)> sharedFolders = [];
         if (space is null)
+        {
+            sharedFolders = await storage.GetSharedSourcesAsync(libraryId, ct);
+        }
+
+        if (space is null && sharedFolders.Count == 0)
         {
             return null;
         }
@@ -240,12 +272,25 @@ public sealed class ViewLibraryService(
         }
 
         var sourceCandidates = new List<(ViewSource Source, string Path)>();
-        foreach (var candidate in (await spaces.GetSourcesAsync(space.Id, ct)).Where(candidate => candidate.Enabled))
+        if (space is not null)
         {
-            var root = storage.GetSourcePath(space, candidate);
-            if (ViewStorageService.Contains(root, fullPath, candidate.IncludeSubdirectories))
+            foreach (var candidate in (await spaces.GetSourcesAsync(space.Id, ct)).Where(candidate => candidate.Enabled))
             {
-                sourceCandidates.Add((candidate, root));
+                var root = storage.GetSourcePath(space, candidate);
+                if (ViewStorageService.Contains(root, fullPath, candidate.IncludeSubdirectories))
+                {
+                    sourceCandidates.Add((candidate, root));
+                }
+            }
+        }
+        else
+        {
+            foreach (var (candidate, root) in sharedFolders.Where(folder => folder.Source.Enabled))
+            {
+                if (ViewStorageService.Contains(root, fullPath, candidate.IncludeSubdirectories))
+                {
+                    sourceCandidates.Add((ToSource(candidate), root));
+                }
             }
         }
         var source = sourceCandidates.OrderByDescending(candidate => candidate.Path.Length)
@@ -253,6 +298,12 @@ public sealed class ViewLibraryService(
         if (source is null)
         {
             throw new InvalidOperationException("The local asset path is outside the View library's configured sources.");
+        }
+
+        if (space is null && IsSharedTransferSource(source.SourceKey))
+        {
+            // Moves and contributions register their own Shared items; the watcher seeing those files land is not an error.
+            return null;
         }
 
         if (!File.Exists(fullPath))
@@ -286,7 +337,7 @@ public sealed class ViewLibraryService(
             throw new InvalidDataException($"The file type '{Path.GetExtension(fullPath)}' does not fit the folder's kind.");
         }
 
-        return await IndexGroupAsync(space, source, group, ct, addedByProfileId);
+        return await IndexGroupAsync(space, libraryId, source, group, ct, addedByProfileId);
     }
 
     /// <param name="ownerProfileId">Whose personal space the file lands in.</param>
@@ -469,15 +520,30 @@ public sealed class ViewLibraryService(
         return string.IsNullOrWhiteSpace(library?.Name) ? "your personal library" : library.Name;
     }
 
+    /// <summary>
+    /// The Shared Timeline and named Shared folders: filled by moves and contributions, which register their own Shared items, so
+    /// they are never read from disk by a scan or the watcher.
+    /// </summary>
+    private static bool IsSharedTransferSource(string? sourceKey) => ViewKindAcceptance.IsIntakeSource(sourceKey);
+
+    /// <summary>A Shared folder in the shape the indexer reads (a Shared folder has no Personal Space, so its space id is empty).</summary>
+    private static ViewSource ToSource(ViewSharedSource source) => new(
+        source.Id, Guid.Empty, source.SourceType, source.Name, source.SourceKey, source.LastActivityAt,
+        source.CreatedAt, source.UpdatedAt, source.StorageMode, source.RelativePath, source.ExternalPath,
+        source.IncludeSubdirectories, source.Enabled, source.IncludeInTimeline, source.ContentKind,
+        source.AddedByProfileId, source.SkippedFileCount, source.KeptInLibraryCount, source.FolderOffline);
+
+    /// <param name="space">The Personal Space the file lands in, or <see langword="null"/> for a household's Shared library.</param>
     private async Task<LocalAssetUpsertResult> IndexGroupAsync(
-        ViewPersonalSpace space,
+        ViewPersonalSpace? space,
+        Guid libraryId,
         ViewSource source,
         AssetGroup group,
         CancellationToken ct,
         Guid? addedByProfileId = null)
     {
         var metadata = await ReadMetadataAsync(group.Primary, ct);
-        var device = await ResolveDeviceAsync(space, source, metadata, ct);
+        var device = space is null ? null : await ResolveDeviceAsync(space, source, metadata, ct);
         var registrations = new List<LocalAssetFileRegistration>(group.Files.Count);
         foreach (var member in group.Files)
         {
@@ -504,11 +570,12 @@ public sealed class ViewLibraryService(
         // The upload/backup source has no adder of its own, so its files default to the space's owner.
         var addedBy = addedByProfileId
             ?? source.AddedByProfileId
-            ?? (ViewKindAcceptance.IsIntakeSource(source.SourceKey) ? space.OwnerProfileId : null);
+            ?? (space is not null && ViewKindAcceptance.IsIntakeSource(source.SourceKey) ? space.OwnerProfileId : null);
         var upserted = await repository.UpsertAsync(new LocalAssetRegistration(
-            LibraryId: space.LibraryId,
-            PersonalSpaceId: space.Id,
-            OwnerProfileId: space.OwnerProfileId,
+            LibraryId: libraryId,
+            PersonalSpaceId: space?.Id,
+            OwnerProfileId: space?.OwnerProfileId,
+            ScopeKind: space is null ? LocalAssetScopeKinds.Shared : LocalAssetScopeKinds.Personal,
             MediaKind: group.Primary.Type.MediaKind,
             Title: metadata.Title ?? Path.GetFileNameWithoutExtension(group.Primary.Path),
             ContentKind: ViewKindAcceptance.KindFor(source.ContentKind, source.SourceKey, group.Primary.Type.MediaKind),
@@ -534,10 +601,11 @@ public sealed class ViewLibraryService(
             DocumentText: metadata.DocumentText), ct);
         await QueueDocumentTextReadAsync(upserted.ItemId, group.Primary, registrations, ct);
         await QueueAddedByWriteAsync(upserted, source, addedBy, ct);
-        if (upserted.ItemAdded && activityRecorder is not null
+        if (upserted.ItemAdded && activityRecorder is not null && space is not null
             && group.Primary.Type.MediaKind is LocalAssetMediaKinds.Image or LocalAssetMediaKinds.Video)
         {
-            // Photos and personal videos reach the Activity log as one count per library, never one row per file.
+            // Photos and personal videos reach the Activity log as one count per library, never one row per file. The Shared
+            // library has no owner to show that to, so it adds none.
             activityRecorder.Record(space.LibraryId, () => LibraryDisplayName(space), group.Primary.Type.MediaKind == LocalAssetMediaKinds.Video);
         }
 
