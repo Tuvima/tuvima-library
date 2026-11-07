@@ -46,6 +46,8 @@ public sealed class SupportingFileBulkService(
     public const string FileGone = "That file is no longer in the Library.";
     public const string BadPlace = "That is not a place a supporting file can belong to.";
     public const string ToManyFiles = "Too many files at once. Pick fewer and try again.";
+    public const string OneFileOnly = "A title and a description belong to one file. Pick one file to change them.";
+    public const string BadAlongside = "That is not an episode, lesson or track a supporting file can be shown alongside.";
 
     /// <summary>Checks the change and plans any file moves, writing nothing: what Review lists and the amber footer shows.</summary>
     public Task<SupportingFileBulkOutcome<SupportingFileBulkUpdateResultDto>> PreviewAsync(
@@ -114,6 +116,12 @@ public sealed class SupportingFileBulkService(
             }
         }
 
+        // A title and a description belong to one file; a folder of pictures is one item, so it counts as one file.
+        if ((update.Title.IsChanged || update.Description.IsChanged) && load.Requested.Count(item => item.Row is not null) > 1)
+        {
+            return Fail<SupportingFileBulkUpdateResultDto>(SupportingFileBulkProblem.Invalid, OneFileOnly);
+        }
+
         // Belongs to must name a real place of the title: the title itself, one of its seasons, or an episode, lesson or section.
         if (update.Scope.IsSet)
         {
@@ -122,6 +130,18 @@ public sealed class SupportingFileBulkService(
                 if (!await disk.IsPlaceOfTitleAsync(folder, update.Scope.Value, ct).ConfigureAwait(false))
                 {
                     return Fail<SupportingFileBulkUpdateResultDto>(SupportingFileBulkProblem.Invalid, BadPlace);
+                }
+            }
+        }
+
+        // Shown alongside names a real episode, lesson or track of the title; it never moves a file.
+        if (update.Alongside.IsSet && update.Alongside.Value.Level != ExtraScopeLevel.None)
+        {
+            foreach (var folder in load.Targets.Select(target => target.ItemFolder).Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                if (!await disk.IsPlaceOfTitleAsync(folder, update.Alongside.Value, ct).ConfigureAwait(false))
+                {
+                    return Fail<SupportingFileBulkUpdateResultDto>(SupportingFileBulkProblem.Invalid, BadAlongside);
                 }
             }
         }
@@ -392,6 +412,43 @@ public sealed class SupportingFileBulkService(
             RemoveTags = Clean(changes.RemoveTags),
         };
 
+        if (!string.IsNullOrWhiteSpace(changes.Title))
+        {
+            update = update with { Title = ExtraValue<string>.Set(changes.Title.Trim()) };
+        }
+        else if (changes.ClearTitle || changes.Title is not null)
+        {
+            update = update with { Title = ExtraValue<string>.Clear };
+        }
+
+        if (!string.IsNullOrWhiteSpace(changes.Description))
+        {
+            update = update with { Description = ExtraValue<string>.Set(changes.Description.Trim()) };
+        }
+        else if (changes.ClearDescription || changes.Description is not null)
+        {
+            update = update with { Description = ExtraValue<string>.Clear };
+        }
+
+        if (!string.IsNullOrWhiteSpace(changes.AlongsideKey))
+        {
+            if (!ExtraScope.TryParse(changes.AlongsideKey, out var alongside)
+                || alongside.Level is not (ExtraScopeLevel.Episode or ExtraScopeLevel.File or ExtraScopeLevel.Track))
+            {
+                return (null, BadAlongside);
+            }
+
+            update = update with { Alongside = ExtraValue<ExtraScope>.Set(alongside) };
+        }
+        else if (changes.NoAlongside)
+        {
+            update = update with { Alongside = ExtraValue<ExtraScope>.Set(ExtraScope.None) };
+        }
+        else if (changes.UseGuessedAlongside)
+        {
+            update = update with { Alongside = ExtraValue<ExtraScope>.Clear };
+        }
+
         if (!string.IsNullOrWhiteSpace(changes.GroupName))
         {
             update = update with { GroupName = ExtraValue<string>.Set(changes.GroupName.Trim()) };
@@ -444,6 +501,36 @@ public sealed class SupportingFileBulkService(
         }
 
         if (update.GroupName is { State: ExtraValueState.Cleared } && file.GroupSource == ExtraGroupSources.You)
+        {
+            return true;
+        }
+
+        if (update.Title.IsSet && !string.Equals(file.OwnTitle, update.Title.Value, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (update.Title is { State: ExtraValueState.Cleared } && !string.IsNullOrWhiteSpace(file.OwnTitle))
+        {
+            return true;
+        }
+
+        if (update.Description.IsSet && !string.Equals(file.OwnDescription, update.Description.Value, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (update.Description is { State: ExtraValueState.Cleared } && !string.IsNullOrWhiteSpace(file.OwnDescription))
+        {
+            return true;
+        }
+
+        if (update.Alongside.IsSet && !string.Equals(file.Alongside?.Key, update.Alongside.Value.Key, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (update.Alongside is { State: ExtraValueState.Cleared } && file.Alongside is not null)
         {
             return true;
         }

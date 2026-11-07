@@ -1,5 +1,3 @@
-using System.Net.Http.Json;
-using System.Text.Json;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Web.Models.ViewDTOs;
 
@@ -7,25 +5,9 @@ namespace MediaEngine.Web.Services.Integration;
 
 public sealed partial class EngineApiClient
 {
-    public async Task<LibraryBatchEditOutcome<EditSessionResult>> RunEditSessionAsync(
-        EditSessionRequest request, CancellationToken ct = default)
-    {
-        ArgumentNullException.ThrowIfNull(request);
-        const string endpoint = "POST /library/edit-session";
-        try
-        {
-            using var response = await _http.PostAsJsonAsync("/library/edit-session", request, ct);
-            return await ReadBatchEditOutcomeAsync<EditSessionResult>(response, endpoint, ct);
-        }
-        catch (OperationCanceledException)
-        {
-            return LibraryBatchEditOutcome<EditSessionResult>.Failed(LibraryBatchEditOutcomeStatus.Unavailable);
-        }
-        catch (Exception ex) when (ex is HttpRequestException or JsonException or NotSupportedException)
-        {
-            return BatchEditFailure<EditSessionResult>(endpoint, ex);
-        }
-    }
+    public Task<LibraryBatchEditOutcome<EditSessionResult>> RunEditSessionAsync(
+        EditSessionRequest request, CancellationToken ct = default) =>
+        PostBatchEditAsync<EditSessionRequest, EditSessionResult>("/library/edit-session", request, "POST /library/edit-session", ct);
 
     public Task<EditorSubjectDto?> GetEditorSubjectAsync(Guid id, CancellationToken ct = default) =>
         GetAsync<EditorSubjectDto>("GET /library/editor-subjects/{id}", $"/library/editor-subjects/{id:D}", ct: ct);
@@ -39,7 +21,8 @@ public sealed partial class EngineApiClient
     public Task<ItemQuickFactsDto?> GetEditorQuickFactsAsync(Guid id, CancellationToken ct = default) =>
         GetAsync<ItemQuickFactsDto>("GET /library/editor-quick-facts/{id}", $"/library/editor-quick-facts/{id:D}", ct: ct);
 
-    public Task<EditorHeaderLevelDto?> GetEditorNavLevelAsync(Guid entityId, Guid? levelId, string? query, int offset, CancellationToken ct = default)
+    public Task<EditorHeaderLevelDto?> GetEditorNavLevelAsync(
+        Guid entityId, Guid? levelId, string? query, int offset, Guid? supportingFileId = null, CancellationToken ct = default)
     {
         var parts = new List<string> { $"offset={Math.Max(0, offset)}" };
         if (levelId is { } level)
@@ -50,6 +33,11 @@ public sealed partial class EngineApiClient
         if (!string.IsNullOrWhiteSpace(query))
         {
             parts.Add($"q={Uri.EscapeDataString(query.Trim())}");
+        }
+
+        if (supportingFileId is { } file)
+        {
+            parts.Add($"supporting_file_id={file:D}");
         }
 
         return GetAsync<EditorHeaderLevelDto>(

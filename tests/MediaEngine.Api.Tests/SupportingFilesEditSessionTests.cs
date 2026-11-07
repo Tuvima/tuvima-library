@@ -66,6 +66,61 @@ public sealed class SupportingFilesEditSessionTests : IDisposable
     }
 
     [Fact]
+    public async Task OneSave_CanRenameAndDescribeAFile()
+    {
+        var guide = await _world.SeedDiskFileAsync("guide.pdf", "Guide");
+
+        var result = await Service().RunAsync(
+            Request(Files("files", [guide.Id], new SupportingFileBulkChangesDto
+            {
+                Title = "Shooting workbook",
+                Description = "Drills for form, footwork and release.",
+            })),
+            NoRefusals);
+
+        Assert.True(result.DataSaved);
+        var saved = (await _world.Extras.GetByPathAsync(Path.GetFullPath(guide.FilePath)))!;
+        Assert.Equal("Shooting workbook", saved.OwnTitle);
+        Assert.Equal("Shooting workbook", saved.DisplayTitle);
+        Assert.Equal("Drills for form, footwork and release.", saved.Description);
+        // The file name read from the folder is untouched: clearing the title later returns to it.
+        Assert.Equal("Guide", saved.Title);
+    }
+
+    [Fact]
+    public async Task OneSave_WhenALaterChangeFails_PutsTheTitleAndDescriptionBack()
+    {
+        var guide = await _world.SeedDiskFileAsync("guide.pdf", "Guide");
+
+        var result = await Service(new SpyHandler(EditSessionChangeKinds.Identity, fail: true)).RunAsync(
+            Request(
+                Files("files", [guide.Id], new SupportingFileBulkChangesDto { Title = "Shooting workbook", Description = "Drills" }),
+                new EditSessionChange { Id = "identity", Kind = EditSessionChangeKinds.Identity, EntityId = _title, TargetId = "{}" }),
+            NoRefusals);
+
+        Assert.False(result.DataSaved);
+        var row = (await _world.Extras.GetByPathAsync(Path.GetFullPath(guide.FilePath)))!;
+        Assert.Null(row.OwnTitle);
+        Assert.Null(row.Description);
+        Assert.Equal("Guide", row.DisplayTitle);
+    }
+
+    [Fact]
+    public async Task ASave_ThatTitlesSeveralFilesAtOnce_IsInvalid_BecauseOneTitleCannotFitMany()
+    {
+        await _world.SeedGeneratedFilesAsync();
+        var ids = await FirstFileIdsAsync(2);
+
+        var result = await Service().RunAsync(
+            new EditSessionRequest { PreviewOnly = true, Changes = [Files("files", ids, new SupportingFileBulkChangesDto { Title = "Same title" })] },
+            NoRefusals);
+
+        var refused = Assert.Single(result.Changes);
+        Assert.Equal(EditSessionChangeStatuses.Invalid, refused.Status);
+        Assert.Equal(SupportingFileBulkService.OneFileOnly, refused.Reason);
+    }
+
+    [Fact]
     public async Task OneSave_WhenALaterChangeFails_MovesTheFilesBack_AndRestoresTheirPlace()
     {
         var guide = await _world.SeedDiskFileAsync("guide.pdf", "Guide");
