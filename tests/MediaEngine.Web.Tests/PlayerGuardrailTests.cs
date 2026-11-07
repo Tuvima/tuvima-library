@@ -139,13 +139,13 @@ public sealed class PlayerGuardrailTests
     // Sites that render a media element but are not the session player. Each has a reason; a new site needs one here or must reuse the session player.
     private static readonly Dictionary<string, string> NonSessionAudioSites = new(StringComparer.Ordinal)
     {
-        ["src/MediaEngine.Web/Components/Pages/ExtraViewerPage.razor"] = "plays one extra (a trailer or a bonus clip) in its own viewer with the browser controls; it never joins a playback session",
+        ["src/MediaEngine.Web/Components/Details/ExtraViewerContent.razor"] = "plays one extra (a trailer or a bonus clip) in its own viewer with the browser controls; it never joins a playback session",
         ["src/MediaEngine.Web/Components/Shared/MediaViewerShell.razor"] = "the artwork and file preview viewer shows a short clip with browser controls; it never joins a playback session",
     };
 
     private static readonly Dictionary<string, string> NonSessionVideoSites = new(StringComparer.Ordinal)
     {
-        ["src/MediaEngine.Web/Components/Pages/ExtraViewerPage.razor"] = "plays one extra (a trailer or a bonus clip) in its own viewer with the browser controls; it never joins a playback session",
+        ["src/MediaEngine.Web/Components/Details/ExtraViewerContent.razor"] = "plays one extra (a trailer or a bonus clip) in its own viewer with the browser controls; it never joins a playback session",
         ["src/MediaEngine.Web/Components/Shared/MediaViewerShell.razor"] = "the artwork and file preview viewer shows a short clip with browser controls; it never joins a playback session",
     };
 
