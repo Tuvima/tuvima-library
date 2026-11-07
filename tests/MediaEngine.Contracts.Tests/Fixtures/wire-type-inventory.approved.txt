@@ -3,7 +3,7 @@
 # Compatibility is enforced separately by wire-compatibility.approved.txt.
 # Serializer: System.Text.Json JsonSerializerDefaults.Web; DefaultIgnoreCondition=Never
 # Regenerate intentionally with TUVIMA_UPDATE_WIRE_SNAPSHOT=1.
-# scopes: contracts=1521; api=0; web-client=55
+# scopes: contracts=1522; api=0; web-client=55
 
 [contracts] MediaEngine.Contracts.Activity.ActivityEntryResponse
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -4599,7 +4599,8 @@
   ArtworkSlots: System.Collections.Generic.List<System.String> | json=artwork_slots | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Fields: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditorSubjectFieldDto> | json=fields | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Facts: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditorSubjectFactDto> | json=facts | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
-  sample={"id":"11111111-2222-3333-4444-555555555555","kind":"sample","title":"sample","artwork_entity_kind":"sample","artwork_slots":[],"fields":[],"facts":[]}
+  Members: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditorSubjectMemberDto> | json=members | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  sample={"id":"11111111-2222-3333-4444-555555555555","kind":"sample","title":"sample","artwork_entity_kind":"sample","artwork_slots":[],"fields":[],"facts":[],"members":[]}
 
 [contracts] MediaEngine.Contracts.Editing.EditorSubjectFactDto
   kind=class | converter=default | number-handling=default | unmapped=default
@@ -4619,6 +4620,13 @@
   SourceLabel: System.String | json=source_label | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   Options: System.Collections.Generic.List<MediaEngine.Contracts.Editing.EditorSubjectOptionDto> | json=options | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
   sample={"key":"sample","label":"sample","input_kind":"sample","value":"sample","canonical_value":"sample","is_overridden":true,"source_label":"sample","options":[]}
+
+[contracts] MediaEngine.Contracts.Editing.EditorSubjectMemberDto
+  kind=class | converter=default | number-handling=default | unmapped=default
+  Id: System.Guid | json=id | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Title: System.String | json=title | nullability=not-null | accessors=get,init | required=no | order=0 | ignore=never(global) | converter=default | number-handling=default | extension-data=no
+  Number: System.Int32? | json=number | nullability=nullable | accessors=get,init | required=no | order=0 | ignore=WhenWritingNull | converter=default | number-handling=default | extension-data=no
+  sample={"id":"11111111-2222-3333-4444-555555555555","title":"sample","number":7}
 
 [contracts] MediaEngine.Contracts.Editing.EditorSubjectOptionDto
   kind=class | converter=default | number-handling=default | unmapped=default

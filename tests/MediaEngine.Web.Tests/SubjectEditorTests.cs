@@ -292,24 +292,14 @@ public sealed class SubjectEditorTests : AsyncBunitContext
     [Fact]
     public async Task AUniverseOverride_OffersTheCanonicalValueBack()
     {
-        var universe = Grouping(EditorSubjectKinds.Universe);
-        universe.Fields[1] = new EditorSubjectFieldDto
-        {
-            Key = "description",
-            Label = "Description",
-            InputKind = EditorSubjectInputKinds.TextArea,
-            Value = "My words.",
-            CanonicalValue = "A desert world.",
-            IsOverridden = true,
-        };
-        var editor = await StartAsync(universe);
+        var editor = await StartAsync(Grouping(EditorSubjectKinds.Universe, overridden: true));
         var cut = RenderPanel(editor);
         await cut.InvokeAsync(() => editor.Flow.SelectToolAsync(EditTool.Details));
-        var description = cut.WaitForElement(".tl-editor-field[data-field-key='description']");
+        var title = cut.WaitForElement(".tl-editor-field[data-field-key='title']");
 
-        description.QuerySelectorAll("button").Single(button => button.GetAttribute("aria-label") == "Reset to canonical value").Click();
+        title.QuerySelectorAll("button").Single(button => button.GetAttribute("aria-label") == "Reset to canonical value").Click();
 
-        cut.WaitForAssertion(() => Assert.Contains("canonical value", cut.Find(".tl-editor-field[data-field-key='description'] .tl-editor-field__note").TextContent));
+        cut.WaitForAssertion(() => Assert.Contains("canonical value", cut.Find(".tl-editor-field[data-field-key='title'] .tl-editor-field__note").TextContent));
     }
 
     // -- Review changes and saving --------------------------------------------------------------
@@ -317,6 +307,7 @@ public sealed class SubjectEditorTests : AsyncBunitContext
     [Theory]
     [InlineData(EditorSubjectKinds.Person, "name", "Name", "Timothée Chalamet", "Timothy Chalamet")]
     [InlineData(EditorSubjectKinds.Collection, "title", "Name", "Road trip", "Road trip 2")]
+    [InlineData(EditorSubjectKinds.Universe, "title", "Name", "Dune", "Arrakis")]
     public async Task ReviewChanges_ShowsOneRowForTheStagedField_AndSaveSendsItForTheSubject(
         string kind, string key, string label, string before, string after)
     {

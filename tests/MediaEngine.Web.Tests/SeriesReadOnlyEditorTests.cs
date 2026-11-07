@@ -111,6 +111,7 @@ public sealed class SeriesReadOnlyEditorTests : AsyncBunitContext
                         inner.OpenComponent<EditorDetailsPanel>(0);
                         inner.AddComponentParameter(1, nameof(EditorDetailsPanel.Mode), editor.Mode);
                         inner.AddComponentParameter(2, nameof(EditorDetailsPanel.Session), editor.Session);
+                        inner.AddComponentParameter(3, nameof(EditorDetailsPanel.Flow), editor.Flow);
                         inner.CloseComponent();
                     }
                 }));
@@ -132,7 +133,7 @@ public sealed class SeriesReadOnlyEditorTests : AsyncBunitContext
         window.WaitForElement(".tl-editor-details");
 
         Assert.Single(window.FindAll("[data-series-note]"));
-        Assert.Contains("never edited", window.Find("[data-series-note]").TextContent, StringComparison.Ordinal);
+        Assert.Contains("can't be edited", window.Find("[data-series-note]").TextContent, StringComparison.Ordinal);
         Assert.Single(window.FindAll(".tl-editor-field--locked[data-field-key='title']"));
         Assert.Empty(window.FindAll("[data-lock-state]"));
         Assert.Empty(window.FindAll(".tl-editor-details input, .tl-editor-details textarea"));
@@ -140,7 +141,7 @@ public sealed class SeriesReadOnlyEditorTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task EditOnASeries_OffersDetailsOnly_WithNoArtworkTab()
+    public async Task EditOnASeries_OffersDetailsAndHistory_WithNoArtworkTab()
     {
         var editor = await StartSubjectAsync(Grouping(EditorSubjectKinds.Series));
 
@@ -205,26 +206,46 @@ public sealed class SeriesReadOnlyEditorTests : AsyncBunitContext
     // -- A Universe: mostly read-only -------------------------------------------------------------
 
     [Fact]
-    public async Task AUniversesProviderName_HasNoUnlock_WhileItsDescriptionOverrideCanBeUnlockedAndStaged()
+    public async Task AUniversesNameAndDescription_StartLocked_AndEachUnlocksAsAnOverride()
     {
         var editor = await StartSubjectAsync(Grouping(EditorSubjectKinds.Universe));
         var window = RenderWindow(editor);
         window.WaitForElement(".tl-editor-details");
 
-        Assert.Single(window.FindAll(".tl-editor-field--locked[data-field-key='title']"));
-        Assert.Empty(window.FindAll(".tl-editor-field[data-field-key='title'] [data-lock-state]"));
-        Assert.Empty(window.FindAll(".tl-editor-field[data-field-key='title'] input"));
+        Assert.Equal("locked", window.LockStateOf("title"));
         Assert.Equal("locked", window.LockStateOf("description"));
+        Assert.Empty(window.FindAll("[data-series-note]"));
 
-        window.UnlockField("description");
-        window.Find(".tl-editor-field[data-field-key='description'] textarea").Input("My own words about Arrakis.");
+        window.UnlockField("title");
+        window.Find(".tl-editor-field[data-field-key='title'] input").Input("Arrakis");
 
         window.WaitForAssertion(() =>
         {
-            Assert.True(editor.Session.Pending.TryGetField(SubjectId, "description", out var staged));
-            Assert.Equal("My own words about Arrakis.", staged);
+            Assert.True(editor.Session.Pending.TryGetField(SubjectId, "title", out var staged));
+            Assert.Equal("Arrakis", staged);
         });
-        Assert.False(editor.Session.Pending.TryGetField(SubjectId, "title", out _));
+    }
+
+    [Fact]
+    public async Task ALibrarySeries_ListsItsMembersInOrder_AndPickingOneOpensThatMembersEditor()
+    {
+        var series = Grouping(EditorSubjectKinds.Series);
+        series.Members.Add(new EditorSubjectMemberDto { Id = BookOne, Title = "Dune", Number = 1 });
+        series.Members.Add(new EditorSubjectMemberDto { Id = BookTwo, Title = "Dune Messiah", Number = 2 });
+        var editor = await StartSubjectAsync(series);
+        var opened = new List<Guid>();
+        editor.Flow.OpenItem = item =>
+        {
+            opened.Add(item.EntityId);
+            return Task.FromResult(true);
+        };
+        var window = RenderWindow(editor);
+        window.WaitForElement("[data-series-members]");
+
+        Assert.Equal(["1 · Dune", "2 · Dune Messiah"], window.FindAll("[data-series-members] li").Select(line => line.TextContent.Trim()));
+        window.FindAll("[data-series-members] li button")[1].Click();
+
+        window.WaitForAssertion(() => Assert.Equal([BookTwo], opened));
     }
 
     [Fact]

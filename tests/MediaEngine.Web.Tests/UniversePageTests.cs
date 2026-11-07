@@ -407,12 +407,11 @@ public sealed class UniversePageTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task TheDetailsPanel_ShowsTheNameLocked_ListsTheDescriptionOverride_AndTheSeriesReadOnly()
+    public async Task TheDetailsPanel_ListsTheLocalNameAndDescription_AndTheSeriesReadOnly()
     {
         await StartEditingAsync();
 
-        _editor.WaitForElement(".tl-editor-field--locked[data-field-key='title']");
-        Assert.Empty(_editor.FindAll(".tl-editor-field[data-field-key='title'] input, .tl-editor-field[data-field-key='title'] [data-lock-state]"));
+        _editor.WaitForElement(".tl-editor-field[data-field-key='title'] input");
         Assert.Single(_editor.FindAll(".tl-editor-field[data-field-key='description'] textarea"));
         var series = _editor.Find(".tl-editor-details__group[aria-label='Series in this Universe']");
         Assert.Contains("The Novels", series.TextContent);
@@ -420,17 +419,16 @@ public sealed class UniversePageTests : AsyncBunitContext
     }
 
     [Fact]
-    public async Task AUniverseWithAnEditedDescription_LeavesTheHeroAlone_AndSavesNothingUntilSaveChanges()
+    public async Task ARenamedUniverse_LeavesTheHeroAlone_AndSavesNothingUntilSaveChanges()
     {
         var cut = await StartEditingAsync();
-        var heroBefore = cut.Find(".universe-hero__title").TextContent.Trim();
 
-        _editor.UnlockField("description");
-        _editor.Find(".tl-editor-field[data-field-key='description'] textarea").Input("Arrakis, in my words.");
+        _editor.UnlockField("title");
+        _editor.Find(".tl-editor-field[data-field-key='title'] input").Input("Arrakis");
 
         _editor.WaitForAssertion(() =>
         {
-            Assert.Equal(heroBefore, cut.Find(".universe-hero__title").TextContent.Trim());
+            Assert.NotEqual("Arrakis", cut.Find(".universe-hero__title").TextContent.Trim());
             Assert.Contains("Save changes", _editor.Find("button.tl-editor-window__save").TextContent);
         });
         Assert.Empty(_sessions);
@@ -442,10 +440,10 @@ public sealed class UniversePageTests : AsyncBunitContext
         _subject = DuneSubject(overridden: true);
         await StartEditingAsync();
 
-        var description = _editor.WaitForElement(".tl-editor-field[data-field-key='description']");
+        var title = _editor.WaitForElement(".tl-editor-field[data-field-key='title']");
 
-        Assert.Equal("yours", _editor.LockStateOf("description"));
-        Assert.Contains(description.QuerySelectorAll("button"), button => button.GetAttribute("aria-label") == "Reset to canonical value");
+        Assert.Equal("yours", _editor.LockStateOf("title"));
+        Assert.Contains(title.QuerySelectorAll("button"), button => button.GetAttribute("aria-label") == "Reset to canonical value");
     }
 
     [Fact]
@@ -503,8 +501,8 @@ public sealed class UniversePageTests : AsyncBunitContext
         ArtworkSlots = ["CoverArt", "Background"],
         Fields =
         [
-            new EditorSubjectFieldDto { Key = "title", Label = "Name", Value = "Dune", CanonicalValue = "Dune", SourceLabel = "Wikidata" },
-            new EditorSubjectFieldDto { Key = "description", Label = "Description", InputKind = EditorSubjectInputKinds.TextArea, Value = overridden ? "My words." : "A desert world.", CanonicalValue = "A desert world.", IsOverridden = overridden, SourceLabel = "Wikidata" },
+            new EditorSubjectFieldDto { Key = "title", Label = "Name", Value = overridden ? "Arrakis" : "Dune", CanonicalValue = "Dune", IsOverridden = overridden, SourceLabel = "Wikidata" },
+            new EditorSubjectFieldDto { Key = "description", Label = "Description", InputKind = EditorSubjectInputKinds.TextArea, Value = "A desert world.", CanonicalValue = "A desert world.", SourceLabel = "Wikidata" },
         ],
     };
 

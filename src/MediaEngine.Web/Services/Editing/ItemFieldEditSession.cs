@@ -52,6 +52,8 @@ public sealed class ItemFieldEditSession
     /// (universal editor v5 D7, D24). Its fields are shown locked with no way to unlock them, it has no Artwork, and the window offers
     /// Close instead of Save. A member of the Series is reached from the header's dropdown and is edited as any item is.
     /// </summary>
+    public IReadOnlyList<EditorSubjectMemberDto> SubjectMembers => _subject?.Members ?? [];
+
     public bool IsReadOnlySeries => EditorSeriesRules.IsSeries(SubjectKind, Header?.Kind ?? KindConfig?.Kind);
 
     /// <summary>The item that owns the artwork of the active scope (a season's own poster belongs to the season, not the show).</summary>
@@ -473,10 +475,7 @@ public sealed class ItemFieldEditSession
         };
 
         var canonicalName = subject.Kind == EditorSubjectKinds.Universe ? "canonical" : null;
-        var rows = subject.Fields
-            .Select(field => SubjectField(
-                field, canonicalName, EditorFieldLocks.IsOwnSubjectField(subject.Kind, field.Key), EditorFieldLocks.CanOverrideSubjectField(subject.Kind, field.Key)))
-            .ToList();
+        var rows = subject.Fields.Select(field => SubjectField(field, canonicalName, EditorFieldLocks.IsOwnSubjectField(subject.Kind, field.Key))).ToList();
         var facts = subject.Facts.Select(fact => new MediaEditorDetailsFieldPresentation(
             fact.Label.ToLowerInvariant().Replace(' ', '_'), string.Empty, fact.Label, fact.Value, string.Empty, "text", "Provider",
             fact.SourceLabel, null, false, false, false, 3, fact.Value, fact.Value, false)).ToList();
@@ -493,7 +492,7 @@ public sealed class ItemFieldEditSession
         LoadError = null;
     }
 
-    private static MediaEditorDetailsFieldPresentation SubjectField(EditorSubjectFieldDto field, string? canonicalName, bool isOwnField, bool canOverride) => new(
+    private static MediaEditorDetailsFieldPresentation SubjectField(EditorSubjectFieldDto field, string? canonicalName, bool isOwnField) => new(
         field.Key,
         field.Key,
         field.Label,
@@ -508,7 +507,7 @@ public sealed class ItemFieldEditSession
         field.IsOverridden ? "Override" : "Canonical",
         field.SourceLabel,
         null,
-        canOverride,
+        true,
         field.IsOverridden,
         field.InputKind == EditorSubjectInputKinds.Chips,
         1,

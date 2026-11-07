@@ -26,7 +26,6 @@ public static class EditSessionReasons
     public const string NotInThatAlbum = "This song is no longer in that album.";
     public const string SeriesIsReadOnly = "A Series comes from its members' own matches and cannot be changed. Edit one of its members instead.";
     public const string SeriesHasNoArtwork = "A Series has no picture of its own. It shows the covers of its members.";
-    public const string UniverseNameIsReadOnly = "A Universe's name comes from its provider and cannot be changed. Add a description override instead.";
 
     public const string NotAVideo = "That is not a video.";
     public const string SeriesGone = "That series is no longer available. Pick it again.";

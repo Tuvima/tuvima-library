@@ -9678,7 +9678,19 @@
     <value>Managed folder · Moved and renamed to match the new details</value>
   </data>
   <data name="EditorSeries_ReadOnlyNotice" xml:space="preserve">
-    <value>A Series is a canonical grouping and is never edited. To change a book, film or comic in it, pick it from the dropdown above. The Series name, order and members come from their own matches.</value>
+    <value>A Series is a grouping made from its members' own matches, so it can't be edited here. To change it, edit one of its members.</value>
+  </data>
+  <data name="EditorSeries_BooksInOrder" xml:space="preserve">
+    <value>Books in order</value>
+  </data>
+  <data name="EditorSeries_FilmsInOrder" xml:space="preserve">
+    <value>Films in order</value>
+  </data>
+  <data name="EditorSeries_ComicsInOrder" xml:space="preserve">
+    <value>Comics in order</value>
+  </data>
+  <data name="EditorSeries_AudiobooksInOrder" xml:space="preserve">
+    <value>Audiobooks in order</value>
   </data>
   <data name="EditorSeries_ReadOnlyTitle" xml:space="preserve">
     <value>Read-only</value>

@@ -1,11 +1,15 @@
+using System.Globalization;
 using MediaEngine.Contracts.Editing;
 
 namespace MediaEngine.Web.Services.Editing;
 
+/// <summary>One line of a Series' member list: the member to open and what the line says ("1 · Dune").</summary>
+public sealed record EditorSeriesMember(Guid Id, string Title, string Line);
+
 /// <summary>
-/// Small rules for the read-only Series editor (universal editor v5 D7, D24, screen H). A Series is a canonical grouping that comes from its
-/// members' own matches: the editor shows its name and ordered members locked, explains why, and offers Close instead of Save. A member is
-/// reached from the header's dropdown and edited as any item is.
+/// Small rules for the read-only Series editor (universal editor v5 D7, D24, screen H). A Series is a grouping made from its members' own
+/// matches: the editor shows its name and ordered members locked, explains why, and offers Close instead of Save. A member is reached from
+/// the header's dropdown or from the list, and edited as any item is.
 /// </summary>
 public static class EditorSeriesRules
 {
@@ -17,21 +21,34 @@ public static class EditorSeriesRules
         string.Equals(subjectKind, EditorSubjectKinds.Series, StringComparison.Ordinal)
         || (subjectKind is null && string.Equals(headerKind, EditorKindNames.Series, StringComparison.Ordinal));
 
-    /// <summary>The members of a Series in order, as the lines of the "in order" list: "1 · Dune" or just the title when it has no number.</summary>
-    public static IReadOnlyList<string> MemberLines(IEnumerable<EditorNavItemDto> members) =>
-        [.. members
-            .Where(member => !string.IsNullOrWhiteSpace(member.Title))
-            .Select(member => NumberOf(member) is { } number ? $"{number} · {member.Title.Trim()}" : member.Title.Trim())];
-
-    /// <summary>The heading over the list: "Books in order", "Films in order", "Comics in order" or "Audiobooks in order", named for what the members are.</summary>
-    public static string MembersHeading(IEnumerable<EditorNavItemDto> members) => members.FirstOrDefault()?.Kind switch
+    /// <summary>The members of the Series being edited, in order: from the header's first page of the item dropdown, or the Library Series' own list.</summary>
+    public static IReadOnlyList<EditorSeriesMember> Members(ItemFieldEditSession fields)
     {
-        "movie" => "Films in order",
-        "comic" => "Comics in order",
-        "audiobook" => "Audiobooks in order",
-        _ => "Books in order",
-    };
+        ArgumentNullException.ThrowIfNull(fields);
+        if (fields.SubjectKind == EditorSubjectKinds.Series)
+        {
+            return [.. fields.SubjectMembers
+                .Where(member => !string.IsNullOrWhiteSpace(member.Title))
+                .Select(member => Line(member.Id, member.Title, member.Number?.ToString(CultureInfo.InvariantCulture)))];
+        }
 
-    private static string? NumberOf(EditorNavItemDto member) =>
-        !string.IsNullOrWhiteSpace(member.Code) ? member.Code.Trim() : member.Number?.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return fields.Header is { } header
+            ? [.. header.Level.Items
+                .Where(member => !string.IsNullOrWhiteSpace(member.Title))
+                .Select(member => Line(member.Id, member.Title, !string.IsNullOrWhiteSpace(member.Code) ? member.Code : member.Number?.ToString(CultureInfo.InvariantCulture)))]
+            : [];
+    }
+
+    /// <summary>The resx key of the heading over the list, named for what the members are (books, films, comics, audiobooks).</summary>
+    public static string MembersHeadingKey(ItemFieldEditSession fields) =>
+        (fields.Header?.Level.Items.FirstOrDefault()?.Kind, fields.MediaType) switch
+        {
+            ("movie", _) or (_, "Movies") => "EditorSeries_FilmsInOrder",
+            ("comic", _) or (_, "Comics") => "EditorSeries_ComicsInOrder",
+            ("audiobook", _) or (_, "Audiobooks") => "EditorSeries_AudiobooksInOrder",
+            _ => "EditorSeries_BooksInOrder",
+        };
+
+    private static EditorSeriesMember Line(Guid id, string title, string? number) =>
+        new(id, title.Trim(), string.IsNullOrWhiteSpace(number) ? title.Trim() : $"{number.Trim()} · {title.Trim()}");
 }

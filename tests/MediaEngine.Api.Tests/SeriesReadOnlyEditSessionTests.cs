@@ -4,6 +4,7 @@ using MediaEngine.Application.ReadModels;
 using MediaEngine.Application.Services;
 using MediaEngine.Contracts.Editing;
 using MediaEngine.Storage;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MediaEngine.Api.Tests;
@@ -19,9 +20,12 @@ public sealed class SeriesReadOnlyEditSessionTests : IDisposable
 
     private readonly string _dbPath = Path.Combine(Path.GetTempPath(), $"tuvima-series-readonly-{Guid.NewGuid():N}.db");
     private readonly DatabaseConnection _db;
+    private readonly EditorSeriesGuard _guard;
     private readonly Guid _series = Guid.NewGuid();
     private readonly Guid _book = Guid.NewGuid();
     private readonly EditSessionService _service;
+    private readonly SeriesOfBooksNavigation _navigation;
+    private readonly IServiceScopeFactory _scopes = new ServiceCollection().BuildServiceProvider().GetRequiredService<IServiceScopeFactory>();
 
     public SeriesReadOnlyEditSessionTests()
     {
@@ -33,9 +37,13 @@ public sealed class SeriesReadOnlyEditSessionTests : IDisposable
         SeedWork(_book, "Books", "standalone");
         var items = new ItemCanonicalRepository(_db, NullLogger<ItemCanonicalRepository>.Instance);
         var activity = new SystemActivityRepository(_db);
-        var guard = new EditorSeriesGuard(new SeriesOfBooksNavigation(_series, _book));
+        _navigation = new SeriesOfBooksNavigation(_series, _book);
+        var guard = new EditorSeriesGuard(_db, _navigation);
+        _guard = guard;
         var details = new DetailsEditSessionChangeHandler(items, activity, seriesGuard: guard);
-        _service = new EditSessionService([details], NullLogger<EditSessionService>.Instance);
+        _service = new EditSessionService(
+            [details, new IdentityEditSessionChangeHandler(_scopes, guard), new MatchRemovalEditSessionChangeHandler(_scopes, guard)],
+            NullLogger<EditSessionService>.Instance);
     }
 
     public void Dispose()
@@ -66,7 +74,7 @@ public sealed class SeriesReadOnlyEditSessionTests : IDisposable
     }
 
     [Fact]
-    public async Task ASeriesWithNothingUnderIt_IsNotTreatedAsASeries()
+    public async Task AStandaloneBook_IsNotASeries_AndSavesItsTitle()
     {
         var alone = Guid.NewGuid();
         SeedWork(alone, "Books", "standalone");
@@ -74,6 +82,66 @@ public sealed class SeriesReadOnlyEditSessionTests : IDisposable
         var result = await _service.RunAsync(Request(alone, ("title", "A lone book")), NoRefusals);
 
         Assert.True(result.DataSaved);
+    }
+
+    [Fact]
+    public async Task ASeriesOfBooks_RefusesAMatchChange_AndRefusesRemovingItsMatch()
+    {
+        var identity = new EditSessionChange
+        {
+            Id = "i1",
+            Kind = EditSessionChangeKinds.Identity,
+            EntityId = _series,
+            TargetId = "{}",
+        };
+        var removal = new EditSessionChange { Id = "r1", Kind = EditSessionChangeKinds.MatchRemoval, EntityId = _series };
+
+        var result = await _service.RunAsync(new EditSessionRequest { PreviewOnly = false, Changes = [identity, removal] }, NoRefusals);
+
+        Assert.False(result.Valid);
+        Assert.All(result.Changes, change => Assert.Equal(EditSessionReasons.SeriesIsReadOnly, change.Reason));
+    }
+
+    [Fact]
+    public async Task TwelveSongChanges_NeverBuildTheFamilyStructure()
+    {
+        var songs = Enumerable.Range(0, 12).Select(_ => Guid.NewGuid()).ToList();
+        foreach (var song in songs)
+        {
+            SeedWork(song, "Music", "standalone");
+        }
+
+        var result = await _service.RunAsync(
+            new EditSessionRequest
+            {
+                PreviewOnly = false,
+                Changes = [.. songs.Select((song, index) => new EditSessionChange
+                {
+                    Id = $"s{index}",
+                    Kind = EditSessionChangeKinds.Details,
+                    EntityId = song,
+                    Fields = [new EditSessionFieldChange { Key = "title", Value = $"Track {index}" }],
+                })],
+            },
+            NoRefusals);
+
+        Assert.True(result.DataSaved);
+        Assert.Equal(0, _navigation.Builds);
+    }
+
+    [Fact]
+    public async Task ASeriesOfBooks_IsReadFromTheFamilyOncePerChange()
+    {
+        await _service.RunAsync(Request(_series, ("title", "Dune books")), NoRefusals);
+
+        Assert.Equal(1, _navigation.Builds);
+    }
+
+    [Fact]
+    public async Task TheGuard_KnowsASeriesRootFromItsBooks()
+    {
+        Assert.True(await _guard.IsSeriesAsync(_series));
+        Assert.False(await _guard.IsSeriesAsync(_book));
     }
 
     private static EditSessionRequest Request(Guid entity, params (string Key, string Value)[] fields) => new()
@@ -110,8 +178,11 @@ public sealed class SeriesReadOnlyEditSessionTests : IDisposable
     // The family structure the editor header reads: the Series is a root with the book under it. A book answers as a leaf with no members.
     private sealed class SeriesOfBooksNavigation(Guid series, Guid book) : IMediaEditorNavigationReadService
     {
+        public int Builds { get; private set; }
+
         public Task<MediaEditorNavigatorEnvelope?> GetNavigatorAsync(Guid entityId, CancellationToken ct, bool structureOnly = false)
         {
+            Builds++;
             if (entityId == series)
             {
                 var root = Node(series, null, "Dune Novels", isRoot: true, isLeaf: false);

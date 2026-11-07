@@ -18,12 +18,17 @@ namespace MediaEngine.Api.Services.EditSession;
 /// are undone rather than the other way round.
 /// </para>
 /// </summary>
-public sealed class IdentityEditSessionChangeHandler(IServiceScopeFactory scopes) : IEditSessionChangeHandler
+public sealed class IdentityEditSessionChangeHandler(IServiceScopeFactory scopes, EditorSeriesGuard? seriesGuard = null) : IEditSessionChangeHandler
 {
     public string Kind => EditSessionChangeKinds.Identity;
 
     public async Task<string?> CheckAsync(EditSessionChange change, CancellationToken ct = default)
     {
+        if (seriesGuard is not null && await seriesGuard.IsSeriesAsync(change.EntityId, ct).ConfigureAwait(false))
+        {
+            return EditSessionReasons.SeriesIsReadOnly;
+        }
+
         if (!EditSessionIdentityTarget.TryParse(change.TargetId, out var match) || match is null)
         {
             return EditSessionReasons.MatchUnreadable;
@@ -45,6 +50,11 @@ public sealed class IdentityEditSessionChangeHandler(IServiceScopeFactory scopes
 
     public async Task<Func<CancellationToken, Task>?> ApplyAsync(EditSessionChange change, CancellationToken ct = default)
     {
+        if (seriesGuard is not null && await seriesGuard.IsSeriesAsync(change.EntityId, ct).ConfigureAwait(false))
+        {
+            throw new InvalidOperationException(EditSessionReasons.SeriesIsReadOnly);
+        }
+
         if (!EditSessionIdentityTarget.TryParse(change.TargetId, out var match) || match is null)
         {
             throw new InvalidOperationException(EditSessionReasons.MatchUnreadable);

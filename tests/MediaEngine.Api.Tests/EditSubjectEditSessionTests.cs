@@ -206,6 +206,20 @@ public sealed class EditSubjectEditSessionTests : IDisposable
     }
 
     [Fact]
+    public async Task Series_Opens_WithItsMembersInOrder_SoTheEditorCanListAndOpenThem()
+    {
+        var series = SeedGrouping(CollectionType.Series, "Dune Novels", null);
+        var second = SeedMember(series, "Dune Messiah", 2);
+        var first = SeedMember(series, "Dune", 1);
+
+        var subject = (await _subjects.LoadAsync(series))!;
+
+        Assert.Equal([first, second], subject.Members.Select(member => member.Id));
+        Assert.Equal(["Dune", "Dune Messiah"], subject.Members.Select(member => member.Title));
+        Assert.Equal([1, 2], subject.Members.Select(member => member.Number));
+    }
+
+    [Fact]
     public async Task Series_Artwork_IsRefused_BecauseASeriesShowsItsMembersCovers()
     {
         var series = SeedGrouping(CollectionType.Series, "The Expanse", null);
@@ -237,11 +251,11 @@ public sealed class EditSubjectEditSessionTests : IDisposable
         var universe = SeedGrouping(CollectionType.Universe, "Dune universe", "Canonical lore.");
 
         await CreateService().RunAsync(
-            Request(previewOnly: false, DetailsChange("d1", universe, ("description", "My words."))), NoRefusals);
+            Request(previewOnly: false, DetailsChange("d1", universe, ("title", "Arrakis"), ("description", "My words."))), NoRefusals);
 
         var local = (await _subjects.LoadAsync(universe))!;
         Assert.Equal(EditorSubjectKinds.Universe, local.Kind);
-        Assert.Equal("Dune universe", local.Fields.Single(field => field.Key == "title").Value);
+        Assert.Equal("Arrakis", local.Fields.Single(field => field.Key == "title").Value);
         Assert.True(local.Fields.Single(field => field.Key == "description").IsOverridden);
         var stored = await _collections.GetByIdAsync(universe);
         Assert.Equal("Dune universe", stored!.DisplayName);
@@ -249,7 +263,7 @@ public sealed class EditSubjectEditSessionTests : IDisposable
 
         // "Reset to canonical value": an empty value takes the local one away and the canonical one shows again.
         var reset = await CreateService().RunAsync(
-            Request(previewOnly: false, DetailsChange("d2", universe, ("description", string.Empty))), NoRefusals);
+            Request(previewOnly: false, DetailsChange("d2", universe, ("title", string.Empty), ("description", string.Empty))), NoRefusals);
 
         Assert.True(reset.DataSaved);
         var restored = (await _subjects.LoadAsync(universe))!;
@@ -260,30 +274,18 @@ public sealed class EditSubjectEditSessionTests : IDisposable
     }
 
     [Fact]
-    public async Task Universe_Name_IsAProviderFact_AndAWriteToItIsRefused()
-    {
-        var universe = SeedGrouping(CollectionType.Universe, "Dune universe", "Canonical lore.");
-
-        var result = await CreateService().RunAsync(
-            Request(previewOnly: false, DetailsChange("d1", universe, ("title", "Arrakis"))), NoRefusals);
-
-        Assert.False(result.Valid);
-        Assert.Equal(EditSessionReasons.UniverseNameIsReadOnly, Assert.Single(result.Changes).Reason);
-        Assert.Empty(await _overrides.LoadAsync(universe) ?? new Dictionary<string, string>());
-    }
-
-    [Fact]
     public async Task Universe_Undo_PutsTheLocalValuesBackExactly()
     {
         var universe = SeedGrouping(CollectionType.Universe, "Dune universe", null);
-        await CreateService().RunAsync(Request(previewOnly: false, DetailsChange("d1", universe, ("description", "Mine"))), NoRefusals);
+        await CreateService().RunAsync(Request(previewOnly: false, DetailsChange("d1", universe, ("title", "Arrakis"))), NoRefusals);
 
-        var undo = await _details.ApplyAsync(DetailsChange("d2", universe, ("description", "Other")));
+        var undo = await _details.ApplyAsync(DetailsChange("d2", universe, ("title", "Other"), ("description", "Extra")));
         Assert.NotNull(undo);
         await undo!(CancellationToken.None);
 
         var stored = await _overrides.LoadAsync(universe);
-        Assert.Equal("Mine", stored!["description"]);
+        Assert.Equal("Arrakis", stored!["title"]);
+        Assert.False(stored.ContainsKey("description"));
     }
 
     [Fact]
@@ -306,13 +308,13 @@ public sealed class EditSubjectEditSessionTests : IDisposable
             displayOverrides: _overrides);
 
         await CreateService().RunAsync(
-            Request(previewOnly: false, DetailsChange("d1", universe, ("description", "My words."))), NoRefusals);
+            Request(previewOnly: false, DetailsChange("d1", universe, ("title", "Arrakis"), ("description", "My words."))), NoRefusals);
         var local = await reader.LoadAsync("Q555", profile: null);
         await CreateService().RunAsync(
-            Request(previewOnly: false, DetailsChange("d2", universe, ("description", string.Empty))), NoRefusals);
+            Request(previewOnly: false, DetailsChange("d2", universe, ("title", string.Empty), ("description", string.Empty))), NoRefusals);
         var restored = await reader.LoadAsync("Q555", profile: null);
 
-        Assert.Equal(("Dune universe", "My words."), (local!.Name, local.Description));
+        Assert.Equal(("Arrakis", "My words."), (local!.Name, local.Description));
         Assert.Equal(("Dune universe", "Canonical lore."), (restored!.Name, restored.Description));
     }
 
@@ -647,6 +649,19 @@ public sealed class EditSubjectEditSessionTests : IDisposable
         using var connection = _db.CreateConnection();
         connection.Execute("UPDATE persons SET occupation = 'Writer' WHERE id = @id;", new { id = created.Id });
         return created.Id;
+    }
+
+    private Guid SeedMember(Guid collection, string title, int ordinal)
+    {
+        var id = Guid.NewGuid();
+        using var connection = _db.CreateConnection();
+        connection.Execute(
+            """
+            INSERT INTO works (id, media_type, work_kind, collection_id, ordinal) VALUES (@id, 'Books', 'standalone', @collection, @ordinal);
+            INSERT INTO canonical_values (entity_id, key, value, last_scored_at) VALUES (@id, 'title', @title, @now);
+            """,
+            new { id = GuidSql.ToBlob(id), collection = GuidSql.ToBlob(collection), ordinal, title, now = DateTimeOffset.UtcNow.ToString("O") });
+        return id;
     }
 
     private Guid SeedGrouping(CollectionType type, string name, string? description, string? qid = null)

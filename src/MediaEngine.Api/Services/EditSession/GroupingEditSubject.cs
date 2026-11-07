@@ -28,6 +28,11 @@ public abstract class GroupingEditSubject(
 
     protected abstract IReadOnlyList<string> ArtworkSlots { get; }
 
+    /// <summary>The members the editor lists for the grouping (a Series lists its works in order); none by default.</summary>
+    protected virtual Task<List<EditorSubjectMemberDto>> LoadMembersAsync(Guid id, CancellationToken ct) => Task.FromResult<List<EditorSubjectMemberDto>>([]);
+
+    protected ICollectionRepository Collections => collections;
+
     public async Task<bool> OwnsAsync(Guid id, CancellationToken ct = default) =>
         await collections.GetByIdAsync(id, ct).ConfigureAwait(false) is { } collection && OwnsType(collection.CollectionType);
 
@@ -68,6 +73,7 @@ public abstract class GroupingEditSubject(
                 title,
                 Field(DescriptionKey, "Description", EditorSubjectInputKinds.TextArea, collection.Description ?? string.Empty),
             ],
+            Members = await LoadMembersAsync(id, ct).ConfigureAwait(false),
         };
     }
 
@@ -133,6 +139,28 @@ public sealed class SeriesEditSubject(ICollectionRepository collections, Collect
 
     public override bool ReadOnly => true;
 
+    // The Series' works in their order (the number the Series gives each, then title), so the editor can list them and open any one.
+    protected override async Task<List<EditorSubjectMemberDto>> LoadMembersAsync(Guid id, CancellationToken ct)
+    {
+        var full = await Collections.GetCollectionWithWorksAsync(id, ct).ConfigureAwait(false);
+        return
+        [
+            .. (full?.Works ?? [])
+                .Select(work => new EditorSubjectMemberDto
+                {
+                    Id = work.Id,
+                    Title = work.CanonicalValues
+                        .Where(value => string.Equals(value.Key, "title", StringComparison.OrdinalIgnoreCase))
+                        .Select(value => value.Value)
+                        .FirstOrDefault(text => !string.IsNullOrWhiteSpace(text)) ?? string.Empty,
+                    Number = work.Ordinal,
+                })
+                .Where(member => member.Title.Length > 0)
+                .OrderBy(member => member.Number ?? int.MaxValue)
+                .ThenBy(member => member.Title, StringComparer.CurrentCultureIgnoreCase),
+        ];
+    }
+
     protected override bool CanWrite(string key) => false;
 
     protected override string? RefusalFor(string key) => EditSessionReasons.SeriesIsReadOnly;
@@ -141,8 +169,8 @@ public sealed class SeriesEditSubject(ICollectionRepository collections, Collect
 }
 
 /// <summary>
-/// A Universe: mostly read-only (universal editor v5 D7). Its name is a provider fact and is never written; it takes a description override
-/// (restorable), a cover and a background. There is no Match for a Universe.
+/// A Universe: mostly read-only (universal editor v5 D7). It takes a name and description override (restorable, the provider's value is never
+/// touched), a cover and a background. There is no Match for a Universe.
 /// </summary>
 public sealed class UniverseEditSubject(ICollectionRepository collections, CollectionDisplayOverrideRepository overrides)
     : GroupingEditSubject(collections, overrides)
@@ -152,10 +180,6 @@ public sealed class UniverseEditSubject(ICollectionRepository collections, Colle
     protected override string SourceLabel => "Wikidata";
 
     protected override IReadOnlyList<string> ArtworkSlots => ["CoverArt", "Background"];
-
-    protected override bool CanWrite(string key) => key == DescriptionKey;
-
-    protected override string? RefusalFor(string key) => key == TitleKey ? EditSessionReasons.UniverseNameIsReadOnly : null;
 
     protected override bool OwnsType(CollectionType type) => type == CollectionType.Universe;
 }

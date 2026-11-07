@@ -28,9 +28,7 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
         @if (fields.IsReadOnlySeries)
         {
             @* A Series is a canonical grouping (v5 D7, screen H): nothing on it can be changed, so say why and where to go instead. *@
-            <AppAlert Severity="AppSeverity.Info" Dense="true" data-series-note="true">
-                <AppMaterialIcon Icon="@AppMaterialIcons.Outlined.Lock" Size="AppIconSize.Control20" /> @L["EditorSeries_ReadOnlyNotice"]
-            </AppAlert>
+            <AppAlert Severity="AppSeverity.Info" Dense="true" Icon="@AppMaterialIcons.Outlined.Lock" data-series-note="true">@L["EditorSeries_ReadOnlyNotice"]</AppAlert>
         }
         else if (!canEdit)
         {
@@ -59,8 +57,7 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
             @ExplicitRow(fields, session, explicitMark)
         }
 
-        @* A Universe keeps its provider facts (its name) locked beside the description it can override. *@
-        @if (facts.Count > 0 && (!canEdit || fields.SubjectKind == EditorSubjectKinds.Universe))
+        @if (facts.Count > 0 && !canEdit)
         {
             <section class="tl-editor-details__group" aria-label="@L["Common_ProviderFacts"].Value">
                 @if (!fields.IsReadOnlySeries)
@@ -74,16 +71,28 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
             </section>
         }
 
-        @if (fields.IsReadOnlySeries && SeriesMembers(fields) is { Count: > 0 } members)
+        @if (fields.IsReadOnlySeries && EditorSeriesRules.Members(fields) is { Count: > 0 } members)
         {
-            @* The Series' members in order, from the same list the header's dropdown shows. *@
-            <section class="tl-editor-details__group" aria-label="@EditorSeriesRules.MembersHeading(fields.Header!.Level.Items)" data-series-members="true">
+            @* The Series' members in order. Each opens that member's own editor in this same window (screen H). *@
+            var heading = L[EditorSeriesRules.MembersHeadingKey(fields)].Value;
+            <section class="tl-editor-details__group" aria-label="@heading" data-series-members="true">
                 <div class="tl-editor-field tl-editor-field--locked">
-                    <div class="tl-editor-field__label"><span>@EditorSeriesRules.MembersHeading(fields.Header!.Level.Items)</span></div>
+                    <div class="tl-editor-field__label"><span>@heading</span></div>
                     <ol class="tl-editor-details__members">
-                        @foreach (var line in members)
+                        @foreach (var member in members)
                         {
-                            <li>@line</li>
+                            <li>
+                                @if (Flow is null)
+                                {
+                                    @member.Line
+                                }
+                                else
+                                {
+                                    <AppButton ButtonStyle="AppButtonStyle.Text" Tone="AppUiTone.Neutral" Size="AppControlSize.Compact"
+                                               Disabled="@(Flow.Saving || Flow.Switching)"
+                                               OnClick="@(() => Flow.SwitchToAsync(member.Id, member.Title))">@member.Line</AppButton>
+                                }
+                            </li>
                         }
                     </ol>
                 </div>
@@ -104,11 +113,11 @@ else if (Mode is { IsOn: true } mode && Session is { IsActive: true } session &&
 
     [Parameter, EditorRequired] public EditSessionState? Session { get; set; }
 
+    /// <summary>The editor's flow: with it, a Series' members are buttons that open the member's own editor in this window.</summary>
+    [Parameter] public EditSessionFlow? Flow { get; set; }
+
     /// <summary>Extra read-only content shown under the fields (the Universe's Series list).</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
-
-    private static IReadOnlyList<string> SeriesMembers(ItemFieldEditSession fields) =>
-        fields.Header is { } header ? EditorSeriesRules.MemberLines(header.Level.Items) : [];
 
     private static string Canonical(MediaEditorDetailsFieldPresentation field) => field.CanonicalName ?? "provider's";
 
